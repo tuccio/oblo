@@ -46,6 +46,16 @@ namespace oblo
         };
     }
 
+    constexpr bool operator==(const vec3& lhs, const vec3& rhs) noexcept
+    {
+        return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
+    }
+
+    constexpr bool operator!=(const vec3& lhs, const vec3& rhs) noexcept
+    {
+        return !(lhs == rhs);
+    }
+
     constexpr vec3 operator-(const vec3& lhs, const vec3& rhs) noexcept
     {
         return {lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z};

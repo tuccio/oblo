@@ -19,7 +19,9 @@ namespace oblo
 
     void triangle_container::clear()
     {
-        return m_triangles.clear();
+        m_triangles.clear();
+        m_aabbs.clear();
+        m_centroids.clear();
     }
 
     void triangle_container::add(std::span<const triangle> triangles)
@@ -51,7 +53,7 @@ namespace oblo
         return oblo::compute_aabb(std::span(m_centroids).subspan(begin, end - begin));
     }
 
-    u32 triangle_container::partition_by_axis(u32 beginIndex, u32 endIndex, u8 maxExtent, f32 midPoint)
+    u32 triangle_container::partition_by_axis(u32 beginIndex, u32 endIndex, u8 axisIndex, f32 midPoint)
     {
         const auto beginIt = zip_iterator{m_triangles.begin(), m_aabbs.begin(), m_centroids.begin()};
 
@@ -60,8 +62,8 @@ namespace oblo
 
         const auto midIt = std::partition(rangeBegin,
                                           rangeEnd,
-                                          [maxExtent, midPoint](const auto& element)
-                                          { return std::get<2>(element)[maxExtent] < midPoint; });
+                                          [axisIndex, midPoint](const auto& element)
+                                          { return std::get<2>(element)[axisIndex] < midPoint; });
 
         return narrow_cast<u32>(midIt - beginIt);
     }
