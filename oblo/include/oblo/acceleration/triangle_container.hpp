@@ -1,6 +1,8 @@
 #pragma once
 
+#include <oblo/core/debug.hpp>
 #include <oblo/core/types.hpp>
+
 #include <span>
 #include <vector>
 
@@ -23,11 +25,13 @@ namespace oblo
 
         u32 size() const
         {
+            OBLO_ASSERT(m_aabbs.size() == m_triangles.size() && m_centroids.size() == m_triangles.size());
             return m_triangles.size();
         }
 
         bool empty() const
         {
+            OBLO_ASSERT(m_aabbs.empty() == m_triangles.empty() && m_centroids.empty() == m_triangles.empty());
             return m_triangles.empty();
         }
 
@@ -37,8 +41,8 @@ namespace oblo
 
         aabb primitives_bounds(u32 begin, u32 end) const;
         aabb centroids_bounds(u32 begin, u32 end) const;
-        
-        u32 partition_by_axis(u32 beginIndex, u32 endIndex, u8 maxExtent, f32 midPoint);
+
+        u32 partition_by_axis(u32 beginIndex, u32 endIndex, u8 axisIndex, f32 midPoint);
 
     private:
         std::vector<triangle> m_triangles;
