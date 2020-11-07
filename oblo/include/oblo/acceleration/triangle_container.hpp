@@ -15,7 +15,7 @@ namespace oblo
     class triangle_container
     {
     public:
-        triangle_container() = default;
+        triangle_container();
         triangle_container(const triangle_container&);
         triangle_container(triangle_container&&) noexcept;
         ~triangle_container();
@@ -23,11 +23,7 @@ namespace oblo
         triangle_container& operator=(const triangle_container&);
         triangle_container& operator=(triangle_container&&) noexcept;
 
-        u32 size() const
-        {
-            OBLO_ASSERT(m_aabbs.size() == m_triangles.size() && m_centroids.size() == m_triangles.size());
-            return m_triangles.size();
-        }
+        u32 size() const;
 
         bool empty() const
         {
@@ -43,6 +39,8 @@ namespace oblo
         aabb centroids_bounds(u32 begin, u32 end) const;
 
         u32 partition_by_axis(u32 beginIndex, u32 endIndex, u8 axisIndex, f32 midPoint);
+
+        std::span<const triangle> get_triangles() const;
 
     private:
         std::vector<triangle> m_triangles;

@@ -9,6 +9,7 @@
 
 namespace oblo
 {
+    triangle_container::triangle_container() = default;
     triangle_container::triangle_container(const triangle_container&) = default;
     triangle_container::triangle_container(triangle_container&&) noexcept = default;
 
@@ -16,6 +17,12 @@ namespace oblo
 
     triangle_container& triangle_container::operator=(const triangle_container&) = default;
     triangle_container& triangle_container::operator=(triangle_container&&) noexcept = default;
+
+    u32 triangle_container::size() const
+    {
+        OBLO_ASSERT(m_aabbs.size() == m_triangles.size() && m_centroids.size() == m_triangles.size());
+        return m_triangles.size();
+    }
 
     void triangle_container::clear()
     {
@@ -66,5 +73,10 @@ namespace oblo
                                           { return std::get<2>(element)[axisIndex] < midPoint; });
 
         return narrow_cast<u32>(midIt - beginIt);
+    }
+
+    std::span<const triangle> triangle_container::get_triangles() const
+    {
+        return m_triangles;
     }
 }
