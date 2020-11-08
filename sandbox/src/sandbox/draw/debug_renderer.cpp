@@ -2,6 +2,7 @@
 
 #include <oblo/core/debug.hpp>
 #include <oblo/math/constants.hpp>
+#include <oblo/math/line.hpp>
 #include <oblo/math/triangle.hpp>
 #include <oblo/math/vec3.hpp>
 #include <sandbox/sandbox_state.hpp>
@@ -141,10 +142,15 @@ namespace oblo
     struct debug_renderer::impl
     {
         vertex_array trianglesArray;
-        ssbo colors;
+        vertex_array linesArray;
+        ssbo triangleColorsBuffer;
+        ssbo lineColorsBuffer;
 
         std::vector<vec3> trianglesVertices;
         std::vector<float> trianglesColor;
+
+        std::vector<vec3> linesVertices;
+        std::vector<float> linesColor;
 
         sf::Shader shader;
     };
@@ -157,13 +163,14 @@ namespace oblo
 
     debug_renderer::~debug_renderer() = default;
 
-    void debug_renderer::draw(std::span<const triangle> triangles, const vec3& color)
+    void debug_renderer::draw_triangles(std::span<const triangle> triangles, const vec3& color)
     {
         auto& vertices = m_impl->trianglesVertices;
+        auto& colors = m_impl->trianglesColor;
         const auto offset = vertices.size();
 
         vertices.reserve(vertices.size() + triangles.size() * 3);
-        m_impl->trianglesColor.reserve(vertices.size() + triangles.size() * 4);
+        colors.reserve(vertices.size() + triangles.size() * 4);
 
         for (const auto& triangle : triangles)
         {
@@ -171,18 +178,39 @@ namespace oblo
             vertices.emplace_back(triangle.v[1]);
             vertices.emplace_back(triangle.v[2]);
 
-            m_impl->trianglesColor.insert(m_impl->trianglesColor.end(), {color.x, color.y, color.z, 1.f});
+            colors.insert(colors.end(), {color.x, color.y, color.z, 1.f});
+        }
+    }
+
+    void debug_renderer::draw_lines(std::span<const line> lines, const vec3& color)
+    {
+        auto& vertices = m_impl->linesVertices;
+        auto& colors = m_impl->linesColor;
+        const auto offset = vertices.size();
+
+        vertices.reserve(vertices.size() + lines.size() * 2);
+        colors.reserve(vertices.size() + lines.size() * 4);
+
+        for (const auto& line : lines)
+        {
+            vertices.emplace_back(line.v[0]);
+            vertices.emplace_back(line.v[1]);
+            colors.insert(colors.end(), {color.x, color.y, color.z, 1.f});
         }
     }
 
     void debug_renderer::dispatch_draw(const sandbox_state& state)
     {
-        if (m_impl->trianglesVertices.empty())
+        const auto hasNoTriangles = m_impl->trianglesVertices.empty();
+        const auto hasNoLines = m_impl->linesVertices.empty();
+
+        if (hasNoTriangles && hasNoLines)
         {
             return;
         }
 
         glEnable(GL_DEPTH_TEST);
+        glClear(GL_DEPTH_BUFFER_BIT);
 
         sf::Shader::bind(&m_impl->shader);
         glBindAttribLocation(m_impl->shader.getNativeHandle(), 0, "in_Position");
@@ -217,15 +245,27 @@ namespace oblo
         m_impl->shader.setUniform("view", sf::Glsl::Mat4{view});
         m_impl->shader.setUniform("projection", sf::Glsl::Mat4{projection});
 
-        m_impl->colors.upload(std::as_bytes(std::span{m_impl->trianglesColor}));
-        m_impl->colors.bind(0);
+        if (!hasNoTriangles)
+        {
+            m_impl->triangleColorsBuffer.upload(std::as_bytes(std::span{m_impl->trianglesColor}));
+            m_impl->triangleColorsBuffer.bind(0);
 
-        m_impl->trianglesArray.bind();
-        m_impl->trianglesArray.upload_vertices(std::as_bytes(std::span{m_impl->trianglesVertices}));
+            m_impl->trianglesArray.bind();
+            m_impl->trianglesArray.upload_vertices(std::as_bytes(std::span{m_impl->trianglesVertices}));
 
-        glClear(GL_DEPTH_BUFFER_BIT);
+            glDrawArrays(GL_TRIANGLES, 0, m_impl->trianglesVertices.size());
+        }
 
-        glDrawArrays(GL_TRIANGLES, 0, m_impl->trianglesVertices.size());
+        if (!hasNoLines)
+        {
+            m_impl->lineColorsBuffer.upload(std::as_bytes(std::span{m_impl->linesColor}));
+            m_impl->lineColorsBuffer.bind(0);
+
+            m_impl->linesArray.bind();
+            m_impl->linesArray.upload_vertices(std::as_bytes(std::span{m_impl->linesVertices}));
+
+            glDrawArrays(GL_LINES, 0, m_impl->linesVertices.size());
+        }
 
         ssbo::unbind();
         vertex_array::unbind();
@@ -233,5 +273,8 @@ namespace oblo
 
         m_impl->trianglesVertices.clear();
         m_impl->trianglesColor.clear();
+
+        m_impl->linesVertices.clear();
+        m_impl->linesColor.clear();
     }
 }
