@@ -16,12 +16,6 @@ namespace oblo
 {
     namespace
     {
-        struct triangles_draw_command
-        {
-            u32 offset;
-            u32 numVertices;
-        };
-
         class vertex_array
         {
         public:
@@ -60,7 +54,6 @@ namespace oblo
             void upload_vertices(std::span<const std::byte> data)
             {
                 glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-
                 glBufferData(GL_ARRAY_BUFFER, data.size(), data.data(), GL_DYNAMIC_DRAW);
             }
 
@@ -79,8 +72,44 @@ namespace oblo
             GLuint m_vbo{0};
         };
 
+        class ssbo
+        {
+        public:
+            ssbo()
+            {
+                glGenBuffers(1, &m_ssbo);
+            }
+
+            ~ssbo()
+            {
+                if (m_ssbo)
+                {
+                    glDeleteBuffers(1, &m_ssbo);
+                }
+            }
+
+            void upload(std::span<const std::byte> data)
+            {
+                glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_ssbo);
+                glBufferData(GL_SHADER_STORAGE_BUFFER, data.size(), data.data(), GL_DYNAMIC_DRAW);
+            }
+
+            void bind(GLuint index)
+            {
+                glBindBufferBase(GL_SHADER_STORAGE_BUFFER, index, m_ssbo);
+            }
+
+            static void unbind()
+            {
+                glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+            }
+
+        private:
+            GLuint m_ssbo{0};
+        };
+
         constexpr const char* s_vertexShader = R"(
-            #version 330
+            #version 430
 
             in vec3 in_Position;
 
@@ -89,25 +118,22 @@ namespace oblo
             
             void main()
             {
-                // gl_Position = projection * vec4(in_Position.x, in_Position.y - 1.f, in_Position.z - 1.f, 1.f);
                 gl_Position = projection * view * vec4(in_Position, 1.f);
             }
         )";
 
         constexpr const char* s_fragmentShader = R"(
-            #version 330
+            #version 430
             out vec4 color;
+
+            layout(std430, binding = 0) buffer Primitives
+            {
+                vec4 colors[];
+            };
 
             void main()
             {
-                vec4 colors[6]; 
-                colors[0] = vec4(1, 0, 0, 1);
-                colors[1] = vec4(0, 1, 0, 1);
-                colors[2] = vec4(0, 0, 1, 1);
-                colors[3] = vec4(1, 1, 0, 1);
-                colors[4] = vec4(1, 0, 1, 1);
-                colors[5] = vec4(0, 1, 1, 1);
-                color = colors[gl_PrimitiveID % 6];
+                color = colors[gl_PrimitiveID];
             }
         )";
     }
@@ -115,8 +141,10 @@ namespace oblo
     struct debug_renderer::impl
     {
         vertex_array trianglesArray;
+        ssbo colors;
+
         std::vector<vec3> trianglesVertices;
-        std::vector<triangles_draw_command> trianglesDrawCommands;
+        std::vector<float> trianglesColor;
 
         sf::Shader shader;
     };
@@ -135,15 +163,16 @@ namespace oblo
         const auto offset = vertices.size();
 
         vertices.reserve(vertices.size() + triangles.size() * 3);
+        m_impl->trianglesColor.reserve(vertices.size() + triangles.size() * 4);
 
         for (const auto& triangle : triangles)
         {
             vertices.emplace_back(triangle.v[0]);
             vertices.emplace_back(triangle.v[1]);
             vertices.emplace_back(triangle.v[2]);
-        }
 
-        m_impl->trianglesDrawCommands.push_back({narrow_cast<u32>(offset), 3 * narrow_cast<u32>(triangles.size())});
+            m_impl->trianglesColor.insert(m_impl->trianglesColor.end(), {color.x, color.y, color.z, 1.f});
+        }
     }
 
     void debug_renderer::dispatch_draw(const sandbox_state& state)
@@ -170,7 +199,7 @@ namespace oblo
         const auto x = y.cross(z);
 
         // clang-format off
-         float view[] = {
+        const float view[] = {
             x.x, y.x, z.x, 0.f,
             x.y, y.y, z.y, 0.f,
             x.z, y.z, z.z, 0.f,
@@ -188,20 +217,21 @@ namespace oblo
         m_impl->shader.setUniform("view", sf::Glsl::Mat4{view});
         m_impl->shader.setUniform("projection", sf::Glsl::Mat4{projection});
 
+        m_impl->colors.upload(std::as_bytes(std::span{m_impl->trianglesColor}));
+        m_impl->colors.bind(0);
+
         m_impl->trianglesArray.bind();
         m_impl->trianglesArray.upload_vertices(std::as_bytes(std::span{m_impl->trianglesVertices}));
 
         glClear(GL_DEPTH_BUFFER_BIT);
 
-        for (const auto& draw : m_impl->trianglesDrawCommands)
-        {
-            glDrawArrays(GL_TRIANGLES, draw.offset, draw.numVertices);
-        }
+        glDrawArrays(GL_TRIANGLES, 0, m_impl->trianglesVertices.size());
 
+        ssbo::unbind();
         vertex_array::unbind();
         sf::Shader::bind(nullptr);
 
         m_impl->trianglesVertices.clear();
-        m_impl->trianglesDrawCommands.clear();
+        m_impl->trianglesColor.clear();
     }
 }
