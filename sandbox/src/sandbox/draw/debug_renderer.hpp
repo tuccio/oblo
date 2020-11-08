@@ -6,6 +6,7 @@
 namespace oblo
 {
     struct sandbox_state;
+    struct line;
     struct triangle;
     struct vec3;
 
@@ -20,7 +21,8 @@ namespace oblo
         debug_renderer& operator=(const debug_renderer&) = delete;
         debug_renderer& operator=(debug_renderer&&) noexcept = delete;
 
-        void draw(std::span<const triangle> triangles, const vec3& color);
+        void draw_triangles(std::span<const triangle> triangles, const vec3& color);
+        void draw_lines(std::span<const line> lines, const vec3& color);
 
         void dispatch_draw(const sandbox_state& state);
 

@@ -1,5 +1,6 @@
 #include <sandbox/view/debug_view.hpp>
 
+#include <oblo/math/line.hpp>
 #include <oblo/math/triangle.hpp>
 #include <sandbox/draw/debug_renderer.hpp>
 #include <sandbox/sandbox_state.hpp>
@@ -40,7 +41,7 @@ namespace oblo
 
         void render_rasterized(sandbox_state& state)
         {
-            state.debugRenderer->draw(state.triangles.get_triangles(), vec3{1.f, 0.f, 0.f});
+            state.debugRenderer->draw_triangles(state.triangles.get_triangles(), vec3{1.f, 0.f, 0.f});
         }
     }
 
