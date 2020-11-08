@@ -4,6 +4,7 @@
 #include <oblo/core/types.hpp>
 #include <oblo/math/aabb.hpp>
 
+#include <concepts>
 #include <memory>
 #include <span>
 
@@ -38,6 +39,15 @@ namespace oblo
         void clear()
         {
             m_node.reset();
+        }
+
+        template <typename F>
+        void visit(F&& visitor) const requires std::invocable<F, u32, aabb, u32, u32>
+        {
+            if (m_node)
+            {
+                visit_impl(*m_node, visitor);
+            }
         }
 
     private:
@@ -86,6 +96,18 @@ namespace oblo
             OBLO_ASSERT(!node.children);
             node.offset = offset;
             node.numPrimitives = numPrimitives;
+        }
+
+        template <typename F>
+        void visit_impl(bvh_node& node, F&& visitor, u32 depth = 0) const
+        {
+            visitor(depth, node.bounds, node.offset, node.numPrimitives);
+
+            if (node.children)
+            {
+                visit_impl(node.children[0], visitor, depth + 1);
+                visit_impl(node.children[1], visitor, depth + 1);
+            }
         }
 
     private:
