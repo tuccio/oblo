@@ -167,7 +167,6 @@ namespace oblo
     {
         auto& vertices = m_impl->trianglesVertices;
         auto& colors = m_impl->trianglesColor;
-        const auto offset = vertices.size();
 
         vertices.reserve(vertices.size() + triangles.size() * 3);
         colors.reserve(vertices.size() + triangles.size() * 4);
@@ -186,7 +185,6 @@ namespace oblo
     {
         auto& vertices = m_impl->linesVertices;
         auto& colors = m_impl->linesColor;
-        const auto offset = vertices.size();
 
         vertices.reserve(vertices.size() + lines.size() * 2);
         colors.reserve(vertices.size() + lines.size() * 4);
