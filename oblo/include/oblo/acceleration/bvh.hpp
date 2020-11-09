@@ -80,13 +80,13 @@ namespace oblo
                 if (midIndex == begin || midIndex == end)
                 {
                     // TODO: Could split using different heuristics
-                    init_leaf(node, begin, end);
+                    init_leaf(node, begin, end - begin);
                 }
                 else
                 {
                     node.children = std::make_unique<bvh_node[]>(2);
                     build_impl(node.children[0], primitives, begin, midIndex);
-                    build_impl(node.children[1], primitives, midIndex + 1, end);
+                    build_impl(node.children[1], primitives, midIndex, end);
                 }
             }
         }

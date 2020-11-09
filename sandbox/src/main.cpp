@@ -36,7 +36,7 @@ int main(int argc, char* argv[])
     state.camera.fovx = 90_deg;
     state.camera.fovy = 50.6_deg;
     state.camera.near = 0.1f;
-    state.camera.far = 10.f;
+    state.camera.far = 100.f;
 
     window.setActive(true);
 
