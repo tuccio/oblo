@@ -145,11 +145,17 @@ namespace oblo
 
             ImGui::Checkbox("Rasterize", &state.renderRasterized);
             ImGui::Checkbox("Draw BVH", &m_drawBVH);
+            ImGui::Checkbox("Draw all BVH levels", &m_drawAllBVHLevels);
+
+            if (!m_drawAllBVHLevels)
+            {
+                ImGui::DragScalar("BVH level to draw", ImGuiDataType_U32, &m_bvhLevelToDraw, .2f);
+            }
 
             ImGui::End();
         }
 
-        if (state.renderRasterized)
+        if (state.renderRasterized && m_drawAllBVHLevels)
         {
             state.debugRenderer->draw_triangles(state.triangles.get_triangles(), {1.f, 0.f, 0.f});
         }
@@ -157,8 +163,13 @@ namespace oblo
         if (m_drawBVH)
         {
             state.bvh.visit(
-                [renderer = state.debugRenderer](u32 depth, const aabb& bounds, u32, u32)
+                [this, &state](u32 depth, const aabb& bounds, u32 offset, u32 numPrimitives)
                 {
+                    if (!m_drawAllBVHLevels && depth != m_bvhLevelToDraw)
+                    {
+                        return;
+                    }
+
                     const auto& [min, max] = bounds;
 
                     const line lines[] = {// front face
@@ -177,7 +188,13 @@ namespace oblo
                                           {{{max.x, max.y, min.z}, {max.x, max.y, max.z}}},
                                           {{{min.x, max.y, min.z}, {min.x, max.y, max.z}}}};
 
-                    renderer->draw_lines(lines, {0.f, 1.f, 0.f});
+                    state.debugRenderer->draw_lines(lines, {0.f, 1.f, 0.f});
+
+                    if (state.renderRasterized && !m_drawAllBVHLevels)
+                    {
+                        const auto triangles = state.triangles.get_triangles();
+                        state.debugRenderer->draw_triangles(triangles.subspan(offset, numPrimitives), {1.f, 0.f, 0.f});
+                    }
                 });
         }
     }

@@ -76,5 +76,14 @@ namespace oblo
 
         bvh bvh;
         bvh.build(container);
+
+        u32 numTotalTriangles = 0;
+
+        bvh.visit([&numTotalTriangles](u32, aabb, u32, u32 numPrimitives)
+        {
+            numTotalTriangles += numPrimitives;
+        });
+
+        ASSERT_EQ(std::size(s_cube), numTotalTriangles);
     }
 }
