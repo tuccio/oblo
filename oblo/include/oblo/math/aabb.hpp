@@ -15,7 +15,12 @@ namespace oblo
 
         static constexpr aabb make_invalid()
         {
-            return {.min = {std::numeric_limits<f32>::max()}, .max = {std::numeric_limits<f32>::lowest()}};
+            return {.min = {std::numeric_limits<f32>::max(),
+                            std::numeric_limits<f32>::max(),
+                            std::numeric_limits<f32>::max()},
+                    .max = {std::numeric_limits<f32>::lowest(),
+                            std::numeric_limits<f32>::lowest(),
+                            std::numeric_limits<f32>::lowest()}};
         }
     };
 

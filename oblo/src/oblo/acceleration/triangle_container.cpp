@@ -79,4 +79,14 @@ namespace oblo
     {
         return m_triangles;
     }
+
+    std::span<const aabb> triangle_container::get_aabbs() const
+    {
+        return m_aabbs;
+    }
+
+    std::span<const vec3> triangle_container::get_centroids() const
+    {
+        return m_centroids;
+    }
 }
