@@ -41,6 +41,8 @@ namespace oblo
         u32 partition_by_axis(u32 beginIndex, u32 endIndex, u8 axisIndex, f32 midPoint);
 
         std::span<const triangle> get_triangles() const;
+        std::span<const aabb> get_aabbs() const;
+        std::span<const vec3> get_centroids() const;
 
     private:
         std::vector<triangle> m_triangles;

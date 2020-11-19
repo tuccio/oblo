@@ -4,8 +4,10 @@
 #include <oblo/core/types.hpp>
 #include <oblo/math/aabb.hpp>
 
+#include <algorithm>
 #include <concepts>
 #include <memory>
+#include <numeric>
 #include <span>
 
 namespace oblo
@@ -33,7 +35,7 @@ namespace oblo
             m_node = std::make_unique<bvh_node>();
 
             const auto size = narrow_cast<u32>(primitives.size());
-            build_impl(*m_node, primitives, 0, size);
+            build_impl_sah(*m_node, primitives, 0, size);
         }
 
         void clear()
@@ -87,6 +89,112 @@ namespace oblo
                     node.children = std::make_unique<bvh_node[]>(2);
                     build_impl(node.children[0], primitives, begin, midIndex);
                     build_impl(node.children[1], primitives, midIndex, end);
+                }
+            }
+        }
+
+        template <typename PrimitiveContainer>
+        void build_impl_sah(bvh_node& node, PrimitiveContainer& primitives, u32 begin, u32 end) const
+        {
+            node.bounds = primitives.primitives_bounds(begin, end);
+
+            if (const auto numPrimitives = end - begin; numPrimitives <= 4)
+            {
+                init_leaf(node, begin, numPrimitives);
+            }
+            else
+            {
+                const auto centroidsBounds = primitives.centroids_bounds(begin, end);
+                const auto maxExtentAxis = max_extent(centroidsBounds);
+
+                const auto centroids = primitives.get_centroids();
+                const auto bounds = primitives.get_aabbs();
+
+                constexpr auto numBuckets = 16;
+
+                struct bucket_data
+                {
+                    u32 count;
+                    aabb bounds;
+                };
+
+                constexpr auto init_bucket_data = [] { return bucket_data{0, aabb::make_invalid()}; };
+
+                bucket_data buckets[numBuckets];
+                std::fill(std::begin(buckets), std::end(buckets), init_bucket_data());
+
+                const auto maxDistance = centroidsBounds.max[maxExtentAxis] - centroidsBounds.min[maxExtentAxis];
+                OBLO_ASSERT(maxDistance > 0.f);
+
+                for (u32 primitiveIndex = begin; primitiveIndex < end; ++primitiveIndex)
+                {
+                    const auto distance = centroids[primitiveIndex][maxExtentAxis] - centroidsBounds.min[maxExtentAxis];
+                    const auto bucketIndex = std::min(narrow_cast<i32>(numBuckets * distance / maxDistance), numBuckets - 1);
+
+                    auto& bucket = buckets[bucketIndex];
+
+                    ++bucket.count;
+                    bucket.bounds = extend(bucket.bounds, bounds[primitiveIndex]);
+                }
+
+                bucket_data forwardScan[numBuckets];
+                bucket_data backwardScan[numBuckets];
+
+                constexpr auto accumulate = [](const bucket_data& lhs, const bucket_data& rhs) {
+                    return bucket_data{lhs.count + rhs.count, extend(lhs.bounds, rhs.bounds)};
+                };
+
+                std::inclusive_scan(std::begin(buckets),
+                                    std::end(buckets),
+                                    std::begin(forwardScan),
+                                    accumulate,
+                                    init_bucket_data());
+
+                std::exclusive_scan(std::rbegin(buckets),
+                                    std::rend(buckets),
+                                    std::rbegin(backwardScan),
+                                    init_bucket_data(),
+                                    accumulate);
+
+                constexpr auto cost = [](const bucket_data& a, const bucket_data& b)
+                {
+                    constexpr auto half_surface = [](const aabb& bounds)
+                    {
+                        const auto d = bounds.max - bounds.min;
+                        return d.x * d.y + d.x * d.z + d.y * d.z;
+                    };
+
+                    return a.count * half_surface(a.bounds) + b.count * half_surface(b.bounds);
+                };
+
+                float minCost = cost(forwardScan[0], backwardScan[0]);
+                i32 bucketIndex = 0;
+
+                // The last element actually makes no sense
+                for (i32 i = 1; i < numBuckets - 1; ++i)
+                {
+                    const auto currentCost = cost(forwardScan[i], backwardScan[i]);
+
+                    if (currentCost < minCost)
+                    {
+                        minCost = currentCost;
+                        bucketIndex = i;
+                    }
+                }
+
+                const auto splitPoint = centroidsBounds.min[maxExtentAxis] + bucketIndex * maxDistance / numBuckets;
+                u32 midIndex = primitives.partition_by_axis(begin, end, maxExtentAxis, splitPoint);
+
+                if (midIndex == begin || midIndex == end)
+                {
+                    // TODO: Could split using different heuristics
+                    init_leaf(node, begin, end - begin);
+                }
+                else
+                {
+                    node.children = std::make_unique<bvh_node[]>(2);
+                    build_impl_sah(node.children[0], primitives, begin, midIndex);
+                    build_impl_sah(node.children[1], primitives, midIndex, end);
                 }
             }
         }
