@@ -96,7 +96,7 @@ namespace oblo
             ++current;
         }
 
-        return current;
+        return hit;
     }
 
     std::span<const triangle> triangle_container::get_triangles() const

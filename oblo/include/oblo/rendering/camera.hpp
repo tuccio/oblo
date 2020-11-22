@@ -23,11 +23,10 @@ namespace oblo
 
     inline ray ray_cast(const camera& camera, const vec2& uv)
     {
-        const auto nearCenter = camera.forward * camera.near;
         const auto nearPosition =
-            nearCenter - uv.x * camera.tanHalfFovX * camera.left - uv.y * camera.tanHalfFovY * camera.up;
+            camera.forward - uv.x * camera.tanHalfFovX * camera.left - uv.y * camera.tanHalfFovY * camera.up;
 
-        return ray{camera.position, normalize(nearPosition - camera.position)};
+        return ray{camera.position, normalize(nearPosition)};
     }
 
     inline void camera_set_look_at(camera& camera, const vec3& position, const vec3& target, const vec3& up)
