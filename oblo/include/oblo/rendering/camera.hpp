@@ -41,7 +41,7 @@ namespace oblo
     inline void camera_set_vertical_fov(camera& camera, radians fov)
     {
         const auto yfov = fov / 2.f;
-        camera.tanHalfFovX = std::tan(f32{yfov});
+        camera.tanHalfFovY = std::tan(f32{yfov});
         camera.fovy = fov;
     }
 
