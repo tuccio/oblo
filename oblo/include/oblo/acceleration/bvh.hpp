@@ -3,10 +3,12 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/math/aabb.hpp>
+#include <oblo/math/ray_intersection.hpp>
 
 #include <algorithm>
 #include <concepts>
 #include <memory>
+#include <memory_resource>
 #include <numeric>
 #include <span>
 
@@ -52,13 +54,64 @@ namespace oblo
             }
         }
 
+        template <typename PrimitiveContainer>
+        bool intersect(const ray& ray,
+                       const PrimitiveContainer& container,
+                       typename PrimitiveContainer::hit_result& result) const
+        {
+            constexpr auto BufferSize = 4096;
+            constexpr auto MaxStackElements = BufferSize / sizeof(void*);
+
+            std::byte buffer[BufferSize];
+            std::pmr::monotonic_buffer_resource resource{buffer, BufferSize};
+
+            std::pmr::vector<const bvh_node*> nodesStack{&resource};
+            nodesStack.reserve(MaxStackElements);
+
+            nodesStack.emplace_back(m_node.get());
+
+            bool hit = false;
+            f32 distance = std::numeric_limits<f32>::max();
+
+            while (!nodesStack.empty())
+            {
+                const bvh_node* const node = nodesStack.back();
+                nodesStack.pop_back();
+
+                if (float t0, t1; !oblo::intersect(ray, node->bounds, distance, t0, t1))
+                {
+                    continue;
+                }
+
+                if (node->numPrimitives > 0)
+                {
+                    OBLO_ASSERT(node->children == nullptr);
+
+                    const bool anyIntersection =
+                        container.intersect(ray, node->offset, node->numPrimitives, distance, result);
+
+                    hit |= anyIntersection;
+                }
+                else if (node->children)
+                {
+                    // TODO: Pick the closest child first
+                    const auto children = node->children.get();
+                    nodesStack.emplace_back(children);
+                    nodesStack.emplace_back(children + 1);
+                }
+            }
+
+            return hit;
+        }
+
     private:
         struct bvh_node
         {
             aabb bounds;
             std::unique_ptr<bvh_node[]> children;
             u32 offset;
-            u32 numPrimitives;
+            u16 numPrimitives;
+            i8 splitAxis;
         };
 
     private:
@@ -100,7 +153,7 @@ namespace oblo
 
             if (const auto numPrimitives = end - begin; numPrimitives <= 4)
             {
-                init_leaf(node, begin, numPrimitives);
+                init_leaf(node, begin, narrow_cast<u16>(numPrimitives));
             }
             else
             {
@@ -129,7 +182,8 @@ namespace oblo
                 for (u32 primitiveIndex = begin; primitiveIndex < end; ++primitiveIndex)
                 {
                     const auto distance = centroids[primitiveIndex][maxExtentAxis] - centroidsBounds.min[maxExtentAxis];
-                    const auto bucketIndex = std::min(narrow_cast<i32>(numBuckets * distance / maxDistance), numBuckets - 1);
+                    const auto bucketIndex =
+                        std::min(narrow_cast<i32>(numBuckets * distance / maxDistance), numBuckets - 1);
 
                     auto& bucket = buckets[bucketIndex];
 
@@ -192,6 +246,7 @@ namespace oblo
                 }
                 else
                 {
+                    node.splitAxis = narrow_cast<i8>(maxExtentAxis);
                     node.children = std::make_unique<bvh_node[]>(2);
                     build_impl_sah(node.children[0], primitives, begin, midIndex);
                     build_impl_sah(node.children[1], primitives, midIndex, end);
@@ -199,11 +254,12 @@ namespace oblo
             }
         }
 
-        void init_leaf(bvh_node& node, u32 offset, u32 numPrimitives) const
+        void init_leaf(bvh_node& node, u32 offset, u16 numPrimitives) const
         {
             OBLO_ASSERT(!node.children);
             node.offset = offset;
             node.numPrimitives = numPrimitives;
+            node.splitAxis = -1;
         }
 
         template <typename F>

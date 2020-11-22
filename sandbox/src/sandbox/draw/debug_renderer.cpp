@@ -5,13 +5,16 @@
 #include <oblo/math/line.hpp>
 #include <oblo/math/triangle.hpp>
 #include <oblo/math/vec3.hpp>
+#include <sandbox/draw/raytracer.hpp>
 #include <sandbox/sandbox_state.hpp>
 
 #include <SFML/Graphics/Glsl.hpp>
 #include <SFML/Graphics/Shader.hpp>
-#include <vector>
 
 #include <GL/glew.h>
+
+#include <span>
+#include <vector>
 
 namespace oblo
 {
@@ -220,16 +223,16 @@ namespace oblo
         const auto invRange = 1 / (near - far);
 
         const auto& eye = state.camera.position;
-        const auto z = -state.camera.direction;
+        const auto z = -state.camera.forward;
         const auto& y = state.camera.up;
-        const auto x = y.cross(z);
+        const auto x = cross(y, z);
 
         // clang-format off
         const float view[] = {
             x.x, y.x, z.x, 0.f,
             x.y, y.y, z.y, 0.f,
             x.z, y.z, z.z, 0.f,
-            -x.dot(eye), -y.dot(eye), -z.dot(eye), 1.f
+            dot(-x, eye), dot(-y, eye), dot(-z, eye), 1.f
         };
 
         const float projection[] = {
@@ -269,6 +272,11 @@ namespace oblo
         vertex_array::unbind();
         sf::Shader::bind(nullptr);
 
+        clear();
+    }
+
+    void debug_renderer::clear()
+    {
         m_impl->trianglesVertices.clear();
         m_impl->trianglesColor.clear();
 

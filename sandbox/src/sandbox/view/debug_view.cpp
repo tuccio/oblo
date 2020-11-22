@@ -3,6 +3,7 @@
 #include <oblo/math/line.hpp>
 #include <oblo/math/triangle.hpp>
 #include <sandbox/draw/debug_renderer.hpp>
+#include <sandbox/draw/raytracer.hpp>
 #include <sandbox/sandbox_state.hpp>
 
 #include <imgui.h>
@@ -37,6 +38,10 @@ namespace oblo
         {
             state.triangles.clear();
             state.triangles.add(s_cube);
+
+            state.raytracer->clear();
+            state.raytracer->add_mesh(state.triangles);
+
             state.bvh.build(state.triangles);
         }
 
@@ -62,7 +67,6 @@ namespace oblo
                     if (dist(rng) < density)
                     {
                         constexpr auto numTriangles = std::size(s_cube);
-
                         triangle cube[numTriangles];
 
                         for (std::size_t triangleIndex = 0; triangleIndex < numTriangles; ++triangleIndex)
@@ -81,6 +85,9 @@ namespace oblo
                 }
             }
 
+            state.raytracer->clear();
+            state.raytracer->add_mesh(state.triangles);
+
             state.bvh.build(state.triangles);
         }
     }
@@ -93,7 +100,8 @@ namespace oblo
             {
                 if (ImGui::MenuItem("Load debug scene"))
                 {
-                    init_cubes_scene(state, m_gridSize, m_density);
+                    init_cube(state);
+                    // init_cubes_scene(state, m_gridSize, m_density);
                 }
 
                 if (ImGui::BeginMenu("Edit"))

@@ -1,12 +1,45 @@
 #include <imgui-SFML.h>
 
 #include <sandbox/draw/debug_renderer.hpp>
+#include <sandbox/draw/raytracer.hpp>
 #include <sandbox/sandbox_state.hpp>
 #include <sandbox/view/debug_view.hpp>
 
 #include <GL/glew.h>
 #include <SFML/Graphics.hpp>
+#include <SFML/Graphics/Image.hpp>
+#include <SFML/Graphics/Sprite.hpp>
+#include <SFML/Graphics/Texture.hpp>
 #include <imgui.h>
+
+namespace oblo
+{
+    namespace
+    {
+        void load_texture(
+            sf::Texture& texture, sf::Image& image, u16 width, u16 height, std::span<const vec3> colorBuffer)
+        {
+            auto it = colorBuffer.begin();
+
+            for (auto y = 0u; y < height; ++y)
+            {
+                for (auto x = 0u; x < width; ++x)
+                {
+                    const auto [r, g, b] = *it;
+
+                    const auto color =
+                        sf::Color{narrow_cast<u8>(r * 255), narrow_cast<u8>(g * 255), narrow_cast<u8>(b * 255), 255};
+
+                    image.setPixel(x, y, color);
+
+                    ++it;
+                }
+            }
+
+            texture.loadFromImage(image);
+        }
+    }
+}
 
 int main(int argc, char* argv[])
 {
@@ -21,24 +54,41 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    window.resetGLStates();
-
     sandbox_state state;
+
+    raytracer raytracer;
+    raytracer_state raytracerState;
 
     debug_renderer debugRenderer;
     debug_view debugView;
 
+    sf::Image outImage;
+    sf::Texture outTexture;
+
+    state.raytracer = &raytracer;
+    state.raytracerState = &raytracerState;
     state.debugRenderer = &debugRenderer;
-    state.renderRasterized = true;
-    state.camera.position = vec3{0.f, 0.f, -5.f};
-    state.camera.up = vec3{0.f, 1.f, 0.f};
-    state.camera.direction = vec3{0.f, 0.f, 1.f};
-    state.camera.fovx = 90_deg;
-    state.camera.fovy = 50.6_deg;
+    state.renderRasterized = false;
+
+    camera_set_look_at(state.camera, vec3{0.f, 0.f, -5.f}, vec3{0.f, 0.f, 1.f}, vec3{0.f, 1.f, 0.f});
+    camera_set_horizontal_fov(state.camera, 90_deg);
     state.camera.near = 0.1f;
     state.camera.far = 100.f;
 
+    const auto onResize = [&](const auto& size)
+    {
+        const auto [width, height] = size;
+        const auto fovy = f32{state.camera.fovx} * height / width;
+        camera_set_vertical_fov(state.camera, radians{fovy});
+
+        state.raytracerState->resize(narrow_cast<u16>(width), narrow_cast<u16>(height));
+
+        outImage.create(width, height);
+        outTexture.create(width, height);
+    };
+
     window.setActive(true);
+    onResize(window.getSize());
 
     sf::Clock deltaClock;
 
@@ -50,8 +100,7 @@ int main(int argc, char* argv[])
         {
             if (event.type == sf::Event::Resized)
             {
-                const auto fovy = float{state.camera.fovx} * event.size.height / event.size.width;
-                state.camera.fovy = radians{fovy};
+                onResize(event.size);
             }
 
             ImGui::SFML::ProcessEvent(event);
@@ -68,9 +117,29 @@ int main(int argc, char* argv[])
 
         window.clear();
 
-        debugRenderer.dispatch_draw(state);
+        if (!state.renderRasterized)
+        {
+            raytracer.render_debug(raytracerState, state.camera);
+
+            const auto width = raytracerState.get_width();
+            const auto height = raytracerState.get_height();
+
+            load_texture(outTexture, outImage, width, height, raytracerState.get_radiance_buffer());
+
+            sf::Sprite sprite{outTexture};
+            window.draw(sprite);
+
+            // Make sure we clear debug draws that we might have submitted even if we skip
+            debugRenderer.clear();
+        }
+        else
+        {
+            debugRenderer.dispatch_draw(state);
+        }
 
         ImGui::SFML::Render(window);
+        window.resetGLStates();
+
         window.display();
     }
 
