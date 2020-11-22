@@ -34,7 +34,7 @@ namespace oblo
             {{{.5f, -.5f, .5f}, {-.5f, -.5f, -.5f}, {.5f, -.5f, -.5f}}},
         };
 
-        void init_cube(sandbox_state& state)
+        [[maybe_unused]] void init_cube(sandbox_state& state)
         {
             state.triangles.clear();
             state.triangles.add(s_cube);
@@ -100,8 +100,8 @@ namespace oblo
             {
                 if (ImGui::MenuItem("Load debug scene"))
                 {
-                    init_cube(state);
-                    // init_cubes_scene(state, m_gridSize, m_density);
+                    // init_cube(state);
+                    init_cubes_scene(state, m_gridSize, m_density);
                 }
 
                 if (ImGui::BeginMenu("Edit"))

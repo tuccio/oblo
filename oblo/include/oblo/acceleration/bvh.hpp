@@ -57,7 +57,8 @@ namespace oblo
         template <typename PrimitiveContainer>
         bool intersect(const ray& ray,
                        const PrimitiveContainer& container,
-                       typename PrimitiveContainer::hit_result& result) const
+                       f32& outDistance,
+                       typename PrimitiveContainer::hit_result& outResult) const
         {
             constexpr auto BufferSize = 4096;
             constexpr auto MaxStackElements = BufferSize / sizeof(void*);
@@ -88,7 +89,7 @@ namespace oblo
                     OBLO_ASSERT(node->children == nullptr);
 
                     const bool anyIntersection =
-                        container.intersect(ray, node->offset, node->numPrimitives, distance, result);
+                        container.intersect(ray, node->offset, node->numPrimitives, distance, outResult);
 
                     hit |= anyIntersection;
                 }
@@ -101,6 +102,7 @@ namespace oblo
                 }
             }
 
+            outDistance = distance;
             return hit;
         }
 

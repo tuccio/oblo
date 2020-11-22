@@ -54,9 +54,10 @@ namespace oblo
 
                 for (std::size_t i = 0; i < m_meshes.size(); ++i)
                 {
+                    f32 distance;
                     triangle_container::hit_result hitResult;
 
-                    if (m_blas[i].intersect(ray, m_meshes[i], hitResult))
+                    if (m_blas[i].intersect(ray, m_meshes[i], distance, hitResult))
                     {
                         color = vec3{1.f, 0.f, 0.f};
                         break;
