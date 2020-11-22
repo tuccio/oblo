@@ -2,6 +2,7 @@
 #include <oblo/core/utility.hpp>
 #include <oblo/core/zip_iterator.hpp>
 #include <oblo/math/aabb.hpp>
+#include <oblo/math/ray_intersection.hpp>
 #include <oblo/math/triangle.hpp>
 #include <oblo/math/vec3.hpp>
 
@@ -73,6 +74,29 @@ namespace oblo
                                           { return std::get<2>(element)[axisIndex] < midPoint; });
 
         return narrow_cast<u32>(midIt - beginIt);
+    }
+
+    bool triangle_container::intersect(
+        const ray& ray, u32 beginIndex, u16 numPrimitives, f32& distance, hit_result& result) const
+    {
+        const auto triangles = std::span{m_triangles}.subspan(beginIndex, numPrimitives);
+        u32 current = beginIndex;
+
+        bool hit = false;
+
+        for (const auto& triangle : triangles)
+        {
+            if (f32 triangleDistance; oblo::intersect(ray, triangle, triangleDistance) && triangleDistance < distance)
+            {
+                result.index = current;
+                hit = true;
+                distance = triangleDistance;
+            }
+
+            ++current;
+        }
+
+        return current;
     }
 
     std::span<const triangle> triangle_container::get_triangles() const

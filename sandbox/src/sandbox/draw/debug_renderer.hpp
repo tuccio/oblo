@@ -5,8 +5,10 @@
 
 namespace oblo
 {
-    struct sandbox_state;
+    class raytracer_state;
+
     struct line;
+    struct sandbox_state;
     struct triangle;
     struct vec3;
 
@@ -25,6 +27,8 @@ namespace oblo
         void draw_lines(std::span<const line> lines, const vec3& color);
 
         void dispatch_draw(const sandbox_state& state);
+
+        void clear();
 
     private:
         struct impl;

@@ -53,8 +53,6 @@ namespace oblo
         constexpr auto numTriangles = std::size(s_cube);
         ASSERT_EQ(container.size(), numTriangles);
 
-        constexpr auto expectedBounds = aabb{.min = {-.5f, -.5f, -.5f}, .max = {.5f, .5f, .5f}};
-
         for (u8 axis = 0; axis < 3; ++axis)
         {
             {
@@ -79,10 +77,7 @@ namespace oblo
 
         u32 numTotalTriangles = 0;
 
-        bvh.visit([&numTotalTriangles](u32, aabb, u32, u32 numPrimitives)
-        {
-            numTotalTriangles += numPrimitives;
-        });
+        bvh.visit([&numTotalTriangles](u32, aabb, u32, u32 numPrimitives) { numTotalTriangles += numPrimitives; });
 
         ASSERT_EQ(std::size(s_cube), numTotalTriangles);
     }

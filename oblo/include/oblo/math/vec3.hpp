@@ -12,16 +12,6 @@ namespace oblo
         f32 y;
         f32 z;
 
-        constexpr f32 dot(const vec3& rhs) const noexcept
-        {
-            return x * rhs.x + y * rhs.y + z * rhs.z;
-        }
-
-        constexpr vec3 cross(const vec3& rhs) const noexcept
-        {
-            return {y * rhs.z - z * rhs.y, z * rhs.x - x * rhs.z, x * rhs.y - y * rhs.x};
-        }
-
         constexpr f32& operator[](u32 index)
         {
             return *(&x + index);
@@ -31,8 +21,6 @@ namespace oblo
         {
             return *(&x + index);
         }
-
-        inline vec3 normalized() const noexcept;
 
         inline vec3& operator+=(const vec3& rhs) noexcept;
     };
@@ -101,9 +89,29 @@ namespace oblo
         return rhs * lhs;
     }
 
-    inline vec3 vec3::normalized() const noexcept
+    constexpr f32 dot(const vec3& lhs, const vec3& rhs) noexcept
     {
-        return *this / std::sqrt(dot(*this));
+        return lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z;
+    }
+
+    constexpr vec3 cross(const vec3& lhs, const vec3& rhs) noexcept
+    {
+        return {lhs.y * rhs.z - lhs.z * rhs.y, lhs.z * rhs.x - lhs.x * rhs.z, lhs.x * rhs.y - lhs.y * rhs.x};
+    }
+
+    constexpr float length2(const vec3& v)
+    {
+        return dot(v, v);
+    }
+
+    inline float length(const vec3& v) noexcept
+    {
+        return std::sqrt(dot(v, v));
+    }
+
+    inline vec3 normalize(const vec3& v) noexcept
+    {
+        return v / length(v);
     }
 
     inline vec3& vec3::operator+=(const vec3& rhs) noexcept

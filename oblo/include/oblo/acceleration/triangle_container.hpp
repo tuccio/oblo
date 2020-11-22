@@ -10,11 +10,16 @@ namespace oblo
 {
     struct aabb;
     struct triangle;
+    struct ray;
     struct vec3;
 
     class triangle_container
     {
     public:
+        struct hit_result;
+
+        static constexpr hit_result make_invalid_hit_result();
+
         triangle_container();
         triangle_container(const triangle_container&);
         triangle_container(triangle_container&&) noexcept;
@@ -40,6 +45,8 @@ namespace oblo
 
         u32 partition_by_axis(u32 beginIndex, u32 endIndex, u8 axisIndex, f32 midPoint);
 
+        bool intersect(const ray& ray, u32 beginIndex, u16 numPrimitives, f32& distance, hit_result& result) const;
+
         std::span<const triangle> get_triangles() const;
         std::span<const aabb> get_aabbs() const;
         std::span<const vec3> get_centroids() const;
@@ -48,5 +55,10 @@ namespace oblo
         std::vector<triangle> m_triangles;
         std::vector<aabb> m_aabbs;
         std::vector<vec3> m_centroids;
+    };
+
+    struct triangle_container::hit_result
+    {
+        u32 index;
     };
 }
