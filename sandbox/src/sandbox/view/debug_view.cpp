@@ -162,6 +162,15 @@ namespace oblo
                 ImGui::DragScalar("BVH level to draw", ImGuiDataType_U32, &m_bvhLevelToDraw, .2f);
             }
 
+            {
+                const auto& metrics = state.raytracerState->get_metrics();
+                ImGui::Text("Objects count: %d", metrics.numObjects);
+                ImGui::Text("Triangles count: %d", metrics.numTriangles);
+                ImGui::Text("Primary rays count: %d", metrics.numPrimaryRays);
+                ImGui::Text("Objects tests count: %d", metrics.numTestedObjects);
+                ImGui::Text("Triangles tests count: %d", metrics.numTestedTriangles);
+            }
+
             ImGui::End();
         }
 
