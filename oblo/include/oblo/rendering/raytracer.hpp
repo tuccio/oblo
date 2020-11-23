@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/acceleration/bvh.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/rendering/camera.hpp>
 
@@ -8,7 +9,6 @@
 
 namespace oblo
 {
-    class bvh;
     class raytracer_state;
     class triangle_container;
 

@@ -1,4 +1,4 @@
-#include <sandbox/draw/raytracer.hpp>
+#include <oblo/rendering/raytracer.hpp>
 
 #include <oblo/acceleration/bvh.hpp>
 #include <oblo/acceleration/triangle_container.hpp>
