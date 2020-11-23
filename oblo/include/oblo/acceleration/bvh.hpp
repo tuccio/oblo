@@ -27,10 +27,10 @@ namespace oblo
         void build(PrimitiveContainer& primitives)
         {
             OBLO_ASSERT(primitives.size() <= narrow_cast<u32>(-1));
+            clear();
 
             if (primitives.empty())
             {
-                clear();
                 return;
             }
 

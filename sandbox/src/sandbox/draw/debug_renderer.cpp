@@ -5,7 +5,7 @@
 #include <oblo/math/line.hpp>
 #include <oblo/math/triangle.hpp>
 #include <oblo/math/vec3.hpp>
-#include <sandbox/draw/raytracer.hpp>
+#include <oblo/rendering/raytracer.hpp>
 #include <sandbox/sandbox_state.hpp>
 
 #include <SFML/Graphics/Glsl.hpp>

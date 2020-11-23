@@ -2,8 +2,8 @@
 
 #include <oblo/math/line.hpp>
 #include <oblo/math/triangle.hpp>
+#include <oblo/rendering/raytracer.hpp>
 #include <sandbox/draw/debug_renderer.hpp>
-#include <sandbox/draw/raytracer.hpp>
 #include <sandbox/sandbox_state.hpp>
 
 #include <imgui.h>
