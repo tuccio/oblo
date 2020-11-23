@@ -21,6 +21,8 @@ namespace oblo
         auto& triangles = m_meshes.emplace_back(std::move(inTriangles));
         auto& bvh = m_blas.emplace_back();
 
+        m_numTriangles += triangles.size();
+
         bvh.build(triangles);
         return index;
     }
@@ -37,7 +39,7 @@ namespace oblo
         {
             return;
         }
-        
+
         const auto w = state.m_width;
         const auto h = state.m_height;
 
@@ -46,6 +48,8 @@ namespace oblo
 
         vec2 uv = uvStart;
         vec3* pixelOut = state.m_radianceBuffer.data();
+
+        auto metrics = raytracer_metrics{};
 
         for (u16 y = 0; y < h; ++y)
         {
@@ -73,14 +77,17 @@ namespace oblo
 
                             if (oblo::intersect(ray, aabb, distance, t0, t1) && t0 < distance)
                             {
+                                ++metrics.numTestedObjects;
                                 const auto id = allIds[currentIndex];
 
                                 m_blas[id].traverse(
                                     ray,
-                                    [&color, &ray, &container = m_meshes[id]](u32 firstIndex,
-                                                                              u16 numPrimitives,
-                                                                              f32& distance)
+                                    [&color, &metrics, &ray, &container = m_meshes[id]](u32 firstIndex,
+                                                                                        u16 numPrimitives,
+                                                                                        f32& distance)
                                     {
+                                        metrics.numTestedTriangles += numPrimitives;
+
                                         triangle_container::hit_result outResult;
                                         const bool anyIntersection =
                                             container.intersect(ray, firstIndex, numPrimitives, distance, outResult);
@@ -103,6 +110,15 @@ namespace oblo
             }
 
             uv.y += uvOffset.y;
+        }
+
+        {
+            metrics.width = w;
+            metrics.height = h;
+            metrics.numObjects = m_aabbs.size();
+            metrics.numTriangles = m_numTriangles;
+            metrics.numPrimaryRays = w * h;
+            state.m_metrics = metrics;
         }
     }
 

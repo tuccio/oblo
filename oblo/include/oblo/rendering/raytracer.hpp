@@ -13,6 +13,17 @@ namespace oblo
     class raytracer_state;
     class triangle_container;
 
+    struct raytracer_metrics
+    {
+        u16 width;
+        u16 height;
+        u32 numObjects;
+        u32 numTriangles;
+        u32 numPrimaryRays;
+        u32 numTestedObjects;
+        u32 numTestedTriangles;
+    };
+
     class raytracer
     {
     public:
@@ -41,6 +52,8 @@ namespace oblo
 
         std::vector<bvh> m_blas;
         std::vector<triangle_container> m_meshes;
+
+        u32 m_numTriangles{0};
     };
 
     class raytracer_state
@@ -63,6 +76,11 @@ namespace oblo
             return m_height;
         }
 
+        const raytracer_metrics& get_metrics() const
+        {
+            return m_metrics;
+        }
+
         std::span<const vec3> get_radiance_buffer() const
         {
             return m_radianceBuffer;
@@ -73,6 +91,7 @@ namespace oblo
 
         u16 m_width{0};
         u16 m_height{0};
+        raytracer_metrics m_metrics {};
         std::vector<vec3> m_radianceBuffer;
     };
 }
