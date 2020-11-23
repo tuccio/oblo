@@ -40,6 +40,11 @@ namespace oblo
             build_impl_sah(*m_node, primitives, 0, size);
         }
 
+        bool empty() const
+        {
+            return !bool{m_node};
+        }
+
         void clear()
         {
             m_node.reset();
@@ -54,11 +59,8 @@ namespace oblo
             }
         }
 
-        template <typename PrimitiveContainer>
-        bool intersect(const ray& ray,
-                       const PrimitiveContainer& container,
-                       f32& outDistance,
-                       typename PrimitiveContainer::hit_result& outResult) const
+        template <typename F>
+        void traverse(const ray& ray, F&& f) const
         {
             constexpr auto BufferSize = 4096;
             constexpr auto MaxStackElements = BufferSize / sizeof(void*);
@@ -71,7 +73,6 @@ namespace oblo
 
             nodesStack.emplace_back(m_node.get());
 
-            bool hit = false;
             f32 distance = std::numeric_limits<f32>::max();
 
             while (!nodesStack.empty())
@@ -87,11 +88,7 @@ namespace oblo
                 if (node->numPrimitives > 0)
                 {
                     OBLO_ASSERT(node->children == nullptr);
-
-                    const bool anyIntersection =
-                        container.intersect(ray, node->offset, node->numPrimitives, distance, outResult);
-
-                    hit |= anyIntersection;
+                    f(node->offset, node->numPrimitives, distance);
                 }
                 else if (node->children)
                 {
@@ -101,9 +98,11 @@ namespace oblo
                     nodesStack.emplace_back(children + 1);
                 }
             }
+        }
 
-            outDistance = distance;
-            return hit;
+        aabb get_bounds() const
+        {
+            return m_node ? m_node->bounds : aabb::make_invalid();
         }
 
     private:
