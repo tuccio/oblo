@@ -41,6 +41,7 @@ namespace oblo
 
             state.raytracer->clear();
             state.raytracer->add_mesh(state.triangles);
+            state.raytracer->rebuild_tlas();
 
             state.bvh.build(state.triangles);
         }
@@ -87,6 +88,7 @@ namespace oblo
 
             state.raytracer->clear();
             state.raytracer->add_mesh(state.triangles);
+            state.raytracer->rebuild_tlas();
 
             state.bvh.build(state.triangles);
         }

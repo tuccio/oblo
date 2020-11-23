@@ -30,11 +30,7 @@ namespace oblo
 
         u32 size() const;
 
-        bool empty() const
-        {
-            OBLO_ASSERT(m_aabbs.size() == m_triangles.size() && m_centroids.size() == m_triangles.size());
-            return m_triangles.empty();
-        }
+        bool empty() const;
 
         void clear();
 

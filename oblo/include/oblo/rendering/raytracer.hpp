@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/acceleration/aabb_container.hpp>
 #include <oblo/acceleration/bvh.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/rendering/camera.hpp>
@@ -32,7 +33,12 @@ namespace oblo
 
         void render_debug(raytracer_state& state, const camera& camera) const;
 
+        void rebuild_tlas();
+
     private:
+        bvh m_tlas;
+        aabb_container m_aabbs;
+
         std::vector<bvh> m_blas;
         std::vector<triangle_container> m_meshes;
     };

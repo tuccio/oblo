@@ -1,4 +1,5 @@
 #include <oblo/acceleration/triangle_container.hpp>
+
 #include <oblo/core/utility.hpp>
 #include <oblo/core/zip_iterator.hpp>
 #include <oblo/math/aabb.hpp>
@@ -23,6 +24,12 @@ namespace oblo
     {
         OBLO_ASSERT(m_aabbs.size() == m_triangles.size() && m_centroids.size() == m_triangles.size());
         return m_triangles.size();
+    }
+
+    bool triangle_container::empty() const
+    {
+        OBLO_ASSERT(m_aabbs.size() == m_triangles.size() && m_centroids.size() == m_triangles.size());
+        return m_triangles.empty();
     }
 
     void triangle_container::clear()
