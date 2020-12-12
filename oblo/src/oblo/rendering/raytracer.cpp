@@ -31,6 +31,8 @@ namespace oblo
     {
         m_blas.clear();
         m_meshes.clear();
+
+        m_numTriangles = 0;
     }
 
     void raytracer::render_debug(raytracer_state& state, const camera& camera) const

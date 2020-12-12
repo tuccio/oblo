@@ -1,8 +1,10 @@
 [requires]
 gtest/1.10.0
 sfml/2.5.1@bincrafters/stable
-imgui-sfml/2.1@bincrafters/stable 
+imgui-sfml/2.1@bincrafters/stable
 glew/2.1.0
+assimp/5.0.1
+cxxopts/2.2.1
 
 [generators]
 cmake

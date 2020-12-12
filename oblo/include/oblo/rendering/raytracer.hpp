@@ -91,7 +91,7 @@ namespace oblo
 
         u16 m_width{0};
         u16 m_height{0};
-        raytracer_metrics m_metrics {};
+        raytracer_metrics m_metrics{};
         std::vector<vec3> m_radianceBuffer;
     };
 }
