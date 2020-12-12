@@ -52,6 +52,8 @@ namespace oblo
             std::uniform_real_distribution<float> dist{0.f, 1.f};
             state.triangles.clear();
 
+            state.raytracer->clear();
+
             constexpr auto cellSize = 1.f;
             const auto baseOffset = -(cellSize * gridSize) * .5f;
 
@@ -81,13 +83,15 @@ namespace oblo
                             }
                         }
 
+                        triangle_container cubeTriangles;
+                        cubeTriangles.add(cube);
+                        state.raytracer->add_mesh(std::move(cubeTriangles));
+
                         state.triangles.add(cube);
                     }
                 }
             }
 
-            state.raytracer->clear();
-            state.raytracer->add_mesh(state.triangles);
             state.raytracer->rebuild_tlas();
 
             state.bvh.build(state.triangles);

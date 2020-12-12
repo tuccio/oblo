@@ -1,3 +1,3 @@
 oblo_add_executable(sandbox)
 
-target_link_libraries(sandbox oblo CONAN_PKG::sfml CONAN_PKG::imgui-sfml CONAN_PKG::glew)
+target_link_libraries(sandbox oblo CONAN_PKG::sfml CONAN_PKG::imgui-sfml CONAN_PKG::glew CONAN_PKG::assimp CONAN_PKG::cxxopts)

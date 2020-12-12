@@ -2,6 +2,7 @@
 
 #include <oblo/rendering/raytracer.hpp>
 #include <sandbox/draw/debug_renderer.hpp>
+#include <sandbox/import/scene_importer.hpp>
 #include <sandbox/sandbox_state.hpp>
 #include <sandbox/view/debug_view.hpp>
 
@@ -10,6 +11,7 @@
 #include <SFML/Graphics/Image.hpp>
 #include <SFML/Graphics/Sprite.hpp>
 #include <SFML/Graphics/Texture.hpp>
+#include <cxxopts.hpp>
 #include <imgui.h>
 
 namespace oblo
@@ -41,9 +43,14 @@ namespace oblo
     }
 }
 
-int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
+int main(int argc, char* argv[])
 {
     using namespace oblo;
+
+    cxxopts::Options options{"oblo sandbox"};
+    options.add_options()("import", "Import scene", cxxopts::value<std::filesystem::path>());
+
+    const auto result = options.parse(argc, argv);
 
     sf::ContextSettings contextSettings{24, 8};
     sf::RenderWindow window{sf::VideoMode{1280, 720}, "Sandbox", sf::Style::Default, contextSettings};
@@ -70,10 +77,18 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
     state.debugRenderer = &debugRenderer;
     state.renderRasterized = false;
 
-    camera_set_look_at(state.camera, vec3{0.f, 0.f, -5.f}, vec3{0.f, 0.f, 1.f}, vec3{0.f, 1.f, 0.f});
-    camera_set_horizontal_fov(state.camera, 90_deg);
-    state.camera.near = 0.1f;
-    state.camera.far = 100.f;
+    if (result.count("import"))
+    {
+        scene_importer importer;
+        importer.import(state, result["import"].as<std::filesystem::path>());
+    }
+    else
+    {
+        camera_set_look_at(state.camera, vec3{0.f, 0.f, -5.f}, vec3{0.f, 0.f, 1.f}, vec3{0.f, 1.f, 0.f});
+        camera_set_horizontal_fov(state.camera, 90_deg);
+        state.camera.near = 0.1f;
+        state.camera.far = 100.f;
+    }
 
     const auto onResize = [&](const auto& size)
     {
