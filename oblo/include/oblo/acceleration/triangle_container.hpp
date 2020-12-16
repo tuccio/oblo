@@ -35,6 +35,7 @@ namespace oblo
         void clear();
 
         void add(std::span<const triangle> triangles);
+        void reserve(std::size_t numTriangles);
 
         aabb primitives_bounds(u32 begin, u32 end) const;
         aabb centroids_bounds(u32 begin, u32 end) const;

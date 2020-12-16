@@ -40,11 +40,15 @@ namespace oblo
 
         u32 add_mesh(triangle_container triangles);
 
+        std::span<const triangle_container> get_meshes() const;
+
         void clear();
 
         void render_debug(raytracer_state& state, const camera& camera) const;
 
         void rebuild_tlas();
+
+        const bvh& get_tlas() const;
 
     private:
         bvh m_tlas;

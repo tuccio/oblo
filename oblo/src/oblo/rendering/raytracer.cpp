@@ -27,6 +27,11 @@ namespace oblo
         return index;
     }
 
+    std::span<const triangle_container> raytracer::get_meshes() const
+    {
+        return m_meshes;
+    }
+
     void raytracer::clear()
     {
         m_blas.clear();
@@ -138,6 +143,11 @@ namespace oblo
         }
 
         m_tlas.build(m_aabbs);
+    }
+
+    const bvh& raytracer::get_tlas() const
+    {
+        return m_tlas;
     }
 
     raytracer_state::raytracer_state(u16 width, u16 height) : m_width{width}, m_height{height}

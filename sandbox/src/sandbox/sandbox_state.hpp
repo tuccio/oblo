@@ -19,9 +19,6 @@ namespace oblo
 
         camera camera;
 
-        triangle_container triangles;
-        bvh bvh;
-
         bool renderRasterized{false};
     };
 }
