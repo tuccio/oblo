@@ -1,0 +1,29 @@
+---
+BasedOnStyle: Microsoft
+AccessModifierOffset: -4
+AlignAfterOpenBracket: Align
+AlignOperands: true
+AllowAllArgumentsOnNextLine: false
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AlwaysBreakTemplateDeclarations: Yes
+BinPackArguments: false
+BinPackParameters: false
+BraceWrapping:
+    BeforeLambdaBody: true
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializers: AfterColon
+BreakInheritanceList: AfterColon
+CompactNamespaces: false
+Cpp11BracedListStyle: true
+IncludeBlocks: Preserve
+Language: Cpp
+SortIncludes: true
+SpaceAfterCStyleCast: true
+Standard: Cpp11
+UseTab: Never
+NamespaceIndentation: All
+FixNamespaceComments: false
+PointerAlignment: Left
+
+...
