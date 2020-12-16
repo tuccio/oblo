@@ -36,21 +36,18 @@ namespace oblo
 
         [[maybe_unused]] void init_cube(sandbox_state& state)
         {
-            state.triangles.clear();
-            state.triangles.add(s_cube);
+            triangle_container triangles;
+            triangles.add(s_cube);
 
             state.raytracer->clear();
-            state.raytracer->add_mesh(state.triangles);
+            state.raytracer->add_mesh(std::move(triangles));
             state.raytracer->rebuild_tlas();
-
-            state.bvh.build(state.triangles);
         }
 
         void init_cubes_scene(sandbox_state& state, u32 gridSize, float density)
         {
             std::mt19937 rng{42};
             std::uniform_real_distribution<float> dist{0.f, 1.f};
-            state.triangles.clear();
 
             state.raytracer->clear();
 
@@ -86,15 +83,11 @@ namespace oblo
                         triangle_container cubeTriangles;
                         cubeTriangles.add(cube);
                         state.raytracer->add_mesh(std::move(cubeTriangles));
-
-                        state.triangles.add(cube);
                     }
                 }
             }
 
             state.raytracer->rebuild_tlas();
-
-            state.bvh.build(state.triangles);
         }
     }
 
@@ -180,13 +173,22 @@ namespace oblo
 
         if (state.renderRasterized && m_drawAllBVHLevels)
         {
-            state.debugRenderer->draw_triangles(state.triangles.get_triangles(), {1.f, 0.f, 0.f});
+            vec3 colors[] =
+                {{1.f, 0.f, 0.f}, {0.f, 1.f, 0.f}, {0.f, 0.f, 1.f}, {1.f, 1.f, 0.f}, {0.f, 1.f, 1.f}, {1.f, 0.f, 1.f}};
+
+            u32 colorIndex{0};
+
+            for (const auto& mesh : state.raytracer->get_meshes())
+            {
+                state.debugRenderer->draw_triangles(mesh.get_triangles(), colors[colorIndex]);
+                colorIndex = (colorIndex + 1) % std::size(colors);
+            }
         }
 
         if (m_drawBVH)
         {
-            state.bvh.visit(
-                [this, &state](u32 depth, const aabb& bounds, u32 offset, u32 numPrimitives)
+            state.raytracer->get_tlas().visit(
+                [this, &state](u32 depth, const aabb& bounds, u32 /*offset*/, u32 /*numPrimitives*/)
                 {
                     if (!m_drawAllBVHLevels && depth != m_bvhLevelToDraw)
                     {
@@ -212,12 +214,6 @@ namespace oblo
                                           {{{min.x, max.y, min.z}, {min.x, max.y, max.z}}}};
 
                     state.debugRenderer->draw_lines(lines, {0.f, 1.f, 0.f});
-
-                    if (state.renderRasterized && !m_drawAllBVHLevels)
-                    {
-                        const auto triangles = state.triangles.get_triangles();
-                        state.debugRenderer->draw_triangles(triangles.subspan(offset, numPrimitives), {1.f, 0.f, 0.f});
-                    }
                 });
         }
     }

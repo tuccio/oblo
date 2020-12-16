@@ -58,6 +58,13 @@ namespace oblo
         }
     }
 
+    void triangle_container::reserve(std::size_t numTriangles)
+    {
+        m_triangles.reserve(numTriangles);
+        m_aabbs.reserve(numTriangles);
+        m_centroids.reserve(numTriangles);
+    }
+
     aabb triangle_container::primitives_bounds(u32 begin, u32 end) const
     {
         return oblo::compute_aabb(std::span(m_aabbs).subspan(begin, end - begin));

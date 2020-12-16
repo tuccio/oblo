@@ -81,6 +81,12 @@ int main(int argc, char* argv[])
     {
         scene_importer importer;
         importer.import(state, result["import"].as<std::filesystem::path>());
+
+        // TODO: Let the importer setup the camera
+        camera_set_look_at(state.camera, vec3{0.f, 0.f, -5.f}, vec3{0.f, 0.f, 1.f}, vec3{0.f, 1.f, 0.f});
+        camera_set_horizontal_fov(state.camera, 90_deg);
+        state.camera.near = 0.1f;
+        state.camera.far = 100.f;
     }
     else
     {
