@@ -2,6 +2,7 @@
 
 #include <oblo/math/line.hpp>
 #include <oblo/math/triangle.hpp>
+#include <oblo/rendering/material.hpp>
 #include <oblo/rendering/raytracer.hpp>
 #include <sandbox/draw/debug_renderer.hpp>
 #include <sandbox/sandbox_state.hpp>
@@ -40,7 +41,9 @@ namespace oblo
             triangles.add(s_cube);
 
             state.raytracer->clear();
-            state.raytracer->add_mesh(std::move(triangles));
+            u32 mesh = state.raytracer->add_mesh(std::move(triangles));
+            u32 material = state.raytracer->add_material({vec3{1.f, 0.f, 0.f}});
+            state.raytracer->add_instance({mesh, material});
             state.raytracer->rebuild_tlas();
         }
 
@@ -53,6 +56,9 @@ namespace oblo
 
             constexpr auto cellSize = 1.f;
             const auto baseOffset = -(cellSize * gridSize) * .5f;
+
+            vec3 colors[] =
+                {{1.f, 0.f, 0.f}, {0.f, 1.f, 0.f}, {0.f, 0.f, 1.f}, {1.f, 1.f, 0.f}, {0.f, 1.f, 1.f}, {1.f, 0.f, 1.f}};
 
             for (u32 i = 0; i < gridSize; ++i)
             {
@@ -82,7 +88,11 @@ namespace oblo
 
                         triangle_container cubeTriangles;
                         cubeTriangles.add(cube);
-                        state.raytracer->add_mesh(std::move(cubeTriangles));
+
+                        u32 mesh = state.raytracer->add_mesh(std::move(cubeTriangles));
+                        u32 material = state.raytracer->add_material({colors[mesh % std::size(colors)]});
+
+                        state.raytracer->add_instance({mesh, material});
                     }
                 }
             }

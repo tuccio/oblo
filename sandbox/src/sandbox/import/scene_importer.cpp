@@ -105,10 +105,14 @@ namespace oblo
 
         while (!nodes.empty())
         {
-            [[maybe_unused]] const stack_info& current = nodes.back();
+            const stack_info& current = nodes.back();
 
             // TODO: Evaluate transforms
-            // TOOD: Support for mesh instances
+            for (u32 meshIndex : std::span{current.node->mMeshes, current.node->mNumMeshes})
+            {
+                const aiMesh* mesh = scene->mMeshes[meshIndex];
+                state.raytracer->add_instance({meshIndex, mesh->mMaterialIndex});
+            }
 
             nodes.pop_back();
         }
