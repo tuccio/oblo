@@ -13,6 +13,8 @@ namespace oblo
     class raytracer_state;
     class triangle_container;
 
+    struct material;
+
     struct raytracer_metrics
     {
         u16 width;
@@ -22,6 +24,13 @@ namespace oblo
         u32 numPrimaryRays;
         u32 numTestedObjects;
         u32 numTestedTriangles;
+    };
+
+    struct render_instance
+    {
+        u32 mesh;
+        u32 material;
+        // TODO: Add transform
     };
 
     class raytracer
@@ -39,6 +48,8 @@ namespace oblo
         void reserve(u32 numMeshes);
 
         u32 add_mesh(triangle_container triangles);
+        u32 add_material(const material& material);
+        u32 add_instance(const render_instance& instance);
 
         std::span<const triangle_container> get_meshes() const;
 
@@ -56,6 +67,9 @@ namespace oblo
 
         std::vector<bvh> m_blas;
         std::vector<triangle_container> m_meshes;
+
+        std::vector<material> m_materials;
+        std::vector<render_instance> m_instances;
 
         u32 m_numTriangles{0};
     };

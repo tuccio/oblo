@@ -2,6 +2,7 @@
 
 #include <oblo/acceleration/bvh.hpp>
 #include <oblo/acceleration/triangle_container.hpp>
+#include <oblo/rendering/material.hpp>
 
 namespace oblo
 {
@@ -24,6 +25,20 @@ namespace oblo
         m_numTriangles += triangles.size();
 
         bvh.build(triangles);
+        return index;
+    }
+
+    u32 raytracer::add_material(const material& material)
+    {
+        u32 index = narrow_cast<u32>(m_materials.size());
+        m_materials.emplace_back(material);
+        return index;
+    }
+
+    u32 raytracer::add_instance(const render_instance& instance)
+    {
+        u32 index = narrow_cast<u32>(m_instances.size());
+        m_instances.emplace_back(instance);
         return index;
     }
 
@@ -85,25 +100,34 @@ namespace oblo
                             if (oblo::intersect(ray, aabb, distance, t0, t1) && t0 < distance)
                             {
                                 ++metrics.numTestedObjects;
-                                const auto id = allIds[currentIndex];
+                                const auto instanceIndex = allIds[currentIndex];
 
-                                m_blas[id].traverse(
+                                const auto& instance = m_instances[instanceIndex];
+                                const auto meshIndex = instance.mesh;
+                                const auto materialIndex = instance.material;
+
+                                bool anyHit = false;
+                                triangle_container::hit_result outResult;
+
+                                m_blas[meshIndex].traverse(
                                     ray,
-                                    [&color, &metrics, &ray, &container = m_meshes[id]](u32 firstIndex,
-                                                                                        u16 numPrimitives,
-                                                                                        f32& distance)
+                                    [&outResult, &anyHit, &metrics, &ray, &container = m_meshes[meshIndex]](
+                                        u32 firstIndex,
+                                        u16 numPrimitives,
+                                        f32& distance)
                                     {
                                         metrics.numTestedTriangles += numPrimitives;
 
-                                        triangle_container::hit_result outResult;
                                         const bool anyIntersection =
                                             container.intersect(ray, firstIndex, numPrimitives, distance, outResult);
 
-                                        if (anyIntersection)
-                                        {
-                                            color = vec3{0.f, 1.f, 0.f};
-                                        }
+                                        anyHit |= anyIntersection;
                                     });
+
+                                if (anyHit)
+                                {
+                                    color = m_materials[materialIndex].albedo;
+                                }
                             }
 
                             ++currentIndex;
@@ -133,12 +157,15 @@ namespace oblo
     {
         m_aabbs.clear();
 
-        u32 id = 0;
-        m_aabbs.reserve(m_blas.size());
+        const auto numInstances = m_instances.size();
 
-        for (const auto& blas : m_blas)
+        u32 id = 0;
+        m_aabbs.reserve(numInstances);
+
+        for (const auto& instance : m_instances)
         {
-            const auto aabb = blas.get_bounds();
+            const auto meshIndex = instance.mesh;
+            const auto aabb = m_blas[meshIndex].get_bounds();
             m_aabbs.add({&aabb, 1}, id++);
         }
 
