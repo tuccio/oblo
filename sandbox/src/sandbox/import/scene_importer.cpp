@@ -1,6 +1,7 @@
 #include <sandbox/import/scene_importer.hpp>
 
 #include <oblo/rendering/camera.hpp>
+#include <oblo/rendering/material.hpp>
 #include <oblo/rendering/raytracer.hpp>
 #include <sandbox/sandbox_state.hpp>
 
@@ -17,6 +18,11 @@ namespace oblo
 {
     namespace
     {
+        vec3 convert_vec3(const aiColor3D& v)
+        {
+            return {narrow_cast<float>(v.r), narrow_cast<float>(v.g), narrow_cast<float>(v.b)};
+        }
+
         vec3 convert_vec3(const aiVector3D& v)
         {
             return {narrow_cast<float>(v.x), narrow_cast<float>(v.y), narrow_cast<float>(v.z)};
@@ -90,7 +96,23 @@ namespace oblo
                 triangles.add({&t, 1});
             }
 
-            state.raytracer->add_mesh(std::move(triangles));
+            [[maybe_unused]] u32 newMesh = state.raytracer->add_mesh(std::move(triangles));
+            OBLO_ASSERT(meshIndex == newMesh);
+        }
+
+        for (u32 materialIndex = 0; materialIndex < scene->mNumMaterials; ++materialIndex)
+        {
+            const aiMaterial* sceneMaterial = scene->mMaterials[materialIndex];
+
+            material material{};
+
+            aiColor3D color;
+            sceneMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, color);
+
+            material.albedo = convert_vec3(color);
+
+            [[maybe_unused]] u32 newMaterial = state.raytracer->add_material(material);
+            OBLO_ASSERT(newMaterial == materialIndex);
         }
 
         struct stack_info
@@ -114,7 +136,14 @@ namespace oblo
                 state.raytracer->add_instance({meshIndex, mesh->mMaterialIndex});
             }
 
+            const auto children = std::span{current.node->mChildren, current.node->mNumChildren};
+
             nodes.pop_back();
+
+            for (const auto child : children)
+            {
+                nodes.push_back({child});
+            }
         }
 
         state.raytracer->rebuild_tlas();
