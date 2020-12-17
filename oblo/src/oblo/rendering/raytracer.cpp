@@ -88,7 +88,7 @@ namespace oblo
 
                 m_tlas.traverse(
                     ray,
-                    [&](u32 firstIndex, u16 numPrimitives, f32& distance) mutable
+                    [&](u32 firstIndex, u16 numPrimitives, f32& currentDistance) mutable
                     {
                         const auto aabbs = allAabbs.subspan(firstIndex, numPrimitives);
                         u32 currentIndex = firstIndex;
@@ -97,7 +97,7 @@ namespace oblo
                         {
                             float t0, t1;
 
-                            if (oblo::intersect(ray, aabb, distance, t0, t1) && t0 < distance)
+                            if (oblo::intersect(ray, aabb, currentDistance, t0, t1) && t0 < currentDistance)
                             {
                                 ++metrics.numTestedObjects;
                                 const auto instanceIndex = allIds[currentIndex];
@@ -106,25 +106,29 @@ namespace oblo
                                 const auto meshIndex = instance.mesh;
                                 const auto materialIndex = instance.material;
 
-                                bool anyHit = false;
-                                triangle_container::hit_result outResult;
+                                bool bestResult = false;
 
                                 m_blas[meshIndex].traverse(
                                     ray,
-                                    [&outResult, &anyHit, &metrics, &ray, &container = m_meshes[meshIndex]](
+                                    [&ray, &container = m_meshes[meshIndex], &currentDistance, &metrics, &bestResult](
                                         u32 firstIndex,
                                         u16 numPrimitives,
                                         f32& distance)
                                     {
                                         metrics.numTestedTriangles += numPrimitives;
+                                        triangle_container::hit_result outResult;
 
                                         const bool anyIntersection =
                                             container.intersect(ray, firstIndex, numPrimitives, distance, outResult);
 
-                                        anyHit |= anyIntersection;
+                                        if (anyIntersection && distance < currentDistance)
+                                        {
+                                            bestResult = true;
+                                            currentDistance = distance;
+                                        }
                                     });
 
-                                if (anyHit)
+                                if (bestResult)
                                 {
                                     color = m_materials[materialIndex].albedo;
                                 }
