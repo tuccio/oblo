@@ -1,5 +1,6 @@
 #include <sandbox/import/scene_importer.hpp>
 
+#include <oblo/rendering/camera.hpp>
 #include <oblo/rendering/raytracer.hpp>
 #include <sandbox/sandbox_state.hpp>
 
@@ -14,6 +15,14 @@
 
 namespace oblo
 {
+    namespace
+    {
+        vec3 convert_vec3(const aiVector3D& v)
+        {
+            return {narrow_cast<float>(v.x), narrow_cast<float>(v.y), narrow_cast<float>(v.z)};
+        }
+    }
+
     bool scene_importer::import(sandbox_state& state, const std::filesystem::path& filename)
     {
         auto scene = std::unique_ptr<const aiScene, decltype(&aiReleaseImport)>{
@@ -28,6 +37,28 @@ namespace oblo
         }
 
         state.raytracer->clear();
+
+        if (scene->mNumCameras > 0)
+        {
+            const aiCamera& camera = *scene->mCameras[0];
+
+            camera_set_look_at(state.camera,
+                               convert_vec3(camera.mPosition),
+                               convert_vec3(camera.mLookAt),
+                               convert_vec3(camera.mUp));
+
+            camera_set_horizontal_fov(state.camera, radians{camera.mHorizontalFOV});
+
+            state.camera.near = 0.1f;
+            state.camera.far = 100.f;
+        }
+        else
+        {
+            camera_set_look_at(state.camera, vec3{0.f, 0.f, -5.f}, vec3{0.f, 0.f, 1.f}, vec3{0.f, 1.f, 0.f});
+            camera_set_horizontal_fov(state.camera, 90_deg);
+            state.camera.near = 0.1f;
+            state.camera.far = 100.f;
+        }
 
         for (u32 meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex)
         {
@@ -52,9 +83,9 @@ namespace oblo
                 const auto& v2 = mesh->mVertices[indices[2]];
 
                 triangle t;
-                t.v[0] = {narrow_cast<float>(v0.x), narrow_cast<float>(v0.y), narrow_cast<float>(v0.z)};
-                t.v[1] = {narrow_cast<float>(v1.x), narrow_cast<float>(v1.y), narrow_cast<float>(v1.z)};
-                t.v[2] = {narrow_cast<float>(v2.x), narrow_cast<float>(v2.y), narrow_cast<float>(v2.z)};
+                t.v[0] = convert_vec3(v0);
+                t.v[1] = convert_vec3(v1);
+                t.v[2] = convert_vec3(v2);
 
                 triangles.add({&t, 1});
             }
