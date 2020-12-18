@@ -3,7 +3,7 @@
 #include <oblo/rendering/camera.hpp>
 #include <oblo/rendering/material.hpp>
 #include <oblo/rendering/raytracer.hpp>
-#include <sandbox/sandbox_state.hpp>
+#include <sandbox/state/sandbox_state.hpp>
 
 #include <memory>
 
