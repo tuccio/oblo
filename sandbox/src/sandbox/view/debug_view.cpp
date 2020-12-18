@@ -5,7 +5,8 @@
 #include <oblo/rendering/material.hpp>
 #include <oblo/rendering/raytracer.hpp>
 #include <sandbox/draw/debug_renderer.hpp>
-#include <sandbox/sandbox_state.hpp>
+#include <sandbox/state/sandbox_state.hpp>
+#include <sandbox/import/scene_importer.hpp>
 
 #include <imgui.h>
 #include <random>
@@ -99,6 +100,19 @@ namespace oblo
 
             state.raytracer->rebuild_tlas();
         }
+
+        void import_last_scene(sandbox_state& state)
+        {
+            state.raytracer->clear();
+
+            if (state.latestImportedScene.empty())
+            {
+                return;
+            }
+
+            scene_importer importer;
+            importer.import(state, state.latestImportedScene);
+        }
     }
 
     void debug_view::update(sandbox_state& state)
@@ -109,8 +123,12 @@ namespace oblo
             {
                 if (ImGui::MenuItem("Load debug scene"))
                 {
-                    // init_cube(state);
                     init_cubes_scene(state, m_gridSize, m_density);
+                }
+
+                if (ImGui::MenuItem("Import last scene"))
+                {
+                    import_last_scene(state);
                 }
 
                 if (ImGui::BeginMenu("Edit"))

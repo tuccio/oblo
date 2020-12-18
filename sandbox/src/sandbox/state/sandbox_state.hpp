@@ -4,6 +4,8 @@
 #include <oblo/acceleration/triangle_container.hpp>
 #include <oblo/rendering/camera.hpp>
 
+#include <string>
+
 namespace oblo
 {
     class debug_renderer;
@@ -19,6 +21,9 @@ namespace oblo
 
         camera camera;
 
+        bool writeConfigOnShutdown{true};
         bool renderRasterized{false};
+
+        std::string latestImportedScene;
     };
 }

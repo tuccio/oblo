@@ -3,7 +3,8 @@
 #include <oblo/rendering/raytracer.hpp>
 #include <sandbox/draw/debug_renderer.hpp>
 #include <sandbox/import/scene_importer.hpp>
-#include <sandbox/sandbox_state.hpp>
+#include <sandbox/state/config.hpp>
+#include <sandbox/state/sandbox_state.hpp>
 #include <sandbox/view/debug_view.hpp>
 
 #include <GL/glew.h>
@@ -47,6 +48,8 @@ int main(int argc, char* argv[])
 {
     using namespace oblo;
 
+    constexpr auto configFile = "config.json";
+
     cxxopts::Options options{"oblo sandbox"};
     options.add_options()("import", "Import scene", cxxopts::value<std::filesystem::path>());
 
@@ -62,6 +65,14 @@ int main(int argc, char* argv[])
     }
 
     sandbox_state state;
+
+    if (!config_parse(configFile, state))
+    {
+        camera_set_look_at(state.camera, vec3{0.f, 0.f, -5.f}, vec3{0.f, 0.f, 1.f}, vec3{0.f, 1.f, 0.f});
+        camera_set_horizontal_fov(state.camera, 90_deg);
+        state.camera.near = 0.1f;
+        state.camera.far = 100.f;
+    }
 
     raytracer raytracer;
     raytracer_state raytracerState;
@@ -79,15 +90,10 @@ int main(int argc, char* argv[])
 
     if (result.count("import"))
     {
+        state.latestImportedScene = result["import"].as<std::string>();
+
         scene_importer importer;
-        importer.import(state, result["import"].as<std::filesystem::path>());
-    }
-    else
-    {
-        camera_set_look_at(state.camera, vec3{0.f, 0.f, -5.f}, vec3{0.f, 0.f, 1.f}, vec3{0.f, 1.f, 0.f});
-        camera_set_horizontal_fov(state.camera, 90_deg);
-        state.camera.near = 0.1f;
-        state.camera.far = 100.f;
+        importer.import(state, state.latestImportedScene);
     }
 
     const auto onResize = [&](const auto& size)
@@ -156,6 +162,11 @@ int main(int argc, char* argv[])
         window.resetGLStates();
 
         window.display();
+    }
+
+    if (state.writeConfigOnShutdown)
+    {
+        config_write(configFile, state);
     }
 
     return 0;
