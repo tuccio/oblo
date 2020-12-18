@@ -50,7 +50,12 @@ namespace oblo
     void raytracer::clear()
     {
         m_blas.clear();
+        m_tlas.clear();
+
         m_meshes.clear();
+        m_materials.clear();
+        m_instances.clear();
+        m_aabbs.clear();
 
         m_numTriangles = 0;
     }

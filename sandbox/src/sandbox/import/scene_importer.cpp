@@ -58,13 +58,6 @@ namespace oblo
             state.camera.near = 0.1f;
             state.camera.far = 100.f;
         }
-        else
-        {
-            camera_set_look_at(state.camera, vec3{0.f, 0.f, -5.f}, vec3{0.f, 0.f, 1.f}, vec3{0.f, 1.f, 0.f});
-            camera_set_horizontal_fov(state.camera, 90_deg);
-            state.camera.near = 0.1f;
-            state.camera.far = 100.f;
-        }
 
         for (u32 meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex)
         {

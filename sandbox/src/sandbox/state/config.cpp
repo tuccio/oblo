@@ -73,6 +73,7 @@ namespace oblo
     void serialize(Archive& ar, sandbox_state& state)
     {
         OBLO_TRY_SERIALIZE("camera", state.camera);
+        OBLO_TRY_SERIALIZE("rasterize", state.renderRasterized);
         OBLO_TRY_SERIALIZE("writeConfigOnShutdown", state.writeConfigOnShutdown);
         OBLO_TRY_SERIALIZE("latestImportedScene", state.latestImportedScene);
     }
