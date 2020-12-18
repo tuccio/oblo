@@ -5,8 +5,8 @@
 #include <oblo/rendering/material.hpp>
 #include <oblo/rendering/raytracer.hpp>
 #include <sandbox/draw/debug_renderer.hpp>
-#include <sandbox/state/sandbox_state.hpp>
 #include <sandbox/import/scene_importer.hpp>
+#include <sandbox/state/sandbox_state.hpp>
 
 #include <imgui.h>
 #include <random>
@@ -119,31 +119,31 @@ namespace oblo
     {
         if (ImGui::BeginMainMenuBar())
         {
-            if (ImGui::BeginMenu("Debug"))
+            if (ImGui::BeginMenu("Scene"))
             {
-                if (ImGui::MenuItem("Load debug scene"))
-                {
-                    init_cubes_scene(state, m_gridSize, m_density);
-                }
-
                 if (ImGui::MenuItem("Import last scene"))
                 {
                     import_last_scene(state);
                 }
 
-                if (ImGui::BeginMenu("Edit"))
+                if (ImGui::MenuItem("Load debug scene"))
                 {
-                    if (ImGui::MenuItem("Camera"))
-                    {
-                        m_cameraWindow = true;
-                    }
+                    init_cubes_scene(state, m_gridSize, m_density);
+                }
 
-                    if (ImGui::MenuItem("Scene"))
-                    {
-                        m_sceneWindow = true;
-                    }
+                ImGui::EndMenu();
+            }
 
-                    ImGui::EndMenu();
+            if (ImGui::BeginMenu("Edit"))
+            {
+                if (ImGui::MenuItem("Camera"))
+                {
+                    m_cameraWindow = true;
+                }
+
+                if (ImGui::MenuItem("Scene"))
+                {
+                    m_sceneWindow = true;
                 }
 
                 ImGui::EndMenu();
