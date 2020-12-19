@@ -21,8 +21,9 @@ namespace oblo
 
         camera camera;
 
-        bool writeConfigOnShutdown{true};
         bool renderRasterized{false};
+        bool autoImportLastScene{false};
+        bool writeConfigOnShutdown{true};
 
         std::string latestImportedScene;
     };

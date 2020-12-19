@@ -42,9 +42,13 @@ namespace oblo
             triangles.add(s_cube);
 
             state.raytracer->clear();
-            u32 mesh = state.raytracer->add_mesh(std::move(triangles));
-            u32 material = state.raytracer->add_material({vec3{1.f, 0.f, 0.f}});
-            state.raytracer->add_instance({mesh, material});
+            u32 meshIndex = state.raytracer->add_mesh(std::move(triangles));
+
+            material material{};
+            material.albedo = vec3{1.f, 0.f, 0.f};
+
+            u32 materialIndex = state.raytracer->add_material(material);
+            state.raytracer->add_instance({meshIndex, materialIndex});
             state.raytracer->rebuild_tlas();
         }
 
@@ -90,10 +94,14 @@ namespace oblo
                         triangle_container cubeTriangles;
                         cubeTriangles.add(cube);
 
-                        u32 mesh = state.raytracer->add_mesh(std::move(cubeTriangles));
-                        u32 material = state.raytracer->add_material({colors[mesh % std::size(colors)]});
+                        u32 meshIndex = state.raytracer->add_mesh(std::move(cubeTriangles));
 
-                        state.raytracer->add_instance({mesh, material});
+                        material material{};
+                        material.albedo = colors[meshIndex % std::size(colors)];
+
+                        u32 materialIndex = state.raytracer->add_material(material);
+
+                        state.raytracer->add_instance({meshIndex, materialIndex});
                     }
                 }
             }
@@ -162,6 +170,12 @@ namespace oblo
 
             ImGui::SliderFloat("Near", &state.camera.near, 0.1f, 1.f);
             ImGui::SliderFloat("Far", &state.camera.far, 10.f, 1000.f);
+
+            // TODO
+            static f32 yaw;
+            static f32 pitch;
+            ImGui::SliderAngle("Yaw", &yaw);
+            ImGui::SliderAngle("Pitch", &pitch, -90.f, 90.f);
 
             ImGui::End();
         }

@@ -27,6 +27,18 @@ namespace oblo
         {
             return {narrow_cast<float>(v.x), narrow_cast<float>(v.y), narrow_cast<float>(v.z)};
         }
+
+        vec3 get_color3_or_default(const aiMaterial* material, const char* name, int type, int idx, vec3 def)
+        {
+            aiColor3D color;
+
+            if (material->Get(name, type, idx, color) != aiReturn_SUCCESS)
+            {
+                return def;
+            }
+
+            return convert_vec3(color);
+        }
     }
 
     bool scene_importer::import(sandbox_state& state, const std::filesystem::path& filename)
@@ -99,10 +111,8 @@ namespace oblo
 
             material material{};
 
-            aiColor3D color;
-            sceneMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, color);
-
-            material.albedo = convert_vec3(color);
+            material.albedo = get_color3_or_default(sceneMaterial, AI_MATKEY_COLOR_DIFFUSE, {});
+            material.emissive = get_color3_or_default(sceneMaterial, AI_MATKEY_COLOR_EMISSIVE, {});
 
             [[maybe_unused]] u32 newMaterial = state.raytracer->add_material(material);
             OBLO_ASSERT(newMaterial == materialIndex);
