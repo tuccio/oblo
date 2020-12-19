@@ -75,6 +75,7 @@ namespace oblo
         OBLO_TRY_SERIALIZE("camera", state.camera);
         OBLO_TRY_SERIALIZE("rasterize", state.renderRasterized);
         OBLO_TRY_SERIALIZE("writeConfigOnShutdown", state.writeConfigOnShutdown);
+        OBLO_TRY_SERIALIZE("autoImportLastScene", state.autoImportLastScene);
         OBLO_TRY_SERIALIZE("latestImportedScene", state.latestImportedScene);
     }
 

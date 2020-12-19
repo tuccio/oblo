@@ -7,5 +7,6 @@ namespace oblo
     struct material
     {
         vec3 albedo;
+        vec3 emissive;
     };
 }

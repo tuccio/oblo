@@ -95,6 +95,11 @@ int main(int argc, char* argv[])
         scene_importer importer;
         importer.import(state, state.latestImportedScene);
     }
+    else if (state.autoImportLastScene)
+    {
+        scene_importer importer;
+        importer.import(state, state.latestImportedScene);
+    }
 
     const auto onResize = [&](const auto& size)
     {

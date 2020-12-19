@@ -135,7 +135,7 @@ namespace oblo
 
                                 if (bestResult)
                                 {
-                                    color = m_materials[materialIndex].albedo;
+                                    color = m_materials[materialIndex].albedo + m_materials[materialIndex].emissive;
                                 }
                             }
 
