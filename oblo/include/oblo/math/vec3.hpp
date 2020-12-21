@@ -130,4 +130,9 @@ namespace oblo
     {
         return {max(lhs.x, rhs.x), max(lhs.y, rhs.y), max(lhs.z, rhs.z)};
     }
+
+    constexpr vec3 lerp(const vec3& lhs, const vec3& rhs, f32 alpha)
+    {
+        return alpha * lhs + (1.f - alpha) * rhs;
+    }
 }
