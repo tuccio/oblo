@@ -60,30 +60,30 @@ namespace oblo
         m_numTriangles = 0;
     }
 
-    void raytracer::render_debug(raytracer_state& state, const camera& camera) const
+    void raytracer::render_tile(
+        raytracer_state& state, const camera& camera, u16 minX, u16 maxX, u16 minY, u16 maxY) const
     {
         if (m_tlas.empty())
         {
             return;
         }
 
-        const auto w = state.m_width;
-        const auto h = state.m_height;
-
         constexpr vec2 uvStart{-1.f, -1.f};
-        const vec2 uvOffset{2.f / w, 2.f / h};
+        const vec2 uvOffset{2.f / state.m_width, 2.f / state.m_height};
 
-        vec2 uv = uvStart;
-        vec3* pixelOut = state.m_radianceBuffer.data();
+        vec2 uv;
 
         auto metrics = raytracer_metrics{};
 
-        for (u16 y = 0; y < h; ++y)
+        for (u16 y = minY; y < maxY; ++y)
         {
-            uv.x = uvStart.x;
+            uv.y = uvStart.y + uvOffset.y * y;
+            vec3* pixelOut = state.m_radianceBuffer.data() + state.m_width * y + minX;
 
-            for (u16 x = 0; x < w; ++x)
+            for (u16 x = minX; x < maxX; ++x)
             {
+                uv.x = uvStart.x + uvOffset.x * x;
+
                 const auto ray = ray_cast(camera, uv);
 
                 auto color = vec3{0.f, 0.f, 0.f};
@@ -145,19 +145,16 @@ namespace oblo
 
                 *pixelOut = color;
 
-                uv.x += uvOffset.x;
                 ++pixelOut;
             }
-
-            uv.y += uvOffset.y;
         }
 
         {
-            metrics.width = w;
-            metrics.height = h;
+            metrics.width = maxX;
+            metrics.height = maxY;
             metrics.numObjects = m_aabbs.size();
             metrics.numTriangles = m_numTriangles;
-            metrics.numPrimaryRays = w * h;
+            metrics.numPrimaryRays = maxX * maxY;
             state.m_metrics = metrics;
         }
     }
