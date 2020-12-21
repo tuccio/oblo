@@ -35,7 +35,14 @@ namespace oblo
             u8 buffer[s_tileSize * s_tileSize * numChannels];
             auto bufferIt = buffer;
 
-            const float weight = 1.f / numSamples;
+            const auto correctAndNormalize =
+                [weight = 1.f / numSamples](f32 color)
+            {
+                constexpr auto invGamma = 1.f / 2.2f;
+                const auto radiance = color * weight;
+                const auto tonemapped = radiance / (radiance + 1);
+                return narrow_cast<u8>(std::pow(tonemapped, invGamma) * 255);
+            };
 
             for (auto y = minY; y < maxY; ++y)
             {
@@ -45,9 +52,9 @@ namespace oblo
                 {
                     const auto [r, g, b] = *it;
 
-                    *(bufferIt++) = narrow_cast<u8>(r * weight * 255);
-                    *(bufferIt++) = narrow_cast<u8>(g * weight * 255);
-                    *(bufferIt++) = narrow_cast<u8>(b * weight * 255);
+                    *(bufferIt++) = correctAndNormalize(r);
+                    *(bufferIt++) = correctAndNormalize(g);
+                    *(bufferIt++) = correctAndNormalize(b);
                     *(bufferIt++) = 255;
 
                     ++it;
