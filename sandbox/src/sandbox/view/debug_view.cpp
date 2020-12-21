@@ -164,14 +164,14 @@ namespace oblo
         {
             ImGui::Begin("Camera", &m_cameraWindow);
 
-            ImGui::DragFloat("X", &state.camera.position.x, .2f);
-            ImGui::DragFloat("Y", &state.camera.position.y, .2f);
-            ImGui::DragFloat("Z", &state.camera.position.z, .2f);
+            bool movedCamera{false};
 
-            ImGui::SliderFloat("Near", &state.camera.near, 0.1f, 1.f);
-            ImGui::SliderFloat("Far", &state.camera.far, 10.f, 1000.f);
+            movedCamera |= ImGui::DragFloat("X", &state.camera.position.x, .2f);
+            movedCamera |= ImGui::DragFloat("Y", &state.camera.position.y, .2f);
+            movedCamera |= ImGui::DragFloat("Z", &state.camera.position.z, .2f);
 
-            // TODO
+            movedCamera |= ImGui::SliderFloat("Near", &state.camera.near, 0.1f, 1.f);
+            movedCamera |= ImGui::SliderFloat("Far", &state.camera.far, 10.f, 1000.f);
 
             if (ImGui::SliderAngle("Yaw", &m_yaw) || ImGui::SliderAngle("Pitch", &m_pitch, -89.f, 89.f))
             {
@@ -187,14 +187,21 @@ namespace oblo
                 state.camera.left = left;
                 state.camera.up = up;
                 state.camera.forward = forward;
+
+                movedCamera = true;
             }
 
             ImGui::End();
+
+            if (movedCamera)
+            {
+                state.movedCamera = true;
+            }
         }
 
         if (m_sceneWindow)
         {
-            ImGui::Begin("Debug scene", &m_cameraWindow);
+            ImGui::Begin("Debug scene", &m_sceneWindow);
 
             ImGui::SliderInt("Grid size", &m_gridSize, 1, 64);
             ImGui::SliderFloat("Density", &m_density, 0.f, 1.f);

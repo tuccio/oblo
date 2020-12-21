@@ -27,12 +27,15 @@ namespace oblo
                          u16 minY,
                          u16 maxX,
                          u16 maxY,
-                         std::span<const vec3> colorBuffer)
+                         std::span<const vec3> colorBuffer,
+                         u32 numSamples)
         {
 
             constexpr auto numChannels = 4;
             u8 buffer[s_tileSize * s_tileSize * numChannels];
             auto bufferIt = buffer;
+
+            const float weight = 1.f / numSamples;
 
             for (auto y = minY; y < maxY; ++y)
             {
@@ -42,9 +45,9 @@ namespace oblo
                 {
                     const auto [r, g, b] = *it;
 
-                    *(bufferIt++) = narrow_cast<u8>(r * 255);
-                    *(bufferIt++) = narrow_cast<u8>(g * 255);
-                    *(bufferIt++) = narrow_cast<u8>(b * 255);
+                    *(bufferIt++) = narrow_cast<u8>(r * weight * 255);
+                    *(bufferIt++) = narrow_cast<u8>(g * weight * 255);
+                    *(bufferIt++) = narrow_cast<u8>(b * weight * 255);
                     *(bufferIt++) = 255;
 
                     ++it;
@@ -121,7 +124,7 @@ int main(int argc, char* argv[])
         const auto fovy = f32{state.camera.fovx} * height / width;
         camera_set_vertical_fov(state.camera, radians{fovy});
 
-        state.raytracerState->resize(narrow_cast<u16>(width), narrow_cast<u16>(height));
+        state.raytracerState->resize(narrow_cast<u16>(width), narrow_cast<u16>(height), s_tileSize);
 
         outTexture.create(width, height);
 
@@ -160,6 +163,12 @@ int main(int argc, char* argv[])
 
         debugView.update(state);
 
+        if (state.movedCamera)
+        {
+            state.movedCamera = false;
+            state.raytracerState->reset_accumulation();
+        }
+
         window.clear();
 
         if (!state.renderRasterized)
@@ -175,17 +184,24 @@ int main(int argc, char* argv[])
 
             raytracer.render_tile(raytracerState, state.camera, minX, minY, maxX, maxY);
 
-            if (++tileX > numTilesX)
+            if (++tileX >= numTilesX)
             {
                 tileX = 0;
 
-                if (++tileY > numTilesY)
+                if (++tileY >= numTilesY)
                 {
                     tileY = 0;
                 }
             }
 
-            update_tile(outTexture, w, minX, minY, maxX, maxY, raytracerState.get_radiance_buffer());
+            update_tile(outTexture,
+                        w,
+                        minX,
+                        minY,
+                        maxX,
+                        maxY,
+                        raytracerState.get_radiance_buffer(),
+                        raytracerState.get_num_samples_at(minX, minY));
 
             sf::Sprite sprite{outTexture};
             window.draw(sprite);
