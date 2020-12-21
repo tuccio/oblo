@@ -39,6 +39,7 @@ namespace oblo
         u32 instance;
         u32 mesh;
         u32 material;
+        u32 triangle;
         raytracer_metrics* metrics;
     };
 
