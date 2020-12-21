@@ -8,11 +8,17 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/out/lib)
 
 set(CMAKE_CXX_STANDARD 20)
 
+macro(remove_cxx_flag flag)
+    string(REPLACE "${flag}" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+endmacro()
+
 if(MSVC)
     add_compile_options(/W4 /WX)
+    remove_cxx_flag("/O2")
+    remove_cxx_flag("/Ob1")
 else()
     add_compile_options(-Wall -Wextra -pedantic -Werror)
-    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O0")
+    remove_cxx_flag("-O2")
 endif()
 
 include(oblo)

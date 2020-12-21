@@ -2,6 +2,7 @@
 
 #include <oblo/acceleration/bvh.hpp>
 #include <oblo/acceleration/triangle_container.hpp>
+#include <oblo/math/random.hpp>
 #include <oblo/rendering/material.hpp>
 
 namespace oblo
@@ -83,15 +84,7 @@ namespace oblo
                 uv.x = uvStart.x + uvOffset.x * x;
 
                 const auto ray = ray_cast(camera, uv);
-                raytracer_result out{.metrics = &state.m_metrics};
-
-                if (intersect(ray, out))
-                {
-                    const auto normal = m_meshes[out.mesh].get_normals()[out.triangle];
-
-                    const auto& material = m_materials[out.material];
-                    *pixelOut = max(0.f, dot(normal, vec3{0.2f, -1.f, 0.3f})) * material.albedo + material.emissive;
-                }
+                *pixelOut = compute_lighting_recursive(ray, state, 1);
 
                 ++pixelOut;
             }
@@ -198,6 +191,41 @@ namespace oblo
         }
 
         return found;
+    }
+
+    vec3 raytracer::compute_lighting_recursive(const ray& ray, raytracer_state& state, const u16 bounces) const
+    {
+        raytracer_result out{.metrics = &state.m_metrics};
+
+        if (!intersect(ray, out))
+        {
+            // A programmer's skybox
+            const auto t = ray.direction.y * .5f + 1.f;
+            return lerp(vec3{.5f, .7f, 1.f}, vec3{1.f, 1.f, 1.f}, t);
+        }
+
+        const auto& material = m_materials[out.material];
+        const auto normal = m_meshes[out.mesh].get_normals()[out.triangle];
+
+        vec3 irradiance{};
+
+        constexpr u16 maxBounces = 2;
+        constexpr u16 numSamples = 16;
+        constexpr f32 sampleWeight = 1.f / numSamples;
+
+        if (bounces < maxBounces)
+        {
+            const auto position = ray.direction * out.distance + ray.origin;
+            const auto direction = hemisphere_uniform_sample(state.m_rng, normal);
+
+            for (u16 sample = 0; sample < numSamples; ++sample)
+            {
+                irradiance += max(0.f, dot(normal, direction)) *
+                              compute_lighting_recursive({position, direction}, state, bounces + 1);
+            }
+        }
+
+        return irradiance * sampleWeight * material.albedo + material.emissive;
     }
 
     const bvh& raytracer::get_tlas() const

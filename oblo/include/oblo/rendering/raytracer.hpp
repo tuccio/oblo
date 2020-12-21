@@ -5,6 +5,7 @@
 #include <oblo/core/utility.hpp>
 #include <oblo/rendering/camera.hpp>
 
+#include <random>
 #include <span>
 #include <vector>
 
@@ -74,6 +75,9 @@ namespace oblo
         bool intersect(const ray& ray, raytracer_result& out) const;
 
     private:
+        vec3 compute_lighting_recursive(const ray& ray, raytracer_state& state, u16 bounces) const;
+
+    private:
         bvh m_tlas;
         aabb_container m_aabbs;
 
@@ -123,5 +127,6 @@ namespace oblo
         u16 m_height{0};
         raytracer_metrics m_metrics{};
         std::vector<vec3> m_radianceBuffer;
+        std::mt19937 m_rng;
     };
 }
