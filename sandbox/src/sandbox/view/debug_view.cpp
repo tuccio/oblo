@@ -172,10 +172,22 @@ namespace oblo
             ImGui::SliderFloat("Far", &state.camera.far, 10.f, 1000.f);
 
             // TODO
-            static f32 yaw;
-            static f32 pitch;
-            ImGui::SliderAngle("Yaw", &yaw);
-            ImGui::SliderAngle("Pitch", &pitch, -90.f, 90.f);
+
+            if (ImGui::SliderAngle("Yaw", &m_yaw) || ImGui::SliderAngle("Pitch", &m_pitch, -89.f, 89.f))
+            {
+                const auto cosYaw = std::cos(m_yaw);
+                const auto sinYaw = std::sin(m_yaw);
+                const auto cosPitch = std::cos(m_pitch);
+                const auto sinPitch = std::sin(m_pitch);
+
+                const auto left = normalize({cosYaw, 0.f, -sinYaw});
+                const auto up = normalize({0.f, cosPitch, sinPitch});
+                const auto forward = normalize(cross(left, up));
+
+                state.camera.left = left;
+                state.camera.up = up;
+                state.camera.forward = forward;
+            }
 
             ImGui::End();
         }

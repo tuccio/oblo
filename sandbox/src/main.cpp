@@ -173,7 +173,7 @@ int main(int argc, char* argv[])
             const auto minY = tileY * s_tileSize;
             const auto maxY = min(h, u16(minY + s_tileSize));
 
-            raytracer.render_tile(raytracerState, state.camera, minX, maxX, minY, maxY);
+            raytracer.render_tile(raytracerState, state.camera, minX, minY, maxX, maxY);
 
             if (++tileX > numTilesX)
             {

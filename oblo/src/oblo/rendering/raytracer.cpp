@@ -61,7 +61,7 @@ namespace oblo
     }
 
     void raytracer::render_tile(
-        raytracer_state& state, const camera& camera, u16 minX, u16 maxX, u16 minY, u16 maxY) const
+        raytracer_state& state, const camera& camera, u16 minX, u16 minY, u16 maxX, u16 maxY) const
     {
         if (m_tlas.empty())
         {
