@@ -47,14 +47,17 @@ namespace oblo
 
         m_aabbs.reserve(newSize);
         m_centroids.reserve(newSize);
+        m_normals.reserve(newSize);
 
         for (const auto& triangle : triangles)
         {
             const auto aabb = oblo::compute_aabb(std::span{triangle.v});
             const auto centroid = (triangle.v[0] + triangle.v[1] + triangle.v[2]) / 3.f;
+            const auto normal = normalize(cross(triangle.v[1] - triangle.v[0], triangle.v[2] - triangle.v[0]));
 
             m_aabbs.emplace_back(aabb);
             m_centroids.emplace_back(centroid);
+            m_normals.emplace_back(normal);
         }
     }
 
@@ -63,6 +66,7 @@ namespace oblo
         m_triangles.reserve(numTriangles);
         m_aabbs.reserve(numTriangles);
         m_centroids.reserve(numTriangles);
+        m_normals.reserve(numTriangles);
     }
 
     aabb triangle_container::primitives_bounds(u32 begin, u32 end) const
@@ -77,7 +81,7 @@ namespace oblo
 
     u32 triangle_container::partition_by_axis(u32 beginIndex, u32 endIndex, u8 axisIndex, f32 midPoint)
     {
-        const auto beginIt = zip_iterator{m_triangles.begin(), m_aabbs.begin(), m_centroids.begin()};
+        const auto beginIt = zip_iterator{m_triangles.begin(), m_aabbs.begin(), m_centroids.begin(), m_normals.begin()};
 
         const auto rangeBegin = beginIt + beginIndex;
         const auto rangeEnd = beginIt + endIndex;
@@ -126,5 +130,10 @@ namespace oblo
     std::span<const vec3> triangle_container::get_centroids() const
     {
         return m_centroids;
+    }
+
+    std::span<const vec3> triangle_container::get_normals() const
+    {
+        return m_normals;
     }
 }

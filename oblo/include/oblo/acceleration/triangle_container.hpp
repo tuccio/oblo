@@ -47,11 +47,13 @@ namespace oblo
         std::span<const triangle> get_triangles() const;
         std::span<const aabb> get_aabbs() const;
         std::span<const vec3> get_centroids() const;
+        std::span<const vec3> get_normals() const;
 
     private:
         std::vector<triangle> m_triangles;
         std::vector<aabb> m_aabbs;
         std::vector<vec3> m_centroids;
+        std::vector<vec3> m_normals;
     };
 
     struct triangle_container::hit_result

@@ -87,8 +87,10 @@ namespace oblo
 
                 if (intersect(ray, out))
                 {
+                    const auto normal = m_meshes[out.mesh].get_normals()[out.triangle];
+
                     const auto& material = m_materials[out.material];
-                    *pixelOut = material.albedo + material.emissive;
+                    *pixelOut = max(0.f, dot(normal, vec3{0.2f, -1.f, 0.3f})) * material.albedo + material.emissive;
                 }
 
                 ++pixelOut;
@@ -153,25 +155,24 @@ namespace oblo
                         const auto meshIndex = instance.mesh;
                         const auto materialIndex = instance.material;
 
+                        u32 triangle;
                         bool bestResult = false;
 
                         m_blas[meshIndex].traverse(
                             ray,
-                            [&ray, &container = m_meshes[meshIndex], &currentDistance, &metrics, &bestResult](
-                                u32 firstIndex,
-                                u16 numPrimitives,
-                                f32& distance)
+                            [&, &container = m_meshes[meshIndex]](u32 firstIndex, u16 numPrimitives, f32& distance)
                             {
                                 metrics.numTestedTriangles += numPrimitives;
-                                triangle_container::hit_result outResult;
+                                triangle_container::hit_result hitResult;
 
                                 const bool anyIntersection =
-                                    container.intersect(ray, firstIndex, numPrimitives, distance, outResult);
+                                    container.intersect(ray, firstIndex, numPrimitives, distance, hitResult);
 
                                 if (anyIntersection && distance < currentDistance)
                                 {
                                     bestResult = true;
                                     currentDistance = distance;
+                                    triangle = hitResult.index;
                                 }
                             });
 
@@ -182,6 +183,7 @@ namespace oblo
                             out.instance = instanceIndex;
                             out.mesh = meshIndex;
                             out.material = materialIndex;
+                            out.triangle = triangle;
                         }
                     }
 
