@@ -202,9 +202,7 @@ namespace oblo
 
         if (!intersect(ray, out))
         {
-            // A programmer's skybox
-            const auto t = ray.direction.y * .5f + 1.f;
-            return lerp(vec3{.5f, .7f, 1.f}, vec3{1.f, 1.f, 1.f}, t);
+            return vec3{};
         }
 
         const auto& material = m_materials[out.material];
@@ -212,14 +210,15 @@ namespace oblo
 
         vec3 irradiance{};
 
-        constexpr u16 maxBounces = 2;
-        constexpr u16 numSamples = 16;
+        constexpr u16 maxBounces = 4;
+        constexpr u16 numSamples = 1;
         constexpr f32 sampleWeight = 1.f / numSamples;
 
         if (bounces < maxBounces)
         {
-            const auto position = ray.direction * out.distance + ray.origin;
             const auto direction = hemisphere_uniform_sample(state.m_rng, normal);
+            const auto selfIntersectBias = direction * .001f;
+            const auto position = ray.direction * out.distance + ray.origin + selfIntersectBias;
 
             for (u16 sample = 0; sample < numSamples; ++sample)
             {
