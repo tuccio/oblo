@@ -25,6 +25,8 @@ namespace oblo
         bool autoImportLastScene{false};
         bool writeConfigOnShutdown{true};
 
+        bool movedCamera{false};
+
         std::string latestImportedScene;
     };
 }

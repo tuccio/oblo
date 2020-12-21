@@ -98,7 +98,9 @@ namespace oblo
         raytracer_state(raytracer_state&&) noexcept = default;
         raytracer_state& operator=(raytracer_state&&) noexcept = default;
 
-        void resize(u16 width, u16 height);
+        void resize(u16 width, u16 height, u16 tileSize);
+
+        void reset_accumulation();
 
         u16 get_width() const
         {
@@ -120,13 +122,21 @@ namespace oblo
             return m_radianceBuffer;
         }
 
+        u32 get_num_samples_at(u16 x, u16 y) const;
+
+    private:
+        u32 get_accumulation_offset(u16 x, u16 y) const;
+
     private:
         friend class raytracer;
 
         u16 m_width{0};
         u16 m_height{0};
+        u16 m_tileSize{0};
+        u16 m_numTilesX{0};
         raytracer_metrics m_metrics{};
         std::vector<vec3> m_radianceBuffer;
+        std::vector<u32> m_accumulationBuffer;
         std::mt19937 m_rng;
     };
 }

@@ -72,6 +72,9 @@ namespace oblo
         constexpr vec2 uvStart{-1.f, -1.f};
         const vec2 uvOffset{2.f / state.m_width, 2.f / state.m_height};
 
+        const auto accumulationBuffer = state.m_accumulationBuffer.data() + state.get_accumulation_offset(minX, minY);
+        ++*accumulationBuffer;
+
         vec2 uv;
 
         for (u16 y = minY; y < maxY; ++y)
@@ -84,7 +87,7 @@ namespace oblo
                 uv.x = uvStart.x + uvOffset.x * x;
 
                 const auto ray = ray_cast(camera, uv);
-                *pixelOut = compute_lighting_recursive(ray, state, 1);
+                *pixelOut += compute_lighting_recursive(ray, state, 1);
 
                 ++pixelOut;
             }
@@ -241,10 +244,40 @@ namespace oblo
         }
     }
 
-    void raytracer_state::resize(u16 width, u16 height)
+    void raytracer_state::resize(u16 width, u16 height, u16 tileSize)
     {
+        m_radianceBuffer.clear();
+        m_accumulationBuffer.clear();
+
+        const auto area = i32{width} * height;
+
         m_width = width;
         m_height = height;
-        m_radianceBuffer.resize(width * height);
+        m_radianceBuffer.resize(area);
+
+        m_tileSize = tileSize;
+        m_numTilesX = round_up_div(width, tileSize);
+
+        const auto numTiles = m_numTilesX * round_up_div(height, tileSize);
+        m_accumulationBuffer.resize(numTiles);
+    }
+
+    void raytracer_state::reset_accumulation()
+    {
+        std::fill(m_radianceBuffer.begin(), m_radianceBuffer.end(), vec3{});
+        std::fill(m_accumulationBuffer.begin(), m_accumulationBuffer.end(), 0u);
+    }
+
+    u32 raytracer_state::get_num_samples_at(u16 x, u16 y) const
+    {
+        const auto offset = get_accumulation_offset(x, y);
+        return m_accumulationBuffer[offset];
+    }
+
+    u32 raytracer_state::get_accumulation_offset(u16 x, u16 y) const
+    {
+        const auto tileX = round_up_div(x, m_tileSize);
+        const auto tileY = round_up_div(y, m_tileSize);
+        return u32{m_numTilesX} * tileY + tileX;
     }
 }
