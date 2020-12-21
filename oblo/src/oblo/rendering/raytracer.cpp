@@ -73,8 +73,6 @@ namespace oblo
 
         vec2 uv;
 
-        auto metrics = raytracer_metrics{};
-
         for (u16 y = minY; y < maxY; ++y)
         {
             uv.y = uvStart.y + uvOffset.y * y;
@@ -85,77 +83,26 @@ namespace oblo
                 uv.x = uvStart.x + uvOffset.x * x;
 
                 const auto ray = ray_cast(camera, uv);
+                raytracer_result out{.metrics = &state.m_metrics};
 
-                auto color = vec3{0.f, 0.f, 0.f};
-
-                const auto allAabbs = m_aabbs.get_aabbs();
-                const auto allIds = m_aabbs.get_ids();
-
-                m_tlas.traverse(
-                    ray,
-                    [&](u32 firstIndex, u16 numPrimitives, f32& currentDistance) mutable
-                    {
-                        const auto aabbs = allAabbs.subspan(firstIndex, numPrimitives);
-                        u32 currentIndex = firstIndex;
-
-                        for (const auto& aabb : aabbs)
-                        {
-                            float t0, t1;
-
-                            if (oblo::intersect(ray, aabb, currentDistance, t0, t1) && t0 < currentDistance)
-                            {
-                                ++metrics.numTestedObjects;
-                                const auto instanceIndex = allIds[currentIndex];
-
-                                const auto& instance = m_instances[instanceIndex];
-                                const auto meshIndex = instance.mesh;
-                                const auto materialIndex = instance.material;
-
-                                bool bestResult = false;
-
-                                m_blas[meshIndex].traverse(
-                                    ray,
-                                    [&ray, &container = m_meshes[meshIndex], &currentDistance, &metrics, &bestResult](
-                                        u32 firstIndex,
-                                        u16 numPrimitives,
-                                        f32& distance)
-                                    {
-                                        metrics.numTestedTriangles += numPrimitives;
-                                        triangle_container::hit_result outResult;
-
-                                        const bool anyIntersection =
-                                            container.intersect(ray, firstIndex, numPrimitives, distance, outResult);
-
-                                        if (anyIntersection && distance < currentDistance)
-                                        {
-                                            bestResult = true;
-                                            currentDistance = distance;
-                                        }
-                                    });
-
-                                if (bestResult)
-                                {
-                                    color = m_materials[materialIndex].albedo + m_materials[materialIndex].emissive;
-                                }
-                            }
-
-                            ++currentIndex;
-                        }
-                    });
-
-                *pixelOut = color;
+                if (intersect(ray, out))
+                {
+                    const auto& material = m_materials[out.material];
+                    *pixelOut = material.albedo + material.emissive;
+                }
 
                 ++pixelOut;
             }
         }
 
         {
-            metrics.width = maxX;
-            metrics.height = maxY;
-            metrics.numObjects = m_aabbs.size();
-            metrics.numTriangles = m_numTriangles;
-            metrics.numPrimaryRays = maxX * maxY;
-            state.m_metrics = metrics;
+            const auto w = maxX - minX;
+            const auto h = maxY - minY;
+            state.m_metrics.width = w;
+            state.m_metrics.height = h;
+            state.m_metrics.numObjects = m_aabbs.size();
+            state.m_metrics.numTriangles = m_numTriangles;
+            state.m_metrics.numPrimaryRays = w * h;
         }
     }
 
@@ -176,6 +123,79 @@ namespace oblo
         }
 
         m_tlas.build(m_aabbs);
+    }
+
+    bool raytracer::intersect(const ray& ray, raytracer_result& out) const
+    {
+        const auto allAabbs = m_aabbs.get_aabbs();
+        const auto allIds = m_aabbs.get_ids();
+
+        bool found{false};
+        raytracer_metrics metrics{};
+
+        m_tlas.traverse(
+            ray,
+            [&](u32 firstIndex, u16 numPrimitives, f32& currentDistance) mutable
+            {
+                const auto aabbs = allAabbs.subspan(firstIndex, numPrimitives);
+                u32 currentIndex = firstIndex;
+
+                for (const auto& aabb : aabbs)
+                {
+                    float t0, t1;
+
+                    if (oblo::intersect(ray, aabb, currentDistance, t0, t1) && t0 < currentDistance)
+                    {
+                        ++metrics.numTestedObjects;
+                        const auto instanceIndex = allIds[currentIndex];
+
+                        const auto& instance = m_instances[instanceIndex];
+                        const auto meshIndex = instance.mesh;
+                        const auto materialIndex = instance.material;
+
+                        bool bestResult = false;
+
+                        m_blas[meshIndex].traverse(
+                            ray,
+                            [&ray, &container = m_meshes[meshIndex], &currentDistance, &metrics, &bestResult](
+                                u32 firstIndex,
+                                u16 numPrimitives,
+                                f32& distance)
+                            {
+                                metrics.numTestedTriangles += numPrimitives;
+                                triangle_container::hit_result outResult;
+
+                                const bool anyIntersection =
+                                    container.intersect(ray, firstIndex, numPrimitives, distance, outResult);
+
+                                if (anyIntersection && distance < currentDistance)
+                                {
+                                    bestResult = true;
+                                    currentDistance = distance;
+                                }
+                            });
+
+                        if (bestResult)
+                        {
+                            found = true;
+                            out.distance = currentDistance;
+                            out.instance = instanceIndex;
+                            out.mesh = meshIndex;
+                            out.material = materialIndex;
+                        }
+                    }
+
+                    ++currentIndex;
+                }
+            });
+
+        if (out.metrics)
+        {
+            out.metrics->numTestedObjects += metrics.numTestedObjects;
+            out.metrics->numTestedTriangles += metrics.numTestedTriangles;
+        }
+
+        return found;
     }
 
     const bvh& raytracer::get_tlas() const

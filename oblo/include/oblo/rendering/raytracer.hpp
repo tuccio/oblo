@@ -33,6 +33,15 @@ namespace oblo
         // TODO: Add transform
     };
 
+    struct raytracer_result
+    {
+        f32 distance;
+        u32 instance;
+        u32 mesh;
+        u32 material;
+        raytracer_metrics* metrics;
+    };
+
     class raytracer
     {
     public:
@@ -60,6 +69,8 @@ namespace oblo
         void rebuild_tlas();
 
         const bvh& get_tlas() const;
+
+        bool intersect(const ray& ray, raytracer_result& out) const;
 
     private:
         bvh m_tlas;
