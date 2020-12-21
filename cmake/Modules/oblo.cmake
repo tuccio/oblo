@@ -91,7 +91,14 @@ function(oblo_conan_install)
     endif()
 
     include(${CMAKE_BINARY_DIR}/conan.cmake)
-    
+
+    # We don't really care about debugging 3rd party
+    set(_build_type ${CMAKE_BUILD_TYPE})
+
+    if (${_build_type} STREQUAL "RelWithDebInfo")
+        set(_build_type "Release")
+    endif()
+
     # The default profile is to let 3rd party be compiled with msvc on windows
-    conan_cmake_run(CONANFILE conanfile.txt PROFILE default PROFILE_AUTO build_type BUILD missing)
+    conan_cmake_run(CONANFILE conanfile.txt PROFILE default PROFILE_AUTO build_type=${_build_type} BUILD missing)
 endfunction(oblo_conan_install)

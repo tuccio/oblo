@@ -55,7 +55,7 @@ namespace oblo
 
         void clear();
 
-        void render_debug(raytracer_state& state, const camera& camera) const;
+        void render_tile(raytracer_state& state, const camera& camera, u16 minX, u16 maxX, u16 minY, u16 maxY) const;
 
         void rebuild_tlas();
 

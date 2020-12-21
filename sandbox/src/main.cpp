@@ -19,27 +19,39 @@ namespace oblo
 {
     namespace
     {
-        void load_texture(
-            sf::Texture& texture, sf::Image& image, u16 width, u16 height, std::span<const vec3> colorBuffer)
-        {
-            auto it = colorBuffer.begin();
+        constexpr u16 s_tileSize{64};
 
-            for (auto y = 0u; y < height; ++y)
+        void update_tile([[maybe_unused]] sf::Texture& texture,
+                         u16 stride,
+                         u16 minX,
+                         u16 minY,
+                         u16 maxX,
+                         u16 maxY,
+                         std::span<const vec3> colorBuffer)
+        {
+
+            constexpr auto numChannels = 4;
+            u8 buffer[s_tileSize * s_tileSize * numChannels];
+            auto bufferIt = buffer;
+
+            for (auto y = minY; y < maxY; ++y)
             {
-                for (auto x = 0u; x < width; ++x)
+                auto it = colorBuffer.begin() + stride * y + minX;
+
+                for (auto x = minX; x < maxX; ++x)
                 {
                     const auto [r, g, b] = *it;
 
-                    const auto color =
-                        sf::Color{narrow_cast<u8>(r * 255), narrow_cast<u8>(g * 255), narrow_cast<u8>(b * 255), 255};
-
-                    image.setPixel(x, y, color);
+                    *(bufferIt++) = narrow_cast<u8>(r * 255);
+                    *(bufferIt++) = narrow_cast<u8>(g * 255);
+                    *(bufferIt++) = narrow_cast<u8>(b * 255);
+                    *(bufferIt++) = 255;
 
                     ++it;
                 }
             }
 
-            texture.loadFromImage(image);
+            texture.update(buffer, maxX - minX, maxY - minY, minX, minY);
         }
     }
 }
@@ -80,7 +92,6 @@ int main(int argc, char* argv[])
     debug_renderer debugRenderer;
     debug_view debugView;
 
-    sf::Image outImage;
     sf::Texture outTexture;
 
     state.raytracer = &raytracer;
@@ -101,6 +112,9 @@ int main(int argc, char* argv[])
         importer.import(state, state.latestImportedScene);
     }
 
+    u16 tileX{0}, tileY{0};
+    u16 numTilesX{0}, numTilesY{0};
+
     const auto onResize = [&](const auto& size)
     {
         const auto [width, height] = size;
@@ -109,8 +123,13 @@ int main(int argc, char* argv[])
 
         state.raytracerState->resize(narrow_cast<u16>(width), narrow_cast<u16>(height));
 
-        outImage.create(width, height);
         outTexture.create(width, height);
+
+        numTilesX = round_up_div(u16(width), s_tileSize);
+        numTilesY = round_up_div(u16(height), s_tileSize);
+
+        tileX = 0;
+        tileY = 0;
     };
 
     window.setActive(true);
@@ -145,12 +164,28 @@ int main(int argc, char* argv[])
 
         if (!state.renderRasterized)
         {
-            raytracer.render_debug(raytracerState, state.camera);
+            const auto w = state.raytracerState->get_width();
+            const auto h = state.raytracerState->get_height();
 
-            const auto width = raytracerState.get_width();
-            const auto height = raytracerState.get_height();
+            const auto minX = tileX * s_tileSize;
+            const auto maxX = min(w, u16(minX + s_tileSize));
 
-            load_texture(outTexture, outImage, width, height, raytracerState.get_radiance_buffer());
+            const auto minY = tileY * s_tileSize;
+            const auto maxY = min(h, u16(minY + s_tileSize));
+
+            raytracer.render_tile(raytracerState, state.camera, minX, maxX, minY, maxY);
+
+            if (++tileX > numTilesX)
+            {
+                tileX = 0;
+
+                if (++tileY > numTilesY)
+                {
+                    tileY = 0;
+                }
+            }
+
+            update_tile(outTexture, w, minX, minY, maxX, maxY, raytracerState.get_radiance_buffer());
 
             sf::Sprite sprite{outTexture};
             window.draw(sprite);

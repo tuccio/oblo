@@ -21,4 +21,10 @@ namespace oblo
     {
         return static_cast<T>(std::forward<U>(u));
     }
+
+    template <typename T>
+    T round_up_div(const T& numerator, const T& denominator)
+    {
+        return (numerator + denominator - 1) / denominator;
+    }
 }
