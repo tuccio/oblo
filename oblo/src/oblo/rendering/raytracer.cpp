@@ -210,20 +210,20 @@ namespace oblo
 
         vec3 irradiance{};
 
-        constexpr u16 maxBounces = 4;
+        constexpr u16 maxBounces = 16;
         constexpr u16 numSamples = 1;
         constexpr f32 sampleWeight = 1.f / numSamples;
 
         if (bounces < maxBounces)
         {
-            const auto direction = hemisphere_uniform_sample(state.m_rng, normal);
-            const auto selfIntersectBias = direction * .001f;
+            const auto scatterDirection = hemisphere_uniform_sample(state.m_rng, normal);
+            const auto selfIntersectBias = scatterDirection * .001f;
             const auto position = ray.direction * out.distance + ray.origin + selfIntersectBias;
 
             for (u16 sample = 0; sample < numSamples; ++sample)
             {
-                irradiance += max(0.f, dot(normal, direction)) *
-                              compute_lighting_recursive({position, direction}, state, bounces + 1);
+                irradiance += max(0.f, dot(normal, scatterDirection)) *
+                              compute_lighting_recursive({position, scatterDirection}, state, bounces + 1);
             }
         }
 
