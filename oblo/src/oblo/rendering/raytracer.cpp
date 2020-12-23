@@ -69,27 +69,37 @@ namespace oblo
             return;
         }
 
+        constexpr u32 numSamples = 4;
+
         constexpr vec2 uvStart{-1.f, -1.f};
         const vec2 uvOffset{2.f / state.m_width, 2.f / state.m_height};
 
+        std::uniform_real_distribution<f32> jitterDistX{-1.f / state.m_width, 1.f / state.m_width};
+        std::uniform_real_distribution<f32> jitterDistY{-1.f / state.m_height, 1.f / state.m_height};
+
         const auto accumulationBuffer = state.m_accumulationBuffer.data() + state.get_accumulation_offset(minX, minY);
-        ++*accumulationBuffer;
+        *accumulationBuffer += numSamples;
+        state.m_metrics.numTotalSamples = *accumulationBuffer;
 
-        vec2 uv;
-
-        for (u16 y = minY; y < maxY; ++y)
+        for (u32 sample = 0; sample < numSamples; ++sample)
         {
-            uv.y = uvStart.y + uvOffset.y * y;
-            vec3* pixelOut = state.m_radianceBuffer.data() + state.m_width * y + minX;
+            vec2 uv;
 
-            for (u16 x = minX; x < maxX; ++x)
+            for (u16 y = minY; y < maxY; ++y)
             {
-                uv.x = uvStart.x + uvOffset.x * x;
+                const auto baseY = uvStart.y + uvOffset.y * y;
+                vec3* pixelOut = state.m_radianceBuffer.data() + state.m_width * y + minX;
 
-                const auto ray = ray_cast(camera, uv);
-                *pixelOut += compute_lighting_recursive(ray, state, 1);
+                for (u16 x = minX; x < maxX; ++x)
+                {
+                    uv.y = baseY + jitterDistY(state.m_rng);
+                    uv.x = uvStart.x + uvOffset.x * x + jitterDistX(state.m_rng);
 
-                ++pixelOut;
+                    const auto ray = ray_cast(camera, uv);
+                    *pixelOut += compute_lighting_recursive(ray, state, 1);
+
+                    ++pixelOut;
+                }
             }
         }
 
@@ -129,7 +139,6 @@ namespace oblo
         const auto allIds = m_aabbs.get_ids();
 
         bool found{false};
-        raytracer_metrics metrics{};
 
         m_tlas.traverse(
             ray,
@@ -144,7 +153,6 @@ namespace oblo
 
                     if (oblo::intersect(ray, aabb, currentDistance, t0, t1) && t0 < currentDistance)
                     {
-                        ++metrics.numTestedObjects;
                         const auto instanceIndex = allIds[currentIndex];
 
                         const auto& instance = m_instances[instanceIndex];
@@ -158,7 +166,6 @@ namespace oblo
                             ray,
                             [&, &container = m_meshes[meshIndex]](u32 firstIndex, u16 numPrimitives, f32& distance)
                             {
-                                metrics.numTestedTriangles += numPrimitives;
                                 triangle_container::hit_result hitResult;
 
                                 const bool anyIntersection =
@@ -187,12 +194,6 @@ namespace oblo
                 }
             });
 
-        if (out.metrics)
-        {
-            out.metrics->numTestedObjects += metrics.numTestedObjects;
-            out.metrics->numTestedTriangles += metrics.numTestedTriangles;
-        }
-
         return found;
     }
 
@@ -210,8 +211,8 @@ namespace oblo
 
         vec3 irradiance{};
 
-        constexpr u16 maxBounces = 16;
-        constexpr u16 numSamples = 1;
+        constexpr u16 maxBounces = 4;
+        constexpr u16 numSamples = 4;
         constexpr f32 sampleWeight = 1.f / numSamples;
 
         if (bounces < maxBounces)
@@ -265,6 +266,7 @@ namespace oblo
     {
         std::fill(m_radianceBuffer.begin(), m_radianceBuffer.end(), vec3{});
         std::fill(m_accumulationBuffer.begin(), m_accumulationBuffer.end(), 0u);
+        m_metrics = {};
     }
 
     u32 raytracer_state::get_num_samples_at(u16 x, u16 y) const

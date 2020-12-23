@@ -225,8 +225,7 @@ namespace oblo
                 ImGui::Text("Objects count: %d", metrics.numObjects);
                 ImGui::Text("Triangles count: %d", metrics.numTriangles);
                 ImGui::Text("Primary rays count: %d", metrics.numPrimaryRays);
-                ImGui::Text("Objects tests count: %d", metrics.numTestedObjects);
-                ImGui::Text("Triangles tests count: %d", metrics.numTestedTriangles);
+                ImGui::Text("Samples per pixel: %d", metrics.numTotalSamples);
             }
 
             ImGui::End();
