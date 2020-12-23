@@ -75,8 +75,6 @@ namespace oblo
         bool intersect(const ray& ray, raytracer_result& out) const;
 
     private:
-        vec3 trace_recursive(const ray& ray, raytracer_state& state, u16 bounces) const;
-
         struct trace_context;
         void trace(trace_context& context, std::span<const ray> initialRays, raytracer_state& state) const;
 
