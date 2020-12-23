@@ -42,6 +42,8 @@ namespace oblo
         u32 triangle;
     };
 
+    class raytracer_context;
+
     class raytracer
     {
     public:
@@ -76,9 +78,7 @@ namespace oblo
         vec3 trace_recursive(const ray& ray, raytracer_state& state, u16 bounces) const;
 
         struct trace_context;
-
-        void trace(trace_context& context, const ray& ray, raytracer_state& state) const;
-        void cast(trace_context& context, const ray& ray, raytracer_state& state, u16 bounces);
+        void trace(trace_context& context, std::span<const ray> initialRays, raytracer_state& state) const;
 
     private:
         bvh m_tlas;
