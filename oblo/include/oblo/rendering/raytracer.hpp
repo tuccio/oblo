@@ -23,8 +23,7 @@ namespace oblo
         u32 numObjects;
         u32 numTriangles;
         u32 numPrimaryRays;
-        u32 numTestedObjects;
-        u32 numTestedTriangles;
+        u32 numTotalSamples;
     };
 
     struct render_instance
