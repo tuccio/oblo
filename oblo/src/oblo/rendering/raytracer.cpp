@@ -7,6 +7,29 @@
 
 namespace oblo
 {
+    namespace
+    {
+        struct trace_cast
+        {
+            ray ray;
+            u32 outputIndex;
+            u32 bounce;
+        };
+
+        struct trace_output
+        {
+            vec3 irradiance;
+            vec3 reflectance;
+            u32 parentIndex;
+        };
+    }
+
+    struct raytracer::trace_context
+    {
+        std::vector<trace_cast> casts[2];
+        std::vector<trace_output> output;
+    };
+
     raytracer::raytracer() = default;
 
     raytracer::~raytracer() = default;
@@ -81,6 +104,8 @@ namespace oblo
         *accumulationBuffer += numSamples;
         state.m_metrics.numTotalSamples = *accumulationBuffer;
 
+        trace_context context{};
+
         for (u32 sample = 0; sample < numSamples; ++sample)
         {
             vec2 uv;
@@ -96,8 +121,9 @@ namespace oblo
                     uv.x = uvStart.x + uvOffset.x * x + jitterDistX(state.m_rng);
 
                     const auto ray = ray_cast(camera, uv);
-                    *pixelOut += compute_lighting_recursive(ray, state, 1);
+                    trace(context, ray, state);
 
+                    *pixelOut += context.output[0].irradiance;
                     ++pixelOut;
                 }
             }
@@ -197,9 +223,9 @@ namespace oblo
         return found;
     }
 
-    vec3 raytracer::compute_lighting_recursive(const ray& ray, raytracer_state& state, const u16 bounces) const
+    vec3 raytracer::trace_recursive(const ray& ray, raytracer_state& state, const u16 bounces) const
     {
-        raytracer_result out{.metrics = &state.m_metrics};
+        raytracer_result out{};
 
         if (!intersect(ray, out))
         {
@@ -224,11 +250,75 @@ namespace oblo
             for (u16 sample = 0; sample < numSamples; ++sample)
             {
                 irradiance += max(0.f, dot(normal, scatterDirection)) *
-                              compute_lighting_recursive({position, scatterDirection}, state, bounces + 1);
+                              trace_recursive({position, scatterDirection}, state, bounces + 1);
             }
         }
 
         return irradiance * sampleWeight * material.albedo + material.emissive;
+    }
+
+    void raytracer::trace(trace_context& context, const ray& firstRay, raytracer_state& state) const
+    {
+        context.casts[0].clear();
+        context.casts[1].clear();
+        context.output.clear();
+
+        context.output.push_back({vec3{}, {1.f, 1.f, 1.f}, ~0u});
+        context.casts[0].push_back({firstRay, 0u, 0u});
+
+        // Cast rays
+        for (auto current = 0, next = 1; !context.casts[current].empty(); (current = 1 - current), (next = 1 - next))
+        {
+            const auto& currentCasts = context.casts[current];
+            auto& nextCasts = context.casts[next];
+
+            nextCasts.clear();
+
+            for (const auto& cast : currentCasts)
+            {
+                raytracer_result result{};
+
+                if (!intersect(cast.ray, result))
+                {
+                    continue;
+                }
+                else
+                {
+                    const auto& material = m_materials[result.material];
+
+                    context.output[cast.outputIndex].irradiance += material.emissive;
+
+                    constexpr auto maxBounces = 4;
+
+                    if (cast.bounce < maxBounces)
+                    {
+                        const auto normal = m_meshes[result.mesh].get_normals()[result.triangle];
+
+                        const auto scatterDirection = hemisphere_uniform_sample(state.m_rng, normal);
+                        const auto selfIntersectBias = scatterDirection * .001f;
+                        const auto position =
+                            cast.ray.direction * result.distance + cast.ray.origin + selfIntersectBias;
+
+                        const auto outputIndex = narrow_cast<u32>(context.output.size());
+                        context.output.push_back(
+                            {vec3{}, max(0.f, dot(normal, scatterDirection)) * material.albedo, cast.outputIndex});
+
+                        nextCasts.push_back({ray{position, scatterDirection}, outputIndex, cast.bounce + 1});
+                    }
+                }
+            }
+        }
+
+        // Resolve back to front
+        const auto outputArray = std::span{context.output}.subspan(1u);
+
+        for (auto it = outputArray.rbegin(); it != outputArray.rend(); ++it)
+        {
+            const auto& currentOutput = *it;
+            auto& parentOutput = context.output[currentOutput.parentIndex];
+
+            parentOutput.irradiance += currentOutput.irradiance * currentOutput.reflectance;
+        }
     }
 
     const bvh& raytracer::get_tlas() const

@@ -40,7 +40,6 @@ namespace oblo
         u32 mesh;
         u32 material;
         u32 triangle;
-        raytracer_metrics* metrics;
     };
 
     class raytracer
@@ -74,7 +73,12 @@ namespace oblo
         bool intersect(const ray& ray, raytracer_result& out) const;
 
     private:
-        vec3 compute_lighting_recursive(const ray& ray, raytracer_state& state, u16 bounces) const;
+        vec3 trace_recursive(const ray& ray, raytracer_state& state, u16 bounces) const;
+
+        struct trace_context;
+
+        void trace(trace_context& context, const ray& ray, raytracer_state& state) const;
+        void cast(trace_context& context, const ray& ray, raytracer_state& state, u16 bounces);
 
     private:
         bvh m_tlas;
