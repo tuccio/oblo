@@ -106,26 +106,33 @@ namespace oblo
 
         trace_context context{};
 
-        for (u32 sample = 0; sample < numSamples; ++sample)
+        vec2 uv;
+
+        for (u16 y = minY; y < maxY; ++y)
         {
-            vec2 uv;
+            const auto baseY = uvStart.y + uvOffset.y * y;
+            vec3* pixelOut = state.m_radianceBuffer.data() + state.m_width * y + minX;
 
-            for (u16 y = minY; y < maxY; ++y)
+            for (u16 x = minX; x < maxX; ++x)
             {
-                const auto baseY = uvStart.y + uvOffset.y * y;
-                vec3* pixelOut = state.m_radianceBuffer.data() + state.m_width * y + minX;
+                ray rays[numSamples];
 
-                for (u16 x = minX; x < maxX; ++x)
+                for (auto& ray : rays)
                 {
                     uv.y = baseY + jitterDistY(state.m_rng);
                     uv.x = uvStart.x + uvOffset.x * x + jitterDistX(state.m_rng);
 
-                    const auto ray = ray_cast(camera, uv);
-                    trace(context, ray, state);
-
-                    *pixelOut += context.output[0].irradiance;
-                    ++pixelOut;
+                    ray = ray_cast(camera, uv);
                 }
+
+                trace(context, rays, state);
+
+                for (const auto& sample : std::span{context.output}.first(numSamples))
+                {
+                    *pixelOut += sample.irradiance;
+                }
+
+                ++pixelOut;
             }
         }
 
@@ -257,14 +264,18 @@ namespace oblo
         return irradiance * sampleWeight * material.albedo + material.emissive;
     }
 
-    void raytracer::trace(trace_context& context, const ray& firstRay, raytracer_state& state) const
+    void raytracer::trace(trace_context& context, std::span<const ray> initialRays, raytracer_state& state) const
     {
         context.casts[0].clear();
         context.casts[1].clear();
         context.output.clear();
 
-        context.output.push_back({vec3{}, {1.f, 1.f, 1.f}, ~0u});
-        context.casts[0].push_back({firstRay, 0u, 0u});
+        context.output.assign(initialRays.size(), {vec3{}, {1.f, 1.f, 1.f}, ~0u});
+
+        for (u32 i = 0; i < initialRays.size(); ++i)
+        {
+            context.casts[0].push_back({initialRays[i], i, 0u});
+        }
 
         // Cast rays
         for (auto current = 0, next = 1; !context.casts[current].empty(); (current = 1 - current), (next = 1 - next))
@@ -309,8 +320,8 @@ namespace oblo
             }
         }
 
-        // Resolve back to front
-        const auto outputArray = std::span{context.output}.subspan(1u);
+        // Resolve secondary rays back to front
+        const auto outputArray = std::span{context.output}.subspan(initialRays.size());
 
         for (auto it = outputArray.rbegin(); it != outputArray.rend(); ++it)
         {
