@@ -1,0 +1,28 @@
+buildType:
+  default: optimized
+  description: Compile with optimizations
+  choices:
+    optimized:
+      short: Optimized
+      long: Build with optimizations for speed
+      buildType: Release
+      settings:
+        OBLO_DISABLE_COMPILER_OPTIMIZATIONS: false
+    unoptimized_debug:
+      short: Unoptomized
+      long: Build with debug info, without any optimization and link to release runtime
+      buildType: RelWithDebInfo
+      settings:
+        OBLO_DISABLE_COMPILER_OPTIMIZATIONS: true
+    profile:
+      short: Profile
+      long: Build with optimizations and debug info
+      buildType: RelWithDebInfo
+      settings:
+        OBLO_DISABLE_COMPILER_OPTIMIZATIONS: false
+    debug:
+      short: Debug
+      long: Build without any optimization and link to debug runtime
+      buildType: Debug
+      settings:
+        OBLO_DISABLE_COMPILER_OPTIMIZATIONS: false
