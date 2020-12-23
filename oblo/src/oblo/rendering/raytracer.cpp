@@ -230,40 +230,6 @@ namespace oblo
         return found;
     }
 
-    vec3 raytracer::trace_recursive(const ray& ray, raytracer_state& state, const u16 bounces) const
-    {
-        raytracer_result out{};
-
-        if (!intersect(ray, out))
-        {
-            return vec3{};
-        }
-
-        const auto& material = m_materials[out.material];
-        const auto normal = m_meshes[out.mesh].get_normals()[out.triangle];
-
-        vec3 irradiance{};
-
-        constexpr u16 maxBounces = 4;
-        constexpr u16 numSamples = 4;
-        constexpr f32 sampleWeight = 1.f / numSamples;
-
-        if (bounces < maxBounces)
-        {
-            const auto scatterDirection = hemisphere_uniform_sample(state.m_rng, normal);
-            const auto selfIntersectBias = scatterDirection * .001f;
-            const auto position = ray.direction * out.distance + ray.origin + selfIntersectBias;
-
-            for (u16 sample = 0; sample < numSamples; ++sample)
-            {
-                irradiance += max(0.f, dot(normal, scatterDirection)) *
-                              trace_recursive({position, scatterDirection}, state, bounces + 1);
-            }
-        }
-
-        return irradiance * sampleWeight * material.albedo + material.emissive;
-    }
-
     void raytracer::trace(trace_context& context, std::span<const ray> initialRays, raytracer_state& state) const
     {
         context.casts[0].clear();
