@@ -1,3 +1,28 @@
+macro(oblo_remove_cxx_flag _option_regex)
+    string(TOUPPER ${CMAKE_BUILD_TYPE} _build_type)
+
+    string(REGEX REPLACE "${_option_regex}" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    string(REGEX REPLACE "${_option_regex}" "" CMAKE_CXX_FLAGS_${_build_type} "${CMAKE_CXX_FLAGS_${_build_type}}")
+
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" PARENT_SCOPE)
+    set(CMAKE_CXX_FLAGS_${_build_type} "${CMAKE_CXX_FLAGS_${_build_type}}" PARENT_SCOPE)
+endmacro(oblo_remove_cxx_flag)
+
+function(oblo_init_compiler_settings)
+    if (MSVC)
+        # Warning as errors
+        add_compile_options(/W4 /WX)
+
+        # Disable optimizations if specified
+        if (OBLO_DISABLE_COMPILER_OPTIMIZATIONS)
+            oblo_remove_cxx_flag("(\/O([a-z])?[0-9a-z])")
+            add_compile_options(/Od)
+        endif()
+    else()
+        message(SEND_ERROR "Not supported yet")
+    endif()
+endfunction(oblo_init_compiler_settings)
+
 function(oblo_find_source_files)
     file(GLOB_RECURSE _src src/*.cpp)
     file(GLOB_RECURSE _private_includes src/*.hpp)
