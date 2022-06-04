@@ -132,7 +132,11 @@ namespace oblo::vk
         }
 
         VkSurfaceCapabilitiesKHR surfaceCapabilities;
-        OBLO_VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice, surface, &surfaceCapabilities));
+
+        if (failed(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice, surface, &surfaceCapabilities)))
+        {
+            return false;
+        }
 
         small_vector<VkSurfaceFormatKHR, 64> surfaceFormats;
         u32 surfaceFormatsCount;
@@ -181,9 +185,9 @@ namespace oblo::vk
         }
 
         u32 createdImageCount;
-        OBLO_VK_CHECK(vkGetSwapchainImagesKHR(m_device, m_swapchain, &createdImageCount, m_images));
 
-        return createdImageCount == imageCount;
+        return !failed(vkGetSwapchainImagesKHR(m_device, m_swapchain, &createdImageCount, m_images)) &&
+               createdImageCount == imageCount;
     }
 
     VkPhysicalDevice single_queue_engine::get_physical_device() const
