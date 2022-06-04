@@ -2,7 +2,6 @@
 
 #include <oblo/core/debug.hpp>
 #include <oblo/core/types.hpp>
-#include <oblo/vulkan/error.hpp>
 
 namespace oblo::vk
 {
@@ -42,8 +41,7 @@ namespace oblo::vk
             .ppEnabledExtensionNames = enabledExtensions.data(),
         };
 
-        OBLO_VK_CHECK(vkCreateInstance(&instanceInfo, nullptr, &m_instance));
-        return m_instance != nullptr;
+        return vkCreateInstance(&instanceInfo, nullptr, &m_instance) == VK_SUCCESS;
     }
 
     VkInstance instance::get() const

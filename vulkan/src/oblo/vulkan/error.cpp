@@ -3,9 +3,9 @@
 #include <cstdio>
 #include <exception>
 
-namespace oblo
+namespace oblo::vk
 {
-    void vulkan_fatal_error(const char* file, int line, const char* call, VkResult result)
+    void panic(const char* file, int line, const char* call, VkResult result)
     {
         std::fprintf(stderr, "[Vulkan Error] %s:%d %s (%d)", file, line, call, result);
         std::terminate();

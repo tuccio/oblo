@@ -45,7 +45,7 @@ namespace
                     VkApplicationInfo{
                         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
                         .pNext = nullptr,
-                        .pApplicationName = "oblo",
+                        .pApplicationName = "vksandbox",
                         .applicationVersion = 0,
                         .pEngineName = "oblo",
                         .engineVersion = 0,
@@ -96,7 +96,7 @@ int SDL_main(int, char*[])
 {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
 
-    auto* const window = SDL_CreateWindow("SDL Vulkan Sample",
+    auto* const window = SDL_CreateWindow("Oblo Vulkan Sandbox",
                                           SDL_WINDOWPOS_UNDEFINED,
                                           SDL_WINDOWPOS_UNDEFINED,
                                           1280,
