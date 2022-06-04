@@ -35,6 +35,7 @@ namespace oblo::vk
         VkPhysicalDevice m_physicalDevice{nullptr};
         VkDevice m_device{nullptr};
         VkQueue m_queue{nullptr};
+        VkSurfaceKHR m_surface{nullptr};
         VkSwapchainKHR m_swapchain{nullptr};
         VkImage m_images[MaxSwapChainImageCount]{nullptr};
     };
