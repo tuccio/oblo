@@ -1,4 +1,4 @@
-#include <oblo/vulkan/single_queue_device.hpp>
+#include <oblo/vulkan/single_queue_engine.hpp>
 
 #include <oblo/core/debug.hpp>
 #include <oblo/core/small_vector.hpp>
@@ -8,28 +8,33 @@
 
 namespace oblo::vk
 {
-    single_queue_device::single_queue_device(single_queue_device&& other)
+    single_queue_engine::single_queue_engine(single_queue_engine&& other)
     {
         std::swap(other.m_device, m_device);
         std::swap(other.m_queue, m_queue);
     }
 
-    single_queue_device& single_queue_device::operator=(single_queue_device&& other)
+    single_queue_engine& single_queue_engine::operator=(single_queue_engine&& other)
     {
         std::swap(other.m_device, m_device);
         std::swap(other.m_queue, m_queue);
         return *this;
     }
 
-    single_queue_device::~single_queue_device()
+    single_queue_engine::~single_queue_engine()
     {
+        if (m_swapchain)
+        {
+            vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
+        }
+
         if (m_device)
         {
             vkDestroyDevice(m_device, nullptr);
         }
     }
 
-    bool single_queue_device::init(VkInstance instance,
+    bool single_queue_engine::init(VkInstance instance,
                                    VkSurfaceKHR surface,
                                    std::span<const char* const> enabledLayers,
                                    std::span<const char* const> enabledExtensions)
@@ -118,18 +123,86 @@ namespace oblo::vk
         return true;
     }
 
-    VkPhysicalDevice single_queue_device::get_physical_device() const
+    bool single_queue_engine::create_swapchain(
+        VkSurfaceKHR surface, u32 width, u32 height, VkFormat format, u32 imageCount)
+    {
+        if (imageCount > MaxSwapChainImageCount)
+        {
+            return false;
+        }
+
+        VkSurfaceCapabilitiesKHR surfaceCapabilities;
+        OBLO_VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice, surface, &surfaceCapabilities));
+
+        small_vector<VkSurfaceFormatKHR, 64> surfaceFormats;
+        u32 surfaceFormatsCount;
+        vkGetPhysicalDeviceSurfaceFormatsKHR(m_physicalDevice, surface, &surfaceFormatsCount, nullptr);
+        surfaceFormats.resize(surfaceFormatsCount);
+        vkGetPhysicalDeviceSurfaceFormatsKHR(m_physicalDevice, surface, &surfaceFormatsCount, surfaceFormats.data());
+
+        const auto surfaceFormatIt =
+            std::find_if(surfaceFormats.begin(),
+                         surfaceFormats.end(),
+                         [format](const VkSurfaceFormatKHR& surfaceFormat) { return surfaceFormat.format == format; });
+
+        if (surfaceFormatIt == surfaceFormats.end())
+        {
+            return false;
+        }
+
+        if (surfaceCapabilities.minImageCount > MaxSwapChainImageCount)
+        {
+            return false;
+        }
+
+        // We assume the graphics and present queue are the same family here
+        const VkSwapchainCreateInfoKHR createInfo = {.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+                                                     .pNext = nullptr,
+                                                     .flags = 0,
+                                                     .surface = surface,
+                                                     .minImageCount = surfaceCapabilities.minImageCount,
+                                                     .imageFormat = surfaceFormatIt->format,
+                                                     .imageColorSpace = surfaceFormatIt->colorSpace,
+                                                     .imageExtent = VkExtent2D{.width = width, .height = height},
+                                                     .imageArrayLayers = 1,
+                                                     .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                                                     .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
+                                                     .queueFamilyIndexCount = 0,
+                                                     .pQueueFamilyIndices = nullptr,
+                                                     .preTransform = surfaceCapabilities.currentTransform,
+                                                     .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+                                                     .presentMode = VK_PRESENT_MODE_FIFO_KHR,
+                                                     .clipped = VK_TRUE,
+                                                     .oldSwapchain = nullptr};
+
+        if (vkCreateSwapchainKHR(m_device, &createInfo, nullptr, &m_swapchain) != VK_SUCCESS)
+        {
+            return false;
+        }
+
+        u32 createdImageCount;
+        OBLO_VK_CHECK(vkGetSwapchainImagesKHR(m_device, m_swapchain, &createdImageCount, m_images));
+
+        return createdImageCount == imageCount;
+    }
+
+    VkPhysicalDevice single_queue_engine::get_physical_device() const
     {
         return m_physicalDevice;
     }
 
-    VkDevice single_queue_device::get_device() const
+    VkDevice single_queue_engine::get_device() const
     {
         return m_device;
     }
 
-    VkQueue single_queue_device::get_queue() const
+    VkQueue single_queue_engine::get_queue() const
     {
         return m_queue;
+    }
+
+    VkSwapchainKHR single_queue_engine::get_swapchain() const
+    {
+        return m_swapchain;
     }
 }

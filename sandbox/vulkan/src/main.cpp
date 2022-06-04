@@ -1,8 +1,7 @@
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/instance.hpp>
-#include <oblo/vulkan/single_queue_device.hpp>
-#include <oblo/vulkan/swapchain.hpp>
+#include <oblo/vulkan/single_queue_engine.hpp>
 
 #include <SDL.h>
 #include <SDL_vulkan.h>
@@ -25,8 +24,7 @@ namespace
         using namespace oblo;
 
         vk::instance instance;
-        vk::single_queue_device device;
-        vk::swapchain swapchain;
+        vk::single_queue_engine engine;
 
         {
             // We need to gather the extensions needed by SDL, for now we hardcode a max number
@@ -66,7 +64,7 @@ namespace
                 return int(error::create_surface);
             }
 
-            if (!device.init(instance.get(), surface, {}, deviceExtensions))
+            if (!engine.init(instance.get(), surface, {}, deviceExtensions))
             {
                 return int(error::create_vulkan_context);
             }
@@ -74,13 +72,7 @@ namespace
             int width, height;
             SDL_Vulkan_GetDrawableSize(window, &width, &height);
 
-            if (!swapchain.init(device.get_physical_device(),
-                                device.get_device(),
-                                surface,
-                                u32(width),
-                                u32(height),
-                                VK_FORMAT_B8G8R8A8_UNORM,
-                                2u))
+            if (!engine.create_swapchain(surface, u32(width), u32(height), VK_FORMAT_B8G8R8A8_UNORM, 2u))
             {
                 return false;
             }
