@@ -15,6 +15,7 @@ enum class error
     create_window,
     create_surface,
     create_vulkan_context,
+    create_swapchain
 };
 
 namespace
@@ -23,6 +24,7 @@ namespace
     {
         using namespace oblo;
 
+        VkSurfaceKHR surface{nullptr};
         vk::instance instance;
         vk::single_queue_engine engine;
 
@@ -57,8 +59,6 @@ namespace
                 return int(error::create_vulkan_context);
             }
 
-            VkSurfaceKHR surface;
-
             if (!SDL_Vulkan_CreateSurface(window, instance.get(), &surface))
             {
                 return int(error::create_surface);
@@ -74,7 +74,7 @@ namespace
 
             if (!engine.create_swapchain(surface, u32(width), u32(height), VK_FORMAT_B8G8R8A8_UNORM, 2u))
             {
-                return false;
+                return int(error::create_swapchain);
             }
         }
 
@@ -88,6 +88,11 @@ namespace
                     return int(error::success);
                 }
             }
+        }
+
+        if (surface)
+        {
+            vkDestroySurfaceKHR(instance.get(), surface, nullptr);
         }
     }
 }

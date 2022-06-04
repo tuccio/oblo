@@ -126,6 +126,8 @@ namespace oblo::vk
     bool single_queue_engine::create_swapchain(
         VkSurfaceKHR surface, u32 width, u32 height, VkFormat format, u32 imageCount)
     {
+        m_surface = surface;
+
         if (imageCount > MaxSwapChainImageCount)
         {
             return false;
@@ -133,7 +135,7 @@ namespace oblo::vk
 
         VkSurfaceCapabilitiesKHR surfaceCapabilities;
 
-        if (failed(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice, surface, &surfaceCapabilities)))
+        if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice, surface, &surfaceCapabilities) != VK_SUCCESS)
         {
             return false;
         }
@@ -184,9 +186,9 @@ namespace oblo::vk
             return false;
         }
 
-        u32 createdImageCount;
+        u32 createdImageCount{imageCount};
 
-        return !failed(vkGetSwapchainImagesKHR(m_device, m_swapchain, &createdImageCount, m_images)) &&
+        return vkGetSwapchainImagesKHR(m_device, m_swapchain, &createdImageCount, m_images) == VK_SUCCESS &&
                createdImageCount == imageCount;
     }
 
