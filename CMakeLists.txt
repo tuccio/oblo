@@ -15,4 +15,5 @@ oblo_conan_init()
 oblo_conan_install()
 
 add_subdirectory(oblo)
+add_subdirectory(vulkan)
 add_subdirectory(sandbox)
