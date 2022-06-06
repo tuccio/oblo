@@ -87,6 +87,7 @@ namespace oblo
             delete[] m_buffer;
             m_buffer = newBuffer;
             m_firstUnused = m_usedCount;
+            m_size = newSize;
         }
 
         bool has_available(std::size_t count)
@@ -123,7 +124,12 @@ namespace oblo
             return result;
         }
 
-        segmented_span used_segments(std::size_t maxCount = used_count())
+        segmented_span used_segments()
+        {
+            return used_segments(m_usedCount);
+        }
+
+        segmented_span used_segments(std::size_t maxCount)
         {
             OBLO_ASSERT(maxCount <= m_usedCount);
             segmented_span result{};
@@ -152,7 +158,7 @@ namespace oblo
         T* first_used()
         {
             OBLO_ASSERT(m_usedCount > 0);
-            const auto firstUnused = (m_firstUnused + available) % m_size;
+            const auto firstUnused = (m_firstUnused + available_count()) % m_size;
             return m_buffer + firstUnused;
         }
 

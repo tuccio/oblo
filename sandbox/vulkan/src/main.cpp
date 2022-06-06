@@ -7,6 +7,10 @@
 #include <SDL.h>
 #include <SDL_vulkan.h>
 
+#include <nlohmann/json.hpp>
+
+#include <filesystem>
+#include <fstream>
 #include <span>
 #include <vector>
 
@@ -22,30 +26,73 @@ enum class error
 
 namespace
 {
+    struct config
+    {
+        bool vk_use_validation_layers{false};
+    };
+
+#define OBLO_READ_VAR_(Var)                                                                                            \
+    if (json.count(#Var) > 0)                                                                                          \
+        cfg.Var = json.at(#Var).get<decltype(config::Var)>();
+
+    config load_config(const std::filesystem::path& path)
+    {
+        config cfg{};
+        std::ifstream ifs{path};
+
+        if (ifs.is_open())
+        {
+            const auto json = nlohmann::json::parse(ifs);
+            OBLO_READ_VAR_(vk_use_validation_layers);
+        }
+
+        return cfg;
+    }
+#undef OBLO_READ_VAR_
+
+    static VKAPI_ATTR VkBool32 VKAPI_CALL
+    debugCallback([[maybe_unused]] VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+                  [[maybe_unused]] VkDebugUtilsMessageTypeFlagsEXT messageType,
+                  const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+                  [[maybe_unused]] void* pUserData)
+    {
+        fprintf(stderr, "[Vulkan Validation] (%x) %s\n", messageType, pCallbackData->pMessage);
+        return VK_FALSE;
+    }
+
     int run(SDL_Window* window)
     {
         using namespace oblo;
 
+        const auto config = load_config("vksandbox.json");
+
         constexpr u32 swapchainImages{2u};
 
-        VkSurfaceKHR surface{nullptr};
         vk::instance instance;
         vk::single_queue_engine engine;
         vk::command_buffer_pool pool;
 
         {
             // We need to gather the extensions needed by SDL, for now we hardcode a max number
-            constexpr u32 maxExtensionsCount{64};
-            const char* vkExtensions[maxExtensionsCount];
+            constexpr u32 extensionsArraySize{64};
+            constexpr u32 layersArraySize{16};
+            const char* extensions[extensionsArraySize];
+            const char* layers[layersArraySize];
 
-            u32 count = maxExtensionsCount;
+            u32 extensionsCount = extensionsArraySize;
+            u32 layersCount = 0;
 
-            if (!SDL_Vulkan_GetInstanceExtensions(window, &count, vkExtensions))
+            if (!SDL_Vulkan_GetInstanceExtensions(window, &extensionsCount, extensions))
             {
                 return int(error::create_device);
             }
 
-            constexpr u32 apiVersion{VK_API_VERSION_1_0};
+            if (config.vk_use_validation_layers)
+            {
+                layers[layersCount++] = "VK_LAYER_KHRONOS_validation";
+            }
+
+            constexpr u32 apiVersion{VK_API_VERSION_1_2};
             constexpr const char* deviceExtensions[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
             if (!instance.init(
@@ -58,11 +105,14 @@ namespace
                         .engineVersion = 0,
                         .apiVersion = apiVersion,
                     },
-                    {},
-                    {vkExtensions, count}))
+                    {layers, layersCount},
+                    {extensions, extensionsCount},
+                    debugCallback))
             {
                 return int(error::create_device);
             }
+
+            VkSurfaceKHR surface{nullptr};
 
             if (!SDL_Vulkan_CreateSurface(window, instance.get(), &surface))
             {
@@ -104,19 +154,6 @@ namespace
 
             VkCommandBuffer commandBuffer;
             pool.fetch_buffers({&commandBuffer, 1});
-
-            const VkCommandBufferBeginInfo commandBufferbBeginInfo{.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-                                                                   .pNext = nullptr,
-                                                                   .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-                                                                   .pInheritanceInfo = nullptr};
-
-            vkBeginCommandBuffer(commandBuffer, &commandBufferbBeginInfo);
-            vkEndCommandBuffer(commandBuffer);
-        }
-
-        if (surface)
-        {
-            vkDestroySurfaceKHR(instance.get(), surface, nullptr);
         }
     }
 }

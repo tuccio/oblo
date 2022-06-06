@@ -35,11 +35,11 @@ namespace oblo::vk
             return false;
         }
 
-        m_trackingInfo.grow(frameBufferCount);
-        allocate_buffers(frameBufferCount * buffersPerFrame);
-
         m_device = device;
         m_resetCommandBuffers = resetCommandBuffers;
+
+        m_trackingInfo.grow(frameBufferCount);
+        allocate_buffers(frameBufferCount * buffersPerFrame);
 
         return true;
     }

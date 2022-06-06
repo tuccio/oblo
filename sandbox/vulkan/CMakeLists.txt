@@ -4,4 +4,5 @@ target_link_libraries(
     vksandbox
     oblo
     oblovk
-    CONAN_PKG::sdl)
+    CONAN_PKG::sdl
+    CONAN_PKG::nlohmann_json)
