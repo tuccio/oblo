@@ -26,6 +26,7 @@ namespace oblo::vk
         VkPhysicalDevice get_physical_device() const;
         VkDevice get_device() const;
         VkQueue get_queue() const;
+        u32 get_queue_family_index() const;
         VkSwapchainKHR get_swapchain() const;
 
     private:
@@ -38,5 +39,6 @@ namespace oblo::vk
         VkSurfaceKHR m_surface{nullptr};
         VkSwapchainKHR m_swapchain{nullptr};
         VkImage m_images[MaxSwapChainImageCount]{nullptr};
+        u32 m_queueFamilyIndex{~0u};
     };
 }
