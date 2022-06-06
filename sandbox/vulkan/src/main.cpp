@@ -119,7 +119,7 @@ namespace
                 return int(error::create_surface);
             }
 
-            if (!engine.init(instance.get(), surface, {}, deviceExtensions))
+            if (!engine.init(instance.get(), std::move(surface), {}, deviceExtensions))
             {
                 return int(error::create_device);
             }

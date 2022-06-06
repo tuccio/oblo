@@ -40,7 +40,7 @@ namespace oblo::vk
     }
 
     bool single_queue_engine::init(VkInstance instance,
-                                   VkSurfaceKHR surface,
+                                   VkSurfaceKHR&& surface,
                                    std::span<const char* const> enabledLayers,
                                    std::span<const char* const> enabledExtensions)
     {
