@@ -33,6 +33,7 @@ namespace oblo::vk
         static constexpr u32 MaxSwapChainImageCount{4u};
 
     private:
+        VkInstance m_instance{nullptr};
         VkPhysicalDevice m_physicalDevice{nullptr};
         VkDevice m_device{nullptr};
         VkQueue m_queue{nullptr};

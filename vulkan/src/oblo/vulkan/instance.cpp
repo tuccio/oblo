@@ -26,14 +26,37 @@ namespace oblo::vk
 
     bool instance::init(const VkApplicationInfo& app,
                         std::span<const char* const> enabledLayers,
-                        std::span<const char* const> enabledExtensions)
+                        std::span<const char* const> enabledExtensions,
+                        PFN_vkDebugUtilsMessengerCallbackEXT debugCallback)
 
     {
         OBLO_ASSERT(!m_instance);
 
+        VkDebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo{};
+
+        if (debugCallback)
+        {
+            debugMessengerCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+
+            constexpr bool verbose = false;
+
+            debugMessengerCreateInfo.messageSeverity =
+                VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+
+            if constexpr (verbose)
+            {
+                debugMessengerCreateInfo.messageSeverity |= VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT;
+            }
+
+            debugMessengerCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+                                                   VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+                                                   VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+            debugMessengerCreateInfo.pfnUserCallback = debugCallback;
+        }
+
         const VkInstanceCreateInfo instanceInfo{
             .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-            .pNext = nullptr,
+            .pNext = debugCallback ? &debugMessengerCreateInfo : nullptr,
             .pApplicationInfo = &app,
             .enabledLayerCount = u32(enabledLayers.size()),
             .ppEnabledLayerNames = enabledLayers.data(),
@@ -47,5 +70,15 @@ namespace oblo::vk
     VkInstance instance::get() const
     {
         return m_instance;
+    }
+
+    std::vector<VkLayerProperties> instance::available_layers()
+    {
+        u32 layerCount;
+        vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+
+        std::vector<VkLayerProperties> availableLayers(layerCount);
+        vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+        return availableLayers;
     }
 }

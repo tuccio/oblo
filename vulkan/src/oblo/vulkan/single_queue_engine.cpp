@@ -28,6 +28,11 @@ namespace oblo::vk
             vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
         }
 
+        if (m_surface)
+        {
+            vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
+        }
+
         if (m_device)
         {
             vkDestroyDevice(m_device, nullptr);
@@ -120,6 +125,7 @@ namespace oblo::vk
 
         vkGetDeviceQueue(m_device, graphicsQueueFamilyIndex, 0, &m_queue);
         m_queueFamilyIndex = graphicsQueueFamilyIndex;
+        m_instance = instance;
 
         return true;
     }

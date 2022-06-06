@@ -1,6 +1,7 @@
 #pragma once
 
 #include <span>
+#include <vector>
 #include <vulkan/vulkan.h>
 
 namespace oblo::vk
@@ -18,9 +19,12 @@ namespace oblo::vk
 
         bool init(const VkApplicationInfo& app,
                   std::span<const char* const> enabledLayers,
-                  std::span<const char* const> enabledExtensions);
+                  std::span<const char* const> enabledExtensions,
+                  PFN_vkDebugUtilsMessengerCallbackEXT debugCallback = nullptr);
 
         VkInstance get() const;
+
+        static std::vector<VkLayerProperties> available_layers();
 
     private:
         VkInstance m_instance{nullptr};
