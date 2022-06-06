@@ -57,7 +57,7 @@ namespace oblo::vk
             }
 
             // TODO: It should actually search for the best GPU and check for API version, but we pick the first
-            m_physicalDevice = devices.front();
+            m_physicalDevice = devices[0];
         }
 
         constexpr u32 invalid{~0u};
@@ -119,6 +119,7 @@ namespace oblo::vk
         }
 
         vkGetDeviceQueue(m_device, graphicsQueueFamilyIndex, 0, &m_queue);
+        m_queueFamilyIndex = graphicsQueueFamilyIndex;
 
         return true;
     }
@@ -205,6 +206,11 @@ namespace oblo::vk
     VkQueue single_queue_engine::get_queue() const
     {
         return m_queue;
+    }
+
+    u32 single_queue_engine::get_queue_family_index() const
+    {
+        return m_queueFamilyIndex;
     }
 
     VkSwapchainKHR single_queue_engine::get_swapchain() const

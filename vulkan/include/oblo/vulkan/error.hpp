@@ -4,7 +4,7 @@
 
 namespace oblo::vk
 {
-    void panic(const char* file, int line, const char* call, VkResult result);
+    [[noreturn]] void panic(const char* file, int line, const char* call, VkResult result);
 }
 
 #define OBLO_VK_PANIC(Call)                                                                                            \
