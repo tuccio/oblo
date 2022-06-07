@@ -25,6 +25,14 @@ namespace oblo::vk
     {
         if (m_swapchain)
         {
+            for (auto* const imageView : m_imageViews)
+            {
+                if (imageView)
+                {
+                    vkDestroyImageView(m_device, imageView, nullptr);
+                }
+            }
+
             vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
         }
 
@@ -195,8 +203,38 @@ namespace oblo::vk
 
         u32 createdImageCount{imageCount};
 
-        return vkGetSwapchainImagesKHR(m_device, m_swapchain, &createdImageCount, m_images) == VK_SUCCESS &&
-               createdImageCount == imageCount;
+        if (vkGetSwapchainImagesKHR(m_device, m_swapchain, &createdImageCount, m_images) != VK_SUCCESS ||
+            createdImageCount != imageCount)
+        {
+            return false;
+        }
+
+        for (u32 i = 0; i < imageCount; ++i)
+        {
+            const VkImageViewCreateInfo imageViewCreateInfo{
+                .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = 0u,
+                .image = m_images[i],
+                .viewType = VK_IMAGE_VIEW_TYPE_2D,
+                .format = format,
+                .components = {VK_COMPONENT_SWIZZLE_IDENTITY,
+                               VK_COMPONENT_SWIZZLE_IDENTITY,
+                               VK_COMPONENT_SWIZZLE_IDENTITY,
+                               VK_COMPONENT_SWIZZLE_IDENTITY},
+                .subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                                     .baseMipLevel = 0,
+                                     .levelCount = 1,
+                                     .baseArrayLayer = 0,
+                                     .layerCount = 1}};
+
+            if (vkCreateImageView(m_device, &imageViewCreateInfo, nullptr, &m_imageViews[i]) != VK_SUCCESS)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     VkPhysicalDevice single_queue_engine::get_physical_device() const

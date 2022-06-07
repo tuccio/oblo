@@ -40,6 +40,7 @@ namespace oblo::vk
         VkSurfaceKHR m_surface{nullptr};
         VkSwapchainKHR m_swapchain{nullptr};
         VkImage m_images[MaxSwapChainImageCount]{nullptr};
+        VkImageView m_imageViews[MaxSwapChainImageCount]{nullptr};
         u32 m_queueFamilyIndex{~0u};
     };
 }
