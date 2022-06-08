@@ -19,7 +19,8 @@ namespace oblo::vk
         bool init(VkInstance instance,
                   VkSurfaceKHR&& surface,
                   std::span<const char* const> enabledLayers,
-                  std::span<const char* const> enabledExtensions);
+                  std::span<const char* const> enabledExtensions,
+                  const void* deviceCreateInfoChain = nullptr);
 
         bool create_swapchain(VkSurfaceKHR surface, u32 width, u32 height, VkFormat format, u32 imageCount);
 
@@ -28,9 +29,11 @@ namespace oblo::vk
         VkQueue get_queue() const;
         u32 get_queue_family_index() const;
         VkSwapchainKHR get_swapchain() const;
+        VkImage get_image(u32 index) const;
+        VkImageView get_image_view(u32 index) const;
 
     private:
-        static constexpr u32 MaxSwapChainImageCount{4u};
+        static constexpr u32 MaxSwapChainImageCount{3u};
 
     private:
         VkInstance m_instance{nullptr};

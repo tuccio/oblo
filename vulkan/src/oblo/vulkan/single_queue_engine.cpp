@@ -50,7 +50,8 @@ namespace oblo::vk
     bool single_queue_engine::init(VkInstance instance,
                                    VkSurfaceKHR&& surface,
                                    std::span<const char* const> enabledLayers,
-                                   std::span<const char* const> enabledExtensions)
+                                   std::span<const char* const> enabledExtensions,
+                                   const void* deviceCreateInfoChain)
     {
         {
             u32 physicalDevicesCount{0u};
@@ -117,7 +118,7 @@ namespace oblo::vk
                                                             .pQueuePriorities = queuePriorities};
 
         const VkDeviceCreateInfo createInfo{.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-                                            .pNext = nullptr,
+                                            .pNext = deviceCreateInfoChain,
                                             .queueCreateInfoCount = 1,
                                             .pQueueCreateInfos = &deviceQueueCreateInfo,
                                             .enabledLayerCount = u32(enabledLayers.size()),
@@ -260,5 +261,17 @@ namespace oblo::vk
     VkSwapchainKHR single_queue_engine::get_swapchain() const
     {
         return m_swapchain;
+    }
+
+    VkImage single_queue_engine::get_image(u32 index) const
+    {
+        OBLO_ASSERT(index < MaxSwapChainImageCount);
+        return m_images[index];
+    }
+
+    VkImageView single_queue_engine::get_image_view(u32 index) const
+    {
+        OBLO_ASSERT(index < MaxSwapChainImageCount);
+        return m_imageViews[index];
     }
 }
