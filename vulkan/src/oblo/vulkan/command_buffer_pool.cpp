@@ -14,7 +14,7 @@ namespace oblo::vk
     }
 
     bool command_buffer_pool::init(
-        VkDevice device, u32 queueFamilyIndex, bool resetCommandBuffers, u32 buffersPerFrame, u32 frameBufferCount)
+        VkDevice device, u32 queueFamilyIndex, bool resetCommandBuffers, u32 buffersPerFrame, u32 framesInFlight)
     {
         OBLO_ASSERT(device);
 
@@ -38,8 +38,8 @@ namespace oblo::vk
         m_device = device;
         m_resetCommandBuffers = resetCommandBuffers;
 
-        m_trackingInfo.grow(frameBufferCount);
-        allocate_buffers(frameBufferCount * buffersPerFrame);
+        m_trackingInfo.grow(framesInFlight);
+        allocate_buffers(framesInFlight * buffersPerFrame);
 
         return true;
     }
