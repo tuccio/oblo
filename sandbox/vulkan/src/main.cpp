@@ -2,6 +2,7 @@
 #include <oblo/vulkan/command_buffer_pool.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/instance.hpp>
+#include <oblo/vulkan/shader_compiler.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
 
 #include <SDL.h>
@@ -22,7 +23,8 @@ enum class error
     create_device,
     create_swapchain,
     create_command_buffers,
-    create_pipeline
+    create_pipeline,
+    compile_shaders
 };
 
 namespace
@@ -72,7 +74,7 @@ namespace
     }
 #undef OBLO_READ_VAR_
 
-    static VKAPI_ATTR VkBool32 VKAPI_CALL
+    VKAPI_ATTR VkBool32 VKAPI_CALL
     debugCallback([[maybe_unused]] VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                   [[maybe_unused]] VkDebugUtilsMessageTypeFlagsEXT messageType,
                   const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
@@ -89,12 +91,31 @@ namespace
         const auto config = load_config("vksandbox.json");
 
         constexpr u32 swapchainImages{2u};
+        constexpr auto swapchainFormat{VK_FORMAT_B8G8R8A8_UNORM};
+
+        error returnCode{error::success};
 
         vk::instance instance;
         vk::single_queue_engine engine;
         vk::command_buffer_pool pools[swapchainImages];
 
         u32 renderWidth, renderHeight;
+
+        VkSemaphore presentSemaphore;
+        VkSemaphore timelineSemaphore;
+        VkFence presentFences[swapchainImages];
+        VkFramebuffer frameBuffers[swapchainImages];
+
+        VkShaderModule vertShaderModule{nullptr};
+        VkShaderModule fragShaderModule{nullptr};
+        VkPipelineLayout pipelineLayout{nullptr};
+        VkPipeline graphicsPipeline{nullptr};
+        VkRenderPass renderPass{nullptr};
+
+        vk::shader_compiler shaderCompiler;
+
+        u64 frameSemaphoreValues[swapchainImages] = {0};
+        u64 currentSemaphoreValue{0};
 
         {
             // We need to gather the extensions needed by SDL, for now we hardcode a max number
@@ -108,7 +129,8 @@ namespace
 
             if (!SDL_Vulkan_GetInstanceExtensions(window, &extensionsCount, extensions))
             {
-                return int(error::create_device);
+                returnCode = error::create_device;
+                goto done;
             }
 
             if (config.vk_use_validation_layers)
@@ -118,8 +140,7 @@ namespace
 
             constexpr u32 apiVersion{VK_API_VERSION_1_2};
             constexpr const char* deviceExtensions[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-                                                        VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME,
-                                                        VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME};
+                                                        VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME};
 
             if (!instance.init(
                     VkApplicationInfo{
@@ -135,14 +156,16 @@ namespace
                     {extensions, extensionsCount},
                     debugCallback))
             {
-                return int(error::create_device);
+                returnCode = error::create_device;
+                goto done;
             }
 
             VkSurfaceKHR surface{nullptr};
 
             if (!SDL_Vulkan_CreateSurface(window, instance.get(), &surface))
             {
-                return int(error::create_surface);
+                returnCode = error::create_surface;
+                goto done;
             }
 
             const VkPhysicalDeviceTimelineSemaphoreFeatures timelineFeature{
@@ -152,7 +175,8 @@ namespace
 
             if (!engine.init(instance.get(), std::move(surface), {}, deviceExtensions, &timelineFeature))
             {
-                return int(error::create_device);
+                returnCode = error::create_device;
+                goto done;
             }
 
             int width, height;
@@ -161,21 +185,21 @@ namespace
             renderWidth = u32(width);
             renderHeight = u32(height);
 
-            if (!engine.create_swapchain(surface, renderWidth, renderHeight, VK_FORMAT_B8G8R8A8_UNORM, swapchainImages))
+            if (!engine.create_swapchain(surface, renderWidth, renderHeight, swapchainFormat, swapchainImages))
             {
-                return int(error::create_swapchain);
+                returnCode = error::create_swapchain;
+                goto done;
             }
 
             for (auto& pool : pools)
             {
                 if (!pool.init(engine.get_device(), engine.get_queue_family_index(), false, 1, 1))
                 {
-                    return int(error::create_command_buffers);
+                    returnCode = error::create_command_buffers;
+                    goto done;
                 }
             }
         }
-
-        VkSemaphore presentSemaphore;
 
         {
             const VkSemaphoreCreateInfo createInfo{.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
@@ -184,8 +208,6 @@ namespace
 
             OBLO_VK_PANIC(vkCreateSemaphore(engine.get_device(), &createInfo, nullptr, &presentSemaphore));
         }
-
-        VkSemaphore timelineSemaphore;
 
         {
             const VkSemaphoreTypeCreateInfo timelineCreateInfo{.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
@@ -200,20 +222,177 @@ namespace
             OBLO_VK_PANIC(vkCreateSemaphore(engine.get_device(), &createInfo, nullptr, &timelineSemaphore));
         }
 
-        VkFence presentFences[2];
-
         {
             const VkFenceCreateInfo fenceInfo{.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
                                               .pNext = nullptr,
                                               .flags = 0u};
 
-            OBLO_VK_PANIC(vkCreateFence(engine.get_device(), &fenceInfo, nullptr, &presentFences[0]));
-            OBLO_VK_PANIC(vkCreateFence(engine.get_device(), &fenceInfo, nullptr, &presentFences[1]));
+            for (u32 i = 0; i < swapchainImages; ++i)
+            {
+                OBLO_VK_PANIC(vkCreateFence(engine.get_device(), &fenceInfo, nullptr, &presentFences[i]));
+            }
         }
 
-        u64 frameSemaphoreValues[swapchainImages] = {0};
+        vertShaderModule = shaderCompiler.create_shader_module_from_glsl_file(engine.get_device(),
+                                                                              "./shaders/test.vert",
+                                                                              VK_SHADER_STAGE_VERTEX_BIT);
 
-        u64 currentSemaphoreValue{0};
+        fragShaderModule = shaderCompiler.create_shader_module_from_glsl_file(engine.get_device(),
+                                                                              "./shaders/test.frag",
+                                                                              VK_SHADER_STAGE_FRAGMENT_BIT);
+
+        if (!vertShaderModule || !fragShaderModule)
+        {
+            returnCode = error::compile_shaders;
+            goto done;
+        }
+
+        {
+            const VkAttachmentReference colorAttachmentRef{.attachment = 0,
+                                                           .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+
+            const VkSubpassDescription subpass{.flags = 0u,
+                                               .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                               .inputAttachmentCount = 0,
+                                               .pInputAttachments = nullptr,
+                                               .colorAttachmentCount = 1,
+                                               .pColorAttachments = &colorAttachmentRef};
+
+            const VkAttachmentDescription colorAttachment{.flags = 0u,
+                                                          .format = swapchainFormat,
+                                                          .samples = VK_SAMPLE_COUNT_1_BIT,
+                                                          .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                                                          .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                                                          .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                                                          .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                                                          .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                                                          .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR};
+
+            const VkRenderPassCreateInfo renderPassInfo{.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+                                                        .attachmentCount = 1,
+                                                        .pAttachments = &colorAttachment,
+                                                        .subpassCount = 1,
+                                                        .pSubpasses = &subpass};
+
+            OBLO_VK_PANIC(vkCreateRenderPass(engine.get_device(), &renderPassInfo, nullptr, &renderPass));
+        }
+
+        {
+            const VkPipelineLayoutCreateInfo pipelineLayoutInfo{.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+            OBLO_VK_PANIC(vkCreatePipelineLayout(engine.get_device(), &pipelineLayoutInfo, nullptr, &pipelineLayout));
+        }
+
+        {
+            const VkPipelineShaderStageCreateInfo vertShaderStageInfo{
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                .stage = VK_SHADER_STAGE_VERTEX_BIT,
+                .module = vertShaderModule,
+                .pName = "main"};
+
+            const VkPipelineShaderStageCreateInfo fragShaderStageInfo{
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+                .module = fragShaderModule,
+                .pName = "main"};
+
+            const VkPipelineVertexInputStateCreateInfo vertexInputInfo{
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
+
+            const VkPipelineInputAssemblyStateCreateInfo inputAssembly{
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+                .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+                .primitiveRestartEnable = VK_FALSE};
+
+            const VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
+
+            const VkViewport viewport{.x = 0.0f,
+                                      .y = 0.0f,
+                                      .width = float(renderWidth),
+                                      .height = float(renderHeight),
+                                      .minDepth = 0.0f,
+                                      .maxDepth = 1.0f};
+
+            const VkRect2D scissor{.offset = {0, 0}, .extent = {.width = renderWidth, .height = renderHeight}};
+
+            const VkPipelineViewportStateCreateInfo viewportState{
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+                .viewportCount = 1,
+                .pViewports = &viewport,
+                .scissorCount = 1,
+                .pScissors = &scissor};
+
+            const VkPipelineRasterizationStateCreateInfo rasterizer{
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+                .polygonMode = VK_POLYGON_MODE_FILL,
+                .cullMode = VK_CULL_MODE_NONE,
+                .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
+                .lineWidth = 1.f};
+
+            const VkPipelineMultisampleStateCreateInfo multisampling{
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+                .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+                .minSampleShading = 1.f};
+
+            const VkPipelineColorBlendAttachmentState colorBlendAttachment{
+                .blendEnable = VK_FALSE,
+                .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
+                .dstColorBlendFactor = VK_BLEND_FACTOR_ZERO,
+                .colorBlendOp = VK_BLEND_OP_ADD,
+                .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+                .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
+                .alphaBlendOp = VK_BLEND_OP_ADD,
+                .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+                                  VK_COLOR_COMPONENT_A_BIT};
+
+            const VkPipelineColorBlendStateCreateInfo colorBlending{
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+                .logicOpEnable = VK_FALSE,
+                .logicOp = VK_LOGIC_OP_COPY,
+                .attachmentCount = 1,
+                .pAttachments = &colorBlendAttachment,
+                .blendConstants = {0.f}};
+
+            const VkGraphicsPipelineCreateInfo pipelineInfo{.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+                                                            .stageCount = 2,
+                                                            .pStages = shaderStages,
+                                                            .pVertexInputState = &vertexInputInfo,
+                                                            .pInputAssemblyState = &inputAssembly,
+                                                            .pViewportState = &viewportState,
+                                                            .pRasterizationState = &rasterizer,
+                                                            .pMultisampleState = &multisampling,
+                                                            .pDepthStencilState = nullptr,
+                                                            .pColorBlendState = &colorBlending,
+                                                            .pDynamicState = nullptr,
+                                                            .layout = pipelineLayout,
+                                                            .renderPass = renderPass,
+                                                            .subpass = 0,
+                                                            .basePipelineHandle = VK_NULL_HANDLE,
+                                                            .basePipelineIndex = -1};
+
+            OBLO_VK_PANIC(vkCreateGraphicsPipelines(engine.get_device(),
+                                                    VK_NULL_HANDLE,
+                                                    1,
+                                                    &pipelineInfo,
+                                                    nullptr,
+                                                    &graphicsPipeline));
+        }
+
+        for (u32 i = 0; i < swapchainImages; ++i)
+        {
+            const VkImageView attachments[] = {engine.get_image_view(i)};
+
+            const VkFramebufferCreateInfo framebufferInfo{.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+                                                          .pNext = nullptr,
+                                                          .flags = 0u,
+                                                          .renderPass = renderPass,
+                                                          .attachmentCount = std::size(attachments),
+                                                          .pAttachments = attachments,
+                                                          .width = renderWidth,
+                                                          .height = renderHeight,
+                                                          .layers = 1};
+
+            OBLO_VK_PANIC(vkCreateFramebuffer(engine.get_device(), &framebufferInfo, nullptr, &frameBuffers[i]));
+        }
 
         for (u64 frameIndex{1};; ++frameIndex)
         {
@@ -261,32 +440,21 @@ namespace
 
             OBLO_VK_PANIC(vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo));
 
-            VkImageMemoryBarrier barrier{};
-            barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-            barrier.oldLayout =
-                frameIndex <= swapchainImages ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-            barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-            barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barrier.image = engine.get_image(imageIndex);
-            barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            barrier.subresourceRange.baseMipLevel = 0;
-            barrier.subresourceRange.levelCount = 1;
-            barrier.subresourceRange.baseArrayLayer = 0;
-            barrier.subresourceRange.layerCount = 1;
-            barrier.srcAccessMask = 0; // TODO
-            barrier.dstAccessMask = 0; // TODO
+            const VkClearValue clearValue{.color = {.float32 = {0.f, 0.f, 0.f, 0.f}}};
+            const VkRenderPassBeginInfo renderPassBeginInfo{
+                .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+                .renderPass = renderPass,
+                .framebuffer = frameBuffers[currentIndex],
+                .renderArea = {.offset = {0, 0}, .extent = {.width = renderWidth, .height = renderHeight}},
+                .clearValueCount = 1,
+                .pClearValues = &clearValue};
 
-            vkCmdPipelineBarrier(commandBuffer,
-                                 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT /* TODO */,
-                                 VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT /* TODO */,
-                                 0,
-                                 0,
-                                 nullptr,
-                                 0,
-                                 nullptr,
-                                 1,
-                                 &barrier);
+            vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+            vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+
+            vkCmdEndRenderPass(commandBuffer);
 
             OBLO_VK_PANIC(vkEndCommandBuffer(commandBuffer));
 
@@ -324,17 +492,47 @@ namespace
         }
 
     done:
-        vkDeviceWaitIdle(engine.get_device());
+        if (engine.get_device())
+        {
+            vkDeviceWaitIdle(engine.get_device());
+        }
+
+        if (graphicsPipeline)
+        {
+            vkDestroyPipeline(engine.get_device(), graphicsPipeline, nullptr);
+        }
+
+        if (pipelineLayout)
+        {
+            vkDestroyPipelineLayout(engine.get_device(), pipelineLayout, nullptr);
+        }
+
+        if (renderPass)
+        {
+            vkDestroyRenderPass(engine.get_device(), renderPass, nullptr);
+        }
+
+        for (auto frameBuffer : frameBuffers)
+        {
+            vkDestroyFramebuffer(engine.get_device(), frameBuffer, nullptr);
+        }
 
         for (auto fence : presentFences)
         {
             vkDestroyFence(engine.get_device(), fence, nullptr);
         }
 
-        vkDestroySemaphore(engine.get_device(), timelineSemaphore, nullptr);
-        vkDestroySemaphore(engine.get_device(), presentSemaphore, nullptr);
+        if (timelineSemaphore)
+        {
+            vkDestroySemaphore(engine.get_device(), timelineSemaphore, nullptr);
+        }
 
-        return int(error::success);
+        if (presentSemaphore)
+        {
+            vkDestroySemaphore(engine.get_device(), presentSemaphore, nullptr);
+        }
+
+        return int(returnCode);
     }
 }
 
