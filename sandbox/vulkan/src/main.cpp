@@ -517,6 +517,16 @@ namespace
             vkDestroyFramebuffer(engine.get_device(), frameBuffer, nullptr);
         }
 
+        if (vertShaderModule)
+        {
+            vkDestroyShaderModule(engine.get_device(), vertShaderModule, nullptr);
+        }
+
+        if (fragShaderModule)
+        {
+            vkDestroyShaderModule(engine.get_device(), fragShaderModule, nullptr);
+        }
+
         for (auto fence : presentFences)
         {
             vkDestroyFence(engine.get_device(), fence, nullptr);
