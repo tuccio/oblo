@@ -1,5 +1,6 @@
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/command_buffer_pool.hpp>
+#include <oblo/vulkan/destroy_device_objects.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/instance.hpp>
 #include <oblo/vulkan/shader_compiler.hpp>
@@ -101,10 +102,10 @@ namespace
 
         u32 renderWidth, renderHeight;
 
-        VkSemaphore presentSemaphore;
-        VkSemaphore timelineSemaphore;
-        VkFence presentFences[swapchainImages];
-        VkFramebuffer frameBuffers[swapchainImages];
+        VkSemaphore presentSemaphore{nullptr};
+        VkSemaphore timelineSemaphore{nullptr};
+        VkFence presentFences[swapchainImages]{nullptr};
+        VkFramebuffer frameBuffers[swapchainImages]{nullptr};
 
         VkShaderModule vertShaderModule{nullptr};
         VkShaderModule fragShaderModule{nullptr};
@@ -497,50 +498,16 @@ namespace
             vkDeviceWaitIdle(engine.get_device());
         }
 
-        if (graphicsPipeline)
-        {
-            vkDestroyPipeline(engine.get_device(), graphicsPipeline, nullptr);
-        }
-
-        if (pipelineLayout)
-        {
-            vkDestroyPipelineLayout(engine.get_device(), pipelineLayout, nullptr);
-        }
-
-        if (renderPass)
-        {
-            vkDestroyRenderPass(engine.get_device(), renderPass, nullptr);
-        }
-
-        for (auto frameBuffer : frameBuffers)
-        {
-            vkDestroyFramebuffer(engine.get_device(), frameBuffer, nullptr);
-        }
-
-        if (vertShaderModule)
-        {
-            vkDestroyShaderModule(engine.get_device(), vertShaderModule, nullptr);
-        }
-
-        if (fragShaderModule)
-        {
-            vkDestroyShaderModule(engine.get_device(), fragShaderModule, nullptr);
-        }
-
-        for (auto fence : presentFences)
-        {
-            vkDestroyFence(engine.get_device(), fence, nullptr);
-        }
-
-        if (timelineSemaphore)
-        {
-            vkDestroySemaphore(engine.get_device(), timelineSemaphore, nullptr);
-        }
-
-        if (presentSemaphore)
-        {
-            vkDestroySemaphore(engine.get_device(), presentSemaphore, nullptr);
-        }
+        vk::destroy_device_objects_checked(engine.get_device(),
+                                           graphicsPipeline,
+                                           pipelineLayout,
+                                           renderPass,
+                                           std::span{frameBuffers},
+                                           vertShaderModule,
+                                           fragShaderModule,
+                                           std::span{presentFences},
+                                           timelineSemaphore,
+                                           presentSemaphore);
 
         return int(returnCode);
     }
