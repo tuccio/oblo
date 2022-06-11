@@ -7,4 +7,5 @@ target_link_libraries(
     CONAN_PKG::vulkan-headers
     PRIVATE
     CONAN_PKG::vulkan-loader
+    CONAN_PKG::vulkan-memory-allocator
     CONAN_PKG::glslang)
