@@ -4,6 +4,7 @@ target_link_libraries(
     vksandbox
     oblo
     oblovk
+    CONAN_PKG::vulkan-memory-allocator
     CONAN_PKG::sdl
     CONAN_PKG::nlohmann_json)
 
