@@ -23,23 +23,7 @@ namespace oblo::vk
 
     single_queue_engine::~single_queue_engine()
     {
-        if (m_swapchain)
-        {
-            for (auto* const imageView : m_imageViews)
-            {
-                if (imageView)
-                {
-                    vkDestroyImageView(m_device, imageView, nullptr);
-                }
-            }
-
-            vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
-        }
-
-        if (m_surface)
-        {
-            vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
-        }
+        destroy_swapchain();
 
         if (m_device)
         {
@@ -48,7 +32,7 @@ namespace oblo::vk
     }
 
     bool single_queue_engine::init(VkInstance instance,
-                                   VkSurfaceKHR&& surface,
+                                   VkSurfaceKHR surface,
                                    std::span<const char* const> enabledLayers,
                                    std::span<const char* const> enabledExtensions,
                                    const void* deviceCreateInfoChain)
@@ -142,8 +126,6 @@ namespace oblo::vk
     bool single_queue_engine::create_swapchain(
         VkSurfaceKHR surface, u32 width, u32 height, VkFormat format, u32 imageCount)
     {
-        m_surface = surface;
-
         if (imageCount > MaxSwapChainImageCount)
         {
             return false;
@@ -236,6 +218,24 @@ namespace oblo::vk
         }
 
         return true;
+    }
+
+    void single_queue_engine::destroy_swapchain()
+    {
+        if (m_swapchain)
+        {
+            for (auto*& imageView : m_imageViews)
+            {
+                if (imageView)
+                {
+                    vkDestroyImageView(m_device, imageView, nullptr);
+                    imageView = nullptr;
+                }
+            }
+
+            vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
+            m_swapchain = nullptr;
+        }
     }
 
     VkPhysicalDevice single_queue_engine::get_physical_device() const

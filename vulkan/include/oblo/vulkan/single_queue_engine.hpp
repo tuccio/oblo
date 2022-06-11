@@ -17,12 +17,13 @@ namespace oblo::vk
         ~single_queue_engine();
 
         bool init(VkInstance instance,
-                  VkSurfaceKHR&& surface,
+                  VkSurfaceKHR surface,
                   std::span<const char* const> enabledLayers,
                   std::span<const char* const> enabledExtensions,
                   const void* deviceCreateInfoChain = nullptr);
 
         bool create_swapchain(VkSurfaceKHR surface, u32 width, u32 height, VkFormat format, u32 imageCount);
+        void destroy_swapchain();
 
         VkPhysicalDevice get_physical_device() const;
         VkDevice get_device() const;
@@ -40,7 +41,6 @@ namespace oblo::vk
         VkPhysicalDevice m_physicalDevice{nullptr};
         VkDevice m_device{nullptr};
         VkQueue m_queue{nullptr};
-        VkSurfaceKHR m_surface{nullptr};
         VkSwapchainKHR m_swapchain{nullptr};
         VkImage m_images[MaxSwapChainImageCount]{nullptr};
         VkImageView m_imageViews[MaxSwapChainImageCount]{nullptr};
