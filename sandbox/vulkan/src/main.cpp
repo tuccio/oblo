@@ -14,6 +14,7 @@ int SDL_main(int, char*[])
     }
 
     app.run();
+    app.wait_idle();
 
     SDL_Quit();
 
