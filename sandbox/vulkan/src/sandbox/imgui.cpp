@@ -3,8 +3,9 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/core/size.hpp>
 #include <oblo/vulkan/error.hpp>
-#include <sandbox/detail/imgui_impl_sdl.h>
-#include <sandbox/detail/imgui_impl_vulkan.h>
+
+#include <backends/imgui_impl_sdl.h>
+#include <backends/imgui_impl_vulkan.h>
 
 #include <SDL.h>
 #include <imgui.h>
