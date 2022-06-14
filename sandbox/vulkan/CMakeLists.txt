@@ -5,7 +5,7 @@ target_link_libraries(
     oblo
     oblovk
     CONAN_PKG::sdl
-    CONAN_PKG::imgui
+    imgui_sdl_vk
     CONAN_PKG::nlohmann_json)
 
 install(CODE "execute_process( \
