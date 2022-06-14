@@ -214,8 +214,38 @@ namespace oblo::vk
             fragShaderStageInfo,
         };
 
-        const VkPipelineVertexInputStateCreateInfo vertexInputInfo{
+        constexpr VkVertexInputBindingDescription bindingDesc{
+            .stride = sizeof(ImDrawVert),
+            .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+        };
+
+        const VkVertexInputAttributeDescription vertexInputAttribute[] = {
+            {
+                .location = 0,
+                .binding = 0,
+                .format = VK_FORMAT_R32G32_SFLOAT,
+                .offset = IM_OFFSETOF(ImDrawVert, pos),
+            },
+            {
+                .location = 1,
+                .binding = 0,
+                .format = VK_FORMAT_R32G32_SFLOAT,
+                .offset = IM_OFFSETOF(ImDrawVert, uv),
+            },
+            {
+                .location = 2,
+                .binding = 0,
+                .format = VK_FORMAT_R8G8B8A8_UNORM,
+                .offset = IM_OFFSETOF(ImDrawVert, col),
+            },
+        };
+
+        const VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+            .vertexBindingDescriptionCount = 1,
+            .pVertexBindingDescriptions = &bindingDesc,
+            .vertexAttributeDescriptionCount = 3,
+            .pVertexAttributeDescriptions = vertexInputAttribute,
         };
 
         const VkPipelineInputAssemblyStateCreateInfo inputAssembly{
