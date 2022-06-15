@@ -1,5 +1,6 @@
 #include <sandbox/sandbox_app.hpp>
 
+#include <oblo/core/size.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/vulkan/error.hpp>
@@ -136,14 +137,12 @@ namespace oblo::vk
                     {
                         wait_idle();
 
-                        destroy_graphics_pipeline();
-
                         m_swapchain.destroy(m_engine);
 
                         m_renderWidth = u32(event.window.data1);
                         m_renderHeight = u32(event.window.data2);
 
-                        if (!create_swapchain() || !create_graphics_pipeline())
+                        if (!create_swapchain())
                         {
                             return;
                         }
@@ -244,6 +243,21 @@ namespace oblo::vk
             };
 
             vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+
+            {
+                const VkViewport viewport{
+                    .width = f32(m_renderWidth),
+                    .height = f32(m_renderHeight),
+                    .minDepth = 0.f,
+                    .maxDepth = 1.f,
+                };
+
+                const VkRect2D scissor{.extent{.width = m_renderWidth, .height = m_renderHeight}};
+
+                vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+                vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+            }
+
             vkCmdBeginRendering(commandBuffer, &renderInfo);
 
             const VkBuffer vertexBuffers[] = {m_positions.buffer, m_colors.buffer};
@@ -517,38 +531,31 @@ namespace oblo::vk
 
         const VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
-        const VkViewport viewport{.x = 0.0f,
-                                  .y = 0.0f,
-                                  .width = float(m_renderWidth),
-                                  .height = float(m_renderHeight),
-                                  .minDepth = 0.0f,
-                                  .maxDepth = 1.0f};
-
-        const VkRect2D scissor{.offset = {0, 0}, .extent = {.width = m_renderWidth, .height = m_renderHeight}};
-
-        const VkPipelineViewportStateCreateInfo viewportState{.sType =
-                                                                  VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-                                                              .viewportCount = 1,
-                                                              .pViewports = &viewport,
-                                                              .scissorCount = 1,
-                                                              .pScissors = &scissor};
+        const VkPipelineViewportStateCreateInfo viewportState{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+            .viewportCount = 1,
+            .scissorCount = 1,
+        };
 
         const VkPipelineRasterizationStateCreateInfo rasterizer{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
             .polygonMode = VK_POLYGON_MODE_FILL,
             .cullMode = VK_CULL_MODE_NONE,
             .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
-            .lineWidth = 1.f};
+            .lineWidth = 1.f,
+        };
 
         const VkPipelineMultisampleStateCreateInfo multisampling{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
             .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
-            .minSampleShading = 1.f};
+            .minSampleShading = 1.f,
+        };
 
         const VkPipelineColorBlendAttachmentState colorBlendAttachment{
             .blendEnable = VK_FALSE,
             .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
-                              VK_COLOR_COMPONENT_A_BIT};
+                              VK_COLOR_COMPONENT_A_BIT,
+        };
 
         const VkPipelineColorBlendStateCreateInfo colorBlending{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
@@ -556,7 +563,8 @@ namespace oblo::vk
             .logicOp = VK_LOGIC_OP_COPY,
             .attachmentCount = 1,
             .pAttachments = &colorBlendAttachment,
-            .blendConstants = {0.f}};
+            .blendConstants = {0.f},
+        };
 
         const VkPipelineRenderingCreateInfo pipelineRenderingCreateInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
@@ -564,23 +572,32 @@ namespace oblo::vk
             .pColorAttachmentFormats = &SwapchainFormat,
         };
 
-        const VkGraphicsPipelineCreateInfo pipelineInfo{.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-                                                        .pNext = &pipelineRenderingCreateInfo,
-                                                        .stageCount = 2,
-                                                        .pStages = shaderStages,
-                                                        .pVertexInputState = &vertexInputInfo,
-                                                        .pInputAssemblyState = &inputAssembly,
-                                                        .pViewportState = &viewportState,
-                                                        .pRasterizationState = &rasterizer,
-                                                        .pMultisampleState = &multisampling,
-                                                        .pDepthStencilState = nullptr,
-                                                        .pColorBlendState = &colorBlending,
-                                                        .pDynamicState = nullptr,
-                                                        .layout = m_pipelineLayout,
-                                                        .renderPass = nullptr,
-                                                        .subpass = 0,
-                                                        .basePipelineHandle = VK_NULL_HANDLE,
-                                                        .basePipelineIndex = -1};
+        constexpr VkDynamicState dynamicStates[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
+        const VkPipelineDynamicStateCreateInfo dynamicState{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+            .dynamicStateCount = size(dynamicStates),
+            .pDynamicStates = dynamicStates,
+        };
+
+        const VkGraphicsPipelineCreateInfo pipelineInfo{
+            .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+            .pNext = &pipelineRenderingCreateInfo,
+            .stageCount = 2,
+            .pStages = shaderStages,
+            .pVertexInputState = &vertexInputInfo,
+            .pInputAssemblyState = &inputAssembly,
+            .pViewportState = &viewportState,
+            .pRasterizationState = &rasterizer,
+            .pMultisampleState = &multisampling,
+            .pDepthStencilState = nullptr,
+            .pColorBlendState = &colorBlending,
+            .pDynamicState = &dynamicState,
+            .layout = m_pipelineLayout,
+            .renderPass = nullptr,
+            .subpass = 0,
+            .basePipelineHandle = VK_NULL_HANDLE,
+            .basePipelineIndex = -1,
+        };
 
         return vkCreateGraphicsPipelines(m_engine.get_device(),
                                          VK_NULL_HANDLE,
