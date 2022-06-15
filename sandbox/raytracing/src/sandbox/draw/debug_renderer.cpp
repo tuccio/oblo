@@ -6,10 +6,8 @@
 #include <oblo/math/triangle.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/rendering/raytracer.hpp>
+#include <sandbox/draw/utility.hpp>
 #include <sandbox/state/sandbox_state.hpp>
-
-#include <SFML/Graphics/Glsl.hpp>
-#include <SFML/Graphics/Shader.hpp>
 
 #include <GL/glew.h>
 
@@ -112,13 +110,13 @@ namespace oblo
             GLuint m_ssbo{0};
         };
 
-        constexpr const char* s_vertexShader = R"(
+        constexpr auto s_vertexShader = R"(
             #version 430
 
             in vec3 in_Position;
 
-            uniform mat4 view;
-            uniform mat4 projection;
+            layout(location = 0) uniform mat4 view;
+            layout(location = 1) uniform mat4 projection;
             
             void main()
             {
@@ -126,7 +124,7 @@ namespace oblo
             }
         )";
 
-        constexpr const char* s_fragmentShader = R"(
+        constexpr auto s_fragmentShader = R"(
             #version 430
             out vec4 color;
 
@@ -155,16 +153,25 @@ namespace oblo
         std::vector<vec3> linesVertices;
         std::vector<float> linesColor;
 
-        sf::Shader shader;
+        GLuint shaderProgram{0};
     };
 
     debug_renderer::debug_renderer() : m_impl{std::make_unique<impl>()}
     {
-        [[maybe_unused]] const auto loaded = m_impl->shader.loadFromMemory(s_vertexShader, s_fragmentShader);
-        OBLO_ASSERT(loaded);
+        m_impl->shaderProgram = compile_vert_frag_program(s_vertexShader, s_fragmentShader);
+        OBLO_ASSERT(m_impl->shaderProgram);
     }
 
-    debug_renderer::~debug_renderer() = default;
+    debug_renderer::~debug_renderer()
+    {
+        if (m_impl)
+        {
+            if (m_impl->shaderProgram)
+            {
+                glDeleteProgram(m_impl->shaderProgram);
+            }
+        }
+    }
 
     void debug_renderer::draw_triangles(std::span<const triangle> triangles, const vec3& color)
     {
@@ -213,8 +220,8 @@ namespace oblo
         glEnable(GL_DEPTH_TEST);
         glClear(GL_DEPTH_BUFFER_BIT);
 
-        sf::Shader::bind(&m_impl->shader);
-        glBindAttribLocation(m_impl->shader.getNativeHandle(), 0, "in_Position");
+        glUseProgram(m_impl->shaderProgram);
+        glBindAttribLocation(m_impl->shaderProgram, 0, "in_Position");
 
         const auto near = state.camera.near;
         const auto far = state.camera.far;
@@ -243,8 +250,8 @@ namespace oblo
         };
         // clang-format on
 
-        m_impl->shader.setUniform("view", sf::Glsl::Mat4{view});
-        m_impl->shader.setUniform("projection", sf::Glsl::Mat4{projection});
+        glProgramUniformMatrix4fv(m_impl->shaderProgram, 0, 1, false, view);
+        glProgramUniformMatrix4fv(m_impl->shaderProgram, 1, 1, false, projection);
 
         if (!hasNoTriangles)
         {
@@ -270,9 +277,11 @@ namespace oblo
 
         ssbo::unbind();
         vertex_array::unbind();
-        sf::Shader::bind(nullptr);
+        glUseProgram(0u);
 
         clear();
+
+        glDisable(GL_DEPTH_TEST);
     }
 
     void debug_renderer::clear()

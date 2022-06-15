@@ -1,9 +1,11 @@
 oblo_add_executable(rtsandbox)
 
 target_link_libraries(
-    rtsandbox oblo
-    CONAN_PKG::sfml
-    CONAN_PKG::imgui-sfml
+    rtsandbox
+    oblo
+    imgui
+    imgui_sdl_gl3
+    CONAN_PKG::sdl
     CONAN_PKG::glew
     CONAN_PKG::assimp
     CONAN_PKG::cxxopts
