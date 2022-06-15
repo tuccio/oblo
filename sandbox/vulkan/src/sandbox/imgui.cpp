@@ -53,7 +53,7 @@ namespace oblo::vk
         }
 
         m_context = ImGui::CreateContext();
-        ImGui::GetIO().IniFilename = "vksandbox_imgui.ini";
+        ImGui::GetIO().IniFilename = nullptr;
 
         ImGui_ImplSDL2_InitForVulkan(window);
 
@@ -159,8 +159,6 @@ namespace oblo::vk
 
     void imgui::end_frame(VkCommandBuffer commandBuffer, VkImageView imageView, u32 width, u32 height)
     {
-        ImGui::ShowDemoWindow();
-
         ImGui::Render();
 
         ImDrawData* drawData = ImGui::GetDrawData();
