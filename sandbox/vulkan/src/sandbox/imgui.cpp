@@ -1,7 +1,7 @@
 #include <sandbox/imgui.hpp>
 
+#include <oblo/core/array_size.hpp>
 #include <oblo/core/debug.hpp>
-#include <oblo/core/size.hpp>
 #include <oblo/vulkan/error.hpp>
 
 #include <backends/imgui_impl_sdl.h>
@@ -44,7 +44,7 @@ namespace oblo::vk
         const VkDescriptorPoolCreateInfo poolInfo = {.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
                                                      .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
                                                      .maxSets = poolSize,
-                                                     .poolSizeCount = size(poolSizes),
+                                                     .poolSizeCount = array_size(poolSizes),
                                                      .pPoolSizes = poolSizes};
 
         if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &m_descriptorPool) != VK_SUCCESS)
@@ -309,7 +309,7 @@ namespace oblo::vk
         const VkGraphicsPipelineCreateInfo pipelineInfo{
             .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
             .pNext = &pipelineRenderingCreateInfo,
-            .stageCount = size(shaderStages),
+            .stageCount = array_size(shaderStages),
             .pStages = shaderStages,
             .pVertexInputState = &vertexInputInfo,
             .pInputAssemblyState = &inputAssembly,

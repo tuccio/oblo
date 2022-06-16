@@ -3,7 +3,7 @@
 namespace oblo
 {
     template <typename T, auto N>
-    constexpr auto size(const T (&)[N]) noexcept
+    constexpr auto array_size(const T (&)[N]) noexcept
     {
         return N;
     }
