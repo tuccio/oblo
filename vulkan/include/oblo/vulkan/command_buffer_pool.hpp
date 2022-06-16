@@ -26,6 +26,7 @@ namespace oblo::vk
         void reset_buffers(u64 frameIndex);
         void reset_pool();
 
+        VkCommandBuffer fetch_buffer();
         void fetch_buffers(std::span<VkCommandBuffer> outBuffers);
 
     private:

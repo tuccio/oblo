@@ -41,7 +41,7 @@ namespace oblo::vk
     }
 
     template <typename T, std::size_t N>
-    inline void destroy_device_object(VkDevice device, std::span<T, N> objects)
+    void destroy_device_object(VkDevice device, std::span<T, N> objects)
     {
         for (auto object : objects)
         {
@@ -49,28 +49,28 @@ namespace oblo::vk
         }
     }
 
-    template <typename... T>
-    void destroy_device_objects(VkDevice device, T... vulkanObjects)
+    template <typename T>
+    void reset_device_object(VkDevice device, T& vulkanObject)
     {
-        (destroy_device_object(vulkanObjects), ...);
+        if (vulkanObject)
+        {
+            destroy_device_object(device, vulkanObject);
+            vulkanObject = VK_NULL_HANDLE;
+        }
+    }
+
+    template <typename T, std::size_t N>
+    void reset_device_object(VkDevice device, const std::span<T, N>& objects)
+    {
+        for (auto& object : objects)
+        {
+            reset_device_object(device, object);
+        }
     }
 
     template <typename... T>
-    void destroy_device_objects_checked(VkDevice device, T... vulkanObjects)
+    void reset_device_objects(VkDevice device, T&&... vulkanObjects)
     {
-        constexpr auto destroyIfNotNull = [](VkDevice device, auto object)
-        {
-            if constexpr (std::is_pointer_v<decltype(object)>)
-            {
-                if (object == nullptr)
-                {
-                    return;
-                }
-            }
-
-            destroy_device_object(device, object);
-        };
-
-        (destroyIfNotNull(device, vulkanObjects), ...);
+        (reset_device_object(device, std::forward<T>(vulkanObjects)), ...);
     }
 }

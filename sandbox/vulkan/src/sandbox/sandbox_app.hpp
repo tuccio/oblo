@@ -3,31 +3,35 @@
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/allocator.hpp>
 #include <oblo/vulkan/command_buffer_pool.hpp>
-#include <oblo/vulkan/destroy_device_objects.hpp>
 #include <oblo/vulkan/instance.hpp>
-#include <oblo/vulkan/shader_compiler.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
 #include <oblo/vulkan/swapchain.hpp>
+
+#include <sandbox/context.hpp>
 #include <sandbox/imgui.hpp>
 
 struct SDL_Window;
 
 namespace oblo::vk
 {
-    class sandbox_app
+    class sandbox_base
     {
-    public:
-        sandbox_app() = default;
-        sandbox_app(const sandbox_app&) = delete;
-        sandbox_app(sandbox_app&&) noexcept = delete;
-        sandbox_app& operator=(const sandbox_app&) = delete;
-        sandbox_app& operator=(sandbox_app&&) noexcept = delete;
-        ~sandbox_app();
+    protected:
+        sandbox_base() = default;
+        sandbox_base(const sandbox_base&) = delete;
+        sandbox_base(sandbox_base&&) noexcept = delete;
+        sandbox_base& operator=(const sandbox_base&) = delete;
+        sandbox_base& operator=(sandbox_base&&) noexcept = delete;
+        ~sandbox_base() = default;
 
         bool init();
-        void run();
+        void shutdown();
 
         void wait_idle();
+
+        bool poll_events();
+        void begin_frame(u64 frameIndex, u32* outImageIndex, u32* outPoolIndex, VkCommandBuffer* outCommandBuffer);
+        void submit_and_present(VkCommandBuffer commandBuffer, u32 imageIndex, u32 poolIndex, u64 frameIndex);
 
     private:
         void load_config();
@@ -36,21 +40,17 @@ namespace oblo::vk
         bool create_swapchain();
         bool create_command_pools();
         bool create_synchronization_objects();
-        bool create_shader_modules();
-        bool create_graphics_pipeline();
+        bool init_imgui();
 
-        bool create_vertex_buffers();
-
-        void destroy_graphics_pipeline();
-
-    private:
+    protected:
         struct config
         {
             bool vk_use_validation_layers{false};
         };
 
-    private:
+    protected:
         static constexpr u32 SwapchainImages{2u};
+        static constexpr VkFormat SwapchainFormat{VK_FORMAT_B8G8R8A8_UNORM};
 
         SDL_Window* m_window;
         VkSurfaceKHR m_surface{nullptr};
@@ -65,19 +65,9 @@ namespace oblo::vk
         u32 m_renderWidth;
         u32 m_renderHeight;
 
-        vk::shader_compiler m_shaderCompiler;
-
         VkSemaphore m_presentSemaphore{nullptr};
         VkSemaphore m_timelineSemaphore{nullptr};
         VkFence m_presentFences[SwapchainImages]{nullptr};
-
-        VkShaderModule m_vertShaderModule{nullptr};
-        VkShaderModule m_fragShaderModule{nullptr};
-        VkPipelineLayout m_pipelineLayout{nullptr};
-        VkPipeline m_graphicsPipeline{nullptr};
-
-        allocator::buffer m_positions{};
-        allocator::buffer m_colors{};
 
         u64 m_frameSemaphoreValues[SwapchainImages] = {0};
         u64 m_currentSemaphoreValue{0};
@@ -87,5 +77,71 @@ namespace oblo::vk
         config m_config{};
 
         bool m_showImgui{false};
+    };
+
+    template <typename TApp>
+    class sandbox_app : sandbox_base, TApp
+    {
+    public:
+        bool init()
+        {
+            const sandbox_init_context context{
+                .engine = &m_engine,
+                .allocator = &m_allocator,
+                .swapchainFormat = SwapchainFormat,
+            };
+            return sandbox_base::init() && TApp::init(context);
+        }
+
+        void run()
+        {
+            for (u64 frameIndex{0};; ++frameIndex)
+            {
+                if (!poll_events())
+                {
+                    return;
+                }
+
+                u32 imageIndex;
+                u32 poolIndex;
+                VkCommandBuffer commandBuffer;
+                begin_frame(frameIndex, &imageIndex, &poolIndex, &commandBuffer);
+
+                const VkImage swapchainImage = m_swapchain.get_image(imageIndex);
+                const VkImageView swapchainImageView = m_swapchain.get_image_view(imageIndex);
+
+                const sandbox_render_context context{
+                    .engine = &m_engine,
+                    .allocator = &m_allocator,
+                    .commandBuffer = commandBuffer,
+                    .swapchainImage = swapchainImage,
+                    .swapchainImageView = swapchainImageView,
+                    .swapchainFormat = SwapchainFormat,
+                    .width = m_renderWidth,
+                    .height = m_renderHeight,
+                    .frameIndex = frameIndex,
+                };
+
+                static_cast<TApp*>(this)->update(context);
+
+                if (m_showImgui)
+                {
+                    m_imgui.begin_frame();
+                    TApp::update_imgui();
+                    m_imgui.end_frame(commandBuffer, swapchainImageView, m_renderWidth, m_renderHeight);
+                }
+
+                submit_and_present(commandBuffer, imageIndex, poolIndex, frameIndex);
+            }
+        }
+
+        void shutdown()
+        {
+            wait_idle();
+
+            const sandbox_shutdown_context context{.engine = &m_engine, .allocator = &m_allocator};
+            TApp::shutdown(context);
+            sandbox_base::shutdown();
+        }
     };
 }

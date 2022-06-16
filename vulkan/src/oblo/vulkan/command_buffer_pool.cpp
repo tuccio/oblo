@@ -111,6 +111,13 @@ namespace oblo::vk
         OBLO_VK_PANIC(vkResetCommandPool(m_device, m_commandPool, 0u));
     }
 
+    VkCommandBuffer command_buffer_pool::fetch_buffer()
+    {
+        VkCommandBuffer commandBuffer;
+        fetch_buffers({&commandBuffer, 1});
+        return commandBuffer;
+    }
+
     void command_buffer_pool::fetch_buffers(std::span<VkCommandBuffer> outBuffers)
     {
         const auto fetchedBuffersCount{outBuffers.size()};
