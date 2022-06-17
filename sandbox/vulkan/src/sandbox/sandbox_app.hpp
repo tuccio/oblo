@@ -95,7 +95,9 @@ namespace oblo::vk
 
         void run()
         {
-            for (u64 frameIndex{0};; ++frameIndex)
+            // We start counting the frame indices from 1, because we use this value as timeline semaphore, which is
+            // already signaled with 0
+            for (u64 frameIndex{1};; ++frameIndex)
             {
                 if (!poll_events())
                 {

@@ -240,11 +240,11 @@ namespace oblo::vk
         if (allocator.create_buffer({.size = sizeof(positions),
                                      .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
                                      .memoryUsage = memory_usage::cpu_to_gpu},
-                                    m_positions) != VK_SUCCESS ||
+                                    &m_positions) != VK_SUCCESS ||
             allocator.create_buffer({.size = sizeof(colors),
                                      .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
                                      .memoryUsage = memory_usage::cpu_to_gpu},
-                                    m_colors) != VK_SUCCESS)
+                                    &m_colors) != VK_SUCCESS)
         {
             return false;
         }

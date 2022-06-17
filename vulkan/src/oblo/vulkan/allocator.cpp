@@ -34,7 +34,9 @@ namespace oblo::vk
             return false;
         }
 
-        const VmaAllocatorCreateInfo createInfo{.physicalDevice = physicalDevice, .device = device, .instance = instance};
+        const VmaAllocatorCreateInfo createInfo{.physicalDevice = physicalDevice,
+                                                .device = device,
+                                                .instance = instance};
         return vmaCreateAllocator(&createInfo, &m_allocator) == VK_SUCCESS;
     }
 
@@ -47,7 +49,7 @@ namespace oblo::vk
         }
     }
 
-    VkResult allocator::create_buffer(const buffer_initializer& initializer, buffer& outBuffer)
+    VkResult allocator::create_buffer(const buffer_initializer& initializer, buffer* outBuffer)
     {
         OBLO_ASSERT(initializer.size != 0);
 
@@ -60,8 +62,8 @@ namespace oblo::vk
         return vmaCreateBuffer(m_allocator,
                                &bufferCreateInfo,
                                &allocInfo,
-                               &outBuffer.buffer,
-                               &outBuffer.allocation,
+                               &outBuffer->buffer,
+                               &outBuffer->allocation,
                                nullptr);
     }
 
