@@ -33,7 +33,7 @@ namespace oblo::vk
         bool init(VkInstance instance, VkPhysicalDevice physicalDevice, VkDevice device);
         void shutdown();
 
-        VkResult create_buffer(const buffer_initializer& initializer, buffer& outBuffer);
+        VkResult create_buffer(const buffer_initializer& initializer, buffer* outBuffer);
 
         void destroy(const allocator::buffer& buffer);
 
