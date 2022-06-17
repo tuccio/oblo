@@ -20,7 +20,8 @@ namespace oblo::vk
                   VkSurfaceKHR surface,
                   std::span<const char* const> enabledLayers,
                   std::span<const char* const> enabledExtensions,
-                  const void* deviceCreateInfoChain = nullptr);
+                  const void* deviceCreateInfoChain,
+                  const VkPhysicalDeviceFeatures* physicalDeviceFeatures);
 
         VkPhysicalDevice get_physical_device() const;
         VkDevice get_device() const;

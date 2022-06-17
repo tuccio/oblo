@@ -1,5 +1,6 @@
 #include <sandbox/sandbox_app.hpp>
 
+#include <oblo/core/array_size.hpp>
 #include <oblo/vulkan/destroy_device_objects.hpp>
 #include <oblo/vulkan/error.hpp>
 
@@ -57,11 +58,13 @@ namespace oblo::vk
         }
     }
 
-    bool sandbox_base::init()
+    bool sandbox_base::init(std::span<const char* const> deviceExtensions,
+                            void* deviceFeaturesList,
+                            const VkPhysicalDeviceFeatures* physicalDeviceFeatures)
     {
         load_config();
 
-        if (!create_window() || !create_engine() ||
+        if (!create_window() || !create_engine(deviceExtensions, deviceFeaturesList, physicalDeviceFeatures) ||
             !m_allocator.init(m_instance.get(), m_engine.get_physical_device(), m_engine.get_device()))
         {
             return false;
@@ -258,7 +261,9 @@ namespace oblo::vk
         return m_window != nullptr;
     }
 
-    bool sandbox_base::create_engine()
+    bool sandbox_base::create_engine(std::span<const char* const> deviceExtensions,
+                                     void* deviceFeaturesList,
+                                     const VkPhysicalDeviceFeatures* physicalDeviceFeatures)
     {
         // We need to gather the extensions needed by SDL, for now we hardcode a max number
         constexpr u32 extensionsArraySize{64};
@@ -280,9 +285,6 @@ namespace oblo::vk
         }
 
         constexpr u32 apiVersion{VK_API_VERSION_1_3};
-        constexpr const char* deviceExtensions[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-                                                    VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME,
-                                                    VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME};
 
         if (!m_instance.init(
                 VkApplicationInfo{
@@ -306,8 +308,34 @@ namespace oblo::vk
             return false;
         }
 
+        constexpr const char* internalDeviceExtensions[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+                                                            VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME,
+                                                            VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME};
+
+        // TODO: Could heap allocate instead
+        if (array_size(internalDeviceExtensions) + deviceExtensions.size() > extensionsArraySize)
+        {
+            return false;
+        }
+
+        const char* deviceExtensionsArray[extensionsArraySize];
+        auto deviceExtensionsArrayEnd = deviceExtensionsArray;
+
+        for (auto* extension : internalDeviceExtensions)
+        {
+            *deviceExtensionsArrayEnd = extension;
+            ++deviceExtensionsArrayEnd;
+        }
+
+        for (auto* extension : deviceExtensions)
+        {
+            *deviceExtensionsArrayEnd = extension;
+            ++deviceExtensionsArrayEnd;
+        }
+
         VkPhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeature{
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES,
+            .pNext = deviceFeaturesList,
             .dynamicRendering = VK_TRUE};
 
         VkPhysicalDeviceTimelineSemaphoreFeatures timelineFeature{
@@ -315,7 +343,12 @@ namespace oblo::vk
             .pNext = &dynamicRenderingFeature,
             .timelineSemaphore = VK_TRUE};
 
-        return m_engine.init(m_instance.get(), m_surface, {}, deviceExtensions, &timelineFeature);
+        return m_engine.init(m_instance.get(),
+                             m_surface,
+                             {},
+                             std::span{deviceExtensionsArray, deviceExtensionsArrayEnd},
+                             &timelineFeature,
+                             physicalDeviceFeatures);
     }
 
     bool sandbox_base::create_swapchain()

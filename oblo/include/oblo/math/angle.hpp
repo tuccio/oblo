@@ -53,6 +53,12 @@ namespace oblo
     using degrees = angle<degrees_tag>;
 
     template <typename Tag>
+    angle<Tag> operator+(angle<Tag> lhs, angle<Tag> rhs)
+    {
+        return angle<Tag>{f32(lhs) + f32(rhs)};
+    }
+
+    template <typename Tag>
     angle<Tag> operator*(angle<Tag> lhs, f32 rhs)
     {
         return angle<Tag>{f32(lhs) * rhs};
