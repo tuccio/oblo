@@ -33,7 +33,8 @@ namespace oblo::vk
                                    VkSurfaceKHR surface,
                                    std::span<const char* const> enabledLayers,
                                    std::span<const char* const> enabledExtensions,
-                                   const void* deviceCreateInfoChain)
+                                   const void* deviceCreateInfoChain,
+                                   const VkPhysicalDeviceFeatures* physicalDeviceFeatures)
     {
         {
             u32 physicalDevicesCount{0u};
@@ -107,7 +108,7 @@ namespace oblo::vk
                                             .ppEnabledLayerNames = enabledLayers.data(),
                                             .enabledExtensionCount = u32(enabledExtensions.size()),
                                             .ppEnabledExtensionNames = enabledExtensions.data(),
-                                            .pEnabledFeatures = nullptr};
+                                            .pEnabledFeatures = physicalDeviceFeatures};
 
         if (vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device) != VK_SUCCESS)
         {

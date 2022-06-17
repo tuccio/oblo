@@ -1,21 +1,28 @@
 #include <vertexpull/vertexpull.hpp>
 
 #include <oblo/core/array_size.hpp>
+#include <oblo/math/angle.hpp>
 #include <oblo/vulkan/destroy_device_objects.hpp>
 #include <oblo/vulkan/shader_compiler.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
 #include <sandbox/context.hpp>
 
+#include <imgui.h>
+
 namespace oblo::vk
 {
+    VkPhysicalDeviceFeatures vertexpull::get_required_physical_device_features() const
+    {
+        return {.multiDrawIndirect = VK_TRUE};
+    }
 
     bool vertexpull::init(const sandbox_init_context& context)
     {
-        create_geometry();
+        create_geometry(m_objectsPerBatch);
 
         const VkDevice device = context.engine->get_device();
         return compile_shader_modules(device) && create_pipelines(device, context.swapchainFormat) &&
-               create_vertex_buffers(*context.allocator, m_objectsPerBatch);
+               create_vertex_buffers(*context.allocator);
     }
 
     void vertexpull::shutdown(const sandbox_shutdown_context& context)
@@ -96,19 +103,77 @@ namespace oblo::vk
 
         vkCmdBeginRendering(commandBuffer, &renderInfo);
 
-        for (u32 batchIndex = 0; batchIndex < BatchesCount; ++batchIndex)
+        switch (m_method)
         {
-            const VkBuffer vertexBuffers[] = {m_positionBuffers[batchIndex].buffer, m_colorBuffers[batchIndex].buffer};
-            constexpr VkDeviceSize offsets[] = {0, 0};
-            vkCmdBindVertexBuffers(commandBuffer, 0, 2, vertexBuffers, offsets);
+        case method::vertex_buffers:
+            for (u32 batchIndex = 0; batchIndex < BatchesCount; ++batchIndex)
+            {
+                const VkBuffer vertexBuffers[] = {m_positionBuffers[batchIndex].buffer,
+                                                  m_colorBuffers[batchIndex].buffer};
+                constexpr VkDeviceSize offsets[] = {0, 0};
+                vkCmdBindVertexBuffers(commandBuffer, 0, 2, vertexBuffers, offsets);
 
-            vkCmdDraw(commandBuffer, m_positions.size(), 1, 0, 0);
+                for (u32 objectIndex = 0; objectIndex < m_objectsPerBatch; ++objectIndex)
+                {
+                    vkCmdDraw(commandBuffer, m_positions.size(), 1, m_verticesPerObject * objectIndex, 0);
+                }
+            }
+            break;
+        case method::vertex_buffers_multidraw:
+            for (u32 batchIndex = 0; batchIndex < BatchesCount; ++batchIndex)
+            {
+                const VkBuffer vertexBuffers[] = {m_positionBuffers[batchIndex].buffer,
+                                                  m_colorBuffers[batchIndex].buffer};
+                constexpr VkDeviceSize offsets[] = {0, 0};
+                vkCmdBindVertexBuffers(commandBuffer, 0, 2, vertexBuffers, offsets);
+
+                vkCmdDrawIndirect(commandBuffer,
+                                  m_indirectDrawBuffers[batchIndex].buffer,
+                                  0,
+                                  m_objectsPerBatch,
+                                  sizeof(VkDrawIndirectCommand));
+            }
+            break;
+        default:
+            break;
         }
 
         vkCmdEndRendering(commandBuffer);
     }
 
-    void vertexpull::update_imgui() {}
+    void vertexpull::update_imgui()
+    {
+        if (ImGui::Begin("Configuration", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            constexpr const char* items[] = {
+                "Vertex Buffers - Draw per Batch",
+                "Vertex Buffers - Multidraw per Batch",
+                "Vertex Pulling - Draw per Batch",
+                "Vertex Pulling - Multidraw per Batch",
+                "Vertex Pulling - Multidraw Merge Batches",
+            };
+
+            if (ImGui::BeginCombo("Draw Method", items[u32(m_method)]))
+            {
+                for (u32 i = 0; i < array_size(items); ++i)
+                {
+                    const bool isSelected = u32(m_method) == i;
+
+                    if (ImGui::Selectable(items[i], isSelected))
+                    {
+                        m_method = method(i);
+                    }
+
+                    if (isSelected)
+                    {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+
+                ImGui::EndCombo();
+            }
+        }
+    }
 
     bool vertexpull::compile_shader_modules(VkDevice device)
     {
@@ -245,28 +310,51 @@ namespace oblo::vk
                VK_SUCCESS;
     }
 
-    bool vertexpull::create_vertex_buffers(allocator& allocator, u32)
+    bool vertexpull::create_vertex_buffers(allocator& allocator)
     {
         const auto positionsSize = u32(m_positions.size() * sizeof(m_positions[0]));
         const auto colorsSize = u32(m_colors.size() * sizeof(m_colors[0]));
 
-        constexpr auto hex = [](u8 r, u8 g, u8 b) { return vec3{r / 255.f, g / 255.f, b / 255.f}; };
+        constexpr auto hex_rgb = [](u32 rgb)
+        {
+            return vec3{
+                .x = ((rgb & 0xFF0000) >> 16) / 255.f,
+                .y = ((rgb & 0xFF00) >> 8) / 255.f,
+                .z = (rgb & 0xFF) / 255.f,
+            };
+        };
 
         constexpr vec3 colors[BatchesCount] = {
-            hex(0x21, 0xC0, 0xC0),
-            hex(0xC1, 0xE9, 0x96),
-            hex(0xF5, 0xC1, 0x6C),
-            hex(0xEE, 0x43, 0x49),
-            hex(0x20, 0x35, 0x51),
-            hex(0x24, 0x3B, 0x31),
-            hex(0x58, 0x11, 0x23),
-            hex(0xF0, 0xDF, 0xB6),
+            hex_rgb(0x21C0C0),
+            hex_rgb(0xC1E996),
+            hex_rgb(0xF5C16C),
+            hex_rgb(0xEE4349),
+            hex_rgb(0x203551),
+            hex_rgb(0x243B31),
+            hex_rgb(0x581123),
+            hex_rgb(0xF0DFB6),
         };
+
+        m_indirectDrawCommands.clear();
+        m_indirectDrawCommands.reserve(m_objectsPerBatch);
+
+        for (u32 objectIndex = 0; objectIndex < m_objectsPerBatch; ++objectIndex)
+        {
+            m_indirectDrawCommands.push_back({
+                .vertexCount = m_verticesPerObject,
+                .instanceCount = 1,
+                .firstVertex = m_verticesPerObject * objectIndex,
+                .firstInstance = objectIndex,
+            });
+        }
+
+        const auto indirectDrawSize = u32(m_indirectDrawCommands.size() * sizeof(m_indirectDrawCommands[0]));
 
         for (u32 i = 0; i < BatchesCount; ++i)
         {
             auto& positionBuffer = m_positionBuffers[i];
             auto& colorBuffer = m_colorBuffers[i];
+            auto& indirectDrawBuffer = m_indirectDrawBuffers[i];
 
             if (allocator.create_buffer({.size = positionsSize,
                                          .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
@@ -275,7 +363,12 @@ namespace oblo::vk
                 allocator.create_buffer({.size = colorsSize,
                                          .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
                                          .memoryUsage = memory_usage::cpu_to_gpu},
-                                        &colorBuffer) != VK_SUCCESS)
+                                        &colorBuffer) != VK_SUCCESS ||
+                allocator.create_buffer({.size = indirectDrawSize,
+                                         .usage = VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
+                                         .memoryUsage = memory_usage::cpu_to_gpu},
+                                        &indirectDrawBuffer) != VK_SUCCESS)
+
             {
                 return false;
             }
@@ -293,15 +386,43 @@ namespace oblo::vk
                 std::memcpy(data, m_colors.data(), colorsSize);
                 allocator.unmap(colorBuffer.allocation);
             }
+
+            if (void* data; allocator.map(indirectDrawBuffer.allocation, &data) == VK_SUCCESS)
+            {
+                std::memcpy(data, m_indirectDrawCommands.data(), indirectDrawSize);
+                allocator.unmap(indirectDrawBuffer.allocation);
+            }
         }
 
         return true;
     }
 
-    void vertexpull::create_geometry()
+    void vertexpull::create_geometry(u32 objectsPerBatch)
     {
-        m_positions = {{0.0f, -0.5f, 0.f}, {-0.5f, 0.5f, 0.f}, {0.5f, 0.5f, 0.f}};
-        m_colors.resize(m_positions.size());
+        constexpr vec3 positions[] = {{0.0f, -0.5f, 0.f}, {-0.5f, 0.5f, 0.f}, {0.5f, 0.5f, 0.f}};
+        m_verticesPerObject = array_size(positions);
+
+        m_positions.clear();
+        m_positions.reserve(m_objectsPerBatch * m_verticesPerObject);
+
+        radians rotation{};
+        const radians delta{360_deg / f32(objectsPerBatch)};
+
+        for (u32 i = 0; i < objectsPerBatch; ++i, rotation = rotation + delta)
+        {
+            const auto s = std::sin(f32{rotation});
+            const auto c = std::cos(f32{rotation});
+
+            for (const auto& position : positions)
+            {
+                const f32 x = position.x * c - position.y * s;
+                const f32 y = position.x * s + position.y * c;
+
+                m_positions.push_back(vec3{x, y, 0.f});
+            }
+        }
+
+        m_colors.assign(m_positions.size(), vec3{});
     }
 
     void vertexpull::destroy_buffers(allocator& allocator)
@@ -313,6 +434,12 @@ namespace oblo::vk
         }
 
         for (auto& buffer : m_colorBuffers)
+        {
+            allocator.destroy(buffer);
+            buffer = {};
+        }
+
+        for (auto& buffer : m_indirectDrawBuffers)
         {
             allocator.destroy(buffer);
             buffer = {};

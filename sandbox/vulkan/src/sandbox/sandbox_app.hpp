@@ -1,5 +1,7 @@
 #pragma once
 
+#include <concepts>
+
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/allocator.hpp>
 #include <oblo/vulkan/command_buffer_pool.hpp>
@@ -24,7 +26,10 @@ namespace oblo::vk
         sandbox_base& operator=(sandbox_base&&) noexcept = delete;
         ~sandbox_base() = default;
 
-        bool init();
+        bool init(std::span<const char* const> deviceExtensions,
+                  void* deviceFeaturesList,
+                  const VkPhysicalDeviceFeatures* physicalDeviceFeatures);
+
         void shutdown();
 
         void wait_idle();
@@ -36,7 +41,11 @@ namespace oblo::vk
     private:
         void load_config();
         bool create_window();
-        bool create_engine();
+
+        bool create_engine(std::span<const char* const> deviceExtensions,
+                           void* deviceFeaturesList,
+                           const VkPhysicalDeviceFeatures* physicalDeviceFeatures);
+
         bool create_swapchain();
         bool create_command_pools();
         bool create_synchronization_objects();
@@ -76,7 +85,26 @@ namespace oblo::vk
 
         config m_config{};
 
-        bool m_showImgui{false};
+        bool m_showImgui{true};
+    };
+
+    template <typename TApp>
+    concept app_requiring_physical_device_features = requires(TApp app)
+    {
+        {
+            app.get_required_physical_device_features()
+            } -> std::convertible_to<VkPhysicalDeviceFeatures>;
+    };
+
+    template <typename TApp>
+    concept app_requiring_device_extensions = requires(TApp app)
+    {
+        {
+            app.get_required_device_extensions()
+            } -> std::convertible_to<std::span<const char* const>>;
+        {
+            app.get_device_features_list()
+            } -> std::convertible_to<void*>;
     };
 
     template <typename TApp>
@@ -85,12 +113,31 @@ namespace oblo::vk
     public:
         bool init()
         {
+            std::span<const char* const> deviceExtensions;
+            void* deviceFeaturesList{nullptr};
+            VkPhysicalDeviceFeatures physicalDeviceFeatures{};
+            const VkPhysicalDeviceFeatures* pPhysicalDeviceFeatures{nullptr};
+
+            if constexpr (app_requiring_device_extensions<TApp>)
+            {
+                deviceExtensions = TApp::get_required_device_extensions();
+                deviceFeaturesList = TApp::get_device_features_list();
+            }
+
+            if constexpr (app_requiring_physical_device_features<TApp>)
+            {
+                physicalDeviceFeatures = TApp::get_required_physical_device_features();
+                pPhysicalDeviceFeatures = &physicalDeviceFeatures;
+            }
+
             const sandbox_init_context context{
                 .engine = &m_engine,
                 .allocator = &m_allocator,
                 .swapchainFormat = SwapchainFormat,
             };
-            return sandbox_base::init() && TApp::init(context);
+
+            return sandbox_base::init(deviceExtensions, deviceFeaturesList, pPhysicalDeviceFeatures) &&
+                   TApp::init(context);
         }
 
         void run()
