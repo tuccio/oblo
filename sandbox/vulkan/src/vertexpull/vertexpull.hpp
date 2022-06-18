@@ -24,60 +24,63 @@ namespace oblo::vk
         void update_imgui();
 
     private:
-        enum class batch_kind
-        {
-            position_color,
-            position_normal_color,
-            position_uv0_color,
-            position_uv1_color,
-            position_uv0_uv1_color,
-            position_uv0_normal_color,
-            position_uv1_normal_color,
-            position_uv0_uv1_normal_color,
-            total
-        };
-
         enum class method : u8
         {
             vertex_buffers,
-            vertex_buffers_multidraw,
-            vertex_pulling,
-            vertex_pulling_multidraw,
-            vertex_pulling_merge,
+            vertex_buffers_indirect,
+            vertex_pull_indirect,
+            vertex_pull_merge,
         };
 
     private:
         bool compile_shader_modules(VkDevice device);
 
+        bool create_descriptor_pools(VkDevice device);
+        bool create_descriptor_set_layouts(VkDevice device);
         bool create_pipelines(VkDevice device, VkFormat swapchainFormat);
 
         bool create_vertex_buffers(allocator& allocator);
+        bool create_descriptor_sets(VkDevice device);
 
-        void create_geometry(u32 objectsPerBatch);
+        void create_geometry();
 
         void destroy_buffers(allocator& allocator);
         void destroy_pipelines(VkDevice device);
         void destroy_shader_modules(VkDevice device);
+        void destroy_descriptor_pools(VkDevice device);
+
+        void compute_layout_params();
 
     private:
-        static constexpr u32 BatchesCount{u32(batch_kind::total)};
+        static constexpr u32 MaxFramesInFlight{2};
 
-        allocator::buffer m_positionBuffers[BatchesCount]{{}};
-        allocator::buffer m_colorBuffers[BatchesCount]{{}};
-        allocator::buffer m_indirectDrawBuffers[BatchesCount]{{}};
+        std::vector<allocator::buffer> m_positionBuffers;
+        std::vector<allocator::buffer> m_colorBuffers;
+        std::vector<allocator::buffer> m_indirectDrawBuffers;
 
         VkShaderModule m_shaderVertexBuffersVert{nullptr};
+        VkShaderModule m_shaderVertexPullVert{nullptr};
         VkShaderModule m_shaderSharedFrag{nullptr};
 
-        VkPipelineLayout m_pipelineLayout{nullptr};
+        VkPipelineLayout m_vertexBuffersPipelineLayout{nullptr};
+        VkPipelineLayout m_vertexPullPipelineLayout{nullptr};
         VkPipeline m_vertexBuffersPipeline{nullptr};
+        VkPipeline m_vertexPullPipeline{nullptr};
 
-        method m_method{method::vertex_buffers};
-        u32 m_objectsPerBatch{32u};
-        u32 m_verticesPerObject{3u};
+        VkDescriptorPool m_descriptorPools[MaxFramesInFlight]{nullptr};
+        VkDescriptorSetLayout m_vertexPullSetLayout{nullptr};
 
         std::vector<vec3> m_positions;
         std::vector<vec3> m_colors;
         std::vector<VkDrawIndirectCommand> m_indirectDrawCommands;
+
+        method m_method{method::vertex_buffers};
+        u32 m_batchesCount{8u};
+        u32 m_objectsPerBatch{32u};
+        u32 m_verticesPerObject{3u};
+
+        u32 m_layoutQuadsPerRow;
+        f32 m_layoutQuadScale;
+        f32 m_layoutOffset;
     };
 }
