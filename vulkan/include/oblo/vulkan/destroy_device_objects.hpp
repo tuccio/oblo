@@ -40,6 +40,16 @@ namespace oblo::vk
         return vkDestroyFramebuffer(device, frameBuffer, nullptr);
     }
 
+    inline void destroy_device_object(VkDevice device, VkDescriptorPool descriptorPool)
+    {
+        return vkDestroyDescriptorPool(device, descriptorPool, nullptr);
+    }
+
+    inline void destroy_device_object(VkDevice device, VkDescriptorSetLayout descriptorSetLayout)
+    {
+        return vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+    }
+
     template <typename T, std::size_t N>
     void destroy_device_object(VkDevice device, std::span<T, N> objects)
     {

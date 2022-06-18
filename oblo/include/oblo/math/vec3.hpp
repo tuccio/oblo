@@ -54,6 +54,11 @@ namespace oblo
         return {lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z};
     }
 
+    constexpr vec3 operator+(f32 lhs, const vec3& rhs) noexcept
+    {
+        return {lhs + rhs.x, lhs + rhs.y, lhs + rhs.z};
+    }
+
     constexpr vec3 operator+(const vec3& lhs, f32 rhs) noexcept
     {
         return {lhs.x + rhs, lhs.y + rhs, lhs.z + rhs};
