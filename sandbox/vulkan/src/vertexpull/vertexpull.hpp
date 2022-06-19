@@ -57,22 +57,30 @@ namespace oblo::vk
         std::vector<allocator::buffer> m_positionBuffers;
         std::vector<allocator::buffer> m_colorBuffers;
         std::vector<allocator::buffer> m_indirectDrawBuffers;
+        allocator::buffer m_mergeIndirectionBuffer{};
+        allocator::buffer m_mergeIndirectDrawCommandsBuffer{};
 
         VkShaderModule m_shaderVertexBuffersVert{nullptr};
         VkShaderModule m_shaderVertexPullVert{nullptr};
+        VkShaderModule m_shaderVertexPullMergeVert{nullptr};
         VkShaderModule m_shaderSharedFrag{nullptr};
 
         VkPipelineLayout m_vertexBuffersPipelineLayout{nullptr};
         VkPipelineLayout m_vertexPullPipelineLayout{nullptr};
+        VkPipelineLayout m_vertexPullMergePipelineLayout{nullptr};
         VkPipeline m_vertexBuffersPipeline{nullptr};
         VkPipeline m_vertexPullPipeline{nullptr};
+        VkPipeline m_vertexPullMergePipeline{nullptr};
 
         VkDescriptorPool m_descriptorPools[MaxFramesInFlight]{nullptr};
         VkDescriptorSetLayout m_vertexPullSetLayout{nullptr};
+        VkDescriptorSetLayout m_vertexPullMergeSetLayout{nullptr};
 
         std::vector<vec3> m_positions;
         std::vector<vec3> m_colors;
         std::vector<VkDrawIndirectCommand> m_indirectDrawCommands;
+        std::vector<VkDrawIndirectCommand> m_mergeIndirectDrawCommands;
+        std::vector<u32> m_mergeIndirection;
 
         method m_method{method::vertex_buffers};
         u32 m_batchesCount{8u};

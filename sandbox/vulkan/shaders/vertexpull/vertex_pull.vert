@@ -24,9 +24,10 @@ layout(location = 0) out vec3 out_Color;
 
 layout(push_constant) uniform u_Constants
 {
-	vec3 translation;
-	float scale;
-} c_Constants;
+    vec3 translation;
+    float scale;
+}
+c_Constants;
 
 void main()
 {
