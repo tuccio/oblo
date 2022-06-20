@@ -1,4 +1,4 @@
-#version 450
+#version 460
 
 #define MAX_BATCHES_COUNT 32
 #define BINDING_INDEX(Major, Minor) Major* MAX_BATCHES_COUNT + Minor
@@ -70,17 +70,6 @@ layout(std430, binding = BINDING_INDEX(2, 0)) buffer b_BatchIndex
     uint in_BatchIndex[];
 };
 
-struct transform_data
-{
-    vec3 translation;
-    float scale;
-};
-
-layout(std430, binding = BINDING_INDEX(2, 1)) buffer b_Transform
-{
-    transform_data in_Transform[];
-};
-
 layout(location = 0) out vec3 out_Color;
 
 struct attributes
@@ -91,7 +80,7 @@ struct attributes
 
 attributes read_attributes()
 {
-    const uint batchIndex = in_BatchIndex[gl_InstanceIndex];
+    const uint batchIndex = in_BatchIndex[gl_DrawID];
 
     attributes result;
 
@@ -115,7 +104,6 @@ attributes read_attributes()
 void main()
 {
     const attributes inAttributes = read_attributes();
-    const transform_data transform = in_Transform[in_BatchIndex[gl_InstanceIndex]];
-    gl_Position = vec4(inAttributes.position * transform.scale + transform.translation, 1.0);
+    gl_Position = vec4(inAttributes.position, 1.0);
     out_Color = inAttributes.color;
 }

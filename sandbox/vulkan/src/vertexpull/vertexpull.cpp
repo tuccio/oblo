@@ -16,18 +16,22 @@ namespace oblo::vk
     namespace
     {
         constexpr u32 MaxBatchesCount{32u};
-
-        struct transform_data
-        {
-            vec3 translation;
-            float scale;
-        };
     }
 
     VkPhysicalDeviceFeatures vertexpull::get_required_physical_device_features() const
     {
         return {.multiDrawIndirect = VK_TRUE};
     }
+
+    void* vertexpull::get_device_features_list() const
+    {
+        static VkPhysicalDeviceShaderDrawParametersFeatures drawParameters{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES,
+            .shaderDrawParameters = VK_TRUE,
+        };
+
+        return &drawParameters;
+    };
 
     bool vertexpull::init(const sandbox_init_context& context)
     {
@@ -134,54 +138,17 @@ namespace oblo::vk
             vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
         }
 
+        const VkDevice device = context.engine->get_device();
+        const VkDescriptorPool descriptorPool = m_descriptorPools[context.frameIndex % MaxFramesInFlight];
+        vkResetDescriptorPool(device, descriptorPool, 0);
+
         vkCmdBeginRendering(commandBuffer, &renderInfo);
 
         switch (m_method)
         {
         case method::vertex_buffers: {
-            const VkDevice device = context.engine->get_device();
-            const VkDescriptorPool descriptorPool = m_descriptorPools[context.frameIndex % MaxFramesInFlight];
-            vkResetDescriptorPool(device, descriptorPool, 0);
-
             for (u32 batchIndex = 0; batchIndex < m_batchesCount; ++batchIndex)
             {
-                const VkDescriptorSetAllocateInfo descriptorSetAllocateInfo{
-                    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-                    .descriptorPool = descriptorPool,
-                    .descriptorSetCount = 1,
-                    .pSetLayouts = &m_vertexBuffersSetLayout,
-                };
-
-                VkDescriptorSet descriptorSet;
-                OBLO_VK_PANIC(vkAllocateDescriptorSets(device, &descriptorSetAllocateInfo, &descriptorSet));
-
-                const VkDescriptorBufferInfo transformBuffer{
-                    m_transformBuffer.buffer,
-                    batchIndex * sizeof(transform_data),
-                    sizeof(transform_data),
-                };
-
-                const VkWriteDescriptorSet descriptorSetWrites[]{{
-                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                    .dstSet = descriptorSet,
-                    .dstBinding = 0,
-                    .dstArrayElement = 0,
-                    .descriptorCount = 1,
-                    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                    .pBufferInfo = &transformBuffer,
-                }};
-
-                vkUpdateDescriptorSets(device, array_size(descriptorSetWrites), descriptorSetWrites, 0, nullptr);
-
-                vkCmdBindDescriptorSets(commandBuffer,
-                                        VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                        m_vertexBuffersPipelineLayout,
-                                        0,
-                                        1,
-                                        &descriptorSet,
-                                        0,
-                                        nullptr);
-
                 const VkBuffer vertexBuffers[] = {m_positionBuffers[batchIndex].buffer,
                                                   m_colorBuffers[batchIndex].buffer};
                 constexpr VkDeviceSize offsets[] = {0, 0};
@@ -195,49 +162,8 @@ namespace oblo::vk
             break;
         }
         case method::vertex_buffers_indirect: {
-            const VkDevice device = context.engine->get_device();
-            const VkDescriptorPool descriptorPool = m_descriptorPools[context.frameIndex % MaxFramesInFlight];
-            vkResetDescriptorPool(device, descriptorPool, 0);
-
             for (u32 batchIndex = 0; batchIndex < m_batchesCount; ++batchIndex)
             {
-                const VkDescriptorSetAllocateInfo descriptorSetAllocateInfo{
-                    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-                    .descriptorPool = descriptorPool,
-                    .descriptorSetCount = 1,
-                    .pSetLayouts = &m_vertexBuffersSetLayout,
-                };
-
-                VkDescriptorSet descriptorSet;
-                OBLO_VK_PANIC(vkAllocateDescriptorSets(device, &descriptorSetAllocateInfo, &descriptorSet));
-
-                const VkDescriptorBufferInfo transformBuffer{
-                    m_transformBuffer.buffer,
-                    0,
-                    sizeof(transform_data) * m_batchesCount,
-                };
-
-                const VkWriteDescriptorSet descriptorSetWrites[]{{
-                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                    .dstSet = descriptorSet,
-                    .dstBinding = 0,
-                    .dstArrayElement = 0,
-                    .descriptorCount = 1,
-                    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                    .pBufferInfo = &transformBuffer,
-                }};
-
-                vkUpdateDescriptorSets(device, array_size(descriptorSetWrites), descriptorSetWrites, 0, nullptr);
-
-                vkCmdBindDescriptorSets(commandBuffer,
-                                        VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                        m_vertexBuffersPipelineLayout,
-                                        0,
-                                        1,
-                                        &descriptorSet,
-                                        0,
-                                        nullptr);
-
                 const VkBuffer vertexBuffers[] = {m_positionBuffers[batchIndex].buffer,
                                                   m_colorBuffers[batchIndex].buffer};
                 constexpr VkDeviceSize offsets[] = {0, 0};
@@ -252,10 +178,6 @@ namespace oblo::vk
         }
         break;
         case method::vertex_pull_indirect: {
-            const VkDevice device = context.engine->get_device();
-            const VkDescriptorPool descriptorPool = m_descriptorPools[context.frameIndex % MaxFramesInFlight];
-            vkResetDescriptorPool(device, descriptorPool, 0);
-
             for (u32 batchIndex = 0; batchIndex < m_batchesCount; ++batchIndex)
             {
                 const VkDescriptorSetAllocateInfo descriptorSetAllocateInfo{
@@ -280,12 +202,6 @@ namespace oblo::vk
                     m_verticesPerObject * m_objectsPerBatch * sizeof(vec3),
                 };
 
-                const VkDescriptorBufferInfo transformBuffer{
-                    m_transformBuffer.buffer,
-                    0,
-                    sizeof(transform_data) * m_batchesCount,
-                };
-
                 const VkWriteDescriptorSet descriptorSetWrites[]{
                     {
                         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -304,15 +220,6 @@ namespace oblo::vk
                         .descriptorCount = 1,
                         .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                         .pBufferInfo = &colorsBuffer,
-                    },
-                    {
-                        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                        .dstSet = descriptorSet,
-                        .dstBinding = 2,
-                        .dstArrayElement = 0,
-                        .descriptorCount = 1,
-                        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                        .pBufferInfo = &transformBuffer,
                     },
                 };
 
@@ -336,10 +243,6 @@ namespace oblo::vk
         }
         break;
         case method::vertex_pull_merge: {
-            const VkDevice device = context.engine->get_device();
-            const VkDescriptorPool descriptorPool = m_descriptorPools[context.frameIndex % MaxFramesInFlight];
-            vkResetDescriptorPool(device, descriptorPool, 0);
-
             const VkDescriptorSetAllocateInfo descriptorSetAllocateInfo{
                 .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
                 .descriptorPool = descriptorPool,
@@ -353,7 +256,7 @@ namespace oblo::vk
             VkDescriptorBufferInfo positionsBuffers[MaxBatchesCount]{{}};
             VkDescriptorBufferInfo colorsBuffers[MaxBatchesCount]{{}};
 
-            VkWriteDescriptorSet descriptorSetWrites[2 * MaxBatchesCount + 2]{{}};
+            VkWriteDescriptorSet descriptorSetWrites[2 * MaxBatchesCount + 1]{{}};
 
             for (u32 outIndex = 0; outIndex < MaxBatchesCount; ++outIndex)
             {
@@ -398,12 +301,6 @@ namespace oblo::vk
                 m_batchesCount * m_objectsPerBatch * sizeof(u32),
             };
 
-            const VkDescriptorBufferInfo transformBuffer{
-                m_transformBuffer.buffer,
-                0,
-                sizeof(transform_data) * m_batchesCount,
-            };
-
             descriptorSetWrites[2 * MaxBatchesCount] = {
                 .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                 .dstSet = descriptorSet,
@@ -412,16 +309,6 @@ namespace oblo::vk
                 .descriptorCount = 1,
                 .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                 .pBufferInfo = &mergeBuffer,
-            };
-
-            descriptorSetWrites[2 * MaxBatchesCount + 1] = {
-                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                .dstSet = descriptorSet,
-                .dstBinding = 2 * MaxBatchesCount + 1,
-                .dstArrayElement = 0,
-                .descriptorCount = 1,
-                .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                .pBufferInfo = &transformBuffer,
             };
 
             vkUpdateDescriptorSets(device, array_size(descriptorSetWrites), descriptorSetWrites, 0, nullptr);
@@ -438,7 +325,7 @@ namespace oblo::vk
             vkCmdDrawIndirect(commandBuffer,
                               m_mergeIndirectDrawCommandsBuffer.buffer,
                               0,
-                              m_objectsPerBatch,
+                              m_objectsPerBatch * m_batchesCount,
                               sizeof(VkDrawIndirectCommand));
         }
         break;
@@ -529,23 +416,6 @@ namespace oblo::vk
 
     bool vertexpull::create_descriptor_set_layouts(VkDevice device)
     {
-        constexpr VkDescriptorSetLayoutBinding vertexBufferBindings[]{
-            {
-                .binding = 0,
-                .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                .descriptorCount = 1,
-                .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-            },
-        };
-
-        const VkDescriptorSetLayoutCreateInfo vertexBuffersSetLayoutCreateInfo{
-            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-            .pNext = nullptr,
-            .flags = 0,
-            .bindingCount = array_size(vertexBufferBindings),
-            .pBindings = vertexBufferBindings,
-        };
-
         constexpr VkDescriptorSetLayoutBinding pullBufferBindings[]{
             {
                 .binding = 0,
@@ -555,12 +425,6 @@ namespace oblo::vk
             },
             {
                 .binding = 1,
-                .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                .descriptorCount = 1,
-                .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-            },
-            {
-                .binding = 2,
                 .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                 .descriptorCount = 1,
                 .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
@@ -575,7 +439,7 @@ namespace oblo::vk
             .pBindings = pullBufferBindings,
         };
 
-        VkDescriptorSetLayoutBinding pullMergeBufferBindings[MaxBatchesCount * 2 + 2];
+        VkDescriptorSetLayoutBinding pullMergeBufferBindings[MaxBatchesCount * 2 + 1];
 
         for (u32 i = 0; i < array_size(pullMergeBufferBindings); ++i)
         {
@@ -595,11 +459,7 @@ namespace oblo::vk
             .pBindings = pullMergeBufferBindings,
         };
 
-        return vkCreateDescriptorSetLayout(device,
-                                           &vertexBuffersSetLayoutCreateInfo,
-                                           nullptr,
-                                           &m_vertexBuffersSetLayout) == VK_SUCCESS &&
-               vkCreateDescriptorSetLayout(device, &pullSetLayoutCreateInfo, nullptr, &m_vertexPullSetLayout) ==
+        return vkCreateDescriptorSetLayout(device, &pullSetLayoutCreateInfo, nullptr, &m_vertexPullSetLayout) ==
                    VK_SUCCESS &&
                vkCreateDescriptorSetLayout(device,
                                            &pullMergeSetLayoutCreateInfo,
@@ -638,11 +498,26 @@ namespace oblo::vk
         m_colorBuffers.assign(m_batchesCount, {});
         m_indirectDrawBuffers.assign(m_batchesCount, {});
 
-        for (u32 i = 0; i < m_batchesCount; ++i)
+        std::vector<vec3> transformedPositions;
+        transformedPositions.resize(m_positions.size());
+
+        for (u32 batchIndex = 0; batchIndex < m_batchesCount; ++batchIndex)
         {
-            auto& positionBuffer = m_positionBuffers[i];
-            auto& colorBuffer = m_colorBuffers[i];
-            auto& indirectDrawBuffer = m_indirectDrawBuffers[i];
+            for (u32 vertexIndex = 0; vertexIndex < m_positions.size(); ++vertexIndex)
+            {
+                const auto translation =
+                    vec3{m_layoutOffset + 2.f * m_layoutQuadScale * f32(batchIndex % m_layoutQuadsPerRow),
+                         m_layoutOffset + 2.f * m_layoutQuadScale * f32(batchIndex / m_layoutQuadsPerRow),
+                         0.f};
+
+                transformedPositions[vertexIndex] = m_positions[vertexIndex] * m_layoutQuadScale + translation;
+            }
+
+            m_colors.assign(totalVerticesCount, colors[batchIndex % array_size(colors)]);
+
+            auto& positionBuffer = m_positionBuffers[batchIndex];
+            auto& colorBuffer = m_colorBuffers[batchIndex];
+            auto& indirectDrawBuffer = m_indirectDrawBuffers[batchIndex];
 
             constexpr auto vertexBufferUsage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 
@@ -663,11 +538,9 @@ namespace oblo::vk
 
             if (void* data; allocator.map(positionBuffer.allocation, &data) == VK_SUCCESS)
             {
-                std::memcpy(data, m_positions.data(), positionsSize);
+                std::memcpy(data, transformedPositions.data(), positionsSize);
                 allocator.unmap(positionBuffer.allocation);
             }
-
-            m_colors.assign(totalVerticesCount, colors[i % array_size(colors)]);
 
             if (void* data; allocator.map(colorBuffer.allocation, &data) == VK_SUCCESS)
             {
@@ -713,32 +586,6 @@ namespace oblo::vk
             allocator.unmap(m_mergeIndirectDrawCommandsBuffer.allocation);
         }
 
-        if (allocator.create_buffer({.size = sizeof(transform_data) * MaxBatchesCount,
-                                     .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                     .memoryUsage = memory_usage::cpu_to_gpu},
-                                    &m_transformBuffer) != VK_SUCCESS)
-        {
-            return false;
-        }
-
-        if (void* data; allocator.map(m_transformBuffer.allocation, &data) == VK_SUCCESS)
-        {
-            for (u32 batchIndex = 0; batchIndex < MaxBatchesCount; ++batchIndex)
-            {
-                const transform_data transform{
-                    .translation =
-                        vec3{m_layoutOffset + 2.f * m_layoutQuadScale * f32(batchIndex % m_layoutQuadsPerRow),
-                             m_layoutOffset + 2.f * m_layoutQuadScale * f32(batchIndex / m_layoutQuadsPerRow),
-                             0.f},
-                    .scale = m_layoutQuadScale};
-
-                std::memcpy(data, &transform, sizeof(transform_data));
-                data = reinterpret_cast<u8*>(data) + sizeof(transform_data);
-            }
-
-            allocator.unmap(m_transformBuffer.allocation);
-        }
-
         return true;
     }
 
@@ -746,8 +593,6 @@ namespace oblo::vk
     {
         const VkPipelineLayoutCreateInfo vertexBuffersPipelineLayoutInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            .setLayoutCount = 1,
-            .pSetLayouts = &m_vertexBuffersSetLayout,
         };
 
         const VkPipelineLayoutCreateInfo vertexPullPipelineLayoutInfo{
@@ -828,10 +673,12 @@ namespace oblo::vk
             .vertexBindingDescriptionCount = array_size(vertexInputBindingDescs),
             .pVertexBindingDescriptions = vertexInputBindingDescs,
             .vertexAttributeDescriptionCount = array_size(vertexInputAttributeDescs),
-            .pVertexAttributeDescriptions = vertexInputAttributeDescs};
+            .pVertexAttributeDescriptions = vertexInputAttributeDescs,
+        };
 
         const VkPipelineVertexInputStateCreateInfo vertexPullInputInfo{
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+        };
 
         const VkPipelineViewportStateCreateInfo viewportState{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
@@ -1044,7 +891,6 @@ namespace oblo::vk
                              m_vertexBuffersPipeline,
                              m_vertexPullPipeline,
                              m_vertexPullMergePipeline,
-                             m_vertexBuffersSetLayout,
                              m_vertexPullSetLayout,
                              m_vertexPullMergeSetLayout);
     }
