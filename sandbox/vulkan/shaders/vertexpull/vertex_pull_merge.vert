@@ -70,14 +70,18 @@ layout(std430, binding = BINDING_INDEX(2, 0)) buffer b_BatchIndex
     uint in_BatchIndex[];
 };
 
-layout(location = 0) out vec3 out_Color;
-
-layout(push_constant) uniform u_Constants
+struct transform_data
 {
     vec3 translation;
     float scale;
-}
-c_Constants;
+};
+
+layout(std430, binding = BINDING_INDEX(2, 1)) buffer b_Transform
+{
+    transform_data in_Transform[];
+};
+
+layout(location = 0) out vec3 out_Color;
 
 struct attributes
 {
@@ -111,8 +115,7 @@ attributes read_attributes()
 void main()
 {
     const attributes inAttributes = read_attributes();
-    // gl_Position = vec4(inAttributes.position, 1.0);
-    gl_Position = vec4(inAttributes.position * c_Constants.scale + c_Constants.translation, 1.0);
+    const transform_data transform = in_Transform[in_BatchIndex[gl_InstanceIndex]];
+    gl_Position = vec4(inAttributes.position * transform.scale + transform.translation, 1.0);
     out_Color = inAttributes.color;
-    // out_Color = vec3(1, 0, 0);//inAttributes.color;
 }

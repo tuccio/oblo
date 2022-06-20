@@ -59,6 +59,7 @@ namespace oblo::vk
         std::vector<allocator::buffer> m_indirectDrawBuffers;
         allocator::buffer m_mergeIndirectionBuffer{};
         allocator::buffer m_mergeIndirectDrawCommandsBuffer{};
+        allocator::buffer m_transformBuffer{};
 
         VkShaderModule m_shaderVertexBuffersVert{nullptr};
         VkShaderModule m_shaderVertexPullVert{nullptr};
@@ -73,6 +74,7 @@ namespace oblo::vk
         VkPipeline m_vertexPullMergePipeline{nullptr};
 
         VkDescriptorPool m_descriptorPools[MaxFramesInFlight]{nullptr};
+        VkDescriptorSetLayout m_vertexBuffersSetLayout{nullptr};
         VkDescriptorSetLayout m_vertexPullSetLayout{nullptr};
         VkDescriptorSetLayout m_vertexPullMergeSetLayout{nullptr};
 
