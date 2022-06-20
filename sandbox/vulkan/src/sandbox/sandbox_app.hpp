@@ -102,6 +102,11 @@ namespace oblo::vk
         {
             app.get_required_device_extensions()
             } -> std::convertible_to<std::span<const char* const>>;
+    };
+
+    template <typename TApp>
+    concept app_requiring_device_features = requires(TApp app)
+    {
         {
             app.get_device_features_list()
             } -> std::convertible_to<void*>;
@@ -121,6 +126,10 @@ namespace oblo::vk
             if constexpr (app_requiring_device_extensions<TApp>)
             {
                 deviceExtensions = TApp::get_required_device_extensions();
+            }
+
+            if constexpr (app_requiring_device_features<TApp>)
+            {
                 deviceFeaturesList = TApp::get_device_features_list();
             }
 

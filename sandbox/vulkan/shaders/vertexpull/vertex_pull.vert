@@ -22,21 +22,9 @@ layout(std430, binding = 1) buffer b_Colors
 
 layout(location = 0) out vec3 out_Color;
 
-struct transform_data
-{
-    vec3 translation;
-    float scale;
-};
-
-layout(std430, binding = 0) buffer b_Transform
-{
-    transform_data in_Transform[];
-};
-
 void main()
 {
     const vec3 position = to_vec3(in_Position[gl_VertexIndex]);
-    const transform_data transform = in_Transform[gl_InstanceIndex];
-    gl_Position = vec4(position * transform.scale + transform.translation, 1.0);
+    gl_Position = vec4(position, 1.0);
     out_Color = to_vec3(in_Color[gl_VertexIndex]);
 }
