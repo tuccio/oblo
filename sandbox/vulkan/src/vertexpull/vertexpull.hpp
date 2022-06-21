@@ -90,7 +90,7 @@ namespace oblo::vk
 
         u64 m_lastRecordedTime{0u};
 
-        u8 m_enqueuedTimestamps{0u};
+        u8 m_enqueuedTimestamps[2]{{}};
         method m_method{method::vertex_buffers};
         u32 m_batchesCount{8u};
         u32 m_objectsPerBatch{32u};
