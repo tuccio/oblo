@@ -31,6 +31,7 @@ namespace oblo::vk
         ~allocator();
 
         bool init(VkInstance instance, VkPhysicalDevice physicalDevice, VkDevice device);
+
         void shutdown();
 
         VkResult create_buffer(const buffer_initializer& initializer, buffer* outBuffer);
@@ -53,7 +54,7 @@ namespace oblo::vk
     struct allocator::buffer_initializer
     {
         u32 size;
-        VkBufferCreateFlags usage;
+        VkBufferUsageFlags usage;
         memory_usage memoryUsage;
     };
 }

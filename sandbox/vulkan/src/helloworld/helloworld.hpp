@@ -7,6 +7,7 @@ namespace oblo::vk
     struct sandbox_init_context;
     struct sandbox_shutdown_context;
     struct sandbox_render_context;
+    struct sandbox_update_imgui_context;
 
     class helloworld
     {
@@ -14,7 +15,7 @@ namespace oblo::vk
         bool init(const sandbox_init_context& context);
         void shutdown(const sandbox_shutdown_context& context);
         void update(const sandbox_render_context& context);
-        void update_imgui();
+        void update_imgui(const sandbox_update_imgui_context& context);
 
     private:
         bool create_shader_modules(VkDevice device);

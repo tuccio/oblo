@@ -35,4 +35,10 @@ namespace oblo::vk
         u32 height;
         u64 frameIndex;
     };
+
+    struct sandbox_update_imgui_context
+    {
+        single_queue_engine* engine;
+        allocator* allocator;
+    };
 }

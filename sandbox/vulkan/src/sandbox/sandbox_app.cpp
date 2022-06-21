@@ -1,6 +1,7 @@
 #include <sandbox/sandbox_app.hpp>
 
 #include <oblo/core/array_size.hpp>
+#include <oblo/core/small_vector.hpp>
 #include <oblo/vulkan/destroy_device_objects.hpp>
 #include <oblo/vulkan/error.hpp>
 
@@ -58,13 +59,20 @@ namespace oblo::vk
         }
     }
 
-    bool sandbox_base::init(std::span<const char* const> deviceExtensions,
+    bool sandbox_base::init(std::span<const char* const> instanceExtensions,
+                            std::span<const char* const> instanceLayers,
+                            std::span<const char* const> deviceExtensions,
                             void* deviceFeaturesList,
                             const VkPhysicalDeviceFeatures* physicalDeviceFeatures)
     {
         load_config();
 
-        if (!create_window() || !create_engine(deviceExtensions, deviceFeaturesList, physicalDeviceFeatures) ||
+        if (!create_window() ||
+            !create_engine(instanceExtensions,
+                           instanceLayers,
+                           deviceExtensions,
+                           deviceFeaturesList,
+                           physicalDeviceFeatures) ||
             !m_allocator.init(m_instance.get(), m_engine.get_physical_device(), m_engine.get_device()))
         {
             return false;
@@ -261,28 +269,36 @@ namespace oblo::vk
         return m_window != nullptr;
     }
 
-    bool sandbox_base::create_engine(std::span<const char* const> deviceExtensions,
+    bool sandbox_base::create_engine(std::span<const char* const> instanceExtensions,
+                                     std::span<const char* const> instanceLayers,
+                                     std::span<const char* const> deviceExtensions,
                                      void* deviceFeaturesList,
                                      const VkPhysicalDeviceFeatures* physicalDeviceFeatures)
     {
         // We need to gather the extensions needed by SDL, for now we hardcode a max number
         constexpr u32 extensionsArraySize{64};
         constexpr u32 layersArraySize{16};
-        const char* extensions[extensionsArraySize];
-        const char* layers[layersArraySize];
+
+        small_vector<const char*, extensionsArraySize> extensions;
+        small_vector<const char*, layersArraySize> layers;
 
         u32 extensionsCount = extensionsArraySize;
-        u32 layersCount = 0;
+        extensions.resize(extensionsArraySize);
 
-        if (!SDL_Vulkan_GetInstanceExtensions(m_window, &extensionsCount, extensions))
+        if (!SDL_Vulkan_GetInstanceExtensions(m_window, &extensionsCount, extensions.data()))
         {
             return false;
         }
 
+        extensions.resize(extensionsCount);
+
         if (m_config.vk_use_validation_layers)
         {
-            layers[layersCount++] = "VK_LAYER_KHRONOS_validation";
+            layers.emplace_back("VK_LAYER_KHRONOS_validation");
         }
+
+        extensions.insert(extensions.end(), instanceExtensions.begin(), instanceExtensions.end());
+        layers.insert(layers.end(), instanceLayers.begin(), instanceLayers.end());
 
         constexpr u32 apiVersion{VK_API_VERSION_1_3};
 
@@ -296,8 +312,8 @@ namespace oblo::vk
                     .engineVersion = 0,
                     .apiVersion = apiVersion,
                 },
-                {layers, layersCount},
-                {extensions, extensionsCount},
+                {layers},
+                {extensions},
                 debugCallback))
         {
             return false;
@@ -312,43 +328,22 @@ namespace oblo::vk
                                                             VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME,
                                                             VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME};
 
-        // TODO: Could heap allocate instead
-        if (array_size(internalDeviceExtensions) + deviceExtensions.size() > extensionsArraySize)
-        {
-            return false;
-        }
-
-        const char* deviceExtensionsArray[extensionsArraySize];
-        auto deviceExtensionsArrayEnd = deviceExtensionsArray;
-
-        for (auto* extension : internalDeviceExtensions)
-        {
-            *deviceExtensionsArrayEnd = extension;
-            ++deviceExtensionsArrayEnd;
-        }
-
-        for (auto* extension : deviceExtensions)
-        {
-            *deviceExtensionsArrayEnd = extension;
-            ++deviceExtensionsArrayEnd;
-        }
+        extensions.assign(std::begin(internalDeviceExtensions), std::end(internalDeviceExtensions));
+        extensions.insert(extensions.end(), deviceExtensions.begin(), deviceExtensions.end());
 
         VkPhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeature{
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES,
             .pNext = deviceFeaturesList,
-            .dynamicRendering = VK_TRUE};
+            .dynamicRendering = VK_TRUE,
+        };
 
         VkPhysicalDeviceTimelineSemaphoreFeatures timelineFeature{
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES,
             .pNext = &dynamicRenderingFeature,
-            .timelineSemaphore = VK_TRUE};
+            .timelineSemaphore = VK_TRUE,
+        };
 
-        return m_engine.init(m_instance.get(),
-                             m_surface,
-                             {},
-                             std::span{deviceExtensionsArray, deviceExtensionsArrayEnd},
-                             &timelineFeature,
-                             physicalDeviceFeatures);
+        return m_engine.init(m_instance.get(), m_surface, {}, {extensions}, &timelineFeature, physicalDeviceFeatures);
     }
 
     bool sandbox_base::create_swapchain()

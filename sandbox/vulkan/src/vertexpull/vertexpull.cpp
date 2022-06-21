@@ -15,18 +15,24 @@ namespace oblo::vk
 {
     namespace
     {
-        constexpr u32 MaxBatchesCount{32u};
+        constexpr u32 MaxBatchesCount{64u};
     }
 
     VkPhysicalDeviceFeatures vertexpull::get_required_physical_device_features() const
     {
-        return {.multiDrawIndirect = VK_TRUE};
+        return {.multiDrawIndirect = VK_TRUE, .shaderInt64 = VK_TRUE};
     }
 
     void* vertexpull::get_device_features_list() const
     {
+        static VkPhysicalDeviceBufferDeviceAddressFeatures deviceAddress{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES,
+            .bufferDeviceAddress = VK_TRUE,
+        };
+
         static VkPhysicalDeviceShaderDrawParametersFeatures drawParameters{
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES,
+            .pNext = &deviceAddress,
             .shaderDrawParameters = VK_TRUE,
         };
 
@@ -326,10 +332,12 @@ namespace oblo::vk
         vkCmdEndRendering(commandBuffer);
     }
 
-    void vertexpull::update_imgui()
+    void vertexpull::update_imgui(const sandbox_update_imgui_context& context)
     {
         if (ImGui::Begin("Configuration", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
         {
+            bool updateGeometry{false};
+
             constexpr const char* items[] = {
                 "VB - Draw per Batch",
                 "VB - Indirect Draw per Batch",
@@ -355,6 +363,39 @@ namespace oblo::vk
                 }
 
                 ImGui::EndCombo();
+            }
+
+            {
+                u32 min{1};
+                u32 max{MaxBatchesCount};
+
+                if (ImGui::SliderScalar("Batches Count", ImGuiDataType_U32, &m_batchesCount, &min, &max))
+                {
+                    updateGeometry = true;
+                }
+            }
+
+            {
+                u32 min{1};
+                u32 max{1 << 17};
+
+                if (ImGui::SliderScalar("Objects per Batch", ImGuiDataType_U32, &m_objectsPerBatch, &min, &max))
+                {
+                    updateGeometry = true;
+                }
+            }
+
+            if (updateGeometry)
+            {
+                const auto device = context.engine->get_device();
+                vkDeviceWaitIdle(device);
+
+                destroy_buffers(*context.allocator);
+
+                create_geometry();
+                compute_layout_params();
+
+                create_buffers(device, *context.allocator);
             }
         }
     }
@@ -518,7 +559,9 @@ namespace oblo::vk
             auto& colorBuffer = m_colorBuffers[batchIndex];
             auto& indirectDrawBuffer = m_indirectDrawBuffers[batchIndex];
 
-            constexpr auto vertexBufferUsage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+            // Different modes need different flags, not sure if it's a problem to use them all together
+            constexpr auto vertexBufferUsage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                                               VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
             if (allocator.create_buffer(
                     {.size = positionsSize, .usage = vertexBufferUsage, .memoryUsage = memory_usage::cpu_to_gpu},
