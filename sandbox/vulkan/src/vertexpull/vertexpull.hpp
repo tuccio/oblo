@@ -40,7 +40,7 @@ namespace oblo::vk
         bool create_descriptor_set_layouts(VkDevice device);
         bool create_pipelines(VkDevice device, VkFormat swapchainFormat);
 
-        bool create_vertex_buffers(allocator& allocator);
+        bool create_buffers(VkDevice device, allocator& allocator);
         bool create_descriptor_sets(VkDevice device);
 
         void create_geometry();
@@ -60,6 +60,8 @@ namespace oblo::vk
         std::vector<allocator::buffer> m_indirectDrawBuffers;
         allocator::buffer m_mergeIndirectionBuffer{};
         allocator::buffer m_mergeIndirectDrawCommandsBuffer{};
+        allocator::buffer m_positionBuffersRefs{};
+        allocator::buffer m_colorBuffersRefs{};
 
         VkShaderModule m_shaderVertexBuffersVert{nullptr};
         VkShaderModule m_shaderVertexPullVert{nullptr};
