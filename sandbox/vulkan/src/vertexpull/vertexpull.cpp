@@ -156,21 +156,44 @@ namespace oblo::vk
 
         const VkQueryPool queryPool = m_queryPools[poolIndex];
 
-        u64 timestamps[2];
+        u64 timestamps[2 * MaxBatchesCount];
 
-        if (vkGetQueryPoolResults(device,
+        u32 expectedTimestamps{0};
+
+        switch (m_method)
+        {
+        case method::vertex_buffers_indirect:
+        case method::vertex_pull_indirect:
+            expectedTimestamps = 2 * m_batchesCount;
+            break;
+
+        case method::vertex_pull_merge:
+            expectedTimestamps = 2;
+            break;
+        default:
+            break;
+        }
+
+        if (expectedTimestamps > 0 && expectedTimestamps == m_enqueuedTimestamps[poolIndex] &&
+            vkGetQueryPoolResults(device,
                                   queryPool,
                                   0,
-                                  2,
+                                  expectedTimestamps,
                                   sizeof(timestamps),
                                   timestamps,
                                   sizeof(u64),
-                                  VK_QUERY_RESULT_64_BIT) == VK_SUCCESS)
+                                  VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT) == VK_SUCCESS)
         {
-            m_lastRecordedTime = timestamps[1] - timestamps[0];
+            m_lastRecordedTime = 0;
+
+            for (u32 i = 0; i < expectedTimestamps; i += 2)
+            {
+                m_lastRecordedTime += timestamps[i + 1] - timestamps[i];
+            }
         }
 
-        vkResetQueryPool(device, queryPool, 0, 2);
+        m_enqueuedTimestamps[poolIndex] = 0;
+        vkResetQueryPool(device, queryPool, 0, 2 * MaxBatchesCount);
 
         vkCmdBeginRendering(commandBuffer, &renderInfo);
 
@@ -199,10 +222,7 @@ namespace oblo::vk
                 constexpr VkDeviceSize offsets[] = {0, 0};
                 vkCmdBindVertexBuffers(commandBuffer, 0, 2, vertexBuffers, offsets);
 
-                if (batchIndex == 0)
-                {
-                    vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, queryPool, 0);
-                }
+                vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, queryPool, 2 * batchIndex);
 
                 vkCmdDrawIndirect(commandBuffer,
                                   m_indirectDrawBuffers[batchIndex].buffer,
@@ -210,11 +230,10 @@ namespace oblo::vk
                                   m_objectsPerBatch,
                                   sizeof(VkDrawIndirectCommand));
 
-                if (batchIndex == 0)
-                {
-                    vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, queryPool, 1);
-                }
+                vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, queryPool, 2 * batchIndex + 1);
             }
+
+            m_enqueuedTimestamps[poolIndex] = 2 * m_batchesCount;
         }
         break;
         case method::vertex_pull_indirect: {
@@ -274,10 +293,7 @@ namespace oblo::vk
                                         0,
                                         nullptr);
 
-                if (batchIndex == 0)
-                {
-                    vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, queryPool, 0);
-                }
+                vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, queryPool, 2 * batchIndex);
 
                 vkCmdDrawIndirect(commandBuffer,
                                   m_indirectDrawBuffers[batchIndex].buffer,
@@ -285,11 +301,10 @@ namespace oblo::vk
                                   m_objectsPerBatch,
                                   sizeof(VkDrawIndirectCommand));
 
-                if (batchIndex == 0)
-                {
-                    vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, queryPool, 1);
-                }
+                vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, queryPool, 2 * batchIndex + 1);
             }
+
+            m_enqueuedTimestamps[poolIndex] = 2 * m_batchesCount;
         }
         break;
         case method::vertex_pull_merge: {
@@ -371,6 +386,8 @@ namespace oblo::vk
                               sizeof(VkDrawIndirectCommand));
 
             vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, queryPool, 1);
+
+            m_enqueuedTimestamps[poolIndex] = 2;
         }
         break;
         default:
@@ -406,8 +423,11 @@ namespace oblo::vk
                         if (selectedMethod != m_method)
                         {
                             m_method = selectedMethod;
-                            m_enqueuedTimestamps = 0;
                             m_lastRecordedTime = 0;
+                            for (auto& enqueuedTimestamp : m_enqueuedTimestamps)
+                            {
+                                enqueuedTimestamp = 0;
+                            }
                         }
                     }
 
@@ -449,11 +469,7 @@ namespace oblo::vk
                 switch (m_method)
                 {
                 case method::vertex_buffers_indirect:
-                    ImGui::Text("Vertex Shader Time Batch #0 (ms): %f", msFloatTime);
-                    break;
                 case method::vertex_pull_indirect:
-                    ImGui::Text("Vertex Shader Time Batch #0 (ms): %f", msFloatTime);
-                    break;
                 case method::vertex_pull_merge:
                     ImGui::Text("Vertex Shader Time Total (ms): %f", msFloatTime);
                     ImGui::Text("Vertex Shader Time Average Per Batch (ms): %f", msFloatTime / m_batchesCount);
@@ -523,7 +539,7 @@ namespace oblo::vk
         const VkQueryPoolCreateInfo queryPoolCreateInfo{
             .sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
             .queryType = VK_QUERY_TYPE_TIMESTAMP,
-            .queryCount = 2,
+            .queryCount = 2 * MaxBatchesCount,
         };
 
         for (auto& queryPool : m_queryPools)
