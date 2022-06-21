@@ -50,6 +50,11 @@ namespace oblo::vk
         return vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
     }
 
+    inline void destroy_device_object(VkDevice device, VkQueryPool queryPool)
+    {
+        return vkDestroyQueryPool(device, queryPool, nullptr);
+    }
+
     template <typename T, std::size_t N>
     void destroy_device_object(VkDevice device, std::span<T, N> objects)
     {

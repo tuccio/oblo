@@ -25,8 +25,14 @@ namespace oblo::vk
 
     void* vertexpull::get_device_features_list() const
     {
+        static VkPhysicalDeviceHostQueryResetFeatures queryReset{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_QUERY_RESET_FEATURES,
+            .hostQueryReset = VK_TRUE,
+        };
+
         static VkPhysicalDeviceBufferDeviceAddressFeatures deviceAddress{
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES,
+            .pNext = &queryReset,
             .bufferDeviceAddress = VK_TRUE,
         };
 
@@ -46,9 +52,8 @@ namespace oblo::vk
 
         const VkDevice device = context.engine->get_device();
 
-        return compile_shader_modules(device) && create_descriptor_pools(device) &&
-               create_descriptor_set_layouts(device) && create_pipelines(device, context.swapchainFormat) &&
-               create_buffers(device, *context.allocator);
+        return compile_shader_modules(device) && create_pools(device) && create_descriptor_set_layouts(device) &&
+               create_pipelines(device, context.swapchainFormat) && create_buffers(device, *context.allocator);
     }
 
     void vertexpull::shutdown(const sandbox_shutdown_context& context)
@@ -56,7 +61,7 @@ namespace oblo::vk
         const VkDevice device = context.engine->get_device();
         destroy_buffers(*context.allocator);
         destroy_pipelines(device);
-        destroy_descriptor_pools(device);
+        destroy_pools(device);
         destroy_shader_modules(device);
     }
 
@@ -144,9 +149,28 @@ namespace oblo::vk
             vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
         }
 
+        const auto poolIndex = context.frameIndex % MaxFramesInFlight;
         const VkDevice device = context.engine->get_device();
-        const VkDescriptorPool descriptorPool = m_descriptorPools[context.frameIndex % MaxFramesInFlight];
+        const VkDescriptorPool descriptorPool = m_descriptorPools[poolIndex];
         vkResetDescriptorPool(device, descriptorPool, 0);
+
+        const VkQueryPool queryPool = m_queryPools[poolIndex];
+
+        u64 timestamps[2];
+
+        if (vkGetQueryPoolResults(device,
+                                  queryPool,
+                                  0,
+                                  2,
+                                  sizeof(timestamps),
+                                  timestamps,
+                                  sizeof(u64),
+                                  VK_QUERY_RESULT_64_BIT) == VK_SUCCESS)
+        {
+            m_lastRecordedTime = timestamps[1] - timestamps[0];
+        }
+
+        vkResetQueryPool(device, queryPool, 0, 2);
 
         vkCmdBeginRendering(commandBuffer, &renderInfo);
 
@@ -175,11 +199,21 @@ namespace oblo::vk
                 constexpr VkDeviceSize offsets[] = {0, 0};
                 vkCmdBindVertexBuffers(commandBuffer, 0, 2, vertexBuffers, offsets);
 
+                if (batchIndex == 0)
+                {
+                    vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, queryPool, 0);
+                }
+
                 vkCmdDrawIndirect(commandBuffer,
                                   m_indirectDrawBuffers[batchIndex].buffer,
                                   0,
                                   m_objectsPerBatch,
                                   sizeof(VkDrawIndirectCommand));
+
+                if (batchIndex == 0)
+                {
+                    vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, queryPool, 1);
+                }
             }
         }
         break;
@@ -240,11 +274,21 @@ namespace oblo::vk
                                         0,
                                         nullptr);
 
+                if (batchIndex == 0)
+                {
+                    vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, queryPool, 0);
+                }
+
                 vkCmdDrawIndirect(commandBuffer,
                                   m_indirectDrawBuffers[batchIndex].buffer,
                                   0,
                                   m_objectsPerBatch,
                                   sizeof(VkDrawIndirectCommand));
+
+                if (batchIndex == 0)
+                {
+                    vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, queryPool, 1);
+                }
             }
         }
         break;
@@ -318,11 +362,15 @@ namespace oblo::vk
                                     0,
                                     nullptr);
 
+            vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, queryPool, 0);
+
             vkCmdDrawIndirect(commandBuffer,
                               m_mergeIndirectDrawCommandsBuffer.buffer,
                               0,
                               m_objectsPerBatch * m_batchesCount,
                               sizeof(VkDrawIndirectCommand));
+
+            vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, queryPool, 1);
         }
         break;
         default:
@@ -353,7 +401,14 @@ namespace oblo::vk
 
                     if (ImGui::Selectable(items[i], isSelected))
                     {
-                        m_method = method(i);
+                        const auto selectedMethod = method(i);
+
+                        if (selectedMethod != m_method)
+                        {
+                            m_method = selectedMethod;
+                            m_enqueuedTimestamps = 0;
+                            m_lastRecordedTime = 0;
+                        }
                     }
 
                     if (isSelected)
@@ -382,6 +437,29 @@ namespace oblo::vk
                 if (ImGui::SliderScalar("Objects per Batch", ImGuiDataType_U32, &m_objectsPerBatch, &min, &max))
                 {
                     updateGeometry = true;
+                }
+            }
+
+            if (m_lastRecordedTime != 0)
+            {
+                using output_time_type = std::chrono::duration<float, std::milli>;
+                const auto nsTime = std::chrono::nanoseconds{m_lastRecordedTime};
+                const auto msFloatTime = std::chrono::duration_cast<output_time_type>(nsTime).count();
+
+                switch (m_method)
+                {
+                case method::vertex_buffers_indirect:
+                    ImGui::Text("Vertex Shader Time Batch #0 (ms): %f", msFloatTime);
+                    break;
+                case method::vertex_pull_indirect:
+                    ImGui::Text("Vertex Shader Time Batch #0 (ms): %f", msFloatTime);
+                    break;
+                case method::vertex_pull_merge:
+                    ImGui::Text("Vertex Shader Time Total (ms): %f", msFloatTime);
+                    ImGui::Text("Vertex Shader Time Average Per Batch (ms): %f", msFloatTime / m_batchesCount);
+                    break;
+                default:
+                    break;
                 }
             }
 
@@ -425,7 +503,7 @@ namespace oblo::vk
         return m_shaderVertexBuffersVert && m_shaderSharedFrag && m_shaderVertexPullMergeVert;
     }
 
-    bool vertexpull::create_descriptor_pools(VkDevice device)
+    bool vertexpull::create_pools(VkDevice device)
     {
         constexpr VkDescriptorPoolSize descriptorSizes[]{{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, MaxBatchesCount * 2}};
 
@@ -437,6 +515,20 @@ namespace oblo::vk
         for (auto& descriptorPool : m_descriptorPools)
         {
             if (vkCreateDescriptorPool(device, &poolCreateInfo, nullptr, &descriptorPool) != VK_SUCCESS)
+            {
+                return false;
+            }
+        }
+
+        const VkQueryPoolCreateInfo queryPoolCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
+            .queryType = VK_QUERY_TYPE_TIMESTAMP,
+            .queryCount = 2,
+        };
+
+        for (auto& queryPool : m_queryPools)
+        {
+            if (vkCreateQueryPool(device, &queryPoolCreateInfo, nullptr, &queryPool) != VK_SUCCESS)
             {
                 return false;
             }
@@ -997,16 +1089,9 @@ namespace oblo::vk
                              m_shaderSharedFrag);
     }
 
-    void vertexpull::destroy_descriptor_pools(VkDevice device)
+    void vertexpull::destroy_pools(VkDevice device)
     {
-        for (auto descriptorPool : m_descriptorPools)
-        {
-            if (descriptorPool)
-            {
-                vkResetDescriptorPool(device, descriptorPool, 0);
-                destroy_device_object(device, descriptorPool);
-            }
-        }
+        reset_device_objects(device, std::span{m_descriptorPools}, std::span{m_queryPools});
     }
 
     void vertexpull::compute_layout_params()

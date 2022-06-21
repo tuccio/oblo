@@ -37,7 +37,7 @@ namespace oblo::vk
     private:
         bool compile_shader_modules(VkDevice device);
 
-        bool create_descriptor_pools(VkDevice device);
+        bool create_pools(VkDevice device);
         bool create_descriptor_set_layouts(VkDevice device);
         bool create_pipelines(VkDevice device, VkFormat swapchainFormat);
 
@@ -49,7 +49,7 @@ namespace oblo::vk
         void destroy_buffers(allocator& allocator);
         void destroy_pipelines(VkDevice device);
         void destroy_shader_modules(VkDevice device);
-        void destroy_descriptor_pools(VkDevice device);
+        void destroy_pools(VkDevice device);
 
         void compute_layout_params();
 
@@ -80,12 +80,17 @@ namespace oblo::vk
         VkDescriptorSetLayout m_vertexPullSetLayout{nullptr};
         VkDescriptorSetLayout m_vertexPullMergeSetLayout{nullptr};
 
+        VkQueryPool m_queryPools[2]{{}};
+
         std::vector<vec3> m_positions;
         std::vector<vec3> m_colors;
         std::vector<VkDrawIndirectCommand> m_indirectDrawCommands;
         std::vector<VkDrawIndirectCommand> m_mergeIndirectDrawCommands;
         std::vector<u32> m_mergeIndirection;
 
+        u64 m_lastRecordedTime{0u};
+
+        u8 m_enqueuedTimestamps{0u};
         method m_method{method::vertex_buffers};
         u32 m_batchesCount{8u};
         u32 m_objectsPerBatch{32u};
