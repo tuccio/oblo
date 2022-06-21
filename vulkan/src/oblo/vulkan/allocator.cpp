@@ -34,9 +34,13 @@ namespace oblo::vk
             return false;
         }
 
-        const VmaAllocatorCreateInfo createInfo{.physicalDevice = physicalDevice,
-                                                .device = device,
-                                                .instance = instance};
+        const VmaAllocatorCreateInfo createInfo{
+            .flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
+            .physicalDevice = physicalDevice,
+            .device = device,
+            .instance = instance,
+        };
+
         return vmaCreateAllocator(&createInfo, &m_allocator) == VK_SUCCESS;
     }
 
@@ -53,9 +57,11 @@ namespace oblo::vk
     {
         OBLO_ASSERT(initializer.size != 0);
 
-        const VkBufferCreateInfo bufferCreateInfo{.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-                                                  .size = initializer.size,
-                                                  .usage = initializer.usage};
+        const VkBufferCreateInfo bufferCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+            .size = initializer.size,
+            .usage = initializer.usage,
+        };
 
         const VmaAllocationCreateInfo allocInfo{.usage = VmaMemoryUsage(initializer.memoryUsage)};
 

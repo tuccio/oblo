@@ -87,6 +87,18 @@ namespace oblo
             return m_vector[index];
         }
 
+        template <typename... TArgs>
+        decltype(auto) insert(TArgs&&... args)
+        {
+            return m_vector.insert(std::forward<TArgs>(args)...);
+        }
+
+        template <typename... TArgs>
+        decltype(auto) assign(TArgs&&... args)
+        {
+            return m_vector.assign(std::forward<TArgs>(args)...);
+        }
+
     private:
         alignas(T) char m_buffer[sizeof(T) * N];
         std::pmr::monotonic_buffer_resource m_resource{m_buffer, sizeof(T) * N};

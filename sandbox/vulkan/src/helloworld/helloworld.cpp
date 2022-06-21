@@ -279,7 +279,7 @@ namespace oblo::vk
         }
     }
 
-    void helloworld::update_imgui()
+    void helloworld::update_imgui(const sandbox_update_imgui_context&)
     {
         ImGui::ShowDemoWindow();
     }

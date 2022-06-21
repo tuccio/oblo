@@ -26,7 +26,9 @@ namespace oblo::vk
         sandbox_base& operator=(sandbox_base&&) noexcept = delete;
         ~sandbox_base() = default;
 
-        bool init(std::span<const char* const> deviceExtensions,
+        bool init(std::span<const char* const> instanceExtensions,
+                  std::span<const char* const> instanceLayers,
+                  std::span<const char* const> deviceExtensions,
                   void* deviceFeaturesList,
                   const VkPhysicalDeviceFeatures* physicalDeviceFeatures);
 
@@ -42,7 +44,9 @@ namespace oblo::vk
         void load_config();
         bool create_window();
 
-        bool create_engine(std::span<const char* const> deviceExtensions,
+        bool create_engine(std::span<const char* const> instanceExtensions,
+                           std::span<const char* const> instanceLayers,
+                           std::span<const char* const> deviceExtensions,
                            void* deviceFeaturesList,
                            const VkPhysicalDeviceFeatures* physicalDeviceFeatures);
 
@@ -89,6 +93,14 @@ namespace oblo::vk
     };
 
     template <typename TApp>
+    concept app_requiring_instance_extensions = requires(TApp app)
+    {
+        {
+            app.get_required_instance_extensions()
+            } -> std::convertible_to<std::span<const char* const>>;
+    };
+
+    template <typename TApp>
     concept app_requiring_physical_device_features = requires(TApp app)
     {
         {
@@ -118,10 +130,17 @@ namespace oblo::vk
     public:
         bool init()
         {
+            std::span<const char* const> instanceExtensions;
+            std::span<const char* const> instanceLayers;
             std::span<const char* const> deviceExtensions;
             void* deviceFeaturesList{nullptr};
             VkPhysicalDeviceFeatures physicalDeviceFeatures{};
             const VkPhysicalDeviceFeatures* pPhysicalDeviceFeatures{nullptr};
+
+            if constexpr (app_requiring_instance_extensions<TApp>)
+            {
+                instanceExtensions = TApp::get_required_instance_extensions();
+            }
 
             if constexpr (app_requiring_device_extensions<TApp>)
             {
@@ -145,7 +164,11 @@ namespace oblo::vk
                 .swapchainFormat = SwapchainFormat,
             };
 
-            return sandbox_base::init(deviceExtensions, deviceFeaturesList, pPhysicalDeviceFeatures) &&
+            return sandbox_base::init(instanceExtensions,
+                                      instanceLayers,
+                                      deviceExtensions,
+                                      deviceFeaturesList,
+                                      pPhysicalDeviceFeatures) &&
                    TApp::init(context);
         }
 
@@ -158,6 +181,20 @@ namespace oblo::vk
                 if (!poll_events())
                 {
                     return;
+                }
+
+                const auto showImgui = m_showImgui;
+
+                if (showImgui)
+                {
+                    m_imgui.begin_frame();
+
+                    const sandbox_update_imgui_context context{
+                        .engine = &m_engine,
+                        .allocator = &m_allocator,
+                    };
+
+                    TApp::update_imgui(context);
                 }
 
                 u32 imageIndex;
@@ -182,10 +219,8 @@ namespace oblo::vk
 
                 static_cast<TApp*>(this)->update(context);
 
-                if (m_showImgui)
+                if (showImgui)
                 {
-                    m_imgui.begin_frame();
-                    TApp::update_imgui();
                     m_imgui.end_frame(commandBuffer, swapchainImageView, m_renderWidth, m_renderHeight);
                 }
 
