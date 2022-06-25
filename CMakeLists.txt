@@ -17,5 +17,4 @@ oblo_conan_install()
 add_subdirectory(3rdparty)
 
 add_subdirectory(oblo)
-add_subdirectory(vulkan)
 add_subdirectory(sandbox)

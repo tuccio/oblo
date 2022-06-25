@@ -3,7 +3,7 @@
 #include <oblo/acceleration/aabb_container.hpp>
 #include <oblo/acceleration/bvh.hpp>
 #include <oblo/core/utility.hpp>
-#include <oblo/rendering/camera.hpp>
+#include <oblo/raytracer/camera.hpp>
 
 #include <random>
 #include <span>
