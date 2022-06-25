@@ -1,4 +1,4 @@
-#include <oblo/rendering/raytracer.hpp>
+#include <oblo/raytracer/raytracer.hpp>
 #include <sandbox/draw/debug_renderer.hpp>
 #include <sandbox/draw/fullscreen_texture.hpp>
 #include <sandbox/import/scene_importer.hpp>
