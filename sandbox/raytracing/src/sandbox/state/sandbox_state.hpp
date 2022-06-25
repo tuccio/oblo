@@ -2,7 +2,7 @@
 
 #include <oblo/acceleration/bvh.hpp>
 #include <oblo/acceleration/triangle_container.hpp>
-#include <oblo/rendering/camera.hpp>
+#include <oblo/raytracer/camera.hpp>
 
 #include <string>
 

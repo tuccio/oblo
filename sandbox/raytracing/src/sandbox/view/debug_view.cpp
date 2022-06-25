@@ -2,8 +2,8 @@
 
 #include <oblo/math/line.hpp>
 #include <oblo/math/triangle.hpp>
-#include <oblo/rendering/material.hpp>
-#include <oblo/rendering/raytracer.hpp>
+#include <oblo/raytracer/material.hpp>
+#include <oblo/raytracer/raytracer.hpp>
 #include <sandbox/draw/debug_renderer.hpp>
 #include <sandbox/import/scene_importer.hpp>
 #include <sandbox/state/sandbox_state.hpp>

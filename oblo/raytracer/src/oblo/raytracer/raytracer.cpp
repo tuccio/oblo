@@ -1,9 +1,9 @@
-#include <oblo/rendering/raytracer.hpp>
+#include <oblo/raytracer/raytracer.hpp>
 
 #include <oblo/acceleration/bvh.hpp>
 #include <oblo/acceleration/triangle_container.hpp>
 #include <oblo/math/random.hpp>
-#include <oblo/rendering/material.hpp>
+#include <oblo/raytracer/material.hpp>
 
 namespace oblo
 {
