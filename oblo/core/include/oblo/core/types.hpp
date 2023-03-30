@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 
 namespace oblo
@@ -19,4 +20,7 @@ namespace oblo
 
     using intptr = std::intptr_t;
     using uintptr = std::uintptr_t;
+
+    using isize = std::intptr_t;
+    using usize = std::size_t;
 }
