@@ -14,7 +14,7 @@ namespace oblo::vk
     struct sandbox_render_context;
     struct sandbox_update_imgui_context;
 
-    class vertexpull
+    class vertex_pull
     {
     public:
         VkPhysicalDeviceFeatures get_required_physical_device_features() const;

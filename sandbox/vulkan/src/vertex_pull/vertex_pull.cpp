@@ -1,4 +1,4 @@
-#include <vertexpull/vertexpull.hpp>
+#include <vertex_pull/vertex_pull.hpp>
 
 #include <oblo/core/array_size.hpp>
 #include <oblo/math/angle.hpp>
@@ -18,12 +18,12 @@ namespace oblo::vk
         constexpr u32 MaxBatchesCount{64u};
     }
 
-    VkPhysicalDeviceFeatures vertexpull::get_required_physical_device_features() const
+    VkPhysicalDeviceFeatures vertex_pull::get_required_physical_device_features() const
     {
         return {.multiDrawIndirect = VK_TRUE, .shaderInt64 = VK_TRUE};
     }
 
-    void* vertexpull::get_device_features_list() const
+    void* vertex_pull::get_device_features_list() const
     {
         static VkPhysicalDeviceHostQueryResetFeatures queryReset{
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_QUERY_RESET_FEATURES,
@@ -45,7 +45,7 @@ namespace oblo::vk
         return &drawParameters;
     };
 
-    bool vertexpull::init(const sandbox_init_context& context)
+    bool vertex_pull::init(const sandbox_init_context& context)
     {
         create_geometry();
         compute_layout_params();
@@ -56,7 +56,7 @@ namespace oblo::vk
                create_pipelines(device, context.swapchainFormat) && create_buffers(device, *context.allocator);
     }
 
-    void vertexpull::shutdown(const sandbox_shutdown_context& context)
+    void vertex_pull::shutdown(const sandbox_shutdown_context& context)
     {
         const VkDevice device = context.engine->get_device();
         destroy_buffers(*context.allocator);
@@ -65,7 +65,7 @@ namespace oblo::vk
         destroy_shader_modules(device);
     }
 
-    void vertexpull::update(const sandbox_render_context& context)
+    void vertex_pull::update(const sandbox_render_context& context)
     {
         const VkCommandBuffer commandBuffer = context.commandBuffer;
 
@@ -397,7 +397,7 @@ namespace oblo::vk
         vkCmdEndRendering(commandBuffer);
     }
 
-    void vertexpull::update_imgui(const sandbox_update_imgui_context& context)
+    void vertex_pull::update_imgui(const sandbox_update_imgui_context& context)
     {
         if (ImGui::Begin("Configuration", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
         {
@@ -494,32 +494,32 @@ namespace oblo::vk
         }
     }
 
-    bool vertexpull::compile_shader_modules(VkDevice device)
+    bool vertex_pull::compile_shader_modules(VkDevice device)
     {
         shader_compiler compiler;
 
         m_shaderVertexBuffersVert =
             compiler.create_shader_module_from_glsl_file(device,
-                                                         "./shaders/vertexpull/vertex_buffers.vert",
+                                                         "./shaders/vertex_pull/vertex_buffers.vert",
                                                          VK_SHADER_STAGE_VERTEX_BIT);
 
         m_shaderVertexPullVert = compiler.create_shader_module_from_glsl_file(device,
-                                                                              "./shaders/vertexpull/vertex_pull.vert",
+                                                                              "./shaders/vertex_pull/vertex_pull.vert",
                                                                               VK_SHADER_STAGE_VERTEX_BIT);
 
         m_shaderVertexPullMergeVert =
             compiler.create_shader_module_from_glsl_file(device,
-                                                         "./shaders/vertexpull/vertex_pull_merge.vert",
+                                                         "./shaders/vertex_pull/vertex_pull_merge.vert",
                                                          VK_SHADER_STAGE_VERTEX_BIT);
 
         m_shaderSharedFrag = compiler.create_shader_module_from_glsl_file(device,
-                                                                          "./shaders/vertexpull/shared.frag",
+                                                                          "./shaders/vertex_pull/shared.frag",
                                                                           VK_SHADER_STAGE_FRAGMENT_BIT);
 
         return m_shaderVertexBuffersVert && m_shaderSharedFrag && m_shaderVertexPullMergeVert;
     }
 
-    bool vertexpull::create_pools(VkDevice device)
+    bool vertex_pull::create_pools(VkDevice device)
     {
         constexpr VkDescriptorPoolSize descriptorSizes[]{{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, MaxBatchesCount * 2}};
 
@@ -553,7 +553,7 @@ namespace oblo::vk
         return true;
     }
 
-    bool vertexpull::create_descriptor_set_layouts(VkDevice device)
+    bool vertex_pull::create_descriptor_set_layouts(VkDevice device)
     {
         constexpr VkDescriptorSetLayoutBinding pullBufferBindings[]{
             {
@@ -615,7 +615,7 @@ namespace oblo::vk
                                            &m_vertexPullMergeSetLayout) == VK_SUCCESS;
     }
 
-    bool vertexpull::create_buffers(VkDevice device, allocator& allocator)
+    bool vertex_pull::create_buffers(VkDevice device, allocator& allocator)
     {
         const auto totalVerticesCount = m_objectsPerBatch * m_verticesPerObject;
         const auto positionsSize = u32(totalVerticesCount * sizeof(m_positions[0]));
@@ -784,7 +784,7 @@ namespace oblo::vk
         return true;
     }
 
-    bool vertexpull::create_pipelines(VkDevice device, VkFormat swapchainFormat)
+    bool vertex_pull::create_pipelines(VkDevice device, VkFormat swapchainFormat)
     {
         const VkPipelineLayoutCreateInfo vertexBuffersPipelineLayoutInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
@@ -999,7 +999,7 @@ namespace oblo::vk
         return success;
     }
 
-    void vertexpull::create_geometry()
+    void vertex_pull::create_geometry()
     {
         constexpr vec3 positions[] = {{0.0f, -0.5f, 0.f}, {-0.5f, 0.5f, 0.f}, {0.5f, 0.5f, 0.f}};
         m_verticesPerObject = array_size(positions);
@@ -1050,7 +1050,7 @@ namespace oblo::vk
         }
     }
 
-    void vertexpull::destroy_buffers(allocator& allocator)
+    void vertex_pull::destroy_buffers(allocator& allocator)
     {
         for (auto& buffer : m_positionBuffers)
         {
@@ -1083,7 +1083,7 @@ namespace oblo::vk
         m_colorBuffersRefs = {};
     }
 
-    void vertexpull::destroy_pipelines(VkDevice device)
+    void vertex_pull::destroy_pipelines(VkDevice device)
     {
         reset_device_objects(device,
                              m_vertexBuffersPipelineLayout,
@@ -1096,7 +1096,7 @@ namespace oblo::vk
                              m_vertexPullMergeSetLayout);
     }
 
-    void vertexpull::destroy_shader_modules(VkDevice device)
+    void vertex_pull::destroy_shader_modules(VkDevice device)
     {
         reset_device_objects(device,
                              m_shaderVertexBuffersVert,
@@ -1105,12 +1105,12 @@ namespace oblo::vk
                              m_shaderSharedFrag);
     }
 
-    void vertexpull::destroy_pools(VkDevice device)
+    void vertex_pull::destroy_pools(VkDevice device)
     {
         reset_device_objects(device, std::span{m_descriptorPools}, std::span{m_queryPools});
     }
 
-    void vertexpull::compute_layout_params()
+    void vertex_pull::compute_layout_params()
     {
         m_layoutQuadsPerRow = u32(std::ceilf(std::sqrtf(f32(m_batchesCount))));
         m_layoutQuadScale = {1.f / m_layoutQuadsPerRow};

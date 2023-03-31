@@ -1,4 +1,4 @@
-#include <helloworld/helloworld.hpp>
+#include <hello_world/hello_world.hpp>
 
 #include <oblo/core/array_size.hpp>
 #include <oblo/math/vec2.hpp>
@@ -12,14 +12,14 @@
 
 namespace oblo::vk
 {
-    bool helloworld::init(const sandbox_init_context& context)
+    bool hello_world::init(const sandbox_init_context& context)
     {
         const auto device = context.engine->get_device();
         return create_shader_modules(device) && create_graphics_pipeline(device, context.swapchainFormat) &&
                create_vertex_buffers(*context.allocator);
     }
 
-    void helloworld::shutdown(const sandbox_shutdown_context& context)
+    void hello_world::shutdown(const sandbox_shutdown_context& context)
     {
         context.allocator->destroy(m_positions);
         context.allocator->destroy(m_colors);
@@ -31,7 +31,7 @@ namespace oblo::vk
                              m_fragShaderModule);
     }
 
-    void helloworld::update(const sandbox_render_context& context)
+    void hello_world::update(const sandbox_render_context& context)
     {
         {
             const VkImageMemoryBarrier imageMemoryBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -102,22 +102,22 @@ namespace oblo::vk
         vkCmdEndRendering(context.commandBuffer);
     }
 
-    bool helloworld::create_shader_modules(VkDevice device)
+    bool hello_world::create_shader_modules(VkDevice device)
     {
         shader_compiler compiler;
 
         m_vertShaderModule = compiler.create_shader_module_from_glsl_file(device,
-                                                                          "./shaders/helloworld/helloworld.vert",
+                                                                          "./shaders/hello_world/hello_world.vert",
                                                                           VK_SHADER_STAGE_VERTEX_BIT);
 
         m_fragShaderModule = compiler.create_shader_module_from_glsl_file(device,
-                                                                          "./shaders/helloworld/helloworld.frag",
+                                                                          "./shaders/hello_world/hello_world.frag",
                                                                           VK_SHADER_STAGE_FRAGMENT_BIT);
 
         return m_vertShaderModule && m_fragShaderModule;
     }
 
-    bool helloworld::create_graphics_pipeline(VkDevice device, const VkFormat swapchainFormat)
+    bool hello_world::create_graphics_pipeline(VkDevice device, const VkFormat swapchainFormat)
     {
         const VkPipelineLayoutCreateInfo pipelineLayoutInfo{.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
 
@@ -232,7 +232,7 @@ namespace oblo::vk
                VK_SUCCESS;
     }
 
-    bool helloworld::create_vertex_buffers(allocator& allocator)
+    bool hello_world::create_vertex_buffers(allocator& allocator)
     {
         constexpr vec2 positions[] = {{0.0f, -0.5f}, {0.5f, 0.5f}, {-0.5f, 0.5f}};
         constexpr vec3 colors[] = {{1.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}};
@@ -264,7 +264,7 @@ namespace oblo::vk
         return true;
     }
 
-    void helloworld::destroy_graphics_pipeline(VkDevice device)
+    void hello_world::destroy_graphics_pipeline(VkDevice device)
     {
         if (m_pipelineLayout)
         {
@@ -279,7 +279,7 @@ namespace oblo::vk
         }
     }
 
-    void helloworld::update_imgui(const sandbox_update_imgui_context&)
+    void hello_world::update_imgui(const sandbox_update_imgui_context&)
     {
         ImGui::ShowDemoWindow();
     }

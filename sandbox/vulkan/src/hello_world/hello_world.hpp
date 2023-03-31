@@ -9,7 +9,7 @@ namespace oblo::vk
     struct sandbox_render_context;
     struct sandbox_update_imgui_context;
 
-    class helloworld
+    class hello_world
     {
     public:
         bool init(const sandbox_init_context& context);
