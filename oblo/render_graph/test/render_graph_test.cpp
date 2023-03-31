@@ -10,7 +10,7 @@ namespace oblo
     {
         struct mock_context
         {
-            int order;
+            int numExecuted;
         };
 
         struct buffer_ref
@@ -33,8 +33,15 @@ namespace oblo
             void execute(mock_context* context)
             {
                 ASSERT_TRUE(context);
-                ASSERT_TRUE(context->order == 0);
-                ++context->order;
+                ASSERT_TRUE(context->numExecuted == 0);
+                ++context->numExecuted;
+
+                ASSERT_EQ(foo, 42);
+            }
+
+            void execute(void*)
+            {
+                ASSERT_FALSE(true);
             }
         };
 
@@ -48,13 +55,18 @@ namespace oblo
             void execute(mock_context* context)
             {
                 ASSERT_TRUE(context);
-                ASSERT_TRUE(context->order == 1);
-                ++context->order;
+                ASSERT_TRUE(context->numExecuted == 1);
+                ++context->numExecuted;
+            }
+
+            void execute(void*)
+            {
+                ASSERT_FALSE(true);
             }
         };
     }
 
-    TEST(render_graph, mock_deferred_graph_build)
+    TEST(render_graph, mock_deferred_graph)
     {
         render_graph graph;
         render_graph_seq_executor executor;
@@ -99,9 +111,8 @@ namespace oblo
         ASSERT_TRUE(lights);
         ASSERT_EQ(lights, lightingNode->lights.data);
 
-        mock_context context{.order = 0};
+        mock_context context{.numExecuted = 0};
         executor.execute(&context);
-
-        ASSERT_TRUE(context.order == 2);
+        ASSERT_TRUE(context.numExecuted == 2);
     }
 }
