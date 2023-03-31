@@ -4,8 +4,9 @@
 
 namespace oblo::vk
 {
-    struct renderer_context
-    {
-        sandbox_render_context sandboxContext;
+    union renderer_context {
+        const sandbox_render_context* renderContext;
+        const sandbox_init_context* initContext;
+        const sandbox_shutdown_context* shutdownContext;
     };
 }
