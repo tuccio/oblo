@@ -2,14 +2,15 @@
 
 #include <sandbox/sandbox_app.hpp>
 
-#include <helloworld/helloworld.hpp>
-#include <vertexpull/vertexpull.hpp>
+#include <hello_world/hello_world.hpp>
+#include <renderer/renderer.hpp>
+#include <vertex_pull/vertex_pull.hpp>
 
 int SDL_main(int, char*[])
 {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
 
-    oblo::vk::sandbox_app<oblo::vk::vertexpull> app;
+    oblo::vk::sandbox_app<oblo::vk::renderer> app;
 
     if (!app.init())
     {
