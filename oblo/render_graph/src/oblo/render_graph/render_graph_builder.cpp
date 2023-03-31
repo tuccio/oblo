@@ -59,7 +59,7 @@ namespace oblo
             auto* const pinPtr = std::align(pin.alignment, pin.size, nextPinPtr, maxOutputsSize);
             nextPinPtr = static_cast<std::byte*>(nextPinPtr) + pin.size;
 
-            pin.initialize(pinPtr);
+            pin.construct(pinPtr);
 
             inputs.push_back({.ptr = pinPtr, .typeId = pin.typeId, .name = std::string{pin.name}});
         }
@@ -70,7 +70,7 @@ namespace oblo
             auto* const nodePtr = std::align(nodeType.alignment, nodeType.size, nextNodePtr, maxNodeSize);
             nextNodePtr = static_cast<std::byte*>(nextNodePtr) + nodeType.size;
 
-            nodeType.initialize(nodePtr);
+            nodeType.construct(nodePtr);
             graph.m_nodes.push_back({.ptr = nodePtr, .typeId = typeId});
 
             // We only store output pins, input pins will reference the connected output
@@ -80,7 +80,7 @@ namespace oblo
                 auto* const pinPtr = std::align(outPin.alignment, outPin.size, nextPinPtr, maxOutputsSize);
                 nextPinPtr = static_cast<std::byte*>(nextPinPtr) + outPin.size;
 
-                outPin.initialize(pinPtr);
+                outPin.construct(pinPtr);
 
                 auto* const outPinMemberPtr = static_cast<std::byte*>(nodePtr) + outPin.offset;
                 std::memcpy(outPinMemberPtr, &pinPtr, sizeof(void*));
@@ -191,7 +191,13 @@ namespace oblo
                 }
             }
 
-            *nextOutputIt = {.ptr = graphNode.ptr, .execute = nodeType.execute};
+            *nextOutputIt = {
+                .ptr = graphNode.ptr,
+                .initialize = nodeType.initialize,
+                .execute = nodeType.execute,
+                .shutdown = nodeType.shutdown,
+            };
+
             ++nextOutputIt;
 
             nodeState = visit_state::visited;
