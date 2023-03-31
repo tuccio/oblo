@@ -155,7 +155,7 @@ namespace oblo
                                        render_node_in<T, NameTo>(NodeTo::*to));
 
         template <typename T>
-        render_graph_builder& add_broadcast_input(std::string_view name);
+        render_graph_builder& add_input(std::string_view name);
 
         using render_graph_builder_impl::build;
     };
@@ -242,7 +242,7 @@ namespace oblo
 
     template <typename Context>
     template <typename T>
-    render_graph_builder<Context>& render_graph_builder<Context>::add_broadcast_input(std::string_view name)
+    render_graph_builder<Context>& render_graph_builder<Context>::add_input(std::string_view name)
     {
         if (m_lastError)
         {

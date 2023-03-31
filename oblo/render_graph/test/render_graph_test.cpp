@@ -75,8 +75,8 @@ namespace oblo
                             .add_node<mock_deferred_gbuffer_node>()
                             .add_node<mock_deferred_lighting_node>()
                             .add_edge(&mock_deferred_gbuffer_node::gbuffer, &mock_deferred_lighting_node::gbuffer)
-                            .add_broadcast_input<buffer_ref>("camera")
-                            .add_broadcast_input<buffer_ref>("lights")
+                            .add_input<buffer_ref>("camera")
+                            .add_input<buffer_ref>("lights")
                             .build(graph, executor);
 
         ASSERT_FALSE(ec);
