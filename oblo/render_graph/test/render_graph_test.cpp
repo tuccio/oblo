@@ -1,11 +1,18 @@
 #include <gtest/gtest.h>
 
+#include <oblo/render_graph/render_graph.hpp>
 #include <oblo/render_graph/render_graph_builder.hpp>
+#include <oblo/render_graph/render_graph_seq_executor.hpp>
 
 namespace oblo
 {
     namespace
     {
+        struct mock_context
+        {
+            int order;
+        };
+
         struct buffer_ref
         {
             u32 ref;
@@ -23,7 +30,12 @@ namespace oblo
 
             u32 foo{42};
 
-            void execute() {}
+            void execute(mock_context* context)
+            {
+                ASSERT_TRUE(context);
+                ASSERT_TRUE(context->order == 0);
+                ++context->order;
+            }
         };
 
         struct mock_deferred_lighting_node
@@ -33,18 +45,29 @@ namespace oblo
             render_node_in<image_ref, "gbuffer"> gbuffer;
             render_node_out<image_ref, "lit"> lit;
 
-            void execute() {}
+            void execute(mock_context* context)
+            {
+                ASSERT_TRUE(context);
+                ASSERT_TRUE(context->order == 1);
+                ++context->order;
+            }
         };
     }
 
     TEST(render_graph, mock_deferred_graph_build)
     {
-        auto graph = render_graph_builder{}
-                         .add_node<mock_deferred_gbuffer_node>()
-                         .add_node<mock_deferred_lighting_node>()
-                         .add_edge(&mock_deferred_gbuffer_node::gbuffer, &mock_deferred_lighting_node::gbuffer)
-                         .add_broadcast_input<buffer_ref>("camera")
-                         .build();
+        render_graph graph;
+        render_graph_seq_executor executor;
+
+        const auto ec = render_graph_builder<mock_context>{}
+                            .add_node<mock_deferred_gbuffer_node>()
+                            .add_node<mock_deferred_lighting_node>()
+                            .add_edge(&mock_deferred_gbuffer_node::gbuffer, &mock_deferred_lighting_node::gbuffer)
+                            .add_broadcast_input<buffer_ref>("camera")
+                            .add_broadcast_input<buffer_ref>("lights")
+                            .build(graph, executor);
+
+        ASSERT_FALSE(ec);
 
         auto* gbufferNode = graph.find_node<mock_deferred_gbuffer_node>();
         auto* lightingNode = graph.find_node<mock_deferred_lighting_node>();
@@ -71,5 +94,14 @@ namespace oblo
 
         ASSERT_EQ(camera, gbufferNode->camera.data);
         ASSERT_EQ(camera, lightingNode->camera.data);
+
+        auto* const lights = graph.find_input<buffer_ref>("lights");
+        ASSERT_TRUE(lights);
+        ASSERT_EQ(lights, lightingNode->lights.data);
+
+        mock_context context{.order = 0};
+        executor.execute(&context);
+
+        ASSERT_TRUE(context.order == 2);
     }
 }

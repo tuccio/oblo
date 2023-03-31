@@ -2,14 +2,6 @@
 
 namespace oblo
 {
-    void render_graph::execute()
-    {
-        for (const auto node : m_nodes)
-        {
-            node.execute(node.ptr);
-        }
-    }
-
     void* render_graph::find_node(type_id type)
     {
         for (const auto& node : m_nodes)
