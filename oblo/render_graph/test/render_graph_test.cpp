@@ -47,6 +47,9 @@ namespace oblo
 
         struct mock_deferred_lighting_node
         {
+            bool wasInitialized{false};
+            bool wasShutdown{false};
+
             render_node_in<buffer_ref, "camera"> camera;
             render_node_in<buffer_ref, "lights"> lights;
             render_node_in<image_ref, "gbuffer"> gbuffer;
@@ -62,6 +65,17 @@ namespace oblo
             void execute(void*)
             {
                 ASSERT_FALSE(true);
+            }
+
+            bool initialize(mock_context*)
+            {
+                wasInitialized = true;
+                return true;
+            }
+
+            void shutdown(mock_context*)
+            {
+                wasShutdown = true;
             }
         };
     }
@@ -111,8 +125,24 @@ namespace oblo
         ASSERT_TRUE(lights);
         ASSERT_EQ(lights, lightingNode->lights.data);
 
+        ASSERT_FALSE(lightingNode->wasInitialized);
+        ASSERT_FALSE(lightingNode->wasShutdown);
+
+        executor.initialize(nullptr);
+
+        ASSERT_TRUE(lightingNode->wasInitialized);
+        ASSERT_FALSE(lightingNode->wasShutdown);
+
         mock_context context{.numExecuted = 0};
         executor.execute(&context);
         ASSERT_TRUE(context.numExecuted == 2);
+
+        ASSERT_TRUE(lightingNode->wasInitialized);
+        ASSERT_FALSE(lightingNode->wasShutdown);
+
+        executor.shutdown(nullptr);
+
+        ASSERT_TRUE(lightingNode->wasInitialized);
+        ASSERT_TRUE(lightingNode->wasShutdown);
     }
 }

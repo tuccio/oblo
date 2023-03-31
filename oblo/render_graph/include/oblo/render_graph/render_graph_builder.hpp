@@ -45,7 +45,7 @@ namespace oblo
             u32 nodeIndex;
             type_id typeId;
             std::string_view name;
-            void (*initialize)(void*);
+            void (*construct)(void*);
         };
 
         struct node_type
@@ -56,8 +56,10 @@ namespace oblo
             u32 inputsEnd;
             u32 outputsBegin;
             u32 outputsEnd;
-            void (*initialize)(void*);
-            void (*execute)(void*, void*);
+            void (*construct)(void*);
+            render_graph_initialize initialize;
+            render_graph_execute execute;
+            render_graph_shutdown shutdown;
         };
 
         struct edge_info
@@ -86,7 +88,7 @@ namespace oblo
                 .nodeIndex = nodeIndex,
                 .typeId = get_type_id<Member>(),
                 .name = member.name(),
-                .initialize = [](void* ptr) { new (ptr) Member{}; },
+                .construct = [](void* ptr) { new (ptr) Member{}; },
             });
         }
 
@@ -105,7 +107,7 @@ namespace oblo
                 .nodeIndex = nodeIndex,
                 .typeId = get_type_id<Member>(),
                 .name = member.name(),
-                .initialize = [](void* ptr) { new (ptr) Member{}; },
+                .construct = [](void* ptr) { new (ptr) Member{}; },
             });
         }
 
@@ -183,10 +185,22 @@ namespace oblo
                                 node_type{
                                     .size = sizeof(T),
                                     .alignment = alignof(T),
-                                    .initialize = [](void* ptr) { new (ptr) T{}; },
+                                    .construct = [](void* ptr) { new (ptr) T{}; },
                                     .execute = [](void* ptr, void* context)
                                     { static_cast<T*>(ptr)->execute(static_cast<Context*>(context)); },
                                 });
+
+        if constexpr (requires(T t, Context * c) { bool{t.initialize(c)}; })
+        {
+            it->second.initialize = [](void* ptr, void* context) -> bool
+            { return static_cast<T*>(ptr)->initialize(static_cast<Context*>(context)); };
+        }
+
+        if constexpr (requires(T t, Context * c) { t.shutdown(c); })
+        {
+            it->second.shutdown = [](void* ptr, void* context)
+            { static_cast<T*>(ptr)->shutdown(static_cast<Context*>(context)); };
+        }
 
         OBLO_ASSERT(ok);
 
@@ -258,7 +272,7 @@ namespace oblo
             .nodeIndex = Invalid,
             .typeId = get_type_id<T>(),
             .name = name,
-            .initialize = [](void* ptr) { new (ptr) T{}; },
+            .construct = [](void* ptr) { new (ptr) T{}; },
         });
 
         return *this;
