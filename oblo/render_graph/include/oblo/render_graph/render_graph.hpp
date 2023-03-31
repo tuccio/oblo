@@ -7,13 +7,13 @@
 
 namespace oblo
 {
-    using render_graph_execute = void (*)(void*);
+    class render_graph_builder_impl;
 
     class render_graph
     {
-    public:
-        void execute();
+        friend class render_graph_builder_impl;
 
+    public:
         void* find_node(type_id type);
 
         template <typename T>
@@ -31,14 +31,10 @@ namespace oblo
         }
 
     private:
-        friend class render_graph_builder;
-
-    private:
         struct node
         {
             void* ptr;
             type_id typeId;
-            render_graph_execute execute;
         };
 
         struct input

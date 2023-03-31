@@ -5,66 +5,43 @@
 #include <oblo/core/struct_apply.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/utility.hpp>
-#include <oblo/render_graph/render_graph.hpp>
+#include <oblo/render_graph/render_graph_node.hpp>
 
 #include <concepts>
 #include <span>
+#include <system_error>
 #include <unordered_map>
 
 namespace oblo
 {
-    template <typename T>
-    concept is_compatible_render_graph_node =
-        std::is_standard_layout_v<T> && std::is_trivially_destructible_v<T> && std::is_default_constructible_v<T>;
+    class render_graph;
+    class render_graph_seq_executor;
 
-    template <typename T>
-    concept is_compatible_render_graph_pin =
-        std::is_trivially_destructible_v<T> && std::is_trivially_default_constructible_v<T>;
-
-    template <typename T, fixed_string Name>
-    struct render_node_in
+    enum class render_graph_builder_error : u8
     {
-        static constexpr std::string_view name()
-        {
-            return std::string_view{Name.string};
-        }
-
-        const T* data;
+        success,
+        node_not_found,
+        pin_not_found,
+        missing_input,
+        input_already_connected,
+        not_a_dag,
     };
 
-    template <typename T, fixed_string Name>
-    struct render_node_out
-    {
-        static constexpr std::string_view name()
-        {
-            return std::string_view{Name.string};
-        }
-
-        T* data;
-    };
-
-    class render_graph_builder
+    class render_graph_builder_impl
     {
     public:
-        template <typename T>
-        render_graph_builder& add_node() requires is_compatible_render_graph_node<T>;
+        std::error_code build(render_graph& graph, render_graph_seq_executor& executor) const;
 
-        template <typename T, typename NodeFrom, fixed_string NameFrom, typename NodeTo, fixed_string NameTo>
-        render_graph_builder& add_edge(render_node_out<T, NameFrom>(NodeFrom::*from),
-                                       render_node_in<T, NameTo>(NodeTo::*to));
+        static const std::error_category& error_category();
 
-        template <typename T>
-        render_graph_builder& add_broadcast_input(std::string_view name);
-
-        render_graph build() const;
-
-    private:
+    protected:
         struct node_pin
         {
             u32 size;
             u32 alignment;
             u32 offset;
-            u32 nextConnectedPin;
+            u32 nextConnectedInput;
+            u32 connectedOutput;
             u32 nodeIndex;
             type_id typeId;
             std::string_view name;
@@ -80,7 +57,7 @@ namespace oblo
             u32 outputsBegin;
             u32 outputsEnd;
             void (*initialize)(void*);
-            void (*execute)(void*);
+            void (*execute)(void*, void*);
         };
 
         struct edge_info
@@ -91,7 +68,7 @@ namespace oblo
             u32 toOffset;
         };
 
-    private:
+    protected:
         static constexpr u32 Invalid{~u32{0}};
 
         template <typename Node, typename Member, fixed_string Name>
@@ -104,7 +81,8 @@ namespace oblo
                 .size = sizeof(Member),
                 .alignment = alignof(Member),
                 .offset = offset,
-                .nextConnectedPin = Invalid,
+                .nextConnectedInput = Invalid,
+                .connectedOutput = Invalid,
                 .nodeIndex = nodeIndex,
                 .typeId = get_type_id<Member>(),
                 .name = member.name(),
@@ -122,7 +100,8 @@ namespace oblo
                 .size = sizeof(Member),
                 .alignment = alignof(Member),
                 .offset = offset,
-                .nextConnectedPin = Invalid,
+                .nextConnectedInput = Invalid,
+                .connectedOutput = Invalid,
                 .nodeIndex = nodeIndex,
                 .typeId = get_type_id<Member>(),
                 .name = member.name(),
@@ -142,10 +121,13 @@ namespace oblo
         {
         }
 
+        std::error_code build_graph(render_graph& graph) const;
+        std::error_code build_executor(const render_graph& graph, render_graph_seq_executor& executor) const;
+
         void add_edge_impl(
             node_type& nodeFrom, std::string_view pinFrom, node_type& nodeTo, std::string_view pinTo, type_id type);
 
-    private:
+    protected:
         struct type_id_hash
         {
             constexpr auto operator()(const type_id& typeId) const
@@ -154,25 +136,56 @@ namespace oblo
             }
         };
 
-    private:
+    protected:
+        std::error_code m_lastError{};
         std::unordered_map<type_id, node_type, type_id_hash> m_nodeTypes;
         std::vector<node_pin> m_pins;
         std::vector<node_pin> m_broadcastPins;
     };
 
-    template <typename T>
-    render_graph_builder& render_graph_builder::add_node() requires is_compatible_render_graph_node<T>
+    template <typename Context>
+    class render_graph_builder : render_graph_builder_impl
     {
+    public:
+        template <typename T>
+        render_graph_builder& add_node() requires is_compatible_render_graph_node<T>;
+
+        template <typename T, typename NodeFrom, fixed_string NameFrom, typename NodeTo, fixed_string NameTo>
+        render_graph_builder& add_edge(render_node_out<T, NameFrom>(NodeFrom::*from),
+                                       render_node_in<T, NameTo>(NodeTo::*to));
+
+        template <typename T>
+        render_graph_builder& add_broadcast_input(std::string_view name);
+
+        using render_graph_builder_impl::build;
+    };
+
+    inline std::error_code make_error_code(render_graph_builder_error e)
+    {
+        return std::error_code{static_cast<int>(e), render_graph_builder_impl::error_category()};
+    }
+
+    template <typename Context>
+    template <typename T>
+    render_graph_builder<Context>& render_graph_builder<Context>::add_node() requires is_compatible_render_graph_node<T>
+    {
+        if (m_lastError)
+        {
+            return *this;
+        }
+
         constexpr auto typeId = get_type_id<T>();
         const auto nodeIndex = narrow_cast<u32>(m_nodeTypes.size());
 
-        const auto [it, ok] = m_nodeTypes.emplace(typeId,
-                                                  node_type{
-                                                      .size = sizeof(T),
-                                                      .alignment = alignof(T),
-                                                      .initialize = [](void* ptr) { new (ptr) T{}; },
-                                                      .execute = [](void* ptr) { static_cast<T*>(ptr)->execute(); },
-                                                  });
+        const auto [it, ok] =
+            m_nodeTypes.emplace(typeId,
+                                node_type{
+                                    .size = sizeof(T),
+                                    .alignment = alignof(T),
+                                    .initialize = [](void* ptr) { new (ptr) T{}; },
+                                    .execute = [](void* ptr, void* context)
+                                    { static_cast<T*>(ptr)->execute(static_cast<Context*>(context)); },
+                                });
 
         OBLO_ASSERT(ok);
 
@@ -195,34 +208,52 @@ namespace oblo
         return *this;
     }
 
+    template <typename Context>
     template <typename T, typename NodeFrom, fixed_string NameFrom, typename NodeTo, fixed_string NameTo>
-    render_graph_builder& render_graph_builder::add_edge(render_node_out<T, NameFrom>(NodeFrom::*),
-                                                         render_node_in<T, NameTo>(NodeTo::*))
+    render_graph_builder<Context>& render_graph_builder<Context>::add_edge(render_node_out<T, NameFrom>(NodeFrom::*),
+                                                                           render_node_in<T, NameTo>(NodeTo::*))
     {
+        if (m_lastError)
+        {
+            return *this;
+        }
+
         constexpr auto t1 = get_type_id<NodeFrom>();
         constexpr auto t2 = get_type_id<NodeTo>();
 
         const auto it1 = m_nodeTypes.find(t1);
         const auto it2 = m_nodeTypes.find(t2);
 
-        OBLO_ASSERT(m_nodeTypes.end() != it1 && m_nodeTypes.end() != it2);
+        if (m_nodeTypes.end() != it1 && m_nodeTypes.end() != it2)
+        {
+            node_type& n1 = it1->second;
+            node_type& n2 = it2->second;
 
-        node_type& n1 = it1->second;
-        node_type& n2 = it2->second;
-
-        add_edge_impl(n1, NameFrom.string, n2, NameTo.string, get_type_id<T>());
+            add_edge_impl(n1, NameFrom.string, n2, NameTo.string, get_type_id<T>());
+        }
+        else
+        {
+            m_lastError = render_graph_builder_error::node_not_found;
+        }
 
         return *this;
     }
 
+    template <typename Context>
     template <typename T>
-    render_graph_builder& render_graph_builder::add_broadcast_input(std::string_view name)
+    render_graph_builder<Context>& render_graph_builder<Context>::add_broadcast_input(std::string_view name)
     {
+        if (m_lastError)
+        {
+            return *this;
+        }
+
         m_broadcastPins.push_back({
             .size = sizeof(T),
             .alignment = alignof(T),
             .offset = Invalid,
-            .nextConnectedPin = Invalid,
+            .nextConnectedInput = Invalid,
+            .connectedOutput = Invalid,
             .nodeIndex = Invalid,
             .typeId = get_type_id<T>(),
             .name = name,
@@ -232,3 +263,8 @@ namespace oblo
         return *this;
     }
 }
+
+template <>
+struct std::is_error_code_enum<oblo::render_graph_builder_error> : true_type
+{
+};
