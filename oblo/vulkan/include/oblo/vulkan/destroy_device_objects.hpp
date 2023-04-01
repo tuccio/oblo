@@ -55,6 +55,11 @@ namespace oblo::vk
         return vkDestroyQueryPool(device, queryPool, nullptr);
     }
 
+    inline void destroy_device_object(VkDevice device, VkImageView imageView)
+    {
+        return vkDestroyImageView(device, imageView, nullptr);
+    }
+
     template <typename T, std::size_t N>
     void destroy_device_object(VkDevice device, std::span<T, N> objects)
     {
