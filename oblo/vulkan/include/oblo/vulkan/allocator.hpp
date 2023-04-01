@@ -10,7 +10,11 @@ namespace oblo::vk
 {
     enum class memory_usage : u32
     {
-        cpu_to_gpu = 3
+        unknown = 0,
+        gpu_only = 1,
+        cpu_only = 2,
+        cpu_to_gpu = 3,
+        gpu_to_cpu = 4,
     };
 
     class allocator
@@ -18,6 +22,8 @@ namespace oblo::vk
     public:
         struct buffer;
         struct buffer_initializer;
+        struct image;
+        struct image_initializer;
 
     public:
         allocator() = default;
@@ -35,11 +41,15 @@ namespace oblo::vk
         void shutdown();
 
         VkResult create_buffer(const buffer_initializer& initializer, buffer* outBuffer);
+        VkResult create_image(const image_initializer& initializer, image* outImage);
 
         void destroy(const allocator::buffer& buffer);
+        void destroy(const allocator::image& image);
 
         VkResult map(VmaAllocation allocation, void** outMemoryPtr);
         void unmap(VmaAllocation allocation);
+
+        VkDevice get_device() const;
 
     private:
         VmaAllocator m_allocator{nullptr};
@@ -55,6 +65,27 @@ namespace oblo::vk
     {
         u32 size;
         VkBufferUsageFlags usage;
+        memory_usage memoryUsage;
+    };
+
+    struct allocator::image
+    {
+        VkImage image;
+        VmaAllocation allocation;
+    };
+
+    struct allocator::image_initializer
+    {
+        VkImageCreateFlags flags;
+        VkImageType imageType;
+        VkFormat format;
+        VkExtent3D extent;
+        u32 mipLevels;
+        u32 arrayLayers;
+        VkSampleCountFlagBits samples;
+        VkImageTiling tiling;
+        VkImageUsageFlags usage;
+        VkImageLayout initialLayout;
         memory_usage memoryUsage;
     };
 }
