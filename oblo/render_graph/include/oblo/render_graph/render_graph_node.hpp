@@ -44,6 +44,16 @@ namespace oblo
             return std::string_view{Name.string};
         }
 
+        T* operator->() const noexcept
+        {
+            return data;
+        }
+
+        T& operator*() const noexcept
+        {
+            return data;
+        }
+
         T* data;
     };
 }
