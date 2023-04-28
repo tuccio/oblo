@@ -17,4 +17,8 @@ namespace oblo
     void debug_assert_report();
 }
 
+#if defined(_MSC_VER)
+#define OBLO_DEBUGBREAK() __debugbreak()
+#else
 #define OBLO_DEBUGBREAK() asm("int $3")
+#endif

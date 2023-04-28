@@ -9,12 +9,12 @@ macro(oblo_remove_cxx_flag _option_regex)
 endmacro(oblo_remove_cxx_flag)
 
 function(oblo_init_compiler_settings)
-    if (MSVC)
+    if(MSVC)
         # Warning as errors
         add_compile_options(/W4 /WX)
 
         # Disable optimizations if specified
-        if (OBLO_DISABLE_COMPILER_OPTIMIZATIONS)
+        if(OBLO_DISABLE_COMPILER_OPTIMIZATIONS)
             oblo_remove_cxx_flag("(\/O([a-z])?[0-9a-z])")
             add_compile_options(/Od)
         endif()
@@ -28,7 +28,7 @@ function(oblo_find_source_files)
     file(GLOB_RECURSE _private_includes src/*.hpp)
     file(GLOB_RECURSE _public_includes include/*.hpp)
     file(GLOB_RECURSE _test_src test/*.cpp test/*.hpp)
-    
+
     set(_oblo_src ${_src} PARENT_SCOPE)
     set(_oblo_private_includes ${_private_includes} PARENT_SCOPE)
     set(_oblo_public_includes ${_public_includes} PARENT_SCOPE)
@@ -51,7 +51,7 @@ function(oblo_setup_include_dirs target)
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
     )
-    
+
     target_include_directories(
         ${target} PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
@@ -68,33 +68,33 @@ endfunction(oblo_add_executable target)
 
 function(oblo_add_library target)
     oblo_find_source_files()
-    
-    if (NOT DEFINED _oblo_src)
+
+    if(NOT DEFINED _oblo_src)
         # Header only library
         add_library(${target} INTERFACE)
-        
+
         target_include_directories(
             ${target} INTERFACE
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
             $<INSTALL_INTERFACE:include>
         )
-        
+
         target_sources(${target} INTERFACE ${_oblo_public_includes})
-        
+
         add_custom_target(${target}-interface SOURCES ${_oblo_public_includes})
-    else ()
+    else()
         # Regular C++ library
         add_library(${target})
         oblo_add_source_files(${target})
         oblo_setup_include_dirs(${target})
-    endif ()
+    endif()
 
-    if (DEFINED _oblo_test_src)
+    if(DEFINED _oblo_test_src)
         set(_test_target ${target}_test)
         add_executable(${_test_target} ${_oblo_test_src})
         target_link_libraries(${_test_target} ${target} CONAN_PKG::gtest)
     endif()
-    
+
     oblo_setup_source_groups(${target})
 endfunction(oblo_add_library target)
 
@@ -109,7 +109,7 @@ endfunction(oblo_conan_init)
 
 function(oblo_conan_install)
     # Download automatically, you can also just copy the conan.cmake file
-    if (NOT EXISTS "${CMAKE_BINARY_DIR}/conan.cmake")
+    if(NOT EXISTS "${CMAKE_BINARY_DIR}/conan.cmake")
         message(STATUS "Downloading conan.cmake from https://github.com/conan-io/cmake-conan")
         file(DOWNLOAD "https://raw.githubusercontent.com/conan-io/cmake-conan/master/conan.cmake"
             "${CMAKE_BINARY_DIR}/conan.cmake")
@@ -117,13 +117,38 @@ function(oblo_conan_install)
 
     include(${CMAKE_BINARY_DIR}/conan.cmake)
 
-    # We don't really care about debugging 3rd party
-    set(_build_type ${CMAKE_BUILD_TYPE})
+    get_property(isMultiConfig GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 
-    if (${_build_type} STREQUAL "RelWithDebInfo")
-        set(_build_type "Release")
+    if(isMultiConfig)
+        set(ARGUMENTS_CONFIGURATION_TYPES "")
+
+        if(CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE AND NOT CONAN_EXPORTED AND NOT ARGUMENTS_BUILD_TYPE)
+            set(CONAN_CMAKE_MULTI ON)
+
+            if(NOT ARGUMENTS_CONFIGURATION_TYPES)
+                set(ARGUMENTS_CONFIGURATION_TYPES "Release;Debug")
+            endif()
+        endif()
+
+        if(ARGUMENTS_CONFIGURATION_TYPES)
+            set(_configuration_types "CONFIGURATION_TYPES ${ARGUMENTS_CONFIGURATION_TYPES}")
+        endif()
+    else()
+        # We don't really care about debugging 3rd party
+        set(_build_type ${CMAKE_BUILD_TYPE})
+
+        if(${_build_type} STREQUAL "RelWithDebInfo")
+            set(_build_type "build_type=Release")
+        endif()
     endif()
 
     # The default profile is to let 3rd party be compiled with msvc on windows
-    conan_cmake_run(CONANFILE conanfile.txt PROFILE default PROFILE_AUTO build_type=${_build_type} BUILD missing)
+    conan_cmake_run(
+        CONANFILE conanfile.txt
+        PROFILE default
+        PROFILE_AUTO
+        "${_build_type}"
+        "${_configuration_types}"
+        BUILD missing
+    )
 endfunction(oblo_conan_install)

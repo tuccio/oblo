@@ -15,7 +15,7 @@ int SDL_main(int, char*[])
     if (!app.init())
     {
         app.shutdown();
-        return false;
+        return 1;
     }
 
     app.run();
