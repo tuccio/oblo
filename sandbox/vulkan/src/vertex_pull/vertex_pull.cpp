@@ -233,7 +233,7 @@ namespace oblo::vk
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, queryPool, 2 * batchIndex + 1);
             }
 
-            m_enqueuedTimestamps[poolIndex] = 2 * m_batchesCount;
+            m_enqueuedTimestamps[poolIndex] = u8(2 * m_batchesCount);
         }
         break;
         case method::vertex_pull_indirect: {
@@ -304,7 +304,7 @@ namespace oblo::vk
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, queryPool, 2 * batchIndex + 1);
             }
 
-            m_enqueuedTimestamps[poolIndex] = 2 * m_batchesCount;
+            m_enqueuedTimestamps[poolIndex] = u8(2 * m_batchesCount);
         }
         break;
         case method::vertex_pull_merge: {

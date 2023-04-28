@@ -2,8 +2,13 @@
 
 #include <oblo/core/debug.hpp>
 
+#pragma warning(push)
+#pragma warning(disable : 4100 4127 4189 4324 4505)
+
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
+
+#pragma warning(pop)
 
 namespace oblo::vk
 {

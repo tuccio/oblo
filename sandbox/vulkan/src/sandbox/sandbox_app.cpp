@@ -145,7 +145,7 @@ namespace oblo::vk
                                    u32* outPoolIndex,
                                    VkCommandBuffer* outCommandBuffer)
     {
-        const auto poolIndex = frameIndex % SwapchainImages;
+        const auto poolIndex = u32(frameIndex % SwapchainImages);
 
         OBLO_VK_PANIC(vkGetSemaphoreCounterValue(m_engine.get_device(), m_timelineSemaphore, &m_currentSemaphoreValue));
 

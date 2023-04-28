@@ -113,20 +113,20 @@ namespace oblo
         // Once all nodes have been initialized, we can also connect all pointers for input pins
         for (const auto& [typeId, nodeType] : m_nodeTypes)
         {
-            for (auto i = nodeType.outputsBegin; i != nodeType.outputsEnd; ++i)
+            for (auto outputIndex = nodeType.outputsBegin; outputIndex != nodeType.outputsEnd; ++outputIndex)
             {
-                auto& outPin = m_pins[i];
+                auto& outPin = m_pins[outputIndex];
                 auto* const nodePtr = graph.m_nodes[outPin.nodeIndex].ptr;
 
                 auto* const outPinMemberPtr = static_cast<std::byte*>(nodePtr) + outPin.offset;
 
-                for (auto i = outPin.nextConnectedInput; i != Invalid;)
+                for (auto connectedInputIndex = outPin.nextConnectedInput; connectedInputIndex != Invalid;)
                 {
-                    auto& inPin = m_pins[i];
+                    auto& inPin = m_pins[connectedInputIndex];
                     auto* const connectedNode = graph.m_nodes[inPin.nodeIndex].ptr;
                     auto* const inPinMemberPtr = static_cast<std::byte*>(connectedNode) + inPin.offset;
                     std::memcpy(inPinMemberPtr, outPinMemberPtr, sizeof(void*));
-                    i = inPin.nextConnectedInput;
+                    connectedInputIndex = inPin.nextConnectedInput;
                 }
             }
         }

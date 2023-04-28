@@ -132,7 +132,7 @@ namespace oblo
     protected:
         struct type_id_hash
         {
-            constexpr auto operator()(const type_id& typeId) const
+            auto operator()(const type_id& typeId) const noexcept
             {
                 return std::hash<std::string_view>{}(typeId.name);
             }
@@ -150,7 +150,8 @@ namespace oblo
     {
     public:
         template <typename T>
-        render_graph_builder& add_node() requires is_compatible_render_graph_node<T, Context>;
+        render_graph_builder& add_node()
+            requires is_compatible_render_graph_node<T, Context>;
 
         template <typename T, typename NodeFrom, fixed_string NameFrom, typename NodeTo, fixed_string NameTo>
         render_graph_builder& add_edge(render_node_out<T, NameFrom>(NodeFrom::*from),
@@ -169,8 +170,8 @@ namespace oblo
 
     template <typename Context>
     template <typename T>
-    render_graph_builder<Context>& render_graph_builder<Context>::add_node() requires
-        is_compatible_render_graph_node<T, Context>
+    render_graph_builder<Context>& render_graph_builder<Context>::add_node()
+        requires is_compatible_render_graph_node<T, Context>
     {
         if (m_lastError)
         {

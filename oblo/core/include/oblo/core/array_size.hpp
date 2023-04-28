@@ -1,9 +1,11 @@
 #pragma once
 
+#include <oblo/core/types.hpp>
+
 namespace oblo
 {
-    template <typename T, auto N>
-    constexpr auto array_size(const T (&)[N]) noexcept
+    template <typename T, u32 N>
+    constexpr u32 array_size(const T (&)[N]) noexcept
     {
         return N;
     }
