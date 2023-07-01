@@ -62,7 +62,7 @@ namespace oblo::vk
         }
     }
 
-    VkResult allocator::create_buffer(const buffer_initializer& initializer, buffer* outBuffer)
+    VkResult allocator::create_buffer(const buffer_initializer& initializer, allocated_buffer* outBuffer)
     {
         OBLO_ASSERT(initializer.size != 0);
 
@@ -82,7 +82,7 @@ namespace oblo::vk
                                nullptr);
     }
 
-    VkResult allocator::create_image(const image_initializer& initializer, image* outImage)
+    VkResult allocator::create_image(const image_initializer& initializer, allocated_image* outImage)
     {
         const VkImageCreateInfo imageCreateInfo{
             .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
@@ -108,12 +108,12 @@ namespace oblo::vk
                               nullptr);
     }
 
-    void allocator::destroy(const allocator::buffer& buffer)
+    void allocator::destroy(const allocated_buffer& buffer)
     {
         vmaDestroyBuffer(m_allocator, buffer.buffer, buffer.allocation);
     }
 
-    void allocator::destroy(const allocator::image& image)
+    void allocator::destroy(const allocated_image& image)
     {
         vmaDestroyImage(m_allocator, image.image, image.allocation);
     }

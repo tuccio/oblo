@@ -2,6 +2,7 @@
 
 #include <hello_world/hello_world.hpp>
 #include <renderer/renderer_context.hpp>
+#include <sandbox/context.hpp>
 
 namespace oblo::vk
 {

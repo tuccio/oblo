@@ -348,7 +348,19 @@ namespace oblo::vk
 
     bool sandbox_base::create_swapchain()
     {
-        return m_swapchain.create(m_engine, m_surface, m_renderWidth, m_renderHeight, SwapchainFormat);
+        if (!m_swapchain.create(m_engine, m_surface, m_renderWidth, m_renderHeight, SwapchainFormat))
+        {
+            return false;
+        }
+
+        const auto count = m_swapchain.get_image_count();
+
+        for (u32 i = 0; i < count; ++i)
+        {
+            m_resourceManager.register_image(m_swapchain.get_image(i), VK_IMAGE_LAYOUT_UNDEFINED);
+        }
+
+        return true;
     }
 
     bool sandbox_base::create_command_pools()

@@ -56,13 +56,13 @@ namespace oblo::vk
     private:
         static constexpr u32 MaxFramesInFlight{2};
 
-        std::vector<allocator::buffer> m_positionBuffers;
-        std::vector<allocator::buffer> m_colorBuffers;
-        std::vector<allocator::buffer> m_indirectDrawBuffers;
-        allocator::buffer m_mergeIndirectionBuffer{};
-        allocator::buffer m_mergeIndirectDrawCommandsBuffer{};
-        allocator::buffer m_positionBuffersRefs{};
-        allocator::buffer m_colorBuffersRefs{};
+        std::vector<allocated_buffer> m_positionBuffers;
+        std::vector<allocated_buffer> m_colorBuffers;
+        std::vector<allocated_buffer> m_indirectDrawBuffers;
+        allocated_buffer m_mergeIndirectionBuffer{};
+        allocated_buffer m_mergeIndirectDrawCommandsBuffer{};
+        allocated_buffer m_positionBuffersRefs{};
+        allocated_buffer m_colorBuffersRefs{};
 
         VkShaderModule m_shaderVertexBuffersVert{nullptr};
         VkShaderModule m_shaderVertexPullVert{nullptr};

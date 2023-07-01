@@ -2,6 +2,7 @@
 
 #include <oblo/render_graph/render_graph.hpp>
 #include <oblo/render_graph/render_graph_seq_executor.hpp>
+#include <renderer/renderer_context.hpp>
 
 namespace oblo::vk
 {
@@ -19,7 +20,11 @@ namespace oblo::vk
         void update_imgui(const sandbox_update_imgui_context& context);
 
     private:
+        struct state;
+
+    private:
         render_graph m_graph;
         render_graph_seq_executor m_executor;
+        renderer_state m_state;
     };
 }
