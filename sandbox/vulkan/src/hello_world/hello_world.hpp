@@ -30,7 +30,7 @@ namespace oblo::vk
         VkPipelineLayout m_pipelineLayout{nullptr};
         VkPipeline m_graphicsPipeline{nullptr};
 
-        allocator::buffer m_positions{};
-        allocator::buffer m_colors{};
+        allocated_buffer m_positions{};
+        allocated_buffer m_colors{};
     };
 }

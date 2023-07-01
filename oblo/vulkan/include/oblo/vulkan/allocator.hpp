@@ -17,14 +17,14 @@ namespace oblo::vk
         gpu_to_cpu = 4,
     };
 
+    struct allocated_image;
+    struct allocated_buffer;
+
+    struct buffer_initializer;
+    struct image_initializer;
+
     class allocator
     {
-    public:
-        struct buffer;
-        struct buffer_initializer;
-        struct image;
-        struct image_initializer;
-
     public:
         allocator() = default;
         allocator(const allocator&) = delete;
@@ -40,11 +40,11 @@ namespace oblo::vk
 
         void shutdown();
 
-        VkResult create_buffer(const buffer_initializer& initializer, buffer* outBuffer);
-        VkResult create_image(const image_initializer& initializer, image* outImage);
+        VkResult create_buffer(const buffer_initializer& initializer, allocated_buffer* outBuffer);
+        VkResult create_image(const image_initializer& initializer, allocated_image* outImage);
 
-        void destroy(const allocator::buffer& buffer);
-        void destroy(const allocator::image& image);
+        void destroy(const allocated_buffer& buffer);
+        void destroy(const allocated_image& image);
 
         VkResult map(VmaAllocation allocation, void** outMemoryPtr);
         void unmap(VmaAllocation allocation);
@@ -55,26 +55,26 @@ namespace oblo::vk
         VmaAllocator m_allocator{nullptr};
     };
 
-    struct allocator::buffer
+    struct allocated_buffer
     {
         VkBuffer buffer;
         VmaAllocation allocation;
     };
 
-    struct allocator::buffer_initializer
+    struct buffer_initializer
     {
         u32 size;
         VkBufferUsageFlags usage;
         memory_usage memoryUsage;
     };
 
-    struct allocator::image
+    struct allocated_image
     {
         VkImage image;
         VmaAllocation allocation;
     };
 
-    struct allocator::image_initializer
+    struct image_initializer
     {
         VkImageCreateFlags flags;
         VkImageType imageType;

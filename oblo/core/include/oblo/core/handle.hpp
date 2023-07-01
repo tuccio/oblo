@@ -2,10 +2,10 @@
 
 namespace
 {
-    template <typename T, T Init = T{}>
+    template <typename Tag, typename T, T Init = T{}>
     struct handle
     {
-        explicit constexpr operator bool() const noexcept
+        constexpr explicit operator bool() const noexcept
         {
             return value == Init;
         }

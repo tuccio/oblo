@@ -6,6 +6,7 @@
 #include <oblo/vulkan/allocator.hpp>
 #include <oblo/vulkan/command_buffer_pool.hpp>
 #include <oblo/vulkan/instance.hpp>
+#include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
 #include <oblo/vulkan/swapchain.hpp>
 
@@ -71,6 +72,8 @@ namespace oblo::vk
         instance m_instance;
         single_queue_engine m_engine;
         allocator m_allocator;
+
+        resource_manager m_resourceManager;
 
         command_buffer_pool m_pools[SwapchainImages];
         swapchain<SwapchainImages> m_swapchain;
