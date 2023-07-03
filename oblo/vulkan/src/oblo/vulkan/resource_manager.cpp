@@ -193,9 +193,9 @@ namespace oblo::vk
             m_incompleteTransitions.emplace_back(image_transition{
                 .image = image,
                 .newLayout = newLayout,
-                .format = texture.format,
-                .layerCount = texture.arrayLayers,
-                .mipLevels = texture.mipLevels,
+                .format = texture.initializer.format,
+                .layerCount = texture.initializer.arrayLayers,
+                .mipLevels = texture.initializer.mipLevels,
             });
         }
         else
@@ -207,9 +207,9 @@ namespace oblo::vk
                                      oldLayout,
                                      newLayout,
                                      image,
-                                     texture.format,
-                                     texture.arrayLayers,
-                                     texture.mipLevels);
+                                     texture.initializer.format,
+                                     texture.initializer.arrayLayers,
+                                     texture.initializer.mipLevels);
         }
     }
 

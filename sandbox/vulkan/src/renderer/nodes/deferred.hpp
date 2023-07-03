@@ -76,7 +76,7 @@ namespace oblo::vk
 
             if (test->image != nullptr)
             {
-                context.allocator->destroy(*test.data);
+                context.allocator->destroy(allocated_image{test->image, test->allocation});
                 destroy_device_object(context.engine->get_device(), test->view);
             }
         }

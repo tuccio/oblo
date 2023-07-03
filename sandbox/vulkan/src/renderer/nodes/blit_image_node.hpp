@@ -24,8 +24,8 @@ namespace oblo::vk
             context.commandBuffer->add_pipeline_barrier(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, srcTexture);
             context.commandBuffer->add_pipeline_barrier(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, dstTexture);
 
-            OBLO_ASSERT(srcTexture.extent.width == dstTexture.extent.width);
-            OBLO_ASSERT(srcTexture.extent.height == dstTexture.extent.height);
+            OBLO_ASSERT(srcTexture.initializer.extent.width == dstTexture.initializer.extent.width);
+            OBLO_ASSERT(srcTexture.initializer.extent.height == dstTexture.initializer.extent.height);
 
             const VkImageCopy region{
                 .srcSubresource =
@@ -42,7 +42,9 @@ namespace oblo::vk
                         .baseArrayLayer = 0,
                         .layerCount = 1,
                     },
-                .extent = {.width = srcTexture.extent.width, .height = srcTexture.extent.height, .depth = 1},
+                .extent = {.width = srcTexture.initializer.extent.width,
+                           .height = srcTexture.initializer.extent.height,
+                           .depth = 1},
             };
 
             vkCmdCopyImage(context.commandBuffer->get(),

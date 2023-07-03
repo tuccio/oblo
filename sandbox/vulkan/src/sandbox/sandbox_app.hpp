@@ -233,9 +233,11 @@ namespace oblo::vk
                     .memoryUsage = memory_usage::gpu_only,
                 };
 
-                texture swapChainTexture{allocated_image{.image = swapchainImage},
-                                         swapChainImageInitializer,
-                                         swapchainImageView};
+                texture swapChainTexture{
+                    .image = swapchainImage,
+                    .view = swapchainImageView,
+                    .initializer = swapChainImageInitializer,
+                };
 
                 const sandbox_render_context context{
                     .engine = &m_engine,
