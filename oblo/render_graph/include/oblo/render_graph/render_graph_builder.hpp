@@ -43,6 +43,7 @@ namespace oblo
             u32 nextConnectedInput;
             u32 connectedOutput;
             u32 nodeIndex;
+            u32 connectionOffset;
             type_id typeId;
             std::string_view name;
             void (*construct)(void*);
@@ -126,8 +127,13 @@ namespace oblo
         std::error_code build_graph(render_graph& graph) const;
         std::error_code build_executor(const render_graph& graph, render_graph_seq_executor& executor) const;
 
-        void add_edge_impl(
-            node_type& nodeFrom, std::string_view pinFrom, node_type& nodeTo, std::string_view pinTo, type_id type);
+        void add_edge_impl(std::span<node_pin> from,
+                           std::span<node_pin> to,
+                           std::string_view pinFrom,
+                           std::string_view pinTo,
+                           type_id typeFrom,
+                           type_id typeTo,
+                           u32 connectionOffset);
 
     protected:
         struct type_id_hash
@@ -154,11 +160,31 @@ namespace oblo
             requires is_compatible_render_graph_node<T, Context>;
 
         template <typename T, typename NodeFrom, fixed_string NameFrom, typename NodeTo, fixed_string NameTo>
-        render_graph_builder& add_edge(render_node_out<T, NameFrom>(NodeFrom::*from),
-                                       render_node_in<T, NameTo>(NodeTo::*to));
+        render_graph_builder& connect(render_node_out<T, NameFrom>(NodeFrom::*from),
+                                      render_node_in<T, NameTo>(NodeTo::*to));
+
+        template <typename T1,
+                  typename T2,
+                  typename NodeFrom,
+                  fixed_string NameFrom,
+                  typename NodeTo,
+                  fixed_string NameTo,
+                  typename Extract>
+        render_graph_builder& connect(render_node_out<T1, NameFrom>(NodeFrom::*from),
+                                      render_node_in<T2, NameTo>(NodeTo::*to),
+                                      Extract&& extract);
 
         template <typename T>
         render_graph_builder& add_input(std::string_view name);
+
+        template <typename TInput,
+                  typename TPin,
+                  typename NodeTo,
+                  fixed_string NameTo,
+                  typename Extract = std::nullptr_t>
+        render_graph_builder& connect_input(std::string_view inputName,
+                                            render_node_in<TPin, NameTo>(NodeTo::*to),
+                                            Extract&& extract = nullptr);
 
         using render_graph_builder_impl::build;
     };
@@ -191,13 +217,13 @@ namespace oblo
                                     { static_cast<T*>(ptr)->execute(static_cast<Context*>(context)); },
                                 });
 
-        if constexpr (requires(T t, Context * c) { bool{t.initialize(c)}; })
+        if constexpr (requires(T t, Context* c) { bool{t.initialize(c)}; })
         {
             it->second.initialize = [](void* ptr, void* context) -> bool
             { return static_cast<T*>(ptr)->initialize(static_cast<Context*>(context)); };
         }
 
-        if constexpr (requires(T t, Context * c) { t.shutdown(c); })
+        if constexpr (requires(T t, Context* c) { t.shutdown(c); })
         {
             it->second.shutdown = [](void* ptr, void* context)
             { static_cast<T*>(ptr)->shutdown(static_cast<Context*>(context)); };
@@ -226,8 +252,8 @@ namespace oblo
 
     template <typename Context>
     template <typename T, typename NodeFrom, fixed_string NameFrom, typename NodeTo, fixed_string NameTo>
-    render_graph_builder<Context>& render_graph_builder<Context>::add_edge(render_node_out<T, NameFrom>(NodeFrom::*),
-                                                                           render_node_in<T, NameTo>(NodeTo::*))
+    render_graph_builder<Context>& render_graph_builder<Context>::connect(render_node_out<T, NameFrom>(NodeFrom::*),
+                                                                          render_node_in<T, NameTo>(NodeTo::*))
     {
         if (m_lastError)
         {
@@ -242,10 +268,61 @@ namespace oblo
 
         if (m_nodeTypes.end() != it1 && m_nodeTypes.end() != it2)
         {
-            node_type& n1 = it1->second;
-            node_type& n2 = it2->second;
+            node_type& nodeFrom = it1->second;
+            node_type& nodeTo = it2->second;
 
-            add_edge_impl(n1, NameFrom.string, n2, NameTo.string, get_type_id<T>());
+            const auto from =
+                std::span{m_pins}.subspan(nodeFrom.outputsBegin, nodeFrom.outputsEnd - nodeFrom.outputsBegin);
+            const auto to = std::span{m_pins}.subspan(nodeTo.inputsBegin, nodeTo.inputsEnd - nodeTo.inputsBegin);
+
+            add_edge_impl(from, to, NameFrom.string, NameTo.string, get_type_id<T>(), get_type_id<T>(), 0u);
+        }
+        else
+        {
+            m_lastError = render_graph_builder_error::node_not_found;
+        }
+
+        return *this;
+    }
+
+    template <typename Context>
+    template <typename T1,
+              typename T2,
+              typename NodeFrom,
+              fixed_string NameFrom,
+              typename NodeTo,
+              fixed_string NameTo,
+              typename Extract>
+    render_graph_builder<Context>& render_graph_builder<Context>::connect(render_node_out<T1, NameFrom>(NodeFrom::*),
+                                                                          render_node_in<T2, NameTo>(NodeTo::*),
+                                                                          Extract&& extract)
+    {
+        if (m_lastError)
+        {
+            return *this;
+        }
+
+        constexpr auto t1 = get_type_id<NodeFrom>();
+        constexpr auto t2 = get_type_id<NodeTo>();
+
+        const auto it1 = m_nodeTypes.find(t1);
+        const auto it2 = m_nodeTypes.find(t2);
+
+        if (m_nodeTypes.end() != it1 && m_nodeTypes.end() != it2)
+        {
+            node_type& nodeFrom = it1->second;
+            node_type& nodeTo = it2->second;
+
+            const T1 outputData{};
+            const T2* extractedPtr = extract(&outputData);
+            const auto offset = narrow_cast<u32>(reinterpret_cast<const std::byte*>(extractedPtr) -
+                                                 reinterpret_cast<const std::byte*>(&outputData));
+
+            const auto from =
+                std::span{m_pins}.subspan(nodeFrom.outputsBegin, nodeFrom.outputsEnd - nodeFrom.outputsBegin);
+            const auto to = std::span{m_pins}.subspan(nodeTo.inputsBegin, nodeTo.inputsEnd - nodeTo.inputsBegin);
+
+            add_edge_impl(from, to, NameFrom.string, NameTo.string, get_type_id<T1>(), get_type_id<T2>(), offset);
         }
         else
         {
@@ -278,6 +355,49 @@ namespace oblo
 
         return *this;
     }
+
+    template <typename Context>
+    template <typename TInput, typename TPin, typename NodeTo, fixed_string NameTo, typename Extract>
+    render_graph_builder<Context>& render_graph_builder<Context>::connect_input(std::string_view inputName,
+                                                                                render_node_in<TPin, NameTo>(NodeTo::*),
+                                                                                Extract&& extract)
+    {
+        if (m_lastError)
+        {
+            return *this;
+        }
+
+        constexpr auto type = get_type_id<NodeTo>();
+
+        const auto it = m_nodeTypes.find(type);
+
+        if (m_nodeTypes.end() != it)
+        {
+            node_type& nodeTo = it->second;
+
+            u32 offset{0};
+
+            if constexpr (requires(Extract& e, const TInput& in, const TPin* r) { r = e(in); })
+            {
+                const TInput inputData{};
+                const TPin* extractedPtr{extract(&inputData)};
+                offset = narrow_cast<u32>(reinterpret_cast<const std::byte*>(extractedPtr) -
+                                          reinterpret_cast<const std::byte*>(&inputData));
+            }
+
+            const auto from = std::span{m_broadcastPins};
+            const auto to = std::span{m_pins}.subspan(nodeTo.inputsBegin, nodeTo.inputsEnd - nodeTo.inputsBegin);
+
+            add_edge_impl(from, to, inputName, NameTo.string, get_type_id<TInput>(), get_type_id<TPin>(), offset);
+        }
+        else
+        {
+            m_lastError = render_graph_builder_error::node_not_found;
+        }
+
+        return *this;
+    }
+
 }
 
 template <>

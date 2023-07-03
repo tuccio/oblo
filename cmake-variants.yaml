@@ -8,21 +8,25 @@ buildType:
       buildType: Release
       settings:
         OBLO_DISABLE_COMPILER_OPTIMIZATIONS: false
+        OBLO_ENABLE_ASSERT: false
     unoptimized_debug:
       short: Unoptomized
       long: Build with debug info, without any optimization and link to release runtime
       buildType: RelWithDebInfo
       settings:
         OBLO_DISABLE_COMPILER_OPTIMIZATIONS: true
+        OBLO_ENABLE_ASSERT: true
     profile:
       short: Profile
       long: Build with optimizations and debug info
       buildType: RelWithDebInfo
       settings:
         OBLO_DISABLE_COMPILER_OPTIMIZATIONS: false
+        OBLO_ENABLE_ASSERT: true
     debug:
       short: Debug
       long: Build without any optimization and link to debug runtime
       buildType: Debug
       settings:
         OBLO_DISABLE_COMPILER_OPTIMIZATIONS: false
+        OBLO_ENABLE_ASSERT: false

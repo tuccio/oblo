@@ -6,6 +6,8 @@
 #include <oblo/vulkan/destroy_device_objects.hpp>
 #include <oblo/vulkan/shader_compiler.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
+#include <oblo/vulkan/stateful_command_buffer.hpp>
+#include <oblo/vulkan/texture.hpp>
 #include <sandbox/context.hpp>
 
 #include <imgui.h>
@@ -38,7 +40,7 @@ namespace oblo::vk
                                                           .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                                           .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
                                                           .newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                                                          .image = context.swapchainImage,
+                                                          .image = context.swapchainImage->image,
                                                           .subresourceRange = {
                                                               .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                                                               .baseMipLevel = 0,
@@ -47,7 +49,7 @@ namespace oblo::vk
                                                               .layerCount = 1,
                                                           }};
 
-            vkCmdPipelineBarrier(context.commandBuffer,
+            vkCmdPipelineBarrier(context.commandBuffer->get(),
                                  VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                                  VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                                  0,
@@ -61,7 +63,7 @@ namespace oblo::vk
 
         const VkRenderingAttachmentInfo colorAttachmentInfo{
             .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-            .imageView = context.swapchainImageView,
+            .imageView = context.swapchainImage->view,
             .imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
             .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
             .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -75,7 +77,7 @@ namespace oblo::vk
             .pColorAttachments = &colorAttachmentInfo,
         };
 
-        vkCmdBindPipeline(context.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+        vkCmdBindPipeline(context.commandBuffer->get(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
 
         {
             const VkViewport viewport{
@@ -87,19 +89,19 @@ namespace oblo::vk
 
             const VkRect2D scissor{.extent{.width = context.width, .height = context.height}};
 
-            vkCmdSetViewport(context.commandBuffer, 0, 1, &viewport);
-            vkCmdSetScissor(context.commandBuffer, 0, 1, &scissor);
+            vkCmdSetViewport(context.commandBuffer->get(), 0, 1, &viewport);
+            vkCmdSetScissor(context.commandBuffer->get(), 0, 1, &scissor);
         }
 
-        vkCmdBeginRendering(context.commandBuffer, &renderInfo);
+        vkCmdBeginRendering(context.commandBuffer->get(), &renderInfo);
 
         const VkBuffer vertexBuffers[] = {m_positions.buffer, m_colors.buffer};
         constexpr VkDeviceSize offsets[] = {0, 0};
-        vkCmdBindVertexBuffers(context.commandBuffer, 0, 2, vertexBuffers, offsets);
+        vkCmdBindVertexBuffers(context.commandBuffer->get(), 0, 2, vertexBuffers, offsets);
 
-        vkCmdDraw(context.commandBuffer, 3, 1, 0, 0);
+        vkCmdDraw(context.commandBuffer->get(), 3, 1, 0, 0);
 
-        vkCmdEndRendering(context.commandBuffer);
+        vkCmdEndRendering(context.commandBuffer->get());
     }
 
     bool hello_world::create_shader_modules(VkDevice device)

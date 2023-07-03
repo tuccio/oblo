@@ -140,10 +140,7 @@ namespace oblo::vk
         return true;
     }
 
-    void sandbox_base::begin_frame(u64 frameIndex,
-                                   u32* outImageIndex,
-                                   u32* outPoolIndex,
-                                   VkCommandBuffer* outCommandBuffer)
+    void sandbox_base::begin_frame(u64 frameIndex, u32* outImageIndex, u32* outPoolIndex)
     {
         const auto poolIndex = u32(frameIndex % SwapchainImages);
 
@@ -167,51 +164,41 @@ namespace oblo::vk
 
         auto& pool = m_pools[poolIndex];
 
+        pool.reset_buffers(frameIndex);
         pool.reset_pool();
         pool.begin_frame(frameIndex);
 
-        const VkCommandBuffer commandBuffer = pool.fetch_buffer();
-
-        const VkCommandBufferBeginInfo commandBufferBeginInfo{.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-                                                              .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT};
-
-        OBLO_VK_PANIC(vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo));
-
         *outImageIndex = imageIndex;
         *outPoolIndex = poolIndex;
-        *outCommandBuffer = commandBuffer;
     }
 
-    void sandbox_base::submit_and_present(VkCommandBuffer commandBuffer, u32 imageIndex, u32 poolIndex, u64 frameIndex)
+    void sandbox_base::begin_command_buffers(u32 poolIndex, VkCommandBuffer* outCommandBuffers, u32 count)
     {
+        auto& pool = m_pools[poolIndex];
+        pool.fetch_buffers({outCommandBuffers, count});
+
+        constexpr VkCommandBufferBeginInfo commandBufferBeginInfo{
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+        };
+
+        for (auto* it = outCommandBuffers; it != outCommandBuffers + count; ++it)
         {
-            const VkImageMemoryBarrier imageMemoryBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-                                                          .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-                                                          .oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                                                          .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                                                          .image = m_swapchain.get_image(imageIndex),
-                                                          .subresourceRange = {
-                                                              .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                                                              .baseMipLevel = 0,
-                                                              .levelCount = 1,
-                                                              .baseArrayLayer = 0,
-                                                              .layerCount = 1,
-                                                          }};
-
-            vkCmdPipelineBarrier(commandBuffer,
-                                 VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                                 VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                                 0,
-                                 0,
-                                 nullptr,
-                                 0,
-                                 nullptr,
-                                 1,
-                                 &imageMemoryBarrier);
+            OBLO_VK_PANIC(vkBeginCommandBuffer(*it, &commandBufferBeginInfo));
         }
+    }
 
-        OBLO_VK_PANIC(vkEndCommandBuffer(commandBuffer));
+    void sandbox_base::end_command_buffers(const VkCommandBuffer* commandBuffers, u32 count)
+    {
+        for (auto* it = commandBuffers; it != commandBuffers + count; ++it)
+        {
+            OBLO_VK_PANIC(vkEndCommandBuffer(*it));
+        }
+    }
 
+    void sandbox_base::submit_and_present(
+        const VkCommandBuffer* commandBuffers, u32 commandBuffersCount, u32 imageIndex, u32 poolIndex, u64 frameIndex)
+    {
         const VkTimelineSemaphoreSubmitInfo timelineInfo{.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
                                                          .pNext = nullptr,
                                                          .waitSemaphoreValueCount = 0,
@@ -223,8 +210,8 @@ namespace oblo::vk
                                       .pNext = &timelineInfo,
                                       .waitSemaphoreCount = 0,
                                       .pWaitSemaphores = nullptr,
-                                      .commandBufferCount = 1,
-                                      .pCommandBuffers = &commandBuffer,
+                                      .commandBufferCount = commandBuffersCount,
+                                      .pCommandBuffers = commandBuffers,
                                       .signalSemaphoreCount = 1,
                                       .pSignalSemaphores = &m_timelineSemaphore};
 
@@ -275,22 +262,26 @@ namespace oblo::vk
                                      void* deviceFeaturesList,
                                      const VkPhysicalDeviceFeatures* physicalDeviceFeatures)
     {
-        // We need to gather the extensions needed by SDL, for now we hardcode a max number
+        // We need to gather the extensions needed by SDL
         constexpr u32 extensionsArraySize{64};
         constexpr u32 layersArraySize{16};
 
         small_vector<const char*, extensionsArraySize> extensions;
         small_vector<const char*, layersArraySize> layers;
 
-        u32 extensionsCount = extensionsArraySize;
-        extensions.resize(extensionsArraySize);
+        u32 sdlExtensionsCount;
 
-        if (!SDL_Vulkan_GetInstanceExtensions(m_window, &extensionsCount, extensions.data()))
+        if (!SDL_Vulkan_GetInstanceExtensions(m_window, &sdlExtensionsCount, nullptr))
         {
             return false;
         }
 
-        extensions.resize(extensionsCount);
+        extensions.resize(sdlExtensionsCount);
+
+        if (!SDL_Vulkan_GetInstanceExtensions(m_window, &sdlExtensionsCount, extensions.data()))
+        {
+            return false;
+        }
 
         if (m_config.vk_use_validation_layers)
         {
@@ -324,9 +315,12 @@ namespace oblo::vk
             return false;
         }
 
-        constexpr const char* internalDeviceExtensions[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-                                                            VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME,
-                                                            VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME};
+        constexpr const char* internalDeviceExtensions[] = {
+            VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+            VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME,
+            VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
+            VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
+        };
 
         extensions.assign(std::begin(internalDeviceExtensions), std::end(internalDeviceExtensions));
         extensions.insert(extensions.end(), deviceExtensions.begin(), deviceExtensions.end());
@@ -343,7 +337,14 @@ namespace oblo::vk
             .timelineSemaphore = VK_TRUE,
         };
 
-        return m_engine.init(m_instance.get(), m_surface, {}, {extensions}, &timelineFeature, physicalDeviceFeatures);
+        VkPhysicalDeviceBufferDeviceAddressFeatures bufferDeviceAddressFeature{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES,
+            .pNext = &timelineFeature,
+            .bufferDeviceAddress = VK_TRUE,
+        };
+
+        return m_engine
+            .init(m_instance.get(), m_surface, {}, {extensions}, &bufferDeviceAddressFeature, physicalDeviceFeatures);
     }
 
     bool sandbox_base::create_swapchain()
@@ -365,9 +366,12 @@ namespace oblo::vk
 
     bool sandbox_base::create_command_pools()
     {
+        // Kind of arbitrary count for the pool, could implement growth instead
+        constexpr u32 buffersPerFrame{16};
+
         for (auto& pool : m_pools)
         {
-            if (!pool.init(m_engine.get_device(), m_engine.get_queue_family_index(), false, 1, 1))
+            if (!pool.init(m_engine.get_device(), m_engine.get_queue_family_index(), false, buffersPerFrame, 1))
             {
                 return false;
             }
@@ -423,7 +427,7 @@ namespace oblo::vk
                                    commandBuffer,
                                    SwapchainImages);
 
-        pool.reset_buffers(frameIndex);
+        pool.reset_buffers(frameIndex + 1);
         pool.reset_pool();
 
         return result;

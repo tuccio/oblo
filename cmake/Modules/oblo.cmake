@@ -1,3 +1,5 @@
+option(OBLO_ENABLE_ASSERT "Enables internal asserts" OFF)
+
 macro(oblo_remove_cxx_flag _option_regex)
     string(TOUPPER ${CMAKE_BUILD_TYPE} _build_type)
 
@@ -20,6 +22,10 @@ function(oblo_init_compiler_settings)
         endif()
     else()
         message(SEND_ERROR "Not supported yet")
+    endif()
+
+    if(OBLO_ENABLE_ASSERT)
+        add_definitions(-DOBLO_ENABLE_ASSERT)
     endif()
 endfunction(oblo_init_compiler_settings)
 

@@ -65,7 +65,7 @@ namespace oblo::vk
         {
             for (auto* it = begin; it != end; ++it)
             {
-                if (frameIndex >= it->frameIndex)
+                if (frameIndex <= it->frameIndex)
                 {
                     return false;
                 }

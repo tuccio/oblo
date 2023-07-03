@@ -88,7 +88,7 @@ namespace oblo
         const auto ec = render_graph_builder<mock_context>{}
                             .add_node<mock_deferred_gbuffer_node>()
                             .add_node<mock_deferred_lighting_node>()
-                            .add_edge(&mock_deferred_gbuffer_node::gbuffer, &mock_deferred_lighting_node::gbuffer)
+                            .connect(&mock_deferred_gbuffer_node::gbuffer, &mock_deferred_lighting_node::gbuffer)
                             .add_input<buffer_ref>("camera")
                             .add_input<buffer_ref>("lights")
                             .build(graph, executor);

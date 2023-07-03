@@ -30,7 +30,7 @@ namespace oblo
             std::swap(m_usedCount, other.m_usedCount);
         }
 
-        ring_buffer(std::size_t size)
+        explicit ring_buffer(std::size_t size)
         {
             m_buffer = new T[size];
             m_size = size;
@@ -67,7 +67,8 @@ namespace oblo
             m_usedCount = 0u;
         }
 
-        void grow(std::size_t newSize) requires std::is_nothrow_move_assignable_v<T>
+        void grow(std::size_t newSize)
+            requires std::is_nothrow_move_assignable_v<T>
         {
             if (newSize == m_size)
             {
@@ -164,7 +165,7 @@ namespace oblo
 
         void release(std::size_t count)
         {
-            OBLO_ASSERT(count < m_usedCount);
+            OBLO_ASSERT(count <= m_usedCount);
             m_usedCount -= count;
         }
 

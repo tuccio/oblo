@@ -12,14 +12,6 @@ namespace oblo::vk
     class command_buffer_state;
     struct texture;
 
-    enum class image_state : u8
-    {
-        undefined,
-        color_attachment,
-        depth_attachment,
-        depth_stencil_attachment,
-    };
-
     class resource_manager
     {
     public:
@@ -50,7 +42,7 @@ namespace oblo::vk
                                   u32 layerCount,
                                   u32 mipLevels);
 
-        void add_pipeline_barrier(VkCommandBuffer commandBuffer, image_state newState, const texture& texture);
+        void add_pipeline_barrier(VkCommandBuffer commandBuffer, VkImageLayout newLayout, const texture& texture);
 
         void clear();
 
@@ -59,7 +51,6 @@ namespace oblo::vk
     private:
         struct image_transition
         {
-            image_state newState;
             VkImage image;
             VkImageLayout newLayout;
             VkFormat format;

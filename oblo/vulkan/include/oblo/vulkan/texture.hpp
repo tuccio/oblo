@@ -6,5 +6,6 @@ namespace oblo::vk
 {
     struct texture : allocated_image, image_initializer
     {
+        VkImageView view;
     };
 }

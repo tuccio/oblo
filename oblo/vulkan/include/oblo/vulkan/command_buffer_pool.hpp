@@ -4,6 +4,7 @@
 
 #include <oblo/core/ring_buffer.hpp>
 #include <oblo/core/types.hpp>
+
 #include <span>
 
 namespace oblo::vk

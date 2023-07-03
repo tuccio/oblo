@@ -9,7 +9,10 @@ namespace oblo
     class small_vector
     {
     public:
-        small_vector() : m_vector(&m_resource) {}
+        small_vector() : m_vector(&m_resource)
+        {
+            m_vector.reserve(N);
+        }
 
         small_vector(const small_vector&) = delete;
         small_vector(small_vector&&) = delete;

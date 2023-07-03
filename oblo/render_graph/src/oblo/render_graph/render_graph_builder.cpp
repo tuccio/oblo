@@ -104,11 +104,24 @@ namespace oblo
 
                     const auto inputPinIndex = narrow_cast<u32>(std::addressof(*it) - m_broadcastPins.data());
 
-                    auto* const outPinMemberPtr = static_cast<std::byte*>(nodePtr) + inPin.offset;
+                    auto* const outPinMemberPtr =
+                        static_cast<std::byte*>(nodePtr) + inPin.offset + inPin.connectionOffset;
                     std::memcpy(outPinMemberPtr, &inputs[inputPinIndex], sizeof(void*));
                 }
             }
         }
+
+        const auto connectToInputs = [&graph, this](const node_pin& outPin, void* outPinMemberPtr)
+        {
+            for (auto connectedInputIndex = outPin.nextConnectedInput; connectedInputIndex != Invalid;)
+            {
+                auto& inPin = m_pins[connectedInputIndex];
+                auto* const connectedNode = graph.m_nodes[inPin.nodeIndex].ptr;
+                auto* const inPinMemberPtr = static_cast<std::byte*>(connectedNode) + inPin.offset;
+                std::memcpy(inPinMemberPtr, outPinMemberPtr, sizeof(void*));
+                connectedInputIndex = inPin.nextConnectedInput;
+            }
+        };
 
         // Once all nodes have been initialized, we can also connect all pointers for input pins
         for (const auto& [typeId, nodeType] : m_nodeTypes)
@@ -116,19 +129,16 @@ namespace oblo
             for (auto outputIndex = nodeType.outputsBegin; outputIndex != nodeType.outputsEnd; ++outputIndex)
             {
                 auto& outPin = m_pins[outputIndex];
-                auto* const nodePtr = graph.m_nodes[outPin.nodeIndex].ptr;
-
-                auto* const outPinMemberPtr = static_cast<std::byte*>(nodePtr) + outPin.offset;
-
-                for (auto connectedInputIndex = outPin.nextConnectedInput; connectedInputIndex != Invalid;)
-                {
-                    auto& inPin = m_pins[connectedInputIndex];
-                    auto* const connectedNode = graph.m_nodes[inPin.nodeIndex].ptr;
-                    auto* const inPinMemberPtr = static_cast<std::byte*>(connectedNode) + inPin.offset;
-                    std::memcpy(inPinMemberPtr, outPinMemberPtr, sizeof(void*));
-                    connectedInputIndex = inPin.nextConnectedInput;
-                }
+                auto* const outPinMemberPtr =
+                    static_cast<std::byte*>(graph.m_nodes[outPin.nodeIndex].ptr) + outPin.offset;
+                connectToInputs(outPin, outPinMemberPtr);
             }
+        }
+
+        OBLO_ASSERT(m_broadcastPins.size() == graph.m_inputs.size());
+        for (usize inputIndex = 0; inputIndex < m_broadcastPins.size(); ++inputIndex)
+        {
+            connectToInputs(m_broadcastPins[inputIndex], &graph.m_inputs[inputIndex].ptr);
         }
 
         return {};
@@ -215,21 +225,23 @@ namespace oblo
         return {};
     }
 
-    void render_graph_builder_impl::add_edge_impl(
-        node_type& nodeFrom, std::string_view pinFrom, node_type& nodeTo, std::string_view pinTo, type_id type)
+    void render_graph_builder_impl::add_edge_impl(std::span<node_pin> from,
+                                                  std::span<node_pin> to,
+                                                  std::string_view pinFrom,
+                                                  std::string_view pinTo,
+                                                  type_id typeFrom,
+                                                  type_id typeTo,
+                                                  u32 connectionOffset)
     {
-        const auto from = std::span{m_pins}.subspan(nodeFrom.outputsBegin, nodeFrom.outputsEnd - nodeFrom.outputsBegin);
-        const auto to = std::span{m_pins}.subspan(nodeTo.inputsBegin, nodeTo.inputsEnd - nodeTo.inputsBegin);
-
-        const auto itFrom =
-            std::find_if(from.begin(),
-                         from.end(),
-                         [pinFrom, type](const node_pin& pin) { return pin.name == pinFrom && pin.typeId == type; });
+        const auto itFrom = std::find_if(from.begin(),
+                                         from.end(),
+                                         [pinFrom, typeFrom](const node_pin& pin)
+                                         { return pin.name == pinFrom && pin.typeId == typeFrom; });
 
         const auto itTo =
             std::find_if(to.begin(),
                          to.end(),
-                         [pinTo, type](const node_pin& pin) { return pin.name == pinTo && pin.typeId == type; });
+                         [pinTo, typeTo](const node_pin& pin) { return pin.name == pinTo && pin.typeId == typeTo; });
 
         if (itFrom == from.end() || itTo == to.end())
         {
@@ -241,13 +253,21 @@ namespace oblo
         }
         else
         {
+            const bool isFromInput = from.data() == m_broadcastPins.data();
+
+            auto* const baseFromPointer = isFromInput ? m_pins.data() : m_broadcastPins.data();
             const auto inputPinIndex = narrow_cast<u32>(std::addressof(*itTo) - m_pins.data());
-            const auto outputPinIndex = narrow_cast<u32>(std::addressof(*itFrom) - m_pins.data());
+            const auto outputPinIndex = narrow_cast<u32>(std::addressof(*itFrom) - baseFromPointer);
+
+            // If the node we get the data from is not another node's output, but a graph input, we flag it, because the
+            // index is relative to the graph inputs array
+            const u32 inputMask = (u32(isFromInput) << 31);
 
             // We keep a linked list of all the inputs attached to the same output
             itTo->nextConnectedInput = itFrom->nextConnectedInput;
             itFrom->nextConnectedInput = inputPinIndex;
-            itTo->connectedOutput = outputPinIndex;
+            itTo->connectedOutput = outputPinIndex | inputMask;
+            itTo->connectionOffset = connectionOffset;
         }
     }
 
