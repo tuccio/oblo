@@ -7,6 +7,8 @@
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/shader_compiler.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
+#include <oblo/vulkan/stateful_command_buffer.hpp>
+#include <oblo/vulkan/texture.hpp>
 #include <sandbox/context.hpp>
 
 #include <imgui.h>
@@ -67,7 +69,7 @@ namespace oblo::vk
 
     void vertex_pull::update(const sandbox_render_context& context)
     {
-        const VkCommandBuffer commandBuffer = context.commandBuffer;
+        const VkCommandBuffer commandBuffer = context.commandBuffer->get();
 
         {
             const VkImageMemoryBarrier imageMemoryBarrier{
@@ -75,7 +77,7 @@ namespace oblo::vk
                 .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                 .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
                 .newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                .image = context.swapchainImage,
+                .image = context.swapchainImage->image,
                 .subresourceRange =
                     {
                         .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
@@ -116,7 +118,7 @@ namespace oblo::vk
 
         const VkRenderingAttachmentInfo colorAttachmentInfo{
             .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-            .imageView = context.swapchainImageView,
+            .imageView = context.swapchainImage->view,
             .imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
             .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
             .storeOp = VK_ATTACHMENT_STORE_OP_STORE,

@@ -8,8 +8,9 @@
 #include <oblo/vulkan/instance.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
+#include <oblo/vulkan/stateful_command_buffer.hpp>
 #include <oblo/vulkan/swapchain.hpp>
-
+#include <oblo/vulkan/texture.hpp>
 #include <sandbox/context.hpp>
 #include <sandbox/imgui.hpp>
 
@@ -38,8 +39,14 @@ namespace oblo::vk
         void wait_idle();
 
         bool poll_events();
-        void begin_frame(u64 frameIndex, u32* outImageIndex, u32* outPoolIndex, VkCommandBuffer* outCommandBuffer);
-        void submit_and_present(VkCommandBuffer commandBuffer, u32 imageIndex, u32 poolIndex, u64 frameIndex);
+        void begin_frame(u64 frameIndex, u32* outImageIndex, u32* outPoolIndex);
+        void begin_command_buffers(u32 poolIndex, VkCommandBuffer* outCommandBuffers, u32 count);
+        void end_command_buffers(const VkCommandBuffer* commandBuffers, u32 count);
+        void submit_and_present(const VkCommandBuffer* commandBuffers,
+                                u32 commandBuffersCount,
+                                u32 imageIndex,
+                                u32 poolIndex,
+                                u64 frameIndex);
 
     private:
         void load_config();
@@ -96,35 +103,31 @@ namespace oblo::vk
     };
 
     template <typename TApp>
-    concept app_requiring_instance_extensions = requires(TApp app)
-    {
+    concept app_requiring_instance_extensions = requires(TApp app) {
         {
             app.get_required_instance_extensions()
-            } -> std::convertible_to<std::span<const char* const>>;
+        } -> std::convertible_to<std::span<const char* const>>;
     };
 
     template <typename TApp>
-    concept app_requiring_physical_device_features = requires(TApp app)
-    {
+    concept app_requiring_physical_device_features = requires(TApp app) {
         {
             app.get_required_physical_device_features()
-            } -> std::convertible_to<VkPhysicalDeviceFeatures>;
+        } -> std::convertible_to<VkPhysicalDeviceFeatures>;
     };
 
     template <typename TApp>
-    concept app_requiring_device_extensions = requires(TApp app)
-    {
+    concept app_requiring_device_extensions = requires(TApp app) {
         {
             app.get_required_device_extensions()
-            } -> std::convertible_to<std::span<const char* const>>;
+        } -> std::convertible_to<std::span<const char* const>>;
     };
 
     template <typename TApp>
-    concept app_requiring_device_features = requires(TApp app)
-    {
+    concept app_requiring_device_features = requires(TApp app) {
         {
             app.get_device_features_list()
-            } -> std::convertible_to<void*>;
+        } -> std::convertible_to<void*>;
     };
 
     template <typename TApp>
@@ -202,19 +205,44 @@ namespace oblo::vk
 
                 u32 imageIndex;
                 u32 poolIndex;
-                VkCommandBuffer commandBuffer;
-                begin_frame(frameIndex, &imageIndex, &poolIndex, &commandBuffer);
+                begin_frame(frameIndex, &imageIndex, &poolIndex);
+
+                constexpr u32 numCommandBuffers{2};
+                VkCommandBuffer commandBuffers[numCommandBuffers];
+                begin_command_buffers(poolIndex, commandBuffers, numCommandBuffers);
+
+                const auto glueCommandBuffer = commandBuffers[0];
+                const auto mainCommandBuffer = commandBuffers[1];
+
+                stateful_command_buffer statefulCommandBuffer{mainCommandBuffer};
 
                 const VkImage swapchainImage = m_swapchain.get_image(imageIndex);
                 const VkImageView swapchainImageView = m_swapchain.get_image_view(imageIndex);
 
+                // TODO: Should get this stuff from the swapchain class instead
+                const image_initializer swapChainImageInitializer{
+                    .imageType = VK_IMAGE_TYPE_2D,
+                    .format = SwapchainFormat,
+                    .extent = VkExtent3D{.width = m_renderWidth, .height = m_renderHeight, .depth = 1},
+                    .mipLevels = 1,
+                    .arrayLayers = 1,
+                    .samples = VK_SAMPLE_COUNT_1_BIT,
+                    .tiling = VK_IMAGE_TILING_OPTIMAL,
+                    .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                    .memoryUsage = memory_usage::gpu_only,
+                };
+
+                texture swapChainTexture{allocated_image{.image = swapchainImage},
+                                         swapChainImageInitializer,
+                                         swapchainImageView};
+
                 const sandbox_render_context context{
                     .engine = &m_engine,
                     .allocator = &m_allocator,
-                    .commandBuffer = commandBuffer,
-                    .swapchainImage = swapchainImage,
-                    .swapchainImageView = swapchainImageView,
-                    .swapchainFormat = SwapchainFormat,
+                    .resourceManager = &m_resourceManager,
+                    .commandBuffer = &statefulCommandBuffer,
+                    .swapchainImage = &swapChainTexture,
                     .width = m_renderWidth,
                     .height = m_renderHeight,
                     .frameIndex = frameIndex,
@@ -224,10 +252,14 @@ namespace oblo::vk
 
                 if (showImgui)
                 {
-                    m_imgui.end_frame(commandBuffer, swapchainImageView, m_renderWidth, m_renderHeight);
+                    m_imgui.end_frame(mainCommandBuffer, swapchainImageView, m_renderWidth, m_renderHeight);
                 }
 
-                submit_and_present(commandBuffer, imageIndex, poolIndex, frameIndex);
+                statefulCommandBuffer.add_pipeline_barrier(VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, swapChainTexture);
+                m_resourceManager.commit(statefulCommandBuffer, glueCommandBuffer);
+
+                end_command_buffers(commandBuffers, numCommandBuffers);
+                submit_and_present(commandBuffers, numCommandBuffers, imageIndex, poolIndex, frameIndex);
             }
         }
 

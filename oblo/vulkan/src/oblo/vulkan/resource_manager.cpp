@@ -21,8 +21,6 @@ namespace oblo::vk
             return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
         }
 
-        // see
-        // https://github.com/dglipp/Randy/blob/2897a38840ec7bd55ce08ae5538433a0e8062ee9/shared/internal/UtilsVulkan.cpp#L1205
         void add_pipeline_barrier_cmd(VkCommandBuffer commandBuffer,
                                       VkImageLayout oldLayout,
                                       VkImageLayout newLayout,
@@ -51,7 +49,7 @@ namespace oblo::vk
                     },
             };
 
-            VkPipelineStageFlags sourceStage{0};
+            VkPipelineStageFlags sourceStage{VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT};
             VkPipelineStageFlags destinationStage{0};
 
             if (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL || is_depth_format(format))
@@ -68,32 +66,56 @@ namespace oblo::vk
                 barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             }
 
-            if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+            switch (oldLayout)
             {
+            case VK_IMAGE_LAYOUT_UNDEFINED: {
                 barrier.srcAccessMask = 0;
-                barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
                 sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-                destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+                break;
             }
-            else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_GENERAL)
-            {
-                barrier.srcAccessMask = 0;
-                barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
+            case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL: {
+                barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
                 sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-                destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+                break;
             }
-            if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-            {
-                barrier.srcAccessMask = 0;
-                barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 
-                sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-                destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL: {
+                barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+                sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+                break;
             }
-            else
+
+            default:
+                break;
+            }
+
+            switch (newLayout)
             {
+            case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL: {
+                barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+                destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+                break;
+            }
+
+            case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL: {
+                barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+                destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+                break;
+            }
+
+            case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL: {
+                barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+                destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+                break;
+            }
+
+            case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR: {
+                destinationStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+                break;
+            }
+
+            default:
                 unreachable();
             }
 
@@ -122,7 +144,7 @@ namespace oblo::vk
         for (const auto& pendingTransition : commandBufferState.m_incompleteTransitions)
         {
             const auto it = m_states.find(pendingTransition.image);
-            OBLO_ASSERT(it != m_states.end());
+            OBLO_ASSERT(it != m_states.end(), "The image is not registered, unable to add transition");
 
             if (it != m_states.end())
             {
@@ -157,40 +179,18 @@ namespace oblo::vk
         m_transitions.emplace(image, currentLayout);
     }
 
-    namespace
-    {
-        VkImageLayout deduce_vk_layout(image_state newState)
-        {
-            switch (newState)
-            {
-            case image_state::undefined:
-                return VK_IMAGE_LAYOUT_UNDEFINED;
-            case image_state::color_attachment:
-                return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-            case image_state::depth_attachment:
-                return VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-            case image_state::depth_stencil_attachment:
-                return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-            default:
-                unreachable();
-            }
-        }
-    }
-
     void command_buffer_state::add_pipeline_barrier(VkCommandBuffer commandBuffer,
-                                                    image_state newState,
+                                                    VkImageLayout newLayout,
                                                     const texture& texture)
     {
         const auto image = texture.image;
         const auto it = m_transitions.find(image);
-        const auto newLayout = deduce_vk_layout(newState);
 
         if (it == m_transitions.end())
         {
             m_transitions.emplace_hint(it, image, newLayout);
 
             m_incompleteTransitions.emplace_back(image_transition{
-                .newState = newState,
                 .image = image,
                 .newLayout = newLayout,
                 .format = texture.format,
@@ -200,59 +200,16 @@ namespace oblo::vk
         }
         else
         {
-            VkImageMemoryBarrier barrier{};
-
-            [[maybe_unused]] const auto oldLayout = it->second;
+            const auto oldLayout = it->second;
             it->second = newLayout;
 
-            // TODO: Probably we need to get the source stage from the last state?
-            VkPipelineStageFlags sourceStage{0};
-            VkPipelineStageFlags destinationStage{0};
-
-            if (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL || is_depth_format(texture.format))
-            {
-                barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-
-                if (has_stencil(texture.format))
-                {
-                    barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-                }
-            }
-            else
-            {
-                barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            }
-
-            if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-            {
-                barrier.srcAccessMask = 0;
-                barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-                sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-                destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-            }
-            else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_GENERAL)
-            {
-                barrier.srcAccessMask = 0;
-                barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-                sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-                destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-            }
-            if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-            {
-                barrier.srcAccessMask = 0;
-                barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-
-                sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-                destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            }
-            else
-            {
-                unreachable();
-            }
-
-            vkCmdPipelineBarrier(commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+            add_pipeline_barrier_cmd(commandBuffer,
+                                     oldLayout,
+                                     newLayout,
+                                     image,
+                                     texture.format,
+                                     texture.arrayLayers,
+                                     texture.mipLevels);
         }
     }
 

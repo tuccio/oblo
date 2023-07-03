@@ -1,8 +1,9 @@
 #pragma once
 
 #include <oblo/core/types.hpp>
-#include <span>
 #include <vulkan/vulkan.h>
+
+#include <span>
 
 namespace oblo::vk
 {

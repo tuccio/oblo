@@ -8,6 +8,8 @@ namespace oblo::vk
     class allocator;
     class resource_manager;
     class single_queue_engine;
+    class stateful_command_buffer;
+    struct texture;
 
     struct sandbox_init_context
     {
@@ -31,10 +33,8 @@ namespace oblo::vk
         single_queue_engine* engine;
         allocator* allocator;
         resource_manager* resourceManager;
-        VkCommandBuffer commandBuffer;
-        VkImage swapchainImage;
-        VkImageView swapchainImageView;
-        VkFormat swapchainFormat;
+        stateful_command_buffer* commandBuffer;
+        texture* swapchainImage;
         u32 width;
         u32 height;
         u64 frameIndex;

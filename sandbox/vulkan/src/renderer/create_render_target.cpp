@@ -1,15 +1,19 @@
-#include <renderer/data/render_target.hpp>
+#include <renderer/create_render_target.hpp>
+
+#include <oblo/vulkan/resource_manager.hpp>
 
 namespace oblo::vk
 {
-    vk_result<render_target> create_2d_render_target(allocator& allocator,
-                                                     u32 width,
-                                                     u32 height,
-                                                     VkFormat format,
-                                                     VkImageUsageFlags usage,
-                                                     VkImageAspectFlags aspectMask)
+    vk_result<texture> create_2d_render_target(allocator& allocator,
+                                               u32 width,
+                                               u32 height,
+                                               VkFormat format,
+                                               VkImageUsageFlags usage,
+                                               VkImageAspectFlags aspectMask)
     {
-        render_target res;
+        texture res{};
+
+        usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
         const image_initializer imageInit{
             .imageType = VK_IMAGE_TYPE_2D,
@@ -24,16 +28,18 @@ namespace oblo::vk
             .memoryUsage = memory_usage::gpu_only,
         };
 
-        const auto imageRes = allocator.create_image(imageInit, &res.texture);
+        const auto imageRes = allocator.create_image(imageInit, &res);
 
         if (imageRes != VK_SUCCESS)
         {
             return imageRes;
         }
 
+        static_cast<image_initializer&>(res) = imageInit;
+
         const VkImageViewCreateInfo imageViewInit{
             .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-            .image = res.texture.image,
+            .image = res.image,
             .viewType = VK_IMAGE_VIEW_TYPE_2D,
             .format = format,
             .subresourceRange =
@@ -50,7 +56,7 @@ namespace oblo::vk
 
         if (imageViewRes != VK_SUCCESS)
         {
-            allocator.destroy(res.texture);
+            allocator.destroy(res);
             return imageViewRes;
         }
 

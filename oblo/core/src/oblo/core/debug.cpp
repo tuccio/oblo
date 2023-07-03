@@ -5,15 +5,9 @@
 
 namespace oblo
 {
-    void debug_assert_report(const char* filename, int lineNumber, const char* moduleName, const char* message)
+    void debug_assert_report(const char* filename, int lineNumber, const char* message)
     {
-        fprintf(stderr,
-                "[Assert Failed] [%s:%d]%s%s %s",
-                filename,
-                lineNumber,
-                moduleName ? " " : "",
-                moduleName ? moduleName : "",
-                message);
+        fprintf(stderr, "[Assert Failed] [%s:%d] %s\n", filename, lineNumber, message);
 
         OBLO_DEBUGBREAK();
     }

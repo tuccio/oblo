@@ -11,7 +11,7 @@ namespace oblo
 
 #if defined(__GNUC__) || defined(__clang__)
         __builtin_unreachable();
-#elifdef _MSC_VER // MSVC
+#elif defined(_MSC_VER) // MSVC
         __assume(false);
 #endif
     }
