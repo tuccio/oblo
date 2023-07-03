@@ -11,11 +11,12 @@ namespace oblo::vk
                                                VkImageUsageFlags usage,
                                                VkImageAspectFlags aspectMask)
     {
-        texture res{};
 
         usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
-        const image_initializer imageInit{
+        texture res{};
+
+        res.initializer = image_initializer{
             .imageType = VK_IMAGE_TYPE_2D,
             .format = format,
             .extent = {.width = width, .height = height, .depth = 1},
@@ -28,14 +29,16 @@ namespace oblo::vk
             .memoryUsage = memory_usage::gpu_only,
         };
 
-        const auto imageRes = allocator.create_image(imageInit, &res);
+        allocated_image allocatedImage{};
+        const auto imageRes = allocator.create_image(res.initializer, &allocatedImage);
 
         if (imageRes != VK_SUCCESS)
         {
             return imageRes;
         }
 
-        static_cast<image_initializer&>(res) = imageInit;
+        res.image = allocatedImage.image;
+        res.allocation = allocatedImage.allocation;
 
         const VkImageViewCreateInfo imageViewInit{
             .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -56,7 +59,7 @@ namespace oblo::vk
 
         if (imageViewRes != VK_SUCCESS)
         {
-            allocator.destroy(res);
+            allocator.destroy(allocatedImage);
             return imageViewRes;
         }
 
