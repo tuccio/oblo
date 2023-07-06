@@ -1,9 +1,10 @@
-oblo_add_executable(rtsandbox)
+oblo_add_executable(cpurtsandbox)
 
 target_link_libraries(
-    rtsandbox
-    oblo
-    oblort
+    cpurtsandbox
+    PRIVATE
+    oblo::core
+    oblo::cpurt
     3rdparty::imgui
     3rdparty::imgui_sdl_gl3
     3rdparty::sdl
