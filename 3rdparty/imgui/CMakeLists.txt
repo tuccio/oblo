@@ -11,8 +11,8 @@ target_include_directories(imgui_sdl_vk PUBLIC imgui/backends)
 target_link_libraries(
     imgui_sdl_vk
     imgui
-    CONAN_PKG::vulkan-loader
-    CONAN_PKG::sdl
+    3rdparty::vulkan-loader
+    3rdparty::sdl
 )
 
 # SDL + OpenGL3
@@ -23,5 +23,5 @@ target_include_directories(imgui_sdl_gl3 PUBLIC imgui/backends)
 target_link_libraries(
     imgui_sdl_gl3
     imgui
-    CONAN_PKG::sdl
+    3rdparty::sdl
 )

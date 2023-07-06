@@ -1,4 +1,8 @@
+include(oblo_conan)
+
 option(OBLO_ENABLE_ASSERT "Enables internal asserts" OFF)
+
+define_property(GLOBAL PROPERTY oblo_3rdparty_targets BRIEF_DOCS "3rd party targets" FULL_DOCS "List of 3rd party targets")
 
 macro(oblo_remove_cxx_flag _option_regex)
     string(TOUPPER ${CMAKE_BUILD_TYPE} _build_type)
@@ -98,63 +102,16 @@ function(oblo_add_library target)
     if(DEFINED _oblo_test_src)
         set(_test_target ${target}_test)
         add_executable(${_test_target} ${_oblo_test_src})
-        target_link_libraries(${_test_target} ${target} CONAN_PKG::gtest)
+        target_link_libraries(${_test_target} ${target} 3rdparty::gtest)
     endif()
 
     oblo_setup_source_groups(${target})
 endfunction(oblo_add_library target)
 
-function(oblo_conan_init)
-    # Sort of a hack, to disable compiler checks to be able to mix MSVC/clang binaries on windows
-    # Related: https://github.com/conan-io/conan/issues/1839
-    set(CONAN_DISABLE_CHECK_COMPILER 1)
+function(oblo_3rdparty_create_aliases)
+    get_property(_targets GLOBAL PROPERTY oblo_3rdparty_targets)
 
-    include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
-    conan_basic_setup(TARGETS)
-endfunction(oblo_conan_init)
-
-function(oblo_conan_install)
-    # Download automatically, you can also just copy the conan.cmake file
-    if(NOT EXISTS "${CMAKE_BINARY_DIR}/conan.cmake")
-        message(STATUS "Downloading conan.cmake from https://github.com/conan-io/cmake-conan")
-        file(DOWNLOAD "https://raw.githubusercontent.com/conan-io/cmake-conan/master/conan.cmake"
-            "${CMAKE_BINARY_DIR}/conan.cmake")
-    endif()
-
-    include(${CMAKE_BINARY_DIR}/conan.cmake)
-
-    get_property(isMultiConfig GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
-
-    if(isMultiConfig)
-        set(ARGUMENTS_CONFIGURATION_TYPES "")
-
-        if(CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE AND NOT CONAN_EXPORTED AND NOT ARGUMENTS_BUILD_TYPE)
-            set(CONAN_CMAKE_MULTI ON)
-
-            if(NOT ARGUMENTS_CONFIGURATION_TYPES)
-                set(ARGUMENTS_CONFIGURATION_TYPES "Release;Debug")
-            endif()
-        endif()
-
-        if(ARGUMENTS_CONFIGURATION_TYPES)
-            set(_configuration_types "CONFIGURATION_TYPES ${ARGUMENTS_CONFIGURATION_TYPES}")
-        endif()
-    else()
-        # We don't really care about debugging 3rd party
-        set(_build_type ${CMAKE_BUILD_TYPE})
-
-        if(${_build_type} STREQUAL "RelWithDebInfo")
-            set(_build_type "build_type=Release")
-        endif()
-    endif()
-
-    # The default profile is to let 3rd party be compiled with msvc on windows
-    conan_cmake_run(
-        CONANFILE conanfile.txt
-        PROFILE default
-        PROFILE_AUTO
-        "${_build_type}"
-        "${_configuration_types}"
-        BUILD missing
-    )
-endfunction(oblo_conan_install)
+    foreach(_target ${_targets})
+        add_library("3rdparty::${_target}" ALIAS ${_target})
+    endforeach(_target ${_targets})
+endfunction(oblo_3rdparty_create_aliases)
