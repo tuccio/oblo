@@ -5,9 +5,9 @@ target_link_libraries(
     oblo
     oblovk
     oblorg
-    CONAN_PKG::sdl
-    imgui_sdl_vk
-    CONAN_PKG::nlohmann_json)
+    3rdparty::sdl
+    3rdparty::imgui_sdl_vk
+    3rdparty::nlohmann_json)
 
 install(CODE "execute_process( \
     COMMAND ${CMAKE_COMMAND} -E create_symlink \

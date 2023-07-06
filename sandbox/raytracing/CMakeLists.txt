@@ -4,10 +4,11 @@ target_link_libraries(
     rtsandbox
     oblo
     oblort
-    imgui
-    imgui_sdl_gl3
-    CONAN_PKG::sdl
-    CONAN_PKG::glew
-    CONAN_PKG::assimp
-    CONAN_PKG::cxxopts
-    CONAN_PKG::cereal)
+    3rdparty::imgui
+    3rdparty::imgui_sdl_gl3
+    3rdparty::sdl
+    3rdparty::glew
+    3rdparty::assimp
+    3rdparty::cxxopts
+    3rdparty::cereal
+)
