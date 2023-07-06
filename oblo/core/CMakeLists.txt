@@ -1,3 +1,1 @@
-project(oblo)
-
-oblo_add_library(oblo)
+oblo_add_library(core)

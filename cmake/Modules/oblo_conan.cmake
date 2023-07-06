@@ -34,8 +34,6 @@ function(oblo_conan_generate_conanfile conanfile)
     list(SORT _packages)
     list(SORT _package_options)
 
-    message(":::::::::::: ${_packages}")
-
     set(_lines "[requires]")
     list(APPEND _lines "${_packages}")
 

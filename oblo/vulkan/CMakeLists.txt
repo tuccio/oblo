@@ -1,9 +1,9 @@
-oblo_add_library(oblovk)
+oblo_add_library(vk)
 
 target_link_libraries(
-    oblovk
+    oblo_vk
     PUBLIC
-    oblo
+    oblo::core
     3rdparty::vulkan-headers
     3rdparty::unordered_dense
     PRIVATE

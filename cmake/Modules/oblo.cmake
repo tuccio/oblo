@@ -68,44 +68,50 @@ function(oblo_setup_include_dirs target)
     )
 endfunction(oblo_setup_include_dirs)
 
-function(oblo_add_executable target)
+function(oblo_add_executable name)
+    set(_target "${name}")
     oblo_find_source_files()
-    add_executable(${target})
-    oblo_add_source_files(${target})
-    oblo_setup_include_dirs(${target})
-    oblo_setup_source_groups(${target})
+    add_executable(${_target})
+    oblo_add_source_files(${_target})
+    oblo_setup_include_dirs(${_target})
+    oblo_setup_source_groups(${_target})
+    add_executable("oblo::${name}" ALIAS ${_target})
 endfunction(oblo_add_executable target)
 
-function(oblo_add_library target)
+function(oblo_add_library name)
+    set(_target "oblo_${name}")
     oblo_find_source_files()
 
     if(NOT DEFINED _oblo_src)
         # Header only library
-        add_library(${target} INTERFACE)
+        add_library(${_target} INTERFACE)
 
         target_include_directories(
-            ${target} INTERFACE
+            ${_target} INTERFACE
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
             $<INSTALL_INTERFACE:include>
         )
 
-        target_sources(${target} INTERFACE ${_oblo_public_includes})
+        target_sources(${_target} INTERFACE ${_oblo_public_includes})
 
-        add_custom_target(${target}-interface SOURCES ${_oblo_public_includes})
+        add_custom_target(${_target}-interface SOURCES ${_oblo_public_includes})
     else()
         # Regular C++ library
-        add_library(${target})
-        oblo_add_source_files(${target})
-        oblo_setup_include_dirs(${target})
+        add_library(${_target})
+        oblo_add_source_files(${_target})
+        oblo_setup_include_dirs(${_target})
     endif()
 
     if(DEFINED _oblo_test_src)
-        set(_test_target ${target}_test)
+        set(_test_target "oblo_test_${name}")
         add_executable(${_test_target} ${_oblo_test_src})
-        target_link_libraries(${_test_target} ${target} 3rdparty::gtest)
+        target_link_libraries(${_test_target} ${_target} 3rdparty::gtest)
+
+        add_executable("oblo::test::${name}" ALIAS ${_test_target})
     endif()
 
-    oblo_setup_source_groups(${target})
+    add_library("oblo::${name}" ALIAS ${_target})
+    oblo_setup_source_groups(${_target})
 endfunction(oblo_add_library target)
 
 function(oblo_3rdparty_create_aliases)

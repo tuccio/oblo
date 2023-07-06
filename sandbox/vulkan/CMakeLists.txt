@@ -2,9 +2,10 @@ oblo_add_executable(vksandbox)
 
 target_link_libraries(
     vksandbox
-    oblo
-    oblovk
-    oblorg
+    PRIVATE
+    oblo::core
+    oblo::vk
+    oblo::render_graph
     3rdparty::sdl
     3rdparty::imgui_sdl_vk
     3rdparty::nlohmann_json)

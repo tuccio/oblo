@@ -1,7 +1,8 @@
-oblo_add_library(oblorg)
+oblo_add_library(render_graph)
 
 target_link_libraries(
-    oblorg
+    oblo_render_graph
     PUBLIC
-    oblo
-    oblovk)
+    oblo::core
+    oblo::vk
+)
