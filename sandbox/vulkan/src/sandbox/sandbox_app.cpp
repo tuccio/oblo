@@ -12,6 +12,7 @@
 #include <span>
 #include <vector>
 
+#include "sandbox_app.hpp"
 #include <nlohmann/json.hpp>
 
 #define OBLO_READ_CFG_VAR(Config, Var)                                                                                 \
@@ -111,7 +112,7 @@ namespace oblo::vk
                 {
                     wait_idle();
 
-                    m_swapchain.destroy(m_engine);
+                    destroy_swapchain();
 
                     m_renderWidth = u32(event.window.data1);
                     m_renderHeight = u32(event.window.data2);
@@ -356,9 +357,29 @@ namespace oblo::vk
 
         const auto count = m_swapchain.get_image_count();
 
+        // TODO: Should get this stuff from the swapchain class instead
+        const image_initializer initializer{
+            .imageType = VK_IMAGE_TYPE_2D,
+            .format = SwapchainFormat,
+            .extent = VkExtent3D{.width = m_renderWidth, .height = m_renderHeight, .depth = 1},
+            .mipLevels = 1,
+            .arrayLayers = 1,
+            .samples = VK_SAMPLE_COUNT_1_BIT,
+            .tiling = VK_IMAGE_TILING_OPTIMAL,
+            .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .memoryUsage = memory_usage::gpu_only,
+        };
+
         for (u32 i = 0; i < count; ++i)
         {
-            m_resourceManager.register_image(m_swapchain.get_image(i), VK_IMAGE_LAYOUT_UNDEFINED);
+            m_swapchainTextures[i] = m_resourceManager.register_texture(
+                texture{
+                    .image = m_swapchain.get_image(i),
+                    .view = m_swapchain.get_image_view(i),
+                    .initializer = initializer,
+                },
+                VK_IMAGE_LAYOUT_UNDEFINED);
         }
 
         return true;
@@ -431,5 +452,19 @@ namespace oblo::vk
         pool.reset_pool();
 
         return result;
+    }
+
+    void sandbox_base::destroy_swapchain()
+    {
+        m_swapchain.destroy(m_engine);
+
+        for (auto& handle : m_swapchainTextures)
+        {
+            if (handle)
+            {
+                m_resourceManager.unregister_texture(handle);
+                handle = {};
+            }
+        }
     }
 }

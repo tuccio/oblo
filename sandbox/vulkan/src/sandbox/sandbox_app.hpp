@@ -2,6 +2,7 @@
 
 #include <concepts>
 
+#include <oblo/core/handle.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/allocator.hpp>
 #include <oblo/vulkan/command_buffer_pool.hpp>
@@ -63,6 +64,8 @@ namespace oblo::vk
         bool create_synchronization_objects();
         bool init_imgui();
 
+        void destroy_swapchain();
+
     protected:
         struct config
         {
@@ -84,6 +87,7 @@ namespace oblo::vk
 
         command_buffer_pool m_pools[SwapchainImages];
         swapchain<SwapchainImages> m_swapchain;
+        handle<texture> m_swapchainTextures[SwapchainImages]{};
 
         u32 m_renderWidth;
         u32 m_renderHeight;
@@ -216,35 +220,14 @@ namespace oblo::vk
 
                 stateful_command_buffer statefulCommandBuffer{mainCommandBuffer};
 
-                const VkImage swapchainImage = m_swapchain.get_image(imageIndex);
-                const VkImageView swapchainImageView = m_swapchain.get_image_view(imageIndex);
-
-                // TODO: Should get this stuff from the swapchain class instead
-                const image_initializer swapChainImageInitializer{
-                    .imageType = VK_IMAGE_TYPE_2D,
-                    .format = SwapchainFormat,
-                    .extent = VkExtent3D{.width = m_renderWidth, .height = m_renderHeight, .depth = 1},
-                    .mipLevels = 1,
-                    .arrayLayers = 1,
-                    .samples = VK_SAMPLE_COUNT_1_BIT,
-                    .tiling = VK_IMAGE_TILING_OPTIMAL,
-                    .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-                    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-                    .memoryUsage = memory_usage::gpu_only,
-                };
-
-                texture swapChainTexture{
-                    .image = swapchainImage,
-                    .view = swapchainImageView,
-                    .initializer = swapChainImageInitializer,
-                };
+                const handle<texture> swapchainTexture = m_swapchainTextures[imageIndex];
 
                 const sandbox_render_context context{
                     .engine = &m_engine,
                     .allocator = &m_allocator,
                     .resourceManager = &m_resourceManager,
                     .commandBuffer = &statefulCommandBuffer,
-                    .swapchainImage = &swapChainTexture,
+                    .swapchainTexture = swapchainTexture,
                     .width = m_renderWidth,
                     .height = m_renderHeight,
                     .frameIndex = frameIndex,
@@ -254,10 +237,16 @@ namespace oblo::vk
 
                 if (showImgui)
                 {
-                    m_imgui.end_frame(mainCommandBuffer, swapchainImageView, m_renderWidth, m_renderHeight);
+                    m_imgui.end_frame(mainCommandBuffer,
+                                      m_swapchain.get_image_view(imageIndex),
+                                      m_renderWidth,
+                                      m_renderHeight);
                 }
 
-                statefulCommandBuffer.add_pipeline_barrier(VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, swapChainTexture);
+                statefulCommandBuffer.add_pipeline_barrier(*context.resourceManager,
+                                                           swapchainTexture,
+                                                           VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
                 m_resourceManager.commit(statefulCommandBuffer, glueCommandBuffer);
 
                 end_command_buffers(commandBuffers, numCommandBuffers);

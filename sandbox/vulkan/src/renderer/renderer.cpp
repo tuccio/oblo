@@ -21,10 +21,10 @@ namespace oblo::vk
                             .add_node<blit_image_node>()
                             // .add_edge(&deferred_gbuffer_node::gbuffer, &deferred_lighting_node::gbuffer)
                             .add_input<allocated_buffer>("camera")
-                            .add_input<texture>("final_render_target")
+                            .add_input<handle<texture>>("final_render_target")
                             .connect(&deferred_gbuffer_node::test, &deferred_lighting_node::test)
                             .connect(&deferred_gbuffer_node::test, &blit_image_node::source)
-                            .connect_input<texture>("final_render_target", &blit_image_node::destination)
+                            .connect_input<handle<texture>>("final_render_target", &blit_image_node::destination)
                             .build(m_graph, m_executor);
 
         if (ec)
@@ -47,10 +47,10 @@ namespace oblo::vk
     void renderer::update(const sandbox_render_context& context)
     {
         // Set-up the graph inputs
-        auto* const finalRenderTarget = m_graph.find_input<texture>("final_render_target");
+        auto* const finalRenderTarget = m_graph.find_input<handle<texture>>("final_render_target");
         OBLO_ASSERT(finalRenderTarget);
 
-        *finalRenderTarget = *context.swapchainImage;
+        *finalRenderTarget = context.swapchainTexture;
 
         renderer_context rendererContext{.renderContext = &context, .state = m_state};
         m_executor.execute(&rendererContext);

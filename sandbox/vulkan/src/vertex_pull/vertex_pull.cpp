@@ -72,12 +72,14 @@ namespace oblo::vk
         const VkCommandBuffer commandBuffer = context.commandBuffer->get();
 
         {
+            const auto swapchainTexture = context.resourceManager->get(context.swapchainTexture);
+
             const VkImageMemoryBarrier imageMemoryBarrier{
                 .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
                 .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                 .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
                 .newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                .image = context.swapchainImage->image,
+                .image = swapchainTexture.image,
                 .subresourceRange =
                     {
                         .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
@@ -116,9 +118,11 @@ namespace oblo::vk
             break;
         }
 
+        const auto& swapchainTexture = context.resourceManager->get(context.swapchainTexture);
+
         const VkRenderingAttachmentInfo colorAttachmentInfo{
             .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-            .imageView = context.swapchainImage->view,
+            .imageView = swapchainTexture.view,
             .imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
             .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
             .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
