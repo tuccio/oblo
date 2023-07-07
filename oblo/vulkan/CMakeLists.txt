@@ -5,7 +5,6 @@ target_link_libraries(
     PUBLIC
     oblo::core
     3rdparty::vulkan-headers
-    3rdparty::unordered_dense
     PRIVATE
     3rdparty::vulkan-loader
     3rdparty::vulkan-memory-allocator

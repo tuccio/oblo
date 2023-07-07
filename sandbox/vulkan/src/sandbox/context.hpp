@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/handle.hpp>
 #include <oblo/core/types.hpp>
 #include <vulkan/vulkan.h>
 
@@ -34,7 +35,7 @@ namespace oblo::vk
         allocator* allocator;
         resource_manager* resourceManager;
         stateful_command_buffer* commandBuffer;
-        texture* swapchainImage;
+        handle<texture> swapchainTexture;
         u32 width;
         u32 height;
         u64 frameIndex;

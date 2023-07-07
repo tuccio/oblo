@@ -11,18 +11,26 @@ namespace oblo::vk
 {
     struct blit_image_node
     {
-        render_node_in<texture, "source"> source;
-        render_node_in<texture, "destination"> destination;
+        render_node_in<handle<texture>, "source"> source;
+        render_node_in<handle<texture>, "destination"> destination;
 
         void execute(renderer_context* rendererContext)
         {
             const auto& context = *rendererContext->renderContext;
 
-            const auto& srcTexture = *source.data;
-            const auto& dstTexture = *destination.data;
+            const auto& srcTextureHandle = *source.data;
+            const auto& dstTextureHandle = *destination.data;
 
-            context.commandBuffer->add_pipeline_barrier(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, srcTexture);
-            context.commandBuffer->add_pipeline_barrier(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, dstTexture);
+            context.commandBuffer->add_pipeline_barrier(*context.resourceManager,
+                                                        srcTextureHandle,
+                                                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
+            context.commandBuffer->add_pipeline_barrier(*context.resourceManager,
+                                                        dstTextureHandle,
+                                                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+            const auto& srcTexture = context.resourceManager->get(srcTextureHandle);
+            const auto& dstTexture = context.resourceManager->get(dstTextureHandle);
 
             OBLO_ASSERT(srcTexture.initializer.extent.width == dstTexture.initializer.extent.width);
             OBLO_ASSERT(srcTexture.initializer.extent.height == dstTexture.initializer.extent.height);
@@ -48,9 +56,9 @@ namespace oblo::vk
             };
 
             vkCmdCopyImage(context.commandBuffer->get(),
-                           source.data->image,
+                           srcTexture.image,
                            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                           destination.data->image,
+                           dstTexture.image,
                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                            1,
                            &region);

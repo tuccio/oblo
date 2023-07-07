@@ -123,16 +123,54 @@ namespace oblo::vk
         }
     }
 
-    void resource_manager::register_image(VkImage image, VkImageLayout currentLayout)
+    struct resource_manager::stored_texture
     {
-        [[maybe_unused]] const auto [it, ok] = m_states.emplace(image, currentLayout);
+        texture data;
+        VkImageLayout layout;
+    };
+
+    resource_manager::resource_manager() = default;
+
+    resource_manager::~resource_manager() = default;
+
+    handle<texture> resource_manager::register_texture(const texture& data, VkImageLayout currentLayout)
+    {
+        const handle<texture> handle{++m_lastTextureId};
+        [[maybe_unused]] const auto [it, ok] = m_textures.emplace(handle, data, currentLayout);
         OBLO_ASSERT(ok);
+        return handle;
     }
 
-    void resource_manager::unregister_image(VkImage image)
+    void resource_manager::unregister_texture(handle<texture> handle)
     {
-        [[maybe_unused]] const auto n = m_states.erase(image);
+        [[maybe_unused]] const auto n = m_textures.erase(handle);
         OBLO_ASSERT(n == 1);
+    }
+
+    const texture* resource_manager::try_find(handle<texture> handle) const
+    {
+        auto* const storage = m_textures.try_find(handle);
+        return storage ? &storage->data : nullptr;
+    }
+
+    texture* resource_manager::try_find(handle<texture> handle)
+    {
+        auto* const storage = m_textures.try_find(handle);
+        return storage ? &storage->data : nullptr;
+    }
+
+    const texture& resource_manager::get(handle<texture> handle) const
+    {
+        auto* ptr = try_find(handle);
+        OBLO_ASSERT(ptr);
+        return *ptr;
+    }
+
+    texture& resource_manager::get(handle<texture> handle)
+    {
+        auto* ptr = try_find(handle);
+        OBLO_ASSERT(ptr);
+        return *ptr;
     }
 
     bool resource_manager::commit(command_buffer_state& commandBufferState, VkCommandBuffer transitionsBuffer)
@@ -143,17 +181,17 @@ namespace oblo::vk
         // Fill up the transitions buffer with the incomplete transitions, which we can now check from global state
         for (const auto& pendingTransition : commandBufferState.m_incompleteTransitions)
         {
-            const auto it = m_states.find(pendingTransition.image);
-            OBLO_ASSERT(it != m_states.end(), "The image is not registered, unable to add transition");
+            const auto* it = m_textures.try_find(pendingTransition.handle);
+            OBLO_ASSERT(it != nullptr, "The texture is not registered, unable to add transition");
 
-            if (it != m_states.end())
+            if (it)
             {
-                const auto oldLayout = it->second;
+                const auto oldLayout = it->layout;
 
                 add_pipeline_barrier_cmd(transitionsBuffer,
                                          oldLayout,
                                          pendingTransition.newLayout,
-                                         pendingTransition.image,
+                                         it->data.image,
                                          pendingTransition.format,
                                          pendingTransition.layerCount,
                                          pendingTransition.mipLevels);
@@ -161,37 +199,47 @@ namespace oblo::vk
         }
 
         // Update the global state
-        for (const auto& [image, newLayout] : commandBufferState.m_transitions)
-        {
-            const auto it = m_states.find(image);
+        const std::span keys = commandBufferState.m_transitions.keys();
+        const std::span values = commandBufferState.m_transitions.values();
 
-            if (it != m_states.end())
+        for (usize i = 0; i < keys.size(); ++i)
+        {
+            const auto handle = keys[i];
+
+            auto* const layoutPtr = m_textures.try_find(handle);
+
+            if (layoutPtr)
             {
-                it->second = newLayout;
+                layoutPtr->layout = values[i];
             }
         }
 
         return anyTransition;
     }
 
-    void command_buffer_state::set_starting_layout(VkImage image, VkImageLayout currentLayout)
+    void command_buffer_state::set_starting_layout(handle<texture> texture, VkImageLayout currentLayout)
     {
-        m_transitions.emplace(image, currentLayout);
+        m_transitions.emplace(texture, currentLayout);
     }
 
-    void command_buffer_state::add_pipeline_barrier(VkCommandBuffer commandBuffer,
-                                                    VkImageLayout newLayout,
-                                                    const texture& texture)
+    void command_buffer_state::add_pipeline_barrier(const resource_manager& resourceManager,
+                                                    handle<texture> handle,
+                                                    VkCommandBuffer commandBuffer,
+                                                    VkImageLayout newLayout)
     {
-        const auto image = texture.image;
-        const auto it = m_transitions.find(image);
+        auto* texturePtr = resourceManager.try_find(handle);
+        OBLO_ASSERT(texturePtr);
 
-        if (it == m_transitions.end())
+        auto& texture = *texturePtr;
+
+        auto* const transitionPtr = m_transitions.try_find(handle);
+
+        if (!transitionPtr)
         {
-            m_transitions.emplace_hint(it, image, newLayout);
+            m_transitions.emplace(handle, newLayout);
 
             m_incompleteTransitions.emplace_back(image_transition{
-                .image = image,
+                .handle = handle,
                 .newLayout = newLayout,
                 .format = texture.initializer.format,
                 .layerCount = texture.initializer.arrayLayers,
@@ -200,13 +248,13 @@ namespace oblo::vk
         }
         else
         {
-            const auto oldLayout = it->second;
-            it->second = newLayout;
+            const auto oldLayout = *transitionPtr;
+            *transitionPtr = newLayout;
 
             add_pipeline_barrier_cmd(commandBuffer,
                                      oldLayout,
                                      newLayout,
-                                     image,
+                                     texture.image,
                                      texture.initializer.format,
                                      texture.initializer.arrayLayers,
                                      texture.initializer.mipLevels);

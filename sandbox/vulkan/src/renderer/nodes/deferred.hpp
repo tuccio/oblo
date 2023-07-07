@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/debug.hpp>
+#include <oblo/core/handle.hpp>
 #include <oblo/render_graph/render_graph_node.hpp>
 #include <oblo/vulkan/allocator.hpp>
 #include <oblo/vulkan/destroy_device_objects.hpp>
@@ -8,6 +9,7 @@
 #include <oblo/vulkan/texture.hpp>
 #include <renderer/create_render_target.hpp>
 #include <renderer/renderer_context.hpp>
+#include <renderer/textures.hpp>
 
 namespace oblo::vk
 {
@@ -21,7 +23,7 @@ namespace oblo::vk
         render_node_in<allocated_buffer, "camera"> camera;
         // render_node_out<gbuffer, "gbuffer"> gbuffer;
         // render_node_out<render_target, "depth"> depth;
-        render_node_out<texture, "test"> test;
+        render_node_out<handle<texture>, "test"> test;
 
         void execute(renderer_context* rendererContext)
         {
@@ -47,9 +49,7 @@ namespace oblo::vk
 
                 OBLO_ASSERT(rt);
 
-                context.resourceManager->register_image(rt->image, VK_IMAGE_LAYOUT_UNDEFINED);
-
-                *test.data = *rt;
+                *test.data = context.resourceManager->register_texture(*rt, VK_IMAGE_LAYOUT_UNDEFINED);
             }
 
             const VkClearColorValue clearColor{.float32 = {1.f, 1.f, 0.f, 0.f}};
@@ -60,10 +60,14 @@ namespace oblo::vk
                 .layerCount = 1,
             };
 
-            context.commandBuffer->add_pipeline_barrier(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, *test.data);
+            context.commandBuffer->add_pipeline_barrier(*context.resourceManager,
+                                                        *test.data,
+                                                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+            const auto& texture = context.resourceManager->get(*test);
 
             vkCmdClearColorImage(context.commandBuffer->get(),
-                                 test->image,
+                                 texture.image,
                                  VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                  &clearColor,
                                  1,
@@ -74,11 +78,7 @@ namespace oblo::vk
         {
             const auto& context = *rendererContext->shutdownContext;
 
-            if (test->image != nullptr)
-            {
-                context.allocator->destroy(allocated_image{test->image, test->allocation});
-                destroy_device_object(context.engine->get_device(), test->view);
-            }
+            try_destroy_texture(context, *test);
         }
     };
 
@@ -88,7 +88,7 @@ namespace oblo::vk
         // render_node_in<gbuffer, "gbuffer"> gbuffer;
         // render_node_out<allocated_image, "lit"> lit;
 
-        render_node_in<texture, "test"> test;
+        render_node_in<handle<texture>, "test"> test;
 
         void execute(renderer_context* /*rendererContext*/)
         {
