@@ -44,6 +44,20 @@ namespace oblo::vk
         return true;
     }
 
+    void command_buffer_pool::shutdown()
+    {
+        if (m_commandPool)
+        {
+            vkDestroyCommandPool(m_device, m_commandPool, nullptr);
+            m_commandPool = nullptr;
+        }
+
+        m_commandBuffers.reset();
+        m_trackingInfo.reset();
+
+        m_device = nullptr;
+    }
+
     void command_buffer_pool::begin_frame(u64 frameIndex)
     {
         const auto fetchResult = m_trackingInfo.fetch(1);
@@ -92,12 +106,12 @@ namespace oblo::vk
 
                 for (auto it = usedBuffers.firstSegmentBegin; it != usedBuffers.firstSegmentEnd; ++it)
                 {
-                    vkResetCommandBuffer(*it, 0u);
+                    OBLO_VK_PANIC(vkResetCommandBuffer(*it, 0u));
                 }
 
                 for (auto it = usedBuffers.secondSegmentBegin; it != usedBuffers.secondSegmentEnd; ++it)
                 {
-                    vkResetCommandBuffer(*it, 0u);
+                    OBLO_VK_PANIC(vkResetCommandBuffer(*it, 0u));
                 }
             }
 

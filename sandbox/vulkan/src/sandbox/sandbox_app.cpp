@@ -12,7 +12,6 @@
 #include <span>
 #include <vector>
 
-#include "sandbox_app.hpp"
 #include <nlohmann/json.hpp>
 
 #define OBLO_READ_CFG_VAR(Config, Var)                                                                                 \
@@ -24,10 +23,10 @@ namespace oblo::vk
     namespace
     {
         VKAPI_ATTR VkBool32 VKAPI_CALL
-        debugCallback([[maybe_unused]] VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-                      [[maybe_unused]] VkDebugUtilsMessageTypeFlagsEXT messageType,
-                      const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-                      [[maybe_unused]] void* pUserData)
+        debug_callback([[maybe_unused]] VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+                       [[maybe_unused]] VkDebugUtilsMessageTypeFlagsEXT messageType,
+                       const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+                       [[maybe_unused]] void* pUserData)
         {
             fprintf(stderr, "[Vulkan Validation] (%x) %s\n", messageType, pCallbackData->pMessage);
             return VK_FALSE;
@@ -306,7 +305,7 @@ namespace oblo::vk
                 },
                 {layers},
                 {extensions},
-                debugCallback))
+                debug_callback))
         {
             return false;
         }
