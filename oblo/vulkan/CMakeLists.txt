@@ -10,3 +10,10 @@ target_link_libraries(
     3rdparty::vulkan-memory-allocator
     3rdparty::glslang
 )
+
+target_link_libraries(
+    oblo_test_vk
+    PRIVATE
+    3rdparty::sdl
+    3rdparty::imgui_sdl_vk
+)

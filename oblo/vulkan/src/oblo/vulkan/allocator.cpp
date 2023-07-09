@@ -132,4 +132,9 @@ namespace oblo::vk
     {
         return m_allocator->m_hDevice;
     }
+
+    VkResult allocator::invalidate_mapped_memory_ranges(std::span<const VmaAllocation> allocations)
+    {
+        return vmaInvalidateAllocations(m_allocator, allocations.size(), allocations.data(), nullptr, nullptr);
+    }
 }

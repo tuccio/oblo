@@ -20,7 +20,9 @@ namespace oblo::vk
         ~command_buffer_pool();
 
         bool init(
-            VkDevice device, u32 queueFamilyIndex, bool resetCommandBuffers, u32 buffersPerFrame, u32 frameBufferCount);
+            VkDevice device, u32 queueFamilyIndex, bool resetCommandBuffers, u32 buffersPerFrame, u32 framesInFlight);
+
+        void shutdown();
 
         void begin_frame(u64 frameIndex);
 

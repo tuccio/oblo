@@ -3,6 +3,8 @@
 #include <oblo/core/types.hpp>
 #include <vulkan/vulkan.h>
 
+#include <span>
+
 VK_DEFINE_HANDLE(VmaAllocator)
 VK_DEFINE_HANDLE(VmaAllocation)
 
@@ -50,6 +52,8 @@ namespace oblo::vk
         void unmap(VmaAllocation allocation);
 
         VkDevice get_device() const;
+
+        VkResult invalidate_mapped_memory_ranges(std::span<const VmaAllocation> allocations);
 
     private:
         VmaAllocator m_allocator{nullptr};

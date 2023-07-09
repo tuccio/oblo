@@ -86,7 +86,7 @@ namespace oblo
 
     constexpr vec3 operator*(const vec3& lhs, f32 rhs) noexcept
     {
-        return lhs * vec3{rhs, rhs, rhs};
+        return lhs* vec3{rhs, rhs, rhs};
     }
 
     constexpr vec3 operator*(f32 lhs, const vec3& rhs) noexcept
@@ -125,13 +125,13 @@ namespace oblo
     }
 
     template <>
-    constexpr vec3 min<vec3>(const vec3& lhs, const vec3& rhs) noexcept
+    constexpr vec3 min<vec3>(const vec3 lhs, const vec3 rhs) noexcept
     {
         return {min(lhs.x, rhs.x), min(lhs.y, rhs.y), min(lhs.z, rhs.z)};
     }
 
     template <>
-    constexpr vec3 max<vec3>(const vec3& lhs, const vec3& rhs) noexcept
+    constexpr vec3 max<vec3>(const vec3 lhs, const vec3 rhs) noexcept
     {
         return {max(lhs.x, rhs.x), max(lhs.y, rhs.y), max(lhs.z, rhs.z)};
     }

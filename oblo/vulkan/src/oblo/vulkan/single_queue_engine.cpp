@@ -122,6 +122,15 @@ namespace oblo::vk
         return true;
     }
 
+    void single_queue_engine::shutdown()
+    {
+        if (m_device)
+        {
+            vkDestroyDevice(m_device, nullptr);
+            m_device = nullptr;
+        }
+    }
+
     VkPhysicalDevice single_queue_engine::get_physical_device() const
     {
         return m_physicalDevice;

@@ -24,6 +24,8 @@ namespace oblo::vk
                   const void* deviceCreateInfoChain,
                   const VkPhysicalDeviceFeatures* physicalDeviceFeatures);
 
+        void shutdown();
+
         VkPhysicalDevice get_physical_device() const;
         VkDevice get_device() const;
         VkQueue get_queue() const;

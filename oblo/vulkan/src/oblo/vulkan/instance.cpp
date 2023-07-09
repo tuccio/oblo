@@ -27,7 +27,8 @@ namespace oblo::vk
     bool instance::init(const VkApplicationInfo& app,
                         std::span<const char* const> enabledLayers,
                         std::span<const char* const> enabledExtensions,
-                        PFN_vkDebugUtilsMessengerCallbackEXT debugCallback)
+                        PFN_vkDebugUtilsMessengerCallbackEXT debugCallback,
+                        void* debugCallbackUserdata)
 
     {
         OBLO_ASSERT(!m_instance);
@@ -52,6 +53,7 @@ namespace oblo::vk
                                                    VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
                                                    VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
             debugMessengerCreateInfo.pfnUserCallback = debugCallback;
+            debugMessengerCreateInfo.pUserData = debugCallbackUserdata;
         }
 
         const VkInstanceCreateInfo instanceInfo{
@@ -65,6 +67,15 @@ namespace oblo::vk
         };
 
         return vkCreateInstance(&instanceInfo, nullptr, &m_instance) == VK_SUCCESS;
+    }
+
+    void instance::shutdown()
+    {
+        if (m_instance)
+        {
+            vkDestroyInstance(m_instance, nullptr);
+            m_instance = nullptr;
+        }
     }
 
     VkInstance instance::get() const

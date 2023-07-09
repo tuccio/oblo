@@ -20,7 +20,10 @@ namespace oblo::vk
         bool init(const VkApplicationInfo& app,
                   std::span<const char* const> enabledLayers,
                   std::span<const char* const> enabledExtensions,
-                  PFN_vkDebugUtilsMessengerCallbackEXT debugCallback = nullptr);
+                  PFN_vkDebugUtilsMessengerCallbackEXT debugCallback = nullptr,
+                  void* debugCallbackUserdata = nullptr);
+
+        void shutdown();
 
         VkInstance get() const;
 
