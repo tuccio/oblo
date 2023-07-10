@@ -5,20 +5,21 @@
 namespace oblo
 {
     template <typename T>
-    class final_act : public T
+    class final_act
     {
     public:
         template <typename U>
-        explicit final_act(U&& u) : T{std::forward<U>(u)}
+        explicit final_act(U&& u) : m_finally{std::forward<U>(u)}
         {
         }
 
         ~final_act()
         {
-            T::operator()();
+            m_finally();
         }
 
-        using T::operator();
+    private:
+        T m_finally;
     };
 
     template <typename T>
