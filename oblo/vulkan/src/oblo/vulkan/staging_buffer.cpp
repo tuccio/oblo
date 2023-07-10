@@ -169,12 +169,13 @@ namespace oblo::vk
         {
             if (segment.begin != segment.end)
             {
+                const auto dstOffset = regionsCount == 0 ? bufferOffset : bufferOffset + copyRegions[0].size;
                 const auto segmentSize = segment.end - segment.begin;
-                std::memcpy(m_impl.memoryMap + segment.begin, srcPtr, segmentSize);
+                std::memcpy(m_impl.memoryMap + segment.begin, srcPtr + dstOffset, segmentSize);
 
                 copyRegions[regionsCount] = {
                     .srcOffset = segment.begin,
-                    .dstOffset = regionsCount == 0 ? bufferOffset : bufferOffset + copyRegions[0].size,
+                    .dstOffset = dstOffset,
                     .size = segmentSize,
                 };
 
@@ -194,7 +195,6 @@ namespace oblo::vk
 
     void staging_buffer::flush()
     {
-        poll_submissions();
 
         if (m_impl.pendingUploadBytes == 0)
         {
@@ -233,9 +233,11 @@ namespace oblo::vk
             currentSubmit.timelineId = m_impl.nextTimelineId;
             currentSubmit.size = m_impl.pendingUploadBytes;
 
-            ++m_impl.nextTimelineId;
             m_impl.pendingUploadBytes = 0;
         }
+
+        poll_submissions();
+        ++m_impl.nextTimelineId;
 
         {
             const auto nextSubmitIndex = get_next_submit_index();

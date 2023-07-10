@@ -291,6 +291,43 @@ namespace oblo::vk
 
             ASSERT_EQ(readbackBuffer(mappings[2]), data);
             ASSERT_EQ(readbackBuffer(mappings[3]), data);
+
+            stagingBuffer.wait_for_free_space(stagingBufferSize);
+
+            std::array<i32, data_array{}.size() / 2> halfSizeData;
+            std::fill(std::begin(halfSizeData), std::end(halfSizeData), 42);
+
+            const auto newDataSpan = std::as_bytes(std::span{halfSizeData});
+
+            data_array newExpected = data;
+            std::copy(halfSizeData.begin(), halfSizeData.end(), newExpected.begin());
+
+            ASSERT_TRUE(stagingBuffer.upload(newDataSpan, buffers[0].buffer, 0));
+            ASSERT_TRUE(stagingBuffer.upload(newDataSpan, buffers[1].buffer, 0));
+            ASSERT_TRUE(stagingBuffer.upload(newDataSpan, buffers[2].buffer, 0));
+
+            stagingBuffer.flush();
+            vkQueueWaitIdle(sandbox.engine.get_queue());
+
+            ASSERT_VK_SUCCESS(allocator.invalidate_mapped_memory_ranges(allocations));
+
+            ASSERT_EQ(newExpected, readbackBuffer(mappings[0]));
+            ASSERT_EQ(newExpected, readbackBuffer(mappings[1]));
+            ASSERT_EQ(newExpected, readbackBuffer(mappings[2]));
+            ASSERT_NE(newExpected, readbackBuffer(mappings[3]));
+
+            ASSERT_FALSE(stagingBuffer.upload(std::as_bytes(std::span{newExpected}), buffers[3].buffer, 0));
+
+            stagingBuffer.wait_for_free_space(bufferSize);
+
+            ASSERT_TRUE(stagingBuffer.upload(std::as_bytes(std::span{newExpected}), buffers[3].buffer, 0));
+
+            stagingBuffer.flush();
+            vkQueueWaitIdle(sandbox.engine.get_queue());
+
+            ASSERT_VK_SUCCESS(allocator.invalidate_mapped_memory_ranges(allocations));
+
+            ASSERT_EQ(newExpected, readbackBuffer(mappings[3]));
         }
 
         const auto errorsString = validationErrors.str();
