@@ -1,8 +1,9 @@
 #include <oblo/vulkan/shader_compiler.hpp>
 
+#include <oblo/core/finally.hpp>
+
 #include <glslang/SPIRV/GlslangToSpv.h>
 
-#include <memory>
 #include <mutex>
 #include <string_view>
 
@@ -212,23 +213,23 @@ namespace oblo::vk
                                                                         const std::filesystem::path& sourceFile,
                                                                         VkShaderStageFlagBits stage)
     {
-        FILE* filePtr;
+        FILE* file;
 
-        if (fopen_s(&filePtr, sourceFile.string().c_str(), "rb") != 0)
+        if (fopen_s(&file, sourceFile.string().c_str(), "rb") != 0)
         {
             return nullptr;
         }
 
-        std::unique_ptr<FILE, decltype([](FILE* f) { fclose(f); })> file{filePtr};
+        const auto closeFile = finally([file] { fclose(file); });
 
-        if (fseek(file.get(), 0, SEEK_END) != 0)
+        if (fseek(file, 0, SEEK_END) != 0)
         {
             return nullptr;
         }
 
-        const auto fileSize = std::size_t(ftell(file.get()));
+        const auto fileSize = std::size_t(ftell(file));
 
-        if (fseek(file.get(), 0, SEEK_SET) != 0)
+        if (fseek(file, 0, SEEK_SET) != 0)
         {
             return nullptr;
         }
@@ -236,7 +237,7 @@ namespace oblo::vk
         m_codeBuffer.clear();
         m_codeBuffer.resize(fileSize);
 
-        if (const auto readSize = fread(m_codeBuffer.data(), 1, fileSize, file.get()); readSize != fileSize)
+        if (const auto readSize = fread(m_codeBuffer.data(), 1, fileSize, file); readSize != fileSize)
         {
             return nullptr;
         }
@@ -253,10 +254,11 @@ namespace oblo::vk
             return nullptr;
         }
 
-        const VkShaderModuleCreateInfo shaderModuleCreateInfo{.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-                                                              .codeSize =
-                                                                  m_spirvBuffer.size() * sizeof(m_spirvBuffer[0]),
-                                                              .pCode = m_spirvBuffer.data()};
+        const VkShaderModuleCreateInfo shaderModuleCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+            .codeSize = m_spirvBuffer.size() * sizeof(m_spirvBuffer[0]),
+            .pCode = m_spirvBuffer.data(),
+        };
 
         VkShaderModule shaderModule;
 
