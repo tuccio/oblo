@@ -4,9 +4,15 @@
 #include <oblo/core/types.hpp>
 #include <vulkan/vulkan.h>
 
+namespace oblo
+{
+    class frame_allocator;
+}
+
 namespace oblo::vk
 {
     class allocator;
+    class render_pass_manager;
     class resource_manager;
     class single_queue_engine;
     class stateful_command_buffer;
@@ -16,7 +22,9 @@ namespace oblo::vk
     {
         single_queue_engine* engine;
         allocator* allocator;
+        frame_allocator* frameAllocator;
         resource_manager* resourceManager;
+        render_pass_manager* renderPassManager;
         VkFormat swapchainFormat;
         u32 width;
         u32 height;
@@ -26,6 +34,7 @@ namespace oblo::vk
     {
         single_queue_engine* engine;
         allocator* allocator;
+        frame_allocator* frameAllocator;
         resource_manager* resourceManager;
     };
 
@@ -33,7 +42,9 @@ namespace oblo::vk
     {
         single_queue_engine* engine;
         allocator* allocator;
+        frame_allocator* frameAllocator;
         resource_manager* resourceManager;
+        render_pass_manager* renderPassManager;
         stateful_command_buffer* commandBuffer;
         handle<texture> swapchainTexture;
         u32 width;

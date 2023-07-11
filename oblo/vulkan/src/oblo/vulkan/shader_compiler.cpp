@@ -1,5 +1,7 @@
 #include <oblo/vulkan/shader_compiler.hpp>
 
+#include <oblo/core/debug.hpp>
+#include <oblo/core/file_utility.hpp>
 #include <oblo/core/finally.hpp>
 
 #include <glslang/SPIRV/GlslangToSpv.h>
@@ -7,7 +9,7 @@
 #include <mutex>
 #include <string_view>
 
-namespace oblo::vk
+namespace oblo::vk::shader_compiler
 {
     namespace
     {
@@ -143,17 +145,7 @@ namespace oblo::vk
         int s_counter{0};
     }
 
-    bool glsl_initialize()
-    {
-        return glslang::InitializeProcess();
-    }
-
-    void glsl_finalize()
-    {
-        glslang::FinalizeProcess();
-    }
-
-    shader_compiler::shader_compiler()
+    void init()
     {
         std::scoped_lock lock{s_initMutex};
 
@@ -163,7 +155,7 @@ namespace oblo::vk
         }
     }
 
-    shader_compiler::~shader_compiler()
+    void shutdown()
     {
         std::scoped_lock lock{s_initMutex};
 
@@ -173,91 +165,55 @@ namespace oblo::vk
         }
     }
 
-    namespace
+    bool compile_glsl_to_spirv(std::string_view sourceCode,
+                               VkShaderStageFlagBits stage,
+                               std::vector<unsigned>& outSpirv)
     {
-        bool compile(std::string_view sourceCode, VkShaderStageFlagBits stage, std::vector<unsigned>& outSpirv)
+        const auto language = find_language(stage);
+        glslang::TShader shader{language};
+        glslang::TProgram program;
+
+        const EShMessages messages = static_cast<EShMessages>(EShMsgSpvRules | EShMsgVulkanRules);
+
+        const char* const sources[] = {sourceCode.data()};
+        const int sourceLengths[] = {int(sourceCode.size())};
+        shader.setStringsWithLengths(sources, sourceLengths, 1);
+
+        if (constexpr auto resources = get_resources(); !shader.parse(&resources, 100, false, messages))
         {
-            const auto language = find_language(stage);
-            glslang::TShader shader{language};
-            glslang::TProgram program;
-
-            const EShMessages messages = static_cast<EShMessages>(EShMsgSpvRules | EShMsgVulkanRules);
-
-            const char* const sources[] = {sourceCode.data()};
-            const int sourceLengths[] = {int(sourceCode.size())};
-            shader.setStringsWithLengths(sources, sourceLengths, 1);
-
-            if (constexpr auto resources = get_resources(); !shader.parse(&resources, 100, false, messages))
-            {
-                std::fputs(shader.getInfoLog(), stderr);
-                std::fputs(shader.getInfoDebugLog(), stderr);
-                return false;
-            }
-
-            program.addShader(&shader);
-
-            if (!program.link(messages))
-            {
-                std::fputs(program.getInfoLog(), stderr);
-                std::fputs(program.getInfoDebugLog(), stderr);
-                return false;
-            }
-
-            outSpirv.clear();
-            glslang::GlslangToSpv(*program.getIntermediate(language), outSpirv);
-            return true;
+            const auto* infoLog = shader.getInfoLog();
+            const auto* infoDebugLog = shader.getInfoDebugLog();
+            std::fputs(infoLog, stderr);
+            std::fputs(infoDebugLog, stderr);
+            return false;
         }
+
+        program.addShader(&shader);
+
+        if (!program.link(messages))
+        {
+            const auto* infoLog = shader.getInfoLog();
+            const auto* infoDebugLog = shader.getInfoDebugLog();
+            std::fputs(infoLog, stderr);
+            std::fputs(infoDebugLog, stderr);
+            return false;
+        }
+
+        const auto builtReflection = program.buildReflection(EShReflectionDefault);
+        OBLO_ASSERT(builtReflection);
+
+        outSpirv.clear();
+        glslang::GlslangToSpv(*program.getIntermediate(language), outSpirv);
+
+        return true;
     }
 
-    VkShaderModule shader_compiler::create_shader_module_from_glsl_file(VkDevice device,
-                                                                        const std::filesystem::path& sourceFile,
-                                                                        VkShaderStageFlagBits stage)
+    VkShaderModule create_shader_module_from_spirv(VkDevice device, std::span<const unsigned> spirv)
     {
-        FILE* file;
-
-        if (fopen_s(&file, sourceFile.string().c_str(), "rb") != 0)
-        {
-            return nullptr;
-        }
-
-        const auto closeFile = finally([file] { fclose(file); });
-
-        if (fseek(file, 0, SEEK_END) != 0)
-        {
-            return nullptr;
-        }
-
-        const auto fileSize = std::size_t(ftell(file));
-
-        if (fseek(file, 0, SEEK_SET) != 0)
-        {
-            return nullptr;
-        }
-
-        m_codeBuffer.clear();
-        m_codeBuffer.resize(fileSize);
-
-        if (const auto readSize = fread(m_codeBuffer.data(), 1, fileSize, file); readSize != fileSize)
-        {
-            return nullptr;
-        }
-
-        return create_shader_module_from_glsl_source(device, m_codeBuffer, stage);
-    }
-
-    VkShaderModule shader_compiler::create_shader_module_from_glsl_source(VkDevice device,
-                                                                          std::string_view sourceCode,
-                                                                          VkShaderStageFlagBits stage)
-    {
-        if (!compile(sourceCode, stage, m_spirvBuffer))
-        {
-            return nullptr;
-        }
-
         const VkShaderModuleCreateInfo shaderModuleCreateInfo{
             .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-            .codeSize = m_spirvBuffer.size() * sizeof(m_spirvBuffer[0]),
-            .pCode = m_spirvBuffer.data(),
+            .codeSize = spirv.size() * sizeof(spirv[0]),
+            .pCode = spirv.data(),
         };
 
         VkShaderModule shaderModule;
@@ -268,5 +224,21 @@ namespace oblo::vk
         }
 
         return shaderModule;
+    }
+
+    VkShaderModule create_shader_module_from_glsl_file(frame_allocator& allocator,
+                                                       VkDevice device,
+                                                       VkShaderStageFlagBits stage,
+                                                       std::string_view filePath)
+    {
+        std::vector<unsigned> spirv;
+        const auto sourceSpan = load_text_file_into_memory(allocator, filePath);
+
+        if (!shader_compiler::compile_glsl_to_spirv({sourceSpan.data(), sourceSpan.size()}, stage, spirv))
+        {
+            return VK_NULL_HANDLE;
+        }
+
+        return shader_compiler::create_shader_module_from_spirv(device, spirv);
     }
 }

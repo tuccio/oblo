@@ -4,6 +4,11 @@
 #include <oblo/core/handle.hpp>
 #include <oblo/vulkan/shader_compiler.hpp>
 
+namespace oblo
+{
+    class frame_allocator;
+}
+
 namespace oblo::vk
 {
     struct render_pass;
@@ -26,7 +31,8 @@ namespace oblo::vk
 
         handle<render_pass> register_render_pass(const render_pass_initializer& desc);
 
-        handle<render_pipeline> get_or_create_pipeline(handle<render_pass> handle,
+        handle<render_pipeline> get_or_create_pipeline(frame_allocator& allocator,
+                                                       handle<render_pass> handle,
                                                        const render_pipeline_initializer& desc);
 
         void bind(VkCommandBuffer commandBuffer, handle<render_pipeline> handle);
@@ -37,6 +43,5 @@ namespace oblo::vk
         u32 m_lastRenderPipelineId{};
         flat_dense_map<handle<render_pass>, render_pass> m_renderPasses;
         flat_dense_map<handle<render_pipeline>, render_pipeline> m_renderPipelines;
-        shader_compiler m_compiler;
     };
 }

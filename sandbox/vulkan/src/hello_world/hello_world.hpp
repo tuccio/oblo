@@ -2,6 +2,11 @@
 
 #include <oblo/vulkan/allocator.hpp>
 
+namespace oblo
+{
+    class frame_allocator;
+}
+
 namespace oblo::vk
 {
     struct sandbox_init_context;
@@ -18,7 +23,7 @@ namespace oblo::vk
         void update_imgui(const sandbox_update_imgui_context& context);
 
     private:
-        bool create_shader_modules(VkDevice device);
+        bool create_shader_modules(frame_allocator& allocator, VkDevice device);
         bool create_graphics_pipeline(VkDevice device, const VkFormat swapchainFormat);
         bool create_vertex_buffers(allocator& allocator);
 

@@ -52,11 +52,23 @@ namespace oblo::vk
             vkDestroySurfaceKHR(m_instance.get(), m_surface, nullptr);
         }
 
+        m_renderPassManager.shutdown();
+
+        for (auto& pool : m_pools)
+        {
+            pool.shutdown();
+        }
+
+        m_allocator.shutdown();
+        m_engine.shutdown();
+
         if (m_window)
         {
             SDL_DestroyWindow(m_window);
             m_window = nullptr;
         }
+
+        m_frameAllocator.shutdown();
     }
 
     bool sandbox_base::init(std::span<const char* const> instanceExtensions,
@@ -65,6 +77,8 @@ namespace oblo::vk
                             void* deviceFeaturesList,
                             const VkPhysicalDeviceFeatures* physicalDeviceFeatures)
     {
+        m_frameAllocator.init(1u << 30, 1u << 24, 1u);
+
         load_config();
 
         if (!create_window() ||
@@ -77,6 +91,8 @@ namespace oblo::vk
         {
             return false;
         }
+
+        m_renderPassManager.init(m_engine.get_device());
 
         int width, height;
         SDL_Vulkan_GetDrawableSize(m_window, &width, &height);
