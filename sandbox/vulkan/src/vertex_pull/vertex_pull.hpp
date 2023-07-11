@@ -7,6 +7,11 @@
 #include <span>
 #include <vector>
 
+namespace oblo
+{
+    class frame_allocator;
+}
+
 namespace oblo::vk
 {
     struct sandbox_init_context;
@@ -35,7 +40,7 @@ namespace oblo::vk
         };
 
     private:
-        bool compile_shader_modules(VkDevice device);
+        bool compile_shader_modules(frame_allocator& allocator, VkDevice device);
 
         bool create_pools(VkDevice device);
         bool create_descriptor_set_layouts(VkDevice device);

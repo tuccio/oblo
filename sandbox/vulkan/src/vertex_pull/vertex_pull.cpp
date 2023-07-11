@@ -13,6 +13,8 @@
 
 #include <imgui.h>
 
+#include <chrono>
+
 namespace oblo::vk
 {
     namespace
@@ -54,8 +56,9 @@ namespace oblo::vk
 
         const VkDevice device = context.engine->get_device();
 
-        return compile_shader_modules(device) && create_pools(device) && create_descriptor_set_layouts(device) &&
-               create_pipelines(device, context.swapchainFormat) && create_buffers(device, *context.allocator);
+        return compile_shader_modules(*context.frameAllocator, device) && create_pools(device) &&
+               create_descriptor_set_layouts(device) && create_pipelines(device, context.swapchainFormat) &&
+               create_buffers(device, *context.allocator);
     }
 
     void vertex_pull::shutdown(const sandbox_shutdown_context& context)
@@ -500,27 +503,32 @@ namespace oblo::vk
         }
     }
 
-    bool vertex_pull::compile_shader_modules(VkDevice device)
+    bool vertex_pull::compile_shader_modules(frame_allocator& allocator, VkDevice device)
     {
-        shader_compiler compiler;
+        const shader_compiler::scope compiler{};
 
         m_shaderVertexBuffersVert =
-            compiler.create_shader_module_from_glsl_file(device,
-                                                         "./shaders/vertex_pull/vertex_buffers.vert",
-                                                         VK_SHADER_STAGE_VERTEX_BIT);
+            shader_compiler::create_shader_module_from_glsl_file(allocator,
+                                                                 device,
+                                                                 VK_SHADER_STAGE_VERTEX_BIT,
+                                                                 "./shaders/vertex_pull/vertex_buffers.vert");
 
-        m_shaderVertexPullVert = compiler.create_shader_module_from_glsl_file(device,
-                                                                              "./shaders/vertex_pull/vertex_pull.vert",
-                                                                              VK_SHADER_STAGE_VERTEX_BIT);
+        m_shaderVertexPullVert =
+            shader_compiler::create_shader_module_from_glsl_file(allocator,
+                                                                 device,
+                                                                 VK_SHADER_STAGE_VERTEX_BIT,
+                                                                 "./shaders/vertex_pull/vertex_pull.vert");
 
         m_shaderVertexPullMergeVert =
-            compiler.create_shader_module_from_glsl_file(device,
-                                                         "./shaders/vertex_pull/vertex_pull_merge.vert",
-                                                         VK_SHADER_STAGE_VERTEX_BIT);
+            shader_compiler::create_shader_module_from_glsl_file(allocator,
+                                                                 device,
+                                                                 VK_SHADER_STAGE_VERTEX_BIT,
+                                                                 "./shaders/vertex_pull/vertex_pull_merge.vert");
 
-        m_shaderSharedFrag = compiler.create_shader_module_from_glsl_file(device,
-                                                                          "./shaders/vertex_pull/shared.frag",
-                                                                          VK_SHADER_STAGE_FRAGMENT_BIT);
+        m_shaderSharedFrag = shader_compiler::create_shader_module_from_glsl_file(allocator,
+                                                                                  device,
+                                                                                  VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                                                  "./shaders/vertex_pull/shared.frag");
 
         return m_shaderVertexBuffersVert && m_shaderSharedFrag && m_shaderVertexPullMergeVert;
     }

@@ -1,6 +1,7 @@
 #include <oblo/vulkan/render_pass_manager.hpp>
 
 #include <oblo/core/array_size.hpp>
+#include <oblo/core/file_utility.hpp>
 #include <oblo/vulkan/render_pass_initializer.hpp>
 
 namespace oblo::vk
@@ -74,13 +75,24 @@ namespace oblo::vk
     void render_pass_manager::init(VkDevice device)
     {
         m_device = device;
+
+        if (device)
+        {
+            shader_compiler::init();
+        }
     }
 
     void render_pass_manager::shutdown()
     {
-        for (const auto& renderPipeline : m_renderPipelines.values())
+        if (m_device)
         {
-            destroy_pipeline(m_device, renderPipeline);
+            for (const auto& renderPipeline : m_renderPipelines.values())
+            {
+                destroy_pipeline(m_device, renderPipeline);
+            }
+
+            shader_compiler::shutdown();
+            m_device = nullptr;
         }
     }
 
@@ -107,7 +119,8 @@ namespace oblo::vk
         return handle;
     }
 
-    handle<render_pipeline> render_pass_manager::get_or_create_pipeline(handle<render_pass> renderPassHandle,
+    handle<render_pipeline> render_pass_manager::get_or_create_pipeline(frame_allocator& allocator,
+                                                                        handle<render_pass> renderPassHandle,
                                                                         const render_pipeline_initializer& desc)
     {
         auto* const renderPass = m_renderPasses.try_find(renderPassHandle);
@@ -145,15 +158,20 @@ namespace oblo::vk
         VkPipelineShaderStageCreateInfo stageCreateInfo[MaxPipelineStages]{};
         u32 actualStagesCount{0};
 
+        std::vector<unsigned> spirv;
+        spirv.reserve(4096);
+
         for (u8 stageIndex = 0; stageIndex < renderPass->stagesCount; ++stageIndex)
         {
             const auto pipelineStage = renderPass->stages[stageIndex];
             const auto vkStage = to_vulkan_stage_bits(pipelineStage);
 
-            const auto shaderModule =
-                m_compiler.create_shader_module_from_glsl_file(m_device,
-                                                               renderPass->shaderSourcePath[stageIndex],
-                                                               vkStage);
+            const auto sourceCode = load_text_file_into_memory(allocator, renderPass->shaderSourcePath[stageIndex]);
+
+            spirv.clear();
+            shader_compiler::compile_glsl_to_spirv({sourceCode.data(), sourceCode.size()}, vkStage, spirv);
+
+            const auto shaderModule = shader_compiler::create_shader_module_from_spirv(m_device, spirv);
 
             if (!shaderModule)
             {

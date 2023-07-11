@@ -2,11 +2,13 @@
 
 #include <concepts>
 
+#include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/allocator.hpp>
 #include <oblo/vulkan/command_buffer_pool.hpp>
 #include <oblo/vulkan/instance.hpp>
+#include <oblo/vulkan/render_pass_manager.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
 #include <oblo/vulkan/stateful_command_buffer.hpp>
@@ -76,6 +78,8 @@ namespace oblo::vk
         static constexpr u32 SwapchainImages{2u};
         static constexpr VkFormat SwapchainFormat{VK_FORMAT_B8G8R8A8_UNORM};
 
+        frame_allocator m_frameAllocator;
+
         SDL_Window* m_window;
         VkSurfaceKHR m_surface{nullptr};
 
@@ -84,6 +88,7 @@ namespace oblo::vk
         allocator m_allocator;
 
         resource_manager m_resourceManager;
+        render_pass_manager m_renderPassManager;
 
         command_buffer_pool m_pools[SwapchainImages];
         swapchain<SwapchainImages> m_swapchain;
@@ -171,6 +176,8 @@ namespace oblo::vk
             const sandbox_init_context context{
                 .engine = &m_engine,
                 .allocator = &m_allocator,
+                .frameAllocator = &m_frameAllocator,
+                .renderPassManager = &m_renderPassManager,
                 .swapchainFormat = SwapchainFormat,
             };
 
@@ -225,7 +232,9 @@ namespace oblo::vk
                 const sandbox_render_context context{
                     .engine = &m_engine,
                     .allocator = &m_allocator,
+                    .frameAllocator = &m_frameAllocator,
                     .resourceManager = &m_resourceManager,
+                    .renderPassManager = &m_renderPassManager,
                     .commandBuffer = &statefulCommandBuffer,
                     .swapchainTexture = swapchainTexture,
                     .width = m_renderWidth,
@@ -258,7 +267,12 @@ namespace oblo::vk
         {
             wait_idle();
 
-            const sandbox_shutdown_context context{.engine = &m_engine, .allocator = &m_allocator};
+            const sandbox_shutdown_context context{
+                .engine = &m_engine,
+                .allocator = &m_allocator,
+                .frameAllocator = &m_frameAllocator,
+            };
+
             TApp::shutdown(context);
             sandbox_base::shutdown();
         }

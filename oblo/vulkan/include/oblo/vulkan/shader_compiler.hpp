@@ -1,33 +1,51 @@
 #pragma once
 
-#include <filesystem>
+#include <span>
 #include <string_view>
 #include <vector>
 
 #include <vulkan/vulkan.h>
 
-namespace oblo::vk
+namespace oblo
 {
-    class shader_compiler
+    class frame_allocator;
+}
+
+namespace oblo::vk::shader_compiler
+{
+    class scope;
+
+    void init();
+    void shutdown();
+
+    bool compile_glsl_to_spirv(std::string_view sourceCode,
+                               VkShaderStageFlagBits stage,
+                               std::vector<unsigned>& outSpirv);
+
+    VkShaderModule create_shader_module_from_spirv(VkDevice device, std::span<const unsigned> spirv);
+
+    VkShaderModule create_shader_module_from_glsl_file(frame_allocator& allocator,
+                                                       VkDevice device,
+                                                       VkShaderStageFlagBits stage,
+                                                       std::string_view filePath);
+
+    class scope
     {
     public:
-        shader_compiler();
-        shader_compiler(const shader_compiler&) = delete;
-        shader_compiler(shader_compiler&&) noexcept = default;
-        shader_compiler& operator=(const shader_compiler&) = delete;
-        shader_compiler& operator=(shader_compiler&&) noexcept = default;
-        ~shader_compiler();
+        scope()
+        {
+            init();
+        }
 
-        VkShaderModule create_shader_module_from_glsl_file(VkDevice device,
-                                                           const std::filesystem::path& sourceFile,
-                                                           VkShaderStageFlagBits stage);
+        scope(const scope&) = delete;
+        scope(scope&&) noexcept = delete;
 
-        VkShaderModule create_shader_module_from_glsl_source(VkDevice device,
-                                                             std::string_view sourceCode,
-                                                             VkShaderStageFlagBits stage);
+        scope& operator=(const scope&) = delete;
+        scope& operator=(scope&&) noexcept = delete;
 
-    private:
-        std::string m_codeBuffer;
-        std::vector<unsigned> m_spirvBuffer;
+        ~scope()
+        {
+            shutdown();
+        }
     };
 }

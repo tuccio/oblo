@@ -86,6 +86,11 @@ namespace oblo::vk
                 break;
             }
 
+            case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL: {
+                sourceStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+                break;
+            }
+
             default:
                 break;
             }
@@ -112,6 +117,11 @@ namespace oblo::vk
 
             case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR: {
                 destinationStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+                break;
+            }
+
+            case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL: {
+                destinationStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
                 break;
             }
 

@@ -17,8 +17,8 @@ namespace oblo::vk
     bool hello_world::init(const sandbox_init_context& context)
     {
         const auto device = context.engine->get_device();
-        return create_shader_modules(device) && create_graphics_pipeline(device, context.swapchainFormat) &&
-               create_vertex_buffers(*context.allocator);
+        return create_shader_modules(*context.frameAllocator, device) &&
+               create_graphics_pipeline(device, context.swapchainFormat) && create_vertex_buffers(*context.allocator);
     }
 
     void hello_world::shutdown(const sandbox_shutdown_context& context)
@@ -108,17 +108,21 @@ namespace oblo::vk
         vkCmdEndRendering(context.commandBuffer->get());
     }
 
-    bool hello_world::create_shader_modules(VkDevice device)
+    bool hello_world::create_shader_modules(frame_allocator& allocator, VkDevice device)
     {
-        shader_compiler compiler;
+        const shader_compiler::scope compiler{};
 
-        m_vertShaderModule = compiler.create_shader_module_from_glsl_file(device,
-                                                                          "./shaders/hello_world/hello_world.vert",
-                                                                          VK_SHADER_STAGE_VERTEX_BIT);
+        m_vertShaderModule =
+            shader_compiler::create_shader_module_from_glsl_file(allocator,
+                                                                 device,
+                                                                 VK_SHADER_STAGE_VERTEX_BIT,
+                                                                 "./shaders/hello_world/hello_world.vert");
 
-        m_fragShaderModule = compiler.create_shader_module_from_glsl_file(device,
-                                                                          "./shaders/hello_world/hello_world.frag",
-                                                                          VK_SHADER_STAGE_FRAGMENT_BIT);
+        m_fragShaderModule =
+            shader_compiler::create_shader_module_from_glsl_file(allocator,
+                                                                 device,
+                                                                 VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                                 "./shaders/hello_world/hello_world.frag");
 
         return m_vertShaderModule && m_fragShaderModule;
     }
