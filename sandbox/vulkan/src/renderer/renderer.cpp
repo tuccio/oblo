@@ -4,6 +4,7 @@
 #include <oblo/vulkan/texture.hpp>
 #include <renderer/nodes/blit_image_node.hpp>
 #include <renderer/nodes/deferred.hpp>
+#include <renderer/nodes/forward.hpp>
 #include <renderer/renderer_context.hpp>
 #include <sandbox/context.hpp>
 
@@ -15,6 +16,7 @@ namespace oblo::vk
 
     bool renderer::init(const sandbox_init_context& context)
     {
+#if 0
         const auto ec = render_graph_builder<renderer_context>{}
                             .add_node<deferred_gbuffer_node>()
                             .add_node<deferred_lighting_node>()
@@ -26,6 +28,13 @@ namespace oblo::vk
                             .connect(&deferred_gbuffer_node::test, &blit_image_node::source)
                             .connect_input<handle<texture>>("final_render_target", &blit_image_node::destination)
                             .build(m_graph, m_executor);
+#else
+        const auto ec = render_graph_builder<renderer_context>{}
+                            .add_node<forward_node>()
+                            .add_input<handle<texture>>("final_render_target")
+                            .connect_input<handle<texture>>("final_render_target", &forward_node::renderTarget)
+                            .build(m_graph, m_executor);
+#endif
 
         if (ec)
         {
