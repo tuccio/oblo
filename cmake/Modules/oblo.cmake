@@ -1,6 +1,5 @@
-include(oblo_conan)
-
 option(OBLO_ENABLE_ASSERT "Enables internal asserts" OFF)
+option(OBLO_DISABLE_COMPILER_OPTIMIZATIONS "Disables compiler optimizations" OFF)
 
 define_property(GLOBAL PROPERTY oblo_3rdparty_targets BRIEF_DOCS "3rd party targets" FULL_DOCS "List of 3rd party targets")
 
@@ -105,7 +104,7 @@ function(oblo_add_library name)
     if(DEFINED _oblo_test_src)
         set(_test_target "oblo_test_${name}")
         add_executable(${_test_target} ${_oblo_test_src})
-        target_link_libraries(${_test_target} PRIVATE ${_target} 3rdparty::gtest)
+        target_link_libraries(${_test_target} PRIVATE ${_target} GTest::gtest)
 
         add_executable("oblo::test::${name}" ALIAS ${_test_target})
     endif()

@@ -1,0 +1,93 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 23,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "conf-common",
+            "description": "General settings that apply to all configurations",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/.build/${presetName}",
+            "installDir": "${sourceDir}/.install/${presetName}",
+            "cacheVariables": {
+                "CMAKE_PROJECT_TOP_LEVEL_INCLUDES": "${sourceDir}/cmake/Modules/conan_provider.cmake"
+            }
+        },
+        {
+            "name": "conf-windows-common",
+            "description": "Windows settings for MSBuild toolchain that apply to msvc and clang",
+            "hidden": true,
+            "inherits": "conf-common",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            },
+            "architecture": {
+                "value": "x64",
+                "strategy": "external"
+            },
+            "toolset": {
+                "value": "host=x64",
+                "strategy": "external"
+            }
+        },
+        {
+            "name": "conf-windows-clang-cl",
+            "description": "Windows settings for clang-cl",
+            "hidden": true,
+            "inherits": "conf-windows-common",
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "clang-cl",
+                "CMAKE_CXX_COMPILER": "clang-cl",
+                "CONAN_FORCE_DEFAULT_COMPILER": true
+            }
+        },
+        {
+            "name": "windows-clang-cl-unoptimized",
+            "displayName": "Windows clang-cl Unoptimized",
+            "description": "Windows clang-cl Unoptimized",
+            "inherits": "conf-windows-clang-cl",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "OBLO_DISABLE_COMPILER_OPTIMIZATIONS": true,
+                "OBLO_ENABLE_ASSERT": true
+            }
+        },
+        {
+            "name": "windows-clang-cl-optimized",
+            "displayName": "Windows clang-cl Optimized",
+            "description": "Windows clang-cl Optimized",
+            "inherits": "conf-windows-clang-cl",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "OBLO_ENABLE_ASSERT": false
+            }
+        },
+        {
+            "name": "windows-clang-cl-optimized-debug-info",
+            "displayName": "Windows clang-cl Optimized with Debug Info",
+            "description": "Windows clang-cl Optimized with Debug Info",
+            "inherits": "conf-windows-clang-cl",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "OBLO_DISABLE_COMPILER_OPTIMIZATIONS": false,
+                "OBLO_ENABLE_ASSERT": false
+            }
+        },
+        {
+            "name": "windows-clang-cl-debug",
+            "displayName": "Windows clang-cl Debug",
+            "description": "Windows clang-cl Debug",
+            "inherits": "conf-windows-clang-cl",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "OBLO_ENABLE_ASSERT": true
+            }
+        }
+    ]
+}

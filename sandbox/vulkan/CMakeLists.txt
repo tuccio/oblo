@@ -6,9 +6,10 @@ target_link_libraries(
     oblo::core
     oblo::vk
     oblo::render_graph
-    3rdparty::sdl
     3rdparty::imgui_sdl_vk
-    3rdparty::nlohmann_json
+    SDL2::SDL2
+    SDL2::SDL2main
+    nlohmann_json::nlohmann_json
 )
 
 install(CODE "execute_process( \
