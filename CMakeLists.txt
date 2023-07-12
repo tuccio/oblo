@@ -10,22 +10,19 @@ set(CMAKE_CXX_STANDARD 20)
 
 include(oblo)
 
+find_package(assimp REQUIRED)
+find_package(cxxopts REQUIRED)
+find_package(cereal REQUIRED)
+find_package(nlohmann_json REQUIRED)
+find_package(glew REQUIRED)
+find_package(glslang REQUIRED)
+find_package(GTest REQUIRED)
+find_package(SDL2 REQUIRED)
+find_package(Vulkan REQUIRED)
+find_package(VulkanHeaders REQUIRED)
+find_package(vulkan-memory-allocator REQUIRED)
+
 oblo_init_compiler_settings()
-
-# Conan packages
-oblo_conan_package(gtest/1.10.0)
-oblo_conan_package(glew/2.1.0)
-oblo_conan_package(assimp/5.0.1)
-oblo_conan_package(cxxopts/2.2.1)
-oblo_conan_package(cereal/1.3.0)
-oblo_conan_package(sdl/2.0.20)
-oblo_conan_package(vulkan-headers/1.3.211.0)
-oblo_conan_package(vulkan-loader/1.3.211.0)
-oblo_conan_package(vulkan-memory-allocator/3.0.0)
-oblo_conan_package(glslang/1.3.211.0)
-oblo_conan_package(nlohmann_json/3.10.5)
-
-oblo_conan_setup()
 
 # Setup 3rd parties built from source
 add_subdirectory(3rdparty)

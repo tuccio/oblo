@@ -199,9 +199,6 @@ namespace oblo::vk::shader_compiler
             return false;
         }
 
-        const auto builtReflection = program.buildReflection(EShReflectionDefault);
-        OBLO_ASSERT(builtReflection);
-
         outSpirv.clear();
         glslang::GlslangToSpv(*program.getIntermediate(language), outSpirv);
 

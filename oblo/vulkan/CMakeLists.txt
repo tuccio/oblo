@@ -4,16 +4,17 @@ target_link_libraries(
     oblo_vk
     PUBLIC
     oblo::core
-    3rdparty::vulkan-headers
+    Vulkan::Headers
     PRIVATE
-    3rdparty::vulkan-loader
-    3rdparty::vulkan-memory-allocator
-    3rdparty::glslang
+    Vulkan::Vulkan
+    vulkan-memory-allocator::vulkan-memory-allocator
+    glslang::glslang
+    glslang::SPIRV
 )
 
 target_link_libraries(
     oblo_test_vk
     PRIVATE
-    3rdparty::sdl
+    SDL2::SDL2
     3rdparty::imgui_sdl_vk
 )

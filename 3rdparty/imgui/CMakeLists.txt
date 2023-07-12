@@ -11,8 +11,9 @@ target_include_directories(imgui_sdl_vk PUBLIC imgui/backends)
 target_link_libraries(
     imgui_sdl_vk
     imgui
-    3rdparty::vulkan-loader
-    3rdparty::sdl
+    Vulkan::Headers
+    Vulkan::Vulkan
+    SDL2::SDL2
 )
 
 # SDL + OpenGL3
@@ -23,5 +24,5 @@ target_include_directories(imgui_sdl_gl3 PUBLIC imgui/backends)
 target_link_libraries(
     imgui_sdl_gl3
     imgui
-    3rdparty::sdl
+    SDL2::SDL2
 )
