@@ -104,7 +104,7 @@ function(oblo_add_library name)
     if(DEFINED _oblo_test_src)
         set(_test_target "oblo_test_${name}")
         add_executable(${_test_target} ${_oblo_test_src})
-        target_link_libraries(${_test_target} PRIVATE ${_target} GTest::gtest)
+        target_link_libraries(${_test_target} PRIVATE ${_target} GTest::gtest GTest::gtest_main)
 
         add_executable("oblo::test::${name}" ALIAS ${_test_target})
     endif()
