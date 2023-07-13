@@ -61,7 +61,7 @@ namespace oblo::vk
         const auto buffersSize = m_columns * (sizeof(m_buffers[0]));
         const auto namesSize = m_columns * (sizeof(m_names[0]));
 
-        u8* const heapBuffer = static_cast<u8*>(malloc(bufferToIndexMapSize + buffersSize + namesSize));
+        auto* const heapBuffer = new std::byte[bufferToIndexMapSize + buffersSize + namesSize];
 
         m_stringToBufferIndexMap = reinterpret_cast<i32*>(heapBuffer);
 
@@ -139,7 +139,7 @@ namespace oblo::vk
                 }
             }
 
-            free(m_stringToBufferIndexMap);
+            delete[] reinterpret_cast<std::byte*>(m_stringToBufferIndexMap);
 
             m_stringToBufferIndexMap = nullptr;
             m_buffers = nullptr;
