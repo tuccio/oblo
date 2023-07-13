@@ -11,6 +11,7 @@
 namespace oblo::vk
 {
     class command_buffer_state;
+    struct buffer;
     struct texture;
 
     class resource_manager
@@ -26,19 +27,31 @@ namespace oblo::vk
         handle<texture> register_texture(const texture& texture, VkImageLayout currentLayout);
         void unregister_texture(handle<texture> handle);
 
+        handle<buffer> register_buffer(const buffer& buffer);
+        void unregister_buffer(handle<buffer> handle);
+
         const texture* try_find(handle<texture> handle) const;
         texture* try_find(handle<texture> handle);
+
+        const buffer* try_find(handle<buffer> handle) const;
+        buffer* try_find(handle<buffer> handle);
 
         const texture& get(handle<texture> handle) const;
         texture& get(handle<texture> handle);
 
+        const buffer& get(handle<buffer> handle) const;
+        buffer& get(handle<buffer> handle);
+
         bool commit(command_buffer_state& commandBufferState, VkCommandBuffer preparationBuffer);
 
     private:
+        struct stored_buffer;
         struct stored_texture;
 
     private:
+        u32 m_lastBufferId{};
         u32 m_lastTextureId{};
+        flat_dense_map<handle<buffer>, stored_buffer> m_buffers;
         flat_dense_map<handle<texture>, stored_texture> m_textures;
     };
 

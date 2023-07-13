@@ -2,6 +2,7 @@
 
 #include <oblo/core/debug.hpp>
 #include <oblo/core/unreachable.hpp>
+#include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/stateful_command_buffer.hpp>
 #include <oblo/vulkan/texture.hpp>
 
@@ -139,6 +140,11 @@ namespace oblo::vk
         VkImageLayout layout;
     };
 
+    struct resource_manager::stored_buffer
+    {
+        buffer data;
+    };
+
     resource_manager::resource_manager() = default;
 
     resource_manager::~resource_manager() = default;
@@ -157,6 +163,20 @@ namespace oblo::vk
         OBLO_ASSERT(n == 1);
     }
 
+    handle<buffer> resource_manager::register_buffer(const buffer& data)
+    {
+        const handle<buffer> handle{++m_lastBufferId};
+        [[maybe_unused]] const auto [it, ok] = m_buffers.emplace(handle, data);
+        OBLO_ASSERT(ok);
+        return handle;
+    }
+
+    void resource_manager::unregister_buffer(handle<buffer> handle)
+    {
+        [[maybe_unused]] const auto n = m_buffers.erase(handle);
+        OBLO_ASSERT(n == 1);
+    }
+
     const texture* resource_manager::try_find(handle<texture> handle) const
     {
         auto* const storage = m_textures.try_find(handle);
@@ -169,6 +189,18 @@ namespace oblo::vk
         return storage ? &storage->data : nullptr;
     }
 
+    const buffer* resource_manager::try_find(handle<buffer> handle) const
+    {
+        auto* const storage = m_buffers.try_find(handle);
+        return storage ? &storage->data : nullptr;
+    }
+
+    buffer* resource_manager::try_find(handle<buffer> handle)
+    {
+        auto* const storage = m_buffers.try_find(handle);
+        return storage ? &storage->data : nullptr;
+    }
+
     const texture& resource_manager::get(handle<texture> handle) const
     {
         auto* ptr = try_find(handle);
@@ -177,6 +209,20 @@ namespace oblo::vk
     }
 
     texture& resource_manager::get(handle<texture> handle)
+    {
+        auto* ptr = try_find(handle);
+        OBLO_ASSERT(ptr);
+        return *ptr;
+    }
+
+    const buffer& resource_manager::get(handle<buffer> handle) const
+    {
+        auto* ptr = try_find(handle);
+        OBLO_ASSERT(ptr);
+        return *ptr;
+    }
+
+    buffer& resource_manager::get(handle<buffer> handle)
     {
         auto* ptr = try_find(handle);
         OBLO_ASSERT(ptr);
