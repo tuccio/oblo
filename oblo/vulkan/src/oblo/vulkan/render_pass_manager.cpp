@@ -15,6 +15,8 @@ namespace oblo::vk
 {
     namespace
     {
+        constexpr bool WithShaderCodeOptimizations{false};
+
         constexpr u8 MaxPipelineStages = u8(pipeline_stages::enum_max);
 
         constexpr VkShaderStageFlagBits to_vulkan_stage_bits(pipeline_stages stage)
@@ -243,6 +245,8 @@ namespace oblo::vk
         VkVertexInputAttributeDescription* vertexInputAttributeDescs;
         u32 vertexInputsCount{0u};
 
+        constexpr shader_compiler::options compilerOptions{.codeOptimization = WithShaderCodeOptimizations};
+
         for (u8 stageIndex = 0; stageIndex < renderPass->stagesCount; ++stageIndex)
         {
             const auto pipelineStage = renderPass->stages[stageIndex];
@@ -254,7 +258,11 @@ namespace oblo::vk
             spirv.clear();
 
             const std::string_view debugName{makeDebugName(*renderPass, filePath)};
-            shader_compiler::compile_glsl_to_spirv(debugName, {sourceCode.data(), sourceCode.size()}, vkStage, spirv);
+            shader_compiler::compile_glsl_to_spirv(debugName,
+                                                   {sourceCode.data(), sourceCode.size()},
+                                                   vkStage,
+                                                   spirv,
+                                                   compilerOptions);
 
             const auto shaderModule = shader_compiler::create_shader_module_from_spirv(m_device, spirv);
 
