@@ -4,12 +4,10 @@
 
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/handle.hpp>
-#include <oblo/core/string_interner.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/allocator.hpp>
 #include <oblo/vulkan/command_buffer_pool.hpp>
 #include <oblo/vulkan/instance.hpp>
-#include <oblo/vulkan/render_pass_manager.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
 #include <oblo/vulkan/stateful_command_buffer.hpp>
@@ -89,9 +87,6 @@ namespace oblo::vk
         allocator m_allocator;
 
         resource_manager m_resourceManager;
-
-        string_interner m_rendererStringInterner;
-        render_pass_manager m_renderPassManager;
 
         command_buffer_pool m_pools[SwapchainImages];
         swapchain<SwapchainImages> m_swapchain;
@@ -180,7 +175,6 @@ namespace oblo::vk
                 .engine = &m_engine,
                 .allocator = &m_allocator,
                 .frameAllocator = &m_frameAllocator,
-                .renderPassManager = &m_renderPassManager,
                 .swapchainFormat = SwapchainFormat,
             };
 
@@ -237,7 +231,6 @@ namespace oblo::vk
                     .allocator = &m_allocator,
                     .frameAllocator = &m_frameAllocator,
                     .resourceManager = &m_resourceManager,
-                    .renderPassManager = &m_renderPassManager,
                     .commandBuffer = &statefulCommandBuffer,
                     .swapchainTexture = swapchainTexture,
                     .width = m_renderWidth,

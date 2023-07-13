@@ -16,6 +16,9 @@ namespace oblo::vk
 
     bool renderer::init(const sandbox_init_context& context)
     {
+        m_stringInterner.init(64);
+        m_renderPassManager.init(context.engine->get_device(), m_stringInterner);
+
 #if 0
         const auto ec = render_graph_builder<renderer_context>{}
                             .add_node<deferred_gbuffer_node>()
@@ -41,7 +44,10 @@ namespace oblo::vk
             return false;
         }
 
-        m_state = {};
+        m_state = {
+            .stringInterner = &m_stringInterner,
+            .renderPassManager = &m_renderPassManager,
+        };
 
         renderer_context rendererContext{.initContext = &context, .state = m_state};
         return m_executor.initialize(&rendererContext);
@@ -51,6 +57,8 @@ namespace oblo::vk
     {
         renderer_context rendererContext{.shutdownContext = &context, .state = m_state};
         m_executor.shutdown(&rendererContext);
+
+        m_renderPassManager.shutdown();
     }
 
     void renderer::update(const sandbox_render_context& context)

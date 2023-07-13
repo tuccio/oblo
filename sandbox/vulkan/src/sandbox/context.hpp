@@ -24,7 +24,6 @@ namespace oblo::vk
         allocator* allocator;
         frame_allocator* frameAllocator;
         resource_manager* resourceManager;
-        render_pass_manager* renderPassManager;
         VkFormat swapchainFormat;
         u32 width;
         u32 height;
@@ -44,7 +43,6 @@ namespace oblo::vk
         allocator* allocator;
         frame_allocator* frameAllocator;
         resource_manager* resourceManager;
-        render_pass_manager* renderPassManager;
         stateful_command_buffer* commandBuffer;
         h32<texture> swapchainTexture;
         u32 width;

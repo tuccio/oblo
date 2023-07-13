@@ -1,7 +1,9 @@
 #pragma once
 
+#include <oblo/core/string_interner.hpp>
 #include <oblo/render_graph/render_graph.hpp>
 #include <oblo/render_graph/render_graph_seq_executor.hpp>
+#include <oblo/vulkan/render_pass_manager.hpp>
 #include <renderer/renderer_context.hpp>
 
 namespace oblo::vk
@@ -23,6 +25,9 @@ namespace oblo::vk
         struct state;
 
     private:
+        string_interner m_stringInterner;
+        render_pass_manager m_renderPassManager;
+
         render_graph m_graph;
         render_graph_seq_executor m_executor;
         renderer_state m_state;
