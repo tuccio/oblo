@@ -79,6 +79,11 @@ namespace oblo::vk
                     .renderTargets = {.colorAttachmentFormats = {texture.initializer.format}},
                 });
 
+            if (!pipeline)
+            {
+                return;
+            }
+
             const VkRenderingAttachmentInfo colorAttachmentInfo{
                 .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
                 .imageView = texture.view,
