@@ -32,7 +32,7 @@ namespace oblo
 
             for (i32 i = 0; i < N; ++i)
             {
-                usedSegmentsFull.firstSegmentEnd[i] = i;
+                usedSegmentsFull.firstSegmentBegin[i] = i;
             }
 
             ASSERT_FALSE(buffer.has_available(1));

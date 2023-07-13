@@ -6,13 +6,16 @@
 
 namespace oblo
 {
+    // Stack tests may fail in debug, e.g. due to Microsoft STL allocating for iterator debugging
     TEST(stack_allocator, stack)
     {
         constexpr u32 N{1024};
 
         for (u32 i = 1; i < N; ++i)
         {
-            const stack_allocator<sizeof(u32) * N, alignof(u32)> stack;
+            constexpr auto stackSize = sizeof(u32) * N;
+
+            const stack_allocator<stackSize, alignof(u32)> stack;
             std::pmr::vector<u32> vec{stack};
             vec.reserve(N);
 
