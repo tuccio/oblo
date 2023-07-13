@@ -46,7 +46,7 @@ namespace oblo::vk
         resource_manager* resourceManager;
         render_pass_manager* renderPassManager;
         stateful_command_buffer* commandBuffer;
-        handle<texture> swapchainTexture;
+        h32<texture> swapchainTexture;
         u32 width;
         u32 height;
         u64 frameIndex;

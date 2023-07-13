@@ -6,33 +6,36 @@
 
 namespace oblo
 {
-    template <typename Tag>
+    template <typename Tag, typename Value>
     struct handle
     {
         constexpr explicit operator bool() const noexcept
         {
-            return value != 0;
+            return value != Value{};
         }
 
         constexpr auto operator<=>(const handle&) const = default;
 
-        u32 value;
+        Value value;
     };
 
     template <typename T>
     struct flat_key_extractor;
 
-    template <typename Tag>
-    struct flat_key_extractor<handle<Tag>>
+    template <typename Tag, typename Value>
+    struct flat_key_extractor<handle<Tag, Value>>
     {
-        static constexpr u32 extract_key(const handle<Tag> h) noexcept
+        static constexpr Value extract_key(const handle<Tag, Value> h) noexcept
         {
             return h.value;
         }
 
-        static consteval u32 invalid_key() noexcept
+        static consteval Value invalid_key() noexcept
         {
             return u32{};
         }
     };
+
+    template <typename Tag>
+    using h32 = handle<Tag, u32>;
 }

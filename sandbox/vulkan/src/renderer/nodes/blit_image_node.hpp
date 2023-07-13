@@ -11,8 +11,8 @@ namespace oblo::vk
 {
     struct blit_image_node
     {
-        render_node_in<handle<texture>, "source"> source;
-        render_node_in<handle<texture>, "destination"> destination;
+        render_node_in<h32<texture>, "source"> source;
+        render_node_in<h32<texture>, "destination"> destination;
 
         void execute(renderer_context* rendererContext)
         {

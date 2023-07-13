@@ -32,20 +32,20 @@ namespace oblo::vk
         void init(VkDevice device, string_interner& interner);
         void shutdown();
 
-        handle<render_pass> register_render_pass(const render_pass_initializer& desc);
+        h32<render_pass> register_render_pass(const render_pass_initializer& desc);
 
-        handle<render_pipeline> get_or_create_pipeline(frame_allocator& allocator,
-                                                       handle<render_pass> handle,
+        h32<render_pipeline> get_or_create_pipeline(frame_allocator& allocator,
+                                                       h32<render_pass> handle,
                                                        const render_pipeline_initializer& desc);
 
-        void bind(VkCommandBuffer commandBuffer, handle<render_pipeline> handle);
+        void bind(VkCommandBuffer commandBuffer, h32<render_pipeline> handle);
 
     private:
         VkDevice m_device{};
         u32 m_lastRenderPassId{};
         u32 m_lastRenderPipelineId{};
-        flat_dense_map<handle<render_pass>, render_pass> m_renderPasses;
-        flat_dense_map<handle<render_pipeline>, render_pipeline> m_renderPipelines;
+        flat_dense_map<h32<render_pass>, render_pass> m_renderPasses;
+        flat_dense_map<h32<render_pipeline>, render_pipeline> m_renderPipelines;
         string_interner* m_interner{nullptr};
     };
 }

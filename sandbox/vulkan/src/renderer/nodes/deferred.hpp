@@ -23,7 +23,7 @@ namespace oblo::vk
         render_node_in<allocated_buffer, "camera"> camera;
         // render_node_out<gbuffer, "gbuffer"> gbuffer;
         // render_node_out<render_target, "depth"> depth;
-        render_node_out<handle<texture>, "test"> test;
+        render_node_out<h32<texture>, "test"> test;
 
         void execute(renderer_context* rendererContext)
         {
@@ -88,7 +88,7 @@ namespace oblo::vk
         // render_node_in<gbuffer, "gbuffer"> gbuffer;
         // render_node_out<allocated_image, "lit"> lit;
 
-        render_node_in<handle<texture>, "test"> test;
+        render_node_in<h32<texture>, "test"> test;
 
         void execute(renderer_context* /*rendererContext*/)
         {
