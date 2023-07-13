@@ -57,7 +57,7 @@ namespace oblo
 
         const auto stringsCount = stringsCountDist(rng);
 
-        std::unordered_map<std::string, handle<string>> strings;
+        std::unordered_map<std::string, h32<string>> strings;
         strings.reserve(stringsCount);
 
         char buf[string_interner::MaxStringLength];
@@ -72,7 +72,7 @@ namespace oblo
             }
 
             buf[length] = '\0';
-            const auto [it, inserted] = strings.emplace(buf, handle<string>{});
+            const auto [it, inserted] = strings.emplace(buf, h32<string>{});
 
             if (inserted)
             {

@@ -18,10 +18,10 @@ namespace oblo::vk
 {
     struct forward_node
     {
-        // render_node_in<handle<buffer>, "camera_buffer"> cameraBuffer;
-        render_node_in<handle<texture>, "render_target"> renderTarget;
+        // render_node_in<h32<buffer>, "camera_buffer"> cameraBuffer;
+        render_node_in<h32<texture>, "render_target"> renderTarget;
 
-        handle<render_pass> forwardPass;
+        h32<render_pass> forwardPass;
 
         bool initialize(renderer_context* rendererContext)
         {

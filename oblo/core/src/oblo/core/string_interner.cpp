@@ -58,7 +58,7 @@ namespace oblo
         }
     }
 
-    handle<string> string_interner::get_or_add(std::string_view str)
+    h32<string> string_interner::get_or_add(std::string_view str)
     {
         OBLO_ASSERT(str.size() <= MaxStringLength);
         auto& sparse = m_impl->sparse;
@@ -105,20 +105,20 @@ namespace oblo
         }
     }
 
-    handle<string> string_interner::get(std::string_view str) const
+    h32<string> string_interner::get(std::string_view str) const
     {
         auto& sparse = m_impl->sparse;
         const auto it = sparse.find(str);
         return {it == sparse.end() ? 0u : it->second};
     }
 
-    std::string_view string_interner::str(handle<string> handle) const
+    std::string_view string_interner::str(h32<string> handle) const
     {
         OBLO_ASSERT(handle && handle.value < m_impl->strings.size());
         return m_impl->strings[handle.value];
     }
 
-    const char* string_interner::c_str(handle<string> handle) const
+    const char* string_interner::c_str(h32<string> handle) const
     {
         OBLO_ASSERT(handle && handle.value < m_impl->strings.size());
         return m_impl->strings[handle.value].data();

@@ -149,80 +149,80 @@ namespace oblo::vk
 
     resource_manager::~resource_manager() = default;
 
-    handle<texture> resource_manager::register_texture(const texture& data, VkImageLayout currentLayout)
+    h32<texture> resource_manager::register_texture(const texture& data, VkImageLayout currentLayout)
     {
-        const handle<texture> handle{++m_lastTextureId};
+        const h32<texture> handle{++m_lastTextureId};
         [[maybe_unused]] const auto [it, ok] = m_textures.emplace(handle, data, currentLayout);
         OBLO_ASSERT(ok);
         return handle;
     }
 
-    void resource_manager::unregister_texture(handle<texture> handle)
+    void resource_manager::unregister_texture(h32<texture> handle)
     {
         [[maybe_unused]] const auto n = m_textures.erase(handle);
         OBLO_ASSERT(n == 1);
     }
 
-    handle<buffer> resource_manager::register_buffer(const buffer& data)
+    h32<buffer> resource_manager::register_buffer(const buffer& data)
     {
-        const handle<buffer> handle{++m_lastBufferId};
+        const h32<buffer> handle{++m_lastBufferId};
         [[maybe_unused]] const auto [it, ok] = m_buffers.emplace(handle, data);
         OBLO_ASSERT(ok);
         return handle;
     }
 
-    void resource_manager::unregister_buffer(handle<buffer> handle)
+    void resource_manager::unregister_buffer(h32<buffer> handle)
     {
         [[maybe_unused]] const auto n = m_buffers.erase(handle);
         OBLO_ASSERT(n == 1);
     }
 
-    const texture* resource_manager::try_find(handle<texture> handle) const
+    const texture* resource_manager::try_find(h32<texture> handle) const
     {
         auto* const storage = m_textures.try_find(handle);
         return storage ? &storage->data : nullptr;
     }
 
-    texture* resource_manager::try_find(handle<texture> handle)
+    texture* resource_manager::try_find(h32<texture> handle)
     {
         auto* const storage = m_textures.try_find(handle);
         return storage ? &storage->data : nullptr;
     }
 
-    const buffer* resource_manager::try_find(handle<buffer> handle) const
+    const buffer* resource_manager::try_find(h32<buffer> handle) const
     {
         auto* const storage = m_buffers.try_find(handle);
         return storage ? &storage->data : nullptr;
     }
 
-    buffer* resource_manager::try_find(handle<buffer> handle)
+    buffer* resource_manager::try_find(h32<buffer> handle)
     {
         auto* const storage = m_buffers.try_find(handle);
         return storage ? &storage->data : nullptr;
     }
 
-    const texture& resource_manager::get(handle<texture> handle) const
+    const texture& resource_manager::get(h32<texture> handle) const
     {
         auto* ptr = try_find(handle);
         OBLO_ASSERT(ptr);
         return *ptr;
     }
 
-    texture& resource_manager::get(handle<texture> handle)
+    texture& resource_manager::get(h32<texture> handle)
     {
         auto* ptr = try_find(handle);
         OBLO_ASSERT(ptr);
         return *ptr;
     }
 
-    const buffer& resource_manager::get(handle<buffer> handle) const
+    const buffer& resource_manager::get(h32<buffer> handle) const
     {
         auto* ptr = try_find(handle);
         OBLO_ASSERT(ptr);
         return *ptr;
     }
 
-    buffer& resource_manager::get(handle<buffer> handle)
+    buffer& resource_manager::get(h32<buffer> handle)
     {
         auto* ptr = try_find(handle);
         OBLO_ASSERT(ptr);
@@ -273,13 +273,13 @@ namespace oblo::vk
         return anyTransition;
     }
 
-    void command_buffer_state::set_starting_layout(handle<texture> texture, VkImageLayout currentLayout)
+    void command_buffer_state::set_starting_layout(h32<texture> texture, VkImageLayout currentLayout)
     {
         m_transitions.emplace(texture, currentLayout);
     }
 
     void command_buffer_state::add_pipeline_barrier(const resource_manager& resourceManager,
-                                                    handle<texture> handle,
+                                                    h32<texture> handle,
                                                     VkCommandBuffer commandBuffer,
                                                     VkImageLayout newLayout)
     {

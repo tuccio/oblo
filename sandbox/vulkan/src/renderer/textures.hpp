@@ -5,7 +5,7 @@
 namespace oblo::vk
 {
     template <typename Context>
-    void try_destroy_texture(const Context& context, handle<texture> handle)
+    void try_destroy_texture(const Context& context, h32<texture> handle)
     {
         if (handle)
         {

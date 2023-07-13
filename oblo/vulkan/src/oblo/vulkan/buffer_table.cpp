@@ -35,7 +35,7 @@ namespace oblo::vk
             return;
         }
 
-        handle<string> min{~0u}, max{0u};
+        h32<string> min{~0u}, max{0u};
 
         for (const auto& column : columns)
         {
@@ -65,8 +65,8 @@ namespace oblo::vk
 
         m_stringToBufferIndexMap = reinterpret_cast<i32*>(heapBuffer);
 
-        m_buffers = reinterpret_cast<handle<buffer>*>(heapBuffer + bufferToIndexMapSize);
-        m_names = reinterpret_cast<handle<string>*>(heapBuffer + bufferToIndexMapSize + buffersSize);
+        m_buffers = reinterpret_cast<h32<buffer>*>(heapBuffer + bufferToIndexMapSize);
+        m_names = reinterpret_cast<h32<string>*>(heapBuffer + bufferToIndexMapSize + buffersSize);
 
         std::uninitialized_fill(m_stringToBufferIndexMap, m_stringToBufferIndexMap + range, Invalid);
         std::uninitialized_value_construct_n(m_buffers, m_columns);
@@ -74,7 +74,7 @@ namespace oblo::vk
         for (u32 j = 0; j < m_columns; ++j)
         {
             const auto name = columns[j].name;
-            new (m_names + j) handle<string>{name};
+            new (m_names + j) h32<string>{name};
         }
 
         m_rows = rows;
@@ -111,8 +111,8 @@ namespace oblo::vk
                   end,
                   [](const auto& lhs, const auto& rhs)
                   {
-                      const handle<string> lhsName = std::get<0>(lhs);
-                      const handle<string> rhsName = std::get<0>(rhs);
+                      const h32<string> lhsName = std::get<0>(lhs);
+                      const h32<string> rhsName = std::get<0>(rhs);
                       return lhsName < rhsName;
                   });
 
@@ -149,17 +149,17 @@ namespace oblo::vk
         }
     }
 
-    std::span<const handle<string>> buffer_table::names() const
+    std::span<const h32<string>> buffer_table::names() const
     {
         return {m_names, m_columns};
     }
 
-    std::span<const handle<buffer>> buffer_table::buffers() const
+    std::span<const h32<buffer>> buffer_table::buffers() const
     {
         return {m_buffers, m_columns};
     }
 
-    i32 buffer_table::try_find(handle<string> name) const
+    i32 buffer_table::try_find(h32<string> name) const
     {
         if (name.value < m_stringRangeMin || name.value > m_stringRangeMax)
         {

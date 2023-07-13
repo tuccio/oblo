@@ -95,7 +95,7 @@ namespace oblo::vk
 
         command_buffer_pool m_pools[SwapchainImages];
         swapchain<SwapchainImages> m_swapchain;
-        handle<texture> m_swapchainTextures[SwapchainImages]{};
+        h32<texture> m_swapchainTextures[SwapchainImages]{};
 
         u32 m_renderWidth;
         u32 m_renderHeight;
@@ -230,7 +230,7 @@ namespace oblo::vk
 
                 stateful_command_buffer statefulCommandBuffer{mainCommandBuffer};
 
-                const handle<texture> swapchainTexture = m_swapchainTextures[imageIndex];
+                const h32<texture> swapchainTexture = m_swapchainTextures[imageIndex];
 
                 const sandbox_render_context context{
                     .engine = &m_engine,

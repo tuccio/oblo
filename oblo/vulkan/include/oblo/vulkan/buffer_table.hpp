@@ -40,15 +40,15 @@ namespace oblo::vk
 
         void shutdown(allocator& allocator, resource_manager& resourceManager);
 
-        std::span<const handle<string>> names() const;
-        std::span<const handle<buffer>> buffers() const;
+        std::span<const h32<string>> names() const;
+        std::span<const h32<buffer>> buffers() const;
 
-        i32 try_find(handle<string> name) const;
+        i32 try_find(h32<string> name) const;
 
     private:
         i32* m_stringToBufferIndexMap{nullptr};
-        handle<buffer>* m_buffers{nullptr};
-        handle<string>* m_names{nullptr};
+        h32<buffer>* m_buffers{nullptr};
+        h32<string>* m_names{nullptr};
         u32 m_rows{0u};
         u32 m_columns{0u};
         u32 m_stringRangeMin{0u};
@@ -57,7 +57,7 @@ namespace oblo::vk
 
     struct buffer_table::column_description
     {
-        handle<string> name;
+        h32<string> name;
         u32 elementSize;
     };
 }

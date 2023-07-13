@@ -31,7 +31,7 @@ namespace oblo::vk
         struct render_pass_variant
         {
             u64 hash;
-            handle<render_pipeline> pipeline;
+            h32<render_pipeline> pipeline;
         };
 
         enum resource_kind : u8
@@ -43,7 +43,7 @@ namespace oblo::vk
 
         struct shader_resource
         {
-            handle<string> name;
+            h32<string> name;
             u32 location;
             u32 binding;
             resource_kind kind;
@@ -87,7 +87,7 @@ namespace oblo::vk
 
     struct render_pass
     {
-        handle<string> name;
+        h32<string> name;
         std::filesystem::path shaderSourcePath[MaxPipelineStages];
         pipeline_stages stages[MaxPipelineStages];
 
@@ -162,9 +162,9 @@ namespace oblo::vk
         }
     }
 
-    handle<render_pass> render_pass_manager::register_render_pass(const render_pass_initializer& desc)
+    h32<render_pass> render_pass_manager::register_render_pass(const render_pass_initializer& desc)
     {
-        const handle<render_pass> handle{++m_lastRenderPassId};
+        const h32<render_pass> handle{++m_lastRenderPassId};
 
         const auto [it, ok] = m_renderPasses.emplace(handle);
         OBLO_ASSERT(ok);
@@ -185,8 +185,8 @@ namespace oblo::vk
         return handle;
     }
 
-    handle<render_pipeline> render_pass_manager::get_or_create_pipeline(frame_allocator& allocator,
-                                                                        handle<render_pass> renderPassHandle,
+    h32<render_pipeline> render_pass_manager::get_or_create_pipeline(frame_allocator& allocator,
+                                                                        h32<render_pass> renderPassHandle,
                                                                         const render_pipeline_initializer& desc)
     {
         auto* const renderPass = m_renderPasses.try_find(renderPassHandle);
@@ -210,7 +210,7 @@ namespace oblo::vk
 
         const auto restore = allocator.make_scoped_restore();
 
-        const handle<render_pipeline> pipelineHandle{m_lastRenderPipelineId + 1};
+        const h32<render_pipeline> pipelineHandle{m_lastRenderPipelineId + 1};
 
         const auto [pipelineIt, ok] = m_renderPipelines.emplace(pipelineHandle);
         OBLO_ASSERT(ok);
@@ -222,7 +222,7 @@ namespace oblo::vk
             m_renderPipelines.erase(pipelineHandle);
             // We push an invalid handle so we avoid trying to rebuild a failed pipeline every frame
             renderPass->variants.emplace_back().hash = expectedHash;
-            return handle<render_pipeline>{};
+            return h32<render_pipeline>{};
         };
 
         VkPipelineShaderStageCreateInfo stageCreateInfo[MaxPipelineStages]{};
@@ -466,7 +466,7 @@ namespace oblo::vk
         return failure();
     }
 
-    void render_pass_manager::bind(VkCommandBuffer commandBuffer, handle<render_pipeline> handle)
+    void render_pass_manager::bind(VkCommandBuffer commandBuffer, h32<render_pipeline> handle)
     {
         const auto* pipeline = m_renderPipelines.try_find(handle);
         OBLO_ASSERT(pipeline);

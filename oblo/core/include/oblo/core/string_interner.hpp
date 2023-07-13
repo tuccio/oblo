@@ -24,11 +24,11 @@ namespace oblo
         void init(u32 estimatedStringsCount);
         void shutdown();
 
-        handle<string> get_or_add(std::string_view str);
-        handle<string> get(std::string_view str) const;
+        h32<string> get_or_add(std::string_view str);
+        h32<string> get(std::string_view str) const;
 
-        std::string_view str(handle<string> handle) const;
-        const char* c_str(handle<string> handle) const;
+        std::string_view str(h32<string> handle) const;
+        const char* c_str(h32<string> handle) const;
 
     private:
         struct impl;
