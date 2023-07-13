@@ -1,2 +1,2 @@
-add_subdirectory(raytracing)
+add_subdirectory(cpu_raytracer)
 add_subdirectory(vulkan)
