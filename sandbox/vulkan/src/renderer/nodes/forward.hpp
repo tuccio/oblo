@@ -25,8 +25,7 @@ namespace oblo::vk
 
         bool initialize(renderer_context* rendererContext)
         {
-            const auto& context = *rendererContext->initContext;
-            auto& renderPassManager = *context.renderPassManager;
+            auto& renderPassManager = *rendererContext->state.renderPassManager;
 
             forwardPass =
                 renderPassManager.register_render_pass({.name = "forward",
@@ -47,7 +46,7 @@ namespace oblo::vk
         void execute(renderer_context* rendererContext)
         {
             const auto& context = *rendererContext->renderContext;
-            auto& renderPassManager = *context.renderPassManager;
+            auto& renderPassManager = *rendererContext->state.renderPassManager;
 
             auto& commandBuffer = *context.commandBuffer;
 

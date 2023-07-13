@@ -2,15 +2,25 @@
 
 #include <oblo/core/types.hpp>
 
+namespace oblo
+{
+    class stringInterner;
+}
+
 namespace oblo::vk
 {
+    class render_pass_manager;
+
     struct sandbox_render_context;
     struct sandbox_init_context;
     struct sandbox_shutdown_context;
 
     struct renderer_state
     {
-        u32 lastFrameWidth, lastFrameHeight;
+        u32 lastFrameWidth;
+        u32 lastFrameHeight;
+        string_interner* stringInterner;
+        render_pass_manager* renderPassManager;
     };
 
     struct renderer_context
