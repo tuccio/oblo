@@ -1,8 +1,15 @@
 #include <oblo/vulkan/render_pass_manager.hpp>
 
+#include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/file_utility.hpp>
+#include <oblo/core/frame_allocator.hpp>
+#include <oblo/core/log.hpp>
+#include <oblo/core/string_interner.hpp>
+#include <oblo/core/unreachable.hpp>
 #include <oblo/vulkan/render_pass_initializer.hpp>
+
+#include <spirv_cross/spirv_cross.hpp>
 
 namespace oblo::vk
 {
@@ -24,13 +31,64 @@ namespace oblo::vk
             u64 hash;
             handle<render_pipeline> pipeline;
         };
+
+        enum resource_kind : u8
+        {
+            vertex_stage_input,
+            uniform_buffer,
+            storage_buffer,
+        };
+
+        struct shader_resource
+        {
+            handle<string> name;
+            u32 location;
+            u32 binding;
+            resource_kind kind;
+        };
+
+        constexpr u32 combine_type_vecsize(spirv_cross::SPIRType::BaseType type, u32 vecsize)
+        {
+            return (u32(type) << 2) | vecsize;
+        }
+
+        VkFormat get_type_format(const spirv_cross::SPIRType& type)
+        {
+            // Not really dealing with matrices here
+            OBLO_ASSERT(type.columns == 1);
+
+            switch (combine_type_vecsize(type.basetype, type.vecsize))
+            {
+            case combine_type_vecsize(spirv_cross::SPIRType::Float, 1):
+                return VK_FORMAT_R32_SFLOAT;
+
+            case combine_type_vecsize(spirv_cross::SPIRType::Float, 2):
+                return VK_FORMAT_R32G32_SFLOAT;
+
+            case combine_type_vecsize(spirv_cross::SPIRType::Float, 3):
+                return VK_FORMAT_R32G32B32_SFLOAT;
+
+            case combine_type_vecsize(spirv_cross::SPIRType::Float, 4):
+                return VK_FORMAT_R32G32B32A32_SFLOAT;
+
+            default:
+                OBLO_ASSERT(false);
+                return VK_FORMAT_UNDEFINED;
+            }
+        }
+
+        u32 get_type_byte_size(const spirv_cross::SPIRType& type)
+        {
+            return type.columns * type.vecsize * type.width / 8;
+        }
     }
 
     struct render_pass
     {
-        std::string name;
+        handle<string> name;
         std::filesystem::path shaderSourcePath[MaxPipelineStages];
         pipeline_stages stages[MaxPipelineStages];
+
         u8 stagesCount{0};
 
         std::vector<render_pass_variant> variants;
@@ -41,6 +99,10 @@ namespace oblo::vk
         VkShaderModule shaderModules[MaxPipelineStages];
         VkPipelineLayout pipelineLayout;
         VkPipeline pipeline;
+
+        shader_resource vertexInputs;
+        std::vector<shader_resource> resources;
+
         // TODO: Active stages (e.g. tessellation on/off)
         // TODO: Active options
     };
@@ -59,7 +121,7 @@ namespace oblo::vk
                 vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
             }
 
-            for (auto shaderModule : variant.shaderModules)
+            for (const auto shaderModule : variant.shaderModules)
             {
                 if (shaderModule)
                 {
@@ -72,9 +134,10 @@ namespace oblo::vk
     render_pass_manager::render_pass_manager() = default;
     render_pass_manager::~render_pass_manager() = default;
 
-    void render_pass_manager::init(VkDevice device)
+    void render_pass_manager::init(VkDevice device, string_interner& interner)
     {
         m_device = device;
+        m_interner = &interner;
 
         if (device)
         {
@@ -93,6 +156,7 @@ namespace oblo::vk
 
             shader_compiler::shutdown();
             m_device = nullptr;
+            m_interner = nullptr;
         }
     }
 
@@ -105,7 +169,7 @@ namespace oblo::vk
 
         auto& renderPass = *it;
 
-        renderPass.name = desc.name;
+        renderPass.name = m_interner->get_or_add(desc.name);
 
         renderPass.stagesCount = 0;
 
@@ -142,16 +206,20 @@ namespace oblo::vk
             return variantIt->pipeline;
         }
 
+        const auto restore = allocator.make_scoped_restore();
+
         const handle<render_pipeline> pipelineHandle{m_lastRenderPipelineId + 1};
 
         const auto [pipelineIt, ok] = m_renderPipelines.emplace(pipelineHandle);
         OBLO_ASSERT(ok);
         auto& newPipeline = *pipelineIt;
 
-        const auto failure = [this, &newPipeline, renderPass]
+        const auto failure = [this, &newPipeline, pipelineHandle, renderPass, expectedHash]
         {
             destroy_pipeline(m_device, newPipeline);
-            renderPass->variants.pop_back();
+            m_renderPipelines.erase(pipelineHandle);
+            // We push an invalid handle so we avoid trying to rebuild a failed pipeline every frame
+            renderPass->variants.emplace_back().hash = expectedHash;
             return handle<render_pipeline>{};
         };
 
@@ -161,15 +229,32 @@ namespace oblo::vk
         std::vector<unsigned> spirv;
         spirv.reserve(4096);
 
+        auto makeDebugName =
+            [debugName = std::string{}, this](const render_pass& pass, const std::filesystem::path& filePath) mutable
+        {
+            debugName = "[";
+            debugName += m_interner->str(pass.name);
+            debugName += "] ";
+            debugName += filePath.filename().string();
+            return std::string_view{debugName};
+        };
+
+        VkVertexInputBindingDescription* vertexInputBindingDescs;
+        VkVertexInputAttributeDescription* vertexInputAttributeDescs;
+        u32 vertexInputsCount{0u};
+
         for (u8 stageIndex = 0; stageIndex < renderPass->stagesCount; ++stageIndex)
         {
             const auto pipelineStage = renderPass->stages[stageIndex];
             const auto vkStage = to_vulkan_stage_bits(pipelineStage);
 
-            const auto sourceCode = load_text_file_into_memory(allocator, renderPass->shaderSourcePath[stageIndex]);
+            const auto& filePath = renderPass->shaderSourcePath[stageIndex];
+            const auto sourceCode = load_text_file_into_memory(allocator, filePath);
 
             spirv.clear();
-            shader_compiler::compile_glsl_to_spirv({sourceCode.data(), sourceCode.size()}, vkStage, spirv);
+
+            const std::string_view debugName{makeDebugName(*renderPass, filePath)};
+            shader_compiler::compile_glsl_to_spirv(debugName, {sourceCode.data(), sourceCode.size()}, vkStage, spirv);
 
             const auto shaderModule = shader_compiler::create_shader_module_from_spirv(m_device, spirv);
 
@@ -186,6 +271,83 @@ namespace oblo::vk
                 .module = shaderModule,
                 .pName = "main",
             };
+
+            {
+                spirv_cross::Compiler compiler{spirv.data(), spirv.size()};
+
+                const auto shaderResources = compiler.get_shader_resources();
+
+                if (pipelineStage == pipeline_stages::vertex)
+                {
+                    vertexInputsCount = u32(shaderResources.stage_inputs.size());
+
+                    vertexInputBindingDescs = allocate_n<VkVertexInputBindingDescription>(allocator, vertexInputsCount);
+                    vertexInputAttributeDescs =
+                        allocate_n<VkVertexInputAttributeDescription>(allocator, vertexInputsCount);
+
+                    u32 vertexAttributeIndex = 0;
+
+                    for (const auto& stageInput : shaderResources.stage_inputs)
+                    {
+                        const auto name = m_interner->get_or_add(stageInput.name);
+                        const auto location = compiler.get_decoration(stageInput.id, spv::DecorationLocation);
+
+                        newPipeline.resources.push_back({
+                            .name = name,
+                            .location = location,
+                            .binding = vertexAttributeIndex,
+                            .kind = resource_kind::vertex_stage_input,
+                        });
+
+                        const spirv_cross::SPIRType& type = compiler.get_type(stageInput.type_id);
+
+                        vertexInputBindingDescs[vertexAttributeIndex] = {
+                            .binding = vertexAttributeIndex,
+                            .stride = get_type_byte_size(type),
+                            .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+                        };
+
+                        vertexInputAttributeDescs[vertexAttributeIndex] = {
+                            .location = location,
+                            .binding = vertexAttributeIndex,
+                            .format = get_type_format(type),
+                            .offset = 0,
+                        };
+
+                        ++vertexAttributeIndex;
+                    }
+                }
+
+                for (const auto& storageBuffer : shaderResources.storage_buffers)
+                {
+                    // TODO: We are ignoring the descriptor set here
+                    const auto name = m_interner->get_or_add(storageBuffer.name);
+                    const auto location = compiler.get_decoration(storageBuffer.id, spv::DecorationLocation);
+                    const auto binding = compiler.get_decoration(storageBuffer.id, spv::DecorationBinding);
+
+                    newPipeline.resources.push_back({
+                        .name = name,
+                        .location = location,
+                        .binding = binding,
+                        .kind = resource_kind::storage_buffer,
+                    });
+                }
+
+                for (const auto& uniformBuffer : shaderResources.uniform_buffers)
+                {
+                    // TODO: We are ignoring the descriptor set here
+                    const auto name = m_interner->get_or_add(uniformBuffer.name);
+                    const auto location = compiler.get_decoration(uniformBuffer.id, spv::DecorationLocation);
+                    const auto binding = compiler.get_decoration(uniformBuffer.id, spv::DecorationBinding);
+
+                    newPipeline.resources.push_back({
+                        .name = name,
+                        .location = location,
+                        .binding = binding,
+                        .kind = resource_kind::uniform_buffer,
+                    });
+                }
+            }
 
             ++actualStagesCount;
         }
@@ -216,6 +378,10 @@ namespace oblo::vk
 
         const VkPipelineVertexInputStateCreateInfo vertexBufferInputInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+            .vertexBindingDescriptionCount = vertexInputsCount,
+            .pVertexBindingDescriptions = vertexInputBindingDescs,
+            .vertexAttributeDescriptionCount = vertexInputsCount,
+            .pVertexAttributeDescriptions = vertexInputAttributeDescs,
         };
 
         constexpr VkPipelineViewportStateCreateInfo viewportState{
@@ -298,4 +464,5 @@ namespace oblo::vk
         OBLO_ASSERT(pipeline);
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline);
     }
+
 }

@@ -18,7 +18,8 @@ namespace oblo::vk::shader_compiler
     void init();
     void shutdown();
 
-    bool compile_glsl_to_spirv(std::string_view sourceCode,
+    bool compile_glsl_to_spirv(std::string_view debugName,
+                               std::string_view sourceCode,
                                VkShaderStageFlagBits stage,
                                std::vector<unsigned>& outSpirv);
 

@@ -7,6 +7,7 @@
 namespace oblo
 {
     class frame_allocator;
+    class string_interner;
 }
 
 namespace oblo::vk
@@ -15,6 +16,8 @@ namespace oblo::vk
     struct render_pass_initializer;
     struct render_pipeline;
     struct render_pipeline_initializer;
+
+    enum class pipeline_stages : u8;
 
     class render_pass_manager
     {
@@ -26,7 +29,7 @@ namespace oblo::vk
         render_pass_manager& operator=(render_pass_manager&&) noexcept = delete;
         ~render_pass_manager();
 
-        void init(VkDevice device);
+        void init(VkDevice device, string_interner& interner);
         void shutdown();
 
         handle<render_pass> register_render_pass(const render_pass_initializer& desc);
@@ -43,5 +46,6 @@ namespace oblo::vk
         u32 m_lastRenderPipelineId{};
         flat_dense_map<handle<render_pass>, render_pass> m_renderPasses;
         flat_dense_map<handle<render_pipeline>, render_pipeline> m_renderPipelines;
+        string_interner* m_interner{nullptr};
     };
 }

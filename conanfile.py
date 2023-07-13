@@ -16,4 +16,5 @@ class ObloConanRecipe(ConanFile):
         self.requires("vulkan-headers/1.3.211.0", override=True)
         self.requires("vulkan-loader/1.3.211.0")
         self.requires("vulkan-memory-allocator/3.0.0")
+        self.requires("spirv-cross/cci.20211113")
         self.requires("sdl/2.0.20")
