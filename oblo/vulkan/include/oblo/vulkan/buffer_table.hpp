@@ -46,7 +46,6 @@ namespace oblo::vk
         i32 try_find(handle<string> name) const;
 
     private:
-        struct column;
         i32* m_stringToBufferIndexMap{nullptr};
         handle<buffer>* m_buffers{nullptr};
         handle<string>* m_names{nullptr};
