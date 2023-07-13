@@ -2,6 +2,8 @@
 
 #include <oblo/core/types.hpp>
 
+#include <compare>
+
 namespace oblo
 {
     template <typename Tag>
@@ -11,6 +13,8 @@ namespace oblo
         {
             return value != 0;
         }
+
+        constexpr auto operator<=>(const handle&) const = default;
 
         u32 value;
     };

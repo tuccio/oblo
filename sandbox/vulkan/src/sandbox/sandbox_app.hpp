@@ -4,6 +4,7 @@
 
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/handle.hpp>
+#include <oblo/core/string_interner.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/allocator.hpp>
 #include <oblo/vulkan/command_buffer_pool.hpp>
@@ -88,6 +89,8 @@ namespace oblo::vk
         allocator m_allocator;
 
         resource_manager m_resourceManager;
+
+        string_interner m_rendererStringInterner;
         render_pass_manager m_renderPassManager;
 
         command_buffer_pool m_pools[SwapchainImages];

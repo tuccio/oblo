@@ -3,6 +3,7 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/core/file_utility.hpp>
 #include <oblo/core/finally.hpp>
+#include <oblo/core/log.hpp>
 
 #include <glslang/SPIRV/GlslangToSpv.h>
 
@@ -165,7 +166,8 @@ namespace oblo::vk::shader_compiler
         }
     }
 
-    bool compile_glsl_to_spirv(std::string_view sourceCode,
+    bool compile_glsl_to_spirv(std::string_view debugName,
+                               std::string_view sourceCode,
                                VkShaderStageFlagBits stage,
                                std::vector<unsigned>& outSpirv)
     {
@@ -183,8 +185,7 @@ namespace oblo::vk::shader_compiler
         {
             const auto* infoLog = shader.getInfoLog();
             const auto* infoDebugLog = shader.getInfoDebugLog();
-            std::fputs(infoLog, stderr);
-            std::fputs(infoDebugLog, stderr);
+            log::error("Failed to compile shader '{}'\n{}\n{}", debugName, infoLog, infoDebugLog);
             return false;
         }
 
@@ -194,8 +195,7 @@ namespace oblo::vk::shader_compiler
         {
             const auto* infoLog = shader.getInfoLog();
             const auto* infoDebugLog = shader.getInfoDebugLog();
-            std::fputs(infoLog, stderr);
-            std::fputs(infoDebugLog, stderr);
+            log::error("Failed to link shader '{}'\n{}\n{}", debugName, infoLog, infoDebugLog);
             return false;
         }
 
@@ -231,7 +231,7 @@ namespace oblo::vk::shader_compiler
         std::vector<unsigned> spirv;
         const auto sourceSpan = load_text_file_into_memory(allocator, filePath);
 
-        if (!shader_compiler::compile_glsl_to_spirv({sourceSpan.data(), sourceSpan.size()}, stage, spirv))
+        if (!shader_compiler::compile_glsl_to_spirv(filePath, {sourceSpan.data(), sourceSpan.size()}, stage, spirv))
         {
             return VK_NULL_HANDLE;
         }

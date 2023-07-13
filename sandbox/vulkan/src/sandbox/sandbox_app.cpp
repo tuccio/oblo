@@ -92,7 +92,8 @@ namespace oblo::vk
             return false;
         }
 
-        m_renderPassManager.init(m_engine.get_device());
+        m_rendererStringInterner.init(64);
+        m_renderPassManager.init(m_engine.get_device(), m_rendererStringInterner);
 
         int width, height;
         SDL_Vulkan_GetDrawableSize(m_window, &width, &height);
