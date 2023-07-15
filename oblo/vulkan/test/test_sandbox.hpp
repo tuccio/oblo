@@ -4,9 +4,6 @@
 #include <oblo/vulkan/instance.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
 
-#include <SDL.h>
-#include <SDL_vulkan.h>
-
 #include <vulkan/vulkan.h>
 
 #include <span>
@@ -49,49 +46,21 @@ namespace oblo::vk
                   const VkPhysicalDeviceFeatures* physicalDeviceFeatures,
                   std::stringstream* validationErrors)
         {
-            if (!create_window() || !create_engine(instanceExtensions,
-                                                   instanceLayers,
-                                                   deviceExtensions,
-                                                   deviceFeaturesList,
-                                                   physicalDeviceFeatures,
-                                                   validationErrors))
-            {
-                return false;
-            }
-
-            return true;
+            return create_engine(instanceExtensions,
+                                 instanceLayers,
+                                 deviceExtensions,
+                                 deviceFeaturesList,
+                                 physicalDeviceFeatures,
+                                 validationErrors);
         }
 
         void shutdown()
         {
-            if (surface)
-            {
-                vkDestroySurfaceKHR(instance.get(), surface, nullptr);
-            }
-
-            if (window)
-            {
-                SDL_DestroyWindow(window);
-                window = nullptr;
-            }
-
             engine.shutdown();
             instance.shutdown();
         }
 
     private:
-        bool create_window()
-        {
-            window = SDL_CreateWindow("Oblo Vulkan Test",
-                                      SDL_WINDOWPOS_UNDEFINED,
-                                      SDL_WINDOWPOS_UNDEFINED,
-                                      1280,
-                                      720,
-                                      SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_VULKAN);
-
-            return window != nullptr;
-        }
-
         bool create_engine(std::span<const char* const> instanceExtensions,
                            std::span<const char* const> instanceLayers,
                            std::span<const char* const> deviceExtensions,
@@ -106,24 +75,10 @@ namespace oblo::vk
             small_vector<const char*, extensionsArraySize> extensions;
             small_vector<const char*, layersArraySize> layers;
 
-            u32 sdlExtensionsCount;
-
-            if (!SDL_Vulkan_GetInstanceExtensions(window, &sdlExtensionsCount, nullptr))
-            {
-                return false;
-            }
-
-            extensions.resize(sdlExtensionsCount);
-
-            if (!SDL_Vulkan_GetInstanceExtensions(window, &sdlExtensionsCount, extensions.data()))
-            {
-                return false;
-            }
+            extensions.assign(instanceExtensions.begin(), instanceExtensions.end());
+            layers.assign(instanceLayers.begin(), instanceLayers.end());
 
             layers.emplace_back("VK_LAYER_KHRONOS_validation");
-
-            extensions.insert(extensions.end(), instanceExtensions.begin(), instanceExtensions.end());
-            layers.insert(layers.end(), instanceLayers.begin(), instanceLayers.end());
 
             constexpr u32 apiVersion{VK_API_VERSION_1_3};
 
@@ -133,7 +88,7 @@ namespace oblo::vk
                         .pNext = nullptr,
                         .pApplicationName = "vksandbox",
                         .applicationVersion = 0,
-                        .pEngineName = "oblo",
+                        .pEngineName = "oblo_test_vk",
                         .engineVersion = 0,
                         .apiVersion = apiVersion,
                     },
@@ -141,11 +96,6 @@ namespace oblo::vk
                     {extensions},
                     validation_cb,
                     validationErrors))
-            {
-                return false;
-            }
-
-            if (!SDL_Vulkan_CreateSurface(window, instance.get(), &surface))
             {
                 return false;
             }
@@ -179,13 +129,10 @@ namespace oblo::vk
             };
 
             return engine
-                .init(instance.get(), surface, {}, {extensions}, &bufferDeviceAddressFeature, physicalDeviceFeatures);
+                .init(instance.get(), nullptr, {}, {extensions}, &bufferDeviceAddressFeature, physicalDeviceFeatures);
         }
 
     public:
-        SDL_Window* window;
-        VkSurfaceKHR surface{nullptr};
-
         instance instance;
         single_queue_engine engine;
     };

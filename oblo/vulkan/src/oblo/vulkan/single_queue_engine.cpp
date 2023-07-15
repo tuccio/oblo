@@ -58,9 +58,13 @@ namespace oblo::vk
         }
 
         constexpr u32 invalid{~0u};
-        u32 graphicsQueueFamilyIndex{invalid};
+        u32 graphicsQueueFamilyIndex{0u};
 
+        if (surface)
         {
+            // When a surface is provider, we look for a queue with present support
+            graphicsQueueFamilyIndex = invalid;
+
             u32 queueFamilyCount{0u};
 
             vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &queueFamilyCount, nullptr);
