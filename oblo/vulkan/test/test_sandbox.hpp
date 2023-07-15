@@ -101,7 +101,6 @@ namespace oblo::vk
             }
 
             constexpr const char* internalDeviceExtensions[] = {
-                VK_KHR_SWAPCHAIN_EXTENSION_NAME,
                 VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME,
                 VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
                 VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
