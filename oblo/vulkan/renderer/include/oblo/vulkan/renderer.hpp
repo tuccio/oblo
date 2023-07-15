@@ -31,9 +31,7 @@ namespace oblo::vk
         string_interner& get_string_interner();
         render_pass_manager& get_render_pass_manager();
         mesh_table& get_mesh_table();
-
-    private:
-        void init_test_mesh_table();
+        staging_buffer& get_staging_buffer();
 
     private:
         single_queue_engine* m_engine{nullptr};
@@ -95,5 +93,10 @@ namespace oblo::vk
     inline mesh_table& renderer::get_mesh_table()
     {
         return m_meshes;
+    }
+
+    inline staging_buffer& renderer::get_staging_buffer()
+    {
+        return m_stagingBuffer;
     }
 }
