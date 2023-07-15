@@ -189,6 +189,13 @@ namespace oblo::vk
 
         void run()
         {
+            auto updateCall = &TApp::update;
+
+            if constexpr (requires(TApp& app, const sandbox_render_context& context) { app.first_update(context); })
+            {
+                updateCall = &TApp::first_update;
+            }
+
             // We start counting the frame indices from 1, because we use this value as timeline semaphore, which is
             // already signaled with 0
             for (u64 frameIndex{1};; ++frameIndex)
@@ -239,7 +246,8 @@ namespace oblo::vk
                     .frameIndex = frameIndex,
                 };
 
-                static_cast<TApp*>(this)->update(context);
+                (static_cast<TApp*>(this)->*updateCall)(context);
+                updateCall = &TApp::update;
 
                 if (showImgui)
                 {
