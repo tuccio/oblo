@@ -67,14 +67,16 @@ namespace oblo::vk
 
         m_buffers = reinterpret_cast<h32<buffer>*>(heapBuffer + bufferToIndexMapSize);
         m_names = reinterpret_cast<h32<string>*>(heapBuffer + bufferToIndexMapSize + buffersSize);
+        m_elementSizes = reinterpret_cast<u32*>(heapBuffer + bufferToIndexMapSize + buffersSize + namesSize);
 
         std::uninitialized_fill(m_stringToBufferIndexMap, m_stringToBufferIndexMap + range, Invalid);
         std::uninitialized_value_construct_n(m_buffers, m_columns);
 
         for (u32 j = 0; j < m_columns; ++j)
         {
-            const auto name = columns[j].name;
+            const auto [name, elementSize] = columns[j];
             new (m_names + j) h32<string>{name};
+            new (m_elementSizes + j) u32{elementSize};
         }
 
         m_rows = rows;
@@ -104,7 +106,7 @@ namespace oblo::vk
             }
         }
 
-        const auto begin = zip_iterator{m_names, m_buffers};
+        const auto begin = zip_iterator{m_names, m_buffers, m_elementSizes};
         const auto end = begin + m_columns;
 
         std::sort(begin,
@@ -159,6 +161,11 @@ namespace oblo::vk
         return {m_buffers, m_columns};
     }
 
+    std::span<const u32> buffer_table::element_sizes() const
+    {
+        return {m_elementSizes, m_columns};
+    }
+
     i32 buffer_table::try_find(h32<string> name) const
     {
         if (name.value < m_stringRangeMin || name.value > m_stringRangeMax)
@@ -167,5 +174,15 @@ namespace oblo::vk
         }
 
         return m_stringToBufferIndexMap[name.value - m_stringRangeMin];
+    }
+
+    u32 buffer_table::rows_count() const
+    {
+        return m_rows;
+    }
+
+    u32 buffer_table::columns_count() const
+    {
+        return m_columns;
     }
 }

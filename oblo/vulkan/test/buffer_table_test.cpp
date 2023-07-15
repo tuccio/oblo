@@ -63,6 +63,7 @@ namespace oblo::vk
 
             const std::span bufferColumns = bufferTable.buffers();
             const std::span nameColumns = bufferTable.names();
+            const std::span elementSizes = bufferTable.element_sizes();
 
             ASSERT_EQ(numColumns, bufferColumns.size());
             ASSERT_EQ(numColumns, nameColumns.size());
@@ -75,6 +76,7 @@ namespace oblo::vk
                 ASSERT_GE(index, 0);
 
                 ASSERT_EQ(nameColumns[index], column.name);
+                ASSERT_EQ(elementSizes[index], column.elementSize);
                 ASSERT_TRUE(bufferColumns[index]);
 
                 const auto buffer = resourceManager.get(bufferColumns[index]);
