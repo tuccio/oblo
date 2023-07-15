@@ -2,10 +2,9 @@
 
 #include <oblo/core/debug.hpp>
 #include <oblo/render_graph/render_graph_node.hpp>
+#include <oblo/vulkan/renderer_context.hpp>
 #include <oblo/vulkan/stateful_command_buffer.hpp>
 #include <oblo/vulkan/texture.hpp>
-#include <renderer/renderer_context.hpp>
-#include <sandbox/context.hpp>
 
 namespace oblo::vk
 {
@@ -14,23 +13,21 @@ namespace oblo::vk
         render_node_in<h32<texture>, "source"> source;
         render_node_in<h32<texture>, "destination"> destination;
 
-        void execute(renderer_context* rendererContext)
+        void execute(renderer_context* context)
         {
-            const auto& context = *rendererContext->renderContext;
+            auto& renderer = context->renderer;
+            auto& resourceManager = renderer.get_resource_manager();
+            auto& commandBuffer = *context->commandBuffer;
 
             const auto& srcTextureHandle = *source.data;
             const auto& dstTextureHandle = *destination.data;
 
-            context.commandBuffer->add_pipeline_barrier(*context.resourceManager,
-                                                        srcTextureHandle,
-                                                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+            commandBuffer.add_pipeline_barrier(resourceManager, srcTextureHandle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
-            context.commandBuffer->add_pipeline_barrier(*context.resourceManager,
-                                                        dstTextureHandle,
-                                                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+            commandBuffer.add_pipeline_barrier(resourceManager, dstTextureHandle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-            const auto& srcTexture = context.resourceManager->get(srcTextureHandle);
-            const auto& dstTexture = context.resourceManager->get(dstTextureHandle);
+            const auto& srcTexture = resourceManager.get(srcTextureHandle);
+            const auto& dstTexture = resourceManager.get(dstTextureHandle);
 
             OBLO_ASSERT(srcTexture.initializer.extent.width == dstTexture.initializer.extent.width);
             OBLO_ASSERT(srcTexture.initializer.extent.height == dstTexture.initializer.extent.height);
@@ -55,7 +52,7 @@ namespace oblo::vk
                            .depth = 1},
             };
 
-            vkCmdCopyImage(context.commandBuffer->get(),
+            vkCmdCopyImage(commandBuffer.get(),
                            srcTexture.image,
                            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                            dstTexture.image,
