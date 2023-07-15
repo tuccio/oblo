@@ -5,11 +5,11 @@ target_link_libraries(
     PRIVATE
     oblo::core
     oblo::vk
-    oblo::render_graph
+    oblo::vk_renderer
     3rdparty::imgui_sdl_vk
     SDL2::SDL2
     SDL2::SDL2main
     nlohmann_json::nlohmann_json
 )
 
-oblo_create_symlink("${CMAKE_CURRENT_SOURCE_DIR}/shaders" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders")
+oblo_create_symlink("${CMAKE_CURRENT_SOURCE_DIR}/resources" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/sandbox/")

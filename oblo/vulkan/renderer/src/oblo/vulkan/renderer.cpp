@@ -1,23 +1,26 @@
-#include <renderer/renderer.hpp>
+#include <oblo/vulkan/renderer.hpp>
 
 #include <oblo/core/array_size.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/render_graph/render_graph_builder.hpp>
 #include <oblo/vulkan/error.hpp>
+#include <oblo/vulkan/nodes/blit_image_node.hpp>
+#include <oblo/vulkan/nodes/deferred.hpp>
+#include <oblo/vulkan/nodes/forward.hpp>
+#include <oblo/vulkan/renderer_context.hpp>
 #include <oblo/vulkan/texture.hpp>
-#include <renderer/nodes/blit_image_node.hpp>
-#include <renderer/nodes/deferred.hpp>
-#include <renderer/nodes/forward.hpp>
-#include <renderer/renderer_context.hpp>
-#include <sandbox/context.hpp>
 
 namespace oblo::vk
 {
-    bool renderer::init(const sandbox_init_context& context)
+    bool renderer::init(const renderer::initializer& context)
     {
-        m_dummy = context.resourceManager->create(
-            *context.allocator,
+        m_allocator = &context.allocator;
+        m_engine = &context.engine;
+        m_resourceManager = &context.resourceManager;
+
+        m_dummy = m_resourceManager->create(
+            *m_allocator,
             {
                 .size = 16u,
                 .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
@@ -25,7 +28,7 @@ namespace oblo::vk
             });
 
         m_stringInterner.init(64);
-        m_renderPassManager.init(context.engine->get_device(), m_stringInterner, m_dummy);
+        m_renderPassManager.init(m_engine->get_device(), m_stringInterner, m_dummy);
 
 #if 0
         const auto ec = render_graph_builder<renderer_context>{}
@@ -52,30 +55,24 @@ namespace oblo::vk
             return false;
         }
 
-        m_state = {
-            .stringInterner = &m_stringInterner,
-            .renderPassManager = &m_renderPassManager,
-            .meshTable = &m_meshes,
-        };
-
-        renderer_context rendererContext{.initContext = &context, .state = m_state};
+        renderer_context rendererContext{.renderer = *this, .frameAllocator = context.frameAllocator};
         return m_executor.initialize(&rendererContext);
     }
 
-    void renderer::shutdown(const sandbox_shutdown_context& context)
+    void renderer::shutdown(frame_allocator& frameAllocator)
     {
-        m_meshes.shutdown(*context.allocator, *context.resourceManager);
+        m_meshes.shutdown(*m_allocator, *m_resourceManager);
 
-        renderer_context rendererContext{.shutdownContext = &context, .state = m_state};
+        renderer_context rendererContext{.renderer = *this, .frameAllocator = frameAllocator};
         m_executor.shutdown(&rendererContext);
 
         m_renderPassManager.shutdown();
-        context.resourceManager->destroy(*context.allocator, m_dummy);
+        m_resourceManager->destroy(*m_allocator, m_dummy);
     }
 
-    void renderer::update(const sandbox_render_context& context)
+    void renderer::update(const update_context& context)
     {
-        init_test_mesh_table(context);
+        init_test_mesh_table();
 
         // Set-up the graph inputs
         auto* const finalRenderTarget = m_graph.find_input<h32<texture>>("final_render_target");
@@ -83,18 +80,18 @@ namespace oblo::vk
 
         *finalRenderTarget = context.swapchainTexture;
 
-        renderer_context rendererContext{.renderContext = &context, .state = m_state};
-        m_executor.execute(&rendererContext);
+        renderer_context rendererContext{
+            .renderer = *this,
+            .frameAllocator = context.frameAllocator,
+            .commandBuffer = &context.commandBuffer,
+        };
 
-        m_state.lastFrameHeight = context.height;
-        m_state.lastFrameWidth = context.width;
+        m_executor.execute(&rendererContext);
 
         m_stagingBuffer.flush();
     }
 
-    void renderer::update_imgui(const sandbox_update_imgui_context&) {}
-
-    void renderer::init_test_mesh_table(const sandbox_render_context& context)
+    void renderer::init_test_mesh_table()
     {
         if (!m_meshes.vertex_attribute_buffers().empty())
         {
@@ -117,8 +114,8 @@ namespace oblo::vk
         };
 
         m_meshes.init(columns,
-                      *context.allocator,
-                      *context.resourceManager,
+                      *m_allocator,
+                      *m_resourceManager,
                       VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
                       maxVertices,
                       maxIndices);
@@ -137,12 +134,12 @@ namespace oblo::vk
         const h32<string> columnSubset[] = {position, color};
         buffer buffers[array_size(columnSubset)];
 
-        m_meshes.fetch_buffers(*context.resourceManager, columnSubset, buffers, nullptr);
+        m_meshes.fetch_buffers(*m_resourceManager, columnSubset, buffers, nullptr);
 
         constexpr vec3 positions[] = {{0.0f, -0.5f, 0.0f}, {0.5f, 0.5f, 0.0f}, {-0.5f, 0.5f, 0.0f}};
         constexpr vec3 colors[] = {{1.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}};
 
-        m_stagingBuffer.init(*context.engine, *context.allocator, 1u << 29);
+        m_stagingBuffer.init(*m_engine, *m_allocator, 1u << 29);
         m_stagingBuffer.upload(std::as_bytes(std::span{positions}), buffers[0].buffer, buffers[0].offset);
         m_stagingBuffer.upload(std::as_bytes(std::span{colors}), buffers[1].buffer, buffers[1].offset);
     }

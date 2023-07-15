@@ -1,3 +1,5 @@
+#if 0
+
 #pragma once
 
 #include <oblo/core/debug.hpp>
@@ -7,9 +9,9 @@
 #include <oblo/vulkan/destroy_device_objects.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
 #include <oblo/vulkan/texture.hpp>
-#include <renderer/create_render_target.hpp>
-#include <renderer/renderer_context.hpp>
-#include <renderer/textures.hpp>
+#include <oblo/vulkan/create_render_target.hpp>
+#include <oblo/vulkan/renderer_context.hpp>
+#include <oblo/vulkan/textures.hpp>
 
 namespace oblo::vk
 {
@@ -122,3 +124,5 @@ namespace oblo::vk
         }
     };
 }
+
+#endif

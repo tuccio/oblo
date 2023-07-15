@@ -1,4 +1,4 @@
-#include <renderer/create_render_target.hpp>
+#include <oblo/vulkan/create_render_target.hpp>
 
 #include <oblo/vulkan/resource_manager.hpp>
 
