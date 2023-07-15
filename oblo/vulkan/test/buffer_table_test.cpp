@@ -72,7 +72,7 @@ namespace oblo::vk
 
             for (const auto& column : columns)
             {
-                const auto index = bufferTable.try_find(column.name);
+                const auto index = bufferTable.find(column.name);
                 ASSERT_GE(index, 0);
 
                 ASSERT_EQ(nameColumns[index], column.name);

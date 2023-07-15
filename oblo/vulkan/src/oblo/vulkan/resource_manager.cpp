@@ -177,6 +177,56 @@ namespace oblo::vk
         OBLO_ASSERT(n == 1);
     }
 
+    h32<texture> resource_manager::create(allocator& allocator, const image_initializer& initializer)
+    {
+        allocated_image allocatedImage;
+
+        if (allocator.create_image(initializer, &allocatedImage) != VK_SUCCESS)
+        {
+            return {};
+        }
+
+        return register_texture(
+            {
+                .image = allocatedImage.image,
+                .allocation = allocatedImage.allocation,
+                .view = nullptr,
+                .initializer = initializer,
+            },
+            VK_IMAGE_LAYOUT_UNDEFINED);
+    }
+
+    h32<buffer> resource_manager::create(allocator& allocator, const buffer_initializer& initializer)
+    {
+        allocated_buffer allocatedBuffer;
+
+        if (allocator.create_buffer(initializer, &allocatedBuffer) != VK_SUCCESS)
+        {
+            return {};
+        }
+
+        return register_buffer({
+            .buffer = allocatedBuffer.buffer,
+            .offset = 0u,
+            .size = initializer.size,
+            .allocation = allocatedBuffer.allocation,
+        });
+    }
+
+    void resource_manager::destroy(allocator& allocator, h32<texture> handle)
+    {
+        const texture& res = get(handle);
+        allocator.destroy(allocated_image{.image = res.image, .allocation = res.allocation});
+        unregister_texture(handle);
+    }
+
+    void resource_manager::destroy(allocator& allocator, h32<buffer> handle)
+    {
+        const buffer& res = get(handle);
+        allocator.destroy(allocated_buffer{.buffer = res.buffer, .allocation = res.allocation});
+        unregister_buffer(handle);
+    }
+
     const texture* resource_manager::try_find(h32<texture> handle) const
     {
         auto* const storage = m_textures.try_find(handle);

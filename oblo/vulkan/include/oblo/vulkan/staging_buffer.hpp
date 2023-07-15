@@ -23,7 +23,7 @@ namespace oblo::vk
 
         ~staging_buffer();
 
-        bool initialize(const single_queue_engine& engine, allocator& allocator, u32 size);
+        bool init(const single_queue_engine& engine, allocator& allocator, u32 size);
         void shutdown();
 
         bool upload(std::span<const std::byte> source, VkBuffer buffer, u32 bufferOffset);
