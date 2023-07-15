@@ -103,9 +103,13 @@ namespace oblo::vk
                                                *renderTarget,
                                                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-            vkCmdBeginRendering(commandBuffer.get(), &renderInfo);
+            render_pass_context renderPassContext{
+                .commandBuffer = commandBuffer.get(),
+                .pipeline = pipeline,
+                .frameAllocator = *context.frameAllocator,
+            };
 
-            renderPassManager.bind(commandBuffer.get(), pipeline);
+            renderPassManager.begin_rendering(renderPassContext, renderInfo);
 
             {
                 const u32 width = context.width;
@@ -124,7 +128,12 @@ namespace oblo::vk
                 vkCmdSetScissor(commandBuffer.get(), 0, 1, &scissor);
             }
 
-            vkCmdEndRendering(commandBuffer.get());
+            const auto& meshTable = *rendererContext->state.meshTable;
+            renderPassManager.bind(renderPassContext, *context.resourceManager, meshTable);
+
+            vkCmdDraw(commandBuffer.get(), meshTable.vertex_count(), meshTable.meshes_count(), 0, 0);
+
+            renderPassManager.end_rendering(renderPassContext);
         }
     };
 }

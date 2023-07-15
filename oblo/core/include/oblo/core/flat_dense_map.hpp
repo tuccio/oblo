@@ -150,6 +150,11 @@ namespace oblo
             m_denseValue.clear();
         }
 
+        usize size() const
+        {
+            return m_denseKey.size();
+        }
+
     private:
         bool is_key_matched_unchecked(u32 candidate, u32 index) const
         {

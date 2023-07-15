@@ -60,8 +60,9 @@ namespace oblo::vk
         const auto bufferToIndexMapSize = range * sizeof(m_stringToBufferIndexMap[0]);
         const auto buffersSize = m_columns * (sizeof(m_buffers[0]));
         const auto namesSize = m_columns * (sizeof(m_names[0]));
+        const auto elementSizes = m_columns * (sizeof(m_elementSizes[0]));
 
-        auto* const heapBuffer = new std::byte[bufferToIndexMapSize + buffersSize + namesSize];
+        auto* const heapBuffer = new std::byte[bufferToIndexMapSize + buffersSize + namesSize + elementSizes];
 
         m_stringToBufferIndexMap = reinterpret_cast<i32*>(heapBuffer);
 
@@ -166,7 +167,7 @@ namespace oblo::vk
         return {m_elementSizes, m_columns};
     }
 
-    i32 buffer_table::try_find(h32<string> name) const
+    i32 buffer_table::find(h32<string> name) const
     {
         if (name.value < m_stringRangeMin || name.value > m_stringRangeMax)
         {

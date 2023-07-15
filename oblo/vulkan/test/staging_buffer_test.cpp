@@ -29,7 +29,7 @@ namespace oblo::vk
                                        sandbox.engine.get_device()));
 
             staging_buffer stagingBuffer;
-            ASSERT_TRUE(stagingBuffer.initialize(sandbox.engine, allocator, stagingBufferSize));
+            ASSERT_TRUE(stagingBuffer.init(sandbox.engine, allocator, stagingBufferSize));
 
             // Create the buffers
             allocated_buffer buffers[buffersCount];

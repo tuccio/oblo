@@ -9,6 +9,7 @@ namespace oblo
 
 namespace oblo::vk
 {
+    class mesh_table;
     class render_pass_manager;
 
     struct sandbox_render_context;
@@ -21,6 +22,7 @@ namespace oblo::vk
         u32 lastFrameHeight;
         string_interner* stringInterner;
         render_pass_manager* renderPassManager;
+        mesh_table* meshTable;
     };
 
     struct renderer_context

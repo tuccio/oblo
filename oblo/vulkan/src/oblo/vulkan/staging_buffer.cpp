@@ -21,7 +21,7 @@ namespace oblo::vk
         shutdown();
     }
 
-    bool staging_buffer::initialize(const single_queue_engine& engine, allocator& allocator, u32 size)
+    bool staging_buffer::init(const single_queue_engine& engine, allocator& allocator, u32 size)
     {
         OBLO_ASSERT(!m_impl.buffer, "This instance has to be shutdown explicitly");
         OBLO_ASSERT(size > 0);

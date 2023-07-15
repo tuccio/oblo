@@ -175,6 +175,7 @@ namespace oblo::vk
                 .engine = &m_engine,
                 .allocator = &m_allocator,
                 .frameAllocator = &m_frameAllocator,
+                .resourceManager = &m_resourceManager,
                 .swapchainFormat = SwapchainFormat,
             };
 
@@ -267,6 +268,7 @@ namespace oblo::vk
                 .engine = &m_engine,
                 .allocator = &m_allocator,
                 .frameAllocator = &m_frameAllocator,
+                .resourceManager = &m_resourceManager,
             };
 
             TApp::shutdown(context);

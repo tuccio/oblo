@@ -50,7 +50,7 @@ namespace oblo::vk
         std::span<const h32<buffer>> buffers() const;
         std::span<const u32> element_sizes() const;
 
-        i32 try_find(h32<string> name) const;
+        i32 find(h32<string> name) const;
 
         u32 rows_count() const;
         u32 columns_count() const;

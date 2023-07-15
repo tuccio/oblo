@@ -7,7 +7,10 @@
 #include <oblo/core/log.hpp>
 #include <oblo/core/string_interner.hpp>
 #include <oblo/core/unreachable.hpp>
+#include <oblo/vulkan/buffer.hpp>
+#include <oblo/vulkan/mesh_table.hpp>
 #include <oblo/vulkan/render_pass_initializer.hpp>
+#include <oblo/vulkan/resource_manager.hpp>
 
 #include <spirv_cross/spirv_cross.hpp>
 
@@ -136,10 +139,11 @@ namespace oblo::vk
     render_pass_manager::render_pass_manager() = default;
     render_pass_manager::~render_pass_manager() = default;
 
-    void render_pass_manager::init(VkDevice device, string_interner& interner)
+    void render_pass_manager::init(VkDevice device, string_interner& interner, const h32<buffer> dummy)
     {
         m_device = device;
         m_interner = &interner;
+        m_dummy = dummy;
 
         if (device)
         {
@@ -186,8 +190,8 @@ namespace oblo::vk
     }
 
     h32<render_pipeline> render_pass_manager::get_or_create_pipeline(frame_allocator& allocator,
-                                                                        h32<render_pass> renderPassHandle,
-                                                                        const render_pipeline_initializer& desc)
+                                                                     h32<render_pass> renderPassHandle,
+                                                                     const render_pipeline_initializer& desc)
     {
         auto* const renderPass = m_renderPasses.try_find(renderPassHandle);
 
@@ -360,6 +364,29 @@ namespace oblo::vk
             ++actualStagesCount;
         }
 
+        struct shader_resource_sorting
+        {
+            resource_kind kind;
+            u32 binding;
+            u32 location;
+
+            static constexpr shader_resource_sorting from(const shader_resource& r)
+            {
+                return {
+                    .kind = r.kind,
+                    .binding = r.binding,
+                    .location = r.location,
+                };
+            }
+
+            constexpr auto operator<=>(const shader_resource_sorting&) const = default;
+        };
+
+        std::sort(newPipeline.resources.begin(),
+                  newPipeline.resources.end(),
+                  [](const shader_resource& lhs, const shader_resource& rhs)
+                  { return shader_resource_sorting::from(lhs) < shader_resource_sorting::from(rhs); });
+
         // TODO: Figure out inputs
         const VkPipelineLayoutCreateInfo pipelineLayoutInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
@@ -401,7 +428,7 @@ namespace oblo::vk
         const VkPipelineRasterizationStateCreateInfo rasterizer{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
             .polygonMode = VK_POLYGON_MODE_FILL,
-            .cullMode = VK_CULL_MODE_BACK_BIT,
+            .cullMode = VK_CULL_MODE_NONE,
             .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
             .lineWidth = 1.f,
         };
@@ -451,7 +478,7 @@ namespace oblo::vk
             .layout = newPipeline.pipelineLayout,
             .renderPass = nullptr,
             .subpass = 0,
-            .basePipelineHandle = VK_NULL_HANDLE,
+            .basePipelineHandle = nullptr,
             .basePipelineIndex = -1,
         };
 
@@ -466,11 +493,62 @@ namespace oblo::vk
         return failure();
     }
 
-    void render_pass_manager::bind(VkCommandBuffer commandBuffer, h32<render_pipeline> handle)
+    void render_pass_manager::begin_rendering(render_pass_context& context, const VkRenderingInfo& renderingInfo) const
     {
-        const auto* pipeline = m_renderPipelines.try_find(handle);
+        const auto* pipeline = m_renderPipelines.try_find(context.pipeline);
         OBLO_ASSERT(pipeline);
+        context.internalPipeline = pipeline;
+
+        const auto commandBuffer = context.commandBuffer;
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline);
+        vkCmdBeginRendering(commandBuffer, &renderingInfo);
     }
 
+    void render_pass_manager::end_rendering(const render_pass_context& context) const
+    {
+        vkCmdEndRendering(context.commandBuffer);
+    }
+
+    void render_pass_manager::bind(const render_pass_context& context,
+                                   const resource_manager& resourceManager,
+                                   const mesh_table& meshTable) const
+    {
+        const auto* pipeline = context.internalPipeline;
+        auto& frameAllocator = context.frameAllocator;
+
+        const auto& resources = pipeline->resources;
+
+        const auto begin = resources.begin();
+        const auto lastVertexAttribute =
+            std::find_if_not(begin,
+                             resources.end(),
+                             [](const shader_resource& r) { return r.kind == resource_kind::vertex_stage_input; });
+
+        const auto numVertexAttributes = u32(lastVertexAttribute - begin);
+
+        // TODO: Could prepare this array once when creating the pipeline
+        const std::span attributeNames = allocate_n_span<h32<string>>(frameAllocator, numVertexAttributes);
+        const std::span buffers = allocate_n_span<buffer>(frameAllocator, numVertexAttributes);
+
+        const auto dummy = resourceManager.get(m_dummy);
+
+        for (u32 i = 0; i < numVertexAttributes; ++i)
+        {
+            attributeNames[i] = resources[i].name;
+            buffers[i] = dummy;
+        };
+
+        meshTable.fetch_buffers(resourceManager, attributeNames, buffers, nullptr);
+
+        auto* const vkBuffers = allocate_n<VkBuffer>(frameAllocator, numVertexAttributes);
+        auto* const offsets = allocate_n<VkDeviceSize>(frameAllocator, numVertexAttributes);
+
+        for (u32 i = 0; i < numVertexAttributes; ++i)
+        {
+            vkBuffers[i] = buffers[i].buffer;
+            offsets[i] = buffers[i].offset;
+        }
+
+        vkCmdBindVertexBuffers(context.commandBuffer, 0, numVertexAttributes, vkBuffers, offsets);
+    }
 }
