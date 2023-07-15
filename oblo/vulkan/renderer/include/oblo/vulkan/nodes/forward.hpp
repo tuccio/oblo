@@ -9,6 +9,7 @@
 #include <oblo/vulkan/destroy_device_objects.hpp>
 #include <oblo/vulkan/render_pass_initializer.hpp>
 #include <oblo/vulkan/render_pass_manager.hpp>
+#include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/renderer_context.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
 #include <oblo/vulkan/texture.hpp>

@@ -2,6 +2,7 @@
 
 #include <oblo/core/debug.hpp>
 #include <oblo/render_graph/render_graph_node.hpp>
+#include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/renderer_context.hpp>
 #include <oblo/vulkan/stateful_command_buffer.hpp>
 #include <oblo/vulkan/texture.hpp>

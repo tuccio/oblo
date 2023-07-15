@@ -2,17 +2,22 @@
 
 #include <oblo/core/handle.hpp>
 #include <oblo/core/string_interner.hpp>
-#include <oblo/render_graph/render_graph.hpp>
-#include <oblo/render_graph/render_graph_seq_executor.hpp>
 #include <oblo/vulkan/mesh_table.hpp>
 #include <oblo/vulkan/render_pass_manager.hpp>
 #include <oblo/vulkan/renderer_context.hpp>
 #include <oblo/vulkan/staging_buffer.hpp>
 
+namespace oblo
+{
+    class render_graph;
+
+    template <typename T>
+    class render_graph_builder;
+}
+
 namespace oblo::vk
 {
     struct buffer;
-    struct texture;
 
     class renderer
     {
@@ -21,6 +26,13 @@ namespace oblo::vk
         struct update_context;
 
     public:
+        renderer();
+        renderer(const renderer&) = delete;
+        renderer(renderer&&) = delete;
+        renderer& operator=(const renderer&) = delete;
+        renderer& operator=(renderer&&) = delete;
+        ~renderer();
+
         bool init(const initializer& initializer);
         void shutdown(frame_allocator& frameAllocator);
         void update(const update_context& context);
@@ -33,6 +45,14 @@ namespace oblo::vk
         mesh_table& get_mesh_table();
         staging_buffer& get_staging_buffer();
 
+        h32<render_graph> create_graph(const render_graph_builder<renderer_context>& builder,
+                                       frame_allocator& frameAllocator);
+        void destroy_graph(h32<render_graph> handle, frame_allocator& frameAllocator);
+        render_graph* find_graph(h32<render_graph> handle);
+
+    private:
+        struct render_graph_data;
+
     private:
         single_queue_engine* m_engine{nullptr};
         allocator* m_allocator{nullptr};
@@ -44,10 +64,10 @@ namespace oblo::vk
         string_interner m_stringInterner;
         render_pass_manager m_renderPassManager;
 
-        render_graph m_graph;
-        render_graph_seq_executor m_executor;
-
         h32<buffer> m_dummy;
+        u32 m_lastRenderGraphId{};
+
+        flat_dense_map<h32<render_graph>, render_graph_data> m_renderGraphs;
     };
 
     struct renderer::initializer
@@ -62,7 +82,6 @@ namespace oblo::vk
     {
         stateful_command_buffer& commandBuffer;
         frame_allocator& frameAllocator;
-        h32<texture> swapchainTexture;
     };
 
     inline single_queue_engine& renderer::get_engine()

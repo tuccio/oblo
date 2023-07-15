@@ -1,9 +1,15 @@
 #pragma once
 
 #include <oblo/core/array_size.hpp>
+#include <oblo/core/log.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec3.hpp>
+#include <oblo/render_graph/render_graph.hpp>
+#include <oblo/render_graph/render_graph_builder.hpp>
 #include <oblo/vulkan/buffer.hpp>
+#include <oblo/vulkan/nodes/blit_image_node.hpp>
+#include <oblo/vulkan/nodes/deferred.hpp>
+#include <oblo/vulkan/nodes/forward.hpp>
 #include <oblo/vulkan/renderer.hpp>
 #include <sandbox/context.hpp>
 
@@ -29,16 +35,49 @@ namespace oblo::vk
 
         void first_update(const sandbox_render_context& context)
         {
+#if 0
+        const auto builder = render_graph_builder<renderer_context>{}
+                            .add_node<deferred_gbuffer_node>()
+                            .add_node<deferred_lighting_node>()
+                            .add_node<blit_image_node>()
+                            // .add_edge(&deferred_gbuffer_node::gbuffer, &deferred_lighting_node::gbuffer)
+                            .add_input<allocated_buffer>("camera")
+                            .add_input<h32<texture>>("final_render_target")
+                            .connect(&deferred_gbuffer_node::test, &deferred_lighting_node::test)
+                            .connect(&deferred_gbuffer_node::test, &blit_image_node::source)
+                            .connect_input<h32<texture>>("final_render_target", &blit_image_node::destination);
+#else
+            const auto builder = render_graph_builder<renderer_context>{}
+                                     .add_node<forward_node>()
+                                     .add_input<h32<texture>>("final_render_target")
+                                     .connect_input<h32<texture>>("final_render_target", &forward_node::renderTarget);
+#endif
+
+            m_graph = m_renderer.create_graph(builder, *context.frameAllocator);
+
+            if (!m_graph)
+            {
+                log::error("Failed to create render graph");
+            }
+
             init_test_mesh_table();
             update(context);
         }
 
         void update(const sandbox_render_context& context)
         {
+            if (auto* const graph = m_renderer.find_graph(m_graph))
+            {
+                // Set-up the graph inputs
+                auto* const finalRenderTarget = graph->find_input<h32<texture>>("final_render_target");
+                OBLO_ASSERT(finalRenderTarget);
+
+                *finalRenderTarget = context.swapchainTexture;
+            }
+
             m_renderer.update({
                 .commandBuffer = *context.commandBuffer,
                 .frameAllocator = *context.frameAllocator,
-                .swapchainTexture = context.swapchainTexture,
             });
         }
 
@@ -98,5 +137,6 @@ namespace oblo::vk
 
     private:
         renderer m_renderer;
+        h32<render_graph> m_graph;
     };
 }

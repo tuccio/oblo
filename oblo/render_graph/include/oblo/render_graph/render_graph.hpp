@@ -14,6 +14,13 @@ namespace oblo
         friend class render_graph_builder_impl;
 
     public:
+        render_graph() = default;
+        render_graph(const render_graph&) = delete;
+        render_graph(render_graph&&) noexcept = default;
+        render_graph& operator=(const render_graph&) = delete;
+        render_graph& operator=(render_graph&&) noexcept = default;
+        ~render_graph() = default;
+
         void* find_node(type_id type);
 
         template <typename T>
