@@ -19,10 +19,16 @@ namespace oblo::vk
     class resource_manager;
     struct buffer;
 
+    struct buffer_column_description
+    {
+        h32<string> name;
+        u32 elementSize;
+    };
+
     class buffer_table
     {
     public:
-        struct column_description;
+        using column_description = buffer_column_description;
 
     public:
         buffer_table();
@@ -32,7 +38,7 @@ namespace oblo::vk
         buffer_table& operator=(buffer_table&&) noexcept = delete;
         ~buffer_table();
 
-        void init(std::span<const column_description> columns,
+        void init(std::span<const buffer_column_description> columns,
                   allocator& allocator,
                   resource_manager& resourceManager,
                   VkBufferUsageFlags bufferUsage,
@@ -42,22 +48,21 @@ namespace oblo::vk
 
         std::span<const h32<string>> names() const;
         std::span<const h32<buffer>> buffers() const;
+        std::span<const u32> element_sizes() const;
 
         i32 try_find(h32<string> name) const;
+
+        u32 rows_count() const;
+        u32 columns_count() const;
 
     private:
         i32* m_stringToBufferIndexMap{nullptr};
         h32<buffer>* m_buffers{nullptr};
         h32<string>* m_names{nullptr};
+        u32* m_elementSizes{nullptr};
         u32 m_rows{0u};
         u32 m_columns{0u};
         u32 m_stringRangeMin{0u};
         u32 m_stringRangeMax{0u};
-    };
-
-    struct buffer_table::column_description
-    {
-        h32<string> name;
-        u32 elementSize;
     };
 }
