@@ -12,9 +12,4 @@ target_link_libraries(
     nlohmann_json::nlohmann_json
 )
 
-install(CODE "execute_process( \
-    COMMAND ${CMAKE_COMMAND} -E create_symlink \
-    ${CMAKE_CURRENT_SOURCE_DIR}/shaders \
-    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders \
-    )"
-)
+oblo_create_symlink("${CMAKE_CURRENT_SOURCE_DIR}/shaders" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders")
