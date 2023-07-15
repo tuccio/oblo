@@ -26,6 +26,8 @@ namespace oblo::vk
         m_engine = &context.engine;
         m_resourceManager = &context.resourceManager;
 
+        m_stagingBuffer.init(*m_engine, *m_allocator, 1u << 29);
+
         m_dummy = m_resourceManager->create(
             *m_allocator,
             {
@@ -55,6 +57,8 @@ namespace oblo::vk
 
         m_renderPassManager.shutdown();
         m_resourceManager->destroy(*m_allocator, m_dummy);
+
+        m_stagingBuffer.shutdown();
     }
 
     void renderer::update(const update_context& context)

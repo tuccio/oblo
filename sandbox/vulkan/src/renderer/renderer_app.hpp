@@ -88,7 +88,6 @@ namespace oblo::vk
         {
             auto& meshes = m_renderer.get_mesh_table();
             auto& allocator = m_renderer.get_allocator();
-            auto& engine = m_renderer.get_engine();
             auto& resourceManager = m_renderer.get_resource_manager();
             auto& stringInterner = m_renderer.get_string_interner();
             auto& stagingBuffer = m_renderer.get_staging_buffer();
@@ -130,7 +129,6 @@ namespace oblo::vk
             constexpr vec3 positions[] = {{0.0f, -0.5f, 0.0f}, {0.5f, 0.5f, 0.0f}, {-0.5f, 0.5f, 0.0f}};
             constexpr vec3 colors[] = {{1.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}};
 
-            stagingBuffer.init(engine, allocator, 1u << 29);
             stagingBuffer.upload(std::as_bytes(std::span{positions}), buffers[0].buffer, buffers[0].offset);
             stagingBuffer.upload(std::as_bytes(std::span{colors}), buffers[1].buffer, buffers[1].offset);
         }
