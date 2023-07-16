@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <oblo/core/array_size.hpp>
+#include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/string_interner.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec3.hpp>
@@ -58,8 +59,32 @@ namespace oblo::vk
 
             constexpr u32 numRows = 42;
 
+            allocated_buffer allocatedBuffer;
+
+            constexpr u32 bufferSize = 128u << 20;
+
+            ASSERT_VK_SUCCESS(allocator.create_buffer(
+                {.size = bufferSize, .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT, .memoryUsage = memory_usage::gpu_only},
+                &allocatedBuffer));
+
+            frame_allocator frameAllocator;
+            frameAllocator.init(4u << 20);
+
             buffer_table bufferTable;
-            bufferTable.init(columns, allocator, resourceManager, VK_BUFFER_USAGE_TRANSFER_DST_BIT, numRows);
+
+            const u32 allocated = bufferTable.init(frameAllocator,
+                                                   {
+                                                       .buffer = allocatedBuffer.buffer,
+                                                       .offset = 0,
+                                                       .size = bufferSize,
+                                                       .allocation = allocatedBuffer.allocation,
+                                                   },
+                                                   columns,
+                                                   resourceManager,
+                                                   numRows,
+                                                   16u);
+
+            ASSERT_GT(allocated, 0);
 
             const std::span bufferColumns = bufferTable.buffers();
             const std::span nameColumns = bufferTable.names();
@@ -83,7 +108,9 @@ namespace oblo::vk
                 ASSERT_EQ(buffer.size, numRows * column.elementSize);
             }
 
-            bufferTable.shutdown(allocator, resourceManager);
+            bufferTable.shutdown(resourceManager);
+
+            allocator.destroy(allocatedBuffer);
         }
 
         const auto errorsString = validationErrors.str();

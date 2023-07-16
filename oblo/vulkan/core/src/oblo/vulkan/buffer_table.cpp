@@ -1,8 +1,10 @@
 #include <oblo/vulkan/buffer_table.hpp>
 
+#include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/debug.hpp>
+#include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/zip_iterator.hpp>
-#include <oblo/vulkan/allocator.hpp>
+#include <oblo/math/power_of_two.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
@@ -24,15 +26,34 @@ namespace oblo::vk
         OBLO_ASSERT(!m_buffers, "This instance needs to be shutdown explicitly");
     }
 
-    void buffer_table::init(std::span<const column_description> columns,
-                            allocator& allocator,
-                            resource_manager& resourceManager,
-                            VkBufferUsageFlags bufferUsage,
-                            u32 rows)
+    u32 buffer_table::init(frame_allocator& frameAllocator,
+                           const buffer& buf,
+                           std::span<const column_description> columns,
+                           resource_manager& resourceManager,
+                           u32 rows,
+                           u32 bufferAlignment)
     {
-        if (columns.empty())
+        if (columns.empty() || rows == 0u || !is_power_of_two(bufferAlignment))
         {
-            return;
+            return 0u;
+        }
+
+        u32* const bufferOffsets = allocate_n<u32>(frameAllocator, columns.size());
+        const auto numColumns = u32(columns.size());
+
+        u32 currentOffset = buf.offset;
+        for (u32 j = 0; j < numColumns; ++j)
+        {
+            currentOffset = align_power_of_two(currentOffset, bufferAlignment);
+            bufferOffsets[j] = currentOffset;
+
+            const auto columnSize = columns[j].elementSize * rows;
+            currentOffset += columnSize;
+        }
+
+        if (currentOffset >= buf.offset + buf.size)
+        {
+            return 0u;
         }
 
         h32<string> min{~0u}, max{0u};
@@ -50,12 +71,11 @@ namespace oblo::vk
             }
         }
 
+        m_columns = numColumns;
         m_stringRangeMin = min.value;
         m_stringRangeMax = max.value;
 
         const auto range = 1 + max.value - min.value;
-
-        m_columns = columns.size();
 
         const auto bufferToIndexMapSize = range * sizeof(m_stringToBufferIndexMap[0]);
         const auto buffersSize = m_columns * (sizeof(m_buffers[0]));
@@ -71,41 +91,27 @@ namespace oblo::vk
         m_elementSizes = reinterpret_cast<u32*>(heapBuffer + bufferToIndexMapSize + buffersSize + namesSize);
 
         std::uninitialized_fill(m_stringToBufferIndexMap, m_stringToBufferIndexMap + range, Invalid);
-        std::uninitialized_value_construct_n(m_buffers, m_columns);
 
         for (u32 j = 0; j < m_columns; ++j)
         {
+            const auto columnSize = columns[j].elementSize * rows;
+
+            const buffer newBuffer{
+                .buffer = buf.buffer,
+                .offset = bufferOffsets[j],
+                .size = columnSize,
+                .allocation = buf.allocation,
+            };
+
+            const auto newBufferHandle = resourceManager.register_buffer(newBuffer);
+
             const auto [name, elementSize] = columns[j];
             new (m_names + j) h32<string>{name};
             new (m_elementSizes + j) u32{elementSize};
+            new (m_buffers + j) h32<buffer>{newBufferHandle};
         }
 
         m_rows = rows;
-
-        if (rows > 0)
-        {
-            for (u32 j = 0; j < m_columns; ++j)
-            {
-                const auto size = u32(columns[j].elementSize * rows);
-
-                allocated_buffer allocatedBuffer;
-
-                OBLO_VK_PANIC(allocator.create_buffer(
-                    {
-                        .size = size,
-                        .usage = bufferUsage,
-                        .memoryUsage = memory_usage::gpu_only,
-                    },
-                    &allocatedBuffer));
-
-                m_buffers[j] = resourceManager.register_buffer({
-                    .buffer = allocatedBuffer.buffer,
-                    .offset = 0u,
-                    .size = size,
-                    .allocation = allocatedBuffer.allocation,
-                });
-            }
-        }
 
         const auto begin = zip_iterator{m_names, m_buffers, m_elementSizes};
         const auto end = begin + m_columns;
@@ -124,22 +130,17 @@ namespace oblo::vk
             const auto name = m_names[j];
             m_stringToBufferIndexMap[name.value - min.value] = i32(j);
         }
+
+        return currentOffset - buf.offset;
     }
 
-    void buffer_table::shutdown(allocator& allocator, resource_manager& resourceManager)
+    void buffer_table::shutdown(resource_manager& resourceManager)
     {
         if (m_buffers)
         {
-            for (u32 j = 0u; j < m_columns; ++j)
+            for (u32 j = 0; j < m_columns; ++j)
             {
-                const auto handle = m_buffers[j];
-
-                if (handle)
-                {
-                    const auto& buffer = resourceManager.get(handle);
-                    allocator.destroy(allocated_buffer{.buffer = buffer.buffer, .allocation = buffer.allocation});
-                    resourceManager.unregister_buffer(handle);
-                }
+                resourceManager.unregister_buffer(m_buffers[j]);
             }
 
             delete[] reinterpret_cast<std::byte*>(m_stringToBufferIndexMap);

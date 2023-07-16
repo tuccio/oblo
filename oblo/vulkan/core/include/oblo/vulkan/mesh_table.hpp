@@ -3,6 +3,11 @@
 #include <oblo/core/flat_dense_map.hpp>
 #include <oblo/vulkan/buffer_table.hpp>
 
+namespace oblo
+{
+    class frameAllocator;
+}
+
 namespace oblo::vk
 {
     struct buffer;
@@ -24,12 +29,13 @@ namespace oblo::vk
         mesh_table& operator=(mesh_table&&) noexcept = delete;
         ~mesh_table() = default;
 
-        void init(std::span<const buffer_column_description> columns,
-                  allocator& allocator,
-                  resource_manager& resourceManager,
-                  VkBufferUsageFlags bufferUsage,
-                  u32 numVertices,
-                  u32 numIndices);
+        [[nodiscard]] bool init(frame_allocator& frameAllocator,
+                                std::span<const buffer_column_description> columns,
+                                allocator& allocator,
+                                resource_manager& resourceManager,
+                                VkBufferUsageFlags bufferUsage,
+                                u32 numVertices,
+                                u32 numIndices);
 
         void shutdown(allocator& allocator, resource_manager& resourceManager);
 
@@ -71,5 +77,6 @@ namespace oblo::vk
         u32 m_firstFreeIndex{0u};
         u32 m_totalIndices{0u};
         h32<buffer> m_indexBuffer{};
+        h32<buffer> m_buffer{};
     };
 }

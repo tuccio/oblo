@@ -165,20 +165,22 @@ namespace oblo::vk
         VkBufferCopy copyRegions[2];
         u32 regionsCount{0u};
 
+        u32 segmentOffset{0u};
+
         for (const auto& segment : segmentedSpan.segments)
         {
             if (segment.begin != segment.end)
             {
-                const auto dstOffset = regionsCount == 0 ? bufferOffset : bufferOffset + copyRegions[0].size;
                 const auto segmentSize = segment.end - segment.begin;
-                std::memcpy(m_impl.memoryMap + segment.begin, srcPtr + dstOffset, segmentSize);
+                std::memcpy(m_impl.memoryMap + segment.begin, srcPtr + segmentOffset, segmentSize);
 
                 copyRegions[regionsCount] = {
                     .srcOffset = segment.begin,
-                    .dstOffset = dstOffset,
+                    .dstOffset = bufferOffset + segmentOffset,
                     .size = segmentSize,
                 };
 
+                segmentOffset += segmentSize;
                 ++regionsCount;
             }
         }
