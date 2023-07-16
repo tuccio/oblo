@@ -9,14 +9,37 @@ namespace oblo::vk
 {
     using mesh_index_type = u32;
 
-    void mesh_table::init(std::span<const buffer_column_description> columns,
+    bool mesh_table::init(frame_allocator& frameAllocator,
+                          std::span<const buffer_column_description> columns,
                           allocator& allocator,
                           resource_manager& resourceManager,
                           VkBufferUsageFlags bufferUsage,
                           u32 numVertices,
                           u32 numIndices)
     {
-        m_buffers.init(columns, allocator, resourceManager, bufferUsage, numVertices);
+        // TODO: Actually read it
+        constexpr u32 alignment = 16u;
+        u32 maxBufferSize = (alignment - 1) * columns.size();
+
+        for (const auto& column : columns)
+        {
+            maxBufferSize += column.elementSize * numVertices;
+        }
+
+        m_buffer = resourceManager.create(allocator,
+                                          {
+                                              .size = maxBufferSize,
+                                              .usage = bufferUsage,
+                                              .memoryUsage = memory_usage::gpu_only,
+                                          });
+
+        if (!m_buffers
+                 .init(frameAllocator, resourceManager.get(m_buffer), columns, resourceManager, numVertices, alignment))
+        {
+            resourceManager.destroy(allocator, m_buffer);
+            m_buffer = {};
+            return false;
+        }
 
         const auto indexBufferSize = u32(numIndices * sizeof(mesh_index_type));
 
@@ -30,18 +53,24 @@ namespace oblo::vk
         m_firstFreeVertex = 0u;
         m_firstFreeIndex = 0u;
         m_totalIndices = numIndices;
+
+        return true;
     }
 
     void mesh_table::shutdown(allocator& allocator, resource_manager& resourceManager)
     {
-        m_buffers.shutdown(allocator, resourceManager);
+        m_buffers.shutdown(resourceManager);
 
         if (m_indexBuffer)
         {
-            const auto indexBuffer = resourceManager.get(m_indexBuffer);
-
-            allocator.destroy(allocated_buffer{indexBuffer.buffer, indexBuffer.allocation});
+            resourceManager.destroy(allocator, m_indexBuffer);
             m_indexBuffer = {};
+        }
+
+        if (m_buffer)
+        {
+            resourceManager.destroy(allocator, m_buffer);
+            m_buffer = {};
         }
 
         m_ranges.clear();
@@ -100,7 +129,6 @@ namespace oblo::vk
                                    buffer* indexBuffer) const
     {
         const std::span allBuffers = m_buffers.buffers();
-        const std::span elementSizes = m_buffers.element_sizes();
 
         for (usize i = 0; i < names.size(); ++i)
         {
@@ -108,12 +136,8 @@ namespace oblo::vk
 
             if (columnIndex >= 0)
             {
-                const auto elementSize = elementSizes[columnIndex];
-
                 const auto buffer = allBuffers[columnIndex];
-                auto result = resourceManager.get(buffer);
-                result.size = elementSize * m_firstFreeVertex;
-                vertexBuffers[i] = result;
+                vertexBuffers[i] = resourceManager.get(buffer);
             }
         }
 

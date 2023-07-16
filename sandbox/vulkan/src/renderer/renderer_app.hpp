@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/array_size.hpp>
+#include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/log.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec3.hpp>
@@ -60,7 +61,7 @@ namespace oblo::vk
                 log::error("Failed to create render graph");
             }
 
-            init_test_mesh_table();
+            init_test_mesh_table(*context.frameAllocator);
             update(context);
         }
 
@@ -84,7 +85,7 @@ namespace oblo::vk
         void update_imgui(const sandbox_update_imgui_context&) {}
 
     private:
-        void init_test_mesh_table()
+        void init_test_mesh_table(frame_allocator& frameAllocator)
         {
             auto& meshes = m_renderer.get_mesh_table();
             auto& allocator = m_renderer.get_allocator();
@@ -107,8 +108,15 @@ namespace oblo::vk
                 {.name = color, .elementSize = sizeof(vec3)},
             };
 
-            meshes
-                .init(columns, allocator, resourceManager, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, maxVertices, maxIndices);
+            const bool meshTableCreated = meshes.init(frameAllocator,
+                                                      columns,
+                                                      allocator,
+                                                      resourceManager,
+                                                      VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                                      maxVertices,
+                                                      maxIndices);
+
+            OBLO_ASSERT(meshTableCreated);
 
             const mesh_table_entry mesh{
                 .id = stringInterner.get_or_add("triangle"),

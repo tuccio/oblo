@@ -8,7 +8,7 @@
 namespace oblo
 {
     template <typename T, typename Allocator>
-    T* allocate_n(Allocator& allocator, usize count)
+    [[nodiscard]] T* allocate_n(Allocator& allocator, usize count)
         requires std::is_pod_v<T>
     {
         const auto totalSize = sizeof(T) * count;
@@ -21,7 +21,7 @@ namespace oblo
     }
 
     template <typename T, typename Allocator>
-    std::span<T> allocate_n_span(Allocator& allocator, usize count)
+    [[nodiscard]] std::span<T> allocate_n_span(Allocator& allocator, usize count)
         requires std::is_pod_v<T>
     {
         return {allocate_n<T>(allocator, count), count};

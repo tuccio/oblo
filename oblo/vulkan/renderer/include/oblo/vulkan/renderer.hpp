@@ -9,6 +9,7 @@
 
 namespace oblo
 {
+    class frame_allocator;
     class render_graph;
 
     template <typename T>
