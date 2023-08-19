@@ -4,13 +4,14 @@
 #include <oblo/core/type_id.hpp>
 #include <oblo/ecs/handles.hpp>
 #include <oblo/ecs/traits.hpp>
-#include <oblo/ecs/type_set.hpp>
 
 #include <memory>
 
 namespace oblo::ecs
 {
     class type_registry;
+    struct type_set;
+    struct component_and_tags_sets;
 
     class entity_registry final
     {
@@ -43,6 +44,7 @@ namespace oblo::ecs
 
         void clear();
 
+        // Requires including oblo/ecs/range.hpp
         template <typename... Components>
         typed_range<Components...> range();
 
@@ -53,11 +55,28 @@ namespace oblo::ecs
         struct memory_pool;
 
     private:
+        const components_storage* find_first_match(const components_storage* begin,
+                                                   usize increment,
+                                                   const type_set& components);
+
+        static void sort_and_map(std::span<component_type> componentTypes, std::span<u8> mapping);
+
+        static u32 get_used_chunks_count(const components_storage& storage);
+
+        static bool fetch_component_offsets(const components_storage& storage,
+                                            std::span<const component_type> componentTypes,
+                                            std::span<u32> offsets);
+
+        static u32 fetch_chunk_data(const components_storage& storage,
+                                    u32 chunkIndex,
+                                    u32 numUsedChunks,
+                                    std::span<const u32> offsets,
+                                    const entity** entities,
+                                    std::span<std::byte*> componentData);
+
         const components_storage& find_or_create_component_storage(const type_set& components);
 
-        const components_storage* find_first_match(const components_storage* begin, const type_set& components);
-
-        void find_and_sort_component_types(std::span<const type_id> typeIds, std::span<component_type> types);
+        void find_component_types(std::span<const type_id> typeIds, std::span<component_type> types);
 
         std::byte* find_component_data(entity e, const type_id& typeId) const;
 
@@ -68,28 +87,6 @@ namespace oblo::ecs
         std::vector<tags_storage> m_tagsStorage;
         std::unique_ptr<memory_pool> m_pool;
         entity m_nextId{1};
-    };
-
-    template <typename... Components>
-    class entity_registry::typed_range
-    {
-        friend class entity_registry;
-
-    public:
-        template <typename... ComponentOrTags>
-        typed_range& with();
-
-        template <typename... ComponentOrTags>
-        typed_range& exclude();
-
-        template <typename F>
-        void for_each_chunk(F&& f);
-
-    private:
-        component_and_tags_sets m_include;
-        component_and_tags_sets m_exclude;
-        component_type m_targets[sizeof...(Components)];
-        entity_registry* m_registry;
     };
 
     template <typename... ComponentsOrTags>
@@ -112,50 +109,5 @@ namespace oblo::ecs
         std::byte* const p = find_component_data(e, get_type_id<Component>());
         OBLO_ASSERT(p);
         return *reinterpret_cast<Component*>(p);
-    }
-
-    template <typename... Components>
-    entity_registry::typed_range<Components...> entity_registry::range()
-    {
-        typed_range<Components...> res;
-        res.m_registry = this;
-
-        constexpr type_id types[] = {get_type_id<Components>()...};
-        find_and_sort_component_types(types, res.m_targets);
-
-        res.m_include = make_type_sets<Components...>(*m_typeRegistry);
-        return res;
-    }
-
-    template <typename... Components>
-    template <typename... ComponentOrTags>
-    entity_registry::typed_range<Components...>& entity_registry::typed_range<Components...>::with()
-    {
-        const auto includes = make_type_sets<Components...>(*m_typeRegistry);
-
-        m_include.components.add(includes.components);
-        m_include.tags.add(includes.tags);
-
-        return *this;
-    }
-
-    template <typename... Components>
-    template <typename... ComponentOrTags>
-    entity_registry::typed_range<Components...>& entity_registry::typed_range<Components...>::exclude()
-    {
-        const auto excludes = make_type_sets<Components...>(*m_typeRegistry);
-
-        m_excludes.components.add(includes.components);
-        m_excludes.tags.add(includes.tags);
-
-        return *this;
-    }
-
-    template <typename... Components>
-    template <typename F>
-    void entity_registry::typed_range<Components...>::for_each_chunk(F&& f)
-    {
-        // TODO
-        (void) f;
     }
 }

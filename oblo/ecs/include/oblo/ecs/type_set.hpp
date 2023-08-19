@@ -39,6 +39,18 @@ namespace oblo::ecs
             return res != 0;
         }
 
+        [[nodiscard]] constexpr type_set intersection(const type_set& other) const
+        {
+            type_set r;
+
+            for (u32 i = 0; i < BlocksCount; ++i)
+            {
+                r.bitset[i] = bitset[i] & other.bitset[i];
+            }
+
+            return r;
+        }
+
         constexpr auto operator<=>(const type_set&) const = default;
 
         static constexpr u32 BitsPerBlock{64u};
