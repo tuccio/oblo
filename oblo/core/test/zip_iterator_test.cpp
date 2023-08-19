@@ -118,4 +118,22 @@ namespace oblo
 
         ASSERT_EQ(n, 3);
     }
+
+    TEST(zip_iterator, sort)
+    {
+        constexpr auto N = 5;
+        std::array<int, N> keys = {4, 0, 2, 1, 3};
+        std::array<char, N> values = {'4', '0', '2', '1', '3'};
+
+        auto begin = zip_iterator{keys.begin(), values.begin()};
+        auto end = begin + N;
+
+        std::sort(begin, end, [](auto&& lhs, auto&& rhs) { return std::get<0>(lhs) < std::get<0>(rhs); });
+
+        constexpr std::array<int, N> expectedKeys = {0, 1, 2, 3, 4};
+        constexpr std::array<char, N> expectedValues = {'0', '1', '2', '3', '4'};
+
+        ASSERT_EQ(keys, expectedKeys);
+        ASSERT_EQ(values, expectedValues);
+    }
 }

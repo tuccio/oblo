@@ -11,8 +11,8 @@ namespace oblo
     public:
         using iterator_tuple = std::tuple<Iterators...>;
         using iterator_category = std::random_access_iterator_tag;
-        using value_type = std::tuple<decltype(*Iterators{})...>;
-        using reference = std::tuple<decltype(*Iterators{})...>;
+        using value_type = std::tuple<typename std::iterator_traits<Iterators>::value_type...>;
+        using reference = std::tuple<typename std::iterator_traits<Iterators>::reference...>;
         using pointer = value_type*;
         using difference_type = std::ptrdiff_t;
         using size_type = std::size_t;
@@ -167,5 +167,15 @@ namespace std
     void iter_swap(const oblo::zip_iterator<Iterators...>& lhs, const oblo::zip_iterator<Iterators...>& rhs)
     {
         iter_swap(lhs, rhs);
+    }
+
+    // Some algorithms swap the reference type of zip_iterator, which is not an lvalue reference, so is missing a swap
+    // overload
+    template <typename... T>
+    void swap(std::tuple<T&...> lhs, std::tuple<T&...> rhs)
+    {
+        std::tuple<T&...>& lhsRef{lhs};
+        std::tuple<T&...>& rhsRef{rhs};
+        swap(lhsRef, rhsRef);
     }
 }
