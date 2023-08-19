@@ -35,6 +35,12 @@ namespace oblo::ecs
 
         void destroy(entity e);
 
+        template <typename Component>
+        const Component& get(entity e) const;
+
+        template <typename Component>
+        Component& get(entity e);
+
         void clear();
 
         template <typename... Components>
@@ -52,6 +58,8 @@ namespace oblo::ecs
         const components_storage* find_first_match(const components_storage* begin, const type_set& components);
 
         void find_and_sort_component_types(std::span<const type_id> typeIds, std::span<component_type> types);
+
+        std::byte* find_component_data(entity e, const type_id& typeId) const;
 
     private:
         const type_registry* m_typeRegistry{nullptr};
@@ -88,6 +96,22 @@ namespace oblo::ecs
     entity entity_registry::create(u32 count)
     {
         return create(make_type_sets<ComponentsOrTags...>(*m_typeRegistry), count);
+    }
+
+    template <typename Component>
+    const Component& entity_registry::get(entity e) const
+    {
+        std::byte* const p = find_component_data(e, get_type_id<Component>());
+        OBLO_ASSERT(p);
+        return *reinterpret_cast<const Component*>(p);
+    }
+
+    template <typename Component>
+    Component& entity_registry::get(entity e)
+    {
+        std::byte* const p = find_component_data(e, get_type_id<Component>());
+        OBLO_ASSERT(p);
+        return *reinterpret_cast<Component*>(p);
     }
 
     template <typename... Components>
