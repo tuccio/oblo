@@ -2,10 +2,13 @@
 
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/debug.hpp>
+#include <oblo/core/zip_range.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/type_registry.hpp>
+#include <oblo/ecs/type_set.hpp>
 #include <oblo/math/power_of_two.hpp>
 
+#include <algorithm>
 #include <memory_resource>
 
 namespace oblo::ecs
@@ -88,6 +91,7 @@ namespace oblo::ecs
                                                     const type_set& signature,
                                                     std::span<const component_type> components)
         {
+            OBLO_ASSERT(std::is_sorted(components.begin(), components.end()));
             const u8 numComponents = u8(components.size());
 
             archetype_storage* storage = new (pool.allocate<archetype_storage>()) archetype_storage{
@@ -408,6 +412,109 @@ namespace oblo::ecs
         return firstCreatedEntityId;
     }
 
+    const entity_registry::components_storage* entity_registry::find_first_match(const components_storage* begin,
+                                                                                 usize increment,
+                                                                                 const type_set& components)
+    {
+        auto* const end = m_componentsStorage.data() + m_componentsStorage.size();
+
+        for (auto* it = begin + increment; it != end; ++it)
+        {
+            const auto intersection = it->archetype->signature.intersection(components);
+
+            if (intersection == components && it->archetype->numCurrentEntities != 0)
+            {
+                return it;
+            }
+        }
+
+        return nullptr;
+    }
+
+    void entity_registry::sort_and_map(const std::span<component_type> componentTypes, const std::span<u8> mapping)
+    {
+        for (u8 i = 0; i < mapping.size(); ++i)
+        {
+            mapping[i] = i;
+        }
+
+        const auto zip = zip_range(componentTypes, mapping);
+
+        std::sort(zip.begin(),
+                  zip.end(),
+                  [](const auto& lhs, const auto& rhs) { return std::get<0>(lhs) < std::get<0>(rhs); });
+    }
+
+    u32 entity_registry::get_used_chunks_count(const components_storage& storage)
+    {
+        return round_up_div(storage.archetype->numCurrentEntities, storage.archetype->numEntitiesPerChunk);
+    }
+
+    bool entity_registry::fetch_component_offsets(const components_storage& storage,
+                                                  std::span<const component_type> componentTypes,
+                                                  std::span<u32> offsets)
+    {
+        const auto& archetype = *storage.archetype;
+        const auto* archetypeTypeIt = archetype.components;
+
+        auto outIt = offsets.begin();
+
+        for (auto it = componentTypes.begin(); it != componentTypes.end();)
+        {
+            while (*it != *archetypeTypeIt)
+            {
+                if (*it < *archetypeTypeIt)
+                {
+                    ++it;
+                }
+                else
+                {
+                    ++archetypeTypeIt;
+                }
+            }
+
+            const u8 componentIndex = u8(archetypeTypeIt - archetype.components);
+
+            *outIt = archetype.offsets[componentIndex];
+
+            ++archetypeTypeIt;
+            ++it;
+            ++outIt;
+        }
+
+        return true;
+    }
+
+    u32 entity_registry::fetch_chunk_data(const components_storage& storage,
+                                          u32 chunkIndex,
+                                          u32 numUsedChunks,
+                                          std::span<const u32> offsets,
+                                          const entity** entities,
+                                          std::span<std::byte*> componentData)
+    {
+        const auto& archetype = *storage.archetype;
+        chunk* const chunk = archetype.chunks[chunkIndex];
+
+        *entities = get_entity_pointer(chunk->data, 0);
+
+        for (auto&& [offset, ptr] : zip_range(offsets, componentData))
+        {
+            ptr = chunk->data + offset;
+        }
+
+        return chunkIndex == numUsedChunks - 1 ? archetype.numCurrentEntities % archetype.numEntitiesPerChunk
+                                               : archetype.numEntitiesPerChunk;
+    }
+
+    void entity_registry::find_component_types(std::span<const type_id> typeIds, std::span<component_type> types)
+    {
+        OBLO_ASSERT(typeIds.size() == types.size());
+        for (usize i = 0; i < typeIds.size(); ++i)
+        {
+            types[i] = m_typeRegistry->find_component(typeIds[i]);
+        }
+    }
+
     const entity_registry::components_storage& entity_registry::find_or_create_component_storage(
         const type_set& components)
     {
@@ -428,16 +535,6 @@ namespace oblo::ecs
         newStorage.archetype = create_archetype_storage(*m_pool, *m_typeRegistry, components, typeHandles);
 
         return newStorage;
-    }
-
-    void entity_registry::find_and_sort_component_types(std::span<const type_id> typeIds,
-                                                        std::span<component_type> types)
-    {
-        OBLO_ASSERT(typeIds.size() == types.size());
-        for (usize i = 0; i < typeIds.size(); ++i)
-        {
-            types[i] = m_typeRegistry->find_component(typeIds[i]);
-        }
     }
 
     std::byte* entity_registry::find_component_data(entity e, const type_id& typeId) const

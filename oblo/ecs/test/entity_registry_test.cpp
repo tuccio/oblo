@@ -3,6 +3,7 @@
 #include <oblo/core/types.hpp>
 #include <oblo/core/zip_range.hpp>
 #include <oblo/ecs/entity_registry.hpp>
+#include <oblo/ecs/range.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/ecs/type_set.hpp>
 #include <oblo/ecs/utility/registration.hpp>
@@ -58,19 +59,19 @@ namespace oblo::ecs
         using a_uvec4_c = aligned_uvec4;
     }
 
-    TEST(entity_registry, basic)
+    TEST(entity_registry, create_destroy_single_archetype)
     {
         type_registry typeRegistry;
 
-        const component_type u32Component = register_type<u32_c>(typeRegistry);
         const component_type stringComponent = register_type<string_c>(typeRegistry);
-        const component_type alignedUvec4Component = register_type<a_uvec4_c>(typeRegistry);
         const component_type instanceCountedComponent = register_type<instance_counted>(typeRegistry);
+        const component_type u32Component = register_type<u32_c>(typeRegistry);
+        const component_type alignedUvec4Component = register_type<a_uvec4_c>(typeRegistry);
 
-        ASSERT_TRUE(u32Component);
         ASSERT_TRUE(stringComponent);
-        ASSERT_TRUE(alignedUvec4Component);
         ASSERT_TRUE(instanceCountedComponent);
+        ASSERT_TRUE(u32Component);
+        ASSERT_TRUE(alignedUvec4Component);
 
         entity_registry reg{&typeRegistry};
 
@@ -86,51 +87,62 @@ namespace oblo::ecs
 
             for (int n = 0; n < N; ++n)
             {
-                instance_counted& ic = reg.get<instance_counted>({newEntity.value + n});
+                const auto entityId = newEntity.value + n;
+                instance_counted& ic = reg.get<instance_counted>({entityId});
                 ASSERT_EQ(ic.value, i64(-1)) << "Iteration: " << iteration << " N: " << n;
-                ic.value = n;
+                ic.value = entityId;
+
+                a_uvec4_c& v = reg.get<a_uvec4_c>({entityId});
+
+                for (auto& u : v.data)
+                {
+                    u = entityId % 2 ? 666 : 1337;
+                }
+
+                string_c& s = reg.get<string_c>({entityId});
+                s = std::to_string(entityId);
             }
 
-            reg.range<a_uvec4_c, string_c>().for_each_chunk(
-                [newEntity](std::span<const entity> entities,
-                            std::span<a_uvec4_c> vectors,
-                            std::span<string_c> strings,
-                            std::span<const instance_counted> countedInstances)
+            u32 totalEntities{0};
+
+            // Iterate again to check that values are correct
+            reg.range<a_uvec4_c, string_c, instance_counted>().for_each_chunk(
+                [&totalEntities](std::span<const entity> entities,
+                                 std::span<const a_uvec4_c> vectors,
+                                 std::span<const string_c> strings,
+                                 std::span<const instance_counted> ics)
                 {
-                    for (auto&& [e, v, s, ic] : zip_range(entities, vectors, strings, countedInstances))
+                    for (auto&& [e, v, s, ic] : zip_range(entities, vectors, strings, ics))
                     {
-                        const auto currentIndex = u32(&e - entities.data());
-                        ASSERT_EQ(e.value, newEntity.value + currentIndex);
-                        ASSERT_EQ(ic.value, i64(currentIndex));
+                        ASSERT_EQ(e.value, u32(ic.value));
 
                         for (auto& u : v.data)
                         {
-                            u = e.value;
-                        }
-
-                        s = std::to_string(e.value);
-                    }
-                });
-
-            reg.range<a_uvec4_c, string_c>().for_each_chunk(
-                [newEntity](std::span<const entity> entities,
-                            std::span<const a_uvec4_c> vectors,
-                            std::span<const string_c> strings)
-                {
-                    for (auto&& [e, v, s] : zip_range(entities, vectors, strings))
-                    {
-                        const auto currentIndex = u32(&e - entities.data());
-                        ASSERT_EQ(e.value, newEntity.value + currentIndex);
-
-                        for (auto& u : v.data)
-                        {
-                            ASSERT_EQ(u, e.value);
+                            ASSERT_EQ(u, e.value % 2 ? 666 : 1337) << "Entity: " << e.value;
                         }
 
                         ASSERT_EQ(s, std::to_string(e.value));
+                        ++totalEntities;
                     }
                 });
+
+            ASSERT_EQ(totalEntities, (iteration + 1) * N);
         }
+
+        std::vector<entity> entities;
+        entities.reserve(Iterations * N);
+
+        for (auto&& [chunkEntities, ics] : reg.range<instance_counted>())
+        {
+            entities.insert(entities.end(), chunkEntities.begin(), chunkEntities.end());
+
+            for (auto&& [e, ic] : zip_range(chunkEntities, ics))
+            {
+                ASSERT_EQ(e.value, u32(ic.value));
+            }
+        }
+
+        ASSERT_EQ(entities.size(), Iterations * N);
 
         reg = {};
 
