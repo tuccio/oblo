@@ -11,8 +11,8 @@ namespace oblo
     public:
         using iterator_tuple = std::tuple<Iterators...>;
         using iterator_category = std::random_access_iterator_tag;
-        using value_type = std::tuple<typename std::iterator_traits<Iterators>::value_type...>;
-        using reference = std::tuple<typename std::iterator_traits<Iterators>::value_type&...>;
+        using value_type = std::tuple<decltype(*Iterators{})...>;
+        using reference = std::tuple<decltype(*Iterators{})...>;
         using pointer = value_type*;
         using difference_type = std::ptrdiff_t;
         using size_type = std::size_t;
