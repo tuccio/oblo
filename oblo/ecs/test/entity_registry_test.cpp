@@ -50,7 +50,7 @@ namespace oblo::ecs
 
             instance_counted& operator=(const instance_counted&) = delete;
 
-            int value;
+            i64 value{-1};
         };
 
         using u32_c = u32;
@@ -72,52 +72,67 @@ namespace oblo::ecs
         ASSERT_TRUE(alignedUvec4Component);
         ASSERT_TRUE(instanceCountedComponent);
 
-        entity_registry entityRegistry{&typeRegistry};
+        entity_registry reg{&typeRegistry};
 
-        constexpr auto N = 32;
+        constexpr auto Iterations = 64;
+        constexpr auto N = 33;
 
-        const auto newEntity = entityRegistry.create<string_c, a_uvec4_c, instance_counted>(N);
+        for (auto iteration = 0; iteration < Iterations; ++iteration)
+        {
+            const auto newEntity = reg.create<string_c, a_uvec4_c, instance_counted>(N);
 
-        ASSERT_TRUE(newEntity);
-        ASSERT_EQ(instance_counted::s_counter, N);
+            ASSERT_TRUE(newEntity);
+            ASSERT_EQ(instance_counted::s_counter, N * (iteration + 1));
 
-        entityRegistry.range<a_uvec4_c, string_c>().for_each_chunk(
-            [newEntity](std::span<const entity> entities, std::span<a_uvec4_c> vectors, std::span<string_c> strings)
+            for (int n = 0; n < N; ++n)
             {
-                for (auto&& [e, v, s] : zip_range(entities, vectors, strings))
+                instance_counted& ic = reg.get<instance_counted>({newEntity.value + n});
+                ASSERT_EQ(ic.value, i64(-1)) << "Iteration: " << iteration << " N: " << n;
+                ic.value = n;
+            }
+
+            reg.range<a_uvec4_c, string_c>().for_each_chunk(
+                [newEntity](std::span<const entity> entities,
+                            std::span<a_uvec4_c> vectors,
+                            std::span<string_c> strings,
+                            std::span<const instance_counted> countedInstances)
                 {
-                    const auto currentIndex = u32(&e - entities.data());
-                    ASSERT_EQ(e.value, newEntity.value + currentIndex);
-
-                    for (auto& u : v.data)
+                    for (auto&& [e, v, s, ic] : zip_range(entities, vectors, strings, countedInstances))
                     {
-                        u = e.value;
+                        const auto currentIndex = u32(&e - entities.data());
+                        ASSERT_EQ(e.value, newEntity.value + currentIndex);
+                        ASSERT_EQ(ic.value, i64(currentIndex));
+
+                        for (auto& u : v.data)
+                        {
+                            u = e.value;
+                        }
+
+                        s = std::to_string(e.value);
                     }
+                });
 
-                    s = std::to_string(e.value);
-                }
-            });
-
-        entityRegistry.range<a_uvec4_c, string_c>().for_each_chunk(
-            [newEntity](std::span<const entity> entities,
-                        std::span<const a_uvec4_c> vectors,
-                        std::span<const string_c> strings)
-            {
-                for (auto&& [e, v, s] : zip_range(entities, vectors, strings))
+            reg.range<a_uvec4_c, string_c>().for_each_chunk(
+                [newEntity](std::span<const entity> entities,
+                            std::span<const a_uvec4_c> vectors,
+                            std::span<const string_c> strings)
                 {
-                    const auto currentIndex = u32(&e - entities.data());
-                    ASSERT_EQ(e.value, newEntity.value + currentIndex);
-
-                    for (auto& u : v.data)
+                    for (auto&& [e, v, s] : zip_range(entities, vectors, strings))
                     {
-                        ASSERT_EQ(u, e.value);
+                        const auto currentIndex = u32(&e - entities.data());
+                        ASSERT_EQ(e.value, newEntity.value + currentIndex);
+
+                        for (auto& u : v.data)
+                        {
+                            ASSERT_EQ(u, e.value);
+                        }
+
+                        ASSERT_EQ(s, std::to_string(e.value));
                     }
+                });
+        }
 
-                    ASSERT_EQ(s, std::to_string(e.value));
-                }
-            });
-
-        entityRegistry = {};
+        reg = {};
 
         ASSERT_EQ(instance_counted::s_counter, 0);
     }

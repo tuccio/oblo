@@ -13,6 +13,7 @@ namespace oblo::ecs
     namespace
     {
         static constexpr u32 ChunkSize{1u << 14};
+        static constexpr u8 InvalidComponentIndex{MaxComponentTypes + 1};
 
         struct chunk
         {
@@ -267,6 +268,32 @@ namespace oblo::ecs
                 *it = new chunk;
             }
         }
+
+        // TODO: Could be implemented with bitwise operations and type_set instead
+        u8 find_component_index(std::span<const component_type> types, component_type component)
+        {
+            for (const component_type& c : types)
+            {
+                if (c == component)
+                {
+                    return u8(&c - types.data());
+                }
+            }
+
+            return InvalidComponentIndex;
+        }
+
+        struct chunk_index_and_offset
+        {
+            u32 index;
+            u32 offset;
+        };
+
+        chunk_index_and_offset get_chunk_index_and_offset(const archetype_storage& archetype, u32 archetypeIndex)
+        {
+            const u32 numEntitiesPerChunk = archetype.numEntitiesPerChunk;
+            return {archetypeIndex / numEntitiesPerChunk, archetypeIndex % numEntitiesPerChunk};
+        }
     }
 
     struct entity_registry::components_storage
@@ -280,6 +307,8 @@ namespace oblo::ecs
 
     struct entity_registry::entity_data
     {
+        archetype_storage* archetype;
+        u32 archetypeIndex;
     };
 
     struct entity_registry::memory_pool : memory_pool_impl
@@ -334,24 +363,31 @@ namespace oblo::ecs
 
         reserve_chunks(*m_pool, *archetype, numRequiredChunks);
 
-        const auto res = m_nextId;
+        const entity firstCreatedEntityId = m_nextId;
 
-        const u32 availableInFirstChunk = numEntitiesPerChunk - oldCount % numEntitiesPerChunk;
+        chunk** const chunks = archetype->chunks;
         const u32 firstChunkIndex = oldCount / numEntitiesPerChunk;
-
         const u8 numComponents = archetype->numComponents;
 
-        auto* const chunks = archetype->chunks;
+        u32 numEntitiesInCurrentChunk = oldCount % numEntitiesPerChunk;
+        u32 numRemainingEntities = count;
 
-        if (count < availableInFirstChunk)
+        u32 archetypeIndex = oldCount;
+
+        for (chunk** chunk = chunks + firstChunkIndex; chunk != chunks + numRequiredChunks;
+             ++chunk, numEntitiesInCurrentChunk = 0)
         {
-            std::byte* const chunkBytes = chunks[firstChunkIndex]->data;
+            std::byte* const chunkBytes = (*chunk)->data;
 
-            const u32 existingEntities = numEntitiesPerChunk - availableInFirstChunk;
-            entity* const entities = get_entity_pointer(chunkBytes, existingEntities);
+            entity* const entities = get_entity_pointer(chunkBytes, numEntitiesInCurrentChunk);
 
-            for (entity *it = entities, *end = entities + count; it != end; ++it)
+            const u32 numEntitiesToCreate = min(numRemainingEntities, numEntitiesPerChunk - numEntitiesInCurrentChunk);
+
+            for (entity *it = entities, *end = entities + numEntitiesToCreate; it != end; ++it)
             {
+                m_entities.emplace(m_nextId, archetype, archetypeIndex);
+                ++archetypeIndex;
+
                 new (it) entity{m_nextId};
                 ++m_nextId.value;
             }
@@ -359,20 +395,17 @@ namespace oblo::ecs
             for (u8 componentIndex = 0; componentIndex != numComponents; ++componentIndex)
             {
                 std::byte* const componentData =
-                    get_component_pointer(chunkBytes, *archetype, componentIndex, existingEntities);
+                    get_component_pointer(chunkBytes, *archetype, componentIndex, numEntitiesInCurrentChunk);
 
-                archetype->fnTables[componentIndex].create(componentData, count);
+                archetype->fnTables[componentIndex].create(componentData, numEntitiesToCreate);
             }
-        }
-        else
-        {
-            // TODO: Allocate over multiple chunks
-            OBLO_ASSERT(false);
+
+            numRemainingEntities -= numEntitiesToCreate;
         }
 
         archetype->numCurrentEntities = newCount;
 
-        return res;
+        return firstCreatedEntityId;
     }
 
     const entity_registry::components_storage& entity_registry::find_or_create_component_storage(
@@ -405,5 +438,29 @@ namespace oblo::ecs
         {
             types[i] = m_typeRegistry->find_component(typeIds[i]);
         }
+    }
+
+    std::byte* entity_registry::find_component_data(entity e, const type_id& typeId) const
+    {
+        const auto component = m_typeRegistry->find_component(typeId);
+        const entity_data* entityData = m_entities.try_find(e);
+
+        if (!entityData || !component)
+        {
+            return nullptr;
+        }
+
+        auto* const archetype = entityData->archetype;
+
+        const u8 componentIndex = find_component_index({archetype->components, archetype->numComponents}, component);
+
+        if (componentIndex == InvalidComponentIndex)
+        {
+            return nullptr;
+        }
+
+        const auto [chunkIndex, chunkOffset] = get_chunk_index_and_offset(*archetype, entityData->archetypeIndex);
+
+        return get_component_pointer(archetype->chunks[chunkIndex]->data, *archetype, componentIndex, chunkOffset);
     }
 }

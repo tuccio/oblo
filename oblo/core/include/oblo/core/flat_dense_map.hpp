@@ -36,7 +36,15 @@ namespace oblo
 
             if (keyIndex >= m_sparse.size())
             {
-                m_sparse.resize(keyIndex + 1, Invalid);
+                const u32 newSize = keyIndex + 1;
+
+                // Resize will cause the allocation to be exact, which might cause a lot of reallocations
+                if (const auto capacity = m_sparse.capacity(); newSize > capacity)
+                {
+                    m_sparse.reserve(max(usize{16}, usize(capacity * 1.5f)));
+                }
+
+                m_sparse.resize(newSize, Invalid);
             }
             else if (const auto pointedIndex = m_sparse[keyIndex];
                      pointedIndex < m_denseKey.size() && is_key_matched_unchecked(keyIndex, pointedIndex))
