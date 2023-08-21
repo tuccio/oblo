@@ -193,4 +193,42 @@ namespace oblo::ecs
 
         ASSERT_EQ(entities.size(), Iterations * N);
     }
+
+    TEST_F(single_archetype_test, destroy_half_from_last)
+    {
+        std::vector<entity> entities;
+        entities.reserve(Iterations * N);
+
+        for (auto&& [chunkEntities, ics] : reg.range<instance_counted>())
+        {
+            entities.insert(entities.end(), chunkEntities.begin(), chunkEntities.end());
+
+            for (auto&& [e, ic] : zip_range(chunkEntities, ics))
+            {
+                ASSERT_EQ(e.value, u32(ic.value));
+            }
+        }
+
+        const auto m = entities.rbegin() + entities.size() / 2;
+
+        for (auto it = entities.rbegin(); it != m; ++it)
+        {
+            reg.destroy(*it);
+        }
+
+        ASSERT_EQ(instance_counted::s_counter, Iterations * N / 2);
+
+        for (auto it = entities.rbegin(); it != m; ++it)
+        {
+            ASSERT_FALSE(reg.contains(*it));
+        }
+
+        for (auto it = m; it != entities.rend(); ++it)
+        {
+            ASSERT_TRUE(reg.contains(*it));
+            ASSERT_EQ(reg.get<instance_counted>(*it).value, it->value);
+        }
+
+        ASSERT_EQ(entities.size(), Iterations * N);
+    }
 }
