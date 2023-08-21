@@ -6,7 +6,8 @@ namespace oblo::ecs
 {
     using create_fn = void (*)(void* dst, usize count);
     using destroy_fn = void (*)(void* dst, usize count);
-    using move_fn = void (*)(void* dst, const void* src, usize count);
+    using move_fn = void (*)(void* dst, void* src, usize count);
+    using move_assign_fn = void (*)(void* dst, void* src, usize count);
 
     struct component_type_desc
     {
@@ -16,5 +17,6 @@ namespace oblo::ecs
         create_fn create;
         destroy_fn destroy;
         move_fn move;
+        move_assign_fn moveAssign;
     };
 }

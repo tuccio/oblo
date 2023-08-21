@@ -37,15 +37,27 @@ namespace oblo::ecs
                 }
             },
             .move =
-                [](void* dst, const void* src, usize count)
+                [](void* dst, void* src, usize count)
             {
                 T* outIt = static_cast<T*>(dst);
-                const T* inIt = static_cast<const T*>(src);
+                T* inIt = static_cast<T*>(src);
                 T* const end = outIt + count;
 
                 for (; outIt != end; ++outIt, ++inIt)
                 {
                     new (outIt) T(std::move(*inIt));
+                }
+            },
+            .moveAssign =
+                [](void* dst, void* src, usize count)
+            {
+                T* outIt = static_cast<T*>(dst);
+                T* inIt = static_cast<T*>(src);
+                T* const end = outIt + count;
+
+                for (; outIt != end; ++outIt, ++inIt)
+                {
+                    *outIt = std::move(*inIt);
                 }
             },
         };

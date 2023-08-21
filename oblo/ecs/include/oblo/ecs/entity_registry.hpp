@@ -36,13 +36,13 @@ namespace oblo::ecs
 
         void destroy(entity e);
 
+        bool contains(entity e) const;
+
         template <typename Component>
         const Component& get(entity e) const;
 
         template <typename Component>
         Component& get(entity e);
-
-        void clear();
 
         // Requires including oblo/ecs/range.hpp
         template <typename... Components>
