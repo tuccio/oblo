@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <memory_resource>
 
+#define OBLO_ECS_DEBUG_DATA 1
+
 namespace oblo::ecs
 {
     namespace
@@ -28,6 +30,7 @@ namespace oblo::ecs
             create_fn create;
             destroy_fn destroy;
             move_fn move;
+            move_assign_fn moveAssign;
         };
 
         struct archetype_storage
@@ -43,6 +46,9 @@ namespace oblo::ecs
             u32 numCurrentChunks;
             u32 numCurrentEntities;
             u8 numComponents;
+#if OBLO_ECS_DEBUG_DATA
+            type_id* typeIds;
+#endif
         };
 
         struct memory_pool_impl
@@ -105,6 +111,10 @@ namespace oblo::ecs
             pool.create_array_uninitialized(storage->alignments, numComponents);
             pool.create_array_uninitialized(storage->fnTables, numComponents);
 
+#if OBLO_ECS_DEBUG_DATA
+            pool.create_array_uninitialized(storage->typeIds, numComponents);
+#endif
+
             std::memcpy(storage->components, components.data(), components.size_bytes());
 
             usize columnsSizeSum = sizeof(entity);
@@ -121,10 +131,12 @@ namespace oblo::ecs
                     .create = typeDesc.create,
                     .destroy = typeDesc.destroy,
                     .move = typeDesc.move,
+                    .moveAssign = typeDesc.moveAssign,
                 };
 
                 storage->alignments[componentIndex] = typeDesc.alignment;
                 storage->sizes[componentIndex] = componentSize;
+                storage->typeIds[componentIndex] = typeDesc.type;
 
                 columnsSizeSum += componentSize;
                 paddingWorstCase += typeDesc.alignment - 1;
@@ -201,6 +213,10 @@ namespace oblo::ecs
                 pool.deallocate_array(storage->sizes, numComponents);
                 pool.deallocate_array(storage->alignments, numComponents);
                 pool.deallocate_array(storage->fnTables, numComponents);
+
+#if OBLO_ECS_DEBUG_DATA
+                pool.deallocate_array(storage->typeIds, numComponents);
+#endif
             }
 
             pool.deallocate(storage);
@@ -287,13 +303,13 @@ namespace oblo::ecs
             return InvalidComponentIndex;
         }
 
-        struct chunk_index_and_offset
+        struct entity_location
         {
             u32 index;
             u32 offset;
         };
 
-        chunk_index_and_offset get_chunk_index_and_offset(const archetype_storage& archetype, u32 archetypeIndex)
+        entity_location get_entity_location(const archetype_storage& archetype, u32 archetypeIndex)
         {
             const u32 numEntitiesPerChunk = archetype.numEntitiesPerChunk;
             return {archetypeIndex / numEntitiesPerChunk, archetypeIndex % numEntitiesPerChunk};
@@ -410,6 +426,72 @@ namespace oblo::ecs
         archetype->numCurrentEntities = newCount;
 
         return firstCreatedEntityId;
+    }
+
+    void entity_registry::destroy(entity e)
+    {
+        const auto* entityData = m_entities.try_find(e);
+
+        if (!entityData)
+        {
+            return;
+        }
+
+        auto& archetype = *entityData->archetype;
+        const auto archetypeIndex = entityData->archetypeIndex;
+
+        OBLO_ASSERT(archetype.numCurrentEntities != 0);
+
+        const auto [chunkIndex, chunkOffset] = get_entity_location(archetype, archetypeIndex);
+        const auto [lastEntityChunkIndex, lastEntityChunkOffset] =
+            get_entity_location(archetype, archetype.numCurrentEntities - 1);
+
+        if (chunkIndex != lastEntityChunkIndex || chunkOffset != lastEntityChunkOffset)
+        {
+            chunk* const removedEntityChunk = archetype.chunks[chunkIndex];
+            chunk* const lastEntityChunk = archetype.chunks[lastEntityChunkIndex];
+
+            entity* const removedEntity = get_entity_pointer(removedEntityChunk->data, chunkOffset);
+            entity* const lastEntity = get_entity_pointer(lastEntityChunk->data, lastEntityChunkOffset);
+
+            // We will swap the removed entity with the last, so we remove the archetype index
+            m_entities.erase(*removedEntity);
+            auto* const lastEntityData = m_entities.try_find(*lastEntity);
+            OBLO_ASSERT(lastEntityData);
+            lastEntityData->archetypeIndex = archetypeIndex;
+
+            std::swap(*removedEntity, *lastEntity);
+
+            for (u8 componentIndex = 0; componentIndex < archetype.numComponents; ++componentIndex)
+            {
+                auto* dst = get_component_pointer(removedEntityChunk->data, archetype, componentIndex, chunkOffset);
+                auto* src = get_component_pointer(lastEntityChunk->data, archetype, componentIndex, lastEntityChunkOffset);
+                archetype.fnTables[componentIndex].moveAssign(dst, src, 1);
+                archetype.fnTables[componentIndex].destroy(src, 1);
+            }
+        }
+        else
+        {
+            chunk* const removedEntityChunk = archetype.chunks[chunkIndex];
+            entity* const removedEntity = get_entity_pointer(removedEntityChunk->data, chunkOffset);
+            m_entities.erase(*removedEntity);
+
+            chunk* const lastEntityChunk = archetype.chunks[lastEntityChunkIndex];
+
+            for (u8 componentIndex = 0; componentIndex < archetype.numComponents; ++componentIndex)
+            {
+                auto* src = get_component_pointer(lastEntityChunk->data, archetype, componentIndex, chunkOffset);
+                archetype.fnTables[componentIndex].destroy(src, 1);
+            }
+        }
+
+        // TODO: Could free pages if not used
+        --archetype.numCurrentEntities;
+    }
+
+    bool entity_registry::contains(entity e) const
+    {
+        return m_entities.try_find(e) != nullptr;
     }
 
     const entity_registry::components_storage* entity_registry::find_first_match(const components_storage* begin,
@@ -556,7 +638,7 @@ namespace oblo::ecs
             return nullptr;
         }
 
-        const auto [chunkIndex, chunkOffset] = get_chunk_index_and_offset(*archetype, entityData->archetypeIndex);
+        const auto [chunkIndex, chunkOffset] = get_entity_location(*archetype, entityData->archetypeIndex);
 
         return get_component_pointer(archetype->chunks[chunkIndex]->data, *archetype, componentIndex, chunkOffset);
     }
