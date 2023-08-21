@@ -11,7 +11,7 @@
 #include <algorithm>
 #include <memory_resource>
 
-#define OBLO_ECS_DEBUG_DATA 1
+#define OBLO_ECS_DEBUG_DATA 0
 
 namespace oblo::ecs
 {
@@ -19,10 +19,11 @@ namespace oblo::ecs
     {
         static constexpr u32 ChunkSize{1u << 14};
         static constexpr u8 InvalidComponentIndex{MaxComponentTypes + 1};
+        static constexpr usize PageAlignment{alignof(std::max_align_t)};
 
         struct chunk
         {
-            std::byte data[ChunkSize];
+            alignas(PageAlignment) std::byte data[ChunkSize];
         };
 
         struct component_fn_table
@@ -84,6 +85,12 @@ namespace oblo::ecs
             void deallocate_array(T* ptr, usize count)
             {
                 poolResource.deallocate(ptr, sizeof(T) * count, alignof(T));
+            }
+
+            template <typename T>
+            T* create_uninitialized()
+            {
+                return new (poolResource.allocate(sizeof(T), alignof(T))) T;
             }
         };
 
@@ -200,7 +207,7 @@ namespace oblo::ecs
                         numEntities -= numEntitiesInChunk;
                     }
 
-                    delete *it;
+                    pool.deallocate(*it);
                 }
 
                 pool.deallocate_array(storage->chunks, numChunks);
@@ -285,7 +292,7 @@ namespace oblo::ecs
 
             for (chunk **it = newChunksArray + oldCount, **end = newChunksArray + newCount; it != end; ++it)
             {
-                *it = new chunk;
+                *it = pool.create_uninitialized<chunk>();
             }
         }
 
@@ -465,7 +472,8 @@ namespace oblo::ecs
             for (u8 componentIndex = 0; componentIndex < archetype.numComponents; ++componentIndex)
             {
                 auto* dst = get_component_pointer(removedEntityChunk->data, archetype, componentIndex, chunkOffset);
-                auto* src = get_component_pointer(lastEntityChunk->data, archetype, componentIndex, lastEntityChunkOffset);
+                auto* src =
+                    get_component_pointer(lastEntityChunk->data, archetype, componentIndex, lastEntityChunkOffset);
                 archetype.fnTables[componentIndex].moveAssign(dst, src, 1);
                 archetype.fnTables[componentIndex].destroy(src, 1);
             }
