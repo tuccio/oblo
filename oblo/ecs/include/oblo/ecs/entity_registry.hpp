@@ -10,8 +10,8 @@
 namespace oblo::ecs
 {
     class type_registry;
-    struct type_set;
     struct component_and_tags_sets;
+    struct type_set;
 
     class entity_registry final
     {
@@ -36,6 +36,16 @@ namespace oblo::ecs
 
         void destroy(entity e);
 
+        void add(entity e, const component_and_tags_sets& types);
+
+        template <typename... ComponentsOrTags>
+        void add(entity e);
+
+        void remove(entity e, const component_and_tags_sets& types);
+
+        template <typename... ComponentsOrTags>
+        void remove(entity e);
+
         bool contains(entity e) const;
 
         template <typename Component>
@@ -50,9 +60,9 @@ namespace oblo::ecs
 
     private:
         struct components_storage;
+        struct memory_pool;
         struct tags_storage;
         struct entity_data;
-        struct memory_pool;
 
     private:
         const components_storage* find_first_match(const components_storage* begin,
@@ -82,10 +92,10 @@ namespace oblo::ecs
 
     private:
         const type_registry* m_typeRegistry{nullptr};
+        std::unique_ptr<memory_pool> m_pool;
         flat_dense_map<entity, entity_data> m_entities;
         std::vector<components_storage> m_componentsStorage;
-        std::vector<tags_storage> m_tagsStorage;
-        std::unique_ptr<memory_pool> m_pool;
+        tags_storage* m_tagsStorage;
         entity m_nextId{1};
     };
 
