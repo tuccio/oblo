@@ -28,7 +28,7 @@ namespace oblo::ecs
         pool.create_array_uninitialized(storage->alignments, numComponents);
         pool.create_array_uninitialized(storage->fnTables, numComponents);
 
-#if OBLO_ECS_DEBUG_DATA
+#ifdef OBLO_DEBUG
         pool.create_array_uninitialized(storage->typeIds, numComponents);
 #endif
 
@@ -54,7 +54,7 @@ namespace oblo::ecs
             storage->alignments[componentIndex] = typeDesc.alignment;
             storage->sizes[componentIndex] = componentSize;
 
-#if OBLO_ECS_DEBUG_DATA
+#ifdef OBLO_DEBUG
             storage->typeIds[componentIndex] = typeDesc.type;
 #endif
 
@@ -134,7 +134,7 @@ namespace oblo::ecs
             pool.deallocate_array(storage->alignments, numComponents);
             pool.deallocate_array(storage->fnTables, numComponents);
 
-#if OBLO_ECS_DEBUG_DATA
+#ifdef OBLO_DEBUG
             pool.deallocate_array(storage->typeIds, numComponents);
 #endif
         }

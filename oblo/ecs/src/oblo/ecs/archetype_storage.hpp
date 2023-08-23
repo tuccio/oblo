@@ -7,8 +7,6 @@
 
 #include <span>
 
-#define OBLO_ECS_DEBUG_DATA 0
-
 namespace oblo::ecs
 {
     class type_registry;
@@ -45,7 +43,7 @@ namespace oblo::ecs
         u32 numCurrentChunks;
         u32 numCurrentEntities;
         u8 numComponents;
-#if OBLO_ECS_DEBUG_DATA
+#if OBLO_DEBUG
         type_id* typeIds;
 #endif
     };

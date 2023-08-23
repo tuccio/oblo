@@ -1,5 +1,6 @@
 option(OBLO_ENABLE_ASSERT "Enables internal asserts" OFF)
 option(OBLO_DISABLE_COMPILER_OPTIMIZATIONS "Disables compiler optimizations" OFF)
+option(OBLO_DEBUG "Activates code useful for debugging" OFF)
 
 define_property(GLOBAL PROPERTY oblo_3rdparty_targets BRIEF_DOCS "3rd party targets" FULL_DOCS "List of 3rd party targets")
 
@@ -29,6 +30,10 @@ function(oblo_init_compiler_settings)
 
     if(OBLO_ENABLE_ASSERT)
         add_definitions(-DOBLO_ENABLE_ASSERT)
+    endif()
+
+    if(OBLO_DEBUG)
+        add_definitions(-DOBLO_DEBUG)
     endif()
 endfunction(oblo_init_compiler_settings)
 

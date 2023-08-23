@@ -55,7 +55,8 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo",
                 "OBLO_DISABLE_COMPILER_OPTIMIZATIONS": true,
-                "OBLO_ENABLE_ASSERT": true
+                "OBLO_ENABLE_ASSERT": true,
+                "OBLO_DEBUG": true
             }
         },
         {
@@ -86,7 +87,8 @@
             "inherits": "conf-windows-clang-cl",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "OBLO_ENABLE_ASSERT": true
+                "OBLO_ENABLE_ASSERT": true,
+                "OBLO_DEBUG": true
             }
         }
     ]
