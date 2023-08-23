@@ -9,6 +9,9 @@
 
 namespace oblo::ecs
 {
+    static_assert(sizeof(chunk) == ChunkWithHeaderSize);
+    static_assert(MaxComponentTypes <= std::numeric_limits<decltype(archetype_storage::numComponents)>::max());
+
     archetype_storage* create_archetype_storage(memory_pool_impl& pool,
                                                 const type_registry& typeRegistry,
                                                 const type_set& signature,
@@ -34,41 +37,51 @@ namespace oblo::ecs
 
         std::memcpy(storage->components, components.data(), components.size_bytes());
 
-        usize columnsSizeSum = sizeof(entity);
-        usize paddingWorstCase = 0;
+        usize columnsSizeSum = sizeof(entity) + sizeof(entity_tags);
 
-        for (u8 componentIndex = 0; componentIndex < numComponents; ++componentIndex)
+        static_assert(alignof(entity_tags) > alignof(entity));
+        usize paddingWorstCase = alignof(entity_tags) - alignof(entity);
+
         {
-            const auto& typeDesc = typeRegistry.get_component_type_desc(components[componentIndex]);
-            OBLO_ASSERT(is_power_of_two(typeDesc.alignment));
+            usize previousAlignment = alignof(entity_tags);
 
-            const u32 componentSize = typeDesc.size;
+            for (u8 componentIndex = 0; componentIndex < numComponents; ++componentIndex)
+            {
+                const auto& typeDesc = typeRegistry.get_component_type_desc(components[componentIndex]);
+                OBLO_ASSERT(is_power_of_two(typeDesc.alignment));
 
-            storage->fnTables[componentIndex] = {
-                .create = typeDesc.create,
-                .destroy = typeDesc.destroy,
-                .move = typeDesc.move,
-                .moveAssign = typeDesc.moveAssign,
-            };
+                const u32 componentSize = typeDesc.size;
 
-            storage->alignments[componentIndex] = typeDesc.alignment;
-            storage->sizes[componentIndex] = componentSize;
+                storage->fnTables[componentIndex] = {
+                    .create = typeDesc.create,
+                    .destroy = typeDesc.destroy,
+                    .move = typeDesc.move,
+                    .moveAssign = typeDesc.moveAssign,
+                };
+
+                storage->alignments[componentIndex] = typeDesc.alignment;
+                storage->sizes[componentIndex] = componentSize;
 
 #ifdef OBLO_DEBUG
-            storage->typeIds[componentIndex] = typeDesc.type;
+                storage->typeIds[componentIndex] = typeDesc.type;
 #endif
 
-            columnsSizeSum += componentSize;
-            paddingWorstCase += typeDesc.alignment - 1;
+                columnsSizeSum += componentSize;
+
+                if (previousAlignment < typeDesc.alignment)
+                {
+                    paddingWorstCase += typeDesc.alignment - previousAlignment;
+                }
+            }
         }
 
         const u32 numEntitiesPerChunk = (ChunkSize - paddingWorstCase) / columnsSizeSum;
-        u32 currentOffset = 0;
-
         storage->numEntitiesPerChunk = numEntitiesPerChunk;
 
+        u32 currentOffset = 0;
+
         // The initial page alignment
-        usize previousAlignment = alignof(std::max_align_t);
+        usize previousAlignment = PageAlignment;
 
         const auto computePadding = [&previousAlignment](usize newAlignment)
         { return previousAlignment >= newAlignment ? usize(0) : newAlignment - previousAlignment; };
@@ -77,15 +90,22 @@ namespace oblo::ecs
         currentOffset += computePadding(alignof(entity)) + sizeof(entity) * numEntitiesPerChunk;
         previousAlignment = alignof(entity);
 
+        // Then we have the tags
+        storage->entityTagsOffset = currentOffset;
+
+        currentOffset += computePadding(alignof(entity_tags)) + sizeof(entity_tags) * numEntitiesPerChunk;
+        previousAlignment = alignof(entity_tags);
+
         for (u8 componentIndex = 0; componentIndex < numComponents; ++componentIndex)
         {
             const auto size = storage->sizes[componentIndex];
             const auto alignment = storage->alignments[componentIndex];
             const auto padding = computePadding(alignment);
 
-            storage->offsets[componentIndex] = currentOffset;
+            const u32 startOffset = currentOffset + padding;
+            storage->offsets[componentIndex] = startOffset;
 
-            currentOffset += padding + size * numEntitiesPerChunk;
+            currentOffset = startOffset + size * numEntitiesPerChunk;
             OBLO_ASSERT(currentOffset <= ChunkSize);
 
             previousAlignment = alignment;
@@ -195,7 +215,14 @@ namespace oblo::ecs
 
         for (chunk **it = newChunksArray + oldCount, **end = newChunksArray + newCount; it != end; ++it)
         {
-            *it = pool.create_uninitialized<chunk>();
+            chunk* const newChunk = pool.create_uninitialized<chunk>();
+            *it = newChunk;
+
+            newChunk->header = {};
+
+            // Start lifetimes (possibly unnecessary in C++ 20?)
+            new (get_entity_pointer(newChunk->data, 0)) entity[archetype.numEntitiesPerChunk];
+            new (get_entity_tags_pointer(newChunk->data, archetype, 0)) entity_tags[archetype.numEntitiesPerChunk];
         }
     }
 }

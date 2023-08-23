@@ -13,12 +13,19 @@ namespace oblo::ecs
     struct memory_pool_impl;
     struct type_set;
 
-    static constexpr u32 ChunkSize{1u << 14};
-    static constexpr u8 InvalidComponentIndex{MaxComponentTypes + 1};
     static constexpr usize PageAlignment{alignof(std::max_align_t)};
+    static constexpr u32 ChunkWithHeaderSize{1u << 14};
+    static constexpr u32 ChunkSize{ChunkWithHeaderSize - PageAlignment};
+    static constexpr u8 InvalidComponentIndex{MaxComponentTypes + 1};
+
+    struct chunk_header
+    {
+        u32 numEntities;
+    };
 
     struct chunk
     {
+        chunk_header header;
         alignas(PageAlignment) std::byte data[ChunkSize];
     };
 
@@ -42,13 +49,17 @@ namespace oblo::ecs
         u32 numEntitiesPerChunk;
         u32 numCurrentChunks;
         u32 numCurrentEntities;
+        u32 entityTagsOffset;
         u8 numComponents;
 #if OBLO_DEBUG
         type_id* typeIds;
 #endif
     };
 
-    static_assert(MaxComponentTypes <= std::numeric_limits<decltype(archetype_storage::numComponents)>::max());
+    struct entity_tags
+    {
+        type_set types;
+    };
 
     archetype_storage* create_archetype_storage(memory_pool_impl& pool,
                                                 const type_registry& typeRegistry,
@@ -64,8 +75,13 @@ namespace oblo::ecs
         return reinterpret_cast<entity*>(chunk) + offset;
     }
 
+    inline entity_tags* get_entity_tags_pointer(std::byte* chunk, const archetype_storage& archetype, u32 offset)
+    {
+        return reinterpret_cast<entity_tags*>(chunk + archetype.entityTagsOffset + offset);
+    }
+
     inline std::byte* get_component_pointer(std::byte* chunk,
-                                            archetype_storage& archetype,
+                                            const archetype_storage& archetype,
                                             u8 componentIndex,
                                             u32 offset)
     {

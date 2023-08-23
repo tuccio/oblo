@@ -9,7 +9,10 @@
 #include <oblo/ecs/utility/registration.hpp>
 
 #include <algorithm>
+#include <bit>
 #include <random>
+
+#define ASSERT_ALIGNED(Span) ASSERT_EQ(std::bit_cast<std::uintptr_t>((Span).data()) % alignof(decltype((Span)[0])), 0)
 
 namespace oblo::ecs
 {
@@ -120,6 +123,11 @@ namespace oblo::ecs
                                      std::span<const string_c> strings,
                                      std::span<const instance_counted> ics)
                     {
+                        ASSERT_ALIGNED(entities);
+                        ASSERT_ALIGNED(vectors);
+                        ASSERT_ALIGNED(strings);
+                        ASSERT_ALIGNED(ics);
+
                         for (auto&& [e, v, s, ic] : zip_range(entities, vectors, strings, ics))
                         {
                             ASSERT_EQ(e.value, u32(ic.value));
@@ -134,7 +142,7 @@ namespace oblo::ecs
                         }
                     });
 
-                ASSERT_EQ(totalEntities, (iteration + 1) * N);
+                ASSERT_EQ(totalEntities, (iteration + 1) * N) << " Iteration: " << iteration;
             }
         }
 
@@ -232,3 +240,5 @@ namespace oblo::ecs
         ASSERT_EQ(entities.size(), Iterations * N);
     }
 }
+
+#undef ASSERT_ALIGNED
