@@ -54,4 +54,41 @@ namespace oblo::ecs
         }
     };
 
+    template <typename T>
+    struct pooled_array
+    {
+        static constexpr u32 MinAllocation{16};
+        static constexpr f32 GrowthFactor{1.6f};
+
+        u32 size;
+        u32 capacity;
+        T* data;
+
+        void resize_and_grow(memory_pool_impl& pool, u32 newSize)
+        {
+            OBLO_ASSERT(newSize >= size);
+
+            if (newSize <= capacity)
+            {
+                return;
+            }
+
+            const u32 newCapacity = max(MinAllocation, u32(capacity * GrowthFactor));
+
+            T* const newArray = pool.create_array_uninitialized<T>(newCapacity);
+            std::copy_n(data, size, newArray);
+
+            pool.deallocate_array(data);
+
+            data = newArray;
+            capacity = newCapacity;
+            size = newSize;
+        }
+
+        void free(memory_pool_impl& pool)
+        {
+            pool.deallocate_array(data);
+            *this = {};
+        }
+    };
 }

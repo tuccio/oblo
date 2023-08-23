@@ -59,8 +59,7 @@ namespace oblo::ecs
             const entity* entities;
             std::byte* componentsData[sizeof...(Components)];
 
-            const u32 numEntities =
-                fetch_chunk_data(*m_it, m_chunkIndex, m_offsets, &entities, componentsData);
+            const u32 numEntities = fetch_chunk_data(*m_it, m_chunkIndex, m_offsets, &entities, componentsData);
 
             constexpr auto makeTuple = []<std::size_t... I>(u32 numEntities,
                                                             const entity* entities,
@@ -84,7 +83,7 @@ namespace oblo::ecs
         {
             if (++m_chunkIndex == m_numChunks)
             {
-                m_it = m_range->m_registry->find_first_match(m_it, 1, m_range->m_include.components);
+                m_it = m_range->m_registry->find_first_match(m_it, 1, m_range->m_include);
                 m_chunkIndex = 0;
 
                 if (!m_it || !update_iterator_data())
@@ -200,12 +199,10 @@ namespace oblo::ecs
     {
         constexpr auto numComponents = sizeof...(Components);
 
-        const auto& components = m_include.components;
-
         auto* const begin = m_registry->m_componentsStorage.data();
 
-        for (auto* it = m_registry->find_first_match(begin, 0, components); it != nullptr;
-             it = m_registry->find_first_match(it, 1, components))
+        for (auto* it = m_registry->find_first_match(begin, 0, m_include); it != nullptr;
+             it = m_registry->find_first_match(it, 1, m_include))
         {
             u32 offsets[numComponents];
 
@@ -221,8 +218,7 @@ namespace oblo::ecs
                 const entity* entities;
                 std::byte* componentsData[numComponents];
 
-                const u32 numEntities =
-                    fetch_chunk_data(*it, chunkIndex, offsets, &entities, componentsData);
+                const u32 numEntities = fetch_chunk_data(*it, chunkIndex, offsets, &entities, componentsData);
 
                 OBLO_ASSERT(numEntities != 0);
 
@@ -251,7 +247,7 @@ namespace oblo::ecs
     entity_registry::typed_range<Components...>::iterator entity_registry::typed_range<Components...>::begin() const
     {
         auto* const begin = m_registry->m_componentsStorage.data();
-        return {this, m_registry->find_first_match(begin, 0, m_include.components)};
+        return {this, m_registry->find_first_match(begin, 0, m_include)};
     }
 
     template <typename... Components>
