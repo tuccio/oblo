@@ -14,14 +14,14 @@ namespace oblo::ecs
 
     archetype_storage* create_archetype_storage(memory_pool_impl& pool,
                                                 const type_registry& typeRegistry,
-                                                const type_set& signature,
+                                                const component_and_tags_sets& types,
                                                 std::span<const component_type> components)
     {
         OBLO_ASSERT(std::is_sorted(components.begin(), components.end()));
         const u8 numComponents = u8(components.size());
 
         archetype_storage* storage = new (pool.allocate<archetype_storage>()) archetype_storage{
-            .signature = signature,
+            .types = types,
             .numComponents = numComponents,
         };
 

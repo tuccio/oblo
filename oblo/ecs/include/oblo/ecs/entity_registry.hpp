@@ -67,7 +67,7 @@ namespace oblo::ecs
     private:
         const components_storage* find_first_match(const components_storage* begin,
                                                    usize increment,
-                                                   const type_set& components);
+                                                   const component_and_tags_sets& types);
 
         static void sort_and_map(std::span<component_type> componentTypes, std::span<u8> mapping);
 
@@ -83,7 +83,7 @@ namespace oblo::ecs
                                     const entity** entities,
                                     std::span<std::byte*> componentData);
 
-        const components_storage& find_or_create_component_storage(const type_set& components);
+        const components_storage& find_or_create_storage(const component_and_tags_sets& types);
 
         void find_component_types(std::span<const type_id> typeIds, std::span<component_type> types);
 
@@ -94,7 +94,6 @@ namespace oblo::ecs
         std::unique_ptr<memory_pool> m_pool;
         flat_dense_map<entity, entity_data> m_entities;
         std::vector<components_storage> m_componentsStorage;
-        tags_storage* m_tagsStorage;
         entity m_nextId{1};
     };
 

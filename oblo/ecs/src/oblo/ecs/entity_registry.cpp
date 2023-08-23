@@ -16,60 +16,9 @@ namespace oblo::ecs
     static_assert(std::is_trivially_destructible_v<archetype_storage>,
                   "We can avoid calling destructors in ~entity_manager if this is trivial");
 
-    namespace
-    {
-        template <typename T>
-        struct pooled_array
-        {
-            static constexpr u32 MinAllocation{16};
-            static constexpr f32 GrowthFactor{1.6f};
-
-            u32 size;
-            u32 capacity;
-            T* data;
-
-            void resize_and_grow(memory_pool_impl& pool, u32 newSize)
-            {
-                OBLO_ASSERT(newSize >= size);
-
-                if (newSize <= capacity)
-                {
-                    return;
-                }
-
-                const u32 newCapacity = max(MinAllocation, u32(capacity * GrowthFactor));
-
-                T* const newArray = pool.create_array_uninitialized<T>(newCapacity);
-                std::copy_n(data, size, newArray);
-
-                pool.deallocate_array(data);
-
-                data = newArray;
-                capacity = newCapacity;
-                size = newSize;
-            }
-
-            void free(memory_pool_impl& pool)
-            {
-                pool.deallocate_array(data);
-                *this = {};
-            }
-        };
-
-        struct per_tag_data
-        {
-            pooled_array<entity> entities{};
-        };
-    }
-
     struct entity_registry::components_storage
     {
         archetype_storage* archetype;
-    };
-
-    struct entity_registry::tags_storage
-    {
-        pooled_array<per_tag_data> tags{};
     };
 
     struct entity_registry::entity_data
@@ -89,7 +38,6 @@ namespace oblo::ecs
         OBLO_ASSERT(m_typeRegistry);
 
         m_pool = std::make_unique<memory_pool>();
-        m_tagsStorage = new (m_pool->allocate<tags_storage>()) tags_storage{};
     }
 
     entity_registry::entity_registry(entity_registry&&) noexcept = default;
@@ -121,7 +69,7 @@ namespace oblo::ecs
             return {};
         }
 
-        const components_storage& storage = find_or_create_component_storage(types.components);
+        const components_storage& storage = find_or_create_storage(types);
         archetype_storage* const archetype = storage.archetype;
 
         const u32 numEntitiesPerChunk = archetype->numEntitiesPerChunk;
@@ -159,6 +107,10 @@ namespace oblo::ecs
                 new (it) entity{m_nextId};
                 ++m_nextId.value;
             }
+
+            std::fill_n(get_entity_tags_pointer(chunkBytes, *archetype, 0),
+                        numEntitiesToCreate,
+                        entity_tags{.types = types.tags});
 
             for (u8 componentIndex = 0; componentIndex != numComponents; ++componentIndex)
             {
@@ -204,13 +156,18 @@ namespace oblo::ecs
             entity* const removedEntity = get_entity_pointer(removedEntityChunk->data, chunkOffset);
             entity* const lastEntity = get_entity_pointer(lastEntityChunk->data, lastEntityChunkOffset);
 
+            entity_tags* const removedTags = get_entity_tags_pointer(removedEntityChunk->data, archetype, chunkOffset);
+            entity_tags* const lastTags =
+                get_entity_tags_pointer(lastEntityChunk->data, archetype, lastEntityChunkOffset);
+
             // We will swap the removed entity with the last, so we remove the archetype index
             m_entities.erase(*removedEntity);
             auto* const lastEntityData = m_entities.try_find(*lastEntity);
             OBLO_ASSERT(lastEntityData);
             lastEntityData->archetypeIndex = archetypeIndex;
 
-            std::swap(*removedEntity, *lastEntity);
+            *removedEntity = *lastEntity;
+            *removedTags = *lastTags;
 
             for (u8 componentIndex = 0; componentIndex < archetype.numComponents; ++componentIndex)
             {
@@ -251,15 +208,16 @@ namespace oblo::ecs
 
     const entity_registry::components_storage* entity_registry::find_first_match(const components_storage* begin,
                                                                                  usize increment,
-                                                                                 const type_set& components)
+                                                                                 const component_and_tags_sets& types)
     {
         auto* const end = m_componentsStorage.data() + m_componentsStorage.size();
 
         for (auto* it = begin + increment; it != end; ++it)
         {
-            const auto intersection = it->archetype->signature.intersection(components);
+            const auto compInt = it->archetype->types.components.intersection(types.components);
+            const auto tagsInt = it->archetype->types.tags.intersection(types.components);
 
-            if (intersection == components && it->archetype->numCurrentEntities != 0)
+            if (compInt == types.components && tagsInt == types.tags && it->archetype->numCurrentEntities != 0)
             {
                 return it;
             }
@@ -350,12 +308,12 @@ namespace oblo::ecs
         }
     }
 
-    const entity_registry::components_storage& entity_registry::find_or_create_component_storage(
-        const type_set& components)
+    const entity_registry::components_storage& entity_registry::find_or_create_storage(
+        const component_and_tags_sets& types)
     {
         for (const auto& storage : m_componentsStorage)
         {
-            if (storage.archetype->signature == components)
+            if (storage.archetype->types == types)
             {
                 return storage;
             }
@@ -365,9 +323,9 @@ namespace oblo::ecs
 
         component_type typeHandlesArray[MaxComponentTypes];
 
-        const std::span typeHandles = make_type_span(typeHandlesArray, components);
+        const std::span typeHandles = make_type_span(typeHandlesArray, types.components);
 
-        newStorage.archetype = create_archetype_storage(*m_pool, *m_typeRegistry, components, typeHandles);
+        newStorage.archetype = create_archetype_storage(*m_pool, *m_typeRegistry, types, typeHandles);
 
         return newStorage;
     }

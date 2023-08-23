@@ -39,7 +39,7 @@ namespace oblo::ecs
 
     struct archetype_storage
     {
-        type_set signature;
+        component_and_tags_sets types;
         component_type* components;
         u32* offsets;
         u32* sizes;
@@ -63,7 +63,7 @@ namespace oblo::ecs
 
     archetype_storage* create_archetype_storage(memory_pool_impl& pool,
                                                 const type_registry& typeRegistry,
-                                                const type_set& signature,
+                                                const component_and_tags_sets& types,
                                                 std::span<const component_type> components);
 
     void destroy_archetype_storage(memory_pool_impl& pool, archetype_storage* storage);
