@@ -79,7 +79,6 @@ namespace oblo::ecs
 
         static u32 fetch_chunk_data(const components_storage& storage,
                                     u32 chunkIndex,
-                                    u32 numUsedChunks,
                                     std::span<const u32> offsets,
                                     const entity** entities,
                                     std::span<std::byte*> componentData);

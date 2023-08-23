@@ -60,7 +60,7 @@ namespace oblo::ecs
             std::byte* componentsData[sizeof...(Components)];
 
             const u32 numEntities =
-                fetch_chunk_data(*m_it, m_chunkIndex, m_numChunks, m_offsets, &entities, componentsData);
+                fetch_chunk_data(*m_it, m_chunkIndex, m_offsets, &entities, componentsData);
 
             constexpr auto makeTuple = []<std::size_t... I>(u32 numEntities,
                                                             const entity* entities,
@@ -222,7 +222,9 @@ namespace oblo::ecs
                 std::byte* componentsData[numComponents];
 
                 const u32 numEntities =
-                    fetch_chunk_data(*it, chunkIndex, numChunks, offsets, &entities, componentsData);
+                    fetch_chunk_data(*it, chunkIndex, offsets, &entities, componentsData);
+
+                OBLO_ASSERT(numEntities != 0);
 
                 constexpr auto invoke = []<std::size_t... I>(F&& f,
                                                              u32 numEntities,

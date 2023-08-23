@@ -168,6 +168,8 @@ namespace oblo::ecs
                 archetype->fnTables[componentIndex].create(componentData, numEntitiesToCreate);
             }
 
+            (*chunk)->header.numEntities += numEntitiesToCreate;
+
             numRemainingEntities -= numEntitiesToCreate;
         }
 
@@ -218,6 +220,8 @@ namespace oblo::ecs
                 archetype.fnTables[componentIndex].moveAssign(dst, src, 1);
                 archetype.fnTables[componentIndex].destroy(src, 1);
             }
+
+            --lastEntityChunk->header.numEntities;
         }
         else
         {
@@ -232,6 +236,8 @@ namespace oblo::ecs
                 auto* src = get_component_pointer(lastEntityChunk->data, archetype, componentIndex, chunkOffset);
                 archetype.fnTables[componentIndex].destroy(src, 1);
             }
+
+            --removedEntityChunk->header.numEntities;
         }
 
         // TODO: Could free pages if not used
@@ -318,7 +324,6 @@ namespace oblo::ecs
 
     u32 entity_registry::fetch_chunk_data(const components_storage& storage,
                                           u32 chunkIndex,
-                                          u32 numUsedChunks,
                                           std::span<const u32> offsets,
                                           const entity** entities,
                                           std::span<std::byte*> componentData)
@@ -333,8 +338,7 @@ namespace oblo::ecs
             ptr = chunk->data + offset;
         }
 
-        return chunkIndex == numUsedChunks - 1 ? archetype.numCurrentEntities % archetype.numEntitiesPerChunk
-                                               : archetype.numEntitiesPerChunk;
+        return chunk->header.numEntities;
     }
 
     void entity_registry::find_component_types(std::span<const type_id> typeIds, std::span<component_type> types)
