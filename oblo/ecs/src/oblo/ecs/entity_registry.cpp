@@ -16,7 +16,7 @@ namespace oblo::ecs
     static_assert(std::is_trivially_destructible_v<archetype_storage>,
                   "We can avoid calling destructors in ~entity_manager if this is trivial");
 
-        namespace
+    namespace
     {
         template <typename T>
         struct pooled_array
