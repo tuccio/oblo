@@ -1,326 +1,64 @@
 #include <oblo/ecs/entity_registry.hpp>
 
-#include <oblo/core/array_size.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/zip_range.hpp>
+#include <oblo/ecs/archetype_storage.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
+#include <oblo/ecs/memory_pool_impl.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/ecs/type_set.hpp>
-#include <oblo/math/power_of_two.hpp>
 
 #include <algorithm>
 #include <memory_resource>
 
-#define OBLO_ECS_DEBUG_DATA 0
-
 namespace oblo::ecs
 {
+    static_assert(std::is_trivially_destructible_v<archetype_storage>,
+                  "We can avoid calling destructors in ~entity_manager if this is trivial");
     namespace
     {
-        static constexpr u32 ChunkSize{1u << 14};
-        static constexpr u8 InvalidComponentIndex{MaxComponentTypes + 1};
-        static constexpr usize PageAlignment{alignof(std::max_align_t)};
-
-        struct chunk
+        template <typename T>
+        struct pooled_array
         {
-            alignas(PageAlignment) std::byte data[ChunkSize];
-        };
+            static constexpr u32 MinAllocation{16};
+            static constexpr f32 GrowthFactor{1.6f};
 
-        struct component_fn_table
-        {
-            create_fn create;
-            destroy_fn destroy;
-            move_fn move;
-            move_assign_fn moveAssign;
-        };
+            u32 size;
+            u32 capacity;
+            T* data;
 
-        struct archetype_storage
-        {
-            type_set signature;
-            component_type* components;
-            u32* offsets;
-            u32* sizes;
-            u32* alignments;
-            component_fn_table* fnTables;
-            chunk** chunks;
-            u32 numEntitiesPerChunk;
-            u32 numCurrentChunks;
-            u32 numCurrentEntities;
-            u8 numComponents;
-#if OBLO_ECS_DEBUG_DATA
-            type_id* typeIds;
-#endif
-        };
-
-        struct memory_pool_impl
-        {
-            std::pmr::unsynchronized_pool_resource poolResource;
-
-            template <typename T>
-            T* create_array_uninitialized(usize count)
+            void resize_and_grow(memory_pool_impl& pool, u32 newSize)
             {
-                void* vptr = poolResource.allocate(sizeof(T) * count, alignof(T));
-                return new (vptr) T[count];
-            }
+                OBLO_ASSERT(newSize >= size);
 
-            template <typename T>
-            void create_array_uninitialized(T*& ptr, usize count)
-            {
-                ptr = create_array_uninitialized<T>(count);
-            }
-
-            template <typename T>
-            void* allocate()
-            {
-                return poolResource.allocate(sizeof(T), alignof(T));
-            }
-
-            template <typename T>
-            void deallocate(T* ptr)
-            {
-                poolResource.deallocate(ptr, sizeof(T), alignof(T));
-            }
-
-            template <typename T>
-            void deallocate_array(T* ptr, usize count)
-            {
-                poolResource.deallocate(ptr, sizeof(T) * count, alignof(T));
-            }
-
-            template <typename T>
-            T* create_uninitialized()
-            {
-                return new (poolResource.allocate(sizeof(T), alignof(T))) T;
-            }
-        };
-
-        static_assert(std::is_trivially_destructible_v<archetype_storage>,
-                      "We can avoid calling destructors in ~entity_manager if this is trivial");
-
-        static_assert(MaxComponentTypes <= std::numeric_limits<decltype(archetype_storage::numComponents)>::max());
-
-        archetype_storage* create_archetype_storage(memory_pool_impl& pool,
-                                                    const type_registry& typeRegistry,
-                                                    const type_set& signature,
-                                                    std::span<const component_type> components)
-        {
-            OBLO_ASSERT(std::is_sorted(components.begin(), components.end()));
-            const u8 numComponents = u8(components.size());
-
-            archetype_storage* storage = new (pool.allocate<archetype_storage>()) archetype_storage{
-                .signature = signature,
-                .numComponents = numComponents,
-            };
-
-            pool.create_array_uninitialized(storage->components, numComponents);
-            pool.create_array_uninitialized(storage->offsets, numComponents);
-            pool.create_array_uninitialized(storage->sizes, numComponents);
-            pool.create_array_uninitialized(storage->alignments, numComponents);
-            pool.create_array_uninitialized(storage->fnTables, numComponents);
-
-#if OBLO_ECS_DEBUG_DATA
-            pool.create_array_uninitialized(storage->typeIds, numComponents);
-#endif
-
-            std::memcpy(storage->components, components.data(), components.size_bytes());
-
-            usize columnsSizeSum = sizeof(entity);
-            usize paddingWorstCase = 0;
-
-            for (u8 componentIndex = 0; componentIndex < numComponents; ++componentIndex)
-            {
-                const auto& typeDesc = typeRegistry.get_component_type_desc(components[componentIndex]);
-                OBLO_ASSERT(is_power_of_two(typeDesc.alignment));
-
-                const u32 componentSize = typeDesc.size;
-
-                storage->fnTables[componentIndex] = {
-                    .create = typeDesc.create,
-                    .destroy = typeDesc.destroy,
-                    .move = typeDesc.move,
-                    .moveAssign = typeDesc.moveAssign,
-                };
-
-                storage->alignments[componentIndex] = typeDesc.alignment;
-                storage->sizes[componentIndex] = componentSize;
-                storage->typeIds[componentIndex] = typeDesc.type;
-
-                columnsSizeSum += componentSize;
-                paddingWorstCase += typeDesc.alignment - 1;
-            }
-
-            const u32 numEntitiesPerChunk = (ChunkSize - paddingWorstCase) / columnsSizeSum;
-            u32 currentOffset = 0;
-
-            storage->numEntitiesPerChunk = numEntitiesPerChunk;
-
-            // The initial page alignment
-            usize previousAlignment = alignof(std::max_align_t);
-
-            const auto computePadding = [&previousAlignment](usize newAlignment)
-            { return previousAlignment >= newAlignment ? usize(0) : newAlignment - previousAlignment; };
-
-            // First we have entity ids
-            currentOffset += computePadding(alignof(entity)) + sizeof(entity) * numEntitiesPerChunk;
-            previousAlignment = alignof(entity);
-
-            for (u8 componentIndex = 0; componentIndex < numComponents; ++componentIndex)
-            {
-                const auto size = storage->sizes[componentIndex];
-                const auto alignment = storage->alignments[componentIndex];
-                const auto padding = computePadding(alignment);
-
-                storage->offsets[componentIndex] = currentOffset;
-
-                currentOffset += padding + size * numEntitiesPerChunk;
-                OBLO_ASSERT(currentOffset <= ChunkSize);
-
-                previousAlignment = alignment;
-            }
-
-            return storage;
-        }
-
-        void destroy_archetype_storage(memory_pool_impl& pool, archetype_storage* storage)
-        {
-            const auto numComponents = storage->numComponents;
-
-            if (const auto numChunks = storage->numCurrentChunks; numChunks != 0)
-            {
-                u32 numEntities = storage->numCurrentEntities;
-                const u32 numEntitiesPerChunk = storage->numEntitiesPerChunk;
-
-                for (chunk **it = storage->chunks, **end = storage->chunks + numChunks; it != end; ++it)
+                if (newSize <= capacity)
                 {
-                    if (numEntities != 0)
-                    {
-                        const u32 numEntitiesInChunk = min(numEntities, numEntitiesPerChunk);
-
-                        std::byte* const data = (*it)->data;
-
-                        for (u8 componentIndex = 0; componentIndex < numComponents; ++componentIndex)
-                        {
-                            std::byte* const componentData = data + storage->offsets[componentIndex];
-                            storage->fnTables[componentIndex].destroy(componentData, numEntitiesInChunk);
-                        }
-
-                        numEntities -= numEntitiesInChunk;
-                    }
-
-                    pool.deallocate(*it);
+                    return;
                 }
 
-                pool.deallocate_array(storage->chunks, numChunks);
+                const u32 newCapacity = max(MinAllocation, u32(capacity * GrowthFactor));
+
+                T* const newArray = pool.create_array_uninitialized<T>(newCapacity);
+                std::copy_n(data, size, newArray);
+
+                pool.deallocate_array(data);
+
+                data = newArray;
+                capacity = newCapacity;
+                size = newSize;
             }
 
-            if (numComponents != 0)
+            void free(memory_pool_impl& pool)
             {
-                pool.deallocate_array(storage->components, numComponents);
-                pool.deallocate_array(storage->offsets, numComponents);
-                pool.deallocate_array(storage->sizes, numComponents);
-                pool.deallocate_array(storage->alignments, numComponents);
-                pool.deallocate_array(storage->fnTables, numComponents);
-
-#if OBLO_ECS_DEBUG_DATA
-                pool.deallocate_array(storage->typeIds, numComponents);
-#endif
+                pool.deallocate_array(data);
+                *this = {};
             }
-
-            pool.deallocate(storage);
-        }
-
-        std::span<component_type> make_type_span(std::span<component_type, MaxComponentTypes> inOut, type_set current)
-        {
-            u32 count{0};
-
-            for (usize i = 0; i < array_size(current.bitset); ++i)
-            {
-                const u64 v = current.bitset[i];
-
-                if (v == 0)
-                {
-                    continue;
-                }
-
-                u32 nextId = i * 32;
-
-                // TODO: Could use bitscan reverse instead
-                for (u64 mask = 1; mask != 0; mask <<= 1)
-                {
-                    if (v & mask)
-                    {
-                        inOut[count] = component_type{nextId};
-                        ++count;
-                    }
-
-                    ++nextId;
-                }
-            }
-
-            return inOut.subspan(0, count);
-        }
-
-        entity* get_entity_pointer(std::byte* chunk, u32 offset)
-        {
-            return reinterpret_cast<entity*>(chunk) + offset;
-        }
-
-        std::byte* get_component_pointer(std::byte* chunk, archetype_storage& archetype, u8 componentIndex, u32 offset)
-        {
-            return chunk + archetype.offsets[componentIndex] + offset * archetype.sizes[componentIndex];
-        }
-
-        void reserve_chunks(memory_pool_impl& pool, archetype_storage& archetype, u32 newCount)
-        {
-            const u32 oldCount = archetype.numCurrentChunks;
-
-            if (newCount <= oldCount)
-            {
-                return;
-            }
-
-            chunk** const newChunksArray = pool.create_array_uninitialized<chunk*>(newCount);
-
-            if (archetype.chunks)
-            {
-                std::memcpy(newChunksArray, archetype.chunks, sizeof(chunk*) * oldCount);
-                pool.deallocate_array(archetype.chunks, oldCount);
-            }
-
-            archetype.chunks = newChunksArray;
-            archetype.numCurrentChunks = newCount;
-
-            for (chunk **it = newChunksArray + oldCount, **end = newChunksArray + newCount; it != end; ++it)
-            {
-                *it = pool.create_uninitialized<chunk>();
-            }
-        }
-
-        // TODO: Could be implemented with bitwise operations and type_set instead
-        u8 find_component_index(std::span<const component_type> types, component_type component)
-        {
-            for (const component_type& c : types)
-            {
-                if (c == component)
-                {
-                    return u8(&c - types.data());
-                }
-            }
-
-            return InvalidComponentIndex;
-        }
-
-        struct entity_location
-        {
-            u32 index;
-            u32 offset;
         };
 
-        entity_location get_entity_location(const archetype_storage& archetype, u32 archetypeIndex)
+        struct per_tag_data
         {
-            const u32 numEntitiesPerChunk = archetype.numEntitiesPerChunk;
-            return {archetypeIndex / numEntitiesPerChunk, archetypeIndex % numEntitiesPerChunk};
-        }
+            pooled_array<entity> entities{};
+        };
     }
 
     struct entity_registry::components_storage
@@ -330,6 +68,7 @@ namespace oblo::ecs
 
     struct entity_registry::tags_storage
     {
+        pooled_array<per_tag_data> tags{};
     };
 
     struct entity_registry::entity_data
@@ -349,6 +88,7 @@ namespace oblo::ecs
         OBLO_ASSERT(m_typeRegistry);
 
         m_pool = std::make_unique<memory_pool>();
+        m_tagsStorage = new (m_pool->allocate<tags_storage>()) tags_storage{};
     }
 
     entity_registry::entity_registry(entity_registry&&) noexcept = default;
