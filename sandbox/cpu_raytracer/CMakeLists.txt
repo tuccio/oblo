@@ -8,7 +8,7 @@ target_link_libraries(
     3rdparty::imgui
     3rdparty::imgui_sdl_gl3
     assimp::assimp
-    cereal::cereal
+    nlohmann_json::nlohmann_json
     cxxopts::cxxopts
     GLEW::glew_s
     SDL2::SDL2
