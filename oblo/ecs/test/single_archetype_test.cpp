@@ -18,17 +18,6 @@ namespace oblo::ecs
 {
     namespace
     {
-        struct tag_a
-        {
-        };
-
-        struct tag_b
-        {
-        };
-
-        struct tag_c
-        {
-        };
 
         struct alignas(16) aligned_uvec4
         {
