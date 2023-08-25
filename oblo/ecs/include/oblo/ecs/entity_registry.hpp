@@ -6,6 +6,7 @@
 #include <oblo/ecs/traits.hpp>
 
 #include <memory>
+#include <tuple>
 
 namespace oblo::ecs
 {
@@ -54,6 +55,14 @@ namespace oblo::ecs
         template <typename Component>
         Component& get(entity e);
 
+        template <typename... Components>
+            requires(sizeof...(Components) > 1)
+        std::tuple<const Components&...> get(entity e) const;
+
+        template <typename... Components>
+            requires(sizeof...(Components) > 1)
+        std::tuple<Components&...> get(entity e);
+
         // Requires including oblo/ecs/range.hpp
         template <typename... Components>
         typed_range<Components...> range();
@@ -87,7 +96,9 @@ namespace oblo::ecs
 
         void find_component_types(std::span<const type_id> typeIds, std::span<component_type> types);
 
-        std::byte* find_component_data(entity e, const type_id& typeId) const;
+        void find_component_data(entity e,
+                                 const std::span<const type_id> typeIds,
+                                 std::span<std::byte*> outComponents) const;
 
     private:
         const type_registry* m_typeRegistry{nullptr};
@@ -106,16 +117,62 @@ namespace oblo::ecs
     template <typename Component>
     const Component& entity_registry::get(entity e) const
     {
-        std::byte* const p = find_component_data(e, get_type_id<Component>());
-        OBLO_ASSERT(p);
-        return *reinterpret_cast<const Component*>(p);
+        constexpr type_id types[] = {get_type_id<Component>()};
+        std::byte* pointers[1];
+
+        find_component_data(e, types, pointers);
+        OBLO_ASSERT(pointers[0]);
+
+        return *reinterpret_cast<const Component*>(pointers[0]);
     }
 
     template <typename Component>
     Component& entity_registry::get(entity e)
     {
-        std::byte* const p = find_component_data(e, get_type_id<Component>());
-        OBLO_ASSERT(p);
-        return *reinterpret_cast<Component*>(p);
+        constexpr type_id types[] = {get_type_id<Component>()};
+        std::byte* pointers[1];
+
+        find_component_data(e, types, pointers);
+        OBLO_ASSERT(pointers[0]);
+
+        return *reinterpret_cast<Component*>(pointers[0]);
+    }
+
+    template <typename... Components>
+        requires(sizeof...(Components) > 1)
+    std::tuple<const Components&...> entity_registry::get(entity e) const
+    {
+        constexpr auto N = sizeof...(Components);
+        constexpr type_id types[] = {get_type_id<Components>()...};
+        std::byte* pointers[N];
+
+        find_component_data(e, types, pointers);
+
+        constexpr auto makeTuple = []<std::size_t... I>(std::byte** pointers, std::index_sequence<I...>)
+        {
+            OBLO_ASSERT((pointers[I] && ...));
+            return std::tuple<const Components&...>{*reinterpret_cast<Components*>(pointers[I])...};
+        };
+
+        return makeTuple(pointers, std::make_index_sequence<N>());
+    }
+
+    template <typename... Components>
+        requires(sizeof...(Components) > 1)
+    std::tuple<Components&...> entity_registry::get(entity e)
+    {
+        constexpr auto N = sizeof...(Components);
+        constexpr type_id types[] = {get_type_id<Components>()...};
+        std::byte* pointers[N];
+
+        find_component_data(e, types, pointers);
+
+        constexpr auto makeTuple = []<std::size_t... I>(std::byte** pointers, std::index_sequence<I...>)
+        {
+            OBLO_ASSERT((pointers[I] && ...));
+            return std::tuple<Components&...>{*reinterpret_cast<Components*>(pointers[I])...};
+        };
+
+        return makeTuple(pointers, std::make_index_sequence<N>());
     }
 }

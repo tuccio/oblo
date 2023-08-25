@@ -215,7 +215,7 @@ namespace oblo::ecs
         for (auto* it = begin + increment; it != end; ++it)
         {
             const auto compInt = it->archetype->types.components.intersection(types.components);
-            const auto tagsInt = it->archetype->types.tags.intersection(types.components);
+            const auto tagsInt = it->archetype->types.tags.intersection(types.tags);
 
             if (compInt == types.components && tagsInt == types.tags && it->archetype->numCurrentEntities != 0)
             {
@@ -330,27 +330,40 @@ namespace oblo::ecs
         return newStorage;
     }
 
-    std::byte* entity_registry::find_component_data(entity e, const type_id& typeId) const
+    void entity_registry::find_component_data(entity e,
+                                              const std::span<const type_id> typeIds,
+                                              std::span<std::byte*> outComponents) const
     {
-        const auto component = m_typeRegistry->find_component(typeId);
-        const entity_data* entityData = m_entities.try_find(e);
+        OBLO_ASSERT(typeIds.size() == outComponents.size());
 
-        if (!entityData || !component)
+        for (usize i = 0; i < typeIds.size(); ++i)
         {
-            return nullptr;
+            const auto& typeId = typeIds[i];
+            auto& ptr = outComponents[i];
+
+            const auto component = m_typeRegistry->find_component(typeId);
+            const entity_data* entityData = m_entities.try_find(e);
+
+            if (!entityData || !component)
+            {
+                ptr = nullptr;
+                continue;
+            }
+
+            auto* const archetype = entityData->archetype;
+
+            const u8 componentIndex =
+                find_component_index({archetype->components, archetype->numComponents}, component);
+
+            if (componentIndex == InvalidComponentIndex)
+            {
+                ptr = nullptr;
+                continue;
+            }
+
+            const auto [chunkIndex, chunkOffset] = get_entity_location(*archetype, entityData->archetypeIndex);
+
+            ptr = get_component_pointer(archetype->chunks[chunkIndex]->data, *archetype, componentIndex, chunkOffset);
         }
-
-        auto* const archetype = entityData->archetype;
-
-        const u8 componentIndex = find_component_index({archetype->components, archetype->numComponents}, component);
-
-        if (componentIndex == InvalidComponentIndex)
-        {
-            return nullptr;
-        }
-
-        const auto [chunkIndex, chunkOffset] = get_entity_location(*archetype, entityData->archetypeIndex);
-
-        return get_component_pointer(archetype->chunks[chunkIndex]->data, *archetype, componentIndex, chunkOffset);
     }
 }
