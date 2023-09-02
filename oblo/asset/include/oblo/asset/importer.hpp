@@ -22,6 +22,7 @@ namespace oblo::asset
     {
         asset_registry* registry;
         std::filesystem::path sourceFile;
+        type_id fileImporterType;
     };
 
     class file_importer

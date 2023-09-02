@@ -66,12 +66,12 @@ namespace oblo::asset
                            const void* dataPtr,
                            write_policy policy = write_policy::no_overwrite);
 
-        bool save_asset(const uuid& id,
-                        const std::filesystem::path& destination,
+        bool save_asset(const std::filesystem::path& destination,
                         std::string_view fileNameBuffer,
                         asset_meta meta,
-                        std::span<const artifact_meta> artifacts,
                         write_policy policy = write_policy::no_overwrite);
+
+        bool save_artifacts_meta(const uuid& importId, std::span<const artifact_meta> artifacts);
 
     private:
         std::unique_ptr<impl> m_impl;

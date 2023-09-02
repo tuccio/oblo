@@ -147,25 +147,21 @@ namespace oblo::asset
             return false;
         }
 
-        // const auto fullDestinationPath = m_impl->assetsDir / destination;
-        // ensure_directories(fullDestinationPath);
+        // TODO: Could maybe create the folder here to ensure it's unique
+        const auto importId = registry.generate_uuid();
 
         bool allSucceeded = true;
 
         std::string assetFileName;
 
         std::vector<artifact_meta> artifactsMeta;
-        artifactsMeta.reserve(64);
+        artifactsMeta.reserve(128);
 
         for (const pending_asset_import& assetImport : m_assets)
         {
             OBLO_ASSERT(!assetImport.artifacts.empty(), "The first artifact is expected to be the asset");
 
             const auto& mainArtifact = assetImport.artifacts[0];
-
-            asset_meta assetMeta{
-                .type = mainArtifact.data.get_type(),
-            };
 
             const auto mainArtifactIt = m_artifacts.find(mainArtifact.id);
 
@@ -176,9 +172,14 @@ namespace oblo::asset
                 continue;
             }
 
-            assetFileName = mainArtifactIt->second.name;
+            asset_meta assetMeta{
+                .id = mainArtifact.id,
+                .type = mainArtifact.data.get_type(),
+                .importer = m_config.fileImporterType,
+                .importId = importId,
+            };
 
-            artifactsMeta.clear();
+            assetFileName = mainArtifactIt->second.name;
 
             for (const import_artifact& artifact : assetImport.artifacts)
             {
@@ -200,7 +201,7 @@ namespace oblo::asset
                     continue;
                 }
 
-                if (!registry.save_artifact(mainArtifact.id, artifact.id, artifact.data.get_type(), artifactPtr))
+                if (!registry.save_artifact(importId, artifact.id, artifact.data.get_type(), artifactPtr))
                 {
                     OBLO_ASSERT(false); // TODO: Log?
                     allSucceeded = false;
@@ -211,9 +212,10 @@ namespace oblo::asset
                     artifact_meta{.id = artifact.id, .type = artifact.data.get_type(), .name = artifact.name});
             }
 
-            allSucceeded &=
-                registry.save_asset(mainArtifact.id, destination, assetFileName, std::move(assetMeta), artifactsMeta);
+            allSucceeded &= registry.save_asset(destination, assetFileName, std::move(assetMeta));
         }
+
+        allSucceeded &= registry.save_artifacts_meta(importId, artifactsMeta);
 
         return allSucceeded;
     }

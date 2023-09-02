@@ -19,5 +19,7 @@ namespace oblo::asset
     {
         uuid id;
         type_id type;
+        type_id importer;
+        uuid importId;
     };
 }
