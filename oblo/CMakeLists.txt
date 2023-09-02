@@ -1,5 +1,6 @@
+add_subdirectory(asset)
 add_subdirectory(core)
-add_subdirectory(ecs)
-add_subdirectory(vulkan)
 add_subdirectory(cpurt)
+add_subdirectory(ecs)
 add_subdirectory(render_graph)
+add_subdirectory(vulkan)
