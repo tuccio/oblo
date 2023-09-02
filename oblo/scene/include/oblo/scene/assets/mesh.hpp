@@ -27,6 +27,7 @@ namespace oblo::scene
         u32,
         u64,
         f32,
+        f64,
         vec2,
         vec3,
         enum_max
@@ -70,9 +71,13 @@ namespace oblo::scene
         template <typename T>
         std::span<const T> get_attribute(attribute_kind attribute) const;
 
+        u32 get_attributes_count() const;
+        mesh_attribute get_attribute_at(u32 index) const;
+
         primitive_kind get_primitive_kind() const;
         u32 get_vertex_count() const;
         u32 get_index_count() const;
+        u32 get_elements_count(attribute_kind attribute) const;
 
     private:
         template <typename T, typename Self>

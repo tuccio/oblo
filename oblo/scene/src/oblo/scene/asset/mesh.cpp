@@ -32,6 +32,8 @@ namespace oblo::scene
                 return {sizeof(u64), alignof(u64)};
             case data_format::f32:
                 return {sizeof(f32), alignof(f32)};
+            case data_format::f64:
+                return {sizeof(f64), alignof(f64)};
             case data_format::vec2:
                 return {sizeof(vec2), alignof(vec2)};
             case data_format::vec3:
@@ -151,4 +153,19 @@ namespace oblo::scene
         return m_indexCount;
     }
 
+    u32 mesh::get_elements_count(attribute_kind attribute) const
+    {
+        // TODO: Should check if the attribute is even there
+        return attribute == attribute_kind::indices ? get_index_count() : get_vertex_count();
+    }
+
+    u32 mesh::get_attributes_count() const
+    {
+        return u32(m_attributes.size());
+    }
+
+    mesh_attribute mesh::get_attribute_at(u32 index) const
+    {
+        return m_attributes[index];
+    }
 }
