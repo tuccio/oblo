@@ -44,7 +44,7 @@ namespace oblo::asset
 
         [[nodiscard]] importer create_importer(const std::filesystem::path& sourceFile);
 
-        const asset_meta& find_asset_by_path(const std::filesystem::path& path) const;
+        bool find_asset_by_path(const std::filesystem::path& path, uuid& id, asset_meta& assetMeta) const;
 
     private:
         struct impl;

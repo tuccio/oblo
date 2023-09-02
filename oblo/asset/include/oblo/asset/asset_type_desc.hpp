@@ -18,5 +18,6 @@ namespace oblo::asset
         destroy_asset_fn destroy;
         load_asset_fn load;
         save_asset_fn save;
+        std::string_view extension;
     };
 }

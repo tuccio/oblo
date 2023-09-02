@@ -85,7 +85,7 @@ namespace oblo::asset::importers
 
         preview.nodes.push_back(import_node{
             .type = get_type_id<scene::bundle>(),
-            .name = config.sourceFile.filename().string(),
+            .name = config.sourceFile.filename().stem().string(),
         });
 
         std::string name;

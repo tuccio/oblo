@@ -32,22 +32,19 @@ namespace oblo::asset
             std::vector<std::string> extensions;
         };
 
-        void save_asset_meta(const asset_meta& meta, const std::filesystem::path& destination)
+        void save_asset_meta(const uuid& id, const asset_meta& meta, const std::filesystem::path& destination)
         {
-            nlohmann::json json;
-            json["type"] = meta.type.name;
+            char uuidBuffer[36];
+
+            nlohmann::ordered_json json;
 
             auto artifacts = nlohmann::json::array();
-
-            char uuidBuffer[36];
 
             for (auto& artifact : meta.artifacts)
             {
                 nlohmann::json jsonArtifact;
 
-                artifact.id.format_to(uuidBuffer);
-
-                jsonArtifact["id"] = std::string_view{uuidBuffer, array_size(uuidBuffer)};
+                jsonArtifact["id"] = artifact.id.format_to(uuidBuffer);
                 jsonArtifact["name"] = artifact.name;
 
                 artifacts.emplace_back(std::move(jsonArtifact));
@@ -55,8 +52,31 @@ namespace oblo::asset
 
             json["artifacts"] = std::move(artifacts);
 
+            json["id"] = id.format_to(uuidBuffer);
+            json["type"] = meta.type.name;
+
             std::ofstream ofs{destination};
             ofs << json.dump(4);
+        }
+
+        bool load_asset_id_from_meta(const std::filesystem::path& path, uuid& id)
+        {
+            std::ifstream in{path};
+
+            if (!in)
+            {
+                return false;
+            }
+
+            const auto json = nlohmann::json::parse(in, nullptr, false);
+            const auto it = json.find("id");
+
+            if (it == json.end())
+            {
+                return false;
+            }
+
+            return id.parse_from(it->get<std::string_view>());
         }
 
         bool ensure_directories(const std::filesystem::path& directory)
@@ -66,7 +86,7 @@ namespace oblo::asset
             return std::filesystem::is_directory(directory, ec);
         }
 
-        constexpr std::string_view assetExt{".oasset"};
+        constexpr std::string_view AssetMetaExtension{".oasset"};
     }
 
     struct asset_registry::impl
@@ -168,22 +188,21 @@ namespace oblo::asset
 
     bool asset_registry::save_artifact(const uuid& id, const type_id& type, const void* dataPtr, write_policy policy)
     {
-        char uuidBuffer[36];
-        id.format_to(uuidBuffer);
+        const auto typeIt = m_impl->assetTypes.find(type);
 
-        std::string_view filename{uuidBuffer, array_size(uuidBuffer)};
-        const auto artifactPath = m_impl->artifactsDir / filename;
-
-        std::error_code ec;
-
-        if (policy == write_policy::no_overwrite && (std::filesystem::exists(artifactPath, ec) || ec))
+        if (typeIt == m_impl->assetTypes.end())
         {
             return false;
         }
 
-        const auto typeIt = m_impl->assetTypes.find(type);
+        char uuidBuffer[36];
 
-        if (typeIt == m_impl->assetTypes.end())
+        auto artifactPath = m_impl->artifactsDir / id.format_to(uuidBuffer);
+        artifactPath.concat(typeIt->second.extension);
+
+        std::error_code ec;
+
+        if (policy == write_policy::no_overwrite && (std::filesystem::exists(artifactPath, ec) || ec))
         {
             return false;
         }
@@ -208,7 +227,7 @@ namespace oblo::asset
         }
 
         auto fullPath = m_impl->assetsDir / destination / filename;
-        fullPath.concat(assetExt);
+        fullPath.concat(AssetMetaExtension);
 
         std::error_code ec;
 
@@ -218,8 +237,29 @@ namespace oblo::asset
         }
 
         // TODO: Copy source files
-        save_asset_meta(assetIt->second, fullPath);
+        save_asset_meta(id, assetIt->second, fullPath);
 
+        return true;
+    }
+
+    bool asset_registry::find_asset_by_path(const std::filesystem::path& path, uuid& id, asset_meta& assetMeta) const
+    {
+        auto fullPath = m_impl->assetsDir / path;
+        fullPath.concat(AssetMetaExtension);
+
+        if (!load_asset_id_from_meta(fullPath, id))
+        {
+            return false;
+        }
+
+        const auto it = m_impl->assets.find(id);
+
+        if (it == m_impl->assets.end())
+        {
+            return false;
+        }
+
+        assetMeta = it->second;
         return true;
     }
 }
