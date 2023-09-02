@@ -12,14 +12,14 @@ namespace oblo::asset
     {
         uuid id;
         type_id type;
-        std::string name;
+        uuid importId;
+        std::string importName;
     };
 
     struct asset_meta
     {
         uuid id;
         type_id type;
-        type_id importer;
         uuid importId;
         std::string importName;
     };

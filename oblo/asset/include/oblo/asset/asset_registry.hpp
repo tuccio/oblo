@@ -32,7 +32,8 @@ namespace oblo::asset
         ~asset_registry();
 
         [[nodiscard]] bool initialize(const std::filesystem::path& assetsDir,
-                                      const std::filesystem::path& artifactsDir);
+                                      const std::filesystem::path& artifactsDir,
+                                      const std::filesystem::path& sourceFilesDir);
 
         void shutdown();
 
@@ -72,6 +73,8 @@ namespace oblo::asset
                         write_policy policy = write_policy::no_overwrite);
 
         bool save_artifacts_meta(const uuid& importId, std::span<const artifact_meta> artifacts);
+
+        std::filesystem::path create_source_files_dir(uuid importId);
 
     private:
         std::unique_ptr<impl> m_impl;
