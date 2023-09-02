@@ -7,6 +7,31 @@
 
 namespace oblo::scene
 {
+    namespace
+    {
+        // TODO: Remove this definition when specializations are all implemented
+        template <typename T>
+        struct meta;
+
+        template <>
+        struct meta<scene::bundle>
+        {
+            static constexpr std::string_view extension{".json"};
+        };
+
+        template <>
+        struct meta<scene::model>
+        {
+            static constexpr std::string_view extension{".json"};
+        };
+
+        template <>
+        struct meta<scene::mesh>
+        {
+            static constexpr std::string_view extension{".gltf"};
+        };
+    }
+
     template <typename T>
     asset::asset_type_desc make_asset_type_desc()
     {
@@ -24,6 +49,7 @@ namespace oblo::scene
             {
                 // TODO
             },
+            .extension = meta<T>::extension,
         };
     }
     void register_asset_types(asset::asset_registry& registry)

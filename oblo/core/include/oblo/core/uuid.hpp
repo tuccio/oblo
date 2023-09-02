@@ -7,6 +7,7 @@
 #include <bit>
 #include <compare>
 #include <span>
+#include <string_view>
 
 namespace oblo
 {
@@ -27,16 +28,16 @@ namespace oblo
             buffer_too_small,
         };
 
-        constexpr void format_to(std::span<char, 36> buffer) const;
+        constexpr std::string_view format_to(std::span<char, 36> buffer) const;
 
         static constexpr auto parse(std::span<const char, 36> buffer);
-        static constexpr auto parse(std::span<const char> buffer);
+        static constexpr auto parse(std::string_view buffer);
 
         constexpr bool parse_from(std::span<const char, 36> buffer);
-        constexpr bool parse_from(std::span<const char> buffer);
+        constexpr bool parse_from(std::string_view buffer);
     };
 
-    constexpr void uuid::format_to(std::span<char, 36> buffer) const
+    constexpr std::string_view uuid::format_to(std::span<char, 36> buffer) const
     {
         constexpr auto push_chars = [](u8 byte, auto& out)
         {
@@ -79,6 +80,8 @@ namespace oblo
         push_chars(data[13], it);
         push_chars(data[14], it);
         push_chars(data[15], it);
+
+        return std::string_view{buffer.data(), buffer.size()};
     }
 
     constexpr auto uuid::parse(std::span<const char, 36> buffer)
@@ -175,7 +178,7 @@ namespace oblo
         return result_type{result};
     }
 
-    constexpr auto uuid::parse(std::span<const char> buffer)
+    constexpr auto uuid::parse(std::string_view buffer)
     {
         using result_type = expected<uuid, uuid::format_error>;
 
@@ -184,7 +187,7 @@ namespace oblo
             return result_type{format_error::buffer_too_small};
         }
 
-        return uuid::parse(buffer.subspan<0, 36>());
+        return uuid::parse(std::span<const char, 36>{buffer.data(), 36});
     }
 
     constexpr bool uuid::parse_from(std::span<const char, 36> buffer)
@@ -200,9 +203,22 @@ namespace oblo
         return false;
     }
 
+    constexpr bool uuid::parse_from(std::string_view buffer)
+    {
+        const auto result = uuid::parse(buffer);
+
+        if (result)
+        {
+            *this = *result;
+            return true;
+        }
+
+        return false;
+    }
+
     consteval uuid operator""_uuid(const char* str, size_t len)
     {
-        const auto expected = uuid::parse(std::span{str, len});
+        const auto expected = uuid::parse(std::string_view{str, len});
 
         if (!expected)
         {

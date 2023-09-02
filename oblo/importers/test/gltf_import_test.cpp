@@ -3,6 +3,9 @@
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/importer.hpp>
 #include <oblo/asset/importers/registration.hpp>
+#include <oblo/asset/meta.hpp>
+#include <oblo/scene/assets/bundle.hpp>
+#include <oblo/scene/assets/model.hpp>
 #include <oblo/scene/assets/registration.hpp>
 
 namespace oblo::asset::importers
@@ -40,6 +43,18 @@ namespace oblo::asset::importers
         ASSERT_TRUE(importer.is_valid());
 
         ASSERT_TRUE(importer.init());
-        ASSERT_TRUE(importer.execute("./Box"));
+        ASSERT_TRUE(importer.execute("Box"));
+
+        uuid bundleId;
+        uuid meshId;
+
+        asset_meta bundleMeta;
+        asset_meta meshMeta;
+
+        ASSERT_TRUE(registry.find_asset_by_path("Box/Box", bundleId, bundleMeta));
+        ASSERT_TRUE(registry.find_asset_by_path("Box/Mesh", meshId, meshMeta));
+
+        ASSERT_EQ(bundleMeta.type, get_type_id<scene::bundle>());
+        ASSERT_EQ(meshMeta.type, get_type_id<scene::model>());
     }
 }
