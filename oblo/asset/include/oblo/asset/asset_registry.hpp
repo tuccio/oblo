@@ -14,6 +14,7 @@ namespace oblo
 namespace oblo::asset
 {
     class importer;
+
     struct artifact_meta;
     struct asset_meta;
     struct asset_type_desc;
@@ -48,6 +49,12 @@ namespace oblo::asset
 
         bool find_asset_by_path(const std::filesystem::path& path, uuid& id, asset_meta& assetMeta) const;
 
+    public:
+        static bool find_artifact_resource(const uuid& id,
+                                           type_id& type,
+                                           std::filesystem::path& path,
+                                           const void* userdata);
+
     private:
         struct impl;
         friend class importer;
@@ -61,18 +68,16 @@ namespace oblo::asset
     private:
         uuid generate_uuid();
 
-        bool save_artifact(const uuid& assetId,
-                           const uuid& id,
+        bool save_artifact(const uuid& id,
                            const type_id& type,
                            const void* dataPtr,
+                           const artifact_meta& meta,
                            write_policy policy = write_policy::no_overwrite);
 
         bool save_asset(const std::filesystem::path& destination,
                         std::string_view fileNameBuffer,
-                        asset_meta meta,
+                        const asset_meta& meta,
                         write_policy policy = write_policy::no_overwrite);
-
-        bool save_artifacts_meta(const uuid& importId, std::span<const artifact_meta> artifacts);
 
         std::filesystem::path create_source_files_dir(uuid importId);
 

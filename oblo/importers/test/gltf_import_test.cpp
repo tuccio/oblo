@@ -4,6 +4,8 @@
 #include <oblo/asset/importer.hpp>
 #include <oblo/asset/importers/registration.hpp>
 #include <oblo/asset/meta.hpp>
+#include <oblo/resource/resource_handle.hpp>
+#include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/assets/bundle.hpp>
 #include <oblo/scene/assets/model.hpp>
 #include <oblo/scene/assets/registration.hpp>
@@ -22,6 +24,9 @@ namespace oblo::asset::importers
 
     TEST(gltf_importer, box)
     {
+        resource_registry resources;
+        scene::register_resource_types(resources);
+
         asset_registry registry;
 
         const std::filesystem::path testDir{"./test/gltf_importer_suzanne/"};
@@ -35,6 +40,8 @@ namespace oblo::asset::importers
         scene::register_asset_types(registry);
 
         register_gltf_importer(registry);
+
+        resources.register_provider(&asset_registry::find_artifact_resource, &registry);
 
         const std::filesystem::path gltfSampleModels{OBLO_GLTF_SAMPLE_MODELS};
 
@@ -66,6 +73,12 @@ namespace oblo::asset::importers
 
             ASSERT_EQ(bundleMeta.type, get_type_id<scene::bundle>());
             ASSERT_EQ(meshMeta.type, get_type_id<scene::model>());
+
+            const auto bundleResource = resources.get_resource(bundleMeta.id);
+            ASSERT_TRUE(bundleResource);
+
+            const auto meshResource = resources.get_resource(meshMeta.id);
+            ASSERT_TRUE(meshResource);
         }
     }
 }
