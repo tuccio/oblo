@@ -51,7 +51,7 @@ namespace oblo::asset::importers
         asset_meta bundleMeta;
         asset_meta meshMeta;
 
-        ASSERT_TRUE(registry.find_asset_by_path("Box/Box", bundleId, bundleMeta));
+        ASSERT_TRUE(registry.find_asset_by_path("Box/Box.gltf", bundleId, bundleMeta));
         ASSERT_TRUE(registry.find_asset_by_path("Box/Mesh", meshId, meshMeta));
 
         ASSERT_EQ(bundleMeta.type, get_type_id<scene::bundle>());

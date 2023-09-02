@@ -3,8 +3,8 @@
 #include <oblo/asset/asset_type_desc.hpp>
 #include <oblo/scene/assets/bundle.hpp>
 #include <oblo/scene/assets/mesh.hpp>
-#include <oblo/scene/serialization/mesh_file.hpp>
 #include <oblo/scene/assets/model.hpp>
+#include <oblo/scene/serialization/mesh_file.hpp>
 
 #include <fstream>
 
@@ -53,8 +53,6 @@ namespace oblo::scene
                 ofs << json.dump(1, '\t');
                 return true;
             }
-
-            static constexpr std::string_view extension{".obundle"};
         };
 
         template <>
@@ -85,8 +83,6 @@ namespace oblo::scene
                 ofs << json.dump(1, '\t');
                 return true;
             }
-
-            static constexpr std::string_view extension{".omodel"};
         };
 
         template <>
@@ -97,8 +93,6 @@ namespace oblo::scene
                 save_mesh(mesh, destination);
                 return true;
             }
-
-            static constexpr std::string_view extension{".glb"};
         };
     }
 
@@ -117,7 +111,6 @@ namespace oblo::scene
             },
             .save = [](const void* ptr, const std::filesystem::path& destination)
             { return meta<T>::save(*static_cast<const T*>(ptr), destination); },
-            .extension = meta<T>::extension,
         };
     }
     void register_asset_types(asset::asset_registry& registry)
