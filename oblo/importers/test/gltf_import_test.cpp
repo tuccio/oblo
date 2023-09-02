@@ -12,7 +12,7 @@ namespace oblo::asset::importers
 {
     namespace
     {
-        void clear_directoy(const std::filesystem::path& path)
+        void clear_directory(const std::filesystem::path& path)
         {
             std::error_code ec;
             std::filesystem::remove_all(path, ec);
@@ -27,34 +27,45 @@ namespace oblo::asset::importers
         const std::filesystem::path testDir{"./test/gltf_importer_suzanne/"};
         const std::filesystem::path assetsDir{testDir / "assets"};
         const std::filesystem::path artifactsDir{testDir / "artifacts"};
+        const std::filesystem::path sourceFilesDir{testDir / "sourcefiles"};
 
-        clear_directoy(testDir);
+        clear_directory(testDir);
 
-        ASSERT_TRUE(registry.initialize(assetsDir, artifactsDir));
-
+        ASSERT_TRUE(registry.initialize(assetsDir, artifactsDir, sourceFilesDir));
         scene::register_asset_types(registry);
 
         register_gltf_importer(registry);
 
         const std::filesystem::path gltfSampleModels{OBLO_GLTF_SAMPLE_MODELS};
 
-        auto importer = registry.create_importer(gltfSampleModels / "2.0" / "Box" / "glTF-Embedded" / "Box.gltf");
+        const std::filesystem::path files[] = {
+            gltfSampleModels / "2.0" / "Box" / "glTF-Embedded" / "Box.gltf",
+            gltfSampleModels / "2.0" / "Box" / "glTF" / "Box.gltf",
+            gltfSampleModels / "2.0" / "Box" / "glTF-Binary" / "Box.glb",
+        };
 
-        ASSERT_TRUE(importer.is_valid());
+        for (const auto& file : files)
+        {
+            auto importer = registry.create_importer(file);
 
-        ASSERT_TRUE(importer.init());
-        ASSERT_TRUE(importer.execute("Box"));
+            const auto dirName = file.parent_path().filename();
 
-        uuid bundleId;
-        uuid meshId;
+            ASSERT_TRUE(importer.is_valid());
 
-        asset_meta bundleMeta;
-        asset_meta meshMeta;
+            ASSERT_TRUE(importer.init());
+            ASSERT_TRUE(importer.execute(dirName));
 
-        ASSERT_TRUE(registry.find_asset_by_path("Box/Box.gltf", bundleId, bundleMeta));
-        ASSERT_TRUE(registry.find_asset_by_path("Box/Mesh", meshId, meshMeta));
+            uuid bundleId;
+            uuid meshId;
 
-        ASSERT_EQ(bundleMeta.type, get_type_id<scene::bundle>());
-        ASSERT_EQ(meshMeta.type, get_type_id<scene::model>());
+            asset_meta bundleMeta;
+            asset_meta meshMeta;
+
+            ASSERT_TRUE(registry.find_asset_by_path(dirName / file.filename(), bundleId, bundleMeta));
+            ASSERT_TRUE(registry.find_asset_by_path(dirName / "Mesh", meshId, meshMeta));
+
+            ASSERT_EQ(bundleMeta.type, get_type_id<scene::bundle>());
+            ASSERT_EQ(meshMeta.type, get_type_id<scene::model>());
+        }
     }
 }

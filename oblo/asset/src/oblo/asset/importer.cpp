@@ -7,8 +7,40 @@
 #include <oblo/core/uuid.hpp>
 #include <oblo/core/uuid_generator.hpp>
 
+#include <nlohmann/json.hpp>
+
+#include <fstream>
+
 namespace oblo::asset
 {
+    namespace
+    {
+        constexpr std::string_view ImportConfigFilename{"import.json"};
+
+        bool write_import_config(const importer_config& config, const std::filesystem::path& destination)
+        {
+            nlohmann::ordered_json json;
+
+            if (!config.importer.name.empty())
+            {
+                json["importer"] = config.importer.name;
+            }
+
+            json["filename"] = config.sourceFile.filename();
+            json["source"] = config.sourceFile;
+
+            std::ofstream ofs{destination};
+
+            if (!ofs)
+            {
+                return false;
+            }
+
+            ofs << json.dump(1, '\t');
+            return !ofs.bad();
+        }
+    }
+
     struct importer::pending_asset_import
     {
         std::vector<import_artifact> artifacts;
@@ -21,6 +53,7 @@ namespace oblo::asset
     importer::importer(importer_config config, std::unique_ptr<file_importer> fileImporter) :
         m_config{std::move(config)}, m_importer{std::move(fileImporter)}
     {
+        m_sourceFiles.emplace_back(m_config.sourceFile);
     }
 
     importer::~importer() = default;
@@ -34,7 +67,11 @@ namespace oblo::asset
             return false;
         }
 
-        m_importer->init(m_config, m_preview);
+        if (!m_importer->init(m_config, m_preview))
+        {
+            return false;
+        }
+
         m_importNodesConfig.assign(m_preview.nodes.size(), {.enabled = true});
         return true;
     }
@@ -137,8 +174,10 @@ namespace oblo::asset
 
             const auto [artifactIt, artifactInserted] = m_artifacts.emplace(config.id,
                                                                             artifact_meta{
+                                                                                .id = config.id,
                                                                                 .type = node.type,
-                                                                                .name = node.name,
+                                                                                .importId = m_importId,
+                                                                                .importName = node.name,
                                                                             });
 
             OBLO_ASSERT(artifactInserted);
@@ -179,12 +218,11 @@ namespace oblo::asset
             asset_meta assetMeta{
                 .id = mainArtifact.id,
                 .type = mainArtifact.data.get_type(),
-                .importer = m_config.fileImporterType,
                 .importId = m_importId,
                 .importName = mainArtifact.name,
             };
 
-            assetFileName = mainArtifactIt->second.name;
+            assetFileName = mainArtifactIt->second.importName;
 
             for (const import_artifact& artifact : assetImport.artifacts)
             {
@@ -213,14 +251,51 @@ namespace oblo::asset
                     continue;
                 }
 
-                artifactsMeta.push_back(
-                    artifact_meta{.id = artifact.id, .type = artifact.data.get_type(), .name = artifact.name});
+                artifactsMeta.push_back(artifact_meta{
+                    .id = artifact.id,
+                    .type = artifact.data.get_type(),
+                    .importId = m_importId,
+                    .importName = artifact.name,
+                });
             }
 
             allSucceeded &= registry.save_asset(destination, assetFileName, std::move(assetMeta));
         }
 
         allSucceeded &= registry.save_artifacts_meta(m_importId, artifactsMeta);
+        allSucceeded &= write_source_files();
+
+        return allSucceeded;
+    }
+
+    void importer::add_source_files(std::span<const std::filesystem::path> sourceFiles)
+    {
+        m_sourceFiles.insert(m_sourceFiles.end(), sourceFiles.begin(), sourceFiles.end());
+    }
+
+    const importer_config& importer::get_config() const
+    {
+        return m_config;
+    }
+
+    bool importer::write_source_files()
+    {
+        const auto importDir = m_config.registry->create_source_files_dir(m_importId);
+
+        if (importDir.empty())
+        {
+            return false;
+        }
+
+        bool allSucceeded = true;
+
+        for (const auto& sourceFile : m_sourceFiles)
+        {
+            std::error_code ec;
+            allSucceeded &= std::filesystem::copy_file(sourceFile, importDir / sourceFile.filename(), ec) && !ec;
+        }
+
+        allSucceeded &= write_import_config(m_config, importDir / ImportConfigFilename);
 
         return allSucceeded;
     }

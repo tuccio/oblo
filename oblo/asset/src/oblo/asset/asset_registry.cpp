@@ -41,11 +41,6 @@ namespace oblo::asset
             json["id"] = id.format_to(uuidBuffer);
             json["type"] = meta.type.name;
 
-            if (!meta.importer.name.empty())
-            {
-                json["importer"] = meta.importer.name;
-            }
-
             if (!meta.importId.is_nil())
             {
                 json["importId"] = meta.importId.format_to(uuidBuffer);
@@ -99,9 +94,14 @@ namespace oblo::asset
                 auto& artifactJson = json[artifact.id.format_to(uuidBuffer)];
                 artifactJson["type"] = artifact.type.name;
 
-                if (!artifact.name.empty())
+                if (!artifact.importId.is_nil())
                 {
-                    artifactJson["name"] = artifact.name;
+                    artifactJson["importId"] = artifact.importId.format_to(uuidBuffer);
+                }
+
+                if (!artifact.importName.empty())
+                {
+                    artifactJson["name"] = artifact.importName;
                 }
             }
 
@@ -135,6 +135,7 @@ namespace oblo::asset
         std::unordered_map<uuid, asset_meta> assets;
         std::filesystem::path assetsDir;
         std::filesystem::path artifactsDir;
+        std::filesystem::path sourceFilesDir;
     };
 
     asset_registry::asset_registry() = default;
@@ -144,9 +145,11 @@ namespace oblo::asset
         shutdown();
     }
 
-    bool asset_registry::initialize(const std::filesystem::path& assetsDir, const std::filesystem::path& artifactsDir)
+    bool asset_registry::initialize(const std::filesystem::path& assetsDir,
+                                    const std::filesystem::path& artifactsDir,
+                                    const std::filesystem::path& sourceFilesDir)
     {
-        if (!ensure_directories(assetsDir) || !ensure_directories(artifactsDir))
+        if (!ensure_directories(assetsDir) || !ensure_directories(artifactsDir) || !ensure_directories(sourceFilesDir))
         {
             return false;
         }
@@ -154,6 +157,7 @@ namespace oblo::asset
         m_impl = std::make_unique<impl>();
         m_impl->assetsDir = assetsDir;
         m_impl->artifactsDir = artifactsDir;
+        m_impl->sourceFilesDir = sourceFilesDir;
 
         return true;
     }
@@ -209,7 +213,7 @@ namespace oblo::asset
                         importer_config{
                             .registry = this,
                             .sourceFile = sourceFile,
-                            .fileImporterType = type,
+                            .importer = type,
                         },
                         assetImporter.create(),
                     };
@@ -275,8 +279,6 @@ namespace oblo::asset
             return false;
         }
 
-        // TODO: Copy source files
-
         return save_asset_meta(meta.id, assetIt->second, fullPath);
     }
 
@@ -285,6 +287,19 @@ namespace oblo::asset
         char uuidBuffer[36];
         const auto artifactsDir = m_impl->artifactsDir / importId.format_to(uuidBuffer);
         return asset::save_artifacts_meta(artifacts, artifactsDir / ArtifactsMetaFilename);
+    }
+
+    std::filesystem::path asset_registry::create_source_files_dir(uuid importId)
+    {
+        char uuidBuffer[36];
+        auto importDir = m_impl->sourceFilesDir / importId.format_to(uuidBuffer);
+
+        if (!ensure_directories(importDir))
+        {
+            return {};
+        }
+
+        return importDir;
     }
 
     bool asset_registry::find_asset_by_path(const std::filesystem::path& path, uuid& id, asset_meta& assetMeta) const

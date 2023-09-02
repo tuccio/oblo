@@ -16,7 +16,7 @@ namespace oblo::asset::importers
         gltf& operator=(gltf&&) noexcept = delete;
         ~gltf();
 
-        void init(const importer_config& config, import_preview& preview);
+        bool init(const importer_config& config, import_preview& preview);
         bool import(const import_context& context);
 
     private:

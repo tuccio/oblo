@@ -95,7 +95,7 @@ namespace oblo::asset::importers
 
     gltf::~gltf() = default;
 
-    void gltf::init(const importer_config& config, import_preview& preview)
+    bool gltf::init(const importer_config& config, import_preview& preview)
     {
         // Seems like TinyGLTF wants std::string
         const auto sourceFileStr = config.sourceFile.string();
@@ -116,12 +116,12 @@ namespace oblo::asset::importers
         else
         {
             // TODO: Report error
-            return;
+            return false;
         }
 
         if (!success)
         {
-            return;
+            return false;
         }
 
         preview.nodes.push_back(import_node{
@@ -160,6 +160,8 @@ namespace oblo::asset::importers
                 preview.nodes.emplace_back(get_type_id<scene::mesh>(), name);
             }
         }
+
+        return true;
     }
 
     bool gltf::import(const import_context& ctx)
@@ -179,6 +181,8 @@ namespace oblo::asset::importers
 
         std::vector<import_artifact> meshArtifacts;
         meshArtifacts.reserve(32);
+
+        std::vector<bool> usedBuffer(m_model.buffers.size());
 
         for (const auto& model : m_importModels)
         {
@@ -284,6 +288,8 @@ namespace oblo::asset::importers
                     const auto& bufferView = m_model.bufferViews[accessor.bufferView];
                     const auto& buffer = m_model.buffers[bufferView.buffer];
 
+                    usedBuffer[bufferView.buffer] = true;
+
                     const auto* const data = buffer.data.data() + bufferView.byteOffset + accessor.byteOffset;
 
                     const auto expectedSize = tinygltf::GetComponentSizeInBytes(accessor.componentType) *
@@ -324,6 +330,33 @@ namespace oblo::asset::importers
                 .name = ctx.preview->nodes[BundleIndex].name,
             },
             {});
+
+        std::vector<std::filesystem::path> sourceFiles;
+        sourceFiles.reserve(m_model.buffers.size());
+
+        const auto sourceFileDir = ctx.importer->get_config().sourceFile.parent_path();
+
+        for (usize i = 0; i < usedBuffer.size(); ++i)
+        {
+            if (usedBuffer[i])
+            {
+                auto& buffer = m_model.buffers[i];
+
+                if (buffer.uri.empty() || buffer.uri.starts_with("data:"))
+                {
+                    continue;
+                }
+
+                const auto bufferPath = sourceFileDir / buffer.uri;
+
+                if (std::error_code ec; std::filesystem::exists(bufferPath, ec) && !ec)
+                {
+                    sourceFiles.emplace_back(bufferPath);
+                }
+            }
+        }
+
+        ctx.importer->add_source_files(sourceFiles);
 
         return true;
     }
