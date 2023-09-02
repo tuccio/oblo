@@ -18,17 +18,17 @@ namespace oblo
 
         ASSERT_EQ(uuidStr, "00000000-0000-0000-0000-000000000000");
 
-        constexpr uuid prog{.data = {0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf}};
+        constexpr uuid prog{.data = {0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef}};
 
         prog.format_to(buffer);
-        ASSERT_EQ(uuidStr, "00010203-0405-0607-0809-0a0b0c0d0e0f");
+        ASSERT_EQ(uuidStr, "01234567-89ab-cdef-0123-456789abcdef");
 
-        constexpr auto parseResult = uuid::parse("00010203-0405-0607-0809-0a0b0c0d0e0f");
+        constexpr auto parseResult = uuid::parse("01234567-89ab-cdef-0123-456789abcdef");
 
         ASSERT_TRUE(parseResult);
         ASSERT_EQ(*parseResult, prog);
 
-        constexpr uuid literal = "00010203-0405-0607-0809-0a0b0c0d0e0f"_uuid;
+        constexpr uuid literal = "01234567-89ab-cdef-0123-456789abcdef"_uuid;
         ASSERT_EQ(literal, prog);
     }
 }
