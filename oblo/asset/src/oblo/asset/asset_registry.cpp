@@ -32,33 +32,27 @@ namespace oblo::asset
             std::vector<std::string> extensions;
         };
 
-        void save_asset_meta(const uuid& id, const asset_meta& meta, const std::filesystem::path& destination)
+        bool save_asset_meta(const uuid& id, const asset_meta& meta, const std::filesystem::path& destination)
         {
             char uuidBuffer[36];
 
             nlohmann::ordered_json json;
 
-            auto artifacts = nlohmann::json::array();
-
-            for (auto& artifact : meta.artifacts)
-            {
-                nlohmann::json jsonArtifact;
-
-                jsonArtifact["id"] = artifact.id.format_to(uuidBuffer);
-                jsonArtifact["name"] = artifact.name;
-
-                artifacts.emplace_back(std::move(jsonArtifact));
-            }
-
-            json["artifacts"] = std::move(artifacts);
-
             json["id"] = id.format_to(uuidBuffer);
             json["type"] = meta.type.name;
 
             std::ofstream ofs{destination};
+
+            if (!ofs)
+            {
+                return false;
+            }
+
             ofs << json.dump(1, '\t');
+            return !ofs.bad();
         }
 
+        // TODO: Need to read the full meta instead
         bool load_asset_id_from_meta(const std::filesystem::path& path, uuid& id)
         {
             std::ifstream in{path};
@@ -79,6 +73,34 @@ namespace oblo::asset
             return id.parse_from(it->get<std::string_view>());
         }
 
+        bool save_artifacts_meta(std::span<const artifact_meta> artifacts, const std::filesystem::path& destination)
+        {
+            char uuidBuffer[36];
+
+            nlohmann::json json;
+
+            for (const auto& artifact : artifacts)
+            {
+                auto& artifactJson = json[artifact.id.format_to(uuidBuffer)];
+                artifactJson["type"] = artifact.type.name;
+
+                if (!artifact.name.empty())
+                {
+                    artifactJson["name"] = artifact.name;
+                }
+            }
+
+            std::ofstream ofs{destination};
+
+            if (!ofs)
+            {
+                return false;
+            }
+
+            ofs << json.dump(1, '\t');
+            return !ofs.bad();
+        }
+
         bool ensure_directories(const std::filesystem::path& directory)
         {
             std::error_code ec;
@@ -87,6 +109,7 @@ namespace oblo::asset
         }
 
         constexpr std::string_view AssetMetaExtension{".oasset"};
+        constexpr std::string_view ArtifactsMetaFilename{"artifacts.json"};
     }
 
     struct asset_registry::impl
@@ -186,7 +209,8 @@ namespace oblo::asset
         return m_impl->uuidGenerator.generate();
     }
 
-    bool asset_registry::save_artifact(const uuid& id, const type_id& type, const void* dataPtr, write_policy policy)
+    bool asset_registry::save_artifact(
+        const uuid& assetId, const uuid& artifactId, const type_id& type, const void* dataPtr, write_policy policy)
     {
         const auto typeIt = m_impl->assetTypes.find(type);
 
@@ -197,8 +221,10 @@ namespace oblo::asset
 
         char uuidBuffer[36];
 
-        auto artifactPath = m_impl->artifactsDir / id.format_to(uuidBuffer);
-        artifactPath.concat(typeIt->second.extension);
+        auto artifactPath = m_impl->artifactsDir / assetId.format_to(uuidBuffer);
+        ensure_directories(artifactPath);
+
+        artifactPath /= artifactId.format_to(uuidBuffer);
 
         std::error_code ec;
 
@@ -215,6 +241,7 @@ namespace oblo::asset
                                     const std::filesystem::path& destination,
                                     std::string_view filename,
                                     asset_meta meta,
+                                    std::span<const artifact_meta> artifacts,
                                     write_policy policy)
     {
         const auto [assetIt, insertedAsset] = m_impl->assets.emplace(id, std::move(meta));
@@ -235,9 +262,13 @@ namespace oblo::asset
         }
 
         // TODO: Copy source files
-        save_asset_meta(id, assetIt->second, fullPath);
 
-        return true;
+        char uuidBuffer[36];
+
+        const auto artifactsDir = m_impl->artifactsDir / id.format_to(uuidBuffer);
+
+        return save_asset_meta(id, assetIt->second, fullPath) &&
+               save_artifacts_meta(artifacts, artifactsDir / ArtifactsMetaFilename);
     }
 
     bool asset_registry::find_asset_by_path(const std::filesystem::path& path, uuid& id, asset_meta& assetMeta) const

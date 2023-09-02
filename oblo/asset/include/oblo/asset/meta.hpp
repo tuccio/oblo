@@ -17,7 +17,7 @@ namespace oblo::asset
 
     struct asset_meta
     {
+        uuid id;
         type_id type;
-        std::vector<artifact_meta> artifacts;
     };
 }

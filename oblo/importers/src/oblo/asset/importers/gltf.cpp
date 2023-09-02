@@ -126,7 +126,7 @@ namespace oblo::asset::importers
 
         preview.nodes.push_back(import_node{
             .type = get_type_id<scene::bundle>(),
-            .name = config.sourceFile.filename().stem().string(),
+            .name = config.sourceFile.filename().string(),
         });
 
         std::string name;
@@ -303,6 +303,7 @@ namespace oblo::asset::importers
                 auto& meshArtifact = meshArtifacts.emplace_back();
                 meshArtifact.id = meshNodeConfig.id;
                 meshArtifact.data = any_asset{std::move(meshAsset)};
+                meshArtifact.name = ctx.preview->nodes[mesh.nodeIndex].name;
             }
 
             bundle.models.emplace_back(modelNodeConfig.id);
@@ -311,6 +312,7 @@ namespace oblo::asset::importers
                 {
                     .id = modelNodeConfig.id,
                     .data = any_asset{std::move(modelAsset)},
+                    .name = ctx.preview->nodes[model.nodeIndex].name,
                 },
                 meshArtifacts);
         }
@@ -319,6 +321,7 @@ namespace oblo::asset::importers
             {
                 .id = ctx.importNodesConfig[BundleIndex].id,
                 .data = any_asset{std::move(bundle)},
+                .name = ctx.preview->nodes[BundleIndex].name,
             },
             {});
 
