@@ -100,7 +100,7 @@ namespace oblo
         json["latestImportedScene"] = state.latestImportedScene;
 
         std::ofstream out{filename};
-        out << json.dump(4);
+        out << json.dump(1, '\t');
 
         return true;
     }

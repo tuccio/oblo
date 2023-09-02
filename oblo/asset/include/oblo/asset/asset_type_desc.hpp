@@ -8,8 +8,8 @@ namespace oblo::asset
 {
     using create_asset_fn = void* (*) ();
     using destroy_asset_fn = void (*)(void*);
-    using load_asset_fn = void (*)(void* asset, const std::filesystem::path& source);
-    using save_asset_fn = void (*)(const void* asset, const std::filesystem::path& destination);
+    using load_asset_fn = bool (*)(void* asset, const std::filesystem::path& source);
+    using save_asset_fn = bool (*)(const void* asset, const std::filesystem::path& destination);
 
     struct asset_type_desc
     {

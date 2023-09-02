@@ -5,30 +5,99 @@
 #include <oblo/scene/assets/mesh.hpp>
 #include <oblo/scene/assets/model.hpp>
 
+#include <fstream>
+
+#include <nlohmann/json.hpp>
+
 namespace oblo::scene
 {
     namespace
     {
-        // TODO: Remove this definition when specializations are all implemented
         template <typename T>
         struct meta;
 
         template <>
         struct meta<scene::bundle>
         {
-            static constexpr std::string_view extension{".json"};
+            static bool save(const scene::bundle& bundle, const std::filesystem::path& destination)
+            {
+                char uuidBuffer[36];
+
+                auto meshes = nlohmann::json::array();
+
+                for (const auto& mesh : bundle.meshes)
+                {
+                    meshes.emplace_back(mesh.id.format_to(uuidBuffer));
+                }
+
+                auto models = nlohmann::json::array();
+
+                for (const auto& model : bundle.models)
+                {
+                    models.emplace_back(model.id.format_to(uuidBuffer));
+                }
+
+                nlohmann::ordered_json json;
+
+                json["meshes"] = std::move(meshes);
+                json["models"] = std::move(models);
+
+                std::ofstream ofs{destination};
+
+                if (!ofs)
+                {
+                    return false;
+                }
+
+                ofs << json.dump(1, '\t');
+                return true;
+            }
+
+            static constexpr std::string_view extension{".obundle"};
         };
 
         template <>
         struct meta<scene::model>
         {
-            static constexpr std::string_view extension{".json"};
+            static bool save(const scene::model& model, const std::filesystem::path& destination)
+            {
+                char uuidBuffer[36];
+
+                auto meshes = nlohmann::json::array();
+
+                for (const auto& mesh : model.meshes)
+                {
+                    meshes.emplace_back(mesh.id.format_to(uuidBuffer));
+                }
+
+                nlohmann::ordered_json json;
+
+                json["meshes"] = std::move(meshes);
+
+                std::ofstream ofs{destination};
+
+                if (!ofs)
+                {
+                    return false;
+                }
+
+                ofs << json.dump(1, '\t');
+                return true;
+            }
+
+            static constexpr std::string_view extension{".omodel"};
         };
 
         template <>
         struct meta<scene::mesh>
         {
-            static constexpr std::string_view extension{".gltf"};
+            static bool save(const scene::mesh&, const std::filesystem::path&)
+            {
+                // TODO
+                return true;
+            }
+
+            static constexpr std::string_view extension{".omesh"};
         };
     }
 
@@ -42,13 +111,11 @@ namespace oblo::scene
             .load =
                 [](void*, const std::filesystem::path&)
             {
-                // TODO?
-            },
-            .save =
-                [](const void*, const std::filesystem::path&)
-            {
                 // TODO
+                return false;
             },
+            .save = [](const void* ptr, const std::filesystem::path& destination)
+            { return meta<T>::save(*static_cast<const T*>(ptr), destination); },
             .extension = meta<T>::extension,
         };
     }

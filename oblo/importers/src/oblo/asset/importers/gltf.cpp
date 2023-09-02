@@ -293,6 +293,8 @@ namespace oblo::asset::importers
                 meshArtifact.data = any_asset{std::move(meshAsset)};
             }
 
+            bundle.models.emplace_back(modelNodeConfig.id);
+
             ctx.importer->add_asset(
                 {
                     .id = modelNodeConfig.id,
