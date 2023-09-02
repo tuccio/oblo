@@ -6,14 +6,14 @@ namespace oblo
 {
     struct resource;
 
-    class resource_handle
+    class resource_ptr
     {
     public:
-        resource_handle() = default;
+        resource_ptr() = default;
 
-        resource_handle(const resource_handle&);
+        resource_ptr(const resource_ptr&);
 
-        resource_handle(resource_handle&& other) noexcept
+        resource_ptr(resource_ptr&& other) noexcept
         {
             m_ptr = other.m_ptr;
             m_resource = other.m_resource;
@@ -22,16 +22,16 @@ namespace oblo
             other.m_resource = nullptr;
         }
 
-        explicit resource_handle(resource* resource);
+        explicit resource_ptr(resource* resource);
 
-        ~resource_handle()
+        ~resource_ptr()
         {
             reset();
         }
 
-        resource_handle& operator=(const resource_handle&);
+        resource_ptr& operator=(const resource_ptr&);
 
-        resource_handle& operator=(resource_handle&& other) noexcept
+        resource_ptr& operator=(resource_ptr&& other) noexcept
         {
             reset();
             m_ptr = other.m_ptr;

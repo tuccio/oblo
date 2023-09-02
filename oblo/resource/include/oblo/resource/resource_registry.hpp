@@ -10,7 +10,8 @@
 
 namespace oblo
 {
-    class resource_handle;
+    template <typename T>
+    class resource_ptr;
 
     struct resource;
     struct resource_type_desc;
@@ -35,7 +36,7 @@ namespace oblo
         void register_provider(find_resource_fn provider, const void* userdata);
         void unregister_provider(find_resource_fn provider);
 
-        resource_handle get_resource(const uuid& id);
+        resource_ptr<void> get_resource(const uuid& id);
 
     private:
         struct resource_storage;

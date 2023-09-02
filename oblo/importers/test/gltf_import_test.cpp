@@ -4,7 +4,7 @@
 #include <oblo/asset/importer.hpp>
 #include <oblo/asset/importers/registration.hpp>
 #include <oblo/asset/meta.hpp>
-#include <oblo/resource/resource_handle.hpp>
+#include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/assets/bundle.hpp>
 #include <oblo/scene/assets/model.hpp>
@@ -74,10 +74,10 @@ namespace oblo::asset::importers
             ASSERT_EQ(bundleMeta.type, get_type_id<scene::bundle>());
             ASSERT_EQ(meshMeta.type, get_type_id<scene::model>());
 
-            const auto bundleResource = resources.get_resource(bundleMeta.id);
+            const auto bundleResource = resources.get_resource(bundleMeta.id).as<scene::bundle>();
             ASSERT_TRUE(bundleResource);
 
-            const auto meshResource = resources.get_resource(meshMeta.id);
+            const auto meshResource = resources.get_resource(meshMeta.id).as<scene::model>();
             ASSERT_TRUE(meshResource);
         }
     }
