@@ -43,7 +43,7 @@ namespace oblo
             static constexpr char lookup[] =
                 {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
 
-            *out = lookup[(byte >> 8) & 0xF];
+            *out = lookup[(byte >> 4) & 0xF];
             ++out;
 
             *out = lookup[byte & 0xF];
@@ -115,7 +115,7 @@ namespace oblo
                 return false;
             }
 
-            byte = u8((hi << 8) | lo);
+            byte = u8((hi << 4) | lo);
 
             return true;
         };
