@@ -21,5 +21,6 @@ namespace oblo::asset
         type_id type;
         type_id importer;
         uuid importId;
+        std::string importName;
     };
 }

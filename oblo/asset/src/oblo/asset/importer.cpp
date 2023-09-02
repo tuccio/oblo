@@ -5,6 +5,7 @@
 #include <oblo/asset/meta.hpp>
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/uuid.hpp>
+#include <oblo/core/uuid_generator.hpp>
 
 namespace oblo::asset
 {
@@ -111,10 +112,15 @@ namespace oblo::asset
 
     bool importer::begin_import(asset_registry& registry, std::span<import_node_config> importNodesConfig)
     {
+        // TODO: Could maybe create the folder here to ensure it's unique
+        m_importId = registry.generate_uuid();
+
         if (importNodesConfig.size() != m_preview.nodes.size())
         {
             return false;
         }
+
+        const auto uuidGenerator = uuid_namespace_generator{m_importId};
 
         for (usize i = 0; i < importNodesConfig.size(); ++i)
         {
@@ -125,8 +131,9 @@ namespace oblo::asset
                 return false;
             }
 
+            // TODO: Ensure that names are unique
             auto& config = importNodesConfig[i];
-            config.id = registry.generate_uuid();
+            config.id = uuidGenerator.generate(node.name);
 
             const auto [artifactIt, artifactInserted] = m_artifacts.emplace(config.id,
                                                                             artifact_meta{
@@ -146,9 +153,6 @@ namespace oblo::asset
         {
             return false;
         }
-
-        // TODO: Could maybe create the folder here to ensure it's unique
-        const auto importId = registry.generate_uuid();
 
         bool allSucceeded = true;
 
@@ -176,7 +180,8 @@ namespace oblo::asset
                 .id = mainArtifact.id,
                 .type = mainArtifact.data.get_type(),
                 .importer = m_config.fileImporterType,
-                .importId = importId,
+                .importId = m_importId,
+                .importName = mainArtifact.name,
             };
 
             assetFileName = mainArtifactIt->second.name;
@@ -201,7 +206,7 @@ namespace oblo::asset
                     continue;
                 }
 
-                if (!registry.save_artifact(importId, artifact.id, artifact.data.get_type(), artifactPtr))
+                if (!registry.save_artifact(m_importId, artifact.id, artifact.data.get_type(), artifactPtr))
                 {
                     OBLO_ASSERT(false); // TODO: Log?
                     allSucceeded = false;
@@ -215,7 +220,7 @@ namespace oblo::asset
             allSucceeded &= registry.save_asset(destination, assetFileName, std::move(assetMeta));
         }
 
-        allSucceeded &= registry.save_artifacts_meta(importId, artifactsMeta);
+        allSucceeded &= registry.save_artifacts_meta(m_importId, artifactsMeta);
 
         return allSucceeded;
     }

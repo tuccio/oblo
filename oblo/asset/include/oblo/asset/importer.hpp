@@ -2,6 +2,7 @@
 
 #include <oblo/asset/import_preview.hpp>
 #include <oblo/core/type_id.hpp>
+#include <oblo/core/uuid.hpp>
 
 #include <filesystem>
 #include <memory>
@@ -74,6 +75,7 @@ namespace oblo::asset
         std::vector<import_node_config> m_importNodesConfig;
         std::vector<pending_asset_import> m_assets;
         std::unordered_map<uuid, artifact_meta> m_artifacts;
+        uuid m_importId{};
     };
 
     using create_file_importer_fn = std::unique_ptr<file_importer> (*)();
