@@ -18,9 +18,9 @@ namespace oblo::asset::importers
         }
     }
 
-    void register_gltf_importer(asset_registry& assetManager)
+    void register_gltf_importer(asset_registry& registry)
     {
         constexpr std::string_view extensions[] = {".gltf", ".gltb"};
-        assetManager.register_file_importer(make_file_importer_desc<gltf>(extensions));
+        registry.register_file_importer(make_file_importer_desc<gltf>(extensions));
     }
 }

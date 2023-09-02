@@ -7,22 +7,35 @@
 
 namespace oblo::asset::importers
 {
+    namespace
+    {
+        void clear_directoy(const std::filesystem::path& path)
+        {
+            std::error_code ec;
+            std::filesystem::remove_all(path, ec);
+            ASSERT_FALSE(ec);
+        }
+    }
+
     TEST(gltf_importer, box)
     {
-        asset_registry assetManager;
+        asset_registry registry;
 
-        const std::filesystem::path assetsDir{"./test/gltf_importer_suzanne/assets"};
-        const std::filesystem::path artifactsDir{"./test/gltf_importer_suzanne/artifacts"};
+        const std::filesystem::path testDir{"./test/gltf_importer_suzanne/"};
+        const std::filesystem::path assetsDir{testDir / "assets"};
+        const std::filesystem::path artifactsDir{testDir / "artifacts"};
 
-        ASSERT_TRUE(assetManager.initialize(assetsDir, artifactsDir));
+        clear_directoy(testDir);
 
-        scene::register_asset_types(assetManager);
+        ASSERT_TRUE(registry.initialize(assetsDir, artifactsDir));
 
-        register_gltf_importer(assetManager);
+        scene::register_asset_types(registry);
+
+        register_gltf_importer(registry);
 
         const std::filesystem::path gltfSampleModels{OBLO_GLTF_SAMPLE_MODELS};
 
-        auto importer = assetManager.create_importer(gltfSampleModels / "2.0" / "Box" / "glTF-Embedded" / "Box.gltf");
+        auto importer = registry.create_importer(gltfSampleModels / "2.0" / "Box" / "glTF-Embedded" / "Box.gltf");
 
         ASSERT_TRUE(importer.is_valid());
 
