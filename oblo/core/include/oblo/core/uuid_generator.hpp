@@ -1,8 +1,10 @@
 #pragma once
 
+#include <oblo/core/hash.hpp>
 #include <oblo/core/uuid.hpp>
 
 #include <random>
+#include <span>
 
 namespace oblo
 {
@@ -27,5 +29,43 @@ namespace oblo
 
     private:
         std::mt19937_64 m_rng;
+    };
+
+    class uuid_namespace_generator
+    {
+    public:
+        uuid_namespace_generator() = default;
+
+        explicit uuid_namespace_generator(const uuid& name)
+        {
+            std::memcpy(m_name, &name, sizeof(uuid));
+        }
+
+        uuid_namespace_generator(const uuid_namespace_generator&) = default;
+        uuid_namespace_generator& operator=(const uuid_namespace_generator&) = default;
+
+        uuid generate(std::span<const std::byte> data) const
+        {
+            return generate(std::string_view{reinterpret_cast<const char*>(data.data()), data.size()});
+        }
+
+        uuid generate(std::string_view data) const
+        {
+            constexpr auto hasher = std::hash<std::string_view>{};
+            const usize hash = hasher(data);
+
+            usize res[N];
+
+            for (usize i = 0; i < N; ++i)
+            {
+                res[i] = hash_mix(m_name[i], hash);
+            }
+
+            return std::bit_cast<uuid>(res);
+        }
+
+    private:
+        static constexpr usize N{sizeof(uuid) / sizeof(usize)};
+        usize m_name[N]{};
     };
 }

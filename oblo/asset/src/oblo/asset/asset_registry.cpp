@@ -51,6 +51,11 @@ namespace oblo::asset
                 json["importId"] = meta.importId.format_to(uuidBuffer);
             }
 
+            if (!meta.importName.empty())
+            {
+                json["importName"] = meta.importName;
+            }
+
             std::ofstream ofs{destination};
 
             if (!ofs)
