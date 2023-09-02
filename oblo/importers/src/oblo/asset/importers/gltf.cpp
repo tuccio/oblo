@@ -9,6 +9,7 @@
 #include <oblo/asset/import_artifact.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/type_id.hpp>
+#include <oblo/core/uuid.hpp>
 #include <oblo/scene/assets/bundle.hpp>
 #include <oblo/scene/assets/mesh.hpp>
 #include <oblo/scene/assets/model.hpp>
@@ -292,20 +293,20 @@ namespace oblo::asset::importers
                 meshArtifact.data = any_asset{std::move(meshAsset)};
             }
 
-            ctx.assetManager->add_imported_asset(ctx.importUuid,
-                                                 {
-                                                     .id = modelNodeConfig.id,
-                                                     .data = any_asset{std::move(modelAsset)},
-                                                 },
-                                                 meshArtifacts);
+            ctx.importer->add_asset(
+                {
+                    .id = modelNodeConfig.id,
+                    .data = any_asset{std::move(modelAsset)},
+                },
+                meshArtifacts);
         }
 
-        ctx.assetManager->add_imported_asset(ctx.importUuid,
-                                             {
-                                                 .id = ctx.importNodesConfig[BundleIndex].id,
-                                                 .data = any_asset{std::move(bundle)},
-                                             },
-                                             {});
+        ctx.importer->add_asset(
+            {
+                .id = ctx.importNodesConfig[BundleIndex].id,
+                .data = any_asset{std::move(bundle)},
+            },
+            {});
 
         return true;
     }

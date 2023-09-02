@@ -13,15 +13,12 @@ namespace oblo
 
 namespace oblo::asset
 {
-    class any_asset;
     class importer;
     struct asset_meta;
     struct asset_type_desc;
     struct file_importer_desc;
     struct import_preview;
     struct import_node_config;
-
-    struct import_artifact;
 
     class asset_registry
     {
@@ -39,11 +36,13 @@ namespace oblo::asset
         void shutdown();
 
         void register_type(const asset_type_desc& desc);
+        bool has_asset_type(type_id type) const;
+
         void register_file_importer(const file_importer_desc& desc);
 
-        [[nodiscard]] importer create_importer(const std::filesystem::path& sourceFile);
+        bool create_directories(const std::filesystem::path& directory);
 
-        bool add_imported_asset(uuid importUuid, import_artifact asset, std::span<import_artifact> otherArtifacts);
+        [[nodiscard]] importer create_importer(const std::filesystem::path& sourceFile);
 
         const asset_meta& find_asset_by_path(const std::filesystem::path& path) const;
 
@@ -51,9 +50,25 @@ namespace oblo::asset
         struct impl;
         friend class importer;
 
+        enum class write_policy
+        {
+            no_overwrite,
+            overwrite,
+        };
+
     private:
-        uuid begin_import(const import_preview& preview, std::span<import_node_config> importNodesConfig);
-        bool finalize_import(const uuid& importUuid, const std::filesystem::path& destinationDir);
+        uuid generate_uuid();
+
+        bool save_artifact(const uuid& id,
+                           const type_id& type,
+                           const void* dataPtr,
+                           write_policy policy = write_policy::no_overwrite);
+
+        bool save_asset(const uuid& id,
+                        const std::filesystem::path& destination,
+                        std::string_view fileNameBuffer,
+                        asset_meta meta,
+                        write_policy policy = write_policy::no_overwrite);
 
     private:
         std::unique_ptr<impl> m_impl;

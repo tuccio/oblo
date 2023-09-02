@@ -7,5 +7,5 @@ namespace oblo::asset
 
 namespace oblo::asset::importers
 {
-    void register_gltf_importer(asset_registry& assetManager);
+    void register_gltf_importer(asset_registry& registry);
 }
