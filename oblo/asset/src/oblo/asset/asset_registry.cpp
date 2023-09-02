@@ -41,6 +41,16 @@ namespace oblo::asset
             json["id"] = id.format_to(uuidBuffer);
             json["type"] = meta.type.name;
 
+            if (!meta.importer.name.empty())
+            {
+                json["importer"] = meta.importer.name;
+            }
+
+            if (!meta.importId.is_nil())
+            {
+                json["importId"] = meta.importId.format_to(uuidBuffer);
+            }
+
             std::ofstream ofs{destination};
 
             if (!ofs)
@@ -194,6 +204,7 @@ namespace oblo::asset
                         importer_config{
                             .registry = this,
                             .sourceFile = sourceFile,
+                            .fileImporterType = type,
                         },
                         assetImporter.create(),
                     };
@@ -210,7 +221,7 @@ namespace oblo::asset
     }
 
     bool asset_registry::save_artifact(
-        const uuid& assetId, const uuid& artifactId, const type_id& type, const void* dataPtr, write_policy policy)
+        const uuid& importUuid, const uuid& artifactId, const type_id& type, const void* dataPtr, write_policy policy)
     {
         const auto typeIt = m_impl->assetTypes.find(type);
 
@@ -221,7 +232,7 @@ namespace oblo::asset
 
         char uuidBuffer[36];
 
-        auto artifactPath = m_impl->artifactsDir / assetId.format_to(uuidBuffer);
+        auto artifactPath = m_impl->artifactsDir / importUuid.format_to(uuidBuffer);
         ensure_directories(artifactPath);
 
         artifactPath /= artifactId.format_to(uuidBuffer);
@@ -237,14 +248,12 @@ namespace oblo::asset
         return saveFunction(dataPtr, artifactPath);
     }
 
-    bool asset_registry::save_asset(const uuid& id,
-                                    const std::filesystem::path& destination,
+    bool asset_registry::save_asset(const std::filesystem::path& destination,
                                     std::string_view filename,
                                     asset_meta meta,
-                                    std::span<const artifact_meta> artifacts,
                                     write_policy policy)
     {
-        const auto [assetIt, insertedAsset] = m_impl->assets.emplace(id, std::move(meta));
+        const auto [assetIt, insertedAsset] = m_impl->assets.emplace(meta.id, std::move(meta));
 
         if (!insertedAsset)
         {
@@ -263,12 +272,14 @@ namespace oblo::asset
 
         // TODO: Copy source files
 
+        return save_asset_meta(meta.id, assetIt->second, fullPath);
+    }
+
+    bool asset_registry::save_artifacts_meta(const uuid& importId, std::span<const artifact_meta> artifacts)
+    {
         char uuidBuffer[36];
-
-        const auto artifactsDir = m_impl->artifactsDir / id.format_to(uuidBuffer);
-
-        return save_asset_meta(id, assetIt->second, fullPath) &&
-               save_artifacts_meta(artifacts, artifactsDir / ArtifactsMetaFilename);
+        const auto artifactsDir = m_impl->artifactsDir / importId.format_to(uuidBuffer);
+        return asset::save_artifacts_meta(artifacts, artifactsDir / ArtifactsMetaFilename);
     }
 
     bool asset_registry::find_asset_by_path(const std::filesystem::path& path, uuid& id, asset_meta& assetMeta) const
