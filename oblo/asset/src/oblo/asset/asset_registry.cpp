@@ -56,7 +56,7 @@ namespace oblo::asset
             json["type"] = meta.type.name;
 
             std::ofstream ofs{destination};
-            ofs << json.dump(4);
+            ofs << json.dump(1, '\t');
         }
 
         bool load_asset_id_from_meta(const std::filesystem::path& path, uuid& id)
@@ -208,9 +208,7 @@ namespace oblo::asset
         }
 
         const auto saveFunction = typeIt->second.save;
-        saveFunction(dataPtr, artifactPath);
-
-        return true;
+        return saveFunction(dataPtr, artifactPath);
     }
 
     bool asset_registry::save_asset(const uuid& id,
