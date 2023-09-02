@@ -1,7 +1,7 @@
 #include <oblo/resource/resource_registry.hpp>
 
 #include <oblo/resource/resource.hpp>
-#include <oblo/resource/resource_handle.hpp>
+#include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_type_desc.hpp>
 
 #include <algorithm>
@@ -11,7 +11,7 @@ namespace oblo
     struct resource_registry::resource_storage
     {
         resource* resource{nullptr};
-        resource_handle handle;
+        resource_ptr<void> handle;
     };
 
     struct resource_registry::provider_storage
@@ -52,7 +52,7 @@ namespace oblo
         }
     }
 
-    resource_handle resource_registry::get_resource(const uuid& id)
+    resource_ptr<void> resource_registry::get_resource(const uuid& id)
     {
         const auto it = m_resources.find(id);
 
@@ -91,8 +91,8 @@ namespace oblo
                 return {};
             }
 
-            auto* const resource = resource_create(data, type, typeIt->second.destroy);
-            resource_handle handle{resource};
+            auto* const resource = detail::resource_create(data, type, typeIt->second.destroy);
+            resource_ptr<void> handle{resource};
             m_resources.emplace(id, resource_storage{.resource = resource, .handle = handle});
             return handle;
         }
