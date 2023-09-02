@@ -1,7 +1,3 @@
-#define TINYGLTF_IMPLEMENTATION
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-
 #include <oblo/asset/importers/gltf.hpp>
 
 #include <oblo/asset/any_asset.hpp>
@@ -48,6 +44,51 @@ namespace oblo::asset::importers
             }
         }
 
+        scene::data_format convert_data_format(int componentType)
+        {
+            scene::data_format format;
+
+            switch (componentType)
+            {
+            case TINYGLTF_COMPONENT_TYPE_BYTE:
+                format = scene::data_format::i8;
+                break;
+
+            case TINYGLTF_COMPONENT_TYPE_SHORT:
+                format = scene::data_format::i16;
+                break;
+
+            case TINYGLTF_COMPONENT_TYPE_INT:
+                format = scene::data_format::i32;
+                break;
+
+            case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+                format = scene::data_format::u8;
+                break;
+
+            case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+                format = scene::data_format::u16;
+                break;
+
+            case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
+                format = scene::data_format::u32;
+                break;
+
+            case TINYGLTF_COMPONENT_TYPE_FLOAT:
+                format = scene::data_format::f32;
+                break;
+
+            case TINYGLTF_COMPONENT_TYPE_DOUBLE:
+                format = scene::data_format::f64;
+                break;
+
+            default:
+                format = scene::data_format::enum_max;
+                break;
+            }
+
+            return format;
+        }
     }
 
     gltf::gltf() = default;
@@ -191,38 +232,7 @@ namespace oblo::asset::importers
                     const auto& accessor = m_model.accessors[primitive.indices];
                     indexCount = accessor.count;
 
-                    scene::data_format format;
-
-                    switch (accessor.componentType)
-                    {
-                    case TINYGLTF_COMPONENT_TYPE_BYTE:
-                        format = scene::data_format::i8;
-                        break;
-
-                    case TINYGLTF_COMPONENT_TYPE_SHORT:
-                        format = scene::data_format::i16;
-                        break;
-
-                    case TINYGLTF_COMPONENT_TYPE_INT:
-                        format = scene::data_format::i32;
-                        break;
-
-                    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
-                        format = scene::data_format::u8;
-                        break;
-
-                    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
-                        format = scene::data_format::u16;
-                        break;
-
-                    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
-                        format = scene::data_format::u32;
-                        break;
-
-                    default:
-                        format = scene::data_format::enum_max;
-                        break;
-                    }
+                    const scene::data_format format = convert_data_format(accessor.componentType);
 
                     if (format == scene::data_format::enum_max)
                     {
@@ -239,6 +249,8 @@ namespace oblo::asset::importers
 
                 for (auto& [attribute, accessor] : primitive.attributes)
                 {
+                    // TODO: Should probably read the accessor type instead of hardcoding the data format
+
                     if (attribute == "POSITION")
                     {
                         attributes.push_back({

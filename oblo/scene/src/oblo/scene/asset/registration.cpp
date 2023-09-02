@@ -3,6 +3,7 @@
 #include <oblo/asset/asset_type_desc.hpp>
 #include <oblo/scene/assets/bundle.hpp>
 #include <oblo/scene/assets/mesh.hpp>
+#include <oblo/scene/serialization/mesh_file.hpp>
 #include <oblo/scene/assets/model.hpp>
 
 #include <fstream>
@@ -91,13 +92,13 @@ namespace oblo::scene
         template <>
         struct meta<scene::mesh>
         {
-            static bool save(const scene::mesh&, const std::filesystem::path&)
+            static bool save(const scene::mesh& mesh, const std::filesystem::path& destination)
             {
-                // TODO
+                save_mesh(mesh, destination);
                 return true;
             }
 
-            static constexpr std::string_view extension{".omesh"};
+            static constexpr std::string_view extension{".glb"};
         };
     }
 

@@ -7,4 +7,5 @@ target_link_libraries(
     oblo::core
     PRIVATE
     nlohmann_json::nlohmann_json
+    TinyGLTF::TinyGLTF
 )
