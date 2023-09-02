@@ -1,6 +1,7 @@
 #include <oblo/asset/asset_registry.hpp>
 
 #include <oblo/asset/asset_type_desc.hpp>
+#include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/assets/bundle.hpp>
 #include <oblo/scene/assets/mesh.hpp>
 #include <oblo/scene/assets/model.hpp>
@@ -97,7 +98,7 @@ namespace oblo::scene
     }
 
     template <typename T>
-    asset::asset_type_desc make_asset_type_desc()
+    resource_type_desc make_resource_type_desc()
     {
         return {
             .type = get_type_id<T>(),
@@ -113,10 +114,24 @@ namespace oblo::scene
             { return meta<T>::save(*static_cast<const T*>(ptr), destination); },
         };
     }
+
+    template <typename T>
+    asset::asset_type_desc make_asset_type_desc()
+    {
+        return {make_resource_type_desc<T>()};
+    }
+
     void register_asset_types(asset::asset_registry& registry)
     {
         registry.register_type(make_asset_type_desc<mesh>());
         registry.register_type(make_asset_type_desc<model>());
         registry.register_type(make_asset_type_desc<bundle>());
+    }
+
+    void register_resource_types(resource_registry& registry)
+    {
+        registry.register_type(make_resource_type_desc<mesh>());
+        registry.register_type(make_resource_type_desc<model>());
+        registry.register_type(make_resource_type_desc<bundle>());
     }
 }

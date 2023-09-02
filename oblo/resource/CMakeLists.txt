@@ -1,10 +1,9 @@
-oblo_add_library(asset)
+oblo_add_library(resource)
 
 target_link_libraries(
-    oblo_asset
+    oblo_resource
     PUBLIC
     oblo::core
-    oblo::resource
     PRIVATE
     nlohmann_json::nlohmann_json
 )

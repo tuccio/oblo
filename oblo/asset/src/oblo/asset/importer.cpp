@@ -197,9 +197,6 @@ namespace oblo::asset
 
         std::string assetFileName;
 
-        std::vector<artifact_meta> artifactsMeta;
-        artifactsMeta.reserve(128);
-
         for (const pending_asset_import& assetImport : m_assets)
         {
             OBLO_ASSERT(!assetImport.artifacts.empty(), "The first artifact is expected to be the asset");
@@ -244,25 +241,24 @@ namespace oblo::asset
                     continue;
                 }
 
-                if (!registry.save_artifact(m_importId, artifact.id, artifact.data.get_type(), artifactPtr))
+                const artifact_meta meta{
+                    .id = artifact.id,
+                    .type = artifact.data.get_type(),
+                    .importId = m_importId,
+                    .importName = artifact.name,
+                };
+
+                if (!registry.save_artifact(artifact.id, artifact.data.get_type(), artifactPtr, meta))
                 {
                     OBLO_ASSERT(false); // TODO: Log?
                     allSucceeded = false;
                     continue;
                 }
-
-                artifactsMeta.push_back(artifact_meta{
-                    .id = artifact.id,
-                    .type = artifact.data.get_type(),
-                    .importId = m_importId,
-                    .importName = artifact.name,
-                });
             }
 
             allSucceeded &= registry.save_asset(destination, assetFileName, std::move(assetMeta));
         }
 
-        allSucceeded &= registry.save_artifacts_meta(m_importId, artifactsMeta);
         allSucceeded &= write_source_files();
 
         return allSucceeded;
