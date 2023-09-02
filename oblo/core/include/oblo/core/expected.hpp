@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/debug.hpp>
 #include <oblo/core/types.hpp>
 
 #include <concepts>
@@ -8,7 +9,7 @@ namespace oblo
 {
     // A simplified version of std::expected for trivial types.
     template <typename T, typename E>
-    requires std::is_trivial_v<T> && std::is_trivial_v<E>
+        requires std::is_trivial_v<T> && std::is_trivial_v<E>
     class expected
     {
         enum class state : u8
@@ -19,14 +20,14 @@ namespace oblo
         };
 
     public:
-        expected() : m_state{state::uninitialized} {}
-        expected(const expected&) = default;
-        expected(expected&&) noexcept = default;
-        expected(T value) : m_state{state::valid}, m_value{value} {}
-        expected(E error) : m_state{state::error}, m_error{error} {}
+        constexpr expected() : m_state{state::uninitialized} {}
+        constexpr expected(const expected&) = default;
+        constexpr expected(expected&&) noexcept = default;
+        constexpr expected(T value) : m_state{state::valid}, m_value{value} {}
+        constexpr expected(E error) : m_state{state::error}, m_error{error} {}
 
-        expected& operator=(const expected&) = default;
-        expected& operator=(expected&&) noexcept = default;
+        constexpr expected& operator=(const expected&) = default;
+        constexpr expected& operator=(expected&&) noexcept = default;
 
     public:
         constexpr const T* operator->() const noexcept
