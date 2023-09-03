@@ -4,7 +4,7 @@
 
 #include <filesystem>
 
-namespace oblo
+namespace oblo::resource
 {
     using create_resource_fn = void* (*) ();
     using destroy_resource_fn = void (*)(void*);

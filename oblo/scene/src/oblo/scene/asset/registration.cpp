@@ -86,7 +86,7 @@ namespace oblo::scene
     }
 
     template <typename T>
-    resource_type_desc make_resource_type_desc()
+    resource::resource_type_desc make_resource_type_desc()
     {
         return {
             .type = get_type_id<T>(),
@@ -111,7 +111,7 @@ namespace oblo::scene
         registry.register_type(make_asset_type_desc<model>());
     }
 
-    void register_resource_types(resource_registry& registry)
+    void register_resource_types(resource::resource_registry& registry)
     {
         registry.register_type(make_resource_type_desc<mesh>());
         registry.register_type(make_resource_type_desc<model>());

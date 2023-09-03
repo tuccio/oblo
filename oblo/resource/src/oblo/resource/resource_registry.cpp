@@ -6,7 +6,7 @@
 
 #include <algorithm>
 
-namespace oblo
+namespace oblo::resource
 {
     struct resource_registry::resource_storage
     {
@@ -99,5 +99,4 @@ namespace oblo
 
         return it->second.handle;
     }
-
 }
