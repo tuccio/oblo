@@ -76,6 +76,64 @@ namespace oblo::scene
                 return -1;
             }
         }
+
+        primitive_kind convert_primitive_kind(int mode)
+        {
+            switch (mode)
+            {
+            case TINYGLTF_MODE_TRIANGLES:
+                return scene::primitive_kind::triangle;
+            default:
+                OBLO_ASSERT(false);
+                return scene::primitive_kind::enum_max;
+            }
+        }
+
+        data_format convert_data_format(int componentType)
+        {
+            scene::data_format format;
+
+            switch (componentType)
+            {
+            case TINYGLTF_COMPONENT_TYPE_BYTE:
+                format = scene::data_format::i8;
+                break;
+
+            case TINYGLTF_COMPONENT_TYPE_SHORT:
+                format = scene::data_format::i16;
+                break;
+
+            case TINYGLTF_COMPONENT_TYPE_INT:
+                format = scene::data_format::i32;
+                break;
+
+            case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+                format = scene::data_format::u8;
+                break;
+
+            case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+                format = scene::data_format::u16;
+                break;
+
+            case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
+                format = scene::data_format::u32;
+                break;
+
+            case TINYGLTF_COMPONENT_TYPE_FLOAT:
+                format = scene::data_format::f32;
+                break;
+
+            case TINYGLTF_COMPONENT_TYPE_DOUBLE:
+                format = scene::data_format::f64;
+                break;
+
+            default:
+                format = scene::data_format::enum_max;
+                break;
+            }
+
+            return format;
+        }
     }
 
     bool save_mesh(const mesh& mesh, const std::filesystem::path& destination)
@@ -199,5 +257,109 @@ namespace oblo::scene
         }
 
         return loader.WriteGltfSceneToStream(&model, ofs, PrettyFormatGLTF, WriteBinaryGLB);
+    }
+
+    bool load_mesh(mesh& mesh,
+                   const tinygltf::Model& model,
+                   const tinygltf::Primitive& primitive,
+                   std::vector<mesh_attribute>& attributes,
+                   std::vector<gltf_accessor>& sources,
+                   std::vector<bool>* usedBuffers)
+    {
+        const auto primitiveKind = convert_primitive_kind(primitive.mode);
+
+        if (primitiveKind == scene::primitive_kind::enum_max)
+        {
+            return false;
+        }
+
+        attributes.clear();
+        sources.clear();
+
+        u32 vertexCount{0}, indexCount{0};
+
+        if (const auto it = primitive.attributes.find("POSITION"); it != primitive.attributes.end())
+        {
+            vertexCount = model.accessors[it->second].count;
+        }
+        else
+        {
+            return false;
+        }
+
+        if (primitive.indices >= 0)
+        {
+            const auto& accessor = model.accessors[primitive.indices];
+            indexCount = accessor.count;
+
+            const scene::data_format format = convert_data_format(accessor.componentType);
+
+            if (format == scene::data_format::enum_max)
+            {
+                return false;
+            }
+
+            attributes.push_back({
+                .kind = scene::attribute_kind::indices,
+                .format = format,
+            });
+
+            sources.emplace_back(primitive.indices);
+        }
+
+        for (auto& [attribute, accessor] : primitive.attributes)
+        {
+            // TODO: Should probably read the accessor type instead of hardcoding the data format
+
+            if (attribute == "POSITION")
+            {
+                attributes.push_back({
+                    .kind = scene::attribute_kind::position,
+                    .format = scene::data_format::vec3,
+                });
+
+                sources.emplace_back(accessor);
+            }
+            else if (attribute == "NORMAL")
+            {
+                attributes.push_back({
+                    .kind = scene::attribute_kind::normal,
+                    .format = scene::data_format::vec3,
+                });
+
+                sources.emplace_back(accessor);
+            }
+        }
+
+        mesh.allocate(primitiveKind, vertexCount, indexCount, attributes);
+
+        for (u32 i = 0; i < attributes.size(); ++i)
+        {
+            const auto attributeKind = attributes[i].kind;
+            const std::span bytes = mesh.get_attribute(attributeKind);
+            const auto accessorIndex = sources[i];
+            const auto& accessor = model.accessors[accessorIndex];
+            const auto& bufferView = model.bufferViews[accessor.bufferView];
+            const auto& buffer = model.buffers[bufferView.buffer];
+
+            if (usedBuffers)
+            {
+                usedBuffers->at(bufferView.buffer) = true;
+            }
+
+            const auto* const data = buffer.data.data() + bufferView.byteOffset + accessor.byteOffset;
+
+            const auto expectedSize = tinygltf::GetComponentSizeInBytes(accessor.componentType) *
+                                      tinygltf::GetNumComponentsInType(accessor.type) * accessor.count;
+
+            if (expectedSize != bytes.size())
+            {
+                return false;
+            }
+
+            std::memcpy(bytes.data(), data, bytes.size());
+        }
+
+        return true;
     }
 }
