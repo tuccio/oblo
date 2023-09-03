@@ -87,13 +87,15 @@ namespace oblo::scene
 
             if (bytes.empty())
             {
-                return decltype(start_lifetime_as_array<T>(bytes.data(), 0)){};
+                return decltype(std::span{start_lifetime_as_array<T>(bytes.data(), 0), 0}){};
             }
 
             OBLO_ASSERT(bytes.size() % sizeof(T) == 0);
             OBLO_ASSERT(bytes.size() % alignof(T) == 0);
 
-            return std::span{start_lifetime_as_array<T>(bytes.data(), bytes.size()), bytes.size() / sizeof(T)};
+            auto* const ptr = start_lifetime_as_array<T>(bytes.data(), bytes.size());
+            const usize size = bytes.size() / sizeof(T);
+            return std::span{ptr, size};
         };
 
     private:
@@ -110,12 +112,12 @@ namespace oblo::scene
     template <typename T>
     std::span<T> mesh::get_attribute(attribute_kind attribute)
     {
-        return get_attribute_impl(*this, attribute);
+        return get_attribute_impl<T>(*this, attribute);
     }
 
     template <typename T>
     std::span<const T> mesh::get_attribute(attribute_kind attribute) const
     {
-        return get_attribute_impl(*this, attribute);
+        return get_attribute_impl<T>(*this, attribute);
     }
 }

@@ -9,6 +9,8 @@
 
 #include <tiny_gltf.h>
 
+#include <fstream>
+
 namespace oblo::scene
 {
     namespace
@@ -361,5 +363,87 @@ namespace oblo::scene
         }
 
         return true;
+    }
+
+    bool load_mesh(mesh& mesh, const std::filesystem::path& source)
+    {
+        std::ifstream ifs{source, std::ios::ate | std::ios::binary};
+
+        if (!ifs)
+        {
+            return false;
+        }
+
+        const auto fileSize = ifs.tellg();
+
+        constexpr auto MagicCharsCount{4};
+
+        if (MagicCharsCount > fileSize)
+        {
+            return false;
+        }
+
+        char magic[MagicCharsCount];
+
+        ifs.seekg(0);
+        ifs.read(magic, MagicCharsCount);
+
+        if (!ifs)
+        {
+            return false;
+        }
+
+        ifs.seekg(0);
+
+        std::vector<char> content;
+        content.resize(fileSize);
+
+        ifs.read(content.data(), fileSize);
+
+        tinygltf::TinyGLTF loader;
+        tinygltf::Model model;
+
+        const auto parentPath = source.parent_path().string();
+
+        std::string err, warn;
+
+        bool success;
+
+        if (std::string_view{magic, MagicCharsCount} == "glTF")
+        {
+            success = loader.LoadBinaryFromMemory(&model,
+                                                  &err,
+                                                  &warn,
+                                                  reinterpret_cast<const unsigned char*>(content.data()),
+                                                  fileSize,
+                                                  parentPath);
+        }
+        else
+        {
+            success = loader.LoadASCIIFromString(&model, &err, &warn, content.data(), fileSize, parentPath);
+        }
+
+        if (!success)
+        {
+            return false;
+        }
+
+        if (model.meshes.size() != 1 || model.meshes[0].primitives.size() != 1)
+        {
+            return false;
+        }
+
+        const auto& primitive = model.meshes[0].primitives[0];
+
+        // We count indices as attributes here
+        const auto maxAttributes = primitive.attributes.size() + 1;
+
+        std::vector<mesh_attribute> attributes;
+        attributes.reserve(maxAttributes);
+
+        std::vector<gltf_accessor> sources;
+        sources.reserve(maxAttributes);
+
+        return load_mesh(mesh, model, primitive, attributes, sources, nullptr);
     }
 }
