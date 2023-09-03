@@ -2,7 +2,7 @@
 
 namespace oblo::resource
 {
-    class resource_registry;
+    class registry;
 }
 
 namespace oblo::asset
@@ -13,5 +13,5 @@ namespace oblo::asset
 namespace oblo::scene
 {
     void register_asset_types(asset::asset_registry& registry);
-    void register_resource_types(resource::resource_registry& registry);
+    void register_resource_types(resource::registry& registry);
 }

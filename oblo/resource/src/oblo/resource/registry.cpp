@@ -1,45 +1,45 @@
-#include <oblo/resource/resource_registry.hpp>
+#include <oblo/resource/registry.hpp>
 
+#include <oblo/resource/ptr.hpp>
 #include <oblo/resource/resource.hpp>
-#include <oblo/resource/resource_ptr.hpp>
-#include <oblo/resource/resource_type_desc.hpp>
+#include <oblo/resource/type_desc.hpp>
 
 #include <algorithm>
 
 namespace oblo::resource
 {
-    struct resource_registry::resource_storage
+    struct registry::resource_storage
     {
         resource* resource{nullptr};
-        resource_ptr<void> handle;
+        ptr<void> handle;
     };
 
-    struct resource_registry::provider_storage
+    struct registry::provider_storage
     {
         find_resource_fn find;
         const void* userdata;
     };
 
-    resource_registry::resource_registry() = default;
+    registry::registry() = default;
 
-    resource_registry::~resource_registry() = default;
+    registry::~registry() = default;
 
-    void resource_registry::register_type(const resource_type_desc& typeDesc)
+    void registry::register_type(const type_desc& typeDesc)
     {
         m_resourceTypes[typeDesc.type] = typeDesc;
     }
 
-    void resource_registry::unregister_type(const type_id& type)
+    void registry::unregister_type(const type_id& type)
     {
         m_resourceTypes.erase(type);
     }
 
-    void resource_registry::register_provider(find_resource_fn provider, const void* userdata)
+    void registry::register_provider(find_resource_fn provider, const void* userdata)
     {
         m_providers.emplace_back(provider, userdata);
     }
 
-    void resource_registry::unregister_provider(find_resource_fn provider)
+    void registry::unregister_provider(find_resource_fn provider)
     {
         const auto it = std::find_if(m_providers.begin(),
                                      m_providers.end(),
@@ -52,7 +52,7 @@ namespace oblo::resource
         }
     }
 
-    resource_ptr<void> resource_registry::get_resource(const uuid& id)
+    ptr<void> registry::get_resource(const uuid& id)
     {
         const auto it = m_resources.find(id);
 
@@ -92,7 +92,7 @@ namespace oblo::resource
             }
 
             auto* const resource = detail::resource_create(data, type, typeIt->second.destroy);
-            resource_ptr<void> handle{resource};
+            ptr<void> handle{resource};
             m_resources.emplace(id, resource_storage{.resource = resource, .handle = handle});
             return handle;
         }
