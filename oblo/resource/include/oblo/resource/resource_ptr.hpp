@@ -103,6 +103,11 @@ namespace oblo
             return m_ptr;
         }
 
+        const T* operator->() const noexcept
+        {
+            return m_ptr;
+        }
+
         explicit operator bool() const noexcept
         {
             return m_ptr != nullptr;
