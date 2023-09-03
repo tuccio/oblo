@@ -2,7 +2,6 @@
 
 #include <oblo/asset/asset_type_desc.hpp>
 #include <oblo/resource/resource_registry.hpp>
-#include <oblo/scene/assets/bundle.hpp>
 #include <oblo/scene/assets/mesh.hpp>
 #include <oblo/scene/assets/model.hpp>
 #include <oblo/scene/serialization/mesh_file.hpp>
@@ -17,44 +16,6 @@ namespace oblo::scene
     {
         template <typename T>
         struct meta;
-
-        template <>
-        struct meta<scene::bundle>
-        {
-            static bool save(const scene::bundle& bundle, const std::filesystem::path& destination)
-            {
-                char uuidBuffer[36];
-
-                auto meshes = nlohmann::json::array();
-
-                for (const auto& mesh : bundle.meshes)
-                {
-                    meshes.emplace_back(mesh.id.format_to(uuidBuffer));
-                }
-
-                auto models = nlohmann::json::array();
-
-                for (const auto& model : bundle.models)
-                {
-                    models.emplace_back(model.id.format_to(uuidBuffer));
-                }
-
-                nlohmann::ordered_json json;
-
-                json["meshes"] = std::move(meshes);
-                json["models"] = std::move(models);
-
-                std::ofstream ofs{destination};
-
-                if (!ofs)
-                {
-                    return false;
-                }
-
-                ofs << json.dump(1, '\t');
-                return true;
-            }
-        };
 
         template <>
         struct meta<scene::model>
@@ -125,13 +86,11 @@ namespace oblo::scene
     {
         registry.register_type(make_asset_type_desc<mesh>());
         registry.register_type(make_asset_type_desc<model>());
-        registry.register_type(make_asset_type_desc<bundle>());
     }
 
     void register_resource_types(resource_registry& registry)
     {
         registry.register_type(make_resource_type_desc<mesh>());
         registry.register_type(make_resource_type_desc<model>());
-        registry.register_type(make_resource_type_desc<bundle>());
     }
 }
