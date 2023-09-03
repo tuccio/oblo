@@ -69,12 +69,12 @@ namespace oblo::asset::importers
 
             ASSERT_EQ(meshMeta.type, get_type_id<scene::model>());
 
-            const auto meshResource = resources.get_resource(meshMeta.id).as<scene::model>();
-            ASSERT_TRUE(meshResource);
+            const auto modelResource = resources.get_resource(meshMeta.id).as<scene::model>();
+            ASSERT_TRUE(modelResource);
 
-            ASSERT_EQ(meshResource->meshes.size(), 1);
+            ASSERT_EQ(modelResource->meshes.size(), 1);
 
-            const asset::ref meshRef = meshResource->meshes[0];
+            const asset::ref meshRef = modelResource->meshes[0];
             ASSERT_TRUE(meshRef);
         }
     }
