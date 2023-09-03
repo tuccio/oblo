@@ -6,7 +6,6 @@
 #include <oblo/asset/meta.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
-#include <oblo/scene/assets/bundle.hpp>
 #include <oblo/scene/assets/model.hpp>
 #include <oblo/scene/assets/registration.hpp>
 
@@ -62,20 +61,13 @@ namespace oblo::asset::importers
             ASSERT_TRUE(importer.init());
             ASSERT_TRUE(importer.execute(dirName));
 
-            uuid bundleId;
             uuid meshId;
 
-            asset_meta bundleMeta;
             asset_meta meshMeta;
 
-            ASSERT_TRUE(registry.find_asset_by_path(dirName / file.filename(), bundleId, bundleMeta));
             ASSERT_TRUE(registry.find_asset_by_path(dirName / "Mesh", meshId, meshMeta));
 
-            ASSERT_EQ(bundleMeta.type, get_type_id<scene::bundle>());
             ASSERT_EQ(meshMeta.type, get_type_id<scene::model>());
-
-            const auto bundleResource = resources.get_resource(bundleMeta.id).as<scene::bundle>();
-            ASSERT_TRUE(bundleResource);
 
             const auto meshResource = resources.get_resource(meshMeta.id).as<scene::model>();
             ASSERT_TRUE(meshResource);

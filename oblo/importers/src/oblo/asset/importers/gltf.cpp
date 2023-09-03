@@ -6,7 +6,6 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/uuid.hpp>
-#include <oblo/scene/assets/bundle.hpp>
 #include <oblo/scene/assets/mesh.hpp>
 #include <oblo/scene/assets/model.hpp>
 
@@ -30,8 +29,6 @@ namespace oblo::asset::importers
 
     namespace
     {
-        constexpr u32 BundleIndex{0};
-
         scene::primitive_kind convert_primitive_kind(int mode)
         {
             switch (mode)
@@ -124,11 +121,6 @@ namespace oblo::asset::importers
             return false;
         }
 
-        preview.nodes.push_back(import_node{
-            .type = get_type_id<scene::bundle>(),
-            .name = config.sourceFile.filename().string(),
-        });
-
         std::string name;
 
         for (u32 meshIndex = 0; meshIndex < m_model.meshes.size(); ++meshIndex)
@@ -166,8 +158,6 @@ namespace oblo::asset::importers
 
     bool gltf::import(const import_context& ctx)
     {
-        scene::bundle bundle;
-
         std::vector<scene::mesh_attribute> attributes;
         attributes.reserve(16);
 
@@ -303,7 +293,6 @@ namespace oblo::asset::importers
                     std::memcpy(bytes.data(), data, bytes.size());
                 }
 
-                bundle.meshes.emplace_back(meshNodeConfig.id);
                 modelAsset.meshes.emplace_back(meshNodeConfig.id);
 
                 auto& meshArtifact = meshArtifacts.emplace_back();
@@ -311,8 +300,6 @@ namespace oblo::asset::importers
                 meshArtifact.data = any_asset{std::move(meshAsset)};
                 meshArtifact.name = ctx.preview->nodes[mesh.nodeIndex].name;
             }
-
-            bundle.models.emplace_back(modelNodeConfig.id);
 
             ctx.importer->add_asset(
                 {
@@ -322,14 +309,6 @@ namespace oblo::asset::importers
                 },
                 meshArtifacts);
         }
-
-        ctx.importer->add_asset(
-            {
-                .id = ctx.importNodesConfig[BundleIndex].id,
-                .data = any_asset{std::move(bundle)},
-                .name = ctx.preview->nodes[BundleIndex].name,
-            },
-            {});
 
         std::vector<std::filesystem::path> sourceFiles;
         sourceFiles.reserve(m_model.buffers.size());
