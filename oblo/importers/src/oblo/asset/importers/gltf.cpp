@@ -1,7 +1,7 @@
 #include <oblo/asset/importers/gltf.hpp>
 
 #include <oblo/asset/any_asset.hpp>
-#include <oblo/asset/asset_registry.hpp>
+#include <oblo/asset/registry.hpp>
 #include <oblo/asset/import_artifact.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/type_id.hpp>

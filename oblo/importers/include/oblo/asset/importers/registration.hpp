@@ -2,10 +2,10 @@
 
 namespace oblo::asset
 {
-    class asset_registry;
+    class registry;
 }
 
 namespace oblo::asset::importers
 {
-    void register_gltf_importer(asset_registry& registry);
+    void register_gltf_importer(registry& registry);
 }

@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include <oblo/asset/asset_registry.hpp>
+#include <oblo/asset/registry.hpp>
 #include <oblo/asset/importer.hpp>
 #include <oblo/asset/importers/registration.hpp>
 #include <oblo/asset/meta.hpp>
@@ -27,7 +27,7 @@ namespace oblo::asset::importers
         resource::registry resources;
         scene::register_resource_types(resources);
 
-        asset_registry registry;
+        registry registry;
 
         const std::filesystem::path testDir{"./test/gltf_importer_suzanne/"};
         const std::filesystem::path assetsDir{testDir / "assets"};
@@ -41,7 +41,7 @@ namespace oblo::asset::importers
 
         register_gltf_importer(registry);
 
-        resources.register_provider(&asset_registry::find_artifact_resource, &registry);
+        resources.register_provider(&registry::find_artifact_resource, &registry);
 
         const std::filesystem::path gltfSampleModels{OBLO_GLTF_SAMPLE_MODELS};
 
