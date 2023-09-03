@@ -71,6 +71,8 @@ namespace oblo::scene
         template <typename T>
         std::span<const T> get_attribute(attribute_kind attribute) const;
 
+        data_format get_attribute_format(attribute_kind attribute) const;
+
         u32 get_attributes_count() const;
         mesh_attribute get_attribute_at(u32 index) const;
 

@@ -88,9 +88,13 @@ namespace oblo::asset::importers
             ASSERT_EQ(meshResource->get_vertex_count(), expectedVertexCount);
             ASSERT_EQ(meshResource->get_index_count(), expectedIndexCount);
 
+            ASSERT_EQ(meshResource->get_attribute_format(scene::attribute_kind::position), scene::data_format::vec3);
+            ASSERT_EQ(meshResource->get_attribute_format(scene::attribute_kind::normal), scene::data_format::vec3);
+            ASSERT_EQ(meshResource->get_attribute_format(scene::attribute_kind::indices), scene::data_format::u16);
+
             const std::span positions = meshResource->get_attribute<vec3>(scene::attribute_kind::position);
             const std::span normals = meshResource->get_attribute<vec3>(scene::attribute_kind::normal);
-            const std::span indices = meshResource->get_attribute<u32>(scene::attribute_kind::indices);
+            const std::span indices = meshResource->get_attribute<u16>(scene::attribute_kind::indices);
 
             ASSERT_EQ(positions.size(), expectedVertexCount);
             ASSERT_EQ(normals.size(), expectedVertexCount);

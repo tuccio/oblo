@@ -159,6 +159,19 @@ namespace oblo::scene
         return attribute == attribute_kind::indices ? get_index_count() : get_vertex_count();
     }
 
+    data_format mesh::get_attribute_format(attribute_kind kind) const
+    {
+        for (const auto& attribute : m_attributes)
+        {
+            if (attribute.kind == kind)
+            {
+                return attribute.format;
+            }
+        }
+
+        return data_format::enum_max;
+    }
+
     u32 mesh::get_attributes_count() const
     {
         return u32(m_attributes.size());
