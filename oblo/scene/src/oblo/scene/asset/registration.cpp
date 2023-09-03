@@ -10,6 +10,23 @@
 
 #include <nlohmann/json.hpp>
 
+namespace oblo::asset
+{
+    template <typename Json, typename T>
+    void to_json(Json& json, const ref<T>& value)
+    {
+        char uuidBuffer[36];
+        json = mesh.id.format_to(uuidBuffer);
+    }
+
+    template <typename Json, typename T>
+    void from_json(const Json& json, ref<T>& value)
+    {
+        const auto res = uuid::parse(json.template get<std::string_view>());
+        value.id = res ? *res : uuid{};
+    }
+}
+
 namespace oblo::scene
 {
     namespace
@@ -45,6 +62,21 @@ namespace oblo::scene
                 ofs << json.dump(1, '\t');
                 return true;
             }
+
+            static bool load(scene::model& model, const std::filesystem::path& source)
+            {
+                try
+                {
+                    std::ifstream ifs{source};
+                    const auto json = nlohmann::json::parse(ifs);
+                    json.at("meshes").get_to(model.meshes);
+                    return true;
+                }
+                catch (const std::exception&)
+                {
+                    return false;
+                }
+            }
         };
 
         template <>
@@ -54,6 +86,14 @@ namespace oblo::scene
             {
                 save_mesh(mesh, destination);
                 return true;
+            }
+
+            static bool load(scene::mesh& mesh, const std::filesystem::path& source)
+            {
+                // TODO
+                (void) mesh;
+                (void) source;
+                return false;
             }
         };
     }
@@ -65,12 +105,8 @@ namespace oblo::scene
             .type = get_type_id<T>(),
             .create = []() -> void* { return new T{}; },
             .destroy = [](void* ptr) { delete static_cast<T*>(ptr); },
-            .load =
-                [](void*, const std::filesystem::path&)
-            {
-                // TODO
-                return false;
-            },
+            .load = [](void* ptr, const std::filesystem::path& source)
+            { return meta<T>::load(*static_cast<T*>(ptr), source); },
             .save = [](const void* ptr, const std::filesystem::path& destination)
             { return meta<T>::save(*static_cast<const T*>(ptr), destination); },
         };
