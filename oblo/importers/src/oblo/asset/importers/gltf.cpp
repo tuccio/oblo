@@ -99,7 +99,7 @@ namespace oblo::asset::importers
     bool gltf::import(const import_context& ctx)
     {
         std::vector<scene::mesh_attribute> attributes;
-        attributes.reserve(16);
+        attributes.reserve(32);
 
         std::vector<scene::gltf_accessor> sources;
         sources.reserve(32);

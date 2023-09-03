@@ -24,4 +24,6 @@ namespace oblo::scene
                    std::vector<mesh_attribute>& attributes,
                    std::vector<gltf_accessor>& sources,
                    std::vector<bool>* usedBuffers);
+
+    bool load_mesh(mesh& mesh, const std::filesystem::path& source);
 }

@@ -84,16 +84,12 @@ namespace oblo::scene
         {
             static bool save(const scene::mesh& mesh, const std::filesystem::path& destination)
             {
-                save_mesh(mesh, destination);
-                return true;
+                return save_mesh(mesh, destination);
             }
 
             static bool load(scene::mesh& mesh, const std::filesystem::path& source)
             {
-                // TODO
-                (void) mesh;
-                (void) source;
-                return false;
+                return load_mesh(mesh, source);
             }
         };
     }

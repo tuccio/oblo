@@ -34,6 +34,6 @@ namespace oblo
     template <typename T>
     const T* start_lifetime_as_array(const void* ptr, std::size_t n) noexcept
     {
-        return start_lifetime_as_array(const_cast<void*>(ptr), n);
+        return start_lifetime_as_array<T>(const_cast<void*>(ptr), n);
     }
 }

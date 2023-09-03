@@ -4,6 +4,7 @@
 #include <oblo/asset/importer.hpp>
 #include <oblo/asset/importers/registration.hpp>
 #include <oblo/asset/meta.hpp>
+#include <oblo/math/vec3.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/assets/model.hpp>
@@ -76,6 +77,24 @@ namespace oblo::asset::importers
 
             const asset::ref meshRef = modelResource->meshes[0];
             ASSERT_TRUE(meshRef);
+
+            const auto meshResource = resources.get_resource(meshRef.id).as<scene::mesh>();
+            ASSERT_TRUE(meshResource);
+
+            constexpr auto expectedVertexCount{24};
+            constexpr auto expectedIndexCount{36};
+
+            ASSERT_EQ(meshResource->get_primitive_kind(), scene::primitive_kind::triangle);
+            ASSERT_EQ(meshResource->get_vertex_count(), expectedVertexCount);
+            ASSERT_EQ(meshResource->get_index_count(), expectedIndexCount);
+
+            const std::span positions = meshResource->get_attribute<vec3>(scene::attribute_kind::position);
+            const std::span normals = meshResource->get_attribute<vec3>(scene::attribute_kind::normal);
+            const std::span indices = meshResource->get_attribute<u32>(scene::attribute_kind::indices);
+
+            ASSERT_EQ(positions.size(), expectedVertexCount);
+            ASSERT_EQ(normals.size(), expectedVertexCount);
+            ASSERT_EQ(indices.size(), expectedIndexCount);
         }
     }
 }
