@@ -63,13 +63,13 @@ namespace oblo::asset::importers
 
             uuid meshId;
 
-            asset_meta meshMeta;
+            asset_meta modelMeta;
 
-            ASSERT_TRUE(registry.find_asset_by_path(dirName / "Mesh", meshId, meshMeta));
+            ASSERT_TRUE(registry.find_asset_by_path(dirName / "Mesh", meshId, modelMeta));
 
-            ASSERT_EQ(meshMeta.type, get_type_id<scene::model>());
+            ASSERT_EQ(modelMeta.type, get_type_id<scene::model>());
 
-            const auto modelResource = resources.get_resource(meshMeta.id).as<scene::model>();
+            const auto modelResource = resources.get_resource(modelMeta.id).as<scene::model>();
             ASSERT_TRUE(modelResource);
 
             ASSERT_EQ(modelResource->meshes.size(), 1);
