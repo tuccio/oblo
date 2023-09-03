@@ -1,6 +1,6 @@
 #include <oblo/asset/importer.hpp>
 
-#include <oblo/asset/asset_registry.hpp>
+#include <oblo/asset/registry.hpp>
 #include <oblo/asset/import_artifact.hpp>
 #include <oblo/asset/meta.hpp>
 #include <oblo/core/array_size.hpp>
@@ -147,7 +147,7 @@ namespace oblo::asset
         return true;
     }
 
-    bool importer::begin_import(asset_registry& registry, std::span<import_node_config> importNodesConfig)
+    bool importer::begin_import(registry& registry, std::span<import_node_config> importNodesConfig)
     {
         // TODO: Could maybe create the folder here to ensure it's unique
         m_importId = registry.generate_uuid();
@@ -186,7 +186,7 @@ namespace oblo::asset
         return true;
     }
 
-    bool importer::finalize_import(asset_registry& registry, const std::filesystem::path& destination)
+    bool importer::finalize_import(registry& registry, const std::filesystem::path& destination)
     {
         if (!registry.create_directories(destination))
         {

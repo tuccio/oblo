@@ -17,20 +17,20 @@ namespace oblo::asset
 
     struct artifact_meta;
     struct asset_meta;
-    struct asset_type_desc;
+    struct type_desc;
     struct file_importer_desc;
     struct import_preview;
     struct import_node_config;
 
-    class asset_registry
+    class registry
     {
     public:
-        asset_registry();
-        asset_registry(const asset_registry&) = delete;
-        asset_registry(asset_registry&&) noexcept = delete;
-        asset_registry& operator=(const asset_registry&) = delete;
-        asset_registry& operator=(asset_registry&&) noexcept = delete;
-        ~asset_registry();
+        registry();
+        registry(const registry&) = delete;
+        registry(registry&&) noexcept = delete;
+        registry& operator=(const registry&) = delete;
+        registry& operator=(registry&&) noexcept = delete;
+        ~registry();
 
         [[nodiscard]] bool initialize(const std::filesystem::path& assetsDir,
                                       const std::filesystem::path& artifactsDir,
@@ -38,7 +38,7 @@ namespace oblo::asset
 
         void shutdown();
 
-        void register_type(const asset_type_desc& desc);
+        void register_type(const type_desc& desc);
         bool has_asset_type(type_id type) const;
 
         void register_file_importer(const file_importer_desc& desc);

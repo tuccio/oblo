@@ -1,6 +1,6 @@
-#include <oblo/asset/asset_registry.hpp>
+#include <oblo/asset/registry.hpp>
 
-#include <oblo/asset/asset_type_desc.hpp>
+#include <oblo/asset/type_desc.hpp>
 #include <oblo/resource/registry.hpp>
 #include <oblo/scene/assets/mesh.hpp>
 #include <oblo/scene/assets/model.hpp>
@@ -86,7 +86,7 @@ namespace oblo::scene
     }
 
     template <typename T>
-    resource::type_desc make_type_desc()
+    resource::type_desc make_resource_type_desc()
     {
         return {
             .type = get_type_id<T>(),
@@ -100,12 +100,12 @@ namespace oblo::scene
     }
 
     template <typename T>
-    asset::asset_type_desc make_asset_type_desc()
+    asset::type_desc make_asset_type_desc()
     {
-        return {make_type_desc<T>()};
+        return {make_resource_type_desc<T>()};
     }
 
-    void register_asset_types(asset::asset_registry& registry)
+    void register_asset_types(asset::registry& registry)
     {
         registry.register_type(make_asset_type_desc<mesh>());
         registry.register_type(make_asset_type_desc<model>());
@@ -113,7 +113,7 @@ namespace oblo::scene
 
     void register_resource_types(resource::registry& registry)
     {
-        registry.register_type(make_type_desc<mesh>());
-        registry.register_type(make_type_desc<model>());
+        registry.register_type(make_resource_type_desc<mesh>());
+        registry.register_type(make_resource_type_desc<model>());
     }
 }
