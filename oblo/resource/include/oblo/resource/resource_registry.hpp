@@ -10,12 +10,16 @@
 
 namespace oblo
 {
+    struct type_id;
+}
+
+namespace oblo::resource
+{
     template <typename T>
     class resource_ptr;
 
     struct resource;
     struct resource_type_desc;
-    struct type_id;
 
     using find_resource_fn = bool (*)(const uuid& id, type_id& type, std::filesystem::path& path, const void* userdata);
 

@@ -3,7 +3,7 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/core/type_id.hpp>
 
-namespace oblo
+namespace oblo::resource
 {
     struct resource;
 

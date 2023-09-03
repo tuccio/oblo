@@ -24,7 +24,7 @@ namespace oblo::asset::importers
 
     TEST(gltf_importer, box)
     {
-        resource_registry resources;
+        resource::resource_registry resources;
         scene::register_resource_types(resources);
 
         asset_registry registry;

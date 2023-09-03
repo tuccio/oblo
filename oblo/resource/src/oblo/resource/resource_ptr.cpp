@@ -3,7 +3,7 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/resource/resource.hpp>
 
-namespace oblo::detail
+namespace oblo::resource::detail
 {
     resource* resource_create(void* data, type_id type, destroy_resource_fn destroy)
     {
