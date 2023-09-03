@@ -16,7 +16,7 @@ namespace oblo::asset
     void to_json(Json& json, const ref<T>& value)
     {
         char uuidBuffer[36];
-        json = mesh.id.format_to(uuidBuffer);
+        json = value.id.format_to(uuidBuffer);
     }
 
     template <typename Json, typename T>
@@ -39,18 +39,9 @@ namespace oblo::scene
         {
             static bool save(const scene::model& model, const std::filesystem::path& destination)
             {
-                char uuidBuffer[36];
-
-                auto meshes = nlohmann::json::array();
-
-                for (const auto& mesh : model.meshes)
-                {
-                    meshes.emplace_back(mesh.id.format_to(uuidBuffer));
-                }
-
                 nlohmann::ordered_json json;
 
-                json["meshes"] = std::move(meshes);
+                json["meshes"] = model.meshes;
 
                 std::ofstream ofs{destination};
 
