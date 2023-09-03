@@ -2,7 +2,7 @@
 
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
-#include <oblo/resource/resource_type_desc.hpp>
+#include <oblo/resource/type_desc.hpp>
 
 namespace oblo::resource
 {

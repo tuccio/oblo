@@ -5,8 +5,8 @@
 #include <oblo/asset/importers/registration.hpp>
 #include <oblo/asset/meta.hpp>
 #include <oblo/math/vec3.hpp>
-#include <oblo/resource/resource_ptr.hpp>
-#include <oblo/resource/resource_registry.hpp>
+#include <oblo/resource/ptr.hpp>
+#include <oblo/resource/registry.hpp>
 #include <oblo/scene/assets/model.hpp>
 #include <oblo/scene/assets/registration.hpp>
 
@@ -24,7 +24,7 @@ namespace oblo::asset::importers
 
     TEST(gltf_importer, box)
     {
-        resource::resource_registry resources;
+        resource::registry resources;
         scene::register_resource_types(resources);
 
         asset_registry registry;

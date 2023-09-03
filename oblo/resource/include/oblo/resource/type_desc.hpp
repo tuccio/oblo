@@ -11,7 +11,7 @@ namespace oblo::resource
     using load_resource_fn = bool (*)(void* resource, const std::filesystem::path& source);
     using save_resource_fn = bool (*)(const void* resource, const std::filesystem::path& destination);
 
-    struct resource_type_desc
+    struct type_desc
     {
         type_id type;
         create_resource_fn create;
