@@ -123,13 +123,20 @@ namespace oblo::vk
                 break;
 
             case SDL_WINDOWEVENT:
-                return handle_window_events(event);
+                if (!handle_window_events(event))
+                {
+                    return false;
+                }
+
+                break;
 
             case SDL_KEYDOWN:
                 if (event.key.keysym.scancode == SDL_SCANCODE_F2)
                 {
                     m_showImgui = !m_showImgui;
                 }
+
+                break;
             }
 
             if (m_showImgui)
