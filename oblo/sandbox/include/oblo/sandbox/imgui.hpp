@@ -18,7 +18,8 @@ namespace oblo::vk
                   VkDevice device,
                   VkQueue queue,
                   VkCommandBuffer commandBuffer,
-                  u32 swapchainImageCount);
+                  u32 swapchainImageCount,
+                  bool withDocking);
 
         void shutdown(VkDevice device);
 

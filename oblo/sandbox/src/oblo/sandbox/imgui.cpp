@@ -1,4 +1,4 @@
-#include <sandbox/imgui.hpp>
+#include <oblo/sandbox/imgui.hpp>
 
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/debug.hpp>
@@ -20,7 +20,8 @@ namespace oblo::vk
                      VkDevice device,
                      VkQueue queue,
                      VkCommandBuffer commandBuffer,
-                     u32 swapchainImageCount)
+                     u32 swapchainImageCount,
+                     bool withDocking)
     {
         if (m_context)
         {
@@ -29,23 +30,27 @@ namespace oblo::vk
 
         constexpr auto poolSize{1000};
 
-        constexpr VkDescriptorPoolSize poolSizes[] = {{VK_DESCRIPTOR_TYPE_SAMPLER, poolSize},
-                                                      {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, poolSize},
-                                                      {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, poolSize},
-                                                      {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, poolSize},
-                                                      {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, poolSize},
-                                                      {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, poolSize},
-                                                      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, poolSize},
-                                                      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, poolSize},
-                                                      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, poolSize},
-                                                      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, poolSize},
-                                                      {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, poolSize}};
+        constexpr VkDescriptorPoolSize poolSizes[] = {
+            {VK_DESCRIPTOR_TYPE_SAMPLER, poolSize},
+            {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, poolSize},
+            {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, poolSize},
+            {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, poolSize},
+            {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, poolSize},
+            {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, poolSize},
+            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, poolSize},
+            {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, poolSize},
+            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, poolSize},
+            {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, poolSize},
+            {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, poolSize},
+        };
 
-        const VkDescriptorPoolCreateInfo poolInfo = {.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-                                                     .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-                                                     .maxSets = poolSize,
-                                                     .poolSizeCount = array_size(poolSizes),
-                                                     .pPoolSizes = poolSizes};
+        const VkDescriptorPoolCreateInfo poolInfo = {
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+            .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+            .maxSets = poolSize,
+            .poolSizeCount = array_size(poolSizes),
+            .pPoolSizes = poolSizes,
+        };
 
         if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &m_descriptorPool) != VK_SUCCESS)
         {
@@ -53,7 +58,16 @@ namespace oblo::vk
         }
 
         m_context = ImGui::CreateContext();
-        ImGui::GetIO().IniFilename = nullptr;
+
+        auto& io = ImGui::GetIO();
+
+        io.IniFilename = nullptr;
+
+        if (withDocking)
+        {
+            io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+            io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+        }
 
         ImGui_ImplSDL2_InitForVulkan(window);
 
@@ -68,16 +82,20 @@ namespace oblo::vk
 
         if (ImGui_ImplVulkan_Init(&initInfo, nullptr) && create_dummy_pipeline(device))
         {
-            const VkCommandBufferBeginInfo beginInfo = {.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-                                                        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT};
+            const VkCommandBufferBeginInfo beginInfo = {
+                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+                .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+            };
 
             OBLO_VK_PANIC(vkBeginCommandBuffer(commandBuffer, &beginInfo));
 
             bool success = ImGui_ImplVulkan_CreateFontsTexture(commandBuffer);
 
-            const VkSubmitInfo submitInfo = {.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                                             .commandBufferCount = 1,
-                                             .pCommandBuffers = &commandBuffer};
+            const VkSubmitInfo submitInfo = {
+                .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                .commandBufferCount = 1,
+                .pCommandBuffers = &commandBuffer,
+            };
 
             OBLO_VK_PANIC(vkEndCommandBuffer(commandBuffer));
             OBLO_VK_PANIC(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));

@@ -1,6 +1,6 @@
 #include <SDL.h>
 
-#include <sandbox/sandbox_app.hpp>
+#include <oblo/sandbox/sandbox_app.hpp>
 
 #include <renderer/renderer_app.hpp>
 

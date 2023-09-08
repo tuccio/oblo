@@ -6,7 +6,8 @@ target_link_libraries(
     oblo::core
     oblo::vk
     oblo::vk_renderer
-    3rdparty::imgui_sdl_vk
+    oblo::sandbox
+    3rdparty::imgui
     SDL2::SDL2
     SDL2::SDL2main
     nlohmann_json::nlohmann_json
