@@ -1,4 +1,5 @@
-#include <sandbox/sandbox_app.hpp>
+#include "imgui.h"
+#include <oblo/sandbox/sandbox_app.hpp>
 
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/small_vector.hpp>
@@ -11,12 +12,6 @@
 #include <fstream>
 #include <span>
 #include <vector>
-
-#include <nlohmann/json.hpp>
-
-#define OBLO_READ_CFG_VAR(Config, Var)                                                                                 \
-    if (json.count(#Var) > 0)                                                                                          \
-        Config.Var = json.at(#Var).get<decltype(config::Var)>();
 
 namespace oblo::vk
 {
@@ -69,6 +64,11 @@ namespace oblo::vk
         m_frameAllocator.shutdown();
     }
 
+    void sandbox_base::set_config(const sandbox_app_config& config)
+    {
+        m_config = config;
+    }
+
     bool sandbox_base::init(std::span<const char* const> instanceExtensions,
                             std::span<const char* const> instanceLayers,
                             std::span<const char* const> deviceExtensions,
@@ -76,8 +76,6 @@ namespace oblo::vk
                             const VkPhysicalDeviceFeatures* physicalDeviceFeatures)
     {
         m_frameAllocator.init(1u << 30, 1u << 24, 1u);
-
-        load_config();
 
         if (!create_window() ||
             !create_engine(instanceExtensions,
@@ -244,18 +242,6 @@ namespace oblo::vk
         m_frameSemaphoreValues[poolIndex] = frameIndex;
     }
 
-    void sandbox_base::load_config()
-    {
-        m_config = {};
-        std::ifstream ifs{"vksandbox.json"};
-
-        if (ifs.is_open())
-        {
-            const auto json = nlohmann::json::parse(ifs);
-            OBLO_READ_CFG_VAR(m_config, vk_use_validation_layers);
-        }
-    }
-
     bool sandbox_base::create_window()
     {
         m_window = SDL_CreateWindow("Oblo Vulkan Sandbox",
@@ -295,7 +281,7 @@ namespace oblo::vk
             return false;
         }
 
-        if (m_config.vk_use_validation_layers)
+        if (m_config.vkUseValidationLayers)
         {
             layers.emplace_back("VK_LAYER_KHRONOS_validation");
         }
@@ -457,7 +443,8 @@ namespace oblo::vk
                                    m_engine.get_device(),
                                    m_engine.get_queue(),
                                    commandBuffer,
-                                   SwapchainImages);
+                                   SwapchainImages,
+                                   m_config.uiUseDocking);
 
         pool.reset_buffers(frameIndex + 1);
         pool.reset_pool();

@@ -5,6 +5,8 @@
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/sandbox/context.hpp>
+#include <oblo/sandbox/imgui.hpp>
 #include <oblo/vulkan/allocator.hpp>
 #include <oblo/vulkan/command_buffer_pool.hpp>
 #include <oblo/vulkan/instance.hpp>
@@ -13,13 +15,25 @@
 #include <oblo/vulkan/stateful_command_buffer.hpp>
 #include <oblo/vulkan/swapchain.hpp>
 #include <oblo/vulkan/texture.hpp>
-#include <sandbox/context.hpp>
-#include <sandbox/imgui.hpp>
 
 struct SDL_Window;
 
 namespace oblo::vk
 {
+    struct sandbox_app_config
+    {
+        bool uiUseDocking;
+        bool vkUseValidationLayers;
+
+        static constexpr sandbox_app_config make_default()
+        {
+            return {
+                .uiUseDocking = false,
+                .vkUseValidationLayers = false,
+            };
+        }
+    };
+
     class sandbox_base
     {
     protected:
@@ -29,6 +43,8 @@ namespace oblo::vk
         sandbox_base& operator=(const sandbox_base&) = delete;
         sandbox_base& operator=(sandbox_base&&) noexcept = delete;
         ~sandbox_base() = default;
+
+        void set_config(const sandbox_app_config& config);
 
         bool init(std::span<const char* const> instanceExtensions,
                   std::span<const char* const> instanceLayers,
@@ -51,7 +67,6 @@ namespace oblo::vk
                                 u64 frameIndex);
 
     private:
-        void load_config();
         bool create_window();
 
         bool create_engine(std::span<const char* const> instanceExtensions,
@@ -66,12 +81,6 @@ namespace oblo::vk
         bool init_imgui();
 
         void destroy_swapchain();
-
-    protected:
-        struct config
-        {
-            bool vk_use_validation_layers{false};
-        };
 
     protected:
         static constexpr u32 SwapchainImages{2u};
@@ -104,7 +113,7 @@ namespace oblo::vk
 
         imgui m_imgui;
 
-        config m_config{};
+        sandbox_app_config m_config{sandbox_app_config::make_default()};
 
         bool m_showImgui{true};
     };
@@ -140,6 +149,9 @@ namespace oblo::vk
     template <typename TApp>
     class sandbox_app : sandbox_base, TApp
     {
+    public:
+        using sandbox_base::set_config;
+
     public:
         bool init()
         {

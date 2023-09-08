@@ -9,7 +9,7 @@
 #include <oblo/vulkan/single_queue_engine.hpp>
 #include <oblo/vulkan/stateful_command_buffer.hpp>
 #include <oblo/vulkan/texture.hpp>
-#include <sandbox/context.hpp>
+#include <oblo/sandbox/context.hpp>
 
 #include <imgui.h>
 

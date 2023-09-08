@@ -12,7 +12,7 @@
 #include <oblo/vulkan/nodes/deferred.hpp>
 #include <oblo/vulkan/nodes/forward.hpp>
 #include <oblo/vulkan/renderer.hpp>
-#include <sandbox/context.hpp>
+#include <oblo/sandbox/context.hpp>
 
 namespace oblo::vk
 {
