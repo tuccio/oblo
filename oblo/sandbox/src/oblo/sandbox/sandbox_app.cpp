@@ -244,7 +244,7 @@ namespace oblo::vk
 
     bool sandbox_base::create_window()
     {
-        m_window = SDL_CreateWindow("Oblo Vulkan Sandbox",
+        m_window = SDL_CreateWindow(m_config.appMainWindowTitle,
                                     SDL_WINDOWPOS_UNDEFINED,
                                     SDL_WINDOWPOS_UNDEFINED,
                                     1280,
@@ -295,9 +295,9 @@ namespace oblo::vk
                 VkApplicationInfo{
                     .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
                     .pNext = nullptr,
-                    .pApplicationName = "vksandbox",
+                    .pApplicationName = m_config.appName,
                     .applicationVersion = 0,
-                    .pEngineName = "oblo",
+                    .pEngineName = m_config.appName,
                     .engineVersion = 0,
                     .apiVersion = apiVersion,
                 },
@@ -400,18 +400,24 @@ namespace oblo::vk
 
     bool sandbox_base::create_synchronization_objects()
     {
-        const VkSemaphoreCreateInfo presentSemaphoreCreateInfo{.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-                                                               .pNext = nullptr,
-                                                               .flags = 0};
+        const VkSemaphoreCreateInfo presentSemaphoreCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+        };
 
-        const VkSemaphoreTypeCreateInfo timelineTypeCreateInfo{.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
-                                                               .pNext = nullptr,
-                                                               .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
-                                                               .initialValue = 0};
+        const VkSemaphoreTypeCreateInfo timelineTypeCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+            .pNext = nullptr,
+            .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
+            .initialValue = 0,
+        };
 
-        const VkSemaphoreCreateInfo timelineSemaphoreCreateInfo{.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-                                                                .pNext = &timelineTypeCreateInfo,
-                                                                .flags = 0};
+        const VkSemaphoreCreateInfo timelineSemaphoreCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+            .pNext = &timelineTypeCreateInfo,
+            .flags = 0,
+        };
 
         const VkFenceCreateInfo fenceInfo{.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, .pNext = nullptr, .flags = 0u};
 

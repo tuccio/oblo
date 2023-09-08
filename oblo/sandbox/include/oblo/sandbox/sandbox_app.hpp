@@ -22,16 +22,10 @@ namespace oblo::vk
 {
     struct sandbox_app_config
     {
-        bool uiUseDocking;
-        bool vkUseValidationLayers;
-
-        static constexpr sandbox_app_config make_default()
-        {
-            return {
-                .uiUseDocking = false,
-                .vkUseValidationLayers = false,
-            };
-        }
+        const char* appName = "oblo";
+        const char* appMainWindowTitle = "oblo";
+        bool uiUseDocking = false;
+        bool vkUseValidationLayers = false;
     };
 
     class sandbox_base
@@ -113,7 +107,7 @@ namespace oblo::vk
 
         imgui m_imgui;
 
-        sandbox_app_config m_config{sandbox_app_config::make_default()};
+        sandbox_app_config m_config{};
 
         bool m_showImgui{true};
     };
