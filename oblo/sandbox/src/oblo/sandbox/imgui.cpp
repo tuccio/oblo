@@ -4,7 +4,7 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/vulkan/error.hpp>
 
-#include <backends/imgui_impl_sdl.h>
+#include <backends/imgui_impl_sdl2.h>
 #include <backends/imgui_impl_vulkan.h>
 
 #include <SDL.h>
@@ -66,7 +66,7 @@ namespace oblo::vk
         if (withDocking)
         {
             io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-            io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+            // io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
         }
 
         ImGui_ImplSDL2_InitForVulkan(window);
@@ -148,8 +148,9 @@ namespace oblo::vk
                                      VkShaderModule* vertexShaderModule,
                                      VkShaderModule* fragmentShaderModule)
         {
-            static_assert(IMGUI_VERSION_NUM == 18700, "This struct should be checked in case of version update");
+            static_assert(IMGUI_VERSION_NUM == 18990, "This struct should be checked in case of version update");
 
+            // Should be the same at the beginning of ImGui_ImplVulkan_Data
             struct ImGui_ImplVulkan_Data_Header
             {
                 ImGui_ImplVulkan_InitInfo VulkanInitInfo;
@@ -178,6 +179,15 @@ namespace oblo::vk
     void imgui::end_frame(VkCommandBuffer commandBuffer, VkImageView imageView, u32 width, u32 height)
     {
         ImGui::Render();
+
+        auto& io = ImGui::GetIO();
+
+        // Update and Render additional Platform Windows
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        {
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
+        }
 
         ImDrawData* drawData = ImGui::GetDrawData();
 

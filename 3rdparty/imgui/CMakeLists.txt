@@ -5,7 +5,7 @@ target_include_directories(imgui PUBLIC imgui)
 
 # SDL + Vulkan
 
-add_library(imgui_sdl_vk imgui/backends/imgui_impl_sdl.cpp imgui/backends/imgui_impl_vulkan.cpp)
+add_library(imgui_sdl_vk imgui/backends/imgui_impl_sdl2.cpp imgui/backends/imgui_impl_vulkan.cpp)
 target_include_directories(imgui_sdl_vk PUBLIC imgui/backends)
 
 target_link_libraries(
@@ -18,7 +18,7 @@ target_link_libraries(
 
 # SDL + OpenGL3
 
-add_library(imgui_sdl_gl3 imgui/backends/imgui_impl_sdl.cpp imgui/backends/imgui_impl_opengl3.cpp)
+add_library(imgui_sdl_gl3 imgui/backends/imgui_impl_sdl2.cpp imgui/backends/imgui_impl_opengl3.cpp)
 target_include_directories(imgui_sdl_gl3 PUBLIC imgui/backends)
 
 target_link_libraries(
