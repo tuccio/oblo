@@ -66,7 +66,7 @@ namespace oblo::vk
         if (withDocking)
         {
             io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-            // io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+            io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
         }
 
         ImGui_ImplSDL2_InitForVulkan(window);

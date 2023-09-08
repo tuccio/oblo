@@ -17,6 +17,7 @@
 #include <oblo/vulkan/texture.hpp>
 
 struct SDL_Window;
+union SDL_Event;
 
 namespace oblo::vk
 {
@@ -75,6 +76,8 @@ namespace oblo::vk
         bool init_imgui();
 
         void destroy_swapchain();
+
+        bool handle_window_events(const SDL_Event& event);
 
     protected:
         static constexpr u32 SwapchainImages{2u};
