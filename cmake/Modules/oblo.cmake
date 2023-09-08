@@ -83,7 +83,23 @@ function(oblo_add_executable name)
 endfunction(oblo_add_executable target)
 
 function(oblo_add_library name)
-    set(_target "oblo_${name}")
+    cmake_parse_arguments(
+        OBLO_LIB
+        ""
+        "NAMESPACE"
+        ""
+        ${ARGN}
+    )
+
+    if(OBLO_LIB_NAMESPACE)
+        set(_target_prefix "oblo_${OBLO_LIB_NAMESPACE}")
+        set(_alias_prefix "oblo::${OBLO_LIB_NAMESPACE}")
+        else()
+        set(_target_prefix "oblo")
+        set(_alias_prefix "oblo")
+    endif()
+
+    set(_target "${_target_prefix}_${name}")
     oblo_find_source_files()
 
     if(NOT DEFINED _oblo_src)
@@ -107,14 +123,14 @@ function(oblo_add_library name)
     endif()
 
     if(DEFINED _oblo_test_src)
-        set(_test_target "oblo_test_${name}")
+        set(_test_target "${_target_prefix}_test_${name}")
         add_executable(${_test_target} ${_oblo_test_src})
         target_link_libraries(${_test_target} PRIVATE ${_target} GTest::gtest GTest::gtest_main)
 
-        add_executable("oblo::test::${name}" ALIAS ${_test_target})
+        add_executable("${_alias_prefix}::test::${name}" ALIAS ${_test_target})
     endif()
 
-    add_library("oblo::${name}" ALIAS ${_target})
+    add_library("${_alias_prefix}::${name}" ALIAS ${_target})
     oblo_setup_source_groups(${_target})
 endfunction(oblo_add_library target)
 
