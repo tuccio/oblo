@@ -1,4 +1,3 @@
-#include "imgui.h"
 #include <oblo/sandbox/sandbox_app.hpp>
 
 #include <oblo/core/array_size.hpp>
@@ -116,23 +115,15 @@ namespace oblo::vk
             case SDL_QUIT:
                 return false;
 
-            case SDL_WINDOWEVENT:
-                if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
+            case SDL_WINDOWEVENT_CLOSE:
+                if (event.window.windowID == SDL_GetWindowID(m_window))
                 {
-                    wait_idle();
-
-                    destroy_swapchain();
-
-                    m_renderWidth = u32(event.window.data1);
-                    m_renderHeight = u32(event.window.data2);
-
-                    if (!create_swapchain())
-                    {
-                        return false;
-                    }
+                    return false;
                 }
-
                 break;
+
+            case SDL_WINDOWEVENT:
+                return handle_window_events(event);
 
             case SDL_KEYDOWN:
                 if (event.key.keysym.scancode == SDL_SCANCODE_F2)
@@ -165,12 +156,44 @@ namespace oblo::vk
 
         u32 imageIndex;
 
-        OBLO_VK_PANIC(vkAcquireNextImageKHR(m_engine.get_device(),
-                                            m_swapchain.get(),
-                                            UINT64_MAX,
-                                            m_presentSemaphore,
-                                            VK_NULL_HANDLE,
-                                            &imageIndex));
+        VkResult acquireImageResult;
+
+        do
+        {
+            acquireImageResult = vkAcquireNextImageKHR(m_engine.get_device(),
+                                                       m_swapchain.get(),
+                                                       UINT64_MAX,
+                                                       m_presentSemaphore,
+                                                       VK_NULL_HANDLE,
+                                                       &imageIndex);
+
+            if (acquireImageResult == VK_SUCCESS)
+            {
+                break;
+            }
+            else if (acquireImageResult == VK_ERROR_OUT_OF_DATE_KHR)
+            {
+                wait_idle();
+
+                destroy_swapchain();
+
+                int width, height;
+                SDL_GetWindowSize(m_window, &width, &height);
+
+                m_renderWidth = u32(width);
+                m_renderHeight = u32(height);
+
+                if (!create_swapchain())
+                {
+                    std::abort();
+                }
+            }
+            else if (acquireImageResult != VK_SUCCESS)
+            {
+                OBLO_VK_PANIC_MSG("vkAcquireNextImageKHR", acquireImageResult);
+                std::abort();
+            }
+        } while (true);
 
         auto& pool = m_pools[poolIndex];
 
@@ -237,7 +260,7 @@ namespace oblo::vk
                                               .pImageIndices = &imageIndex,
                                               .pResults = nullptr};
 
-        OBLO_VK_PANIC(vkQueuePresentKHR(m_engine.get_queue(), &presentInfo));
+        OBLO_VK_PANIC_EXCEPT(vkQueuePresentKHR(m_engine.get_queue(), &presentInfo), VK_ERROR_OUT_OF_DATE_KHR);
 
         m_frameSemaphoreValues[poolIndex] = frameIndex;
     }
@@ -470,5 +493,36 @@ namespace oblo::vk
                 handle = {};
             }
         }
+    }
+
+    bool sandbox_base::handle_window_events(const SDL_Event& event)
+    {
+        switch (event.window.event)
+        {
+        case SDL_WINDOWEVENT_SIZE_CHANGED:
+            wait_idle();
+
+            destroy_swapchain();
+
+            m_renderWidth = u32(event.window.data1);
+            m_renderHeight = u32(event.window.data2);
+
+            if (!create_swapchain())
+            {
+                return false;
+            }
+
+            break;
+
+        case SDL_WINDOWEVENT_CLOSE:
+            if (SDL_GetWindowID(m_window) == event.window.windowID)
+            {
+                return false;
+            }
+
+            break;
+        }
+
+        return true;
     }
 }
