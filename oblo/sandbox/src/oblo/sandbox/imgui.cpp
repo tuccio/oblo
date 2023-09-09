@@ -21,7 +21,7 @@ namespace oblo::vk
                      VkQueue queue,
                      VkCommandBuffer commandBuffer,
                      u32 swapchainImageCount,
-                     bool withDocking)
+                     const sandbox_app_config& config)
     {
         if (m_context)
         {
@@ -63,9 +63,13 @@ namespace oblo::vk
 
         io.IniFilename = nullptr;
 
-        if (withDocking)
+        if (config.uiUseDocking)
         {
             io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+        }
+
+        if (config.uiUseMultiViewport)
+        {
             io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
         }
 

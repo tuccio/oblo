@@ -115,13 +115,6 @@ namespace oblo::vk
             case SDL_QUIT:
                 return false;
 
-            case SDL_WINDOWEVENT_CLOSE:
-                if (event.window.windowID == SDL_GetWindowID(m_window))
-                {
-                    return false;
-                }
-                break;
-
             case SDL_WINDOWEVENT:
                 if (!handle_window_events(event))
                 {
@@ -480,7 +473,7 @@ namespace oblo::vk
                                    m_engine.get_queue(),
                                    commandBuffer,
                                    SwapchainImages,
-                                   m_config.uiUseDocking);
+                                   m_config);
 
         pool.reset_buffers(frameIndex + 1);
         pool.reset_pool();

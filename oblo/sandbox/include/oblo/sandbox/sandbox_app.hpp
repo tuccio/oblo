@@ -7,6 +7,7 @@
 #include <oblo/core/types.hpp>
 #include <oblo/sandbox/context.hpp>
 #include <oblo/sandbox/imgui.hpp>
+#include <oblo/sandbox/sandbox_app_config.hpp>
 #include <oblo/vulkan/allocator.hpp>
 #include <oblo/vulkan/command_buffer_pool.hpp>
 #include <oblo/vulkan/instance.hpp>
@@ -16,19 +17,12 @@
 #include <oblo/vulkan/swapchain.hpp>
 #include <oblo/vulkan/texture.hpp>
 
+
 struct SDL_Window;
 union SDL_Event;
 
 namespace oblo::vk
 {
-    struct sandbox_app_config
-    {
-        const char* appName = "oblo";
-        const char* appMainWindowTitle = "oblo";
-        bool uiUseDocking = false;
-        bool vkUseValidationLayers = false;
-    };
-
     class sandbox_base
     {
     protected:
