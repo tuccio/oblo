@@ -31,5 +31,6 @@ add_subdirectory(3rdparty)
 oblo_3rdparty_create_aliases()
 
 # Finally setup our projects
+add_subdirectory(editor)
 add_subdirectory(oblo)
 add_subdirectory(sandbox)
