@@ -75,11 +75,20 @@ endfunction(oblo_setup_include_dirs)
 function(oblo_add_executable name)
     set(_target "${name}")
     oblo_find_source_files()
-    add_executable(${_target})
+    add_executable(${_target} ${ARGN})
     oblo_add_source_files(${_target})
     oblo_setup_include_dirs(${_target})
     oblo_setup_source_groups(${_target})
     add_executable("oblo::${name}" ALIAS ${_target})
+
+    # The following variable is defined only on DLL systems
+    if(CMAKE_IMPORT_LIBRARY_SUFFIX)
+        add_custom_command(
+            TARGET ${_target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:${_target}> $<TARGET_FILE_DIR:${_target}>
+            COMMAND_EXPAND_LISTS
+        )
+    endif()
 endfunction(oblo_add_executable target)
 
 function(oblo_add_library name)
@@ -94,7 +103,7 @@ function(oblo_add_library name)
     if(OBLO_LIB_NAMESPACE)
         set(_target_prefix "oblo_${OBLO_LIB_NAMESPACE}")
         set(_alias_prefix "oblo::${OBLO_LIB_NAMESPACE}")
-        else()
+    else()
         set(_target_prefix "oblo")
         set(_alias_prefix "oblo")
     endif()
