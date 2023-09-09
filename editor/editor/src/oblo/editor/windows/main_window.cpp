@@ -1,4 +1,4 @@
-#include <oblo/editor/main_window.hpp>
+#include <oblo/editor/windows/main_window.hpp>
 
 #include <imgui.h>
 

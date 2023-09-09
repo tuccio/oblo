@@ -1,4 +1,4 @@
-#include <oblo/editor/dock_space.hpp>
+#include <oblo/editor/windows/dock_space.hpp>
 
 #include <imgui.h>
 

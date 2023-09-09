@@ -11,17 +11,17 @@ namespace oblo::editor
 {
     class window;
 
-    class runtime
+    class window_manager
     {
     public:
-        runtime();
-        runtime(const runtime&) = delete;
-        runtime(runtime&&) noexcept = delete;
+        window_manager();
+        window_manager(const window_manager&) = delete;
+        window_manager(window_manager&&) noexcept = delete;
 
-        ~runtime();
+        ~window_manager();
 
-        runtime& operator=(const runtime&) = delete;
-        runtime& operator=(runtime&&) noexcept = delete;
+        window_manager& operator=(const window_manager&) = delete;
+        window_manager& operator=(window_manager&&) noexcept = delete;
 
         template <typename T, typename... Args>
         T* create_window(Args&&... args)

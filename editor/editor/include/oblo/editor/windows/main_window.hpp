@@ -1,6 +1,5 @@
 #pragma once
 
-#include <oblo/editor/asset_browser.hpp>
 #include <oblo/editor/window.hpp>
 
 namespace oblo::editor
