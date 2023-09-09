@@ -1,31 +1,73 @@
-#include <SDL.h>
+#include <QApplication>
+#include <QLibraryInfo>
+#include <QStyleFactory>
+#include <QtPlugin>
 
-#include <oblo/sandbox/sandbox_app.hpp>
+#include "empty.hpp"
+#include "vulkan_test.hpp"
 
-#include "app.hpp"
+Q_LOGGING_CATEGORY(lcVk, "qt.vulkan")
 
-int SDL_main(int, char*[])
+static QPointer<QPlainTextEdit> messageLogWidget;
+static QtMessageHandler oldMessageHandler = nullptr;
+
+static void messageHandler(QtMsgType msgType, const QMessageLogContext& logContext, const QString& text)
 {
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
+    if (!messageLogWidget.isNull())
+        messageLogWidget->appendPlainText(text);
+    if (oldMessageHandler)
+        oldMessageHandler(msgType, logContext, text);
+}
 
-    oblo::vk::sandbox_app<oblo::editor::app> app;
+int main(int argc, char* argv[])
+{
+    Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin);
 
-    app.set_config({
-        .uiUseDocking = true,
-        .uiUseMultiViewport = true,
-        .vkUseValidationLayers = false,
-    });
+    QApplication a(argc, argv);
 
-    if (!app.init())
-    {
-        app.shutdown();
-        return 1;
-    }
+    qApp->setStyle(QStyleFactory::create("fusion"));
 
-    app.run();
-    app.shutdown();
+    QPalette palette;
+    palette.setColor(QPalette::Window, QColor(53, 53, 53));
+    palette.setColor(QPalette::WindowText, Qt::white);
+    palette.setColor(QPalette::Base, QColor(15, 15, 15));
+    palette.setColor(QPalette::AlternateBase, QColor(53, 53, 53));
+    palette.setColor(QPalette::ToolTipBase, Qt::white);
+    palette.setColor(QPalette::ToolTipText, Qt::white);
+    palette.setColor(QPalette::Text, Qt::white);
+    palette.setColor(QPalette::Button, QColor(53, 53, 53));
+    palette.setColor(QPalette::ButtonText, Qt::white);
+    palette.setColor(QPalette::BrightText, Qt::red);
 
-    SDL_Quit();
+    palette.setColor(QPalette::Highlight, QColor(142, 45, 197).lighter());
+    palette.setColor(QPalette::HighlightedText, Qt::black);
+    qApp->setPalette(palette);
 
-    return 0;
+    // MainForm m;
+    // m.show();
+
+    messageLogWidget = new QPlainTextEdit(QLatin1String(QLibraryInfo::build()) + QLatin1Char('\n'));
+    messageLogWidget->setReadOnly(true);
+
+    oldMessageHandler = qInstallMessageHandler(messageHandler);
+
+    QLoggingCategory::setFilterRules(QStringLiteral("qt.vulkan=true"));
+
+    QVulkanInstance inst;
+    inst.setLayers({"VK_LAYER_KHRONOS_validation"});
+
+    if (!inst.create())
+        qFatal("Failed to create Vulkan instance: %d", inst.errorCode());
+
+    VulkanWindow* vulkanWindow = new VulkanWindow;
+    vulkanWindow->setVulkanInstance(&inst);
+
+    VulkanTest m(vulkanWindow, messageLogWidget.data());
+    QObject::connect(vulkanWindow, &VulkanWindow::vulkanInfoReceived, &m, &VulkanTest::onVulkanInfoReceived);
+    QObject::connect(vulkanWindow, &VulkanWindow::frameQueued, &m, &VulkanTest::onFrameQueued);
+
+    m.resize(1024, 768);
+    m.show();
+
+    return a.exec();
 }
