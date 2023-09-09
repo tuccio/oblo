@@ -1,11 +1,15 @@
 #pragma once
 
 #include <oblo/core/types.hpp>
+#include <oblo/sandbox/sandbox_app_config.hpp>
 #include <vulkan/vulkan.h>
 
-union SDL_Event;
-struct SDL_Window;
+
 struct ImGuiContext;
+struct SDL_Window;
+union SDL_Event;
+
+using ImGuiContextFlags = int;
 
 namespace oblo::vk
 {
@@ -19,7 +23,7 @@ namespace oblo::vk
                   VkQueue queue,
                   VkCommandBuffer commandBuffer,
                   u32 swapchainImageCount,
-                  bool withDocking);
+                  const sandbox_app_config& config);
 
         void shutdown(VkDevice device);
 
