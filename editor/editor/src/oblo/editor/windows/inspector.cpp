@@ -1,7 +1,4 @@
-#include "imgui.h"
-#include <oblo/editor/inspector.hpp>
-
-#include <oblo/editor/inspector.hpp>
+#include <oblo/editor/windows/inspector.hpp>
 
 #include <imgui.h>
 

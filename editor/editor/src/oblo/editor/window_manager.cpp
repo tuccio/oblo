@@ -1,14 +1,14 @@
-#include <oblo/editor/runtime.hpp>
+#include <oblo/editor/window_manager.hpp>
 
 #include <oblo/editor/window.hpp>
 
 namespace oblo::editor
 {
-    runtime::runtime() = default;
+    window_manager::window_manager() = default;
 
-    runtime::~runtime() = default;
+    window_manager::~window_manager() = default;
 
-    void runtime::update()
+    void window_manager::update()
     {
         usize count = m_windows.size();
 
