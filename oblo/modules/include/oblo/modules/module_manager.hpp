@@ -10,12 +10,6 @@ namespace oblo
 {
     class module_interface;
 
-    struct module_storage
-    {
-        std::unique_ptr<module_interface> ptr;
-        u32 loadOrder;
-    };
-
     class MODULES_API module_manager
     {
     public:
@@ -41,18 +35,15 @@ namespace oblo
 
     private:
         module_interface* find(const type_id& id) const;
-        [[nodiscard]] bool load(const type_id& id, module_storage storage);
-        inline u32 get_next_load_index();
+        [[nodiscard]] bool load(const type_id& id, std::unique_ptr<module_interface> module);
+
+    private:
+        struct module_storage;
 
     private:
         std::unordered_map<type_id, module_storage> m_modules;
         u32 m_nextLoadIndex{};
     };
-
-    inline u32 module_manager::get_next_load_index()
-    {
-        return m_nextLoadIndex++;
-    }
 
     template <typename T>
     T* module_manager::load()
@@ -67,11 +58,7 @@ namespace oblo
         auto m = std::make_unique<T>();
         T* const ptr = m.get();
 
-        if (!load(id,
-                  module_storage{
-                      .ptr = std::move(m),
-                      .loadOrder = get_next_load_index(),
-                  }))
+        if (!load(id, std::move(m)))
         {
             return nullptr;
         }

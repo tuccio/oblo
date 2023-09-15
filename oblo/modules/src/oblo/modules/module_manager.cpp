@@ -14,6 +14,12 @@ namespace oblo
         module_manager* g_instance{nullptr};
     }
 
+    struct module_manager::module_storage
+    {
+        std::unique_ptr<module_interface> ptr;
+        u32 loadOrder{};
+    };
+
     module_manager& module_manager::get()
     {
         OBLO_ASSERT(g_instance != nullptr);
@@ -46,9 +52,10 @@ namespace oblo
 
         m_modules.clear();
 
+        // We unload in reverse load order
         std::sort(modules.begin(),
                   modules.end(),
-                  [](const module_storage& lhs, const module_storage& rhs) { return lhs.loadOrder < rhs.loadOrder; });
+                  [](const module_storage& lhs, const module_storage& rhs) { return lhs.loadOrder > rhs.loadOrder; });
 
         for (auto& m : modules)
         {
@@ -67,9 +74,9 @@ namespace oblo
         return it->second.ptr.get();
     }
 
-    bool module_manager::load(const type_id& id, module_storage storage)
+    bool module_manager::load(const type_id& id, std::unique_ptr<module_interface> module)
     {
-        const auto [it, inserted] = m_modules.emplace(id, std::move(storage));
+        const auto [it, inserted] = m_modules.emplace(id, module_storage{});
 
         if (!inserted)
         {
@@ -78,7 +85,7 @@ namespace oblo
 
         try
         {
-            if (!it->second.ptr->startup())
+            if (!module->startup())
             {
                 m_modules.erase(it);
                 return false;
@@ -89,6 +96,9 @@ namespace oblo
             m_modules.erase(it);
             return false;
         }
+
+        it->second.ptr = std::move(module);
+        it->second.loadOrder = ++m_nextLoadIndex;
 
         return true;
     }
