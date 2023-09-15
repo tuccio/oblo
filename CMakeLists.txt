@@ -13,6 +13,7 @@ include(oblo)
 
 find_package(assimp REQUIRED)
 find_package(cxxopts REQUIRED)
+find_package(efsw REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(glew REQUIRED)
 find_package(glslang REQUIRED)
