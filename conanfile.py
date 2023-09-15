@@ -7,6 +7,7 @@ class ObloConanRecipe(ConanFile):
     def requirements(self):
         self.requires("assimp/5.0.1")
         self.requires("cxxopts/2.2.1")
+        self.requires("efsw/1.3.1")
         self.requires("glew/2.1.0")
         self.requires("glslang/8.13.3559")
         self.requires("gtest/1.10.0")
@@ -17,3 +18,6 @@ class ObloConanRecipe(ConanFile):
         self.requires("spirv-cross/cci.20211113")
         self.requires("sdl/2.0.20")
         self.requires("tinygltf/2.8.13")
+
+    def configure(self):
+        self.options["efsw/*"].shared = False
