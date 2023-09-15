@@ -1,3 +1,7 @@
+#define TINYGLTF_IMPLEMENTATION
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+
 #include <oblo/asset/importers/gltf.hpp>
 
 #include <oblo/asset/any_asset.hpp>

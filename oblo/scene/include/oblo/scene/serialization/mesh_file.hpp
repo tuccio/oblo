@@ -16,14 +16,14 @@ namespace oblo::scene
 
     using gltf_accessor = int;
 
-    bool save_mesh(const mesh& mesh, const std::filesystem::path& destination);
+    SCENE_API bool save_mesh(const mesh& mesh, const std::filesystem::path& destination);
 
-    bool load_mesh(mesh& mesh,
+    SCENE_API bool load_mesh(mesh& mesh,
                    const tinygltf::Model& model,
                    const tinygltf::Primitive& primitive,
                    std::vector<mesh_attribute>& attributes,
                    std::vector<gltf_accessor>& sources,
                    std::vector<bool>* usedBuffers);
 
-    bool load_mesh(mesh& mesh, const std::filesystem::path& source);
+    SCENE_API bool load_mesh(mesh& mesh, const std::filesystem::path& source);
 }

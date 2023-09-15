@@ -1,7 +1,8 @@
 #include <oblo/asset/importers/registration.hpp>
 
-#include <oblo/asset/registry.hpp>
 #include <oblo/asset/importers/gltf.hpp>
+#include <oblo/asset/registry.hpp>
+
 
 namespace oblo::asset::importers
 {
@@ -22,5 +23,10 @@ namespace oblo::asset::importers
     {
         constexpr std::string_view extensions[] = {".gltf", ".glb"};
         registry.register_file_importer(make_file_importer_desc<gltf>(extensions));
+    }
+
+    void unregister_gltf_importer(registry& registry)
+    {
+        registry.unregister_file_importer(get_type_id<gltf>());
     }
 }

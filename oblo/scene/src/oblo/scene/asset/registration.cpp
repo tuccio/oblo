@@ -111,9 +111,21 @@ namespace oblo::scene
         registry.register_type(make_asset_type_desc<model>());
     }
 
+    void unregister_asset_types(asset::registry& registry)
+    {
+        registry.unregister_type(get_type_id<mesh>());
+        registry.unregister_type(get_type_id<model>());
+    }
+
     void register_resource_types(resource::registry& registry)
     {
         registry.register_type(make_resource_type_desc<mesh>());
         registry.register_type(make_resource_type_desc<model>());
+    }
+
+    void unregister_resource_types(resource::registry& registry)
+    {
+        registry.unregister_type(get_type_id<mesh>());
+        registry.unregister_type(get_type_id<model>());
     }
 }

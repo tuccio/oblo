@@ -39,9 +39,11 @@ namespace oblo::asset
         void shutdown();
 
         void register_type(const type_desc& desc);
+        void unregister_type(type_id type);
         bool has_asset_type(type_id type) const;
 
         void register_file_importer(const file_importer_desc& desc);
+        void unregister_file_importer(type_id type);
 
         bool create_directories(const std::filesystem::path& directory);
 
