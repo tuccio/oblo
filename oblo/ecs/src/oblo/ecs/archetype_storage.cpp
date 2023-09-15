@@ -1,7 +1,7 @@
 #include <oblo/ecs/archetype_storage.hpp>
 
 #include <oblo/core/array_size.hpp>
-#include <oblo/ecs/memory_pool_impl.hpp>
+#include <oblo/core/memory_pool.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/math/power_of_two.hpp>
 
@@ -12,7 +12,7 @@ namespace oblo::ecs
     static_assert(sizeof(chunk) == ChunkWithHeaderSize);
     static_assert(MaxComponentTypes <= std::numeric_limits<decltype(archetype_storage::numComponents)>::max());
 
-    archetype_storage* create_archetype_storage(memory_pool_impl& pool,
+    archetype_storage* create_archetype_storage(memory_pool& pool,
                                                 const type_registry& typeRegistry,
                                                 const component_and_tags_sets& types,
                                                 std::span<const component_type> components)
@@ -114,7 +114,7 @@ namespace oblo::ecs
         return storage;
     }
 
-    void destroy_archetype_storage(memory_pool_impl& pool, archetype_storage* storage)
+    void destroy_archetype_storage(memory_pool& pool, archetype_storage* storage)
     {
         const auto numComponents = storage->numComponents;
 
@@ -193,7 +193,7 @@ namespace oblo::ecs
         return inOut.subspan(0, count);
     }
 
-    void reserve_chunks(memory_pool_impl& pool, archetype_storage& archetype, u32 newCount)
+    void reserve_chunks(memory_pool& pool, archetype_storage& archetype, u32 newCount)
     {
         const u32 oldCount = archetype.numCurrentChunks;
 

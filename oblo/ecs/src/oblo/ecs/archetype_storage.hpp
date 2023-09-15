@@ -7,10 +7,14 @@
 
 #include <span>
 
+namespace oblo
+{
+    class memory_pool;
+}
+
 namespace oblo::ecs
 {
     class type_registry;
-    struct memory_pool_impl;
     struct type_set;
 
     static constexpr usize PageAlignment{alignof(std::max_align_t)};
@@ -61,12 +65,12 @@ namespace oblo::ecs
         type_set types;
     };
 
-    archetype_storage* create_archetype_storage(memory_pool_impl& pool,
+    archetype_storage* create_archetype_storage(memory_pool& pool,
                                                 const type_registry& typeRegistry,
                                                 const component_and_tags_sets& types,
                                                 std::span<const component_type> components);
 
-    void destroy_archetype_storage(memory_pool_impl& pool, archetype_storage* storage);
+    void destroy_archetype_storage(memory_pool& pool, archetype_storage* storage);
 
     std::span<component_type> make_type_span(std::span<component_type, MaxComponentTypes> inOut, type_set current);
 
@@ -88,7 +92,7 @@ namespace oblo::ecs
         return chunk + archetype.offsets[componentIndex] + offset * archetype.sizes[componentIndex];
     }
 
-    void reserve_chunks(memory_pool_impl& pool, archetype_storage& archetype, u32 newCount);
+    void reserve_chunks(memory_pool& pool, archetype_storage& archetype, u32 newCount);
 
     // TODO: Could be implemented with bitwise operations and type_set instead
     inline u8 find_component_index(std::span<const component_type> types, component_type component)

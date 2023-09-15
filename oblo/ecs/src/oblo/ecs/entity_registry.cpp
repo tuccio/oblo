@@ -1,12 +1,13 @@
 #include <oblo/ecs/entity_registry.hpp>
 
 #include <oblo/core/debug.hpp>
+#include <oblo/core/memory_pool.hpp>
 #include <oblo/core/zip_range.hpp>
 #include <oblo/ecs/archetype_storage.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
-#include <oblo/ecs/memory_pool_impl.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/ecs/type_set.hpp>
+
 
 #include <algorithm>
 #include <memory_resource>
@@ -27,7 +28,7 @@ namespace oblo::ecs
         u32 archetypeIndex;
     };
 
-    struct entity_registry::memory_pool : memory_pool_impl
+    struct entity_registry::memory_pool : oblo::memory_pool
     {
     };
 

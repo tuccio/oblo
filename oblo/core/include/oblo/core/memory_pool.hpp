@@ -4,16 +4,20 @@
 
 #include <memory_resource>
 
-namespace oblo::ecs
+namespace oblo
 {
-    struct memory_pool_impl
+    class memory_pool : std::pmr::unsynchronized_pool_resource
     {
-        std::pmr::unsynchronized_pool_resource poolResource;
+        std::pmr::unsynchronized_pool_resource& resource()
+        {
+            return *static_cast<std::pmr::unsynchronized_pool_resource*>(this);
+        }
 
+    public:
         template <typename T>
         T* create_array_uninitialized(usize count)
         {
-            void* vptr = poolResource.allocate(sizeof(T) * count, alignof(T));
+            void* vptr = resource().allocate(sizeof(T) * count, alignof(T));
             return new (vptr) T[count];
         }
 
@@ -26,31 +30,31 @@ namespace oblo::ecs
         template <typename T>
         void* allocate()
         {
-            return poolResource.allocate(sizeof(T), alignof(T));
+            return resource().allocate(sizeof(T), alignof(T));
         }
 
         template <typename T>
         void* allocate(usize count)
         {
-            return poolResource.allocate(sizeof(T) * count, alignof(T));
+            return resource().allocate(sizeof(T) * count, alignof(T));
         }
 
         template <typename T>
         void deallocate(T* ptr)
         {
-            poolResource.deallocate(ptr, sizeof(T), alignof(T));
+            resource().deallocate(ptr, sizeof(T), alignof(T));
         }
 
         template <typename T>
         void deallocate_array(T* ptr, usize count)
         {
-            poolResource.deallocate(ptr, sizeof(T) * count, alignof(T));
+            resource().deallocate(ptr, sizeof(T) * count, alignof(T));
         }
 
         template <typename T>
         T* create_uninitialized()
         {
-            return new (poolResource.allocate(sizeof(T), alignof(T))) T;
+            return new (resource().allocate(sizeof(T), alignof(T))) T;
         }
     };
 
@@ -64,7 +68,7 @@ namespace oblo::ecs
         u32 capacity;
         T* data;
 
-        void resize_and_grow(memory_pool_impl& pool, u32 newSize)
+        void resize_and_grow(memory_pool& pool, u32 newSize)
         {
             OBLO_ASSERT(newSize >= size);
 
@@ -85,7 +89,7 @@ namespace oblo::ecs
             size = newSize;
         }
 
-        void free(memory_pool_impl& pool)
+        void free(memory_pool& pool)
         {
             pool.deallocate_array(data);
             *this = {};
