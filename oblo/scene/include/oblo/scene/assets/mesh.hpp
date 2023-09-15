@@ -45,7 +45,7 @@ namespace oblo::scene
         data_format format;
     };
 
-    class mesh
+    class SCENE_API mesh
     {
     public:
         mesh();

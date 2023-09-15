@@ -1,11 +1,11 @@
 #include <oblo/asset/registry.hpp>
 
 #include <oblo/asset/any_asset.hpp>
-#include <oblo/asset/type_desc.hpp>
 #include <oblo/asset/import_artifact.hpp>
 #include <oblo/asset/import_preview.hpp>
 #include <oblo/asset/importer.hpp>
 #include <oblo/asset/meta.hpp>
+#include <oblo/asset/type_desc.hpp>
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/uuid.hpp>
@@ -195,8 +195,8 @@ namespace oblo::asset
     }
 
     bool registry::initialize(const std::filesystem::path& assetsDir,
-                                    const std::filesystem::path& artifactsDir,
-                                    const std::filesystem::path& sourceFilesDir)
+                              const std::filesystem::path& artifactsDir,
+                              const std::filesystem::path& sourceFilesDir)
     {
         if (!ensure_directories(assetsDir) || !ensure_directories(artifactsDir) || !ensure_directories(sourceFilesDir))
         {
@@ -219,6 +219,11 @@ namespace oblo::asset
     void registry::register_type(const type_desc& desc)
     {
         m_impl->assetTypes.emplace(desc.type, desc);
+    }
+
+    void registry::unregister_type(type_id type)
+    {
+        m_impl->assetTypes.erase(type);
     }
 
     bool registry::has_asset_type(type_id type) const
@@ -246,6 +251,11 @@ namespace oblo::asset
                 info.extensions.emplace_back(ext);
             }
         }
+    }
+
+    void registry::unregister_file_importer(type_id type)
+    {
+        m_impl->importers.erase(type);
     }
 
     importer registry::create_importer(const std::filesystem::path& sourceFile)
@@ -279,10 +289,10 @@ namespace oblo::asset
     }
 
     bool registry::save_artifact(const uuid& artifactId,
-                                       const type_id& type,
-                                       const void* dataPtr,
-                                       const artifact_meta& meta,
-                                       write_policy policy)
+                                 const type_id& type,
+                                 const void* dataPtr,
+                                 const artifact_meta& meta,
+                                 write_policy policy)
     {
         const auto typeIt = m_impl->assetTypes.find(type);
 
@@ -313,9 +323,9 @@ namespace oblo::asset
     }
 
     bool registry::save_asset(const std::filesystem::path& destination,
-                                    std::string_view filename,
-                                    const asset_meta& meta,
-                                    write_policy policy)
+                              std::string_view filename,
+                              const asset_meta& meta,
+                              write_policy policy)
     {
         const auto [assetIt, insertedAsset] = m_impl->assets.emplace(meta.id, std::move(meta));
 
@@ -372,9 +382,9 @@ namespace oblo::asset
     }
 
     bool registry::find_artifact_resource(const uuid& id,
-                                                type_id& type,
-                                                std::filesystem::path& path,
-                                                const void* userdata)
+                                          type_id& type,
+                                          std::filesystem::path& path,
+                                          const void* userdata)
     {
         char uuidBuffer[36];
 

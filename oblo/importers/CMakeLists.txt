@@ -1,11 +1,13 @@
-oblo_add_library(importers)
+oblo_add_library(importers MODULE)
 
 target_link_libraries(
     oblo_importers
     PUBLIC
     oblo::asset
+    oblo::modules
     oblo::scene
     PRIVATE
+    oblo::engine
     TinyGLTF::TinyGLTF
 )
 

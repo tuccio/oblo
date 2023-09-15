@@ -85,7 +85,7 @@ endfunction(oblo_add_executable target)
 function(oblo_add_library name)
     cmake_parse_arguments(
         OBLO_LIB
-        ""
+        "MODULE"
         "NAMESPACE"
         ""
         ${ARGN}
@@ -94,7 +94,7 @@ function(oblo_add_library name)
     if(OBLO_LIB_NAMESPACE)
         set(_target_prefix "oblo_${OBLO_LIB_NAMESPACE}")
         set(_alias_prefix "oblo::${OBLO_LIB_NAMESPACE}")
-        else()
+    else()
         set(_target_prefix "oblo")
         set(_alias_prefix "oblo")
     endif()
@@ -117,9 +117,28 @@ function(oblo_add_library name)
         add_custom_target(${_target}-interface SOURCES ${_oblo_public_includes})
     else()
         # Regular C++ library
-        add_library(${_target})
+        set(_kind "STATIC")
+
+        if(OBLO_LIB_MODULE)
+            set(_kind "SHARED")
+        endif()
+
+        add_library(${_target} ${_kind})
         oblo_add_source_files(${_target})
         oblo_setup_include_dirs(${_target})
+
+        if(OBLO_LIB_MODULE)
+            string(TOUPPER ${name} _upper_name)
+            set(_api_define "${_upper_name}_API")
+
+            if(MSVC)
+                target_compile_definitions(${_target} INTERFACE "${_api_define}=__declspec(dllimport)")
+                target_compile_definitions(${_target} PRIVATE "${_api_define}=__declspec(dllexport)")
+            else()
+                target_compile_definitions(${_target} INTERFACE "${_api_define}=")
+                target_compile_definitions(${_target} PRIVATE "${_api_define}=")
+            endif()
+        endif()
     endif()
 
     if(DEFINED _oblo_test_src)
