@@ -1,3 +1,5 @@
+#include <oblo/scene/assets/registration.hpp>
+
 #include <oblo/asset/registry.hpp>
 
 #include <oblo/asset/type_desc.hpp>
