@@ -172,7 +172,6 @@ namespace oblo::asset
             return std::filesystem::is_directory(directory, ec);
         }
 
-        constexpr std::string_view AssetMetaExtension{".oasset"};
         constexpr std::string_view ArtifactMetaExtension{".oartifact"};
     }
 
@@ -379,6 +378,11 @@ namespace oblo::asset
 
         assetMeta = it->second;
         return true;
+    }
+
+    const std::filesystem::path& registry::get_asset_directory() const
+    {
+        return m_impl->assetsDir;
     }
 
     bool registry::find_artifact_resource(const uuid& id,

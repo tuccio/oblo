@@ -42,24 +42,38 @@ namespace oblo
 
     void module_manager::shutdown()
     {
-        std::vector<module_storage> modules;
+        struct module_to_delete
+        {
+            type_id id;
+            u32 loadOrder;
+        };
+
+        std::vector<module_to_delete> modules;
         modules.reserve(m_modules.size());
 
         for (auto& [id, storage] : m_modules)
         {
-            modules.emplace_back(std::move(storage));
+            modules.emplace_back(id, storage.loadOrder);
         }
-
-        m_modules.clear();
 
         // We unload in reverse load order
         std::sort(modules.begin(),
                   modules.end(),
-                  [](const module_storage& lhs, const module_storage& rhs) { return lhs.loadOrder > rhs.loadOrder; });
+                  [](const module_to_delete& lhs, const module_to_delete& rhs)
+                  { return lhs.loadOrder > rhs.loadOrder; });
 
         for (auto& m : modules)
         {
-            m.ptr->shutdown();
+            const auto it = m_modules.find(m.id);
+            OBLO_ASSERT(it != m_modules.end());
+
+            if (it == m_modules.end()) [[unlikely]]
+            {
+                continue;
+            }
+
+            it->second.ptr->shutdown();
+            m_modules.erase(it);
         }
     }
 

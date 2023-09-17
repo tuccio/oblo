@@ -6,6 +6,7 @@ namespace oblo::vk
     {
         const char* appName = "oblo";
         const char* appMainWindowTitle = "oblo";
+        const char* imguiIniFile = nullptr;
         bool uiUseDocking = false;
         bool uiUseMultiViewport = false;
         bool vkUseValidationLayers = false;

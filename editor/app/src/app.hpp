@@ -1,16 +1,20 @@
 #pragma once
 
+#include <oblo/asset/importers/module.hpp>
+#include <oblo/asset/registry.hpp>
+#include <oblo/editor/platform/init.hpp>
 #include <oblo/editor/window_manager.hpp>
 #include <oblo/editor/windows/asset_browser.hpp>
 #include <oblo/editor/windows/dock_space.hpp>
 #include <oblo/editor/windows/inspector.hpp>
 #include <oblo/editor/windows/main_window.hpp>
 #include <oblo/editor/windows/style_window.hpp>
+#include <oblo/engine/module.hpp>
 #include <oblo/sandbox/context.hpp>
+#include <oblo/scene/module.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/stateful_command_buffer.hpp>
 #include <oblo/vulkan/texture.hpp>
-#include <vulkan/vulkan_core.h>
 
 namespace oblo::editor
 {
@@ -19,16 +23,29 @@ namespace oblo::editor
     public:
         bool init(const vk::sandbox_init_context&)
         {
+            if (!platform::init())
+            {
+                return false;
+            }
+
+            auto& mm = module_manager::get();
+            auto* const engine = mm.load<oblo::engine::module>();
+            mm.load<oblo::scene::module>();
+            mm.load<oblo::asset::importers::module>();
+
             m_windowManager.create_window<dock_space>();
             // m_runtime.create_window<main_window>();
-            m_windowManager.create_window<asset_browser>();
+            m_windowManager.create_window<asset_browser>(engine->get_asset_registry());
             m_windowManager.create_window<inspector>();
             m_windowManager.create_window<style_window>();
 
             return true;
         }
 
-        void shutdown(const vk::sandbox_shutdown_context&) {}
+        void shutdown(const vk::sandbox_shutdown_context&)
+        {
+            platform::shutdown();
+        }
 
         void update(const vk::sandbox_render_context& context)
         {

@@ -1,32 +1,42 @@
 #include <oblo/editor/window_manager.hpp>
 
-#include <oblo/editor/window.hpp>
-
 namespace oblo::editor
 {
-    window_manager::window_manager() = default;
+    void window_manager::destroy_window(void* ptr)
+    {
+        for (auto it = m_windows.begin(); it != m_windows.end(); ++it)
+        {
+            if (it->ptr.get() == ptr)
+            {
+                if (it != m_windows.end() - 1)
+                {
+                    std::swap(*it, m_windows.back());
+                }
 
-    window_manager::~window_manager() = default;
+                m_windows.pop_back();
+            }
+        }
+    }
 
     void window_manager::update()
     {
-        usize count = m_windows.size();
-
-        for (usize i = 0; i < count;)
+        for (usize i = 0; i < m_windows.size();)
         {
             auto& window = m_windows[i];
 
-            if (!window->update())
+            if (!window.update(window.ptr.get()))
             {
-                std::swap(window, m_windows.back());
-                --count;
+                if (i != m_windows.size() - 1)
+                {
+                    std::swap(window, m_windows.back());
+                }
+
+                m_windows.pop_back();
             }
             else
             {
                 ++i;
             }
         }
-
-        m_windows.resize(count);
     }
 }

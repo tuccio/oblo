@@ -61,7 +61,7 @@ namespace oblo::vk
 
         auto& io = ImGui::GetIO();
 
-        io.IniFilename = nullptr;
+        io.IniFilename = config.imguiIniFile;
 
         if (config.uiUseDocking)
         {
@@ -75,14 +75,16 @@ namespace oblo::vk
 
         ImGui_ImplSDL2_InitForVulkan(window);
 
-        ImGui_ImplVulkan_InitInfo initInfo{.Instance = instance,
-                                           .PhysicalDevice = physicalDevice,
-                                           .Device = device,
-                                           .Queue = queue,
-                                           .DescriptorPool = m_descriptorPool,
-                                           .MinImageCount = swapchainImageCount,
-                                           .ImageCount = swapchainImageCount,
-                                           .MSAASamples = VK_SAMPLE_COUNT_1_BIT};
+        ImGui_ImplVulkan_InitInfo initInfo{
+            .Instance = instance,
+            .PhysicalDevice = physicalDevice,
+            .Device = device,
+            .Queue = queue,
+            .DescriptorPool = m_descriptorPool,
+            .MinImageCount = swapchainImageCount,
+            .ImageCount = swapchainImageCount,
+            .MSAASamples = VK_SAMPLE_COUNT_1_BIT,
+        };
 
         if (ImGui_ImplVulkan_Init(&initInfo, nullptr) && create_dummy_pipeline(device))
         {
