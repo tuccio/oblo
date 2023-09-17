@@ -51,6 +51,8 @@ namespace oblo::asset
 
         bool find_asset_by_path(const std::filesystem::path& path, uuid& id, asset_meta& assetMeta) const;
 
+        const std::filesystem::path& get_asset_directory() const;
+
     public:
         static bool find_artifact_resource(const uuid& id,
                                            type_id& type,
@@ -86,4 +88,6 @@ namespace oblo::asset
     private:
         std::unique_ptr<impl> m_impl;
     };
+
+    constexpr std::filesystem::path::string_type AssetMetaExtension{L".oasset"};
 }

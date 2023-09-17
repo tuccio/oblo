@@ -1,12 +1,10 @@
 #pragma once
 
-#include <oblo/editor/window.hpp>
-
 namespace oblo::editor
 {
-    class inspector final : public window
+    class inspector final
     {
     public:
-        bool update() override;
+        bool update();
     };
 }

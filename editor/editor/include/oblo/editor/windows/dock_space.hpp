@@ -1,12 +1,10 @@
 #pragma once
 
-#include <oblo/editor/window.hpp>
-
 namespace oblo::editor
 {
-    class dock_space final : public window
+    class dock_space final
     {
     public:
-        bool update() override;
+        bool update();
     };
 }

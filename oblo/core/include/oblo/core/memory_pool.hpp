@@ -2,6 +2,7 @@
 
 #include <oblo/core/types.hpp>
 
+#include <memory>
 #include <memory_resource>
 
 namespace oblo
@@ -46,6 +47,13 @@ namespace oblo
         }
 
         template <typename T>
+        void destroy(T* ptr)
+        {
+            ptr->~T();
+            resource().deallocate(ptr, sizeof(T), alignof(T));
+        }
+
+        template <typename T>
         void deallocate_array(T* ptr, usize count)
         {
             resource().deallocate(ptr, sizeof(T) * count, alignof(T));
@@ -55,44 +63,6 @@ namespace oblo
         T* create_uninitialized()
         {
             return new (resource().allocate(sizeof(T), alignof(T))) T;
-        }
-    };
-
-    template <typename T>
-    struct pooled_array
-    {
-        static constexpr u32 MinAllocation{16};
-        static constexpr f32 GrowthFactor{1.6f};
-
-        u32 size;
-        u32 capacity;
-        T* data;
-
-        void resize_and_grow(memory_pool& pool, u32 newSize)
-        {
-            OBLO_ASSERT(newSize >= size);
-
-            if (newSize <= capacity)
-            {
-                return;
-            }
-
-            const u32 newCapacity = max(MinAllocation, u32(capacity * GrowthFactor));
-
-            T* const newArray = pool.create_array_uninitialized<T>(newCapacity);
-            std::copy_n(data, size, newArray);
-
-            pool.deallocate_array(data);
-
-            data = newArray;
-            capacity = newCapacity;
-            size = newSize;
-        }
-
-        void free(memory_pool& pool)
-        {
-            pool.deallocate_array(data);
-            *this = {};
         }
     };
 }
