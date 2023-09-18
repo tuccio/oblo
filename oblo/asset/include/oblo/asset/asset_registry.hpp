@@ -22,15 +22,15 @@ namespace oblo::asset
     struct import_preview;
     struct import_node_config;
 
-    class registry
+    class asset_registry
     {
     public:
-        registry();
-        registry(const registry&) = delete;
-        registry(registry&&) noexcept = delete;
-        registry& operator=(const registry&) = delete;
-        registry& operator=(registry&&) noexcept = delete;
-        ~registry();
+        asset_registry();
+        asset_registry(const asset_registry&) = delete;
+        asset_registry(asset_registry&&) noexcept = delete;
+        asset_registry& operator=(const asset_registry&) = delete;
+        asset_registry& operator=(asset_registry&&) noexcept = delete;
+        ~asset_registry();
 
         [[nodiscard]] bool initialize(const std::filesystem::path& assetsDir,
                                       const std::filesystem::path& artifactsDir,

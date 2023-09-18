@@ -10,7 +10,7 @@
 
 namespace oblo::asset
 {
-    class registry;
+    class asset_registry;
     class importer;
 
     struct import_node
@@ -33,7 +33,7 @@ namespace oblo::asset
     struct import_context
     {
         importer* importer;
-        registry* registry;
+        asset_registry* registry;
         const import_preview* preview;
         std::span<const import_node_config> importNodesConfig;
         uuid importUuid;

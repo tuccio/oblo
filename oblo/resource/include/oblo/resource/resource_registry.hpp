@@ -23,16 +23,16 @@ namespace oblo::resource
 
     using find_resource_fn = bool (*)(const uuid& id, type_id& type, std::filesystem::path& path, const void* userdata);
 
-    class registry
+    class resource_registry
     {
     public:
-        registry();
-        registry(const registry&) = delete;
-        registry(registry&&) noexcept = delete;
-        ~registry();
+        resource_registry();
+        resource_registry(const resource_registry&) = delete;
+        resource_registry(resource_registry&&) noexcept = delete;
+        ~resource_registry();
 
-        registry& operator=(const registry&) = delete;
-        registry& operator=(registry&&) noexcept = delete;
+        resource_registry& operator=(const resource_registry&) = delete;
+        resource_registry& operator=(resource_registry&&) noexcept = delete;
 
         void register_type(const type_desc& typeDesc);
         void unregister_type(const type_id& type);

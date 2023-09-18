@@ -1,7 +1,7 @@
 #include <oblo/editor/windows/asset_browser.hpp>
 
 #include <oblo/asset/importer.hpp>
-#include <oblo/asset/registry.hpp>
+#include <oblo/asset/asset_registry.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/editor/platform/shell.hpp>
 
@@ -9,7 +9,7 @@
 
 namespace oblo::editor
 {
-    asset_browser::asset_browser(asset::registry& registry) :
+    asset_browser::asset_browser(asset::asset_registry& registry) :
         m_registry{&registry}, m_path{std::filesystem::canonical(registry.get_asset_directory())}, m_current{m_path}
     {
     }

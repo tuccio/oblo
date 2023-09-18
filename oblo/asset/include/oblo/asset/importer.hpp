@@ -12,7 +12,7 @@
 
 namespace oblo::asset
 {
-    class registry;
+    class asset_registry;
     class importer;
 
     struct artifact_meta;
@@ -21,7 +21,7 @@ namespace oblo::asset
 
     struct importer_config
     {
-        registry* registry;
+        asset_registry* registry;
         std::filesystem::path sourceFile;
         type_id importer;
     };
@@ -69,8 +69,8 @@ namespace oblo::asset
         struct pending_asset_import;
 
     private:
-        bool begin_import(registry& registry, std::span<import_node_config> importNodesConfig);
-        bool finalize_import(registry& registry, const std::filesystem::path& destinationDir);
+        bool begin_import(asset_registry& registry, std::span<import_node_config> importNodesConfig);
+        bool finalize_import(asset_registry& registry, const std::filesystem::path& destinationDir);
         bool write_source_files();
 
     private:
