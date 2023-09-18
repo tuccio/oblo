@@ -4,7 +4,7 @@
 
 namespace oblo::asset::importers
 {
-    class IMPORTERS_API module final : public module_interface
+    class IMPORTERS_API importers_module final : public module_interface
     {
     public:
         bool startup() override;

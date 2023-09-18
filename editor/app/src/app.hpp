@@ -1,7 +1,7 @@
 #pragma once
 
 #include <oblo/asset/asset_registry.hpp>
-#include <oblo/asset/importers/module.hpp>
+#include <oblo/asset/importers/importers_module.hpp>
 #include <oblo/editor/platform/init.hpp>
 #include <oblo/editor/window_manager.hpp>
 #include <oblo/editor/windows/asset_browser.hpp>
@@ -18,7 +18,6 @@
 #include <oblo/vulkan/stateful_command_buffer.hpp>
 #include <oblo/vulkan/texture.hpp>
 
-
 namespace oblo::editor
 {
     class app
@@ -34,7 +33,7 @@ namespace oblo::editor
             auto& mm = module_manager::get();
             auto* const engine = mm.load<oblo::engine::engine_module>();
             mm.load<oblo::scene::scene_module>();
-            mm.load<oblo::asset::importers::module>();
+            mm.load<oblo::asset::importers::importers_module>();
 
             m_windowManager.create_window<dock_space>();
             m_windowManager.create_window<asset_browser>(engine->get_asset_registry());
