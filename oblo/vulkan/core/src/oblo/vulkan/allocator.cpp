@@ -62,7 +62,7 @@ namespace oblo::vk
         }
     }
 
-    VkResult allocator::create_buffer(const buffer_initializer& initializer, allocated_buffer* outBuffer)
+    VkResult allocator::create_buffer(const buffer_initializer& initializer, allocated_buffer* outBuffer) const
     {
         OBLO_ASSERT(initializer.size != 0);
 
@@ -82,7 +82,7 @@ namespace oblo::vk
                                nullptr);
     }
 
-    VkResult allocator::create_image(const image_initializer& initializer, allocated_image* outImage)
+    VkResult allocator::create_image(const image_initializer& initializer, allocated_image* outImage) const
     {
         const VkImageCreateInfo imageCreateInfo{
             .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
@@ -108,22 +108,22 @@ namespace oblo::vk
                               nullptr);
     }
 
-    void allocator::destroy(const allocated_buffer& buffer)
+    void allocator::destroy(const allocated_buffer& buffer) const
     {
         vmaDestroyBuffer(m_allocator, buffer.buffer, buffer.allocation);
     }
 
-    void allocator::destroy(const allocated_image& image)
+    void allocator::destroy(const allocated_image& image) const
     {
         vmaDestroyImage(m_allocator, image.image, image.allocation);
     }
 
-    VkResult allocator::map(VmaAllocation allocation, void** outMemoryPtr)
+    VkResult allocator::map(VmaAllocation allocation, void** outMemoryPtr) const
     {
         return vmaMapMemory(m_allocator, allocation, outMemoryPtr);
     }
 
-    void allocator::unmap(VmaAllocation allocation)
+    void allocator::unmap(VmaAllocation allocation) const
     {
         vmaUnmapMemory(m_allocator, allocation);
     }
@@ -133,7 +133,7 @@ namespace oblo::vk
         return m_allocator->m_hDevice;
     }
 
-    VkResult allocator::invalidate_mapped_memory_ranges(std::span<const VmaAllocation> allocations)
+    VkResult allocator::invalidate_mapped_memory_ranges(std::span<const VmaAllocation> allocations) const
     {
         return vmaInvalidateAllocations(m_allocator, allocations.size(), allocations.data(), nullptr, nullptr);
     }
