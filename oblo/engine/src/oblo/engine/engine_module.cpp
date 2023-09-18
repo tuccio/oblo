@@ -1,4 +1,4 @@
-#include <oblo/engine/module.hpp>
+#include <oblo/engine/engine_module.hpp>
 
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/core/debug.hpp>
@@ -8,14 +8,14 @@ namespace oblo::engine
 {
     namespace
     {
-        module* g_instance{};
+        engine_module* g_instance{};
     }
 
-    module::module() = default;
+    engine_module::engine_module() = default;
 
-    module::~module() = default;
+    engine_module::~engine_module() = default;
 
-    bool module::startup()
+    bool engine_module::startup()
     {
         OBLO_ASSERT(!g_instance);
 
@@ -34,7 +34,7 @@ namespace oblo::engine
         return true;
     }
 
-    void module::shutdown()
+    void engine_module::shutdown()
     {
         OBLO_ASSERT(g_instance == this);
 

@@ -16,20 +16,20 @@ namespace oblo::resource
 
 namespace oblo::engine
 {
-    class ENGINE_API module final : public module_interface
+    class ENGINE_API engine_module final : public module_interface
     {
     public:
-        static module& get();
+        static engine_module& get();
 
     public:
-        module();
-        module(const module&) = delete;
-        module(module&&) noexcept = delete;
+        engine_module();
+        engine_module(const engine_module&) = delete;
+        engine_module(engine_module&&) noexcept = delete;
 
-        ~module();
+        ~engine_module();
 
-        module& operator=(const module&) = delete;
-        module& operator=(module&&) noexcept = delete;
+        engine_module& operator=(const engine_module&) = delete;
+        engine_module& operator=(engine_module&&) noexcept = delete;
 
         bool startup() override;
         void shutdown() override;
