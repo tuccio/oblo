@@ -1,7 +1,7 @@
 #pragma once
 
 #include <oblo/asset/importers/module.hpp>
-#include <oblo/asset/registry.hpp>
+#include <oblo/asset/asset_registry.hpp>
 #include <oblo/editor/platform/init.hpp>
 #include <oblo/editor/window_manager.hpp>
 #include <oblo/editor/windows/asset_browser.hpp>

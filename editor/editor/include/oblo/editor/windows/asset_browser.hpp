@@ -5,7 +5,7 @@
 
 namespace oblo::asset
 {
-    class registry;
+    class asset_registry;
 }
 
 namespace oblo::editor
@@ -16,7 +16,7 @@ namespace oblo::editor
         asset_browser() = delete;
         asset_browser(const asset_browser&) = delete;
         asset_browser(asset_browser&&) noexcept = delete;
-        explicit asset_browser(asset::registry& registry);
+        explicit asset_browser(asset::asset_registry& registry);
 
         asset_browser& operator=(const asset_browser&) = delete;
         asset_browser& operator=(asset_browser&&) noexcept = delete;
@@ -27,7 +27,7 @@ namespace oblo::editor
         void reset_path();
 
     private:
-        asset::registry* m_registry{};
+        asset::asset_registry* m_registry{};
         std::filesystem::path m_path;
         std::filesystem::path m_current;
         std::vector<std::filesystem::path> m_breadcrumbs;

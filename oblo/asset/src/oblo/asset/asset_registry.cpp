@@ -1,4 +1,4 @@
-#include <oblo/asset/registry.hpp>
+#include <oblo/asset/asset_registry.hpp>
 
 #include <oblo/asset/any_asset.hpp>
 #include <oblo/asset/import_artifact.hpp>
@@ -175,7 +175,7 @@ namespace oblo::asset
         constexpr std::string_view ArtifactMetaExtension{".oartifact"};
     }
 
-    struct registry::impl
+    struct asset_registry::impl
     {
         uuid_random_generator uuidGenerator;
         std::unordered_map<type_id, asset_type_info> assetTypes;
@@ -186,14 +186,14 @@ namespace oblo::asset
         std::filesystem::path sourceFilesDir;
     };
 
-    registry::registry() = default;
+    asset_registry::asset_registry() = default;
 
-    registry::~registry()
+    asset_registry::~asset_registry()
     {
         shutdown();
     }
 
-    bool registry::initialize(const std::filesystem::path& assetsDir,
+    bool asset_registry::initialize(const std::filesystem::path& assetsDir,
                               const std::filesystem::path& artifactsDir,
                               const std::filesystem::path& sourceFilesDir)
     {
@@ -210,32 +210,32 @@ namespace oblo::asset
         return true;
     }
 
-    void registry::shutdown()
+    void asset_registry::shutdown()
     {
         m_impl.reset();
     }
 
-    void registry::register_type(const type_desc& desc)
+    void asset_registry::register_type(const type_desc& desc)
     {
         m_impl->assetTypes.emplace(desc.type, desc);
     }
 
-    void registry::unregister_type(type_id type)
+    void asset_registry::unregister_type(type_id type)
     {
         m_impl->assetTypes.erase(type);
     }
 
-    bool registry::has_asset_type(type_id type) const
+    bool asset_registry::has_asset_type(type_id type) const
     {
         return m_impl->assetTypes.contains(type);
     }
 
-    bool registry::create_directories(const std::filesystem::path& directory)
+    bool asset_registry::create_directories(const std::filesystem::path& directory)
     {
         return ensure_directories(m_impl->assetsDir / directory);
     }
 
-    void registry::register_file_importer(const file_importer_desc& desc)
+    void asset_registry::register_file_importer(const file_importer_desc& desc)
     {
         const auto [it, inserted] = m_impl->importers.emplace(desc.type, file_importer_info{});
 
@@ -252,12 +252,12 @@ namespace oblo::asset
         }
     }
 
-    void registry::unregister_file_importer(type_id type)
+    void asset_registry::unregister_file_importer(type_id type)
     {
         m_impl->importers.erase(type);
     }
 
-    importer registry::create_importer(const std::filesystem::path& sourceFile)
+    importer asset_registry::create_importer(const std::filesystem::path& sourceFile)
     {
         const auto ext = sourceFile.extension();
 
@@ -282,12 +282,12 @@ namespace oblo::asset
         return {};
     }
 
-    uuid registry::generate_uuid()
+    uuid asset_registry::generate_uuid()
     {
         return m_impl->uuidGenerator.generate();
     }
 
-    bool registry::save_artifact(const uuid& artifactId,
+    bool asset_registry::save_artifact(const uuid& artifactId,
                                  const type_id& type,
                                  const void* dataPtr,
                                  const artifact_meta& meta,
@@ -321,7 +321,7 @@ namespace oblo::asset
         return saveFunction(dataPtr, artifactPath) && save_artifact_meta(meta, artifactMetaPath);
     }
 
-    bool registry::save_asset(const std::filesystem::path& destination,
+    bool asset_registry::save_asset(const std::filesystem::path& destination,
                               std::string_view filename,
                               const asset_meta& meta,
                               write_policy policy)
@@ -346,7 +346,7 @@ namespace oblo::asset
         return save_asset_meta(meta.id, assetIt->second, fullPath);
     }
 
-    std::filesystem::path registry::create_source_files_dir(uuid importId)
+    std::filesystem::path asset_registry::create_source_files_dir(uuid importId)
     {
         char uuidBuffer[36];
         auto importDir = m_impl->sourceFilesDir / importId.format_to(uuidBuffer);
@@ -359,7 +359,7 @@ namespace oblo::asset
         return importDir;
     }
 
-    bool registry::find_asset_by_path(const std::filesystem::path& path, uuid& id, asset_meta& assetMeta) const
+    bool asset_registry::find_asset_by_path(const std::filesystem::path& path, uuid& id, asset_meta& assetMeta) const
     {
         auto fullPath = m_impl->assetsDir / path;
         fullPath.concat(AssetMetaExtension);
@@ -380,19 +380,19 @@ namespace oblo::asset
         return true;
     }
 
-    const std::filesystem::path& registry::get_asset_directory() const
+    const std::filesystem::path& asset_registry::get_asset_directory() const
     {
         return m_impl->assetsDir;
     }
 
-    bool registry::find_artifact_resource(const uuid& id,
+    bool asset_registry::find_artifact_resource(const uuid& id,
                                           type_id& type,
                                           std::filesystem::path& path,
                                           const void* userdata)
     {
         char uuidBuffer[36];
 
-        auto* const self = static_cast<const registry*>(userdata);
+        auto* const self = static_cast<const asset_registry*>(userdata);
         const auto& artifactsDir = self->m_impl->artifactsDir;
 
         auto resourceFile = artifactsDir / id.format_to(uuidBuffer);

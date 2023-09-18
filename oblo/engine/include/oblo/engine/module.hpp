@@ -6,12 +6,12 @@
 
 namespace oblo::asset
 {
-    class registry;
+    class asset_registry;
 }
 
 namespace oblo::resource
 {
-    class registry;
+    class resource_registry;
 }
 
 namespace oblo::engine
@@ -34,18 +34,18 @@ namespace oblo::engine
         bool startup() override;
         void shutdown() override;
 
-        asset::registry& get_asset_registry() const
+        asset::asset_registry& get_asset_registry() const
         {
             return *m_assetRegistry;
         }
 
-        resource::registry& get_resource_registry() const
+        resource::resource_registry& get_resource_registry() const
         {
             return *m_resourceregistry;
         }
 
     private:
-        std::unique_ptr<asset::registry> m_assetRegistry;
-        std::unique_ptr<resource::registry> m_resourceregistry;
+        std::unique_ptr<asset::asset_registry> m_assetRegistry;
+        std::unique_ptr<resource::resource_registry> m_resourceregistry;
     };
 }

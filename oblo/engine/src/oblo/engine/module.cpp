@@ -1,8 +1,8 @@
 #include <oblo/engine/module.hpp>
 
-#include <oblo/asset/registry.hpp>
+#include <oblo/asset/asset_registry.hpp>
 #include <oblo/core/debug.hpp>
-#include <oblo/resource/registry.hpp>
+#include <oblo/resource/resource_registry.hpp>
 
 namespace oblo::engine
 {
@@ -19,7 +19,7 @@ namespace oblo::engine
     {
         OBLO_ASSERT(!g_instance);
 
-        m_assetRegistry = std::make_unique<asset::registry>();
+        m_assetRegistry = std::make_unique<asset::asset_registry>();
 
         // TODO: Load a project instead
         if (!m_assetRegistry->initialize("./project/assets", "./project/artifacts", "./project/sources"))
@@ -27,8 +27,8 @@ namespace oblo::engine
             return false;
         }
 
-        m_resourceregistry = std::make_unique<resource::registry>();
-        m_resourceregistry->register_provider(&asset::registry::find_artifact_resource, m_assetRegistry.get());
+        m_resourceregistry = std::make_unique<resource::resource_registry>();
+        m_resourceregistry->register_provider(&asset::asset_registry::find_artifact_resource, m_assetRegistry.get());
 
         g_instance = this;
         return true;
