@@ -4,7 +4,7 @@
 
 namespace oblo::scene
 {
-    class SCENE_API module final : public module_interface
+    class SCENE_API scene_module final : public module_interface
     {
     public:
         bool startup() override;
