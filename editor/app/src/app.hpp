@@ -13,7 +13,7 @@
 #include <oblo/editor/windows/viewport.hpp>
 #include <oblo/engine/engine_module.hpp>
 #include <oblo/sandbox/context.hpp>
-#include <oblo/scene/module.hpp>
+#include <oblo/scene/scene_module.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/stateful_command_buffer.hpp>
 #include <oblo/vulkan/texture.hpp>
@@ -33,7 +33,7 @@ namespace oblo::editor
 
             auto& mm = module_manager::get();
             auto* const engine = mm.load<oblo::engine::engine_module>();
-            mm.load<oblo::scene::module>();
+            mm.load<oblo::scene::scene_module>();
             mm.load<oblo::asset::importers::module>();
 
             m_windowManager.create_window<dock_space>();
