@@ -8,7 +8,9 @@
 #include <oblo/editor/windows/dock_space.hpp>
 #include <oblo/editor/windows/inspector.hpp>
 #include <oblo/editor/windows/main_window.hpp>
+#include <oblo/editor/windows/scene_hierarchy.hpp>
 #include <oblo/editor/windows/style_window.hpp>
+#include <oblo/editor/windows/viewport.hpp>
 #include <oblo/engine/module.hpp>
 #include <oblo/sandbox/context.hpp>
 #include <oblo/scene/module.hpp>
@@ -34,9 +36,10 @@ namespace oblo::editor
             mm.load<oblo::asset::importers::module>();
 
             m_windowManager.create_window<dock_space>();
-            // m_runtime.create_window<main_window>();
             m_windowManager.create_window<asset_browser>(engine->get_asset_registry());
             m_windowManager.create_window<inspector>();
+            m_windowManager.create_window<scene_hierarchy>();
+            m_windowManager.create_window<viewport>();
             m_windowManager.create_window<style_window>();
 
             return true;
