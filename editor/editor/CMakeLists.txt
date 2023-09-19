@@ -5,6 +5,9 @@ target_link_libraries(
     PUBLIC
     oblo::asset
     oblo::core
+    oblo::ecs
     PRIVATE
+    oblo::graphics
     3rdparty::imgui
+    oblo::vk
 )

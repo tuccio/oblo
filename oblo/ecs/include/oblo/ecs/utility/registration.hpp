@@ -5,6 +5,8 @@
 #include <oblo/ecs/traits.hpp>
 #include <oblo/ecs/type_registry.hpp>
 
+#include <memory>
+
 namespace oblo::ecs
 {
     template <typename T>
@@ -14,17 +16,7 @@ namespace oblo::ecs
             .type = get_type_id<T>(),
             .size = u32(sizeof(T)),
             .alignment = u32(alignof(T)),
-            .create =
-                [](void* dst, usize count)
-            {
-                T* outIt = static_cast<T*>(dst);
-                T* const end = outIt + count;
-
-                for (; outIt != end; ++outIt)
-                {
-                    new (outIt) T;
-                }
-            },
+            .create = [](void* dst, usize count) { std::uninitialized_value_construct_n(static_cast<T*>(dst), count); },
             .destroy =
                 [](void* dst, usize count)
             {

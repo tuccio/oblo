@@ -127,7 +127,7 @@ namespace oblo::ecs
 
         bool update_iterator_data()
         {
-            if (!fetch_component_offsets(*m_it, m_range->m_targets, m_offsets))
+            if (!m_it || !fetch_component_offsets(*m_it, m_range->m_targets, m_offsets))
             {
                 return false;
             }
