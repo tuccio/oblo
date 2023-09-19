@@ -17,7 +17,7 @@ int SDL_main(int, char*[])
         .imguiIniFile = "oblo.imgui.ini",
         .uiUseDocking = true,
         .uiUseMultiViewport = true,
-        .vkUseValidationLayers = false,
+        .vkUseValidationLayers = true,
     });
 
     if (!app.init())

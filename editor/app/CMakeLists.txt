@@ -5,10 +5,12 @@ target_link_libraries(
     PRIVATE
     oblo::editor
     oblo::engine
+    oblo::ecs
+    oblo::graphics
+    oblo::importers
     oblo::modules
     oblo::sandbox
     oblo::scene
-    oblo::importers
     SDL2::SDL2
     SDL2::SDL2main
 )

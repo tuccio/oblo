@@ -7,7 +7,7 @@ namespace oblo::vk
 {
     class resource_manager;
 
-    vk_result<texture> create_2d_render_target(allocator& allocator,
+    vk_result<texture> create_2d_render_target(const allocator& allocator,
                                                u32 width,
                                                u32 height,
                                                VkFormat format,
