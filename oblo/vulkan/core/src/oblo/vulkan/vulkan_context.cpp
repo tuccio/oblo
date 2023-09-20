@@ -12,7 +12,7 @@ namespace oblo::vk
     {
         command_buffer_pool pool;
         VkFence fence{VK_NULL_HANDLE};
-        u64 frameIndex{0};
+        u64 submitIndex{0};
     };
 
     vulkan_context::vulkan_context() = default;
@@ -102,7 +102,7 @@ namespace oblo::vk
         OBLO_VK_PANIC(
             vkGetSemaphoreCounterValue(m_engine->get_device(), m_timelineSemaphore, &m_currentSemaphoreValue));
 
-        if (m_currentSemaphoreValue < submitInfo.frameIndex)
+        if (m_currentSemaphoreValue < submitInfo.submitIndex)
         {
             OBLO_VK_PANIC(vkWaitForFences(m_engine->get_device(), 1, &submitInfo.fence, 0, UINT64_MAX));
         }
@@ -155,6 +155,7 @@ namespace oblo::vk
         constexpr u32 commandBufferEnd = 2;
 
         auto& currentSubmit = m_submitInfo[m_poolIndex];
+        currentSubmit.submitIndex = m_submitIndex;
 
         if (m_currentCb.has_incomplete_transitions())
         {
