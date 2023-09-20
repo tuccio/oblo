@@ -60,6 +60,11 @@ namespace oblo::vk
         return vkDestroyImageView(device, imageView, nullptr);
     }
 
+    inline void destroy_device_object(VkDevice device, VkSampler sampler)
+    {
+        return vkDestroySampler(device, sampler, nullptr);
+    }
+
     template <typename T, std::size_t N>
     void destroy_device_object(VkDevice device, std::span<T, N> objects)
     {

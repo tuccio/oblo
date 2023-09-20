@@ -59,8 +59,10 @@ namespace oblo::vk
         stateful_command_buffer m_currentCb;
 
         u32 m_poolIndex{0};
-        u64 m_submitIndex{0};
         u64 m_currentSemaphoreValue{0};
+
+        // We want the submit index to start from more than 0, which is the starting value of the semaphore
+        u64 m_submitIndex{1};
     };
 
     struct vulkan_context::initializer

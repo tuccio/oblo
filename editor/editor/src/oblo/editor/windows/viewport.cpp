@@ -5,6 +5,8 @@
 #include <oblo/ecs/type_set.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
 #include <oblo/vulkan/create_render_target.hpp>
+#include <oblo/vulkan/destroy_device_objects.hpp>
+#include <oblo/vulkan/destroy_resources.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
@@ -16,7 +18,7 @@
 namespace oblo::editor
 {
     viewport::viewport(vk::vulkan_context& context, ecs::entity_registry& entities) :
-        m_allocator{&context.get_allocator()}, m_resourceManager{&context.get_resource_manager()}, m_entities{&entities}
+        m_ctx{&context}, m_entities{&entities}
     {
         constexpr VkSamplerCreateInfo samplerInfo{
             .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
@@ -35,18 +37,17 @@ namespace oblo::editor
 
     viewport::~viewport()
     {
-        // We should destroy in the next frame really, since this might be in use
-        if (m_texture)
-        {
-            m_resourceManager->destroy(*m_allocator, m_texture);
-        }
+        // We should destroy in the next frame really, since this might be in use, we wait for idle for now
+        vkDeviceWaitIdle(m_ctx->get_device());
+
+        vk::reset_texture(*m_ctx, m_texture);
 
         if (m_descriptorSet)
         {
             ImGui_ImplVulkan_RemoveTexture(m_descriptorSet);
         }
 
-        // TODO: Destroy sampler
+        vk::reset_device_object(m_ctx->get_device(), m_sampler);
     }
 
     bool viewport::update()
@@ -63,7 +64,7 @@ namespace oblo::editor
             // TODO: handle resize
             if (!m_texture)
             {
-                const auto result = vk::create_2d_render_target(*m_allocator,
+                const auto result = vk::create_2d_render_target(m_ctx->get_allocator(),
                                                                 u32(windowSize.x),
                                                                 u32(windowSize.y),
                                                                 VK_FORMAT_R8G8B8A8_UNORM,
@@ -72,7 +73,7 @@ namespace oblo::editor
 
                 if (result)
                 {
-                    m_texture = m_resourceManager->register_texture(*result, VK_IMAGE_LAYOUT_UNDEFINED);
+                    m_texture = m_ctx->get_resource_manager().register_texture(*result, VK_IMAGE_LAYOUT_UNDEFINED);
                     m_descriptorSet =
                         ImGui_ImplVulkan_AddTexture(m_sampler, result->view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
                 }

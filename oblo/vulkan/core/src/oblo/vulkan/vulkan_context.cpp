@@ -83,14 +83,14 @@ namespace oblo::vk
     {
         vkDeviceWaitIdle(m_engine->get_device());
 
-        m_submitInfo.clear();
-
         reset_device_objects(m_engine->get_device(), m_timelineSemaphore);
 
         for (auto& submitInfo : m_submitInfo)
         {
             reset_device_objects(m_engine->get_device(), submitInfo.fence);
         }
+
+        m_submitInfo.clear();
     }
 
     void vulkan_context::frame_begin()

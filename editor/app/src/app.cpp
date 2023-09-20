@@ -74,6 +74,8 @@ namespace oblo::editor
     void app::shutdown(const vk::sandbox_shutdown_context&)
     {
         platform::shutdown();
+
+        m_windowManager.shutdown();
     }
 
     void app::update(const vk::sandbox_render_context& context)

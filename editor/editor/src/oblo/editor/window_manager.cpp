@@ -39,4 +39,9 @@ namespace oblo::editor
             }
         }
     }
+
+    void window_manager::shutdown()
+    {
+        m_windows.clear();
+    }
 }

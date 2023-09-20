@@ -12,8 +12,8 @@
 #include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/renderer_context.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
+#include <oblo/vulkan/stateful_command_buffer.hpp>
 #include <oblo/vulkan/texture.hpp>
-#include <oblo/vulkan/textures.hpp>
 
 namespace oblo::vk
 {
