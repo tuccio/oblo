@@ -17,8 +17,6 @@ namespace oblo::ecs
 
 namespace oblo::vk
 {
-    class allocator;
-    class resource_manager;
     class vulkan_context;
     struct texture;
 }
@@ -40,8 +38,7 @@ namespace oblo::editor
         bool update();
 
     private:
-        vk::allocator* m_allocator;
-        vk::resource_manager* m_resourceManager;
+        vk::vulkan_context* m_ctx;
         VkDescriptorSet m_descriptorSet{};
         VkSampler m_sampler;
         h32<vk::texture> m_texture{};

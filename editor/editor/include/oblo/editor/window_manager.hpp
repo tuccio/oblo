@@ -27,6 +27,8 @@ namespace oblo::editor
 
         void update();
 
+        void shutdown();
+
     private:
         struct window_entry;
 
