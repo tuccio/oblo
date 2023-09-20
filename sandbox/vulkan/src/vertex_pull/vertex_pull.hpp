@@ -104,5 +104,7 @@ namespace oblo::vk
         u32 m_layoutQuadsPerRow;
         f32 m_layoutQuadScale;
         f32 m_layoutOffset;
+
+        u32 m_frameIndex{0};
     };
 }

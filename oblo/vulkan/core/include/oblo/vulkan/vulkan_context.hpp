@@ -35,6 +35,14 @@ namespace oblo::vk
         stateful_command_buffer& get_active_command_buffer();
         void submit_active_command_buffer();
 
+        VkInstance get_instance() const;
+        VkDevice get_device() const;
+        VkPhysicalDevice get_physical_device() const;
+
+        single_queue_engine& get_engine() const;
+        allocator& get_allocator() const;
+        resource_manager& get_resource_manager() const;
+
     private:
         struct submit_info;
 
@@ -64,4 +72,34 @@ namespace oblo::vk
         u32 buffersPerFrame;
         u32 submitsInFlight;
     };
+
+    inline VkInstance vulkan_context::get_instance() const
+    {
+        return m_instance;
+    }
+
+    inline VkDevice vulkan_context::get_device() const
+    {
+        return m_engine->get_device();
+    }
+
+    inline VkPhysicalDevice vulkan_context::get_physical_device() const
+    {
+        return m_engine->get_physical_device();
+    }
+
+    inline single_queue_engine& vulkan_context::get_engine() const
+    {
+        return *m_engine;
+    }
+
+    inline allocator& vulkan_context::get_allocator() const
+    {
+        return *m_allocator;
+    }
+
+    inline resource_manager& vulkan_context::get_resource_manager() const
+    {
+        return *m_resourceManager;
+    }
 }

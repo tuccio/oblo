@@ -18,6 +18,7 @@ namespace oblo
 
 namespace oblo::vk
 {
+    class vulkan_context;
     struct buffer;
 
     class renderer
@@ -55,9 +56,7 @@ namespace oblo::vk
         struct render_graph_data;
 
     private:
-        single_queue_engine* m_engine{nullptr};
-        allocator* m_allocator{nullptr};
-        resource_manager* m_resourceManager{nullptr};
+        vulkan_context* m_vkContext{nullptr};
 
         mesh_table m_meshes;
         staging_buffer m_stagingBuffer;
@@ -73,32 +72,15 @@ namespace oblo::vk
 
     struct renderer::initializer
     {
-        single_queue_engine& engine;
-        allocator& allocator;
+        vulkan_context& vkContext;
         frame_allocator& frameAllocator;
-        resource_manager& resourceManager;
     };
 
     struct renderer::update_context
     {
-        stateful_command_buffer& commandBuffer;
+        vulkan_context& vkContext;
         frame_allocator& frameAllocator;
     };
-
-    inline single_queue_engine& renderer::get_engine()
-    {
-        return *m_engine;
-    }
-
-    inline allocator& renderer::get_allocator()
-    {
-        return *m_allocator;
-    }
-
-    inline resource_manager& renderer::get_resource_manager()
-    {
-        return *m_resourceManager;
-    }
 
     inline string_interner& renderer::get_string_interner()
     {

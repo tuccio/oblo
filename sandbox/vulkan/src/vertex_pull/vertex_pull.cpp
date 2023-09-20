@@ -3,13 +3,14 @@
 #include <oblo/core/array_size.hpp>
 #include <oblo/math/angle.hpp>
 #include <oblo/math/vec3.hpp>
+#include <oblo/sandbox/context.hpp>
 #include <oblo/vulkan/destroy_device_objects.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/shader_compiler.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
 #include <oblo/vulkan/stateful_command_buffer.hpp>
 #include <oblo/vulkan/texture.hpp>
-#include <oblo/sandbox/context.hpp>
+#include <oblo/vulkan/vulkan_context.hpp>
 
 #include <imgui.h>
 
@@ -54,17 +55,17 @@ namespace oblo::vk
         create_geometry();
         compute_layout_params();
 
-        const VkDevice device = context.engine->get_device();
+        const VkDevice device = context.vkContext->get_device();
 
         return compile_shader_modules(*context.frameAllocator, device) && create_pools(device) &&
                create_descriptor_set_layouts(device) && create_pipelines(device, context.swapchainFormat) &&
-               create_buffers(device, *context.allocator);
+               create_buffers(device, context.vkContext->get_allocator());
     }
 
     void vertex_pull::shutdown(const sandbox_shutdown_context& context)
     {
-        const VkDevice device = context.engine->get_device();
-        destroy_buffers(*context.allocator);
+        const VkDevice device = context.vkContext->get_device();
+        destroy_buffers(context.vkContext->get_allocator());
         destroy_pipelines(device);
         destroy_pools(device);
         destroy_shader_modules(device);
@@ -72,10 +73,10 @@ namespace oblo::vk
 
     void vertex_pull::update(const sandbox_render_context& context)
     {
-        const VkCommandBuffer commandBuffer = context.commandBuffer->get();
+        const VkCommandBuffer commandBuffer = context.vkContext->get_active_command_buffer().get();
 
         {
-            const auto swapchainTexture = context.resourceManager->get(context.swapchainTexture);
+            const auto swapchainTexture = context.vkContext->get_resource_manager().get(context.swapchainTexture);
 
             const VkImageMemoryBarrier imageMemoryBarrier{
                 .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -121,7 +122,7 @@ namespace oblo::vk
             break;
         }
 
-        const auto& swapchainTexture = context.resourceManager->get(context.swapchainTexture);
+        const auto& swapchainTexture = context.vkContext->get_resource_manager().get(context.swapchainTexture);
 
         const VkRenderingAttachmentInfo colorAttachmentInfo{
             .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -158,8 +159,8 @@ namespace oblo::vk
             vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
         }
 
-        const auto poolIndex = context.frameIndex % MaxFramesInFlight;
-        const VkDevice device = context.engine->get_device();
+        const auto poolIndex = m_frameIndex % MaxFramesInFlight;
+        const VkDevice device = context.vkContext->get_device();
         const VkDescriptorPool descriptorPool = m_descriptorPools[poolIndex];
         vkResetDescriptorPool(device, descriptorPool, 0);
 
@@ -404,6 +405,8 @@ namespace oblo::vk
         }
 
         vkCmdEndRendering(commandBuffer);
+
+        ++m_frameIndex;
     }
 
     void vertex_pull::update_imgui(const sandbox_update_imgui_context& context)
@@ -490,15 +493,15 @@ namespace oblo::vk
 
             if (updateGeometry)
             {
-                const auto device = context.engine->get_device();
+                const auto device = context.vkContext->get_device();
                 vkDeviceWaitIdle(device);
 
-                destroy_buffers(*context.allocator);
+                destroy_buffers(context.vkContext->get_allocator());
 
                 create_geometry();
                 compute_layout_params();
 
-                create_buffers(device, *context.allocator);
+                create_buffers(device, context.vkContext->get_allocator());
             }
         }
     }

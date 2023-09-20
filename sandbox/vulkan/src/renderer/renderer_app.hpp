@@ -22,10 +22,8 @@ namespace oblo::vk
         bool init(const sandbox_init_context& context)
         {
             return m_renderer.init({
-                .engine = *context.engine,
-                .allocator = *context.allocator,
+                .vkContext = *context.vkContext,
                 .frameAllocator = *context.frameAllocator,
-                .resourceManager = *context.resourceManager,
             });
         }
 
@@ -77,7 +75,7 @@ namespace oblo::vk
             }
 
             m_renderer.update({
-                .commandBuffer = *context.commandBuffer,
+                .vkContext = *context.vkContext,
                 .frameAllocator = *context.frameAllocator,
             });
         }

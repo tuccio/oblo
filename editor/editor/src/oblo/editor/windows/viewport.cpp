@@ -8,18 +8,15 @@
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
+#include <oblo/vulkan/vulkan_context.hpp>
 
 #include <backends/imgui_impl_vulkan.h>
 #include <imgui.h>
 
 namespace oblo::editor
 {
-    viewport::viewport(vk::allocator& allocator,
-                       const vk::single_queue_engine& engine,
-                       vk::resource_manager& resourceManager,
-                       ecs::entity_registry& entities) :
-        m_allocator{&allocator},
-        m_resourceManager{&resourceManager}, m_entities{&entities}
+    viewport::viewport(vk::vulkan_context& context, ecs::entity_registry& entities) :
+        m_allocator{&context.get_allocator()}, m_resourceManager{&context.get_resource_manager()}, m_entities{&entities}
     {
         constexpr VkSamplerCreateInfo samplerInfo{
             .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
@@ -33,7 +30,7 @@ namespace oblo::editor
             .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
         };
 
-        OBLO_VK_PANIC(vkCreateSampler(engine.get_device(), &samplerInfo, nullptr, &m_sampler));
+        OBLO_VK_PANIC(vkCreateSampler(context.get_device(), &samplerInfo, nullptr, &m_sampler));
     }
 
     viewport::~viewport()

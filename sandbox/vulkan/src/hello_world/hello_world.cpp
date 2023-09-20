@@ -3,12 +3,13 @@
 #include <oblo/core/array_size.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec3.hpp>
+#include <oblo/sandbox/context.hpp>
 #include <oblo/vulkan/destroy_device_objects.hpp>
 #include <oblo/vulkan/shader_compiler.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
 #include <oblo/vulkan/stateful_command_buffer.hpp>
 #include <oblo/vulkan/texture.hpp>
-#include <oblo/sandbox/context.hpp>
+#include <oblo/vulkan/vulkan_context.hpp>
 
 #include <imgui.h>
 
@@ -16,17 +17,20 @@ namespace oblo::vk
 {
     bool hello_world::init(const sandbox_init_context& context)
     {
-        const auto device = context.engine->get_device();
+        const auto device = context.vkContext->get_device();
         return create_shader_modules(*context.frameAllocator, device) &&
-               create_graphics_pipeline(device, context.swapchainFormat) && create_vertex_buffers(*context.allocator);
+               create_graphics_pipeline(device, context.swapchainFormat) &&
+               create_vertex_buffers(context.vkContext->get_allocator());
     }
 
     void hello_world::shutdown(const sandbox_shutdown_context& context)
     {
-        context.allocator->destroy(m_positions);
-        context.allocator->destroy(m_colors);
+        auto& allocator = context.vkContext->get_allocator();
 
-        reset_device_objects(context.engine->get_device(),
+        allocator.destroy(m_positions);
+        allocator.destroy(m_colors);
+
+        reset_device_objects(context.vkContext->get_device(),
                              m_graphicsPipeline,
                              m_pipelineLayout,
                              m_vertShaderModule,
@@ -35,23 +39,31 @@ namespace oblo::vk
 
     void hello_world::update(const sandbox_render_context& context)
     {
+        auto& vkContext = *context.vkContext;
+        auto& resourceManager = vkContext.get_resource_manager();
+
+        auto& commandBuffer = vkContext.get_active_command_buffer();
+
         {
-            const auto swapchainTexture = context.resourceManager->get(context.swapchainTexture);
+            const auto swapchainTexture = resourceManager.get(context.swapchainTexture);
 
-            const VkImageMemoryBarrier imageMemoryBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-                                                          .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-                                                          .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-                                                          .newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                                                          .image = swapchainTexture.image,
-                                                          .subresourceRange = {
-                                                              .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                                                              .baseMipLevel = 0,
-                                                              .levelCount = 1,
-                                                              .baseArrayLayer = 0,
-                                                              .layerCount = 1,
-                                                          }};
+            const VkImageMemoryBarrier imageMemoryBarrier{
+                .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                .newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                .image = swapchainTexture.image,
+                .subresourceRange =
+                    {
+                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .baseMipLevel = 0,
+                        .levelCount = 1,
+                        .baseArrayLayer = 0,
+                        .layerCount = 1,
+                    },
+            };
 
-            vkCmdPipelineBarrier(context.commandBuffer->get(),
+            vkCmdPipelineBarrier(commandBuffer.get(),
                                  VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                                  VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                                  0,
@@ -63,7 +75,7 @@ namespace oblo::vk
                                  &imageMemoryBarrier);
         }
 
-        const auto& swapchainTexture = context.resourceManager->get(context.swapchainTexture);
+        const auto& swapchainTexture = resourceManager.get(context.swapchainTexture);
 
         const VkRenderingAttachmentInfo colorAttachmentInfo{
             .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -81,7 +93,7 @@ namespace oblo::vk
             .pColorAttachments = &colorAttachmentInfo,
         };
 
-        vkCmdBindPipeline(context.commandBuffer->get(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+        vkCmdBindPipeline(commandBuffer.get(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
 
         {
             const VkViewport viewport{
@@ -93,19 +105,19 @@ namespace oblo::vk
 
             const VkRect2D scissor{.extent{.width = context.width, .height = context.height}};
 
-            vkCmdSetViewport(context.commandBuffer->get(), 0, 1, &viewport);
-            vkCmdSetScissor(context.commandBuffer->get(), 0, 1, &scissor);
+            vkCmdSetViewport(commandBuffer.get(), 0, 1, &viewport);
+            vkCmdSetScissor(commandBuffer.get(), 0, 1, &scissor);
         }
 
-        vkCmdBeginRendering(context.commandBuffer->get(), &renderInfo);
+        vkCmdBeginRendering(commandBuffer.get(), &renderInfo);
 
         const VkBuffer vertexBuffers[] = {m_positions.buffer, m_colors.buffer};
         constexpr VkDeviceSize offsets[] = {0, 0};
-        vkCmdBindVertexBuffers(context.commandBuffer->get(), 0, 2, vertexBuffers, offsets);
+        vkCmdBindVertexBuffers(commandBuffer.get(), 0, 2, vertexBuffers, offsets);
 
-        vkCmdDraw(context.commandBuffer->get(), 3, 1, 0, 0);
+        vkCmdDraw(commandBuffer.get(), 3, 1, 0, 0);
 
-        vkCmdEndRendering(context.commandBuffer->get());
+        vkCmdEndRendering(commandBuffer.get());
     }
 
     bool hello_world::create_shader_modules(frame_allocator& allocator, VkDevice device)

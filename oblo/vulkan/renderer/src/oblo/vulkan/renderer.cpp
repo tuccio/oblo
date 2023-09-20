@@ -8,6 +8,7 @@
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
 #include <oblo/vulkan/texture.hpp>
+#include <oblo/vulkan/vulkan_context.hpp>
 
 namespace oblo::vk
 {
@@ -22,14 +23,12 @@ namespace oblo::vk
 
     bool renderer::init(const renderer::initializer& context)
     {
-        m_allocator = &context.allocator;
-        m_engine = &context.engine;
-        m_resourceManager = &context.resourceManager;
+        m_vkContext = &context.vkContext;
 
-        m_stagingBuffer.init(*m_engine, *m_allocator, 1u << 29);
+        m_stagingBuffer.init(get_engine(), get_allocator(), 1u << 29);
 
-        m_dummy = m_resourceManager->create(
-            *m_allocator,
+        m_dummy = m_vkContext->get_resource_manager().create(
+            get_allocator(),
             {
                 .size = 16u,
                 .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
@@ -37,14 +36,17 @@ namespace oblo::vk
             });
 
         m_stringInterner.init(64);
-        m_renderPassManager.init(m_engine->get_device(), m_stringInterner, m_dummy);
+        m_renderPassManager.init(m_vkContext->get_device(), m_stringInterner, m_dummy);
 
         return true;
     }
 
     void renderer::shutdown(frame_allocator& frameAllocator)
     {
-        m_meshes.shutdown(*m_allocator, *m_resourceManager);
+        auto& allocator = m_vkContext->get_allocator();
+        auto& resourceManager = m_vkContext->get_resource_manager();
+
+        m_meshes.shutdown(allocator, resourceManager);
 
         renderer_context rendererContext{.renderer = *this, .frameAllocator = frameAllocator};
 
@@ -56,7 +58,7 @@ namespace oblo::vk
         m_renderGraphs.clear();
 
         m_renderPassManager.shutdown();
-        m_resourceManager->destroy(*m_allocator, m_dummy);
+        resourceManager.destroy(allocator, m_dummy);
 
         m_stagingBuffer.shutdown();
     }
@@ -66,7 +68,7 @@ namespace oblo::vk
         renderer_context rendererContext{
             .renderer = *this,
             .frameAllocator = context.frameAllocator,
-            .commandBuffer = &context.commandBuffer,
+            .commandBuffer = &m_vkContext->get_active_command_buffer(),
         };
 
         for (auto& [graph, executor] : m_renderGraphs.values())
@@ -119,5 +121,20 @@ namespace oblo::vk
     {
         auto* const graph = m_renderGraphs.try_find(handle);
         return graph ? &graph->graph : nullptr;
+    }
+
+    single_queue_engine& renderer::get_engine()
+    {
+        return m_vkContext->get_engine();
+    }
+
+    allocator& renderer::get_allocator()
+    {
+        return m_vkContext->get_allocator();
+    }
+
+    resource_manager& renderer::get_resource_manager()
+    {
+        return m_vkContext->get_resource_manager();
     }
 }

@@ -24,6 +24,7 @@
 #include <oblo/vulkan/single_queue_engine.hpp>
 #include <oblo/vulkan/stateful_command_buffer.hpp>
 #include <oblo/vulkan/texture.hpp>
+#include <oblo/vulkan/vulkan_context.hpp>
 
 namespace oblo::editor
 {
@@ -60,13 +61,10 @@ namespace oblo::editor
         m_windowManager.create_window<asset_browser>(engine->get_asset_registry());
         m_windowManager.create_window<inspector>();
         m_windowManager.create_window<scene_hierarchy>();
-        m_windowManager.create_window<viewport>(*ctx.allocator, *ctx.engine, *ctx.resourceManager, m_entities);
+        m_windowManager.create_window<viewport>(*ctx.vkContext, m_entities);
         // m_windowManager.create_window<style_window>();
 
-        m_services.add<vk::allocator>().externally_owned(ctx.allocator);
-        m_services.add<vk::resource_manager>().externally_owned(ctx.resourceManager);
-        m_services.add<vk::single_queue_engine>().externally_owned(ctx.engine);
-        m_services.add<vk::stateful_command_buffer*>().externally_owned(&m_currentCb);
+        m_services.add<vk::vulkan_context>().externally_owned(ctx.vkContext);
 
         m_executor = create_system_executor();
 
@@ -80,13 +78,10 @@ namespace oblo::editor
 
     void app::update(const vk::sandbox_render_context& context)
     {
-        // We pass it down through the service registry because we don't have a way of manging command buffers yet
-        m_currentCb = context.commandBuffer;
-
         m_executor.update(ecs::system_update_context{.entities = &m_entities, .services = &m_services});
 
-        auto& resourceManager = *context.resourceManager;
-        auto& commandBuffer = *context.commandBuffer;
+        auto& resourceManager = context.vkContext->get_resource_manager();
+        auto& commandBuffer = context.vkContext->get_active_command_buffer();
 
         commandBuffer.add_pipeline_barrier(resourceManager,
                                            context.swapchainTexture,

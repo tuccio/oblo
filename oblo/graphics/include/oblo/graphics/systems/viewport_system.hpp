@@ -9,8 +9,7 @@ namespace oblo::ecs
 
 namespace oblo::vk
 {
-    class allocator;
-    class resource_manager;
+    class vulkan_context;
 }
 
 namespace oblo::graphics
@@ -22,8 +21,6 @@ namespace oblo::graphics
         void update(const ecs::system_update_context& ctx);
 
     private:
-        vk::allocator* m_allocator{nullptr};
-        vk::resource_manager* m_resourceManager{nullptr};
-        VkSampler m_sampler{};
+        vk::vulkan_context* m_vkCtx{nullptr};
     };
 };

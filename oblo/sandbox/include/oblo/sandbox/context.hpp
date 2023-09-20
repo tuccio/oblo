@@ -11,19 +11,14 @@ namespace oblo
 
 namespace oblo::vk
 {
-    class allocator;
+    class vulkan_context;
     class render_pass_manager;
-    class resource_manager;
-    class single_queue_engine;
-    class stateful_command_buffer;
     struct texture;
 
     struct sandbox_init_context
     {
-        single_queue_engine* engine;
-        allocator* allocator;
+        vulkan_context* vkContext;
         frame_allocator* frameAllocator;
-        resource_manager* resourceManager;
         VkFormat swapchainFormat;
         u32 width;
         u32 height;
@@ -31,29 +26,21 @@ namespace oblo::vk
 
     struct sandbox_shutdown_context
     {
-        single_queue_engine* engine;
-        allocator* allocator;
+        vulkan_context* vkContext;
         frame_allocator* frameAllocator;
-        resource_manager* resourceManager;
     };
 
     struct sandbox_render_context
     {
-        single_queue_engine* engine;
-        allocator* allocator;
+        vulkan_context* vkContext;
         frame_allocator* frameAllocator;
-        resource_manager* resourceManager;
-        stateful_command_buffer* commandBuffer;
         h32<texture> swapchainTexture;
         u32 width;
         u32 height;
-        u64 frameIndex;
     };
 
     struct sandbox_update_imgui_context
     {
-        single_queue_engine* engine;
-        allocator* allocator;
-        resource_manager* resourceManager;
+        vulkan_context* vkContext;
     };
 }
