@@ -33,12 +33,7 @@ namespace oblo::vk
         void end_frame(VkCommandBuffer commandBuffer, VkImageView imageView, u32 width, u32 height);
 
     private:
-        bool create_dummy_pipeline(VkDevice device);
-        void destroy_dummy_pipeline(VkDevice device);
-
-    private:
         ImGuiContext* m_context{nullptr};
         VkDescriptorPool m_descriptorPool{nullptr};
-        VkPipeline m_dummyPipeline{nullptr};
     };
 }
