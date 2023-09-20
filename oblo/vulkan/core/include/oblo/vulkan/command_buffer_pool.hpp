@@ -32,6 +32,8 @@ namespace oblo::vk
         VkCommandBuffer fetch_buffer();
         void fetch_buffers(std::span<VkCommandBuffer> outBuffers);
 
+        bool is_valid() const;
+
     private:
         void allocate_buffers(std::size_t count);
 

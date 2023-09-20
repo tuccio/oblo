@@ -5,6 +5,34 @@
 
 namespace oblo::vk
 {
+    command_buffer_pool::command_buffer_pool(command_buffer_pool&& other) noexcept
+    {
+        m_device = other.m_device;
+        m_commandPool = other.m_commandPool;
+        m_commandBuffers = std::move(other.m_commandBuffers);
+        m_trackingInfo = std::move(other.m_trackingInfo);
+        m_resetCommandBuffers = other.m_resetCommandBuffers;
+
+        other.m_device = nullptr;
+        other.m_commandPool = nullptr;
+    }
+
+    command_buffer_pool& command_buffer_pool::operator=(command_buffer_pool&& other) noexcept
+    {
+        shutdown();
+
+        m_device = other.m_device;
+        m_commandPool = other.m_commandPool;
+        m_commandBuffers = std::move(other.m_commandBuffers);
+        m_trackingInfo = std::move(other.m_trackingInfo);
+        m_resetCommandBuffers = other.m_resetCommandBuffers;
+
+        other.m_device = nullptr;
+        other.m_commandPool = nullptr;
+
+        return *this;
+    }
+
     command_buffer_pool::~command_buffer_pool()
     {
         if (m_commandPool)
@@ -166,5 +194,10 @@ namespace oblo::vk
 
         OBLO_VK_PANIC(vkAllocateCommandBuffers(m_device, &allocateInfo, fetchResult.firstSegmentBegin));
         m_commandBuffers.release(count);
+    }
+
+    bool command_buffer_pool::is_valid() const
+    {
+        return m_commandPool != nullptr;
     }
 }

@@ -16,9 +16,7 @@ namespace oblo::vk
 
         using command_buffer_state::set_starting_layout;
 
-        void add_pipeline_barrier(const resource_manager& resourceManager,
-                                  h32<texture> handle,
-                                  VkImageLayout newLayout)
+        void add_pipeline_barrier(const resource_manager& resourceManager, h32<texture> handle, VkImageLayout newLayout)
         {
             command_buffer_state::add_pipeline_barrier(resourceManager, handle, m_cmdBuffer, newLayout);
         }
@@ -26,6 +24,11 @@ namespace oblo::vk
         VkCommandBuffer get() const
         {
             return m_cmdBuffer;
+        }
+
+        bool is_valid() const
+        {
+            return m_cmdBuffer != nullptr;
         }
 
     private:

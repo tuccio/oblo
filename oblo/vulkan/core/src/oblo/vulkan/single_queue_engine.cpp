@@ -121,7 +121,6 @@ namespace oblo::vk
 
         vkGetDeviceQueue(m_device, graphicsQueueFamilyIndex, 0, &m_queue);
         m_queueFamilyIndex = graphicsQueueFamilyIndex;
-        m_instance = instance;
 
         return true;
     }

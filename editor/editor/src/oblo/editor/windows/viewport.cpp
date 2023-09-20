@@ -14,7 +14,7 @@
 
 namespace oblo::editor
 {
-    viewport::viewport(const vk::allocator& allocator,
+    viewport::viewport(vk::allocator& allocator,
                        const vk::single_queue_engine& engine,
                        vk::resource_manager& resourceManager,
                        ecs::entity_registry& entities) :
@@ -38,8 +38,18 @@ namespace oblo::editor
 
     viewport::~viewport()
     {
-        // TODO: Delete texture (or better just use a pool)
-        // TODO: Delete the imgui texture (or just handle the descriptor ourselves)
+        // We should destroy in the next frame really, since this might be in use
+        if (m_texture)
+        {
+            m_resourceManager->destroy(*m_allocator, m_texture);
+        }
+
+        if (m_descriptorSet)
+        {
+            ImGui_ImplVulkan_RemoveTexture(m_descriptorSet);
+        }
+
+        // TODO: Destroy sampler
     }
 
     bool viewport::update()
@@ -66,7 +76,7 @@ namespace oblo::editor
                 if (result)
                 {
                     m_texture = m_resourceManager->register_texture(*result, VK_IMAGE_LAYOUT_UNDEFINED);
-                    m_imguiImage =
+                    m_descriptorSet =
                         ImGui_ImplVulkan_AddTexture(m_sampler, result->view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
                 }
 
@@ -74,9 +84,9 @@ namespace oblo::editor
                 m_entities->get<graphics::viewport_component>(e).texture = m_texture;
             }
 
-            if (m_imguiImage)
+            if (m_descriptorSet)
             {
-                ImGui::Image(m_imguiImage, windowSize);
+                ImGui::Image(m_descriptorSet, windowSize);
             }
 
             ImGui::End();

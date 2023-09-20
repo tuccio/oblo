@@ -4,7 +4,6 @@
 #include <oblo/sandbox/sandbox_app_config.hpp>
 #include <vulkan/vulkan.h>
 
-
 struct ImGuiContext;
 struct SDL_Window;
 union SDL_Event;
@@ -16,14 +15,16 @@ namespace oblo::vk
     class imgui
     {
     public:
-        bool init(SDL_Window* window,
-                  VkInstance,
-                  VkPhysicalDevice physicalDevice,
-                  VkDevice device,
-                  VkQueue queue,
-                  VkCommandBuffer commandBuffer,
-                  u32 swapchainImageCount,
-                  const sandbox_app_config& config);
+        bool fill_init_command_buffer(SDL_Window* window,
+                                      VkInstance,
+                                      VkPhysicalDevice physicalDevice,
+                                      VkDevice device,
+                                      VkQueue queue,
+                                      VkCommandBuffer commandBuffer,
+                                      u32 swapchainImageCount,
+                                      const sandbox_app_config& config);
+
+        void finalize_init(VkDevice device);
 
         void shutdown(VkDevice device);
 

@@ -29,7 +29,7 @@ namespace oblo::editor
     {
     public:
         viewport() = delete;
-        viewport(const vk::allocator& allocator,
+        viewport(vk::allocator& allocator,
                  const vk::single_queue_engine& engine,
                  vk::resource_manager& resourceManager,
                  ecs::entity_registry& entities);
@@ -43,9 +43,9 @@ namespace oblo::editor
         bool update();
 
     private:
-        const vk::allocator* m_allocator;
+        vk::allocator* m_allocator;
         vk::resource_manager* m_resourceManager;
-        void* m_imguiImage{};
+        VkDescriptorSet m_descriptorSet{};
         VkSampler m_sampler;
         h32<vk::texture> m_texture{};
         ecs::entity_registry* m_entities;
