@@ -14,14 +14,14 @@
 
 namespace oblo::vk
 {
-    bool imgui::init(SDL_Window* window,
-                     VkInstance instance,
-                     VkPhysicalDevice physicalDevice,
-                     VkDevice device,
-                     VkQueue queue,
-                     VkCommandBuffer commandBuffer,
-                     u32 swapchainImageCount,
-                     const sandbox_app_config& config)
+    bool imgui::fill_init_command_buffer(SDL_Window* window,
+                                         VkInstance instance,
+                                         VkPhysicalDevice physicalDevice,
+                                         VkDevice device,
+                                         VkQueue queue,
+                                         VkCommandBuffer commandBuffer,
+                                         u32 swapchainImageCount,
+                                         const sandbox_app_config& config)
     {
         if (m_context)
         {
@@ -86,32 +86,14 @@ namespace oblo::vk
             .MSAASamples = VK_SAMPLE_COUNT_1_BIT,
         };
 
-        if (ImGui_ImplVulkan_Init(&initInfo, nullptr) && create_dummy_pipeline(device))
-        {
-            const VkCommandBufferBeginInfo beginInfo = {
-                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-                .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-            };
+        return ImGui_ImplVulkan_Init(&initInfo, nullptr) && create_dummy_pipeline(device) &&
+               ImGui_ImplVulkan_CreateFontsTexture(commandBuffer);
+    }
 
-            OBLO_VK_PANIC(vkBeginCommandBuffer(commandBuffer, &beginInfo));
-
-            bool success = ImGui_ImplVulkan_CreateFontsTexture(commandBuffer);
-
-            const VkSubmitInfo submitInfo = {
-                .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                .commandBufferCount = 1,
-                .pCommandBuffers = &commandBuffer,
-            };
-
-            OBLO_VK_PANIC(vkEndCommandBuffer(commandBuffer));
-            OBLO_VK_PANIC(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));
-            OBLO_VK_PANIC(vkDeviceWaitIdle(device));
-
-            ImGui_ImplVulkan_DestroyFontUploadObjects();
-            return success;
-        }
-
-        return false;
+    void imgui::finalize_init(VkDevice device)
+    {
+        OBLO_VK_PANIC(vkDeviceWaitIdle(device));
+        ImGui_ImplVulkan_DestroyFontUploadObjects();
     }
 
     void imgui::shutdown(VkDevice device)

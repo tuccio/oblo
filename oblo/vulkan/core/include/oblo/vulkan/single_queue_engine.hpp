@@ -32,7 +32,6 @@ namespace oblo::vk
         u32 get_queue_family_index() const;
 
     private:
-        VkInstance m_instance{nullptr};
         VkPhysicalDevice m_physicalDevice{nullptr};
         VkDevice m_device{nullptr};
         VkQueue m_queue{nullptr};

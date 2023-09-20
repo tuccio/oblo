@@ -42,18 +42,18 @@ namespace oblo::vk
 
         void shutdown();
 
-        VkResult create_buffer(const buffer_initializer& initializer, allocated_buffer* outBuffer) const;
-        VkResult create_image(const image_initializer& initializer, allocated_image* outImage) const;
+        VkResult create_buffer(const buffer_initializer& initializer, allocated_buffer* outBuffer);
+        VkResult create_image(const image_initializer& initializer, allocated_image* outImage);
 
-        void destroy(const allocated_buffer& buffer) const;
-        void destroy(const allocated_image& image) const;
+        void destroy(const allocated_buffer& buffer);
+        void destroy(const allocated_image& image);
 
-        VkResult map(VmaAllocation allocation, void** outMemoryPtr) const;
-        void unmap(VmaAllocation allocation) const;
+        VkResult map(VmaAllocation allocation, void** outMemoryPtr);
+        void unmap(VmaAllocation allocation);
 
         VkDevice get_device() const;
 
-        VkResult invalidate_mapped_memory_ranges(std::span<const VmaAllocation> allocations) const;
+        VkResult invalidate_mapped_memory_ranges(std::span<const VmaAllocation> allocations);
 
     private:
         VmaAllocator m_allocator{nullptr};

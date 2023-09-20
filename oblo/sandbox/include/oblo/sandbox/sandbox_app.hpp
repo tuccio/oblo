@@ -16,7 +16,7 @@
 #include <oblo/vulkan/stateful_command_buffer.hpp>
 #include <oblo/vulkan/swapchain.hpp>
 #include <oblo/vulkan/texture.hpp>
-
+#include <oblo/vulkan/vulkan_context.hpp>
 
 struct SDL_Window;
 union SDL_Event;
@@ -46,14 +46,10 @@ namespace oblo::vk
         void wait_idle();
 
         bool poll_events();
-        void begin_frame(u64 frameIndex, u32* outImageIndex, u32* outPoolIndex);
-        void begin_command_buffers(u32 poolIndex, VkCommandBuffer* outCommandBuffers, u32 count);
-        void end_command_buffers(const VkCommandBuffer* commandBuffers, u32 count);
-        void submit_and_present(const VkCommandBuffer* commandBuffers,
-                                u32 commandBuffersCount,
-                                u32 imageIndex,
-                                u32 poolIndex,
-                                u64 frameIndex);
+
+        void begin_frame(u32* outImageIndex);
+
+        void submit_and_present(u32 imageIndex);
 
     private:
         bool create_window();
@@ -65,7 +61,6 @@ namespace oblo::vk
                            const VkPhysicalDeviceFeatures* physicalDeviceFeatures);
 
         bool create_swapchain();
-        bool create_command_pools();
         bool create_synchronization_objects();
         bool init_imgui();
 
@@ -88,7 +83,8 @@ namespace oblo::vk
 
         resource_manager m_resourceManager;
 
-        command_buffer_pool m_pools[SwapchainImages];
+        vulkan_context m_context;
+
         swapchain<SwapchainImages> m_swapchain;
         h32<texture> m_swapchainTextures[SwapchainImages]{};
 
@@ -96,10 +92,7 @@ namespace oblo::vk
         u32 m_renderHeight;
 
         VkSemaphore m_presentSemaphore{nullptr};
-        VkSemaphore m_timelineSemaphore{nullptr};
-        VkFence m_presentFences[SwapchainImages]{nullptr};
 
-        u64 m_frameSemaphoreValues[SwapchainImages] = {0};
         u64 m_currentSemaphoreValue{0};
 
         imgui m_imgui;
@@ -223,17 +216,7 @@ namespace oblo::vk
                 }
 
                 u32 imageIndex;
-                u32 poolIndex;
-                begin_frame(frameIndex, &imageIndex, &poolIndex);
-
-                constexpr u32 numCommandBuffers{2};
-                VkCommandBuffer commandBuffers[numCommandBuffers];
-                begin_command_buffers(poolIndex, commandBuffers, numCommandBuffers);
-
-                const auto glueCommandBuffer = commandBuffers[0];
-                const auto mainCommandBuffer = commandBuffers[1];
-
-                stateful_command_buffer statefulCommandBuffer{mainCommandBuffer};
+                begin_frame(&imageIndex);
 
                 const h32<texture> swapchainTexture = m_swapchainTextures[imageIndex];
 
@@ -242,7 +225,7 @@ namespace oblo::vk
                     .allocator = &m_allocator,
                     .frameAllocator = &m_frameAllocator,
                     .resourceManager = &m_resourceManager,
-                    .commandBuffer = &statefulCommandBuffer,
+                    .commandBuffer = &m_context.get_active_command_buffer(),
                     .swapchainTexture = swapchainTexture,
                     .width = m_renderWidth,
                     .height = m_renderHeight,
@@ -254,20 +237,14 @@ namespace oblo::vk
 
                 if (showImgui)
                 {
-                    m_imgui.end_frame(mainCommandBuffer,
-                                      m_swapchain.get_image_view(imageIndex),
-                                      m_renderWidth,
-                                      m_renderHeight);
+                    auto& cb = m_context.get_active_command_buffer();
+                    m_imgui.end_frame(cb.get(), m_swapchain.get_image_view(imageIndex), m_renderWidth, m_renderHeight);
                 }
 
-                statefulCommandBuffer.add_pipeline_barrier(*context.resourceManager,
-                                                           swapchainTexture,
-                                                           VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+                auto& cb = m_context.get_active_command_buffer();
+                cb.add_pipeline_barrier(*context.resourceManager, swapchainTexture, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
-                m_resourceManager.commit(statefulCommandBuffer, glueCommandBuffer);
-
-                end_command_buffers(commandBuffers, numCommandBuffers);
-                submit_and_present(commandBuffers, numCommandBuffers, imageIndex, poolIndex, frameIndex);
+                submit_and_present(imageIndex);
             }
         }
 

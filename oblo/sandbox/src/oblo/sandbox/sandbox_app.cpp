@@ -33,10 +33,7 @@ namespace oblo::vk
         {
             m_imgui.shutdown(m_engine.get_device());
 
-            reset_device_objects(m_engine.get_device(),
-                                 std::span{m_presentFences},
-                                 m_timelineSemaphore,
-                                 m_presentSemaphore);
+            reset_device_objects(m_engine.get_device(), m_presentSemaphore);
 
             m_swapchain.destroy(m_engine);
         }
@@ -46,10 +43,7 @@ namespace oblo::vk
             vkDestroySurfaceKHR(m_instance.get(), m_surface, nullptr);
         }
 
-        for (auto& pool : m_pools)
-        {
-            pool.shutdown();
-        }
+        m_context.shutdown();
 
         m_allocator.shutdown();
         m_engine.shutdown();
@@ -98,7 +92,7 @@ namespace oblo::vk
             return false;
         }
 
-        return create_command_pools() && create_synchronization_objects() && init_imgui();
+        return create_synchronization_objects() && init_imgui();
     }
 
     void sandbox_base::wait_idle()
@@ -141,18 +135,9 @@ namespace oblo::vk
         return true;
     }
 
-    void sandbox_base::begin_frame(u64 frameIndex, u32* outImageIndex, u32* outPoolIndex)
+    void sandbox_base::begin_frame(u32* outImageIndex)
     {
-        const auto poolIndex = u32(frameIndex % SwapchainImages);
-
-        OBLO_VK_PANIC(vkGetSemaphoreCounterValue(m_engine.get_device(), m_timelineSemaphore, &m_currentSemaphoreValue));
-
-        if (m_currentSemaphoreValue < m_frameSemaphoreValues[poolIndex])
-        {
-            OBLO_VK_PANIC(vkWaitForFences(m_engine.get_device(), 1, &m_presentFences[poolIndex], 0, ~0ull));
-        }
-
-        OBLO_VK_PANIC(vkResetFences(m_engine.get_device(), 1, &m_presentFences[poolIndex]));
+        m_context.frame_begin();
 
         u32 imageIndex;
 
@@ -195,74 +180,27 @@ namespace oblo::vk
             }
         } while (true);
 
-        auto& pool = m_pools[poolIndex];
-
-        pool.reset_buffers(frameIndex);
-        pool.reset_pool();
-        pool.begin_frame(frameIndex);
-
         *outImageIndex = imageIndex;
-        *outPoolIndex = poolIndex;
     }
 
-    void sandbox_base::begin_command_buffers(u32 poolIndex, VkCommandBuffer* outCommandBuffers, u32 count)
+    void sandbox_base::submit_and_present(u32 imageIndex)
     {
-        auto& pool = m_pools[poolIndex];
-        pool.fetch_buffers({outCommandBuffers, count});
-
-        constexpr VkCommandBufferBeginInfo commandBufferBeginInfo{
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-            .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-        };
-
-        for (auto* it = outCommandBuffers; it != outCommandBuffers + count; ++it)
-        {
-            OBLO_VK_PANIC(vkBeginCommandBuffer(*it, &commandBufferBeginInfo));
-        }
-    }
-
-    void sandbox_base::end_command_buffers(const VkCommandBuffer* commandBuffers, u32 count)
-    {
-        for (auto* it = commandBuffers; it != commandBuffers + count; ++it)
-        {
-            OBLO_VK_PANIC(vkEndCommandBuffer(*it));
-        }
-    }
-
-    void sandbox_base::submit_and_present(
-        const VkCommandBuffer* commandBuffers, u32 commandBuffersCount, u32 imageIndex, u32 poolIndex, u64 frameIndex)
-    {
-        const VkTimelineSemaphoreSubmitInfo timelineInfo{.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
-                                                         .pNext = nullptr,
-                                                         .waitSemaphoreValueCount = 0,
-                                                         .pWaitSemaphoreValues = nullptr,
-                                                         .signalSemaphoreValueCount = 1,
-                                                         .pSignalSemaphoreValues = &frameIndex};
-
-        const VkSubmitInfo submitInfo{.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                                      .pNext = &timelineInfo,
-                                      .waitSemaphoreCount = 0,
-                                      .pWaitSemaphores = nullptr,
-                                      .commandBufferCount = commandBuffersCount,
-                                      .pCommandBuffers = commandBuffers,
-                                      .signalSemaphoreCount = 1,
-                                      .pSignalSemaphores = &m_timelineSemaphore};
-
-        OBLO_VK_PANIC(vkQueueSubmit(m_engine.get_queue(), 1, &submitInfo, m_presentFences[poolIndex]));
+        m_context.frame_end();
 
         const auto swapchain = m_swapchain.get();
-        const VkPresentInfoKHR presentInfo = {.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-                                              .pNext = nullptr,
-                                              .waitSemaphoreCount = 1,
-                                              .pWaitSemaphores = &m_presentSemaphore,
-                                              .swapchainCount = 1,
-                                              .pSwapchains = &swapchain,
-                                              .pImageIndices = &imageIndex,
-                                              .pResults = nullptr};
+
+        const VkPresentInfoKHR presentInfo{
+            .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+            .pNext = nullptr,
+            .waitSemaphoreCount = 1,
+            .pWaitSemaphores = &m_presentSemaphore,
+            .swapchainCount = 1,
+            .pSwapchains = &swapchain,
+            .pImageIndices = &imageIndex,
+            .pResults = nullptr,
+        };
 
         OBLO_VK_PANIC_EXCEPT(vkQueuePresentKHR(m_engine.get_queue(), &presentInfo), VK_ERROR_OUT_OF_DATE_KHR);
-
-        m_frameSemaphoreValues[poolIndex] = frameIndex;
     }
 
     bool sandbox_base::create_window()
@@ -364,8 +302,19 @@ namespace oblo::vk
             .bufferDeviceAddress = VK_TRUE,
         };
 
-        return m_engine
-            .init(m_instance.get(), m_surface, {}, {extensions}, &bufferDeviceAddressFeature, physicalDeviceFeatures);
+        return m_engine.init(m_instance.get(),
+                             m_surface,
+                             {},
+                             {extensions},
+                             &bufferDeviceAddressFeature,
+                             physicalDeviceFeatures) &&
+               m_context.init({
+                   .engine = m_engine,
+                   .allocator = m_allocator,
+                   .resourceManager = m_resourceManager,
+                   .buffersPerFrame = 2,
+                   .submitsInFlight = SwapchainImages,
+               });
     }
 
     bool sandbox_base::create_swapchain()
@@ -405,22 +354,6 @@ namespace oblo::vk
         return true;
     }
 
-    bool sandbox_base::create_command_pools()
-    {
-        // Kind of arbitrary count for the pool, could implement growth instead
-        constexpr u32 buffersPerFrame{16};
-
-        for (auto& pool : m_pools)
-        {
-            if (!pool.init(m_engine.get_device(), m_engine.get_queue_family_index(), false, buffersPerFrame, 1))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
     bool sandbox_base::create_synchronization_objects()
     {
         const VkSemaphoreCreateInfo presentSemaphoreCreateInfo{
@@ -429,56 +362,33 @@ namespace oblo::vk
             .flags = 0,
         };
 
-        const VkSemaphoreTypeCreateInfo timelineTypeCreateInfo{
-            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
-            .pNext = nullptr,
-            .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
-            .initialValue = 0,
-        };
-
-        const VkSemaphoreCreateInfo timelineSemaphoreCreateInfo{
-            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-            .pNext = &timelineTypeCreateInfo,
-            .flags = 0,
-        };
-
-        const VkFenceCreateInfo fenceInfo{.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, .pNext = nullptr, .flags = 0u};
-
-        for (u32 i = 0; i < SwapchainImages; ++i)
-        {
-            if (vkCreateFence(m_engine.get_device(), &fenceInfo, nullptr, &m_presentFences[i]) != VK_SUCCESS)
-            {
-                return false;
-            }
-        }
-
         return vkCreateSemaphore(m_engine.get_device(), &presentSemaphoreCreateInfo, nullptr, &m_presentSemaphore) ==
-                   VK_SUCCESS &&
-               vkCreateSemaphore(m_engine.get_device(), &timelineSemaphoreCreateInfo, nullptr, &m_timelineSemaphore) ==
-                   VK_SUCCESS;
+               VK_SUCCESS;
     }
 
     bool sandbox_base::init_imgui()
     {
-        auto& pool = m_pools[0];
-        constexpr auto frameIndex{0u};
-        pool.begin_frame(frameIndex);
+        m_context.frame_begin();
 
-        const auto commandBuffer = pool.fetch_buffer();
+        auto& commandBuffer = m_context.get_active_command_buffer();
 
-        bool result = m_imgui.init(m_window,
-                                   m_instance.get(),
-                                   m_engine.get_physical_device(),
-                                   m_engine.get_device(),
-                                   m_engine.get_queue(),
-                                   commandBuffer,
-                                   SwapchainImages,
-                                   m_config);
+        bool success = m_imgui.fill_init_command_buffer(m_window,
+                                                        m_instance.get(),
+                                                        m_engine.get_physical_device(),
+                                                        m_engine.get_device(),
+                                                        m_engine.get_queue(),
+                                                        commandBuffer.get(),
+                                                        SwapchainImages,
+                                                        m_config);
 
-        pool.reset_buffers(frameIndex + 1);
-        pool.reset_pool();
+        m_context.frame_end();
 
-        return result;
+        if (success)
+        {
+            m_imgui.finalize_init(m_engine.get_device());
+        }
+
+        return success;
     }
 
     void sandbox_base::destroy_swapchain()
