@@ -168,10 +168,8 @@ namespace oblo::vk
             }
 
             const sandbox_init_context context{
-                .engine = &m_engine,
-                .allocator = &m_allocator,
+                .vkContext = &m_context,
                 .frameAllocator = &m_frameAllocator,
-                .resourceManager = &m_resourceManager,
                 .swapchainFormat = SwapchainFormat,
             };
 
@@ -192,9 +190,7 @@ namespace oblo::vk
                 updateCall = &TApp::first_update;
             }
 
-            // We start counting the frame indices from 1, because we use this value as timeline semaphore, which is
-            // already signaled with 0
-            for (u64 frameIndex{1};; ++frameIndex)
+            while (true)
             {
                 if (!poll_events())
                 {
@@ -208,8 +204,7 @@ namespace oblo::vk
                     m_imgui.begin_frame();
 
                     const sandbox_update_imgui_context context{
-                        .engine = &m_engine,
-                        .allocator = &m_allocator,
+                        .vkContext = &m_context,
                     };
 
                     TApp::update_imgui(context);
@@ -221,15 +216,11 @@ namespace oblo::vk
                 const h32<texture> swapchainTexture = m_swapchainTextures[imageIndex];
 
                 const sandbox_render_context context{
-                    .engine = &m_engine,
-                    .allocator = &m_allocator,
+                    .vkContext = &m_context,
                     .frameAllocator = &m_frameAllocator,
-                    .resourceManager = &m_resourceManager,
-                    .commandBuffer = &m_context.get_active_command_buffer(),
                     .swapchainTexture = swapchainTexture,
                     .width = m_renderWidth,
                     .height = m_renderHeight,
-                    .frameIndex = frameIndex,
                 };
 
                 (static_cast<TApp*>(this)->*updateCall)(context);
@@ -242,7 +233,7 @@ namespace oblo::vk
                 }
 
                 auto& cb = m_context.get_active_command_buffer();
-                cb.add_pipeline_barrier(*context.resourceManager, swapchainTexture, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+                cb.add_pipeline_barrier(m_resourceManager, swapchainTexture, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
                 submit_and_present(imageIndex);
             }
@@ -253,10 +244,8 @@ namespace oblo::vk
             wait_idle();
 
             const sandbox_shutdown_context context{
-                .engine = &m_engine,
-                .allocator = &m_allocator,
+                .vkContext = &m_context,
                 .frameAllocator = &m_frameAllocator,
-                .resourceManager = &m_resourceManager,
             };
 
             TApp::shutdown(context);

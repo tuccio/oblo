@@ -9,21 +9,21 @@
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/stateful_command_buffer.hpp>
 #include <oblo/vulkan/texture.hpp>
+#include <oblo/vulkan/vulkan_context.hpp>
 
 namespace oblo::graphics
 {
     void viewport_system::first_update(const ecs::system_update_context& ctx)
     {
-        m_allocator = ctx.services->find<vk::allocator>();
-        m_resourceManager = ctx.services->find<vk::resource_manager>();
+        m_vkCtx = ctx.services->find<vk::vulkan_context>();
 
         update(ctx);
     }
 
     void viewport_system::update(const ecs::system_update_context& ctx)
     {
-        // A horrible hack because we don't pool command buffers dynamically yet, this is passed own from apps
-        auto& commandBuffer = **ctx.services->find<vk::stateful_command_buffer*>();
+        auto& resourceManager = m_vkCtx->get_resource_manager();
+        auto& commandBuffer = m_vkCtx->get_active_command_buffer();
 
         for (const auto [entities, viewports] : ctx.entities->range<viewport_component>())
         {
@@ -34,7 +34,7 @@ namespace oblo::graphics
                     continue;
                 }
 
-                commandBuffer.add_pipeline_barrier(*m_resourceManager,
+                commandBuffer.add_pipeline_barrier(m_vkCtx->get_resource_manager(),
                                                    viewport.texture,
                                                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
@@ -47,7 +47,7 @@ namespace oblo::graphics
                     },
                 };
 
-                const auto& texture = m_resourceManager->get(viewport.texture);
+                const auto& texture = resourceManager.get(viewport.texture);
 
                 const VkImageSubresourceRange range{
                     .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
@@ -64,7 +64,7 @@ namespace oblo::graphics
                                      1,
                                      &range);
 
-                commandBuffer.add_pipeline_barrier(*m_resourceManager,
+                commandBuffer.add_pipeline_barrier(resourceManager,
                                                    viewport.texture,
                                                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
             }

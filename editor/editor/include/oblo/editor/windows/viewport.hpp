@@ -19,7 +19,7 @@ namespace oblo::vk
 {
     class allocator;
     class resource_manager;
-    class single_queue_engine;
+    class vulkan_context;
     struct texture;
 }
 
@@ -29,10 +29,7 @@ namespace oblo::editor
     {
     public:
         viewport() = delete;
-        viewport(vk::allocator& allocator,
-                 const vk::single_queue_engine& engine,
-                 vk::resource_manager& resourceManager,
-                 ecs::entity_registry& entities);
+        viewport(vk::vulkan_context& context, ecs::entity_registry& entities);
         viewport(const viewport&) = delete;
         viewport(viewport&&) noexcept = delete;
         ~viewport();

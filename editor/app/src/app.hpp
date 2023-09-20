@@ -12,8 +12,6 @@ namespace oblo::vk
     struct sandbox_shutdown_context;
     struct sandbox_render_context;
     struct sandbox_update_imgui_context;
-
-    class stateful_command_buffer;
 }
 
 namespace oblo::editor
@@ -35,6 +33,5 @@ namespace oblo::editor
         ecs::type_registry m_typeRegistry;
         ecs::entity_registry m_entities;
         service_registry m_services;
-        vk::stateful_command_buffer* m_currentCb{};
     };
 }
