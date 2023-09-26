@@ -97,7 +97,8 @@
 			"bitset": "cpp",
 			"*.rh": "cpp",
 			"any": "cpp",
-			"queue": "cpp"
+			"queue": "cpp",
+			"variant": "cpp"
 		}
 	}
 }
