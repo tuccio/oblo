@@ -110,6 +110,9 @@ namespace oblo::vk
         g.m_textureResources.emplace_back();
         g.m_dataStorage.emplace_back();
 
+        g.m_texturePins.resize(numTexturePins);
+        g.m_dataPins.resize(numDataPins);
+
         for (const auto& input : m_inputs)
         {
             if (input.typeId == get_type_id<h32<texture>>())
@@ -122,9 +125,23 @@ namespace oblo::vk
             else
             {
                 auto& dataInput = g.m_dataInputs.emplace_back();
-                dataInput.storageIndex = u32(g.m_dataStorage.size());
+                const u32 storageIndex = u32(g.m_dataStorage.size());
+                dataInput.storageIndex = storageIndex;
                 dataInput.name = input.name;
                 g.m_dataStorage.emplace_back(input.factory());
+
+                for (const auto& edge : input.outEdges)
+                {
+                    const auto it = m_nodes.find(edge.targetNode);
+
+                    if (it == m_nodes.end())
+                    {
+                        return graph_error::node_not_found;
+                    }
+
+                    const auto idTarget = read_u32(it->second.node.get(), edge.targetOffset);
+                    g.m_dataPins[idTarget].storageIndex = storageIndex;
+                }
             }
         }
 
@@ -132,8 +149,6 @@ namespace oblo::vk
         visitedPins.reserve(max(numTexturePins, numDataPins));
 
         visitedPins.assign(numTexturePins, false);
-        g.m_texturePins.resize(numTexturePins);
-        g.m_dataPins.resize(numTexturePins);
 
         for (const usize nodeIndex : nodesOrder)
         {
