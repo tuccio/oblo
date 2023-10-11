@@ -10,12 +10,10 @@ namespace oblo
 namespace oblo::vk
 {
     class renderer;
-    class stateful_command_buffer;
 
     struct renderer_context
     {
         renderer& renderer;
         frame_allocator& frameAllocator;
-        stateful_command_buffer* commandBuffer;
     };
 }

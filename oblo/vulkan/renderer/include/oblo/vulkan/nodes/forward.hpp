@@ -2,11 +2,11 @@
 
 #include <oblo/core/debug.hpp>
 #include <oblo/core/handle.hpp>
-#include <oblo/render_graph/render_graph_node.hpp>
 #include <oblo/vulkan/allocator.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/create_render_target.hpp>
 #include <oblo/vulkan/destroy_device_objects.hpp>
+#include <oblo/vulkan/graph/render_graph_node.hpp>
 #include <oblo/vulkan/render_pass_initializer.hpp>
 #include <oblo/vulkan/render_pass_manager.hpp>
 #include <oblo/vulkan/renderer.hpp>
@@ -17,10 +17,12 @@
 
 namespace oblo::vk
 {
+#define OBLO_PIN()
+
     struct forward_node
     {
-        // render_node_in<h32<buffer>, "camera_buffer"> cameraBuffer;
-        render_node_in<h32<texture>, "render_target"> renderTarget;
+        h32<buffer> cameraBuffer;
+        h32<texture> renderTarget;
 
         h32<render_pass> forwardPass;
 
@@ -50,29 +52,10 @@ namespace oblo::vk
         void execute(renderer_context* context)
         {
             auto& renderer = context->renderer;
-            auto& resourceManager = renderer.get_resource_manager();
             auto& renderPassManager = renderer.get_render_pass_manager();
+            auto& resourceManager = renderer.get_resource_manager();
 
-            auto& commandBuffer = *context->commandBuffer;
-
-            const VkClearColorValue clearColor{};
-
-            const VkImageSubresourceRange imageRange = {
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                .levelCount = 1,
-                .layerCount = 1,
-            };
-
-            commandBuffer.add_pipeline_barrier(resourceManager, *renderTarget, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
-            const auto& texture = resourceManager.get(*renderTarget);
-
-            vkCmdClearColorImage(commandBuffer.get(),
-                                 texture.image,
-                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                 &clearColor,
-                                 1,
-                                 &imageRange);
+            const auto& texture = resourceManager.get(renderTarget);
 
             const auto pipeline = renderPassManager.get_or_create_pipeline(
                 context->frameAllocator,
@@ -85,6 +68,8 @@ namespace oblo::vk
             {
                 return;
             }
+
+            auto& commandBuffer = renderer.get_active_command_buffer();
 
             const auto renderWidth{texture.initializer.extent.width};
             const auto renderHeight{texture.initializer.extent.height};
@@ -105,9 +90,7 @@ namespace oblo::vk
                 .pColorAttachments = &colorAttachmentInfo,
             };
 
-            commandBuffer.add_pipeline_barrier(resourceManager,
-                                               *renderTarget,
-                                               VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+            commandBuffer.add_pipeline_barrier(resourceManager, renderTarget, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
             render_pass_context renderPassContext{
                 .commandBuffer = commandBuffer.get(),

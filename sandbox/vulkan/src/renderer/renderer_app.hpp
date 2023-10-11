@@ -5,8 +5,8 @@
 #include <oblo/core/log.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec3.hpp>
-#include <oblo/render_graph/render_graph.hpp>
-#include <oblo/render_graph/render_graph_builder.hpp>
+#include <oblo/vulkan/graph/render_graph.hpp>
+#include <oblo/vulkan/graph/render_graph_builder.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/nodes/blit_image_node.hpp>
 #include <oblo/vulkan/nodes/deferred.hpp>

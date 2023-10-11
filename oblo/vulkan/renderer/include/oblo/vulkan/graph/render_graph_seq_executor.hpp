@@ -1,10 +1,11 @@
 #pragma once
 
 #include <oblo/core/types.hpp>
-#include <oblo/render_graph/render_graph_node.hpp>
+#include <oblo/vulkan/graph/render_graph_node.hpp>
+
 #include <vector>
 
-namespace oblo
+namespace oblo::vk
 {
     class render_graph_builder_impl;
 

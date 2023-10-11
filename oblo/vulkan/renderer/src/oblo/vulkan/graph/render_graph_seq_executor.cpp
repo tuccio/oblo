@@ -1,6 +1,6 @@
-#include <oblo/render_graph/render_graph_seq_executor.hpp>
+#include <oblo/vulkan/graph/render_graph_seq_executor.hpp>
 
-namespace oblo
+namespace oblo::vk
 {
     bool render_graph_seq_executor::initialize(void* context) const
     {

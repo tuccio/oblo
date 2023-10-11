@@ -1,9 +1,8 @@
 #include <oblo/vulkan/renderer.hpp>
 
-#include <oblo/render_graph/render_graph.hpp>
-#include <oblo/render_graph/render_graph_builder.hpp>
-#include <oblo/render_graph/render_graph_seq_executor.hpp>
 #include <oblo/vulkan/error.hpp>
+#include <oblo/vulkan/graph/render_graph.hpp>
+#include <oblo/vulkan/graph/render_graph_builder.hpp>
 #include <oblo/vulkan/renderer_context.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
@@ -15,7 +14,6 @@ namespace oblo::vk
     struct renderer::render_graph_data
     {
         render_graph graph;
-        render_graph_seq_executor executor;
     };
 
     renderer::renderer() = default;
@@ -48,12 +46,13 @@ namespace oblo::vk
 
         m_meshes.shutdown(allocator, resourceManager);
 
-        renderer_context rendererContext{.renderer = *this, .frameAllocator = frameAllocator};
+        (void) frameAllocator;
+        // renderer_context rendererContext{.renderer = *this, .frameAllocator = frameAllocator};
 
-        for (auto& [graph, executor] : m_renderGraphs.values())
-        {
-            executor.shutdown(&rendererContext);
-        }
+        // for (auto& [graph, executor] : m_renderGraphs.values())
+        // {
+        //     executor.shutdown(&rendererContext);
+        // }
 
         m_renderGraphs.clear();
 
@@ -65,62 +64,19 @@ namespace oblo::vk
 
     void renderer::update(const update_context& context)
     {
-        renderer_context rendererContext{
-            .renderer = *this,
-            .frameAllocator = context.frameAllocator,
-            .commandBuffer = &m_vkContext->get_active_command_buffer(),
-        };
+        // TODO
+        (void) context;
+        // renderer_context rendererContext{
+        //     .renderer = *this,
+        //     .frameAllocator = context.frameAllocator,
+        // };
 
-        for (auto& [graph, executor] : m_renderGraphs.values())
-        {
-            executor.execute(&rendererContext);
-        }
+        // for (auto& [graph, executor] : m_renderGraphs.values())
+        // {
+        //     executor.execute(&rendererContext);
+        // }
 
         m_stagingBuffer.flush();
-    }
-
-    h32<render_graph> renderer::create_graph(const render_graph_builder<renderer_context>& builder,
-                                             frame_allocator& frameAllocator)
-    {
-        render_graph graph;
-        render_graph_seq_executor executor;
-
-        if (builder.build(graph, executor))
-        {
-            return {};
-        }
-
-        renderer_context rendererContext{
-            .renderer = *this,
-            .frameAllocator = frameAllocator,
-        };
-
-        if (!executor.initialize(&rendererContext))
-        {
-            return {};
-        }
-
-        h32<render_graph> newHandle{++m_lastRenderGraphId};
-        m_renderGraphs.emplace(newHandle, std::move(graph), std::move(executor));
-        return newHandle;
-    }
-
-    void renderer::destroy_graph(h32<render_graph> handle, frame_allocator& frameAllocator)
-    {
-        auto* const graph = m_renderGraphs.try_find(handle);
-
-        if (graph)
-        {
-            renderer_context rendererContext{.renderer = *this, .frameAllocator = frameAllocator};
-            graph->executor.shutdown(&rendererContext);
-            m_renderGraphs.erase(handle);
-        }
-    }
-
-    render_graph* renderer::find_graph(h32<render_graph> handle)
-    {
-        auto* const graph = m_renderGraphs.try_find(handle);
-        return graph ? &graph->graph : nullptr;
     }
 
     single_queue_engine& renderer::get_engine()
@@ -136,5 +92,10 @@ namespace oblo::vk
     resource_manager& renderer::get_resource_manager()
     {
         return m_vkContext->get_resource_manager();
+    }
+
+    stateful_command_buffer& renderer::get_active_command_buffer()
+    {
+        return m_vkContext->get_active_command_buffer();
     }
 }
