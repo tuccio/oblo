@@ -13,7 +13,14 @@ namespace oblo::vk
 
     render_graph& render_graph::operator=(render_graph&&) noexcept = default;
 
-    render_graph::~render_graph() = default;
+    render_graph::~render_graph()
+    {
+        // TODO: Destroy pins as well
+        for (auto& node : m_nodes)
+        {
+            node.destruct(node.node);
+        }
+    }
 
     void* render_graph::find_input(std::string_view name)
     {
@@ -34,7 +41,7 @@ namespace oblo::vk
         {
             if (node.typeId == type)
             {
-                return node.node.get();
+                return node.node;
             }
         }
 
@@ -53,7 +60,7 @@ namespace oblo::vk
 
         for (auto& node : m_nodes)
         {
-            auto* const ptr = node.node.get();
+            auto* const ptr = node.node;
 
             if (node.build)
             {

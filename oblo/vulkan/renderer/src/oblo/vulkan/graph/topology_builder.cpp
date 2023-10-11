@@ -12,6 +12,11 @@ namespace oblo::vk
             std::memcpy(&result, static_cast<const u8*>(ptr) + offset, sizeof(u32));
             return result;
         }
+
+        void write_u32(void* ptr, u32 offset, u32 value)
+        {
+            std::memcpy(static_cast<u8*>(ptr) + offset, &value, sizeof(u32));
+        }
     }
 
     expected<render_graph, graph_error> topology_builder::build()
@@ -94,6 +99,34 @@ namespace oblo::vk
 
         render_graph g;
 
+        // We should check it maybe instead
+        OBLO_ASSERT(m_allocationSize != 0);
+
+        // TODO: Cleanup function to call destructors on failure
+        g.m_allocator = std::make_unique<std::byte[]>(m_allocationSize);
+
+        auto allocateGraphData = [current = static_cast<void*>(g.m_allocator.get()),
+                                  space = m_allocationSize](usize size, usize alignment) mutable
+        {
+            auto* result = std::align(alignment, size, current, space);
+            current = static_cast<u8*>(current) + size;
+            OBLO_ASSERT(result);
+            return result;
+        };
+
+        for (usize i = 0u; i < numNodes; ++i)
+        {
+            auto& [type, nodeDesc] = *linearizedNodes[i];
+
+            nodeDesc.node = allocateGraphData(nodeDesc.typeDesc.size, nodeDesc.typeDesc.alignment);
+            nodeDesc.typeDesc.construct(nodeDesc.node);
+
+            for (const auto& pin : nodeDesc.pins)
+            {
+                write_u32(nodeDesc.node, pin.offset, pin.id);
+            }
+        }
+
         g.m_nodes.reserve(m_nodes.size());
 
         const u32 numDataPins = m_virtualDataId;
@@ -139,7 +172,7 @@ namespace oblo::vk
                         return graph_error::node_not_found;
                     }
 
-                    const auto idTarget = read_u32(it->second.node.get(), edge.targetOffset);
+                    const auto idTarget = read_u32(it->second.node, edge.targetOffset);
                     g.m_dataPins[idTarget].storageIndex = storageIndex;
                 }
             }
@@ -174,7 +207,7 @@ namespace oblo::vk
                 }
             }
 
-            auto* const nodeSourcePtr = nodeDesc.node.get();
+            auto* const nodeSourcePtr = nodeDesc.node;
 
             // Propagate the resources to the connected pins
             for (auto& edge : nodeDesc.outEdges)
@@ -187,7 +220,7 @@ namespace oblo::vk
                 }
 
                 const auto idSource = read_u32(nodeSourcePtr, edge.sourceOffset);
-                const auto idTarget = read_u32(it->second.node.get(), edge.targetOffset);
+                const auto idTarget = read_u32(it->second.node, edge.targetOffset);
 
                 if (edge.kind == pin_kind::texture)
                 {
@@ -211,6 +244,7 @@ namespace oblo::vk
             node.typeId = type;
             node.build = nodeDesc.build;
             node.execute = nodeDesc.execute;
+            node.destruct = nodeDesc.typeDesc.destruct;
         }
 
         return std::move(g);

@@ -24,7 +24,7 @@ namespace oblo::vk::test
                 const auto resolution = builder.access(inResolution);
 
                 builder.create(outDepthBuffer,
-                               texture2d_initializer{
+                               {
                                    .width = resolution.x,
                                    .height = resolution.y,
                                    .format = VK_FORMAT_D24_UNORM_S8_UINT,
@@ -51,6 +51,8 @@ namespace oblo::vk::test
                                    .width = resolution.x,
                                    .height = resolution.y,
                                    .format = VK_FORMAT_R8G8B8A8_UNORM,
+                                   .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                                   .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                                },
                                resource_usage::render_target_write);
             }

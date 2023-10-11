@@ -65,12 +65,12 @@ namespace oblo::vk
     private:
         struct node_desc;
 
-        void register_pin(...);
+        void register_pin(node_desc*, const u8*, ...) {}
 
-        void register_pin(node_desc& nodeDesc, resource<texture>* pin);
+        void register_pin(node_desc* nodeDesc, const u8* nodePtr, const resource<texture>* pin);
 
         template <typename T>
-        void register_pin(node_desc& nodeDesc, data<T>* pin);
+        void register_pin(node_desc* nodeDesc, const u8* nodePtr, const data<T>* pin);
 
     private:
         enum class pin_kind : u8;
@@ -85,6 +85,14 @@ namespace oblo::vk
     private:
         using data_factory = any (*)();
 
+        struct type_desc
+        {
+            u32 size;
+            u32 alignment;
+            construct_node_fn construct;
+            destruct_node_fn destruct;
+        };
+
         struct edge_desc
         {
             type_id targetNode;
@@ -94,15 +102,23 @@ namespace oblo::vk
             pin_kind kind;
         };
 
+        struct pin_data
+        {
+            u32 id;
+            u32 offset;
+        };
+
         struct node_desc
         {
-            any node;
+            void* node;
+            type_desc typeDesc;
             usize nodeIndex;
             std::pmr::vector<edge_desc> outEdges;
             u32 firstTexturePin;
             u32 lastTexturePin;
             u32 firstDataPin;
             u32 lastDataPin;
+            std::vector<pin_data> pins;
             std::vector<data_factory> dataFactories;
             build_fn build;
             execute_fn execute;
@@ -127,6 +143,8 @@ namespace oblo::vk
 
         u32 m_virtualTextureId{0};
         u32 m_virtualDataId{0};
+
+        usize m_allocationSize{0};
     };
 
     enum class topology_builder::pin_kind : u8
@@ -152,17 +170,28 @@ namespace oblo::vk
 
         if (ok)
         {
-            node_desc& nodeDesc = it->second;
-            T& instance = nodeDesc.node.template emplace<T>();
+            m_allocationSize += sizeof(T) + alignof(T) - 1;
+
+            const T instance{};
 
             const u32 firstTexturePin{m_virtualTextureId};
             const u32 firstDataPin{m_virtualDataId};
 
-            struct_apply([this, &nodeDesc](auto&... fields) { (this->register_pin(nodeDesc, &fields), ...); },
+            node_desc& nodeDesc = it->second;
+
+            struct_apply([this, &instance, &nodeDesc](auto&... fields)
+                         { (this->register_pin(&nodeDesc, reinterpret_cast<const u8*>(&instance), &fields), ...); },
                          instance);
 
             const u32 lastTexturePin{m_virtualTextureId};
             const u32 lastDataPin{m_virtualDataId};
+
+            nodeDesc.typeDesc = {
+                .size = sizeof(T),
+                .alignment = alignof(T),
+                .construct = [](void* p) { new (p) T{}; },
+                .destruct = [](void* p) { static_cast<T*>(p)->~T(); },
+            };
 
             nodeDesc.firstTexturePin = firstTexturePin;
             nodeDesc.lastTexturePin = lastTexturePin;
@@ -350,29 +379,26 @@ namespace oblo::vk
         return u32(bMemberPtr - bStructPtr);
     }
 
-    inline void topology_builder::register_pin(...) {}
-
-    inline void topology_builder::register_pin(node_desc&, resource<texture>* pin)
+    inline void topology_builder::register_pin(node_desc* nodeDesc, const u8* nodePtr, const resource<texture>* pin)
     {
-        // u8* const bMemberPtr = reinterpret_cast<u8*>(&pin);
+        const u8* const bMemberPtr = reinterpret_cast<const u8*>(pin);
 
         const u32 id = ++m_virtualTextureId;
-        // const u32 offset = u32(bMemberPtr - nodePtr);
+        const u32 offset = u32(bMemberPtr - nodePtr);
 
-        // nodeDesc->texturePins.push_back({.id = id, .offset = offset});
-        pin->value = id;
+        nodeDesc->pins.push_back({.id = id, .offset = offset});
     }
 
     template <typename T>
-    void topology_builder::register_pin(node_desc& nodeDesc, data<T>* pin)
+    void topology_builder::register_pin(node_desc* nodeDesc, const u8* nodePtr, const data<T>* pin)
     {
-        // u8* const bMemberPtr = reinterpret_cast<u8*>(&pin);
+        const u8* const bMemberPtr = reinterpret_cast<const u8*>(pin);
 
         const u32 id = ++m_virtualDataId;
-        // const u32 offset = u32(bMemberPtr - nodePtr);
+        const u32 offset = u32(bMemberPtr - nodePtr);
 
-        // nodeDesc->dataPins.push_back({.id = id, .offset = offset});
-        pin->value = id;
-        nodeDesc.dataFactories.emplace_back([] { return any{T{}}; });
+        nodeDesc->dataFactories.emplace_back([] { return any{T{}}; });
+
+        nodeDesc->pins.push_back({.id = id, .offset = offset});
     }
 }
