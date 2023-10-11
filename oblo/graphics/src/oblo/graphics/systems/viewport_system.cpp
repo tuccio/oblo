@@ -6,6 +6,12 @@
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
+#include <oblo/vulkan/graph/render_graph.hpp>
+#include <oblo/vulkan/graph/render_graph_builder.hpp>
+#include <oblo/vulkan/nodes/clear_render_target.hpp>
+#include <oblo/vulkan/nodes/forward.hpp>
+#include <oblo/vulkan/renderer.hpp>
+#include <oblo/vulkan/renderer_context.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/stateful_command_buffer.hpp>
 #include <oblo/vulkan/texture.hpp>
@@ -16,58 +22,45 @@ namespace oblo::graphics
     void viewport_system::first_update(const ecs::system_update_context& ctx)
     {
         m_vkCtx = ctx.services->find<vk::vulkan_context>();
+        m_renderer = ctx.services->find<vk::renderer>();
 
         update(ctx);
     }
 
     void viewport_system::update(const ecs::system_update_context& ctx)
     {
-        auto& resourceManager = m_vkCtx->get_resource_manager();
-        auto& commandBuffer = m_vkCtx->get_active_command_buffer();
+        using namespace oblo::vk;
 
         for (const auto [entities, viewports] : ctx.entities->range<viewport_component>())
         {
-            for (const auto& viewport : viewports)
+            for (auto& viewport : viewports)
             {
                 if (!viewport.texture)
                 {
                     continue;
                 }
 
-                commandBuffer.add_pipeline_barrier(m_vkCtx->get_resource_manager(),
-                                                   viewport.texture,
-                                                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+                // // TODO: Removing viewports leaks the graph
+                // if (!viewport.renderGraph)
+                // {
+                //     const auto builder = vk::render_graph_builder<renderer_context>{}
+                //                              .add_node<clear_render_target>()
+                //                              .add_node<forward_node>()
+                //                              .add_input<h32<texture>>("FinalRenderTarget")
+                //                              .connect_input("FinalRenderTarget", &clear_render_target::renderTarget)
+                //                              .connect(&clear_render_target::renderTarget, &forward_node::renderTarget);
 
-                constexpr VkClearColorValue red{
-                    .float32{
-                        1.f,
-                        0.f,
-                        0.f,
-                        1.f,
-                    },
-                };
+                //     viewport.renderGraph = m_renderer->create_graph(builder, *ctx.frameAllocator);
+                // }
 
-                const auto& texture = resourceManager.get(viewport.texture);
-
-                const VkImageSubresourceRange range{
-                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                    .baseMipLevel = 0,
-                    .levelCount = 1,
-                    .baseArrayLayer = 0,
-                    .layerCount = 1,
-                };
-
-                vkCmdClearColorImage(commandBuffer.get(),
-                                     texture.image,
-                                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                     &red,
-                                     1,
-                                     &range);
-
-                commandBuffer.add_pipeline_barrier(resourceManager,
-                                                   viewport.texture,
-                                                   VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+                // if (auto* const graph = m_renderer->find_graph(viewport.renderGraph))
+                // {
+                //     auto* textureInput = graph->find_input<h32<vk::texture>>("FinalRenderTarget");
+                //     *textureInput = viewport.texture;
+                // }
             }
         }
+
+        // m_renderer->update({.vkContext = *m_vkCtx, .frameAllocator = *ctx.frameAllocator});
     }
 }

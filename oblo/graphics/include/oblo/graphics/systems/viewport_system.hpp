@@ -9,6 +9,7 @@ namespace oblo::ecs
 
 namespace oblo::vk
 {
+    class renderer;
     class vulkan_context;
 }
 
@@ -22,5 +23,6 @@ namespace oblo::graphics
 
     private:
         vk::vulkan_context* m_vkCtx{nullptr};
+        vk::renderer* m_renderer{nullptr};
     };
 };

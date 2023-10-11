@@ -10,14 +10,12 @@
 namespace oblo
 {
     class frame_allocator;
-    class render_graph;
-
-    template <typename T>
-    class render_graph_builder;
 }
 
 namespace oblo::vk
 {
+    class render_graph;
+
     class vulkan_context;
     struct buffer;
 
@@ -46,11 +44,7 @@ namespace oblo::vk
         render_pass_manager& get_render_pass_manager();
         mesh_table& get_mesh_table();
         staging_buffer& get_staging_buffer();
-
-        h32<render_graph> create_graph(const render_graph_builder<renderer_context>& builder,
-                                       frame_allocator& frameAllocator);
-        void destroy_graph(h32<render_graph> handle, frame_allocator& frameAllocator);
-        render_graph* find_graph(h32<render_graph> handle);
+        stateful_command_buffer& get_active_command_buffer();
 
     private:
         struct render_graph_data;

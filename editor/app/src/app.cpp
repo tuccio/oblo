@@ -80,7 +80,11 @@ namespace oblo::editor
 
     void app::update(const vk::sandbox_render_context& context)
     {
-        m_executor.update(ecs::system_update_context{.entities = &m_entities, .services = &m_services});
+        m_executor.update(ecs::system_update_context{
+            .entities = &m_entities,
+            .services = &m_services,
+            .frameAllocator = context.frameAllocator,
+        });
 
         auto& resourceManager = context.vkContext->get_resource_manager();
         auto& commandBuffer = context.vkContext->get_active_command_buffer();

@@ -131,7 +131,7 @@ namespace oblo::vk
     };
 
     template <typename TApp>
-    class sandbox_app : sandbox_base, TApp
+    class sandbox_app : sandbox_base, public TApp
     {
     public:
         using sandbox_base::set_config;
@@ -173,6 +173,15 @@ namespace oblo::vk
                 .swapchainFormat = SwapchainFormat,
             };
 
+            if constexpr (requires(TApp& app, const sandbox_render_context& context) { app.first_update(context); })
+            {
+                m_updateCb = &TApp::first_update;
+            }
+            else
+            {
+                m_updateCb = &TApp::update;
+            }
+
             return sandbox_base::init(instanceExtensions,
                                       instanceLayers,
                                       deviceExtensions,
@@ -183,60 +192,58 @@ namespace oblo::vk
 
         void run()
         {
-            auto updateCall = &TApp::update;
-
-            if constexpr (requires(TApp& app, const sandbox_render_context& context) { app.first_update(context); })
+            while (run_frame())
             {
-                updateCall = &TApp::first_update;
+            }
+        }
+
+        bool run_frame()
+        {
+            if (!poll_events())
+            {
+                return false;
             }
 
-            while (true)
+            const auto showImgui = m_showImgui;
+
+            if (showImgui)
             {
-                if (!poll_events())
-                {
-                    return;
-                }
+                m_imgui.begin_frame();
 
-                const auto showImgui = m_showImgui;
-
-                if (showImgui)
-                {
-                    m_imgui.begin_frame();
-
-                    const sandbox_update_imgui_context context{
-                        .vkContext = &m_context,
-                    };
-
-                    TApp::update_imgui(context);
-                }
-
-                u32 imageIndex;
-                begin_frame(&imageIndex);
-
-                const h32<texture> swapchainTexture = m_swapchainTextures[imageIndex];
-
-                const sandbox_render_context context{
+                const sandbox_update_imgui_context context{
                     .vkContext = &m_context,
-                    .frameAllocator = &m_frameAllocator,
-                    .swapchainTexture = swapchainTexture,
-                    .width = m_renderWidth,
-                    .height = m_renderHeight,
                 };
 
-                (static_cast<TApp*>(this)->*updateCall)(context);
-                updateCall = &TApp::update;
-
-                if (showImgui)
-                {
-                    auto& cb = m_context.get_active_command_buffer();
-                    m_imgui.end_frame(cb.get(), m_swapchain.get_image_view(imageIndex), m_renderWidth, m_renderHeight);
-                }
-
-                auto& cb = m_context.get_active_command_buffer();
-                cb.add_pipeline_barrier(m_resourceManager, swapchainTexture, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-
-                submit_and_present(imageIndex);
+                TApp::update_imgui(context);
             }
+
+            u32 imageIndex;
+            begin_frame(&imageIndex);
+
+            const h32<texture> swapchainTexture = m_swapchainTextures[imageIndex];
+
+            const sandbox_render_context context{
+                .vkContext = &m_context,
+                .frameAllocator = &m_frameAllocator,
+                .swapchainTexture = swapchainTexture,
+                .width = m_renderWidth,
+                .height = m_renderHeight,
+            };
+
+            (static_cast<TApp*>(this)->*m_updateCb)(context);
+            m_updateCb = &TApp::update;
+
+            if (showImgui)
+            {
+                auto& cb = m_context.get_active_command_buffer();
+                m_imgui.end_frame(cb.get(), m_swapchain.get_image_view(imageIndex), m_renderWidth, m_renderHeight);
+            }
+
+            auto& cb = m_context.get_active_command_buffer();
+            cb.add_pipeline_barrier(m_resourceManager, swapchainTexture, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+            submit_and_present(imageIndex);
+            return true;
         }
 
         void shutdown()
@@ -251,5 +258,8 @@ namespace oblo::vk
             TApp::shutdown(context);
             sandbox_base::shutdown();
         }
+
+    private:
+        void (TApp::*m_updateCb)(const sandbox_render_context&){};
     };
 }

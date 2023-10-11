@@ -2,6 +2,7 @@
 
 namespace oblo
 {
+    class frame_allocator;
     class service_registry;
 }
 
@@ -13,5 +14,6 @@ namespace oblo::ecs
     {
         entity_registry* entities;
         service_registry* services;
+        frame_allocator* frameAllocator;
     };
 }
