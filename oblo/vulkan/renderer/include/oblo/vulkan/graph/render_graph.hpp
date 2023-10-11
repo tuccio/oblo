@@ -6,6 +6,7 @@
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 
+#include <memory>
 #include <vector>
 
 namespace oblo::vk
@@ -83,6 +84,7 @@ namespace oblo::vk
         struct named_pin_data;
 
     private:
+        std::unique_ptr<std::byte[]> m_allocator;
         std::vector<node> m_nodes;
         std::vector<pin> m_outputs;
         std::vector<gpu_resource> m_gpuResources;
