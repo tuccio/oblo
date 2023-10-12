@@ -25,6 +25,6 @@ namespace oblo::vk
         const auto storageIndex = m_graph->m_dataPins[h].storageIndex;
         auto& data = m_graph->m_dataStorage[storageIndex];
 
-        return data.get();
+        return data.ptr;
     }
 }

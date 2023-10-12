@@ -114,12 +114,18 @@ namespace oblo::vk
             return result;
         };
 
+        const auto createGraphData = [&allocateGraphData](const type_desc& typeDesc)
+        {
+            auto* const ptr = allocateGraphData(typeDesc.size, typeDesc.alignment);
+            typeDesc.construct(ptr);
+            return ptr;
+        };
+
         for (usize i = 0u; i < numNodes; ++i)
         {
             auto& [type, nodeDesc] = *linearizedNodes[i];
 
-            nodeDesc.node = allocateGraphData(nodeDesc.typeDesc.size, nodeDesc.typeDesc.alignment);
-            nodeDesc.typeDesc.construct(nodeDesc.node);
+            nodeDesc.node = createGraphData(nodeDesc.typeDesc);
 
             for (const auto& pin : nodeDesc.pins)
             {
@@ -161,7 +167,11 @@ namespace oblo::vk
                 const u32 storageIndex = u32(g.m_dataStorage.size());
                 dataInput.storageIndex = storageIndex;
                 dataInput.name = input.name;
-                g.m_dataStorage.emplace_back(input.factory());
+
+                auto* const ptr = allocateGraphData(input.typeDesc.size, input.typeDesc.alignment);
+                input.typeDesc.construct(ptr);
+
+                g.m_dataStorage.emplace_back(ptr, input.typeDesc.destruct);
 
                 for (const auto& edge : input.outEdges)
                 {
@@ -203,7 +213,9 @@ namespace oblo::vk
                 if (auto& pin = g.m_dataPins[dataPin]; pin.storageIndex == 0)
                 {
                     pin.storageIndex = u32(g.m_dataStorage.size());
-                    g.m_dataStorage.emplace_back() = nodeDesc.dataFactories[dataPin - nodeDesc.firstDataPin]();
+                    const auto pinIndex = dataPin - nodeDesc.firstDataPin;
+                    const auto& typeDesc = nodeDesc.pins[pinIndex].typeDesc;
+                    g.m_dataStorage.emplace_back(createGraphData(typeDesc), typeDesc.destruct);
                 }
             }
 
