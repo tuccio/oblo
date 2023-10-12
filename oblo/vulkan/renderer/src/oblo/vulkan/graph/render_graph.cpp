@@ -67,7 +67,6 @@ namespace oblo::vk
     void render_graph::execute(const vulkan_context& ctx)
     {
         runtime_builder builder{*this};
-        runtime_context runtime{*this, ctx.get_resource_manager()};
 
         for (auto& node : m_nodes)
         {
@@ -77,6 +76,13 @@ namespace oblo::vk
             {
                 node.build(ptr, builder);
             }
+        }
+
+        runtime_context runtime{*this, ctx.get_resource_manager()};
+
+        for (auto& node : m_nodes)
+        {
+            auto* const ptr = node.node;
 
             if (node.execute)
             {
