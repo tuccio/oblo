@@ -153,7 +153,7 @@ namespace oblo::vk
         std::pmr::vector<input_desc> m_inputs{&m_pool};
         std::pmr::vector<output_desc> m_outputs{&m_pool};
 
-        u32 m_lastDataId{0};
+        u32 m_nextDataId{0};
 
         usize m_allocationSize{0};
     };
@@ -196,7 +196,7 @@ namespace oblo::vk
 
             const T instance{};
 
-            const u32 firstPin{m_lastDataId};
+            const u32 firstPin{m_nextDataId};
 
             node_desc& nodeDesc = it->second;
 
@@ -204,7 +204,7 @@ namespace oblo::vk
                          { (this->register_pin(&nodeDesc, reinterpret_cast<const u8*>(&instance), &fields), ...); },
                          instance);
 
-            const u32 lastPin{m_lastDataId};
+            const u32 lastPin{m_nextDataId};
 
             nodeDesc.typeDesc = type_desc::make<T>();
 
@@ -387,7 +387,7 @@ namespace oblo::vk
     {
         const u8* const bMemberPtr = reinterpret_cast<const u8*>(pin);
 
-        const u32 id = ++m_lastDataId;
+        const u32 id = m_nextDataId++;
         const u32 offset = u32(bMemberPtr - nodePtr);
 
         m_allocationSize += sizeof(h32<texture>) + alignof(h32<texture>) - 1;
@@ -400,7 +400,7 @@ namespace oblo::vk
     {
         const u8* const bMemberPtr = reinterpret_cast<const u8*>(pin);
 
-        const u32 id = ++m_lastDataId;
+        const u32 id = m_nextDataId++;
         const u32 offset = u32(bMemberPtr - nodePtr);
 
         m_allocationSize += sizeof(T) + alignof(T) - 1;

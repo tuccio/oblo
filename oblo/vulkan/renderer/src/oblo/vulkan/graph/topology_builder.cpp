@@ -135,7 +135,7 @@ namespace oblo::vk
 
         g.m_nodes.reserve(m_nodes.size());
 
-        const u32 numPins = m_lastDataId;
+        const u32 numPins = m_nextDataId;
 
         // Propagate pin connections
         // Graph inputs will all have their own entry in g.m_textureResources
