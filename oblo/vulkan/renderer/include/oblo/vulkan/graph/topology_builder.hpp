@@ -129,10 +129,8 @@ namespace oblo::vk
             type_desc typeDesc;
             usize nodeIndex;
             std::pmr::vector<edge_desc> outEdges;
-            u32 firstTexturePin;
-            u32 lastTexturePin;
-            u32 firstDataPin;
-            u32 lastDataPin;
+            u32 firstPin;
+            u32 lastPin;
             std::vector<pin_data> pins;
             build_fn build;
             execute_fn execute;
@@ -155,8 +153,7 @@ namespace oblo::vk
         std::pmr::vector<input_desc> m_inputs{&m_pool};
         std::pmr::vector<output_desc> m_outputs{&m_pool};
 
-        u32 m_virtualTextureId{0};
-        u32 m_virtualDataId{0};
+        u32 m_lastDataId{0};
 
         usize m_allocationSize{0};
     };
@@ -199,8 +196,7 @@ namespace oblo::vk
 
             const T instance{};
 
-            const u32 firstTexturePin{m_virtualTextureId};
-            const u32 firstDataPin{m_virtualDataId};
+            const u32 firstPin{m_lastDataId};
 
             node_desc& nodeDesc = it->second;
 
@@ -208,16 +204,12 @@ namespace oblo::vk
                          { (this->register_pin(&nodeDesc, reinterpret_cast<const u8*>(&instance), &fields), ...); },
                          instance);
 
-            const u32 lastTexturePin{m_virtualTextureId};
-            const u32 lastDataPin{m_virtualDataId};
+            const u32 lastPin{m_lastDataId};
 
             nodeDesc.typeDesc = type_desc::make<T>();
 
-            nodeDesc.firstTexturePin = firstTexturePin;
-            nodeDesc.lastTexturePin = lastTexturePin;
-
-            nodeDesc.firstDataPin = firstDataPin;
-            nodeDesc.lastDataPin = lastDataPin;
+            nodeDesc.firstPin = firstPin;
+            nodeDesc.lastPin = lastPin;
 
             if constexpr (requires(T& node, runtime_builder& builder) { node.build(builder); })
             {
@@ -265,13 +257,11 @@ namespace oblo::vk
 
         if (it != m_nodes.end())
         {
-            it->second.outEdges.push_back({
-                .targetNode = get_type_id<NodeTo>(),
-                .dataType = get_type_id<BackingType>(),
-                .sourceOffset = get_member_offset(from),
-                .targetOffset = get_member_offset(to),
-                .kind = get_pin_kind(T{})
-            });
+            it->second.outEdges.push_back({.targetNode = get_type_id<NodeTo>(),
+                                           .dataType = get_type_id<BackingType>(),
+                                           .sourceOffset = get_member_offset(from),
+                                           .targetOffset = get_member_offset(to),
+                                           .kind = get_pin_kind(T{})});
         }
 
         return *this;
@@ -397,7 +387,7 @@ namespace oblo::vk
     {
         const u8* const bMemberPtr = reinterpret_cast<const u8*>(pin);
 
-        const u32 id = ++m_virtualTextureId;
+        const u32 id = ++m_lastDataId;
         const u32 offset = u32(bMemberPtr - nodePtr);
 
         m_allocationSize += sizeof(h32<texture>) + alignof(h32<texture>) - 1;
@@ -410,7 +400,7 @@ namespace oblo::vk
     {
         const u8* const bMemberPtr = reinterpret_cast<const u8*>(pin);
 
-        const u32 id = ++m_virtualDataId;
+        const u32 id = ++m_lastDataId;
         const u32 offset = u32(bMemberPtr - nodePtr);
 
         m_allocationSize += sizeof(T) + alignof(T) - 1;

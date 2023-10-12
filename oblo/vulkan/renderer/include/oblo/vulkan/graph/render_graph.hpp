@@ -78,6 +78,9 @@ namespace oblo::vk
         void execute(const vulkan_context& context);
 
     private:
+        void* access_data(u32 h) const;
+
+    private:
         struct pin_data;
         struct named_pin_data;
         struct data_storage;
@@ -87,17 +90,10 @@ namespace oblo::vk
     private:
         std::unique_ptr<std::byte[]> m_allocator;
         std::vector<node> m_nodes;
-        std::vector<pin> m_outputs;
-        std::vector<gpu_resource> m_gpuResources;
-        std::vector<cpu_data> m_cpuData;
 
-        std::vector<named_pin_data> m_textureInputs;
-        std::vector<pin_data> m_texturePins;
-        std::vector<h32<texture>> m_textureResources;
-
-        std::vector<named_pin_data> m_dataInputs;
-        std::vector<pin_data> m_dataPins;
-        std::vector<data_storage> m_dataStorage;
+        std::vector<named_pin_data> m_inputs;
+        std::vector<pin_data> m_pins;
+        std::vector<data_storage> m_pinStorage;
     };
 
     struct render_graph::named_pin_data

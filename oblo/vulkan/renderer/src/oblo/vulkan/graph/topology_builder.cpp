@@ -135,63 +135,46 @@ namespace oblo::vk
 
         g.m_nodes.reserve(m_nodes.size());
 
-        const u32 numDataPins = m_virtualDataId;
-        const u32 numTexturePins = m_virtualTextureId;
+        const u32 numPins = m_lastDataId;
 
         // Propagate pin connections
         // Graph inputs will all have their own entry in g.m_textureResources
         // Connected pins will point to the same texture in the g.m_textureResources array
         // Unconnected pins will have their own entry, and will be expected to be created at runtime
-        g.m_textureInputs.reserve(m_inputs.size() + 1);
-        g.m_dataInputs.reserve(m_inputs.size() + 1);
+        g.m_inputs.reserve(m_inputs.size() + 1);
 
         // The index 0 is used as invalid index, so we leave it empty for convenience
-        g.m_textureResources.emplace_back();
-        g.m_dataStorage.emplace_back();
+        g.m_pinStorage.emplace_back();
 
-        g.m_texturePins.resize(numTexturePins);
-        g.m_dataPins.resize(numDataPins);
+        g.m_pins.resize(numPins);
 
         for (const auto& input : m_inputs)
         {
-            if (input.typeId == get_type_id<h32<texture>>())
+            auto& dataInput = g.m_inputs.emplace_back();
+            const u32 storageIndex = u32(g.m_pinStorage.size());
+            dataInput.storageIndex = storageIndex;
+            dataInput.name = input.name;
+
+            auto* const ptr = allocateGraphData(input.typeDesc.size, input.typeDesc.alignment);
+            input.typeDesc.construct(ptr);
+
+            g.m_pinStorage.emplace_back(ptr, input.typeDesc.destruct);
+
+            for (const auto& edge : input.outEdges)
             {
-                auto& textureInput = g.m_textureInputs.emplace_back();
-                textureInput.storageIndex = u32(g.m_textureResources.size());
-                textureInput.name = input.name;
-                g.m_textureResources.emplace_back();
-            }
-            else
-            {
-                auto& dataInput = g.m_dataInputs.emplace_back();
-                const u32 storageIndex = u32(g.m_dataStorage.size());
-                dataInput.storageIndex = storageIndex;
-                dataInput.name = input.name;
+                const auto it = m_nodes.find(edge.targetNode);
 
-                auto* const ptr = allocateGraphData(input.typeDesc.size, input.typeDesc.alignment);
-                input.typeDesc.construct(ptr);
-
-                g.m_dataStorage.emplace_back(ptr, input.typeDesc.destruct);
-
-                for (const auto& edge : input.outEdges)
+                if (it == m_nodes.end())
                 {
-                    const auto it = m_nodes.find(edge.targetNode);
-
-                    if (it == m_nodes.end())
-                    {
-                        return graph_error::node_not_found;
-                    }
-
-                    const auto idTarget = read_u32(it->second.node, edge.targetOffset);
-                    g.m_dataPins[idTarget].storageIndex = storageIndex;
+                    return graph_error::node_not_found;
                 }
+
+                const auto idTarget = read_u32(it->second.node, edge.targetOffset);
+                g.m_pins[idTarget].storageIndex = storageIndex;
             }
         }
 
-        std::vector<bool> visitedPins;
-        visitedPins.reserve(max(numTexturePins, numDataPins));
-
-        visitedPins.assign(numTexturePins, false);
+        std::vector<bool> visitedPins(numPins, false);
 
         for (const usize nodeIndex : nodesOrder)
         {
@@ -199,23 +182,14 @@ namespace oblo::vk
             // that needs to be created at runtime
             auto& nodeDesc = linearizedNodes[nodeIndex]->second;
 
-            for (u32 texturePin = nodeDesc.firstTexturePin; texturePin != nodeDesc.lastTexturePin; ++texturePin)
+            for (u32 dataPin = nodeDesc.firstPin; dataPin != nodeDesc.lastPin; ++dataPin)
             {
-                if (auto& pin = g.m_texturePins[texturePin]; pin.storageIndex == 0)
+                if (auto& pin = g.m_pins[dataPin]; pin.storageIndex == 0)
                 {
-                    pin.storageIndex = u32(g.m_textureResources.size());
-                    g.m_textureResources.emplace_back();
-                }
-            }
-
-            for (u32 dataPin = nodeDesc.firstDataPin; dataPin != nodeDesc.lastDataPin; ++dataPin)
-            {
-                if (auto& pin = g.m_dataPins[dataPin]; pin.storageIndex == 0)
-                {
-                    pin.storageIndex = u32(g.m_dataStorage.size());
-                    const auto pinIndex = dataPin - nodeDesc.firstDataPin;
+                    pin.storageIndex = u32(g.m_pinStorage.size());
+                    const auto pinIndex = dataPin - nodeDesc.firstPin;
                     const auto& typeDesc = nodeDesc.pins[pinIndex].typeDesc;
-                    g.m_dataStorage.emplace_back(createGraphData(typeDesc), typeDesc.destruct);
+                    g.m_pinStorage.emplace_back(createGraphData(typeDesc), typeDesc.destruct);
                 }
             }
 
@@ -234,16 +208,9 @@ namespace oblo::vk
                 const auto idSource = read_u32(nodeSourcePtr, edge.sourceOffset);
                 const auto idTarget = read_u32(it->second.node, edge.targetOffset);
 
-                if (edge.kind == pin_kind::texture)
-                {
-                    // The target will point to the same resource as the source, which might be coming
-                    // from an input or created by another node
-                    g.m_texturePins[idTarget] = g.m_texturePins[idSource];
-                }
-                else
-                {
-                    g.m_dataPins[idTarget] = g.m_dataPins[idSource];
-                }
+                // The target will point to the same resource as the source, which might be coming
+                // from an input or created by another node
+                g.m_pins[idTarget] = g.m_pins[idSource];
             }
         }
 

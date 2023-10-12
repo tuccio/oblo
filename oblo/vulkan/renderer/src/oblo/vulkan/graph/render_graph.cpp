@@ -24,7 +24,7 @@ namespace oblo::vk
             }
         }
 
-        for (auto& dataStorage : m_dataStorage)
+        for (auto& dataStorage : m_pinStorage)
         {
             if (dataStorage.ptr && dataStorage.destruct)
             {
@@ -35,11 +35,11 @@ namespace oblo::vk
 
     void* render_graph::find_input(std::string_view name)
     {
-        for (auto& input : m_dataInputs)
+        for (auto& input : m_inputs)
         {
             if (input.name == name)
             {
-                return m_dataStorage[input.storageIndex].ptr;
+                return m_pinStorage[input.storageIndex].ptr;
             }
         }
 
@@ -61,7 +61,7 @@ namespace oblo::vk
 
     u32 render_graph::get_backing_texture_id(resource<texture> virtualTextureId) const
     {
-        return m_texturePins[virtualTextureId.value].storageIndex;
+        return m_pins[virtualTextureId.value].storageIndex;
     }
 
     void render_graph::execute(const vulkan_context& ctx)
@@ -83,5 +83,13 @@ namespace oblo::vk
                 node.execute(ptr, runtime);
             }
         }
+    }
+
+    void* render_graph::access_data(u32 h) const
+    {
+        const auto storageIndex = m_pins[h].storageIndex;
+        auto& data = m_pinStorage[storageIndex];
+
+        return data.ptr;
     }
 }

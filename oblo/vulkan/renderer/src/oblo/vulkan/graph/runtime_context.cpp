@@ -7,8 +7,7 @@ namespace oblo::vk
 {
     texture runtime_context::access(resource<texture> h) const
     {
-        const auto storageIndex = m_graph->m_texturePins[h.value].storageIndex;
-        const auto textureHandle = m_graph->m_textureResources[storageIndex];
+        const auto textureHandle = *static_cast<h32<texture>*>(m_graph->access_data(h.value));
 
         texture result{};
 
@@ -18,13 +17,5 @@ namespace oblo::vk
         }
 
         return result;
-    }
-
-    void* runtime_context::access_data(u32 h) const
-    {
-        const auto storageIndex = m_graph->m_dataPins[h].storageIndex;
-        auto& data = m_graph->m_dataStorage[storageIndex];
-
-        return data.ptr;
     }
 }
