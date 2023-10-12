@@ -16,8 +16,6 @@ namespace oblo::vk
 
 namespace oblo::vk
 {
-    class any;
-
     class runtime_context;
     class topology_builder;
 
@@ -82,6 +80,9 @@ namespace oblo::vk
     private:
         struct pin_data;
         struct named_pin_data;
+        struct data_storage;
+
+        using destruct_fn = void (*)(void*);
 
     private:
         std::unique_ptr<std::byte[]> m_allocator;
@@ -96,7 +97,7 @@ namespace oblo::vk
 
         std::vector<named_pin_data> m_dataInputs;
         std::vector<pin_data> m_dataPins;
-        std::vector<any> m_dataStorage;
+        std::vector<data_storage> m_dataStorage;
     };
 
     struct render_graph::named_pin_data
@@ -108,5 +109,11 @@ namespace oblo::vk
     struct render_graph::pin_data
     {
         u32 storageIndex;
+    };
+
+    struct render_graph::data_storage
+    {
+        void* ptr;
+        destruct_fn destruct;
     };
 }

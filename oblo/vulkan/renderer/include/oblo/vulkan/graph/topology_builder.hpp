@@ -83,14 +83,23 @@ namespace oblo::vk
         constexpr static pin_kind get_resource_pin_kind();
 
     private:
-        using data_factory = any (*)();
-
         struct type_desc
         {
             u32 size;
             u32 alignment;
-            construct_node_fn construct;
-            destruct_node_fn destruct;
+            construct_fn construct;
+            destruct_fn destruct;
+
+            template <typename T>
+            static type_desc make()
+            {
+                return {
+                    .size = sizeof(T),
+                    .alignment = alignof(T),
+                    .construct = [](void* p) { new (p) T{}; },
+                    .destruct = [](void* p) { static_cast<T*>(p)->~T(); },
+                };
+            }
         };
 
         struct edge_desc
@@ -106,6 +115,7 @@ namespace oblo::vk
         {
             u32 id;
             u32 offset;
+            type_desc typeDesc;
         };
 
         struct node_desc
@@ -119,7 +129,6 @@ namespace oblo::vk
             u32 firstDataPin;
             u32 lastDataPin;
             std::vector<pin_data> pins;
-            std::vector<data_factory> dataFactories;
             build_fn build;
             execute_fn execute;
         };
@@ -127,7 +136,7 @@ namespace oblo::vk
         struct input_desc : pin
         {
             std::pmr::vector<edge_desc> outEdges;
-            data_factory factory;
+            type_desc typeDesc;
         };
 
         struct output_desc : pin
@@ -186,12 +195,7 @@ namespace oblo::vk
             const u32 lastTexturePin{m_virtualTextureId};
             const u32 lastDataPin{m_virtualDataId};
 
-            nodeDesc.typeDesc = {
-                .size = sizeof(T),
-                .alignment = alignof(T),
-                .construct = [](void* p) { new (p) T{}; },
-                .destruct = [](void* p) { static_cast<T*>(p)->~T(); },
-            };
+            nodeDesc.typeDesc = type_desc::make<T>();
 
             nodeDesc.firstTexturePin = firstTexturePin;
             nodeDesc.lastTexturePin = lastTexturePin;
@@ -219,10 +223,12 @@ namespace oblo::vk
     {
         auto& input = m_inputs.emplace_back();
         input.name = name;
-        input.value.emplace<T>();
         input.typeId = get_type_id<T>();
         input.outEdges = std::pmr::vector<edge_desc>{&m_pool};
-        input.factory = [] { return any{T{}}; };
+        input.typeDesc = type_desc::make<T>();
+
+        m_allocationSize += sizeof(T) + alignof(T) - 1;
+
         return *this;
     }
 
@@ -231,7 +237,6 @@ namespace oblo::vk
     {
         auto& output = m_outputs.emplace_back();
         output.name = name;
-        output.value.emplace<T>();
         output.typeId = get_type_id<T>();
         output.inEdges = std::pmr::vector<edge_desc>{&m_pool};
         return *this;
@@ -358,7 +363,7 @@ namespace oblo::vk
                     .dataType = get_type_id<T>(),
                     .targetOffset = get_member_offset(from),
                     .kind = pin_kind::data,
-                    .factory = [] { return any{T{}}; },
+                    .typeDesc = type_desc::make<T>(),
                 });
 
                 break;
@@ -386,7 +391,9 @@ namespace oblo::vk
         const u32 id = ++m_virtualTextureId;
         const u32 offset = u32(bMemberPtr - nodePtr);
 
-        nodeDesc->pins.push_back({.id = id, .offset = offset});
+        m_allocationSize += sizeof(h32<texture>) + alignof(h32<texture>) - 1;
+
+        nodeDesc->pins.push_back({.id = id, .offset = offset, .typeDesc = type_desc::make<h32<texture>>()});
     }
 
     template <typename T>
@@ -397,8 +404,8 @@ namespace oblo::vk
         const u32 id = ++m_virtualDataId;
         const u32 offset = u32(bMemberPtr - nodePtr);
 
-        nodeDesc->dataFactories.emplace_back([] { return any{T{}}; });
+        m_allocationSize += sizeof(T) + alignof(T) - 1;
 
-        nodeDesc->pins.push_back({.id = id, .offset = offset});
+        nodeDesc->pins.push_back({.id = id, .offset = offset, .typeDesc = type_desc::make<T>()});
     }
 }

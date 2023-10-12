@@ -15,10 +15,21 @@ namespace oblo::vk
 
     render_graph::~render_graph()
     {
-        // TODO: Destroy pins as well
+        // TODO: Should this destroy textures?
         for (auto& node : m_nodes)
         {
-            node.destruct(node.node);
+            if (node.node && node.destruct)
+            {
+                node.destruct(node.node);
+            }
+        }
+
+        for (auto& dataStorage : m_dataStorage)
+        {
+            if (dataStorage.ptr && dataStorage.destruct)
+            {
+                dataStorage.destruct(dataStorage.ptr);
+            }
         }
     }
 
@@ -28,7 +39,7 @@ namespace oblo::vk
         {
             if (input.name == name)
             {
-                return m_dataStorage[input.storageIndex].get();
+                return m_dataStorage[input.storageIndex].ptr;
             }
         }
 
