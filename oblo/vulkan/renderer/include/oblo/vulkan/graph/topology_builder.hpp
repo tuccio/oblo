@@ -14,11 +14,6 @@
 
 namespace oblo::vk
 {
-    struct texture;
-}
-
-namespace oblo::vk
-{
     enum class graph_error : u8
     {
         node_not_found,
@@ -29,6 +24,7 @@ namespace oblo::vk
     };
 
     class render_graph;
+    struct texture;
 
     class topology_builder
     {
@@ -63,6 +59,10 @@ namespace oblo::vk
         expected<render_graph, graph_error> build();
 
     private:
+        template <typename BackingType, typename T, typename NodeFrom, typename NodeTo>
+        topology_builder& connect_impl(T(NodeFrom::*from), T(NodeTo::*to));
+
+    private:
         struct node_desc;
 
         void register_pin(node_desc*, const u8*, ...) {}
@@ -81,6 +81,11 @@ namespace oblo::vk
 
         template <typename T>
         constexpr static pin_kind get_resource_pin_kind();
+
+        template <typename T>
+        consteval static pin_kind get_pin_kind(data<T>);
+
+        consteval static pin_kind get_pin_kind(resource<texture>);
 
     private:
         struct type_desc
@@ -172,6 +177,17 @@ namespace oblo::vk
     }
 
     template <typename T>
+    consteval topology_builder::pin_kind topology_builder::get_pin_kind(data<T>)
+    {
+        return pin_kind::data;
+    }
+
+    consteval topology_builder::pin_kind topology_builder::get_pin_kind(resource<texture>)
+    {
+        return pin_kind::texture;
+    }
+
+    template <typename T>
     topology_builder& topology_builder::add_node()
     {
         const auto [it, ok] =
@@ -242,8 +258,8 @@ namespace oblo::vk
         return *this;
     }
 
-    template <typename T, typename NodeFrom, typename NodeTo>
-    topology_builder& topology_builder::connect(resource<T>(NodeFrom::*from), resource<T>(NodeTo::*to))
+    template <typename BackingType, typename T, typename NodeFrom, typename NodeTo>
+    topology_builder& topology_builder::connect_impl(T(NodeFrom::*from), T(NodeTo::*to))
     {
         const auto it = m_nodes.find(get_type_id<NodeFrom>());
 
@@ -251,10 +267,10 @@ namespace oblo::vk
         {
             it->second.outEdges.push_back({
                 .targetNode = get_type_id<NodeTo>(),
-                .dataType = get_type_id<T>(),
+                .dataType = get_type_id<BackingType>(),
                 .sourceOffset = get_member_offset(from),
                 .targetOffset = get_member_offset(to),
-                .kind = get_resource_pin_kind<T>(),
+                .kind = get_pin_kind(T{})
             });
         }
 
@@ -262,22 +278,15 @@ namespace oblo::vk
     }
 
     template <typename T, typename NodeFrom, typename NodeTo>
+    topology_builder& topology_builder::connect(resource<T>(NodeFrom::*from), resource<T>(NodeTo::*to))
+    {
+        return connect_impl<h32<T>>(from, to);
+    }
+
+    template <typename T, typename NodeFrom, typename NodeTo>
     topology_builder& topology_builder::connect(data<T>(NodeFrom::*from), data<T>(NodeTo::*to))
     {
-        const auto it = m_nodes.find(get_type_id<NodeFrom>());
-
-        if (it != m_nodes.end())
-        {
-            it->second.outEdges.push_back({
-                .targetNode = get_type_id<NodeTo>(),
-                .dataType = get_type_id<T>(),
-                .sourceOffset = get_member_offset(from),
-                .targetOffset = get_member_offset(to),
-                .kind = pin_kind::data,
-            });
-        }
-
-        return *this;
+        return connect_impl<T>(from, to);
     }
 
     template <typename T, typename NodeTo>
