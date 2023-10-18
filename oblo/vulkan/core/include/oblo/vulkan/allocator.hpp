@@ -48,12 +48,19 @@ namespace oblo::vk
         void destroy(const allocated_buffer& buffer);
         void destroy(const allocated_image& image);
 
+        VmaAllocation create_memory(VkMemoryRequirements requirements);
+        void destroy_memory(VmaAllocation allocation);
+
+        VkResult bind_image_memory(VkImage image, VmaAllocation allocation, VkDeviceSize offset);
+
         VkResult map(VmaAllocation allocation, void** outMemoryPtr);
         void unmap(VmaAllocation allocation);
 
         VkDevice get_device() const;
 
         VkResult invalidate_mapped_memory_ranges(std::span<const VmaAllocation> allocations);
+
+        const VkAllocationCallbacks* get_allocation_callbacks() const;
 
     private:
         VmaAllocator m_allocator{nullptr};

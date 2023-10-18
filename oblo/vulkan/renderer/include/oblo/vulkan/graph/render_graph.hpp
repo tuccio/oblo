@@ -6,18 +6,17 @@
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 
+#include <vulkan/vulkan.h>
+
 #include <memory>
 #include <vector>
 
 namespace oblo::vk
 {
-    class vulkan_context;
-}
-
-namespace oblo::vk
-{
     class runtime_context;
     class topology_builder;
+    class resource_pool;
+    class renderer;
 
     struct cpu_data;
     struct gpu_resource;
@@ -75,21 +74,32 @@ namespace oblo::vk
         // resources will point to.
         u32 get_backing_texture_id(resource<texture> virtualTextureId) const;
 
-        void execute(const vulkan_context& context);
+        void build(resource_pool& resourcePool);
+
+        void execute(renderer& renderer, resource_pool& resourcePool);
 
     private:
         void* access_data(u32 h) const;
+
+        void add_transient_resource(resource<texture> texture, u32 poolIndex);
+        void add_resource_transition(resource<texture> texture, VkImageLayout target);
 
     private:
         struct pin_data;
         struct named_pin_data;
         struct data_storage;
+        struct node_transitions;
+        struct texture_transition;
+        struct transient_texture;
 
         using destruct_fn = void (*)(void*);
 
     private:
         std::unique_ptr<std::byte[]> m_allocator;
         std::vector<node> m_nodes;
+        std::vector<node_transitions> m_nodeTransitions;
+        std::vector<texture_transition> m_textureTransitions;
+        std::vector<transient_texture> m_transientTextures;
 
         std::vector<named_pin_data> m_inputs;
         std::vector<pin_data> m_pins;
@@ -111,5 +121,23 @@ namespace oblo::vk
     {
         void* ptr;
         destruct_fn destruct;
+    };
+
+    struct render_graph::node_transitions
+    {
+        u32 firstTextureTransition;
+        u32 lastTextureTransition;
+    };
+
+    struct render_graph::texture_transition
+    {
+        resource<texture> texture;
+        VkImageLayout target;
+    };
+
+    struct render_graph::transient_texture
+    {
+        resource<texture> texture;
+        u32 poolIndex;
     };
 }

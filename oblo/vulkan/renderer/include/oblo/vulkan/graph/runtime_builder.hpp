@@ -27,33 +27,19 @@ namespace oblo::vk
     };
 
     class render_graph;
+    class resource_pool;
 
     class runtime_builder
     {
     public:
-        explicit runtime_builder(render_graph& graph) : m_graph{&graph} {}
-
-        void create(resource<texture> texture, const texture2d_initializer& initializer, resource_usage usage)
+        explicit runtime_builder(render_graph& graph, resource_pool& resourcePool) :
+            m_graph{&graph}, m_resourcePool{&resourcePool}
         {
-            // TODO
-            (void) texture;
-            (void) initializer;
-            (void) usage;
         }
 
-        void read(resource<texture> texture, resource_usage usage)
-        {
-            // TODO
-            (void) texture;
-            (void) usage;
-        }
+        void create(resource<texture> texture, const texture2d_initializer& initializer, resource_usage usage);
 
-        void write(resource<texture> texture, resource_usage usage)
-        {
-            // TODO
-            (void) texture;
-            (void) usage;
-        }
+        void use(resource<texture> texture, resource_usage usage);
 
         template <typename T>
         T& access(data<T> data) const
@@ -63,5 +49,6 @@ namespace oblo::vk
 
     private:
         render_graph* m_graph;
+        resource_pool* m_resourcePool;
     };
 }

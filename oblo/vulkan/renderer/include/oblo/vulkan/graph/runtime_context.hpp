@@ -17,8 +17,11 @@ namespace oblo::vk
     class runtime_context
     {
     public:
-        explicit runtime_context(render_graph& graph, resource_manager& resourceManager) :
-            m_graph{&graph}, m_resourceManager{&resourceManager}
+        explicit runtime_context(render_graph& graph,
+                                 resource_manager& resourceManager,
+                                 VkCommandBuffer commandBuffer) :
+            m_graph{&graph},
+            m_resourceManager{&resourceManager}, m_commandBuffer{commandBuffer}
         {
         }
 
@@ -32,11 +35,17 @@ namespace oblo::vk
             return static_cast<T*>(access_data(h.value));
         }
 
+        VkCommandBuffer get_command_buffer() const
+        {
+            return m_commandBuffer;
+        }
+
     private:
         void* access_data(u32 h) const;
 
     private:
         render_graph* m_graph;
         resource_manager* m_resourceManager;
+        VkCommandBuffer m_commandBuffer;
     };
 }

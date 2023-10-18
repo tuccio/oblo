@@ -7,6 +7,8 @@
 #include <oblo/vulkan/renderer_context.hpp>
 #include <oblo/vulkan/staging_buffer.hpp>
 
+#include <memory>
+
 namespace oblo
 {
     class frame_allocator;
@@ -15,6 +17,7 @@ namespace oblo
 namespace oblo::vk
 {
     class render_graph;
+    class resource_pool;
 
     class vulkan_context;
     struct buffer;
