@@ -118,6 +118,27 @@ namespace oblo::vk
         vmaDestroyImage(m_allocator, image.image, image.allocation);
     }
 
+    VmaAllocation allocator::create_memory(VkMemoryRequirements requirements)
+    {
+        constexpr VmaAllocationCreateInfo createInfo{
+            .preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        };
+
+        VmaAllocation allocation{};
+        vmaAllocateMemory(m_allocator, &requirements, &createInfo, &allocation, nullptr);
+        return allocation;
+    }
+
+    void allocator::destroy_memory(VmaAllocation allocation)
+    {
+        vmaFreeMemory(m_allocator, allocation);
+    }
+
+    VkResult allocator::bind_image_memory(VkImage image, VmaAllocation allocation, VkDeviceSize offset)
+    {
+        return vmaBindImageMemory2(m_allocator, allocation, offset, image, nullptr);
+    }
+
     VkResult allocator::map(VmaAllocation allocation, void** outMemoryPtr)
     {
         return vmaMapMemory(m_allocator, allocation, outMemoryPtr);
@@ -136,5 +157,10 @@ namespace oblo::vk
     VkResult allocator::invalidate_mapped_memory_ranges(std::span<const VmaAllocation> allocations)
     {
         return vmaInvalidateAllocations(m_allocator, allocations.size(), allocations.data(), nullptr, nullptr);
+    }
+
+    const VkAllocationCallbacks* allocator::get_allocation_callbacks() const
+    {
+        return m_allocator->GetAllocationCallbacks();
     }
 }
