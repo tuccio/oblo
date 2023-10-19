@@ -17,20 +17,30 @@ namespace oblo::vk
 
     resource_pool::~resource_pool() = default;
 
-    void resource_pool::begin_build(u64 frameIndex)
+    void resource_pool::shutdown(vulkan_context& ctx)
     {
-        // Keep track of frame index in case we need to free memory
-        (void) frameIndex;
-
-        // Destroy last frame images? Or queue for destruction into vulkan context?
-        // Free the memory allocation?
-        // Maybe delay destruction to later to figure if it's necessary (e.g. allow caching)
-        m_graphBegin = 0;
-        m_textureResources.clear();
+        m_lastFrameAllocation = m_allocation;
+        std::swap(m_lastFrameTextureResources, m_textureResources);
+        free_last_frame_resources(ctx);
     }
 
-    void resource_pool::end_build(const vulkan_context& ctx)
+    void resource_pool::begin_build()
     {
+        m_graphBegin = 0;
+
+        std::swap(m_lastFrameTextureResources, m_textureResources);
+        m_textureResources.clear();
+
+        m_lastFrameAllocation = m_allocation;
+        m_allocation = nullptr;
+    }
+
+    void resource_pool::end_build(vulkan_context& ctx)
+    {
+        // TODO: Here we should check if we can reuse the allocation from last frame, instead for now we
+        // simply free the objects from last frame
+        free_last_frame_resources(ctx);
+
         VkDevice device{ctx.get_device()};
 
         auto& allocator = ctx.get_allocator();
@@ -42,6 +52,7 @@ namespace oblo::vk
         for (auto& textureResource : m_textureResources)
         {
             const auto& initializer = textureResource.initializer;
+            OBLO_ASSERT(initializer.memoryUsage == memory_usage::gpu_only);
 
             const VkImageCreateInfo imageCreateInfo{
                 .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
@@ -69,6 +80,8 @@ namespace oblo::vk
             newRequirements.memoryTypeBits &= requirements.memoryTypeBits;
         }
 
+        // We should maybe constrain memory type bits to use something that uses the bigger heap?
+        // https://stackoverflow.com/questions/73243399/vma-how-to-tell-the-library-to-use-the-bigger-of-2-heaps
         OBLO_ASSERT(newRequirements.memoryTypeBits != 0);
 
         if (newRequirements.size == 0)
@@ -81,7 +94,7 @@ namespace oblo::vk
         newRequirements.size += (newRequirements.alignment - 1) * m_textureResources.size();
 
         // TODO: Store it, determine when to free it
-        const auto allocation = allocator.create_memory(newRequirements);
+        const auto allocation = allocator.create_memory(newRequirements, memory_usage::gpu_only);
 
         VkDeviceSize offset{0};
         for (const auto& textureResource : m_textureResources)
@@ -113,5 +126,20 @@ namespace oblo::vk
             .image = resource.image,
             .initializer = resource.initializer,
         };
+    }
+
+    void resource_pool::free_last_frame_resources(vulkan_context& ctx)
+    {
+        const auto submitIndex = ctx.get_submit_index() - 1;
+
+        for (const auto& resource : m_lastFrameTextureResources)
+        {
+            ctx.destroy_deferred(resource.image, submitIndex);
+        }
+
+        if (m_lastFrameAllocation)
+        {
+            ctx.destroy_deferred(m_lastFrameAllocation, submitIndex);
+        }
     }
 }

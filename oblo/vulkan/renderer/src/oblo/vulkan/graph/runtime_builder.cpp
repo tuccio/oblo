@@ -12,7 +12,7 @@ namespace oblo::vk
         {
             switch (usage)
             {
-            case resource_usage::depth_buffer_write:
+            case resource_usage::depth_stencil_write:
                 return VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
             case resource_usage::render_target_write:
@@ -31,8 +31,8 @@ namespace oblo::vk
         {
             switch (usage)
             {
-            case resource_usage::depth_buffer_write:
-                return VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+            case resource_usage::depth_stencil_write:
+                return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
             case resource_usage::render_target_write:
                 return VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;

@@ -118,9 +118,10 @@ namespace oblo::vk
         vmaDestroyImage(m_allocator, image.image, image.allocation);
     }
 
-    VmaAllocation allocator::create_memory(VkMemoryRequirements requirements)
+    VmaAllocation allocator::create_memory(VkMemoryRequirements requirements, memory_usage memoryUsage)
     {
-        constexpr VmaAllocationCreateInfo createInfo{
+        const VmaAllocationCreateInfo createInfo{
+            .usage = VmaMemoryUsage(memoryUsage),
             .preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         };
 

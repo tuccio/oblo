@@ -23,7 +23,7 @@ namespace oblo::vk
     {
         m_vkContext = &context.vkContext;
 
-        m_stagingBuffer.init(get_engine(), get_allocator(), 1u << 29);
+        m_stagingBuffer.init(get_engine(), get_allocator(), 1u << 27);
 
         m_dummy = m_vkContext->get_resource_manager().create(
             get_allocator(),

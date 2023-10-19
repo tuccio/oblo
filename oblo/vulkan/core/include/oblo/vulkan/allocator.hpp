@@ -48,7 +48,7 @@ namespace oblo::vk
         void destroy(const allocated_buffer& buffer);
         void destroy(const allocated_image& image);
 
-        VmaAllocation create_memory(VkMemoryRequirements requirements);
+        VmaAllocation create_memory(VkMemoryRequirements requirements, memory_usage memoryUsage);
         void destroy_memory(VmaAllocation allocation);
 
         VkResult bind_image_memory(VkImage image, VmaAllocation allocation, VkDeviceSize offset);

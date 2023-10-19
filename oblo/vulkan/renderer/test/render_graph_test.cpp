@@ -33,7 +33,7 @@ namespace oblo::vk::test
                                    .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                                    .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
                                },
-                               resource_usage::depth_buffer_write);
+                               resource_usage::depth_stencil_write);
             }
         };
 
@@ -131,6 +131,7 @@ namespace oblo::vk::test
 
             void shutdown(const vk::sandbox_shutdown_context& ctx)
             {
+                resourcePool.shutdown(*ctx.vkContext);
                 renderer.shutdown(*ctx.frameAllocator);
             }
 
@@ -141,7 +142,7 @@ namespace oblo::vk::test
                 graph.set_input("RenderResolution", vec2u{.x = 16u, .y = 16u});
                 // graph.enable_output("FinalRender");
 
-                resourcePool.begin_build(frameIndex);
+                resourcePool.begin_build();
 
                 resourcePool.begin_graph();
                 graph.build(resourcePool);

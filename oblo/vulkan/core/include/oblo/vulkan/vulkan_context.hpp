@@ -43,8 +43,19 @@ namespace oblo::vk
         allocator& get_allocator() const;
         resource_manager& get_resource_manager() const;
 
+        u64 get_submit_index() const;
+
+        void destroy_deferred(VkImage image, u64 submitIndex);
+        void destroy_deferred(VmaAllocation allocation, u64 submitIndex);
+
     private:
         struct submit_info;
+
+        template <typename T>
+        struct pending_disposal;
+
+    private:
+        void destroy_resources(u64 maxSubmitIndex);
 
     private:
         VkInstance m_instance;
@@ -63,6 +74,9 @@ namespace oblo::vk
 
         // We want the submit index to start from more than 0, which is the starting value of the semaphore
         u64 m_submitIndex{1};
+
+        std::vector<pending_disposal<VkImage>> m_imagesToDestroy;
+        std::vector<pending_disposal<VmaAllocation>> m_allocationsToDestroy;
     };
 
     struct vulkan_context::initializer
@@ -103,5 +117,10 @@ namespace oblo::vk
     inline resource_manager& vulkan_context::get_resource_manager() const
     {
         return *m_resourceManager;
+    }
+
+    inline u64 vulkan_context::get_submit_index() const
+    {
+        return m_submitIndex;
     }
 }

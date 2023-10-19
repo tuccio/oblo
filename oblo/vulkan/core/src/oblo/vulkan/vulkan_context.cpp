@@ -15,6 +15,13 @@ namespace oblo::vk
         u64 submitIndex{0};
     };
 
+    template <typename T>
+    struct vulkan_context::pending_disposal
+    {
+        T object;
+        u64 frameIndex;
+    };
+
     vulkan_context::vulkan_context() = default;
 
     vulkan_context::~vulkan_context() = default;
@@ -83,6 +90,7 @@ namespace oblo::vk
     {
         vkDeviceWaitIdle(m_engine->get_device());
 
+        destroy_resources(~u64{});
         reset_device_objects(m_engine->get_device(), m_timelineSemaphore);
 
         for (auto& submitInfo : m_submitInfo)
@@ -106,6 +114,8 @@ namespace oblo::vk
         {
             OBLO_VK_PANIC(vkWaitForFences(m_engine->get_device(), 1, &submitInfo.fence, 0, UINT64_MAX));
         }
+
+        destroy_resources(m_currentSemaphoreValue);
 
         OBLO_VK_PANIC(vkResetFences(m_engine->get_device(), 1, &submitInfo.fence));
 
@@ -203,5 +213,47 @@ namespace oblo::vk
         };
 
         OBLO_VK_PANIC(vkQueueSubmit(m_engine->get_queue(), 1, &submitInfo, currentSubmit.fence));
+    }
+
+    void vulkan_context::destroy_deferred(VkImage image, u64 submitIndex)
+    {
+        m_imagesToDestroy.emplace_back(image, submitIndex);
+    }
+
+    void vulkan_context::destroy_deferred(VmaAllocation allocation, u64 submitIndex)
+    {
+        m_allocationsToDestroy.emplace_back(allocation, submitIndex);
+    }
+
+    void vulkan_context::destroy_resources(u64 maxSubmitIndex)
+    {
+        auto destroyObjects = [maxSubmitIndex](auto& array, auto doDestroy)
+        {
+            u32 destroyedImages{0};
+
+            for (const auto [image, submitIndex] : array)
+            {
+                // Not quite perfect because we don't always insert in order,
+                // but it might be good enough for now
+                if (submitIndex >= maxSubmitIndex)
+                {
+                    return;
+                }
+
+                doDestroy(image);
+                ++destroyedImages;
+            }
+
+            if (destroyedImages > 0)
+            {
+                array.erase(array.begin(), array.begin() + 1);
+            }
+        };
+
+        destroyObjects(m_imagesToDestroy,
+                       [this](VkImage image) { m_allocator->destroy(allocated_image{.image = image}); });
+
+        destroyObjects(m_allocationsToDestroy,
+                       [this](VmaAllocation allocation) { m_allocator->destroy_memory(allocation); });
     }
 }
