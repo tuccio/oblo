@@ -5,11 +5,36 @@
 
 namespace oblo::vk
 {
+    namespace
+    {
+        VkImageAspectFlags deduce_aspect_mask(VkFormat format)
+        {
+            switch (format)
+            {
+            case VK_FORMAT_D16_UNORM:
+            case VK_FORMAT_X8_D24_UNORM_PACK32:
+            case VK_FORMAT_D32_SFLOAT:
+                return VK_IMAGE_ASPECT_DEPTH_BIT;
+
+            case VK_FORMAT_S8_UINT:
+                return VK_IMAGE_ASPECT_STENCIL_BIT;
+
+            case VK_FORMAT_D16_UNORM_S8_UINT:
+            case VK_FORMAT_D24_UNORM_S8_UINT:
+            case VK_FORMAT_D32_SFLOAT_S8_UINT:
+                return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+
+            default:
+                return VK_IMAGE_ASPECT_COLOR_BIT;
+            }
+        }
+    }
     struct resource_pool::texture_resource
     {
         image_initializer initializer;
         lifetime_range range;
         VkImage image;
+        VkImageView imageView;
         VkDeviceSize size;
     };
 
@@ -48,7 +73,7 @@ namespace oblo::vk
 
         VkMemoryRequirements newRequirements{.memoryTypeBits = ~u32{}};
 
-        // For new we jsut allocate all textures
+        // For now we just allocate all textures
         for (auto& textureResource : m_textureResources)
         {
             const auto& initializer = textureResource.initializer;
@@ -97,10 +122,29 @@ namespace oblo::vk
         const auto allocation = allocator.create_memory(newRequirements, memory_usage::gpu_only);
 
         VkDeviceSize offset{0};
-        for (const auto& textureResource : m_textureResources)
+        for (auto& textureResource : m_textureResources)
         {
             OBLO_VK_PANIC(allocator.bind_image_memory(textureResource.image, allocation, offset));
             offset += textureResource.size + textureResource.size % newRequirements.alignment;
+
+            const VkFormat format{textureResource.initializer.format};
+
+            const VkImageViewCreateInfo imageViewInit{
+                .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                .image = textureResource.image,
+                .viewType = VK_IMAGE_VIEW_TYPE_2D,
+                .format = format,
+                .subresourceRange =
+                    {
+                        .aspectMask = deduce_aspect_mask(format),
+                        .baseMipLevel = 0,
+                        .levelCount = 1,
+                        .baseArrayLayer = 0,
+                        .layerCount = 1,
+                    },
+            };
+
+            OBLO_VK_PANIC(vkCreateImageView(device, &imageViewInit, allocationCbs, &textureResource.imageView));
         }
     }
 
@@ -124,6 +168,7 @@ namespace oblo::vk
 
         return {
             .image = resource.image,
+            .view = resource.imageView,
             .initializer = resource.initializer,
         };
     }
@@ -135,6 +180,7 @@ namespace oblo::vk
         for (const auto& resource : m_lastFrameTextureResources)
         {
             ctx.destroy_deferred(resource.image, submitIndex);
+            ctx.destroy_deferred(resource.imageView, submitIndex);
         }
 
         if (m_lastFrameAllocation)

@@ -220,6 +220,11 @@ namespace oblo::vk
         m_imagesToDestroy.emplace_back(image, submitIndex);
     }
 
+    void vulkan_context::destroy_deferred(VkImageView imageView, u64 submitIndex)
+    {
+        m_imageViewsToDestroy.emplace_back(imageView, submitIndex);
+    }
+
     void vulkan_context::destroy_deferred(VmaAllocation allocation, u64 submitIndex)
     {
         m_allocationsToDestroy.emplace_back(allocation, submitIndex);
@@ -250,8 +255,15 @@ namespace oblo::vk
             }
         };
 
+        const VkDevice device = get_device();
+        auto* const allocationCbs = m_allocator->get_allocation_callbacks();
+
         destroyObjects(m_imagesToDestroy,
-                       [this](VkImage image) { m_allocator->destroy(allocated_image{.image = image}); });
+                       [device, allocationCbs](VkImage image) { vkDestroyImage(device, image, allocationCbs); });
+
+        destroyObjects(m_imageViewsToDestroy,
+                       [device, allocationCbs](VkImageView imageView)
+                       { vkDestroyImageView(device, imageView, allocationCbs); });
 
         destroyObjects(m_allocationsToDestroy,
                        [this](VmaAllocation allocation) { m_allocator->destroy_memory(allocation); });
