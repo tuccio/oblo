@@ -458,6 +458,20 @@ namespace oblo::vk
             .blendConstants = {0.f},
         };
 
+        const VkPipelineDepthStencilStateCreateInfo depthStencil{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+            .flags = desc.depthStencilState.flags,
+            .depthTestEnable = desc.depthStencilState.depthTestEnable,
+            .depthWriteEnable = desc.depthStencilState.depthWriteEnable,
+            .depthCompareOp = desc.depthStencilState.depthCompareOp,
+            .depthBoundsTestEnable = desc.depthStencilState.depthBoundsTestEnable,
+            .stencilTestEnable = desc.depthStencilState.stencilTestEnable,
+            .front = desc.depthStencilState.front,
+            .back = desc.depthStencilState.back,
+            .minDepthBounds = desc.depthStencilState.minDepthBounds,
+            .maxDepthBounds = desc.depthStencilState.maxDepthBounds,
+        };
+
         constexpr VkDynamicState dynamicStates[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
 
         const VkPipelineDynamicStateCreateInfo dynamicState{
@@ -476,7 +490,7 @@ namespace oblo::vk
             .pViewportState = &viewportState,
             .pRasterizationState = &rasterizer,
             .pMultisampleState = &multisampling,
-            .pDepthStencilState = nullptr,
+            .pDepthStencilState = &depthStencil,
             .pColorBlendState = &colorBlending,
             .pDynamicState = &dynamicState,
             .layout = newPipeline.pipelineLayout,
