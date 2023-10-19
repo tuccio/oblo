@@ -53,8 +53,6 @@ namespace oblo::vk
                                  const texture2d_initializer& initializer,
                                  resource_usage usage)
     {
-        OBLO_ASSERT(texture, "Maybe the pin is not connected?");
-
         const image_initializer imageInitializer{
             .imageType = VK_IMAGE_TYPE_2D,
             .format = initializer.format,

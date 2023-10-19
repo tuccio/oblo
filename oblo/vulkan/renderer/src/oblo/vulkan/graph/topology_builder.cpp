@@ -190,10 +190,6 @@ namespace oblo::vk
                     const auto pinIndex = dataPin - nodeDesc.firstPin;
                     const auto& typeDesc = nodeDesc.pins[pinIndex].typeDesc;
                     g.m_pinStorage.emplace_back(createGraphData(typeDesc), typeDesc.destruct);
-
-                    // Apply the newly allocated data storage to the node
-                    auto& nodePin = nodeDesc.pins[dataPin - nodeDesc.firstPin];
-                    write_u32(nodeDesc.node, nodePin.offset, pin.storageIndex);
                 }
             }
 

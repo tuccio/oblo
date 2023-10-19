@@ -23,7 +23,6 @@ namespace oblo::vk::test
         {
             resource<texture> outDepthBuffer;
             data<vec2u> inResolution;
-            data<f32> inDepth;
 
             void build(runtime_builder& builder)
             {
@@ -46,7 +45,6 @@ namespace oblo::vk::test
             resource<texture> outRenderTarget;
             resource<texture> inDepthBuffer;
             data<vec2u> inResolution;
-            data<vec3> inColor;
 
             h32<render_pass> renderPass;
 
@@ -122,7 +120,7 @@ namespace oblo::vk::test
 
                 const VkRenderingAttachmentInfo depthAttachment{
                     .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-                    .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                    .imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
                     .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                     .storeOp = VK_ATTACHMENT_STORE_OP_NONE,
                 };
@@ -233,12 +231,12 @@ namespace oblo::vk::test
             meshes.fetch_buffers(resourceManager, columnSubset, buffers, nullptr);
 
             constexpr vec3 positions[] = {
-                {-1.f, -1.f, 0.0f},
-                {-1.f, 1.f, 0.0f},
-                {1.f, 1.f, 0.0f},
-                {-1.f, -1.f, 0.0f},
-                {1.f, 1.f, 0.0f},
-                {1.f, -1.f, 0.0f},
+                {-1.f, -1.f, 0.5f},
+                {-1.f, 1.f, 0.5f},
+                {1.f, 1.f, 0.5f},
+                {-1.f, -1.f, 0.5f},
+                {1.f, 1.f, 0.5f},
+                {1.f, -1.f, 0.5f},
             };
 
             auto& stagingBuffer = renderer.get_staging_buffer();

@@ -36,8 +36,23 @@ namespace oblo::vk
         VkFormat stencilFormat{VK_FORMAT_UNDEFINED};
     };
 
+    struct depth_stencil_state
+    {
+        VkPipelineDepthStencilStateCreateFlags flags;
+        bool depthTestEnable;
+        bool depthWriteEnable;
+        VkCompareOp depthCompareOp;
+        bool depthBoundsTestEnable;
+        bool stencilTestEnable;
+        VkStencilOpState front;
+        VkStencilOpState back;
+        f32 minDepthBounds;
+        f32 maxDepthBounds;
+    };
+
     struct render_pipeline_initializer
     {
         render_pass_targets renderTargets;
+        depth_stencil_state depthStencilState;
     };
 }
