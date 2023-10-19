@@ -46,6 +46,7 @@ namespace oblo::vk
         u64 get_submit_index() const;
 
         void destroy_deferred(VkImage image, u64 submitIndex);
+        void destroy_deferred(VkImageView image, u64 submitIndex);
         void destroy_deferred(VmaAllocation allocation, u64 submitIndex);
 
     private:
@@ -76,6 +77,7 @@ namespace oblo::vk
         u64 m_submitIndex{1};
 
         std::vector<pending_disposal<VkImage>> m_imagesToDestroy;
+        std::vector<pending_disposal<VkImageView>> m_imageViewsToDestroy;
         std::vector<pending_disposal<VmaAllocation>> m_allocationsToDestroy;
     };
 
