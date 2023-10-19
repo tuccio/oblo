@@ -13,7 +13,7 @@ namespace oblo::vk
     enum class resource_usage
     {
         render_target_write,
-        depth_buffer_write,
+        depth_stencil_write,
         shader_read,
     };
 

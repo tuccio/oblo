@@ -26,8 +26,10 @@ namespace oblo::vk
         resource_pool& operator=(const resource_pool&) = delete;
         resource_pool& operator=(resource_pool&&) noexcept = delete;
 
-        void begin_build(u64 frameIndex);
-        void end_build(const vulkan_context& ctx);
+        void shutdown(vulkan_context& ctx);
+
+        void begin_build();
+        void end_build(vulkan_context& ctx);
 
         void begin_graph();
         void end_graph();
@@ -40,10 +42,15 @@ namespace oblo::vk
         struct texture_resource;
 
     private:
+        void free_last_frame_resources(vulkan_context& ctx);
+
+    private:
         u32 m_graphBegin{0};
         std::vector<texture_resource> m_textureResources;
+        std::vector<texture_resource> m_lastFrameTextureResources;
 
         VmaAllocation m_allocation{};
+        VmaAllocation m_lastFrameAllocation{};
         VkMemoryRequirements m_requirements{};
     };
 }
