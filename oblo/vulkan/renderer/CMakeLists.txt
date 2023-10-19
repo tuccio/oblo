@@ -14,3 +14,10 @@ target_link_libraries(
     PRIVATE
     oblo::sandbox
 )
+
+set(_test_resources "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test/resources/renderer")
+
+file(MAKE_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test/resources")
+oblo_create_symlink("${CMAKE_CURRENT_SOURCE_DIR}/test/resources" ${_test_resources})
+
+target_compile_definitions(oblo_test_vk_renderer PRIVATE "-DOBLO_TEST_RESOURCES=\"${_test_resources}\"")

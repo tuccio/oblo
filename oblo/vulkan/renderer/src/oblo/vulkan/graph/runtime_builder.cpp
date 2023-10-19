@@ -12,6 +12,7 @@ namespace oblo::vk
         {
             switch (usage)
             {
+            case resource_usage::depth_stencil_read:
             case resource_usage::depth_stencil_write:
                 return VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
@@ -31,6 +32,7 @@ namespace oblo::vk
         {
             switch (usage)
             {
+            case resource_usage::depth_stencil_read:
             case resource_usage::depth_stencil_write:
                 return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
@@ -51,6 +53,8 @@ namespace oblo::vk
                                  const texture2d_initializer& initializer,
                                  resource_usage usage)
     {
+        OBLO_ASSERT(texture, "Maybe the pin is not connected?");
+
         const image_initializer imageInitializer{
             .imageType = VK_IMAGE_TYPE_2D,
             .format = initializer.format,
