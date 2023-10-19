@@ -95,7 +95,7 @@ namespace oblo::vk
         }
     }
 
-    void render_graph::execute(renderer& renderer, resource_pool& resourcePool)
+    void render_graph::execute(renderer& renderer, resource_pool& resourcePool, frame_allocator& frameAllocator)
     {
         auto& resourceManager = renderer.get_resource_manager();
         auto& commandBuffer = renderer.get_active_command_buffer();
@@ -109,11 +109,10 @@ namespace oblo::vk
             const auto handle = resourceManager.register_texture(tex, initialLayout);
             commandBuffer.set_starting_layout(handle, initialLayout);
 
-            const u32 textureStorageIndex = m_pins[resource.value].storageIndex;
-            new (access_data(textureStorageIndex)) h32<texture>{handle};
+            new (access_resource_storage(resource.value)) h32<texture>{handle};
         }
 
-        runtime_context runtime{*this, resourceManager, commandBuffer.get()};
+        runtime_context runtime{*this, renderer, commandBuffer.get(), frameAllocator};
 
         for (auto&& [node, transitions] : zip_range(m_nodes, m_nodeTransitions))
         {
@@ -122,9 +121,8 @@ namespace oblo::vk
             for (u32 i = transitions.firstTextureTransition; i != transitions.lastTextureTransition; ++i)
             {
                 const auto& textureTransition = m_textureTransitions[i];
-                const u32 textureStorageIndex = m_pins[textureTransition.texture.value].storageIndex;
 
-                const auto* const texturePtr = static_cast<h32<texture>*>(access_data(textureStorageIndex));
+                const auto* const texturePtr = static_cast<h32<texture>*>(access_resource_storage(textureTransition.texture.value));
                 OBLO_ASSERT(texturePtr && *texturePtr);
 
                 commandBuffer.add_pipeline_barrier(resourceManager, *texturePtr, textureTransition.target);
@@ -137,7 +135,7 @@ namespace oblo::vk
         }
     }
 
-    void* render_graph::access_data(u32 h) const
+    void* render_graph::access_resource_storage(u32 h) const
     {
         const auto storageIndex = m_pins[h].storageIndex;
         auto& data = m_pinStorage[storageIndex];

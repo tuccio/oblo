@@ -1,14 +1,18 @@
 #include <gtest/gtest.h>
 
+#include <oblo/core/array_size.hpp>
 #include <oblo/core/finally.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/sandbox/sandbox_app.hpp>
 #include <oblo/sandbox/sandbox_app_config.hpp>
+#include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/graph/resource_pool.hpp>
 #include <oblo/vulkan/graph/runtime_builder.hpp>
 #include <oblo/vulkan/graph/runtime_context.hpp>
 #include <oblo/vulkan/graph/topology_builder.hpp>
+#include <oblo/vulkan/render_pass_initializer.hpp>
+#include <oblo/vulkan/render_pass_manager.hpp>
 #include <oblo/vulkan/renderer.hpp>
 
 namespace oblo::vk::test
@@ -44,6 +48,8 @@ namespace oblo::vk::test
             data<vec2u> inResolution;
             data<vec3> inColor;
 
+            h32<render_pass> renderPass;
+
             void build(runtime_builder& builder)
             {
                 const auto resolution = builder.access(inResolution);
@@ -57,15 +63,104 @@ namespace oblo::vk::test
                                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                                },
                                resource_usage::render_target_write);
+
+                builder.use(inDepthBuffer, resource_usage::depth_stencil_read);
             }
 
             void execute(const runtime_context& context)
             {
-                const texture renderTarget = context.access(outRenderTarget);
-                const texture depthBuffer = context.access(inDepthBuffer);
+                auto& renderPassManager = context.get_render_pass_manager();
 
-                (void) renderTarget;
-                (void) depthBuffer;
+                if (!renderPass)
+                {
+                    renderPass = renderPassManager.register_render_pass({
+                        .name = "fill_color_node",
+                        .stages =
+                            {
+                                {
+                                    .stage = pipeline_stages::vertex,
+                                    .shaderSourcePath = OBLO_TEST_RESOURCES "/shaders/basic.vert",
+                                },
+                                {
+                                    .stage = pipeline_stages::fragment,
+                                    .shaderSourcePath = OBLO_TEST_RESOURCES "/shaders/basic.frag",
+                                },
+                            },
+                    });
+                }
+
+                const VkCommandBuffer commandBuffer = context.get_command_buffer();
+
+                const auto renderTarget = context.access(outRenderTarget);
+                const auto depthBuffer = context.access(inDepthBuffer);
+
+                auto& frameAllocator = context.get_frame_allocator();
+
+                const auto pipeline = renderPassManager.get_or_create_pipeline(
+                    frameAllocator,
+                    renderPass,
+                    {
+                        .renderTargets =
+                            {
+                                .colorAttachmentFormats = {renderTarget.initializer.format},
+                                .depthFormat = depthBuffer.initializer.format,
+                            },
+                    });
+
+                render_pass_context renderPassContext{
+                    .commandBuffer = commandBuffer,
+                    .pipeline = pipeline,
+                    .frameAllocator = frameAllocator,
+                };
+
+                const VkRenderingAttachmentInfo colorAttachment{
+                    .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                    .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                    .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                };
+
+                const VkRenderingAttachmentInfo depthAttachment{
+                    .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                    .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                    .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                    .storeOp = VK_ATTACHMENT_STORE_OP_NONE,
+                };
+
+                const auto [renderWidth, renderHeight, _] = renderTarget.initializer.extent;
+
+                const VkRenderingInfo renderInfo{
+                    .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+                    .renderArea = {.extent{.width = renderWidth, .height = renderHeight}},
+                    .layerCount = 1,
+                    .colorAttachmentCount = 1,
+                    .pColorAttachments = &colorAttachment,
+                    .pDepthAttachment = &depthAttachment,
+                };
+
+                renderPassManager.begin_rendering(renderPassContext, renderInfo);
+
+                {
+                    const VkViewport viewport{
+                        .width = f32(renderWidth),
+                        .height = f32(renderHeight),
+                        .minDepth = 0.f,
+                        .maxDepth = 1.f,
+                    };
+
+                    const VkRect2D scissor{.extent{.width = renderWidth, .height = renderHeight}};
+
+                    vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+                    vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+                }
+
+                const auto& meshTable = context.get_mesh_table();
+                const auto& resourceManager = context.get_resource_manager();
+                renderPassManager.bind(renderPassContext, resourceManager, meshTable);
+
+                vkCmdDraw(commandBuffer, meshTable.vertex_count(), meshTable.meshes_count(), 0, 0);
+
+                renderPassManager.end_rendering(renderPassContext);
             }
         };
 
@@ -94,6 +189,63 @@ namespace oblo::vk::test
             }
         };
 
+        void init_test_mesh_table(renderer& renderer, frame_allocator& frameAllocator)
+        {
+            auto& meshes = renderer.get_mesh_table();
+            auto& allocator = renderer.get_allocator();
+            auto& resourceManager = renderer.get_resource_manager();
+            auto& stringInterner = renderer.get_string_interner();
+
+            constexpr u32 maxVertices{1024};
+            constexpr u32 maxIndices{1024};
+
+            const auto position = stringInterner.get_or_add("in_Position");
+
+            const buffer_column_description columns[] = {
+                {.name = position, .elementSize = sizeof(vec3)},
+            };
+
+            const bool meshTableCreated =
+                meshes.init(frameAllocator,
+                            columns,
+                            allocator,
+                            resourceManager,
+                            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                            maxVertices,
+                            maxIndices);
+
+            OBLO_ASSERT(meshTableCreated);
+
+            const mesh_table_entry mesh{
+                .id = stringInterner.get_or_add("quad"),
+                .numVertices = 6,
+                .numIndices = 6,
+            };
+
+            if (!meshes.allocate_meshes({&mesh, 1}))
+            {
+                return;
+            }
+
+            const h32<string> columnSubset[] = {position};
+            buffer buffers[array_size(columnSubset)];
+
+            meshes.fetch_buffers(resourceManager, columnSubset, buffers, nullptr);
+
+            constexpr vec3 positions[] = {
+                {-1.f, -1.f, 0.0f},
+                {-1.f, 1.f, 0.0f},
+                {1.f, 1.f, 0.0f},
+                {-1.f, -1.f, 0.0f},
+                {1.f, 1.f, 0.0f},
+                {1.f, -1.f, 0.0f},
+            };
+
+            auto& stagingBuffer = renderer.get_staging_buffer();
+
+            stagingBuffer.upload(std::as_bytes(std::span{positions}), buffers[0].buffer, buffers[0].offset);
+        }
+
         struct render_graph_test
         {
             bool init(const vk::sandbox_init_context& ctx)
@@ -105,6 +257,8 @@ namespace oblo::vk::test
                 {
                     return false;
                 }
+
+                init_test_mesh_table(renderer, *ctx.frameAllocator);
 
                 expected res = topology_builder{}
                                    .add_node<fill_depth_node>()
@@ -150,7 +304,7 @@ namespace oblo::vk::test
 
                 resourcePool.end_build(*ctx.vkContext);
 
-                graph.execute(renderer, resourcePool);
+                graph.execute(renderer, resourcePool, *ctx.frameAllocator);
             }
 
             void update_imgui(const vk::sandbox_update_imgui_context&) {}
@@ -186,15 +340,23 @@ namespace oblo::vk::test
         ASSERT_NE(colorNode->outRenderTarget, copyNode->inSource);
         ASSERT_NE(copyNode->outTarget, copyNode->inSource);
 
-        ASSERT_EQ(app.graph.get_backing_texture_id(depthNode->outDepthBuffer),
-                  app.graph.get_backing_texture_id(colorNode->inDepthBuffer));
-        ASSERT_NE(app.graph.get_backing_texture_id(depthNode->outDepthBuffer),
-                  app.graph.get_backing_texture_id(colorNode->outRenderTarget));
-        ASSERT_EQ(app.graph.get_backing_texture_id(colorNode->outRenderTarget),
-                  app.graph.get_backing_texture_id(copyNode->inSource));
-        ASSERT_NE(app.graph.get_backing_texture_id(copyNode->outTarget),
-                  app.graph.get_backing_texture_id(copyNode->inSource));
+        const auto depthNodeOutDepthTex = app.graph.get_backing_texture_id(depthNode->outDepthBuffer);
+        const auto colorNodeInDepthTex = app.graph.get_backing_texture_id(colorNode->inDepthBuffer);
+        const auto colorNodeOutRenderTargetTex = app.graph.get_backing_texture_id(colorNode->outRenderTarget);
+        const auto copyNodeInSourceTex = app.graph.get_backing_texture_id(copyNode->inSource);
+        const auto copyNodeOutTargetTex = app.graph.get_backing_texture_id(copyNode->outTarget);
 
+        ASSERT_EQ(depthNodeOutDepthTex, colorNodeInDepthTex);
+        ASSERT_NE(depthNodeOutDepthTex, colorNodeOutRenderTargetTex);
+        ASSERT_EQ(colorNodeOutRenderTargetTex, copyNodeInSourceTex);
+        ASSERT_NE(copyNodeOutTargetTex, copyNodeInSourceTex);
+
+#if 0
+        while (app.run_frame())
+        {
+        }
+#else
         app.run_frame();
+#endif
     }
 }

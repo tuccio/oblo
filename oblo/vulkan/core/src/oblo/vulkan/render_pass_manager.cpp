@@ -262,11 +262,15 @@ namespace oblo::vk
             spirv.clear();
 
             const std::string_view debugName{makeDebugName(*renderPass, filePath)};
-            shader_compiler::compile_glsl_to_spirv(debugName,
-                                                   {sourceCode.data(), sourceCode.size()},
-                                                   vkStage,
-                                                   spirv,
-                                                   compilerOptions);
+
+            if (!shader_compiler::compile_glsl_to_spirv(debugName,
+                                                        {sourceCode.data(), sourceCode.size()},
+                                                        vkStage,
+                                                        spirv,
+                                                        compilerOptions))
+            {
+                return failure();
+            }
 
             const auto shaderModule = shader_compiler::create_shader_module_from_spirv(m_device, spirv);
 

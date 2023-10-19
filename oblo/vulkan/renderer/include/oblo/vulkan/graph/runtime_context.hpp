@@ -1,7 +1,7 @@
 #pragma once
 
 #include <oblo/vulkan/graph/pins.hpp>
-#include <oblo/vulkan/resource_manager.hpp>
+#include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/texture.hpp>
 
 namespace oblo::vk
@@ -13,15 +13,17 @@ namespace oblo::vk
 namespace oblo::vk
 {
     class render_graph;
+    class render_pass_manager;
 
     class runtime_context
     {
     public:
         explicit runtime_context(render_graph& graph,
-                                 resource_manager& resourceManager,
-                                 VkCommandBuffer commandBuffer) :
+                                 renderer& renderer,
+                                 VkCommandBuffer commandBuffer,
+                                 frame_allocator& frameAllocator) :
             m_graph{&graph},
-            m_resourceManager{&resourceManager}, m_commandBuffer{commandBuffer}
+            m_renderer{&renderer}, m_commandBuffer{commandBuffer}, m_frameAllocator{&frameAllocator}
         {
         }
 
@@ -32,7 +34,7 @@ namespace oblo::vk
         template <typename T>
         T* access(data<T> h) const
         {
-            return static_cast<T*>(access_data(h.value));
+            return static_cast<T*>(m_graph->access_resource_storage(h.value));
         }
 
         VkCommandBuffer get_command_buffer() const
@@ -40,12 +42,30 @@ namespace oblo::vk
             return m_commandBuffer;
         }
 
-    private:
-        void* access_data(u32 h) const;
+        render_pass_manager& get_render_pass_manager() const
+        {
+            return m_renderer->get_render_pass_manager();
+        }
+
+        resource_manager& get_resource_manager() const
+        {
+            return m_renderer->get_resource_manager();
+        }
+
+        mesh_table& get_mesh_table() const
+        {
+            return m_renderer->get_mesh_table();
+        }
+
+        frame_allocator& get_frame_allocator() const
+        {
+            return *m_frameAllocator;
+        }
 
     private:
         render_graph* m_graph;
-        resource_manager* m_resourceManager;
+        renderer* m_renderer;
         VkCommandBuffer m_commandBuffer;
+        frame_allocator* m_frameAllocator;
     };
 }

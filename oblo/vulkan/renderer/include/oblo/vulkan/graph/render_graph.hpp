@@ -11,6 +11,11 @@
 #include <memory>
 #include <vector>
 
+namespace oblo
+{
+    class frame_allocator;
+}
+
 namespace oblo::vk
 {
     class runtime_context;
@@ -76,10 +81,10 @@ namespace oblo::vk
 
         void build(resource_pool& resourcePool);
 
-        void execute(renderer& renderer, resource_pool& resourcePool);
+        void execute(renderer& renderer, resource_pool& resourcePool, frame_allocator& frameAllocator);
 
     private:
-        void* access_data(u32 h) const;
+        void* access_resource_storage(u32 h) const;
 
         void add_transient_resource(resource<texture> texture, u32 poolIndex);
         void add_resource_transition(resource<texture> texture, VkImageLayout target);

@@ -13,6 +13,7 @@ namespace oblo::vk
     enum class resource_usage
     {
         render_target_write,
+        depth_stencil_read,
         depth_stencil_write,
         shader_read,
     };
@@ -44,7 +45,7 @@ namespace oblo::vk
         template <typename T>
         T& access(data<T> data) const
         {
-            return *static_cast<T*>(m_graph->access_data(data.value));
+            return *static_cast<T*>(m_graph->access_resource_storage(data.value));
         }
 
     private:
