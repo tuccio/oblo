@@ -42,6 +42,12 @@ namespace oblo::vk
             case resource_usage::shader_read:
                 return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
+            case resource_usage::transfer_destination:
+                return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+
+            case resource_usage::transfer_source:
+                return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+
             default:
                 OBLO_ASSERT(false);
                 return {};
@@ -74,8 +80,22 @@ namespace oblo::vk
         m_graph->add_resource_transition(texture, convert_layout(usage));
     }
 
-    void runtime_builder::use(resource<texture> texture, resource_usage usage)
+    void runtime_builder::acquire(resource<texture> texture, resource_usage usage)
     {
         m_graph->add_resource_transition(texture, convert_layout(usage));
+
+        switch (usage)
+        {
+        case resource_usage::transfer_destination:
+            m_resourcePool->add_usage(m_graph->find_pool_index(texture), VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+            break;
+
+        case resource_usage::transfer_source:
+            m_resourcePool->add_usage(m_graph->find_pool_index(texture), VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+            break;
+
+        default:
+            break;
+        }
     }
 }

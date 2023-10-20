@@ -36,6 +36,8 @@ namespace oblo::vk
 
         u32 add(const image_initializer& initializer, lifetime_range range);
 
+        void add_usage(u32 poolIndex, VkImageUsageFlags usage);
+
         texture get_texture(u32 id) const;
 
     private:

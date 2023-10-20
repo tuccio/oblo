@@ -29,8 +29,6 @@ namespace oblo::vk
 
         texture access(resource<texture> h) const;
 
-        void* access(data<texture> h) const;
-
         template <typename T>
         T* access(data<T> h) const
         {

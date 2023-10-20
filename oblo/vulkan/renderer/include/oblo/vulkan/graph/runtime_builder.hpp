@@ -16,6 +16,8 @@ namespace oblo::vk
         depth_stencil_read,
         depth_stencil_write,
         shader_read,
+        transfer_source,
+        transfer_destination,
     };
 
     struct texture2d_initializer
@@ -40,7 +42,7 @@ namespace oblo::vk
 
         void create(resource<texture> texture, const texture2d_initializer& initializer, resource_usage usage);
 
-        void use(resource<texture> texture, resource_usage usage);
+        void acquire(resource<texture> texture, resource_usage usage);
 
         template <typename T>
         T& access(data<T> data) const
