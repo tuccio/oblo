@@ -97,6 +97,8 @@ namespace oblo::vk
             }
         }
 
+        std::reverse(nodesOrder.begin(), nodesOrder.end());
+
         render_graph g;
 
         // We should check it maybe instead

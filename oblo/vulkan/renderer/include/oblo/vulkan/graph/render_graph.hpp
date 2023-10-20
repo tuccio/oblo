@@ -88,6 +88,7 @@ namespace oblo::vk
 
         void add_transient_resource(resource<texture> texture, u32 poolIndex);
         void add_resource_transition(resource<texture> texture, VkImageLayout target);
+        u32 find_pool_index(resource<texture> texture) const;
 
     private:
         struct pin_data;
@@ -109,6 +110,9 @@ namespace oblo::vk
         std::vector<named_pin_data> m_inputs;
         std::vector<pin_data> m_pins;
         std::vector<data_storage> m_pinStorage;
+
+        // Used to store the poolIndex while building
+        std::vector<u32> m_resourcePoolId;
     };
 
     struct render_graph::named_pin_data

@@ -74,10 +74,9 @@ namespace oblo::vk
         m_nodeTransitions.assign(m_nodes.size(), node_transitions{});
         m_textureTransitions.clear();
         m_transientTextures.clear();
+        m_resourcePoolId.assign(m_pinStorage.size(), ~u32{});
 
         u32 nodeIndex{0};
-
-        // TODO
 
         for (auto& node : m_nodes)
         {
@@ -122,7 +121,8 @@ namespace oblo::vk
             {
                 const auto& textureTransition = m_textureTransitions[i];
 
-                const auto* const texturePtr = static_cast<h32<texture>*>(access_resource_storage(textureTransition.texture.value));
+                const auto* const texturePtr =
+                    static_cast<h32<texture>*>(access_resource_storage(textureTransition.texture.value));
                 OBLO_ASSERT(texturePtr && *texturePtr);
 
                 commandBuffer.add_pipeline_barrier(resourceManager, *texturePtr, textureTransition.target);
@@ -146,10 +146,18 @@ namespace oblo::vk
     void render_graph::add_transient_resource(resource<texture> texture, u32 poolIndex)
     {
         m_transientTextures.emplace_back(texture, poolIndex);
+        const u32 storageIndex = m_pins[texture.value].storageIndex;
+        m_resourcePoolId[storageIndex] = poolIndex;
     }
 
     void render_graph::add_resource_transition(resource<texture> texture, VkImageLayout target)
     {
         m_textureTransitions.emplace_back(texture, target);
+    }
+
+    u32 render_graph::find_pool_index(resource<texture> texture) const
+    {
+        const u32 storageIndex = m_pins[texture.value].storageIndex;
+        return m_resourcePoolId[storageIndex];
     }
 }

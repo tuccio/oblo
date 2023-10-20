@@ -162,6 +162,11 @@ namespace oblo::vk
         return id;
     }
 
+    void resource_pool::add_usage(u32 poolIndex, VkImageUsageFlags usage)
+    {
+        m_textureResources[poolIndex].initializer.usage |= usage;
+    }
+
     texture resource_pool::get_texture(u32 id) const
     {
         auto& resource = m_textureResources[id];
