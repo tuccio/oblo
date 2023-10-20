@@ -327,11 +327,6 @@ namespace oblo::vk::test
             {
                 resourcePool.shutdown(*ctx.vkContext);
                 renderer.shutdown(*ctx.frameAllocator);
-
-                auto& allocator = ctx.vkContext->get_allocator();
-
-                allocator.destroy(depthImageDownload);
-                allocator.destroy(renderTargetDownload);
             }
 
             void update(const vk::sandbox_render_context& ctx)
@@ -339,24 +334,6 @@ namespace oblo::vk::test
                 ++frameIndex;
 
                 constexpr vec2u resolution{.x = 16u, .y = 16u};
-
-                auto& allocator = ctx.vkContext->get_allocator();
-
-                OBLO_VK_PANIC(allocator.create_buffer(
-                    {
-                        .size = sizeof(u16) * resolution.x * resolution.y,
-                        .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                        .memoryUsage = memory_usage::gpu_to_cpu,
-                    },
-                    &depthImageDownload));
-
-                OBLO_VK_PANIC(allocator.create_buffer(
-                    {
-                        .size = sizeof(u32) * resolution.x * resolution.y,
-                        .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                        .memoryUsage = memory_usage::gpu_to_cpu,
-                    },
-                    &renderTargetDownload));
 
                 graph.set_input("RenderResolution", resolution);
                 graph.set_input("DepthDownload", depthImageDownload.buffer);
@@ -375,6 +352,8 @@ namespace oblo::vk::test
             }
 
             void update_imgui(const vk::sandbox_update_imgui_context&) {}
+
+            static constexpr vec2u resolution{.x = 16u, .y = 16u};
 
             allocated_buffer depthImageDownload{};
             allocated_buffer renderTargetDownload{};
@@ -421,6 +400,24 @@ namespace oblo::vk::test
         ASSERT_EQ(colorNodeOutRenderTargetTex, downloadRenderTargetTex);
         ASSERT_EQ(depthNodeOutDepthTex, downloadDepthBufferTex);
 
+        auto& allocator = app.renderer.get_allocator();
+
+        OBLO_VK_PANIC(allocator.create_buffer(
+            {
+                .size = sizeof(u16) * app.resolution.x * app.resolution.y,
+                .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                .memoryUsage = memory_usage::gpu_to_cpu,
+            },
+            &app.depthImageDownload));
+
+        OBLO_VK_PANIC(allocator.create_buffer(
+            {
+                .size = sizeof(u32) * app.resolution.x * app.resolution.y,
+                .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                .memoryUsage = memory_usage::gpu_to_cpu,
+            },
+            &app.renderTargetDownload));
+
 #if 0
         while (app.run_frame())
         {
@@ -432,15 +429,20 @@ namespace oblo::vk::test
         auto& engine = app.renderer.get_engine();
         vkDeviceWaitIdle(engine.get_device());
 
-        auto& allocator = app.renderer.get_allocator();
-
         void* depthBufferData;
         void* renderTargetData;
 
         OBLO_VK_PANIC(allocator.map(app.depthImageDownload.allocation, &depthBufferData));
         OBLO_VK_PANIC(allocator.map(app.renderTargetDownload.allocation, &renderTargetData));
 
-        constexpr u32 N{16 * 16};
+        const auto destroyBuffers = finally(
+            [&allocator, &app]
+            {
+                allocator.destroy(app.depthImageDownload);
+                allocator.destroy(app.renderTargetDownload);
+            });
+
+        constexpr u32 N{app.resolution.x * app.resolution.y};
         auto* const depthU16 = start_lifetime_as_array<u16>(depthBufferData, N);
         auto* const colorU32 = start_lifetime_as_array<u32>(depthBufferData, N);
 
