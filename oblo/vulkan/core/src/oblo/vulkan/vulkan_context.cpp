@@ -251,7 +251,7 @@ namespace oblo::vk
 
             if (destroyedImages > 0)
             {
-                array.erase(array.begin(), array.begin() + 1);
+                array.erase(array.begin(), array.begin() + destroyedImages);
             }
         };
 
