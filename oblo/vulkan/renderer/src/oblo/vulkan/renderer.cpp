@@ -2,7 +2,6 @@
 
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/graph/render_graph.hpp>
-#include <oblo/vulkan/graph/render_graph_builder.hpp>
 #include <oblo/vulkan/renderer_context.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
