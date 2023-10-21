@@ -357,7 +357,7 @@ namespace oblo::vk::test
             void shutdown(const vk::sandbox_shutdown_context& ctx)
             {
                 resourcePool.shutdown(*ctx.vkContext);
-                renderer.shutdown(*ctx.frameAllocator);
+                renderer.shutdown();
             }
 
             void update(const vk::sandbox_render_context& ctx)

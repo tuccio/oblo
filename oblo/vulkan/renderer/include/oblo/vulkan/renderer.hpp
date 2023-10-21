@@ -2,6 +2,7 @@
 
 #include <oblo/core/handle.hpp>
 #include <oblo/core/string_interner.hpp>
+#include <oblo/vulkan/graph/resource_pool.hpp>
 #include <oblo/vulkan/mesh_table.hpp>
 #include <oblo/vulkan/render_pass_manager.hpp>
 #include <oblo/vulkan/renderer_context.hpp>
@@ -37,8 +38,8 @@ namespace oblo::vk
         ~renderer();
 
         bool init(const initializer& initializer);
-        void shutdown(frame_allocator& frameAllocator);
-        void update(const update_context& context);
+        void shutdown();
+        void update();
 
         single_queue_engine& get_engine();
         allocator& get_allocator();
@@ -64,16 +65,11 @@ namespace oblo::vk
         h32<buffer> m_dummy;
         u32 m_lastRenderGraphId{};
 
+        resource_pool m_graphResourcePool;
         flat_dense_map<h32<render_graph>, render_graph_data> m_renderGraphs;
     };
 
     struct renderer::initializer
-    {
-        vulkan_context& vkContext;
-        frame_allocator& frameAllocator;
-    };
-
-    struct renderer::update_context
     {
         vulkan_context& vkContext;
         frame_allocator& frameAllocator;

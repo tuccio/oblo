@@ -140,6 +140,11 @@ namespace oblo
             return m_denseValue;
         }
 
+        std::span<Value> values()
+        {
+            return m_denseValue;
+        }
+
         void reserve_sparse(u32 size)
         {
             m_sparse.reserve(size);
