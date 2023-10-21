@@ -131,7 +131,7 @@ namespace oblo::vk
             std::pmr::vector<edge_desc> outEdges;
             u32 firstPin;
             u32 lastPin;
-            std::vector<pin_data> pins;
+            std::pmr::vector<pin_data> pins;
             build_fn build;
             execute_fn execute;
         };
@@ -200,8 +200,13 @@ namespace oblo::vk
 
             node_desc& nodeDesc = it->second;
 
-            struct_apply([this, &instance, &nodeDesc](auto&... fields)
-                { (this->register_pin(&nodeDesc, reinterpret_cast<const u8*>(&instance), &fields), ...); },
+            struct_apply(
+                [this, &instance, &nodeDesc](auto&... fields)
+                {
+                    nodeDesc.pins = std::pmr::vector<pin_data>{&m_pool};
+                    nodeDesc.pins.reserve(sizeof...(fields));
+                    (this->register_pin(&nodeDesc, reinterpret_cast<const u8*>(&instance), &fields), ...);
+                },
                 instance);
 
             const u32 lastPin{m_nextDataId};
