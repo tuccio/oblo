@@ -6,7 +6,7 @@ namespace oblo::editor
 {
     bool scene_hierarchy::update()
     {
-        bool open {true};
+        bool open{true};
 
         if (ImGui::Begin("Hierarchy", &open))
         {

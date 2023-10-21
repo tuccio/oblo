@@ -1,8 +1,8 @@
 ---
 BasedOnStyle: Microsoft
 AccessModifierOffset: -4
-AlignAfterOpenBracket: Align
-AlignOperands: true
+AlignAfterOpenBracket: false
+AlignOperands: false
 AllowAllArgumentsOnNextLine: false
 AllowShortFunctionsOnASingleLine: Empty
 AllowShortIfStatementsOnASingleLine: Never

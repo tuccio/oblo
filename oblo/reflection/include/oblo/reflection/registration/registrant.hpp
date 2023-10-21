@@ -1,8 +1,8 @@
 #pragma once
 
+#include <oblo/core/lifetime.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
-#include <oblo/core/lifetime.hpp>
 #include <oblo/reflection/reflection_registry.hpp>
 
 #include <string_view>

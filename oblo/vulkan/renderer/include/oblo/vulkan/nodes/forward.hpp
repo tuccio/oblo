@@ -57,8 +57,7 @@ namespace oblo::vk
 
             const auto& texture = resourceManager.get(renderTarget);
 
-            const auto pipeline = renderPassManager.get_or_create_pipeline(
-                context->frameAllocator,
+            const auto pipeline = renderPassManager.get_or_create_pipeline(context->frameAllocator,
                 forwardPass,
                 {
                     .renderTargets = {.colorAttachmentFormats = {texture.initializer.format}},

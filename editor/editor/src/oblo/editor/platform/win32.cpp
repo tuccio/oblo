@@ -24,7 +24,7 @@ namespace oblo::editor::platform
 
     bool open_file_dialog(std::filesystem::path& file)
     {
-        constexpr auto N {260};
+        constexpr auto N{260};
         wchar_t szFile[N]{};
 
         // Initialize OPENFILENAME

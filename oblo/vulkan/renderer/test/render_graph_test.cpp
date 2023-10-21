@@ -32,14 +32,14 @@ namespace oblo::vk::test
                 const auto resolution = builder.access(inResolution);
 
                 builder.create(outDepthBuffer,
-                               {
-                                   .width = resolution.x,
-                                   .height = resolution.y,
-                                   .format = VK_FORMAT_D16_UNORM,
-                                   .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                                   .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
-                               },
-                               resource_usage::depth_stencil_write);
+                    {
+                        .width = resolution.x,
+                        .height = resolution.y,
+                        .format = VK_FORMAT_D16_UNORM,
+                        .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                        .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+                    },
+                    resource_usage::depth_stencil_write);
             }
 
             void execute(const runtime_context& context)
@@ -66,27 +66,26 @@ namespace oblo::vk::test
 
                 auto& frameAllocator = context.get_frame_allocator();
 
-                const auto pipeline =
-                    renderPassManager.get_or_create_pipeline(frameAllocator,
-                                                             renderPass,
-                                                             {
-                                                                 .renderTargets =
-                                                                     {
-                                                                         .depthFormat = depthBuffer.initializer.format,
-                                                                     },
-                                                                 .depthStencilState =
-                                                                     {
-                                                                         .depthTestEnable = true,
-                                                                         .depthWriteEnable = true,
-                                                                         .depthCompareOp = VK_COMPARE_OP_ALWAYS,
-                                                                     },
-                                                                 .rasterizationState =
-                                                                     {
-                                                                         .polygonMode = VK_POLYGON_MODE_FILL,
-                                                                         .cullMode = VK_CULL_MODE_NONE,
-                                                                         .lineWidth = 1.f,
-                                                                     },
-                                                             });
+                const auto pipeline = renderPassManager.get_or_create_pipeline(frameAllocator,
+                    renderPass,
+                    {
+                        .renderTargets =
+                            {
+                                .depthFormat = depthBuffer.initializer.format,
+                            },
+                        .depthStencilState =
+                            {
+                                .depthTestEnable = true,
+                                .depthWriteEnable = true,
+                                .depthCompareOp = VK_COMPARE_OP_ALWAYS,
+                            },
+                        .rasterizationState =
+                            {
+                                .polygonMode = VK_POLYGON_MODE_FILL,
+                                .cullMode = VK_CULL_MODE_NONE,
+                                .lineWidth = 1.f,
+                            },
+                    });
 
                 render_pass_context renderPassContext{
                     .commandBuffer = commandBuffer,
@@ -146,14 +145,14 @@ namespace oblo::vk::test
                 const auto resolution = builder.access(inResolution);
 
                 builder.create(outRenderTarget,
-                               {
-                                   .width = resolution.x,
-                                   .height = resolution.y,
-                                   .format = VK_FORMAT_R8G8B8A8_UNORM,
-                                   .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-                                   .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                               },
-                               resource_usage::render_target_write);
+                    {
+                        .width = resolution.x,
+                        .height = resolution.y,
+                        .format = VK_FORMAT_R8G8B8A8_UNORM,
+                        .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    },
+                    resource_usage::render_target_write);
 
                 builder.acquire(inDepthBuffer, resource_usage::depth_stencil_read);
             }
@@ -187,8 +186,7 @@ namespace oblo::vk::test
 
                 auto& frameAllocator = context.get_frame_allocator();
 
-                const auto pipeline = renderPassManager.get_or_create_pipeline(
-                    frameAllocator,
+                const auto pipeline = renderPassManager.get_or_create_pipeline(frameAllocator,
                     renderPass,
                     {
                         .renderTargets =
@@ -299,11 +297,11 @@ namespace oblo::vk::test
                 };
 
                 vkCmdCopyImageToBuffer(cb,
-                                       srcRenderTarget.image,
-                                       VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                       *dstRenderTarget,
-                                       1,
-                                       &renderTargetRegion);
+                    srcRenderTarget.image,
+                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    *dstRenderTarget,
+                    1,
+                    &renderTargetRegion);
 
                 const VkBufferImageCopy depthBufferRegion{
                     .imageSubresource =
@@ -315,11 +313,11 @@ namespace oblo::vk::test
                 };
 
                 vkCmdCopyImageToBuffer(cb,
-                                       srcDepthBuffer.image,
-                                       VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                       *dstDepthBuffer,
-                                       1,
-                                       &depthBufferRegion);
+                    srcDepthBuffer.image,
+                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    *dstDepthBuffer,
+                    1,
+                    &depthBufferRegion);
             }
         };
 

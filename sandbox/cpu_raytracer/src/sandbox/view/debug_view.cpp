@@ -258,20 +258,20 @@ namespace oblo
                     const auto& [min, max] = bounds;
 
                     const line lines[] = {// front face
-                                          {{{min.x, min.y, min.z}, {max.x, min.y, min.z}}},
-                                          {{{min.x, max.y, min.z}, {max.x, max.y, min.z}}},
-                                          {{{min.x, max.y, min.z}, {min.x, min.y, min.z}}},
-                                          {{{max.x, max.y, min.z}, {max.x, min.y, min.z}}},
-                                          // back face
-                                          {{{min.x, min.y, max.z}, {max.x, min.y, max.z}}},
-                                          {{{min.x, max.y, max.z}, {max.x, max.y, max.z}}},
-                                          {{{min.x, max.y, max.z}, {min.x, min.y, max.z}}},
-                                          {{{max.x, max.y, max.z}, {max.x, min.y, max.z}}},
-                                          // connect the two
-                                          {{{min.x, min.y, min.z}, {min.x, min.y, max.z}}},
-                                          {{{max.x, min.y, min.z}, {max.x, min.y, max.z}}},
-                                          {{{max.x, max.y, min.z}, {max.x, max.y, max.z}}},
-                                          {{{min.x, max.y, min.z}, {min.x, max.y, max.z}}}};
+                        {{{min.x, min.y, min.z}, {max.x, min.y, min.z}}},
+                        {{{min.x, max.y, min.z}, {max.x, max.y, min.z}}},
+                        {{{min.x, max.y, min.z}, {min.x, min.y, min.z}}},
+                        {{{max.x, max.y, min.z}, {max.x, min.y, min.z}}},
+                        // back face
+                        {{{min.x, min.y, max.z}, {max.x, min.y, max.z}}},
+                        {{{min.x, max.y, max.z}, {max.x, max.y, max.z}}},
+                        {{{min.x, max.y, max.z}, {min.x, min.y, max.z}}},
+                        {{{max.x, max.y, max.z}, {max.x, min.y, max.z}}},
+                        // connect the two
+                        {{{min.x, min.y, min.z}, {min.x, min.y, max.z}}},
+                        {{{max.x, min.y, min.z}, {max.x, min.y, max.z}}},
+                        {{{max.x, max.y, min.z}, {max.x, max.y, max.z}}},
+                        {{{min.x, max.y, min.z}, {min.x, max.y, max.z}}}};
 
                     state.debugRenderer->draw_lines(lines, {0.f, 1.f, 0.f});
                 });

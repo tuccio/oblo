@@ -13,11 +13,11 @@
 
 namespace oblo::vk
 {
-    inline VKAPI_ATTR VkBool32 VKAPI_CALL
-    validation_cb([[maybe_unused]] VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-                  [[maybe_unused]] VkDebugUtilsMessageTypeFlagsEXT messageType,
-                  [[maybe_unused]] const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-                  void* pUserData)
+    inline VKAPI_ATTR VkBool32 VKAPI_CALL validation_cb(
+        [[maybe_unused]] VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+        [[maybe_unused]] VkDebugUtilsMessageTypeFlagsEXT messageType,
+        [[maybe_unused]] const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+        void* pUserData)
     {
         auto& errors = *static_cast<std::stringstream*>(pUserData);
 
@@ -40,18 +40,18 @@ namespace oblo::vk
         }
 
         bool init(std::span<const char* const> instanceExtensions,
-                  std::span<const char* const> instanceLayers,
-                  std::span<const char* const> deviceExtensions,
-                  void* deviceFeaturesList,
-                  const VkPhysicalDeviceFeatures* physicalDeviceFeatures,
-                  std::stringstream* validationErrors)
+            std::span<const char* const> instanceLayers,
+            std::span<const char* const> deviceExtensions,
+            void* deviceFeaturesList,
+            const VkPhysicalDeviceFeatures* physicalDeviceFeatures,
+            std::stringstream* validationErrors)
         {
             return create_engine(instanceExtensions,
-                                 instanceLayers,
-                                 deviceExtensions,
-                                 deviceFeaturesList,
-                                 physicalDeviceFeatures,
-                                 validationErrors);
+                instanceLayers,
+                deviceExtensions,
+                deviceFeaturesList,
+                physicalDeviceFeatures,
+                validationErrors);
         }
 
         void shutdown()
@@ -62,11 +62,11 @@ namespace oblo::vk
 
     private:
         bool create_engine(std::span<const char* const> instanceExtensions,
-                           std::span<const char* const> instanceLayers,
-                           std::span<const char* const> deviceExtensions,
-                           void* deviceFeaturesList,
-                           const VkPhysicalDeviceFeatures* physicalDeviceFeatures,
-                           std::stringstream* validationErrors)
+            std::span<const char* const> instanceLayers,
+            std::span<const char* const> deviceExtensions,
+            void* deviceFeaturesList,
+            const VkPhysicalDeviceFeatures* physicalDeviceFeatures,
+            std::stringstream* validationErrors)
         {
             // We need to gather the extensions needed by SDL
             constexpr u32 extensionsArraySize{64};

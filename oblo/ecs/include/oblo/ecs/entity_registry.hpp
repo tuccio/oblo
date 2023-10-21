@@ -74,31 +74,28 @@ namespace oblo::ecs
         struct entity_data;
 
     private:
-        const components_storage* find_first_match(const components_storage* begin,
-                                                   usize increment,
-                                                   const component_and_tags_sets& types);
+        const components_storage* find_first_match(
+            const components_storage* begin, usize increment, const component_and_tags_sets& types);
 
         static void sort_and_map(std::span<component_type> componentTypes, std::span<u8> mapping);
 
         static u32 get_used_chunks_count(const components_storage& storage);
 
-        static bool fetch_component_offsets(const components_storage& storage,
-                                            std::span<const component_type> componentTypes,
-                                            std::span<u32> offsets);
+        static bool fetch_component_offsets(
+            const components_storage& storage, std::span<const component_type> componentTypes, std::span<u32> offsets);
 
         static u32 fetch_chunk_data(const components_storage& storage,
-                                    u32 chunkIndex,
-                                    std::span<const u32> offsets,
-                                    const entity** entities,
-                                    std::span<std::byte*> componentData);
+            u32 chunkIndex,
+            std::span<const u32> offsets,
+            const entity** entities,
+            std::span<std::byte*> componentData);
 
         const components_storage& find_or_create_storage(const component_and_tags_sets& types);
 
         void find_component_types(std::span<const type_id> typeIds, std::span<component_type> types);
 
-        void find_component_data(entity e,
-                                 const std::span<const type_id> typeIds,
-                                 std::span<std::byte*> outComponents) const;
+        void find_component_data(
+            entity e, const std::span<const type_id> typeIds, std::span<std::byte*> outComponents) const;
 
     private:
         const type_registry* m_typeRegistry{nullptr};

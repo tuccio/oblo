@@ -1,8 +1,7 @@
 #include <oblo/asset/importers/registration.hpp>
 
-#include <oblo/asset/importers/gltf.hpp>
 #include <oblo/asset/asset_registry.hpp>
-
+#include <oblo/asset/importers/gltf.hpp>
 
 namespace oblo::asset::importers
 {

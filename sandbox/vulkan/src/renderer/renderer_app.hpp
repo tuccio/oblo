@@ -5,14 +5,14 @@
 #include <oblo/core/log.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec3.hpp>
+#include <oblo/sandbox/context.hpp>
+#include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/graph/render_graph.hpp>
 #include <oblo/vulkan/graph/render_graph_builder.hpp>
-#include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/nodes/blit_image_node.hpp>
 #include <oblo/vulkan/nodes/deferred.hpp>
 #include <oblo/vulkan/nodes/forward.hpp>
 #include <oblo/vulkan/renderer.hpp>
-#include <oblo/sandbox/context.hpp>
 
 namespace oblo::vk
 {
@@ -107,12 +107,12 @@ namespace oblo::vk
             };
 
             const bool meshTableCreated = meshes.init(frameAllocator,
-                                                      columns,
-                                                      allocator,
-                                                      resourceManager,
-                                                      VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                                      maxVertices,
-                                                      maxIndices);
+                columns,
+                allocator,
+                resourceManager,
+                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                maxVertices,
+                maxIndices);
 
             OBLO_ASSERT(meshTableCreated);
 

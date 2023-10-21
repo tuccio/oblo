@@ -30,25 +30,25 @@ namespace oblo::vk
         ~mesh_table() = default;
 
         [[nodiscard]] bool init(frame_allocator& frameAllocator,
-                                std::span<const buffer_column_description> columns,
-                                allocator& allocator,
-                                resource_manager& resourceManager,
-                                VkBufferUsageFlags bufferUsage,
-                                u32 numVertices,
-                                u32 numIndices);
+            std::span<const buffer_column_description> columns,
+            allocator& allocator,
+            resource_manager& resourceManager,
+            VkBufferUsageFlags bufferUsage,
+            u32 numVertices,
+            u32 numIndices);
 
         void shutdown(allocator& allocator, resource_manager& resourceManager);
 
         bool fetch_buffers(const resource_manager& resourceManager,
-                           h32<string> mesh,
-                           std::span<const h32<string>> names,
-                           std::span<buffer> vertexBuffers,
-                           buffer* indexBuffer) const;
+            h32<string> mesh,
+            std::span<const h32<string>> names,
+            std::span<buffer> vertexBuffers,
+            buffer* indexBuffer) const;
 
         void fetch_buffers(const resource_manager& resourceManager,
-                           std::span<const h32<string>> names,
-                           std::span<buffer> vertexBuffers,
-                           buffer* indexBuffer) const;
+            std::span<const h32<string>> names,
+            std::span<buffer> vertexBuffers,
+            buffer* indexBuffer) const;
 
         bool allocate_meshes(std::span<const mesh_table_entry> meshes);
 

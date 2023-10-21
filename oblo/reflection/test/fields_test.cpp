@@ -28,8 +28,8 @@ namespace oblo::reflection
         auto find_field_by_name(std::span<const field_data> fields, const std::string_view name)
         {
             return find_if(fields.begin(),
-                           fields.end(),
-                           [name](const field_data& field) { return field.name == name; });
+                fields.end(),
+                [name](const field_data& field) { return field.name == name; });
         }
     }
 

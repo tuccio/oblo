@@ -18,10 +18,10 @@ namespace oblo::vk
         instance& operator=(instance&&) noexcept;
 
         bool init(const VkApplicationInfo& app,
-                  std::span<const char* const> enabledLayers,
-                  std::span<const char* const> enabledExtensions,
-                  PFN_vkDebugUtilsMessengerCallbackEXT debugCallback = nullptr,
-                  void* debugCallbackUserdata = nullptr);
+            std::span<const char* const> enabledLayers,
+            std::span<const char* const> enabledExtensions,
+            PFN_vkDebugUtilsMessengerCallbackEXT debugCallback = nullptr,
+            void* debugCallbackUserdata = nullptr);
 
         void shutdown();
 

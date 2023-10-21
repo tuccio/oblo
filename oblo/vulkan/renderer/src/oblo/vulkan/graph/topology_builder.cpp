@@ -108,7 +108,7 @@ namespace oblo::vk
         g.m_allocator = std::make_unique<std::byte[]>(m_allocationSize);
 
         auto allocateGraphData = [current = static_cast<void*>(g.m_allocator.get()),
-                                  space = m_allocationSize](usize size, usize alignment) mutable
+                                     space = m_allocationSize](usize size, usize alignment) mutable
         {
             auto* result = std::align(alignment, size, current, space);
             current = static_cast<u8*>(current) + size;

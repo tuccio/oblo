@@ -13,8 +13,8 @@ namespace oblo::vk
         constexpr bool is_depth_format(VkFormat format)
         {
             return format == VK_FORMAT_D16_UNORM || format == VK_FORMAT_X8_D24_UNORM_PACK32 ||
-                   format == VK_FORMAT_D32_SFLOAT || format == VK_FORMAT_S8_UINT ||
-                   format == VK_FORMAT_D16_UNORM_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
+                format == VK_FORMAT_D32_SFLOAT || format == VK_FORMAT_S8_UINT ||
+                format == VK_FORMAT_D16_UNORM_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
         }
 
         constexpr bool has_stencil(VkFormat format)
@@ -23,12 +23,12 @@ namespace oblo::vk
         }
 
         void add_pipeline_barrier_cmd(VkCommandBuffer commandBuffer,
-                                      VkImageLayout oldLayout,
-                                      VkImageLayout newLayout,
-                                      VkImage image,
-                                      VkFormat format,
-                                      u32 layerCount,
-                                      u32 mipLevels)
+            VkImageLayout oldLayout,
+            VkImageLayout newLayout,
+            VkImage image,
+            VkFormat format,
+            u32 layerCount,
+            u32 mipLevels)
         {
             VkImageMemoryBarrier barrier = {
                 .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -127,8 +127,10 @@ namespace oblo::vk
             }
 
             case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL: {
-                barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-                destinationStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+                barrier.dstAccessMask =
+                    VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+                destinationStage =
+                    VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
                 break;
             }
             default:
@@ -300,12 +302,12 @@ namespace oblo::vk
                 const auto oldLayout = it->layout;
 
                 add_pipeline_barrier_cmd(transitionsBuffer,
-                                         oldLayout,
-                                         pendingTransition.newLayout,
-                                         it->data.image,
-                                         pendingTransition.format,
-                                         pendingTransition.layerCount,
-                                         pendingTransition.mipLevels);
+                    oldLayout,
+                    pendingTransition.newLayout,
+                    it->data.image,
+                    pendingTransition.format,
+                    pendingTransition.layerCount,
+                    pendingTransition.mipLevels);
             }
         }
 
@@ -334,9 +336,9 @@ namespace oblo::vk
     }
 
     void command_buffer_state::add_pipeline_barrier(const resource_manager& resourceManager,
-                                                    h32<texture> handle,
-                                                    VkCommandBuffer commandBuffer,
-                                                    VkImageLayout newLayout)
+        h32<texture> handle,
+        VkCommandBuffer commandBuffer,
+        VkImageLayout newLayout)
     {
         auto* texturePtr = resourceManager.try_find(handle);
         OBLO_ASSERT(texturePtr);
@@ -363,12 +365,12 @@ namespace oblo::vk
             *transitionPtr = newLayout;
 
             add_pipeline_barrier_cmd(commandBuffer,
-                                     oldLayout,
-                                     newLayout,
-                                     texture.image,
-                                     texture.initializer.format,
-                                     texture.initializer.arrayLayers,
-                                     texture.initializer.mipLevels);
+                oldLayout,
+                newLayout,
+                texture.image,
+                texture.initializer.format,
+                texture.initializer.arrayLayers,
+                texture.initializer.mipLevels);
         }
     }
 

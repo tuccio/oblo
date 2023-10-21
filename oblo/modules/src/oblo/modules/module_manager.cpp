@@ -58,9 +58,8 @@ namespace oblo
 
         // We unload in reverse load order
         std::sort(modules.begin(),
-                  modules.end(),
-                  [](const module_to_delete& lhs, const module_to_delete& rhs)
-                  { return lhs.loadOrder > rhs.loadOrder; });
+            modules.end(),
+            [](const module_to_delete& lhs, const module_to_delete& rhs) { return lhs.loadOrder > rhs.loadOrder; });
 
         for (auto& m : modules)
         {

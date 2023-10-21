@@ -41,10 +41,10 @@ namespace oblo::ecs
         component_type type{u32(m_components.size())};
 
         const auto [it, inserted] = m_types.emplace(desc.type,
-                                                    any_type_info{
-                                                        .id = type.value,
-                                                        .kind = type_kind::component,
-                                                    });
+            any_type_info{
+                .id = type.value,
+                .kind = type_kind::component,
+            });
 
         if (!inserted)
         {
@@ -73,10 +73,10 @@ namespace oblo::ecs
         tag_type type{u32(m_tags.size())};
 
         const auto [it, inserted] = m_types.emplace(desc.type,
-                                                    any_type_info{
-                                                        .id = type.value,
-                                                        .kind = type_kind::tag,
-                                                    });
+            any_type_info{
+                .id = type.value,
+                .kind = type_kind::tag,
+            });
 
         if (!inserted)
         {

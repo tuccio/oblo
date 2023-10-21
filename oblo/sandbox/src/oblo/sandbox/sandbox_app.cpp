@@ -16,11 +16,11 @@ namespace oblo::vk
 {
     namespace
     {
-        VKAPI_ATTR VkBool32 VKAPI_CALL
-        debug_callback([[maybe_unused]] VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-                       [[maybe_unused]] VkDebugUtilsMessageTypeFlagsEXT messageType,
-                       const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-                       [[maybe_unused]] void* pUserData)
+        VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
+            [[maybe_unused]] VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+            [[maybe_unused]] VkDebugUtilsMessageTypeFlagsEXT messageType,
+            const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+            [[maybe_unused]] void* pUserData)
         {
             fprintf(stderr, "[Vulkan Validation] (%x) %s\n", messageType, pCallbackData->pMessage);
             return VK_FALSE;
@@ -63,19 +63,19 @@ namespace oblo::vk
     }
 
     bool sandbox_base::init(std::span<const char* const> instanceExtensions,
-                            std::span<const char* const> instanceLayers,
-                            std::span<const char* const> deviceExtensions,
-                            void* deviceFeaturesList,
-                            const VkPhysicalDeviceFeatures* physicalDeviceFeatures)
+        std::span<const char* const> instanceLayers,
+        std::span<const char* const> deviceExtensions,
+        void* deviceFeaturesList,
+        const VkPhysicalDeviceFeatures* physicalDeviceFeatures)
     {
         m_frameAllocator.init(1u << 30, 1u << 24, 1u);
 
         if (!create_window() ||
             !create_engine(instanceExtensions,
-                           instanceLayers,
-                           deviceExtensions,
-                           deviceFeaturesList,
-                           physicalDeviceFeatures) ||
+                instanceLayers,
+                deviceExtensions,
+                deviceFeaturesList,
+                physicalDeviceFeatures) ||
             !m_allocator.init(m_instance.get(), m_engine.get_physical_device(), m_engine.get_device()))
         {
             return false;
@@ -146,11 +146,11 @@ namespace oblo::vk
         do
         {
             acquireImageResult = vkAcquireNextImageKHR(m_engine.get_device(),
-                                                       m_swapchain.get(),
-                                                       UINT64_MAX,
-                                                       m_presentSemaphore,
-                                                       VK_NULL_HANDLE,
-                                                       &imageIndex);
+                m_swapchain.get(),
+                UINT64_MAX,
+                m_presentSemaphore,
+                VK_NULL_HANDLE,
+                &imageIndex);
 
             if (acquireImageResult == VK_SUCCESS)
             {
@@ -206,20 +206,20 @@ namespace oblo::vk
     bool sandbox_base::create_window()
     {
         m_window = SDL_CreateWindow(m_config.appMainWindowTitle,
-                                    SDL_WINDOWPOS_UNDEFINED,
-                                    SDL_WINDOWPOS_UNDEFINED,
-                                    1280,
-                                    720,
-                                    SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_VULKAN);
+            SDL_WINDOWPOS_UNDEFINED,
+            SDL_WINDOWPOS_UNDEFINED,
+            1280,
+            720,
+            SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_VULKAN);
 
         return m_window != nullptr;
     }
 
     bool sandbox_base::create_engine(std::span<const char* const> instanceExtensions,
-                                     std::span<const char* const> instanceLayers,
-                                     std::span<const char* const> deviceExtensions,
-                                     void* deviceFeaturesList,
-                                     const VkPhysicalDeviceFeatures* physicalDeviceFeatures)
+        std::span<const char* const> instanceLayers,
+        std::span<const char* const> deviceExtensions,
+        void* deviceFeaturesList,
+        const VkPhysicalDeviceFeatures* physicalDeviceFeatures)
     {
         // We need to gather the extensions needed by SDL
         constexpr u32 extensionsArraySize{64};
@@ -303,18 +303,18 @@ namespace oblo::vk
         };
 
         return m_engine.init(m_instance.get(),
-                             m_surface,
-                             {},
-                             {extensions},
-                             &bufferDeviceAddressFeature,
-                             physicalDeviceFeatures) &&
-               m_context.init({
-                   .engine = m_engine,
-                   .allocator = m_allocator,
-                   .resourceManager = m_resourceManager,
-                   .buffersPerFrame = 2,
-                   .submitsInFlight = SwapchainImages,
-               });
+                   m_surface,
+                   {},
+                   {extensions},
+                   &bufferDeviceAddressFeature,
+                   physicalDeviceFeatures) &&
+            m_context.init({
+                .engine = m_engine,
+                .allocator = m_allocator,
+                .resourceManager = m_resourceManager,
+                .buffersPerFrame = 2,
+                .submitsInFlight = SwapchainImages,
+            });
     }
 
     bool sandbox_base::create_swapchain()
@@ -363,7 +363,7 @@ namespace oblo::vk
         };
 
         return vkCreateSemaphore(m_engine.get_device(), &presentSemaphoreCreateInfo, nullptr, &m_presentSemaphore) ==
-               VK_SUCCESS;
+            VK_SUCCESS;
     }
 
     bool sandbox_base::init_imgui()
@@ -373,13 +373,13 @@ namespace oblo::vk
         auto& commandBuffer = m_context.get_active_command_buffer();
 
         bool success = m_imgui.fill_init_command_buffer(m_window,
-                                                        m_instance.get(),
-                                                        m_engine.get_physical_device(),
-                                                        m_engine.get_device(),
-                                                        m_engine.get_queue(),
-                                                        commandBuffer.get(),
-                                                        SwapchainImages,
-                                                        m_config);
+            m_instance.get(),
+            m_engine.get_physical_device(),
+            m_engine.get_device(),
+            m_engine.get_queue(),
+            commandBuffer.get(),
+            SwapchainImages,
+            m_config);
 
         m_context.frame_end();
 

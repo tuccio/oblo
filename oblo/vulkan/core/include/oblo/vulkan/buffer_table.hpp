@@ -40,11 +40,11 @@ namespace oblo::vk
         ~buffer_table();
 
         [[nodiscard]] u32 init(frame_allocator& frameAllocator,
-                               const buffer& buffer,
-                               std::span<const buffer_column_description> columns,
-                               resource_manager& resourceManager,
-                               u32 rows,
-                               u32 bufferAlignment);
+            const buffer& buffer,
+            std::span<const buffer_column_description> columns,
+            resource_manager& resourceManager,
+            u32 rows,
+            u32 bufferAlignment);
 
         void shutdown(resource_manager& resourceManager);
 

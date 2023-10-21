@@ -173,8 +173,7 @@ namespace oblo
 
         bool found{false};
 
-        m_tlas.traverse(
-            ray,
+        m_tlas.traverse(ray,
             [&](u32 firstIndex, u16 numPrimitives, f32& currentDistance) mutable
             {
                 const auto aabbs = allAabbs.subspan(firstIndex, numPrimitives);
@@ -195,8 +194,7 @@ namespace oblo
                         u32 triangle;
                         bool bestResult = false;
 
-                        m_blas[meshIndex].traverse(
-                            ray,
+                        m_blas[meshIndex].traverse(ray,
                             [&, &container = m_meshes[meshIndex]](u32 firstIndex, u16 numPrimitives, f32& distance)
                             {
                                 triangle_container::hit_result hitResult;

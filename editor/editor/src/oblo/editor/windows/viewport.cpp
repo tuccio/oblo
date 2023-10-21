@@ -65,11 +65,11 @@ namespace oblo::editor
             if (!m_texture)
             {
                 const auto result = vk::create_2d_render_target(m_ctx->get_allocator(),
-                                                                u32(windowSize.x),
-                                                                u32(windowSize.y),
-                                                                VK_FORMAT_R8G8B8A8_UNORM,
-                                                                VK_IMAGE_USAGE_SAMPLED_BIT,
-                                                                VK_IMAGE_ASPECT_COLOR_BIT);
+                    u32(windowSize.x),
+                    u32(windowSize.y),
+                    VK_FORMAT_R8G8B8A8_UNORM,
+                    VK_IMAGE_USAGE_SAMPLED_BIT,
+                    VK_IMAGE_ASPECT_COLOR_BIT);
 
                 if (result)
                 {

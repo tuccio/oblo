@@ -25,8 +25,7 @@ namespace oblo::vk
 
         m_stagingBuffer.init(get_engine(), get_allocator(), 1u << 27);
 
-        m_dummy = m_vkContext->get_resource_manager().create(
-            get_allocator(),
+        m_dummy = m_vkContext->get_resource_manager().create(get_allocator(),
             {
                 .size = 16u,
                 .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,

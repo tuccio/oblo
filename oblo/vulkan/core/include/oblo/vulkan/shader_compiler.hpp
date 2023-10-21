@@ -24,18 +24,18 @@ namespace oblo::vk::shader_compiler
     void shutdown();
 
     bool compile_glsl_to_spirv(std::string_view debugName,
-                               std::string_view sourceCode,
-                               VkShaderStageFlagBits stage,
-                               std::vector<unsigned>& outSpirv,
-                               const options& options = {});
+        std::string_view sourceCode,
+        VkShaderStageFlagBits stage,
+        std::vector<unsigned>& outSpirv,
+        const options& options = {});
 
     VkShaderModule create_shader_module_from_spirv(VkDevice device, std::span<const unsigned> spirv);
 
     VkShaderModule create_shader_module_from_glsl_file(frame_allocator& allocator,
-                                                       VkDevice device,
-                                                       VkShaderStageFlagBits stage,
-                                                       std::string_view filePath,
-                                                       const options& options = {});
+        VkDevice device,
+        VkShaderStageFlagBits stage,
+        std::string_view filePath,
+        const options& options = {});
 
     class scope
     {

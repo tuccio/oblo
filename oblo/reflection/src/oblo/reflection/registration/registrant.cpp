@@ -47,10 +47,8 @@ namespace oblo::reflection
         return classIndex;
     }
 
-    void reflection_registry::registrant::add_field(u32 classIndex,
-                                                    const type_id& type,
-                                                    std::string_view name,
-                                                    u32 offset)
+    void reflection_registry::registrant::add_field(
+        u32 classIndex, const type_id& type, std::string_view name, u32 offset)
     {
         m_impl.classes[classIndex].fields.emplace_back(field_data{
             .type = type,

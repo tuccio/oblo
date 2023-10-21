@@ -58,8 +58,8 @@ namespace oblo::vk
         const VkDevice device = context.vkContext->get_device();
 
         return compile_shader_modules(*context.frameAllocator, device) && create_pools(device) &&
-               create_descriptor_set_layouts(device) && create_pipelines(device, context.swapchainFormat) &&
-               create_buffers(device, context.vkContext->get_allocator());
+            create_descriptor_set_layouts(device) && create_pipelines(device, context.swapchainFormat) &&
+            create_buffers(device, context.vkContext->get_allocator());
     }
 
     void vertex_pull::shutdown(const sandbox_shutdown_context& context)
@@ -95,15 +95,15 @@ namespace oblo::vk
             };
 
             vkCmdPipelineBarrier(commandBuffer,
-                                 VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                                 VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                                 0,
-                                 0,
-                                 nullptr,
-                                 0,
-                                 nullptr,
-                                 1,
-                                 &imageMemoryBarrier);
+                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                0,
+                0,
+                nullptr,
+                0,
+                nullptr,
+                1,
+                &imageMemoryBarrier);
         }
 
         VkPipeline pipeline{nullptr};
@@ -186,13 +186,13 @@ namespace oblo::vk
 
         if (expectedTimestamps > 0 && expectedTimestamps == m_enqueuedTimestamps[poolIndex] &&
             vkGetQueryPoolResults(device,
-                                  queryPool,
-                                  0,
-                                  expectedTimestamps,
-                                  sizeof(timestamps),
-                                  timestamps,
-                                  sizeof(u64),
-                                  VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT) == VK_SUCCESS)
+                queryPool,
+                0,
+                expectedTimestamps,
+                sizeof(timestamps),
+                timestamps,
+                sizeof(u64),
+                VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT) == VK_SUCCESS)
         {
             m_lastRecordedTime = 0;
 
@@ -213,7 +213,7 @@ namespace oblo::vk
             for (u32 batchIndex = 0; batchIndex < m_batchesCount; ++batchIndex)
             {
                 const VkBuffer vertexBuffers[] = {m_positionBuffers[batchIndex].buffer,
-                                                  m_colorBuffers[batchIndex].buffer};
+                    m_colorBuffers[batchIndex].buffer};
                 constexpr VkDeviceSize offsets[] = {0, 0};
                 vkCmdBindVertexBuffers(commandBuffer, 0, 2, vertexBuffers, offsets);
 
@@ -228,17 +228,17 @@ namespace oblo::vk
             for (u32 batchIndex = 0; batchIndex < m_batchesCount; ++batchIndex)
             {
                 const VkBuffer vertexBuffers[] = {m_positionBuffers[batchIndex].buffer,
-                                                  m_colorBuffers[batchIndex].buffer};
+                    m_colorBuffers[batchIndex].buffer};
                 constexpr VkDeviceSize offsets[] = {0, 0};
                 vkCmdBindVertexBuffers(commandBuffer, 0, 2, vertexBuffers, offsets);
 
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, queryPool, 2 * batchIndex);
 
                 vkCmdDrawIndirect(commandBuffer,
-                                  m_indirectDrawBuffers[batchIndex].buffer,
-                                  0,
-                                  m_objectsPerBatch,
-                                  sizeof(VkDrawIndirectCommand));
+                    m_indirectDrawBuffers[batchIndex].buffer,
+                    0,
+                    m_objectsPerBatch,
+                    sizeof(VkDrawIndirectCommand));
 
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, queryPool, 2 * batchIndex + 1);
             }
@@ -295,21 +295,21 @@ namespace oblo::vk
                 vkUpdateDescriptorSets(device, array_size(descriptorSetWrites), descriptorSetWrites, 0, nullptr);
 
                 vkCmdBindDescriptorSets(commandBuffer,
-                                        VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                        m_vertexPullPipelineLayout,
-                                        0,
-                                        1,
-                                        &descriptorSet,
-                                        0,
-                                        nullptr);
+                    VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    m_vertexPullPipelineLayout,
+                    0,
+                    1,
+                    &descriptorSet,
+                    0,
+                    nullptr);
 
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, queryPool, 2 * batchIndex);
 
                 vkCmdDrawIndirect(commandBuffer,
-                                  m_indirectDrawBuffers[batchIndex].buffer,
-                                  0,
-                                  m_objectsPerBatch,
-                                  sizeof(VkDrawIndirectCommand));
+                    m_indirectDrawBuffers[batchIndex].buffer,
+                    0,
+                    m_objectsPerBatch,
+                    sizeof(VkDrawIndirectCommand));
 
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, queryPool, 2 * batchIndex + 1);
             }
@@ -379,21 +379,21 @@ namespace oblo::vk
             vkUpdateDescriptorSets(device, array_size(descriptorSetWrites), descriptorSetWrites, 0, nullptr);
 
             vkCmdBindDescriptorSets(commandBuffer,
-                                    VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                    m_vertexPullMergePipelineLayout,
-                                    0,
-                                    1,
-                                    &descriptorSet,
-                                    0,
-                                    nullptr);
+                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                m_vertexPullMergePipelineLayout,
+                0,
+                1,
+                &descriptorSet,
+                0,
+                nullptr);
 
             vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, queryPool, 0);
 
             vkCmdDrawIndirect(commandBuffer,
-                              m_mergeIndirectDrawCommandsBuffer.buffer,
-                              0,
-                              m_objectsPerBatch * m_batchesCount,
-                              sizeof(VkDrawIndirectCommand));
+                m_mergeIndirectDrawCommandsBuffer.buffer,
+                0,
+                m_objectsPerBatch * m_batchesCount,
+                sizeof(VkDrawIndirectCommand));
 
             vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, queryPool, 1);
 
@@ -510,28 +510,25 @@ namespace oblo::vk
     {
         const shader_compiler::scope compiler{};
 
-        m_shaderVertexBuffersVert =
-            shader_compiler::create_shader_module_from_glsl_file(allocator,
-                                                                 device,
-                                                                 VK_SHADER_STAGE_VERTEX_BIT,
-                                                                 "./shaders/vertex_pull/vertex_buffers.vert");
+        m_shaderVertexBuffersVert = shader_compiler::create_shader_module_from_glsl_file(allocator,
+            device,
+            VK_SHADER_STAGE_VERTEX_BIT,
+            "./shaders/vertex_pull/vertex_buffers.vert");
 
-        m_shaderVertexPullVert =
-            shader_compiler::create_shader_module_from_glsl_file(allocator,
-                                                                 device,
-                                                                 VK_SHADER_STAGE_VERTEX_BIT,
-                                                                 "./shaders/vertex_pull/vertex_pull.vert");
+        m_shaderVertexPullVert = shader_compiler::create_shader_module_from_glsl_file(allocator,
+            device,
+            VK_SHADER_STAGE_VERTEX_BIT,
+            "./shaders/vertex_pull/vertex_pull.vert");
 
-        m_shaderVertexPullMergeVert =
-            shader_compiler::create_shader_module_from_glsl_file(allocator,
-                                                                 device,
-                                                                 VK_SHADER_STAGE_VERTEX_BIT,
-                                                                 "./shaders/vertex_pull/vertex_pull_merge.vert");
+        m_shaderVertexPullMergeVert = shader_compiler::create_shader_module_from_glsl_file(allocator,
+            device,
+            VK_SHADER_STAGE_VERTEX_BIT,
+            "./shaders/vertex_pull/vertex_pull_merge.vert");
 
         m_shaderSharedFrag = shader_compiler::create_shader_module_from_glsl_file(allocator,
-                                                                                  device,
-                                                                                  VK_SHADER_STAGE_FRAGMENT_BIT,
-                                                                                  "./shaders/vertex_pull/shared.frag");
+            device,
+            VK_SHADER_STAGE_FRAGMENT_BIT,
+            "./shaders/vertex_pull/shared.frag");
 
         return m_shaderVertexBuffersVert && m_shaderSharedFrag && m_shaderVertexPullMergeVert;
     }
@@ -541,9 +538,9 @@ namespace oblo::vk
         constexpr VkDescriptorPoolSize descriptorSizes[]{{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, MaxBatchesCount * 2}};
 
         const VkDescriptorPoolCreateInfo poolCreateInfo{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-                                                        .maxSets = MaxBatchesCount,
-                                                        .poolSizeCount = array_size(descriptorSizes),
-                                                        .pPoolSizes = descriptorSizes};
+            .maxSets = MaxBatchesCount,
+            .poolSizeCount = array_size(descriptorSizes),
+            .pPoolSizes = descriptorSizes};
 
         for (auto& descriptorPool : m_descriptorPools)
         {
@@ -625,11 +622,9 @@ namespace oblo::vk
         };
 
         return vkCreateDescriptorSetLayout(device, &pullSetLayoutCreateInfo, nullptr, &m_vertexPullSetLayout) ==
-                   VK_SUCCESS &&
-               vkCreateDescriptorSetLayout(device,
-                                           &pullMergeSetLayoutCreateInfo,
-                                           nullptr,
-                                           &m_vertexPullMergeSetLayout) == VK_SUCCESS;
+            VK_SUCCESS &&
+            vkCreateDescriptorSetLayout(device, &pullMergeSetLayoutCreateInfo, nullptr, &m_vertexPullMergeSetLayout) ==
+            VK_SUCCESS;
     }
 
     bool vertex_pull::create_buffers(VkDevice device, allocator& allocator)
@@ -672,8 +667,8 @@ namespace oblo::vk
             {
                 const auto translation =
                     vec3{m_layoutOffset + 2.f * m_layoutQuadScale * f32(batchIndex % m_layoutQuadsPerRow),
-                         m_layoutOffset + 2.f * m_layoutQuadScale * f32(batchIndex / m_layoutQuadsPerRow),
-                         0.f};
+                        m_layoutOffset + 2.f * m_layoutQuadScale * f32(batchIndex / m_layoutQuadsPerRow),
+                        0.f};
 
                 transformedPositions[vertexIndex] = m_positions[vertexIndex] * m_layoutQuadScale + translation;
             }
@@ -686,7 +681,7 @@ namespace oblo::vk
 
             // Different modes need different flags, not sure if it's a problem to use them all together
             constexpr auto vertexBufferUsage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                                               VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+                VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
             if (allocator.create_buffer(
                     {.size = positionsSize, .usage = vertexBufferUsage, .memoryUsage = memory_usage::cpu_to_gpu},
@@ -695,9 +690,9 @@ namespace oblo::vk
                     {.size = colorsSize, .usage = vertexBufferUsage, .memoryUsage = memory_usage::cpu_to_gpu},
                     &colorBuffer) != VK_SUCCESS ||
                 allocator.create_buffer({.size = indirectDrawSize,
-                                         .usage = VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
-                                         .memoryUsage = memory_usage::cpu_to_gpu},
-                                        &indirectDrawBuffer) != VK_SUCCESS)
+                                            .usage = VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
+                                            .memoryUsage = memory_usage::cpu_to_gpu},
+                    &indirectDrawBuffer) != VK_SUCCESS)
 
             {
                 return false;
@@ -726,21 +721,21 @@ namespace oblo::vk
         const auto refBufferSize = u32(sizeof(u64) * MaxBatchesCount);
 
         if (allocator.create_buffer({.size = mergeIndirectionSize,
-                                     .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                     .memoryUsage = memory_usage::cpu_to_gpu},
-                                    &m_mergeIndirectionBuffer) != VK_SUCCESS ||
+                                        .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                        .memoryUsage = memory_usage::cpu_to_gpu},
+                &m_mergeIndirectionBuffer) != VK_SUCCESS ||
             allocator.create_buffer({.size = indirectDrawSize * m_batchesCount,
-                                     .usage = VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
-                                     .memoryUsage = memory_usage::cpu_to_gpu},
-                                    &m_mergeIndirectDrawCommandsBuffer) != VK_SUCCESS ||
+                                        .usage = VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
+                                        .memoryUsage = memory_usage::cpu_to_gpu},
+                &m_mergeIndirectDrawCommandsBuffer) != VK_SUCCESS ||
             allocator.create_buffer({.size = refBufferSize,
-                                     .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                     .memoryUsage = memory_usage::cpu_to_gpu},
-                                    &m_positionBuffersRefs) != VK_SUCCESS ||
+                                        .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                        .memoryUsage = memory_usage::cpu_to_gpu},
+                &m_positionBuffersRefs) != VK_SUCCESS ||
             allocator.create_buffer({.size = refBufferSize,
-                                     .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                     .memoryUsage = memory_usage::cpu_to_gpu},
-                                    &m_colorBuffersRefs) != VK_SUCCESS)
+                                        .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                        .memoryUsage = memory_usage::cpu_to_gpu},
+                &m_colorBuffersRefs) != VK_SUCCESS)
         {
             return false;
         }
@@ -824,9 +819,9 @@ namespace oblo::vk
             vkCreatePipelineLayout(device, &vertexPullPipelineLayoutInfo, nullptr, &m_vertexPullPipelineLayout) !=
                 VK_SUCCESS ||
             vkCreatePipelineLayout(device,
-                                   &vertexPullMergePipelineLayoutInfo,
-                                   nullptr,
-                                   &m_vertexPullMergePipelineLayout) != VK_SUCCESS)
+                &vertexPullMergePipelineLayoutInfo,
+                nullptr,
+                &m_vertexPullMergePipelineLayout) != VK_SUCCESS)
         {
             return false;
         }
@@ -844,7 +839,7 @@ namespace oblo::vk
             .pName = "main"};
 
         const VkPipelineShaderStageCreateInfo vertexBufferStages[] = {vertexBufferVertexShaderInfo,
-                                                                      vertexBufferFragmentShaderInfo};
+            vertexBufferFragmentShaderInfo};
 
         const VkPipelineShaderStageCreateInfo vertexPullVertexShaderInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -853,7 +848,7 @@ namespace oblo::vk
             .pName = "main"};
 
         const VkPipelineShaderStageCreateInfo vertexPullStages[] = {vertexPullVertexShaderInfo,
-                                                                    vertexBufferFragmentShaderInfo};
+            vertexBufferFragmentShaderInfo};
 
         const VkPipelineShaderStageCreateInfo vertexPullMergeVertexShaderInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -862,7 +857,7 @@ namespace oblo::vk
             .pName = "main"};
 
         const VkPipelineShaderStageCreateInfo vertexPullMergeStages[] = {vertexPullMergeVertexShaderInfo,
-                                                                         vertexBufferFragmentShaderInfo};
+            vertexBufferFragmentShaderInfo};
 
         const VkPipelineInputAssemblyStateCreateInfo inputAssembly{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
@@ -915,7 +910,7 @@ namespace oblo::vk
         const VkPipelineColorBlendAttachmentState colorBlendAttachment{
             .blendEnable = VK_FALSE,
             .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
-                              VK_COLOR_COMPONENT_A_BIT,
+                VK_COLOR_COMPONENT_A_BIT,
         };
 
         const VkPipelineColorBlendStateCreateInfo colorBlending{
@@ -1003,11 +998,11 @@ namespace oblo::vk
         VkPipeline pipelines[3];
 
         bool success = vkCreateGraphicsPipelines(device,
-                                                 VK_NULL_HANDLE,
-                                                 array_size(pipelineInfos),
-                                                 pipelineInfos,
-                                                 nullptr,
-                                                 pipelines) == VK_SUCCESS;
+                           VK_NULL_HANDLE,
+                           array_size(pipelineInfos),
+                           pipelineInfos,
+                           nullptr,
+                           pipelines) == VK_SUCCESS;
 
         m_vertexBuffersPipeline = pipelines[0];
         m_vertexPullPipeline = pipelines[1];
@@ -1103,23 +1098,23 @@ namespace oblo::vk
     void vertex_pull::destroy_pipelines(VkDevice device)
     {
         reset_device_objects(device,
-                             m_vertexBuffersPipelineLayout,
-                             m_vertexPullPipelineLayout,
-                             m_vertexPullMergePipelineLayout,
-                             m_vertexBuffersPipeline,
-                             m_vertexPullPipeline,
-                             m_vertexPullMergePipeline,
-                             m_vertexPullSetLayout,
-                             m_vertexPullMergeSetLayout);
+            m_vertexBuffersPipelineLayout,
+            m_vertexPullPipelineLayout,
+            m_vertexPullMergePipelineLayout,
+            m_vertexBuffersPipeline,
+            m_vertexPullPipeline,
+            m_vertexPullMergePipeline,
+            m_vertexPullSetLayout,
+            m_vertexPullMergeSetLayout);
     }
 
     void vertex_pull::destroy_shader_modules(VkDevice device)
     {
         reset_device_objects(device,
-                             m_shaderVertexBuffersVert,
-                             m_shaderVertexPullVert,
-                             m_shaderVertexPullMergeVert,
-                             m_shaderSharedFrag);
+            m_shaderVertexBuffersVert,
+            m_shaderVertexPullVert,
+            m_shaderVertexPullMergeVert,
+            m_shaderSharedFrag);
     }
 
     void vertex_pull::destroy_pools(VkDevice device)

@@ -18,10 +18,8 @@ namespace oblo::vk
     class runtime_context
     {
     public:
-        explicit runtime_context(render_graph& graph,
-                                 renderer& renderer,
-                                 VkCommandBuffer commandBuffer,
-                                 frame_allocator& frameAllocator) :
+        explicit runtime_context(
+            render_graph& graph, renderer& renderer, VkCommandBuffer commandBuffer, frame_allocator& frameAllocator) :
             m_graph{&graph},
             m_renderer{&renderer}, m_commandBuffer{commandBuffer}, m_frameAllocator{&frameAllocator}
         {

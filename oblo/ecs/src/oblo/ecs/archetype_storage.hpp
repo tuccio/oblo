@@ -66,9 +66,9 @@ namespace oblo::ecs
     };
 
     archetype_storage* create_archetype_storage(memory_pool& pool,
-                                                const type_registry& typeRegistry,
-                                                const component_and_tags_sets& types,
-                                                std::span<const component_type> components);
+        const type_registry& typeRegistry,
+        const component_and_tags_sets& types,
+        std::span<const component_type> components);
 
     void destroy_archetype_storage(memory_pool& pool, archetype_storage* storage);
 
@@ -84,10 +84,8 @@ namespace oblo::ecs
         return reinterpret_cast<entity_tags*>(chunk + archetype.entityTagsOffset + offset);
     }
 
-    inline std::byte* get_component_pointer(std::byte* chunk,
-                                            const archetype_storage& archetype,
-                                            u8 componentIndex,
-                                            u32 offset)
+    inline std::byte* get_component_pointer(
+        std::byte* chunk, const archetype_storage& archetype, u8 componentIndex, u32 offset)
     {
         return chunk + archetype.offsets[componentIndex] + offset * archetype.sizes[componentIndex];
     }

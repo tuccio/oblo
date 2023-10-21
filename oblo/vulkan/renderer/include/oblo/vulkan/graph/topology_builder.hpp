@@ -201,8 +201,8 @@ namespace oblo::vk
             node_desc& nodeDesc = it->second;
 
             struct_apply([this, &instance, &nodeDesc](auto&... fields)
-                         { (this->register_pin(&nodeDesc, reinterpret_cast<const u8*>(&instance), &fields), ...); },
-                         instance);
+                { (this->register_pin(&nodeDesc, reinterpret_cast<const u8*>(&instance), &fields), ...); },
+                instance);
 
             const u32 lastPin{m_nextDataId};
 
@@ -258,10 +258,10 @@ namespace oblo::vk
         if (it != m_nodes.end())
         {
             it->second.outEdges.push_back({.targetNode = get_type_id<NodeTo>(),
-                                           .dataType = get_type_id<BackingType>(),
-                                           .sourceOffset = get_member_offset(from),
-                                           .targetOffset = get_member_offset(to),
-                                           .kind = get_pin_kind(T{})});
+                .dataType = get_type_id<BackingType>(),
+                .sourceOffset = get_member_offset(from),
+                .targetOffset = get_member_offset(to),
+                .kind = get_pin_kind(T{})});
         }
 
         return *this;

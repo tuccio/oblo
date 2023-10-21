@@ -10,12 +10,12 @@ namespace oblo::vk
     using mesh_index_type = u32;
 
     bool mesh_table::init(frame_allocator& frameAllocator,
-                          std::span<const buffer_column_description> columns,
-                          allocator& allocator,
-                          resource_manager& resourceManager,
-                          VkBufferUsageFlags bufferUsage,
-                          u32 numVertices,
-                          u32 numIndices)
+        std::span<const buffer_column_description> columns,
+        allocator& allocator,
+        resource_manager& resourceManager,
+        VkBufferUsageFlags bufferUsage,
+        u32 numVertices,
+        u32 numIndices)
     {
         // TODO: Actually read it
         constexpr u32 alignment = 16u;
@@ -27,11 +27,11 @@ namespace oblo::vk
         }
 
         m_buffer = resourceManager.create(allocator,
-                                          {
-                                              .size = maxBufferSize,
-                                              .usage = bufferUsage,
-                                              .memoryUsage = memory_usage::gpu_only,
-                                          });
+            {
+                .size = maxBufferSize,
+                .usage = bufferUsage,
+                .memoryUsage = memory_usage::gpu_only,
+            });
 
         if (!m_buffers
                  .init(frameAllocator, resourceManager.get(m_buffer), columns, resourceManager, numVertices, alignment))
@@ -44,11 +44,11 @@ namespace oblo::vk
         const auto indexBufferSize = u32(numIndices * sizeof(mesh_index_type));
 
         m_indexBuffer = resourceManager.create(allocator,
-                                               {
-                                                   .size = indexBufferSize,
-                                                   .usage = bufferUsage | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                                                   .memoryUsage = memory_usage::gpu_only,
-                                               });
+            {
+                .size = indexBufferSize,
+                .usage = bufferUsage | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                .memoryUsage = memory_usage::gpu_only,
+            });
 
         m_firstFreeVertex = 0u;
         m_firstFreeIndex = 0u;
@@ -79,10 +79,10 @@ namespace oblo::vk
     }
 
     bool mesh_table::fetch_buffers(const resource_manager& resourceManager,
-                                   h32<string> mesh,
-                                   std::span<const h32<string>> names,
-                                   std::span<buffer> vertexBuffers,
-                                   buffer* indexBuffer) const
+        h32<string> mesh,
+        std::span<const h32<string>> names,
+        std::span<buffer> vertexBuffers,
+        buffer* indexBuffer) const
     {
         const auto* range = m_ranges.try_find(mesh);
 
@@ -126,9 +126,9 @@ namespace oblo::vk
     }
 
     void mesh_table::fetch_buffers(const resource_manager& resourceManager,
-                                   std::span<const h32<string>> names,
-                                   std::span<buffer> vertexBuffers,
-                                   buffer* indexBuffer) const
+        std::span<const h32<string>> names,
+        std::span<buffer> vertexBuffers,
+        buffer* indexBuffer) const
     {
         const std::span allBuffers = m_buffers.buffers();
 
@@ -174,12 +174,12 @@ namespace oblo::vk
         for (const auto [meshId, meshVertices, meshIndices] : meshes)
         {
             const auto [it, ok] = m_ranges.emplace(meshId,
-                                                   buffer_range{
-                                                       .vertexOffset = m_firstFreeVertex,
-                                                       .vertexCount = meshVertices,
-                                                       .indexOffset = m_firstFreeIndex,
-                                                       .indexCount = meshIndices,
-                                                   });
+                buffer_range{
+                    .vertexOffset = m_firstFreeVertex,
+                    .vertexCount = meshVertices,
+                    .indexOffset = m_firstFreeIndex,
+                    .indexCount = meshIndices,
+                });
 
             if (ok)
             {

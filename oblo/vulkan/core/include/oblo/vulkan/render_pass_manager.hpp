@@ -39,16 +39,15 @@ namespace oblo::vk
 
         h32<render_pass> register_render_pass(const render_pass_initializer& desc);
 
-        h32<render_pipeline> get_or_create_pipeline(frame_allocator& allocator,
-                                                    h32<render_pass> handle,
-                                                    const render_pipeline_initializer& desc);
+        h32<render_pipeline> get_or_create_pipeline(
+            frame_allocator& allocator, h32<render_pass> handle, const render_pipeline_initializer& desc);
 
         void begin_rendering(render_pass_context& context, const VkRenderingInfo& renderingInfo) const;
         void end_rendering(const render_pass_context& context) const;
 
         void bind(const render_pass_context& context,
-                  const resource_manager& resourceManager,
-                  const mesh_table& meshTable) const;
+            const resource_manager& resourceManager,
+            const mesh_table& meshTable) const;
 
     private:
         VkDevice m_device{};

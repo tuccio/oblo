@@ -189,9 +189,8 @@ namespace oblo::vk
         return handle;
     }
 
-    h32<render_pipeline> render_pass_manager::get_or_create_pipeline(frame_allocator& allocator,
-                                                                     h32<render_pass> renderPassHandle,
-                                                                     const render_pipeline_initializer& desc)
+    h32<render_pipeline> render_pass_manager::get_or_create_pipeline(
+        frame_allocator& allocator, h32<render_pass> renderPassHandle, const render_pipeline_initializer& desc)
     {
         auto* const renderPass = m_renderPasses.try_find(renderPassHandle);
 
@@ -204,9 +203,8 @@ namespace oblo::vk
         u64 expectedHash{renderPassHandle.value};
 
         if (const auto variantIt = std::find_if(renderPass->variants.begin(),
-                                                renderPass->variants.end(),
-                                                [expectedHash](const render_pass_variant& variant)
-                                                { return variant.hash == expectedHash; });
+                renderPass->variants.end(),
+                [expectedHash](const render_pass_variant& variant) { return variant.hash == expectedHash; });
             variantIt != renderPass->variants.end())
         {
             return variantIt->pipeline;
@@ -264,10 +262,10 @@ namespace oblo::vk
             const std::string_view debugName{makeDebugName(*renderPass, filePath)};
 
             if (!shader_compiler::compile_glsl_to_spirv(debugName,
-                                                        {sourceCode.data(), sourceCode.size()},
-                                                        vkStage,
-                                                        spirv,
-                                                        compilerOptions))
+                    {sourceCode.data(), sourceCode.size()},
+                    vkStage,
+                    spirv,
+                    compilerOptions))
             {
                 return failure();
             }
@@ -391,9 +389,9 @@ namespace oblo::vk
         };
 
         std::sort(newPipeline.resources.begin(),
-                  newPipeline.resources.end(),
-                  [](const shader_resource& lhs, const shader_resource& rhs)
-                  { return shader_resource_sorting::from(lhs) < shader_resource_sorting::from(rhs); });
+            newPipeline.resources.end(),
+            [](const shader_resource& lhs, const shader_resource& rhs)
+            { return shader_resource_sorting::from(lhs) < shader_resource_sorting::from(rhs); });
 
         // TODO: Figure out inputs
         const VkPipelineLayoutCreateInfo pipelineLayoutInfo{
@@ -458,7 +456,7 @@ namespace oblo::vk
         const VkPipelineColorBlendAttachmentState colorBlendAttachment{
             .blendEnable = VK_FALSE,
             .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
-                              VK_COLOR_COMPONENT_A_BIT,
+                VK_COLOR_COMPONENT_A_BIT,
         };
 
         const VkPipelineColorBlendStateCreateInfo colorBlending{
@@ -539,9 +537,8 @@ namespace oblo::vk
         vkCmdEndRendering(context.commandBuffer);
     }
 
-    void render_pass_manager::bind(const render_pass_context& context,
-                                   const resource_manager& resourceManager,
-                                   const mesh_table& meshTable) const
+    void render_pass_manager::bind(
+        const render_pass_context& context, const resource_manager& resourceManager, const mesh_table& meshTable) const
     {
         const auto* pipeline = context.internalPipeline;
         auto& frameAllocator = context.frameAllocator;
@@ -549,10 +546,9 @@ namespace oblo::vk
         const auto& resources = pipeline->resources;
 
         const auto begin = resources.begin();
-        const auto lastVertexAttribute =
-            std::find_if_not(begin,
-                             resources.end(),
-                             [](const shader_resource& r) { return r.kind == resource_kind::vertex_stage_input; });
+        const auto lastVertexAttribute = std::find_if_not(begin,
+            resources.end(),
+            [](const shader_resource& r) { return r.kind == resource_kind::vertex_stage_input; });
 
         const auto numVertexAttributes = u32(lastVertexAttribute - begin);
 

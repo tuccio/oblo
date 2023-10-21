@@ -6,7 +6,7 @@ namespace oblo::editor
 {
     bool inspector::update()
     {
-        bool open {true};
+        bool open{true};
 
         if (ImGui::Begin("Inspector", &open))
         {

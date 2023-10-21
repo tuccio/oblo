@@ -55,10 +55,8 @@ namespace oblo::scene
         mesh& operator=(mesh&& other) noexcept;
         ~mesh();
 
-        void allocate(primitive_kind primitive,
-                      u32 vertexCount,
-                      u32 indexCount,
-                      std::span<const mesh_attribute> attributes);
+        void allocate(
+            primitive_kind primitive, u32 vertexCount, u32 indexCount, std::span<const mesh_attribute> attributes);
 
         void clear();
 

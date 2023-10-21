@@ -40,8 +40,8 @@ namespace oblo
         ASSERT_EQ(get_qualified_type_name<test_template<test_struct>>(), "oblo::test_template<oblo::test_struct>");
 
         ASSERT_EQ(get_qualified_type_name<test_template<test_enum_class>>(),
-                  "oblo::test_template<oblo::test_enum_class>");
+            "oblo::test_template<oblo::test_enum_class>");
         ASSERT_EQ(get_qualified_type_name<test_template<test_enum_struct>>(),
-                  "oblo::test_template<oblo::test_enum_struct>");
+            "oblo::test_template<oblo::test_enum_struct>");
     }
 }

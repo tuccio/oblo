@@ -13,9 +13,9 @@ namespace oblo::ecs
     static_assert(MaxComponentTypes <= std::numeric_limits<decltype(archetype_storage::numComponents)>::max());
 
     archetype_storage* create_archetype_storage(memory_pool& pool,
-                                                const type_registry& typeRegistry,
-                                                const component_and_tags_sets& types,
-                                                std::span<const component_type> components)
+        const type_registry& typeRegistry,
+        const component_and_tags_sets& types,
+        std::span<const component_type> components)
     {
         OBLO_ASSERT(std::is_sorted(components.begin(), components.end()));
         const u8 numComponents = u8(components.size());

@@ -1,7 +1,7 @@
 #include <oblo/editor/windows/asset_browser.hpp>
 
-#include <oblo/asset/importer.hpp>
 #include <oblo/asset/asset_registry.hpp>
+#include <oblo/asset/importer.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/editor/platform/shell.hpp>
 

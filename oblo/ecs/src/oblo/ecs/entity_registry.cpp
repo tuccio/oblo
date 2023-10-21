@@ -8,14 +8,13 @@
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/ecs/type_set.hpp>
 
-
 #include <algorithm>
 #include <memory_resource>
 
 namespace oblo::ecs
 {
     static_assert(std::is_trivially_destructible_v<archetype_storage>,
-                  "We can avoid calling destructors in ~entity_manager if this is trivial");
+        "We can avoid calling destructors in ~entity_manager if this is trivial");
 
     struct entity_registry::components_storage
     {
@@ -110,8 +109,8 @@ namespace oblo::ecs
             }
 
             std::fill_n(get_entity_tags_pointer(chunkBytes, *archetype, 0),
-                        numEntitiesToCreate,
-                        entity_tags{.types = types.tags});
+                numEntitiesToCreate,
+                entity_tags{.types = types.tags});
 
             for (u8 componentIndex = 0; componentIndex != numComponents; ++componentIndex)
             {
@@ -207,9 +206,8 @@ namespace oblo::ecs
         return m_entities.try_find(e) != nullptr;
     }
 
-    const entity_registry::components_storage* entity_registry::find_first_match(const components_storage* begin,
-                                                                                 usize increment,
-                                                                                 const component_and_tags_sets& types)
+    const entity_registry::components_storage* entity_registry::find_first_match(
+        const components_storage* begin, usize increment, const component_and_tags_sets& types)
     {
         auto* const end = m_componentsStorage.data() + m_componentsStorage.size();
 
@@ -237,8 +235,8 @@ namespace oblo::ecs
         const auto zip = zip_range(componentTypes, mapping);
 
         std::sort(zip.begin(),
-                  zip.end(),
-                  [](const auto& lhs, const auto& rhs) { return std::get<0>(lhs) < std::get<0>(rhs); });
+            zip.end(),
+            [](const auto& lhs, const auto& rhs) { return std::get<0>(lhs) < std::get<0>(rhs); });
     }
 
     u32 entity_registry::get_used_chunks_count(const components_storage& storage)
@@ -246,9 +244,8 @@ namespace oblo::ecs
         return round_up_div(storage.archetype->numCurrentEntities, storage.archetype->numEntitiesPerChunk);
     }
 
-    bool entity_registry::fetch_component_offsets(const components_storage& storage,
-                                                  std::span<const component_type> componentTypes,
-                                                  std::span<u32> offsets)
+    bool entity_registry::fetch_component_offsets(
+        const components_storage& storage, std::span<const component_type> componentTypes, std::span<u32> offsets)
     {
         const auto& archetype = *storage.archetype;
         const auto* archetypeTypeIt = archetype.components;
@@ -282,10 +279,10 @@ namespace oblo::ecs
     }
 
     u32 entity_registry::fetch_chunk_data(const components_storage& storage,
-                                          u32 chunkIndex,
-                                          std::span<const u32> offsets,
-                                          const entity** entities,
-                                          std::span<std::byte*> componentData)
+        u32 chunkIndex,
+        std::span<const u32> offsets,
+        const entity** entities,
+        std::span<std::byte*> componentData)
     {
         const auto& archetype = *storage.archetype;
         chunk* const chunk = archetype.chunks[chunkIndex];
@@ -331,9 +328,8 @@ namespace oblo::ecs
         return newStorage;
     }
 
-    void entity_registry::find_component_data(entity e,
-                                              const std::span<const type_id> typeIds,
-                                              std::span<std::byte*> outComponents) const
+    void entity_registry::find_component_data(
+        entity e, const std::span<const type_id> typeIds, std::span<std::byte*> outComponents) const
     {
         OBLO_ASSERT(typeIds.size() == outComponents.size());
 

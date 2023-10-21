@@ -18,13 +18,13 @@ namespace oblo
         };
 
         triangle_test tests[] = {triangle_test{triangle{{{-1.f, -1.f, 1.f}, {0.f, 1.f, 1.f}, {1.f, -1.f, 1.f}}},
-                                               ray{.origin = {}, .direction = {0.f, 0.f, 1.f}},
-                                               true,
-                                               1.f},
-                                 triangle_test{triangle{{{-1.f, -1.f, 1.f}, {0.f, 1.f, 1.f}, {1.f, -1.f, 1.f}}},
-                                               ray{.origin = {}, .direction = {0.f, 0.f, -1.f}},
-                                               false,
-                                               -1.f}};
+                                     ray{.origin = {}, .direction = {0.f, 0.f, 1.f}},
+                                     true,
+                                     1.f},
+            triangle_test{triangle{{{-1.f, -1.f, 1.f}, {0.f, 1.f, 1.f}, {1.f, -1.f, 1.f}}},
+                ray{.origin = {}, .direction = {0.f, 0.f, -1.f}},
+                false,
+                -1.f}};
 
         for (auto it = std::begin(tests); it != std::end(tests); ++it)
         {

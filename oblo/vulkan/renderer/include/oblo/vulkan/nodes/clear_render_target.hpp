@@ -37,11 +37,11 @@ namespace oblo::vk
                 };
 
                 vkCmdClearColorImage(commandBuffer.get(),
-                                     texture.image,
-                                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                     &clearColor,
-                                     1,
-                                     &imageRange);
+                    texture.image,
+                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    &clearColor,
+                    1,
+                    &imageRange);
             }
         }
     };

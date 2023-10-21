@@ -63,7 +63,7 @@ namespace oblo::ecs
     {
         type_set components;
         type_set tags;
-        
+
         constexpr auto operator<=>(const component_and_tags_sets&) const = default;
     };
 

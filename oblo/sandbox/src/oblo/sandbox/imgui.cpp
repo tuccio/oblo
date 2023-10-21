@@ -15,13 +15,13 @@
 namespace oblo::vk
 {
     bool imgui::fill_init_command_buffer(SDL_Window* window,
-                                         VkInstance instance,
-                                         VkPhysicalDevice physicalDevice,
-                                         VkDevice device,
-                                         VkQueue queue,
-                                         VkCommandBuffer commandBuffer,
-                                         u32 swapchainImageCount,
-                                         const sandbox_app_config& config)
+        VkInstance instance,
+        VkPhysicalDevice physicalDevice,
+        VkDevice device,
+        VkQueue queue,
+        VkCommandBuffer commandBuffer,
+        u32 swapchainImageCount,
+        const sandbox_app_config& config)
     {
         if (m_context)
         {

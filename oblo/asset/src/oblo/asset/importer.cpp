@@ -173,12 +173,12 @@ namespace oblo::asset
             config.id = uuidGenerator.generate(node.name);
 
             const auto [artifactIt, artifactInserted] = m_artifacts.emplace(config.id,
-                                                                            artifact_meta{
-                                                                                .id = config.id,
-                                                                                .type = node.type,
-                                                                                .importId = m_importId,
-                                                                                .importName = node.name,
-                                                                            });
+                artifact_meta{
+                    .id = config.id,
+                    .type = node.type,
+                    .importId = m_importId,
+                    .importName = node.name,
+                });
 
             OBLO_ASSERT(artifactInserted);
         }

@@ -48,7 +48,8 @@ namespace oblo::graphics
                 //                              .add_node<forward_node>()
                 //                              .add_input<h32<texture>>("FinalRenderTarget")
                 //                              .connect_input("FinalRenderTarget", &clear_render_target::renderTarget)
-                //                              .connect(&clear_render_target::renderTarget, &forward_node::renderTarget);
+                //                              .connect(&clear_render_target::renderTarget,
+                //                              &forward_node::renderTarget);
 
                 //     viewport.renderGraph = m_renderer->create_graph(builder, *ctx.frameAllocator);
                 // }
