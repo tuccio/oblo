@@ -5,6 +5,7 @@
 #include <oblo/ecs/systems/system_seq_executor.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/editor/window_manager.hpp>
+#include <oblo/vulkan/renderer.hpp>
 
 namespace oblo::vk
 {
@@ -33,5 +34,6 @@ namespace oblo::editor
         ecs::type_registry m_typeRegistry;
         ecs::entity_registry m_entities;
         service_registry m_services;
+        vk::renderer m_renderer;
     };
 }

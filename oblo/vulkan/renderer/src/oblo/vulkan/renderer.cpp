@@ -10,9 +10,8 @@
 
 namespace oblo::vk
 {
-    struct renderer::render_graph_data
+    struct renderer::wrapped_render_graph : render_graph
     {
-        render_graph graph;
     };
 
     renderer::renderer() = default;
@@ -59,18 +58,19 @@ namespace oblo::vk
 
         m_graphResourcePool.begin_build();
 
+        // TODO: Graph dependencies, e.g. shadow maps should run before other graphs
         for (auto& graphData : m_renderGraphs.values())
         {
             m_graphResourcePool.begin_graph();
-            graphData.graph.build(m_graphResourcePool);
+            graphData.build(m_graphResourcePool);
             m_graphResourcePool.end_graph();
-
-            m_graphResourcePool.end_build(*m_vkContext);
         }
+
+        m_graphResourcePool.end_build(*m_vkContext);
 
         for (auto& graphData : m_renderGraphs.values())
         {
-            graphData.graph.execute(*this, m_graphResourcePool);
+            graphData.execute(*this, m_graphResourcePool);
         }
     }
 
@@ -92,5 +92,29 @@ namespace oblo::vk
     stateful_command_buffer& renderer::get_active_command_buffer()
     {
         return m_vkContext->get_active_command_buffer();
+    }
+
+    h32<render_graph> renderer::add(render_graph&& graph)
+    {
+        const h32<render_graph> id{++m_lastRenderGraphId};
+        auto [it, ok] = m_renderGraphs.emplace(id, std::move(graph));
+
+        if (!ok)
+        {
+            return {};
+        }
+
+        it->init(*this);
+        return id;
+    }
+
+    void renderer::remove(h32<render_graph> graph)
+    {
+        m_renderGraphs.erase(graph);
+    }
+
+    render_graph* renderer::find(h32<render_graph> graph)
+    {
+        return m_renderGraphs.try_find(graph);
     }
 }

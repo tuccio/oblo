@@ -1,15 +1,16 @@
 #include <oblo/graphics/systems/viewport_system.hpp>
 
+#include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/service_registry.hpp>
+#include <oblo/core/zip_range.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/range.hpp>
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
 #include <oblo/vulkan/graph/render_graph.hpp>
-#include <oblo/vulkan/graph/render_graph_builder.hpp>
-#include <oblo/vulkan/nodes/clear_render_target.hpp>
-#include <oblo/vulkan/nodes/forward.hpp>
+#include <oblo/vulkan/graph/topology_builder.hpp>
+#include <oblo/vulkan/nodes/debug_triangle_node.hpp>
 #include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/renderer_context.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
@@ -19,10 +20,26 @@
 
 namespace oblo::graphics
 {
+    namespace
+    {
+        constexpr std::string_view OutFinalRenderTarget{"Final Render Target"};
+        constexpr std::string_view InResolution{"Resolution"};
+    }
+
+    struct viewport_system::render_graph_data
+    {
+        bool isAlive;
+        h32<vk::render_graph> id{};
+    };
+
+    viewport_system::viewport_system() = default;
+
+    viewport_system::~viewport_system() = default;
+
     void viewport_system::first_update(const ecs::system_update_context& ctx)
     {
-        m_vkCtx = ctx.services->find<vk::vulkan_context>();
         m_renderer = ctx.services->find<vk::renderer>();
+        OBLO_ASSERT(m_renderer);
 
         update(ctx);
     }
@@ -31,37 +48,85 @@ namespace oblo::graphics
     {
         using namespace oblo::vk;
 
+        for (auto& renderGraphData : m_renderGraphs.values())
+        {
+            // Set to false to garbage collect
+            renderGraphData.isAlive = false;
+        }
+
         for (const auto [entities, viewports] : ctx.entities->range<viewport_component>())
         {
-            for (auto& viewport : viewports)
+            for (auto&& [entity, viewport] : zip_range(entities, viewports))
             {
                 if (!viewport.texture)
                 {
                     continue;
                 }
 
-                // // TODO: Removing viewports leaks the graph
-                // if (!viewport.renderGraph)
-                // {
-                //     const auto builder = vk::render_graph_builder<renderer_context>{}
-                //                              .add_node<clear_render_target>()
-                //                              .add_node<forward_node>()
-                //                              .add_input<h32<texture>>("FinalRenderTarget")
-                //                              .connect_input("FinalRenderTarget", &clear_render_target::renderTarget)
-                //                              .connect(&clear_render_target::renderTarget,
-                //                              &forward_node::renderTarget);
+                auto* const renderGraphData = m_renderGraphs.try_find(entity);
+                render_graph* graph;
 
-                //     viewport.renderGraph = m_renderer->create_graph(builder, *ctx.frameAllocator);
-                // }
+                if (!renderGraphData)
+                {
+                    expected res = topology_builder{}
+                                       .add_node<debug_triangle_node>()
+                                       .add_output<h32<texture>>(OutFinalRenderTarget)
+                                       .add_input<vec2u>(InResolution)
+                                       .connect_output(&debug_triangle_node::outRenderTarget, OutFinalRenderTarget)
+                                       .connect_input(InResolution, &debug_triangle_node::inResolution)
+                                       .build();
 
-                // if (auto* const graph = m_renderer->find_graph(viewport.renderGraph))
-                // {
-                //     auto* textureInput = graph->find_input<h32<vk::texture>>("FinalRenderTarget");
-                //     *textureInput = viewport.texture;
-                // }
+                    if (!res)
+                    {
+                        continue;
+                    }
+
+                    const auto [it, ok] = m_renderGraphs.emplace(entity);
+                    it->isAlive = true;
+                    it->id = m_renderer->add(std::move(*res));
+
+                    graph = m_renderer->find(it->id);
+                }
+                else
+                {
+                    renderGraphData->isAlive = true;
+                    graph = m_renderer->find(renderGraphData->id);
+                }
+
+                if (auto* const resolution = graph->find_input<vec2u>(InResolution))
+                {
+                    *resolution = vec2u{viewport.width, viewport.height};
+                }
+
+                graph->copy_output(OutFinalRenderTarget, viewport.texture);
             }
         }
 
-        // m_renderer->update({.vkContext = *m_vkCtx, .frameAllocator = *ctx.frameAllocator});
+        if (!m_renderGraphs.empty())
+        {
+            // TODO: Should implement an iterator for flat_dense_map instead, and erase using that
+            auto* const elementsToRemove = allocate_n<ecs::entity>(*ctx.frameAllocator, m_renderGraphs.size());
+            u32 numRemovedElements{0};
+
+            for (auto&& [entity, renderGraphData] : zip_range(m_renderGraphs.keys(), m_renderGraphs.values()))
+            {
+                if (renderGraphData.isAlive)
+                {
+                    continue;
+                }
+
+                m_renderer->remove(renderGraphData.id);
+                elementsToRemove[numRemovedElements] = entity;
+                ++numRemovedElements;
+            }
+
+            for (auto e : std::span(elementsToRemove, numRemovedElements))
+            {
+                m_renderGraphs.erase(e);
+            }
+        }
+
+        // TODO: Find a better home for the renderer update
+        m_renderer->update();
     }
 }

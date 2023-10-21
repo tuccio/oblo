@@ -47,6 +47,11 @@ namespace oblo::editor
             return false;
         }
 
+        if (!m_renderer.init({.vkContext = *ctx.vkContext, .frameAllocator = *ctx.frameAllocator}))
+        {
+            return false;
+        }
+
         auto& mm = module_manager::get();
         auto* const engine = mm.load<oblo::engine::engine_module>();
         mm.load<oblo::scene::scene_module>();
@@ -65,6 +70,7 @@ namespace oblo::editor
         // m_windowManager.create_window<style_window>();
 
         m_services.add<vk::vulkan_context>().externally_owned(ctx.vkContext);
+        m_services.add<vk::renderer>().externally_owned(&m_renderer);
 
         m_executor = create_system_executor();
 
@@ -73,9 +79,9 @@ namespace oblo::editor
 
     void app::shutdown(const vk::sandbox_shutdown_context&)
     {
-        platform::shutdown();
-
         m_windowManager.shutdown();
+        m_renderer.shutdown();
+        platform::shutdown();
     }
 
     void app::update(const vk::sandbox_render_context& context)
