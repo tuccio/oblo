@@ -64,10 +64,7 @@ namespace oblo::vk::test
 
                 const auto depthBuffer = context.access(outDepthBuffer);
 
-                auto& frameAllocator = context.get_frame_allocator();
-
-                const auto pipeline = renderPassManager.get_or_create_pipeline(frameAllocator,
-                    renderPass,
+                const auto pipeline = renderPassManager.get_or_create_pipeline(renderPass,
                     {
                         .renderTargets =
                             {
@@ -90,7 +87,6 @@ namespace oblo::vk::test
                 render_pass_context renderPassContext{
                     .commandBuffer = commandBuffer,
                     .pipeline = pipeline,
-                    .frameAllocator = frameAllocator,
                 };
 
                 const VkRenderingAttachmentInfo depthAttachment{
@@ -184,10 +180,7 @@ namespace oblo::vk::test
                 const auto renderTarget = context.access(outRenderTarget);
                 const auto depthBuffer = context.access(inDepthBuffer);
 
-                auto& frameAllocator = context.get_frame_allocator();
-
-                const auto pipeline = renderPassManager.get_or_create_pipeline(frameAllocator,
-                    renderPass,
+                const auto pipeline = renderPassManager.get_or_create_pipeline(renderPass,
                     {
                         .renderTargets =
                             {
@@ -211,7 +204,6 @@ namespace oblo::vk::test
                 render_pass_context renderPassContext{
                     .commandBuffer = commandBuffer,
                     .pipeline = pipeline,
-                    .frameAllocator = frameAllocator,
                 };
 
                 const VkRenderingAttachmentInfo colorAttachment{
@@ -387,7 +379,7 @@ namespace oblo::vk::test
 
                 resourcePool.end_build(*ctx.vkContext);
 
-                graph.execute(renderer, resourcePool, *ctx.frameAllocator);
+                graph.execute(renderer, resourcePool);
             }
 
             void update_imgui(const vk::sandbox_update_imgui_context&) {}

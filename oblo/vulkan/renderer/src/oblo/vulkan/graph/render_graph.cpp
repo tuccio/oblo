@@ -94,7 +94,7 @@ namespace oblo::vk
         }
     }
 
-    void render_graph::execute(renderer& renderer, resource_pool& resourcePool, frame_allocator& frameAllocator)
+    void render_graph::execute(renderer& renderer, resource_pool& resourcePool)
     {
         auto& resourceManager = renderer.get_resource_manager();
         auto& commandBuffer = renderer.get_active_command_buffer();
@@ -111,7 +111,7 @@ namespace oblo::vk
             new (access_resource_storage(resource.value)) h32<texture>{handle};
         }
 
-        runtime_context runtime{*this, renderer, commandBuffer.get(), frameAllocator};
+        runtime_context runtime{*this, renderer, commandBuffer.get()};
 
         for (auto&& [node, transitions] : zip_range(m_nodes, m_nodeTransitions))
         {

@@ -11,11 +11,6 @@
 #include <memory>
 #include <vector>
 
-namespace oblo
-{
-    class frame_allocator;
-}
-
 namespace oblo::vk
 {
     class runtime_context;
@@ -81,7 +76,7 @@ namespace oblo::vk
 
         void build(resource_pool& resourcePool);
 
-        void execute(renderer& renderer, resource_pool& resourcePool, frame_allocator& frameAllocator);
+        void execute(renderer& renderer, resource_pool& resourcePool);
 
     private:
         void* access_resource_storage(u32 h) const;

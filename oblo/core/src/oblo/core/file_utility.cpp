@@ -9,7 +9,25 @@ namespace oblo
 {
     namespace
     {
-        std::span<char> load_impl(frame_allocator& allocator, const std::filesystem::path& path, const char* mode)
+        void* allocate_impl(std::vector<std::byte>& allocator, usize size)
+        {
+            allocator.assign(size, std::byte{});
+            return allocator.data();
+        }
+
+        char* allocate_impl(std::string& allocator, usize size)
+        {
+            allocator.assign(size, '\0');
+            return allocator.data();
+        }
+
+        void* allocate_impl(frame_allocator& allocator, usize size)
+        {
+            return allocator.allocate(size, 1u);
+        }
+
+        template <typename Allocator>
+        std::span<char> load_impl(Allocator& allocator, const std::filesystem::path& path, const char* mode)
         {
             FILE* file;
 
@@ -33,7 +51,7 @@ namespace oblo
                 return {};
             }
 
-            auto* const buffer = allocator.allocate(fileSize, 1u);
+            auto* const buffer = allocate_impl(allocator, fileSize);
             const auto readBytes = fread(buffer, 1, fileSize, file);
 
             if (readBytes < 0)
@@ -53,5 +71,15 @@ namespace oblo
     std::span<char> load_text_file_into_memory(frame_allocator& allocator, const std::filesystem::path& path)
     {
         return load_impl(allocator, path, "r");
+    }
+
+    std::span<std::byte> load_binary_file_into_memory(std::vector<std::byte>& out, const std::filesystem::path& path)
+    {
+        return std::as_writable_bytes(load_impl(out, path, "rb"));
+    }
+
+    std::span<char> load_text_file_into_memory(std::string& out, const std::filesystem::path& path)
+    {
+        return load_impl(out, path, "r");
     }
 }
