@@ -54,7 +54,7 @@ namespace oblo::vk::test
                             {
                                 {
                                     .stage = pipeline_stages::vertex,
-                                    .shaderSourcePath = OBLO_TEST_RESOURCES "/shaders/basic.vert",
+                                    .shaderSourcePath = OBLO_TEST_RESOURCES "/shaders/full_screen_quad.vert",
                                 },
                             },
                     });
@@ -127,11 +127,7 @@ namespace oblo::vk::test
                     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
                 }
 
-                const auto& meshTable = context.get_mesh_table();
-                const auto& resourceManager = context.get_resource_manager();
-                renderPassManager.bind(renderPassContext, resourceManager, meshTable);
-
-                vkCmdDrawIndexed(commandBuffer, meshTable.index_count(), 1, 0, 0, 0);
+                vkCmdDraw(commandBuffer, 4, 1, 0, 0);
 
                 renderPassManager.end_rendering(renderPassContext);
             }
@@ -174,11 +170,11 @@ namespace oblo::vk::test
                             {
                                 {
                                     .stage = pipeline_stages::vertex,
-                                    .shaderSourcePath = OBLO_TEST_RESOURCES "/shaders/basic.vert",
+                                    .shaderSourcePath = OBLO_TEST_RESOURCES "/shaders/full_screen_quad.vert",
                                 },
                                 {
                                     .stage = pipeline_stages::fragment,
-                                    .shaderSourcePath = OBLO_TEST_RESOURCES "/shaders/basic.frag",
+                                    .shaderSourcePath = OBLO_TEST_RESOURCES "/shaders/paint_it_red.frag",
                                 },
                             },
                     });
@@ -263,11 +259,7 @@ namespace oblo::vk::test
                     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
                 }
 
-                const auto& meshTable = context.get_mesh_table();
-                const auto& resourceManager = context.get_resource_manager();
-                renderPassManager.bind(renderPassContext, resourceManager, meshTable);
-
-                vkCmdDrawIndexed(commandBuffer, meshTable.index_count(), 1, 0, 0, 0);
+                vkCmdDraw(commandBuffer, 4, 1, 0, 0);
 
                 renderPassManager.end_rendering(renderPassContext);
             }
@@ -331,67 +323,6 @@ namespace oblo::vk::test
             }
         };
 
-        void init_test_mesh_table(renderer& renderer, frame_allocator& frameAllocator)
-        {
-            auto& meshes = renderer.get_mesh_table();
-            auto& allocator = renderer.get_allocator();
-            auto& resourceManager = renderer.get_resource_manager();
-            auto& stringInterner = renderer.get_string_interner();
-
-            constexpr u32 maxVertices{1024};
-            constexpr u32 maxIndices{1024};
-
-            const auto position = stringInterner.get_or_add("in_Position");
-
-            const buffer_column_description columns[] = {
-                {.name = position, .elementSize = sizeof(vec3)},
-            };
-
-            const bool meshTableCreated =
-                meshes.init(frameAllocator,
-                            columns,
-                            allocator,
-                            resourceManager,
-                            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                            maxVertices,
-                            maxIndices);
-
-            OBLO_ASSERT(meshTableCreated);
-
-            const mesh_table_entry mesh{
-                .id = stringInterner.get_or_add("quad"),
-                .numVertices = 4,
-                .numIndices = 6,
-            };
-
-            if (!meshes.allocate_meshes({&mesh, 1}))
-            {
-                return;
-            }
-
-            const h32<string> columnSubset[] = {position};
-            buffer buffers[array_size(columnSubset)]{};
-            buffer indexBuffer{};
-
-            meshes.fetch_buffers(resourceManager, columnSubset, buffers, &indexBuffer);
-
-            constexpr vec3 positions[] = {
-                {-1.f, -1.f, 1.f},
-                {-1.f, 1.f, 1.f},
-                {1.f, 1.f, 1.f},
-                {1.f, -1.f, 1.f},
-            };
-
-            constexpr u32 indices[] = {0, 1, 2, 0, 2, 3};
-
-            auto& stagingBuffer = renderer.get_staging_buffer();
-
-            stagingBuffer.upload(std::as_bytes(std::span{positions}), buffers[0].buffer, buffers[0].offset);
-            stagingBuffer.upload(std::as_bytes(std::span{indices}), indexBuffer.buffer, indexBuffer.offset);
-
-            stagingBuffer.flush();
-        }
-
         struct render_graph_test
         {
             bool init(const vk::sandbox_init_context& ctx)
@@ -403,8 +334,6 @@ namespace oblo::vk::test
                 {
                     return false;
                 }
-
-                init_test_mesh_table(renderer, *ctx.frameAllocator);
 
                 expected res = topology_builder{}
                                    .add_node<fill_depth_node>()
