@@ -37,22 +37,15 @@ namespace oblo::vk
         return true;
     }
 
-    void renderer::shutdown(frame_allocator& frameAllocator)
+    void renderer::shutdown()
     {
         auto& allocator = m_vkContext->get_allocator();
         auto& resourceManager = m_vkContext->get_resource_manager();
 
         m_meshes.shutdown(allocator, resourceManager);
 
-        (void) frameAllocator;
-        // renderer_context rendererContext{.renderer = *this, .frameAllocator = frameAllocator};
-
-        // for (auto& [graph, executor] : m_renderGraphs.values())
-        // {
-        //     executor.shutdown(&rendererContext);
-        // }
-
         m_renderGraphs.clear();
+        m_graphResourcePool.shutdown(*m_vkContext);
 
         m_renderPassManager.shutdown();
         resourceManager.destroy(allocator, m_dummy);
@@ -60,21 +53,25 @@ namespace oblo::vk
         m_stagingBuffer.shutdown();
     }
 
-    void renderer::update(const update_context& context)
+    void renderer::update()
     {
-        // TODO
-        (void) context;
-        // renderer_context rendererContext{
-        //     .renderer = *this,
-        //     .frameAllocator = context.frameAllocator,
-        // };
-
-        // for (auto& [graph, executor] : m_renderGraphs.values())
-        // {
-        //     executor.execute(&rendererContext);
-        // }
-
         m_stagingBuffer.flush();
+
+        m_graphResourcePool.begin_build();
+
+        for (auto& graphData : m_renderGraphs.values())
+        {
+            m_graphResourcePool.begin_graph();
+            graphData.graph.build(m_graphResourcePool);
+            m_graphResourcePool.end_graph();
+
+            m_graphResourcePool.end_build(*m_vkContext);
+        }
+
+        for (auto& graphData : m_renderGraphs.values())
+        {
+            graphData.graph.execute(*this, m_graphResourcePool);
+        }
     }
 
     single_queue_engine& renderer::get_engine()
