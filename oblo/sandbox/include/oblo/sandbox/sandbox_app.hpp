@@ -36,10 +36,10 @@ namespace oblo::vk
         void set_config(const sandbox_app_config& config);
 
         bool init(std::span<const char* const> instanceExtensions,
-                  std::span<const char* const> instanceLayers,
-                  std::span<const char* const> deviceExtensions,
-                  void* deviceFeaturesList,
-                  const VkPhysicalDeviceFeatures* physicalDeviceFeatures);
+            std::span<const char* const> instanceLayers,
+            std::span<const char* const> deviceExtensions,
+            void* deviceFeaturesList,
+            const VkPhysicalDeviceFeatures* physicalDeviceFeatures);
 
         void shutdown();
 
@@ -55,10 +55,10 @@ namespace oblo::vk
         bool create_window();
 
         bool create_engine(std::span<const char* const> instanceExtensions,
-                           std::span<const char* const> instanceLayers,
-                           std::span<const char* const> deviceExtensions,
-                           void* deviceFeaturesList,
-                           const VkPhysicalDeviceFeatures* physicalDeviceFeatures);
+            std::span<const char* const> instanceLayers,
+            std::span<const char* const> deviceExtensions,
+            void* deviceFeaturesList,
+            const VkPhysicalDeviceFeatures* physicalDeviceFeatures);
 
         bool create_swapchain();
         bool create_synchronization_objects();
@@ -183,11 +183,11 @@ namespace oblo::vk
             }
 
             return sandbox_base::init(instanceExtensions,
-                                      instanceLayers,
-                                      deviceExtensions,
-                                      deviceFeaturesList,
-                                      pPhysicalDeviceFeatures) &&
-                   TApp::init(context);
+                       instanceLayers,
+                       deviceExtensions,
+                       deviceFeaturesList,
+                       pPhysicalDeviceFeatures) &&
+                TApp::init(context);
         }
 
         void run()

@@ -95,9 +95,9 @@ namespace oblo::ecs
 
         {
             const auto D = reg.create<mock_audio_source_component,
-                                      mock_sprite_component,
-                                      mock_name_component,
-                                      mock_selected_tag>();
+                mock_sprite_component,
+                mock_name_component,
+                mock_selected_tag>();
             ASSERT_TRUE(D);
 
             auto&& [audioD, spriteD, nameD] =
@@ -113,7 +113,7 @@ namespace oblo::ecs
             u32 count{};
 
             for (auto&& [entitiesRange, nameRange, spriteRange] :
-                 reg.range<mock_name_component, mock_sprite_component>())
+                reg.range<mock_name_component, mock_sprite_component>())
             {
                 for (auto&& [e, name, sprite] : zip_range(entitiesRange, nameRange, spriteRange))
                 {

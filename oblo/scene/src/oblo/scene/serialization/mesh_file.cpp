@@ -262,11 +262,11 @@ namespace oblo::scene
     }
 
     bool load_mesh(mesh& mesh,
-                   const tinygltf::Model& model,
-                   const tinygltf::Primitive& primitive,
-                   std::vector<mesh_attribute>& attributes,
-                   std::vector<gltf_accessor>& sources,
-                   std::vector<bool>* usedBuffers)
+        const tinygltf::Model& model,
+        const tinygltf::Primitive& primitive,
+        std::vector<mesh_attribute>& attributes,
+        std::vector<gltf_accessor>& sources,
+        std::vector<bool>* usedBuffers)
     {
         const auto primitiveKind = convert_primitive_kind(primitive.mode);
 
@@ -352,7 +352,7 @@ namespace oblo::scene
             const auto* const data = buffer.data.data() + bufferView.byteOffset + accessor.byteOffset;
 
             const auto expectedSize = tinygltf::GetComponentSizeInBytes(accessor.componentType) *
-                                      tinygltf::GetNumComponentsInType(accessor.type) * accessor.count;
+                tinygltf::GetNumComponentsInType(accessor.type) * accessor.count;
 
             if (expectedSize != bytes.size())
             {
@@ -412,11 +412,11 @@ namespace oblo::scene
         if (std::string_view{magic, MagicCharsCount} == "glTF")
         {
             success = loader.LoadBinaryFromMemory(&model,
-                                                  &err,
-                                                  &warn,
-                                                  reinterpret_cast<const unsigned char*>(content.data()),
-                                                  fileSize,
-                                                  parentPath);
+                &err,
+                &warn,
+                reinterpret_cast<const unsigned char*>(content.data()),
+                fileSize,
+                parentPath);
         }
         else
         {

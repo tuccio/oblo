@@ -62,21 +62,20 @@ namespace oblo::ecs
             const u32 numEntities = fetch_chunk_data(*m_it, m_chunkIndex, m_offsets, &entities, componentsData);
 
             constexpr auto makeTuple = []<std::size_t... I>(u32 numEntities,
-                                                            const entity* entities,
-                                                            std::byte** componentsData,
-                                                            const u8* mapping,
-                                                            std::index_sequence<I...>)
+                                           const entity* entities,
+                                           std::byte** componentsData,
+                                           const u8* mapping,
+                                           std::index_sequence<I...>)
             {
-                return value_type{
-                    std::span{entities, numEntities},
+                return value_type{std::span{entities, numEntities},
                     std::span<Components>{reinterpret_cast<Components*>(componentsData[mapping[I]]), numEntities}...};
             };
 
             return makeTuple(numEntities,
-                             entities,
-                             componentsData,
-                             m_range->m_mapping,
-                             std::make_index_sequence<sizeof...(Components)>());
+                entities,
+                componentsData,
+                m_range->m_mapping,
+                std::make_index_sequence<sizeof...(Components)>());
         }
 
         iterator& operator++()
@@ -223,22 +222,23 @@ namespace oblo::ecs
                 OBLO_ASSERT(numEntities != 0);
 
                 constexpr auto invoke = []<std::size_t... I>(F&& f,
-                                                             u32 numEntities,
-                                                             const entity* entities,
-                                                             std::byte** componentsData,
-                                                             const u8* mapping,
-                                                             std::index_sequence<I...>)
+                                            u32 numEntities,
+                                            const entity* entities,
+                                            std::byte** componentsData,
+                                            const u8* mapping,
+                                            std::index_sequence<I...>)
                 {
                     f(std::span{entities, numEntities},
-                      std::span<Components>{reinterpret_cast<Components*>(componentsData[mapping[I]]), numEntities}...);
+                        std::span<Components>{reinterpret_cast<Components*>(componentsData[mapping[I]]),
+                            numEntities}...);
                 };
 
                 invoke(std::forward<F>(f),
-                       numEntities,
-                       entities,
-                       componentsData,
-                       m_mapping,
-                       std::make_index_sequence<sizeof...(Components)>());
+                    numEntities,
+                    entities,
+                    componentsData,
+                    m_mapping,
+                    std::make_index_sequence<sizeof...(Components)>());
             }
         }
     }

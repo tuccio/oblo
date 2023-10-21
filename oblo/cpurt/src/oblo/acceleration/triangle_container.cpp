@@ -87,9 +87,8 @@ namespace oblo
         const auto rangeEnd = beginIt + endIndex;
 
         const auto midIt = std::partition(rangeBegin,
-                                          rangeEnd,
-                                          [axisIndex, midPoint](const auto& element)
-                                          { return std::get<2>(element)[axisIndex] < midPoint; });
+            rangeEnd,
+            [axisIndex, midPoint](const auto& element) { return std::get<2>(element)[axisIndex] < midPoint; });
 
         return narrow_cast<u32>(midIt - beginIt);
     }

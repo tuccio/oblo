@@ -45,8 +45,8 @@ namespace oblo
     {
         auto scene = std::unique_ptr<const aiScene, decltype(&aiReleaseImport)>{
             aiImportFile(filename.string().c_str(),
-                         aiProcess_CalcTangentSpace | aiProcess_Triangulate | aiProcess_JoinIdenticalVertices |
-                             aiProcess_SortByPType),
+                aiProcess_CalcTangentSpace | aiProcess_Triangulate | aiProcess_JoinIdenticalVertices |
+                    aiProcess_SortByPType),
             aiReleaseImport};
 
         if (!scene)
@@ -61,9 +61,9 @@ namespace oblo
             const aiCamera& camera = *scene->mCameras[0];
 
             camera_set_look_at(state.camera,
-                               convert_vec3(camera.mPosition),
-                               convert_vec3(camera.mLookAt),
-                               convert_vec3(camera.mUp));
+                convert_vec3(camera.mPosition),
+                convert_vec3(camera.mLookAt),
+                convert_vec3(camera.mUp));
 
             camera_set_horizontal_fov(state.camera, radians{camera.mHorizontalFOV});
 

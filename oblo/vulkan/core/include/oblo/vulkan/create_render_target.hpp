@@ -8,9 +8,9 @@ namespace oblo::vk
     class resource_manager;
 
     vk_result<texture> create_2d_render_target(allocator& allocator,
-                                               u32 width,
-                                               u32 height,
-                                               VkFormat format,
-                                               VkImageUsageFlags usage,
-                                               VkImageAspectFlags aspectMask);
+        u32 width,
+        u32 height,
+        VkFormat format,
+        VkImageUsageFlags usage,
+        VkImageAspectFlags aspectMask);
 }

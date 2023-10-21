@@ -42,8 +42,8 @@ namespace oblo::resource
     void resource_registry::unregister_provider(find_resource_fn provider)
     {
         const auto it = std::find_if(m_providers.begin(),
-                                     m_providers.end(),
-                                     [provider](const provider_storage& storage) { return storage.find == provider; });
+            m_providers.end(),
+            [provider](const provider_storage& storage) { return storage.find == provider; });
 
         if (it != m_providers.end())
         {

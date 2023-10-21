@@ -19,11 +19,11 @@ namespace oblo::scene
     SCENE_API bool save_mesh(const mesh& mesh, const std::filesystem::path& destination);
 
     SCENE_API bool load_mesh(mesh& mesh,
-                   const tinygltf::Model& model,
-                   const tinygltf::Primitive& primitive,
-                   std::vector<mesh_attribute>& attributes,
-                   std::vector<gltf_accessor>& sources,
-                   std::vector<bool>* usedBuffers);
+        const tinygltf::Model& model,
+        const tinygltf::Primitive& primitive,
+        std::vector<mesh_attribute>& attributes,
+        std::vector<gltf_accessor>& sources,
+        std::vector<bool>* usedBuffers);
 
     SCENE_API bool load_mesh(mesh& mesh, const std::filesystem::path& source);
 }

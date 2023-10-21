@@ -114,8 +114,8 @@ namespace oblo::asset
         }
 
         bool load_artifact_meta(const std::filesystem::path& source,
-                                const std::unordered_map<type_id, asset_type_info>& assetTypes,
-                                artifact_meta& artifact)
+            const std::unordered_map<type_id, asset_type_info>& assetTypes,
+            artifact_meta& artifact)
         {
             std::ifstream ifs{source};
 
@@ -194,8 +194,8 @@ namespace oblo::asset
     }
 
     bool asset_registry::initialize(const std::filesystem::path& assetsDir,
-                              const std::filesystem::path& artifactsDir,
-                              const std::filesystem::path& sourceFilesDir)
+        const std::filesystem::path& artifactsDir,
+        const std::filesystem::path& sourceFilesDir)
     {
         if (!ensure_directories(assetsDir) || !ensure_directories(artifactsDir) || !ensure_directories(sourceFilesDir))
         {
@@ -288,10 +288,10 @@ namespace oblo::asset
     }
 
     bool asset_registry::save_artifact(const uuid& artifactId,
-                                 const type_id& type,
-                                 const void* dataPtr,
-                                 const artifact_meta& meta,
-                                 write_policy policy)
+        const type_id& type,
+        const void* dataPtr,
+        const artifact_meta& meta,
+        write_policy policy)
     {
         const auto typeIt = m_impl->assetTypes.find(type);
 
@@ -322,9 +322,9 @@ namespace oblo::asset
     }
 
     bool asset_registry::save_asset(const std::filesystem::path& destination,
-                              std::string_view filename,
-                              const asset_meta& meta,
-                              write_policy policy)
+        std::string_view filename,
+        const asset_meta& meta,
+        write_policy policy)
     {
         const auto [assetIt, insertedAsset] = m_impl->assets.emplace(meta.id, std::move(meta));
 
@@ -385,10 +385,8 @@ namespace oblo::asset
         return m_impl->assetsDir;
     }
 
-    bool asset_registry::find_artifact_resource(const uuid& id,
-                                          type_id& type,
-                                          std::filesystem::path& path,
-                                          const void* userdata)
+    bool asset_registry::find_artifact_resource(
+        const uuid& id, type_id& type, std::filesystem::path& path, const void* userdata)
     {
         char uuidBuffer[36];
 

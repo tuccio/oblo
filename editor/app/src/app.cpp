@@ -90,8 +90,8 @@ namespace oblo::editor
         auto& commandBuffer = context.vkContext->get_active_command_buffer();
 
         commandBuffer.add_pipeline_barrier(resourceManager,
-                                           context.swapchainTexture,
-                                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+            context.swapchainTexture,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
         constexpr VkClearColorValue black{};
 
@@ -106,11 +106,11 @@ namespace oblo::editor
         };
 
         vkCmdClearColorImage(commandBuffer.get(),
-                             texture.image,
-                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                             &black,
-                             1,
-                             &range);
+            texture.image,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            &black,
+            1,
+            &range);
     }
 
     void app::update_imgui(const vk::sandbox_update_imgui_context&)

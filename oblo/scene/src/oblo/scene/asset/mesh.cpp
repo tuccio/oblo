@@ -50,10 +50,8 @@ namespace oblo::scene
         usize endIndex;
     };
 
-    void mesh::allocate(primitive_kind primitive,
-                        u32 numVertices,
-                        u32 numIndices,
-                        std::span<const mesh_attribute> attributes)
+    void mesh::allocate(
+        primitive_kind primitive, u32 numVertices, u32 numIndices, std::span<const mesh_attribute> attributes)
     {
         clear();
 

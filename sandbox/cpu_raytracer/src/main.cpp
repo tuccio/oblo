@@ -23,13 +23,13 @@ namespace oblo
         constexpr u16 s_tileSize{64};
 
         void update_tile(fullscreen_texture& texture,
-                         u16 stride,
-                         u16 minX,
-                         u16 minY,
-                         u16 maxX,
-                         u16 maxY,
-                         std::span<const vec3> colorBuffer,
-                         u32 numSamples)
+            u16 stride,
+            u16 minX,
+            u16 minY,
+            u16 maxX,
+            u16 maxY,
+            std::span<const vec3> colorBuffer,
+            u32 numSamples)
         {
 
             constexpr auto numChannels = 4;
@@ -80,11 +80,11 @@ int main(int argc, char* argv[])
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
 
     auto* const window = SDL_CreateWindow("Oblo Ray-Tracing Sandbox",
-                                          SDL_WINDOWPOS_UNDEFINED,
-                                          SDL_WINDOWPOS_UNDEFINED,
-                                          1280,
-                                          720,
-                                          SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL);
+        SDL_WINDOWPOS_UNDEFINED,
+        SDL_WINDOWPOS_UNDEFINED,
+        1280,
+        720,
+        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL);
 
     auto* const context = SDL_GL_CreateContext(window);
 
@@ -229,13 +229,13 @@ int main(int argc, char* argv[])
             }
 
             update_tile(fullscreenTexture,
-                        w,
-                        minX,
-                        minY,
-                        maxX,
-                        maxY,
-                        raytracerState.get_radiance_buffer(),
-                        raytracerState.get_num_samples_at(minX, minY));
+                w,
+                minX,
+                minY,
+                maxX,
+                maxY,
+                raytracerState.get_radiance_buffer(),
+                raytracerState.get_num_samples_at(minX, minY));
 
             // Make sure we clear debug draws that we might have submitted even if we skip
             debugRenderer.clear();

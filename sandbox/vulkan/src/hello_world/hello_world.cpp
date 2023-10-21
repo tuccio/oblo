@@ -19,8 +19,8 @@ namespace oblo::vk
     {
         const auto device = context.vkContext->get_device();
         return create_shader_modules(*context.frameAllocator, device) &&
-               create_graphics_pipeline(device, context.swapchainFormat) &&
-               create_vertex_buffers(context.vkContext->get_allocator());
+            create_graphics_pipeline(device, context.swapchainFormat) &&
+            create_vertex_buffers(context.vkContext->get_allocator());
     }
 
     void hello_world::shutdown(const sandbox_shutdown_context& context)
@@ -31,10 +31,10 @@ namespace oblo::vk
         allocator.destroy(m_colors);
 
         reset_device_objects(context.vkContext->get_device(),
-                             m_graphicsPipeline,
-                             m_pipelineLayout,
-                             m_vertShaderModule,
-                             m_fragShaderModule);
+            m_graphicsPipeline,
+            m_pipelineLayout,
+            m_vertShaderModule,
+            m_fragShaderModule);
     }
 
     void hello_world::update(const sandbox_render_context& context)
@@ -64,15 +64,15 @@ namespace oblo::vk
             };
 
             vkCmdPipelineBarrier(commandBuffer.get(),
-                                 VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                                 VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                                 0,
-                                 0,
-                                 nullptr,
-                                 0,
-                                 nullptr,
-                                 1,
-                                 &imageMemoryBarrier);
+                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                0,
+                0,
+                nullptr,
+                0,
+                nullptr,
+                1,
+                &imageMemoryBarrier);
         }
 
         const auto& swapchainTexture = resourceManager.get(context.swapchainTexture);
@@ -124,17 +124,15 @@ namespace oblo::vk
     {
         const shader_compiler::scope compiler{};
 
-        m_vertShaderModule =
-            shader_compiler::create_shader_module_from_glsl_file(allocator,
-                                                                 device,
-                                                                 VK_SHADER_STAGE_VERTEX_BIT,
-                                                                 "./shaders/hello_world/hello_world.vert");
+        m_vertShaderModule = shader_compiler::create_shader_module_from_glsl_file(allocator,
+            device,
+            VK_SHADER_STAGE_VERTEX_BIT,
+            "./shaders/hello_world/hello_world.vert");
 
-        m_fragShaderModule =
-            shader_compiler::create_shader_module_from_glsl_file(allocator,
-                                                                 device,
-                                                                 VK_SHADER_STAGE_FRAGMENT_BIT,
-                                                                 "./shaders/hello_world/hello_world.frag");
+        m_fragShaderModule = shader_compiler::create_shader_module_from_glsl_file(allocator,
+            device,
+            VK_SHADER_STAGE_FRAGMENT_BIT,
+            "./shaders/hello_world/hello_world.frag");
 
         return m_vertShaderModule && m_fragShaderModule;
     }
@@ -205,7 +203,7 @@ namespace oblo::vk
         const VkPipelineColorBlendAttachmentState colorBlendAttachment{
             .blendEnable = VK_FALSE,
             .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
-                              VK_COLOR_COMPONENT_A_BIT,
+                VK_COLOR_COMPONENT_A_BIT,
         };
 
         const VkPipelineColorBlendStateCreateInfo colorBlending{
@@ -251,7 +249,7 @@ namespace oblo::vk
         };
 
         return vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_graphicsPipeline) ==
-               VK_SUCCESS;
+            VK_SUCCESS;
     }
 
     bool hello_world::create_vertex_buffers(allocator& allocator)
@@ -260,13 +258,13 @@ namespace oblo::vk
         constexpr vec3 colors[] = {{1.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}};
 
         if (allocator.create_buffer({.size = sizeof(positions),
-                                     .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                     .memoryUsage = memory_usage::cpu_to_gpu},
-                                    &m_positions) != VK_SUCCESS ||
+                                        .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                        .memoryUsage = memory_usage::cpu_to_gpu},
+                &m_positions) != VK_SUCCESS ||
             allocator.create_buffer({.size = sizeof(colors),
-                                     .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                     .memoryUsage = memory_usage::cpu_to_gpu},
-                                    &m_colors) != VK_SUCCESS)
+                                        .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                        .memoryUsage = memory_usage::cpu_to_gpu},
+                &m_colors) != VK_SUCCESS)
         {
             return false;
         }

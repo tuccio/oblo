@@ -25,8 +25,8 @@ namespace oblo::vk
 
             allocator allocator;
             ASSERT_TRUE(allocator.init(sandbox.instance.get(),
-                                       sandbox.engine.get_physical_device(),
-                                       sandbox.engine.get_device()));
+                sandbox.engine.get_physical_device(),
+                sandbox.engine.get_device()));
 
             staging_buffer stagingBuffer;
             ASSERT_TRUE(stagingBuffer.init(sandbox.engine, allocator, stagingBufferSize));

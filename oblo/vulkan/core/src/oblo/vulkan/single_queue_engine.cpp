@@ -30,11 +30,11 @@ namespace oblo::vk
     }
 
     bool single_queue_engine::init(VkInstance instance,
-                                   VkSurfaceKHR surface,
-                                   std::span<const char* const> enabledLayers,
-                                   std::span<const char* const> enabledExtensions,
-                                   const void* deviceCreateInfoChain,
-                                   const VkPhysicalDeviceFeatures* physicalDeviceFeatures)
+        VkSurfaceKHR surface,
+        std::span<const char* const> enabledLayers,
+        std::span<const char* const> enabledExtensions,
+        const void* deviceCreateInfoChain,
+        const VkPhysicalDeviceFeatures* physicalDeviceFeatures)
     {
         {
             u32 physicalDevicesCount{0u};
@@ -98,21 +98,21 @@ namespace oblo::vk
         constexpr float queuePriorities[] = {1.f};
 
         const VkDeviceQueueCreateInfo deviceQueueCreateInfo{.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-                                                            .pNext = nullptr,
-                                                            .flags = 0u,
-                                                            .queueFamilyIndex = graphicsQueueFamilyIndex,
-                                                            .queueCount = 1u,
-                                                            .pQueuePriorities = queuePriorities};
+            .pNext = nullptr,
+            .flags = 0u,
+            .queueFamilyIndex = graphicsQueueFamilyIndex,
+            .queueCount = 1u,
+            .pQueuePriorities = queuePriorities};
 
         const VkDeviceCreateInfo createInfo{.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-                                            .pNext = deviceCreateInfoChain,
-                                            .queueCreateInfoCount = 1,
-                                            .pQueueCreateInfos = &deviceQueueCreateInfo,
-                                            .enabledLayerCount = u32(enabledLayers.size()),
-                                            .ppEnabledLayerNames = enabledLayers.data(),
-                                            .enabledExtensionCount = u32(enabledExtensions.size()),
-                                            .ppEnabledExtensionNames = enabledExtensions.data(),
-                                            .pEnabledFeatures = physicalDeviceFeatures};
+            .pNext = deviceCreateInfoChain,
+            .queueCreateInfoCount = 1,
+            .pQueueCreateInfos = &deviceQueueCreateInfo,
+            .enabledLayerCount = u32(enabledLayers.size()),
+            .ppEnabledLayerNames = enabledLayers.data(),
+            .enabledExtensionCount = u32(enabledExtensions.size()),
+            .ppEnabledExtensionNames = enabledExtensions.data(),
+            .pEnabledFeatures = physicalDeviceFeatures};
 
         if (vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device) != VK_SUCCESS)
         {

@@ -5,11 +5,11 @@
 namespace oblo::vk
 {
     vk_result<texture> create_2d_render_target(allocator& allocator,
-                                               u32 width,
-                                               u32 height,
-                                               VkFormat format,
-                                               VkImageUsageFlags usage,
-                                               VkImageAspectFlags aspectMask)
+        u32 width,
+        u32 height,
+        VkFormat format,
+        VkImageUsageFlags usage,
+        VkImageAspectFlags aspectMask)
     {
 
         usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;

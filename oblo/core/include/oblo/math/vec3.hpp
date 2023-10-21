@@ -86,7 +86,7 @@ namespace oblo
 
     constexpr vec3 operator*(const vec3& lhs, f32 rhs) noexcept
     {
-        return lhs* vec3{rhs, rhs, rhs};
+        return lhs * vec3{rhs, rhs, rhs};
     }
 
     constexpr vec3 operator*(f32 lhs, const vec3& rhs) noexcept

@@ -30,7 +30,7 @@ namespace oblo::vk
     {
         OBLO_ASSERT(init.submitsInFlight != 0);
         OBLO_ASSERT(init.buffersPerFrame != 0,
-                    "This would be ok if we had growth in command_buffer_pool, but we don't currently");
+            "This would be ok if we had growth in command_buffer_pool, but we don't currently");
 
         if (init.submitsInFlight == 0)
         {
@@ -259,13 +259,12 @@ namespace oblo::vk
         auto* const allocationCbs = m_allocator->get_allocation_callbacks();
 
         destroyObjects(m_imagesToDestroy,
-                       [device, allocationCbs](VkImage image) { vkDestroyImage(device, image, allocationCbs); });
+            [device, allocationCbs](VkImage image) { vkDestroyImage(device, image, allocationCbs); });
 
         destroyObjects(m_imageViewsToDestroy,
-                       [device, allocationCbs](VkImageView imageView)
-                       { vkDestroyImageView(device, imageView, allocationCbs); });
+            [device, allocationCbs](VkImageView imageView) { vkDestroyImageView(device, imageView, allocationCbs); });
 
         destroyObjects(m_allocationsToDestroy,
-                       [this](VmaAllocation allocation) { m_allocator->destroy_memory(allocation); });
+            [this](VmaAllocation allocation) { m_allocator->destroy_memory(allocation); });
     }
 }

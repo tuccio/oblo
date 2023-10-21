@@ -51,7 +51,8 @@ namespace oblo
         }
 
         template <typename F>
-        void visit(F&& visitor) const requires std::invocable<F, u32, aabb, u32, u32>
+        void visit(F&& visitor) const
+            requires std::invocable<F, u32, aabb, u32, u32>
         {
             if (m_node)
             {
@@ -200,16 +201,16 @@ namespace oblo
                 };
 
                 std::inclusive_scan(std::begin(buckets),
-                                    std::end(buckets),
-                                    std::begin(forwardScan),
-                                    accumulate,
-                                    init_bucket_data());
+                    std::end(buckets),
+                    std::begin(forwardScan),
+                    accumulate,
+                    init_bucket_data());
 
                 std::exclusive_scan(std::rbegin(buckets),
-                                    std::rend(buckets),
-                                    std::rbegin(backwardScan),
-                                    init_bucket_data(),
-                                    accumulate);
+                    std::rend(buckets),
+                    std::rbegin(backwardScan),
+                    init_bucket_data(),
+                    accumulate);
 
                 constexpr auto cost = [](const bucket_data& a, const bucket_data& b)
                 {

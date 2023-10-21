@@ -75,11 +75,11 @@ namespace oblo::vk
         const VmaAllocationCreateInfo allocInfo{.usage = VmaMemoryUsage(initializer.memoryUsage)};
 
         return vmaCreateBuffer(m_allocator,
-                               &bufferCreateInfo,
-                               &allocInfo,
-                               &outBuffer->buffer,
-                               &outBuffer->allocation,
-                               nullptr);
+            &bufferCreateInfo,
+            &allocInfo,
+            &outBuffer->buffer,
+            &outBuffer->allocation,
+            nullptr);
     }
 
     VkResult allocator::create_image(const image_initializer& initializer, allocated_image* outImage)
@@ -101,11 +101,11 @@ namespace oblo::vk
         const VmaAllocationCreateInfo allocInfo{.usage = VmaMemoryUsage(initializer.memoryUsage)};
 
         return vmaCreateImage(m_allocator,
-                              &imageCreateInfo,
-                              &allocInfo,
-                              &outImage->image,
-                              &outImage->allocation,
-                              nullptr);
+            &imageCreateInfo,
+            &allocInfo,
+            &outImage->image,
+            &outImage->allocation,
+            nullptr);
     }
 
     void allocator::destroy(const allocated_buffer& buffer)

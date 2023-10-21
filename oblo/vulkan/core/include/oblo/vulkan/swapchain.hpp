@@ -10,20 +10,20 @@ namespace oblo::vk
     namespace detail
     {
         bool create_impl(const single_queue_engine& engine,
-                         VkSurfaceKHR surface,
-                         u32 width,
-                         u32 height,
-                         VkFormat format,
-                         u32 imageCount,
-                         VkSwapchainKHR* swapchain,
-                         VkImage* images,
-                         VkImageView* imageViews);
+            VkSurfaceKHR surface,
+            u32 width,
+            u32 height,
+            VkFormat format,
+            u32 imageCount,
+            VkSwapchainKHR* swapchain,
+            VkImage* images,
+            VkImageView* imageViews);
 
         void destroy_impl(const single_queue_engine& engine,
-                          VkSwapchainKHR* swapchain,
-                          VkImage* images,
-                          VkImageView* imageViews,
-                          u32 imageCount);
+            VkSwapchainKHR* swapchain,
+            VkImage* images,
+            VkImageView* imageViews,
+            u32 imageCount);
     }
 
     template <u32 SwapChainImageCount>
@@ -44,14 +44,14 @@ namespace oblo::vk
             }
 
             return detail::create_impl(engine,
-                                       surface,
-                                       width,
-                                       height,
-                                       format,
-                                       SwapChainImageCount,
-                                       &m_swapchain,
-                                       m_images,
-                                       m_imageViews);
+                surface,
+                width,
+                height,
+                format,
+                SwapChainImageCount,
+                &m_swapchain,
+                m_images,
+                m_imageViews);
         }
 
         void destroy(const single_queue_engine& engine)
@@ -81,20 +81,20 @@ namespace oblo::vk
 
     private:
         friend bool detail::create_impl(const single_queue_engine& engine,
-                                        VkSurfaceKHR surface,
-                                        u32 width,
-                                        u32 height,
-                                        VkFormat format,
-                                        u32 imageCount,
-                                        VkSwapchainKHR* swapchain,
-                                        VkImage* images,
-                                        VkImageView* imageViews);
+            VkSurfaceKHR surface,
+            u32 width,
+            u32 height,
+            VkFormat format,
+            u32 imageCount,
+            VkSwapchainKHR* swapchain,
+            VkImage* images,
+            VkImageView* imageViews);
 
         friend void detail::destroy_impl(const single_queue_engine& engine,
-                                         VkSwapchainKHR* swapchain,
-                                         VkImage* images,
-                                         VkImageView* imageViews,
-                                         u32 imageCount);
+            VkSwapchainKHR* swapchain,
+            VkImage* images,
+            VkImageView* imageViews,
+            u32 imageCount);
 
     private:
         VkSwapchainKHR m_swapchain{nullptr};

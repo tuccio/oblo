@@ -28,8 +28,8 @@ namespace oblo::vk
 
             allocator allocator;
             ASSERT_TRUE(allocator.init(sandbox.instance.get(),
-                                       sandbox.engine.get_physical_device(),
-                                       sandbox.engine.get_device()));
+                sandbox.engine.get_physical_device(),
+                sandbox.engine.get_device()));
 
             string_interner interner;
             interner.init(16);
@@ -73,16 +73,16 @@ namespace oblo::vk
             buffer_table bufferTable;
 
             const u32 allocated = bufferTable.init(frameAllocator,
-                                                   {
-                                                       .buffer = allocatedBuffer.buffer,
-                                                       .offset = 0,
-                                                       .size = bufferSize,
-                                                       .allocation = allocatedBuffer.allocation,
-                                                   },
-                                                   columns,
-                                                   resourceManager,
-                                                   numRows,
-                                                   16u);
+                {
+                    .buffer = allocatedBuffer.buffer,
+                    .offset = 0,
+                    .size = bufferSize,
+                    .allocation = allocatedBuffer.allocation,
+                },
+                columns,
+                resourceManager,
+                numRows,
+                16u);
 
             ASSERT_GT(allocated, 0);
 

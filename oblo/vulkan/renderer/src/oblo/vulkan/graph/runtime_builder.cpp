@@ -55,9 +55,8 @@ namespace oblo::vk
         }
     }
 
-    void runtime_builder::create(resource<texture> texture,
-                                 const texture2d_initializer& initializer,
-                                 resource_usage usage)
+    void runtime_builder::create(
+        resource<texture> texture, const texture2d_initializer& initializer, resource_usage usage)
     {
         const image_initializer imageInitializer{
             .imageType = VK_IMAGE_TYPE_2D,

@@ -108,9 +108,9 @@ namespace oblo::ecs
                 // Iterate again to check that values are correct
                 reg.range<a_uvec4_c, string_c, instance_counted>().for_each_chunk(
                     [&totalEntities](std::span<const entity> entities,
-                                     std::span<const a_uvec4_c> vectors,
-                                     std::span<const string_c> strings,
-                                     std::span<const instance_counted> ics)
+                        std::span<const a_uvec4_c> vectors,
+                        std::span<const string_c> strings,
+                        std::span<const instance_counted> ics)
                     {
                         ASSERT_ALIGNED(entities);
                         ASSERT_ALIGNED(vectors);

@@ -27,11 +27,11 @@ namespace oblo::vk
     }
 
     u32 buffer_table::init(frame_allocator& frameAllocator,
-                           const buffer& buf,
-                           std::span<const column_description> columns,
-                           resource_manager& resourceManager,
-                           u32 rows,
-                           u32 bufferAlignment)
+        const buffer& buf,
+        std::span<const column_description> columns,
+        resource_manager& resourceManager,
+        u32 rows,
+        u32 bufferAlignment)
     {
         if (columns.empty() || rows == 0u || !is_power_of_two(bufferAlignment))
         {
@@ -117,13 +117,13 @@ namespace oblo::vk
         const auto end = begin + m_columns;
 
         std::sort(begin,
-                  end,
-                  [](const auto& lhs, const auto& rhs)
-                  {
-                      const h32<string> lhsName = std::get<0>(lhs);
-                      const h32<string> rhsName = std::get<0>(rhs);
-                      return lhsName < rhsName;
-                  });
+            end,
+            [](const auto& lhs, const auto& rhs)
+            {
+                const h32<string> lhsName = std::get<0>(lhs);
+                const h32<string> rhsName = std::get<0>(rhs);
+                return lhsName < rhsName;
+            });
 
         for (u32 j = 0; j < m_columns; ++j)
         {

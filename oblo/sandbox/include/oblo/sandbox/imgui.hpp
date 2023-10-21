@@ -16,13 +16,13 @@ namespace oblo::vk
     {
     public:
         bool fill_init_command_buffer(SDL_Window* window,
-                                      VkInstance,
-                                      VkPhysicalDevice physicalDevice,
-                                      VkDevice device,
-                                      VkQueue queue,
-                                      VkCommandBuffer commandBuffer,
-                                      u32 swapchainImageCount,
-                                      const sandbox_app_config& config);
+            VkInstance,
+            VkPhysicalDevice physicalDevice,
+            VkDevice device,
+            VkQueue queue,
+            VkCommandBuffer commandBuffer,
+            u32 swapchainImageCount,
+            const sandbox_app_config& config);
 
         void finalize_init(VkDevice device);
 

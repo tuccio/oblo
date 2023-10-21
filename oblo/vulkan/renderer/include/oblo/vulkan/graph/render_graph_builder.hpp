@@ -6,7 +6,6 @@
 #include <oblo/core/utility.hpp>
 #include <oblo/vulkan/graph/render_graph_node.hpp>
 
-
 #include <concepts>
 #include <span>
 #include <system_error>
@@ -126,15 +125,14 @@ namespace oblo::vk
 
         constexpr auto typeId = get_type_id<T>();
 
-        const auto [it, ok] =
-            m_nodeTypes.emplace(typeId,
-                                node_type{
-                                    .size = sizeof(T),
-                                    .alignment = alignof(T),
-                                    .construct = [](void* ptr) { new (ptr) T{}; },
-                                    .execute = [](void* ptr, void* context)
-                                    { static_cast<T*>(ptr)->execute(static_cast<Context*>(context)); },
-                                });
+        const auto [it, ok] = m_nodeTypes.emplace(typeId,
+            node_type{
+                .size = sizeof(T),
+                .alignment = alignof(T),
+                .construct = [](void* ptr) { new (ptr) T{}; },
+                .execute = [](void* ptr, void* context)
+                { static_cast<T*>(ptr)->execute(static_cast<Context*>(context)); },
+            });
 
         OBLO_ASSERT(ok);
 
