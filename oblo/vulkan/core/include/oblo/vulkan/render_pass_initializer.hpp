@@ -50,9 +50,25 @@ namespace oblo::vk
         f32 maxDepthBounds;
     };
 
+    struct rasterization_state
+    {
+        VkPipelineRasterizationStateCreateFlags flags;
+        bool depthClampEnable;
+        bool rasterizerDiscardEnable;
+        VkPolygonMode polygonMode;
+        VkCullModeFlags cullMode;
+        VkFrontFace frontFace;
+        bool depthBiasEnable;
+        float depthBiasConstantFactor;
+        float depthBiasClamp;
+        float depthBiasSlopeFactor;
+        float lineWidth;
+    };
+
     struct render_pipeline_initializer
     {
         render_pass_targets renderTargets;
         depth_stencil_state depthStencilState;
+        rasterization_state rasterizationState;
     };
 }

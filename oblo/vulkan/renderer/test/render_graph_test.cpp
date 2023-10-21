@@ -25,6 +25,8 @@ namespace oblo::vk::test
             resource<texture> outDepthBuffer;
             data<vec2u> inResolution;
 
+            h32<render_pass> renderPass{};
+
             void build(runtime_builder& builder)
             {
                 const auto resolution = builder.access(inResolution);
@@ -38,6 +40,100 @@ namespace oblo::vk::test
                                    .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
                                },
                                resource_usage::depth_stencil_write);
+            }
+
+            void execute(const runtime_context& context)
+            {
+                auto& renderPassManager = context.get_render_pass_manager();
+
+                if (!renderPass)
+                {
+                    renderPass = renderPassManager.register_render_pass({
+                        .name = "fill_depth_node",
+                        .stages =
+                            {
+                                {
+                                    .stage = pipeline_stages::vertex,
+                                    .shaderSourcePath = OBLO_TEST_RESOURCES "/shaders/basic.vert",
+                                },
+                            },
+                    });
+                }
+
+                const VkCommandBuffer commandBuffer = context.get_command_buffer();
+
+                const auto depthBuffer = context.access(outDepthBuffer);
+
+                auto& frameAllocator = context.get_frame_allocator();
+
+                const auto pipeline =
+                    renderPassManager.get_or_create_pipeline(frameAllocator,
+                                                             renderPass,
+                                                             {
+                                                                 .renderTargets =
+                                                                     {
+                                                                         .depthFormat = depthBuffer.initializer.format,
+                                                                     },
+                                                                 .depthStencilState =
+                                                                     {
+                                                                         .depthTestEnable = true,
+                                                                         .depthWriteEnable = true,
+                                                                         .depthCompareOp = VK_COMPARE_OP_ALWAYS,
+                                                                     },
+                                                                 .rasterizationState =
+                                                                     {
+                                                                         .polygonMode = VK_POLYGON_MODE_FILL,
+                                                                         .cullMode = VK_CULL_MODE_NONE,
+                                                                         .lineWidth = 1.f,
+                                                                     },
+                                                             });
+
+                render_pass_context renderPassContext{
+                    .commandBuffer = commandBuffer,
+                    .pipeline = pipeline,
+                    .frameAllocator = frameAllocator,
+                };
+
+                const VkRenderingAttachmentInfo depthAttachment{
+                    .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                    .imageView = depthBuffer.view,
+                    .imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+                    .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                };
+
+                const auto [renderWidth, renderHeight, _] = depthBuffer.initializer.extent;
+
+                const VkRenderingInfo renderInfo{
+                    .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+                    .renderArea = {.extent{.width = renderWidth, .height = renderHeight}},
+                    .layerCount = 1,
+                    .pDepthAttachment = &depthAttachment,
+                };
+
+                renderPassManager.begin_rendering(renderPassContext, renderInfo);
+
+                {
+                    const VkViewport viewport{
+                        .width = f32(renderWidth),
+                        .height = f32(renderHeight),
+                        .minDepth = 0.f,
+                        .maxDepth = 1.f,
+                    };
+
+                    const VkRect2D scissor{.extent{.width = renderWidth, .height = renderHeight}};
+
+                    vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+                    vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+                }
+
+                const auto& meshTable = context.get_mesh_table();
+                const auto& resourceManager = context.get_resource_manager();
+                renderPassManager.bind(renderPassContext, resourceManager, meshTable);
+
+                vkCmdDrawIndexed(commandBuffer, meshTable.index_count(), 1, 0, 0, 0);
+
+                renderPassManager.end_rendering(renderPassContext);
             }
         };
 
@@ -104,6 +200,18 @@ namespace oblo::vk::test
                                 .colorAttachmentFormats = {renderTarget.initializer.format},
                                 .depthFormat = depthBuffer.initializer.format,
                             },
+                        .depthStencilState =
+                            {
+                                .depthTestEnable = true,
+                                .depthWriteEnable = false,
+                                .depthCompareOp = VK_COMPARE_OP_EQUAL,
+                            },
+                        .rasterizationState =
+                            {
+                                .polygonMode = VK_POLYGON_MODE_FILL,
+                                .cullMode = VK_CULL_MODE_NONE,
+                                .lineWidth = 1.f,
+                            },
                     });
 
                 render_pass_context renderPassContext{
@@ -124,7 +232,7 @@ namespace oblo::vk::test
                     .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
                     .imageView = depthBuffer.view,
                     .imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
-                    .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                    .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
                     .storeOp = VK_ATTACHMENT_STORE_OP_NONE,
                 };
 
@@ -159,7 +267,7 @@ namespace oblo::vk::test
                 const auto& resourceManager = context.get_resource_manager();
                 renderPassManager.bind(renderPassContext, resourceManager, meshTable);
 
-                vkCmdDraw(commandBuffer, meshTable.vertex_count(), meshTable.meshes_count(), 0, 0);
+                vkCmdDrawIndexed(commandBuffer, meshTable.index_count(), 1, 0, 0, 0);
 
                 renderPassManager.end_rendering(renderPassContext);
             }
@@ -252,7 +360,7 @@ namespace oblo::vk::test
 
             const mesh_table_entry mesh{
                 .id = stringInterner.get_or_add("quad"),
-                .numVertices = 6,
+                .numVertices = 4,
                 .numIndices = 6,
             };
 
@@ -262,22 +370,26 @@ namespace oblo::vk::test
             }
 
             const h32<string> columnSubset[] = {position};
-            buffer buffers[array_size(columnSubset)];
+            buffer buffers[array_size(columnSubset)]{};
+            buffer indexBuffer{};
 
-            meshes.fetch_buffers(resourceManager, columnSubset, buffers, nullptr);
+            meshes.fetch_buffers(resourceManager, columnSubset, buffers, &indexBuffer);
 
             constexpr vec3 positions[] = {
-                {-1.f, -1.f, 0.5f},
-                {-1.f, 1.f, 0.5f},
-                {1.f, 1.f, 0.5f},
-                {-1.f, -1.f, 0.5f},
-                {1.f, 1.f, 0.5f},
-                {1.f, -1.f, 0.5f},
+                {-1.f, -1.f, 1.f},
+                {-1.f, 1.f, 1.f},
+                {1.f, 1.f, 1.f},
+                {1.f, -1.f, 1.f},
             };
+
+            constexpr u32 indices[] = {0, 1, 2, 0, 2, 3};
 
             auto& stagingBuffer = renderer.get_staging_buffer();
 
             stagingBuffer.upload(std::as_bytes(std::span{positions}), buffers[0].buffer, buffers[0].offset);
+            stagingBuffer.upload(std::as_bytes(std::span{indices}), indexBuffer.buffer, indexBuffer.offset);
+
+            stagingBuffer.flush();
         }
 
         struct render_graph_test
@@ -444,11 +556,11 @@ namespace oblo::vk::test
 
         constexpr u32 N{app.resolution.x * app.resolution.y};
         auto* const depthU16 = start_lifetime_as_array<u16>(depthBufferData, N);
-        auto* const colorU32 = start_lifetime_as_array<u32>(depthBufferData, N);
+        auto* const colorU32 = start_lifetime_as_array<u32>(renderTargetData, N);
 
         for (u32 i = 0; i < N; ++i)
         {
-            ASSERT_EQ(depthU16[i], 127);
+            ASSERT_EQ(depthU16[i], 0xffff);
             ASSERT_EQ(colorU32[i], 0xff0000ff);
         }
     }
