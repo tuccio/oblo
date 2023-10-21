@@ -6,13 +6,15 @@
 
 namespace oblo::vk
 {
+    class init_context;
     class runtime_builder;
     class runtime_context;
 
     using construct_fn = void (*)(void*);
     using destruct_fn = void (*)(void*);
-    using build_fn = void (*)(void*, runtime_builder&);
-    using execute_fn = void (*)(void*, runtime_context&);
+    using init_fn = void (*)(void*, const init_context&);
+    using build_fn = void (*)(void*, const runtime_builder&);
+    using execute_fn = void (*)(void*, const runtime_context&);
 
     struct node
     {
@@ -20,6 +22,7 @@ namespace oblo::vk
         type_id typeId;
         construct_fn construct;
         destruct_fn destruct;
+        init_fn init;
         build_fn build;
         execute_fn execute;
     };

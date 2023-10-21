@@ -8,6 +8,7 @@
 #include <oblo/sandbox/sandbox_app_config.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/error.hpp>
+#include <oblo/vulkan/graph/init_context.hpp>
 #include <oblo/vulkan/graph/resource_pool.hpp>
 #include <oblo/vulkan/graph/runtime_builder.hpp>
 #include <oblo/vulkan/graph/runtime_context.hpp>
@@ -27,7 +28,7 @@ namespace oblo::vk::test
 
             h32<render_pass> renderPass{};
 
-            void build(runtime_builder& builder)
+            void build(const runtime_builder& builder)
             {
                 const auto resolution = builder.access(inResolution);
 
@@ -42,27 +43,27 @@ namespace oblo::vk::test
                     resource_usage::depth_stencil_write);
             }
 
-            void execute(const runtime_context& context)
+            void init(const init_context& context)
             {
                 auto& renderPassManager = context.get_render_pass_manager();
 
-                if (!renderPass)
-                {
-                    renderPass = renderPassManager.register_render_pass({
-                        .name = "fill_depth_node",
-                        .stages =
+                renderPass = renderPassManager.register_render_pass({
+                    .name = "fill_depth_node",
+                    .stages =
+                        {
                             {
-                                {
-                                    .stage = pipeline_stages::vertex,
-                                    .shaderSourcePath = OBLO_TEST_RESOURCES "/shaders/full_screen_quad.vert",
-                                },
+                                .stage = pipeline_stages::vertex,
+                                .shaderSourcePath = OBLO_TEST_RESOURCES "/shaders/full_screen_quad.vert",
                             },
-                    });
-                }
+                        },
+                });
+            }
 
-                const VkCommandBuffer commandBuffer = context.get_command_buffer();
-
+            void execute(const runtime_context& context)
+            {
                 const auto depthBuffer = context.access(outDepthBuffer);
+
+                auto& renderPassManager = context.get_render_pass_manager();
 
                 const auto pipeline = renderPassManager.get_or_create_pipeline(renderPass,
                     {
@@ -83,6 +84,8 @@ namespace oblo::vk::test
                                 .lineWidth = 1.f,
                             },
                     });
+
+                const VkCommandBuffer commandBuffer = context.get_command_buffer();
 
                 render_pass_context renderPassContext{
                     .commandBuffer = commandBuffer,
@@ -136,7 +139,7 @@ namespace oblo::vk::test
 
             h32<render_pass> renderPass{};
 
-            void build(runtime_builder& builder)
+            void build(const runtime_builder& builder)
             {
                 const auto resolution = builder.access(inResolution);
 
@@ -153,32 +156,32 @@ namespace oblo::vk::test
                 builder.acquire(inDepthBuffer, resource_usage::depth_stencil_read);
             }
 
-            void execute(const runtime_context& context)
+            void init(const init_context& context)
             {
                 auto& renderPassManager = context.get_render_pass_manager();
 
-                if (!renderPass)
-                {
-                    renderPass = renderPassManager.register_render_pass({
-                        .name = "fill_color_node",
-                        .stages =
+                renderPass = renderPassManager.register_render_pass({
+                    .name = "fill_color_node",
+                    .stages =
+                        {
                             {
-                                {
-                                    .stage = pipeline_stages::vertex,
-                                    .shaderSourcePath = OBLO_TEST_RESOURCES "/shaders/full_screen_quad.vert",
-                                },
-                                {
-                                    .stage = pipeline_stages::fragment,
-                                    .shaderSourcePath = OBLO_TEST_RESOURCES "/shaders/paint_it_red.frag",
-                                },
+                                .stage = pipeline_stages::vertex,
+                                .shaderSourcePath = OBLO_TEST_RESOURCES "/shaders/full_screen_quad.vert",
                             },
-                    });
-                }
+                            {
+                                .stage = pipeline_stages::fragment,
+                                .shaderSourcePath = OBLO_TEST_RESOURCES "/shaders/paint_it_red.frag",
+                            },
+                        },
+                });
+            }
 
-                const VkCommandBuffer commandBuffer = context.get_command_buffer();
-
+            void execute(const runtime_context& context)
+            {
                 const auto renderTarget = context.access(outRenderTarget);
                 const auto depthBuffer = context.access(inDepthBuffer);
+
+                auto& renderPassManager = context.get_render_pass_manager();
 
                 const auto pipeline = renderPassManager.get_or_create_pipeline(renderPass,
                     {
@@ -200,6 +203,8 @@ namespace oblo::vk::test
                                 .lineWidth = 1.f,
                             },
                     });
+
+                const VkCommandBuffer commandBuffer = context.get_command_buffer();
 
                 render_pass_context renderPassContext{
                     .commandBuffer = commandBuffer,
@@ -263,7 +268,7 @@ namespace oblo::vk::test
             resource<texture> inRenderTarget;
             resource<texture> inDetphBuffer;
 
-            void build(runtime_builder& builder)
+            void build(const runtime_builder& builder)
             {
                 builder.acquire(inRenderTarget, resource_usage::transfer_source);
                 builder.acquire(inDetphBuffer, resource_usage::transfer_source);
@@ -368,6 +373,8 @@ namespace oblo::vk::test
                 graph.set_input("DepthDownload", depthImageDownload.buffer);
                 graph.set_input("RenderTargetDownload", renderTargetDownload.buffer);
                 // graph.enable_output("FinalRender");
+
+                graph.init(renderer);
 
                 resourcePool.begin_build();
 

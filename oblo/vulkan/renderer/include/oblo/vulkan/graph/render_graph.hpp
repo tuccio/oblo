@@ -74,6 +74,8 @@ namespace oblo::vk
         // resources will point to.
         u32 get_backing_texture_id(resource<texture> virtualTextureId) const;
 
+        void init(renderer& renderer);
+
         void build(resource_pool& resourcePool);
 
         void execute(renderer& renderer, resource_pool& resourcePool);

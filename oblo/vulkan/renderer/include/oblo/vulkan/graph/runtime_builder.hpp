@@ -40,9 +40,9 @@ namespace oblo::vk
         {
         }
 
-        void create(resource<texture> texture, const texture2d_initializer& initializer, resource_usage usage);
+        void create(resource<texture> texture, const texture2d_initializer& initializer, resource_usage usage) const;
 
-        void acquire(resource<texture> texture, resource_usage usage);
+        void acquire(resource<texture> texture, resource_usage usage) const;
 
         template <typename T>
         T& access(data<T> data) const
