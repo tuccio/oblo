@@ -26,10 +26,24 @@ namespace oblo::vk
     class render_graph;
     struct texture;
 
+    template <typename T>
+    concept render_node = requires(T& node, const runtime_builder& builder, const runtime_context& context) {
+        {
+            T{}
+        };
+        {
+            node.build(builder)
+        };
+        {
+            node.execute(context)
+        };
+    };
+
     class topology_builder
     {
     public:
         template <typename T>
+            requires render_node<T>
         topology_builder& add_node();
 
         template <typename T>
@@ -186,6 +200,7 @@ namespace oblo::vk
     }
 
     template <typename T>
+        requires render_node<T>
     topology_builder& topology_builder::add_node()
     {
         const auto [it, ok] =
