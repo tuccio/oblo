@@ -168,6 +168,11 @@ namespace oblo
             return m_denseKey.size();
         }
 
+        bool empty() const
+        {
+            return size() == 0;
+        }
+
     private:
         bool is_key_matched_unchecked(u32 candidate, u32 index) const
         {

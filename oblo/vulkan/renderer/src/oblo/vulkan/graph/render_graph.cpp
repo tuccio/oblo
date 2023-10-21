@@ -11,6 +11,12 @@
 
 namespace oblo::vk
 {
+    struct render_graph::pending_copy
+    {
+        h32<texture> target;
+        const h32<texture>* source;
+    };
+
     render_graph::render_graph() = default;
 
     render_graph::render_graph(render_graph&&) noexcept = default;
@@ -44,6 +50,19 @@ namespace oblo::vk
             if (input.name == name)
             {
                 return m_pinStorage[input.storageIndex].ptr;
+            }
+        }
+
+        return nullptr;
+    }
+
+    void* render_graph::find_output(std::string_view name)
+    {
+        for (auto& output : m_outputs)
+        {
+            if (output.name == name)
+            {
+                return m_pinStorage[output.storageIndex].ptr;
             }
         }
 
@@ -147,6 +166,63 @@ namespace oblo::vk
                 node.execute(ptr, runtime);
             }
         }
+
+        if (!m_pendingCopies.empty())
+        {
+            flush_copies(commandBuffer, resourceManager);
+        }
+    }
+
+    void render_graph::flush_copies(stateful_command_buffer& commandBuffer, resource_manager& resourceManager)
+    {
+        for (const auto [target, sourcePtr] : m_pendingCopies)
+        {
+            const h32<texture> source = *sourcePtr;
+
+            const texture& sourceTex = resourceManager.get(source);
+            const texture& targetTex = resourceManager.get(target);
+
+            // TODO: Fix hardcoded aspect
+            const VkImageCopy copy{
+                .srcSubresource =
+                    {
+                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .layerCount = 1,
+                    },
+                .dstSubresource =
+                    {
+                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .layerCount = 1,
+                    },
+                .extent = sourceTex.initializer.extent,
+            };
+
+            commandBuffer.add_pipeline_barrier(resourceManager, source, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+            commandBuffer.add_pipeline_barrier(resourceManager, target, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+            vkCmdCopyImage(commandBuffer.get(),
+                sourceTex.image,
+                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                targetTex.image,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                1,
+                &copy);
+        }
+
+        m_pendingCopies.clear();
+    }
+
+    bool render_graph::copy_output(std::string_view name, h32<texture> target)
+    {
+        auto* const output = find_output<h32<texture>>(name);
+
+        if (!output)
+        {
+            return false;
+        }
+
+        m_pendingCopies.emplace_back(target, output);
+        return true;
     }
 
     void* render_graph::access_resource_storage(u32 h) const

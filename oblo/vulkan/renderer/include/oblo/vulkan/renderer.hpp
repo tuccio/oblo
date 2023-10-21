@@ -50,8 +50,12 @@ namespace oblo::vk
         staging_buffer& get_staging_buffer();
         stateful_command_buffer& get_active_command_buffer();
 
+        h32<render_graph> add(render_graph&& graph);
+        void remove(h32<render_graph> graph);
+        render_graph* find(h32<render_graph> graph);
+
     private:
-        struct render_graph_data;
+        struct wrapped_render_graph;
 
     private:
         vulkan_context* m_vkContext{nullptr};
@@ -66,7 +70,7 @@ namespace oblo::vk
         u32 m_lastRenderGraphId{};
 
         resource_pool m_graphResourcePool;
-        flat_dense_map<h32<render_graph>, render_graph_data> m_renderGraphs;
+        flat_dense_map<h32<render_graph>, wrapped_render_graph> m_renderGraphs;
     };
 
     struct renderer::initializer

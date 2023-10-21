@@ -79,11 +79,27 @@ namespace oblo::editor
                 }
 
                 const auto e = m_entities->create<graphics::viewport_component>();
-                m_entities->get<graphics::viewport_component>(e).texture = m_texture;
+                auto& v = m_entities->get<graphics::viewport_component>(e);
+                v.texture = m_texture;
+                v.width = u32(windowSize.x);
+                v.height = u32(windowSize.y);
+                m_entity = e;
+            }
+            else
+            {
+                auto& v = m_entities->get<graphics::viewport_component>(m_entity);
+                v.width = u32(windowSize.x);
+                v.height = u32(windowSize.y);
             }
 
             if (m_descriptorSet)
             {
+                auto& cb = m_ctx->get_active_command_buffer();
+
+                cb.add_pipeline_barrier(m_ctx->get_resource_manager(),
+                    m_texture,
+                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
                 ImGui::Image(m_descriptorSet, windowSize);
             }
 

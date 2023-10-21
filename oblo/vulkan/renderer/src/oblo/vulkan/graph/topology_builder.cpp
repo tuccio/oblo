@@ -216,6 +216,30 @@ namespace oblo::vk
             }
         }
 
+        g.m_outputs.reserve(m_outputs.size());
+
+        for (const auto& output : m_outputs)
+        {
+            if (output.inEdges.empty())
+            {
+                continue;
+            }
+
+            auto& incoming = output.inEdges.front();
+            const auto it = m_nodes.find(incoming.targetNode);
+
+            if (it == m_nodes.end())
+            {
+                return graph_error::node_not_found;
+            }
+
+            const auto idTarget = read_u32(it->second.node, incoming.targetOffset);
+
+            auto& dataOutput = g.m_outputs.emplace_back();
+            dataOutput.storageIndex = g.m_pins[idTarget].storageIndex;
+            dataOutput.name = output.name;
+        }
+
         for (const usize nodeIndex : nodesOrder)
         {
             auto& [type, nodeDesc] = *linearizedNodes[nodeIndex];

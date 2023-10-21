@@ -37,7 +37,7 @@ namespace oblo::vk
                 return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
             case resource_usage::render_target_write:
-                return VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+                return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
             case resource_usage::shader_read:
                 return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;

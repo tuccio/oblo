@@ -13,10 +13,12 @@
 
 namespace oblo::vk
 {
-    class runtime_context;
-    class topology_builder;
-    class resource_pool;
     class renderer;
+    class resource_manager;
+    class resource_pool;
+    class runtime_context;
+    class stateful_command_buffer;
+    class topology_builder;
 
     struct cpu_data;
     struct gpu_resource;
@@ -61,12 +63,12 @@ namespace oblo::vk
             *ptr = value;
         }
 
-        void* find_output(std::string_view name, type_id type);
+        void* find_output(std::string_view name);
 
         template <typename T>
         T* find_output(std::string_view name)
         {
-            return static_cast<T*>(find_input(name));
+            return static_cast<T*>(find_output(name));
         }
 
         // This is mostly here for test purposes, since users cannot do much with it.
@@ -80,12 +82,16 @@ namespace oblo::vk
 
         void execute(renderer& renderer, resource_pool& resourcePool);
 
+        bool copy_output(std::string_view name, h32<texture> target);
+
     private:
         void* access_resource_storage(u32 h) const;
 
         void add_transient_resource(resource<texture> texture, u32 poolIndex);
         void add_resource_transition(resource<texture> texture, VkImageLayout target);
         u32 find_pool_index(resource<texture> texture) const;
+
+        void flush_copies(stateful_command_buffer& commandBuffer, resource_manager& resourceManager);
 
     private:
         struct pin_data;
@@ -94,6 +100,7 @@ namespace oblo::vk
         struct node_transitions;
         struct texture_transition;
         struct transient_texture;
+        struct pending_copy;
 
         using destruct_fn = void (*)(void*);
 
@@ -105,11 +112,14 @@ namespace oblo::vk
         std::vector<transient_texture> m_transientTextures;
 
         std::vector<named_pin_data> m_inputs;
+        std::vector<named_pin_data> m_outputs;
         std::vector<pin_data> m_pins;
         std::vector<data_storage> m_pinStorage;
 
         // Used to store the poolIndex while building
         std::vector<u32> m_resourcePoolId;
+
+        std::vector<pending_copy> m_pendingCopies;
     };
 
     struct render_graph::named_pin_data
