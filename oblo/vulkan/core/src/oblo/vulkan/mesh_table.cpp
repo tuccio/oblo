@@ -46,7 +46,7 @@ namespace oblo::vk
         m_indexBuffer = resourceManager.create(allocator,
                                                {
                                                    .size = indexBufferSize,
-                                                   .usage = bufferUsage,
+                                                   .usage = bufferUsage | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
                                                    .memoryUsage = memory_usage::gpu_only,
                                                });
 
@@ -117,7 +117,9 @@ namespace oblo::vk
 
         if (indexBuffer)
         {
-            // TODO
+            *indexBuffer = resourceManager.get(m_indexBuffer);
+            indexBuffer->offset += range->indexOffset;
+            indexBuffer->size = sizeof(u32) * range->indexCount;
         }
 
         return true;
@@ -143,7 +145,7 @@ namespace oblo::vk
 
         if (indexBuffer)
         {
-            // TODO
+            *indexBuffer = resourceManager.get(m_indexBuffer);
         }
     }
 
@@ -214,6 +216,11 @@ namespace oblo::vk
     u32 mesh_table::vertex_count() const
     {
         return m_firstFreeVertex;
+    }
+
+    u32 mesh_table::index_count() const
+    {
+        return m_firstFreeIndex;
     }
 
     u32 mesh_table::meshes_count() const

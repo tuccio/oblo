@@ -57,6 +57,7 @@ namespace oblo::vk
         std::span<const u32> vertex_attribute_element_sizes() const;
 
         u32 vertex_count() const;
+        u32 index_count() const;
         u32 meshes_count() const;
 
         i32 find_vertex_attribute(h32<string> name) const;

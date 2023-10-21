@@ -431,10 +431,18 @@ namespace oblo::vk
 
         const VkPipelineRasterizationStateCreateInfo rasterizer{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-            .polygonMode = VK_POLYGON_MODE_FILL,
-            .cullMode = VK_CULL_MODE_NONE,
-            .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
-            .lineWidth = 1.f,
+            .flags = desc.rasterizationState.flags,
+            .depthClampEnable = desc.rasterizationState.depthClampEnable,
+            .rasterizerDiscardEnable = desc.rasterizationState.rasterizerDiscardEnable,
+            .polygonMode = desc.rasterizationState.polygonMode,
+            .cullMode = desc.rasterizationState.cullMode,
+            .frontFace = desc.rasterizationState.frontFace,
+            .depthBiasEnable = desc.rasterizationState.depthBiasEnable,
+            .depthBiasConstantFactor = desc.rasterizationState.depthBiasConstantFactor,
+            .depthBiasClamp = desc.rasterizationState.depthBiasClamp,
+            .depthBiasSlopeFactor = desc.rasterizationState.depthBiasSlopeFactor,
+            .lineWidth = desc.rasterizationState.lineWidth,
+
         };
 
         const VkPipelineMultisampleStateCreateInfo multisampling{
@@ -556,7 +564,9 @@ namespace oblo::vk
             buffers[i] = dummy;
         };
 
-        meshTable.fetch_buffers(resourceManager, attributeNames, buffers, nullptr);
+        buffer indexBuffer;
+
+        meshTable.fetch_buffers(resourceManager, attributeNames, buffers, &indexBuffer);
 
         auto* const vkBuffers = allocate_n<VkBuffer>(frameAllocator, numVertexAttributes);
         auto* const offsets = allocate_n<VkDeviceSize>(frameAllocator, numVertexAttributes);
@@ -568,5 +578,6 @@ namespace oblo::vk
         }
 
         vkCmdBindVertexBuffers(context.commandBuffer, 0, numVertexAttributes, vkBuffers, offsets);
+        vkCmdBindIndexBuffer(context.commandBuffer, indexBuffer.buffer, indexBuffer.offset, VK_INDEX_TYPE_UINT32);
     }
 }
