@@ -297,9 +297,13 @@ namespace oblo::vk
                 {
                     vertexInputsCount = u32(shaderResources.stage_inputs.size());
 
-                    vertexInputBindingDescs = allocate_n<VkVertexInputBindingDescription>(allocator, vertexInputsCount);
-                    vertexInputAttributeDescs =
-                        allocate_n<VkVertexInputAttributeDescription>(allocator, vertexInputsCount);
+                    if (vertexInputsCount > 0)
+                    {
+                        vertexInputBindingDescs =
+                            allocate_n<VkVertexInputBindingDescription>(allocator, vertexInputsCount);
+                        vertexInputAttributeDescs =
+                            allocate_n<VkVertexInputAttributeDescription>(allocator, vertexInputsCount);
+                    }
 
                     u32 vertexAttributeIndex = 0;
 
