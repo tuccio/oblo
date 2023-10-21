@@ -362,8 +362,6 @@ namespace oblo::vk::test
 
             void update(const vk::sandbox_render_context& ctx)
             {
-                ++frameIndex;
-
                 constexpr vec2u resolution{.x = 16u, .y = 16u};
 
                 graph.set_input("RenderResolution", resolution);
@@ -389,7 +387,6 @@ namespace oblo::vk::test
             allocated_buffer depthImageDownload{};
             allocated_buffer renderTargetDownload{};
 
-            u32 frameIndex{0};
             renderer renderer;
             resource_pool resourcePool;
             render_graph graph;
