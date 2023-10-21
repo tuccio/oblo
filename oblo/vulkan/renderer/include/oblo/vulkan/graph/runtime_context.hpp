@@ -18,10 +18,8 @@ namespace oblo::vk
     class runtime_context
     {
     public:
-        explicit runtime_context(
-            render_graph& graph, renderer& renderer, VkCommandBuffer commandBuffer, frame_allocator& frameAllocator) :
-            m_graph{&graph},
-            m_renderer{&renderer}, m_commandBuffer{commandBuffer}, m_frameAllocator{&frameAllocator}
+        explicit runtime_context(render_graph& graph, renderer& renderer, VkCommandBuffer commandBuffer) :
+            m_graph{&graph}, m_renderer{&renderer}, m_commandBuffer{commandBuffer}
         {
         }
 
@@ -53,15 +51,9 @@ namespace oblo::vk
             return m_renderer->get_mesh_table();
         }
 
-        frame_allocator& get_frame_allocator() const
-        {
-            return *m_frameAllocator;
-        }
-
     private:
         render_graph* m_graph;
         renderer* m_renderer;
         VkCommandBuffer m_commandBuffer;
-        frame_allocator* m_frameAllocator;
     };
 }

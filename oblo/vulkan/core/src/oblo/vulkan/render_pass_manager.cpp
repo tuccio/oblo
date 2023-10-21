@@ -141,6 +141,8 @@ namespace oblo::vk
 
     void render_pass_manager::init(VkDevice device, string_interner& interner, const h32<buffer> dummy)
     {
+        m_frameAllocator.init(1u << 22);
+
         m_device = device;
         m_interner = &interner;
         m_dummy = dummy;
@@ -189,8 +191,8 @@ namespace oblo::vk
         return handle;
     }
 
-    h32<render_pipeline> render_pass_manager::get_or_create_pipeline(
-        frame_allocator& allocator, h32<render_pass> renderPassHandle, const render_pipeline_initializer& desc)
+    h32<render_pipeline> render_pass_manager::get_or_create_pipeline(h32<render_pass> renderPassHandle,
+        const render_pipeline_initializer& desc)
     {
         auto* const renderPass = m_renderPasses.try_find(renderPassHandle);
 
@@ -210,7 +212,7 @@ namespace oblo::vk
             return variantIt->pipeline;
         }
 
-        const auto restore = allocator.make_scoped_restore();
+        const auto restore = m_frameAllocator.make_scoped_restore();
 
         const h32<render_pipeline> pipelineHandle{m_lastRenderPipelineId + 1};
 
@@ -255,7 +257,7 @@ namespace oblo::vk
             const auto vkStage = to_vulkan_stage_bits(pipelineStage);
 
             const auto& filePath = renderPass->shaderSourcePath[stageIndex];
-            const auto sourceCode = load_text_file_into_memory(allocator, filePath);
+            const auto sourceCode = load_text_file_into_memory(m_frameAllocator, filePath);
 
             spirv.clear();
 
@@ -298,9 +300,9 @@ namespace oblo::vk
                     if (vertexInputsCount > 0)
                     {
                         vertexInputBindingDescs =
-                            allocate_n<VkVertexInputBindingDescription>(allocator, vertexInputsCount);
+                            allocate_n<VkVertexInputBindingDescription>(m_frameAllocator, vertexInputsCount);
                         vertexInputAttributeDescs =
-                            allocate_n<VkVertexInputAttributeDescription>(allocator, vertexInputsCount);
+                            allocate_n<VkVertexInputAttributeDescription>(m_frameAllocator, vertexInputsCount);
                     }
 
                     u32 vertexAttributeIndex = 0;
@@ -532,16 +534,16 @@ namespace oblo::vk
         vkCmdBeginRendering(commandBuffer, &renderingInfo);
     }
 
-    void render_pass_manager::end_rendering(const render_pass_context& context) const
+    void render_pass_manager::end_rendering(const render_pass_context& context)
     {
         vkCmdEndRendering(context.commandBuffer);
+        m_frameAllocator.restore_all();
     }
 
     void render_pass_manager::bind(
-        const render_pass_context& context, const resource_manager& resourceManager, const mesh_table& meshTable) const
+        const render_pass_context& context, const resource_manager& resourceManager, const mesh_table& meshTable)
     {
         const auto* pipeline = context.internalPipeline;
-        auto& frameAllocator = context.frameAllocator;
 
         const auto& resources = pipeline->resources;
 
@@ -553,8 +555,8 @@ namespace oblo::vk
         const auto numVertexAttributes = u32(lastVertexAttribute - begin);
 
         // TODO: Could prepare this array once when creating the pipeline
-        const std::span attributeNames = allocate_n_span<h32<string>>(frameAllocator, numVertexAttributes);
-        const std::span buffers = allocate_n_span<buffer>(frameAllocator, numVertexAttributes);
+        const std::span attributeNames = allocate_n_span<h32<string>>(m_frameAllocator, numVertexAttributes);
+        const std::span buffers = allocate_n_span<buffer>(m_frameAllocator, numVertexAttributes);
 
         const auto dummy = resourceManager.get(m_dummy);
 
@@ -568,8 +570,8 @@ namespace oblo::vk
 
         meshTable.fetch_buffers(resourceManager, attributeNames, buffers, &indexBuffer);
 
-        auto* const vkBuffers = allocate_n<VkBuffer>(frameAllocator, numVertexAttributes);
-        auto* const offsets = allocate_n<VkDeviceSize>(frameAllocator, numVertexAttributes);
+        auto* const vkBuffers = allocate_n<VkBuffer>(m_frameAllocator, numVertexAttributes);
+        auto* const offsets = allocate_n<VkDeviceSize>(m_frameAllocator, numVertexAttributes);
 
         for (u32 i = 0; i < numVertexAttributes; ++i)
         {

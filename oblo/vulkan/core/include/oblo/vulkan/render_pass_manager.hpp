@@ -1,12 +1,12 @@
 #pragma once
 
 #include <oblo/core/flat_dense_map.hpp>
+#include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/vulkan/shader_compiler.hpp>
 
 namespace oblo
 {
-    class frame_allocator;
     class string_interner;
 }
 
@@ -39,17 +39,16 @@ namespace oblo::vk
 
         h32<render_pass> register_render_pass(const render_pass_initializer& desc);
 
-        h32<render_pipeline> get_or_create_pipeline(
-            frame_allocator& allocator, h32<render_pass> handle, const render_pipeline_initializer& desc);
+        h32<render_pipeline> get_or_create_pipeline(h32<render_pass> handle, const render_pipeline_initializer& desc);
 
         void begin_rendering(render_pass_context& context, const VkRenderingInfo& renderingInfo) const;
-        void end_rendering(const render_pass_context& context) const;
+        void end_rendering(const render_pass_context& context);
 
-        void bind(const render_pass_context& context,
-            const resource_manager& resourceManager,
-            const mesh_table& meshTable) const;
+        void bind(
+            const render_pass_context& context, const resource_manager& resourceManager, const mesh_table& meshTable);
 
     private:
+        frame_allocator m_frameAllocator;
         VkDevice m_device{};
         u32 m_lastRenderPassId{};
         u32 m_lastRenderPipelineId{};
@@ -63,7 +62,6 @@ namespace oblo::vk
     {
         VkCommandBuffer commandBuffer;
         h32<render_pipeline> pipeline;
-        frame_allocator& frameAllocator;
         const render_pipeline* internalPipeline;
     };
 }

@@ -132,6 +132,11 @@ namespace oblo
         m_end = static_cast<u8*>(savePoint);
     }
 
+    void frame_allocator::restore_all()
+    {
+        m_end = m_virtualMemory;
+    }
+
     usize frame_allocator::get_committed_memory_size() const
     {
         return usize(m_commitEnd - m_virtualMemory);

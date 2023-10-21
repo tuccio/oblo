@@ -23,6 +23,7 @@ namespace oblo
         void free_unused();
 
         void restore(void* point);
+        void restore_all();
 
         usize get_committed_memory_size() const;
 
