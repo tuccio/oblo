@@ -56,7 +56,7 @@ namespace oblo::vk
     }
 
     void runtime_builder::create(
-        resource<texture> texture, const texture2d_initializer& initializer, resource_usage usage)
+        resource<texture> texture, const texture2d_initializer& initializer, resource_usage usage) const
     {
         const image_initializer imageInitializer{
             .imageType = VK_IMAGE_TYPE_2D,
@@ -79,7 +79,7 @@ namespace oblo::vk
         m_graph->add_resource_transition(texture, convert_layout(usage));
     }
 
-    void runtime_builder::acquire(resource<texture> texture, resource_usage usage)
+    void runtime_builder::acquire(resource<texture> texture, resource_usage usage) const
     {
         m_graph->add_resource_transition(texture, convert_layout(usage));
 

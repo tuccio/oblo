@@ -223,6 +223,7 @@ namespace oblo::vk
             auto& node = g.m_nodes.emplace_back();
             node.node = std::move(nodeDesc.node);
             node.typeId = type;
+            node.init = nodeDesc.init;
             node.build = nodeDesc.build;
             node.execute = nodeDesc.execute;
             node.destruct = nodeDesc.typeDesc.destruct;

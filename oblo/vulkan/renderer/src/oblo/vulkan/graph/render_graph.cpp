@@ -2,6 +2,7 @@
 
 #include <oblo/core/zip_range.hpp>
 #include <oblo/vulkan/graph/graph_data.hpp>
+#include <oblo/vulkan/graph/init_context.hpp>
 #include <oblo/vulkan/graph/resource_pool.hpp>
 #include <oblo/vulkan/graph/runtime_builder.hpp>
 #include <oblo/vulkan/graph/runtime_context.hpp>
@@ -67,9 +68,22 @@ namespace oblo::vk
         return m_pins[virtualTextureId.value].storageIndex;
     }
 
+    void render_graph::init(renderer& renderer)
+    {
+        const init_context context{renderer};
+
+        for (auto& node : m_nodes)
+        {
+            if (node.init)
+            {
+                node.init(node.node, context);
+            }
+        }
+    }
+
     void render_graph::build(resource_pool& resourcePool)
     {
-        runtime_builder builder{*this, resourcePool};
+        const runtime_builder builder{*this, resourcePool};
 
         m_nodeTransitions.assign(m_nodes.size(), node_transitions{});
         m_textureTransitions.clear();

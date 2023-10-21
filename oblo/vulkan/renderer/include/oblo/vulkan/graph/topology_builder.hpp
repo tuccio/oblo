@@ -132,6 +132,7 @@ namespace oblo::vk
             u32 firstPin;
             u32 lastPin;
             std::pmr::vector<pin_data> pins;
+            init_fn init;
             build_fn build;
             execute_fn execute;
         };
@@ -216,14 +217,20 @@ namespace oblo::vk
             nodeDesc.firstPin = firstPin;
             nodeDesc.lastPin = lastPin;
 
-            if constexpr (requires(T& node, runtime_builder& builder) { node.build(builder); })
+            if constexpr (requires(T& node, const init_context& context) { node.init(context); })
             {
-                nodeDesc.build = [](void* node, runtime_builder& builder) { static_cast<T*>(node)->build(builder); };
+                nodeDesc.init = [](void* node, const init_context& context) { static_cast<T*>(node)->init(context); };
             }
 
-            if constexpr (requires(T& node, runtime_context& context) { node.execute(context); })
+            if constexpr (requires(T& node, const runtime_builder& builder) { node.build(builder); })
             {
-                nodeDesc.execute = [](void* node, runtime_context& context)
+                nodeDesc.build = [](void* node, const runtime_builder& builder)
+                { static_cast<T*>(node)->build(builder); };
+            }
+
+            if constexpr (requires(T& node, const runtime_context& context) { node.execute(context); })
+            {
+                nodeDesc.execute = [](void* node, const runtime_context& context)
                 { static_cast<T*>(node)->execute(context); };
             }
         }
