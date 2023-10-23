@@ -204,19 +204,6 @@ namespace oblo::vk
                 return false;
             }
 
-            const auto showImgui = m_showImgui;
-
-            if (showImgui)
-            {
-                m_imgui.begin_frame();
-
-                const sandbox_update_imgui_context context{
-                    .vkContext = &m_context,
-                };
-
-                TApp::update_imgui(context);
-            }
-
             u32 imageIndex;
             begin_frame(&imageIndex);
 
@@ -233,13 +220,21 @@ namespace oblo::vk
             (static_cast<TApp*>(this)->*m_updateCb)(context);
             m_updateCb = &TApp::update;
 
-            if (showImgui)
+            auto& cb = m_context.get_active_command_buffer();
+
+            if (m_showImgui)
             {
-                auto& cb = m_context.get_active_command_buffer();
+                m_imgui.begin_frame();
+
+                const sandbox_update_imgui_context context{
+                    .vkContext = &m_context,
+                };
+
+                TApp::update_imgui(context);
+
                 m_imgui.end_frame(cb.get(), m_swapchain.get_image_view(imageIndex), m_renderWidth, m_renderHeight);
             }
 
-            auto& cb = m_context.get_active_command_buffer();
             cb.add_pipeline_barrier(m_resourceManager, swapchainTexture, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
             submit_and_present(imageIndex);

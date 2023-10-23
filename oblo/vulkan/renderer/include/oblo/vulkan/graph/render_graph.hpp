@@ -90,6 +90,7 @@ namespace oblo::vk
         void add_transient_resource(resource<texture> texture, u32 poolIndex);
         void add_resource_transition(resource<texture> texture, VkImageLayout target);
         u32 find_pool_index(resource<texture> texture) const;
+        u32 find_output_storage_index(std::string_view name) const;
 
         void flush_copies(stateful_command_buffer& commandBuffer, resource_manager& resourceManager);
 

@@ -43,6 +43,6 @@ namespace oblo::editor
         VkSampler m_sampler;
         h32<vk::texture> m_texture{};
         ecs::entity_registry* m_entities;
-        ecs::entity m_entity;
+        ecs::entity m_entity{};
     };
 }
