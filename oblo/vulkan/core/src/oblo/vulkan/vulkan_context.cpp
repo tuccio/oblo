@@ -5,6 +5,7 @@
 #include <oblo/vulkan/command_buffer_pool.hpp>
 #include <oblo/vulkan/destroy_device_objects.hpp>
 #include <oblo/vulkan/error.hpp>
+#include <oblo/vulkan/texture.hpp>
 
 namespace oblo::vk
 {
@@ -230,6 +231,11 @@ namespace oblo::vk
         m_allocationsToDestroy.emplace_back(allocation, submitIndex);
     }
 
+    void vulkan_context::destroy_deferred(h32<texture> texture, u64 submitIndex)
+    {
+        m_texturesToDestroy.emplace_back(texture, submitIndex);
+    }
+
     void vulkan_context::destroy_resources(u64 maxSubmitIndex)
     {
         auto destroyObjects = [maxSubmitIndex](auto& array, auto doDestroy)
@@ -266,5 +272,33 @@ namespace oblo::vk
 
         destroyObjects(m_allocationsToDestroy,
             [this](VmaAllocation allocation) { m_allocator->destroy_memory(allocation); });
+
+        destroyObjects(m_texturesToDestroy,
+            [this, device, allocationCbs](h32<texture> texture)
+            {
+                auto* t = m_resourceManager->try_find(texture);
+
+                if (!t)
+                {
+                    return;
+                }
+
+                if (auto image = t->image)
+                {
+                    vkDestroyImage(device, image, allocationCbs);
+                }
+
+                if (auto view = t->view)
+                {
+                    vkDestroyImageView(device, view, allocationCbs);
+                }
+
+                if (auto allocation = t->allocation)
+                {
+                    m_allocator->destroy_memory(allocation);
+                }
+
+                m_resourceManager->unregister_texture(texture);
+            });
     }
 }

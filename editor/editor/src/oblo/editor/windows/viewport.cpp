@@ -62,44 +62,78 @@ namespace oblo::editor
             const auto windowSize = ImVec2{regionMax.x - regionMin.x, regionMax.y - regionMin.y};
 
             // TODO: handle resize
-            if (!m_texture)
+            if (!m_entity)
+            {
+                m_entity = m_entities->create<graphics::viewport_component>();
+            }
+
+            auto& v = m_entities->get<graphics::viewport_component>(m_entity);
+            const auto lastWidth = v.width;
+            const auto lastHeight = v.height;
+
+            v.width = u32(windowSize.x);
+            v.height = u32(windowSize.y);
+
+            auto& resourceManager = m_ctx->get_resource_manager();
+            auto& cb = m_ctx->get_active_command_buffer();
+
+            if (lastWidth != v.width || lastHeight != v.height || !m_texture)
             {
                 const auto result = vk::create_2d_render_target(m_ctx->get_allocator(),
                     u32(windowSize.x),
                     u32(windowSize.y),
                     VK_FORMAT_R8G8B8A8_UNORM,
-                    VK_IMAGE_USAGE_SAMPLED_BIT,
+                    VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
                     VK_IMAGE_ASPECT_COLOR_BIT);
 
                 if (result)
                 {
-                    m_texture = m_ctx->get_resource_manager().register_texture(*result, VK_IMAGE_LAYOUT_UNDEFINED);
+                    if (m_texture)
+                    {
+                        // auto& oldTexture = resourceManager.get(m_texture);
+                        const auto submitIndex = m_ctx->get_submit_index();
+                        // m_ctx->destroy_deferred(oldTexture.image, submitIndex);
+                        // m_ctx->destroy_deferred(oldTexture.view, submitIndex);
+                        // m_ctx->destroy_deferred(oldTexture.allocation, submitIndex);
+                        m_ctx->destroy_deferred(m_texture, submitIndex);
+                    }
+
+                    if (m_descriptorSet)
+                    {
+                        // TODO: Sync in a better way
+                        vkDeviceWaitIdle(m_ctx->get_device());
+                        ImGui_ImplVulkan_RemoveTexture(m_descriptorSet);
+                    }
+
+                    m_texture = resourceManager.register_texture(*result, VK_IMAGE_LAYOUT_UNDEFINED);
                     m_descriptorSet =
                         ImGui_ImplVulkan_AddTexture(m_sampler, result->view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-                }
 
-                const auto e = m_entities->create<graphics::viewport_component>();
-                auto& v = m_entities->get<graphics::viewport_component>(e);
-                v.texture = m_texture;
-                v.width = u32(windowSize.x);
-                v.height = u32(windowSize.y);
-                m_entity = e;
+                    constexpr VkClearColorValue black{};
+                    constexpr VkImageSubresourceRange range{
+                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .baseMipLevel = 0,
+                        .levelCount = 1,
+                        .baseArrayLayer = 0,
+                        .layerCount = 1,
+                    };
+
+                    cb.add_pipeline_barrier(resourceManager, m_texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+                    vkCmdClearColorImage(cb.get(),
+                        result->image,
+                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        &black,
+                        1,
+                        &range);
+                }
             }
-            else
-            {
-                auto& v = m_entities->get<graphics::viewport_component>(m_entity);
-                v.width = u32(windowSize.x);
-                v.height = u32(windowSize.y);
-            }
+
+            v.texture = m_texture;
 
             if (m_descriptorSet)
             {
-                auto& cb = m_ctx->get_active_command_buffer();
-
-                cb.add_pipeline_barrier(m_ctx->get_resource_manager(),
-                    m_texture,
-                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
+                cb.add_pipeline_barrier(resourceManager, m_texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
                 ImGui::Image(m_descriptorSet, windowSize);
             }
 

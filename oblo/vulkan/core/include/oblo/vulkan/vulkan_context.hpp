@@ -48,6 +48,7 @@ namespace oblo::vk
         void destroy_deferred(VkImage image, u64 submitIndex);
         void destroy_deferred(VkImageView image, u64 submitIndex);
         void destroy_deferred(VmaAllocation allocation, u64 submitIndex);
+        void destroy_deferred(h32<texture> texture, u64 submitIndex);
 
     private:
         struct submit_info;
@@ -79,6 +80,7 @@ namespace oblo::vk
         std::vector<pending_disposal<VkImage>> m_imagesToDestroy;
         std::vector<pending_disposal<VkImageView>> m_imageViewsToDestroy;
         std::vector<pending_disposal<VmaAllocation>> m_allocationsToDestroy;
+        std::vector<pending_disposal<h32<texture>>> m_texturesToDestroy;
     };
 
     struct vulkan_context::initializer

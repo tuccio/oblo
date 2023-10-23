@@ -14,7 +14,7 @@ namespace oblo::vk
     struct render_graph::pending_copy
     {
         h32<texture> target;
-        const h32<texture>* source;
+        u32 sourceStorageIndex;
     };
 
     render_graph::render_graph() = default;
@@ -125,6 +125,12 @@ namespace oblo::vk
                 nodeTransitions.lastTextureTransition = u32(m_textureTransitions.size());
             }
         }
+
+        for (const auto& pendingCopy : m_pendingCopies)
+        {
+            const u32 poolIndex = m_resourcePoolId[pendingCopy.sourceStorageIndex];
+            resourcePool.add_usage(poolIndex, VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+        }
     }
 
     void render_graph::execute(renderer& renderer, resource_pool& resourcePool)
@@ -175,9 +181,9 @@ namespace oblo::vk
 
     void render_graph::flush_copies(stateful_command_buffer& commandBuffer, resource_manager& resourceManager)
     {
-        for (const auto [target, sourcePtr] : m_pendingCopies)
+        for (const auto [target, storageIndex] : m_pendingCopies)
         {
-            const h32<texture> source = *sourcePtr;
+            const h32<texture> source = *reinterpret_cast<h32<texture>*>(m_pinStorage[storageIndex].ptr);
 
             const texture& sourceTex = resourceManager.get(source);
             const texture& targetTex = resourceManager.get(target);
@@ -214,14 +220,14 @@ namespace oblo::vk
 
     bool render_graph::copy_output(std::string_view name, h32<texture> target)
     {
-        auto* const output = find_output<h32<texture>>(name);
+        u32 storageIndex = find_output_storage_index(name);
 
-        if (!output)
+        if (storageIndex == 0)
         {
             return false;
         }
 
-        m_pendingCopies.emplace_back(target, output);
+        m_pendingCopies.emplace_back(target, storageIndex);
         return true;
     }
 
@@ -249,5 +255,19 @@ namespace oblo::vk
     {
         const u32 storageIndex = m_pins[texture.value].storageIndex;
         return m_resourcePoolId[storageIndex];
+    }
+
+    u32 render_graph::find_output_storage_index(std::string_view name) const
+    {
+        for (auto& output : m_outputs)
+        {
+            if (output.name == name)
+            {
+                return output.storageIndex;
+            }
+        }
+
+        // Zero is used as invalid value for pin storage
+        return 0u;
     }
 }
