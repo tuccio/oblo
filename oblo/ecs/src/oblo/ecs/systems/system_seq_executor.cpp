@@ -16,10 +16,7 @@ namespace oblo::ecs
 
     system_seq_executor::~system_seq_executor()
     {
-        for (const auto& [desc, system] : m_systems)
-        {
-            desc.destroy(system);
-        }
+        shutdown();
     }
 
     system_seq_executor& system_seq_executor::operator=(system_seq_executor&&) noexcept = default;
@@ -33,6 +30,16 @@ namespace oblo::ecs
         {
             (desc.*updateFunc)(system, &ctx);
         }
+    }
+
+    void system_seq_executor::shutdown()
+    {
+        for (const auto& [desc, system] : m_systems)
+        {
+            desc.destroy(system);
+        }
+
+        m_systems.clear();
     }
 
     void system_seq_executor::push(const system_descriptor& desc)

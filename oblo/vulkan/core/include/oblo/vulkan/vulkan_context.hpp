@@ -8,6 +8,7 @@
 #include <oblo/vulkan/single_queue_engine.hpp>
 #include <oblo/vulkan/stateful_command_buffer.hpp>
 
+#include <memory>
 #include <vector>
 
 namespace oblo::vk
@@ -47,14 +48,15 @@ namespace oblo::vk
 
         void destroy_deferred(VkImage image, u64 submitIndex);
         void destroy_deferred(VkImageView image, u64 submitIndex);
+        void destroy_deferred(VkDescriptorSet descriptorSet, VkDescriptorPool pool, u64 submitIndex);
+        void destroy_deferred(VkDescriptorPool pool, u64 submitIndex);
+        void destroy_deferred(VkDescriptorSetLayout setLayout, u64 submitIndex);
+        void destroy_deferred(VkSampler sampler, u64 submitIndex);
         void destroy_deferred(VmaAllocation allocation, u64 submitIndex);
         void destroy_deferred(h32<texture> texture, u64 submitIndex);
 
     private:
         struct submit_info;
-
-        template <typename T>
-        struct pending_disposal;
 
     private:
         void destroy_resources(u64 maxSubmitIndex);
@@ -77,10 +79,8 @@ namespace oblo::vk
         // We want the submit index to start from more than 0, which is the starting value of the semaphore
         u64 m_submitIndex{1};
 
-        std::vector<pending_disposal<VkImage>> m_imagesToDestroy;
-        std::vector<pending_disposal<VkImageView>> m_imageViewsToDestroy;
-        std::vector<pending_disposal<VmaAllocation>> m_allocationsToDestroy;
-        std::vector<pending_disposal<h32<texture>>> m_texturesToDestroy;
+        struct pending_disposal_queues;
+        std::unique_ptr<pending_disposal_queues> m_pending;
     };
 
     struct vulkan_context::initializer

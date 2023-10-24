@@ -22,6 +22,7 @@ namespace oblo::ecs
         system_seq_executor& operator=(system_seq_executor&&) noexcept;
 
         void update(const system_update_context& ctx);
+        void shutdown();
 
     private:
         friend class system_graph;

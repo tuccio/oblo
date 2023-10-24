@@ -66,7 +66,7 @@ namespace oblo::editor
         m_windowManager.create_window<asset_browser>(engine->get_asset_registry());
         m_windowManager.create_window<inspector>();
         m_windowManager.create_window<scene_hierarchy>();
-        m_windowManager.create_window<viewport>(*ctx.vkContext, m_entities);
+        m_windowManager.create_window<viewport>(m_entities);
         // m_windowManager.create_window<style_window>();
 
         m_services.add<vk::vulkan_context>().externally_owned(ctx.vkContext);
@@ -79,6 +79,7 @@ namespace oblo::editor
 
     void app::shutdown(const vk::sandbox_shutdown_context&)
     {
+        m_executor.shutdown();
         m_windowManager.shutdown();
         m_renderer.shutdown();
         platform::shutdown();

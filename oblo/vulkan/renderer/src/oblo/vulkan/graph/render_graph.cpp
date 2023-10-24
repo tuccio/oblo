@@ -15,6 +15,7 @@ namespace oblo::vk
     {
         h32<texture> target;
         u32 sourceStorageIndex;
+        VkImageLayout transitionAfterCopy;
     };
 
     render_graph::render_graph() = default;
@@ -181,7 +182,7 @@ namespace oblo::vk
 
     void render_graph::flush_copies(stateful_command_buffer& commandBuffer, resource_manager& resourceManager)
     {
-        for (const auto [target, storageIndex] : m_pendingCopies)
+        for (const auto [target, storageIndex, transitionAfterCopy] : m_pendingCopies)
         {
             const h32<texture> source = *reinterpret_cast<h32<texture>*>(m_pinStorage[storageIndex].ptr);
 
@@ -213,12 +214,17 @@ namespace oblo::vk
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                 1,
                 &copy);
+
+            if (transitionAfterCopy != VK_IMAGE_LAYOUT_UNDEFINED)
+            {
+                commandBuffer.add_pipeline_barrier(resourceManager, target, transitionAfterCopy);
+            }
         }
 
         m_pendingCopies.clear();
     }
 
-    bool render_graph::copy_output(std::string_view name, h32<texture> target)
+    bool render_graph::copy_output(std::string_view name, h32<texture> target, VkImageLayout transitionAfterCopy)
     {
         u32 storageIndex = find_output_storage_index(name);
 
@@ -227,7 +233,7 @@ namespace oblo::vk
             return false;
         }
 
-        m_pendingCopies.emplace_back(target, storageIndex);
+        m_pendingCopies.emplace_back(target, storageIndex, transitionAfterCopy);
         return true;
     }
 

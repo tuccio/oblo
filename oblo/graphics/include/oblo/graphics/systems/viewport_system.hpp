@@ -33,9 +33,19 @@ namespace oblo::graphics
         void update(const ecs::system_update_context& ctx);
 
     private:
-        vk::renderer* m_renderer{nullptr};
-
         struct render_graph_data;
+
+    private:
+        void create_vulkan_objects();
+
+        void destroy_graph_vulkan_objects(render_graph_data& renderGraphData);
+
+    private:
+        vk::renderer* m_renderer{nullptr};
+        VkDescriptorPool m_descriptorPool{};
+        VkDescriptorSetLayout m_descriptorSetLayout{};
+        VkSampler m_sampler{};
+
         flat_dense_map<ecs::entity, render_graph_data> m_renderGraphs;
     };
 };
