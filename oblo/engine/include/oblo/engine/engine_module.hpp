@@ -41,11 +41,11 @@ namespace oblo::engine
 
         resource::resource_registry& get_resource_registry() const
         {
-            return *m_resourceregistry;
+            return *m_resourceRegistry;
         }
 
     private:
         std::unique_ptr<asset::asset_registry> m_assetRegistry;
-        std::unique_ptr<resource::resource_registry> m_resourceregistry;
+        std::unique_ptr<resource::resource_registry> m_resourceRegistry;
     };
 }

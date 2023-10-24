@@ -202,10 +202,24 @@ namespace oblo::asset
             return false;
         }
 
+        std::error_code ec;
+
         m_impl = std::make_unique<impl>();
-        m_impl->assetsDir = assetsDir;
-        m_impl->artifactsDir = artifactsDir;
-        m_impl->sourceFilesDir = sourceFilesDir;
+
+        if (m_impl->assetsDir = std::filesystem::absolute(assetsDir, ec); ec)
+        {
+            return false;
+        }
+
+        if (m_impl->artifactsDir = std::filesystem::absolute(artifactsDir, ec); ec)
+        {
+            return false;
+        }
+
+        if (m_impl->sourceFilesDir = std::filesystem::absolute(sourceFilesDir, ec); ec)
+        {
+            return false;
+        }
 
         return true;
     }
