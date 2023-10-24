@@ -16,11 +16,34 @@ namespace oblo::vk
         u64 submitIndex{0};
     };
 
-    template <typename T>
-    struct vulkan_context::pending_disposal
+    namespace
     {
-        T object;
-        u64 frameIndex;
+        template <typename T>
+        struct pending_disposal
+        {
+            T object;
+            u64 frameIndex;
+        };
+
+        template <>
+        struct pending_disposal<VkDescriptorSet>
+        {
+            VkDescriptorSet object;
+            VkDescriptorPool pool;
+            u64 frameIndex;
+        };
+    }
+
+    struct vulkan_context::pending_disposal_queues
+    {
+        std::vector<pending_disposal<VkImage>> images;
+        std::vector<pending_disposal<VkImageView>> imageViews;
+        std::vector<pending_disposal<VkDescriptorSet>> descriptorSets;
+        std::vector<pending_disposal<VkDescriptorPool>> descriptorPools;
+        std::vector<pending_disposal<VkDescriptorSetLayout>> descriptorSetLayouts;
+        std::vector<pending_disposal<VkSampler>> samplers;
+        std::vector<pending_disposal<VmaAllocation>> allocations;
+        std::vector<pending_disposal<h32<texture>>> textures;
     };
 
     vulkan_context::vulkan_context() = default;
@@ -83,6 +106,8 @@ namespace oblo::vk
                 return false;
             }
         }
+
+        m_pending = std::make_unique<pending_disposal_queues>();
 
         return true;
     }
@@ -218,62 +243,106 @@ namespace oblo::vk
 
     void vulkan_context::destroy_deferred(VkImage image, u64 submitIndex)
     {
-        m_imagesToDestroy.emplace_back(image, submitIndex);
+        m_pending->images.emplace_back(image, submitIndex);
     }
 
     void vulkan_context::destroy_deferred(VkImageView imageView, u64 submitIndex)
     {
-        m_imageViewsToDestroy.emplace_back(imageView, submitIndex);
+        m_pending->imageViews.emplace_back(imageView, submitIndex);
+    }
+
+    void vulkan_context::destroy_deferred(VkDescriptorSet descriptorSet, VkDescriptorPool pool, u64 submitIndex)
+    {
+        m_pending->descriptorSets.emplace_back(descriptorSet, pool, submitIndex);
+    }
+
+    void vulkan_context::destroy_deferred(VkDescriptorPool pool, u64 submitIndex)
+    {
+        m_pending->descriptorPools.emplace_back(pool, submitIndex);
+    }
+
+    void vulkan_context::destroy_deferred(VkDescriptorSetLayout setLayout, u64 submitIndex)
+    {
+        m_pending->descriptorSetLayouts.emplace_back(setLayout, submitIndex);
+    }
+
+    void vulkan_context::destroy_deferred(VkSampler sampler, u64 submitIndex)
+    {
+        m_pending->samplers.emplace_back(sampler, submitIndex);
     }
 
     void vulkan_context::destroy_deferred(VmaAllocation allocation, u64 submitIndex)
     {
-        m_allocationsToDestroy.emplace_back(allocation, submitIndex);
+        m_pending->allocations.emplace_back(allocation, submitIndex);
     }
 
     void vulkan_context::destroy_deferred(h32<texture> texture, u64 submitIndex)
     {
-        m_texturesToDestroy.emplace_back(texture, submitIndex);
+        m_pending->textures.emplace_back(texture, submitIndex);
     }
 
     void vulkan_context::destroy_resources(u64 maxSubmitIndex)
     {
         auto destroyObjects = [maxSubmitIndex](auto& array, auto doDestroy)
         {
-            u32 destroyedImages{0};
+            u32 destroyedObjects{0};
 
-            for (const auto [image, submitIndex] : array)
+            for (const auto& pending : array)
             {
                 // Not quite perfect because we don't always insert in order,
                 // but it might be good enough for now
-                if (submitIndex >= maxSubmitIndex)
+                if (pending.frameIndex >= maxSubmitIndex)
                 {
-                    return;
+                    break;
                 }
 
-                doDestroy(image);
-                ++destroyedImages;
+                if constexpr (requires { [&] { auto&& [object, frameIndex] = pending; }; })
+                {
+                    auto&& [object, frameIndex] = pending;
+                    doDestroy(object);
+                }
+                else
+                {
+                    auto&& [object, secondaryObject, frameIndex] = pending;
+                    doDestroy(object, secondaryObject);
+                }
+
+                ++destroyedObjects;
             }
 
-            if (destroyedImages > 0)
+            if (destroyedObjects > 0)
             {
-                array.erase(array.begin(), array.begin() + destroyedImages);
+                array.erase(array.begin(), array.begin() + destroyedObjects);
             }
         };
 
         const VkDevice device = get_device();
         auto* const allocationCbs = m_allocator->get_allocation_callbacks();
 
-        destroyObjects(m_imagesToDestroy,
+        destroyObjects(m_pending->images,
             [device, allocationCbs](VkImage image) { vkDestroyImage(device, image, allocationCbs); });
 
-        destroyObjects(m_imageViewsToDestroy,
+        destroyObjects(m_pending->imageViews,
             [device, allocationCbs](VkImageView imageView) { vkDestroyImageView(device, imageView, allocationCbs); });
 
-        destroyObjects(m_allocationsToDestroy,
+        destroyObjects(m_pending->descriptorSets,
+            [device](VkDescriptorSet descriptorSet, VkDescriptorPool pool)
+            { vkFreeDescriptorSets(device, pool, 1, &descriptorSet); });
+
+        destroyObjects(m_pending->descriptorPools,
+            [device, allocationCbs](VkDescriptorPool pool) { vkDestroyDescriptorPool(device, pool, allocationCbs); });
+
+        destroyObjects(m_pending->descriptorSetLayouts,
+            [device, allocationCbs](VkDescriptorSetLayout setLayout)
+            { vkDestroyDescriptorSetLayout(device, setLayout, allocationCbs); });
+
+        destroyObjects(m_pending->samplers,
+            [device, allocationCbs](VkSampler sampler) { vkDestroySampler(device, sampler, allocationCbs); });
+
+        destroyObjects(m_pending->allocations,
             [this](VmaAllocation allocation) { m_allocator->destroy_memory(allocation); });
 
-        destroyObjects(m_texturesToDestroy,
+        destroyObjects(m_pending->textures,
             [this, device, allocationCbs](h32<texture> texture)
             {
                 auto* t = m_resourceManager->try_find(texture);

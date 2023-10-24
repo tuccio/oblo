@@ -3,22 +3,9 @@
 #include <oblo/core/handle.hpp>
 #include <oblo/ecs/handles.hpp>
 
-#include <vulkan/vulkan.h>
-
-namespace oblo
-{
-    class service_registry;
-}
-
 namespace oblo::ecs
 {
     class entity_registry;
-}
-
-namespace oblo::vk
-{
-    class vulkan_context;
-    struct texture;
 }
 
 namespace oblo::editor
@@ -27,7 +14,7 @@ namespace oblo::editor
     {
     public:
         viewport() = delete;
-        viewport(vk::vulkan_context& context, ecs::entity_registry& entities);
+        viewport(ecs::entity_registry& entities);
         viewport(const viewport&) = delete;
         viewport(viewport&&) noexcept = delete;
         ~viewport();
@@ -38,10 +25,6 @@ namespace oblo::editor
         bool update();
 
     private:
-        vk::vulkan_context* m_ctx;
-        VkDescriptorSet m_descriptorSet{};
-        VkSampler m_sampler;
-        h32<vk::texture> m_texture{};
         ecs::entity_registry* m_entities;
         ecs::entity m_entity{};
     };

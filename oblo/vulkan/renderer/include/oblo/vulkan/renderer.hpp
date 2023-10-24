@@ -41,6 +41,7 @@ namespace oblo::vk
         void shutdown();
         void update();
 
+        vulkan_context& get_vulkan_context();
         single_queue_engine& get_engine();
         allocator& get_allocator();
         resource_manager& get_resource_manager();
@@ -78,6 +79,11 @@ namespace oblo::vk
         vulkan_context& vkContext;
         frame_allocator& frameAllocator;
     };
+
+    inline vulkan_context& renderer::get_vulkan_context()
+    {
+        return *m_vkContext;
+    }
 
     inline string_interner& renderer::get_string_interner()
     {

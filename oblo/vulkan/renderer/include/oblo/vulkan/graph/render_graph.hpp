@@ -82,7 +82,7 @@ namespace oblo::vk
 
         void execute(renderer& renderer, resource_pool& resourcePool);
 
-        bool copy_output(std::string_view name, h32<texture> target);
+        bool copy_output(std::string_view name, h32<texture> target, VkImageLayout transitionAfterCopy);
 
     private:
         void* access_resource_storage(u32 h) const;
