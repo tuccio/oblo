@@ -118,13 +118,12 @@ namespace oblo::vk
         // Add space for alignment
         newRequirements.size += (newRequirements.alignment - 1) * m_textureResources.size();
 
-        // TODO: Store it, determine when to free it
-        const auto allocation = allocator.create_memory(newRequirements, memory_usage::gpu_only);
+        m_allocation = allocator.create_memory(newRequirements, memory_usage::gpu_only);
 
         VkDeviceSize offset{0};
         for (auto& textureResource : m_textureResources)
         {
-            OBLO_VK_PANIC(allocator.bind_image_memory(textureResource.image, allocation, offset));
+            OBLO_VK_PANIC(allocator.bind_image_memory(textureResource.image, m_allocation, offset));
             offset += textureResource.size + textureResource.size % newRequirements.alignment;
 
             const VkFormat format{textureResource.initializer.format};
