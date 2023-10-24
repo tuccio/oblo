@@ -209,8 +209,11 @@ namespace oblo::graphics
 
                 constexpr auto viewportImageLayout{VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
 
-                if (!renderGraphData->texture || renderGraphData->width != viewport.width ||
-                    renderGraphData->height != viewport.height)
+                const u32 renderWidth = max(viewport.width, 1u);
+                const u32 renderHeight = max(viewport.height, 1u);
+
+                if (!renderGraphData->texture || renderGraphData->width != renderWidth ||
+                    renderGraphData->height != renderHeight)
                 {
                     // TODO: If descriptor set already exists, destroy
                     // TODO: If texture already exists, unregister and dstroy
@@ -218,8 +221,8 @@ namespace oblo::graphics
                     destroy_graph_vulkan_objects(*renderGraphData);
 
                     const auto result = vk::create_2d_render_target(m_renderer->get_allocator(),
-                        viewport.width,
-                        viewport.height,
+                        renderWidth,
+                        renderHeight,
                         VK_FORMAT_R8G8B8A8_UNORM,
                         VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
                         VK_IMAGE_ASPECT_COLOR_BIT);
@@ -253,8 +256,8 @@ namespace oblo::graphics
 
                     vkUpdateDescriptorSets(device, 1, writeDesc, 0, nullptr);
 
-                    renderGraphData->width = viewport.width;
-                    renderGraphData->height = viewport.height;
+                    renderGraphData->width = renderWidth;
+                    renderGraphData->height = renderHeight;
                     renderGraphData->texture = rm.register_texture(*result, VK_IMAGE_LAYOUT_UNDEFINED);
 
                     viewport.imageId = renderGraphData->descriptorSet;
@@ -262,10 +265,13 @@ namespace oblo::graphics
 
                 if (auto* const resolution = graph->find_input<vec2u>(InResolution))
                 {
-                    *resolution = vec2u{viewport.width, viewport.height};
+                    *resolution = vec2u{renderWidth, renderHeight};
                 }
 
-                graph->copy_output(OutFinalRenderTarget, renderGraphData->texture, viewportImageLayout);
+                if (renderGraphData->texture)
+                {
+                    graph->copy_output(OutFinalRenderTarget, renderGraphData->texture, viewportImageLayout);
+                }
             }
         }
 
