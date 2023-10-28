@@ -23,6 +23,14 @@ namespace oblo::ecs
             bitset[block] |= mask;
         }
 
+        void add(const type_set& other)
+        {
+            for (u32 i = 0; i < BlocksCount; ++i)
+            {
+                bitset[i] |= other.bitset[i];
+            }
+        }
+
         constexpr bool is_empty() const
         {
             return *this == type_set{};

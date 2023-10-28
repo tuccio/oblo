@@ -13,6 +13,7 @@
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/graph/render_graph.hpp>
 #include <oblo/vulkan/graph/topology_builder.hpp>
+#include <oblo/vulkan/nodes/debug_draw_all.hpp>
 #include <oblo/vulkan/nodes/debug_triangle_node.hpp>
 #include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/renderer_context.hpp>
@@ -180,6 +181,7 @@ namespace oblo::graphics
 
                 if (!renderGraphData)
                 {
+#if 0
                     expected res = topology_builder{}
                                        .add_node<debug_triangle_node>()
                                        .add_output<h32<texture>>(OutFinalRenderTarget)
@@ -187,6 +189,15 @@ namespace oblo::graphics
                                        .connect_output(&debug_triangle_node::outRenderTarget, OutFinalRenderTarget)
                                        .connect_input(InResolution, &debug_triangle_node::inResolution)
                                        .build();
+#else
+                    expected res = topology_builder{}
+                                       .add_node<debug_draw_all>()
+                                       .add_output<h32<texture>>(OutFinalRenderTarget)
+                                       .add_input<vec2u>(InResolution)
+                                       .connect_output(&debug_draw_all::outRenderTarget, OutFinalRenderTarget)
+                                       .connect_input(InResolution, &debug_draw_all::inResolution)
+                                       .build();
+#endif
 
                     if (!res)
                     {

@@ -62,6 +62,8 @@ namespace oblo::vk
 
         i32 find_vertex_attribute(h32<string> name) const;
 
+        VkIndexType get_index_type() const;
+
     private:
         struct buffer_range
         {
@@ -80,5 +82,6 @@ namespace oblo::vk
         u32 m_indexByteSize{0u};
         h32<buffer> m_indexBuffer{};
         h32<buffer> m_buffer{};
+        VkIndexType m_indexType{VK_INDEX_TYPE_MAX_ENUM};
     };
 }

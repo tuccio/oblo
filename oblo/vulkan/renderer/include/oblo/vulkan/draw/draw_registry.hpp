@@ -17,6 +17,7 @@ namespace oblo::resource
 
 namespace oblo::vk
 {
+    class mesh_table;
     class staging_buffer;
     class vulkan_context;
     struct buffer_column_description;
@@ -53,6 +54,8 @@ namespace oblo::vk
         void destroy_instance(h32<draw_instance> id);
 
         h32<draw_buffer> get_or_register(const draw_buffer& buffer);
+
+        const mesh_table* try_get_mesh_table(u32 id) const;
 
     private:
         struct mesh_batch;

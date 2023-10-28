@@ -172,7 +172,7 @@ namespace oblo::ecs
     template <typename... ComponentOrTags>
     entity_registry::typed_range<Components...>& entity_registry::typed_range<Components...>::with()
     {
-        const auto includes = make_type_sets<Components...>(*m_typeRegistry);
+        const auto includes = make_type_sets<Components...>(*m_registry->m_typeRegistry);
 
         m_include.components.add(includes.components);
         m_include.tags.add(includes.tags);
@@ -184,10 +184,10 @@ namespace oblo::ecs
     template <typename... ComponentOrTags>
     entity_registry::typed_range<Components...>& entity_registry::typed_range<Components...>::exclude()
     {
-        const auto excludes = make_type_sets<Components...>(*m_typeRegistry);
+        const auto excludes = make_type_sets<Components...>(*m_registry->m_typeRegistry);
 
-        m_excludes.components.add(includes.components);
-        m_excludes.tags.add(includes.tags);
+        m_exclude.components.add(excludes.components);
+        m_exclude.tags.add(excludes.tags);
 
         return *this;
     }
