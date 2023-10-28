@@ -9,6 +9,7 @@ target_link_libraries(
     PRIVATE
     oblo::resource
     oblo::scene
+    efsw::efsw
     spirv-cross::spirv-cross
 )
 

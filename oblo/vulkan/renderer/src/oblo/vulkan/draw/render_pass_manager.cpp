@@ -12,6 +12,8 @@
 #include <oblo/vulkan/draw/render_pass_initializer.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 
+#include <efsw/efsw.hpp>
+
 #include <spirv_cross/spirv_cross.hpp>
 
 namespace oblo::vk
@@ -86,6 +88,16 @@ namespace oblo::vk
         {
             return type.columns * type.vecsize * type.width / 8;
         }
+
+        struct watch_listener final : efsw::FileWatchListener
+        {
+            void handleFileAction(efsw::WatchID, const std::string&, const std::string&, efsw::Action, std::string)
+            {
+                anyEvent = true;
+            }
+
+            std::atomic<bool> anyEvent{};
+        };
     }
 
     struct render_pass
@@ -97,6 +109,8 @@ namespace oblo::vk
         u8 stagesCount{0};
 
         std::vector<render_pass_variant> variants;
+
+        std::unique_ptr<watch_listener> watcher;
     };
 
     struct render_pipeline
@@ -136,6 +150,10 @@ namespace oblo::vk
         }
     }
 
+    struct render_pass_manager::file_watcher final : efsw::FileWatcher
+    {
+    };
+
     render_pass_manager::render_pass_manager() = default;
     render_pass_manager::~render_pass_manager() = default;
 
@@ -151,6 +169,9 @@ namespace oblo::vk
         {
             shader_compiler::init();
         }
+
+        m_fileWatcher = std::make_unique<file_watcher>();
+        m_fileWatcher->watch();
     }
 
     void render_pass_manager::shutdown()
@@ -180,12 +201,15 @@ namespace oblo::vk
         renderPass.name = m_interner->get_or_add(desc.name);
 
         renderPass.stagesCount = 0;
+        renderPass.watcher = std::make_unique<watch_listener>();
 
         for (const auto& stage : desc.stages)
         {
             renderPass.shaderSourcePath[renderPass.stagesCount] = stage.shaderSourcePath;
             renderPass.stages[renderPass.stagesCount] = stage.stage;
             ++renderPass.stagesCount;
+
+            m_fileWatcher->addWatch(stage.shaderSourcePath.parent_path().string(), renderPass.watcher.get());
         }
 
         return handle;
@@ -199,6 +223,21 @@ namespace oblo::vk
         if (!renderPass)
         {
             return {};
+        }
+
+        if (bool expected{true}; renderPass->watcher->anyEvent.compare_exchange_weak(expected, false))
+        {
+            for (auto& variant : renderPass->variants)
+            {
+                if (auto* const pipeline = m_renderPipelines.try_find(variant.pipeline))
+                {
+                    // TODO: Does destruction need to be deferred?
+                    m_renderPipelines.erase(variant.pipeline);
+                    destroy_pipeline(m_device, *pipeline);
+                }
+
+                renderPass->variants.clear();
+            }
         }
 
         // TODO: We need to consider the initializer, for now we'd only end up with one variant
@@ -523,15 +562,21 @@ namespace oblo::vk
         return failure();
     }
 
-    void render_pass_manager::begin_rendering(render_pass_context& context, const VkRenderingInfo& renderingInfo) const
+    bool render_pass_manager::begin_rendering(render_pass_context& context, const VkRenderingInfo& renderingInfo) const
     {
         const auto* pipeline = m_renderPipelines.try_find(context.pipeline);
-        OBLO_ASSERT(pipeline);
+
+        if (!pipeline)
+        {
+            return false;
+        }
+
         context.internalPipeline = pipeline;
 
         const auto commandBuffer = context.commandBuffer;
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline);
         vkCmdBeginRendering(commandBuffer, &renderingInfo);
+        return true;
     }
 
     void render_pass_manager::end_rendering(const render_pass_context& context)
