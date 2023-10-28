@@ -4,8 +4,11 @@ target_link_libraries(
     oblo_vk_renderer
     PUBLIC
     oblo::core
+    oblo::ecs
     oblo::vk
     PRIVATE
+    oblo::resource
+    oblo::scene
     spirv-cross::spirv-cross
 )
 

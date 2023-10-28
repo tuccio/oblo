@@ -2,7 +2,7 @@
 
 #include <oblo/core/handle.hpp>
 #include <oblo/core/string_interner.hpp>
-#include <oblo/vulkan/draw/mesh_table.hpp>
+#include <oblo/vulkan/draw/draw_registry.hpp>
 #include <oblo/vulkan/draw/render_pass_manager.hpp>
 #include <oblo/vulkan/graph/resource_pool.hpp>
 #include <oblo/vulkan/renderer_context.hpp>
@@ -47,7 +47,7 @@ namespace oblo::vk
         resource_manager& get_resource_manager();
         string_interner& get_string_interner();
         render_pass_manager& get_render_pass_manager();
-        mesh_table& get_mesh_table();
+        draw_registry& get_draw_registry();
         staging_buffer& get_staging_buffer();
         stateful_command_buffer& get_active_command_buffer();
 
@@ -61,8 +61,8 @@ namespace oblo::vk
     private:
         vulkan_context* m_vkContext{nullptr};
 
-        mesh_table m_meshes;
         staging_buffer m_stagingBuffer;
+        draw_registry m_drawRegistry;
 
         string_interner m_stringInterner;
         render_pass_manager m_renderPassManager;
@@ -95,9 +95,9 @@ namespace oblo::vk
         return m_renderPassManager;
     }
 
-    inline mesh_table& renderer::get_mesh_table()
+    inline draw_registry& renderer::get_draw_registry()
     {
-        return m_meshes;
+        return m_drawRegistry;
     }
 
     inline staging_buffer& renderer::get_staging_buffer()

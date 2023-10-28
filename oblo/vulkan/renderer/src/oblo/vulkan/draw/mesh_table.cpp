@@ -7,8 +7,7 @@
 
 namespace oblo::vk
 {
-    bool mesh_table::init(frame_allocator& frameAllocator,
-        std::span<const buffer_column_description> columns,
+    bool mesh_table::init(std::span<const buffer_column_description> columns,
         allocator& allocator,
         resource_manager& resourceManager,
         VkBufferUsageFlags bufferUsage,
@@ -32,8 +31,7 @@ namespace oblo::vk
                 .memoryUsage = memory_usage::gpu_only,
             });
 
-        if (!m_buffers
-                 .init(frameAllocator, resourceManager.get(m_buffer), columns, resourceManager, numVertices, alignment))
+        if (!m_buffers.init(resourceManager.get(m_buffer), columns, resourceManager, numVertices, alignment))
         {
             resourceManager.destroy(allocator, m_buffer);
             m_buffer = {};

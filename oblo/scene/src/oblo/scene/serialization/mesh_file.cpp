@@ -1,5 +1,6 @@
 #include <oblo/scene/serialization/mesh_file.hpp>
 
+#include <oblo/core/data_format.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/scene/assets/mesh.hpp>
 
@@ -93,44 +94,44 @@ namespace oblo::scene
 
         data_format convert_data_format(int componentType)
         {
-            scene::data_format format;
+            data_format format;
 
             switch (componentType)
             {
             case TINYGLTF_COMPONENT_TYPE_BYTE:
-                format = scene::data_format::i8;
+                format = data_format::i8;
                 break;
 
             case TINYGLTF_COMPONENT_TYPE_SHORT:
-                format = scene::data_format::i16;
+                format = data_format::i16;
                 break;
 
             case TINYGLTF_COMPONENT_TYPE_INT:
-                format = scene::data_format::i32;
+                format = data_format::i32;
                 break;
 
             case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
-                format = scene::data_format::u8;
+                format = data_format::u8;
                 break;
 
             case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
-                format = scene::data_format::u16;
+                format = data_format::u16;
                 break;
 
             case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
-                format = scene::data_format::u32;
+                format = data_format::u32;
                 break;
 
             case TINYGLTF_COMPONENT_TYPE_FLOAT:
-                format = scene::data_format::f32;
+                format = data_format::f32;
                 break;
 
             case TINYGLTF_COMPONENT_TYPE_DOUBLE:
-                format = scene::data_format::f64;
+                format = data_format::f64;
                 break;
 
             default:
-                format = scene::data_format::enum_max;
+                format = data_format::enum_max;
                 break;
             }
 
@@ -196,37 +197,37 @@ namespace oblo::scene
 
             switch (attribute.format)
             {
-            case scene::data_format::i8:
+            case data_format::i8:
                 componentType = TINYGLTF_COMPONENT_TYPE_BYTE;
                 break;
 
-            case scene::data_format::i16:
+            case data_format::i16:
                 componentType = TINYGLTF_COMPONENT_TYPE_SHORT;
                 break;
 
-            case scene::data_format::i32:
+            case data_format::i32:
                 componentType = TINYGLTF_COMPONENT_TYPE_INT;
                 break;
 
-            case scene::data_format::u8:
+            case data_format::u8:
                 componentType = TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE;
                 break;
 
-            case scene::data_format::u16:
+            case data_format::u16:
                 componentType = TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT;
                 break;
 
-            case scene::data_format::u32:
+            case data_format::u32:
                 componentType = TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT;
                 break;
 
-            case scene::data_format::f32:
-            case scene::data_format::vec2:
-            case scene::data_format::vec3:
+            case data_format::f32:
+            case data_format::vec2:
+            case data_format::vec3:
                 componentType = TINYGLTF_COMPONENT_TYPE_FLOAT;
                 break;
 
-            case scene::data_format::f64:
+            case data_format::f64:
                 componentType = TINYGLTF_COMPONENT_TYPE_DOUBLE;
                 break;
 
@@ -294,9 +295,9 @@ namespace oblo::scene
             const auto& accessor = model.accessors[primitive.indices];
             indexCount = accessor.count;
 
-            const scene::data_format format = convert_data_format(accessor.componentType);
+            const data_format format = convert_data_format(accessor.componentType);
 
-            if (format == scene::data_format::enum_max)
+            if (format == data_format::enum_max)
             {
                 return false;
             }
@@ -317,7 +318,7 @@ namespace oblo::scene
             {
                 attributes.push_back({
                     .kind = scene::attribute_kind::position,
-                    .format = scene::data_format::vec3,
+                    .format = data_format::vec3,
                 });
 
                 sources.emplace_back(accessor);
@@ -326,7 +327,7 @@ namespace oblo::scene
             {
                 attributes.push_back({
                     .kind = scene::attribute_kind::normal,
-                    .format = scene::data_format::vec3,
+                    .format = data_format::vec3,
                 });
 
                 sources.emplace_back(accessor);

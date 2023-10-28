@@ -206,6 +206,47 @@ namespace oblo::ecs
         return m_entities.try_find(e) != nullptr;
     }
 
+    void entity_registry::get(
+        entity e, const std::span<const component_type> components, std::span<const std::byte*> outComponents) const
+    {
+        OBLO_ASSERT(components.size() == outComponents.size());
+
+        for (usize i = 0; i < components.size(); ++i)
+        {
+            auto& ptr = outComponents[i];
+
+            const auto component = components[i];
+            const entity_data* entityData = m_entities.try_find(e);
+
+            if (!entityData || !component)
+            {
+                ptr = nullptr;
+                continue;
+            }
+
+            auto* const archetype = entityData->archetype;
+
+            const u8 componentIndex =
+                find_component_index({archetype->components, archetype->numComponents}, component);
+
+            if (componentIndex == InvalidComponentIndex)
+            {
+                ptr = nullptr;
+                continue;
+            }
+
+            const auto [chunkIndex, chunkOffset] = get_entity_location(*archetype, entityData->archetypeIndex);
+
+            ptr = get_component_pointer(archetype->chunks[chunkIndex]->data, *archetype, componentIndex, chunkOffset);
+        }
+    }
+
+    void entity_registry::get(
+        entity e, const std::span<const component_type> components, std::span<std::byte*> outComponents)
+    {
+        get(e, components, {const_cast<const std::byte**>(outComponents.data()), outComponents.size()});
+    }
+
     const entity_registry::components_storage* entity_registry::find_first_match(
         const components_storage* begin, usize increment, const component_and_tags_sets& types)
     {

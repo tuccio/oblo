@@ -29,8 +29,7 @@ namespace oblo::vk
         mesh_table& operator=(mesh_table&&) noexcept = delete;
         ~mesh_table() = default;
 
-        [[nodiscard]] bool init(frame_allocator& frameAllocator,
-            std::span<const buffer_column_description> columns,
+        [[nodiscard]] bool init(std::span<const buffer_column_description> columns,
             allocator& allocator,
             resource_manager& resourceManager,
             VkBufferUsageFlags bufferUsage,

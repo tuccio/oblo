@@ -6,6 +6,11 @@
 #include <span>
 #include <vector>
 
+namespace oblo
+{
+    enum class data_format : u8;
+}
+
 namespace oblo::scene
 {
     enum class attribute_kind : u8
@@ -13,23 +18,6 @@ namespace oblo::scene
         indices,
         position,
         normal,
-        enum_max
-    };
-
-    enum class data_format : u8
-    {
-        i8,
-        i16,
-        i32,
-        i64,
-        u8,
-        u16,
-        u32,
-        u64,
-        f32,
-        f64,
-        vec2,
-        vec3,
         enum_max
     };
 
