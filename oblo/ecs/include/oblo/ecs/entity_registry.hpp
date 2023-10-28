@@ -4,6 +4,7 @@
 #include <oblo/core/type_id.hpp>
 #include <oblo/ecs/handles.hpp>
 #include <oblo/ecs/traits.hpp>
+#include <oblo/ecs/type_set.hpp>
 
 #include <memory>
 #include <tuple>
@@ -40,7 +41,7 @@ namespace oblo::ecs
         void add(entity e, const component_and_tags_sets& types);
 
         template <typename... ComponentsOrTags>
-        void add(entity e);
+        auto&& add(entity e);
 
         void remove(entity e, const component_and_tags_sets& types);
 
@@ -177,5 +178,13 @@ namespace oblo::ecs
         };
 
         return makeTuple(pointers, std::make_index_sequence<N>());
+    }
+
+    template <typename... ComponentsOrTags>
+    auto&& entity_registry::add(entity e)
+    {
+        const auto sets = make_type_sets<ComponentsOrTags...>(*m_typeRegistry);
+        add(e, sets);
+        return get<ComponentsOrTags...>(e);
     }
 }

@@ -40,6 +40,25 @@ namespace oblo::vk
 
         m_indexByteSize = indexByteSize;
 
+        switch (m_indexByteSize)
+        {
+        case 0:
+            m_indexType = VK_INDEX_TYPE_MAX_ENUM;
+            break;
+
+        case 2:
+            m_indexType = VK_INDEX_TYPE_UINT16;
+            break;
+
+        case 4:
+            m_indexType = VK_INDEX_TYPE_UINT32;
+            break;
+
+        default:
+            OBLO_ASSERT(false, "Unsupported mesh index type");
+            return false;
+        }
+
         const auto indexBufferSize = u32(numIndices * m_indexByteSize);
 
         if (indexBufferSize != 0)
@@ -233,5 +252,10 @@ namespace oblo::vk
     u32 mesh_table::meshes_count() const
     {
         return u32(m_ranges.size());
+    }
+
+    VkIndexType mesh_table::get_index_type() const
+    {
+        return m_indexType;
     }
 }

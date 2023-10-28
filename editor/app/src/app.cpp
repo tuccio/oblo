@@ -16,7 +16,9 @@
 #include <oblo/editor/windows/style_window.hpp>
 #include <oblo/editor/windows/viewport.hpp>
 #include <oblo/engine/engine_module.hpp>
+#include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
+#include <oblo/graphics/systems/static_mesh_system.hpp>
 #include <oblo/graphics/systems/viewport_system.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/sandbox/context.hpp>
@@ -36,6 +38,7 @@ namespace oblo::editor
             ecs::system_graph g;
 
             g.add_system<graphics::viewport_system>();
+            g.add_system<graphics::static_mesh_system>();
 
             return g.instantiate();
         }
@@ -60,6 +63,7 @@ namespace oblo::editor
 
         {
             m_typeRegistry.register_component(ecs::make_component_type_desc<graphics::viewport_component>());
+            m_typeRegistry.register_component(ecs::make_component_type_desc<graphics::static_mesh_component>());
             m_entities.init(&m_typeRegistry);
         }
 
@@ -70,19 +74,21 @@ namespace oblo::editor
         m_windowManager.create_window<viewport>(m_entities);
         // m_windowManager.create_window<style_window>();
 
+        auto& resourceRegistry = engine->get_resource_registry();
+
         m_services.add<vk::vulkan_context>().externally_owned(ctx.vkContext);
         m_services.add<vk::renderer>().externally_owned(&m_renderer);
+        m_services.add<resource::resource_registry>().externally_owned(&resourceRegistry);
 
         m_executor = create_system_executor();
 
         // Add a test mesh
         {
-            auto& drawRegistry = m_renderer.get_draw_registry();
-
-            const auto meshId = drawRegistry.get_or_create_mesh(engine->get_resource_registry(),
-                "5c2dbfb7-e2af-bce2-5a6c-c9b6ce4e9c07"_uuid);
-
-            drawRegistry.create_instance(meshId, {}, {});
+            const auto e = m_entities.create<graphics::static_mesh_component>();
+            auto& meshComponent = m_entities.get<graphics::static_mesh_component>(e);
+            // meshComponent.mesh = "5c2dbfb7-e2af-bce2-5a6c-c9b6ce4e9c07"_uuid;
+            meshComponent.mesh = "4cab39ab-0433-cf1c-5988-b1f619227a4f"_uuid;
+            // meshComponent.mesh = "529324bf-bc19-f258-2f89-bc414f859434"_uuid;            
         }
 
         return true;

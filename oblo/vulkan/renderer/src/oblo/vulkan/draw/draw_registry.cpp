@@ -36,11 +36,9 @@ namespace oblo::vk
             switch (attribute)
             {
             case scene::attribute_kind::position:
-                return "inpositions";
+                return "in_Position";
             case scene::attribute_kind::normal:
-                return "in_normals";
-            case scene::attribute_kind::indices:
-                return "in_indices";
+                return "in_Normal";
             default:
                 unreachable();
             }
@@ -261,6 +259,16 @@ namespace oblo::vk
         m_cachedMeshes.emplace(resourceId, globalMeshId);
 
         return globalMeshId;
+    }
+
+    const mesh_table* draw_registry::try_get_mesh_table(u32 id) const
+    {
+        if (id >= m_meshBatches.size())
+        {
+            return nullptr;
+        }
+
+        return m_meshBatches[id].table.get();
     }
 
     h32<draw_instance> draw_registry::create_instance(
