@@ -5,6 +5,8 @@ target_link_libraries(
     PUBLIC
     oblo::core
     oblo::vk
+    PRIVATE
+    spirv-cross::spirv-cross
 )
 
 oblo_create_symlink("${CMAKE_CURRENT_SOURCE_DIR}/resources" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/vulkan")

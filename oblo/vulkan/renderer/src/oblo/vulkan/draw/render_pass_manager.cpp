@@ -1,4 +1,4 @@
-#include <oblo/vulkan/render_pass_manager.hpp>
+#include <oblo/vulkan/draw/render_pass_manager.hpp>
 
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/array_size.hpp>
@@ -8,8 +8,8 @@
 #include <oblo/core/string_interner.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/vulkan/buffer.hpp>
-#include <oblo/vulkan/mesh_table.hpp>
-#include <oblo/vulkan/render_pass_initializer.hpp>
+#include <oblo/vulkan/draw/mesh_table.hpp>
+#include <oblo/vulkan/draw/render_pass_initializer.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 
 #include <spirv_cross/spirv_cross.hpp>

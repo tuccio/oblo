@@ -2,9 +2,9 @@
 
 #include <oblo/core/handle.hpp>
 #include <oblo/core/string_interner.hpp>
+#include <oblo/vulkan/draw/mesh_table.hpp>
+#include <oblo/vulkan/draw/render_pass_manager.hpp>
 #include <oblo/vulkan/graph/resource_pool.hpp>
-#include <oblo/vulkan/mesh_table.hpp>
-#include <oblo/vulkan/render_pass_manager.hpp>
 #include <oblo/vulkan/renderer_context.hpp>
 #include <oblo/vulkan/staging_buffer.hpp>
 
