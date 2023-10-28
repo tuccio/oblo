@@ -2,6 +2,7 @@
 
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/importers/importers_module.hpp>
+#include <oblo/core/uuid.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/systems/system_graph.hpp>
 #include <oblo/ecs/systems/system_update_context.hpp>
@@ -73,6 +74,16 @@ namespace oblo::editor
         m_services.add<vk::renderer>().externally_owned(&m_renderer);
 
         m_executor = create_system_executor();
+
+        // Add a test mesh
+        {
+            auto& drawRegistry = m_renderer.get_draw_registry();
+
+            const auto meshId = drawRegistry.get_or_create_mesh(engine->get_resource_registry(),
+                "5c2dbfb7-e2af-bce2-5a6c-c9b6ce4e9c07"_uuid);
+
+            drawRegistry.create_instance(meshId, {}, {});
+        }
 
         return true;
     }

@@ -1,49 +1,11 @@
 #include <oblo/scene/assets/mesh.hpp>
 
-#include <oblo/core/unreachable.hpp>
-#include <oblo/math/vec2.hpp>
-#include <oblo/math/vec3.hpp>
+#include <oblo/core/data_format.hpp>
 
 #include <utility>
 
 namespace oblo::scene
 {
-    namespace
-    {
-        constexpr std::pair<usize, usize> get_size_and_alignment(data_format format)
-        {
-            switch (format)
-            {
-            case data_format::i8:
-                return {sizeof(i8), alignof(i8)};
-            case data_format::i16:
-                return {sizeof(i16), alignof(i16)};
-            case data_format::i32:
-                return {sizeof(i32), alignof(i32)};
-            case data_format::i64:
-                return {sizeof(i64), alignof(i64)};
-            case data_format::u8:
-                return {sizeof(u8), alignof(u8)};
-            case data_format::u16:
-                return {sizeof(u16), alignof(u16)};
-            case data_format::u32:
-                return {sizeof(u32), alignof(u32)};
-            case data_format::u64:
-                return {sizeof(u64), alignof(u64)};
-            case data_format::f32:
-                return {sizeof(f32), alignof(f32)};
-            case data_format::f64:
-                return {sizeof(f64), alignof(f64)};
-            case data_format::vec2:
-                return {sizeof(vec2), alignof(vec2)};
-            case data_format::vec3:
-                return {sizeof(vec3), alignof(vec3)};
-            default:
-                unreachable();
-            }
-        }
-    }
-
     struct mesh::attribute_data : mesh_attribute
     {
         usize beginIndex;

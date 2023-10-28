@@ -46,9 +46,9 @@ namespace oblo::vk
             return m_renderer->get_resource_manager();
         }
 
-        mesh_table& get_mesh_table() const
+        draw_registry& get_draw_registry() const
         {
-            return m_renderer->get_mesh_table();
+            return m_renderer->get_draw_registry();
         }
 
     private:

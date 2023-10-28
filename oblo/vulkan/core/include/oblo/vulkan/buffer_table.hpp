@@ -9,7 +9,6 @@
 
 namespace oblo
 {
-    class frame_allocator;
     class string_interner;
     struct string;
 }
@@ -39,8 +38,7 @@ namespace oblo::vk
         buffer_table& operator=(buffer_table&&) noexcept = delete;
         ~buffer_table();
 
-        [[nodiscard]] u32 init(frame_allocator& frameAllocator,
-            const buffer& buffer,
+        [[nodiscard]] u32 init(const buffer& buffer,
             std::span<const buffer_column_description> columns,
             resource_manager& resourceManager,
             u32 rows,

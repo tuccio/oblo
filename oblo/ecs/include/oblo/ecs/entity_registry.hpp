@@ -55,6 +55,12 @@ namespace oblo::ecs
         template <typename Component>
         Component& get(entity e);
 
+        void get(entity e,
+            const std::span<const component_type> components,
+            std::span<const std::byte*> outComponents) const;
+
+        void get(entity e, const std::span<const component_type> components, std::span<std::byte*> outComponents);
+
         template <typename... Components>
             requires(sizeof...(Components) > 1)
         std::tuple<const Components&...> get(entity e) const;

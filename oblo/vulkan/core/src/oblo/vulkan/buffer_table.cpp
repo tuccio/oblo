@@ -2,7 +2,7 @@
 
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/debug.hpp>
-#include <oblo/core/frame_allocator.hpp>
+#include <oblo/core/stack_allocator.hpp>
 #include <oblo/core/zip_iterator.hpp>
 #include <oblo/math/power_of_two.hpp>
 #include <oblo/vulkan/buffer.hpp>
@@ -26,8 +26,7 @@ namespace oblo::vk
         OBLO_ASSERT(!m_buffers, "This instance needs to be shutdown explicitly");
     }
 
-    u32 buffer_table::init(frame_allocator& frameAllocator,
-        const buffer& buf,
+    u32 buffer_table::init(const buffer& buf,
         std::span<const column_description> columns,
         resource_manager& resourceManager,
         u32 rows,
@@ -38,7 +37,9 @@ namespace oblo::vk
             return 0u;
         }
 
-        u32* const bufferOffsets = allocate_n<u32>(frameAllocator, columns.size());
+        array_stack_allocator<u32, 64> stackAllocator;
+
+        u32* const bufferOffsets = allocate_n<u32>(stackAllocator, columns.size());
         const auto numColumns = u32(columns.size());
 
         u32 currentOffset = buf.offset;

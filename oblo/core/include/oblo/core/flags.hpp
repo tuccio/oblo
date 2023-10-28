@@ -46,14 +46,16 @@ namespace oblo
         constexpr flags(const flags&) noexcept = default;
         constexpr flags& operator=(const flags&) noexcept = default;
 
-        constexpr flags operator|=(E rhs);
-        constexpr flags operator&=(E rhs);
-        constexpr flags operator^=(E rhs);
+        constexpr flags& operator|=(E rhs);
+        constexpr flags& operator&=(E rhs);
+        constexpr flags& operator^=(E rhs);
 
         bool is_empty() const noexcept
         {
             m_storage == type{0};
         }
+
+        constexpr auto operator<=>(const flags&) const = default;
 
     private:
         constexpr static type as_flag(E e) noexcept;
@@ -63,21 +65,24 @@ namespace oblo
     };
 
     template <typename E, u32 Size>
-    constexpr flags<E, Size> flags<E, Size>::operator|=(E rhs)
+    constexpr flags<E, Size>& flags<E, Size>::operator|=(E rhs)
     {
-        return m_storage |= as_flag(rhs);
+        m_storage |= as_flag(rhs);
+        return *this;
     }
 
     template <typename E, u32 Size>
-    constexpr flags<E, Size> flags<E, Size>::operator&=(E rhs)
+    constexpr flags<E, Size>& flags<E, Size>::operator&=(E rhs)
     {
-        return m_storage &= as_flag(rhs);
+        m_storage &= as_flag(rhs);
+        return *this;
     }
 
     template <typename E, u32 Size>
-    constexpr flags<E, Size> flags<E, Size>::operator^=(E rhs)
+    constexpr flags<E, Size>& flags<E, Size>::operator^=(E rhs)
     {
-        return m_storage ^= as_flag(rhs);
+        m_storage ^= as_flag(rhs);
+        return *this;
     }
 
     template <typename E, u32 Size>

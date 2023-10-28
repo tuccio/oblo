@@ -33,6 +33,8 @@ namespace oblo::vk
         m_stringInterner.init(64);
         m_renderPassManager.init(m_vkContext->get_device(), m_stringInterner, m_dummy);
 
+        m_drawRegistry.init(*m_vkContext, m_stagingBuffer, m_stringInterner);
+
         return true;
     }
 
@@ -41,7 +43,7 @@ namespace oblo::vk
         auto& allocator = m_vkContext->get_allocator();
         auto& resourceManager = m_vkContext->get_resource_manager();
 
-        m_meshes.shutdown(allocator, resourceManager);
+        m_drawRegistry.shutdown();
 
         m_renderGraphs.clear();
         m_graphResourcePool.shutdown(*m_vkContext);
