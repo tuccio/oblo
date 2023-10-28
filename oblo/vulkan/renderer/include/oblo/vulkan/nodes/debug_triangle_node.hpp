@@ -97,12 +97,13 @@ namespace oblo::vk
                 .pColorAttachments = &colorAttachment,
             };
 
-            renderPassManager.begin_rendering(renderPassContext, renderInfo);
+            if (renderPassManager.begin_rendering(renderPassContext, renderInfo))
+            {
+                setup_viewport_scissor(commandBuffer, renderWidth, renderHeight);
+                vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 
-            setup_viewport_scissor(commandBuffer, renderWidth, renderHeight);
-            vkCmdDraw(commandBuffer, 3, 1, 0, 0);
-
-            renderPassManager.end_rendering(renderPassContext);
+                renderPassManager.end_rendering(renderPassContext);
+            }
         }
     };
 }

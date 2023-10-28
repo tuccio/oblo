@@ -5,6 +5,8 @@
 #include <oblo/core/handle.hpp>
 #include <oblo/vulkan/shader_compiler.hpp>
 
+#include <memory>
+
 namespace oblo
 {
     class string_interner;
@@ -41,11 +43,14 @@ namespace oblo::vk
 
         h32<render_pipeline> get_or_create_pipeline(h32<render_pass> handle, const render_pipeline_initializer& desc);
 
-        void begin_rendering(render_pass_context& context, const VkRenderingInfo& renderingInfo) const;
+        [[nodiscard]] bool begin_rendering(render_pass_context& context, const VkRenderingInfo& renderingInfo) const;
         void end_rendering(const render_pass_context& context);
 
         void bind(
             const render_pass_context& context, const resource_manager& resourceManager, const mesh_table& meshTable);
+
+    private:
+        struct file_watcher;
 
     private:
         frame_allocator m_frameAllocator;
@@ -56,6 +61,7 @@ namespace oblo::vk
         flat_dense_map<h32<render_pipeline>, render_pipeline> m_renderPipelines;
         string_interner* m_interner{nullptr};
         h32<buffer> m_dummy{};
+        std::unique_ptr<file_watcher> m_fileWatcher;
     };
 
     struct render_pass_context
