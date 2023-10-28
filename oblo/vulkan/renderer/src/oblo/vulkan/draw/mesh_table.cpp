@@ -1,4 +1,4 @@
-#include <oblo/vulkan/mesh_table.hpp>
+#include <oblo/vulkan/draw/mesh_table.hpp>
 
 #include <oblo/vulkan/allocator.hpp>
 #include <oblo/vulkan/buffer.hpp>
@@ -7,13 +7,12 @@
 
 namespace oblo::vk
 {
-    using mesh_index_type = u32;
-
     bool mesh_table::init(frame_allocator& frameAllocator,
         std::span<const buffer_column_description> columns,
         allocator& allocator,
         resource_manager& resourceManager,
         VkBufferUsageFlags bufferUsage,
+        u32 indexByteSize,
         u32 numVertices,
         u32 numIndices)
     {
@@ -41,18 +40,28 @@ namespace oblo::vk
             return false;
         }
 
-        const auto indexBufferSize = u32(numIndices * sizeof(mesh_index_type));
+        m_indexByteSize = indexByteSize;
 
-        m_indexBuffer = resourceManager.create(allocator,
-            {
-                .size = indexBufferSize,
-                .usage = bufferUsage | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                .memoryUsage = memory_usage::gpu_only,
-            });
+        const auto indexBufferSize = u32(numIndices * m_indexByteSize);
+
+        if (indexBufferSize != 0)
+        {
+            m_indexBuffer = resourceManager.create(allocator,
+                {
+                    .size = indexBufferSize,
+                    .usage = bufferUsage | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                    .memoryUsage = memory_usage::gpu_only,
+                });
+
+            m_totalIndices = numIndices;
+        }
+        else
+        {
+            m_totalIndices = 0u;
+        }
 
         m_firstFreeVertex = 0u;
         m_firstFreeIndex = 0u;
-        m_totalIndices = numIndices;
 
         return true;
     }

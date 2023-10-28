@@ -1,11 +1,11 @@
 #pragma once
 
 #include <oblo/math/vec2u.hpp>
+#include <oblo/vulkan/draw/render_pass_initializer.hpp>
 #include <oblo/vulkan/graph/init_context.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 #include <oblo/vulkan/graph/runtime_builder.hpp>
 #include <oblo/vulkan/graph/runtime_context.hpp>
-#include <oblo/vulkan/render_pass_initializer.hpp>
 #include <oblo/vulkan/utility.hpp>
 
 namespace oblo::vk

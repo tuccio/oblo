@@ -34,6 +34,7 @@ namespace oblo::vk
             allocator& allocator,
             resource_manager& resourceManager,
             VkBufferUsageFlags bufferUsage,
+            u32 indexByteSize,
             u32 numVertices,
             u32 numIndices);
 
@@ -77,6 +78,7 @@ namespace oblo::vk
         u32 m_firstFreeVertex{0u};
         u32 m_firstFreeIndex{0u};
         u32 m_totalIndices{0u};
+        u32 m_indexByteSize{0u};
         h32<buffer> m_indexBuffer{};
         h32<buffer> m_buffer{};
     };
