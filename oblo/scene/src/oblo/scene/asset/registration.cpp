@@ -2,7 +2,7 @@
 
 #include <oblo/asset/asset_registry.hpp>
 
-#include <oblo/asset/type_desc.hpp>
+#include <oblo/asset/asset_type_desc.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/assets/mesh.hpp>
 #include <oblo/scene/assets/model.hpp>
@@ -12,17 +12,17 @@
 
 #include <nlohmann/json.hpp>
 
-namespace oblo::asset
+namespace oblo
 {
     template <typename Json, typename T>
-    void to_json(Json& json, const ref<T>& value)
+    void to_json(Json& json, const asset_ref<T>& value)
     {
         char uuidBuffer[36];
         json = value.id.format_to(uuidBuffer);
     }
 
     template <typename Json, typename T>
-    void from_json(const Json& json, ref<T>& value)
+    void from_json(const Json& json, asset_ref<T>& value)
     {
         const auto res = uuid::parse(json.template get<std::string_view>());
         value.id = res ? *res : uuid{};
@@ -102,18 +102,18 @@ namespace oblo::scene
     }
 
     template <typename T>
-    asset::type_desc make_asset_type_desc()
+    asset_type_desc make_asset_type_desc()
     {
         return {make_resource_type_desc<T>()};
     }
 
-    void register_asset_types(asset::asset_registry& registry)
+    void register_asset_types(asset_registry& registry)
     {
         registry.register_type(make_asset_type_desc<mesh>());
         registry.register_type(make_asset_type_desc<model>());
     }
 
-    void unregister_asset_types(asset::asset_registry& registry)
+    void unregister_asset_types(asset_registry& registry)
     {
         registry.unregister_type(get_type_id<mesh>());
         registry.unregister_type(get_type_id<model>());

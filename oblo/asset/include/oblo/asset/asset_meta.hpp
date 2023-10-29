@@ -6,7 +6,7 @@
 #include <filesystem>
 #include <vector>
 
-namespace oblo::asset
+namespace oblo
 {
     struct artifact_meta
     {

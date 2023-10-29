@@ -1,8 +1,8 @@
 #include <oblo/asset/importer.hpp>
 
+#include <oblo/asset/asset_meta.hpp>
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/import_artifact.hpp>
-#include <oblo/asset/meta.hpp>
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/core/uuid_generator.hpp>
@@ -11,7 +11,7 @@
 
 #include <fstream>
 
-namespace oblo::asset
+namespace oblo
 {
     namespace
     {

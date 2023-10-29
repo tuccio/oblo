@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-namespace oblo::asset
+namespace oblo
 {
     class asset_registry;
     class importer;

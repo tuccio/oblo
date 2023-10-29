@@ -3,10 +3,10 @@
 #include <oblo/core/types.hpp>
 #include <oblo/core/uuid.hpp>
 
-namespace oblo::asset
+namespace oblo
 {
     template <typename T>
-    struct ref
+    struct asset_ref
     {
         uuid id;
 

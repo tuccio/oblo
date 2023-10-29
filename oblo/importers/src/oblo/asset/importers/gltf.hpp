@@ -4,7 +4,7 @@
 
 #include <tiny_gltf.h>
 
-namespace oblo::asset::importers
+namespace oblo::importers
 {
     class gltf final : public file_importer
     {

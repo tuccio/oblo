@@ -2,7 +2,7 @@
 
 #include <oblo/modules/module_interface.hpp>
 
-namespace oblo::asset::importers
+namespace oblo::importers
 {
     class IMPORTERS_API importers_module final : public module_interface
     {

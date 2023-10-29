@@ -3,7 +3,7 @@
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/importers/gltf.hpp>
 
-namespace oblo::asset::importers
+namespace oblo::importers
 {
     namespace
     {

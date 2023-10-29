@@ -10,7 +10,7 @@
 #include <string_view>
 #include <unordered_map>
 
-namespace oblo::asset
+namespace oblo
 {
     class asset_registry;
     class importer;
