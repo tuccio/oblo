@@ -4,7 +4,7 @@
 
 #include <memory>
 
-namespace oblo::asset
+namespace oblo
 {
     class asset_registry;
 }
@@ -34,7 +34,7 @@ namespace oblo::engine
         bool startup() override;
         void shutdown() override;
 
-        asset::asset_registry& get_asset_registry() const
+        asset_registry& get_asset_registry() const
         {
             return *m_assetRegistry;
         }
@@ -45,7 +45,7 @@ namespace oblo::engine
         }
 
     private:
-        std::unique_ptr<asset::asset_registry> m_assetRegistry;
+        std::unique_ptr<asset_registry> m_assetRegistry;
         std::unique_ptr<resource_registry> m_resourceRegistry;
     };
 }

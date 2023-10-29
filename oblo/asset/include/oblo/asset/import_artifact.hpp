@@ -5,7 +5,7 @@
 
 #include <string>
 
-namespace oblo::asset
+namespace oblo
 {
     struct import_artifact
     {

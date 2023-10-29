@@ -1,11 +1,11 @@
 #include <oblo/asset/asset_registry.hpp>
 
 #include <oblo/asset/any_asset.hpp>
+#include <oblo/asset/asset_meta.hpp>
+#include <oblo/asset/asset_type_desc.hpp>
 #include <oblo/asset/import_artifact.hpp>
 #include <oblo/asset/import_preview.hpp>
 #include <oblo/asset/importer.hpp>
-#include <oblo/asset/meta.hpp>
-#include <oblo/asset/type_desc.hpp>
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/uuid.hpp>
@@ -18,11 +18,11 @@
 #include <unordered_map>
 #include <vector>
 
-namespace oblo::asset
+namespace oblo
 {
     namespace
     {
-        struct asset_type_info : type_desc
+        struct asset_type_info : asset_type_desc
         {
         };
 
@@ -229,7 +229,7 @@ namespace oblo::asset
         m_impl.reset();
     }
 
-    void asset_registry::register_type(const type_desc& desc)
+    void asset_registry::register_type(const asset_type_desc& desc)
     {
         m_impl->assetTypes.emplace(desc.type, desc);
     }

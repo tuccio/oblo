@@ -19,7 +19,7 @@ namespace oblo::engine
     {
         OBLO_ASSERT(!g_instance);
 
-        m_assetRegistry = std::make_unique<asset::asset_registry>();
+        m_assetRegistry = std::make_unique<asset_registry>();
 
         // TODO: Load a project instead
         if (!m_assetRegistry->initialize("./project/assets", "./project/artifacts", "./project/sources"))
@@ -28,7 +28,7 @@ namespace oblo::engine
         }
 
         m_resourceRegistry = std::make_unique<resource_registry>();
-        m_resourceRegistry->register_provider(&asset::asset_registry::find_artifact_resource, m_assetRegistry.get());
+        m_resourceRegistry->register_provider(&asset_registry::find_artifact_resource, m_assetRegistry.get());
 
         g_instance = this;
         return true;

@@ -59,7 +59,7 @@ namespace oblo::editor
         auto& mm = module_manager::get();
         auto* const engine = mm.load<oblo::engine::engine_module>();
         mm.load<oblo::scene::scene_module>();
-        mm.load<oblo::asset::importers::importers_module>();
+        mm.load<oblo::importers::importers_module>();
 
         {
             m_typeRegistry.register_component(ecs::make_component_type_desc<graphics::viewport_component>());

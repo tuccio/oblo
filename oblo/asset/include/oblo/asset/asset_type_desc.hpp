@@ -2,9 +2,9 @@
 
 #include <oblo/resource/type_desc.hpp>
 
-namespace oblo::asset
+namespace oblo
 {
-    struct type_desc : resource_type_desc
+    struct asset_type_desc : resource_type_desc
     {
     };
 }

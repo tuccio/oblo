@@ -16,7 +16,7 @@
 
 #include <format>
 
-namespace oblo::asset::importers
+namespace oblo::importers
 {
     struct gltf::import_model
     {

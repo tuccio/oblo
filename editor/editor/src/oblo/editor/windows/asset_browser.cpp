@@ -9,7 +9,7 @@
 
 namespace oblo::editor
 {
-    asset_browser::asset_browser(asset::asset_registry& registry) :
+    asset_browser::asset_browser(asset_registry& registry) :
         m_registry{&registry}, m_path{std::filesystem::canonical(registry.get_asset_directory())}, m_current{m_path}
     {
     }
@@ -76,7 +76,7 @@ namespace oblo::editor
                         m_breadcrumbs.emplace_back(std::move(dir));
                     }
                 }
-                else if (p.native().ends_with(asset::AssetMetaExtension))
+                else if (p.native().ends_with(AssetMetaExtension))
                 {
                     const auto file = p.filename();
                     const auto& str = file.u8string();

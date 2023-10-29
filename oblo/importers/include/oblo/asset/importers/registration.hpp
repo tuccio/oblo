@@ -1,11 +1,11 @@
 #pragma once
 
-namespace oblo::asset
+namespace oblo
 {
     class asset_registry;
 }
 
-namespace oblo::asset::importers
+namespace oblo::importers
 {
     IMPORTERS_API void register_gltf_importer(asset_registry& registry);
     IMPORTERS_API void unregister_gltf_importer(asset_registry& registry);

@@ -4,7 +4,7 @@
 
 #include <type_traits>
 
-namespace oblo::asset
+namespace oblo
 {
     class any_asset
     {

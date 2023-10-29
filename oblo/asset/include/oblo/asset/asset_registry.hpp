@@ -11,13 +11,13 @@ namespace oblo
     struct uuid;
 }
 
-namespace oblo::asset
+namespace oblo
 {
     class importer;
 
     struct artifact_meta;
     struct asset_meta;
-    struct type_desc;
+    struct asset_type_desc;
     struct file_importer_desc;
     struct import_preview;
     struct import_node_config;
@@ -38,7 +38,7 @@ namespace oblo::asset
 
         void shutdown();
 
-        void register_type(const type_desc& desc);
+        void register_type(const asset_type_desc& desc);
         void unregister_type(type_id type);
         bool has_asset_type(type_id type) const;
 

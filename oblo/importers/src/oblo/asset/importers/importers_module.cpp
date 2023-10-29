@@ -4,7 +4,7 @@
 #include <oblo/engine/engine_module.hpp>
 #include <oblo/modules/module_manager.hpp>
 
-namespace oblo::asset::importers
+namespace oblo::importers
 {
     bool importers_module::startup()
     {

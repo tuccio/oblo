@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
 
+#include <oblo/asset/asset_meta.hpp>
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/importer.hpp>
 #include <oblo/asset/importers/registration.hpp>
-#include <oblo/asset/meta.hpp>
 #include <oblo/core/data_format.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/resource/resource_ptr.hpp>
@@ -11,7 +11,7 @@
 #include <oblo/scene/assets/model.hpp>
 #include <oblo/scene/assets/registration.hpp>
 
-namespace oblo::asset::importers
+namespace oblo::importers
 {
     namespace
     {
@@ -76,7 +76,7 @@ namespace oblo::asset::importers
 
             ASSERT_EQ(modelResource->meshes.size(), 1);
 
-            const asset::ref meshRef = modelResource->meshes[0];
+            const asset_ref meshRef = modelResource->meshes[0];
             ASSERT_TRUE(meshRef);
 
             const auto meshResource = resources.get_resource(meshRef.id).as<scene::mesh>();
