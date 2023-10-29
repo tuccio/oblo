@@ -13,13 +13,13 @@ namespace oblo
     struct type_id;
 }
 
-namespace oblo::resource
+namespace oblo
 {
     template <typename T>
-    class ptr;
+    class resource_ptr;
 
     struct resource;
-    struct type_desc;
+    struct resource_type_desc;
 
     using find_resource_fn = bool (*)(const uuid& id, type_id& type, std::filesystem::path& path, const void* userdata);
 
@@ -34,20 +34,20 @@ namespace oblo::resource
         resource_registry& operator=(const resource_registry&) = delete;
         resource_registry& operator=(resource_registry&&) noexcept = delete;
 
-        void register_type(const type_desc& typeDesc);
+        void register_type(const resource_type_desc& typeDesc);
         void unregister_type(const type_id& type);
 
         void register_provider(find_resource_fn provider, const void* userdata);
         void unregister_provider(find_resource_fn provider);
 
-        ptr<void> get_resource(const uuid& id);
+        resource_ptr<void> get_resource(const uuid& id);
 
     private:
         struct resource_storage;
         struct provider_storage;
 
     private:
-        std::unordered_map<type_id, type_desc> m_resourceTypes;
+        std::unordered_map<type_id, resource_type_desc> m_resourceTypes;
         std::unordered_map<uuid, resource_storage> m_resources;
         std::vector<provider_storage> m_providers;
     };

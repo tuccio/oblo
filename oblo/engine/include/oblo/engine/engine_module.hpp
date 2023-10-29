@@ -9,7 +9,7 @@ namespace oblo::asset
     class asset_registry;
 }
 
-namespace oblo::resource
+namespace oblo
 {
     class resource_registry;
 }
@@ -39,13 +39,13 @@ namespace oblo::engine
             return *m_assetRegistry;
         }
 
-        resource::resource_registry& get_resource_registry() const
+        resource_registry& get_resource_registry() const
         {
             return *m_resourceRegistry;
         }
 
     private:
         std::unique_ptr<asset::asset_registry> m_assetRegistry;
-        std::unique_ptr<resource::resource_registry> m_resourceRegistry;
+        std::unique_ptr<resource_registry> m_resourceRegistry;
     };
 }

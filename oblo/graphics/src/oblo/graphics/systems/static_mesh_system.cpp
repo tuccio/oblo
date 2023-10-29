@@ -21,7 +21,7 @@ namespace oblo::graphics
         m_renderer = ctx.services->find<vk::renderer>();
         OBLO_ASSERT(m_renderer);
 
-        m_resourceRegistry = ctx.services->find<resource::resource_registry>();
+        m_resourceRegistry = ctx.services->find<resource_registry>();
         OBLO_ASSERT(m_resourceRegistry);
 
         update(ctx);

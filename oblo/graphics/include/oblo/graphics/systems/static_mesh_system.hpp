@@ -5,7 +5,7 @@ namespace oblo::ecs
     struct system_update_context;
 }
 
-namespace oblo::resource
+namespace oblo
 {
     class resource_registry;
 }
@@ -25,6 +25,6 @@ namespace oblo::graphics
 
     private:
         vk::renderer* m_renderer{};
-        resource::resource_registry* m_resourceRegistry;
+        resource_registry* m_resourceRegistry;
     };
 }

@@ -3,7 +3,7 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/core/type_id.hpp>
 
-namespace oblo::resource
+namespace oblo
 {
     struct resource;
 
@@ -16,12 +16,12 @@ namespace oblo::resource
     }
 
     template <typename T = void>
-    class ptr
+    class resource_ptr
     {
     public:
-        ptr() = default;
+        resource_ptr() = default;
 
-        ptr(const ptr& other)
+        resource_ptr(const resource_ptr& other)
         {
             m_ptr = other.m_ptr;
             m_resource = other.m_resource;
@@ -32,7 +32,7 @@ namespace oblo::resource
             }
         }
 
-        ptr(ptr&& other) noexcept
+        resource_ptr(resource_ptr&& other) noexcept
         {
             m_ptr = other.m_ptr;
             m_resource = other.m_resource;
@@ -41,7 +41,7 @@ namespace oblo::resource
             other.m_resource = nullptr;
         }
 
-        explicit ptr(resource* resource)
+        explicit resource_ptr(resource* resource)
         {
             if (resource)
             {
@@ -51,12 +51,12 @@ namespace oblo::resource
             }
         }
 
-        ~ptr()
+        ~resource_ptr()
         {
             reset();
         }
 
-        ptr& operator=(const ptr&)
+        resource_ptr& operator=(const resource_ptr&)
         {
             reset();
 
@@ -71,7 +71,7 @@ namespace oblo::resource
             return *this;
         }
 
-        ptr& operator=(ptr&& other) noexcept
+        resource_ptr& operator=(resource_ptr&& other) noexcept
         {
             reset();
             m_ptr = other.m_ptr;
@@ -114,11 +114,11 @@ namespace oblo::resource
         }
 
         template <typename U>
-        ptr<U> as() && noexcept
+        resource_ptr<U> as() && noexcept
         {
             OBLO_ASSERT(!m_resource || get_type_id<U>() == get_type());
 
-            ptr<U> other;
+            resource_ptr<U> other;
             other.m_ptr = static_cast<const U*>(m_ptr);
             other.m_resource = m_resource;
             m_ptr = nullptr;
@@ -128,11 +128,11 @@ namespace oblo::resource
         }
 
         template <typename U>
-        ptr<U> as() const& noexcept
+        resource_ptr<U> as() const& noexcept
         {
             OBLO_ASSERT(!m_resource || get_type_id<U>() == get_type());
 
-            ptr<U> other;
+            resource_ptr<U> other;
             other.m_ptr = static_cast<const U*>(m_ptr);
             other.m_resource = m_resource;
             detail::resource_acquire(m_resource);
@@ -142,7 +142,7 @@ namespace oblo::resource
 
     private:
         template <typename>
-        friend class ptr;
+        friend class resource_ptr;
 
     private:
         const T* m_ptr{};

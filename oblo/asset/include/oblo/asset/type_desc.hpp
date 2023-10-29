@@ -4,7 +4,7 @@
 
 namespace oblo::asset
 {
-    struct type_desc : resource::type_desc
+    struct type_desc : resource_type_desc
     {
     };
 }

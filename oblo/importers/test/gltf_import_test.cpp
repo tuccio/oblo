@@ -4,8 +4,9 @@
 #include <oblo/asset/importer.hpp>
 #include <oblo/asset/importers/registration.hpp>
 #include <oblo/asset/meta.hpp>
+#include <oblo/core/data_format.hpp>
 #include <oblo/math/vec3.hpp>
-#include <oblo/resource/ptr.hpp>
+#include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/assets/model.hpp>
 #include <oblo/scene/assets/registration.hpp>
@@ -24,7 +25,7 @@ namespace oblo::asset::importers
 
     TEST(gltf_importer, box)
     {
-        resource::resource_registry resources;
+        resource_registry resources;
         scene::register_resource_types(resources);
 
         asset_registry registry;
@@ -88,9 +89,9 @@ namespace oblo::asset::importers
             ASSERT_EQ(meshResource->get_vertex_count(), expectedVertexCount);
             ASSERT_EQ(meshResource->get_index_count(), expectedIndexCount);
 
-            ASSERT_EQ(meshResource->get_attribute_format(scene::attribute_kind::position), scene::data_format::vec3);
-            ASSERT_EQ(meshResource->get_attribute_format(scene::attribute_kind::normal), scene::data_format::vec3);
-            ASSERT_EQ(meshResource->get_attribute_format(scene::attribute_kind::indices), scene::data_format::u16);
+            ASSERT_EQ(meshResource->get_attribute_format(scene::attribute_kind::position), data_format::vec3);
+            ASSERT_EQ(meshResource->get_attribute_format(scene::attribute_kind::normal), data_format::vec3);
+            ASSERT_EQ(meshResource->get_attribute_format(scene::attribute_kind::indices), data_format::u16);
 
             const std::span positions = meshResource->get_attribute<vec3>(scene::attribute_kind::position);
             const std::span normals = meshResource->get_attribute<vec3>(scene::attribute_kind::normal);

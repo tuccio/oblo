@@ -67,12 +67,9 @@ namespace oblo::vk
                 {.size = bufferSize, .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT, .memoryUsage = memory_usage::gpu_only},
                 &allocatedBuffer));
 
-            frame_allocator frameAllocator;
-            frameAllocator.init(4u << 20);
-
             buffer_table bufferTable;
 
-            const u32 allocated = bufferTable.init(frameAllocator,
+            const u32 allocated = bufferTable.init(
                 {
                     .buffer = allocatedBuffer.buffer,
                     .offset = 0,
