@@ -27,4 +27,10 @@ namespace oblo
     {
         return (numerator + denominator - 1) / denominator;
     }
+
+    template <typename T>
+    constexpr T round_up_multiple(const T number, const T multiple)
+    {
+        return round_up_div(number, multiple) * multiple;
+    }
 }

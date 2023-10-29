@@ -36,6 +36,7 @@ namespace oblo::vk
 
     struct vulkan_context::pending_disposal_queues
     {
+        std::vector<pending_disposal<VkBuffer>> buffers;
         std::vector<pending_disposal<VkImage>> images;
         std::vector<pending_disposal<VkImageView>> imageViews;
         std::vector<pending_disposal<VkDescriptorSet>> descriptorSets;
@@ -241,6 +242,11 @@ namespace oblo::vk
         OBLO_VK_PANIC(vkQueueSubmit(m_engine->get_queue(), 1, &submitInfo, currentSubmit.fence));
     }
 
+    void vulkan_context::destroy_deferred(VkBuffer buffer, u64 submitIndex)
+    {
+        m_pending->buffers.emplace_back(buffer, submitIndex);
+    }
+
     void vulkan_context::destroy_deferred(VkImage image, u64 submitIndex)
     {
         m_pending->images.emplace_back(image, submitIndex);
@@ -318,6 +324,9 @@ namespace oblo::vk
 
         const VkDevice device = get_device();
         auto* const allocationCbs = m_allocator->get_allocation_callbacks();
+
+        destroyObjects(m_pending->buffers,
+            [device, allocationCbs](VkBuffer buffer) { vkDestroyBuffer(device, buffer, allocationCbs); });
 
         destroyObjects(m_pending->images,
             [device, allocationCbs](VkImage image) { vkDestroyImage(device, image, allocationCbs); });

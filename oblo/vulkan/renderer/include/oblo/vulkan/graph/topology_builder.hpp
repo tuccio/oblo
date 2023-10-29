@@ -3,6 +3,7 @@
 #include <oblo/core/expected.hpp>
 #include <oblo/core/lifetime.hpp>
 #include <oblo/core/struct_apply.hpp>
+#include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/graph/graph_data.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 #include <oblo/vulkan/graph/render_graph.hpp>
@@ -33,9 +34,6 @@ namespace oblo::vk
         };
         {
             node.build(builder)
-        };
-        {
-            node.execute(context)
         };
     };
 
@@ -82,6 +80,7 @@ namespace oblo::vk
         void register_pin(node_desc*, const u8*, ...) {}
 
         void register_pin(node_desc* nodeDesc, const u8* nodePtr, const resource<texture>* pin);
+        void register_pin(node_desc* nodeDesc, const u8* nodePtr, const resource<buffer>* pin);
 
         template <typename T>
         void register_pin(node_desc* nodeDesc, const u8* nodePtr, const data<T>* pin);
@@ -173,32 +172,6 @@ namespace oblo::vk
         usize m_allocationSize{0};
     };
 
-    enum class topology_builder::pin_kind : u8
-    {
-        data,
-        texture,
-    };
-
-    template <typename T>
-    constexpr topology_builder::pin_kind topology_builder::get_resource_pin_kind()
-    {
-        if constexpr (std::is_same_v<T, texture>)
-        {
-            return pin_kind::texture;
-        }
-    }
-
-    template <typename T>
-    consteval topology_builder::pin_kind topology_builder::get_pin_kind(data<T>)
-    {
-        return pin_kind::data;
-    }
-
-    consteval topology_builder::pin_kind topology_builder::get_pin_kind(resource<texture>)
-    {
-        return pin_kind::texture;
-    }
-
     template <typename T>
         requires render_node<T>
     topology_builder& topology_builder::add_node()
@@ -284,11 +257,12 @@ namespace oblo::vk
 
         if (it != m_nodes.end())
         {
-            it->second.outEdges.push_back({.targetNode = get_type_id<NodeTo>(),
+            it->second.outEdges.push_back({
+                .targetNode = get_type_id<NodeTo>(),
                 .dataType = get_type_id<BackingType>(),
                 .sourceOffset = get_member_offset(from),
                 .targetOffset = get_member_offset(to),
-                .kind = get_pin_kind(T{})});
+            });
         }
 
         return *this;
@@ -319,7 +293,6 @@ namespace oblo::vk
                     .targetNode = get_type_id<NodeTo>(),
                     .dataType = get_type_id<T>(),
                     .targetOffset = get_member_offset(to),
-                    .kind = get_resource_pin_kind<T>(),
                 });
 
                 break;
@@ -342,7 +315,6 @@ namespace oblo::vk
                     .targetNode = get_type_id<NodeTo>(),
                     .dataType = get_type_id<T>(),
                     .targetOffset = get_member_offset(to),
-                    .kind = pin_kind::data,
                 });
 
                 break;
@@ -365,7 +337,6 @@ namespace oblo::vk
                     .targetNode = get_type_id<NodeFrom>(),
                     .dataType = get_type_id<T>(),
                     .targetOffset = get_member_offset(from),
-                    .kind = get_resource_pin_kind<T>(),
                 });
 
                 break;
@@ -388,7 +359,6 @@ namespace oblo::vk
                     .targetNode = get_type_id<NodeFrom>(),
                     .dataType = get_type_id<T>(),
                     .targetOffset = get_member_offset(from),
-                    .kind = pin_kind::data,
                     .typeDesc = type_desc::make<T>(),
                 });
 
@@ -420,6 +390,18 @@ namespace oblo::vk
         m_allocationSize += sizeof(h32<texture>) + alignof(h32<texture>) - 1;
 
         nodeDesc->pins.push_back({.id = id, .offset = offset, .typeDesc = type_desc::make<h32<texture>>()});
+    }
+
+    inline void topology_builder::register_pin(node_desc* nodeDesc, const u8* nodePtr, const resource<buffer>* pin)
+    {
+        const u8* const bMemberPtr = reinterpret_cast<const u8*>(pin);
+
+        const u32 id = m_nextDataId++;
+        const u32 offset = u32(bMemberPtr - nodePtr);
+
+        m_allocationSize += sizeof(buffer) + alignof(buffer) - 1;
+
+        nodeDesc->pins.push_back({.id = id, .offset = offset, .typeDesc = type_desc::make<buffer>()});
     }
 
     template <typename T>

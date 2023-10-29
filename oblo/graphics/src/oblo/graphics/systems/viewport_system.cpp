@@ -9,12 +9,14 @@
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
+#include <oblo/math/view_projection.hpp>
 #include <oblo/vulkan/create_render_target.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/graph/render_graph.hpp>
 #include <oblo/vulkan/graph/topology_builder.hpp>
 #include <oblo/vulkan/nodes/debug_draw_all.hpp>
 #include <oblo/vulkan/nodes/debug_triangle_node.hpp>
+#include <oblo/vulkan/nodes/view_buffers_node.hpp>
 #include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/renderer_context.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
@@ -28,6 +30,7 @@ namespace oblo::graphics
     {
         constexpr std::string_view OutFinalRenderTarget{"Final Render Target"};
         constexpr std::string_view InResolution{"Resolution"};
+        constexpr std::string_view InCamera{"Camera"};
     }
 
     struct viewport_system::render_graph_data
@@ -192,10 +195,13 @@ namespace oblo::graphics
 #else
                     expected res = topology_builder{}
                                        .add_node<debug_draw_all>()
+                                       .add_node<view_buffers_node>()
                                        .add_output<h32<texture>>(OutFinalRenderTarget)
                                        .add_input<vec2u>(InResolution)
+                                       .add_input<camera_buffer>(InCamera)
                                        .connect_output(&debug_draw_all::outRenderTarget, OutFinalRenderTarget)
                                        .connect_input(InResolution, &debug_draw_all::inResolution)
+                                       .connect(&view_buffers_node::outViewBuffer, &debug_draw_all::inViewBuffer)
                                        .build();
 #endif
 
@@ -277,6 +283,12 @@ namespace oblo::graphics
                 if (auto* const resolution = graph->find_input<vec2u>(InResolution))
                 {
                     *resolution = vec2u{renderWidth, renderHeight};
+                }
+
+                if (auto* const camera = graph->find_input<camera_buffer>(InCamera))
+                {
+                    *camera =
+                        camera_buffer{.viewProjectionMatrix = make_perspective_matrix(70_rad, 1.f, 0.01f, 1000.f)};
                 }
 
                 if (renderGraphData->texture)

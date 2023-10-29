@@ -1,6 +1,7 @@
 #include <oblo/vulkan/graph/render_graph.hpp>
 
 #include <oblo/core/zip_range.hpp>
+#include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/graph/graph_data.hpp>
 #include <oblo/vulkan/graph/init_context.hpp>
 #include <oblo/vulkan/graph/resource_pool.hpp>
@@ -101,9 +102,9 @@ namespace oblo::vk
         }
     }
 
-    void render_graph::build(resource_pool& resourcePool)
+    void render_graph::build(renderer& renderer, resource_pool& resourcePool)
     {
-        const runtime_builder builder{*this, resourcePool};
+        const runtime_builder builder{*this, resourcePool, renderer};
 
         m_nodeTransitions.assign(m_nodes.size(), node_transitions{});
         m_textureTransitions.clear();
@@ -275,5 +276,10 @@ namespace oblo::vk
 
         // Zero is used as invalid value for pin storage
         return 0u;
+    }
+
+    void render_graph::add_transient_buffer(resource<buffer> texture, const buffer& buf)
+    {
+        new (access_resource_storage(texture.value)) buffer{buf};
     }
 }

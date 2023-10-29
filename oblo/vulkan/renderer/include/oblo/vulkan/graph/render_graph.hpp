@@ -20,6 +20,7 @@ namespace oblo::vk
     class stateful_command_buffer;
     class topology_builder;
 
+    struct buffer;
     struct cpu_data;
     struct gpu_resource;
     struct node;
@@ -78,7 +79,7 @@ namespace oblo::vk
 
         void init(renderer& renderer);
 
-        void build(resource_pool& resourcePool);
+        void build(renderer& renderer, resource_pool& resourcePool);
 
         void execute(renderer& renderer, resource_pool& resourcePool);
 
@@ -91,6 +92,8 @@ namespace oblo::vk
         void add_resource_transition(resource<texture> texture, VkImageLayout target);
         u32 find_pool_index(resource<texture> texture) const;
         u32 find_output_storage_index(std::string_view name) const;
+
+        void add_transient_buffer(resource<buffer> texture, const buffer& buffer);
 
         void flush_copies(stateful_command_buffer& commandBuffer, resource_manager& resourceManager);
 

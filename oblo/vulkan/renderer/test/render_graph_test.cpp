@@ -379,7 +379,7 @@ namespace oblo::vk::test
                 resourcePool.begin_build();
 
                 resourcePool.begin_graph();
-                graph.build(resourcePool);
+                graph.build(renderer, resourcePool);
                 resourcePool.end_graph();
 
                 resourcePool.end_build(*ctx.vkContext);
