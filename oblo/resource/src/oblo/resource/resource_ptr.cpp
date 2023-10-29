@@ -1,9 +1,9 @@
-#include <oblo/resource/ptr.hpp>
+#include <oblo/resource/resource_ptr.hpp>
 
 #include <oblo/core/debug.hpp>
 #include <oblo/resource/resource.hpp>
 
-namespace oblo::resource::detail
+namespace oblo::detail
 {
     resource* resource_create(void* data, type_id type, destroy_resource_fn destroy)
     {

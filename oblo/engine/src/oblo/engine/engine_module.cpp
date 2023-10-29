@@ -27,7 +27,7 @@ namespace oblo::engine
             return false;
         }
 
-        m_resourceRegistry = std::make_unique<resource::resource_registry>();
+        m_resourceRegistry = std::make_unique<resource_registry>();
         m_resourceRegistry->register_provider(&asset::asset_registry::find_artifact_resource, m_assetRegistry.get());
 
         g_instance = this;

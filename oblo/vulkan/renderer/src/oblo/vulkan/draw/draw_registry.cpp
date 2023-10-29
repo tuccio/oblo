@@ -7,7 +7,7 @@
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/type_set.hpp>
 #include <oblo/ecs/utility/registration.hpp>
-#include <oblo/resource/ptr.hpp>
+#include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/assets/mesh.hpp>
 #include <oblo/vulkan/buffer.hpp>
@@ -127,7 +127,7 @@ namespace oblo::vk
         // TODO: Destroy all batches
     }
 
-    h64<draw_mesh> draw_registry::get_or_create_mesh(oblo::resource::resource_registry& resourceRegistry,
+    h64<draw_mesh> draw_registry::get_or_create_mesh(oblo::resource_registry& resourceRegistry,
         const uuid& resourceId)
     {
         if (const auto it = m_cachedMeshes.find(resourceId); it != m_cachedMeshes.end())

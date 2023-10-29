@@ -4,7 +4,7 @@
 #include <oblo/core/types.hpp>
 #include <oblo/resource/type_desc.hpp>
 
-namespace oblo::resource
+namespace oblo
 {
     struct resource
     {

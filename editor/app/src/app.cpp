@@ -78,7 +78,7 @@ namespace oblo::editor
 
         m_services.add<vk::vulkan_context>().externally_owned(ctx.vkContext);
         m_services.add<vk::renderer>().externally_owned(&m_renderer);
-        m_services.add<resource::resource_registry>().externally_owned(&resourceRegistry);
+        m_services.add<resource_registry>().externally_owned(&resourceRegistry);
 
         m_executor = create_system_executor();
 

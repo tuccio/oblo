@@ -10,7 +10,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace oblo::resource
+namespace oblo
 {
     class resource_registry;
 }
@@ -46,7 +46,7 @@ namespace oblo::vk
         void init(vulkan_context& ctx, staging_buffer& stagingBuffer, string_interner& interner);
         void shutdown();
 
-        h64<draw_mesh> get_or_create_mesh(oblo::resource::resource_registry& resourceRegistry, const uuid& resourceId);
+        h64<draw_mesh> get_or_create_mesh(oblo::resource_registry& resourceRegistry, const uuid& resourceId);
 
         h32<draw_instance> create_instance(
             h64<draw_mesh> mesh, std::span<const h32<draw_buffer>> buffers, std::span<std::byte*> outData);
