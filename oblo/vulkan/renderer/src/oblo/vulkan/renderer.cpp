@@ -21,7 +21,15 @@ namespace oblo::vk
     {
         m_vkContext = &context.vkContext;
 
-        m_stagingBuffer.init(get_engine(), get_allocator(), 1u << 27);
+        if (!m_stagingBuffer.init(get_engine(), get_allocator(), 1u << 27))
+        {
+            return false;
+        }
+
+        if (!m_graphResourcePool.init(*m_vkContext))
+        {
+            return false;
+        }
 
         m_dummy = m_vkContext->get_resource_manager().create(get_allocator(),
             {
@@ -64,7 +72,7 @@ namespace oblo::vk
         for (auto& graphData : m_renderGraphs.values())
         {
             m_graphResourcePool.begin_graph();
-            graphData.build(m_graphResourcePool);
+            graphData.build(*this, m_graphResourcePool);
             m_graphResourcePool.end_graph();
         }
 

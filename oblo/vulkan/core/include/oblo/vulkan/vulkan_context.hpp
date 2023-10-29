@@ -46,6 +46,7 @@ namespace oblo::vk
 
         u64 get_submit_index() const;
 
+        void destroy_deferred(VkBuffer buffer, u64 submitIndex);
         void destroy_deferred(VkImage image, u64 submitIndex);
         void destroy_deferred(VkImageView image, u64 submitIndex);
         void destroy_deferred(VkDescriptorSet descriptorSet, VkDescriptorPool pool, u64 submitIndex);

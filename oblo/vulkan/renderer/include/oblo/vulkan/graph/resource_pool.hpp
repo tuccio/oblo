@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/vulkan/allocator.hpp>
+#include <oblo/vulkan/monotonic_gbu_buffer.hpp>
 #include <oblo/vulkan/texture.hpp>
 
 #include <vector>
@@ -26,6 +27,7 @@ namespace oblo::vk
         resource_pool& operator=(const resource_pool&) = delete;
         resource_pool& operator=(resource_pool&&) noexcept = delete;
 
+        bool init(vulkan_context& ctx);
         void shutdown(vulkan_context& ctx);
 
         void begin_build();
@@ -35,6 +37,7 @@ namespace oblo::vk
         void end_graph();
 
         u32 add(const image_initializer& initializer, lifetime_range range);
+        buffer add_uniform_buffer(vulkan_context& ctx, u32 size);
 
         void add_usage(u32 poolIndex, VkImageUsageFlags usage);
 
@@ -50,6 +53,8 @@ namespace oblo::vk
         u32 m_graphBegin{0};
         std::vector<texture_resource> m_textureResources;
         std::vector<texture_resource> m_lastFrameTextureResources;
+
+        monotonic_gpu_buffer m_uniformBuffersPool;
 
         VmaAllocation m_allocation{};
         VmaAllocation m_lastFrameAllocation{};

@@ -1,5 +1,6 @@
 #include <oblo/vulkan/graph/resource_pool.hpp>
 
+#include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
 
@@ -42,6 +43,24 @@ namespace oblo::vk
 
     resource_pool::~resource_pool() = default;
 
+    bool resource_pool::init(vulkan_context& ctx)
+    {
+        auto& engine = ctx.get_engine();
+        const auto physicalDevice = engine.get_physical_device();
+
+        VkPhysicalDeviceProperties properties{};
+        vkGetPhysicalDeviceProperties(physicalDevice, &properties);
+
+        u32 bufferChunkSize{1u << 20};
+
+        m_uniformBuffersPool.init(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            memory_usage::gpu_only,
+            narrow_cast<u32>(properties.limits.minUniformBufferOffsetAlignment),
+            bufferChunkSize);
+
+        return true;
+    }
+
     void resource_pool::shutdown(vulkan_context& ctx)
     {
         m_lastFrameAllocation = m_allocation;
@@ -58,6 +77,8 @@ namespace oblo::vk
 
         m_lastFrameAllocation = m_allocation;
         m_allocation = nullptr;
+
+        m_uniformBuffersPool.restore_all();
     }
 
     void resource_pool::end_build(vulkan_context& ctx)
@@ -159,6 +180,11 @@ namespace oblo::vk
         const auto id = u32(m_textureResources.size());
         m_textureResources.emplace_back(initializer, range);
         return id;
+    }
+
+    buffer resource_pool::add_uniform_buffer(vulkan_context& ctx, u32 size)
+    {
+        return m_uniformBuffersPool.allocate(ctx, size);
     }
 
     void resource_pool::add_usage(u32 poolIndex, VkImageUsageFlags usage)

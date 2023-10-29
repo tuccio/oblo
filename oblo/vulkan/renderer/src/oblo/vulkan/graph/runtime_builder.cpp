@@ -1,8 +1,11 @@
 #include <oblo/vulkan/graph/runtime_builder.hpp>
 
+#include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/graph/graph_data.hpp>
 #include <oblo/vulkan/graph/render_graph.hpp>
 #include <oblo/vulkan/graph/resource_pool.hpp>
+#include <oblo/vulkan/renderer.hpp>
+#include <oblo/vulkan/staging_buffer.hpp>
 
 namespace oblo::vk
 {
@@ -56,7 +59,7 @@ namespace oblo::vk
     }
 
     void runtime_builder::create(
-        resource<texture> texture, const texture2d_initializer& initializer, resource_usage usage) const
+        resource<texture> texture, const transient_texture_initializer& initializer, resource_usage usage) const
     {
         const image_initializer imageInitializer{
             .imageType = VK_IMAGE_TYPE_2D,
@@ -77,6 +80,16 @@ namespace oblo::vk
         const auto poolIndex = m_resourcePool->add(imageInitializer, range);
         m_graph->add_transient_resource(texture, poolIndex);
         m_graph->add_resource_transition(texture, convert_layout(usage));
+    }
+
+    void runtime_builder::create(resource<buffer> buffer, const transient_buffer_initializer& initializer) const
+    {
+        const auto vkBuf = m_resourcePool->add_uniform_buffer(m_renderer->get_vulkan_context(), initializer.size);
+        [[maybe_unused]] const auto res =
+            m_renderer->get_staging_buffer().upload(initializer.data, vkBuf.buffer, vkBuf.offset);
+        OBLO_ASSERT(res, "Out of space on the staging buffer, we should flush instead");
+
+        m_graph->add_transient_buffer(buffer, vkBuf);
     }
 
     void runtime_builder::acquire(resource<texture> texture, resource_usage usage) const

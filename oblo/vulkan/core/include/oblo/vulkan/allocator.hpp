@@ -10,7 +10,7 @@ VK_DEFINE_HANDLE(VmaAllocation)
 
 namespace oblo::vk
 {
-    enum class memory_usage : u32
+    enum class memory_usage : u8
     {
         unknown = 0,
         gpu_only = 1,

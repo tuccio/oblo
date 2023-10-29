@@ -5,8 +5,11 @@
 
 #include <vulkan/vulkan.h>
 
+#include <span>
+
 namespace oblo::vk
 {
+    class renderer;
     struct buffer;
     struct texture;
 
@@ -20,7 +23,7 @@ namespace oblo::vk
         transfer_destination,
     };
 
-    struct texture2d_initializer
+    struct transient_texture_initializer
     {
         u32 width;
         u32 height;
@@ -29,18 +32,27 @@ namespace oblo::vk
         VkImageAspectFlags aspectMask;
     };
 
+    struct transient_buffer_initializer
+    {
+        u32 size;
+        std::span<const std::byte> data;
+    };
+
     class render_graph;
     class resource_pool;
 
     class runtime_builder
     {
     public:
-        explicit runtime_builder(render_graph& graph, resource_pool& resourcePool) :
-            m_graph{&graph}, m_resourcePool{&resourcePool}
+        explicit runtime_builder(render_graph& graph, resource_pool& resourcePool, renderer& renderer) :
+            m_graph{&graph}, m_resourcePool{&resourcePool}, m_renderer{&renderer}
         {
         }
 
-        void create(resource<texture> texture, const texture2d_initializer& initializer, resource_usage usage) const;
+        void create(
+            resource<texture> texture, const transient_texture_initializer& initializer, resource_usage usage) const;
+
+        void create(resource<buffer> buffer, const transient_buffer_initializer& initializer) const;
 
         void acquire(resource<texture> texture, resource_usage usage) const;
 
@@ -53,5 +65,6 @@ namespace oblo::vk
     private:
         render_graph* m_graph;
         resource_pool* m_resourcePool;
+        renderer* m_renderer;
     };
 }

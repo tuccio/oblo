@@ -14,6 +14,7 @@ namespace oblo::vk
     struct debug_draw_all
     {
         data<vec2u> inResolution;
+        resource<buffer> inViewBuffer;
         resource<texture> outRenderTarget;
 
         h32<render_pass> renderPass{};
