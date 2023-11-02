@@ -18,7 +18,6 @@ namespace oblo::ecs
 {
     namespace
     {
-
         struct alignas(16) aligned_uvec4
         {
             u32 data[4];
@@ -80,14 +79,16 @@ namespace oblo::ecs
 
             for (auto iteration = 0; iteration < Iterations; ++iteration)
             {
-                const auto newEntity = reg.create<string_c, a_uvec4_c, instance_counted>(N);
+                entity newEntities[N];
+                reg.create<string_c, a_uvec4_c, instance_counted>(N, newEntities);
 
-                ASSERT_TRUE(newEntity);
+                ASSERT_TRUE(
+                    std::all_of(std::begin(newEntities), std::end(newEntities), [](entity e) { return bool{e}; }));
                 ASSERT_EQ(instance_counted::s_counter, N * (iteration + 1));
 
                 for (int n = 0; n < N; ++n)
                 {
-                    const auto entityId = newEntity.value + n;
+                    const auto entityId = newEntities[n].value;
                     instance_counted& ic = reg.get<instance_counted>({entityId});
                     ASSERT_EQ(ic.value, i64(-1)) << "Iteration: " << iteration << " N: " << n;
                     ic.value = entityId;

@@ -28,6 +28,10 @@ namespace oblo
     class flat_dense_map
     {
     public:
+        using key_type = Key;
+        using value_type = Value;
+        using extractor_type = KeyExtractor;
+
         template <typename... Args>
         auto emplace(Key key, Args&&... args) noexcept
         {
