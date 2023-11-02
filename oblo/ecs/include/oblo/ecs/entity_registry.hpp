@@ -1,6 +1,7 @@
 #pragma once
 
-#include <oblo/core/flat_dense_map.hpp>
+#include <oblo/core/handle_flat_pool_map.hpp>
+#include <oblo/core/handle_pool.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/ecs/handles.hpp>
 #include <oblo/ecs/traits.hpp>
@@ -31,10 +32,14 @@ namespace oblo::ecs
 
         void init(const type_registry* typeRegistry);
 
-        entity create(const component_and_tags_sets& types, u32 count = 1);
+        entity create(const component_and_tags_sets& types);
+        void create(const component_and_tags_sets& types, u32 count, std::span<entity> outEntityIds = {});
 
         template <typename... ComponentsOrTags>
-        entity create(u32 count = 1);
+        entity create();
+
+        template <typename... ComponentsOrTags>
+        void create(u32 count, std::span<entity> outEntityIds = {});
 
         void destroy(entity e);
 
@@ -105,17 +110,24 @@ namespace oblo::ecs
             entity e, const std::span<const type_id> typeIds, std::span<std::byte*> outComponents) const;
 
     private:
+        using entities_map = h32_flat_pool_dense_map<entity_handle, entity_data>;
+
         const type_registry* m_typeRegistry{nullptr};
         std::unique_ptr<memory_pool> m_pool;
-        flat_dense_map<entity, entity_data> m_entities;
+        entities_map m_entities;
         std::vector<components_storage> m_componentsStorage;
-        entity m_nextId{1};
     };
 
     template <typename... ComponentsOrTags>
-    entity entity_registry::create(u32 count)
+    entity entity_registry::create()
     {
-        return create(make_type_sets<ComponentsOrTags...>(*m_typeRegistry), count);
+        return create(make_type_sets<ComponentsOrTags...>(*m_typeRegistry));
+    }
+
+    template <typename... ComponentsOrTags>
+    void entity_registry::create(u32 count, std::span<entity> outEntityIds)
+    {
+        return create(make_type_sets<ComponentsOrTags...>(*m_typeRegistry), count, outEntityIds);
     }
 
     template <typename Component>

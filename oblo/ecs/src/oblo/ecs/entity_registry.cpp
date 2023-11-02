@@ -5,6 +5,7 @@
 #include <oblo/core/zip_range.hpp>
 #include <oblo/ecs/archetype_storage.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
+#include <oblo/ecs/range.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/ecs/type_set.hpp>
 
@@ -62,11 +63,20 @@ namespace oblo::ecs
         *this = entity_registry{typeRegistry};
     }
 
-    entity entity_registry::create(const component_and_tags_sets& types, const u32 count)
+    entity entity_registry::create(const component_and_tags_sets& types)
     {
+        entity e;
+        create(types, 1, {&e, 1});
+        return e;
+    }
+
+    void entity_registry::create(const component_and_tags_sets& types, const u32 count, std::span<entity> outEntityIds)
+    {
+        OBLO_ASSERT(outEntityIds.size() == 0 || outEntityIds.size() == count);
+
         if (count == 0)
         {
-            return {};
+            return;
         }
 
         const components_storage& storage = find_or_create_storage(types);
@@ -79,8 +89,6 @@ namespace oblo::ecs
 
         reserve_chunks(*m_pool, *archetype, numRequiredChunks);
 
-        const entity firstCreatedEntityId = m_nextId;
-
         chunk** const chunks = archetype->chunks;
         const u32 firstChunkIndex = oldCount / numEntitiesPerChunk;
         const u8 numComponents = archetype->numComponents;
@@ -89,6 +97,7 @@ namespace oblo::ecs
         u32 numRemainingEntities = count;
 
         u32 archetypeIndex = oldCount;
+        auto outIt = outEntityIds.begin();
 
         for (chunk** chunk = chunks + firstChunkIndex; chunk != chunks + numRequiredChunks;
              ++chunk, numEntitiesInCurrentChunk = 0)
@@ -101,11 +110,16 @@ namespace oblo::ecs
 
             for (entity *it = entities, *end = entities + numEntitiesToCreate; it != end; ++it)
             {
-                m_entities.emplace(m_nextId, archetype, archetypeIndex);
+                const auto [_, entityId] = m_entities.emplace(archetype, archetypeIndex);
                 ++archetypeIndex;
 
-                new (it) entity{m_nextId};
-                ++m_nextId.value;
+                new (it) entity{entityId};
+
+                if (outIt != outEntityIds.end())
+                {
+                    *outIt = entityId;
+                    ++outIt;
+                }
             }
 
             std::fill_n(get_entity_tags_pointer(chunkBytes, *archetype, 0),
@@ -126,8 +140,6 @@ namespace oblo::ecs
         }
 
         archetype->numCurrentEntities = newCount;
-
-        return firstCreatedEntityId;
     }
 
     void entity_registry::destroy(entity e)
@@ -162,6 +174,7 @@ namespace oblo::ecs
 
             // We will swap the removed entity with the last, so we remove the archetype index
             m_entities.erase(*removedEntity);
+
             auto* const lastEntityData = m_entities.try_find(*lastEntity);
             OBLO_ASSERT(lastEntityData);
             lastEntityData->archetypeIndex = archetypeIndex;
