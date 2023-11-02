@@ -106,10 +106,9 @@ namespace oblo::vk
 
     h32<render_graph> renderer::add(render_graph&& graph)
     {
-        const h32<render_graph> id{++m_lastRenderGraphId};
-        auto [it, ok] = m_renderGraphs.emplace(id, std::move(graph));
+        auto [it, id] = m_renderGraphs.emplace(std::move(graph));
 
-        if (!ok)
+        if (!id)
         {
             return {};
         }

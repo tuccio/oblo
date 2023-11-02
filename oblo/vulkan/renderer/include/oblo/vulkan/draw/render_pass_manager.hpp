@@ -1,8 +1,8 @@
 #pragma once
 
-#include <oblo/core/flat_dense_map.hpp>
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/handle.hpp>
+#include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/vulkan/shader_compiler.hpp>
 
 #include <memory>
@@ -55,10 +55,8 @@ namespace oblo::vk
     private:
         frame_allocator m_frameAllocator;
         VkDevice m_device{};
-        u32 m_lastRenderPassId{};
-        u32 m_lastRenderPipelineId{};
-        flat_dense_map<h32<render_pass>, render_pass> m_renderPasses;
-        flat_dense_map<h32<render_pipeline>, render_pipeline> m_renderPipelines;
+        h32_flat_pool_dense_map<render_pass, render_pass> m_renderPasses;
+        h32_flat_pool_dense_map<render_pipeline, render_pipeline> m_renderPipelines;
         string_interner* m_interner{nullptr};
         h32<buffer> m_dummy{};
         std::unique_ptr<file_watcher> m_fileWatcher;

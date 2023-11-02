@@ -191,10 +191,8 @@ namespace oblo::vk
 
     h32<render_pass> render_pass_manager::register_render_pass(const render_pass_initializer& desc)
     {
-        const h32<render_pass> handle{++m_lastRenderPassId};
-
-        const auto [it, ok] = m_renderPasses.emplace(handle);
-        OBLO_ASSERT(ok);
+        const auto [it, handle] = m_renderPasses.emplace();
+        OBLO_ASSERT(handle);
 
         auto& renderPass = *it;
 
@@ -253,10 +251,8 @@ namespace oblo::vk
 
         const auto restore = m_frameAllocator.make_scoped_restore();
 
-        const h32<render_pipeline> pipelineHandle{m_lastRenderPipelineId + 1};
-
-        const auto [pipelineIt, ok] = m_renderPipelines.emplace(pipelineHandle);
-        OBLO_ASSERT(ok);
+        const auto [pipelineIt, pipelineHandle] = m_renderPipelines.emplace();
+        OBLO_ASSERT(pipelineHandle);
         auto& newPipeline = *pipelineIt;
 
         const auto failure = [this, &newPipeline, pipelineHandle, renderPass, expectedHash]
@@ -555,7 +551,6 @@ namespace oblo::vk
             VK_SUCCESS)
         {
             renderPass->variants.push_back({.hash = expectedHash, .pipeline = pipelineHandle});
-            m_lastRenderPipelineId = pipelineHandle.value;
             return pipelineHandle;
         }
 

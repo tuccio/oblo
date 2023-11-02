@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/handle.hpp>
+#include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/core/string_interner.hpp>
 #include <oblo/vulkan/draw/draw_registry.hpp>
 #include <oblo/vulkan/draw/render_pass_manager.hpp>
@@ -68,10 +69,9 @@ namespace oblo::vk
         render_pass_manager m_renderPassManager;
 
         h32<buffer> m_dummy;
-        u32 m_lastRenderGraphId{};
 
         resource_pool m_graphResourcePool;
-        flat_dense_map<h32<render_graph>, wrapped_render_graph> m_renderGraphs;
+        h32_flat_pool_dense_map<render_graph, wrapped_render_graph> m_renderGraphs;
     };
 
     struct renderer::initializer

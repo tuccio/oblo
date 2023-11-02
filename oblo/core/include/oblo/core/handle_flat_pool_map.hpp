@@ -40,8 +40,9 @@ namespace oblo
             const auto key = key_type{m_pool.acquire()};
 
             const auto [it, inserted] = base::emplace(key, std::forward<Args>(args)...);
+            OBLO_ASSERT(inserted, "Handles should be available if they are in the pool");
 
-            if (!inserted)
+            if (!inserted) [[unlikely]]
             {
                 m_pool.release(key.value);
                 return std::pair{it, key_type{}};
@@ -50,15 +51,31 @@ namespace oblo
             return std::pair{it, key};
         }
 
-        auto erase(key_type key)
+        u32 erase(key_type key)
         {
-            if (base::erase(key) != 0)
+            const auto res = base::erase(key);
+
+            if (res != 0)
             {
                 m_pool.release(key.value);
             }
+
+            return res;
         }
 
         using base::try_find;
+
+        using base::keys;
+        using base::values;
+
+        using base::reserve_dense;
+        using base::reserve_sparse;
+
+        using base::clear;
+
+        using base::size;
+
+        using base::empty;
 
     private:
         handle_pool<T, GenBits> m_pool;
