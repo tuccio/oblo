@@ -124,11 +124,13 @@ namespace oblo::vk
 
     void draw_registry::shutdown()
     {
-        // TODO: Destroy all batches
+        for (auto& batch : m_meshBatches)
+        {
+            batch.table->shutdown(m_ctx->get_allocator(), m_ctx->get_resource_manager());
+        }
     }
 
-    h64<draw_mesh> draw_registry::get_or_create_mesh(oblo::resource_registry& resourceRegistry,
-        const uuid& resourceId)
+    h64<draw_mesh> draw_registry::get_or_create_mesh(oblo::resource_registry& resourceRegistry, const uuid& resourceId)
     {
         if (const auto it = m_cachedMeshes.find(resourceId); it != m_cachedMeshes.end())
         {
