@@ -158,9 +158,8 @@ namespace oblo::vk
 
     h32<texture> resource_manager::register_texture(const texture& data, VkImageLayout currentLayout)
     {
-        const h32<texture> handle{++m_lastTextureId};
-        [[maybe_unused]] const auto [it, ok] = m_textures.emplace(handle, data, currentLayout);
-        OBLO_ASSERT(ok);
+        [[maybe_unused]] const auto [it, handle] = m_textures.emplace(data, currentLayout);
+        OBLO_ASSERT(handle);
         return handle;
     }
 
@@ -172,9 +171,8 @@ namespace oblo::vk
 
     h32<buffer> resource_manager::register_buffer(const buffer& data)
     {
-        const h32<buffer> handle{++m_lastBufferId};
-        [[maybe_unused]] const auto [it, ok] = m_buffers.emplace(handle, data);
-        OBLO_ASSERT(ok);
+        [[maybe_unused]] const auto [it, handle] = m_buffers.emplace(data);
+        OBLO_ASSERT(handle);
         return handle;
     }
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <oblo/core/flat_dense_map.hpp>
+#include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/types.hpp>
 
@@ -58,10 +58,8 @@ namespace oblo::vk
         struct stored_texture;
 
     private:
-        u32 m_lastBufferId{};
-        u32 m_lastTextureId{};
-        flat_dense_map<h32<buffer>, stored_buffer> m_buffers;
-        flat_dense_map<h32<texture>, stored_texture> m_textures;
+        h32_flat_pool_dense_map<buffer, stored_buffer> m_buffers;
+        h32_flat_pool_dense_map<texture, stored_texture> m_textures;
     };
 
     class command_buffer_state
