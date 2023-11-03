@@ -202,6 +202,7 @@ namespace oblo::graphics
                                        .add_input<vec2u>(InResolution)
                                        .add_input<camera_buffer>(InCamera)
                                        .connect_output(&debug_draw_all::outRenderTarget, OutFinalRenderTarget)
+                                       .connect_input(InCamera, &view_buffers_node::inCameraData)
                                        .connect_input(InResolution, &debug_draw_all::inResolution)
                                        .connect(&view_buffers_node::outPerViewBindingTable, &debug_draw_all::inPerViewBindingTable)
                                        .build();

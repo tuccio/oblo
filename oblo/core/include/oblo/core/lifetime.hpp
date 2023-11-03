@@ -18,7 +18,7 @@ namespace oblo
     template <typename T>
     const T* start_lifetime_as(const void* ptr) noexcept
     {
-        return start_lifetime_as(const_cast<void*>(ptr));
+        return start_lifetime_as<T>(const_cast<void*>(ptr));
     }
 
     template <typename T>

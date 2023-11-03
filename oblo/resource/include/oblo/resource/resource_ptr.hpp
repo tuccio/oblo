@@ -56,7 +56,7 @@ namespace oblo
             reset();
         }
 
-        resource_ptr& operator=(const resource_ptr&)
+        resource_ptr& operator=(const resource_ptr& other)
         {
             reset();
 

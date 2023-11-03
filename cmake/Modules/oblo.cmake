@@ -17,7 +17,7 @@ endmacro(oblo_remove_cxx_flag)
 function(oblo_init_compiler_settings)
     if(MSVC)
         # Warning as errors
-        add_compile_options(/W4 /WX)
+        add_compile_options(/W4 /WX /wd4324)
 
         # Disable optimizations if specified
         if(OBLO_DISABLE_COMPILER_OPTIMIZATIONS)

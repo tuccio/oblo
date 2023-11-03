@@ -8,9 +8,8 @@
     "configurePresets": [
         {
             "name": "conf-common",
-            "description": "General settings that apply to all configurations",
+            "description": "General settings configurations",
             "hidden": true,
-            "generator": "Ninja",
             "binaryDir": "${sourceDir}/.build/${presetName}",
             "installDir": "${sourceDir}/.install/${presetName}",
             "cacheVariables": {
@@ -19,10 +18,28 @@
             }
         },
         {
-            "name": "conf-windows-common",
+            "name": "conf-vs2022",
+            "description": "Settings for Visual Studio configurations",
+            "generator": "Visual Studio 17 2022",
+            "inherits": "conf-common",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "conf-ninja",
+            "description": "Settings for Ninja configurations",
+            "inherits": "conf-common",
+            "hidden": true,
+            "generator": "Ninja"
+        },
+        {
+            "name": "conf-windows-ninja",
             "description": "Windows settings for MSBuild toolchain that apply to msvc and clang",
             "hidden": true,
-            "inherits": "conf-common",
+            "inherits": "conf-ninja",
             "condition": {
                 "type": "equals",
                 "lhs": "${hostSystemName}",
@@ -41,7 +58,7 @@
             "name": "conf-windows-clang-cl",
             "description": "Windows settings for clang-cl",
             "hidden": true,
-            "inherits": "conf-windows-common",
+            "inherits": "conf-windows-ninja",
             "cacheVariables": {
                 "CMAKE_C_COMPILER": "clang-cl",
                 "CMAKE_CXX_COMPILER": "clang-cl",
@@ -81,17 +98,6 @@
                 "OBLO_DISABLE_COMPILER_OPTIMIZATIONS": false,
                 "OBLO_ENABLE_ASSERT": false,
                 "OBLO_DEBUG": false
-            }
-        },
-        {
-            "name": "windows-clang-cl-debug",
-            "displayName": "Windows clang-cl Debug",
-            "description": "Windows clang-cl Debug",
-            "inherits": "conf-windows-clang-cl",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "OBLO_ENABLE_ASSERT": true,
-                "OBLO_DEBUG": true
             }
         }
     ]

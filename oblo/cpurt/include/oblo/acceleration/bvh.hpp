@@ -244,7 +244,7 @@ namespace oblo
                 if (midIndex == begin || midIndex == end)
                 {
                     // TODO: Could split using different heuristics
-                    init_leaf(node, begin, end - begin);
+                    init_leaf(node, begin, narrow_cast<u16>(end - begin));
                 }
                 else
                 {

@@ -22,7 +22,7 @@ namespace oblo
     u32 aabb_container::size() const
     {
         OBLO_ASSERT(m_ids.size() == m_aabbs.size() && m_centroids.size() == m_aabbs.size());
-        return m_aabbs.size();
+        return u32(m_aabbs.size());
     }
 
     void aabb_container::reserve(u32 capacity)

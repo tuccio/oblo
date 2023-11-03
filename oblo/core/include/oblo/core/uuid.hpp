@@ -37,9 +37,9 @@ namespace oblo
         constexpr bool parse_from(std::string_view buffer);
     };
 
-    constexpr std::string_view uuid::format_to(std::span<char, 36> buffer) const
+    namespace detail::uuid
     {
-        constexpr auto push_chars = [](u8 byte, auto& out)
+        constexpr void push_chars(u8 byte, auto& out)
         {
             static constexpr char lookup[] =
                 {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
@@ -50,6 +50,11 @@ namespace oblo
             *out = lookup[byte & 0xF];
             ++out;
         };
+    }
+
+    constexpr std::string_view uuid::format_to(std::span<char, 36> buffer) const
+    {
+        using detail::uuid::push_chars;
 
         auto it = buffer.begin();
         push_chars(data[0], it);

@@ -60,7 +60,7 @@ namespace std
     template <>
     struct hash<oblo::type_id>
     {
-        constexpr auto operator()(const oblo::type_id& typeId) const noexcept
+        auto operator()(const oblo::type_id& typeId) const noexcept
         {
             return hash<std::string_view>{}(typeId.name);
         }
