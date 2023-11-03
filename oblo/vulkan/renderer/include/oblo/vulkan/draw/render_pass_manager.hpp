@@ -1,9 +1,8 @@
 #pragma once
 
-#include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/handle.hpp>
-#include <oblo/core/handle_flat_pool_map.hpp>
-#include <oblo/vulkan/shader_compiler.hpp>
+
+#include <vulkan/vulkan.h>
 
 #include <memory>
 
@@ -50,16 +49,10 @@ namespace oblo::vk
             const render_pass_context& context, const resource_manager& resourceManager, const mesh_table& meshTable);
 
     private:
-        struct file_watcher;
+        struct impl;
 
     private:
-        frame_allocator m_frameAllocator;
-        VkDevice m_device{};
-        h32_flat_pool_dense_map<render_pass, render_pass> m_renderPasses;
-        h32_flat_pool_dense_map<render_pipeline, render_pipeline> m_renderPipelines;
-        string_interner* m_interner{nullptr};
-        h32<buffer> m_dummy{};
-        std::unique_ptr<file_watcher> m_fileWatcher;
+        std::unique_ptr<impl> m_impl;
     };
 
     struct render_pass_context

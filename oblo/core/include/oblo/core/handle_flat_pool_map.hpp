@@ -81,9 +81,9 @@ namespace oblo
         handle_pool<T, GenBits> m_pool;
     };
 
-    template <typename Tag, typename Value>
+    template <typename Tag, typename Value = Tag>
     using h32_flat_pool_dense_map = handle_flat_pool_dense_map<Tag, Value, u32, 4>;
 
-    template <typename Tag, typename Value>
+    template <typename Tag, typename Value = Tag>
     using h64_flat_pool_dense_map = handle_flat_pool_dense_map<Tag, Value, u64, 8>;
 }

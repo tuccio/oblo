@@ -4,6 +4,7 @@
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/file_utility.hpp>
 #include <oblo/core/frame_allocator.hpp>
+#include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/core/log.hpp>
 #include <oblo/core/string_interner.hpp>
 #include <oblo/core/unreachable.hpp>
@@ -11,10 +12,12 @@
 #include <oblo/vulkan/draw/mesh_table.hpp>
 #include <oblo/vulkan/draw/render_pass_initializer.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
+#include <oblo/vulkan/shader_compiler.hpp>
 
 #include <efsw/efsw.hpp>
-
 #include <spirv_cross/spirv_cross.hpp>
+
+#include <optional>
 
 namespace oblo::vk
 {
@@ -150,8 +153,15 @@ namespace oblo::vk
         }
     }
 
-    struct render_pass_manager::file_watcher final : efsw::FileWatcher
+    struct render_pass_manager::impl
     {
+        frame_allocator frameAllocator;
+        VkDevice device{};
+        h32_flat_pool_dense_map<render_pass> renderPasses;
+        h32_flat_pool_dense_map<render_pipeline> renderPipelines;
+        string_interner* interner{nullptr};
+        h32<buffer> dummy{};
+        std::optional<efsw::FileWatcher> fileWatcher;
     };
 
     render_pass_manager::render_pass_manager() = default;
@@ -159,44 +169,51 @@ namespace oblo::vk
 
     void render_pass_manager::init(VkDevice device, string_interner& interner, const h32<buffer> dummy)
     {
-        m_frameAllocator.init(1u << 22);
+        m_impl = std::make_unique<impl>();
 
-        m_device = device;
-        m_interner = &interner;
-        m_dummy = dummy;
+        m_impl->frameAllocator.init(1u << 22);
+
+        m_impl->device = device;
+        m_impl->interner = &interner;
+        m_impl->dummy = dummy;
 
         if (device)
         {
             shader_compiler::init();
         }
 
-        m_fileWatcher = std::make_unique<file_watcher>();
-        m_fileWatcher->watch();
+        auto& watcher = m_impl->fileWatcher.emplace();
+        watcher.watch();
     }
 
     void render_pass_manager::shutdown()
     {
-        if (m_device)
+        if (!m_impl)
         {
-            for (const auto& renderPipeline : m_renderPipelines.values())
+            return;
+        }
+
+        if (const auto device = m_impl->device)
+        {
+            for (const auto& renderPipeline : m_impl->renderPipelines.values())
             {
-                destroy_pipeline(m_device, renderPipeline);
+                destroy_pipeline(device, renderPipeline);
             }
 
             shader_compiler::shutdown();
-            m_device = nullptr;
-            m_interner = nullptr;
         }
+
+        m_impl.reset();
     }
 
     h32<render_pass> render_pass_manager::register_render_pass(const render_pass_initializer& desc)
     {
-        const auto [it, handle] = m_renderPasses.emplace();
+        const auto [it, handle] = m_impl->renderPasses.emplace();
         OBLO_ASSERT(handle);
 
         auto& renderPass = *it;
 
-        renderPass.name = m_interner->get_or_add(desc.name);
+        renderPass.name = m_impl->interner->get_or_add(desc.name);
 
         renderPass.stagesCount = 0;
         renderPass.watcher = std::make_unique<watch_listener>();
@@ -207,7 +224,7 @@ namespace oblo::vk
             renderPass.stages[renderPass.stagesCount] = stage.stage;
             ++renderPass.stagesCount;
 
-            m_fileWatcher->addWatch(stage.shaderSourcePath.parent_path().string(), renderPass.watcher.get());
+            m_impl->fileWatcher->addWatch(stage.shaderSourcePath.parent_path().string(), renderPass.watcher.get());
         }
 
         return handle;
@@ -216,7 +233,7 @@ namespace oblo::vk
     h32<render_pipeline> render_pass_manager::get_or_create_pipeline(h32<render_pass> renderPassHandle,
         const render_pipeline_initializer& desc)
     {
-        auto* const renderPass = m_renderPasses.try_find(renderPassHandle);
+        auto* const renderPass = m_impl->renderPasses.try_find(renderPassHandle);
 
         if (!renderPass)
         {
@@ -227,11 +244,11 @@ namespace oblo::vk
         {
             for (auto& variant : renderPass->variants)
             {
-                if (auto* const pipeline = m_renderPipelines.try_find(variant.pipeline))
+                if (auto* const pipeline = m_impl->renderPipelines.try_find(variant.pipeline))
                 {
                     // TODO: Does destruction need to be deferred?
-                    m_renderPipelines.erase(variant.pipeline);
-                    destroy_pipeline(m_device, *pipeline);
+                    m_impl->renderPipelines.erase(variant.pipeline);
+                    destroy_pipeline(m_impl->device, *pipeline);
                 }
 
                 renderPass->variants.clear();
@@ -249,16 +266,16 @@ namespace oblo::vk
             return variantIt->pipeline;
         }
 
-        const auto restore = m_frameAllocator.make_scoped_restore();
+        const auto restore = m_impl->frameAllocator.make_scoped_restore();
 
-        const auto [pipelineIt, pipelineHandle] = m_renderPipelines.emplace();
+        const auto [pipelineIt, pipelineHandle] = m_impl->renderPipelines.emplace();
         OBLO_ASSERT(pipelineHandle);
         auto& newPipeline = *pipelineIt;
 
         const auto failure = [this, &newPipeline, pipelineHandle, renderPass, expectedHash]
         {
-            destroy_pipeline(m_device, newPipeline);
-            m_renderPipelines.erase(pipelineHandle);
+            destroy_pipeline(m_impl->device, newPipeline);
+            m_impl->renderPipelines.erase(pipelineHandle);
             // We push an invalid handle so we avoid trying to rebuild a failed pipeline every frame
             renderPass->variants.emplace_back().hash = expectedHash;
             return h32<render_pipeline>{};
@@ -274,7 +291,7 @@ namespace oblo::vk
             [debugName = std::string{}, this](const render_pass& pass, const std::filesystem::path& filePath) mutable
         {
             debugName = "[";
-            debugName += m_interner->str(pass.name);
+            debugName += m_impl->interner->str(pass.name);
             debugName += "] ";
             debugName += filePath.filename().string();
             return std::string_view{debugName};
@@ -292,7 +309,7 @@ namespace oblo::vk
             const auto vkStage = to_vulkan_stage_bits(pipelineStage);
 
             const auto& filePath = renderPass->shaderSourcePath[stageIndex];
-            const auto sourceCode = load_text_file_into_memory(m_frameAllocator, filePath);
+            const auto sourceCode = load_text_file_into_memory(m_impl->frameAllocator, filePath);
 
             spirv.clear();
 
@@ -307,7 +324,7 @@ namespace oblo::vk
                 return failure();
             }
 
-            const auto shaderModule = shader_compiler::create_shader_module_from_spirv(m_device, spirv);
+            const auto shaderModule = shader_compiler::create_shader_module_from_spirv(m_impl->device, spirv);
 
             if (!shaderModule)
             {
@@ -335,16 +352,16 @@ namespace oblo::vk
                     if (vertexInputsCount > 0)
                     {
                         vertexInputBindingDescs =
-                            allocate_n<VkVertexInputBindingDescription>(m_frameAllocator, vertexInputsCount);
+                            allocate_n<VkVertexInputBindingDescription>(m_impl->frameAllocator, vertexInputsCount);
                         vertexInputAttributeDescs =
-                            allocate_n<VkVertexInputAttributeDescription>(m_frameAllocator, vertexInputsCount);
+                            allocate_n<VkVertexInputAttributeDescription>(m_impl->frameAllocator, vertexInputsCount);
                     }
 
                     u32 vertexAttributeIndex = 0;
 
                     for (const auto& stageInput : shaderResources.stage_inputs)
                     {
-                        const auto name = m_interner->get_or_add(stageInput.name);
+                        const auto name = m_impl->interner->get_or_add(stageInput.name);
                         const auto location = compiler.get_decoration(stageInput.id, spv::DecorationLocation);
 
                         newPipeline.resources.push_back({
@@ -376,7 +393,7 @@ namespace oblo::vk
                 for (const auto& storageBuffer : shaderResources.storage_buffers)
                 {
                     // TODO: We are ignoring the descriptor set here
-                    const auto name = m_interner->get_or_add(storageBuffer.name);
+                    const auto name = m_impl->interner->get_or_add(storageBuffer.name);
                     const auto location = compiler.get_decoration(storageBuffer.id, spv::DecorationLocation);
                     const auto binding = compiler.get_decoration(storageBuffer.id, spv::DecorationBinding);
 
@@ -391,7 +408,7 @@ namespace oblo::vk
                 for (const auto& uniformBuffer : shaderResources.uniform_buffers)
                 {
                     // TODO: We are ignoring the descriptor set here
-                    const auto name = m_interner->get_or_add(uniformBuffer.name);
+                    const auto name = m_impl->interner->get_or_add(uniformBuffer.name);
                     const auto location = compiler.get_decoration(uniformBuffer.id, spv::DecorationLocation);
                     const auto binding = compiler.get_decoration(uniformBuffer.id, spv::DecorationBinding);
 
@@ -435,7 +452,7 @@ namespace oblo::vk
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
         };
 
-        if (vkCreatePipelineLayout(m_device, &pipelineLayoutInfo, nullptr, &newPipeline.pipelineLayout) != VK_SUCCESS)
+        if (vkCreatePipelineLayout(m_impl->device, &pipelineLayoutInfo, nullptr, &newPipeline.pipelineLayout) != VK_SUCCESS)
         {
             return failure();
         }
@@ -547,7 +564,7 @@ namespace oblo::vk
             .basePipelineIndex = -1,
         };
 
-        if (vkCreateGraphicsPipelines(m_device, nullptr, 1, &pipelineInfo, nullptr, &newPipeline.pipeline) ==
+        if (vkCreateGraphicsPipelines(m_impl->device, nullptr, 1, &pipelineInfo, nullptr, &newPipeline.pipeline) ==
             VK_SUCCESS)
         {
             renderPass->variants.push_back({.hash = expectedHash, .pipeline = pipelineHandle});
@@ -559,7 +576,7 @@ namespace oblo::vk
 
     bool render_pass_manager::begin_rendering(render_pass_context& context, const VkRenderingInfo& renderingInfo) const
     {
-        const auto* pipeline = m_renderPipelines.try_find(context.pipeline);
+        const auto* pipeline = m_impl->renderPipelines.try_find(context.pipeline);
 
         if (!pipeline)
         {
@@ -577,7 +594,7 @@ namespace oblo::vk
     void render_pass_manager::end_rendering(const render_pass_context& context)
     {
         vkCmdEndRendering(context.commandBuffer);
-        m_frameAllocator.restore_all();
+        m_impl->frameAllocator.restore_all();
     }
 
     void render_pass_manager::bind(
@@ -595,10 +612,10 @@ namespace oblo::vk
         const auto numVertexAttributes = u32(lastVertexAttribute - begin);
 
         // TODO: Could prepare this array once when creating the pipeline
-        const std::span attributeNames = allocate_n_span<h32<string>>(m_frameAllocator, numVertexAttributes);
-        const std::span buffers = allocate_n_span<buffer>(m_frameAllocator, numVertexAttributes);
+        const std::span attributeNames = allocate_n_span<h32<string>>(m_impl->frameAllocator, numVertexAttributes);
+        const std::span buffers = allocate_n_span<buffer>(m_impl->frameAllocator, numVertexAttributes);
 
-        const auto dummy = resourceManager.get(m_dummy);
+        const auto dummy = resourceManager.get(m_impl->dummy);
 
         for (u32 i = 0; i < numVertexAttributes; ++i)
         {
@@ -610,8 +627,8 @@ namespace oblo::vk
 
         meshTable.fetch_buffers(resourceManager, attributeNames, buffers, &indexBuffer);
 
-        auto* const vkBuffers = allocate_n<VkBuffer>(m_frameAllocator, numVertexAttributes);
-        auto* const offsets = allocate_n<VkDeviceSize>(m_frameAllocator, numVertexAttributes);
+        auto* const vkBuffers = allocate_n<VkBuffer>(m_impl->frameAllocator, numVertexAttributes);
+        auto* const offsets = allocate_n<VkDeviceSize>(m_impl->frameAllocator, numVertexAttributes);
 
         for (u32 i = 0; i < numVertexAttributes; ++i)
         {
