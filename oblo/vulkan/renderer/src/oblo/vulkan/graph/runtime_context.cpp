@@ -23,15 +23,6 @@ namespace oblo::vk
 
     buffer runtime_context::access(resource<buffer> h) const
     {
-        const auto bufferHandle = *static_cast<h32<buffer>*>(m_graph->access_resource_storage(h.value));
-
-        buffer result{};
-
-        if (auto* const buffer = get_resource_manager().try_find(bufferHandle))
-        {
-            result = *buffer;
-        }
-
-        return result;
+        return *static_cast<buffer*>(m_graph->access_resource_storage(h.value));
     }
 }

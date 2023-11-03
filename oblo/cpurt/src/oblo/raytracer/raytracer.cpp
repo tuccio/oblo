@@ -137,8 +137,8 @@ namespace oblo
         }
 
         {
-            const auto w = maxX - minX;
-            const auto h = maxY - minY;
+            const auto w = u16(maxX - minX);
+            const auto h = u16(maxY - minY);
             state.m_metrics.width = w;
             state.m_metrics.height = h;
             state.m_metrics.numObjects = m_aabbs.size();
@@ -151,7 +151,7 @@ namespace oblo
     {
         m_aabbs.clear();
 
-        const auto numInstances = m_instances.size();
+        const auto numInstances = narrow_cast<u32>(m_instances.size());
 
         u32 id = 0;
         m_aabbs.reserve(numInstances);

@@ -23,7 +23,7 @@ namespace oblo
     u32 triangle_container::size() const
     {
         OBLO_ASSERT(m_aabbs.size() == m_triangles.size() && m_centroids.size() == m_triangles.size());
-        return m_triangles.size();
+        return u32(m_triangles.size());
     }
 
     bool triangle_container::empty() const

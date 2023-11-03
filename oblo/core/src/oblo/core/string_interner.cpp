@@ -82,13 +82,13 @@ namespace oblo
                 auto* const newChunk = new string_chunk;
                 newChunk->next = m_impl->chunks;
                 m_impl->chunks = newChunk;
-                m_impl->firstFree = storageLength;
+                m_impl->firstFree = u16(storageLength);
                 newStringPtr = m_impl->chunks->buf;
             }
             else
             {
                 newStringPtr = m_impl->chunks->buf + oldFirstFree;
-                m_impl->firstFree = newFirstFree;
+                m_impl->firstFree = u16(newFirstFree);
             }
 
             std::memcpy(newStringPtr, str.data(), stringLength);

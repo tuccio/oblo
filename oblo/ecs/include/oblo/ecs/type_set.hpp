@@ -3,14 +3,14 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/ecs/handles.hpp>
+#include <oblo/ecs/traits.hpp>
 #include <oblo/ecs/limits.hpp>
+#include <oblo/ecs/type_registry.hpp>
 
 #include <compare>
 
 namespace oblo::ecs
 {
-    class type_registry;
-
     struct type_set
     {
         template <typename T>

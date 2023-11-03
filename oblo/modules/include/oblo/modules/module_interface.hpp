@@ -2,7 +2,7 @@
 
 namespace oblo
 {
-    class module_interface
+    class MODULES_API module_interface
     {
     public:
         virtual ~module_interface() = default;

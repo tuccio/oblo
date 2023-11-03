@@ -75,7 +75,7 @@ namespace oblo::ecs
             }
         }
 
-        const u32 numEntitiesPerChunk = (ChunkSize - paddingWorstCase) / columnsSizeSum;
+        const u32 numEntitiesPerChunk = u32((ChunkSize - paddingWorstCase) / columnsSizeSum);
         storage->numEntitiesPerChunk = numEntitiesPerChunk;
 
         u32 currentOffset = 0;
@@ -87,13 +87,13 @@ namespace oblo::ecs
         { return previousAlignment >= newAlignment ? usize(0) : newAlignment - previousAlignment; };
 
         // First we have entity ids
-        currentOffset += computePadding(alignof(entity)) + sizeof(entity) * numEntitiesPerChunk;
+        currentOffset += u32(computePadding(alignof(entity)) + sizeof(entity) * numEntitiesPerChunk);
         previousAlignment = alignof(entity);
 
         // Then we have the tags
         storage->entityTagsOffset = currentOffset;
 
-        currentOffset += computePadding(alignof(entity_tags)) + sizeof(entity_tags) * numEntitiesPerChunk;
+        currentOffset += u32(computePadding(alignof(entity_tags)) + sizeof(entity_tags) * numEntitiesPerChunk);
         previousAlignment = alignof(entity_tags);
 
         for (u8 componentIndex = 0; componentIndex < numComponents; ++componentIndex)
@@ -102,7 +102,7 @@ namespace oblo::ecs
             const auto alignment = storage->alignments[componentIndex];
             const auto padding = computePadding(alignment);
 
-            const u32 startOffset = currentOffset + padding;
+            const u32 startOffset = u32(currentOffset + padding);
             storage->offsets[componentIndex] = startOffset;
 
             currentOffset = startOffset + size * numEntitiesPerChunk;
@@ -175,7 +175,7 @@ namespace oblo::ecs
                 continue;
             }
 
-            u32 nextId = i * 32;
+            u32 nextId = u32(i * 32);
 
             // TODO: Could use bitscan reverse instead
             for (u64 mask = 1; mask != 0; mask <<= 1)
