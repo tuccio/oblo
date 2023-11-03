@@ -18,7 +18,7 @@
             }
         },
         {
-            "name": "conf-vs2022",
+            "name": "windows-vs2022",
             "description": "Settings for Visual Studio configurations",
             "generator": "Visual Studio 17 2022",
             "inherits": "conf-common",

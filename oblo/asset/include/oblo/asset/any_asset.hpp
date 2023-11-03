@@ -42,7 +42,7 @@ namespace oblo
         void emplace(Args&&... args)
         {
             delete m_wrapper;
-            m_wrapper = new any_wrapper<T>{std::forward<T>(args)...};
+            m_wrapper = new wrapper<T>{std::forward<T>(args)...};
         }
 
         void* try_get()
