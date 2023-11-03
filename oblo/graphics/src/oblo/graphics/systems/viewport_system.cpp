@@ -2,6 +2,7 @@
 
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/array_size.hpp>
+#include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/zip_range.hpp>
 #include <oblo/ecs/entity_registry.hpp>
@@ -11,6 +12,7 @@
 #include <oblo/graphics/components/viewport_component.hpp>
 #include <oblo/math/view_projection.hpp>
 #include <oblo/vulkan/create_render_target.hpp>
+#include <oblo/vulkan/draw/buffer_binding_table.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/graph/render_graph.hpp>
 #include <oblo/vulkan/graph/topology_builder.hpp>
@@ -201,7 +203,7 @@ namespace oblo::graphics
                                        .add_input<camera_buffer>(InCamera)
                                        .connect_output(&debug_draw_all::outRenderTarget, OutFinalRenderTarget)
                                        .connect_input(InResolution, &debug_draw_all::inResolution)
-                                       .connect(&view_buffers_node::outViewBuffer, &debug_draw_all::inViewBuffer)
+                                       .connect(&view_buffers_node::outPerViewBindingTable, &debug_draw_all::inPerViewBindingTable)
                                        .build();
 #endif
 

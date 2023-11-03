@@ -9,6 +9,7 @@
 #include <oblo/core/string_interner.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/vulkan/buffer.hpp>
+#include <oblo/vulkan/draw/descriptor_set_pool.hpp>
 #include <oblo/vulkan/draw/mesh_table.hpp>
 #include <oblo/vulkan/draw/render_pass_initializer.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
@@ -55,6 +56,7 @@ namespace oblo::vk
             u32 location;
             u32 binding;
             resource_kind kind;
+            pipeline_stages stage;
         };
 
         constexpr u32 combine_type_vecsize(spirv_cross::SPIRType::BaseType type, u32 vecsize)
@@ -124,6 +126,9 @@ namespace oblo::vk
 
         shader_resource vertexInputs;
         std::vector<shader_resource> resources;
+        std::vector<descriptor_binding> descriptorSetBindings;
+
+        VkDescriptorSetLayout descriptorSetLayout{};
 
         // TODO: Active stages (e.g. tessellation on/off)
         // TODO: Active options
@@ -159,7 +164,8 @@ namespace oblo::vk
         VkDevice device{};
         h32_flat_pool_dense_map<render_pass> renderPasses;
         h32_flat_pool_dense_map<render_pipeline> renderPipelines;
-        string_interner* interner{nullptr};
+        string_interner* interner{};
+        descriptor_set_pool* descriptorSetPool{};
         h32<buffer> dummy{};
         std::optional<efsw::FileWatcher> fileWatcher;
     };
@@ -167,7 +173,8 @@ namespace oblo::vk
     render_pass_manager::render_pass_manager() = default;
     render_pass_manager::~render_pass_manager() = default;
 
-    void render_pass_manager::init(VkDevice device, string_interner& interner, const h32<buffer> dummy)
+    void render_pass_manager::init(
+        VkDevice device, string_interner& interner, descriptor_set_pool& descriptorSetPool, const h32<buffer> dummy)
     {
         m_impl = std::make_unique<impl>();
 
@@ -175,6 +182,7 @@ namespace oblo::vk
 
         m_impl->device = device;
         m_impl->interner = &interner;
+        m_impl->descriptorSetPool = &descriptorSetPool;
         m_impl->dummy = dummy;
 
         if (device)
@@ -402,6 +410,14 @@ namespace oblo::vk
                         .location = location,
                         .binding = binding,
                         .kind = resource_kind::storage_buffer,
+                        .stage = pipelineStage,
+                    });
+
+                    newPipeline.descriptorSetBindings.push_back({
+                        .name = name,
+                        .binding = binding,
+                        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                        .stageFlags = VkShaderStageFlags(vkStage),
                     });
                 }
 
@@ -417,6 +433,14 @@ namespace oblo::vk
                         .location = location,
                         .binding = binding,
                         .kind = resource_kind::uniform_buffer,
+                        .stage = pipelineStage,
+                    });
+
+                    newPipeline.descriptorSetBindings.push_back({
+                        .name = name,
+                        .binding = binding,
+                        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                        .stageFlags = VkShaderStageFlags(vkStage),
                     });
                 }
             }
@@ -447,12 +471,21 @@ namespace oblo::vk
             [](const shader_resource& lhs, const shader_resource& rhs)
             { return shader_resource_sorting::from(lhs) < shader_resource_sorting::from(rhs); });
 
+        // TODO: We could merge the bindings with the same name and kind that belong to different stages, to make
+        // descriptors smaller
+
+        newPipeline.descriptorSetLayout =
+            m_impl->descriptorSetPool->get_or_add_layout(newPipeline.descriptorSetBindings);
+
         // TODO: Figure out inputs
         const VkPipelineLayoutCreateInfo pipelineLayoutInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .setLayoutCount = u32{newPipeline.descriptorSetLayout != nullptr},
+            .pSetLayouts = &newPipeline.descriptorSetLayout,
         };
 
-        if (vkCreatePipelineLayout(m_impl->device, &pipelineLayoutInfo, nullptr, &newPipeline.pipelineLayout) != VK_SUCCESS)
+        if (vkCreatePipelineLayout(m_impl->device, &pipelineLayoutInfo, nullptr, &newPipeline.pipelineLayout) !=
+            VK_SUCCESS)
         {
             return failure();
         }
@@ -597,8 +630,10 @@ namespace oblo::vk
         m_impl->frameAllocator.restore_all();
     }
 
-    void render_pass_manager::bind(
-        const render_pass_context& context, const resource_manager& resourceManager, const mesh_table& meshTable)
+    void render_pass_manager::bind(const render_pass_context& context,
+        const resource_manager& resourceManager,
+        const mesh_table& meshTable,
+        std::span<const buffer_binding_table> bindingTables)
     {
         const auto* pipeline = context.internalPipeline;
 
@@ -641,6 +676,69 @@ namespace oblo::vk
         if (const auto indexType = meshTable.get_index_type(); indexType != VK_INDEX_TYPE_MAX_ENUM)
         {
             vkCmdBindIndexBuffer(context.commandBuffer, indexBuffer.buffer, indexBuffer.offset, indexType);
+        }
+
+        if (const auto descriptorSetLayout = pipeline->descriptorSetLayout)
+        {
+            const VkDescriptorSet descriptorSet = m_impl->descriptorSetPool->acquire(descriptorSetLayout);
+
+            constexpr u32 MaxWrites{64};
+
+            u32 buffersCount{0};
+            u32 writesCount{0};
+
+            VkDescriptorBufferInfo bufferInfo[MaxWrites];
+            VkWriteDescriptorSet descriptorSetWrites[MaxWrites];
+
+            for (const auto& binding : pipeline->descriptorSetBindings)
+            {
+                for (const auto& table : bindingTables)
+                {
+                    auto* const buffer = table.try_find(binding.name);
+
+                    if (buffer)
+                    {
+                        // TODO: Handle more
+                        OBLO_ASSERT(buffersCount < MaxWrites);
+                        OBLO_ASSERT(writesCount < MaxWrites);
+
+                        bufferInfo[buffersCount] = {
+                            .buffer = buffer->buffer,
+                            .offset = buffer->offset,
+                            .range = buffer->size,
+                        };
+
+                        descriptorSetWrites[writesCount] = {
+                            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                            .dstSet = descriptorSet,
+                            .dstBinding = 0,
+                            .dstArrayElement = 0,
+                            .descriptorCount = 1,
+                            .descriptorType = binding.descriptorType,
+                            .pBufferInfo = bufferInfo + buffersCount,
+                        };
+
+                        ++buffersCount;
+                        ++writesCount;
+
+                        break;
+                    }
+                }
+            }
+
+            if (writesCount > 0)
+            {
+                vkUpdateDescriptorSets(m_impl->device, writesCount, descriptorSetWrites, 0, nullptr);
+            }
+
+            vkCmdBindDescriptorSets(context.commandBuffer,
+                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                pipeline->pipelineLayout,
+                0,
+                1,
+                &descriptorSet,
+                0,
+                nullptr);
         }
     }
 }

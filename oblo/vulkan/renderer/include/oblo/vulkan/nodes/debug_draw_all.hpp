@@ -14,7 +14,7 @@ namespace oblo::vk
     struct debug_draw_all
     {
         data<vec2u> inResolution;
-        resource<buffer> inViewBuffer;
+        data<buffer_binding_table> inPerViewBindingTable;
         resource<texture> outRenderTarget;
 
         h32<render_pass> renderPass{};
@@ -108,7 +108,13 @@ namespace oblo::vk
 
                 if (renderPassManager.begin_rendering(renderPassContext, renderInfo))
                 {
-                    renderPassManager.bind(renderPassContext, context.get_resource_manager(), *meshTable);
+                    auto* const bindingTable = context.access(inPerViewBindingTable);
+
+                    renderPassManager.bind(renderPassContext,
+                        context.get_resource_manager(),
+                        *meshTable,
+                        {bindingTable, 1});
+
                     vkCmdDrawIndexed(commandBuffer, meshTable->index_count(), 1, 0, 0, 0);
 
                     renderPassManager.end_rendering(renderPassContext);
