@@ -39,11 +39,11 @@ namespace oblo
 
     namespace detail::uuid
     {
+        static constexpr char lookup[] = {
+            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+
         constexpr void push_chars(u8 byte, auto& out)
         {
-            static constexpr char lookup[] =
-                {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
-
             *out = lookup[(byte >> 4) & 0xF];
             ++out;
 
