@@ -4,6 +4,8 @@
 #include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/texture.hpp>
 
+#include <string_view>
+
 namespace oblo::vk
 {
     struct buffer;
@@ -24,6 +26,8 @@ namespace oblo::vk
         }
 
         texture access(resource<texture> h) const;
+
+        buffer access(resource<buffer> h) const;
 
         template <typename T>
         T* access(data<T> h) const
@@ -49,6 +53,11 @@ namespace oblo::vk
         draw_registry& get_draw_registry() const
         {
             return m_renderer->get_draw_registry();
+        }
+
+        string_interner& get_string_interner() const
+        {
+            return m_renderer->get_string_interner();
         }
 
     private:

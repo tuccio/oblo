@@ -5,14 +5,23 @@
 #include <vulkan/vulkan.h>
 
 #include <memory>
+#include <span>
 
 namespace oblo
 {
+    struct string;
     class string_interner;
+
+    template <typename T>
+    struct flat_key_extractor;
+
+    template <typename Key, typename Value, typename KeyExtractor>
+    class flat_dense_map;
 }
 
 namespace oblo::vk
 {
+    class descriptor_set_pool;
     class mesh_table;
     class resource_manager;
     struct buffer;
@@ -20,6 +29,8 @@ namespace oblo::vk
     struct render_pass_initializer;
     struct render_pipeline;
     struct render_pipeline_initializer;
+
+    using buffer_binding_table = flat_dense_map<h32<string>, buffer, flat_key_extractor<h32<string>>>;
 
     enum class pipeline_stages : u8;
 
@@ -35,7 +46,11 @@ namespace oblo::vk
         render_pass_manager& operator=(render_pass_manager&&) noexcept = delete;
         ~render_pass_manager();
 
-        void init(VkDevice device, string_interner& interner, const h32<buffer> dummy);
+        void init(VkDevice device,
+            string_interner& interner,
+            descriptor_set_pool& descriptorSetPool,
+            const h32<buffer> dummy);
+
         void shutdown();
 
         h32<render_pass> register_render_pass(const render_pass_initializer& desc);
@@ -45,8 +60,10 @@ namespace oblo::vk
         [[nodiscard]] bool begin_rendering(render_pass_context& context, const VkRenderingInfo& renderingInfo) const;
         void end_rendering(const render_pass_context& context);
 
-        void bind(
-            const render_pass_context& context, const resource_manager& resourceManager, const mesh_table& meshTable);
+        void bind(const render_pass_context& context,
+            const resource_manager& resourceManager,
+            const mesh_table& meshTable,
+            std::span<const buffer_binding_table> bindingTables = {});
 
     private:
         struct impl;

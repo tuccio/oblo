@@ -18,6 +18,7 @@ namespace oblo
 
 namespace oblo::vk
 {
+    class descriptor_set_pool;
     class render_graph;
     class resource_pool;
 
@@ -61,6 +62,8 @@ namespace oblo::vk
 
     private:
         vulkan_context* m_vkContext{nullptr};
+
+        std::unique_ptr<descriptor_set_pool> m_descriptorSetPool;
 
         staging_buffer m_stagingBuffer;
         draw_registry m_drawRegistry;

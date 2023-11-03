@@ -6,7 +6,7 @@ layout(binding = 0) uniform CameraBuffer
 {
     mat4 viewProjection;
 }
-u_Camera;
+b_Camera;
 
 void main()
 {
@@ -18,6 +18,6 @@ void main()
 
     gl_Position = vec4(position, 1);
 #else
-    gl_Position = u_Camera.viewProjection * vec4(in_Position, 1);
+    gl_Position = b_Camera.viewProjection * vec4(in_Position, 1);
 #endif
 }
