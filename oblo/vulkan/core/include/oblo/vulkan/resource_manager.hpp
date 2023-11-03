@@ -1,8 +1,9 @@
 #pragma once
 
-#include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/core/handle.hpp>
+#include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/core/types.hpp>
+
 
 #include <vulkan/vulkan.h>
 
@@ -96,7 +97,9 @@ namespace oblo::vk
         friend class resource_manager;
 
     private:
-        flat_dense_map<h32<texture>, VkImageLayout> m_transitions;
+        using extractor = h32_flat_pool_dense_map<texture>::extractor_type;
+
+        flat_dense_map<h32<texture>, VkImageLayout, extractor> m_transitions;
         std::vector<image_transition> m_incompleteTransitions;
     };
 }
