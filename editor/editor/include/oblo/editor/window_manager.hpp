@@ -15,6 +15,7 @@ namespace oblo
 
 namespace oblo::editor
 {
+    struct window_entry;
     struct window_update_context;
 
     class window_manager
@@ -29,6 +30,9 @@ namespace oblo::editor
         window_manager& operator=(const window_manager&) = delete;
         window_manager& operator=(window_manager&&) noexcept = delete;
 
+        void init();
+        void shutdown();
+
         template <typename T>
         window_handle create_window(service_registry&& services);
 
@@ -39,27 +43,11 @@ namespace oblo::editor
 
         void update();
 
-        void shutdown();
-
     private:
         using memory_pool = std::pmr::unsynchronized_pool_resource;
 
         using update_fn = bool (*)(u8*, const window_update_context& ctx);
         using destroy_fn = void (*)(memory_pool& pool, u8*);
-
-        struct window_entry
-        {
-            u8* ptr;
-            update_fn update;
-            destroy_fn destroy;
-            service_registry* services;
-            window_entry* parent;
-            window_entry* firstChild;
-            window_entry* prevSibling;
-            window_entry* firstSibling;
-            bool isServiceRegistryOwned;
-            bool hasDoneFirstUpdate;
-        };
 
     private:
         template <typename T>
@@ -77,7 +65,7 @@ namespace oblo::editor
 
     private:
         memory_pool m_pool;
-        window_entry m_root{};
+        window_entry* m_root{};
     };
 
     template <typename T>
@@ -86,7 +74,7 @@ namespace oblo::editor
         auto* const registry = new (m_pool.allocate(sizeof(service_registry), alignof(service_registry)))
             service_registry{std::move(services)};
 
-        return create_window_impl<T>(&m_root, registry);
+        return create_window_impl<T>(m_root, registry);
     }
 
     template <typename T>

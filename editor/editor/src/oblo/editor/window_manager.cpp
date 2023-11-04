@@ -2,6 +2,7 @@
 
 #include <oblo/core/debug.hpp>
 #include <oblo/core/service_registry.hpp>
+#include <oblo/editor/window_entry.hpp>
 #include <oblo/editor/window_update_context.hpp>
 
 #include <bit>
@@ -41,7 +42,10 @@ namespace oblo::editor
 
         disconnect(window);
 
-        window->destroy(m_pool, window->ptr);
+        if (window->destroy)
+        {
+            window->destroy(m_pool, window->ptr);
+        }
 
         if (window->isServiceRegistryOwned)
         {
@@ -54,19 +58,25 @@ namespace oblo::editor
 
     void window_manager::update()
     {
-        update_window(&m_root);
+        update_window(m_root);
+    }
+
+    void window_manager::init()
+    {
+        OBLO_ASSERT(m_root == nullptr);
+        m_root = new (m_pool.allocate(sizeof(window_entry), alignof(window_entry))) window_entry{};
     }
 
     void window_manager::shutdown()
     {
-        // TODO: Not the most efficient way, but good enough for now
-        while (auto* const child = m_root.firstChild)
+        if (m_root)
         {
-            destroy_window(std::bit_cast<window_handle>(child));
+            destroy_window(std::bit_cast<window_handle>(m_root));
+            m_root = nullptr;
         }
     }
 
-    window_manager::window_entry* window_manager::update_window(window_entry* entry)
+    window_entry* window_manager::update_window(window_entry* entry)
     {
         if (entry->update)
         {
@@ -117,6 +127,11 @@ namespace oblo::editor
     void window_manager::disconnect(window_entry* child)
     {
         auto* parent = child->parent;
+
+        if (!parent)
+        {
+            return;
+        }
 
         auto* const firstSibling = child->firstSibling;
         auto* const prevSibling = child->prevSibling;
