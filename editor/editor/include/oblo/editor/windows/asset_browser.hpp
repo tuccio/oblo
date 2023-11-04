@@ -10,18 +10,13 @@ namespace oblo
 
 namespace oblo::editor
 {
+    struct window_update_context;
+
     class asset_browser final
     {
     public:
-        asset_browser() = delete;
-        asset_browser(const asset_browser&) = delete;
-        asset_browser(asset_browser&&) noexcept = delete;
-        explicit asset_browser(asset_registry& registry);
-
-        asset_browser& operator=(const asset_browser&) = delete;
-        asset_browser& operator=(asset_browser&&) noexcept = delete;
-
-        bool update();
+        void init(const window_update_context& ctx);
+        bool update(const window_update_context& ctx);
 
     private:
         void reset_path();

@@ -3,18 +3,24 @@
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/importer.hpp>
 #include <oblo/core/debug.hpp>
+#include <oblo/core/service_registry.hpp>
 #include <oblo/editor/platform/shell.hpp>
+#include <oblo/editor/window_update_context.hpp>
 
 #include <imgui.h>
 
 namespace oblo::editor
 {
-    asset_browser::asset_browser(asset_registry& registry) :
-        m_registry{&registry}, m_path{std::filesystem::canonical(registry.get_asset_directory())}, m_current{m_path}
+    void asset_browser::init(const window_update_context& ctx)
     {
+        m_registry = ctx.services.find<asset_registry>();
+        OBLO_ASSERT(m_registry);
+
+        m_path = std::filesystem::canonical(m_registry->get_asset_directory());
+        m_current = m_path;
     }
 
-    bool asset_browser::update()
+    bool asset_browser::update(const window_update_context&)
     {
         bool open{true};
 

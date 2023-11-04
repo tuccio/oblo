@@ -1,19 +1,24 @@
 #include <oblo/editor/windows/viewport.hpp>
 
+#include <oblo/core/service_registry.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/ecs/type_set.hpp>
+#include <oblo/editor/window_update_context.hpp>
+#include <oblo/engine/components/name_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
 
 #include <imgui.h>
 
 namespace oblo::editor
 {
-    viewport::viewport(ecs::entity_registry& entities) : m_entities{&entities} {}
+    void viewport::init(const window_update_context& ctx)
+    {
+        m_entities = ctx.services.find<ecs::entity_registry>();
+        OBLO_ASSERT(m_entities);
+    }
 
-    viewport::~viewport() = default;
-
-    bool viewport::update()
+    bool viewport::update(const window_update_context&)
     {
         bool open{true};
 
@@ -26,7 +31,9 @@ namespace oblo::editor
 
             if (!m_entity)
             {
-                m_entity = m_entities->create<graphics::viewport_component>();
+                m_entity = m_entities->create<graphics::viewport_component, engine::name_component>();
+                auto& name = m_entities->get<engine::name_component>(m_entity);
+                name.value = "Editor Camera";
             }
 
             auto& v = m_entities->get<graphics::viewport_component>(m_entity);

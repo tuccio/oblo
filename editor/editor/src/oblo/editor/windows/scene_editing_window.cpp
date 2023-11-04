@@ -1,10 +1,10 @@
-#include <oblo/editor/windows/dock_space.hpp>
+#include <oblo/editor/windows/scene_editing_window.hpp>
 
 #include <imgui.h>
 
 namespace oblo::editor
 {
-    bool dock_space::update()
+    bool scene_editing_window::update(const window_update_context&)
     {
         constexpr ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_None;
 

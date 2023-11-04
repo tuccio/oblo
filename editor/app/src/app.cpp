@@ -9,12 +9,13 @@
 #include <oblo/ecs/utility/registration.hpp>
 #include <oblo/editor/platform/init.hpp>
 #include <oblo/editor/windows/asset_browser.hpp>
-#include <oblo/editor/windows/dock_space.hpp>
 #include <oblo/editor/windows/inspector.hpp>
 #include <oblo/editor/windows/main_window.hpp>
+#include <oblo/editor/windows/scene_editing_window.hpp>
 #include <oblo/editor/windows/scene_hierarchy.hpp>
 #include <oblo/editor/windows/style_window.hpp>
 #include <oblo/editor/windows/viewport.hpp>
+#include <oblo/engine/components/name_component.hpp>
 #include <oblo/engine/engine_module.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
@@ -64,17 +65,28 @@ namespace oblo::editor
         {
             m_typeRegistry.register_component(ecs::make_component_type_desc<graphics::viewport_component>());
             m_typeRegistry.register_component(ecs::make_component_type_desc<graphics::static_mesh_component>());
+            m_typeRegistry.register_component(ecs::make_component_type_desc<engine::name_component>());
             m_entities.init(&m_typeRegistry);
         }
 
-        m_windowManager.create_window<dock_space>();
-        m_windowManager.create_window<asset_browser>(engine->get_asset_registry());
-        m_windowManager.create_window<inspector>();
-        m_windowManager.create_window<scene_hierarchy>();
-        m_windowManager.create_window<viewport>(m_entities);
-        // m_windowManager.create_window<style_window>();
-
         auto& resourceRegistry = engine->get_resource_registry();
+
+        {
+            service_registry sceneRegistry{};
+            sceneRegistry.add<vk::vulkan_context>().externally_owned(ctx.vkContext);
+            sceneRegistry.add<vk::renderer>().externally_owned(&m_renderer);
+            sceneRegistry.add<resource_registry>().externally_owned(&resourceRegistry);
+            sceneRegistry.add<asset_registry>().externally_owned(&engine->get_asset_registry());
+            sceneRegistry.add<ecs::entity_registry>().externally_owned(&m_entities);
+
+            const auto sceneEditingWindow =
+                m_windowManager.create_window<scene_editing_window>(std::move(sceneRegistry));
+
+            m_windowManager.create_child_window<asset_browser>(sceneEditingWindow);
+            m_windowManager.create_child_window<inspector>(sceneEditingWindow);
+            m_windowManager.create_child_window<scene_hierarchy>(sceneEditingWindow);
+            m_windowManager.create_child_window<viewport>(sceneEditingWindow);
+        }
 
         m_services.add<vk::vulkan_context>().externally_owned(ctx.vkContext);
         m_services.add<vk::renderer>().externally_owned(&m_renderer);
@@ -84,11 +96,13 @@ namespace oblo::editor
 
         // Add a test mesh
         {
-            const auto e = m_entities.create<graphics::static_mesh_component>();
+            const auto e = m_entities.create<graphics::static_mesh_component, engine::name_component>();
             auto& meshComponent = m_entities.get<graphics::static_mesh_component>(e);
             // meshComponent.mesh = "5c2dbfb7-e2af-bce2-5a6c-c9b6ce4e9c07"_uuid;
             meshComponent.mesh = "4cab39ab-0433-cf1c-5988-b1f619227a4f"_uuid;
-            // meshComponent.mesh = "529324bf-bc19-f258-2f89-bc414f859434"_uuid;            
+            // meshComponent.mesh = "529324bf-bc19-f258-2f89-bc414f859434"_uuid;
+            auto& nameComponent = m_entities.get<engine::name_component>(e);
+            nameComponent.value = "Mesh";
         }
 
         return true;
