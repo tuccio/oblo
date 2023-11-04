@@ -74,11 +74,14 @@ namespace oblo::editor
         m_windowManager.init();
 
         {
+            auto& globalRegistry = m_windowManager.get_global_service_registry();
+
+            globalRegistry.add<vk::vulkan_context>().externally_owned(ctx.vkContext);
+            globalRegistry.add<vk::renderer>().externally_owned(&m_renderer);
+            globalRegistry.add<resource_registry>().externally_owned(&resourceRegistry);
+            globalRegistry.add<asset_registry>().externally_owned(&engine->get_asset_registry());
+
             service_registry sceneRegistry{};
-            sceneRegistry.add<vk::vulkan_context>().externally_owned(ctx.vkContext);
-            sceneRegistry.add<vk::renderer>().externally_owned(&m_renderer);
-            sceneRegistry.add<resource_registry>().externally_owned(&resourceRegistry);
-            sceneRegistry.add<asset_registry>().externally_owned(&engine->get_asset_registry());
             sceneRegistry.add<ecs::entity_registry>().externally_owned(&m_entities);
 
             const auto sceneEditingWindow =

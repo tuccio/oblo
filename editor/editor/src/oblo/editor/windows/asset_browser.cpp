@@ -5,6 +5,7 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/editor/platform/shell.hpp>
+#include <oblo/editor/service_context.hpp>
 #include <oblo/editor/window_update_context.hpp>
 
 #include <imgui.h>
