@@ -1,8 +1,8 @@
 #include <oblo/editor/windows/scene_hierarchy.hpp>
 
-#include <oblo/core/service_registry.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/range.hpp>
+#include <oblo/editor/service_context.hpp>
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/engine/components/name_component.hpp>
 

@@ -1,9 +1,9 @@
 #include <oblo/editor/windows/viewport.hpp>
 
-#include <oblo/core/service_registry.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/ecs/type_set.hpp>
+#include <oblo/editor/service_context.hpp>
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/engine/components/name_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>

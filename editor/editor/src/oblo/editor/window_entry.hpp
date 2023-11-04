@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/types.hpp>
+#include <oblo/editor/service_context.hpp>
 
 #include <memory_resource>
 
@@ -11,6 +12,8 @@ namespace oblo
 
 namespace oblo::editor
 {
+    struct window_update_context;
+
     using memory_pool = std::pmr::unsynchronized_pool_resource;
 
     using update_fn = bool (*)(u8*, const window_update_context& ctx);
@@ -21,11 +24,10 @@ namespace oblo::editor
         u8* ptr;
         update_fn update;
         destroy_fn destroy;
-        service_registry* services;
+        service_context services;
         window_entry* parent;
         window_entry* firstChild;
         window_entry* prevSibling;
         window_entry* firstSibling;
-        bool isServiceRegistryOwned;
     };
 }

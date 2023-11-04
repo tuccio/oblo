@@ -33,6 +33,8 @@ namespace oblo::editor
         void init();
         void shutdown();
 
+        service_registry& get_global_service_registry();
+
         template <typename T>
         window_handle create_window(service_registry&& services);
 

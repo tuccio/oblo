@@ -1,14 +1,11 @@
 #pragma once
 
-namespace oblo
-{
-    class service_registry;
-}
-
 namespace oblo::editor
 {
+    class service_context;
+
     struct window_update_context
     {
-        service_registry& services;
+        const service_context& services;
     };
 }

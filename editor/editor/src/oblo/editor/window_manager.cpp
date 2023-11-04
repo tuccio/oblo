@@ -21,8 +21,7 @@ namespace oblo::editor
             .ptr = ptr,
             .update = update,
             .destroy = destroy,
-            .services = overrideCtx ? overrideCtx : parent->services,
-            .isServiceRegistryOwned = overrideCtx != nullptr,
+            .services = service_context{&parent->services, overrideCtx},
         };
 
         connect(parent, newEntry);
@@ -47,10 +46,10 @@ namespace oblo::editor
             window->destroy(m_pool, window->ptr);
         }
 
-        if (window->isServiceRegistryOwned)
+        if (auto* const localRegistry = window->services.get_local_registry())
         {
-            window->services->~service_registry();
-            m_pool.deallocate(window->services, sizeof(service_registry), alignof(service_registry));
+            localRegistry->~service_registry();
+            m_pool.deallocate(localRegistry, sizeof(service_registry), alignof(service_registry));
         }
 
         m_pool.deallocate(window, sizeof(window_entry), alignof(window_entry));
@@ -65,6 +64,11 @@ namespace oblo::editor
     {
         OBLO_ASSERT(m_root == nullptr);
         m_root = new (m_pool.allocate(sizeof(window_entry), alignof(window_entry))) window_entry{};
+
+        auto* const serviceRegistry =
+            new (m_pool.allocate(sizeof(service_registry), alignof(service_registry))) service_registry{};
+
+        m_root->services = service_context{nullptr, serviceRegistry};
     }
 
     void window_manager::shutdown()
@@ -74,6 +78,11 @@ namespace oblo::editor
             destroy_window(std::bit_cast<window_handle>(m_root));
             m_root = nullptr;
         }
+    }
+
+    service_registry& window_manager::get_global_service_registry()
+    {
+        return *m_root->services.get_local_registry();
     }
 
     window_entry* window_manager::update_window(window_entry* entry)
@@ -155,7 +164,7 @@ namespace oblo::editor
     window_update_context window_manager::make_window_update_context(window_handle handle) const
     {
         auto* const entry = reinterpret_cast<window_entry*>(handle.value);
-        return {.services = *entry->services};
+        return {.services = entry->services};
     }
 
 }
