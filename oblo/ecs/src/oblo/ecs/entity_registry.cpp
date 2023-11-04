@@ -260,6 +260,11 @@ namespace oblo::ecs
         get(e, components, {const_cast<const std::byte**>(outComponents.data()), outComponents.size()});
     }
 
+    std::span<const entity> entity_registry::entities() const
+    {
+        return m_entities.keys();
+    }
+
     const entity_registry::components_storage* entity_registry::find_first_match(
         const components_storage* begin, usize increment, const component_and_tags_sets& types)
     {

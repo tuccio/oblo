@@ -4,7 +4,7 @@
 
 namespace oblo::editor
 {
-    bool inspector::update()
+    bool inspector::update(const window_update_context&)
     {
         bool open{true};
 

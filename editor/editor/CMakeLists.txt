@@ -7,6 +7,7 @@ target_link_libraries(
     oblo::core
     oblo::ecs
     PRIVATE
+    oblo::engine
     oblo::graphics
     3rdparty::imgui
     oblo::vk

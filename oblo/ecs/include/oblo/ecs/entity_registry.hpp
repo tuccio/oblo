@@ -61,6 +61,12 @@ namespace oblo::ecs
         template <typename Component>
         Component& get(entity e);
 
+        template <typename Component>
+        const Component* try_get(entity e) const;
+
+        template <typename Component>
+        Component* try_get(entity e);
+
         void get(entity e,
             const std::span<const component_type> components,
             std::span<const std::byte*> outComponents) const;
@@ -78,6 +84,8 @@ namespace oblo::ecs
         // Requires including oblo/ecs/range.hpp
         template <typename... Components>
         typed_range<Components...> range();
+
+        std::span<const entity> entities() const;
 
     private:
         struct components_storage;
@@ -152,6 +160,28 @@ namespace oblo::ecs
         OBLO_ASSERT(pointers[0]);
 
         return *reinterpret_cast<Component*>(pointers[0]);
+    }
+
+    template <typename Component>
+    const Component* entity_registry::try_get(entity e) const
+    {
+        constexpr type_id types[] = {get_type_id<Component>()};
+        std::byte* pointers[1];
+
+        find_component_data(e, types, pointers);
+
+        return reinterpret_cast<const Component*>(pointers[0]);
+    }
+
+    template <typename Component>
+    Component* entity_registry::try_get(entity e)
+    {
+        constexpr type_id types[] = {get_type_id<Component>()};
+        std::byte* pointers[1];
+
+        find_component_data(e, types, pointers);
+
+        return reinterpret_cast<Component*>(pointers[0]);
     }
 
     template <typename... Components>
