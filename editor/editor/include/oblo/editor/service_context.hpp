@@ -14,6 +14,8 @@ namespace oblo::editor
         service_context(const service_context* inherited, service_registry* local) :
             m_inherited{inherited}, m_local{local}
         {
+            // TODO: (#9) Clang is weirdly complaining about the field being unused
+            (void) m_inherited;
         }
 
         service_context& operator=(const service_context&) = default;

@@ -1,7 +1,5 @@
 #pragma once
 
-#include <oblo/ecs/handles.hpp>
-
 namespace oblo::ecs
 {
     class entity_registry;
@@ -9,6 +7,7 @@ namespace oblo::ecs
 
 namespace oblo::editor
 {
+    class selected_entities;
     struct window_update_context;
 
     class scene_hierarchy final
@@ -19,6 +18,6 @@ namespace oblo::editor
 
     private:
         ecs::entity_registry* m_registry{};
-        ecs::entity m_selection;
+        selected_entities* m_selection{};
     };
 }

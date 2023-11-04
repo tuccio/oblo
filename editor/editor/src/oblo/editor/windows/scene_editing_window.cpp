@@ -1,9 +1,21 @@
 #include <oblo/editor/windows/scene_editing_window.hpp>
 
+#include <oblo/core/debug.hpp>
+#include <oblo/editor/service_context.hpp>
+#include <oblo/editor/window_update_context.hpp>
+
 #include <imgui.h>
 
 namespace oblo::editor
 {
+    void scene_editing_window::init(const window_update_context& ctx)
+    {
+        auto* const registry = ctx.services.get_local_registry();
+        OBLO_ASSERT(registry);
+
+        registry->add<selected_entities>().externally_owned(&m_selection);
+    }
+
     bool scene_editing_window::update(const window_update_context&)
     {
         constexpr ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_None;
