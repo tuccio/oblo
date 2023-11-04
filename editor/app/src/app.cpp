@@ -71,6 +71,8 @@ namespace oblo::editor
 
         auto& resourceRegistry = engine->get_resource_registry();
 
+        m_windowManager.init();
+
         {
             service_registry sceneRegistry{};
             sceneRegistry.add<vk::vulkan_context>().externally_owned(ctx.vkContext);
