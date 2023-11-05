@@ -2,7 +2,10 @@
 
 #include <oblo/core/debug.hpp>
 #include <oblo/editor/service_context.hpp>
+#include <oblo/editor/window_manager.hpp>
 #include <oblo/editor/window_update_context.hpp>
+#include <oblo/editor/windows/demo_window.hpp>
+#include <oblo/editor/windows/style_window.hpp>
 
 #include <imgui.h>
 
@@ -16,7 +19,7 @@ namespace oblo::editor
         registry->add<selected_entities>().externally_owned(&m_selection);
     }
 
-    bool scene_editing_window::update(const window_update_context&)
+    bool scene_editing_window::update(const window_update_context& ctx)
     {
         constexpr ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_None;
 
@@ -53,6 +56,26 @@ namespace oblo::editor
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 
         ImGui::Begin("DockSpace", nullptr, windowFlags);
+
+        if (ImGui::BeginMenuBar())
+        {
+            if (ImGui::BeginMenu("Windows"))
+            {
+                if (ImGui::MenuItem("Demo Window"))
+                {
+                    ctx.windowManager.create_child_window<demo_window>(ctx.windowHandle);
+                }
+
+                if (ImGui::MenuItem("Style Window"))
+                {
+                    ctx.windowManager.create_child_window<style_window>(ctx.windowHandle);
+                }
+
+                ImGui::EndMenu();
+            }
+
+            ImGui::EndMenuBar();
+        }
 
         // if (!opt_padding)
         // {

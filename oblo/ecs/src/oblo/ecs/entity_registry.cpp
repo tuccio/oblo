@@ -265,6 +265,24 @@ namespace oblo::ecs
         return m_entities.keys();
     }
 
+    std::span<const component_type> entity_registry::get_component_types(entity e) const
+    {
+        const entity_data* entityData = m_entities.try_find(e);
+
+        if (!entityData)
+        {
+            return {};
+        }
+
+        auto* const archetype = entityData->archetype;
+        return {archetype->components, archetype->numComponents};
+    }
+
+    const type_registry& entity_registry::get_type_registry() const
+    {
+        return *m_typeRegistry;
+    }
+
     const entity_registry::components_storage* entity_registry::find_first_match(
         const components_storage* begin, usize increment, const component_and_tags_sets& types)
     {

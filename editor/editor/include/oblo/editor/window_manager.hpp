@@ -63,7 +63,7 @@ namespace oblo::editor
         void connect(window_entry* parent, window_entry* child);
         void disconnect(window_entry* child);
 
-        window_update_context make_window_update_context(window_handle handle) const;
+        window_update_context make_window_update_context(window_handle handle);
 
     private:
         memory_pool m_pool;
