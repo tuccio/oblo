@@ -1,5 +1,6 @@
 #include <oblo/graphics/graphics_module.hpp>
 
+#include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
 #include <oblo/reflection/registration/module_registration.hpp>
@@ -21,6 +22,13 @@ namespace oblo
                 .add_tag<oblo::ecs::component_type_tag>();
 
             reg.add_class<viewport_component>().add_ranged_type_erasure().add_tag<oblo::ecs::component_type_tag>();
+
+            reg.add_class<camera_component>()
+                .add_field(&camera_component::fovy, "fovy")
+                .add_field(&camera_component::near, "near")
+                .add_field(&camera_component::far, "far")
+                .add_ranged_type_erasure()
+                .add_tag<oblo::ecs::component_type_tag>();
         }
     }
 

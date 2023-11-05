@@ -3,6 +3,7 @@
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/engine/components/name_component.hpp>
+#include <oblo/engine/components/position_component.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/properties/property_registry.hpp>
 #include <oblo/reflection/reflection_module.hpp>
@@ -24,6 +25,11 @@ namespace oblo
         {
             reg.add_class<name_component>()
                 .add_field(&name_component::name, "name")
+                .add_ranged_type_erasure()
+                .add_tag<ecs::component_type_tag>();
+
+            reg.add_class<position_component>()
+                .add_field(&position_component::position, "position")
                 .add_ranged_type_erasure()
                 .add_tag<ecs::component_type_tag>();
         }

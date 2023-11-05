@@ -6,6 +6,8 @@
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/engine/components/name_component.hpp>
+#include <oblo/engine/components/position_component.hpp>
+#include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
 
 #include <imgui.h>
@@ -31,9 +33,16 @@ namespace oblo::editor
 
             if (!m_entity)
             {
-                m_entity = m_entities->create<viewport_component, name_component>();
+                m_entity =
+                    m_entities->create<viewport_component, name_component, camera_component, position_component>();
+
                 auto& name = m_entities->get<name_component>(m_entity);
                 name.name = "Editor Camera";
+
+                auto& camera = m_entities->get<camera_component>(m_entity);
+                camera.near = 0.01f;
+                camera.far = 1000.f;
+                camera.fovy = 75.f;
             }
 
             auto& v = m_entities->get<viewport_component>(m_entity);
