@@ -8,7 +8,7 @@
 
 namespace oblo::reflection
 {
-    u32 reflection_registry::registrant::add_new_class(const type_id& type)
+    u32 reflection_registry::registrant::add_new_class(const type_id& type, u32 size, u32 alignment)
     {
         const auto [it, ok] = m_impl.typesMap.emplace(type, ecs::entity{});
         OBLO_ASSERT(ok);
@@ -18,11 +18,17 @@ namespace oblo::reflection
             return 0;
         }
 
-        const auto e = m_impl.registry.create<type_id, type_kind, class_data>();
+        const auto e = m_impl.registry.create<type_data, class_data>();
         it->second = e;
 
-        m_impl.registry.get<type_id>(e) = type;
-        m_impl.registry.get<type_kind>(e) = type_kind::class_kind;
+        auto& typeData = m_impl.registry.get<type_data>(e);
+
+        typeData = {
+            .type = type,
+            .kind = type_kind::class_kind,
+            .size = size,
+            .alignment = alignment,
+        };
 
         return e.value;
     }

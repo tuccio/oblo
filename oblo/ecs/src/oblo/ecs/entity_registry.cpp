@@ -225,6 +225,11 @@ namespace oblo::ecs
             }
         }
 
+        // Update entity
+        entity* const oldEntityPtr = get_entity_pointer(oldChunk->data, oldChunkOffset);
+        entity* const newEntityPtr = get_entity_pointer(newChunk->data, newChunkOffset);
+        *newEntityPtr = *oldEntityPtr;
+
         // Update tags
         entity_tags* const newTags = get_entity_tags_pointer(newChunk->data, newArchetype, newChunkOffset);
         *newTags = {newArchetype.types.tags};
