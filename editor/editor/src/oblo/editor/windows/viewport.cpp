@@ -31,8 +31,8 @@ namespace oblo::editor
 
             if (!m_entity)
             {
-                m_entity = m_entities->create<viewport_component, engine::name_component>();
-                auto& name = m_entities->get<engine::name_component>(m_entity);
+                m_entity = m_entities->create<viewport_component, name_component>();
+                auto& name = m_entities->get<name_component>(m_entity);
                 name.name = "Editor Camera";
             }
 

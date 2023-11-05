@@ -11,7 +11,7 @@ namespace oblo::ecs
     struct component_type_tag;
 }
 
-namespace oblo::engine::ecs_utility
+namespace oblo::ecs_utility
 {
     void register_reflected_component_types(ecs::type_registry& typeRegistry,
         const reflection::reflection_registry& reflection)

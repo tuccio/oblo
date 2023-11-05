@@ -13,7 +13,7 @@ namespace oblo::ecs
     struct component_type_tag;
 }
 
-namespace oblo::engine
+namespace oblo
 {
     namespace
     {

@@ -2,7 +2,7 @@
 
 #include <string>
 
-namespace oblo::engine
+namespace oblo
 {
     struct name_component
     {
