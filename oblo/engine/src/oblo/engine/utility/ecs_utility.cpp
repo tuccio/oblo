@@ -3,6 +3,7 @@
 #include <oblo/core/log.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/type_registry.hpp>
+#include <oblo/properties/property_registry.hpp>
 #include <oblo/reflection/concepts/ranged_type_erasure.hpp>
 #include <oblo/reflection/reflection_registry.hpp>
 
@@ -13,39 +14,52 @@ namespace oblo::ecs
 
 namespace oblo::ecs_utility
 {
-    void register_reflected_component_types(ecs::type_registry& typeRegistry,
-        const reflection::reflection_registry& reflection)
+    void register_reflected_component_types(const reflection::reflection_registry& reflection,
+        ecs::type_registry* typeRegistry,
+        property_registry* propertyRegistry)
     {
         std::vector<reflection::type_handle> componentTypes;
         reflection.find_by_tag<ecs::component_type_tag>(componentTypes);
 
-        for (const auto typeHandle : componentTypes)
+        if (typeRegistry)
         {
-            const auto typeData = reflection.get_type_data(typeHandle);
-
-            if (typeRegistry.find_component(typeData.type))
+            for (const auto typeHandle : componentTypes)
             {
-                continue;
-            }
+                const auto typeData = reflection.get_type_data(typeHandle);
 
-            const auto rte = reflection.find_concept<reflection::ranged_type_erasure>(typeHandle);
-
-            if (rte)
-            {
-                const ecs::component_type_desc desc{
-                    .type = typeData.type,
-                    .size = typeData.size,
-                    .alignment = typeData.alignment,
-                    .create = rte->create,
-                    .destroy = rte->destroy,
-                    .move = rte->move,
-                    .moveAssign = rte->moveAssign,
-                };
-
-                if (!typeRegistry.register_component(desc))
+                if (typeRegistry->find_component(typeData.type))
                 {
-                    log::error("Failed to register component {}", typeData.type.name);
+                    continue;
                 }
+
+                const auto rte = reflection.find_concept<reflection::ranged_type_erasure>(typeHandle);
+
+                if (rte)
+                {
+                    const ecs::component_type_desc desc{
+                        .type = typeData.type,
+                        .size = typeData.size,
+                        .alignment = typeData.alignment,
+                        .create = rte->create,
+                        .destroy = rte->destroy,
+                        .move = rte->move,
+                        .moveAssign = rte->moveAssign,
+                    };
+
+                    if (!typeRegistry->register_component(desc))
+                    {
+                        log::error("Failed to register component {}", typeData.type.name);
+                    }
+                }
+            }
+        }
+
+        if (propertyRegistry)
+        {
+            for (const auto typeHandle : componentTypes)
+            {
+                const auto typeData = reflection.get_type_data(typeHandle);
+                propertyRegistry->build_from_reflection(typeData.type);
             }
         }
     }

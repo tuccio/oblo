@@ -63,7 +63,7 @@ namespace oblo
 
             visit(tree,
                 overload{
-                    [&it](const property_node& node)
+                    [&it](const property_node& node, const property_node_start)
                     {
                         if (node.name == *it)
                         {
@@ -73,6 +73,7 @@ namespace oblo
 
                         return property_visit_result::sibling;
                     },
+                    [](const property_node&, const property_node_finish) {},
                     [&it, &chain, &res](const property& property)
                     {
                         if (property.name == *it)
@@ -124,7 +125,7 @@ namespace oblo
 
         ASSERT_EQ(tree->properties.size(), 11);
 
-        const auto* ab = find_property(*tree, {"", "a", "b"});
+        const auto* ab = find_property(*tree, {"a", "b"});
         ASSERT_TRUE(ab);
 
         ASSERT_EQ(ab->kind, property_kind::boolean);

@@ -4,6 +4,7 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/engine/components/name_component.hpp>
 #include <oblo/modules/module_manager.hpp>
+#include <oblo/properties/property_registry.hpp>
 #include <oblo/reflection/reflection_module.hpp>
 #include <oblo/reflection/registration/registrant.hpp>
 #include <oblo/resource/resource_registry.hpp>
@@ -51,6 +52,8 @@ namespace oblo
 
         m_resourceRegistry = std::make_unique<resource_registry>();
         m_resourceRegistry->register_provider(&asset_registry::find_artifact_resource, m_assetRegistry.get());
+        m_propertyRegistry = std::make_unique<property_registry>();
+        m_propertyRegistry->init(reflection->get_registry());
 
         g_instance = this;
         return true;
@@ -62,5 +65,6 @@ namespace oblo
 
         m_resourceRegistry.reset();
         m_assetRegistry.reset();
+        m_propertyRegistry.reset();
     }
 }

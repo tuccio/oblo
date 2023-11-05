@@ -32,12 +32,6 @@ namespace oblo
         m_kindLookups.emplace(get_type_id<i64>(), property_kind::u64);
     }
 
-    void property_registry::shutdown()
-    {
-        m_reflection = nullptr;
-        m_propertyTrees = {};
-    }
-
     const property_tree* property_registry::build_from_reflection(const type_id& type)
     {
         const auto [it, inserted] = m_propertyTrees.emplace(type, property_tree{});

@@ -1,5 +1,10 @@
 #pragma once
 
+namespace oblo
+{
+    class property_registry;
+}
+
 namespace oblo::ecs
 {
     class entity_registry;
@@ -17,6 +22,7 @@ namespace oblo::editor
         bool update(const window_update_context&);
 
     private:
+        const property_registry* m_propertyRegistry{};
         ecs::entity_registry* m_registry{};
         const selected_entities* m_selection{};
     };
