@@ -6,4 +6,6 @@ target_link_libraries(
     oblo::asset
     oblo::modules
     oblo::resource
+    PRIVATE
+    oblo::reflection
 )

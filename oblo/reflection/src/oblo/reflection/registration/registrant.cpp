@@ -1,6 +1,7 @@
 #include <oblo/reflection/registration/registrant.hpp>
 
 #include <oblo/core/debug.hpp>
+#include <oblo/core/utility.hpp>
 #include <oblo/reflection/reflection_registry_impl.hpp>
 
 namespace oblo::reflection
@@ -55,5 +56,23 @@ namespace oblo::reflection
             .name = name,
             .offset = offset,
         });
+    }
+
+    void reflection_registry::registrant::add_tag(u32 classIndex, const type_id& type)
+    {
+        auto& classData = m_impl.classes[classIndex];
+        classData.tags.emplace_back(type);
+        const auto typeHandle = classData.typeHandle;
+        m_impl.tags[type].emplace_back(typeHandle);
+    }
+
+    void reflection_registry::registrant::add_concept(u32 classIndex, const ranged_type_erasure& rte)
+    {
+        auto& classData = m_impl.classes[classIndex];
+
+        const auto id = narrow_cast<i32>(m_impl.rangedTypeErasures.size());
+
+        m_impl.rangedTypeErasures.emplace_back(rte);
+        classData.rangedTypeErasure = id;
     }
 }

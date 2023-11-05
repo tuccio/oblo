@@ -4,4 +4,5 @@ target_link_libraries(
     oblo_reflection
     PUBLIC
     oblo::core
+    oblo::modules
 )

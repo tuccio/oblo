@@ -33,7 +33,7 @@ namespace oblo::editor
             {
                 m_entity = m_entities->create<graphics::viewport_component, engine::name_component>();
                 auto& name = m_entities->get<engine::name_component>(m_entity);
-                name.value = "Editor Camera";
+                name.name = "Editor Camera";
             }
 
             auto& v = m_entities->get<graphics::viewport_component>(m_entity);
