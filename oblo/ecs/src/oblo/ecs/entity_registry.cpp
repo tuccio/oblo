@@ -573,4 +573,9 @@ namespace oblo::ecs
         --archetype.numCurrentEntities;
     }
 
+    component_and_tags_sets entity_registry::get_type_sets(entity e) const
+    {
+        auto* const entityData = m_entities.try_find(e);
+        return entityData->archetype->types;
+    }
 }

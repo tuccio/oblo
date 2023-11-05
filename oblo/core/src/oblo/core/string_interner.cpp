@@ -25,9 +25,23 @@ namespace oblo
         u16 firstFree{string_chunk::Size};
     };
 
+    string_interner::string_interner(string_interner&& other) noexcept
+    {
+        m_impl = other.m_impl;
+        other.m_impl = nullptr;
+    }
+
     string_interner::~string_interner()
     {
         shutdown();
+    }
+
+    string_interner& string_interner::operator=(string_interner&& other) noexcept
+    {
+        shutdown();
+        m_impl = other.m_impl;
+        other.m_impl = nullptr;
+        return *this;
     }
 
     void string_interner::init(u32 estimatedStringsCount)

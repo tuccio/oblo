@@ -1,8 +1,7 @@
 #include <oblo/reflection/reflection_module.hpp>
 
+#include <oblo/reflection/registration/common.hpp>
 #include <oblo/reflection/registration/registrant.hpp>
-
-#include <oblo/math/vec3.hpp>
 
 namespace oblo::reflection
 {
@@ -10,7 +9,8 @@ namespace oblo::reflection
     {
         void register_reflection(reflection_registry::registrant registrant)
         {
-            registrant.add_class<vec3>().add_field(&vec3::x, "x").add_field(&vec3::y, "y").add_field(&vec3::z, "z");
+            register_fundamental_types(registrant);
+            register_math_types(registrant);
         }
     }
 

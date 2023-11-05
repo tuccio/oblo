@@ -16,9 +16,9 @@ namespace oblo
     public:
         string_interner() = default;
         string_interner(const string_interner&) = delete;
-        string_interner(string_interner&&) noexcept = delete;
+        string_interner(string_interner&&) noexcept;
         string_interner& operator=(const string_interner&) = delete;
-        string_interner& operator=(string_interner&&) noexcept = delete;
+        string_interner& operator=(string_interner&&) noexcept;
         ~string_interner();
 
         void init(u32 estimatedStringsCount);

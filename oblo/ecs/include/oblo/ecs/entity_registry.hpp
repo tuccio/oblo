@@ -83,6 +83,9 @@ namespace oblo::ecs
             requires(sizeof...(Components) > 1)
         std::tuple<Components&...> get(entity e);
 
+        template <typename... ComponentsOrTags>
+        bool has(entity e) const;
+
         // Requires including oblo/ecs/range.hpp
         template <typename... Components>
         typed_range<Components...> range();
@@ -124,6 +127,8 @@ namespace oblo::ecs
             entity e, const std::span<const type_id> typeIds, std::span<std::byte*> outComponents) const;
 
         void move_last_and_pop(const entity_data& entityData);
+
+        component_and_tags_sets get_type_sets(entity e) const;
 
     private:
         using entities_map = h32_flat_pool_dense_map<entity_handle, entity_data>;
@@ -236,5 +241,15 @@ namespace oblo::ecs
         const auto sets = make_type_sets<ComponentsOrTags...>(*m_typeRegistry);
         add(e, sets);
         return get<ComponentsOrTags...>(e);
+    }
+
+    template <typename... ComponentsOrTags>
+    bool entity_registry::has(entity e) const
+    {
+        const auto querySets = make_type_sets<ComponentsOrTags...>(*m_typeRegistry);
+        const auto entitySets = get_type_sets(e);
+
+        return querySets.components.intersection(entitySets.components) == querySets.components &&
+            querySets.tags.intersection(entitySets.tags) == querySets.tags;
     }
 }

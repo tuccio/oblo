@@ -1,6 +1,7 @@
 #include <oblo/reflection/registration/registrant.hpp>
 
 #include <oblo/core/debug.hpp>
+#include <oblo/core/unreachable.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/tag_type_desc.hpp>
@@ -8,7 +9,7 @@
 
 namespace oblo::reflection
 {
-    u32 reflection_registry::registrant::add_new_class(const type_id& type, u32 size, u32 alignment)
+    u32 reflection_registry::registrant::add_new_type(const type_id& type, u32 size, u32 alignment, type_kind kind)
     {
         const auto [it, ok] = m_impl.typesMap.emplace(type, ecs::entity{});
         OBLO_ASSERT(ok);
@@ -18,14 +19,28 @@ namespace oblo::reflection
             return 0;
         }
 
-        const auto e = m_impl.registry.create<type_data, class_data>();
+        ecs::entity e{};
+
+        switch (kind)
+        {
+        case type_kind::fundamental_kind:
+            e = m_impl.registry.create<type_data, fundamental_tag>();
+            break;
+
+        case type_kind::class_kind:
+            e = m_impl.registry.create<type_data, class_data>();
+            break;
+
+        default:
+            unreachable();
+        }
         it->second = e;
 
         auto& typeData = m_impl.registry.get<type_data>(e);
 
         typeData = {
             .type = type,
-            .kind = type_kind::class_kind,
+            .kind = kind,
             .size = size,
             .alignment = alignment,
         };
