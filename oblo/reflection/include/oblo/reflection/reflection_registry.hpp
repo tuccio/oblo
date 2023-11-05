@@ -6,7 +6,9 @@
 #include <oblo/core/type_id.hpp>
 
 #include <memory>
+#include <optional>
 #include <span>
+
 
 namespace oblo::reflection
 {
@@ -35,6 +37,8 @@ namespace oblo::reflection
         class_handle find_class(const type_id& type) const;
 
         std::span<const field_data> get_fields(class_handle classId) const;
+
+        std::span<const type_id> find_by_tag(const type_id& tag) const;
 
     private:
         friend class registrant;

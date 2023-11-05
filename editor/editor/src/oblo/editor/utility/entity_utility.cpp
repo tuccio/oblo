@@ -8,6 +8,6 @@ namespace oblo::editor::entity_utility
     const char* get_name_cstr(ecs::entity_registry& reg, ecs::entity e)
     {
         auto* const nameComponent = reg.try_get<engine::name_component>(e);
-        return nameComponent && !nameComponent->value.empty() ? nameComponent->value.c_str() : "Unnamed Entity";
+        return nameComponent && !nameComponent->name.empty() ? nameComponent->name.c_str() : "Unnamed Entity";
     }
 }

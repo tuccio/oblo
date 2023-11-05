@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/type_id.hpp>
+#include <oblo/reflection/concepts/ranged_type_erasure.hpp>
 #include <oblo/reflection/handles.hpp>
 #include <oblo/reflection/reflection_data.hpp>
 
@@ -35,6 +36,9 @@ namespace oblo::reflection
         type_id type;
         type_handle typeHandle;
         std::vector<field_data> fields;
+        std::vector<type_id> tags;
+
+        i32 rangedTypeErasure{-1};
     };
 
     struct reflection_registry_impl
@@ -42,5 +46,8 @@ namespace oblo::reflection
         std::unordered_map<type_id, type_handle> typesMap;
         std::vector<type_data> types;
         std::vector<class_data> classes;
+        std::unordered_map<type_id, std::vector<type_handle>> tags;
+
+        std::vector<ranged_type_erasure> rangedTypeErasures;
     };
 }
