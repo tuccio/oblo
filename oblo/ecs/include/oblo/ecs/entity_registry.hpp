@@ -123,6 +123,8 @@ namespace oblo::ecs
         void find_component_data(
             entity e, const std::span<const type_id> typeIds, std::span<std::byte*> outComponents) const;
 
+        void move_last_and_pop(const entity_data& entityData);
+
     private:
         using entities_map = h32_flat_pool_dense_map<entity_handle, entity_data>;
 

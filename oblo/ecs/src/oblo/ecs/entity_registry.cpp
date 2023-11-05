@@ -151,74 +151,94 @@ namespace oblo::ecs
             return;
         }
 
-        auto& archetype = *entityData->archetype;
-        const auto archetypeIndex = entityData->archetypeIndex;
+        move_last_and_pop(*entityData);
 
-        OBLO_ASSERT(archetype.numCurrentEntities != 0);
-
-        const auto [chunkIndex, chunkOffset] = get_entity_location(archetype, archetypeIndex);
-        const auto [lastEntityChunkIndex, lastEntityChunkOffset] =
-            get_entity_location(archetype, archetype.numCurrentEntities - 1);
-
-        if (chunkIndex != lastEntityChunkIndex || chunkOffset != lastEntityChunkOffset)
-        {
-            chunk* const removedEntityChunk = archetype.chunks[chunkIndex];
-            chunk* const lastEntityChunk = archetype.chunks[lastEntityChunkIndex];
-
-            entity* const removedEntity = get_entity_pointer(removedEntityChunk->data, chunkOffset);
-            entity* const lastEntity = get_entity_pointer(lastEntityChunk->data, lastEntityChunkOffset);
-
-            entity_tags* const removedTags = get_entity_tags_pointer(removedEntityChunk->data, archetype, chunkOffset);
-            entity_tags* const lastTags =
-                get_entity_tags_pointer(lastEntityChunk->data, archetype, lastEntityChunkOffset);
-
-            // We will swap the removed entity with the last, so we remove the archetype index
-            m_entities.erase(*removedEntity);
-
-            auto* const lastEntityData = m_entities.try_find(*lastEntity);
-            OBLO_ASSERT(lastEntityData);
-            lastEntityData->archetypeIndex = archetypeIndex;
-
-            *removedEntity = *lastEntity;
-            *removedTags = *lastTags;
-
-            for (u8 componentIndex = 0; componentIndex < archetype.numComponents; ++componentIndex)
-            {
-                auto* dst = get_component_pointer(removedEntityChunk->data, archetype, componentIndex, chunkOffset);
-                auto* src =
-                    get_component_pointer(lastEntityChunk->data, archetype, componentIndex, lastEntityChunkOffset);
-                archetype.fnTables[componentIndex].moveAssign(dst, src, 1);
-                archetype.fnTables[componentIndex].destroy(src, 1);
-            }
-
-            --lastEntityChunk->header.numEntities;
-        }
-        else
-        {
-            chunk* const removedEntityChunk = archetype.chunks[chunkIndex];
-            entity* const removedEntity = get_entity_pointer(removedEntityChunk->data, chunkOffset);
-            m_entities.erase(*removedEntity);
-
-            chunk* const lastEntityChunk = archetype.chunks[lastEntityChunkIndex];
-
-            for (u8 componentIndex = 0; componentIndex < archetype.numComponents; ++componentIndex)
-            {
-                auto* src = get_component_pointer(lastEntityChunk->data, archetype, componentIndex, chunkOffset);
-                archetype.fnTables[componentIndex].destroy(src, 1);
-            }
-
-            --removedEntityChunk->header.numEntities;
-        }
-
-        // TODO: Could free pages if not used
-        --archetype.numCurrentEntities;
+        m_entities.erase(e);
     }
 
-    void entity_registry::add(entity e, const component_and_tags_sets& types)
+    void entity_registry::add(entity e, const component_and_tags_sets& newTypes)
     {
-        // TODO
-        (void) e;
-        (void) types;
+        if (newTypes.components.is_empty() && newTypes.tags.is_empty())
+        {
+            return;
+        }
+
+        auto* const entityData = m_entities.try_find(e);
+
+        if (!entityData)
+        {
+            return;
+        }
+
+        archetype_storage& oldArchetype = *entityData->archetype;
+        const auto oldArchetypeIndex = entityData->archetypeIndex;
+
+        component_and_tags_sets types = oldArchetype.types;
+        types.components.add(newTypes.components);
+        types.tags.add(newTypes.tags);
+
+        const components_storage& newStorage = find_or_create_storage(types);
+        archetype_storage& newArchetype = *newStorage.archetype;
+
+        OBLO_ASSERT(oldArchetype.numCurrentEntities != 0);
+
+        if (&newArchetype == &oldArchetype)
+        {
+            // Nothing to do
+            return;
+        }
+
+        // First we get the entity index and move into the new archetype
+        const auto [oldChunkIndex, oldChunkOffset] = get_entity_location(oldArchetype, oldArchetypeIndex);
+
+        // Reserve space at the end of the new archetype
+        const auto newArchetypeIndex = newArchetype.numCurrentEntities;
+
+        const auto [newChunkIndex, newChunkOffset] = get_entity_location(newArchetype, newArchetypeIndex);
+
+        reserve_chunks(*m_pool, newArchetype, newChunkIndex + 1);
+
+        // TODO: Move assign old into new
+        chunk* const oldChunk = oldArchetype.chunks[oldChunkIndex];
+        chunk* const newChunk = newArchetype.chunks[newChunkIndex];
+
+        u8 oldComponentIndex{0};
+
+        for (u8 newComponentIndex = 0; newComponentIndex < newArchetype.numComponents; ++newComponentIndex)
+        {
+            auto* dst = get_component_pointer(newChunk->data, newArchetype, newComponentIndex, newChunkOffset);
+
+            const bool isSameComponent = oldComponentIndex <= oldArchetype.numComponents &&
+                oldArchetype.components[oldComponentIndex] == newArchetype.components[newComponentIndex];
+
+            // If we have the old component, we can move it, otherwise we default construct a new one
+            if (isSameComponent)
+            {
+                auto* src = get_component_pointer(oldChunk->data, oldArchetype, oldComponentIndex, oldChunkOffset);
+                newArchetype.fnTables[newComponentIndex].moveAssign(dst, src, 1);
+
+                ++oldComponentIndex;
+            }
+            else
+            {
+                newArchetype.fnTables[newComponentIndex].create(dst, 1);
+            }
+        }
+
+        // Update tags
+        entity_tags* const newTags = get_entity_tags_pointer(newChunk->data, newArchetype, newChunkOffset);
+        *newTags = {newArchetype.types.tags};
+
+        // Move last and pop (also decrements old archetype counters)
+        move_last_and_pop(*entityData);
+
+        // Update the references of the entity
+        entityData->archetype = &newArchetype;
+        entityData->archetypeIndex = newArchetypeIndex;
+
+        // Update new chunk counters
+        ++newChunk->header.numEntities;
+        ++newArchetype.numCurrentEntities;
     }
 
     bool entity_registry::contains(entity e) const
@@ -484,4 +504,68 @@ namespace oblo::ecs
             ptr = get_component_pointer(archetype->chunks[chunkIndex]->data, *archetype, componentIndex, chunkOffset);
         }
     }
+
+    void entity_registry::move_last_and_pop(const entity_data& entityData)
+    {
+        auto& archetype = *entityData.archetype;
+        const auto archetypeIndex = entityData.archetypeIndex;
+
+        OBLO_ASSERT(archetype.numCurrentEntities != 0);
+
+        const auto lastEntityArchetypeIndex = archetype.numCurrentEntities - 1;
+
+        const auto [chunkIndex, chunkOffset] = get_entity_location(archetype, archetypeIndex);
+        const auto [lastEntityChunkIndex, lastEntityChunkOffset] =
+            get_entity_location(archetype, lastEntityArchetypeIndex);
+
+        if (archetypeIndex != lastEntityArchetypeIndex)
+        {
+            // The entity is not the last, so we move the last into it to fill the hole
+            chunk* const removedEntityChunk = archetype.chunks[chunkIndex];
+            chunk* const lastEntityChunk = archetype.chunks[lastEntityChunkIndex];
+
+            entity* const removedEntity = get_entity_pointer(removedEntityChunk->data, chunkOffset);
+            entity* const lastEntity = get_entity_pointer(lastEntityChunk->data, lastEntityChunkOffset);
+
+            entity_tags* const removedTags = get_entity_tags_pointer(removedEntityChunk->data, archetype, chunkOffset);
+            entity_tags* const lastTags =
+                get_entity_tags_pointer(lastEntityChunk->data, archetype, lastEntityChunkOffset);
+
+            auto* const lastEntityData = m_entities.try_find(*lastEntity);
+            OBLO_ASSERT(lastEntityData);
+            lastEntityData->archetypeIndex = archetypeIndex;
+
+            *removedEntity = *lastEntity;
+            *removedTags = *lastTags;
+
+            for (u8 componentIndex = 0; componentIndex < archetype.numComponents; ++componentIndex)
+            {
+                auto* dst = get_component_pointer(removedEntityChunk->data, archetype, componentIndex, chunkOffset);
+                auto* src =
+                    get_component_pointer(lastEntityChunk->data, archetype, componentIndex, lastEntityChunkOffset);
+                archetype.fnTables[componentIndex].moveAssign(dst, src, 1);
+                archetype.fnTables[componentIndex].destroy(src, 1);
+            }
+
+            --lastEntityChunk->header.numEntities;
+        }
+        else
+        {
+            // The entity is the last, all we need to do is popping it
+            chunk* const removedEntityChunk = archetype.chunks[chunkIndex];
+            chunk* const lastEntityChunk = archetype.chunks[lastEntityChunkIndex];
+
+            for (u8 componentIndex = 0; componentIndex < archetype.numComponents; ++componentIndex)
+            {
+                auto* src = get_component_pointer(lastEntityChunk->data, archetype, componentIndex, chunkOffset);
+                archetype.fnTables[componentIndex].destroy(src, 1);
+            }
+
+            --removedEntityChunk->header.numEntities;
+        }
+
+        // TODO: Could free pages if not used
+        --archetype.numCurrentEntities;
+    }
+
 }

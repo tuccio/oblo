@@ -62,7 +62,7 @@ namespace oblo::reflection
         template <typename U>
         class_builder& add_tag()
         {
-            m_registrant.add_tag(m_entityIndex, get_type_id<T>());
+            m_registrant.add_tag(m_entityIndex, get_type_id<U>());
             return *this;
         }
 
