@@ -2,7 +2,7 @@
 
 #include <oblo/core/handle.hpp>
 
-namespace oblo::graphics
+namespace oblo
 {
     using ViewportImageId = void*;
 

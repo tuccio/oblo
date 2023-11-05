@@ -15,7 +15,7 @@ namespace oblo::vk
     class renderer;
 }
 
-namespace oblo::graphics
+namespace oblo
 {
     class viewport_system
     {

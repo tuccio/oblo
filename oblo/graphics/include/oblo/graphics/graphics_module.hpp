@@ -2,7 +2,7 @@
 
 #include <oblo/modules/module_interface.hpp>
 
-namespace oblo::graphics
+namespace oblo
 {
     class graphics_module final : public module_interface
     {

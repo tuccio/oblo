@@ -14,7 +14,7 @@
 
 #include <span>
 
-namespace oblo::graphics
+namespace oblo
 {
     void static_mesh_system::first_update(const ecs::system_update_context& ctx)
     {

@@ -26,7 +26,7 @@
 #include <oblo/vulkan/texture.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
 
-namespace oblo::graphics
+namespace oblo
 {
     namespace
     {

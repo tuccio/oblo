@@ -41,8 +41,8 @@ namespace oblo::editor
         {
             ecs::system_graph g;
 
-            g.add_system<graphics::viewport_system>();
-            g.add_system<graphics::static_mesh_system>();
+            g.add_system<viewport_system>();
+            g.add_system<static_mesh_system>();
 
             return g.instantiate();
         }
@@ -62,9 +62,9 @@ namespace oblo::editor
 
         auto& mm = module_manager::get();
         auto* const engine = mm.load<oblo::engine::engine_module>();
-        mm.load<oblo::graphics::graphics_module>();
-        mm.load<oblo::scene::scene_module>();
-        mm.load<oblo::importers::importers_module>();
+        mm.load<graphics_module>();
+        mm.load<scene::scene_module>();
+        mm.load<importers::importers_module>();
         auto* const reflection = mm.load<oblo::reflection::reflection_module>();
 
         m_entities.init(&m_typeRegistry);
@@ -102,8 +102,8 @@ namespace oblo::editor
 
         // Add a test mesh
         {
-            const auto e = m_entities.create<graphics::static_mesh_component, engine::name_component>();
-            auto& meshComponent = m_entities.get<graphics::static_mesh_component>(e);
+            const auto e = m_entities.create<static_mesh_component, engine::name_component>();
+            auto& meshComponent = m_entities.get<static_mesh_component>(e);
             // meshComponent.mesh = "5c2dbfb7-e2af-bce2-5a6c-c9b6ce4e9c07"_uuid;
             meshComponent.mesh = "4cab39ab-0433-cf1c-5988-b1f619227a4f"_uuid;
             // meshComponent.mesh = "529324bf-bc19-f258-2f89-bc414f859434"_uuid;
