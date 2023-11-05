@@ -5,6 +5,9 @@
 #include <oblo/reflection/handles.hpp>
 #include <oblo/reflection/reflection_data.hpp>
 
+#include <oblo/ecs/entity_registry.hpp>
+#include <oblo/ecs/type_registry.hpp>
+
 #include <unordered_map>
 #include <variant>
 #include <vector>
@@ -34,20 +37,14 @@ namespace oblo::reflection
     struct class_data
     {
         type_id type;
-        type_handle typeHandle;
         std::vector<field_data> fields;
-        std::vector<type_id> tags;
-
-        i32 rangedTypeErasure{-1};
     };
 
     struct reflection_registry_impl
     {
-        std::unordered_map<type_id, type_handle> typesMap;
-        std::vector<type_data> types;
-        std::vector<class_data> classes;
-        std::unordered_map<type_id, std::vector<type_handle>> tags;
+        ecs::type_registry typesRegistry;
+        ecs::entity_registry registry{&typesRegistry};
 
-        std::vector<ranged_type_erasure> rangedTypeErasures;
+        std::unordered_map<type_id, ecs::entity> typesMap;
     };
 }

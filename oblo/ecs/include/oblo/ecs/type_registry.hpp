@@ -21,6 +21,9 @@ namespace oblo::ecs
         ~type_registry();
 
         component_type register_component(const component_type_desc& desc);
+        component_type get_or_register_component(const component_type_desc& desc);
+
+        tag_type get_or_register_tag(const tag_type_desc& desc);
         tag_type register_tag(const tag_type_desc& desc);
 
         component_type find_component(const type_id& type) const;
