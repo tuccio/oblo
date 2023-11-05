@@ -87,6 +87,10 @@ namespace oblo::ecs
 
         std::span<const entity> entities() const;
 
+        std::span<const component_type> get_component_types(entity e) const;
+
+        const type_registry& get_type_registry() const;
+
     private:
         struct components_storage;
         struct memory_pool;

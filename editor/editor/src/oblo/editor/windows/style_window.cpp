@@ -4,7 +4,7 @@
 
 namespace oblo::editor
 {
-    bool style_window::update()
+    bool style_window::update(const window_update_context&)
     {
         ImGui::ShowStyleEditor();
         return true;

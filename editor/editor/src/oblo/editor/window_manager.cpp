@@ -7,6 +7,8 @@
 
 #include <bit>
 
+#include <imgui.h>
+
 namespace oblo::editor
 {
     window_manager::~window_manager()
@@ -161,10 +163,14 @@ namespace oblo::editor
             prevSibling->firstSibling = firstSibling;
         }
     }
-    window_update_context window_manager::make_window_update_context(window_handle handle) const
+
+    window_update_context window_manager::make_window_update_context(window_handle handle)
     {
         auto* const entry = reinterpret_cast<window_entry*>(handle.value);
-        return {.services = entry->services};
+        return {
+            .windowManager = *this,
+            .windowHandle = handle,
+            .services = entry->services,
+        };
     }
-
 }
