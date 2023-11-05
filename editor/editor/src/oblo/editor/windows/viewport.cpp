@@ -31,12 +31,12 @@ namespace oblo::editor
 
             if (!m_entity)
             {
-                m_entity = m_entities->create<graphics::viewport_component, engine::name_component>();
+                m_entity = m_entities->create<viewport_component, engine::name_component>();
                 auto& name = m_entities->get<engine::name_component>(m_entity);
                 name.name = "Editor Camera";
             }
 
-            auto& v = m_entities->get<graphics::viewport_component>(m_entity);
+            auto& v = m_entities->get<viewport_component>(m_entity);
 
             v.width = u32(windowSize.x);
             v.height = u32(windowSize.y);

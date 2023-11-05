@@ -9,7 +9,7 @@ namespace oblo::ecs
     struct component_type_tag;
 }
 
-namespace oblo::graphics
+namespace oblo
 {
     namespace
     {

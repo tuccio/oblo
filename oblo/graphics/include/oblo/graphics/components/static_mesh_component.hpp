@@ -2,7 +2,7 @@
 
 #include <oblo/core/uuid.hpp>
 
-namespace oblo::graphics
+namespace oblo
 {
     struct static_mesh_component
     {
