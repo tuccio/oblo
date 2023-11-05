@@ -68,7 +68,7 @@ namespace oblo::reflection
     class_handle reflection_registry::try_get_class(type_handle typeId) const
     {
         const ecs::entity e{typeId.value};
-        return m_impl->registry.try_get<class_data>(e) != nullptr ? class_handle{e.value} : class_handle{};
+        return e && m_impl->registry.try_get<class_data>(e) != nullptr ? class_handle{e.value} : class_handle{};
     }
 
     std::span<const field_data> reflection_registry::get_fields(class_handle classId) const

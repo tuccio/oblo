@@ -68,7 +68,10 @@ namespace oblo::editor
         auto* const reflection = mm.load<oblo::reflection::reflection_module>();
 
         m_entities.init(&m_typeRegistry);
-        ecs_utility::register_reflected_component_types(m_typeRegistry, reflection->get_registry());
+
+        ecs_utility::register_reflected_component_types(reflection->get_registry(),
+            &m_typeRegistry,
+            &engine->get_property_registry());
 
         auto& resourceRegistry = engine->get_resource_registry();
 
@@ -81,6 +84,7 @@ namespace oblo::editor
             globalRegistry.add<vk::renderer>().externally_owned(&m_renderer);
             globalRegistry.add<resource_registry>().externally_owned(&resourceRegistry);
             globalRegistry.add<asset_registry>().externally_owned(&engine->get_asset_registry());
+            globalRegistry.add<property_registry>().externally_owned(&engine->get_property_registry());
 
             service_registry sceneRegistry{};
             sceneRegistry.add<ecs::entity_registry>().externally_owned(&m_entities);

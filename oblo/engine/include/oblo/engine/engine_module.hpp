@@ -7,15 +7,9 @@
 namespace oblo
 {
     class asset_registry;
-}
-
-namespace oblo
-{
+    class property_registry;
     class resource_registry;
-}
 
-namespace oblo
-{
     class ENGINE_API engine_module final : public module_interface
     {
     public:
@@ -39,6 +33,11 @@ namespace oblo
             return *m_assetRegistry;
         }
 
+        property_registry& get_property_registry() const
+        {
+            return *m_propertyRegistry;
+        }
+
         resource_registry& get_resource_registry() const
         {
             return *m_resourceRegistry;
@@ -46,6 +45,7 @@ namespace oblo
 
     private:
         std::unique_ptr<asset_registry> m_assetRegistry;
+        std::unique_ptr<property_registry> m_propertyRegistry;
         std::unique_ptr<resource_registry> m_resourceRegistry;
     };
 }

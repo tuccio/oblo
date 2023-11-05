@@ -1,6 +1,7 @@
 #include <oblo/editor/windows/inspector.hpp>
 
 #include <oblo/core/array_size.hpp>
+#include <oblo/core/overload.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/entity_registry.hpp>
@@ -8,13 +9,39 @@
 #include <oblo/editor/services/selected_entities.hpp>
 #include <oblo/editor/utility/entity_utility.hpp>
 #include <oblo/editor/window_update_context.hpp>
+#include <oblo/properties/property_registry.hpp>
+#include <oblo/properties/property_tree.hpp>
+#include <oblo/properties/visit.hpp>
 
 #include <imgui.h>
 
 namespace oblo::editor
 {
+    namespace
+    {
+        void build_property_grid(const property_tree& tree)
+        {
+            // TODO
+            visit(tree,
+                overload{
+                    [](const property_node& node, const property_node_start)
+                    {
+                        ImGui::TextUnformatted(node.name.c_str());
+                        return property_visit_result::recurse;
+                    },
+                    [](const property_node&, const property_node_finish) {},
+                    [](const property& property)
+                    {
+                        ImGui::TextUnformatted(property.name.c_str());
+                        return property_visit_result::recurse;
+                    },
+                });
+        }
+    }
+
     void inspector::init(const window_update_context& ctx)
     {
+        m_propertyRegistry = ctx.services.find<property_registry>();
         m_registry = ctx.services.find<ecs::entity_registry>();
         m_selection = ctx.services.find<selected_entities>();
     }
@@ -47,7 +74,15 @@ namespace oblo::editor
 
                         name[length] = '\0';
 
-                        ImGui::CollapsingHeader(name);
+                        if (ImGui::CollapsingHeader(name))
+                        {
+                            auto* const propertyTree = m_propertyRegistry->try_get(desc.type);
+
+                            if (propertyTree)
+                            {
+                                build_property_grid(*propertyTree);
+                            }
+                        }
                     }
 
                     // Just pick the first entity for now

@@ -11,6 +11,13 @@ namespace oblo
         recurse,
     };
 
+    struct property_node_start
+    {
+    };
+    struct property_node_finish
+    {
+    };
+
     namespace detail
     {
         template <typename V>
@@ -22,7 +29,9 @@ namespace oblo
             }
 
             const auto& node = tree.nodes[index];
-            const auto r = v(node);
+
+            // We skip the visit of the root, it's kind of pointless
+            const auto r = index != 0 ? v(node, property_node_start{}) : property_visit_result::recurse;
 
             if (r == property_visit_result::recurse)
             {
@@ -44,6 +53,8 @@ namespace oblo
                     }
                 }
             }
+
+            v(node, property_node_finish{});
 
             if (r >= property_visit_result::sibling && node.firstSibling != 0)
             {
