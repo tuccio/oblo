@@ -11,6 +11,7 @@ namespace oblo::reflection
     {
         m_impl->typesRegistry.register_component(ecs::make_component_type_desc<type_data>());
         m_impl->typesRegistry.register_component(ecs::make_component_type_desc<class_data>());
+        m_impl->typesRegistry.register_component(ecs::make_component_type_desc<fundamental_tag>());
     }
 
     reflection_registry::reflection_registry(reflection_registry&&) noexcept = default;
@@ -24,6 +25,21 @@ namespace oblo::reflection
         return registrant{*this};
     }
 
+    type_handle reflection_registry::find_type(const type_id& type) const
+    {
+        type_handle typeId{};
+
+        const auto it = m_impl->typesMap.find(type);
+
+        if (it != m_impl->typesMap.end())
+        {
+            const auto e = it->second;
+            typeId = type_handle{e.value};
+        }
+
+        return typeId;
+    }
+
     class_handle reflection_registry::find_class(const type_id& type) const
     {
         class_handle classId{};
@@ -34,7 +50,7 @@ namespace oblo::reflection
         {
             const auto e = it->second;
 
-            if (m_impl->registry.try_get<class_data>(e))
+            if (m_impl->registry.has<class_data>(e))
             {
                 classId = class_handle{e.value};
             }
@@ -47,6 +63,12 @@ namespace oblo::reflection
     {
         const ecs::entity e{typeId.value};
         return m_impl->registry.get<type_data>(e);
+    }
+
+    class_handle reflection_registry::try_get_class(type_handle typeId) const
+    {
+        const ecs::entity e{typeId.value};
+        return m_impl->registry.try_get<class_data>(e) != nullptr ? class_handle{e.value} : class_handle{};
     }
 
     std::span<const field_data> reflection_registry::get_fields(class_handle classId) const
@@ -83,5 +105,10 @@ namespace oblo::reflection
         const auto c = m_impl->typesRegistry.find_component(type);
 
         return c ? m_impl->registry.try_get(e, c) : nullptr;
+    }
+
+    bool reflection_registry::is_fundamental(type_handle typeId) const
+    {
+        return m_impl->registry.has<fundamental_tag>(ecs::entity{typeId.value});
     }
 }

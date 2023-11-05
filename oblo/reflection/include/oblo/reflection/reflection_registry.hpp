@@ -40,12 +40,16 @@ namespace oblo::reflection
         registrant get_registrant();
 
         template <typename T>
+        type_handle find_type() const;
+
+        template <typename T>
         class_handle find_class() const;
 
         type_handle find_type(const type_id& type) const;
         class_handle find_class(const type_id& type) const;
 
         type_data get_type_data(type_handle typeId) const;
+        class_handle try_get_class(type_handle typeId) const;
 
         std::span<const field_data> get_fields(class_handle classId) const;
 
@@ -54,6 +58,8 @@ namespace oblo::reflection
 
         template <typename T>
         std::optional<T> find_concept(type_handle typeId) const;
+
+        bool is_fundamental(type_handle typeId) const;
 
     private:
         void find_by_tag(const type_id& tag, std::vector<type_handle>& types) const;
@@ -65,6 +71,12 @@ namespace oblo::reflection
     private:
         std::unique_ptr<reflection_registry_impl> m_impl;
     };
+
+    template <typename T>
+    type_handle reflection_registry::find_type() const
+    {
+        return find_type(get_type_id<T>());
+    }
 
     template <typename T>
     class_handle reflection_registry::find_class() const

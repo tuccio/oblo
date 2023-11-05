@@ -11,6 +11,10 @@
 
 namespace oblo::reflection
 {
+    struct fundamental_tag
+    {
+    };
+
     struct class_data
     {
         type_id type;

@@ -6,6 +6,7 @@ target_link_libraries(
     oblo::asset
     oblo::ecs
     oblo::modules
+    oblo::properties
     oblo::reflection
     oblo::resource
 )

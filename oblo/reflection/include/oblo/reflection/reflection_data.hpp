@@ -7,6 +7,7 @@ namespace oblo::reflection
 {
     enum class type_kind : u8
     {
+        fundamental_kind,
         class_kind,
     };
 

@@ -30,8 +30,19 @@ namespace oblo::reflection
         template <typename T>
         class_builder<T> add_class();
 
+        template <typename T>
+            requires std::is_fundamental_v<T>
+        void add_fundamental();
+
     private:
-        u32 add_new_class(const type_id& type, u32 size, u32 alignment);
+        u32 add_new_type(const type_id& type, u32 size, u32 alignment, type_kind kind);
+
+        template <typename T>
+        u32 add_new_type(type_kind kind)
+        {
+            return add_new_type(get_type_id<T>(), sizeof(T), alignof(T), kind);
+        }
+
         void add_field(u32 entityIndex, const type_id& type, std::string_view name, u32 offset);
         void add_tag(u32 entityIndex, const type_id& type);
         void add_concept(
@@ -104,6 +115,13 @@ namespace oblo::reflection
     template <typename T>
     reflection_registry::registrant::class_builder<T> reflection_registry::registrant::add_class()
     {
-        return {*this, add_new_class(get_type_id<T>(), sizeof(T), alignof(T))};
+        return {*this, add_new_type<T>(type_kind::class_kind)};
+    }
+
+    template <typename T>
+        requires std::is_fundamental_v<T>
+    void reflection_registry::registrant::add_fundamental()
+    {
+        add_new_type<T>(type_kind::fundamental_kind);
     }
 }
