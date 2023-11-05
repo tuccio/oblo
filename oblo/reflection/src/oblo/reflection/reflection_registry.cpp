@@ -1,11 +1,17 @@
 #include <oblo/reflection/reflection_registry.hpp>
 
+#include <oblo/ecs/utility/registration.hpp>
 #include <oblo/reflection/reflection_registry_impl.hpp>
 #include <oblo/reflection/registration/registrant.hpp>
 
 namespace oblo::reflection
 {
-    reflection_registry::reflection_registry() : m_impl{std::make_unique<reflection_registry_impl>()} {}
+    reflection_registry::reflection_registry() : m_impl{std::make_unique<reflection_registry_impl>()}
+    {
+        m_impl->typesRegistry.register_component(ecs::make_component_type_desc<type_id>());
+        m_impl->typesRegistry.register_component(ecs::make_component_type_desc<type_kind>());
+        m_impl->typesRegistry.register_component(ecs::make_component_type_desc<class_data>());
+    }
 
     reflection_registry::reflection_registry(reflection_registry&&) noexcept = default;
 
@@ -26,11 +32,11 @@ namespace oblo::reflection
 
         if (it != m_impl->typesMap.end())
         {
-            const auto& type = m_impl->types[it->second.value];
+            const auto e = it->second;
 
-            if (type.kind == type_kind::class_kind)
+            if (m_impl->registry.try_get<class_data>(e))
             {
-                classId = class_handle{type.concreteIndex};
+                classId = class_handle{e.value};
             }
         }
 
@@ -39,6 +45,7 @@ namespace oblo::reflection
 
     std::span<const field_data> reflection_registry::get_fields(class_handle classId) const
     {
-        return m_impl->classes[classId.value].fields;
+        const auto e = ecs::entity{classId.value};
+        return m_impl->registry.get<class_data>(e).fields;
     }
 }

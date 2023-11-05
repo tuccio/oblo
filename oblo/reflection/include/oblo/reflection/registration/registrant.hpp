@@ -26,9 +26,10 @@ namespace oblo::reflection
 
     private:
         u32 add_new_class(const type_id& type);
-        void add_field(u32 classIndex, const type_id& type, std::string_view name, u32 offset);
-        void add_tag(u32 classIndex, const type_id& type);
-        void add_concept(u32 classIndex, const ranged_type_erasure& rte);
+        void add_field(u32 entityIndex, const type_id& type, std::string_view name, u32 offset);
+        void add_tag(u32 entityIndex, const type_id& type);
+        void add_concept(
+            u32 entityIndex, const type_id& type, u32 size, u32 alignment, const ranged_type_erasure& rte, void* src);
 
         template <typename T, typename U>
         static u32 get_member_offset(U(T::*m))
@@ -54,83 +55,44 @@ namespace oblo::reflection
         {
             static_assert(std::is_standard_layout_v<T>);
             const u32 offset = get_member_offset<T>(member);
-            m_registrant.add_field(m_classIndex, get_type_id<U>(), name, offset);
+            m_registrant.add_field(m_entityIndex, get_type_id<U>(), name, offset);
             return *this;
         }
 
         template <typename U>
         class_builder& add_tag()
         {
-            m_registrant.add_tag(m_classIndex, get_type_id<T>());
+            m_registrant.add_tag(m_entityIndex, get_type_id<T>());
+            return *this;
+        }
+
+        template <typename C>
+        class_builder& add_concept(C value)
+        {
+            m_registrant.add_concept(m_entityIndex,
+                get_type_id<C>(),
+                sizeof(C),
+                alignof(C),
+                make_ranged_type_erasure<C>(),
+                &value);
+
             return *this;
         }
 
         class_builder& add_ranged_type_erasure()
         {
-            ranged_type_erasure rte{
-                .destroy =
-                    [](void* ptr, usize count)
-                {
-                    T* const begin = static_cast<T*>(ptr);
-                    T* const end = begin + count;
-
-                    for (T* it = begin; it != end; ++it)
-                    {
-                        it->~T();
-                    }
-                },
-            };
-
-            if constexpr (requires { T{}; })
-            {
-                rte.create = [](void* dst, usize count)
-                { std::uninitialized_value_construct_n(static_cast<T*>(dst), count); };
-            }
-
-            if constexpr (requires(T&& other) { T{std::move(other)}; })
-            {
-                rte.move = [](void* dst, void* src, usize count)
-                {
-                    T* outIt = static_cast<T*>(dst);
-                    T* inIt = static_cast<T*>(src);
-                    T* const end = outIt + count;
-
-                    for (; outIt != end; ++outIt, ++inIt)
-                    {
-                        new (outIt) T(std::move(*inIt));
-                    }
-                };
-            }
-
-            if constexpr (requires(T& lhs, T&& rhs) { lhs = std::move(rhs); })
-            {
-                rte.moveAssign = [](void* dst, void* src, usize count)
-                {
-                    T* outIt = static_cast<T*>(dst);
-                    T* inIt = static_cast<T*>(src);
-                    T* const end = outIt + count;
-
-                    for (; outIt != end; ++outIt, ++inIt)
-                    {
-                        *outIt = std::move(*inIt);
-                    }
-                };
-            }
-
-            m_registrant.add_concept(m_classIndex, rte);
-
-            return *this;
+            return add_concept(make_ranged_type_erasure<T>());
         }
 
     private:
-        class_builder(registrant& reg, u32 classIndex) : m_registrant{reg}, m_classIndex{classIndex} {}
+        class_builder(registrant& reg, u32 entityIndex) : m_registrant{reg}, m_entityIndex{entityIndex} {}
 
     private:
         friend class registrant;
 
     private:
         registrant& m_registrant;
-        u32 m_classIndex;
+        u32 m_entityIndex;
     };
 
     template <typename T>

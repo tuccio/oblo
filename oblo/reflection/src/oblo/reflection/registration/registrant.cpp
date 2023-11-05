@@ -2,29 +2,15 @@
 
 #include <oblo/core/debug.hpp>
 #include <oblo/core/utility.hpp>
+#include <oblo/ecs/component_type_desc.hpp>
+#include <oblo/ecs/tag_type_desc.hpp>
 #include <oblo/reflection/reflection_registry_impl.hpp>
 
 namespace oblo::reflection
 {
-    template <typename T>
-    u32 append_to_vector(std::vector<T>& v)
-    {
-        if (v.empty())
-        {
-            // We use index 0 as invalid handle
-            v.emplace_back();
-        }
-
-        const auto classIndex = u32(v.size());
-
-        v.emplace_back();
-
-        return classIndex;
-    }
-
     u32 reflection_registry::registrant::add_new_class(const type_id& type)
     {
-        const auto [it, ok] = m_impl.typesMap.emplace(type, type_handle{});
+        const auto [it, ok] = m_impl.typesMap.emplace(type, ecs::entity{});
         OBLO_ASSERT(ok);
 
         if (!ok)
@@ -32,47 +18,61 @@ namespace oblo::reflection
             return 0;
         }
 
-        const auto typeIndex = append_to_vector(m_impl.types);
-        const auto classIndex = append_to_vector(m_impl.classes);
+        const auto e = m_impl.registry.create<type_id, type_kind, class_data>();
+        it->second = e;
 
-        it->second = type_handle{typeIndex};
+        m_impl.registry.get<type_id>(e) = type;
+        m_impl.registry.get<type_kind>(e) = type_kind::class_kind;
 
-        auto& classData = m_impl.classes.back();
-        classData.type = type;
-
-        auto& typeData = m_impl.types.back();
-        typeData.type = type;
-        typeData.concreteIndex = classIndex;
-        typeData.kind = type_kind::class_kind;
-
-        return classIndex;
+        return e.value;
     }
 
     void reflection_registry::registrant::add_field(
-        u32 classIndex, const type_id& type, std::string_view name, u32 offset)
+        u32 entityIndex, const type_id& type, std::string_view name, u32 offset)
     {
-        m_impl.classes[classIndex].fields.emplace_back(field_data{
+        const ecs::entity e{entityIndex};
+
+        auto& classData = m_impl.registry.get<class_data>(e);
+
+        classData.fields.emplace_back(field_data{
             .type = type,
             .name = name,
             .offset = offset,
         });
     }
 
-    void reflection_registry::registrant::add_tag(u32 classIndex, const type_id& type)
+    void reflection_registry::registrant::add_tag(u32 entityIndex, const type_id& type)
     {
-        auto& classData = m_impl.classes[classIndex];
-        classData.tags.emplace_back(type);
-        const auto typeHandle = classData.typeHandle;
-        m_impl.tags[type].emplace_back(typeHandle);
+        const ecs::entity e{entityIndex};
+        const auto tag = m_impl.typesRegistry.get_or_register_tag({.type = type});
+
+        ecs::component_and_tags_sets sets{};
+        sets.tags.add(tag);
+
+        m_impl.registry.add(e, sets);
     }
 
-    void reflection_registry::registrant::add_concept(u32 classIndex, const ranged_type_erasure& rte)
+    void reflection_registry::registrant::add_concept(
+        u32 entityIndex, const type_id& type, u32 size, u32 alignment, const ranged_type_erasure& rte, void* src)
     {
-        auto& classData = m_impl.classes[classIndex];
+        const ecs::entity e{entityIndex};
 
-        const auto id = narrow_cast<i32>(m_impl.rangedTypeErasures.size());
+        const auto component = m_impl.typesRegistry.get_or_register_component({
+            .type = type,
+            .size = size,
+            .alignment = alignment,
+            .create = rte.create,
+            .destroy = rte.destroy,
+            .move = rte.move,
+            .moveAssign = rte.moveAssign,
+        });
 
-        m_impl.rangedTypeErasures.emplace_back(rte);
-        classData.rangedTypeErasure = id;
+        ecs::component_and_tags_sets sets{};
+        sets.components.add(component);
+
+        m_impl.registry.add(e, sets);
+        auto* const dst = m_impl.registry.try_get(e, component);
+
+        rte.moveAssign(dst, src, 1u);
     }
 }

@@ -9,7 +9,6 @@
 #include <optional>
 #include <span>
 
-
 namespace oblo::reflection
 {
     struct reflection_registry_impl;

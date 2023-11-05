@@ -67,6 +67,8 @@ namespace oblo::ecs
         template <typename Component>
         Component* try_get(entity e);
 
+        std::byte* try_get(entity e, component_type component);
+
         void get(entity e,
             const std::span<const component_type> components,
             std::span<const std::byte*> outComponents) const;

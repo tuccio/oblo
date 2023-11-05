@@ -56,6 +56,16 @@ namespace oblo::ecs
         return type;
     }
 
+    component_type type_registry::get_or_register_component(const component_type_desc& desc)
+    {
+        if (const auto c = find_component(desc.type))
+        {
+            return c;
+        }
+
+        return register_component(desc);
+    }
+
     tag_type type_registry::register_tag(const tag_type_desc& desc)
     {
         if (m_tags.size() >= MaxComponentTypes)
@@ -86,6 +96,16 @@ namespace oblo::ecs
         m_tags.emplace_back(desc);
 
         return type;
+    }
+
+    tag_type type_registry::get_or_register_tag(const tag_type_desc& desc)
+    {
+        if (const auto t = find_tag(desc.type))
+        {
+            return t;
+        }
+
+        return register_tag(desc);
     }
 
     component_type type_registry::find_component(const type_id& type) const

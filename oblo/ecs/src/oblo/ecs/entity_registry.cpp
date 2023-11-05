@@ -214,9 +214,43 @@ namespace oblo::ecs
         --archetype.numCurrentEntities;
     }
 
+    void entity_registry::add(entity e, const component_and_tags_sets& types)
+    {
+        // TODO
+        (void) e;
+        (void) types;
+    }
+
     bool entity_registry::contains(entity e) const
     {
         return m_entities.try_find(e) != nullptr;
+    }
+
+    std::byte* entity_registry::try_get(entity e, component_type component)
+    {
+        std::byte* res{};
+
+        const entity_data* entityData = m_entities.try_find(e);
+
+        if (!entityData || !component)
+        {
+            return nullptr;
+        }
+
+        auto* const archetype = entityData->archetype;
+
+        const u8 componentIndex = find_component_index({archetype->components, archetype->numComponents}, component);
+
+        if (componentIndex == InvalidComponentIndex)
+        {
+            return nullptr;
+        }
+
+        const auto [chunkIndex, chunkOffset] = get_entity_location(*archetype, entityData->archetypeIndex);
+
+        return get_component_pointer(archetype->chunks[chunkIndex]->data, *archetype, componentIndex, chunkOffset);
+
+        return res;
     }
 
     void entity_registry::get(
@@ -410,21 +444,31 @@ namespace oblo::ecs
     {
         OBLO_ASSERT(typeIds.size() == outComponents.size());
 
+        const entity_data* entityData = m_entities.try_find(e);
+        auto* const archetype = entityData->archetype;
+
+        if (!entityData)
+        {
+            for (auto& ptr : outComponents)
+            {
+                ptr = nullptr;
+            }
+
+            return;
+        }
+
         for (usize i = 0; i < typeIds.size(); ++i)
         {
             const auto& typeId = typeIds[i];
             auto& ptr = outComponents[i];
 
             const auto component = m_typeRegistry->find_component(typeId);
-            const entity_data* entityData = m_entities.try_find(e);
 
             if (!entityData || !component)
             {
                 ptr = nullptr;
                 continue;
             }
-
-            auto* const archetype = entityData->archetype;
 
             const u8 componentIndex =
                 find_component_index({archetype->components, archetype->numComponents}, component);
