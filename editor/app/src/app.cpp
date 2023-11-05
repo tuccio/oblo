@@ -61,14 +61,14 @@ namespace oblo::editor
         }
 
         auto& mm = module_manager::get();
-        auto* const engine = mm.load<oblo::engine::engine_module>();
+        auto* const engine = mm.load<oblo::engine_module>();
         mm.load<graphics_module>();
         mm.load<scene::scene_module>();
         mm.load<importers::importers_module>();
         auto* const reflection = mm.load<oblo::reflection::reflection_module>();
 
         m_entities.init(&m_typeRegistry);
-        engine::ecs_utility::register_reflected_component_types(m_typeRegistry, reflection->get_registry());
+        ecs_utility::register_reflected_component_types(m_typeRegistry, reflection->get_registry());
 
         auto& resourceRegistry = engine->get_resource_registry();
 
@@ -102,12 +102,12 @@ namespace oblo::editor
 
         // Add a test mesh
         {
-            const auto e = m_entities.create<static_mesh_component, engine::name_component>();
+            const auto e = m_entities.create<static_mesh_component, name_component>();
             auto& meshComponent = m_entities.get<static_mesh_component>(e);
             // meshComponent.mesh = "5c2dbfb7-e2af-bce2-5a6c-c9b6ce4e9c07"_uuid;
             meshComponent.mesh = "4cab39ab-0433-cf1c-5988-b1f619227a4f"_uuid;
             // meshComponent.mesh = "529324bf-bc19-f258-2f89-bc414f859434"_uuid;
-            auto& nameComponent = m_entities.get<engine::name_component>(e);
+            auto& nameComponent = m_entities.get<name_component>(e);
             nameComponent.name = "Mesh";
         }
 

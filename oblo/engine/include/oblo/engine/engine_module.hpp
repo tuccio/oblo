@@ -14,7 +14,7 @@ namespace oblo
     class resource_registry;
 }
 
-namespace oblo::engine
+namespace oblo
 {
     class ENGINE_API engine_module final : public module_interface
     {

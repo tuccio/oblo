@@ -8,14 +8,14 @@ namespace oblo::importers
 {
     bool importers_module::startup()
     {
-        auto* const engineModule = module_manager::get().load<engine::engine_module>();
+        auto* const engineModule = module_manager::get().load<engine_module>();
         register_gltf_importer(engineModule->get_asset_registry());
         return true;
     }
 
     void importers_module::shutdown()
     {
-        auto* const engineModule = module_manager::get().find<engine::engine_module>();
+        auto* const engineModule = module_manager::get().find<engine_module>();
         unregister_gltf_importer(engineModule->get_asset_registry());
     }
 }
