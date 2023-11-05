@@ -16,9 +16,9 @@ namespace oblo::graphics
         void register_reflection(reflection::reflection_registry::registrant reg)
         {
             reg.add_class<static_mesh_component>()
+                .add_field(&static_mesh_component::mesh, "mesh")
                 .add_ranged_type_erasure()
-                .add_tag<oblo::ecs::component_type_tag>()
-                .add_field(&static_mesh_component::mesh, "mesh");
+                .add_tag<oblo::ecs::component_type_tag>();
 
             reg.add_class<viewport_component>().add_ranged_type_erasure().add_tag<oblo::ecs::component_type_tag>();
         }

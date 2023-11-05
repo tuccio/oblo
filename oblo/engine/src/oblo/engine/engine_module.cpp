@@ -8,6 +8,11 @@
 #include <oblo/reflection/registration/registrant.hpp>
 #include <oblo/resource/resource_registry.hpp>
 
+namespace oblo::ecs
+{
+    struct component_type_tag;
+}
+
 namespace oblo::engine
 {
     namespace
@@ -16,7 +21,10 @@ namespace oblo::engine
 
         void register_reflection(reflection::reflection_registry::registrant reg)
         {
-            reg.add_class<name_component>().add_field(&name_component::name, "name");
+            reg.add_class<name_component>()
+                .add_field(&name_component::name, "name")
+                .add_ranged_type_erasure()
+                .add_tag<ecs::component_type_tag>();
         }
     }
 
