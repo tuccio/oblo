@@ -17,6 +17,9 @@ namespace oblo::ecs
         class iterator;
 
     public:
+        typed_range& with(const component_and_tags_sets& sets);
+        typed_range& exclude(const component_and_tags_sets& sets);
+
         template <typename... ComponentOrTags>
         typed_range& with();
 
@@ -169,11 +172,9 @@ namespace oblo::ecs
     }
 
     template <typename... Components>
-    template <typename... ComponentOrTags>
-    entity_registry::typed_range<Components...>& entity_registry::typed_range<Components...>::with()
+    entity_registry::typed_range<Components...>& entity_registry::typed_range<Components...>::with(
+        const component_and_tags_sets& includes)
     {
-        const auto includes = make_type_sets<Components...>(*m_registry->m_typeRegistry);
-
         m_include.components.add(includes.components);
         m_include.tags.add(includes.tags);
 
@@ -181,15 +182,27 @@ namespace oblo::ecs
     }
 
     template <typename... Components>
-    template <typename... ComponentOrTags>
-    entity_registry::typed_range<Components...>& entity_registry::typed_range<Components...>::exclude()
+    entity_registry::typed_range<Components...>& entity_registry::typed_range<Components...>::exclude(
+        const component_and_tags_sets& excludes)
     {
-        const auto excludes = make_type_sets<Components...>(*m_registry->m_typeRegistry);
-
         m_exclude.components.add(excludes.components);
         m_exclude.tags.add(excludes.tags);
 
         return *this;
+    }
+
+    template <typename... Components>
+    template <typename... ComponentOrTags>
+    entity_registry::typed_range<Components...>& entity_registry::typed_range<Components...>::with()
+    {
+        return with(make_type_sets<Components...>(*m_registry->m_typeRegistry));
+    }
+
+    template <typename... Components>
+    template <typename... ComponentOrTags>
+    entity_registry::typed_range<Components...>& entity_registry::typed_range<Components...>::exclude()
+    {
+        return exclude(make_type_sets<Components...>(*m_registry->m_typeRegistry));
     }
 
     template <typename... Components>

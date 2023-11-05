@@ -12,6 +12,12 @@
 
 namespace oblo::reflection
 {
+    template <typename T>
+    struct concept_type;
+
+    template <typename T>
+    struct tag_type;
+
     class reflection_registry::registrant
     {
     public:
@@ -25,7 +31,7 @@ namespace oblo::reflection
         class_builder<T> add_class();
 
     private:
-        u32 add_new_class(const type_id& type);
+        u32 add_new_class(const type_id& type, u32 size, u32 alignment);
         void add_field(u32 entityIndex, const type_id& type, std::string_view name, u32 offset);
         void add_tag(u32 entityIndex, const type_id& type);
         void add_concept(
@@ -62,7 +68,7 @@ namespace oblo::reflection
         template <typename U>
         class_builder& add_tag()
         {
-            m_registrant.add_tag(m_entityIndex, get_type_id<U>());
+            m_registrant.add_tag(m_entityIndex, get_type_id<tag_type<U>>());
             return *this;
         }
 
@@ -70,7 +76,7 @@ namespace oblo::reflection
         class_builder& add_concept(C value)
         {
             m_registrant.add_concept(m_entityIndex,
-                get_type_id<C>(),
+                get_type_id<concept_type<C>>(),
                 sizeof(C),
                 alignof(C),
                 make_ranged_type_erasure<C>(),
@@ -98,6 +104,6 @@ namespace oblo::reflection
     template <typename T>
     reflection_registry::registrant::class_builder<T> reflection_registry::registrant::add_class()
     {
-        return {*this, add_new_class(get_type_id<T>())};
+        return {*this, add_new_class(get_type_id<T>(), sizeof(T), alignof(T))};
     }
 }

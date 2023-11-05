@@ -17,11 +17,14 @@
 #include <oblo/editor/windows/viewport.hpp>
 #include <oblo/engine/components/name_component.hpp>
 #include <oblo/engine/engine_module.hpp>
+#include <oblo/engine/utility/ecs_utility.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
+#include <oblo/graphics/graphics_module.hpp>
 #include <oblo/graphics/systems/static_mesh_system.hpp>
 #include <oblo/graphics/systems/viewport_system.hpp>
 #include <oblo/modules/module_manager.hpp>
+#include <oblo/reflection/reflection_module.hpp>
 #include <oblo/sandbox/context.hpp>
 #include <oblo/scene/scene_module.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
@@ -59,15 +62,13 @@ namespace oblo::editor
 
         auto& mm = module_manager::get();
         auto* const engine = mm.load<oblo::engine::engine_module>();
+        mm.load<oblo::graphics::graphics_module>();
         mm.load<oblo::scene::scene_module>();
         mm.load<oblo::importers::importers_module>();
+        auto* const reflection = mm.load<oblo::reflection::reflection_module>();
 
-        {
-            m_typeRegistry.register_component(ecs::make_component_type_desc<graphics::viewport_component>());
-            m_typeRegistry.register_component(ecs::make_component_type_desc<graphics::static_mesh_component>());
-            m_typeRegistry.register_component(ecs::make_component_type_desc<engine::name_component>());
-            m_entities.init(&m_typeRegistry);
-        }
+        m_entities.init(&m_typeRegistry);
+        engine::ecs_utility::register_reflected_component_types(m_typeRegistry, reflection->get_registry());
 
         auto& resourceRegistry = engine->get_resource_registry();
 

@@ -4,8 +4,8 @@ target_link_libraries(
     oblo_engine
     PUBLIC
     oblo::asset
+    oblo::ecs
     oblo::modules
-    oblo::resource
-    PRIVATE
     oblo::reflection
+    oblo::resource
 )
