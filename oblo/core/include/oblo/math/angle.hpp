@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/types.hpp>
 #include <oblo/math/constants.hpp>
 
 namespace oblo
@@ -12,41 +13,44 @@ namespace oblo
     {
     };
 
-    template <typename Tag>
-    class angle
+    namespace detail
     {
-        static constexpr f32 convert(f32 value, radians_tag, degrees_tag)
+        static constexpr f32 convert_angle(f32 value, radians_tag, degrees_tag)
         {
             return value * 180.f / pi;
         }
 
-        static constexpr f32 convert(f32 value, degrees_tag, radians_tag)
+        static constexpr f32 convert_angle(f32 value, degrees_tag, radians_tag)
         {
             return value * pi / 180.f;
         }
+    }
 
-    public:
-        constexpr angle() = default;
-        constexpr angle(const angle&) = default;
-        constexpr angle(angle&&) noexcept = default;
+    template <typename Tag>
+    struct angle
+    {
+        f32 value;
+
+        angle() = default;
+        angle(const angle&) = default;
+        angle(const angle&&) noexcept = default;
+
+        constexpr explicit angle(f32 value) : value{value} {}
 
         angle& operator=(const angle&) = default;
-        angle& operator=(angle&&) noexcept = default;
+        angle& operator=(const angle&&) noexcept = default;
 
-        constexpr explicit angle(f32 value) : m_value{value} {}
+        ~angle() = default;
 
         template <typename TOther>
-        constexpr angle(const angle<TOther>& angle) : m_value{convert(f32(angle), TOther{}, Tag{})}
+        constexpr angle(const angle<TOther>& other) : value{detail::convert_angle(f32(other), TOther{}, Tag{})}
         {
         }
 
         constexpr explicit operator f32() const
         {
-            return m_value;
+            return value;
         }
-
-    private:
-        f32 m_value;
     };
 
     using radians = angle<radians_tag>;

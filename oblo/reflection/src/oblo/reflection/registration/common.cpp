@@ -1,5 +1,6 @@
 #include <oblo/reflection/registration/common.hpp>
 
+#include <oblo/math/angle.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/math/vec3.hpp>
@@ -40,6 +41,9 @@ namespace oblo::reflection
 
     void register_math_types(reflection_registry::registrant& reg)
     {
+        reg.add_class<radians>().add_field(&radians::value, "value");
+        reg.add_class<degrees>().add_field(&degrees::value, "value");
+
         reg.add_class<vec2u>().add_field(&vec2u::x, "x").add_field(&vec2u::y, "y");
 
         reg.add_class<vec2>().add_field(&vec2::x, "x").add_field(&vec2::y, "y");

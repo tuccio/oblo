@@ -13,8 +13,8 @@ void main()
 #if 0
     vec3 position = in_Position;
 
-    position.z /= 100.f;
-    position.z += 0.2f;
+    // position.z /= 100.f;
+    // position.z += 0.2f;
 
     gl_Position = vec4(position, 1);
 #else
