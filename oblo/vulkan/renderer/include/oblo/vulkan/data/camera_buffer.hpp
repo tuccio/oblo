@@ -6,6 +6,8 @@ namespace oblo::vk
 {
     struct camera_buffer
     {
-        mat4 viewProjectionMatrix;
+        mat4 view;
+        mat4 projection;
+        mat4 viewProjection;
     };
 }

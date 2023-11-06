@@ -19,6 +19,11 @@ namespace oblo
         {
             return rows[row];
         }
+
+        constexpr static mat4 identity()
+        {
+            return mat4{{{1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}}};
+        }
     };
 
     constexpr mat4 operator*(const mat4& lhs, const mat4& rhs)
@@ -37,6 +42,21 @@ namespace oblo
                 }
 
                 r[i][j] = d;
+            }
+        }
+
+        return r;
+    }
+
+    constexpr mat4 transpose(const mat4& m)
+    {
+        mat4 r;
+
+        for (u32 i = 0; i < 4; ++i)
+        {
+            for (u32 j = 0; j < 4; ++j)
+            {
+                r[i][j] = m[j][i];
             }
         }
 

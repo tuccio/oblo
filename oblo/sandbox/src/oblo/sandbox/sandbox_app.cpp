@@ -210,7 +210,7 @@ namespace oblo::vk
             SDL_WINDOWPOS_UNDEFINED,
             1280,
             720,
-            SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_VULKAN);
+            SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_VULKAN | SDL_WINDOW_MAXIMIZED);
 
         return m_window != nullptr;
     }
