@@ -128,6 +128,7 @@ namespace oblo
                     .type = field.type,
                     .name = std::string{field.name},
                     .parent = currentNodeIndex,
+                    .offset = field.offset,
                 });
 
                 build_recursive(tree, newNodeIndex, fieldType);

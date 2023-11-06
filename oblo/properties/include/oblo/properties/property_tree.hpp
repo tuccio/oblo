@@ -32,6 +32,7 @@ namespace oblo
         u32 firstSibling;
         u32 firstProperty;
         u32 lastProperty;
+        u32 offset;
     };
 
     struct property

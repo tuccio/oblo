@@ -9,6 +9,8 @@
 #include <oblo/ecs/range.hpp>
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/ecs/type_registry.hpp>
+#include <oblo/engine/components/position_component.hpp>
+#include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
 #include <oblo/math/view_projection.hpp>
 #include <oblo/vulkan/create_render_target.hpp>
@@ -177,9 +179,10 @@ namespace oblo
             renderGraphData.isAlive = false;
         }
 
-        for (const auto [entities, viewports] : ctx.entities->range<viewport_component>())
+        for (const auto [entities, positions, cameras, viewports] :
+            ctx.entities->range<position_component, camera_component, viewport_component>())
         {
-            for (auto&& [entity, viewport] : zip_range(entities, viewports))
+            for (auto&& [entity, position, camera, viewport] : zip_range(entities, positions, cameras, viewports))
             {
                 auto* renderGraphData = m_renderGraphs.try_find(entity);
                 render_graph* graph;
@@ -195,17 +198,18 @@ namespace oblo
                                        .connect_input(InResolution, &debug_triangle_node::inResolution)
                                        .build();
 #else
-                    expected res = topology_builder{}
-                                       .add_node<debug_draw_all>()
-                                       .add_node<view_buffers_node>()
-                                       .add_output<h32<texture>>(OutFinalRenderTarget)
-                                       .add_input<vec2u>(InResolution)
-                                       .add_input<camera_buffer>(InCamera)
-                                       .connect_output(&debug_draw_all::outRenderTarget, OutFinalRenderTarget)
-                                       .connect_input(InCamera, &view_buffers_node::inCameraData)
-                                       .connect_input(InResolution, &debug_draw_all::inResolution)
-                                       .connect(&view_buffers_node::outPerViewBindingTable, &debug_draw_all::inPerViewBindingTable)
-                                       .build();
+                    expected res =
+                        topology_builder{}
+                            .add_node<debug_draw_all>()
+                            .add_node<view_buffers_node>()
+                            .add_output<h32<texture>>(OutFinalRenderTarget)
+                            .add_input<vec2u>(InResolution)
+                            .add_input<camera_buffer>(InCamera)
+                            .connect_output(&debug_draw_all::outRenderTarget, OutFinalRenderTarget)
+                            .connect_input(InCamera, &view_buffers_node::inCameraData)
+                            .connect_input(InResolution, &debug_draw_all::inResolution)
+                            .connect(&view_buffers_node::outPerViewBindingTable, &debug_draw_all::inPerViewBindingTable)
+                            .build();
 #endif
 
                     if (!res)
@@ -288,10 +292,11 @@ namespace oblo
                     *resolution = vec2u{renderWidth, renderHeight};
                 }
 
-                if (auto* const camera = graph->find_input<camera_buffer>(InCamera))
+                if (auto* const cameraBuffer = graph->find_input<camera_buffer>(InCamera))
                 {
-                    *camera =
-                        camera_buffer{.viewProjectionMatrix = make_perspective_matrix(70_rad, 1.f, 0.01f, 1000.f)};
+                    *cameraBuffer =
+                        camera_buffer{.viewProjectionMatrix =
+                                          make_perspective_matrix(degrees{camera.fovy}, 1.f, camera.near, camera.far)};
                 }
 
                 if (renderGraphData->texture)
