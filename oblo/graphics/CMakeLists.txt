@@ -8,5 +8,6 @@ target_link_libraries(
     oblo::vk_renderer
     PRIVATE
     oblo::ecs
+    oblo::engine
     oblo::reflection
 )

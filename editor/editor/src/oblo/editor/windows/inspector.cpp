@@ -19,20 +19,34 @@ namespace oblo::editor
 {
     namespace
     {
-        void build_property_grid(const property_tree& tree)
+        void build_property_grid(const property_tree& tree, std::byte* const data)
         {
-            // TODO
+            auto* ptr = data;
+
             visit(tree,
                 overload{
-                    [](const property_node& node, const property_node_start)
+                    [&ptr](const property_node& node, const property_node_start)
                     {
+                        ptr += node.offset;
                         ImGui::TextUnformatted(node.name.c_str());
                         return property_visit_result::recurse;
                     },
-                    [](const property_node&, const property_node_finish) {},
-                    [](const property& property)
+                    [&ptr](const property_node& node, const property_node_finish) { ptr -= node.offset; },
+                    [&ptr](const property& property)
                     {
-                        ImGui::TextUnformatted(property.name.c_str());
+                        switch (property.kind)
+                        {
+                        case property_kind::f32:
+                            ImGui::DragFloat(property.name.c_str(),
+                                reinterpret_cast<float*>(ptr + property.offset),
+                                0.1f);
+                            break;
+
+                        default:
+                            ImGui::TextUnformatted(property.name.c_str());
+                            break;
+                        }
+
                         return property_visit_result::recurse;
                     },
                 });
@@ -74,13 +88,15 @@ namespace oblo::editor
 
                         name[length] = '\0';
 
-                        if (ImGui::CollapsingHeader(name))
+                        if (ImGui::CollapsingHeader(name, ImGuiTreeNodeFlags_DefaultOpen))
                         {
                             auto* const propertyTree = m_propertyRegistry->try_get(desc.type);
 
                             if (propertyTree)
                             {
-                                build_property_grid(*propertyTree);
+                                auto* const data = m_registry->try_get(e, type);
+
+                                build_property_grid(*propertyTree, data);
                             }
                         }
                     }
