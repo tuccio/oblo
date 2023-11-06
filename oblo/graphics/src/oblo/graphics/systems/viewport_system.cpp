@@ -294,9 +294,24 @@ namespace oblo
 
                 if (auto* const cameraBuffer = graph->find_input<camera_buffer>(InCamera))
                 {
-                    *cameraBuffer =
-                        camera_buffer{.viewProjectionMatrix =
-                                          make_perspective_matrix(degrees{camera.fovy}, 1.f, camera.near, camera.far)};
+                    const mat4 view{{
+                        {1, 0, 0, position.position.x},
+                        {0, 1, 0, position.position.y},
+                        {0, 0, -1, position.position.z},
+                        {0, 0, 0, 1},
+                    }};
+
+                    const f32 ratio = f32(viewport.height) / viewport.width;
+                    const auto proj = make_perspective_matrix(camera.fovy, ratio, camera.near, camera.far);
+
+                    const mat4 viewT{transpose(view)};
+                    const mat4 projT{transpose(proj)};
+
+                    *cameraBuffer = camera_buffer{
+                        .view = viewT,
+                        .projection = projT,
+                        .viewProjection = projT * viewT,
+                    };
                 }
 
                 if (renderGraphData->texture)
