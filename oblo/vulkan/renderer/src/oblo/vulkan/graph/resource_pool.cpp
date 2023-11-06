@@ -66,6 +66,8 @@ namespace oblo::vk
         m_lastFrameAllocation = m_allocation;
         std::swap(m_lastFrameTextureResources, m_textureResources);
         free_last_frame_resources(ctx);
+
+        m_uniformBuffersPool.shutdown(ctx);
     }
 
     void resource_pool::begin_build()
