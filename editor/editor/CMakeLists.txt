@@ -9,6 +9,6 @@ target_link_libraries(
     PRIVATE
     oblo::engine
     oblo::graphics
-    3rdparty::imgui
+    imgui::imgui
     oblo::vk
 )

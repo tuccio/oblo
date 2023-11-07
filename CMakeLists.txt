@@ -18,6 +18,7 @@ find_package(nlohmann_json REQUIRED)
 find_package(glew REQUIRED)
 find_package(glslang REQUIRED)
 find_package(GTest REQUIRED)
+find_package(ImGui REQUIRED)
 find_package(SDL2 REQUIRED)
 find_package(spirv-cross REQUIRED)
 find_package(tinygltf REQUIRED)
@@ -29,7 +30,9 @@ oblo_init_compiler_settings()
 
 # Setup 3rd parties built from source
 add_subdirectory(3rdparty)
-oblo_3rdparty_create_aliases()
+
+add_library(imgui::sdl_vk ALIAS imgui_sdl_vk)
+add_library(imgui::sdl_gl3 ALIAS imgui_sdl_gl3)
 
 # Finally setup our projects
 add_subdirectory(editor)
