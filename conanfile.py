@@ -1,4 +1,5 @@
 from conan import ConanFile
+from conan.tools.files import copy
 
 class ObloConanRecipe(ConanFile):
     settings = "os", "compiler", "build_type", "arch"
@@ -11,6 +12,7 @@ class ObloConanRecipe(ConanFile):
         self.requires("glew/2.1.0")
         self.requires("glslang/8.13.3559")
         self.requires("gtest/1.10.0")
+        self.requires("imgui/1.89.9-docking")
         self.requires("nlohmann_json/3.11.2")
         self.requires("vulkan-headers/1.3.211.0", override=True)
         self.requires("vulkan-loader/1.3.211.0")
@@ -21,3 +23,12 @@ class ObloConanRecipe(ConanFile):
 
     def configure(self):
         self.options["efsw/*"].shared = False
+
+    def generate(self):
+        imgui = self.dependencies["imgui"]
+        src_dir = f"{imgui.package_folder}/res/bindings/"
+
+        for backend in ["opengl3", "sdl2", "vulkan"]:
+            copy(self, f"imgui_impl_{backend}.h", src_dir, f"{self.recipe_folder}/3rdparty/imgui/{backend}/include")
+            copy(self, f"imgui_impl_{backend}_*", src_dir, f"{self.recipe_folder}/3rdparty/imgui/{backend}/src")
+            copy(self, f"imgui_impl_{backend}.cpp", src_dir, f"{self.recipe_folder}/3rdparty/imgui/{backend}/src")

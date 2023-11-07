@@ -5,8 +5,8 @@ target_link_libraries(
     PRIVATE
     oblo::core
     oblo::cpurt
-    3rdparty::imgui
-    3rdparty::imgui_sdl_gl3
+    imgui::imgui
+    imgui::sdl_gl3
     assimp::assimp
     nlohmann_json::nlohmann_json
     cxxopts::cxxopts

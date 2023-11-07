@@ -6,6 +6,6 @@ target_link_libraries(
     oblo::core
     oblo::vk
     PRIVATE
-    3rdparty::imgui_sdl_vk
+    imgui::sdl_vk
     SDL2::SDL2
 )
