@@ -8,15 +8,14 @@
 
 namespace oblo
 {
-    constexpr mat4 make_perspective_matrix(
-        radians verticalFov, float aspectRatio, float n, float f, mat4* inverse = nullptr)
+    constexpr mat4 make_perspective_matrix(radians verticalFov, f32 aspectRatio, f32 n, f32 f, mat4* inverse = nullptr)
     {
-        const float focalLength = 1.f / std::tan(float{verticalFov} * .5f);
+        const f32 focalLength = 1.f / std::tan(f32{verticalFov} * .5f);
 
-        const float x = focalLength * aspectRatio;
-        const float y = -focalLength;
-        const float A = n / (f - n);
-        const float B = f * A;
+        const f32 x = focalLength * aspectRatio;
+        const f32 y = -focalLength;
+        const f32 A = n / (f - n);
+        const f32 B = f * A;
 
         mat4 projection{{
             {x, 0.f, 0.f, 0.f},
