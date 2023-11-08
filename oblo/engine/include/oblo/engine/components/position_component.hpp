@@ -6,6 +6,6 @@ namespace oblo
 {
     struct position_component
     {
-        vec3 position;
+        vec3 value;
     };
 }

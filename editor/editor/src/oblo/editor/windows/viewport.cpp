@@ -37,7 +37,7 @@ namespace oblo::editor
                     m_entities->create<viewport_component, name_component, camera_component, position_component>();
 
                 auto& name = m_entities->get<name_component>(m_entity);
-                name.name = "Editor Camera";
+                name.value = "Editor Camera";
 
                 auto& camera = m_entities->get<camera_component>(m_entity);
                 camera.near = 0.01f;

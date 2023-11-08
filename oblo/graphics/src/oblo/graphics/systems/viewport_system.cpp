@@ -294,12 +294,7 @@ namespace oblo
 
                 if (auto* const cameraBuffer = graph->find_input<camera_buffer>(InCamera))
                 {
-                    const mat4 view{{
-                        {1, 0, 0, position.position.x},
-                        {0, 1, 0, position.position.y},
-                        {0, 0, -1, position.position.z},
-                        {0, 0, 0, 1},
-                    }};
+                    const mat4 view = make_look_at(position.value, vec3{.y = 1}, position.value + vec3{.z = 1.f});
 
                     const f32 ratio = f32(viewport.height) / viewport.width;
                     const auto proj = make_perspective_matrix(camera.fovy, ratio, camera.near, camera.far);

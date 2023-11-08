@@ -6,6 +6,6 @@ namespace oblo
 {
     struct name_component
     {
-        std::string name;
+        std::string value;
     };
 }
