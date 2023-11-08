@@ -112,7 +112,7 @@ namespace oblo::editor
             meshComponent.mesh = "4cab39ab-0433-cf1c-5988-b1f619227a4f"_uuid;
             // meshComponent.mesh = "529324bf-bc19-f258-2f89-bc414f859434"_uuid;
             auto& nameComponent = m_entities.get<name_component>(e);
-            nameComponent.name = "Mesh";
+            nameComponent.value = "Mesh";
         }
 
         return true;

@@ -24,12 +24,12 @@ namespace oblo
         void register_reflection(reflection::reflection_registry::registrant reg)
         {
             reg.add_class<name_component>()
-                .add_field(&name_component::name, "name")
+                .add_field(&name_component::value, "value")
                 .add_ranged_type_erasure()
                 .add_tag<ecs::component_type_tag>();
 
             reg.add_class<position_component>()
-                .add_field(&position_component::position, "position")
+                .add_field(&position_component::value, "value")
                 .add_ranged_type_erasure()
                 .add_tag<ecs::component_type_tag>();
         }
