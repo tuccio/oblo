@@ -21,8 +21,12 @@ class ObloConanRecipe(ConanFile):
         self.requires("sdl/2.0.20")
         self.requires("tinygltf/2.8.13")
 
+        # This is only needed for unit tests
+        self.requires("eigen/3.4.0")
+
     def configure(self):
         self.options["efsw/*"].shared = False
+        self.options["eigen/*"].MPL2_only = True
 
     def generate(self):
         imgui = self.dependencies["imgui"]

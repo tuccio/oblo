@@ -98,7 +98,9 @@
 			"*.rh": "cpp",
 			"any": "cpp",
 			"queue": "cpp",
-			"variant": "cpp"
+			"variant": "cpp",
+			"geometry": "cpp",
+			"complex": "cpp"
 		}
 	}
 }
