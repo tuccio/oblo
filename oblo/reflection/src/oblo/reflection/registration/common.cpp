@@ -1,6 +1,7 @@
 #include <oblo/reflection/registration/common.hpp>
 
 #include <oblo/math/angle.hpp>
+#include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/math/vec3.hpp>
@@ -55,5 +56,11 @@ namespace oblo::reflection
             .add_field(&vec4::y, "y")
             .add_field(&vec4::z, "z")
             .add_field(&vec4::w, "w");
+
+        reg.add_class<quaternion>()
+            .add_field(&quaternion::x, "x")
+            .add_field(&quaternion::y, "y")
+            .add_field(&quaternion::z, "z")
+            .add_field(&quaternion::w, "w");
     }
 }

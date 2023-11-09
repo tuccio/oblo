@@ -17,6 +17,7 @@
 #include <oblo/editor/windows/viewport.hpp>
 #include <oblo/engine/components/name_component.hpp>
 #include <oblo/engine/engine_module.hpp>
+#include <oblo/engine/systems/transform_system.hpp>
 #include <oblo/engine/utility/ecs_utility.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
@@ -41,8 +42,9 @@ namespace oblo::editor
         {
             ecs::system_graph g;
 
-            g.add_system<viewport_system>();
+            g.add_system<transform_system>();
             g.add_system<static_mesh_system>();
+            g.add_system<viewport_system>();
 
             return g.instantiate();
         }

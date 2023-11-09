@@ -23,6 +23,8 @@ namespace oblo
         }
 
         inline vec3& operator+=(const vec3& rhs) noexcept;
+
+        static constexpr vec3 splat(f32 value);
     };
 
     constexpr vec3 operator-(const vec3& lhs) noexcept
@@ -139,5 +141,10 @@ namespace oblo
     constexpr vec3 lerp(const vec3& lhs, const vec3& rhs, f32 alpha)
     {
         return alpha * lhs + (1.f - alpha) * rhs;
+    }
+
+    constexpr vec3 vec3::splat(f32 value)
+    {
+        return {value, value, value};
     }
 }

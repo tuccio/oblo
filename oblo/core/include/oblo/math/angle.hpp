@@ -13,17 +13,14 @@ namespace oblo
     {
     };
 
-    namespace detail
+    constexpr f32 convert(f32 value, radians_tag, degrees_tag)
     {
-        static constexpr f32 convert_angle(f32 value, radians_tag, degrees_tag)
-        {
-            return value * 180.f / pi;
-        }
+        return value * 180.f / pi;
+    }
 
-        static constexpr f32 convert_angle(f32 value, degrees_tag, radians_tag)
-        {
-            return value * pi / 180.f;
-        }
+    constexpr f32 convert(f32 value, degrees_tag, radians_tag)
+    {
+        return value * pi / 180.f;
     }
 
     template <typename Tag>
@@ -43,7 +40,7 @@ namespace oblo
         ~angle() = default;
 
         template <typename TOther>
-        constexpr angle(const angle<TOther>& other) : value{detail::convert_angle(f32(other), TOther{}, Tag{})}
+        constexpr angle(const angle<TOther>& other) : value{convert(f32(other), TOther{}, Tag{})}
         {
         }
 
