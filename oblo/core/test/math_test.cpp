@@ -91,7 +91,7 @@ namespace oblo
     TEST(quaternion, rotation)
     {
         std::default_random_engine rng{42};
-        std::uniform_real_distribution<float> f32Dist;
+        std::uniform_real_distribution<float> f32Dist{-pi, pi};
 
         constexpr u32 N = 1024;
 
@@ -102,14 +102,33 @@ namespace oblo
             const auto qXYZ = quaternion::from_euler_xyz_intrinsic(radians_tag{}, angles);
             const auto qZYX = quaternion::from_euler_zyx_intrinsic(radians_tag{}, angles);
 
+            ASSERT_NEAR(norm(qXYZ), 1.f, Tollerance);
+            ASSERT_NEAR(norm(qZYX), 1.f, Tollerance);
+
             const Eigen::EulerAngles<f32, Eigen::EulerSystemXYZ> eAnglesXYZ(angles.x, angles.y, angles.z);
             const Eigen::EulerAngles<f32, Eigen::EulerSystemZYX> eAnglesZYX(angles.x, angles.y, angles.z);
 
             const Eigen::Quaternionf eXYZ(eAnglesXYZ);
             const Eigen::Quaternionf eZYX(eAnglesZYX);
 
-            ASSERT_NEAR(eXYZ.dot(from_oblo(qXYZ)), 1.f, Tollerance);
-            ASSERT_NEAR(eZYX.dot(from_oblo(qZYX)), 1.f, Tollerance);
+            ASSERT_NEAR(std::abs(eXYZ.dot(from_oblo(qXYZ))), 1.f, Tollerance);
+            ASSERT_NEAR(std::abs(eZYX.dot(from_oblo(qZYX))), 1.f, Tollerance);
+
+            // Go back to euler, then back to quaternion and check if the rotation still matches
+
+            {
+                const auto rZYX = quaternion::to_euler_zyx_intrinsic(radians_tag{}, qZYX);
+                const auto fZYX = quaternion::from_euler_zyx_intrinsic(radians_tag{}, rZYX);
+
+                ASSERT_NEAR(std::abs(dot(qZYX, fZYX)), 1.f, Tollerance);
+            }
+
+            {
+                const auto rXYZ = quaternion::to_euler_xyz_intrinsic(radians_tag{}, qXYZ);
+                const auto fXYZ = quaternion::from_euler_xyz_intrinsic(radians_tag{}, rXYZ);
+
+                ASSERT_NEAR(std::abs(dot(qXYZ, fXYZ)), 1.f, Tollerance);
+            }
         }
     }
 }

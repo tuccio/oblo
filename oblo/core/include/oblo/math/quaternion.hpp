@@ -17,6 +17,8 @@ namespace oblo
 
         constexpr bool operator==(const quaternion&) const = default;
 
+        static constexpr quaternion identity();
+
         static quaternion from_axis_angle(const vec3& axis, radians angle);
 
         static quaternion from_euler_xyz_intrinsic(const radians x, const radians y, const radians z);
@@ -26,6 +28,12 @@ namespace oblo
         static quaternion from_euler_zyx_intrinsic(const radians x, const radians y, const radians z);
         static quaternion from_euler_zyx_intrinsic(radians_tag, const vec3& xyz);
         static quaternion from_euler_zyx_intrinsic(degrees_tag, const vec3& xyz);
+
+        static vec3 to_euler_xyz_intrinsic(radians_tag, const quaternion& q);
+        static vec3 to_euler_xyz_intrinsic(degrees_tag, const quaternion& q);
+
+        static vec3 to_euler_zyx_intrinsic(radians_tag, const quaternion& q);
+        static vec3 to_euler_zyx_intrinsic(degrees_tag, const quaternion& q);
     };
 
     constexpr quaternion operator*(const quaternion& lhs, const quaternion& rhs)
@@ -97,6 +105,11 @@ namespace oblo
         };
     }
 
+    constexpr quaternion quaternion::identity()
+    {
+        return {.w = 1};
+    }
+
     inline quaternion quaternion::from_euler_xyz_intrinsic(const radians x, const radians y, const radians z)
     {
         const auto qx = quaternion::from_axis_angle(vec3{.x = 1.f}, x);
@@ -134,4 +147,67 @@ namespace oblo
     {
         return from_euler_zyx_intrinsic(degrees{zyx.x}, degrees{zyx.y}, degrees{zyx.z});
     }
+
+    inline vec3 quaternion::to_euler_xyz_intrinsic(radians_tag, const quaternion& q)
+    {
+        const f32 x2 = q.x * q.x;
+        const f32 y2 = q.y * q.y;
+        const f32 z2 = q.z * q.z;
+        const f32 w2 = q.w * q.w;
+
+        const f32 r11 = -2 * (q.y * q.z - q.w * q.x);
+        const f32 r12 = w2 - x2 - y2 + z2;
+        const f32 r21 = 2 * (q.x * q.z + q.w * q.y);
+        const f32 r31 = -2 * (q.x * q.y - q.w * q.z);
+        const f32 r32 = w2 + x2 - y2 - z2;
+
+        return vec3{
+            std::atan2(r11, r12),
+            std::asin(r21),
+            std::atan2(r31, r32),
+        };
+    }
+
+    inline vec3 quaternion::to_euler_xyz_intrinsic(degrees_tag, const quaternion& q)
+    {
+        const auto rad = to_euler_xyz_intrinsic(radians_tag{}, q);
+
+        return vec3{
+            convert(rad.x, radians_tag{}, degrees_tag{}),
+            convert(rad.y, radians_tag{}, degrees_tag{}),
+            convert(rad.z, radians_tag{}, degrees_tag{}),
+        };
+    }
+
+    inline vec3 quaternion::to_euler_zyx_intrinsic(radians_tag, const quaternion& q)
+    {
+        const f32 x2 = q.x * q.x;
+        const f32 y2 = q.y * q.y;
+        const f32 z2 = q.z * q.z;
+        const f32 w2 = q.w * q.w;
+
+        const f32 r11 = 2 * (q.x * q.y + q.w * q.z);
+        const f32 r12 = w2 + x2 - y2 - z2;
+        const f32 r21 = -2 * (q.x * q.z - q.w * q.y);
+        const f32 r31 = 2 * (q.y * q.z + q.w * q.x);
+        const f32 r32 = w2 - x2 - y2 + z2;
+
+        return vec3{
+            std::atan2(r11, r12),
+            std::asin(r21),
+            std::atan2(r31, r32),
+        };
+    }
+
+    inline vec3 quaternion::to_euler_zyx_intrinsic(degrees_tag, const quaternion& q)
+    {
+        const auto rad = to_euler_zyx_intrinsic(radians_tag{}, q);
+
+        return vec3{
+            convert(rad.x, radians_tag{}, degrees_tag{}),
+            convert(rad.y, radians_tag{}, degrees_tag{}),
+            convert(rad.z, radians_tag{}, degrees_tag{}),
+        };
+    }
+
 }
