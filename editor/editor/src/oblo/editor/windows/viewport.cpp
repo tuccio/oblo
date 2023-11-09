@@ -5,8 +5,10 @@
 #include <oblo/ecs/type_set.hpp>
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/window_update_context.hpp>
+#include <oblo/engine/components/global_transform_component.hpp>
 #include <oblo/engine/components/name_component.hpp>
 #include <oblo/engine/components/position_component.hpp>
+#include <oblo/engine/components/rotation_component.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
 
@@ -33,11 +35,18 @@ namespace oblo::editor
 
             if (!m_entity)
             {
-                m_entity =
-                    m_entities->create<viewport_component, name_component, camera_component, position_component>();
+                m_entity = m_entities->create<viewport_component,
+                    name_component,
+                    camera_component,
+                    position_component,
+                    rotation_component,
+                    global_transform_component>();
 
                 auto& name = m_entities->get<name_component>(m_entity);
                 name.value = "Editor Camera";
+
+                auto& rotation = m_entities->get<rotation_component>(m_entity);
+                rotation.value = quaternion::identity();
 
                 auto& camera = m_entities->get<camera_component>(m_entity);
                 camera.near = 0.01f;

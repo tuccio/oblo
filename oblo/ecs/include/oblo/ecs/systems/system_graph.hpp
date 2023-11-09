@@ -54,7 +54,7 @@ namespace oblo::ecs
         }
         else
         {
-            desc.update = desc.firstUpdate;
+            desc.firstUpdate = desc.update;
         }
 
         return add_system(desc);

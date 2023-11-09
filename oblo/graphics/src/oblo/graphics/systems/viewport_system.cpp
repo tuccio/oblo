@@ -9,7 +9,7 @@
 #include <oblo/ecs/range.hpp>
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/ecs/type_registry.hpp>
-#include <oblo/engine/components/position_component.hpp>
+#include <oblo/engine/components/global_transform_component.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
 #include <oblo/math/view_projection.hpp>
@@ -179,10 +179,10 @@ namespace oblo
             renderGraphData.isAlive = false;
         }
 
-        for (const auto [entities, positions, cameras, viewports] :
-            ctx.entities->range<position_component, camera_component, viewport_component>())
+        for (const auto [entities, transforms, cameras, viewports] :
+            ctx.entities->range<global_transform_component, camera_component, viewport_component>())
         {
-            for (auto&& [entity, position, camera, viewport] : zip_range(entities, positions, cameras, viewports))
+            for (auto&& [entity, transform, camera, viewport] : zip_range(entities, transforms, cameras, viewports))
             {
                 auto* renderGraphData = m_renderGraphs.try_find(entity);
                 render_graph* graph;
@@ -294,7 +294,7 @@ namespace oblo
 
                 if (auto* const cameraBuffer = graph->find_input<camera_buffer>(InCamera))
                 {
-                    const mat4 view = make_look_at(position.value, vec3{.y = 1}, position.value + vec3{.z = 1.f});
+                    const mat4 view = inverse(transform.value);
 
                     const f32 ratio = f32(viewport.height) / viewport.width;
                     const auto proj = make_perspective_matrix(camera.fovy, ratio, camera.near, camera.far);

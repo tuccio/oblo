@@ -1,6 +1,7 @@
 #include <oblo/editor/windows/inspector.hpp>
 
 #include <oblo/core/array_size.hpp>
+#include <oblo/core/hash.hpp>
 #include <oblo/core/overload.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
@@ -9,6 +10,7 @@
 #include <oblo/editor/services/selected_entities.hpp>
 #include <oblo/editor/utility/entity_utility.hpp>
 #include <oblo/editor/window_update_context.hpp>
+#include <oblo/math/quaternion.hpp>
 #include <oblo/properties/property_registry.hpp>
 #include <oblo/properties/property_tree.hpp>
 #include <oblo/properties/visit.hpp>
@@ -19,16 +21,45 @@ namespace oblo::editor
 {
     namespace
     {
+        void build_quaternion_editor(const property_node& node, std::byte* const data)
+        {
+            auto* const q = new (data) quaternion;
+            auto [z, y, x] = quaternion::to_euler_zyx_intrinsic(degrees_tag{}, *q);
+
+            bool anyChange{false};
+
+            ImGui::PushID(int(hash_mix(node.offset, 0)));
+            anyChange |= ImGui::DragFloat("x", &x, 0.1f);
+
+            ImGui::PushID(int(hash_mix(node.offset, 1)));
+            anyChange |= ImGui::DragFloat("y", &y, 0.1f);
+
+            ImGui::PushID(int(hash_mix(node.offset, 2)));
+            anyChange |= ImGui::DragFloat("z", &z, 0.1f);
+
+            if (anyChange)
+            {
+                *q = quaternion::from_euler_zyx_intrinsic(degrees_tag{}, {z, y, x});
+            }
+        }
+
         void build_property_grid(const property_tree& tree, std::byte* const data)
         {
             auto* ptr = data;
 
             visit(tree,
                 overload{
-                    [&ptr](const property_node& node, const property_node_start)
+                    [&ptr, data](const property_node& node, const property_node_start)
                     {
                         ptr += node.offset;
                         ImGui::TextUnformatted(node.name.c_str());
+
+                        if (node.type == get_type_id<quaternion>())
+                        {
+                            build_quaternion_editor(node, data);
+                            return property_visit_result::sibling;
+                        }
+
                         return property_visit_result::recurse;
                     },
                     [&ptr](const property_node& node, const property_node_finish) { ptr -= node.offset; },
@@ -37,6 +68,7 @@ namespace oblo::editor
                         switch (property.kind)
                         {
                         case property_kind::f32:
+                            ImGui::PushID(int(hash_mix(property.offset, property.parent)));
                             ImGui::DragFloat(property.name.c_str(),
                                 reinterpret_cast<float*>(ptr + property.offset),
                                 0.1f);
