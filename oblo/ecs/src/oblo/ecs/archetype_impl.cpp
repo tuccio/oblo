@@ -1,7 +1,9 @@
-#include <oblo/ecs/archetype_storage.hpp>
+#include <oblo/ecs/archetype_impl.hpp>
 
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/memory_pool.hpp>
+#include <oblo/core/zip_range.hpp>
+#include <oblo/ecs/archetype_storage.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/math/power_of_two.hpp>
 
@@ -10,9 +12,9 @@
 namespace oblo::ecs
 {
     static_assert(sizeof(chunk) == ChunkWithHeaderSize);
-    static_assert(MaxComponentTypes <= std::numeric_limits<decltype(archetype_storage::numComponents)>::max());
+    static_assert(MaxComponentTypes <= std::numeric_limits<decltype(archetype_impl::numComponents)>::max());
 
-    archetype_storage* create_archetype_storage(memory_pool& pool,
+    archetype_impl* create_archetype_impl(memory_pool& pool,
         const type_registry& typeRegistry,
         const component_and_tags_sets& types,
         std::span<const component_type> components)
@@ -20,7 +22,7 @@ namespace oblo::ecs
         OBLO_ASSERT(std::is_sorted(components.begin(), components.end()));
         const u8 numComponents = u8(components.size());
 
-        archetype_storage* storage = new (pool.allocate<archetype_storage>()) archetype_storage{
+        archetype_impl* storage = new (pool.allocate<archetype_impl>()) archetype_impl{
             .types = types,
             .numComponents = numComponents,
         };
@@ -114,7 +116,7 @@ namespace oblo::ecs
         return storage;
     }
 
-    void destroy_archetype_storage(memory_pool& pool, archetype_storage* storage)
+    void destroy_archetype_impl(memory_pool& pool, archetype_impl* storage)
     {
         const auto numComponents = storage->numComponents;
 
@@ -193,7 +195,7 @@ namespace oblo::ecs
         return inOut.subspan(0, count);
     }
 
-    void reserve_chunks(memory_pool& pool, archetype_storage& archetype, u32 newCount)
+    void reserve_chunks(memory_pool& pool, archetype_impl& archetype, u32 newCount)
     {
         const u32 oldCount = archetype.numCurrentChunks;
 
@@ -224,5 +226,68 @@ namespace oblo::ecs
             new (get_entity_pointer(newChunk->data, 0)) entity[archetype.numEntitiesPerChunk];
             new (get_entity_tags_pointer(newChunk->data, archetype, 0)) entity_tags[archetype.numEntitiesPerChunk];
         }
+    }
+
+    std::span<const component_type> get_components(const archetype_storage& storage)
+    {
+        return {storage.archetype->components, storage.archetype->numComponents};
+    }
+
+    u32 get_used_chunks_count(const archetype_storage& storage)
+    {
+        return round_up_div(storage.archetype->numCurrentEntities, storage.archetype->numEntitiesPerChunk);
+    }
+
+    bool fetch_component_offsets(
+        const archetype_storage& storage, std::span<const component_type> componentTypes, std::span<u32> offsets)
+    {
+        const auto& archetype = *storage.archetype;
+        const auto* archetypeTypeIt = archetype.components;
+
+        auto outIt = offsets.begin();
+
+        for (auto it = componentTypes.begin(); it != componentTypes.end();)
+        {
+            while (*it != *archetypeTypeIt)
+            {
+                if (*it < *archetypeTypeIt)
+                {
+                    ++it;
+                }
+                else
+                {
+                    ++archetypeTypeIt;
+                }
+            }
+
+            const u8 componentIndex = u8(archetypeTypeIt - archetype.components);
+
+            *outIt = archetype.offsets[componentIndex];
+
+            ++archetypeTypeIt;
+            ++it;
+            ++outIt;
+        }
+
+        return true;
+    }
+
+    u32 fetch_chunk_data(const archetype_storage& storage,
+        u32 chunkIndex,
+        std::span<const u32> offsets,
+        const entity** entities,
+        std::span<std::byte*> componentData)
+    {
+        const auto& archetype = *storage.archetype;
+        chunk* const chunk = archetype.chunks[chunkIndex];
+
+        *entities = get_entity_pointer(chunk->data, 0);
+
+        for (auto&& [offset, ptr] : zip_range(offsets, componentData))
+        {
+            ptr = chunk->data + offset;
+        }
+
+        return chunk->header.numEntities;
     }
 }
