@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/ecs/archetype_storage.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/type_set.hpp>
 
@@ -119,7 +120,7 @@ namespace oblo::ecs
         friend class typed_range<Components...>;
 
     private:
-        iterator(const range_type* range, const entity_registry::components_storage* it) : m_range{range}, m_it{it}
+        iterator(const range_type* range, const archetype_storage* it) : m_range{range}, m_it{it}
         {
             if (!update_iterator_data())
             {
@@ -140,7 +141,7 @@ namespace oblo::ecs
 
     private:
         const range_type* m_range{nullptr};
-        const entity_registry::components_storage* m_it{nullptr};
+        const archetype_storage* m_it{nullptr};
         u32 m_chunkIndex{0};
         u32 m_numChunks{0};
         u32 m_offsets[sizeof...(Components)];

@@ -13,6 +13,7 @@
 namespace oblo::ecs
 {
     class type_registry;
+    struct archetype_storage;
     struct component_and_tags_sets;
     struct type_set;
 
@@ -96,30 +97,29 @@ namespace oblo::ecs
 
         const type_registry& get_type_registry() const;
 
+        std::span<const archetype_storage> get_archetypes() const;
+
     private:
-        struct components_storage;
         struct memory_pool;
         struct tags_storage;
         struct entity_data;
 
     private:
-        const components_storage* find_first_match(
-            const components_storage* begin, usize increment, const component_and_tags_sets& types);
+        const archetype_storage* find_first_match(
+            const archetype_storage* begin, usize increment, const component_and_tags_sets& types);
 
         static void sort_and_map(std::span<component_type> componentTypes, std::span<u8> mapping);
 
-        static u32 get_used_chunks_count(const components_storage& storage);
-
         static bool fetch_component_offsets(
-            const components_storage& storage, std::span<const component_type> componentTypes, std::span<u32> offsets);
+            const archetype_storage& storage, std::span<const component_type> componentTypes, std::span<u32> offsets);
 
-        static u32 fetch_chunk_data(const components_storage& storage,
+        static u32 fetch_chunk_data(const archetype_storage& storage,
             u32 chunkIndex,
             std::span<const u32> offsets,
             const entity** entities,
             std::span<std::byte*> componentData);
 
-        const components_storage& find_or_create_storage(const component_and_tags_sets& types);
+        const archetype_storage& find_or_create_storage(const component_and_tags_sets& types);
 
         void find_component_types(std::span<const type_id> typeIds, std::span<component_type> types);
 
@@ -136,7 +136,7 @@ namespace oblo::ecs
         const type_registry* m_typeRegistry{nullptr};
         std::unique_ptr<memory_pool> m_pool;
         entities_map m_entities;
-        std::vector<components_storage> m_componentsStorage;
+        std::vector<archetype_storage> m_componentsStorage;
     };
 
     template <typename... ComponentsOrTags>

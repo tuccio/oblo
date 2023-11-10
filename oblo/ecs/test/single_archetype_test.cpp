@@ -104,6 +104,11 @@ namespace oblo::ecs
                     s = std::to_string(entityId);
                 }
 
+                {
+                    const std::span archetypes = reg.get_archetypes();
+                    ASSERT_EQ(archetypes.size(), 1);
+                }
+
                 u32 totalEntities{0};
 
                 // Iterate again to check that values are correct

@@ -39,9 +39,49 @@ namespace oblo::ecs
         destroy_fn destroy;
         move_fn move;
         move_assign_fn moveAssign;
+
+        void do_create(void* dst, usize count)
+        {
+            if (create)
+            {
+                create(dst, count);
+            }
+        }
+
+        void do_destroy(void* dst, usize count)
+        {
+            if (destroy)
+            {
+                destroy(dst, count);
+            }
+        }
+
+        void do_move(usize size, void* dst, void* src, usize count)
+        {
+            if (move)
+            {
+                move(dst, src, count);
+            }
+            else
+            {
+                std::memcpy(dst, src, size * count);
+            }
+        }
+
+        void do_move_assign(usize size, void* dst, void* src, usize count)
+        {
+            if (move)
+            {
+                moveAssign(dst, src, count);
+            }
+            else
+            {
+                std::memcpy(dst, src, size * count);
+            }
+        }
     };
 
-    struct archetype_storage
+    struct archetype_impl
     {
         component_and_tags_sets types;
         component_type* components;
@@ -65,12 +105,12 @@ namespace oblo::ecs
         type_set types;
     };
 
-    archetype_storage* create_archetype_storage(memory_pool& pool,
+    archetype_impl* create_archetype_impl(memory_pool& pool,
         const type_registry& typeRegistry,
         const component_and_tags_sets& types,
         std::span<const component_type> components);
 
-    void destroy_archetype_storage(memory_pool& pool, archetype_storage* storage);
+    void destroy_archetype_impl(memory_pool& pool, archetype_impl* storage);
 
     std::span<component_type> make_type_span(std::span<component_type, MaxComponentTypes> inOut, type_set current);
 
@@ -79,18 +119,18 @@ namespace oblo::ecs
         return reinterpret_cast<entity*>(chunk) + offset;
     }
 
-    inline entity_tags* get_entity_tags_pointer(std::byte* chunk, const archetype_storage& archetype, u32 offset)
+    inline entity_tags* get_entity_tags_pointer(std::byte* chunk, const archetype_impl& archetype, u32 offset)
     {
         return reinterpret_cast<entity_tags*>(chunk + archetype.entityTagsOffset + offset);
     }
 
     inline std::byte* get_component_pointer(
-        std::byte* chunk, const archetype_storage& archetype, u8 componentIndex, u32 offset)
+        std::byte* chunk, const archetype_impl& archetype, u8 componentIndex, u32 offset)
     {
         return chunk + archetype.offsets[componentIndex] + offset * archetype.sizes[componentIndex];
     }
 
-    void reserve_chunks(memory_pool& pool, archetype_storage& archetype, u32 newCount);
+    void reserve_chunks(memory_pool& pool, archetype_impl& archetype, u32 newCount);
 
     // TODO: Could be implemented with bitwise operations and type_set instead
     inline u8 find_component_index(std::span<const component_type> types, component_type component)
@@ -112,7 +152,7 @@ namespace oblo::ecs
         u32 offset;
     };
 
-    inline entity_location get_entity_location(const archetype_storage& archetype, u32 archetypeIndex)
+    inline entity_location get_entity_location(const archetype_impl& archetype, u32 archetypeIndex)
     {
         const u32 numEntitiesPerChunk = archetype.numEntitiesPerChunk;
         return {archetypeIndex / numEntitiesPerChunk, archetypeIndex % numEntitiesPerChunk};
