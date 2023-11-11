@@ -5,7 +5,7 @@
 #include <oblo/ecs/type_set.hpp>
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/window_update_context.hpp>
-#include <oblo/engine/utility/ecs_utility.hpp>
+#include <oblo/scene/utility/ecs_utility.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
 #include <oblo/math/quaternion.hpp>

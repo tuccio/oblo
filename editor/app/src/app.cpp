@@ -15,10 +15,7 @@
 #include <oblo/editor/windows/scene_hierarchy.hpp>
 #include <oblo/editor/windows/style_window.hpp>
 #include <oblo/editor/windows/viewport.hpp>
-#include <oblo/engine/components/name_component.hpp>
 #include <oblo/engine/engine_module.hpp>
-#include <oblo/engine/systems/transform_system.hpp>
-#include <oblo/engine/utility/ecs_utility.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
 #include <oblo/graphics/graphics_module.hpp>
@@ -29,7 +26,10 @@
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/reflection/reflection_module.hpp>
 #include <oblo/sandbox/context.hpp>
+#include <oblo/scene/components/name_component.hpp>
 #include <oblo/scene/scene_module.hpp>
+#include <oblo/scene/systems/transform_system.hpp>
+#include <oblo/scene/utility/ecs_utility.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
 #include <oblo/vulkan/stateful_command_buffer.hpp>

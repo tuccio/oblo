@@ -1,13 +1,13 @@
-#include <oblo/engine/systems/transform_system.hpp>
+#include <oblo/scene/systems/transform_system.hpp>
 
 #include <oblo/core/zip_range.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/range.hpp>
 #include <oblo/ecs/systems/system_update_context.hpp>
-#include <oblo/engine/components/global_transform_component.hpp>
-#include <oblo/engine/components/position_component.hpp>
-#include <oblo/engine/components/rotation_component.hpp>
-#include <oblo/engine/components/scale_component.hpp>
+#include <oblo/scene/components/global_transform_component.hpp>
+#include <oblo/scene/components/position_component.hpp>
+#include <oblo/scene/components/rotation_component.hpp>
+#include <oblo/scene/components/scale_component.hpp>
 #include <oblo/math/transform.hpp>
 
 namespace oblo

@@ -7,8 +7,9 @@ target_link_libraries(
     oblo::core
     oblo::ecs
     PRIVATE
-    oblo::engine
     oblo::graphics
-    imgui::imgui
+    oblo::properties
+    oblo::scene
     oblo::vk
+    imgui::imgui
 )

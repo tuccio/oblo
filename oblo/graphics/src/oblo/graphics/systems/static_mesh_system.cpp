@@ -8,7 +8,7 @@
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/ecs/utility/registration.hpp>
-#include <oblo/engine/components/global_transform_component.hpp>
+#include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/vulkan/draw/draw_registry.hpp>
 #include <oblo/vulkan/renderer.hpp>
