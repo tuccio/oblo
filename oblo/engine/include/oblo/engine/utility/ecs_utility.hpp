@@ -1,13 +1,23 @@
 #pragma once
 
+#include <oblo/ecs/handles.hpp>
+#include <oblo/ecs/type_set.hpp>
+
+#include <string_view>
+
 namespace oblo
 {
     class property_registry;
+
+    struct quaternion;
+    struct vec3;
 }
 
 namespace oblo::ecs
 {
+    class entity_registry;
     class type_registry;
+    struct component_and_tags_sets;
 }
 
 namespace oblo::reflection
@@ -20,4 +30,26 @@ namespace oblo::ecs_utility
     ENGINE_API void register_reflected_component_types(const reflection::reflection_registry& reflection,
         ecs::type_registry* typeRegistry,
         property_registry* propertyRegistry);
+
+    ENGINE_API ecs::entity create_named_physical_entity(ecs::entity_registry& registry,
+        const ecs::component_and_tags_sets& extraComponentsOrTags,
+        std::string_view name,
+        const vec3& position,
+        const quaternion& rotation,
+        const vec3& scale);
+
+    template <typename... ComponentsOrTags>
+    ecs::entity create_named_physical_entity(ecs::entity_registry& registry,
+        std::string_view name,
+        const vec3& position,
+        const quaternion& rotation,
+        const vec3& scale)
+    {
+        return create_named_physical_entity(registry,
+            ecs::make_type_sets<ComponentsOrTags...>(registry.get_type_registry()),
+            name,
+            position,
+            rotation,
+            scale);
+    }
 }

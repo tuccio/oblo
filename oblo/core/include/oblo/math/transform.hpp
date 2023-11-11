@@ -6,29 +6,29 @@
 
 namespace oblo
 {
-    constexpr mat4 make_transform_matrix(const vec3& p, const quaternion& r, const vec3&)
+    constexpr mat4 make_transform_matrix(const vec3& p, const quaternion& r, const vec3& s)
     {
         const f32 rx2 = r.x * r.x;
         const f32 ry2 = r.y * r.y;
         const f32 rz2 = r.z * r.z;
 
         return {{
-            {
-                1 - 2 * ry2 - 2 * rz2,
-                2 * r.x * r.y - 2 * r.z * r.w,
-                2 * r.x * r.z + 2 * r.y * r.w,
+            vec4{
+                s.x * (1 - 2 * ry2 - 2 * rz2),
+                s.y * (2 * r.x * r.y - 2 * r.z * r.w),
+                s.z * (2 * r.x * r.z + 2 * r.y * r.w),
                 p.x,
             },
-            {
-                2 * r.x * r.y + 2 * r.z * r.w,
-                1 - 2 * rx2 - 2 * rz2,
-                2 * r.y * r.z - 2 * r.x * r.w,
+            vec4{
+                s.x * (2 * r.x * r.y + 2 * r.z * r.w),
+                s.y * (1 - 2 * rx2 - 2 * rz2),
+                s.z * (2 * r.y * r.z - 2 * r.x * r.w),
                 p.y,
             },
-            {
-                2 * r.x * r.z - 2 * r.y * r.w,
-                2 * r.y * r.z + 2 * r.x * r.w,
-                1 - 2 * rx2 - 2 * ry2,
+            vec4{
+                s.x * (2 * r.x * r.z - 2 * r.y * r.w),
+                s.y * (2 * r.y * r.z + 2 * r.x * r.w),
+                s.z * (1 - 2 * rx2 - 2 * ry2),
                 p.z,
             },
             {
