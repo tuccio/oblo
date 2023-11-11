@@ -8,6 +8,7 @@
 #include <oblo/asset/importer.hpp>
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/debug.hpp>
+#include <oblo/core/log.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/core/uuid_generator.hpp>
 
@@ -32,13 +33,74 @@ namespace oblo
             std::vector<std::string> extensions;
         };
 
-        bool save_asset_meta(const uuid& id, const asset_meta& meta, const std::filesystem::path& destination)
+        using asset_types_map = std::unordered_map<type_id, asset_type_info>;
+
+        bool load_asset_meta(asset_meta& meta, const asset_types_map& assetTypes, const std::filesystem::path& source)
+        {
+            std::ifstream in{source};
+
+            if (!in)
+            {
+                return false;
+            }
+
+            const auto json = nlohmann::json::parse(in, nullptr, false);
+
+            if (json.is_discarded())
+            {
+                return false;
+            }
+
+            const std::string_view id = json["id"].get<std::string_view>();
+
+            if (auto parsed = uuid::parse(id))
+            {
+                meta.id = *parsed;
+            }
+            else
+            {
+                return false;
+            }
+
+            const std::string_view type = json["type"].get<std::string_view>();
+
+            const auto typeIt = assetTypes.find(type_id{type});
+
+            if (typeIt == assetTypes.end())
+            {
+                return false;
+            }
+
+            meta.type = typeIt->first;
+
+            const std::string_view importId = json["importId"].get<std::string_view>();
+
+            if (auto parsed = uuid::parse(importId))
+            {
+                meta.importId = *parsed;
+            }
+            else
+            {
+                return false;
+            }
+
+            const auto importName = json.find("importName");
+
+            if (importName != json.end())
+            {
+                meta.importName = importName->get<std::string_view>();
+            }
+
+            return true;
+        }
+
+        bool save_asset_meta(const asset_meta& meta, const std::filesystem::path& destination)
         {
             char uuidBuffer[36];
 
             nlohmann::ordered_json json;
 
-            json["id"] = id.format_to(uuidBuffer);
+            json["id"] = meta.id.format_to(uuidBuffer);
             json["type"] = meta.type.name;
 
             if (!meta.importId.is_nil())
@@ -73,6 +135,12 @@ namespace oblo
             }
 
             const auto json = nlohmann::json::parse(in, nullptr, false);
+
+            if (json.is_discarded())
+            {
+                return false;
+            }
+
             const auto it = json.find("id");
 
             if (it == json.end())
@@ -357,7 +425,7 @@ namespace oblo
             return false;
         }
 
-        return save_asset_meta(meta.id, assetIt->second, fullPath);
+        return save_asset_meta(assetIt->second, fullPath);
     }
 
     std::filesystem::path asset_registry::create_source_files_dir(uuid importId)
@@ -378,7 +446,13 @@ namespace oblo
         auto fullPath = m_impl->assetsDir / path;
         fullPath.concat(AssetMetaExtension);
 
-        if (!load_asset_id_from_meta(fullPath, id))
+        return find_asset_by_meta_path(path, id, assetMeta);
+    }
+
+    bool asset_registry::find_asset_by_meta_path(
+        const std::filesystem::path& path, uuid& id, asset_meta& assetMeta) const
+    {
+        if (!load_asset_id_from_meta(path, id))
         {
             return false;
         }
@@ -428,5 +502,26 @@ namespace oblo
         path = std::move(resourceFile);
 
         return true;
+    }
+
+    void asset_registry::discover_assets()
+    {
+        std::error_code ec;
+
+        for (auto&& entry : std::filesystem::recursive_directory_iterator{m_impl->assetsDir, ec})
+        {
+            const auto& p = entry.path();
+
+            asset_meta meta{};
+
+            if (load_asset_meta(meta, m_impl->assetTypes, p))
+            {
+                m_impl->assets.emplace(meta.id, meta);
+            }
+            else
+            {
+                log::warn("Failed to load asset meta {}", p.string());
+            }
+        }
     }
 }

@@ -3,13 +3,18 @@
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/ecs/type_set.hpp>
+#include <oblo/editor/data/drag_and_drop_payload.hpp>
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/window_update_context.hpp>
-#include <oblo/scene/utility/ecs_utility.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
+#include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
+#include <oblo/resource/resource_ptr.hpp>
+#include <oblo/resource/resource_registry.hpp>
+#include <oblo/scene/assets/model.hpp>
+#include <oblo/scene/utility/ecs_utility.hpp>
 
 #include <imgui.h>
 
@@ -21,6 +26,9 @@ namespace oblo::editor
     {
         m_entities = ctx.services.find<ecs::entity_registry>();
         OBLO_ASSERT(m_entities);
+
+        m_resources = ctx.services.find<resource_registry>();
+        OBLO_ASSERT(m_resources);
     }
 
     bool viewport::update(const window_update_context&)
@@ -56,6 +64,30 @@ namespace oblo::editor
             if (auto const imageId = v.imageId)
             {
                 ImGui::Image(imageId, windowSize);
+
+                if (ImGui::BeginDragDropTarget())
+                {
+                    if (auto* const payload = ImGui::AcceptDragDropPayload(payloads::Resource))
+                    {
+                        const uuid id = payloads::parse_uuid(payload->Data);
+                        const auto resource = m_resources->get_resource(id);
+
+                        if (const auto m = resource.as<model>())
+                        {
+                            for (const asset_ref mesh : m->meshes)
+                            {
+                                const auto e =
+                                    ecs_utility::create_named_physical_entity<static_mesh_component>(*m_entities,
+                                        "New Mesh",
+                                        vec3{},
+                                        quaternion::identity(),
+                                        vec3::splat(1));
+
+                                m_entities->get<static_mesh_component>(e).mesh = mesh.id;
+                            }
+                        }
+                    }
+                }
             }
 
             ImGui::End();

@@ -15,4 +15,12 @@ namespace oblo
         seed ^= hash + 0x9e3779b97f4a7c15ull + (seed << 6) + (seed >> 2);
         return seed;
     }
+
+    template <template <typename> typename Hash, typename T, typename... Others>
+    constexpr auto hash_all(const T& first, const Others&... args)
+    {
+        auto h = Hash<T>{}(first);
+        ((h = hash_mix(h, Hash<Others>(args))), ...);
+        return h;
+    }
 }

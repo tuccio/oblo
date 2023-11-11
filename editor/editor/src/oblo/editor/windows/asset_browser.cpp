@@ -1,9 +1,11 @@
 #include <oblo/editor/windows/asset_browser.hpp>
 
+#include <oblo/asset/asset_meta.hpp>
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/importer.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/service_registry.hpp>
+#include <oblo/editor/data/drag_and_drop_payload.hpp>
 #include <oblo/editor/platform/shell.hpp>
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/window_update_context.hpp>
@@ -87,7 +89,22 @@ namespace oblo::editor
                 {
                     const auto file = p.filename();
                     const auto& str = file.u8string();
-                    ImGui::Button(reinterpret_cast<const char*>(str.c_str()));
+
+                    uuid uuid;
+                    asset_meta meta;
+
+                    if (m_registry->find_asset_by_meta_path(p, uuid, meta))
+                    {
+                        ImGui::PushID(int(hash_all<std::hash>(uuid)));
+                        ImGui::Button(reinterpret_cast<const char*>(str.c_str()));
+
+                        if (ImGui::BeginDragDropSource())
+                        {
+                            const auto payload = payloads::pack_uuid(meta.id);
+                            ImGui::SetDragDropPayload(payloads::Resource, &payload, sizeof(drag_and_drop_payload));
+                            ImGui::EndDragDropSource();
+                        }
+                    }
                 }
             }
 

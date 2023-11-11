@@ -2,6 +2,11 @@
 
 #include <oblo/ecs/handles.hpp>
 
+namespace oblo
+{
+    class resource_registry;
+}
+
 namespace oblo::ecs
 {
     class entity_registry;
@@ -18,6 +23,7 @@ namespace oblo::editor
         bool update(const window_update_context& ctx);
 
     private:
+        resource_registry* m_resources{};
         ecs::entity_registry* m_entities{};
         ecs::entity m_entity{};
     };
