@@ -27,11 +27,11 @@ namespace oblo::reflection
 
 namespace oblo::ecs_utility
 {
-    ENGINE_API void register_reflected_component_types(const reflection::reflection_registry& reflection,
+    SCENE_API void register_reflected_component_types(const reflection::reflection_registry& reflection,
         ecs::type_registry* typeRegistry,
         property_registry* propertyRegistry);
 
-    ENGINE_API ecs::entity create_named_physical_entity(ecs::entity_registry& registry,
+    SCENE_API ecs::entity create_named_physical_entity(ecs::entity_registry& registry,
         const ecs::component_and_tags_sets& extraComponentsOrTags,
         std::string_view name,
         const vec3& position,

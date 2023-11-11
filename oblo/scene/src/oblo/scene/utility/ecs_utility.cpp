@@ -1,18 +1,18 @@
-#include <oblo/engine/utility/ecs_utility.hpp>
+#include <oblo/scene/utility/ecs_utility.hpp>
 
 #include <oblo/core/log.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/type_registry.hpp>
-#include <oblo/engine/components/global_transform_component.hpp>
-#include <oblo/engine/components/name_component.hpp>
-#include <oblo/engine/components/position_component.hpp>
-#include <oblo/engine/components/rotation_component.hpp>
-#include <oblo/engine/components/scale_component.hpp>
 #include <oblo/math/transform.hpp>
 #include <oblo/properties/property_registry.hpp>
 #include <oblo/reflection/concepts/ranged_type_erasure.hpp>
 #include <oblo/reflection/reflection_registry.hpp>
+#include <oblo/scene/components/global_transform_component.hpp>
+#include <oblo/scene/components/name_component.hpp>
+#include <oblo/scene/components/position_component.hpp>
+#include <oblo/scene/components/rotation_component.hpp>
+#include <oblo/scene/components/scale_component.hpp>
 
 namespace oblo::ecs
 {

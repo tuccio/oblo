@@ -1,56 +1,16 @@
 #include <oblo/engine/engine_module.hpp>
 
 #include <oblo/asset/asset_registry.hpp>
-#include <oblo/core/debug.hpp>
-#include <oblo/engine/components/global_transform_component.hpp>
-#include <oblo/engine/components/name_component.hpp>
-#include <oblo/engine/components/position_component.hpp>
-#include <oblo/engine/components/rotation_component.hpp>
-#include <oblo/engine/components/scale_component.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/properties/property_registry.hpp>
 #include <oblo/reflection/reflection_module.hpp>
-#include <oblo/reflection/registration/registrant.hpp>
 #include <oblo/resource/resource_registry.hpp>
-
-namespace oblo::ecs
-{
-    struct component_type_tag;
-}
 
 namespace oblo
 {
     namespace
     {
         engine_module* g_instance{};
-
-        void register_reflection(reflection::reflection_registry::registrant reg)
-        {
-            reg.add_class<name_component>()
-                .add_field(&name_component::value, "value")
-                .add_ranged_type_erasure()
-                .add_tag<ecs::component_type_tag>();
-
-            reg.add_class<position_component>()
-                .add_field(&position_component::value, "value")
-                .add_ranged_type_erasure()
-                .add_tag<ecs::component_type_tag>();
-
-            reg.add_class<rotation_component>()
-                .add_field(&rotation_component::value, "value")
-                .add_ranged_type_erasure()
-                .add_tag<ecs::component_type_tag>();
-
-            reg.add_class<scale_component>()
-                .add_field(&scale_component::value, "value")
-                .add_ranged_type_erasure()
-                .add_tag<ecs::component_type_tag>();
-
-            reg.add_class<global_transform_component>()
-                .add_field(&global_transform_component::value, "value")
-                .add_ranged_type_erasure()
-                .add_tag<ecs::component_type_tag>();
-        }
     }
 
     engine_module::engine_module() = default;
@@ -64,7 +24,6 @@ namespace oblo
         auto& mm = module_manager::get();
 
         auto* reflection = mm.load<reflection::reflection_module>();
-        register_reflection(reflection->get_registrant());
 
         m_assetRegistry = std::make_unique<asset_registry>();
 

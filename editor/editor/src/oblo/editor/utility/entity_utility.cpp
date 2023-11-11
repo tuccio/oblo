@@ -1,7 +1,7 @@
 #include <oblo/editor/utility/entity_utility.hpp>
 
 #include <oblo/ecs/entity_registry.hpp>
-#include <oblo/engine/components/name_component.hpp>
+#include <oblo/scene/components/name_component.hpp>
 
 namespace oblo::editor::entity_utility
 {

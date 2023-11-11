@@ -7,7 +7,7 @@ namespace oblo
         struct system_update_context;
     }
 
-    class ENGINE_API transform_system
+    class SCENE_API transform_system
     {
     public:
         void update(const ecs::system_update_context& ctx);

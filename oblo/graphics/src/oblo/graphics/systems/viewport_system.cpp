@@ -9,7 +9,7 @@
 #include <oblo/ecs/range.hpp>
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/ecs/type_registry.hpp>
-#include <oblo/engine/components/global_transform_component.hpp>
+#include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
 #include <oblo/math/view_projection.hpp>
