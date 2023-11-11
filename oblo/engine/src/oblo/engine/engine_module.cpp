@@ -6,6 +6,7 @@
 #include <oblo/engine/components/name_component.hpp>
 #include <oblo/engine/components/position_component.hpp>
 #include <oblo/engine/components/rotation_component.hpp>
+#include <oblo/engine/components/scale_component.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/properties/property_registry.hpp>
 #include <oblo/reflection/reflection_module.hpp>
@@ -37,6 +38,11 @@ namespace oblo
 
             reg.add_class<rotation_component>()
                 .add_field(&rotation_component::value, "value")
+                .add_ranged_type_erasure()
+                .add_tag<ecs::component_type_tag>();
+
+            reg.add_class<scale_component>()
+                .add_field(&scale_component::value, "value")
                 .add_ranged_type_erasure()
                 .add_tag<ecs::component_type_tag>();
 

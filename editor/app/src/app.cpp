@@ -24,6 +24,8 @@
 #include <oblo/graphics/graphics_module.hpp>
 #include <oblo/graphics/systems/static_mesh_system.hpp>
 #include <oblo/graphics/systems/viewport_system.hpp>
+#include <oblo/math/quaternion.hpp>
+#include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/reflection/reflection_module.hpp>
 #include <oblo/sandbox/context.hpp>
@@ -108,7 +110,12 @@ namespace oblo::editor
 
         // Add a test mesh
         {
-            const auto e = m_entities.create<static_mesh_component, name_component>();
+            const auto e = ecs_utility::create_named_physical_entity<static_mesh_component>(m_entities,
+                "Mesh",
+                vec3{},
+                quaternion::identity(),
+                vec3::splat(1));
+
             auto& meshComponent = m_entities.get<static_mesh_component>(e);
             // meshComponent.mesh = "5c2dbfb7-e2af-bce2-5a6c-c9b6ce4e9c07"_uuid;
             meshComponent.mesh = "4cab39ab-0433-cf1c-5988-b1f619227a4f"_uuid;
