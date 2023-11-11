@@ -5,6 +5,7 @@
 #include <oblo/ecs/type_set.hpp>
 #include <oblo/editor/data/drag_and_drop_payload.hpp>
 #include <oblo/editor/service_context.hpp>
+#include <oblo/editor/services/selected_entities.hpp>
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
@@ -31,7 +32,7 @@ namespace oblo::editor
         OBLO_ASSERT(m_resources);
     }
 
-    bool viewport::update(const window_update_context&)
+    bool viewport::update(const window_update_context& ctx)
     {
         bool open{true};
 
@@ -88,6 +89,14 @@ namespace oblo::editor
                                             vec3::splat(1));
 
                                     m_entities->get<static_mesh_component>(e).mesh = mesh;
+
+                                    auto* const selected = ctx.services.find<selected_entities>();
+
+                                    if (selected)
+                                    {
+                                        selected->clear();
+                                        selected->add({&e, 1});
+                                    }
                                 }
                             }
                         }
