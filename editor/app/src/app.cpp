@@ -71,12 +71,14 @@ namespace oblo::editor
         mm.load<importers::importers_module>();
         auto* const reflection = mm.load<oblo::reflection::reflection_module>();
 
+
         m_entities.init(&m_typeRegistry);
 
         ecs_utility::register_reflected_component_types(reflection->get_registry(),
             &m_typeRegistry,
             &engine->get_property_registry());
 
+        engine->get_asset_registry().discover_assets();
         auto& resourceRegistry = engine->get_resource_registry();
 
         m_windowManager.init();

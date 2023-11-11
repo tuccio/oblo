@@ -136,7 +136,7 @@ namespace oblo::ecs
                     for (u8 componentIndex = 0; componentIndex < numComponents; ++componentIndex)
                     {
                         std::byte* const componentData = data + storage->offsets[componentIndex];
-                        storage->fnTables[componentIndex].destroy(componentData, numEntitiesInChunk);
+                        storage->fnTables[componentIndex].do_destroy(componentData, numEntitiesInChunk);
                     }
 
                     numEntities -= numEntitiesInChunk;

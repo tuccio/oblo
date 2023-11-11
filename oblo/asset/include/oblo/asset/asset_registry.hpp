@@ -38,6 +38,8 @@ namespace oblo
 
         void shutdown();
 
+        void discover_assets();
+
         void register_type(const asset_type_desc& desc);
         void unregister_type(type_id type);
         bool has_asset_type(type_id type) const;
@@ -50,6 +52,7 @@ namespace oblo
         [[nodiscard]] importer create_importer(const std::filesystem::path& sourceFile);
 
         bool find_asset_by_path(const std::filesystem::path& path, uuid& id, asset_meta& assetMeta) const;
+        bool find_asset_by_meta_path(const std::filesystem::path& path, uuid& id, asset_meta& assetMeta) const;
 
         const std::filesystem::path& get_asset_directory() const;
 
