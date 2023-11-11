@@ -144,8 +144,8 @@ namespace oblo::vk
         if (indexBuffer)
         {
             *indexBuffer = resourceManager.get(m_indexBuffer);
-            indexBuffer->offset += range->indexOffset;
-            indexBuffer->size = sizeof(u32) * range->indexCount;
+            indexBuffer->offset += m_indexByteSize * range->indexOffset;
+            indexBuffer->size = m_indexByteSize * range->indexCount;
         }
 
         return true;
