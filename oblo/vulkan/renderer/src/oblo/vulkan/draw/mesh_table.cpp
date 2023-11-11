@@ -43,7 +43,7 @@ namespace oblo::vk
         switch (m_indexByteSize)
         {
         case 0:
-            m_indexType = VK_INDEX_TYPE_MAX_ENUM;
+            m_indexType = VK_INDEX_TYPE_NONE_KHR;
             break;
 
         case 2:

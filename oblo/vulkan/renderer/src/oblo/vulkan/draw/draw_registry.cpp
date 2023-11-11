@@ -160,7 +160,7 @@ namespace oblo::vk
     void draw_registry::end_frame()
     {
         m_drawData = {};
-        m_instanceBuffers = {};
+        m_drawDataCount = 0;
 
         m_storageBuffer.restore_all();
         m_drawCallsBuffer.restore_all();
@@ -436,58 +436,6 @@ namespace oblo::vk
         return &newBatch;
     }
 
-    void draw_registry::upload_instance_data(frame_allocator& allocator, staging_buffer& stagingBuffer)
-    {
-        const std::span archetypes = m_instances.get_archetypes();
-
-        if (archetypes.empty())
-        {
-            return;
-        }
-
-        // Keep it simple, for now we only support 1
-        OBLO_ASSERT(archetypes.size() == 1);
-        OBLO_ASSERT(ecs::get_used_chunks_count(archetypes[0]) == 1);
-
-        const auto archetype = archetypes[0];
-        const u32 numEntities = ecs::get_entities_count(archetype);
-
-        if (numEntities == 0)
-        {
-            m_instanceBuffers = {};
-            return;
-        }
-
-        const std::span components = ecs::get_component_types(archetype);
-        const auto count = components.size();
-
-        m_instanceBuffers.count = u32(count);
-        m_instanceBuffers.bindings = allocate_n<h32<vk::draw_buffer>>(allocator, count);
-        m_instanceBuffers.buffers = allocate_n<vk::buffer>(allocator, count);
-
-        auto* const dataOffsets = allocate_n<u32>(allocator, count);
-        auto* const componentData = allocate_n<std::byte*>(allocator, count);
-
-        const std::span dataOffsetsSpan{dataOffsets, count};
-        const ecs::entity* entities;
-
-        ecs::fetch_component_offsets(archetype, components, dataOffsetsSpan);
-        ecs::fetch_chunk_data(archetype, 0u, dataOffsetsSpan, &entities, {componentData, count});
-
-        for (usize i = 0; i < count; ++i)
-        {
-            const auto& typeDesc = m_typeRegistry.get_component_type_desc(components[i]);
-            const u32 bufferSize = typeDesc.size * numEntities;
-
-            const auto buffer = m_storageBuffer.allocate(*m_ctx, bufferSize);
-
-            stagingBuffer.upload({componentData[i], bufferSize}, buffer.buffer, buffer.offset);
-
-            m_instanceBuffers.buffers[i] = buffer;
-            m_instanceBuffers.bindings[i] = h32<draw_buffer>{components[i].value};
-        }
-    }
-
     void draw_registry::generate_draw_calls(frame_allocator& allocator, staging_buffer& stagingBuffer)
     {
         const std::span archetypes = m_instances.get_archetypes();
@@ -497,69 +445,204 @@ namespace oblo::vk
             return;
         }
 
-        // Keep it simple, for now we only support 1
-        OBLO_ASSERT(archetypes.size() == 1);
-        OBLO_ASSERT(ecs::get_used_chunks_count(archetypes[0]) == 1);
+        batch_draw_data* const frameDrawData = allocate_n<batch_draw_data>(allocator, archetypes.size());
 
-        const auto archetype = archetypes[0];
-        const u32 numEntities = ecs::get_entities_count(archetype);
+        // We will move this forward again on the first iteration
+        batch_draw_data* currentDrawBatch = frameDrawData - 1;
+        u32 drawBatches{};
 
-        if (numEntities == 0)
+        for (const auto archetype : archetypes)
         {
-            m_drawData = {};
-            return;
-        }
+            const u32 numEntities = ecs::get_entities_count(archetype);
 
-        // TODO: Deal with non indexed too?
-        const auto commands = allocate_n_span<VkDrawIndexedIndirectCommand>(allocator, numEntities);
-        const auto drawCalls = m_drawCallsBuffer.allocate(*m_ctx, sizeof(VkDrawIndexedIndirectCommand) * numEntities);
-
-        auto* nextCommand = commands.data();
-
-        for (auto&& [entities, meshBatches] : m_instances.range<mesh_batch_component>())
-        {
-            for (const auto [e, meshBatch] : zip_range(entities, meshBatches))
+            if (numEntities == 0)
             {
-                auto& batch = m_meshBatches[meshBatch.offset];
-
-                std::byte* localMeshId;
-
-                const auto localIdComponent = batch.component;
-                m_instances.get(e, {&localIdComponent, 1}, {&localMeshId, 1});
-
-                const auto meshId = *start_lifetime_as<h32<string>>(localMeshId);
-                const auto range = batch.table->get_mesh_range(meshId);
-
-                *nextCommand = {
-                    .indexCount = range.indexCount,
-                    .instanceCount = 1,
-                    .firstIndex = range.indexOffset,
-                    .vertexOffset = i32(range.vertexOffset),
-                    .firstInstance = 0,
-                };
-
-                ++nextCommand;
+                continue;
             }
+
+            const std::span componentTypes = ecs::get_component_types(archetype);
+
+            ecs::component_type meshBatchComponent{};
+
+            for (const auto componentType : componentTypes)
+            {
+                const auto& typeDesc = m_typeRegistry.get_component_type_desc(componentType);
+
+                if (typeDesc.type.name.starts_with(MeshBatchPrefix))
+                {
+                    meshBatchComponent = componentType;
+                    break;
+                }
+            }
+
+            if (!meshBatchComponent)
+            {
+                OBLO_ASSERT(false, "A batch without mesh batch component is not expected currently");
+                break;
+            }
+
+            const auto meshBatchIt = std::find_if(m_meshBatches.begin(),
+                m_meshBatches.end(),
+                [meshBatchComponent](const mesh_batch& meshBatch)
+                { return meshBatch.component == meshBatchComponent; });
+
+            OBLO_ASSERT(meshBatchIt != m_meshBatches.end());
+
+            ++currentDrawBatch;
+
+            *currentDrawBatch = {
+                .meshBatch = u32(meshBatchIt - m_meshBatches.begin()),
+            };
+
+            std::span<const std::byte> drawCommands;
+            buffer drawCommandsBuffer;
+
+            const bool isIndexed = meshBatchIt->table->get_index_type() != VK_INDEX_TYPE_NONE_KHR;
+
+            if (!isIndexed)
+            {
+                const auto commands = allocate_n_span<VkDrawIndirectCommand>(allocator, numEntities);
+
+                drawCommands = std::as_bytes(commands);
+                drawCommandsBuffer = m_drawCallsBuffer.allocate(*m_ctx, sizeof(VkDrawIndirectCommand) * numEntities);
+
+                auto* nextCommand = commands.data();
+
+                u32 meshLocalIdOffset;
+                std::byte* meshLocalIdBegin;
+
+                ecs::for_each_chunk(archetype,
+                    {&meshBatchComponent, 1},
+                    {&meshLocalIdOffset, 1},
+                    {&meshLocalIdBegin, 1},
+                    [&](const ecs::entity*, std::span<std::byte*> componentArrays, u32 numEntitiesInChunk)
+                    {
+                        auto* const meshLocalIds =
+                            start_lifetime_as_array<h32<string>>(componentArrays[0], numEntitiesInChunk);
+
+                        for (const auto meshId : std::span{meshLocalIds, numEntitiesInChunk})
+                        {
+                            const auto range = meshBatchIt->table->get_mesh_range(meshId);
+
+                            *nextCommand = {
+                                .vertexCount = range.vertexCount,
+                                .instanceCount = 1,
+                                .firstVertex = range.vertexOffset,
+                                .firstInstance = 0,
+                            };
+
+                            ++nextCommand;
+                        }
+                    });
+            }
+            else
+            {
+                const auto indexedCommands = allocate_n_span<VkDrawIndexedIndirectCommand>(allocator, numEntities);
+
+                drawCommands = std::as_bytes(indexedCommands);
+                drawCommandsBuffer =
+                    m_drawCallsBuffer.allocate(*m_ctx, sizeof(VkDrawIndexedIndirectCommand) * numEntities);
+
+                auto* nextCommand = indexedCommands.data();
+
+                u32 meshLocalIdOffset;
+                std::byte* meshLocalIdBegin;
+
+                ecs::for_each_chunk(archetype,
+                    {&meshBatchComponent, 1},
+                    {&meshLocalIdOffset, 1},
+                    {&meshLocalIdBegin, 1},
+                    [&](const ecs::entity*, std::span<std::byte*> componentArrays, u32 numEntitiesInChunk)
+                    {
+                        auto* const meshLocalIds =
+                            start_lifetime_as_array<h32<string>>(componentArrays[0], numEntitiesInChunk);
+
+                        for (const auto meshId : std::span{meshLocalIds, numEntitiesInChunk})
+                        {
+                            const auto range = meshBatchIt->table->get_mesh_range(meshId);
+
+                            *nextCommand = {
+                                .indexCount = range.indexCount,
+                                .instanceCount = 1,
+                                .firstIndex = range.indexOffset,
+                                .vertexOffset = i32(range.vertexOffset),
+                                .firstInstance = 0,
+                            };
+
+                            ++nextCommand;
+                        }
+                    });
+            }
+
+            stagingBuffer.upload(drawCommands, drawCommandsBuffer.buffer, drawCommandsBuffer.offset);
+            ++drawBatches;
+
+            currentDrawBatch->drawCommands = {
+                .buffer = drawCommandsBuffer.buffer,
+                .offset = drawCommandsBuffer.offset,
+                .drawCount = numEntities,
+                .isIndexed = isIndexed,
+            };
+
+            // TODO: Don't blindly update all instance buffers every frame
+            // Update instance buffers
+
+            const auto componentsCount = componentTypes.size();
+
+            draw_instance_buffers instanceBuffers{
+                .bindings = allocate_n<h32<vk::draw_buffer>>(allocator, componentsCount),
+                .buffers = allocate_n<vk::buffer>(allocator, componentsCount),
+                .count = u32(componentsCount),
+            };
+
+            const auto dataOffsets = allocate_n_span<u32>(allocator, componentsCount);
+            const auto componentData = allocate_n_span<std::byte*>(allocator, componentsCount);
+
+            for (usize i = 0; i < componentsCount; ++i)
+            {
+                const auto& typeDesc = m_typeRegistry.get_component_type_desc(componentTypes[i]);
+                const u32 bufferSize = typeDesc.size * numEntities;
+
+                instanceBuffers.buffers[i] = m_storageBuffer.allocate(*m_ctx, bufferSize);
+            }
+
+            u32 numProcessedEntities{0};
+
+            ecs::for_each_chunk(archetype,
+                componentTypes,
+                dataOffsets,
+                componentData,
+                [&](const ecs::entity*, std::span<std::byte*> componentArrays, u32 numEntitiesInChunk)
+                {
+                    for (usize i = 0; i < componentsCount; ++i)
+                    {
+                        // TODO: Maybe skip some special components?
+                        const auto& typeDesc = m_typeRegistry.get_component_type_desc(componentTypes[i]);
+
+                        const u32 chunkSize = typeDesc.size * numEntitiesInChunk;
+                        const u32 dstOffset = typeDesc.size * numProcessedEntities;
+
+                        const auto& instanceBuffer = instanceBuffers.buffers[i];
+
+                        stagingBuffer.upload({componentArrays[i], chunkSize},
+                            instanceBuffer.buffer,
+                            instanceBuffer.offset + dstOffset);
+
+                        instanceBuffers.bindings[i] = h32<draw_buffer>{componentTypes[i].value};
+                    }
+
+                    numProcessedEntities += numEntitiesInChunk;
+                });
+
+            currentDrawBatch->instanceBuffers = instanceBuffers;
         }
 
-        stagingBuffer.upload(std::as_bytes(commands), drawCalls.buffer, drawCalls.offset);
-
-        m_drawData = {
-            .buffer = drawCalls.buffer,
-            .offset = drawCalls.offset,
-            .drawCount = numEntities,
-        };
+        m_drawData = frameDrawData;
+        m_drawDataCount = drawBatches;
     }
 
-    // Keeping it simple we generate a single indirect buffer for now
-    draw_data draw_registry::get_draw_calls() const
+    std::span<const batch_draw_data> draw_registry::get_draw_calls() const
     {
-        return m_drawData;
+        return {m_drawData, m_drawDataCount};
     }
-
-    draw_instance_buffers draw_registry::get_instance_buffers() const
-    {
-        return m_instanceBuffers;
-    }
-
 }

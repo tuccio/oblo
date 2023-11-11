@@ -243,6 +243,11 @@ namespace oblo::ecs
         return storage.archetype->numCurrentEntities;
     }
 
+    u32 get_entities_count_in_chunk(const archetype_storage& storage, u32 chunkIndex)
+    {
+        return storage.archetype->chunks[chunkIndex]->header.numEntities;
+    }
+
     bool fetch_component_offsets(
         const archetype_storage& storage, std::span<const component_type> componentTypes, std::span<u32> offsets)
     {

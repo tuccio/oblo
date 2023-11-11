@@ -31,11 +31,12 @@ namespace oblo::vk
     struct draw_instance;
     struct draw_mesh;
 
-    struct draw_data
+    struct draw_commands
     {
         VkBuffer buffer;
         VkDeviceSize offset;
         u32 drawCount;
+        bool isIndexed;
     };
 
     struct draw_buffer
@@ -50,6 +51,13 @@ namespace oblo::vk
         h32<draw_buffer>* bindings;
         vk::buffer* buffers;
         u32 count;
+    };
+
+    struct batch_draw_data
+    {
+        u32 meshBatch;
+        draw_instance_buffers instanceBuffers;
+        draw_commands drawCommands;
     };
 
     class draw_registry
@@ -85,15 +93,9 @@ namespace oblo::vk
 
         const mesh_table* try_get_mesh_table(u32 id) const;
 
-        // Uploads everything every frame, assumes 1 archetype for now
-        void upload_instance_data(frame_allocator& allocator, staging_buffer& stagingBuffer);
-
         void generate_draw_calls(frame_allocator& allocator, staging_buffer& stagingBuffer);
 
-        // Keeping it simple we generate a single indirect buffer for now
-        draw_data get_draw_calls() const;
-
-        draw_instance_buffers get_instance_buffers() const;
+        std::span<const batch_draw_data> get_draw_calls() const;
 
     private:
         struct mesh_batch;
@@ -117,8 +119,8 @@ namespace oblo::vk
 
         ecs::component_type m_meshBatchComponent;
 
-        draw_data m_drawData{};
-        draw_instance_buffers m_instanceBuffers{};
+        const batch_draw_data* m_drawData{};
+        u32 m_drawDataCount{};
 
         std::unordered_map<uuid, h64<draw_mesh>> m_cachedMeshes;
 
