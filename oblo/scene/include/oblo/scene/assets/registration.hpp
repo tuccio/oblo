@@ -10,7 +10,7 @@ namespace oblo
     class asset_registry;
 }
 
-namespace oblo::scene
+namespace oblo
 {
     SCENE_API void register_asset_types(asset_registry& registry);
     SCENE_API void unregister_asset_types(asset_registry& registry);

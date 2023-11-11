@@ -4,7 +4,7 @@
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/scene/assets/registration.hpp>
 
-namespace oblo::scene
+namespace oblo
 {
     bool scene_module::startup()
     {

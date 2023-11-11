@@ -4,7 +4,7 @@
 
 #include <utility>
 
-namespace oblo::scene
+namespace oblo
 {
     struct mesh::attribute_data : mesh_attribute
     {

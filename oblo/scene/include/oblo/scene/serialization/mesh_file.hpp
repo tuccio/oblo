@@ -9,7 +9,7 @@ namespace tinygltf
     struct Primitive;
 }
 
-namespace oblo::scene
+namespace oblo
 {
     class mesh;
     struct mesh_attribute;

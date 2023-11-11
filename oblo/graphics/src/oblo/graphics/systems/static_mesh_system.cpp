@@ -47,6 +47,12 @@ namespace oblo
                     std::byte* transformData{};
 
                     const auto mesh = drawRegistry.get_or_create_mesh(*m_resourceRegistry, meshComponent.mesh);
+
+                    if (!mesh)
+                    {
+                        continue;
+                    }
+
                     const auto instance =
                         drawRegistry.create_instance(mesh, {&m_transformBuffer, 1}, {&transformData, 1});
                     meshComponent.instance = instance.value;

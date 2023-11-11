@@ -2,7 +2,7 @@
 
 #include <oblo/modules/module_interface.hpp>
 
-namespace oblo::scene
+namespace oblo
 {
     class SCENE_API scene_module final : public module_interface
     {

@@ -636,6 +636,13 @@ namespace oblo::vk
         const draw_registry& drawRegistry,
         std::span<const buffer_binding_table> bindingTables)
     {
+        const auto drawCalls = drawRegistry.get_draw_calls();
+
+        if (drawCalls.drawCount == 0)
+        {
+            return;
+        }
+
         const auto* pipeline = context.internalPipeline;
 
         const auto& resources = pipeline->resources;
@@ -693,7 +700,7 @@ namespace oblo::vk
             VkDescriptorBufferInfo bufferInfo[MaxWrites];
             VkWriteDescriptorSet descriptorSetWrites[MaxWrites];
 
-            u32 setIndex {0};
+            u32 setIndex{0};
 
             for (const auto& binding : pipeline->descriptorSetBindings)
             {
@@ -791,11 +798,6 @@ namespace oblo::vk
                 nullptr);
         }
 
-        const auto drawCalls = drawRegistry.get_draw_calls();
-
-        if (drawCalls.buffer)
-        {
-            vkCmdDrawIndexedIndirect(context.commandBuffer, drawCalls.buffer, drawCalls.offset, drawCalls.drawCount, 0);
-        }
+        vkCmdDrawIndexedIndirect(context.commandBuffer, drawCalls.buffer, drawCalls.offset, drawCalls.drawCount, 0);
     }
 }
