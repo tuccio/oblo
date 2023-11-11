@@ -700,6 +700,34 @@ namespace oblo::vk
             VkDescriptorBufferInfo bufferInfo[MaxWrites];
             VkWriteDescriptorSet descriptorSetWrites[MaxWrites];
 
+            auto writeToDescriptorSet = [descriptorSet, &bufferInfo, &descriptorSetWrites, &buffersCount, &writesCount](
+                                            const descriptor_binding& binding,
+                                            const buffer& buffer)
+            {
+                // TODO: Handle more
+                OBLO_ASSERT(buffersCount < MaxWrites);
+                OBLO_ASSERT(writesCount < MaxWrites);
+
+                bufferInfo[buffersCount] = {
+                    .buffer = buffer.buffer,
+                    .offset = buffer.offset,
+                    .range = buffer.size,
+                };
+
+                descriptorSetWrites[writesCount] = {
+                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                    .dstSet = descriptorSet,
+                    .dstBinding = binding.binding,
+                    .dstArrayElement = 0,
+                    .descriptorCount = 1,
+                    .descriptorType = binding.descriptorType,
+                    .pBufferInfo = bufferInfo + buffersCount,
+                };
+
+                ++buffersCount;
+                ++writesCount;
+            };
+
             for (const auto& binding : pipeline->descriptorSetBindings)
             {
                 bool found = false;
@@ -710,29 +738,7 @@ namespace oblo::vk
 
                     if (buffer)
                     {
-                        // TODO: Handle more
-                        OBLO_ASSERT(buffersCount < MaxWrites);
-                        OBLO_ASSERT(writesCount < MaxWrites);
-
-                        bufferInfo[buffersCount] = {
-                            .buffer = buffer->buffer,
-                            .offset = buffer->offset,
-                            .range = buffer->size,
-                        };
-
-                        descriptorSetWrites[writesCount] = {
-                            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                            .dstSet = descriptorSet,
-                            .dstBinding = binding.binding,
-                            .dstArrayElement = 0,
-                            .descriptorCount = 1,
-                            .descriptorType = binding.descriptorType,
-                            .pBufferInfo = bufferInfo + buffersCount,
-                        };
-
-                        ++buffersCount;
-                        ++writesCount;
-
+                        writeToDescriptorSet(binding, *buffer);
                         found = true;
                         break;
                     }
@@ -751,30 +757,8 @@ namespace oblo::vk
 
                     if (name == binding.name)
                     {
-                        OBLO_ASSERT(buffersCount < MaxWrites);
-                        OBLO_ASSERT(writesCount < MaxWrites);
-
                         const auto& buffer = instanceBuffers.buffers[i];
-
-                        bufferInfo[buffersCount] = {
-                            .buffer = buffer.buffer,
-                            .offset = buffer.offset,
-                            .range = buffer.size,
-                        };
-
-                        descriptorSetWrites[writesCount] = {
-                            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                            .dstSet = descriptorSet,
-                            .dstBinding = binding.binding,
-                            .dstArrayElement = 0,
-                            .descriptorCount = 1,
-                            .descriptorType = binding.descriptorType,
-                            .pBufferInfo = bufferInfo + buffersCount,
-                        };
-
-                        ++buffersCount;
-                        ++writesCount;
-
+                        writeToDescriptorSet(binding, buffer);
                         found = true;
                         break;
                     }
