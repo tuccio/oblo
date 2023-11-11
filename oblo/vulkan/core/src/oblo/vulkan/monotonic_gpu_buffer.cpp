@@ -74,6 +74,8 @@ namespace oblo::vk
         const auto offset = m_chunkSize - m_spaceInCurrentChunk;
         OBLO_ASSERT(offset % m_alignment == 0);
 
+        m_spaceInCurrentChunk -= alignedSize;
+
         res = {
             .buffer = m_buffers[m_currentIndex].buffer,
             .offset = offset,

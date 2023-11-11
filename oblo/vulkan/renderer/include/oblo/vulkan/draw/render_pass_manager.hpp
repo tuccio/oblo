@@ -22,6 +22,7 @@ namespace oblo
 namespace oblo::vk
 {
     class descriptor_set_pool;
+    class draw_registry;
     class mesh_table;
     class resource_manager;
     struct buffer;
@@ -60,9 +61,9 @@ namespace oblo::vk
         [[nodiscard]] bool begin_rendering(render_pass_context& context, const VkRenderingInfo& renderingInfo) const;
         void end_rendering(const render_pass_context& context);
 
-        void bind(const render_pass_context& context,
+        void draw(const render_pass_context& context,
             const resource_manager& resourceManager,
-            const mesh_table& meshTable,
+            const draw_registry& drawRegistry,
             std::span<const buffer_binding_table> bindingTables = {});
 
     private:

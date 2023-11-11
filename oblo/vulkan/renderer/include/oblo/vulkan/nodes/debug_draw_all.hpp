@@ -1,7 +1,6 @@
 #pragma once
 
 #include <oblo/math/vec2u.hpp>
-#include <oblo/vulkan/draw/mesh_table.hpp>
 #include <oblo/vulkan/draw/render_pass_initializer.hpp>
 #include <oblo/vulkan/graph/init_context.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
@@ -99,26 +98,18 @@ namespace oblo::vk
                 .pColorAttachments = &colorAttachment,
             };
 
-            auto& drawRegistry = context.get_draw_registry();
-            auto* const meshTable = drawRegistry.try_get_mesh_table(0);
+            setup_viewport_scissor(commandBuffer, renderWidth, renderHeight);
 
-            if (meshTable)
+            if (renderPassManager.begin_rendering(renderPassContext, renderInfo))
             {
-                setup_viewport_scissor(commandBuffer, renderWidth, renderHeight);
+                auto* const bindingTable = context.access(inPerViewBindingTable);
 
-                if (renderPassManager.begin_rendering(renderPassContext, renderInfo))
-                {
-                    auto* const bindingTable = context.access(inPerViewBindingTable);
+                renderPassManager.draw(renderPassContext,
+                    context.get_resource_manager(),
+                    context.get_draw_registry(),
+                    {bindingTable, 1});
 
-                    renderPassManager.bind(renderPassContext,
-                        context.get_resource_manager(),
-                        *meshTable,
-                        {bindingTable, 1});
-
-                    vkCmdDrawIndexed(commandBuffer, meshTable->index_count(), 1, 0, 0, 0);
-
-                    renderPassManager.end_rendering(renderPassContext);
-                }
+                renderPassManager.end_rendering(renderPassContext);
             }
         }
     };

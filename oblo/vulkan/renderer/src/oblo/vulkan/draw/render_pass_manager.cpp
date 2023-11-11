@@ -10,6 +10,7 @@
 #include <oblo/core/unreachable.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/draw/descriptor_set_pool.hpp>
+#include <oblo/vulkan/draw/draw_registry.hpp>
 #include <oblo/vulkan/draw/mesh_table.hpp>
 #include <oblo/vulkan/draw/render_pass_initializer.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
@@ -630,9 +631,9 @@ namespace oblo::vk
         m_impl->frameAllocator.restore_all();
     }
 
-    void render_pass_manager::bind(const render_pass_context& context,
+    void render_pass_manager::draw(const render_pass_context& context,
         const resource_manager& resourceManager,
-        const mesh_table& meshTable,
+        const draw_registry& drawRegistry,
         std::span<const buffer_binding_table> bindingTables)
     {
         const auto* pipeline = context.internalPipeline;
@@ -659,6 +660,8 @@ namespace oblo::vk
         };
 
         buffer indexBuffer;
+
+        const auto& meshTable = *drawRegistry.try_get_mesh_table(0);
 
         meshTable.fetch_buffers(resourceManager, attributeNames, buffers, &indexBuffer);
 
@@ -690,8 +693,12 @@ namespace oblo::vk
             VkDescriptorBufferInfo bufferInfo[MaxWrites];
             VkWriteDescriptorSet descriptorSetWrites[MaxWrites];
 
+            u32 setIndex {0};
+
             for (const auto& binding : pipeline->descriptorSetBindings)
             {
+                bool found = false;
+
                 for (const auto& table : bindingTables)
                 {
                     auto* const buffer = table.try_find(binding.name);
@@ -711,7 +718,7 @@ namespace oblo::vk
                         descriptorSetWrites[writesCount] = {
                             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                             .dstSet = descriptorSet,
-                            .dstBinding = 0,
+                            .dstBinding = setIndex++,
                             .dstArrayElement = 0,
                             .descriptorCount = 1,
                             .descriptorType = binding.descriptorType,
@@ -721,6 +728,49 @@ namespace oblo::vk
                         ++buffersCount;
                         ++writesCount;
 
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (found)
+                {
+                    continue;
+                }
+
+                const auto instanceBuffers = drawRegistry.get_instance_buffers();
+
+                for (u32 i = 0; i < instanceBuffers.count; ++i)
+                {
+                    const auto name = drawRegistry.get_name(instanceBuffers.bindings[i]);
+
+                    if (name == binding.name)
+                    {
+                        OBLO_ASSERT(buffersCount < MaxWrites);
+                        OBLO_ASSERT(writesCount < MaxWrites);
+
+                        const auto& buffer = instanceBuffers.buffers[i];
+
+                        bufferInfo[buffersCount] = {
+                            .buffer = buffer.buffer,
+                            .offset = buffer.offset,
+                            .range = buffer.size,
+                        };
+
+                        descriptorSetWrites[writesCount] = {
+                            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                            .dstSet = descriptorSet,
+                            .dstBinding = setIndex++,
+                            .dstArrayElement = 0,
+                            .descriptorCount = 1,
+                            .descriptorType = binding.descriptorType,
+                            .pBufferInfo = bufferInfo + buffersCount,
+                        };
+
+                        ++buffersCount;
+                        ++writesCount;
+
+                        found = true;
                         break;
                     }
                 }
@@ -739,6 +789,13 @@ namespace oblo::vk
                 &descriptorSet,
                 0,
                 nullptr);
+        }
+
+        const auto drawCalls = drawRegistry.get_draw_calls();
+
+        if (drawCalls.buffer)
+        {
+            vkCmdDrawIndexedIndirect(context.commandBuffer, drawCalls.buffer, drawCalls.offset, drawCalls.drawCount, 0);
         }
     }
 }

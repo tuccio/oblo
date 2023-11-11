@@ -7,6 +7,7 @@
 #include <oblo/engine/components/global_transform_component.hpp>
 #include <oblo/engine/components/position_component.hpp>
 #include <oblo/engine/components/rotation_component.hpp>
+#include <oblo/engine/components/scale_component.hpp>
 #include <oblo/math/transform.hpp>
 
 namespace oblo
@@ -19,10 +20,11 @@ namespace oblo
             {
                 auto* const position = ctx.entities->try_get<position_component>(e);
                 auto* const rotation = ctx.entities->try_get<rotation_component>(e);
+                auto* const scale = ctx.entities->try_get<scale_component>(e);
 
                 globalTransform.value = make_transform_matrix(position ? position->value : vec3{},
                     rotation ? rotation->value : quaternion::identity(),
-                    vec3::splat(1.f));
+                    scale ? scale->value : vec3::splat(1.f));
             }
         }
     }

@@ -8,6 +8,7 @@
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/ecs/utility/registration.hpp>
+#include <oblo/engine/components/global_transform_component.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/vulkan/draw/draw_registry.hpp>
 #include <oblo/vulkan/renderer.hpp>
@@ -24,6 +25,9 @@ namespace oblo
         m_resourceRegistry = ctx.services->find<resource_registry>();
         OBLO_ASSERT(m_resourceRegistry);
 
+        auto& drawRegistry = m_renderer->get_draw_registry();
+        m_transformBuffer = drawRegistry.get_or_register({"i_TransformBuffer", sizeof(mat4), alignof(mat4)});
+
         update(ctx);
     }
 
@@ -32,18 +36,33 @@ namespace oblo
         auto& drawRegistry = m_renderer->get_draw_registry();
 
         // TODO: (#7) Implement a way to create components while iterating, or deferring
-        for (const auto [entities, meshComponents] : ctx.entities->range<static_mesh_component>())
+        for (const auto [entities, meshComponents, globalTransforms] :
+            ctx.entities->range<static_mesh_component, global_transform_component>())
         {
-            for (auto&& [entity, meshComponent] : zip_range(entities, meshComponents))
+            for (auto&& [entity, meshComponent, globalTransform] :
+                zip_range(entities, meshComponents, globalTransforms))
             {
-                if (meshComponent.instance)
+                if (!meshComponent.instance)
                 {
-                    continue;
-                }
+                    std::byte* transformData{};
 
-                const auto mesh = drawRegistry.get_or_create_mesh(*m_resourceRegistry, meshComponent.mesh);
-                const auto instance = drawRegistry.create_instance(mesh, {}, {});
-                meshComponent.instance = instance.value;
+                    const auto mesh = drawRegistry.get_or_create_mesh(*m_resourceRegistry, meshComponent.mesh);
+                    const auto instance =
+                        drawRegistry.create_instance(mesh, {&m_transformBuffer, 1}, {&transformData, 1});
+                    meshComponent.instance = instance.value;
+
+                    new (transformData) mat4{transpose(globalTransform.value)};
+                }
+                else
+                {
+                    std::byte* transformData{};
+
+                    drawRegistry.get_instance_data(h32<vk::draw_instance>{meshComponent.instance},
+                        {&m_transformBuffer, 1},
+                        {&transformData, 1});
+
+                    new (transformData) mat4{transpose(globalTransform.value)};
+                }
             }
         }
     }

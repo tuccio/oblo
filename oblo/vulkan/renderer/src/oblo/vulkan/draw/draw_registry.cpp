@@ -4,7 +4,10 @@
 #include <oblo/core/data_format.hpp>
 #include <oblo/core/flags.hpp>
 #include <oblo/core/stack_allocator.hpp>
+#include <oblo/core/zip_range.hpp>
+#include <oblo/ecs/archetype_storage.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
+#include <oblo/ecs/range.hpp>
 #include <oblo/ecs/type_set.hpp>
 #include <oblo/ecs/utility/registration.hpp>
 #include <oblo/resource/resource_ptr.hpp>
@@ -12,6 +15,7 @@
 #include <oblo/scene/assets/mesh.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/draw/mesh_table.hpp>
+#include <oblo/vulkan/monotonic_gbu_buffer.hpp>
 #include <oblo/vulkan/staging_buffer.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
 
@@ -45,6 +49,11 @@ namespace oblo::vk
         }
 
         using local_mesh_id = h32<string>;
+
+        struct mesh_batch_component
+        {
+            u32 offset;
+        };
 
         h64<draw_mesh> make_mesh_id(ptrdiff batchOffset, local_mesh_id meshId)
         {
@@ -120,6 +129,23 @@ namespace oblo::vk
         }
 
         m_instances.init(&m_typeRegistry);
+
+        m_meshBatchComponent = m_typeRegistry.register_component(ecs::make_component_type_desc<mesh_batch_component>());
+
+        VkPhysicalDeviceProperties properties{};
+        vkGetPhysicalDeviceProperties(m_ctx->get_physical_device(), &properties);
+
+        u32 bufferChunkSize{1u << 26};
+
+        m_storageBuffer.init(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+            memory_usage::gpu_only,
+            narrow_cast<u32>(properties.limits.minStorageBufferOffsetAlignment),
+            bufferChunkSize);
+
+        m_drawCallsBuffer.init(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
+            memory_usage::gpu_only,
+            alignof(VkDrawIndexedIndirectCommand),
+            bufferChunkSize);
     }
 
     void draw_registry::shutdown()
@@ -128,6 +154,15 @@ namespace oblo::vk
         {
             batch.table->shutdown(m_ctx->get_allocator(), m_ctx->get_resource_manager());
         }
+    }
+
+    void draw_registry::end_frame()
+    {
+        m_drawData = {};
+        m_instanceBuffers = {};
+
+        m_storageBuffer.restore_all();
+        m_drawCallsBuffer.restore_all();
     }
 
     h64<draw_mesh> draw_registry::get_or_create_mesh(oblo::resource_registry& resourceRegistry, const uuid& resourceId)
@@ -284,7 +319,9 @@ namespace oblo::vk
 
         const auto userBuffersCount{buffers.size()};
 
-        sets.components.add(m_meshBatches[batchOffset].component);
+        const auto localMeshIdComponent = m_meshBatches[batchOffset].component;
+        sets.components.add(localMeshIdComponent);
+        sets.components.add(m_meshBatchComponent);
 
         for (usize i = 0; i < userBuffersCount; ++i)
         {
@@ -299,10 +336,20 @@ namespace oblo::vk
         // Retrieve the user buffers data
         m_instances.get(entity, {components, userBuffersCount}, outData);
 
-        // This is probably useless, it but shouldn't matter
-        start_lifetime_as_array<h32<draw_buffer>>(buffers.data(), userBuffersCount);
+        std::byte* localMeshIdPtr;
+        m_instances.get(entity, {&localMeshIdComponent, 1}, {&localMeshIdPtr, 1});
+        new (localMeshIdPtr) local_mesh_id{localMeshid};
 
         return h32<draw_instance>{entity.value};
+    }
+
+    void draw_registry::get_instance_data(
+        h32<draw_instance> instance, std::span<const h32<draw_buffer>> buffers, std::span<std::byte*> outData)
+    {
+        const ecs::entity e{instance.value};
+
+        auto* const components = start_lifetime_as_array<ecs::component_type>(buffers.data(), buffers.size());
+        m_instances.get(e, {components, buffers.size()}, outData);
     }
 
     void draw_registry::destroy_instance(h32<draw_instance> instance)
@@ -327,7 +374,16 @@ namespace oblo::vk
             .alignment = buffer.elementAlignment,
         });
 
-        return h32<draw_buffer>{id.value};
+        const auto bufferId = h32<draw_buffer>{id.value};
+        m_meshNames.emplace(bufferId, bufferName);
+
+        return bufferId;
+    }
+
+    h32<string> draw_registry::get_name(h32<draw_buffer> drawBuffer) const
+    {
+        auto* const str = m_meshNames.try_find(drawBuffer);
+        return str ? *str : h32<string>{};
     }
 
     draw_registry::mesh_batch* draw_registry::get_or_create_mesh_batch(const mesh_batch_id& batchId,
@@ -376,4 +432,121 @@ namespace oblo::vk
 
         return &newBatch;
     }
+
+    void draw_registry::upload_instance_data(frame_allocator& allocator, staging_buffer& stagingBuffer)
+    {
+        const std::span archetypes = m_instances.get_archetypes();
+
+        // Keep it simple, for now we only support 1
+        OBLO_ASSERT(archetypes.size() == 1);
+        OBLO_ASSERT(ecs::get_used_chunks_count(archetypes[0]) == 1);
+
+        const auto archetype = archetypes[0];
+        const u32 numEntities = ecs::get_entities_count(archetype);
+
+        if (numEntities == 0)
+        {
+            m_instanceBuffers = {};
+            return;
+        }
+
+        const std::span components = ecs::get_component_types(archetype);
+        const auto count = components.size();
+
+        m_instanceBuffers.count = u32(count);
+        m_instanceBuffers.bindings = allocate_n<h32<vk::draw_buffer>>(allocator, count);
+        m_instanceBuffers.buffers = allocate_n<vk::buffer>(allocator, count);
+
+        auto* const dataOffsets = allocate_n<u32>(allocator, count);
+        auto* const componentData = allocate_n<std::byte*>(allocator, count);
+
+        const std::span dataOffsetsSpan{dataOffsets, count};
+        const ecs::entity* entities;
+
+        ecs::fetch_component_offsets(archetype, components, dataOffsetsSpan);
+        ecs::fetch_chunk_data(archetype, 0u, dataOffsetsSpan, &entities, {componentData, count});
+
+        for (usize i = 0; i < count; ++i)
+        {
+            const auto& typeDesc = m_typeRegistry.get_component_type_desc(components[i]);
+            const u32 bufferSize = typeDesc.size * numEntities;
+
+            const auto buffer = m_storageBuffer.allocate(*m_ctx, bufferSize);
+
+            stagingBuffer.upload({componentData[i], bufferSize}, buffer.buffer, buffer.offset);
+
+            m_instanceBuffers.buffers[i] = buffer;
+            m_instanceBuffers.bindings[i] = h32<draw_buffer>{components[i].value};
+        }
+    }
+
+    void draw_registry::generate_draw_calls(frame_allocator& allocator, staging_buffer& stagingBuffer)
+    {
+        const std::span archetypes = m_instances.get_archetypes();
+
+        // Keep it simple, for now we only support 1
+        OBLO_ASSERT(archetypes.size() == 1);
+        OBLO_ASSERT(ecs::get_used_chunks_count(archetypes[0]) == 1);
+
+        const auto archetype = archetypes[0];
+        const u32 numEntities = ecs::get_entities_count(archetype);
+
+        if (numEntities == 0)
+        {
+            m_drawData = {};
+            return;
+        }
+
+        // TODO: Deal with non indexed too?
+        const auto commands = allocate_n_span<VkDrawIndexedIndirectCommand>(allocator, numEntities);
+        const auto drawCalls = m_drawCallsBuffer.allocate(*m_ctx, sizeof(VkDrawIndexedIndirectCommand) * numEntities);
+
+        auto* nextCommand = commands.data();
+
+        for (auto&& [entities, meshBatches] : m_instances.range<mesh_batch_component>())
+        {
+            for (const auto [e, meshBatch] : zip_range(entities, meshBatches))
+            {
+                auto& batch = m_meshBatches[meshBatch.offset];
+
+                std::byte* localMeshId;
+
+                const auto localIdComponent = batch.component;
+                m_instances.get(e, {&localIdComponent, 1}, {&localMeshId, 1});
+
+                const auto meshId = *start_lifetime_as<h32<string>>(localMeshId);
+                const auto range = batch.table->get_mesh_range(meshId);
+
+                *nextCommand = {
+                    .indexCount = range.indexCount,
+                    .instanceCount = 1,
+                    .firstIndex = range.indexOffset,
+                    .vertexOffset = i32(range.vertexOffset),
+                    .firstInstance = 0,
+                };
+
+                ++nextCommand;
+            }
+        }
+
+        stagingBuffer.upload(std::as_bytes(commands), drawCalls.buffer, drawCalls.offset);
+
+        m_drawData = {
+            .buffer = drawCalls.buffer,
+            .offset = drawCalls.offset,
+            .drawCount = numEntities,
+        };
+    }
+
+    // Keeping it simple we generate a single indirect buffer for now
+    draw_data draw_registry::get_draw_calls() const
+    {
+        return m_drawData;
+    }
+
+    draw_instance_buffers draw_registry::get_instance_buffers() const
+    {
+        return m_instanceBuffers;
+    }
+
 }

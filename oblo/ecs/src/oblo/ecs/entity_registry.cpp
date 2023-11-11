@@ -388,6 +388,8 @@ namespace oblo::ecs
 
         for (auto it = componentTypes.begin(); it != componentTypes.end();)
         {
+            OBLO_ASSERT(*it);
+
             while (*it != *archetypeTypeIt)
             {
                 if (*it < *archetypeTypeIt)

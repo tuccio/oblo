@@ -1,10 +1,13 @@
 #pragma once
 
+#include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/string_interner.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/type_registry.hpp>
+#include <oblo/vulkan/allocator.hpp>
+#include <oblo/vulkan/monotonic_gbu_buffer.hpp>
 
 #include <span>
 #include <unordered_map>
@@ -24,11 +27,25 @@ namespace oblo::vk
     struct draw_instance;
     struct draw_mesh;
 
+    struct draw_data
+    {
+        VkBuffer buffer;
+        VkDeviceSize offset;
+        u32 drawCount;
+    };
+
     struct draw_buffer
     {
         std::string_view name;
         u32 elementSize;
         u32 elementAlignment;
+    };
+
+    struct draw_instance_buffers
+    {
+        h32<draw_buffer>* bindings;
+        vk::buffer* buffers;
+        u32 count;
     };
 
     class draw_registry
@@ -46,16 +63,32 @@ namespace oblo::vk
         void init(vulkan_context& ctx, staging_buffer& stagingBuffer, string_interner& interner);
         void shutdown();
 
+        void end_frame();
+
         h64<draw_mesh> get_or_create_mesh(oblo::resource_registry& resourceRegistry, const uuid& resourceId);
 
         h32<draw_instance> create_instance(
             h64<draw_mesh> mesh, std::span<const h32<draw_buffer>> buffers, std::span<std::byte*> outData);
 
+        void get_instance_data(
+            h32<draw_instance> instance, std::span<const h32<draw_buffer>> buffers, std::span<std::byte*> outData);
+
         void destroy_instance(h32<draw_instance> id);
 
         h32<draw_buffer> get_or_register(const draw_buffer& buffer);
+        h32<string> get_name(h32<draw_buffer> drawBuffer) const;
 
         const mesh_table* try_get_mesh_table(u32 id) const;
+
+        // Uploads everything every frame, assumes 1 archetype for now
+        void upload_instance_data(frame_allocator& allocator, staging_buffer& stagingBuffer);
+
+        void generate_draw_calls(frame_allocator& allocator, staging_buffer& stagingBuffer);
+
+        // Keeping it simple we generate a single indirect buffer for now
+        draw_data get_draw_calls() const;
+
+        draw_instance_buffers get_instance_buffers() const;
 
     private:
         struct mesh_batch;
@@ -67,6 +100,9 @@ namespace oblo::vk
 
     private:
         vulkan_context* m_ctx{};
+        monotonic_gpu_buffer m_storageBuffer;
+        monotonic_gpu_buffer m_drawCallsBuffer;
+
         staging_buffer* m_stagingBuffer{};
         string_interner* m_interner{};
         std::vector<buffer_column_description> m_vertexAttributes;
@@ -74,6 +110,13 @@ namespace oblo::vk
         ecs::type_registry m_typeRegistry;
         ecs::entity_registry m_instances;
 
+        ecs::component_type m_meshBatchComponent;
+
+        draw_data m_drawData{};
+        draw_instance_buffers m_instanceBuffers{};
+
         std::unordered_map<uuid, h64<draw_mesh>> m_cachedMeshes;
+
+        flat_dense_map<h32<draw_buffer>, h32<string>> m_meshNames;
     };
 }
