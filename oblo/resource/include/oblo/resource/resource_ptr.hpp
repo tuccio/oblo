@@ -13,6 +13,7 @@ namespace oblo
         void resource_acquire(resource* resource);
         void* resource_data(resource* resource);
         type_id resource_type(resource* resource);
+        std::string_view resource_name(resource* resource);
     }
 
     template <typename T = void>
@@ -96,6 +97,11 @@ namespace oblo
         type_id get_type() const noexcept
         {
             return detail::resource_type(m_resource);
+        }
+
+        std::string_view get_name() const noexcept
+        {
+            return detail::resource_name(m_resource);
         }
 
         const T* get() const noexcept

@@ -72,18 +72,23 @@ namespace oblo::editor
                         const uuid id = payloads::parse_uuid(payload->Data);
                         const auto resource = m_resources->get_resource(id);
 
-                        if (const auto m = resource.as<model>())
+                        if (const resource_ptr modelRes = resource.as<model>())
                         {
-                            for (const resource_ref mesh : m->meshes)
+                            for (const resource_ref mesh : modelRes->meshes)
                             {
-                                const auto e =
-                                    ecs_utility::create_named_physical_entity<static_mesh_component>(*m_entities,
-                                        "New Mesh",
-                                        vec3{},
-                                        quaternion::identity(),
-                                        vec3::splat(1));
+                                if (const resource_ptr meshRes = m_resources->get_resource(mesh.id))
+                                {
+                                    const auto name = meshRes.get_name();
 
-                                m_entities->get<static_mesh_component>(e).mesh = mesh;
+                                    const auto e =
+                                        ecs_utility::create_named_physical_entity<static_mesh_component>(*m_entities,
+                                            name.empty() ? "New Mesh" : name,
+                                            vec3{},
+                                            quaternion::identity(),
+                                            vec3::splat(1));
+
+                                    m_entities->get<static_mesh_component>(e).mesh = mesh;
+                                }
                             }
                         }
                     }
