@@ -5,11 +5,12 @@
 
 namespace oblo::detail
 {
-    resource* resource_create(void* data, type_id type, destroy_resource_fn destroy)
+    resource* resource_create(void* data, type_id type, std::string name, destroy_resource_fn destroy)
     {
         return new resource{
             .data = data,
             .type = type,
+            .name = std::move(name),
             .counter = 0,
             .destroy = destroy,
         };
@@ -37,5 +38,10 @@ namespace oblo::detail
     type_id resource_type(resource* resource)
     {
         return resource->type;
+    }
+
+    std::string_view resource_name(resource* resource)
+    {
+        return resource->name;
     }
 }

@@ -474,7 +474,7 @@ namespace oblo
     }
 
     bool asset_registry::find_artifact_resource(
-        const uuid& id, type_id& type, std::filesystem::path& path, const void* userdata)
+        const uuid& id, type_id& type, std::string& name, std::filesystem::path& path, const void* userdata)
     {
         char uuidBuffer[36];
 
@@ -500,6 +500,7 @@ namespace oblo
 
         type = meta.type;
         path = std::move(resourceFile);
+        name = std::move(meta.importName);
 
         return true;
     }

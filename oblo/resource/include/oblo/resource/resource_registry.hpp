@@ -21,7 +21,8 @@ namespace oblo
     struct resource;
     struct resource_type_desc;
 
-    using find_resource_fn = bool (*)(const uuid& id, type_id& type, std::filesystem::path& path, const void* userdata);
+    using find_resource_fn = bool (*)(
+        const uuid& id, type_id& type, std::string& name, std::filesystem::path& path, const void* userdata);
 
     class resource_registry
     {
