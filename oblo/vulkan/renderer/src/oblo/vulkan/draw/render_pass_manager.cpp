@@ -700,8 +700,6 @@ namespace oblo::vk
             VkDescriptorBufferInfo bufferInfo[MaxWrites];
             VkWriteDescriptorSet descriptorSetWrites[MaxWrites];
 
-            u32 setIndex{0};
-
             for (const auto& binding : pipeline->descriptorSetBindings)
             {
                 bool found = false;
@@ -725,7 +723,7 @@ namespace oblo::vk
                         descriptorSetWrites[writesCount] = {
                             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                             .dstSet = descriptorSet,
-                            .dstBinding = setIndex++,
+                            .dstBinding = binding.binding,
                             .dstArrayElement = 0,
                             .descriptorCount = 1,
                             .descriptorType = binding.descriptorType,
@@ -767,7 +765,7 @@ namespace oblo::vk
                         descriptorSetWrites[writesCount] = {
                             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                             .dstSet = descriptorSet,
-                            .dstBinding = setIndex++,
+                            .dstBinding = binding.binding,
                             .dstArrayElement = 0,
                             .descriptorCount = 1,
                             .descriptorType = binding.descriptorType,
@@ -798,6 +796,10 @@ namespace oblo::vk
                 nullptr);
         }
 
-        vkCmdDrawIndexedIndirect(context.commandBuffer, drawCalls.buffer, drawCalls.offset, drawCalls.drawCount, 0);
+        vkCmdDrawIndexedIndirect(context.commandBuffer,
+            drawCalls.buffer,
+            drawCalls.offset,
+            drawCalls.drawCount,
+            sizeof(VkDrawIndexedIndirectCommand));
     }
 }

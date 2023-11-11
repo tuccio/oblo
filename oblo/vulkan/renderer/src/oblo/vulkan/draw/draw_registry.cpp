@@ -267,6 +267,7 @@ namespace oblo::vk
         auto buffers = allocate_n_span<buffer>(stackAllocator, vertexAttributesCount);
 
         meshBatch->table->fetch_buffers(m_ctx->get_resource_manager(),
+            meshEntry.id,
             {attributeNames, vertexAttributesCount},
             buffers,
             &indexBuffer);

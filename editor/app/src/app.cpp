@@ -50,6 +50,13 @@ namespace oblo::editor
         }
     }
 
+    VkPhysicalDeviceFeatures app::get_required_physical_device_features() const
+    {
+        return {
+            .multiDrawIndirect = true,
+        };
+    }
+
     bool app::init(const vk::sandbox_init_context& ctx)
     {
         if (!platform::init())
