@@ -41,7 +41,7 @@ namespace oblo::vk
 
         bool init(const initializer& initializer);
         void shutdown();
-        void update();
+        void update(frame_allocator& frameAllocator);
 
         vulkan_context& get_vulkan_context();
         single_queue_engine& get_engine();

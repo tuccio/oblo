@@ -258,4 +258,16 @@ namespace oblo::vk
     {
         return m_indexType;
     }
+
+    mesh_table::buffer_range mesh_table::get_mesh_range(h32<string> mesh) const
+    {
+        auto* const range = m_ranges.try_find(mesh);
+
+        if (!range)
+        {
+            return {};
+        }
+
+        return *range;
+    }
 }

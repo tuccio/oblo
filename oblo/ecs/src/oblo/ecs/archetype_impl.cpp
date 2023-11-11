@@ -228,7 +228,7 @@ namespace oblo::ecs
         }
     }
 
-    std::span<const component_type> get_components(const archetype_storage& storage)
+    std::span<const component_type> get_component_types(const archetype_storage& storage)
     {
         return {storage.archetype->components, storage.archetype->numComponents};
     }
@@ -236,6 +236,11 @@ namespace oblo::ecs
     u32 get_used_chunks_count(const archetype_storage& storage)
     {
         return round_up_div(storage.archetype->numCurrentEntities, storage.archetype->numEntitiesPerChunk);
+    }
+
+    u32 get_entities_count(const archetype_storage& storage)
+    {
+        return storage.archetype->numCurrentEntities;
     }
 
     bool fetch_component_offsets(

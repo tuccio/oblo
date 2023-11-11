@@ -2,7 +2,14 @@
 
 #include <oblo/core/log.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
+#include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/type_registry.hpp>
+#include <oblo/engine/components/global_transform_component.hpp>
+#include <oblo/engine/components/name_component.hpp>
+#include <oblo/engine/components/position_component.hpp>
+#include <oblo/engine/components/rotation_component.hpp>
+#include <oblo/engine/components/scale_component.hpp>
+#include <oblo/math/transform.hpp>
 #include <oblo/properties/property_registry.hpp>
 #include <oblo/reflection/concepts/ranged_type_erasure.hpp>
 #include <oblo/reflection/reflection_registry.hpp>
@@ -62,5 +69,32 @@ namespace oblo::ecs_utility
                 propertyRegistry->build_from_reflection(typeData.type);
             }
         }
+    }
+
+    ecs::entity create_named_physical_entity(ecs::entity_registry& registry,
+        const ecs::component_and_tags_sets& extraComponentsOrTags,
+        std::string_view name,
+        const vec3& position,
+        const quaternion& rotation,
+        const vec3& scale)
+    {
+        const auto builtIn = ecs::make_type_sets<name_component,
+            position_component,
+            rotation_component,
+            scale_component,
+            global_transform_component>(registry.get_type_registry());
+
+        auto typeSets = extraComponentsOrTags;
+        typeSets.components.add(builtIn.components);
+
+        const auto e = registry.create(typeSets);
+
+        registry.get<name_component>(e).value = name;
+        registry.get<position_component>(e).value = position;
+        registry.get<rotation_component>(e).value = rotation;
+        registry.get<scale_component>(e).value = scale;
+        registry.get<global_transform_component>(e).value = make_transform_matrix(position, rotation, scale);
+
+        return e;
     }
 }

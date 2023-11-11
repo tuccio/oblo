@@ -70,8 +70,11 @@ namespace oblo::vk
         m_stagingBuffer.shutdown();
     }
 
-    void renderer::update()
+    void renderer::update(frame_allocator& frameAllocator)
     {
+        m_drawRegistry.upload_instance_data(frameAllocator, m_stagingBuffer);
+        m_drawRegistry.generate_draw_calls(frameAllocator, m_stagingBuffer);
+
         m_stagingBuffer.flush();
 
         m_descriptorSetPool->begin_frame();
@@ -93,6 +96,7 @@ namespace oblo::vk
         }
 
         m_descriptorSetPool->end_frame();
+        m_drawRegistry.end_frame();
     }
 
     single_queue_engine& renderer::get_engine()

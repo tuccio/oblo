@@ -14,9 +14,11 @@ namespace oblo::ecs
         archetype_impl* archetype;
     };
 
-    std::span<const component_type> get_components(const archetype_storage& storage);
+    std::span<const component_type> get_component_types(const archetype_storage& storage);
 
     u32 get_used_chunks_count(const archetype_storage& storage);
+
+    u32 get_entities_count(const archetype_storage& storage);
 
     bool fetch_component_offsets(
         const archetype_storage& storage, std::span<const component_type> componentTypes, std::span<u32> offsets);

@@ -309,6 +309,7 @@ namespace oblo::vk
                    &bufferDeviceAddressFeature,
                    physicalDeviceFeatures) &&
             m_context.init({
+                .instance = m_instance.get(),
                 .engine = m_engine,
                 .allocator = m_allocator,
                 .resourceManager = m_resourceManager,

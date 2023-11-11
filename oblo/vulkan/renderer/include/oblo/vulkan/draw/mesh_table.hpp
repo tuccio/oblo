@@ -22,6 +22,15 @@ namespace oblo::vk
     class mesh_table
     {
     public:
+        struct buffer_range
+        {
+            u32 vertexOffset;
+            u32 vertexCount;
+            u32 indexOffset;
+            u32 indexCount;
+        };
+
+    public:
         mesh_table() = default;
         mesh_table(const mesh_table&) = delete;
         mesh_table(mesh_table&&) noexcept = delete;
@@ -64,14 +73,7 @@ namespace oblo::vk
 
         VkIndexType get_index_type() const;
 
-    private:
-        struct buffer_range
-        {
-            u32 vertexOffset;
-            u32 vertexCount;
-            u32 indexOffset;
-            u32 indexCount;
-        };
+        buffer_range get_mesh_range(h32<string> mesh) const;
 
     private:
         buffer_table m_buffers;
