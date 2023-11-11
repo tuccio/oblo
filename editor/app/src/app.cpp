@@ -16,8 +16,6 @@
 #include <oblo/editor/windows/style_window.hpp>
 #include <oblo/editor/windows/viewport.hpp>
 #include <oblo/engine/engine_module.hpp>
-#include <oblo/graphics/components/static_mesh_component.hpp>
-#include <oblo/graphics/components/viewport_component.hpp>
 #include <oblo/graphics/graphics_module.hpp>
 #include <oblo/graphics/systems/static_mesh_system.hpp>
 #include <oblo/graphics/systems/viewport_system.hpp>
@@ -71,7 +69,6 @@ namespace oblo::editor
         mm.load<importers::importers_module>();
         auto* const reflection = mm.load<oblo::reflection::reflection_module>();
 
-
         m_entities.init(&m_typeRegistry);
 
         ecs_utility::register_reflected_component_types(reflection->get_registry(),
@@ -109,22 +106,6 @@ namespace oblo::editor
         m_services.add<resource_registry>().externally_owned(&resourceRegistry);
 
         m_executor = create_system_executor();
-
-        // Add a test mesh
-        {
-            const auto e = ecs_utility::create_named_physical_entity<static_mesh_component>(m_entities,
-                "Mesh",
-                vec3{},
-                quaternion::identity(),
-                vec3::splat(1));
-
-            auto& meshComponent = m_entities.get<static_mesh_component>(e);
-            // meshComponent.mesh = "5c2dbfb7-e2af-bce2-5a6c-c9b6ce4e9c07"_uuid;
-            meshComponent.mesh = "4cab39ab-0433-cf1c-5988-b1f619227a4f"_uuid;
-            // meshComponent.mesh = "529324bf-bc19-f258-2f89-bc414f859434"_uuid;
-            auto& nameComponent = m_entities.get<name_component>(e);
-            nameComponent.value = "Mesh";
-        }
 
         return true;
     }

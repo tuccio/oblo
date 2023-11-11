@@ -74,7 +74,7 @@ namespace oblo::editor
 
                         if (const auto m = resource.as<model>())
                         {
-                            for (const asset_ref mesh : m->meshes)
+                            for (const resource_ref mesh : m->meshes)
                             {
                                 const auto e =
                                     ecs_utility::create_named_physical_entity<static_mesh_component>(*m_entities,
@@ -83,7 +83,7 @@ namespace oblo::editor
                                         quaternion::identity(),
                                         vec3::splat(1));
 
-                                m_entities->get<static_mesh_component>(e).mesh = mesh.id;
+                                m_entities->get<static_mesh_component>(e).mesh = mesh;
                             }
                         }
                     }

@@ -15,14 +15,14 @@
 namespace oblo
 {
     template <typename Json, typename T>
-    void to_json(Json& json, const asset_ref<T>& value)
+    void to_json(Json& json, const resource_ref<T>& value)
     {
         char uuidBuffer[36];
         json = value.id.format_to(uuidBuffer);
     }
 
     template <typename Json, typename T>
-    void from_json(const Json& json, asset_ref<T>& value)
+    void from_json(const Json& json, resource_ref<T>& value)
     {
         const auto res = uuid::parse(json.template get<std::string_view>());
         value.id = res ? *res : uuid{};

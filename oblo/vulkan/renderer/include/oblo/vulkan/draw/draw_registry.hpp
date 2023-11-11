@@ -15,7 +15,11 @@
 
 namespace oblo
 {
+    class mesh;
     class resource_registry;
+
+    template <typename>
+    struct resource_ref;
 }
 
 namespace oblo::vk
@@ -65,7 +69,8 @@ namespace oblo::vk
 
         void end_frame();
 
-        h64<draw_mesh> get_or_create_mesh(oblo::resource_registry& resourceRegistry, const uuid& resourceId);
+        h64<draw_mesh> get_or_create_mesh(oblo::resource_registry& resourceRegistry,
+            const resource_ref<mesh>& resourceId);
 
         h32<draw_instance> create_instance(
             h64<draw_mesh> mesh, std::span<const h32<draw_buffer>> buffers, std::span<std::byte*> outData);
