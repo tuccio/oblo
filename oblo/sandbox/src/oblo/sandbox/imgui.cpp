@@ -14,6 +14,19 @@
 
 namespace oblo::vk
 {
+    namespace
+    {
+#include <oblo/sandbox/Archivo-Regular.ttf.h>
+
+        ImFont* init_font()
+        {
+            auto& io = ImGui::GetIO();
+
+            constexpr int pixels{14};
+            return io.Fonts->AddFontFromMemoryTTF(Archivo_Regular_ttf, Archivo_Regular_ttf_len, pixels);
+        }
+    }
+
     bool imgui::fill_init_command_buffer(SDL_Window* window,
         VkInstance instance,
         VkPhysicalDevice physicalDevice,
@@ -60,6 +73,8 @@ namespace oblo::vk
         m_context = ImGui::CreateContext();
 
         auto& io = ImGui::GetIO();
+
+        init_font();
 
         io.IniFilename = config.imguiIniFile;
 

@@ -8,6 +8,7 @@
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/ecs/utility/registration.hpp>
 #include <oblo/editor/platform/init.hpp>
+#include <oblo/editor/ui/style.hpp>
 #include <oblo/editor/windows/asset_browser.hpp>
 #include <oblo/editor/windows/inspector.hpp>
 #include <oblo/editor/windows/main_window.hpp>
@@ -68,6 +69,8 @@ namespace oblo::editor
         {
             return false;
         }
+
+        init_ui_style();
 
         auto& mm = module_manager::get();
         auto* const engine = mm.load<oblo::engine_module>();
