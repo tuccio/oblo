@@ -133,9 +133,13 @@ namespace oblo
             OBLO_ASSERT(!m_resource || get_type_id<U>() == get_type());
 
             resource_ptr<U> other;
-            other.m_ptr = static_cast<const U*>(m_ptr);
-            other.m_resource = m_resource;
-            detail::resource_acquire(m_resource);
+
+            if (m_resource)
+            {
+                other.m_ptr = static_cast<const U*>(m_ptr);
+                other.m_resource = m_resource;
+                detail::resource_acquire(m_resource);
+            }
 
             return other;
         }

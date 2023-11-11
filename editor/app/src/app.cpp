@@ -67,7 +67,7 @@ namespace oblo::editor
         auto& mm = module_manager::get();
         auto* const engine = mm.load<oblo::engine_module>();
         mm.load<graphics_module>();
-        mm.load<scene::scene_module>();
+        mm.load<scene_module>();
         mm.load<importers::importers_module>();
         auto* const reflection = mm.load<oblo::reflection::reflection_module>();
 

@@ -30,18 +30,18 @@ namespace oblo::vk
         constexpr u32 MaxVerticesPerBatch{4 << 20};
         constexpr u32 MaxIndicesPerBatch{4 << 20};
 
-        constexpr u32 MaxAttributesCount{u32(scene::attribute_kind::enum_max)};
+        constexpr u32 MaxAttributesCount{u32(attribute_kind::enum_max)};
         using buffer_columns = std::array<buffer_column_description, MaxAttributesCount>;
 
         constexpr std::string_view MeshBatchPrefix{"$m"};
 
-        constexpr std::string_view get_attribute_name(scene::attribute_kind attribute)
+        constexpr std::string_view get_attribute_name(attribute_kind attribute)
         {
             switch (attribute)
             {
-            case scene::attribute_kind::position:
+            case attribute_kind::position:
                 return "in_Position";
-            case scene::attribute_kind::normal:
+            case attribute_kind::normal:
                 return "in_Normal";
             default:
                 unreachable();
@@ -71,7 +71,7 @@ namespace oblo::vk
     {
         u8 indicesBytes;
         u8 numAttributes;
-        flags<scene::attribute_kind> attributes;
+        flags<attribute_kind> attributes;
 
         constexpr auto operator<=>(const mesh_batch_id&) const = default;
     };
@@ -98,9 +98,9 @@ namespace oblo::vk
 
         for (u32 i = 0; i < MaxAttributesCount; ++i)
         {
-            const auto attribute = static_cast<scene::attribute_kind>(i);
+            const auto attribute = static_cast<attribute_kind>(i);
 
-            if (attribute == scene::attribute_kind::indices)
+            if (attribute == attribute_kind::indices)
             {
                 continue;
             }
@@ -109,8 +109,8 @@ namespace oblo::vk
 
             switch (attribute)
             {
-            case scene::attribute_kind::position:
-            case scene::attribute_kind::normal:
+            case attribute_kind::position:
+            case attribute_kind::normal:
                 format = data_format::vec3;
                 break;
 
@@ -173,7 +173,7 @@ namespace oblo::vk
         }
 
         const auto anyResource = resourceRegistry.get_resource(resourceId);
-        const auto meshResource = anyResource.as<scene::mesh>();
+        const auto meshResource = anyResource.as<mesh>();
 
         stack_allocator<1024> stackAllocator;
 
@@ -190,7 +190,7 @@ namespace oblo::vk
         buffer_columns columns{};
 
         auto* const attributeNames = allocate_n<h32<string>>(stackAllocator, numAttributes);
-        auto* const attributes = allocate_n<scene::attribute_kind>(stackAllocator, numAttributes);
+        auto* const attributes = allocate_n<attribute_kind>(stackAllocator, numAttributes);
 
         u32 vertexAttributesCount{0};
 
@@ -198,7 +198,7 @@ namespace oblo::vk
         {
             const auto& meshAttribute = meshPtr->get_attribute_at(i);
 
-            if (const auto kind = meshAttribute.kind; kind != scene::attribute_kind::indices)
+            if (const auto kind = meshAttribute.kind; kind != attribute_kind::indices)
             {
                 const buffer_column_description& expectedAttribute = m_vertexAttributes[u32(kind)];
 
@@ -279,7 +279,7 @@ namespace oblo::vk
 
         if (indexBuffer.buffer)
         {
-            const auto data = meshPtr->get_attribute(scene::attribute_kind::indices);
+            const auto data = meshPtr->get_attribute(attribute_kind::indices);
             doUpload(data, indexBuffer);
         }
 
@@ -437,6 +437,11 @@ namespace oblo::vk
     {
         const std::span archetypes = m_instances.get_archetypes();
 
+        if (archetypes.empty())
+        {
+            return;
+        }
+
         // Keep it simple, for now we only support 1
         OBLO_ASSERT(archetypes.size() == 1);
         OBLO_ASSERT(ecs::get_used_chunks_count(archetypes[0]) == 1);
@@ -483,6 +488,11 @@ namespace oblo::vk
     void draw_registry::generate_draw_calls(frame_allocator& allocator, staging_buffer& stagingBuffer)
     {
         const std::span archetypes = m_instances.get_archetypes();
+
+        if (archetypes.empty())
+        {
+            return;
+        }
 
         // Keep it simple, for now we only support 1
         OBLO_ASSERT(archetypes.size() == 1);

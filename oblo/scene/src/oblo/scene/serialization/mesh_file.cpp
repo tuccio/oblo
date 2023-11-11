@@ -12,7 +12,7 @@
 
 #include <fstream>
 
-namespace oblo::scene
+namespace oblo
 {
     namespace
     {
@@ -85,10 +85,10 @@ namespace oblo::scene
             switch (mode)
             {
             case TINYGLTF_MODE_TRIANGLES:
-                return scene::primitive_kind::triangle;
+                return primitive_kind::triangle;
             default:
                 OBLO_ASSERT(false);
-                return scene::primitive_kind::enum_max;
+                return primitive_kind::enum_max;
             }
         }
 
@@ -271,7 +271,7 @@ namespace oblo::scene
     {
         const auto primitiveKind = convert_primitive_kind(primitive.mode);
 
-        if (primitiveKind == scene::primitive_kind::enum_max)
+        if (primitiveKind == primitive_kind::enum_max)
         {
             return false;
         }
@@ -303,7 +303,7 @@ namespace oblo::scene
             }
 
             attributes.push_back({
-                .kind = scene::attribute_kind::indices,
+                .kind = attribute_kind::indices,
                 .format = format,
             });
 
@@ -317,7 +317,7 @@ namespace oblo::scene
             if (attribute == "POSITION")
             {
                 attributes.push_back({
-                    .kind = scene::attribute_kind::position,
+                    .kind = attribute_kind::position,
                     .format = data_format::vec3,
                 });
 
@@ -326,7 +326,7 @@ namespace oblo::scene
             else if (attribute == "NORMAL")
             {
                 attributes.push_back({
-                    .kind = scene::attribute_kind::normal,
+                    .kind = attribute_kind::normal,
                     .format = data_format::vec3,
                 });
 

@@ -80,7 +80,7 @@ namespace oblo::importers
                 .primitiveBegin = u32(m_importMeshes.size()),
             });
 
-            preview.nodes.emplace_back(get_type_id<scene::model>(), name);
+            preview.nodes.emplace_back(get_type_id<model>(), name);
 
             for (u32 primitiveIndex = 0; primitiveIndex < gltfMesh.primitives.size(); ++primitiveIndex)
             {
@@ -93,7 +93,7 @@ namespace oblo::importers
                     .nodeIndex = u32(preview.nodes.size()),
                 });
 
-                preview.nodes.emplace_back(get_type_id<scene::mesh>(), name);
+                preview.nodes.emplace_back(get_type_id<mesh>(), name);
             }
         }
 
@@ -102,10 +102,10 @@ namespace oblo::importers
 
     bool gltf::import(const import_context& ctx)
     {
-        std::vector<scene::mesh_attribute> attributes;
+        std::vector<mesh_attribute> attributes;
         attributes.reserve(32);
 
-        std::vector<scene::gltf_accessor> sources;
+        std::vector<gltf_accessor> sources;
         sources.reserve(32);
 
         std::vector<import_artifact> meshArtifacts;
@@ -115,7 +115,7 @@ namespace oblo::importers
 
         for (const auto& model : m_importModels)
         {
-            scene::model modelAsset;
+            oblo::model modelAsset;
             meshArtifacts.clear();
 
             const auto& modelNodeConfig = ctx.importNodesConfig[model.nodeIndex];
@@ -140,9 +140,9 @@ namespace oblo::importers
 
                 const auto& primitive = m_model.meshes[mesh.mesh].primitives[mesh.primitive];
 
-                scene::mesh meshAsset;
+                oblo::mesh meshAsset;
 
-                if (!scene::load_mesh(meshAsset, m_model, primitive, attributes, sources, &usedBuffer))
+                if (!load_mesh(meshAsset, m_model, primitive, attributes, sources, &usedBuffer))
                 {
                     continue;
                 }

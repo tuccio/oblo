@@ -26,7 +26,7 @@ namespace oblo::importers
     TEST(gltf_importer, box)
     {
         resource_registry resources;
-        scene::register_resource_types(resources);
+        register_resource_types(resources);
 
         asset_registry registry;
 
@@ -38,7 +38,7 @@ namespace oblo::importers
         clear_directory(testDir);
 
         ASSERT_TRUE(registry.initialize(assetsDir, artifactsDir, sourceFilesDir));
-        scene::register_asset_types(registry);
+        register_asset_types(registry);
 
         register_gltf_importer(registry);
 
@@ -69,9 +69,9 @@ namespace oblo::importers
 
             ASSERT_TRUE(registry.find_asset_by_path(dirName / "Mesh", meshId, modelMeta));
 
-            ASSERT_EQ(modelMeta.type, get_type_id<scene::model>());
+            ASSERT_EQ(modelMeta.type, get_type_id<model>());
 
-            const auto modelResource = resources.get_resource(modelMeta.id).as<scene::model>();
+            const auto modelResource = resources.get_resource(modelMeta.id).as<model>();
             ASSERT_TRUE(modelResource);
 
             ASSERT_EQ(modelResource->meshes.size(), 1);
@@ -79,23 +79,23 @@ namespace oblo::importers
             const asset_ref meshRef = modelResource->meshes[0];
             ASSERT_TRUE(meshRef);
 
-            const auto meshResource = resources.get_resource(meshRef.id).as<scene::mesh>();
+            const auto meshResource = resources.get_resource(meshRef.id).as<mesh>();
             ASSERT_TRUE(meshResource);
 
             constexpr auto expectedVertexCount{24};
             constexpr auto expectedIndexCount{36};
 
-            ASSERT_EQ(meshResource->get_primitive_kind(), scene::primitive_kind::triangle);
+            ASSERT_EQ(meshResource->get_primitive_kind(), primitive_kind::triangle);
             ASSERT_EQ(meshResource->get_vertex_count(), expectedVertexCount);
             ASSERT_EQ(meshResource->get_index_count(), expectedIndexCount);
 
-            ASSERT_EQ(meshResource->get_attribute_format(scene::attribute_kind::position), data_format::vec3);
-            ASSERT_EQ(meshResource->get_attribute_format(scene::attribute_kind::normal), data_format::vec3);
-            ASSERT_EQ(meshResource->get_attribute_format(scene::attribute_kind::indices), data_format::u16);
+            ASSERT_EQ(meshResource->get_attribute_format(attribute_kind::position), data_format::vec3);
+            ASSERT_EQ(meshResource->get_attribute_format(attribute_kind::normal), data_format::vec3);
+            ASSERT_EQ(meshResource->get_attribute_format(attribute_kind::indices), data_format::u16);
 
-            const std::span positions = meshResource->get_attribute<vec3>(scene::attribute_kind::position);
-            const std::span normals = meshResource->get_attribute<vec3>(scene::attribute_kind::normal);
-            const std::span indices = meshResource->get_attribute<u16>(scene::attribute_kind::indices);
+            const std::span positions = meshResource->get_attribute<vec3>(attribute_kind::position);
+            const std::span normals = meshResource->get_attribute<vec3>(attribute_kind::normal);
+            const std::span indices = meshResource->get_attribute<u16>(attribute_kind::indices);
 
             ASSERT_EQ(positions.size(), expectedVertexCount);
             ASSERT_EQ(normals.size(), expectedVertexCount);

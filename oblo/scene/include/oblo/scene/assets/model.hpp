@@ -5,7 +5,7 @@
 
 #include <vector>
 
-namespace oblo::scene
+namespace oblo
 {
     struct model
     {

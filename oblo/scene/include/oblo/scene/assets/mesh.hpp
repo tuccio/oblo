@@ -11,7 +11,7 @@ namespace oblo
     enum class data_format : u8;
 }
 
-namespace oblo::scene
+namespace oblo
 {
     enum class attribute_kind : u8
     {

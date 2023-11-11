@@ -29,7 +29,7 @@ namespace oblo
     }
 }
 
-namespace oblo::scene
+namespace oblo
 {
     namespace
     {
@@ -37,9 +37,9 @@ namespace oblo::scene
         struct meta;
 
         template <>
-        struct meta<scene::model>
+        struct meta<model>
         {
-            static bool save(const scene::model& model, const std::filesystem::path& destination)
+            static bool save(const model& model, const std::filesystem::path& destination)
             {
                 nlohmann::ordered_json json;
 
@@ -56,7 +56,7 @@ namespace oblo::scene
                 return true;
             }
 
-            static bool load(scene::model& model, const std::filesystem::path& source)
+            static bool load(model& model, const std::filesystem::path& source)
             {
                 try
                 {
@@ -73,14 +73,14 @@ namespace oblo::scene
         };
 
         template <>
-        struct meta<scene::mesh>
+        struct meta<mesh>
         {
-            static bool save(const scene::mesh& mesh, const std::filesystem::path& destination)
+            static bool save(const mesh& mesh, const std::filesystem::path& destination)
             {
                 return save_mesh(mesh, destination);
             }
 
-            static bool load(scene::mesh& mesh, const std::filesystem::path& source)
+            static bool load(mesh& mesh, const std::filesystem::path& source)
             {
                 return load_mesh(mesh, source);
             }
