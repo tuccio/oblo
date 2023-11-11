@@ -638,7 +638,7 @@ namespace oblo::vk
     {
         const auto drawCalls = drawRegistry.get_draw_calls();
 
-        if (drawCalls.drawCount == 0)
+        if (drawCalls.empty())
         {
             return;
         }
@@ -666,124 +666,140 @@ namespace oblo::vk
             buffers[i] = dummy;
         };
 
-        buffer indexBuffer;
-
-        const auto& meshTable = *drawRegistry.try_get_mesh_table(0);
-
-        meshTable.fetch_buffers(resourceManager, attributeNames, buffers, &indexBuffer);
-
-        auto* const vkBuffers = allocate_n<VkBuffer>(m_impl->frameAllocator, numVertexAttributes);
-        auto* const offsets = allocate_n<VkDeviceSize>(m_impl->frameAllocator, numVertexAttributes);
-
-        for (u32 i = 0; i < numVertexAttributes; ++i)
+        for (const auto& draw : drawCalls)
         {
-            vkBuffers[i] = buffers[i].buffer;
-            offsets[i] = buffers[i].offset;
-        }
+            buffer indexBuffer;
 
-        vkCmdBindVertexBuffers(context.commandBuffer, 0, numVertexAttributes, vkBuffers, offsets);
+            const auto& meshTable = *drawRegistry.try_get_mesh_table(draw.meshBatch);
 
-        if (const auto indexType = meshTable.get_index_type(); indexType != VK_INDEX_TYPE_MAX_ENUM)
-        {
-            vkCmdBindIndexBuffer(context.commandBuffer, indexBuffer.buffer, indexBuffer.offset, indexType);
-        }
+            meshTable.fetch_buffers(resourceManager, attributeNames, buffers, &indexBuffer);
 
-        if (const auto descriptorSetLayout = pipeline->descriptorSetLayout)
-        {
-            const VkDescriptorSet descriptorSet = m_impl->descriptorSetPool->acquire(descriptorSetLayout);
+            auto* const vkBuffers = allocate_n<VkBuffer>(m_impl->frameAllocator, numVertexAttributes);
+            auto* const offsets = allocate_n<VkDeviceSize>(m_impl->frameAllocator, numVertexAttributes);
 
-            constexpr u32 MaxWrites{64};
-
-            u32 buffersCount{0};
-            u32 writesCount{0};
-
-            VkDescriptorBufferInfo bufferInfo[MaxWrites];
-            VkWriteDescriptorSet descriptorSetWrites[MaxWrites];
-
-            auto writeToDescriptorSet = [descriptorSet, &bufferInfo, &descriptorSetWrites, &buffersCount, &writesCount](
-                                            const descriptor_binding& binding,
-                                            const buffer& buffer)
+            for (u32 i = 0; i < numVertexAttributes; ++i)
             {
-                // TODO: Handle more
-                OBLO_ASSERT(buffersCount < MaxWrites);
-                OBLO_ASSERT(writesCount < MaxWrites);
+                vkBuffers[i] = buffers[i].buffer;
+                offsets[i] = buffers[i].offset;
+            }
 
-                bufferInfo[buffersCount] = {
-                    .buffer = buffer.buffer,
-                    .offset = buffer.offset,
-                    .range = buffer.size,
-                };
+            vkCmdBindVertexBuffers(context.commandBuffer, 0, numVertexAttributes, vkBuffers, offsets);
 
-                descriptorSetWrites[writesCount] = {
-                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                    .dstSet = descriptorSet,
-                    .dstBinding = binding.binding,
-                    .dstArrayElement = 0,
-                    .descriptorCount = 1,
-                    .descriptorType = binding.descriptorType,
-                    .pBufferInfo = bufferInfo + buffersCount,
-                };
-
-                ++buffersCount;
-                ++writesCount;
-            };
-
-            for (const auto& binding : pipeline->descriptorSetBindings)
+            if (const auto indexType = meshTable.get_index_type(); indexType != VK_INDEX_TYPE_MAX_ENUM)
             {
-                bool found = false;
+                vkCmdBindIndexBuffer(context.commandBuffer, indexBuffer.buffer, indexBuffer.offset, indexType);
+            }
 
-                for (const auto& table : bindingTables)
+            if (const auto descriptorSetLayout = pipeline->descriptorSetLayout)
+            {
+                const VkDescriptorSet descriptorSet = m_impl->descriptorSetPool->acquire(descriptorSetLayout);
+
+                constexpr u32 MaxWrites{64};
+
+                u32 buffersCount{0};
+                u32 writesCount{0};
+
+                VkDescriptorBufferInfo bufferInfo[MaxWrites];
+                VkWriteDescriptorSet descriptorSetWrites[MaxWrites];
+
+                auto writeToDescriptorSet = [descriptorSet,
+                                                &bufferInfo,
+                                                &descriptorSetWrites,
+                                                &buffersCount,
+                                                &writesCount](const descriptor_binding& binding, const buffer& buffer)
                 {
-                    auto* const buffer = table.try_find(binding.name);
+                    // TODO: Handle more
+                    OBLO_ASSERT(buffersCount < MaxWrites);
+                    OBLO_ASSERT(writesCount < MaxWrites);
 
-                    if (buffer)
+                    bufferInfo[buffersCount] = {
+                        .buffer = buffer.buffer,
+                        .offset = buffer.offset,
+                        .range = buffer.size,
+                    };
+
+                    descriptorSetWrites[writesCount] = {
+                        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                        .dstSet = descriptorSet,
+                        .dstBinding = binding.binding,
+                        .dstArrayElement = 0,
+                        .descriptorCount = 1,
+                        .descriptorType = binding.descriptorType,
+                        .pBufferInfo = bufferInfo + buffersCount,
+                    };
+
+                    ++buffersCount;
+                    ++writesCount;
+                };
+
+                for (const auto& binding : pipeline->descriptorSetBindings)
+                {
+                    bool found = false;
+
+                    for (const auto& table : bindingTables)
                     {
-                        writeToDescriptorSet(binding, *buffer);
-                        found = true;
-                        break;
+                        auto* const buffer = table.try_find(binding.name);
+
+                        if (buffer)
+                        {
+                            writeToDescriptorSet(binding, *buffer);
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if (found)
+                    {
+                        continue;
+                    }
+
+                    const auto instanceBuffers = draw.instanceBuffers;
+
+                    for (u32 i = 0; i < instanceBuffers.count; ++i)
+                    {
+                        const auto name = drawRegistry.get_name(instanceBuffers.bindings[i]);
+
+                        if (name == binding.name)
+                        {
+                            const auto& buffer = instanceBuffers.buffers[i];
+                            writeToDescriptorSet(binding, buffer);
+                            found = true;
+                            break;
+                        }
                     }
                 }
 
-                if (found)
+                if (writesCount > 0)
                 {
-                    continue;
+                    vkUpdateDescriptorSets(m_impl->device, writesCount, descriptorSetWrites, 0, nullptr);
                 }
 
-                const auto instanceBuffers = drawRegistry.get_instance_buffers();
+                vkCmdBindDescriptorSets(context.commandBuffer,
+                    VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    pipeline->pipelineLayout,
+                    0,
+                    1,
+                    &descriptorSet,
+                    0,
+                    nullptr);
 
-                for (u32 i = 0; i < instanceBuffers.count; ++i)
+                if (draw.drawCommands.isIndexed)
                 {
-                    const auto name = drawRegistry.get_name(instanceBuffers.bindings[i]);
-
-                    if (name == binding.name)
-                    {
-                        const auto& buffer = instanceBuffers.buffers[i];
-                        writeToDescriptorSet(binding, buffer);
-                        found = true;
-                        break;
-                    }
+                    vkCmdDrawIndexedIndirect(context.commandBuffer,
+                        draw.drawCommands.buffer,
+                        draw.drawCommands.offset,
+                        draw.drawCommands.drawCount,
+                        sizeof(VkDrawIndexedIndirectCommand));
+                }
+                else
+                {
+                    vkCmdDrawIndirect(context.commandBuffer,
+                        draw.drawCommands.buffer,
+                        draw.drawCommands.offset,
+                        draw.drawCommands.drawCount,
+                        sizeof(VkDrawIndirectCommand));
                 }
             }
-
-            if (writesCount > 0)
-            {
-                vkUpdateDescriptorSets(m_impl->device, writesCount, descriptorSetWrites, 0, nullptr);
-            }
-
-            vkCmdBindDescriptorSets(context.commandBuffer,
-                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                pipeline->pipelineLayout,
-                0,
-                1,
-                &descriptorSet,
-                0,
-                nullptr);
         }
-
-        vkCmdDrawIndexedIndirect(context.commandBuffer,
-            drawCalls.buffer,
-            drawCalls.offset,
-            drawCalls.drawCount,
-            sizeof(VkDrawIndexedIndirectCommand));
     }
 }
