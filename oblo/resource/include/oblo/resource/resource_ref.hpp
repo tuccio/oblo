@@ -6,7 +6,7 @@
 namespace oblo
 {
     template <typename T>
-    struct asset_ref
+    struct resource_ref
     {
         uuid id;
 

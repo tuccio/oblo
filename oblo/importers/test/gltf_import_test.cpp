@@ -76,7 +76,7 @@ namespace oblo::importers
 
             ASSERT_EQ(modelResource->meshes.size(), 1);
 
-            const asset_ref meshRef = modelResource->meshes[0];
+            const resource_ref meshRef = modelResource->meshes[0];
             ASSERT_TRUE(meshRef);
 
             const auto meshResource = resources.get_resource(meshRef.id).as<mesh>();

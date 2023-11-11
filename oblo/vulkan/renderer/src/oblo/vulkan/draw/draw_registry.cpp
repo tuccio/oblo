@@ -11,6 +11,7 @@
 #include <oblo/ecs/type_set.hpp>
 #include <oblo/ecs/utility/registration.hpp>
 #include <oblo/resource/resource_ptr.hpp>
+#include <oblo/resource/resource_ref.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/assets/mesh.hpp>
 #include <oblo/vulkan/buffer.hpp>
@@ -165,14 +166,15 @@ namespace oblo::vk
         m_drawCallsBuffer.restore_all();
     }
 
-    h64<draw_mesh> draw_registry::get_or_create_mesh(oblo::resource_registry& resourceRegistry, const uuid& resourceId)
+    h64<draw_mesh> draw_registry::get_or_create_mesh(oblo::resource_registry& resourceRegistry,
+        const resource_ref<mesh>& resourceId)
     {
-        if (const auto it = m_cachedMeshes.find(resourceId); it != m_cachedMeshes.end())
+        if (const auto it = m_cachedMeshes.find(resourceId.id); it != m_cachedMeshes.end())
         {
             return it->second;
         }
 
-        const auto anyResource = resourceRegistry.get_resource(resourceId);
+        const auto anyResource = resourceRegistry.get_resource(resourceId.id);
         const auto meshResource = anyResource.as<mesh>();
 
         stack_allocator<1024> stackAllocator;
@@ -293,7 +295,7 @@ namespace oblo::vk
 
         const auto meshOffset{meshBatch - m_meshBatches.data()};
         const h64<draw_mesh> globalMeshId{make_mesh_id(meshOffset, newMeshId)};
-        m_cachedMeshes.emplace(resourceId, globalMeshId);
+        m_cachedMeshes.emplace(resourceId.id, globalMeshId);
 
         return globalMeshId;
     }
