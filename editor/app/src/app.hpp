@@ -20,6 +20,8 @@ namespace oblo::editor
     class app
     {
     public:
+        VkPhysicalDeviceFeatures get_required_physical_device_features() const;
+
         bool init(const vk::sandbox_init_context& context);
 
         void shutdown(const vk::sandbox_shutdown_context& context);
