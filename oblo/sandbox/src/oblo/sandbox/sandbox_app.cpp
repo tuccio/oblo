@@ -66,7 +66,7 @@ namespace oblo::vk
         std::span<const char* const> instanceLayers,
         std::span<const char* const> deviceExtensions,
         void* deviceFeaturesList,
-        const VkPhysicalDeviceFeatures* physicalDeviceFeatures)
+        const VkPhysicalDeviceFeatures2* physicalDeviceFeatures)
     {
         m_frameAllocator.init(1u << 30, 1u << 24, 1u);
 
@@ -219,7 +219,7 @@ namespace oblo::vk
         std::span<const char* const> instanceLayers,
         std::span<const char* const> deviceExtensions,
         void* deviceFeaturesList,
-        const VkPhysicalDeviceFeatures* physicalDeviceFeatures)
+        const VkPhysicalDeviceFeatures2* physicalDeviceFeatures)
     {
         // We need to gather the extensions needed by SDL
         constexpr u32 extensionsArraySize{64};
@@ -302,12 +302,10 @@ namespace oblo::vk
             .bufferDeviceAddress = VK_TRUE,
         };
 
-        return m_engine.init(m_instance.get(),
-                   m_surface,
-                   {},
-                   {extensions},
-                   &bufferDeviceAddressFeature,
-                   physicalDeviceFeatures) &&
+        VkPhysicalDeviceFeatures2 physicalDeviceFeatures2{*physicalDeviceFeatures};
+        physicalDeviceFeatures2.pNext = &bufferDeviceAddressFeature;
+
+        return m_engine.init(m_instance.get(), m_surface, {}, {extensions}, &physicalDeviceFeatures2, nullptr) &&
             m_context.init({
                 .instance = m_instance.get(),
                 .engine = m_engine,
