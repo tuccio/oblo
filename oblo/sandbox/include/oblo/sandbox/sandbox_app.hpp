@@ -39,7 +39,7 @@ namespace oblo::vk
             std::span<const char* const> instanceLayers,
             std::span<const char* const> deviceExtensions,
             void* deviceFeaturesList,
-            const VkPhysicalDeviceFeatures* physicalDeviceFeatures);
+            const VkPhysicalDeviceFeatures2* physicalDeviceFeatures);
 
         void shutdown();
 
@@ -58,7 +58,7 @@ namespace oblo::vk
             std::span<const char* const> instanceLayers,
             std::span<const char* const> deviceExtensions,
             void* deviceFeaturesList,
-            const VkPhysicalDeviceFeatures* physicalDeviceFeatures);
+            const VkPhysicalDeviceFeatures2* physicalDeviceFeatures);
 
         bool create_swapchain();
         bool create_synchronization_objects();
@@ -113,7 +113,7 @@ namespace oblo::vk
     concept app_requiring_physical_device_features = requires(TApp app) {
         {
             app.get_required_physical_device_features()
-        } -> std::convertible_to<VkPhysicalDeviceFeatures>;
+        } -> std::convertible_to<VkPhysicalDeviceFeatures2>;
     };
 
     template <typename TApp>
@@ -143,8 +143,8 @@ namespace oblo::vk
             std::span<const char* const> instanceLayers;
             std::span<const char* const> deviceExtensions;
             void* deviceFeaturesList{nullptr};
-            VkPhysicalDeviceFeatures physicalDeviceFeatures{};
-            const VkPhysicalDeviceFeatures* pPhysicalDeviceFeatures{nullptr};
+            VkPhysicalDeviceFeatures2 physicalDeviceFeatures{};
+            const VkPhysicalDeviceFeatures2* pPhysicalDeviceFeatures{nullptr};
 
             if constexpr (app_requiring_instance_extensions<TApp>)
             {

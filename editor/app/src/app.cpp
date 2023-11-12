@@ -49,13 +49,32 @@ namespace oblo::editor
 
             return g.instantiate();
         }
+
+        VkPhysicalDeviceShaderDrawParametersFeatures ShaderDrawParameters{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES,
+            .shaderDrawParameters = true,
+        };
+
+        constexpr const char* DeviceExtensions[] = {
+            VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
+        };
     }
 
-    VkPhysicalDeviceFeatures app::get_required_physical_device_features() const
+    VkPhysicalDeviceFeatures2 app::get_required_physical_device_features() const
     {
         return {
-            .multiDrawIndirect = true,
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+            .pNext = &ShaderDrawParameters,
+            .features =
+                {
+                    .multiDrawIndirect = true,
+                },
         };
+    }
+
+    std::span<const char* const> app::get_required_device_extensions() const
+    {
+        return DeviceExtensions;
     }
 
     bool app::init(const vk::sandbox_init_context& ctx)
