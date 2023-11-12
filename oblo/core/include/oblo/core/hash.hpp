@@ -20,7 +20,7 @@ namespace oblo
     constexpr auto hash_all(const T& first, const Others&... args)
     {
         auto h = Hash<T>{}(first);
-        ((h = hash_mix(h, Hash<Others>(args))), ...);
+        ((h = hash_mix(h, Hash<Others>{}(args))), ...);
         return h;
     }
 }
