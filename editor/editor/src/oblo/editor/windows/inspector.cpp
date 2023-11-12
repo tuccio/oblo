@@ -74,6 +74,11 @@ namespace oblo::editor
                                 0.1f);
                             break;
 
+                        case property_kind::boolean:
+                            ImGui::PushID(int(hash_mix(property.offset, property.parent)));
+                            ImGui::Checkbox(property.name.c_str(), reinterpret_cast<bool*>(ptr + property.offset));
+                            break;
+
                         default:
                             ImGui::TextUnformatted(property.name.c_str());
                             break;
