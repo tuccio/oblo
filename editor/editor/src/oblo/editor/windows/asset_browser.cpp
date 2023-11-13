@@ -98,9 +98,9 @@ namespace oblo::editor
                         ImGui::PushID(int(hash_all<std::hash>(uuid)));
                         ImGui::Button(reinterpret_cast<const char*>(str.c_str()));
 
-                        if (ImGui::BeginDragDropSource())
+                        if (!meta.mainArtifactHint.is_nil() && ImGui::BeginDragDropSource())
                         {
-                            const auto payload = payloads::pack_uuid(meta.id);
+                            const auto payload = payloads::pack_uuid(meta.mainArtifactHint);
                             ImGui::SetDragDropPayload(payloads::Resource, &payload, sizeof(drag_and_drop_payload));
                             ImGui::EndDragDropSource();
                         }

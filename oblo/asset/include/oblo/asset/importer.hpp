@@ -26,6 +26,13 @@ namespace oblo
         type_id importer;
     };
 
+    struct file_import_results
+    {
+        std::span<import_artifact> artifacts;
+        std::span<const std::filesystem::path> sourceFiles;
+        uuid mainArtifactHint;
+    };
+
     class file_importer
     {
     public:
@@ -33,6 +40,7 @@ namespace oblo
 
         virtual bool init(const importer_config& config, import_preview& preview) = 0;
         virtual bool import(const import_context& context) = 0;
+        virtual file_import_results get_results() = 0;
     };
 
     class importer
@@ -59,28 +67,19 @@ namespace oblo
             return m_importer != nullptr;
         }
 
-        bool add_asset(import_artifact asset, std::span<import_artifact> otherArtifacts);
-
-        void add_source_files(std::span<const std::filesystem::path> sourceFiles);
-
         const importer_config& get_config() const;
-
-    private:
-        struct pending_asset_import;
 
     private:
         bool begin_import(asset_registry& registry, std::span<import_node_config> importNodesConfig);
         bool finalize_import(asset_registry& registry, const std::filesystem::path& destinationDir);
-        bool write_source_files();
+        bool write_source_files(std::span<const std::filesystem::path> sourceFiles);
 
     private:
         importer_config m_config;
         std::unique_ptr<file_importer> m_importer;
         import_preview m_preview;
         std::vector<import_node_config> m_importNodesConfig;
-        std::vector<pending_asset_import> m_assets;
         std::unordered_map<uuid, artifact_meta> m_artifacts;
-        std::vector<std::filesystem::path> m_sourceFiles;
         uuid m_importId{};
     };
 
