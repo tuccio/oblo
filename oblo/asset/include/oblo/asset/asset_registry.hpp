@@ -80,7 +80,7 @@ namespace oblo
             write_policy policy = write_policy::no_overwrite);
 
         bool save_asset(const std::filesystem::path& destination,
-            std::string_view fileNameBuffer,
+            const std::filesystem::path& fileName,
             const asset_meta& meta,
             write_policy policy = write_policy::no_overwrite);
 

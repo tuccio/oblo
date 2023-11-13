@@ -67,11 +67,12 @@ namespace oblo::importers
 
             asset_meta modelMeta;
 
-            ASSERT_TRUE(registry.find_asset_by_path(dirName / "Mesh", meshId, modelMeta));
+            ASSERT_TRUE(registry.find_asset_by_path(dirName / "Box", meshId, modelMeta));
 
-            ASSERT_EQ(modelMeta.type, get_type_id<model>());
+            ASSERT_NE(modelMeta.mainArtifactHint, uuid{});
+            ASSERT_EQ(modelMeta.typeHint, get_type_id<model>());
 
-            const auto modelResource = resources.get_resource(modelMeta.id).as<model>();
+            const auto modelResource = resources.get_resource(modelMeta.mainArtifactHint).as<model>();
             ASSERT_TRUE(modelResource);
 
             ASSERT_EQ(modelResource->meshes.size(), 1);

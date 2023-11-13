@@ -62,33 +62,31 @@ namespace oblo
                 return false;
             }
 
-            const std::string_view type = json["type"].get<std::string_view>();
+            const std::string_view type = json["typeHint"].get<std::string_view>();
 
             const auto typeIt = assetTypes.find(type_id{type});
 
-            if (typeIt == assetTypes.end())
+            if (typeIt != assetTypes.end())
             {
-                return false;
+                meta.typeHint = typeIt->first;
             }
 
-            meta.type = typeIt->first;
+            const std::string_view mainArtifactHint = json["mainArtifactHint"].get<std::string_view>();
 
-            const std::string_view importId = json["importId"].get<std::string_view>();
-
-            if (auto parsed = uuid::parse(importId))
+            if (auto parsed = uuid::parse(mainArtifactHint))
             {
-                meta.importId = *parsed;
+                meta.mainArtifactHint = *parsed;
             }
             else
             {
                 return false;
             }
 
-            const auto importName = json.find("importName");
+            const auto isImported = json.find("isImported");
 
-            if (importName != json.end())
+            if (isImported != json.end())
             {
-                meta.importName = importName->get<std::string_view>();
+                meta.isImported = isImported->get<bool>();
             }
 
             return true;
@@ -101,17 +99,9 @@ namespace oblo
             nlohmann::ordered_json json;
 
             json["id"] = meta.id.format_to(uuidBuffer);
-            json["type"] = meta.type.name;
-
-            if (!meta.importId.is_nil())
-            {
-                json["importId"] = meta.importId.format_to(uuidBuffer);
-            }
-
-            if (!meta.importName.empty())
-            {
-                json["importName"] = meta.importName;
-            }
+            json["mainArtifactHint"] = meta.mainArtifactHint.format_to(uuidBuffer);
+            json["typeHint"] = meta.typeHint.name;
+            json["isImported"] = meta.isImported;
 
             std::ofstream ofs{destination};
 
@@ -404,7 +394,7 @@ namespace oblo
     }
 
     bool asset_registry::save_asset(const std::filesystem::path& destination,
-        std::string_view filename,
+        const std::filesystem::path& fileName,
         const asset_meta& meta,
         write_policy policy)
     {
@@ -415,7 +405,7 @@ namespace oblo
             return false;
         }
 
-        auto fullPath = m_impl->assetsDir / destination / filename;
+        auto fullPath = m_impl->assetsDir / destination / fileName;
         fullPath.concat(AssetMetaExtension);
 
         std::error_code ec;
@@ -446,7 +436,7 @@ namespace oblo
         auto fullPath = m_impl->assetsDir / path;
         fullPath.concat(AssetMetaExtension);
 
-        return find_asset_by_meta_path(path, id, assetMeta);
+        return find_asset_by_meta_path(fullPath, id, assetMeta);
     }
 
     bool asset_registry::find_asset_by_meta_path(

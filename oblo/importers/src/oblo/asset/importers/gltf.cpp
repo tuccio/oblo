@@ -48,11 +48,11 @@ namespace oblo::importers
 
         if (sourceFileStr.ends_with(".glb"))
         {
-            success = m_loader.LoadBinaryFromFile(&m_model, &errors, &warnings, config.sourceFile.string());
+            success = m_loader.LoadBinaryFromFile(&m_model, &errors, &warnings, sourceFileStr);
         }
         else if (sourceFileStr.ends_with(".gltf"))
         {
-            success = m_loader.LoadASCIIFromFile(&m_model, &errors, &warnings, config.sourceFile.string());
+            success = m_loader.LoadASCIIFromFile(&m_model, &errors, &warnings, sourceFileStr);
         }
         else
         {
@@ -108,15 +108,11 @@ namespace oblo::importers
         std::vector<gltf_accessor> sources;
         sources.reserve(32);
 
-        std::vector<import_artifact> meshArtifacts;
-        meshArtifacts.reserve(32);
-
         std::vector<bool> usedBuffer(m_model.buffers.size());
 
         for (const auto& model : m_importModels)
         {
             oblo::model modelAsset;
-            meshArtifacts.clear();
 
             const auto& modelNodeConfig = ctx.importNodesConfig[model.nodeIndex];
 
@@ -149,25 +145,30 @@ namespace oblo::importers
 
                 modelAsset.meshes.emplace_back(meshNodeConfig.id);
 
-                auto& meshArtifact = meshArtifacts.emplace_back();
-                meshArtifact.id = meshNodeConfig.id;
-                meshArtifact.data = any_asset{std::move(meshAsset)};
-                meshArtifact.name = ctx.preview->nodes[mesh.nodeIndex].name;
+                m_artifacts.push_back({
+                    .id = meshNodeConfig.id,
+                    .data = any_asset{std::move(meshAsset)},
+                    .name = ctx.preview->nodes[mesh.nodeIndex].name,
+                });
             }
 
-            ctx.importer->add_asset(
-                {
-                    .id = modelNodeConfig.id,
-                    .data = any_asset{std::move(modelAsset)},
-                    .name = ctx.preview->nodes[model.nodeIndex].name,
-                },
-                meshArtifacts);
+            m_artifacts.push_back({
+                .id = modelNodeConfig.id,
+                .data = any_asset{std::move(modelAsset)},
+                .name = ctx.preview->nodes[model.nodeIndex].name,
+            });
+
+            if (m_importModels.size() == 1)
+            {
+                m_mainArtifactHint = modelNodeConfig.id;
+            }
         }
 
-        std::vector<std::filesystem::path> sourceFiles;
-        sourceFiles.reserve(m_model.buffers.size());
+        const auto sourceFile = ctx.importer->get_config().sourceFile;
+        const auto sourceFileDir = sourceFile.parent_path();
 
-        const auto sourceFileDir = ctx.importer->get_config().sourceFile.parent_path();
+        m_sourceFiles.reserve(1 + m_model.buffers.size());
+        m_sourceFiles.emplace_back(sourceFile);
 
         for (usize i = 0; i < usedBuffer.size(); ++i)
         {
@@ -184,13 +185,20 @@ namespace oblo::importers
 
                 if (std::error_code ec; std::filesystem::exists(bufferPath, ec) && !ec)
                 {
-                    sourceFiles.emplace_back(bufferPath);
+                    m_sourceFiles.emplace_back(bufferPath);
                 }
             }
         }
 
-        ctx.importer->add_source_files(sourceFiles);
-
         return true;
+    }
+
+    file_import_results gltf::get_results()
+    {
+        return {
+            .artifacts = m_artifacts,
+            .sourceFiles = m_sourceFiles,
+            .mainArtifactHint = m_mainArtifactHint,
+        };
     }
 }

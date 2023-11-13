@@ -4,6 +4,8 @@
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/import_artifact.hpp>
 #include <oblo/core/array_size.hpp>
+#include <oblo/core/formatters/uuid_formatter.hpp>
+#include <oblo/core/log.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/core/uuid_generator.hpp>
 
@@ -41,11 +43,6 @@ namespace oblo
         }
     }
 
-    struct importer::pending_asset_import
-    {
-        std::vector<import_artifact> artifacts;
-    };
-
     importer::importer() = default;
 
     importer::importer(importer&&) noexcept = default;
@@ -53,7 +50,6 @@ namespace oblo
     importer::importer(importer_config config, std::unique_ptr<file_importer> fileImporter) :
         m_config{std::move(config)}, m_importer{std::move(fileImporter)}
     {
-        m_sourceFiles.emplace_back(m_config.sourceFile);
     }
 
     importer::~importer() = default;
@@ -101,50 +97,6 @@ namespace oblo
 
         // TODO: Cleanup if finalize_import fails too, e.g. remove the saved artifacts, if any
         return finalize_import(*m_config.registry, destinationDir);
-    }
-
-    bool importer::add_asset(import_artifact mainArtifact, std::span<import_artifact> otherArtifacts)
-    {
-        const auto it = m_artifacts.find(mainArtifact.id);
-
-        if (it == m_artifacts.end())
-        {
-            return false;
-        }
-
-        if (mainArtifact.data.empty())
-        {
-            return false;
-        }
-
-        if (mainArtifact.data.get_type() != it->second.type)
-        {
-            return false;
-        }
-
-        it->second.id = mainArtifact.id;
-
-        auto& importedAsset = m_assets.emplace_back();
-
-        importedAsset.artifacts.clear();
-        importedAsset.artifacts.reserve(otherArtifacts.size() + 1);
-        importedAsset.artifacts.emplace_back(std::move(mainArtifact));
-
-        for (auto& otherArtifact : otherArtifacts)
-        {
-            const auto currentArtifactIt = m_artifacts.find(otherArtifact.id);
-
-            if (currentArtifactIt == m_artifacts.end())
-            {
-                OBLO_ASSERT(false);
-                continue;
-            }
-
-            currentArtifactIt->second.id = otherArtifact.id;
-            importedAsset.artifacts.emplace_back(std::move(otherArtifact));
-        }
-
-        return true;
     }
 
     bool importer::begin_import(asset_registry& registry, std::span<import_node_config> importNodesConfig)
@@ -196,78 +148,76 @@ namespace oblo
 
         bool allSucceeded = true;
 
-        std::string assetFileName;
+        const auto results = m_importer->get_results();
 
-        for (const pending_asset_import& assetImport : m_assets)
+        asset_meta assetMeta{
+            .id = m_importId,
+            .isImported = true,
+        };
+
+        for (const import_artifact& artifact : results.artifacts)
         {
-            OBLO_ASSERT(!assetImport.artifacts.empty(), "The first artifact is expected to be the asset");
-
-            const auto& mainArtifact = assetImport.artifacts[0];
-
-            const auto mainArtifactIt = m_artifacts.find(mainArtifact.id);
-
-            if (mainArtifactIt == m_artifacts.end())
+            if (artifact.id.is_nil())
             {
-                OBLO_ASSERT(false);
+                log::error("Artifact '{}' will be skipped due to invalid UUID (this may signal a bug in "
+                           "the importer)",
+                    artifact.name);
                 allSucceeded = false;
                 continue;
             }
 
-            asset_meta assetMeta{
-                .id = mainArtifact.id,
-                .type = mainArtifact.data.get_type(),
-                .importId = m_importId,
-                .importName = mainArtifact.name,
-            };
+            const auto artifactIt = m_artifacts.find(artifact.id);
 
-            assetFileName = mainArtifactIt->second.importName;
-
-            for (const import_artifact& artifact : assetImport.artifacts)
+            if (artifactIt == m_artifacts.end())
             {
-                const auto artifactIt = m_artifacts.find(artifact.id);
-
-                if (artifactIt == m_artifacts.end())
-                {
-                    OBLO_ASSERT(false);
-                    allSucceeded = false;
-                    continue;
-                }
-
-                auto* const artifactPtr = artifact.data.try_get();
-
-                if (!artifactPtr)
-                {
-                    OBLO_ASSERT(false); // TODO: Log?
-                    allSucceeded = false;
-                    continue;
-                }
-
-                const artifact_meta meta{
-                    .id = artifact.id,
-                    .type = artifact.data.get_type(),
-                    .importId = m_importId,
-                    .importName = artifact.name,
-                };
-
-                if (!registry.save_artifact(artifact.id, artifact.data.get_type(), artifactPtr, meta))
-                {
-                    OBLO_ASSERT(false); // TODO: Log?
-                    allSucceeded = false;
-                    continue;
-                }
+                log::error("Artifact {} ({}) will be skipped due to a UUID collision", artifact.id, artifact.name);
+                allSucceeded = false;
+                continue;
             }
 
-            allSucceeded &= registry.save_asset(destination, assetFileName, std::move(assetMeta));
+            auto* const artifactPtr = artifact.data.try_get();
+
+            if (!artifactPtr)
+            {
+                log::error("Artifact {} ({}) will be skipped due to missing imported data (this may signal a bug in "
+                           "the importer)",
+                    artifact.id,
+                    artifact.name);
+
+                allSucceeded = false;
+                continue;
+            }
+
+            const artifact_meta meta{
+                .id = artifact.id,
+                .type = artifact.data.get_type(),
+                .importId = m_importId,
+                .importName = artifact.name,
+            };
+
+            if (!registry.save_artifact(artifact.id, artifact.data.get_type(), artifactPtr, meta))
+            {
+                log::error("Artifact {} ({}) will be skipped due to an error occurring while saving to disk",
+                    artifact.id,
+                    artifact.name);
+
+                allSucceeded = false;
+                continue;
+            }
+
+            if (artifact.id == results.mainArtifactHint)
+            {
+                assetMeta.mainArtifactHint = artifact.id;
+                assetMeta.typeHint = meta.type;
+            }
         }
 
-        allSucceeded &= write_source_files();
+        const auto assetFileName = m_config.sourceFile.filename().stem();
+
+        allSucceeded &= registry.save_asset(destination, assetFileName, std::move(assetMeta));
+        allSucceeded &= write_source_files(results.sourceFiles);
 
         return allSucceeded;
-    }
-
-    void importer::add_source_files(std::span<const std::filesystem::path> sourceFiles)
-    {
-        m_sourceFiles.insert(m_sourceFiles.end(), sourceFiles.begin(), sourceFiles.end());
     }
 
     const importer_config& importer::get_config() const
@@ -275,7 +225,7 @@ namespace oblo
         return m_config;
     }
 
-    bool importer::write_source_files()
+    bool importer::write_source_files(std::span<const std::filesystem::path> sourceFiles)
     {
         const auto importDir = m_config.registry->create_source_files_dir(m_importId);
 
@@ -286,7 +236,7 @@ namespace oblo
 
         bool allSucceeded = true;
 
-        for (const auto& sourceFile : m_sourceFiles)
+        for (const auto& sourceFile : sourceFiles)
         {
             std::error_code ec;
             allSucceeded &= std::filesystem::copy_file(sourceFile, importDir / sourceFile.filename(), ec) && !ec;

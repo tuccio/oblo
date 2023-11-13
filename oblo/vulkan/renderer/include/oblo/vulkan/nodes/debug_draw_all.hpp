@@ -15,6 +15,7 @@ namespace oblo::vk
         data<vec2u> inResolution;
         data<buffer_binding_table> inPerViewBindingTable;
         resource<texture> outRenderTarget;
+        resource<texture> outDepthBuffer;
 
         h32<render_pass> renderPass{};
 
@@ -31,6 +32,16 @@ namespace oblo::vk
                     .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                 },
                 resource_usage::render_target_write);
+
+            builder.create(outDepthBuffer,
+                {
+                    .width = resolution.x,
+                    .height = resolution.y,
+                    .format = VK_FORMAT_D24_UNORM_S8_UINT,
+                    .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                    .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+                },
+                resource_usage::depth_stencil_write);
         }
 
         void init(const init_context& context)
@@ -56,6 +67,7 @@ namespace oblo::vk
         void execute(const runtime_context& context)
         {
             const auto renderTarget = context.access(outRenderTarget);
+            const auto depthBuffer = context.access(outDepthBuffer);
 
             auto& renderPassManager = context.get_render_pass_manager();
 
@@ -64,6 +76,13 @@ namespace oblo::vk
                     .renderTargets =
                         {
                             .colorAttachmentFormats = {renderTarget.initializer.format},
+                            .depthFormat = VK_FORMAT_D24_UNORM_S8_UINT,
+                        },
+                    .depthStencilState =
+                        {
+                            .depthTestEnable = true,
+                            .depthWriteEnable = true,
+                            .depthCompareOp = VK_COMPARE_OP_GREATER, // We use reverse depth
                         },
                     .rasterizationState =
                         {
@@ -88,6 +107,14 @@ namespace oblo::vk
                 .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
             };
 
+            const VkRenderingAttachmentInfo depthAttachment{
+                .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                .imageView = depthBuffer.view,
+                .imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+                .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            };
+
             const auto [renderWidth, renderHeight, _] = renderTarget.initializer.extent;
 
             const VkRenderingInfo renderInfo{
@@ -96,6 +123,7 @@ namespace oblo::vk
                 .layerCount = 1,
                 .colorAttachmentCount = 1,
                 .pColorAttachments = &colorAttachment,
+                .pDepthAttachment = &depthAttachment,
             };
 
             setup_viewport_scissor(commandBuffer, renderWidth, renderHeight);

@@ -19,8 +19,8 @@ namespace oblo
     struct asset_meta
     {
         uuid id;
-        type_id type;
-        uuid importId;
-        std::string importName;
+        uuid mainArtifactHint;
+        type_id typeHint;
+        bool isImported;
     };
 }
