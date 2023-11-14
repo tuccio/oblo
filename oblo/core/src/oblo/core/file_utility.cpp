@@ -82,4 +82,32 @@ namespace oblo
     {
         return load_impl(out, path, "r");
     }
+
+    FILE* open_file(const std::filesystem::path& path, const char* mode)
+    {
+        constexpr u32 N{31};
+        wchar_t wMode[N + 1];
+
+        for (u32 i = 0; i < N; ++i)
+        {
+            if (mode[i] == '\0')
+            {
+                wMode[i] = 0;
+                break;
+            }
+
+            wMode[i] = wchar_t(mode[i]);
+        }
+
+        wMode[N] = 0;
+
+#ifdef WIN32
+        FILE* f{};
+        _wfopen_s(&f, path.native().c_str(), wMode);
+        return f;
+
+#else
+        return fopen(path.native().c_str(), mode);
+#endif
+    }
 }

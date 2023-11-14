@@ -10,6 +10,7 @@ namespace oblo::importers
     {
         auto* const engineModule = module_manager::get().load<engine_module>();
         register_gltf_importer(engineModule->get_asset_registry());
+        register_stb_image_importer(engineModule->get_asset_registry());
         return true;
     }
 
@@ -17,5 +18,6 @@ namespace oblo::importers
     {
         auto* const engineModule = module_manager::get().find<engine_module>();
         unregister_gltf_importer(engineModule->get_asset_registry());
+        unregister_stb_image_importer(engineModule->get_asset_registry());
     }
 }

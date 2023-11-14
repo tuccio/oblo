@@ -9,10 +9,7 @@
 namespace oblo
 {
     enum class data_format : u8;
-}
 
-namespace oblo
-{
     enum class attribute_kind : u8
     {
         indices,
