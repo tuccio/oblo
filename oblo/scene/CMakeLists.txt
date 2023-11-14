@@ -8,6 +8,7 @@ target_link_libraries(
     oblo::modules
     PRIVATE
     oblo::engine
+    KTX::ktx
     nlohmann_json::nlohmann_json
     TinyGLTF::TinyGLTF
 )

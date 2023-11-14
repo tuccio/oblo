@@ -9,6 +9,8 @@ target_link_libraries(
     PRIVATE
     oblo::engine
     TinyGLTF::TinyGLTF
+    stb::stb
+    Vulkan::Headers
 )
 
 option(OBLO_GLTF_SAMPLE_MODELS "Path to a reference of https://github.com/KhronosGroup/glTF-Sample-Models (based on commit 4ca06672ce15d6a27bfb5cf14459bc52fd9044d1)" "")

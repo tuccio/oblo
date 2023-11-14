@@ -8,6 +8,7 @@
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/import_artifact.hpp>
 #include <oblo/core/debug.hpp>
+#include <oblo/core/log.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/scene/assets/mesh.hpp>
@@ -32,6 +33,10 @@ namespace oblo::importers
         u32 nodeIndex;
     };
 
+    struct gltf::import_image
+    {
+    };
+
     gltf::gltf() = default;
 
     gltf::~gltf() = default;
@@ -45,6 +50,31 @@ namespace oblo::importers
         std::string warnings;
 
         bool success;
+
+        m_loader.SetImageLoader(
+            [](tinygltf::Image* image,
+                const int imageIdx,
+                std::string* err,
+                std::string* warn,
+                int reqWidth,
+                int reqHeight,
+                const unsigned char* bytes,
+                int size,
+                void* userdata)
+            {
+                // We skip the images for now
+                (void) image;
+                (void) imageIdx;
+                (void) err;
+                (void) warn;
+                (void) reqWidth;
+                (void) reqHeight;
+                (void) bytes;
+                (void) size;
+                (void) userdata;
+                return true;
+            },
+            this);
 
         if (sourceFileStr.ends_with(".glb"))
         {
@@ -62,6 +92,7 @@ namespace oblo::importers
 
         if (!success)
         {
+            log::error("Import of {} failed:\n{}", sourceFileStr, errors);
             return false;
         }
 

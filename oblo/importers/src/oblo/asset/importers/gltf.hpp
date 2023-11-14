@@ -26,12 +26,14 @@ namespace oblo::importers
     private:
         struct import_model;
         struct import_mesh;
+        struct import_image;
 
     private:
         tinygltf::Model m_model;
         tinygltf::TinyGLTF m_loader;
         std::vector<import_model> m_importModels;
         std::vector<import_mesh> m_importMeshes;
+        std::vector<import_image> m_importImages;
 
         std::vector<import_artifact> m_artifacts;
         std::vector<std::filesystem::path> m_sourceFiles;

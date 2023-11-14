@@ -6,6 +6,7 @@
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/assets/mesh.hpp>
 #include <oblo/scene/assets/model.hpp>
+#include <oblo/scene/assets/texture.hpp>
 #include <oblo/scene/serialization/mesh_file.hpp>
 
 #include <fstream>
@@ -85,6 +86,20 @@ namespace oblo
                 return load_mesh(mesh, source);
             }
         };
+
+        template <>
+        struct meta<texture>
+        {
+            static bool save(const texture& texture, const std::filesystem::path& destination)
+            {
+                return texture.save(destination);
+            }
+
+            static bool load(texture& texture, const std::filesystem::path& source)
+            {
+                return texture.load(source);
+            }
+        };
     }
 
     template <typename T>
@@ -111,23 +126,27 @@ namespace oblo
     {
         registry.register_type(make_asset_type_desc<mesh>());
         registry.register_type(make_asset_type_desc<model>());
+        registry.register_type(make_asset_type_desc<texture>());
     }
 
     void unregister_asset_types(asset_registry& registry)
     {
         registry.unregister_type(get_type_id<mesh>());
         registry.unregister_type(get_type_id<model>());
+        registry.unregister_type(get_type_id<texture>());
     }
 
     void register_resource_types(resource_registry& registry)
     {
         registry.register_type(make_resource_type_desc<mesh>());
         registry.register_type(make_resource_type_desc<model>());
+        registry.register_type(make_resource_type_desc<texture>());
     }
 
     void unregister_resource_types(resource_registry& registry)
     {
         registry.unregister_type(get_type_id<mesh>());
         registry.unregister_type(get_type_id<model>());
+        registry.unregister_type(get_type_id<texture>());
     }
 }

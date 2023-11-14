@@ -122,13 +122,15 @@ namespace oblo
         template <typename U>
         resource_ptr<U> as() && noexcept
         {
-            OBLO_ASSERT(!m_resource || get_type_id<U>() == get_type());
-
             resource_ptr<U> other;
-            other.m_ptr = static_cast<const U*>(m_ptr);
-            other.m_resource = m_resource;
-            m_ptr = nullptr;
-            m_resource = nullptr;
+
+            if (m_resource && get_type_id<U>() == get_type())
+            {
+                other.m_ptr = static_cast<const U*>(m_ptr);
+                other.m_resource = m_resource;
+                m_ptr = nullptr;
+                m_resource = nullptr;
+            }
 
             return other;
         }
@@ -136,11 +138,9 @@ namespace oblo
         template <typename U>
         resource_ptr<U> as() const& noexcept
         {
-            OBLO_ASSERT(!m_resource || get_type_id<U>() == get_type());
-
             resource_ptr<U> other;
 
-            if (m_resource)
+            if (m_resource && get_type_id<U>() == get_type())
             {
                 other.m_ptr = static_cast<const U*>(m_ptr);
                 other.m_resource = m_resource;

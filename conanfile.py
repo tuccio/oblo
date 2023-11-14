@@ -12,6 +12,7 @@ class ObloConanRecipe(ConanFile):
         self.requires("glew/2.1.0")
         self.requires("glslang/8.13.3559")
         self.requires("gtest/1.10.0")
+        self.requires("ktx/4.0.0")
         self.requires("imgui/1.89.9-docking")
         self.requires("nlohmann_json/3.11.2")
         self.requires("vulkan-headers/1.3.211.0", override=True)
@@ -19,6 +20,7 @@ class ObloConanRecipe(ConanFile):
         self.requires("vulkan-memory-allocator/3.0.0")
         self.requires("spirv-cross/cci.20211113")
         self.requires("sdl/2.0.20")
+        self.requires("stb/cci.20230920")
         self.requires("tinygltf/2.8.13")
 
         # This is only needed for unit tests
@@ -27,6 +29,13 @@ class ObloConanRecipe(ConanFile):
     def configure(self):
         self.options["efsw/*"].shared = False
         self.options["eigen/*"].MPL2_only = True
+        
+        tinygltf = self.options["tinygltf/*"]
+        tinygltf.stb_image = False
+        tinygltf.stb_image_write = False
+
+        stb = self.options["stb/*"]
+        stb.with_deprecated = False
 
     def generate(self):
         imgui = self.dependencies["imgui"]
