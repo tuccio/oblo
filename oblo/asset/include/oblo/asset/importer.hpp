@@ -23,7 +23,6 @@ namespace oblo
     {
         asset_registry* registry;
         std::filesystem::path sourceFile;
-        type_id importer;
     };
 
     struct file_import_results
@@ -51,7 +50,7 @@ namespace oblo
         importer(const importer&) = delete;
         importer(importer&&) noexcept;
 
-        importer(importer_config config, std::unique_ptr<file_importer> fileImporter);
+        importer(importer_config config, const type_id& importerType, std::unique_ptr<file_importer> fileImporter);
 
         ~importer();
 
@@ -81,6 +80,7 @@ namespace oblo
         std::vector<import_node_config> m_importNodesConfig;
         std::unordered_map<uuid, artifact_meta> m_artifacts;
         uuid m_importId{};
+        type_id m_importerType{};
     };
 
     using create_file_importer_fn = std::unique_ptr<file_importer> (*)();

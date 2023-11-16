@@ -1,16 +1,18 @@
 #define TINYGLTF_IMPLEMENTATION
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
+#define TINYGLTF_NO_EXTERNAL_IMAGE
 
 #include <oblo/asset/importers/gltf.hpp>
 
 #include <oblo/asset/any_asset.hpp>
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/import_artifact.hpp>
+#include <oblo/asset/importers/stb_image.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/log.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/uuid.hpp>
+#include <oblo/math/vec3.hpp>
+#include <oblo/scene/assets/material.hpp>
 #include <oblo/scene/assets/mesh.hpp>
 #include <oblo/scene/assets/model.hpp>
 #include <oblo/scene/serialization/mesh_file.hpp>
@@ -33,8 +35,18 @@ namespace oblo::importers
         u32 nodeIndex;
     };
 
+    struct gltf::import_material
+    {
+        u32 nodeIndex;
+        uuid id;
+    };
+
     struct gltf::import_image
     {
+        u32 nodeIndex;
+        std::unique_ptr<file_importer> importer;
+        // This is only set after importing is done
+        uuid id;
     };
 
     gltf::gltf() = default;
@@ -46,35 +58,15 @@ namespace oblo::importers
         // Seems like TinyGLTF wants std::string
         const auto sourceFileStr = config.sourceFile.string();
 
+        m_sourceFiles.reserve(1 + m_model.buffers.size() + m_model.images.size());
+        m_sourceFiles.emplace_back(config.sourceFile);
+
+        m_sourceFileDir = m_sourceFiles[0].parent_path();
+
         std::string errors;
         std::string warnings;
 
         bool success;
-
-        m_loader.SetImageLoader(
-            [](tinygltf::Image* image,
-                const int imageIdx,
-                std::string* err,
-                std::string* warn,
-                int reqWidth,
-                int reqHeight,
-                const unsigned char* bytes,
-                int size,
-                void* userdata)
-            {
-                // We skip the images for now
-                (void) image;
-                (void) imageIdx;
-                (void) err;
-                (void) warn;
-                (void) reqWidth;
-                (void) reqHeight;
-                (void) bytes;
-                (void) size;
-                (void) userdata;
-                return true;
-            },
-            this);
 
         if (sourceFileStr.ends_with(".glb"))
         {
@@ -128,6 +120,64 @@ namespace oblo::importers
             }
         }
 
+        m_importMaterials.reserve(m_model.materials.size());
+
+        for (u32 materialIndex = 0; materialIndex < m_model.materials.size(); ++materialIndex)
+        {
+            auto& gltfMaterial = m_model.materials[materialIndex];
+            m_importMaterials.emplace_back(u32(preview.nodes.size()));
+            preview.nodes.emplace_back(get_type_id<material>(), gltfMaterial.name);
+        }
+
+        import_preview imagePreview;
+
+        m_importImages.reserve(m_model.images.size());
+
+        for (u32 imageIndex = 0; imageIndex < m_model.images.size(); ++imageIndex)
+        {
+            auto& gltfImage = m_model.images[imageIndex];
+
+            auto& importImage = m_importImages.emplace_back();
+
+            if (gltfImage.uri.empty())
+            {
+                log::warn("A texture was skipped because URI is not set, maybe it's embedded in the GLTF but this is "
+                          "not supported currently.");
+
+                continue;
+            }
+
+            if (!tinygltf::URIDecode(gltfImage.uri, &name, nullptr))
+            {
+                log::error("Failed to decode URI {}", gltfImage.uri);
+                continue;
+            }
+
+            const u32 nodeIndex = u32(preview.nodes.size());
+            preview.nodes.emplace_back(get_type_id<texture>(), gltfImage.name);
+
+            // TODO: Look for the best registered image importer instead
+            auto importer = std::make_unique<stb_image>();
+
+            imagePreview.nodes.clear();
+
+            const bool ok = importer->init(
+                {
+                    .registry = config.registry,
+                    .sourceFile = m_sourceFileDir / name,
+                },
+                imagePreview);
+
+            if (!ok || imagePreview.nodes.size() != 1 || imagePreview.nodes[0].type != get_type_id<texture>())
+            {
+                log::warn("Texture {} skipped due to incompatible image importer", gltfImage.uri);
+                continue;
+            }
+
+            importImage.nodeIndex = nodeIndex;
+            importImage.importer = std::move(importer);
+        }
+
         return true;
     }
 
@@ -140,6 +190,90 @@ namespace oblo::importers
         sources.reserve(32);
 
         std::vector<bool> usedBuffer(m_model.buffers.size());
+
+        // TODO: Parallelize texture importing
+        for (auto& image : m_importImages)
+        {
+            if (!image.importer || !ctx.importNodesConfig[image.nodeIndex].enabled)
+            {
+                continue;
+            }
+
+            const auto imageContext = import_context{
+                .registry = ctx.registry,
+                .nodes = ctx.nodes.subspan(image.nodeIndex, 1),
+                .importNodesConfig = ctx.importNodesConfig.subspan(image.nodeIndex, 1),
+                .importUuid = ctx.importUuid,
+            };
+
+            if (!image.importer->import(imageContext))
+            {
+                log::error("Failed to import image {}", ctx.nodes[image.nodeIndex].name);
+                continue;
+            }
+            else
+            {
+                const auto results = image.importer->get_results();
+                m_sourceFiles.insert(m_sourceFiles.end(), results.sourceFiles.begin(), results.sourceFiles.end());
+
+                OBLO_ASSERT(results.artifacts.size() == 1, "Not sure how this would be more than atm");
+
+                for (auto& artifact : results.artifacts)
+                {
+                    m_artifacts.emplace_back(std::move(artifact));
+                }
+
+                image.id = imageContext.importNodesConfig[0].id;
+            }
+        }
+
+        for (const auto& material : m_importMaterials)
+        {
+            const auto& nodeConfig = ctx.importNodesConfig[material.nodeIndex];
+
+            if (!nodeConfig.enabled)
+            {
+                continue;
+            }
+
+            oblo::material materialArtifact;
+
+            auto& gltfMaterial = m_model.materials[&material - m_importMaterials.data()];
+
+            auto& pbr = gltfMaterial.pbrMetallicRoughness;
+
+            vec3 albedo;
+
+            if (pbr.baseColorFactor.size() >= 3)
+            {
+                albedo = {f32(pbr.baseColorFactor[0]), f32(pbr.baseColorFactor[1]), f32(pbr.baseColorFactor[2])};
+            }
+            else
+            {
+                albedo = vec3::splat(1);
+            }
+
+            if (const auto imageIndex = usize(pbr.baseColorTexture.index);
+                imageIndex >= 0 && imageIndex < m_importImages.size() && !m_importImages[imageIndex].id.is_nil())
+            {
+                materialArtifact.set_property("Albedo Texture", m_importImages[imageIndex].id);
+            }
+
+            materialArtifact.set_property("Metallic", f32(pbr.metallicFactor));
+            materialArtifact.set_property("Roughness", f32(pbr.roughnessFactor));
+
+            if (const auto imageIndex = usize(pbr.metallicRoughnessTexture.index);
+                imageIndex >= 0 && imageIndex < m_importImages.size() && !m_importImages[imageIndex].id.is_nil())
+            {
+                materialArtifact.set_property("Metallic/Roughness Texture", m_importImages[imageIndex].id);
+            }
+
+            m_artifacts.push_back({
+                .id = nodeConfig.id,
+                .data = any_asset{std::move(materialArtifact)},
+                .name = ctx.nodes[material.nodeIndex].name,
+            });
+        }
 
         for (const auto& model : m_importModels)
         {
@@ -179,14 +313,14 @@ namespace oblo::importers
                 m_artifacts.push_back({
                     .id = meshNodeConfig.id,
                     .data = any_asset{std::move(meshAsset)},
-                    .name = ctx.preview->nodes[mesh.nodeIndex].name,
+                    .name = ctx.nodes[mesh.nodeIndex].name,
                 });
             }
 
             m_artifacts.push_back({
                 .id = modelNodeConfig.id,
                 .data = any_asset{std::move(modelAsset)},
-                .name = ctx.preview->nodes[model.nodeIndex].name,
+                .name = ctx.nodes[model.nodeIndex].name,
             });
 
             if (m_importModels.size() == 1)
@@ -194,12 +328,6 @@ namespace oblo::importers
                 m_mainArtifactHint = modelNodeConfig.id;
             }
         }
-
-        const auto sourceFile = ctx.importer->get_config().sourceFile;
-        const auto sourceFileDir = sourceFile.parent_path();
-
-        m_sourceFiles.reserve(1 + m_model.buffers.size());
-        m_sourceFiles.emplace_back(sourceFile);
 
         for (usize i = 0; i < usedBuffer.size(); ++i)
         {
@@ -212,7 +340,7 @@ namespace oblo::importers
                     continue;
                 }
 
-                const auto bufferPath = sourceFileDir / buffer.uri;
+                const auto bufferPath = m_sourceFileDir / buffer.uri;
 
                 if (std::error_code ec; std::filesystem::exists(bufferPath, ec) && !ec)
                 {

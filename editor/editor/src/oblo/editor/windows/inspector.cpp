@@ -58,10 +58,10 @@ namespace oblo::editor
                         if (node.type == get_type_id<quaternion>())
                         {
                             build_quaternion_editor(node, data);
-                            return property_visit_result::sibling;
+                            return visit_result::sibling;
                         }
 
-                        return property_visit_result::recurse;
+                        return visit_result::recurse;
                     },
                     [&ptr](const property_node& node, const property_node_finish) { ptr -= node.offset; },
                     [&ptr](const property& property)
@@ -85,7 +85,7 @@ namespace oblo::editor
                             break;
                         }
 
-                        return property_visit_result::recurse;
+                        return visit_result::recurse;
                     },
                 });
         }

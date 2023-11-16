@@ -65,6 +65,11 @@ namespace oblo
             return m_vector.data();
         }
 
+        bool empty() const
+        {
+            return m_vector.empty();
+        }
+
         std::size_t size() const
         {
             return m_vector.size();
@@ -84,6 +89,21 @@ namespace oblo
         decltype(auto) push_back(T&& value)
         {
             return m_vector.push_back(std::move(value));
+        }
+
+        void pop_back()
+        {
+            return m_vector.pop_back();
+        }
+
+        const T& front() const
+        {
+            return m_vector.front();
+        }
+
+        const T& back() const
+        {
+            return m_vector.back();
         }
 
         const T& operator[](std::size_t index) const
