@@ -2,6 +2,7 @@
 
 #include <oblo/core/overload.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/property_registry.hpp>
 #include <oblo/properties/property_tree.hpp>
 #include <oblo/properties/visit.hpp>
@@ -68,10 +69,10 @@ namespace oblo
                         if (node.name == *it)
                         {
                             ++it;
-                            return property_visit_result::recurse;
+                            return visit_result::recurse;
                         }
 
-                        return property_visit_result::sibling;
+                        return visit_result::sibling;
                     },
                     [](const property_node&, const property_node_finish) {},
                     [&it, &chain, &res](const property& property)
@@ -83,10 +84,10 @@ namespace oblo
                                 res = &property;
                             }
 
-                            return property_visit_result::terminate;
+                            return visit_result::terminate;
                         }
 
-                        return property_visit_result::sibling;
+                        return visit_result::sibling;
                     },
                 });
 

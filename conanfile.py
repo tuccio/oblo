@@ -15,6 +15,7 @@ class ObloConanRecipe(ConanFile):
         self.requires("ktx/4.0.0")
         self.requires("imgui/1.89.9-docking")
         self.requires("nlohmann_json/3.11.2")
+        self.requires("rapidjson/cci.20220822")
         self.requires("vulkan-headers/1.3.211.0", override=True)
         self.requires("vulkan-loader/1.3.211.0")
         self.requires("vulkan-memory-allocator/3.0.0")

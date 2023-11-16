@@ -1,6 +1,7 @@
 #include <oblo/properties/property_registry.hpp>
 
 #include <oblo/core/utility.hpp>
+#include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/property_tree.hpp>
 #include <oblo/reflection/reflection_registry.hpp>
 
@@ -30,6 +31,18 @@ namespace oblo
         m_kindLookups.emplace(get_type_id<i16>(), property_kind::u16);
         m_kindLookups.emplace(get_type_id<i32>(), property_kind::u32);
         m_kindLookups.emplace(get_type_id<i64>(), property_kind::u64);
+    }
+
+    property_kind property_registry::find_property_kind(const type_id& type) const
+    {
+        const auto it = m_kindLookups.find(type);
+
+        if (it == m_kindLookups.end())
+        {
+            return property_kind::enum_max;
+        }
+
+        return it->second;
     }
 
     const property_tree* property_registry::build_from_reflection(const type_id& type)

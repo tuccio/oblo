@@ -11,6 +11,7 @@
 #include <oblo/editor/utility/entity_utility.hpp>
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/math/quaternion.hpp>
+#include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/property_registry.hpp>
 #include <oblo/properties/property_tree.hpp>
 #include <oblo/properties/visit.hpp>
