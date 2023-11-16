@@ -343,8 +343,8 @@ namespace oblo
                         importer_config{
                             .registry = this,
                             .sourceFile = sourceFile,
-                            .importer = type,
                         },
+                        type,
                         assetImporter.create(),
                     };
                 }

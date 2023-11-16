@@ -131,7 +131,7 @@ namespace oblo::importers
         }
 
         m_result.id = modelNodeConfig.id;
-        m_result.name = ctx.preview->nodes[0].name;
+        m_result.name = ctx.nodes[0].name;
         m_result.data = any_asset{std::move(t)};
 
         return true;

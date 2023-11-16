@@ -5,4 +5,6 @@ target_link_libraries(
     PUBLIC
     oblo::core
     oblo::reflection
+    PRIVATE
+    rapidjson
 )

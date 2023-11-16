@@ -13,6 +13,11 @@ namespace oblo
         engine_module* g_instance{};
     }
 
+    engine_module& engine_module::get()
+    {
+        return *g_instance;
+    }
+
     engine_module::engine_module() = default;
 
     engine_module::~engine_module() = default;

@@ -19,13 +19,14 @@ namespace oblo
     {
         constexpr std::string_view ImportConfigFilename{"import.json"};
 
-        bool write_import_config(const importer_config& config, const std::filesystem::path& destination)
+        bool write_import_config(
+            const importer_config& config, const type_id& importer, const std::filesystem::path& destination)
         {
             nlohmann::ordered_json json;
 
-            if (!config.importer.name.empty())
+            if (!importer.name.empty())
             {
-                json["importer"] = config.importer.name;
+                json["importer"] = importer.name;
             }
 
             json["filename"] = config.sourceFile.filename();
@@ -47,8 +48,10 @@ namespace oblo
 
     importer::importer(importer&&) noexcept = default;
 
-    importer::importer(importer_config config, std::unique_ptr<file_importer> fileImporter) :
-        m_config{std::move(config)}, m_importer{std::move(fileImporter)}
+    importer::importer(
+        importer_config config, const type_id& importerType, std::unique_ptr<file_importer> fileImporter) :
+        m_config{std::move(config)},
+        m_importer{std::move(fileImporter)}, m_importerType{importerType}
     {
     }
 
@@ -82,9 +85,8 @@ namespace oblo
         const auto importUuid = m_config.registry->generate_uuid();
 
         const import_context context{
-            .importer = this,
             .registry = m_config.registry,
-            .preview = &m_preview,
+            .nodes = m_preview.nodes,
             .importNodesConfig = m_importNodesConfig,
             .importUuid = importUuid,
         };
@@ -242,7 +244,7 @@ namespace oblo
             allSucceeded &= std::filesystem::copy_file(sourceFile, importDir / sourceFile.filename(), ec) && !ec;
         }
 
-        allSucceeded &= write_import_config(m_config, importDir / ImportConfigFilename);
+        allSucceeded &= write_import_config(m_config, m_importerType, importDir / ImportConfigFilename);
 
         return allSucceeded;
     }
