@@ -32,6 +32,8 @@ namespace oblo
         void init(const reflection::reflection_registry& reflection);
         void shutdown();
 
+        property_kind find_property_kind(const type_id& type) const;
+
         const property_tree* build_from_reflection(const type_id& type);
 
         const property_tree* try_get(const type_id& type) const;

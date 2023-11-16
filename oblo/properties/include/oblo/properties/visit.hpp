@@ -1,16 +1,10 @@
 #pragma once
 
 #include <oblo/properties/property_tree.hpp>
+#include <oblo/properties/visit_result.hpp>
 
 namespace oblo
 {
-    enum property_visit_result : u8
-    {
-        terminate,
-        sibling,
-        recurse,
-    };
-
     struct property_node_start
     {
     };
@@ -31,9 +25,9 @@ namespace oblo
             const auto& node = tree.nodes[index];
 
             // We skip the visit of the root, it's kind of pointless
-            const auto r = index != 0 ? v(node, property_node_start{}) : property_visit_result::recurse;
+            const auto r = index != 0 ? v(node, property_node_start{}) : visit_result::recurse;
 
-            if (r == property_visit_result::recurse)
+            if (r == visit_result::recurse)
             {
                 if (node.firstChild != 0)
                 {
@@ -47,7 +41,7 @@ namespace oblo
                 {
                     const auto& property = tree.properties[propertyIndex];
 
-                    if (v(property) == property_visit_result::terminate)
+                    if (v(property) == visit_result::terminate)
                     {
                         return false;
                     }
@@ -56,15 +50,15 @@ namespace oblo
 
             v(node, property_node_finish{});
 
-            if (r >= property_visit_result::sibling && node.firstSibling != 0)
+            if (r >= visit_result::sibling && node.firstSibling != 0)
             {
-                if (visit_node_impl(tree, v, node.firstSibling) == property_visit_result::terminate)
+                if (visit_node_impl(tree, v, node.firstSibling) == visit_result::terminate)
                 {
                     return false;
                 }
             }
 
-            return r != property_visit_result::terminate;
+            return r != visit_result::terminate;
         }
     }
 
