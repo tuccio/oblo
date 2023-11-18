@@ -9,6 +9,8 @@
 
 namespace oblo
 {
+    struct uuid;
+
     property_registry::property_registry() = default;
 
     property_registry::~property_registry() = default;
@@ -31,6 +33,8 @@ namespace oblo
         m_kindLookups.emplace(get_type_id<i16>(), property_kind::u16);
         m_kindLookups.emplace(get_type_id<i32>(), property_kind::u32);
         m_kindLookups.emplace(get_type_id<i64>(), property_kind::u64);
+
+        m_kindLookups.emplace(get_type_id<uuid>(), property_kind::uuid);
     }
 
     property_kind property_registry::find_property_kind(const type_id& type) const

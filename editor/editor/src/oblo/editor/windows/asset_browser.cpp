@@ -96,13 +96,49 @@ namespace oblo::editor
                     if (m_registry->find_asset_by_meta_path(p, uuid, meta))
                     {
                         ImGui::PushID(int(hash_all<std::hash>(uuid)));
-                        ImGui::Button(reinterpret_cast<const char*>(str.c_str()));
 
-                        if (!meta.mainArtifactHint.is_nil() && ImGui::BeginDragDropSource())
+                        if (ImGui::Button(reinterpret_cast<const char*>(str.c_str())))
+                        {
+                            m_expandedAsset = m_expandedAsset == meta.id ? oblo::uuid{} : meta.id;
+                        }
+                        else if (!meta.mainArtifactHint.is_nil() && ImGui::BeginDragDropSource())
                         {
                             const auto payload = payloads::pack_uuid(meta.mainArtifactHint);
                             ImGui::SetDragDropPayload(payloads::Resource, &payload, sizeof(drag_and_drop_payload));
                             ImGui::EndDragDropSource();
+                        }
+
+                        if (m_expandedAsset == meta.id)
+                        {
+                            std::vector<oblo::uuid> artifacts;
+
+                            if (m_registry->find_asset_artifacts(meta.id, artifacts))
+                            {
+                                for (const auto& artifact : artifacts)
+                                {
+                                    artifact_meta artifactMeta;
+
+                                    if (m_registry->load_artifact_meta(artifact, artifactMeta))
+                                    {
+                                        ImGui::PushID(int(hash_all<std::hash>(artifact)));
+
+                                        ImGui::Button(artifactMeta.importName.empty()
+                                                ? "Unnamed Artifact"
+                                                : artifactMeta.importName.c_str());
+
+                                        if (ImGui::BeginDragDropSource())
+                                        {
+                                            const auto payload = payloads::pack_uuid(artifact);
+
+                                            ImGui::SetDragDropPayload(payloads::Resource,
+                                                &payload,
+                                                sizeof(drag_and_drop_payload));
+
+                                            ImGui::EndDragDropSource();
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

@@ -1,6 +1,7 @@
 #include <oblo/scene/assets/material.hpp>
 
 #include <oblo/core/overload.hpp>
+#include <oblo/core/uuid.hpp>
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/property_registry.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
@@ -17,6 +18,7 @@ namespace oblo
         {
             const auto [it, ok] = m_map.emplace(std::move(name), m_properties.size());
             m_properties.emplace_back(it->first, type, value);
+            return;
         }
 
         auto& p = m_properties[it->second];
@@ -66,6 +68,7 @@ namespace oblo
 
     bool material::load(const property_registry& registry, const std::filesystem::path& source)
     {
+        // TODO: We should save the type_id and piece it back together using the registry
         (void) registry;
 
         m_map.clear();
@@ -112,6 +115,17 @@ namespace oblo
                     case property_kind::u64:
                         set_property(std::string{key}, *reinterpret_cast<const u64*>(value));
                         break;
+
+                    case property_kind::string: {
+                        uuid id;
+
+                        if (id.parse(*reinterpret_cast<const std::string_view*>(value)))
+                        {
+                            set_property(std::string{key}, id);
+                        }
+                    }
+
+                    break;
 
                     default:
                         return visit_result::recurse;

@@ -4,6 +4,7 @@
 #include <oblo/core/file_utility.hpp>
 #include <oblo/core/small_vector.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/core/uuid.hpp>
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
 #include <oblo/properties/serialization/data_node.hpp>
@@ -66,8 +67,12 @@ namespace oblo::json
                     m_state = state::expect_value;
                     return true;
                 case state::expect_value:
-                    // TODO: String value
-                    OBLO_ASSERT(false);
+                    m_doc.child_value(m_stack.back(),
+                        m_lastString,
+                        property_kind::string,
+                        std::as_bytes(std::span{&str, length}));
+
+                    m_lastString.clear();
                     m_state = state::expect_name_or_object_end;
                     return true;
                 default:
@@ -314,6 +319,19 @@ namespace oblo::json
                 case property_kind::f64:
                     writer.Double(*static_cast<f64*>(current.value.data));
                     break;
+
+                case property_kind::string: {
+                    const auto str = *reinterpret_cast<std::string_view*>(current.value.data);
+                    writer.String(str.data(), str.size());
+                }
+                break;
+
+                case property_kind::uuid: {
+                    char buf[36];
+                    static_cast<uuid*>(current.value.data)->format_to(buf);
+                    writer.String(buf, 36);
+                }
+                break;
 
                 default:
                     OBLO_ASSERT(false);

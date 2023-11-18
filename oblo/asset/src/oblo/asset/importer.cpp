@@ -157,6 +157,9 @@ namespace oblo
             .isImported = true,
         };
 
+        std::vector<uuid> importedArtifacts;
+        importedArtifacts.reserve(results.artifacts.size());
+
         for (const import_artifact& artifact : results.artifacts)
         {
             if (artifact.id.is_nil())
@@ -207,6 +210,8 @@ namespace oblo
                 continue;
             }
 
+            importedArtifacts.emplace_back(artifact.id);
+
             if (artifact.id == results.mainArtifactHint)
             {
                 assetMeta.mainArtifactHint = artifact.id;
@@ -216,7 +221,7 @@ namespace oblo
 
         const auto assetFileName = m_config.sourceFile.filename().stem();
 
-        allSucceeded &= registry.save_asset(destination, assetFileName, std::move(assetMeta));
+        allSucceeded &= registry.save_asset(destination, assetFileName, std::move(assetMeta), importedArtifacts);
         allSucceeded &= write_source_files(results.sourceFiles);
 
         return allSucceeded;

@@ -6,10 +6,13 @@
 #include <oblo/asset/importers/registration.hpp>
 #include <oblo/core/data_format.hpp>
 #include <oblo/math/vec3.hpp>
+#include <oblo/modules/module_manager.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
+#include <oblo/scene/assets/mesh.hpp>
 #include <oblo/scene/assets/model.hpp>
 #include <oblo/scene/assets/registration.hpp>
+#include <oblo/scene/scene_module.hpp>
 
 namespace oblo::importers
 {
@@ -25,6 +28,9 @@ namespace oblo::importers
 
     TEST(gltf_importer, box)
     {
+        module_manager mm;
+        mm.load<scene_module>();
+
         resource_registry resources;
         register_resource_types(resources);
 

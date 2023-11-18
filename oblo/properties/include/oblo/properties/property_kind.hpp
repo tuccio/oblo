@@ -17,6 +17,8 @@ namespace oblo
         i64,
         f32,
         f64,
+        uuid,
+        string,
         enum_max,
     };
 
@@ -42,6 +44,9 @@ namespace oblo
         case property_kind::i64:
         case property_kind::u64:
             return {8, 8};
+
+        case property_kind::uuid:
+            return {16, 1};
 
         default:
             return {0, 0};

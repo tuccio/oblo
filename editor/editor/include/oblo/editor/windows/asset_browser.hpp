@@ -1,5 +1,7 @@
 #pragma once
 
+#include <oblo/core/uuid.hpp>
+
 #include <filesystem>
 #include <vector>
 
@@ -25,6 +27,7 @@ namespace oblo::editor
         asset_registry* m_registry{};
         std::filesystem::path m_path;
         std::filesystem::path m_current;
+        uuid m_expandedAsset{};
         std::vector<std::filesystem::path> m_breadcrumbs;
     };
 }
