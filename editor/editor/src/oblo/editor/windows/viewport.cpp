@@ -1,5 +1,6 @@
 #include <oblo/editor/windows/viewport.hpp>
 
+#include <oblo/core/zip_range.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/ecs/type_set.hpp>
@@ -75,7 +76,7 @@ namespace oblo::editor
 
                         if (const resource_ptr modelRes = resource.as<model>())
                         {
-                            for (const resource_ref mesh : modelRes->meshes)
+                            for (const auto& [mesh, material] : zip_range(modelRes->meshes, modelRes->materials))
                             {
                                 if (const resource_ptr meshRes = m_resources->get_resource(mesh.id))
                                 {
@@ -88,7 +89,9 @@ namespace oblo::editor
                                             quaternion::identity(),
                                             vec3::splat(1));
 
-                                    m_entities->get<static_mesh_component>(e).mesh = mesh;
+                                    auto& sm = m_entities->get<static_mesh_component>(e);
+                                    sm.mesh = mesh;
+                                    sm.material = material;
 
                                     auto* const selected = ctx.services.find<selected_entities>();
 

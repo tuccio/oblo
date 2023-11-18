@@ -5,11 +5,13 @@
 
 namespace oblo
 {
+    class material;
     class mesh;
 
     struct static_mesh_component
     {
         resource_ref<mesh> mesh;
+        resource_ref<material> material;
         u32 instance; // Just temporarily here
     };
 }

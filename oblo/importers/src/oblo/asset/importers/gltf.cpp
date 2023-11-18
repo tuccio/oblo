@@ -227,7 +227,7 @@ namespace oblo::importers
             }
         }
 
-        for (const auto& material : m_importMaterials)
+        for (auto& material : m_importMaterials)
         {
             const auto& nodeConfig = ctx.importNodesConfig[material.nodeIndex];
 
@@ -273,12 +273,12 @@ namespace oblo::importers
                 .data = any_asset{std::move(materialArtifact)},
                 .name = ctx.nodes[material.nodeIndex].name,
             });
+
+            material.id = nodeConfig.id;
         }
 
         for (const auto& model : m_importModels)
         {
-            oblo::model modelAsset;
-
             const auto& modelNodeConfig = ctx.importNodesConfig[model.nodeIndex];
 
             if (!modelNodeConfig.enabled)
@@ -288,8 +288,13 @@ namespace oblo::importers
 
             const auto& gltfMesh = m_model.meshes[model.mesh];
 
-            for (u32 meshIndex = model.primitiveBegin; meshIndex < model.primitiveBegin + gltfMesh.primitives.size();
-                 ++meshIndex)
+            oblo::model modelAsset;
+
+            const auto numPrimitives = gltfMesh.primitives.size();
+            modelAsset.meshes.reserve(numPrimitives);
+            modelAsset.materials.reserve(numPrimitives);
+
+            for (u32 meshIndex = model.primitiveBegin; meshIndex < model.primitiveBegin + numPrimitives; ++meshIndex)
             {
                 const auto& mesh = m_importMeshes[meshIndex];
                 const auto& meshNodeConfig = ctx.importNodesConfig[mesh.nodeIndex];
@@ -309,6 +314,7 @@ namespace oblo::importers
                 }
 
                 modelAsset.meshes.emplace_back(meshNodeConfig.id);
+                modelAsset.materials.emplace_back(m_importMaterials[primitive.material].id);
 
                 m_artifacts.push_back({
                     .id = meshNodeConfig.id,

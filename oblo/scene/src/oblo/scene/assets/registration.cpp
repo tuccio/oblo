@@ -47,6 +47,7 @@ namespace oblo
                 nlohmann::ordered_json json;
 
                 json["meshes"] = model.meshes;
+                json["materials"] = model.materials;
 
                 std::ofstream ofs{destination};
 
@@ -66,6 +67,7 @@ namespace oblo
                     std::ifstream ifs{source};
                     const auto json = nlohmann::json::parse(ifs);
                     json.at("meshes").get_to(model.meshes);
+                    json.at("materials").get_to(model.materials);
                     return true;
                 }
                 catch (const std::exception&)

@@ -54,6 +54,10 @@ namespace oblo
         bool find_asset_by_path(const std::filesystem::path& path, uuid& id, asset_meta& assetMeta) const;
         bool find_asset_by_meta_path(const std::filesystem::path& path, uuid& id, asset_meta& assetMeta) const;
 
+        bool find_asset_artifacts(const uuid& id, std::vector<uuid>& artifacts) const;
+
+        bool load_artifact_meta(const uuid& artifactId, artifact_meta& artifact) const;
+
         const std::filesystem::path& get_asset_directory() const;
 
     public:
@@ -82,6 +86,7 @@ namespace oblo
         bool save_asset(const std::filesystem::path& destination,
             const std::filesystem::path& fileName,
             const asset_meta& meta,
+            std::span<const uuid> artifacts,
             write_policy policy = write_policy::no_overwrite);
 
         std::filesystem::path create_source_files_dir(uuid importId);
