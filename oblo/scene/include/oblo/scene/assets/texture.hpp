@@ -46,6 +46,8 @@ namespace oblo
         bool save(const std::filesystem::path& path) const;
         bool load(const std::filesystem::path& path);
 
+        texture_desc get_description() const;
+
     private:
         void* m_impl{};
     };

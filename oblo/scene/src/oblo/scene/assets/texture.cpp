@@ -3,7 +3,10 @@
 #include <oblo/core/file_utility.hpp>
 #include <oblo/math/vec2u.hpp>
 
+#include <vulkan/vulkan_core.h>
+
 #include <ktx.h>
+#include <ktxvulkan.h>
 
 namespace oblo
 {
@@ -143,5 +146,22 @@ namespace oblo
         m_impl = to_impl(newKtx);
 
         return true;
+    }
+
+    texture_desc texture::get_description() const
+    {
+        auto* const t = to_ktx(m_impl);
+
+        return {
+            .vkFormat = u32(ktxTexture_GetVkFormat(t)),
+            .width = t->baseWidth,
+            .height = t->baseHeight,
+            .depth = t->baseDepth,
+            .dimensions = t->numDimensions,
+            .numLevels = t->numLevels,
+            .numLayers = t->numLayers,
+            .numFaces = t->numFaces,
+            .isArray = t->isArray,
+        };
     }
 }
