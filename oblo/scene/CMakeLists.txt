@@ -11,4 +11,5 @@ target_link_libraries(
     KTX::ktx
     nlohmann_json::nlohmann_json
     TinyGLTF::TinyGLTF
+    Vulkan::Headers
 )
