@@ -18,12 +18,12 @@ namespace oblo::vk
     {
 #include <oblo/sandbox/Archivo-Regular.ttf.h>
 
-        ImFont* init_font()
+        ImFont* init_font(ImGuiIO& io)
         {
-            auto& io = ImGui::GetIO();
-
             constexpr int pixels{14};
-            return io.Fonts->AddFontFromMemoryTTF(Archivo_Regular_ttf, Archivo_Regular_ttf_len, pixels);
+            ImFontConfig config{};
+            config.FontDataOwnedByAtlas = false;
+            return io.Fonts->AddFontFromMemoryTTF(Archivo_Regular_ttf, Archivo_Regular_ttf_len, pixels, &config);
         }
     }
 
@@ -74,7 +74,7 @@ namespace oblo::vk
 
         auto& io = ImGui::GetIO();
 
-        init_font();
+        init_font(io);
 
         io.IniFilename = config.imguiIniFile;
 
