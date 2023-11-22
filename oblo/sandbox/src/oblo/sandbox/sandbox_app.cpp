@@ -408,6 +408,16 @@ namespace oblo::vk
     {
         switch (event.window.event)
         {
+        case SDL_WINDOWEVENT_MAXIMIZED:
+        case SDL_WINDOWEVENT_RESTORED:
+            m_minimized = false;
+            break;
+
+        case SDL_WINDOWEVENT_MINIMIZED:
+            m_minimized = true;
+            break;
+
+        case SDL_WINDOWEVENT_RESIZED:
         case SDL_WINDOWEVENT_SIZE_CHANGED:
             wait_idle();
 
