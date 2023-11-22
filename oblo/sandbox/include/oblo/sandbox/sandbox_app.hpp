@@ -99,6 +99,7 @@ namespace oblo::vk
 
         sandbox_app_config m_config{};
 
+        bool m_minimized{false};
         bool m_showImgui{true};
     };
 
@@ -202,6 +203,11 @@ namespace oblo::vk
             if (!poll_events())
             {
                 return false;
+            }
+
+            if (m_minimized)
+            {
+                return true;
             }
 
             u32 imageIndex;
