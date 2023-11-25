@@ -1,9 +1,11 @@
 #pragma once
 
 #include <oblo/ecs/handles.hpp>
+#include <oblo/input/utility/fps_camera_controller.hpp>
 
 namespace oblo
 {
+    class input_queue;
     class resource_registry;
 }
 
@@ -25,6 +27,8 @@ namespace oblo::editor
     private:
         resource_registry* m_resources{};
         ecs::entity_registry* m_entities{};
+        const input_queue* m_inputQueue{};
         ecs::entity m_entity{};
+        fps_camera_controller m_cameraController;
     };
 }

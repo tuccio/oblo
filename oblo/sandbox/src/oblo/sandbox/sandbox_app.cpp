@@ -100,10 +100,53 @@ namespace oblo::vk
         vkDeviceWaitIdle(m_engine.get_device());
     }
 
+    namespace
+    {
+        mouse_key sdl_map_mouse_key(u8 key)
+        {
+            switch (key)
+            {
+            case SDL_BUTTON_LEFT:
+                return mouse_key::left;
+
+            case SDL_BUTTON_RIGHT:
+                return mouse_key::right;
+
+            case SDL_BUTTON_MIDDLE:
+                return mouse_key::middle;
+
+            default:
+                OBLO_ASSERT(false, "Unhandled mouse key");
+                return mouse_key::enum_max;
+            }
+        }
+
+        keyboard_key sdl_map_keyboard_key(SDL_Keycode key)
+        {
+            if (key >= 'a' && key <= 'z')
+            {
+                return keyboard_key(u32(keyboard_key::a) + (key - 'a'));
+            }
+
+            return keyboard_key::enum_max;
+        }
+
+        timestamp sdl_convert_time(u32 time)
+        {
+            // TODO: Convert from ms to our unit (maybe 100 ns?)
+            return time;
+        }
+    }
+
     bool sandbox_base::poll_events()
     {
         for (SDL_Event event; SDL_PollEvent(&event);)
         {
+            if (m_showImgui)
+            {
+                m_imgui.process(event);
+            }
+
             switch (event.type)
             {
             case SDL_QUIT:
@@ -115,20 +158,67 @@ namespace oblo::vk
                     return false;
                 }
 
+                return true;
+            }
+
+            switch (event.type)
+            {
+            case SDL_MOUSEBUTTONDOWN:
+                m_inputQueue.push({
+                    .kind = input_event_kind::mouse_press,
+                    .time = sdl_convert_time(event.button.timestamp),
+                    .mousePress =
+                        {
+                            .key = sdl_map_mouse_key(event.button.button),
+                        },
+                });
+                break;
+
+            case SDL_MOUSEBUTTONUP:
+                m_inputQueue.push({
+                    .kind = input_event_kind::mouse_release,
+                    .time = sdl_convert_time(event.button.timestamp),
+                    .mouseRelease =
+                        {
+                            .key = sdl_map_mouse_key(event.button.button),
+                        },
+                });
+                break;
+
+            case SDL_MOUSEMOTION:
+                m_inputQueue.push({
+                    .kind = input_event_kind::mouse_move,
+                    .time = sdl_convert_time(event.motion.timestamp),
+                    .mouseMove =
+                        {
+                            .x = f32(event.motion.x),
+                            .y = f32(event.motion.y),
+                        },
+                });
                 break;
 
             case SDL_KEYDOWN:
-                if (event.key.keysym.scancode == SDL_SCANCODE_F2)
-                {
-                    m_showImgui = !m_showImgui;
-                }
+                m_inputQueue.push({
+                    .kind = input_event_kind::keyboard_press,
+                    .time = sdl_convert_time(event.key.timestamp),
+                    .keyboardPress =
+                        {
+                            .key = sdl_map_keyboard_key(event.key.keysym.sym),
+                        },
+                });
+                break;
+
+            case SDL_KEYUP:
+                m_inputQueue.push({
+                    .kind = input_event_kind::keyboard_release,
+                    .time = sdl_convert_time(event.key.timestamp),
+                    .keyboardRelease =
+                        {
+                            .key = sdl_map_keyboard_key(event.key.keysym.sym),
+                        },
+                });
 
                 break;
-            }
-
-            if (m_showImgui)
-            {
-                m_imgui.process(event);
             }
         }
 

@@ -7,6 +7,7 @@
 namespace oblo
 {
     class frame_allocator;
+    class input_queue;
 }
 
 namespace oblo::vk
@@ -19,6 +20,7 @@ namespace oblo::vk
     {
         vulkan_context* vkContext;
         frame_allocator* frameAllocator;
+        const input_queue* inputQueue;
         VkFormat swapchainFormat;
         u32 width;
         u32 height;

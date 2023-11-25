@@ -179,4 +179,14 @@ namespace oblo::vk
         ImGui_ImplVulkan_RenderDrawData(drawData, commandBuffer);
         vkCmdEndRendering(commandBuffer);
     }
+
+    bool imgui::is_capturing_mouse() const
+    {
+        return ImGui::GetIO().WantCaptureMouse;
+    }
+
+    bool imgui::is_capturing_keyboard() const
+    {
+        return ImGui::GetIO().WantCaptureKeyboard;
+    }
 }
