@@ -4,6 +4,7 @@ target_link_libraries(
     oblo_sandbox
     PUBLIC
     oblo::core
+    oblo::input
     oblo::vk
     PRIVATE
     imgui::sdl_vk

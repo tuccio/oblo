@@ -32,6 +32,9 @@ namespace oblo::vk
         void begin_frame();
         void end_frame(VkCommandBuffer commandBuffer, VkImageView imageView, u32 width, u32 height);
 
+        bool is_capturing_mouse() const;
+        bool is_capturing_keyboard() const;
+
     private:
         ImGuiContext* m_context{nullptr};
         VkDescriptorPool m_descriptorPool{nullptr};

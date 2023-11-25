@@ -8,6 +8,7 @@ target_link_libraries(
     oblo::ecs
     PRIVATE
     oblo::graphics
+    oblo::input
     oblo::properties
     oblo::scene
     oblo::vk

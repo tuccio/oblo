@@ -53,9 +53,11 @@ namespace oblo
 
         void externally_owned(T* ptr) &&
         {
-            m_registry->m_services.emplace_back(ptr, nullptr);
+            m_registry->m_services.emplace_back(const_cast<void*>(static_cast<const void*>(ptr)), nullptr);
 
-            (m_registry->m_map.emplace(get_type_id<Bases>(), static_cast<Bases*>(ptr)), ...);
+            (m_registry->m_map.emplace(get_type_id<Bases>(),
+                 const_cast<void*>(static_cast<const void*>(static_cast<Bases*>(ptr)))),
+                ...);
         }
 
         template <typename B>

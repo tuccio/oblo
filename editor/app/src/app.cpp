@@ -20,6 +20,7 @@
 #include <oblo/graphics/graphics_module.hpp>
 #include <oblo/graphics/systems/static_mesh_system.hpp>
 #include <oblo/graphics/systems/viewport_system.hpp>
+#include <oblo/input/input_queue.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_manager.hpp>
@@ -117,6 +118,7 @@ namespace oblo::editor
             globalRegistry.add<resource_registry>().externally_owned(&resourceRegistry);
             globalRegistry.add<asset_registry>().externally_owned(&engine->get_asset_registry());
             globalRegistry.add<property_registry>().externally_owned(&engine->get_property_registry());
+            globalRegistry.add<const input_queue>().externally_owned(ctx.inputQueue);
 
             service_registry sceneRegistry{};
             sceneRegistry.add<ecs::entity_registry>().externally_owned(&m_entities);

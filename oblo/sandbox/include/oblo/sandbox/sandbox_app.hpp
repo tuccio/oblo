@@ -5,6 +5,7 @@
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/input/input_queue.hpp>
 #include <oblo/sandbox/context.hpp>
 #include <oblo/sandbox/imgui.hpp>
 #include <oblo/sandbox/sandbox_app_config.hpp>
@@ -17,6 +18,7 @@
 #include <oblo/vulkan/swapchain.hpp>
 #include <oblo/vulkan/texture.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
+
 
 struct SDL_Window;
 union SDL_Event;
@@ -76,6 +78,8 @@ namespace oblo::vk
 
         SDL_Window* m_window;
         VkSurfaceKHR m_surface{nullptr};
+
+        input_queue m_inputQueue;
 
         instance m_instance;
         single_queue_engine m_engine;
@@ -171,6 +175,7 @@ namespace oblo::vk
             const sandbox_init_context context{
                 .vkContext = &m_context,
                 .frameAllocator = &m_frameAllocator,
+                .inputQueue = &m_inputQueue,
                 .swapchainFormat = SwapchainFormat,
             };
 
