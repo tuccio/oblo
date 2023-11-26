@@ -66,14 +66,14 @@ namespace oblo
 
         ~material() = default;
 
-        void set_property(std::string name, material_property_type type, const material_data_storage& value);
+        void set_property(std::string_view name, material_property_type type, const material_data_storage& value);
 
         const material_property* get_property(const std::string_view name) const;
 
         std::span<const material_property> get_properties() const;
 
         template <typename T>
-        void set_property(std::string name, const T& value)
+        void set_property(std::string_view name, const T& value)
         {
             material_data_storage storage;
             new (storage.buffer) T{value};
