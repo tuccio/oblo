@@ -45,6 +45,8 @@ namespace oblo::vk
         m_stringInterner.init(64);
         m_renderPassManager.init(m_vkContext->get_device(), m_stringInterner, *m_descriptorSetPool, m_dummy);
 
+        m_textureRegistry.init(*m_vkContext, m_stagingBuffer);
+
         m_drawRegistry.init(*m_vkContext, m_stagingBuffer, m_stringInterner);
 
         return true;

@@ -9,10 +9,10 @@
 #include <oblo/ecs/range.hpp>
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/ecs/type_registry.hpp>
-#include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
 #include <oblo/math/view_projection.hpp>
+#include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/vulkan/create_render_target.hpp>
 #include <oblo/vulkan/draw/buffer_binding_table.hpp>
 #include <oblo/vulkan/error.hpp>
@@ -20,6 +20,7 @@
 #include <oblo/vulkan/graph/topology_builder.hpp>
 #include <oblo/vulkan/nodes/debug_draw_all.hpp>
 #include <oblo/vulkan/nodes/debug_triangle_node.hpp>
+#include <oblo/vulkan/nodes/forward_pass.hpp>
 #include <oblo/vulkan/nodes/view_buffers_node.hpp>
 #include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/renderer_context.hpp>
@@ -189,20 +190,25 @@ namespace oblo
 
                 if (!renderGraphData)
                 {
-#if 0
-                    expected res = topology_builder{}
-                                       .add_node<debug_triangle_node>()
-                                       .add_output<h32<texture>>(OutFinalRenderTarget)
-                                       .add_input<vec2u>(InResolution)
-                                       .connect_output(&debug_triangle_node::outRenderTarget, OutFinalRenderTarget)
-                                       .connect_input(InResolution, &debug_triangle_node::inResolution)
-                                       .build();
+#if 1
+                    expected res =
+                        topology_builder{}
+                            .add_node<forward_pass>()
+                            .add_node<view_buffers_node>()
+                            .add_output<h32<vk::texture>>(OutFinalRenderTarget)
+                            .add_input<vec2u>(InResolution)
+                            .add_input<camera_buffer>(InCamera)
+                            .connect_output(&forward_pass::outRenderTarget, OutFinalRenderTarget)
+                            .connect_input(InCamera, &view_buffers_node::inCameraData)
+                            .connect_input(InResolution, &forward_pass::inResolution)
+                            .connect(&view_buffers_node::outPerViewBindingTable, &forward_pass::inPerViewBindingTable)
+                            .build();
 #else
                     expected res =
                         topology_builder{}
                             .add_node<debug_draw_all>()
                             .add_node<view_buffers_node>()
-                            .add_output<h32<texture>>(OutFinalRenderTarget)
+                            .add_output<h32<vk::texture>>(OutFinalRenderTarget)
                             .add_input<vec2u>(InResolution)
                             .add_input<camera_buffer>(InCamera)
                             .connect_output(&debug_draw_all::outRenderTarget, OutFinalRenderTarget)

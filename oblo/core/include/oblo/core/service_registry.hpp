@@ -43,12 +43,13 @@ namespace oblo
     class service_registry::builder
     {
     public:
-        void unique() &&
+        T* unique() &&
         {
             T* const ptr = new T{};
             m_registry->m_services.emplace_back(ptr, [](void* p) { delete static_cast<T*>(p); });
 
-            (m_registry->m_map.emplace(get_type_id<Bases>(), static_cast<Bases()>(ptr)), ...);
+            (m_registry->m_map.emplace(get_type_id<Bases>(), static_cast<Bases*>(ptr)), ...);
+            return ptr;
         }
 
         void externally_owned(T* ptr) &&
