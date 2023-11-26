@@ -14,13 +14,13 @@
 
 namespace oblo
 {
-    void material::set_property(std::string name, material_property_type type, const material_data_storage& value)
+    void material::set_property(std::string_view name, material_property_type type, const material_data_storage& value)
     {
         const auto it = m_map.find(name);
 
         if (it == m_map.end())
         {
-            const auto [it, ok] = m_map.emplace(std::move(name), m_properties.size());
+            const auto [it, ok] = m_map.emplace(std::string{name}, m_properties.size());
             m_properties.emplace_back(it->first, type, value);
             return;
         }

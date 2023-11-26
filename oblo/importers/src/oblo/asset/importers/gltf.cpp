@@ -15,6 +15,7 @@
 #include <oblo/scene/assets/material.hpp>
 #include <oblo/scene/assets/mesh.hpp>
 #include <oblo/scene/assets/model.hpp>
+#include <oblo/scene/assets/pbr_properties.hpp>
 #include <oblo/scene/serialization/mesh_file.hpp>
 
 #include <format>
@@ -253,21 +254,21 @@ namespace oblo::importers
                 albedo = vec3::splat(1);
             }
 
-            materialArtifact.set_property("Albedo", albedo);
+            materialArtifact.set_property(pbr::Albedo, albedo);
 
             if (const auto imageIndex = usize(pbr.baseColorTexture.index);
                 imageIndex >= 0 && imageIndex < m_importImages.size() && !m_importImages[imageIndex].id.is_nil())
             {
-                materialArtifact.set_property("Albedo Texture", resource_ref<texture>(m_importImages[imageIndex].id));
+                materialArtifact.set_property(pbr::AlbedoTexture, resource_ref<texture>(m_importImages[imageIndex].id));
             }
 
-            materialArtifact.set_property("Metallic", f32(pbr.metallicFactor));
-            materialArtifact.set_property("Roughness", f32(pbr.roughnessFactor));
+            materialArtifact.set_property(pbr::Metalness, f32(pbr.metallicFactor));
+            materialArtifact.set_property(pbr::Roughness, f32(pbr.roughnessFactor));
 
             if (const auto imageIndex = usize(pbr.metallicRoughnessTexture.index);
                 imageIndex >= 0 && imageIndex < m_importImages.size() && !m_importImages[imageIndex].id.is_nil())
             {
-                materialArtifact.set_property("Metallic/Roughness Texture",
+                materialArtifact.set_property(pbr::MetalnessRoughnessTexture,
                     resource_ref<texture>(m_importImages[imageIndex].id));
             }
 
