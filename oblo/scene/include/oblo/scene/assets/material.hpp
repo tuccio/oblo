@@ -1,6 +1,6 @@
 #pragma once
 
-#include <oblo/core/type_id.hpp>
+#include <oblo/core/expected.hpp>
 #include <oblo/core/types.hpp>
 
 #include <filesystem>
@@ -12,18 +12,46 @@
 namespace oblo
 {
     class property_registry;
+    class texture;
+
+    struct vec2;
+    struct vec3;
+    struct vec4;
+
+    template <typename T>
+    struct resource_ref;
 
     struct material_data_storage
     {
         alignas(long double) std::byte buffer[16];
     };
 
+    enum class material_property_type : u8
+    {
+        f32,
+        vec2,
+        vec3,
+        vec4,
+        texture,
+    };
+
+    enum class material_error : u8
+    {
+        type_mismatch,
+    };
+
     struct material_property
     {
         std::string_view name;
-        type_id type;
+        material_property_type type;
         material_data_storage storage;
+
+        template <typename T>
+        expected<T, material_error> as() const;
     };
+
+    template <typename T>
+    constexpr material_property_type get_material_property_type();
 
     class SCENE_API material
     {
@@ -38,7 +66,7 @@ namespace oblo
 
         ~material() = default;
 
-        void set_property(std::string name, const type_id& type, const material_data_storage& value);
+        void set_property(std::string name, material_property_type type, const material_data_storage& value);
 
         const material_property* get_property(const std::string_view name) const;
 
@@ -49,11 +77,11 @@ namespace oblo
         {
             material_data_storage storage;
             new (storage.buffer) T{value};
-            set_property(std::move(name), get_type_id<T>(), storage);
+            set_property(std::move(name), get_material_property_type<T>(), storage);
         }
 
-        bool save(const property_registry& registry, const std::filesystem::path& destination) const;
-        bool load(const property_registry& registry, const std::filesystem::path& source);
+        bool save(const std::filesystem::path& destination) const;
+        bool load(const std::filesystem::path& source);
 
     private:
         struct string_hash
@@ -75,4 +103,48 @@ namespace oblo
         std::unordered_map<std::string, usize, string_hash, std::equal_to<>> m_map;
         std::vector<material_property> m_properties;
     };
+
+    template <typename T>
+    expected<T, material_error> material_property::as() const
+    {
+        if (type != get_material_property_type<T>())
+        {
+            return material_error::type_mismatch;
+        }
+
+        return *reinterpret_cast<const T*>(storage.buffer);
+    }
+
+    template <typename T>
+    constexpr material_property_type get_material_property_type();
+
+    template <>
+    constexpr material_property_type get_material_property_type<f32>()
+    {
+        return material_property_type::f32;
+    }
+
+    template <>
+    constexpr material_property_type get_material_property_type<vec2>()
+    {
+        return material_property_type::vec2;
+    }
+
+    template <>
+    constexpr material_property_type get_material_property_type<vec3>()
+    {
+        return material_property_type::vec3;
+    }
+
+    template <>
+    constexpr material_property_type get_material_property_type<vec4>()
+    {
+        return material_property_type::vec4;
+    }
+
+    template <>
+    constexpr material_property_type get_material_property_type<resource_ref<texture>>()
+    {
+        return material_property_type::texture;
+    }
 }

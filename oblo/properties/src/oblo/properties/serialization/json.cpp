@@ -2,6 +2,7 @@
 
 #include <oblo/core/debug.hpp>
 #include <oblo/core/file_utility.hpp>
+#include <oblo/core/log.hpp>
 #include <oblo/core/small_vector.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/uuid.hpp>
@@ -9,6 +10,7 @@
 #include <oblo/properties/serialization/data_document.hpp>
 #include <oblo/properties/serialization/data_node.hpp>
 
+#include <rapidjson/document.h>
 #include <rapidjson/filereadstream.h>
 #include <rapidjson/filewritestream.h>
 #include <rapidjson/prettywriter.h>
@@ -45,17 +47,36 @@ namespace oblo::json
                 {
                 case state::expect_object_start:
                     m_state = state::expect_name_or_object_end;
-
-                    if (!m_lastString.empty())
-                    {
-                        // TODO: Add object
-                        OBLO_ASSERT(false);
-                        m_lastString.clear();
-                    }
                     return true;
+
+                case state::expect_value: {
+                    const u32 newNode = m_doc.child_object(m_stack.back(), m_lastString);
+                    m_stack.push_back(newNode);
+                    m_state = state::expect_name_or_object_end;
+                    m_lastString.clear();
+                }
+                    return true;
+
                 default:
                     return false;
                 }
+            }
+
+            bool EndObject(rapidjson::SizeType)
+            {
+                if (m_state != state::expect_name_or_object_end)
+                {
+                    return false;
+                }
+
+                if (m_stack.empty())
+                {
+                    return false;
+                }
+
+                m_state = state::expect_name_or_object_end;
+                m_stack.pop_back();
+                return true;
             }
 
             bool String(const char* str, rapidjson::SizeType length, bool)
@@ -188,11 +209,6 @@ namespace oblo::json
                 }
             }
 
-            bool EndObject(rapidjson::SizeType)
-            {
-                return m_state == state::expect_name_or_object_end;
-            }
-
             bool Default()
             {
                 OBLO_ASSERT(false);
@@ -220,7 +236,18 @@ namespace oblo::json
 
         while (!reader.IterativeParseComplete())
         {
-            reader.IterativeParseNext<rapidjson::kParseDefaultFlags>(rs, handler);
+            if (!reader.IterativeParseNext<rapidjson::kParseDefaultFlags>(rs, handler))
+            {
+                if (reader.HasParseError())
+                {
+                    log::debug("JSON Parse error {} at {}:{}",
+                        i32(reader.GetParseErrorCode()),
+                        source.string(),
+                        reader.GetErrorOffset());
+                }
+
+                return false;
+            }
         }
 
         return !reader.HasParseError();
