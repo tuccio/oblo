@@ -91,4 +91,16 @@ namespace oblo
         auto& n = m_nodes[node];
         return std::string_view{n.key, n.keyLen};
     }
+
+    // Used for string values in data_node
+    struct data_string
+    {
+        const char* data;
+        usize length;
+
+        std::string_view str() const
+        {
+            return {data, length};
+        }
+    };
 }

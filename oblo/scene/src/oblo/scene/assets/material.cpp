@@ -218,7 +218,9 @@ namespace oblo
             case material_property_type::texture: {
                 resource_ref<texture> texture;
 
-                if (texture.id.parse(*reinterpret_cast<const std::string_view*>(value)))
+                const auto dataStr = reinterpret_cast<const data_string*>(value);
+
+                if (texture.id.parse_from(dataStr->str()))
                 {
                     set_property(std::string{key}, texture);
                 }
