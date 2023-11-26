@@ -21,11 +21,11 @@ namespace oblo
     concept non_trivial_type = !std::is_trivial_v<T>;
 
     template <typename T, trivial_type E>
-    class expected;
+    class [[nodiscard]] expected;
 
     // A simplified version of std::expected for trivial types.
     template <trivial_type T, trivial_type E>
-    class expected<T, E>
+    class [[nodiscard]] expected<T, E>
     {
     public:
         constexpr expected() : m_state{expected_state::uninitialized} {}
@@ -100,7 +100,7 @@ namespace oblo
 
     // Implementation for non trivial types
     template <non_trivial_type T, trivial_type E>
-    class expected<T, E>
+    class [[nodiscard]] expected<T, E>
     {
     public:
         constexpr expected() : m_state{expected_state::uninitialized} {}

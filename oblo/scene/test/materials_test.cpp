@@ -71,7 +71,7 @@ namespace oblo
             const auto rAlbedo = albedoProperty->as<vec3>();
             const auto rRoughness = roughnessProperty->as<f32>();
             const auto rMetalness = metalnessProperty->as<f32>();
-            const auto rAlbedoTexture = metalnessProperty->as<resource_ref<texture>>();
+            const auto rAlbedoTexture = albedoTextureProperty->as<resource_ref<texture>>();
             const auto rMrTextureTexture = mrTextureProperty->as<resource_ref<texture>>();
 
             ASSERT_TRUE(rAlbedo);

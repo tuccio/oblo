@@ -106,8 +106,24 @@ namespace oblo
         const auto [size, alignment] = get_size_and_alignment(kind);
         OBLO_ASSERT(data.size() >= size);
 
-        auto* const newData = allocate(size, alignment);
-        std::memcpy(newData, data.data(), size);
+        void* newData{};
+
+        if (size != 0)
+        {
+            newData = allocate(size, alignment);
+            std::memcpy(newData, data.data(), size);
+        }
+        else if (kind == property_kind::string)
+        {
+            const auto dataString = *reinterpret_cast<const data_string*>(data.data());
+
+            auto* const valueStr = static_cast<char*>(allocate(dataString.length + 1, 1));
+            std::memcpy(valueStr, dataString.data, dataString.length);
+            valueStr[dataString.length] = '\0';
+
+            newData = allocate(sizeof(data_string), alignof(data_string));
+            new (newData) data_string{.data = valueStr, .length = dataString.length};
+        }
 
         auto* const newKey = static_cast<char*>(allocate(key.size() + 1, 1));
         std::memcpy(newKey, key.data(), key.size());

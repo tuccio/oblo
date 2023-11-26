@@ -87,14 +87,18 @@ namespace oblo::json
                     m_lastString.assign(str, length);
                     m_state = state::expect_value;
                     return true;
-                case state::expect_value:
+                case state::expect_value: {
+                    const data_string sv{str, length};
+
                     m_doc.child_value(m_stack.back(),
                         m_lastString,
                         property_kind::string,
-                        std::as_bytes(std::span{&str, length}));
+                        std::as_bytes(std::span{&sv, 1}));
 
                     m_lastString.clear();
                     m_state = state::expect_name_or_object_end;
+                }
+
                     return true;
                 default:
                     return false;
@@ -348,8 +352,8 @@ namespace oblo::json
                     break;
 
                 case property_kind::string: {
-                    const auto str = *reinterpret_cast<std::string_view*>(current.value.data);
-                    writer.String(str.data(), str.size());
+                    const auto str = *reinterpret_cast<data_string*>(current.value.data);
+                    writer.String(str.data, str.length);
                 }
                 break;
 
