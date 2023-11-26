@@ -2,15 +2,19 @@
 
 #include <oblo/core/overload.hpp>
 #include <oblo/core/uuid.hpp>
+#include <oblo/math/vec2.hpp>
+#include <oblo/math/vec3.hpp>
+#include <oblo/math/vec4.hpp>
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/property_registry.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
 #include <oblo/properties/serialization/json.hpp>
 #include <oblo/properties/serialization/visit.hpp>
+#include <oblo/resource/resource_ref.hpp>
 
 namespace oblo
 {
-    void material::set_property(std::string name, const type_id& type, const material_data_storage& value)
+    void material::set_property(std::string name, material_property_type type, const material_data_storage& value)
     {
         const auto it = m_map.find(name);
 
@@ -43,7 +47,7 @@ namespace oblo
         return m_properties;
     }
 
-    bool material::save(const property_registry& registry, const std::filesystem::path& destination) const
+    bool material::save(const std::filesystem::path& destination) const
     {
         data_document doc;
 
@@ -53,24 +57,62 @@ namespace oblo
 
         for (const auto& property : m_properties)
         {
-            const auto kind = registry.find_property_kind(property.type);
+            const auto propertyNode = doc.child_object(root, property.name);
 
-            if (kind == property_kind::enum_max)
+            doc.child_value(propertyNode, "type", property_kind::u8, std::as_bytes(std::span{&property.type, 1}));
+
+            constexpr std::string_view valueLabel{"value"};
+
+            switch (property.type)
             {
-                continue;
-            }
+            case material_property_type::f32:
+                doc.child_value(propertyNode, valueLabel, property_kind::f32, std::span{property.storage.buffer});
+                break;
 
-            doc.child_value(root, property.name, kind, std::span{property.storage.buffer});
+            case material_property_type::vec2: {
+                auto* const v = reinterpret_cast<const float*>(property.storage.buffer);
+
+                const auto valueNode = doc.child_object(propertyNode, valueLabel);
+
+                doc.child_value(valueNode, "x", property_kind::f32, std::as_bytes(std::span{v + 0, 1}));
+                doc.child_value(valueNode, "y", property_kind::f32, std::as_bytes(std::span{v + 1, 1}));
+            }
+            break;
+
+            case material_property_type::vec3: {
+                auto* const v = reinterpret_cast<const float*>(property.storage.buffer);
+
+                const auto valueNode = doc.child_object(propertyNode, valueLabel);
+
+                doc.child_value(valueNode, "x", property_kind::f32, std::as_bytes(std::span{v + 0, 1}));
+                doc.child_value(valueNode, "y", property_kind::f32, std::as_bytes(std::span{v + 1, 1}));
+                doc.child_value(valueNode, "z", property_kind::f32, std::as_bytes(std::span{v + 2, 1}));
+            }
+            break;
+
+            case material_property_type::vec4: {
+                auto* const v = reinterpret_cast<const float*>(property.storage.buffer);
+
+                const auto valueNode = doc.child_object(propertyNode, valueLabel);
+
+                doc.child_value(valueNode, "x", property_kind::f32, std::as_bytes(std::span{v + 0, 1}));
+                doc.child_value(valueNode, "y", property_kind::f32, std::as_bytes(std::span{v + 1, 1}));
+                doc.child_value(valueNode, "z", property_kind::f32, std::as_bytes(std::span{v + 2, 1}));
+                doc.child_value(valueNode, "w", property_kind::f32, std::as_bytes(std::span{v + 3, 1}));
+            }
+            break;
+
+            case material_property_type::texture:
+                doc.child_value(propertyNode, valueLabel, property_kind::uuid, std::span{property.storage.buffer});
+                break;
+            }
         }
 
         return json::write(doc, destination);
     }
 
-    bool material::load(const property_registry& registry, const std::filesystem::path& source)
+    bool material::load(const std::filesystem::path& source)
     {
-        // TODO: We should save the type_id and piece it back together using the registry
-        (void) registry;
-
         m_map.clear();
         m_properties.clear();
 
@@ -81,58 +123,109 @@ namespace oblo
             return false;
         }
 
-        visit(doc,
-            overload{[](const std::string_view, data_node_object_start) { return visit_result::recurse; },
-                [](const std::string_view, data_node_object_finish) { return visit_result::recurse; },
-                [this](const std::string_view key, const void* value, property_kind kind, data_node_value)
+        const std::span nodes = doc.get_nodes();
+        const auto root = doc.get_root();
+
+        for (u32 index = nodes[root].object.firstChild; index != data_node::Invalid; index = nodes[index].nextSibling)
+        {
+            if (nodes[index].kind != data_node_kind::object)
+            {
+                continue;
+            }
+
+            const u32 typeIndex = doc.find_child(index, "type");
+            const u32 valueIndex = doc.find_child(index, "value");
+
+            if (typeIndex == data_node::Invalid || valueIndex == data_node::Invalid)
+            {
+                continue;
+            }
+
+            // TODO: Check if type matches (should do the same in the switch below)
+            const auto type = material_property_type(*reinterpret_cast<const u32*>(nodes[typeIndex].value.data));
+            const auto key = doc.get_node_name(index);
+
+            constexpr auto any_invalid = [](auto... n) { return ((n == data_node::Invalid) || ...); };
+
+            auto* const value = nodes[valueIndex].value.data;
+
+            switch (type)
+            {
+            case material_property_type::f32:
+                set_property(std::string{key}, doc.read_f32(valueIndex).value_or(0.f));
+                break;
+
+            case material_property_type::vec2: {
+                const auto x = doc.find_child(valueIndex, "x");
+                const auto y = doc.find_child(valueIndex, "y");
+
+                if (any_invalid(x, y))
                 {
-                    switch (kind)
-                    {
-                    case property_kind::boolean:
-                        set_property(std::string{key}, *reinterpret_cast<const bool*>(value));
-                        break;
-
-                    case property_kind::f32:
-                        set_property(std::string{key}, *reinterpret_cast<const f32*>(value));
-                        break;
-
-                    case property_kind::f64:
-                        set_property(std::string{key}, f32(*reinterpret_cast<const f64*>(value)));
-                        break;
-
-                    case property_kind::i32:
-                        set_property(std::string{key}, *reinterpret_cast<const i32*>(value));
-                        break;
-
-                    case property_kind::u32:
-                        set_property(std::string{key}, *reinterpret_cast<const u32*>(value));
-                        break;
-
-                    case property_kind::i64:
-                        set_property(std::string{key}, *reinterpret_cast<const i64*>(value));
-                        break;
-
-                    case property_kind::u64:
-                        set_property(std::string{key}, *reinterpret_cast<const u64*>(value));
-                        break;
-
-                    case property_kind::string: {
-                        uuid id;
-
-                        if (id.parse(*reinterpret_cast<const std::string_view*>(value)))
-                        {
-                            set_property(std::string{key}, id);
-                        }
-                    }
-
                     break;
+                }
 
-                    default:
-                        return visit_result::recurse;
-                    }
+                const vec2 v{
+                    doc.read_f32(x).value_or(0.f),
+                    doc.read_f32(y).value_or(0.f),
+                };
 
-                    return visit_result::recurse;
-                }});
+                set_property(std::string{key}, v);
+            }
+            break;
+
+            case material_property_type::vec3: {
+                const auto x = doc.find_child(valueIndex, "x");
+                const auto y = doc.find_child(valueIndex, "y");
+                const auto z = doc.find_child(valueIndex, "z");
+
+                if (any_invalid(x, y, z))
+                {
+                    break;
+                }
+
+                const vec3 v{
+                    doc.read_f32(x).value_or(0.f),
+                    doc.read_f32(y).value_or(0.f),
+                    doc.read_f32(z).value_or(0.f),
+                };
+
+                set_property(std::string{key}, v);
+            }
+            break;
+
+            case material_property_type::vec4: {
+                const auto x = doc.find_child(valueIndex, "x");
+                const auto y = doc.find_child(valueIndex, "y");
+                const auto z = doc.find_child(valueIndex, "z");
+                const auto w = doc.find_child(valueIndex, "w");
+
+                if (any_invalid(x, y, z, w))
+                {
+                    break;
+                }
+
+                const vec4 v{
+                    doc.read_f32(x).value_or(0.f),
+                    doc.read_f32(y).value_or(0.f),
+                    doc.read_f32(z).value_or(0.f),
+                    doc.read_f32(w).value_or(0.f),
+                };
+
+                set_property(std::string{key}, v);
+            }
+            break;
+
+            case material_property_type::texture: {
+                resource_ref<texture> texture;
+
+                if (texture.id.parse(*reinterpret_cast<const std::string_view*>(value)))
+                {
+                    set_property(std::string{key}, texture);
+                }
+            }
+            break;
+            }
+        }
 
         return true;
     }

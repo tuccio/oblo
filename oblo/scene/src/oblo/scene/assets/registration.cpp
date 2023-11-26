@@ -3,7 +3,6 @@
 #include <oblo/asset/asset_registry.hpp>
 
 #include <oblo/asset/asset_type_desc.hpp>
-#include <oblo/engine/engine_module.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/assets/material.hpp>
 #include <oblo/scene/assets/mesh.hpp>
@@ -110,12 +109,12 @@ namespace oblo
         {
             static bool save(const material& material, const std::filesystem::path& destination)
             {
-                return material.save(engine_module::get().get_property_registry(), destination);
+                return material.save(destination);
             }
 
             static bool load(material& material, const std::filesystem::path& source)
             {
-                return material.load(engine_module::get().get_property_registry(), source);
+                return material.load(source);
             }
         };
     }
@@ -158,6 +157,7 @@ namespace oblo
 
     void register_resource_types(resource_registry& registry)
     {
+        registry.register_type(make_resource_type_desc<material>());
         registry.register_type(make_resource_type_desc<mesh>());
         registry.register_type(make_resource_type_desc<model>());
         registry.register_type(make_resource_type_desc<texture>());
@@ -165,6 +165,7 @@ namespace oblo
 
     void unregister_resource_types(resource_registry& registry)
     {
+        registry.unregister_type(get_type_id<material>());
         registry.unregister_type(get_type_id<mesh>());
         registry.unregister_type(get_type_id<model>());
         registry.unregister_type(get_type_id<texture>());

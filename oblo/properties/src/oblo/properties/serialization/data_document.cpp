@@ -9,6 +9,17 @@
 
 namespace oblo
 {
+    namespace
+    {
+        constexpr decltype(data_node::object) make_invalid_object()
+        {
+            return {
+                .firstChild = data_node::Invalid,
+                .lastChild = data_node::Invalid,
+            };
+        }
+    }
+
     struct data_document::data_chunk
     {
         data_chunk* next;
@@ -42,11 +53,7 @@ namespace oblo
         const data_node root{
             .kind = data_node_kind::object,
             .nextSibling = data_node::Invalid,
-            .object =
-                {
-                    .firstChild = data_node::Invalid,
-                    .lastChild = data_node::Invalid,
-                },
+            .object = make_invalid_object(),
         };
 
         m_nodes.assign(1, root);
@@ -60,6 +67,31 @@ namespace oblo
         }
 
         return 0u;
+    }
+
+    u32 data_document::child_object(u32 parentIndex, std::string_view key)
+    {
+        u32 newChild = u32(m_nodes.size());
+        auto& newObject = m_nodes.emplace_back();
+
+        auto& parent = m_nodes[parentIndex];
+        OBLO_ASSERT(parent.kind == data_node_kind::object);
+
+        auto* const newKey = static_cast<char*>(allocate(key.size() + 1, 1));
+        std::memcpy(newKey, key.data(), key.size());
+        newKey[key.size()] = '\0';
+
+        newObject = {
+            .kind = data_node_kind::object,
+            .keyLen = narrow_cast<u16>(key.size()),
+            .nextSibling = data_node::Invalid,
+            .key = newKey,
+            .object = make_invalid_object(),
+        };
+
+        append_new_child(parent, newChild);
+
+        return newChild;
     }
 
     void data_document::child_value(
@@ -93,17 +125,7 @@ namespace oblo
                 },
         };
 
-        if (parent.object.firstChild == data_node::Invalid)
-        {
-            parent.object.firstChild = newChild;
-        }
-
-        if (parent.object.lastChild != data_node::Invalid)
-        {
-            m_nodes[parent.object.lastChild].nextSibling = newChild;
-        }
-
-        parent.object.lastChild = newChild;
+        append_new_child(parent, newChild);
     }
 
     void* data_document::allocate(usize size, usize alignment)
@@ -143,8 +165,45 @@ namespace oblo
         };
     }
 
+    void data_document::append_new_child(data_node& parent, u32 newChild)
+    {
+        if (parent.object.firstChild == data_node::Invalid)
+        {
+            parent.object.firstChild = newChild;
+        }
+
+        if (parent.object.lastChild != data_node::Invalid)
+        {
+            m_nodes[parent.object.lastChild].nextSibling = newChild;
+        }
+
+        parent.object.lastChild = newChild;
+    }
+
     std::span<const data_node> data_document::get_nodes() const
     {
         return m_nodes;
+    }
+
+    expected<f32, data_document::error> data_document::read_f32(u32 node) const
+    {
+        auto& n = m_nodes[node];
+
+        if (n.kind != data_node_kind::value)
+        {
+            return error::node_kind_mismatch;
+        }
+
+        if (n.valueKind == property_kind::f32)
+        {
+            return *reinterpret_cast<const f32*>(n.value.data);
+        }
+
+        if (n.valueKind == property_kind::f64)
+        {
+            return f32(*reinterpret_cast<const f64*>(n.value.data));
+        }
+
+        return error::value_kind_mismatch;
     }
 }
