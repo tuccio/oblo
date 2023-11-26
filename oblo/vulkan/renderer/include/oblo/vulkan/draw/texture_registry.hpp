@@ -17,7 +17,6 @@ namespace oblo::vk
 {
     class staging_buffer;
     class vulkan_context;
-    struct buffer;
     struct resident_texture;
 
     using texture_resource = oblo::texture;
@@ -37,8 +36,6 @@ namespace oblo::vk
 
         h32<resident_texture> add(staging_buffer& staging, const texture_resource& texture);
         void remove(h32<resident_texture> texture);
-
-        h32<buffer> get_textures2d_buffer() const;
 
         std::span<const VkDescriptorImageInfo> get_textures2d_info() const;
 

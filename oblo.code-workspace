@@ -100,7 +100,8 @@
 			"queue": "cpp",
 			"variant": "cpp",
 			"geometry": "cpp",
-			"complex": "cpp"
+			"complex": "cpp",
+			"eulerangles": "cpp"
 		}
 	}
 }

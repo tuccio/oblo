@@ -10,6 +10,7 @@ namespace oblo::ecs
 namespace oblo::vk
 {
     class renderer;
+    class resource_cache;
     struct draw_buffer;
 }
 
@@ -26,6 +27,8 @@ namespace oblo
     private:
         vk::renderer* m_renderer{};
         resource_registry* m_resourceRegistry;
+        vk::resource_cache* m_resourceCache;
         h32<vk::draw_buffer> m_transformBuffer{};
+        h32<vk::draw_buffer> m_materialsBuffer{};
     };
 }

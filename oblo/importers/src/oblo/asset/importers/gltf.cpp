@@ -253,10 +253,12 @@ namespace oblo::importers
                 albedo = vec3::splat(1);
             }
 
+            materialArtifact.set_property("Albedo", albedo);
+
             if (const auto imageIndex = usize(pbr.baseColorTexture.index);
                 imageIndex >= 0 && imageIndex < m_importImages.size() && !m_importImages[imageIndex].id.is_nil())
             {
-                materialArtifact.set_property("Albedo Texture", m_importImages[imageIndex].id);
+                materialArtifact.set_property("Albedo Texture", resource_ref<texture>(m_importImages[imageIndex].id));
             }
 
             materialArtifact.set_property("Metallic", f32(pbr.metallicFactor));
@@ -265,7 +267,8 @@ namespace oblo::importers
             if (const auto imageIndex = usize(pbr.metallicRoughnessTexture.index);
                 imageIndex >= 0 && imageIndex < m_importImages.size() && !m_importImages[imageIndex].id.is_nil())
             {
-                materialArtifact.set_property("Metallic/Roughness Texture", m_importImages[imageIndex].id);
+                materialArtifact.set_property("Metallic/Roughness Texture",
+                    resource_ref<texture>(m_importImages[imageIndex].id));
             }
 
             m_artifacts.push_back({

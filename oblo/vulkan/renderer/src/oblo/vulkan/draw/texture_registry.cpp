@@ -35,6 +35,10 @@ namespace oblo::vk
         VkImageView imageView;
     };
 
+    texture_registry::texture_registry() = default;
+
+    texture_registry::~texture_registry() = default;
+
     bool texture_registry::init(vulkan_context& vkCtx, staging_buffer& staging)
     {
         m_imageInfo.reserve(2048);

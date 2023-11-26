@@ -30,6 +30,7 @@
 #include <oblo/scene/scene_module.hpp>
 #include <oblo/scene/systems/transform_system.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
+#include <oblo/vulkan/draw/resource_cache.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
 #include <oblo/vulkan/stateful_command_buffer.hpp>
@@ -85,7 +86,10 @@ namespace oblo::editor
             return false;
         }
 
-        if (!m_renderer.init({.vkContext = *ctx.vkContext, .frameAllocator = *ctx.frameAllocator}))
+        if (!m_renderer.init({
+                .vkContext = *ctx.vkContext,
+                .frameAllocator = *ctx.frameAllocator,
+            }))
         {
             return false;
         }
@@ -135,6 +139,9 @@ namespace oblo::editor
         m_services.add<vk::vulkan_context>().externally_owned(ctx.vkContext);
         m_services.add<vk::renderer>().externally_owned(&m_renderer);
         m_services.add<resource_registry>().externally_owned(&resourceRegistry);
+
+        auto* const resourceCache = m_services.add<vk::resource_cache>().unique();
+        resourceCache->init(resourceRegistry, m_renderer.get_texture_registry(), m_renderer.get_staging_buffer());
 
         m_executor = create_system_executor();
 
