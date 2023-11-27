@@ -39,11 +39,8 @@ namespace oblo::vk
                 .memoryUsage = memory_usage::gpu_only,
             });
 
-        m_descriptorSetPool = std::make_unique<descriptor_set_pool>();
-        m_descriptorSetPool->init(*m_vkContext);
-
         m_stringInterner.init(64);
-        m_renderPassManager.init(m_vkContext->get_device(), m_stringInterner, *m_descriptorSetPool, m_dummy);
+        m_renderPassManager.init(*m_vkContext, m_stringInterner, m_dummy, m_textureRegistry);
 
         m_textureRegistry.init(*m_vkContext, m_stagingBuffer);
 
@@ -62,10 +59,7 @@ namespace oblo::vk
         m_renderGraphs.clear();
         m_graphResourcePool.shutdown(*m_vkContext);
 
-        m_renderPassManager.shutdown();
-
-        m_descriptorSetPool->shutdown();
-        m_descriptorSetPool.reset();
+        m_renderPassManager.shutdown(*m_vkContext);
 
         resourceManager.destroy(allocator, m_dummy);
 
@@ -78,8 +72,8 @@ namespace oblo::vk
 
         m_stagingBuffer.flush();
 
-        m_descriptorSetPool->begin_frame();
         m_graphResourcePool.begin_build();
+        m_renderPassManager.begin_frame();
 
         // TODO: Graph dependencies, e.g. shadow maps should run before other graphs
         for (auto& graphData : m_renderGraphs.values())
@@ -96,7 +90,7 @@ namespace oblo::vk
             graphData.execute(*this, m_graphResourcePool);
         }
 
-        m_descriptorSetPool->end_frame();
+        m_renderPassManager.end_frame();
         m_drawRegistry.end_frame();
     }
 

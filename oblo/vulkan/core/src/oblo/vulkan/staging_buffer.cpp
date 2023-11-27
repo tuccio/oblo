@@ -195,9 +195,59 @@ namespace oblo::vk
         return true;
     }
 
+    bool staging_buffer::upload(std::span<const std::byte> source,
+        VkImage image,
+        VkImageLayout dstImageLayout,
+        u32 width,
+        u32 height,
+        VkImageSubresourceLayers subresource,
+        VkOffset3D imageOffset,
+        VkExtent3D imageExtent)
+    {
+        auto* const srcPtr = source.data();
+        const auto srcSize = narrow_cast<u32>(source.size());
+
+        const auto available = m_impl.ring.available_count();
+
+        if (available < srcSize)
+        {
+            return false;
+        }
+
+        const auto segmentedSpan = m_impl.ring.fetch(srcSize);
+
+        if (auto& secondSecment = segmentedSpan.segments[1]; secondSecment.begin != secondSecment.end)
+        {
+            // TODO: Rather than failing, try to extend it
+            OBLO_ASSERT(false,
+                "We don't split the image upload, we could at least make sure we have enough space for it");
+            return false;
+        }
+
+        const auto segment = segmentedSpan.segments[0];
+        std::memcpy(m_impl.memoryMap + segment.begin, srcPtr, srcSize);
+
+        const VkBufferImageCopy copyRegion{
+            .bufferOffset = segment.begin,
+            .bufferRowLength = width,
+            .bufferImageHeight = height,
+            .imageSubresource = subresource,
+            .imageOffset = imageOffset,
+            .imageExtent = imageExtent,
+        };
+
+        const auto nextSubmitIndex = get_next_submit_index();
+        const auto commandBuffer = m_impl.commandBuffers[nextSubmitIndex];
+
+        // TODO: Pipeline barriers?
+        vkCmdCopyBufferToImage(commandBuffer, m_impl.buffer, image, dstImageLayout, 1, &copyRegion);
+        m_impl.pendingUploadBytes += srcSize;
+
+        return true;
+    }
+
     void staging_buffer::flush()
     {
-
         if (m_impl.pendingUploadBytes == 0)
         {
             return;

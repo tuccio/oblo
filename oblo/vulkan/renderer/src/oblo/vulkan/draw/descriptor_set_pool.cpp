@@ -11,37 +11,33 @@
 
 namespace oblo::vk
 {
-    namespace
-    {
-        constexpr u32 MaxDescriptorTypeCount{16};
-        constexpr u32 MaxSetsPerPool{128};
-    }
-
-    void descriptor_set_pool::init(vulkan_context& context)
+    void descriptor_set_pool::init(const vulkan_context& context,
+        u32 maxSetsPerPool,
+        VkDescriptorPoolCreateFlags flags,
+        const std::span<const VkDescriptorPoolSize> poolSizes)
     {
         m_ctx = &context;
+        m_poolSizes.assign(poolSizes.begin(), poolSizes.end());
+
+        m_maxSetsPerPool = maxSetsPerPool;
+        m_poolCreateFlags = flags;
     }
 
-    void descriptor_set_pool::shutdown()
+    void descriptor_set_pool::shutdown(vulkan_context& vkCtx)
     {
-        if (!m_ctx)
-        {
-            return;
-        }
-
         if (m_current)
         {
-            m_ctx->destroy_deferred(m_current, m_submitIndex);
+            vkCtx.destroy_deferred(m_current, m_submitIndex);
         }
 
         for (const auto& [h, layout] : m_pool)
         {
-            m_ctx->destroy_deferred(layout, m_submitIndex);
+            vkCtx.destroy_deferred(layout, m_submitIndex);
         }
 
         for (const auto& [pool, index] : m_used)
         {
-            m_ctx->destroy_deferred(pool, index);
+            vkCtx.destroy_deferred(pool, index);
         }
     }
 
@@ -140,21 +136,15 @@ namespace oblo::vk
 
     VkDescriptorPool descriptor_set_pool::create_pool()
     {
-        // We keep it simple for now, and simply create 1 layout, bigger than it has to be
         auto* const allocationCbs = m_ctx->get_allocator().get_allocation_callbacks();
         const VkDevice device = m_ctx->get_device();
 
-        constexpr VkDescriptorPoolSize descriptorSizes[] = {
-            {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, MaxDescriptorTypeCount},
-            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MaxDescriptorTypeCount},
-        };
-
         const VkDescriptorPoolCreateInfo poolCreateInfo{
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-            .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-            .maxSets = MaxSetsPerPool,
-            .poolSizeCount = array_size(descriptorSizes),
-            .pPoolSizes = descriptorSizes,
+            .flags = m_poolCreateFlags,
+            .maxSets = m_maxSetsPerPool,
+            .poolSizeCount = u32(m_poolSizes.size()),
+            .pPoolSizes = m_poolSizes.data(),
         };
 
         VkDescriptorPool pool;
@@ -166,7 +156,7 @@ namespace oblo::vk
     {
         if (m_current)
         {
-            // Nothing to do, we will return t he current one
+            // Nothing to do, we will return the current one
         }
         else if (!m_used.empty() && m_ctx->is_submit_done(m_used.front().frameIndex))
         {

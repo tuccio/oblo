@@ -13,8 +13,10 @@
 #include <oblo/vulkan/draw/draw_registry.hpp>
 #include <oblo/vulkan/draw/mesh_table.hpp>
 #include <oblo/vulkan/draw/render_pass_initializer.hpp>
+#include <oblo/vulkan/draw/texture_registry.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/shader_compiler.hpp>
+#include <oblo/vulkan/vulkan_context.hpp>
 
 #include <efsw/efsw.hpp>
 #include <spirv_cross/spirv_cross.hpp>
@@ -25,6 +27,10 @@ namespace oblo::vk
 {
     namespace
     {
+        constexpr u32 TexturesDescriptorSet{16};
+        constexpr u32 TexturesSamplerBinding{32};
+        constexpr u32 Textures2DBinding{33};
+
         constexpr bool WithShaderCodeOptimizations{false};
 
         constexpr u8 MaxPipelineStages = u8(pipeline_stages::enum_max);
@@ -131,6 +137,8 @@ namespace oblo::vk
 
         VkDescriptorSetLayout descriptorSetLayout{};
 
+        bool requiresTexture2D{};
+
         // TODO: Active stages (e.g. tessellation on/off)
         // TODO: Active options
     };
@@ -166,36 +174,126 @@ namespace oblo::vk
         h32_flat_pool_dense_map<render_pass> renderPasses;
         h32_flat_pool_dense_map<render_pipeline> renderPipelines;
         string_interner* interner{};
-        descriptor_set_pool* descriptorSetPool{};
+        descriptor_set_pool descriptorSetPool;
+        descriptor_set_pool texturesDescriptorSetPool;
+        const texture_registry* textureRegistry{};
         h32<buffer> dummy{};
         std::optional<efsw::FileWatcher> fileWatcher;
+        VkDescriptorSetLayout textures2DSetLayout{};
+        VkDescriptorSet currentTextures2DSet{};
+
+        VkSampler samplers[1]{};
     };
 
     render_pass_manager::render_pass_manager() = default;
     render_pass_manager::~render_pass_manager() = default;
 
-    void render_pass_manager::init(
-        VkDevice device, string_interner& interner, descriptor_set_pool& descriptorSetPool, const h32<buffer> dummy)
+    void render_pass_manager::init(const vulkan_context& vkContext,
+        string_interner& interner,
+        const h32<buffer> dummy,
+        const texture_registry& textureRegistry)
     {
         m_impl = std::make_unique<impl>();
 
         m_impl->frameAllocator.init(1u << 22);
 
-        m_impl->device = device;
+        m_impl->device = vkContext.get_device();
         m_impl->interner = &interner;
-        m_impl->descriptorSetPool = &descriptorSetPool;
         m_impl->dummy = dummy;
 
-        if (device)
+        m_impl->textureRegistry = &textureRegistry;
+
+        shader_compiler::init();
+
         {
-            shader_compiler::init();
+            const VkSamplerCreateInfo samplerInfo{
+                .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+                .magFilter = VK_FILTER_LINEAR,
+                .minFilter = VK_FILTER_LINEAR,
+                .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+                .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                .mipLodBias = 0.0f,
+                .compareEnable = false,
+                .compareOp = VK_COMPARE_OP_ALWAYS,
+                .minLod = 0.0f,
+                .maxLod = 0.0f,
+                .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+                .unnormalizedCoordinates = false,
+            };
+
+            vkCreateSampler(vkContext.get_device(),
+                &samplerInfo,
+                vkContext.get_allocator().get_allocation_callbacks(),
+                &m_impl->samplers[0]);
+        }
+
+        {
+            constexpr VkDescriptorPoolSize descriptorPoolSizes[] = {
+                {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 64},
+                {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 64},
+            };
+
+            m_impl->descriptorSetPool.init(vkContext,
+                128,
+                VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+                descriptorPoolSizes);
+        }
+
+        {
+            const VkDescriptorPoolSize descriptorPoolSizes[] = {
+                {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, textureRegistry.get_max_descriptor_count()},
+            };
+
+            m_impl->texturesDescriptorSetPool.init(vkContext,
+                128,
+                VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+                descriptorPoolSizes);
+        }
+
+        {
+            constexpr VkDescriptorBindingFlags bindlessFlags =
+                VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT_EXT;
+
+            const VkDescriptorSetLayoutBinding vkBindings[] = {
+                {.binding = TexturesSamplerBinding,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
+                    .descriptorCount = array_size(m_impl->samplers),
+                    .stageFlags = VK_SHADER_STAGE_ALL,
+                    .pImmutableSamplers = m_impl->samplers},
+                {
+                    .binding = Textures2DBinding,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+                    .descriptorCount = textureRegistry.get_max_descriptor_count(),
+                    .stageFlags = VK_SHADER_STAGE_ALL,
+                },
+            };
+
+            const VkDescriptorSetLayoutBindingFlagsCreateInfoEXT extendedInfo{
+                .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT,
+                .bindingCount = 1,
+                .pBindingFlags = &bindlessFlags,
+            };
+
+            const VkDescriptorSetLayoutCreateInfo layoutInfo = {
+                .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+                .pNext = &extendedInfo,
+                .bindingCount = array_size(vkBindings),
+                .pBindings = vkBindings,
+            };
+
+            vkCreateDescriptorSetLayout(vkContext.get_device(),
+                &layoutInfo,
+                vkContext.get_allocator().get_allocation_callbacks(),
+                &m_impl->textures2DSetLayout);
         }
 
         auto& watcher = m_impl->fileWatcher.emplace();
         watcher.watch();
     }
 
-    void render_pass_manager::shutdown()
+    void render_pass_manager::shutdown(vulkan_context& vkContext)
     {
         if (!m_impl)
         {
@@ -211,6 +309,19 @@ namespace oblo::vk
 
             shader_compiler::shutdown();
         }
+
+        for (auto sampler : m_impl->samplers)
+        {
+            if (sampler)
+            {
+                vkContext.destroy_deferred(sampler, vkContext.get_submit_index());
+            }
+        }
+
+        vkContext.destroy_deferred(m_impl->textures2DSetLayout, vkContext.get_submit_index());
+
+        m_impl->descriptorSetPool.shutdown(vkContext);
+        m_impl->texturesDescriptorSetPool.shutdown(vkContext);
 
         m_impl.reset();
     }
@@ -401,6 +512,18 @@ namespace oblo::vk
 
                 for (const auto& storageBuffer : shaderResources.storage_buffers)
                 {
+                    const auto set = compiler.get_decoration(storageBuffer.id, spv::DecorationDescriptorSet);
+
+                    if (set != 0)
+                    {
+                        if (set == TexturesDescriptorSet)
+                        {
+                            newPipeline.requiresTexture2D = true;
+                        }
+
+                        continue;
+                    }
+
                     // TODO: We are ignoring the descriptor set here
                     const auto name = m_impl->interner->get_or_add(storageBuffer.name);
                     const auto location = compiler.get_decoration(storageBuffer.id, spv::DecorationLocation);
@@ -424,7 +547,13 @@ namespace oblo::vk
 
                 for (const auto& uniformBuffer : shaderResources.uniform_buffers)
                 {
-                    // TODO: We are ignoring the descriptor set here
+                    const auto set = compiler.get_decoration(uniformBuffer.id, spv::DecorationDescriptorSet);
+
+                    if (set != 0)
+                    {
+                        continue;
+                    }
+
                     const auto name = m_impl->interner->get_or_add(uniformBuffer.name);
                     const auto location = compiler.get_decoration(uniformBuffer.id, spv::DecorationLocation);
                     const auto binding = compiler.get_decoration(uniformBuffer.id, spv::DecorationBinding);
@@ -476,7 +605,7 @@ namespace oblo::vk
         // descriptors smaller
 
         newPipeline.descriptorSetLayout =
-            m_impl->descriptorSetPool->get_or_add_layout(newPipeline.descriptorSetBindings);
+            m_impl->descriptorSetPool.get_or_add_layout(newPipeline.descriptorSetBindings);
 
         // TODO: Figure out inputs
         const VkPipelineLayoutCreateInfo pipelineLayoutInfo{
@@ -608,6 +737,44 @@ namespace oblo::vk
         return failure();
     }
 
+    void render_pass_manager::begin_frame()
+    {
+        m_impl->descriptorSetPool.begin_frame();
+        m_impl->texturesDescriptorSetPool.begin_frame();
+
+        const std::span textures2DInfo = m_impl->textureRegistry->get_textures2d_info();
+
+        if (textures2DInfo.empty())
+        {
+            m_impl->currentTextures2DSet = {};
+            return;
+        }
+
+        const VkDescriptorSet descriptorSet = m_impl->texturesDescriptorSetPool.acquire(m_impl->textures2DSetLayout);
+
+        const VkWriteDescriptorSet descriptorSetWrites[] = {
+            {
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .dstSet = descriptorSet,
+                .dstBinding = Textures2DBinding,
+                .dstArrayElement = 0,
+                .descriptorCount = u32(textures2DInfo.size()),
+                .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+                .pImageInfo = textures2DInfo.data(),
+            },
+        };
+
+        vkUpdateDescriptorSets(m_impl->device, array_size(descriptorSetWrites), descriptorSetWrites, 0, nullptr);
+
+        m_impl->currentTextures2DSet = descriptorSet;
+    }
+
+    void render_pass_manager::end_frame()
+    {
+        m_impl->descriptorSetPool.end_frame();
+        m_impl->texturesDescriptorSetPool.end_frame();
+    }
+
     bool render_pass_manager::begin_rendering(render_pass_context& context, const VkRenderingInfo& renderingInfo) const
     {
         const auto* pipeline = m_impl->renderPipelines.try_find(context.pipeline);
@@ -622,6 +789,19 @@ namespace oblo::vk
         const auto commandBuffer = context.commandBuffer;
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline);
         vkCmdBeginRendering(commandBuffer, &renderingInfo);
+
+        if (pipeline->requiresTexture2D && m_impl->currentTextures2DSet)
+        {
+            vkCmdBindDescriptorSets(commandBuffer,
+                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                pipeline->pipelineLayout,
+                TexturesSamplerBinding,
+                1,
+                &m_impl->currentTextures2DSet,
+                0,
+                nullptr);
+        }
+
         return true;
     }
 
@@ -692,7 +872,7 @@ namespace oblo::vk
 
             if (const auto descriptorSetLayout = pipeline->descriptorSetLayout)
             {
-                const VkDescriptorSet descriptorSet = m_impl->descriptorSetPool->acquire(descriptorSetLayout);
+                const VkDescriptorSet descriptorSet = m_impl->descriptorSetPool.acquire(descriptorSetLayout);
 
                 constexpr u32 MaxWrites{64};
 

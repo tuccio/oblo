@@ -28,6 +28,15 @@ namespace oblo::vk
 
         bool upload(std::span<const std::byte> source, VkBuffer buffer, u32 bufferOffset);
 
+        bool upload(std::span<const std::byte> source,
+            VkImage image,
+            VkImageLayout dstImageLayout,
+            u32 width,
+            u32 height,
+            VkImageSubresourceLayers subresource,
+            VkOffset3D imageOffset,
+            VkExtent3D imageExtent);
+
         void flush();
 
         void poll_submissions();

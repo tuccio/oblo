@@ -25,6 +25,46 @@ namespace oblo::vk
                 return VK_IMAGE_TYPE_MAX_ENUM;
             }
         }
+
+        bool convert_rgb8_to_rgba8(
+            const texture_resource& source, const texture_desc& desc, texture_resource& converted, VkFormat newFormat)
+        {
+            auto convertedDesc = desc;
+            convertedDesc.vkFormat = u32(newFormat);
+
+            if (!converted.allocate(desc))
+            {
+                return false;
+            }
+
+            for (u32 level = 0; level < desc.numLevels; ++level)
+            {
+                for (u32 face = 0; face < desc.numFaces; ++face)
+                {
+                    for (u32 layer = 0; layer < desc.numLayers; ++layer)
+                    {
+                        const std::span src = source.get_data(level, face, layer);
+                        const std::span dst = converted.get_data(level, face, layer);
+
+                        auto* outIt = dst.data();
+                        auto* inIt = src.data();
+
+                        while (outIt != dst.data() + 4 * desc.width)
+                        {
+                            outIt[0] = inIt[0];
+                            outIt[1] = inIt[1];
+                            outIt[2] = inIt[2];
+                            outIt[3] = std::byte(0xff);
+
+                            outIt += 4;
+                            inIt += 3;
+                        }
+                    }
+                }
+            }
+
+            return true;
+        }
     }
 
     struct resident_texture
@@ -41,8 +81,10 @@ namespace oblo::vk
 
     bool texture_registry::init(vulkan_context& vkCtx, staging_buffer& staging)
     {
-        m_imageInfo.reserve(2048);
-        m_textures.reserve(2048);
+        const u32 maxDescriptorCount = get_max_descriptor_count();
+
+        m_imageInfo.reserve(maxDescriptorCount);
+        m_textures.reserve(maxDescriptorCount);
 
         m_vkCtx = &vkCtx;
 
@@ -50,7 +92,7 @@ namespace oblo::vk
 
         // TODO: Make it a more recognizable texture, since sampling it should only happen by mistake
         dummy.allocate({
-            .vkFormat = VK_FORMAT_R8G8B8_SNORM,
+            .vkFormat = VK_FORMAT_R8G8B8A8_SRGB,
             .width = 1,
             .height = 1,
             .depth = 1,
@@ -145,6 +187,11 @@ namespace oblo::vk
         return m_imageInfo;
     }
 
+    u32 texture_registry::get_max_descriptor_count() const
+    {
+        return 2048;
+    }
+
     bool texture_registry::create(staging_buffer& staging, const texture_resource& texture, resident_texture& out)
     {
         out = resident_texture{};
@@ -162,7 +209,21 @@ namespace oblo::vk
             return false;
         }
 
-        const auto format = VkFormat(desc.vkFormat);
+        const auto srcFormat = VkFormat(desc.vkFormat);
+        auto format = srcFormat;
+
+        bool convertRGB8toRGBA8{false};
+
+        switch (srcFormat)
+        {
+        case VK_FORMAT_R8G8B8_SRGB:
+            format = VK_FORMAT_R8G8B8A8_SNORM;
+            convertRGB8toRGBA8 = true;
+            break;
+
+        default:
+            break;
+        }
 
         const image_initializer initializer{
             .imageType = imageType,
@@ -210,10 +271,33 @@ namespace oblo::vk
             return false;
         }
 
-        // TODO: Upload texture
-        // staging.upload();
-        (void) staging;
+        out.imageView = newImageView;
 
-        return true;
+        const texture_resource* finalTexture{&texture};
+        texture_resource converted;
+
+        if (convertRGB8toRGBA8)
+        {
+            if (!convert_rgb8_to_rgba8(texture, desc, converted, format))
+            {
+                return false;
+            }
+
+            finalTexture = &converted;
+        }
+
+        // TOOD: When failing, we should destroy the texture
+        // TODO: Mips
+
+        return staging.upload(finalTexture->get_data(),
+            out.image.image,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            desc.width,
+            desc.height,
+            VkImageSubresourceLayers{
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            },
+            VkOffset3D{},
+            VkExtent3D{desc.width, desc.height, desc.depth});
     }
 }

@@ -29,8 +29,12 @@ namespace oblo::vk
     class descriptor_set_pool
     {
     public:
-        void init(vulkan_context& context);
-        void shutdown();
+        void init(const vulkan_context& context,
+            u32 maxSetsPerPool,
+            VkDescriptorPoolCreateFlags flags,
+            const std::span<const VkDescriptorPoolSize> poolSizes);
+
+        void shutdown(vulkan_context& vkCtx);
 
         void begin_frame();
         void end_frame();
@@ -51,10 +55,13 @@ namespace oblo::vk
         };
 
     private:
-        vulkan_context* m_ctx{};
+        const vulkan_context* m_ctx{};
         VkDescriptorPool m_current{};
         u64 m_submitIndex{};
+        u32 m_maxSetsPerPool{};
+        VkDescriptorPoolCreateFlags m_poolCreateFlags{};
         std::deque<used_pool> m_used;
         std::unordered_map<usize, VkDescriptorSetLayout> m_pool;
+        std::vector<VkDescriptorPoolSize> m_poolSizes;
     };
 }

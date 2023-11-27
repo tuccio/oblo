@@ -109,6 +109,24 @@ namespace oblo
         return std::span<const std::byte>{reinterpret_cast<std::byte*>(data), dataSize};
     }
 
+    std::span<std::byte> texture::get_data(u32 level, u32 face, u32 layer)
+    {
+        auto* const t = to_ktx(m_impl);
+        ktx_size_t offset;
+        ktxTexture_GetImageOffset(t, face, layer, level, &offset);
+        const auto size = ktxTexture_GetImageSize(t, level);
+        return get_data().subspan(offset, size);
+    }
+
+    std::span<const std::byte> texture::get_data(u32 level, u32 face, u32 layer) const
+    {
+        auto* const t = to_ktx(m_impl);
+        ktx_size_t offset;
+        ktxTexture_GetImageOffset(t, face, layer, level, &offset);
+        const auto size = ktxTexture_GetImageSize(t, level);
+        return get_data().subspan(offset, size);
+    }
+
     bool texture::save(const std::filesystem::path& path) const
     {
         const file_ptr f{open_file(path, "wb")};

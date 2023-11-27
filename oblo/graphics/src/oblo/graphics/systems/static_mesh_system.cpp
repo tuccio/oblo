@@ -11,8 +11,10 @@
 #include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/resource/resource_ptr.hpp>
+#include <oblo/resource/resource_ref.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/assets/material.hpp>
+#include <oblo/scene/assets/pbr_properties.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/vulkan/draw/draw_registry.hpp>
 #include <oblo/vulkan/draw/resource_cache.hpp>
@@ -27,18 +29,30 @@ namespace oblo
         struct gpu_material
         {
             vec3 albedo;
-            f32 padding;
+            h32<vk::resident_texture> albedoTexture;
         };
 
-        gpu_material convert(resource_ptr<material> m)
+        gpu_material convert(vk::resource_cache& cache, resource_ptr<material> m)
         {
             gpu_material out{};
 
-            if (m)
+            if (!m)
             {
-                if (auto* const albedo = m->get_property("Albedo"))
+                return out;
+            }
+
+            if (auto* const albedo = m->get_property(pbr::Albedo))
+            {
+                out.albedo = albedo->as<vec3>().value_or({});
+            }
+
+            if (auto* const albedo = m->get_property(pbr::AlbedoTexture))
+            {
+                const auto t = albedo->as<resource_ref<texture>>().value_or({});
+
+                if (t)
                 {
-                    out.albedo = albedo->as<vec3>().value_or({});
+                    out.albedoTexture = cache.get_or_add(t);
                 }
             }
 
@@ -96,7 +110,7 @@ namespace oblo
 
                     const resource_ptr m = m_resourceRegistry->get_resource(meshComponent.material.id).as<material>();
 
-                    new (buffersData[1]) gpu_material{convert(m)};
+                    new (buffersData[1]) gpu_material{convert(*m_resourceCache, m)};
                 }
                 else
                 {

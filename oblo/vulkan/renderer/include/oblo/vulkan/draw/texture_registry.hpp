@@ -39,6 +39,8 @@ namespace oblo::vk
 
         std::span<const VkDescriptorImageInfo> get_textures2d_info() const;
 
+        u32 get_max_descriptor_count() const;
+
     private:
         bool create(staging_buffer& staging, const texture_resource& texture, resident_texture& out);
 
