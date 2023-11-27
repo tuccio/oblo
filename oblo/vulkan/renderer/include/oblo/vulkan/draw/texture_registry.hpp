@@ -33,6 +33,7 @@ namespace oblo::vk
         texture_registry& operator=(texture_registry&&) noexcept = delete;
 
         bool init(vulkan_context& vkCtx, staging_buffer& staging);
+        void shutdown();
 
         h32<resident_texture> add(staging_buffer& staging, const texture_resource& texture);
         void remove(h32<resident_texture> texture);

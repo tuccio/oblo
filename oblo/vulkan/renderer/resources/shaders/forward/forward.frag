@@ -6,8 +6,13 @@ layout(location = 0) in vec2 in_UV0;
 layout(location = 1) flat in uint in_InstanceId;
 layout(location = 0) out vec4 out_Color;
 
-layout(set = 16, binding = 32) uniform sampler g_Samplers[];
-layout(set = 16, binding = 33) uniform texture2D g_Textures2D[];
+#define OBLO_DESCRIPTOR_SET_TEXTURES 1
+
+#define OBLO_BINDING_SAMPLERS 32
+#define OBLO_BINDING_TEXTURES2D 33
+
+layout(set = OBLO_DESCRIPTOR_SET_TEXTURES, binding = OBLO_BINDING_SAMPLERS) uniform sampler g_Samplers[];
+layout(set = OBLO_DESCRIPTOR_SET_TEXTURES, binding = OBLO_BINDING_TEXTURES2D) uniform texture2D g_Textures2D[];
 
 struct gpu_material
 {

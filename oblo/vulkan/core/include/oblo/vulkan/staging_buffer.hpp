@@ -30,7 +30,9 @@ namespace oblo::vk
 
         bool upload(std::span<const std::byte> source,
             VkImage image,
-            VkImageLayout dstImageLayout,
+            VkFormat format,
+            VkImageLayout initialImageLayout,
+            VkImageLayout finalImageLayout,
             u32 width,
             u32 height,
             VkImageSubresourceLayers subresource,

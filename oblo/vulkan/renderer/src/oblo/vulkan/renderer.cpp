@@ -63,6 +63,7 @@ namespace oblo::vk
 
         resourceManager.destroy(allocator, m_dummy);
 
+        m_textureRegistry.shutdown();
         m_stagingBuffer.shutdown();
     }
 

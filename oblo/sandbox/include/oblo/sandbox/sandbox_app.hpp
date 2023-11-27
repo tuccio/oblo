@@ -131,7 +131,7 @@ namespace oblo::vk
     template <typename TApp>
     concept app_requiring_device_features = requires(TApp app) {
         {
-            app.get_device_features_list()
+            app.get_required_device_features()
         } -> std::convertible_to<void*>;
     };
 
@@ -163,7 +163,7 @@ namespace oblo::vk
 
             if constexpr (app_requiring_device_features<TApp>)
             {
-                deviceFeaturesList = TApp::get_device_features_list();
+                deviceFeaturesList = TApp::get_required_device_features();
             }
 
             if constexpr (app_requiring_physical_device_features<TApp>)
