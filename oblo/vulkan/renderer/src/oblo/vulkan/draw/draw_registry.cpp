@@ -44,6 +44,8 @@ namespace oblo::vk
                 return "in_Position";
             case attribute_kind::normal:
                 return "in_Normal";
+            case attribute_kind::uv0:
+                return "in_UV0";
             default:
                 unreachable();
             }
@@ -113,6 +115,10 @@ namespace oblo::vk
             case attribute_kind::position:
             case attribute_kind::normal:
                 format = data_format::vec3;
+                break;
+
+            case attribute_kind::uv0:
+                format = data_format::vec2;
                 break;
 
             default:

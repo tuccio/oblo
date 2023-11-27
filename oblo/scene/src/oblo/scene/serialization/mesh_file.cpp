@@ -20,7 +20,7 @@ namespace oblo
         constexpr bool PrettyFormatGLTF{!WriteBinaryGLB};
         constexpr bool AddScene{true}; // This is useful to look at the file in other software
 
-        std::string_view get_attribute_name(attribute_kind kind)
+        constexpr std::string_view get_attribute_name(attribute_kind kind)
         {
             switch (kind)
             {
@@ -33,9 +33,11 @@ namespace oblo
             case attribute_kind::indices:
                 return "INDICES";
 
+            case attribute_kind::uv0:
+                return "TEXCOORD_0";
+
             default:
-                OBLO_ASSERT(false);
-                return {};
+                unreachable();
             }
         }
 
@@ -281,7 +283,8 @@ namespace oblo
 
         u32 vertexCount{0}, indexCount{0};
 
-        if (const auto it = primitive.attributes.find("POSITION"); it != primitive.attributes.end())
+        if (const auto it = primitive.attributes.find(std::string{get_attribute_name(attribute_kind::position)});
+            it != primitive.attributes.end())
         {
             vertexCount = model.accessors[it->second].count;
         }
@@ -314,7 +317,7 @@ namespace oblo
         {
             // TODO: Should probably read the accessor type instead of hardcoding the data format
 
-            if (attribute == "POSITION")
+            if (attribute == get_attribute_name(attribute_kind::position))
             {
                 attributes.push_back({
                     .kind = attribute_kind::position,
@@ -323,11 +326,20 @@ namespace oblo
 
                 sources.emplace_back(accessor);
             }
-            else if (attribute == "NORMAL")
+            else if (attribute == get_attribute_name(attribute_kind::normal))
             {
                 attributes.push_back({
                     .kind = attribute_kind::normal,
                     .format = data_format::vec3,
+                });
+
+                sources.emplace_back(accessor);
+            }
+            else if (attribute == get_attribute_name(attribute_kind::uv0))
+            {
+                attributes.push_back({
+                    .kind = attribute_kind::uv0,
+                    .format = data_format::vec2,
                 });
 
                 sources.emplace_back(accessor);

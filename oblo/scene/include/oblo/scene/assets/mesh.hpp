@@ -15,6 +15,7 @@ namespace oblo
         indices,
         position,
         normal,
+        uv0,
         enum_max
     };
 
