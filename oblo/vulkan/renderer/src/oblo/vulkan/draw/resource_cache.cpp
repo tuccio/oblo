@@ -23,7 +23,7 @@ namespace oblo::vk
         m_textureRegistry = &textureRegistry;
     }
 
-    h32<resident_texture> resource_cache::get_or_add(const resource_ref<texture>& t)
+    h32<resident_texture> resource_cache::get_or_add(const texture_resource_ref& t)
     {
         if (const auto it = m_textures.find(t.id); it != m_textures.end())
         {

@@ -57,6 +57,8 @@ namespace oblo::importers
             const auto ktxData = out.get_data();
             std::memcpy(ktxData.data(), image, ktxData.size());
 
+            
+
             return true;
         }
 

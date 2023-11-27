@@ -25,6 +25,8 @@ namespace oblo::vk
     class draw_registry;
     class mesh_table;
     class resource_manager;
+    class texture_registry;
+    class vulkan_context;
     struct buffer;
     struct render_pass;
     struct render_pass_initializer;
@@ -47,16 +49,19 @@ namespace oblo::vk
         render_pass_manager& operator=(render_pass_manager&&) noexcept = delete;
         ~render_pass_manager();
 
-        void init(VkDevice device,
+        void init(const vulkan_context& vkContext,
             string_interner& interner,
-            descriptor_set_pool& descriptorSetPool,
-            const h32<buffer> dummy);
+            const h32<buffer> dummy,
+            const texture_registry& textureRegistry);
 
-        void shutdown();
+        void shutdown(vulkan_context& vkContext);
 
         h32<render_pass> register_render_pass(const render_pass_initializer& desc);
 
         h32<render_pipeline> get_or_create_pipeline(h32<render_pass> handle, const render_pipeline_initializer& desc);
+
+        void begin_frame();
+        void end_frame();
 
         [[nodiscard]] bool begin_rendering(render_pass_context& context, const VkRenderingInfo& renderingInfo) const;
         void end_rendering(const render_pass_context& context);

@@ -21,6 +21,8 @@ namespace oblo::vk
     class texture_registry;
     struct resident_texture;
 
+    using texture_resource_ref = resource_ref<oblo::texture>;
+
     class resource_cache
     {
     public:
@@ -33,7 +35,7 @@ namespace oblo::vk
 
         void init(resource_registry& resources, texture_registry& textureRegistry, staging_buffer& staging);
 
-        h32<resident_texture> get_or_add(const resource_ref<texture>& t);
+        h32<resident_texture> get_or_add(const texture_resource_ref& t);
 
     private:
         struct cached_texture;
