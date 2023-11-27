@@ -27,7 +27,8 @@ namespace oblo::vk
 {
     namespace
     {
-        constexpr u32 TexturesDescriptorSet{1};
+        constexpr u32 TextureSamplerDescriptorSet{1};
+        constexpr u32 Textures2DDescriptorSet{2};
         constexpr u32 TexturesSamplerBinding{32};
         constexpr u32 Textures2DBinding{33};
 
@@ -137,7 +138,7 @@ namespace oblo::vk
 
         VkDescriptorSetLayout descriptorSetLayout{};
 
-        bool requiresTexturesDescriptor{};
+        bool requiresTextures2D{};
 
         // TODO: Active stages (e.g. tessellation on/off)
         // TODO: Active options
@@ -179,8 +180,11 @@ namespace oblo::vk
         const texture_registry* textureRegistry{};
         h32<buffer> dummy{};
         std::optional<efsw::FileWatcher> fileWatcher;
+        VkDescriptorSetLayout samplersSetLayout{};
         VkDescriptorSetLayout textures2DSetLayout{};
-        VkDescriptorSet currentTextures2DSet{};
+
+        VkDescriptorSet currentSamplersDescriptor{};
+        VkDescriptorSet currentTextures2DDescriptor{};
 
         VkSampler samplers[1]{};
     };
@@ -243,21 +247,17 @@ namespace oblo::vk
 
         {
             const VkDescriptorPoolSize descriptorPoolSizes[] = {
+                {VK_DESCRIPTOR_TYPE_SAMPLER, array_size(m_impl->samplers)},
                 {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, textureRegistry.get_max_descriptor_count()},
             };
 
             m_impl->texturesDescriptorSetPool.init(vkContext,
                 128,
-                VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+                VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT | VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT,
                 descriptorPoolSizes);
         }
 
         {
-            constexpr VkDescriptorBindingFlags bindlessFlags[] = {
-                VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT_EXT,
-                VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT_EXT,
-            };
-
             const VkDescriptorSetLayoutBinding vkBindings[] = {
                 {
                     .binding = TexturesSamplerBinding,
@@ -266,6 +266,29 @@ namespace oblo::vk
                     .stageFlags = VK_SHADER_STAGE_ALL,
                     .pImmutableSamplers = m_impl->samplers,
                 },
+            };
+
+            const VkDescriptorSetLayoutCreateInfo layoutInfo = {
+                .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+                .bindingCount = array_size(vkBindings),
+                .pBindings = vkBindings,
+            };
+
+            vkCreateDescriptorSetLayout(vkContext.get_device(),
+                &layoutInfo,
+                vkContext.get_allocator().get_allocation_callbacks(),
+                &m_impl->samplersSetLayout);
+        }
+
+        {
+            // We can only really have 1 bindless descriptor per set, only the last one can have variable count.
+            constexpr VkDescriptorBindingFlags bindlessFlags[] = {
+                VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT |
+                    VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT_EXT |
+                    VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT,
+            };
+
+            const VkDescriptorSetLayoutBinding vkBindings[] = {
                 {
                     .binding = Textures2DBinding,
                     .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
@@ -283,6 +306,7 @@ namespace oblo::vk
             const VkDescriptorSetLayoutCreateInfo layoutInfo = {
                 .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
                 .pNext = &extendedInfo,
+                .flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT,
                 .bindingCount = array_size(vkBindings),
                 .pBindings = vkBindings,
             };
@@ -323,6 +347,7 @@ namespace oblo::vk
         }
 
         vkContext.destroy_deferred(m_impl->textures2DSetLayout, vkContext.get_submit_index());
+        vkContext.destroy_deferred(m_impl->samplersSetLayout, vkContext.get_submit_index());
 
         m_impl->descriptorSetPool.shutdown(vkContext);
         m_impl->texturesDescriptorSetPool.shutdown(vkContext);
@@ -577,9 +602,9 @@ namespace oblo::vk
                 {
                     const auto set = compiler.get_decoration(image.id, spv::DecorationDescriptorSet);
 
-                    if (set == TexturesDescriptorSet)
+                    if (set == Textures2DDescriptorSet)
                     {
-                        newPipeline.requiresTexturesDescriptor = true;
+                        newPipeline.requiresTextures2D = true;
                         break;
                     }
                 }
@@ -617,11 +642,12 @@ namespace oblo::vk
         newPipeline.descriptorSetLayout =
             m_impl->descriptorSetPool.get_or_add_layout(newPipeline.descriptorSetBindings);
 
-        VkDescriptorSetLayout descriptorSetLayouts[2] = {newPipeline.descriptorSetLayout};
+        VkDescriptorSetLayout descriptorSetLayouts[3] = {newPipeline.descriptorSetLayout};
         u32 descriptorSetLayoutsCount{newPipeline.descriptorSetLayout != nullptr};
 
-        if (newPipeline.requiresTexturesDescriptor)
+        if (newPipeline.requiresTextures2D)
         {
+            descriptorSetLayouts[descriptorSetLayoutsCount++] = m_impl->samplersSetLayout;
             descriptorSetLayouts[descriptorSetLayoutsCount++] = m_impl->textures2DSetLayout;
         }
 
@@ -760,15 +786,25 @@ namespace oblo::vk
         m_impl->descriptorSetPool.begin_frame();
         m_impl->texturesDescriptorSetPool.begin_frame();
 
+        m_impl->currentSamplersDescriptor = m_impl->texturesDescriptorSetPool.acquire(m_impl->samplersSetLayout);
+
         const std::span textures2DInfo = m_impl->textureRegistry->get_textures2d_info();
 
         if (textures2DInfo.empty())
         {
-            m_impl->currentTextures2DSet = {};
+            m_impl->currentTextures2DDescriptor = {};
             return;
         }
 
-        const VkDescriptorSet descriptorSet = m_impl->texturesDescriptorSetPool.acquire(m_impl->textures2DSetLayout);
+        u32 maxBinding = textures2DInfo.size();
+
+        VkDescriptorSetVariableDescriptorCountAllocateInfoEXT countInfo{
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO_EXT,
+            .descriptorSetCount = 1,
+            .pDescriptorCounts = &maxBinding,
+        };
+
+        const VkDescriptorSet descriptorSet = m_impl->texturesDescriptorSetPool.acquire(m_impl->textures2DSetLayout, &countInfo);
 
         const VkWriteDescriptorSet descriptorSetWrites[] = {
             {
@@ -784,7 +820,7 @@ namespace oblo::vk
 
         vkUpdateDescriptorSets(m_impl->device, array_size(descriptorSetWrites), descriptorSetWrites, 0, nullptr);
 
-        m_impl->currentTextures2DSet = descriptorSet;
+        m_impl->currentTextures2DDescriptor = descriptorSet;
     }
 
     void render_pass_manager::end_frame()
@@ -808,14 +844,26 @@ namespace oblo::vk
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline);
         vkCmdBeginRendering(commandBuffer, &renderingInfo);
 
-        if (pipeline->requiresTexturesDescriptor && m_impl->currentTextures2DSet)
+        if (pipeline->requiresTextures2D && m_impl->currentSamplersDescriptor)
         {
             vkCmdBindDescriptorSets(commandBuffer,
                 VK_PIPELINE_BIND_POINT_GRAPHICS,
                 pipeline->pipelineLayout,
-                TexturesDescriptorSet,
+                TextureSamplerDescriptorSet,
                 1,
-                &m_impl->currentTextures2DSet,
+                &m_impl->currentSamplersDescriptor,
+                0,
+                nullptr);
+        }
+
+        if (pipeline->requiresTextures2D && m_impl->currentTextures2DDescriptor)
+        {
+            vkCmdBindDescriptorSets(commandBuffer,
+                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                pipeline->pipelineLayout,
+                Textures2DDescriptorSet,
+                1,
+                &m_impl->currentTextures2DDescriptor,
                 0,
                 nullptr);
         }
