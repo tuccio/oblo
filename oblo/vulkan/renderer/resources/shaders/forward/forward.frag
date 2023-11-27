@@ -6,13 +6,14 @@ layout(location = 0) in vec2 in_UV0;
 layout(location = 1) flat in uint in_InstanceId;
 layout(location = 0) out vec4 out_Color;
 
-#define OBLO_DESCRIPTOR_SET_TEXTURES 1
+#define OBLO_DESCRIPTOR_SET_SAMPLERS 1
+#define OBLO_DESCRIPTOR_SET_TEXTURES_2D 2
 
 #define OBLO_BINDING_SAMPLERS 32
-#define OBLO_BINDING_TEXTURES2D 33
+#define OBLO_BINDING_TEXTURES_2D 33
 
-layout(set = OBLO_DESCRIPTOR_SET_TEXTURES, binding = OBLO_BINDING_SAMPLERS) uniform sampler g_Samplers[];
-layout(set = OBLO_DESCRIPTOR_SET_TEXTURES, binding = OBLO_BINDING_TEXTURES2D) uniform texture2D g_Textures2D[];
+layout(set = OBLO_DESCRIPTOR_SET_SAMPLERS, binding = OBLO_BINDING_SAMPLERS) uniform sampler g_Samplers[];
+layout(set = OBLO_DESCRIPTOR_SET_TEXTURES_2D, binding = OBLO_BINDING_TEXTURES_2D) uniform texture2D g_Textures2D[];
 
 struct gpu_material
 {
@@ -31,5 +32,5 @@ void main()
 
     const vec4 color = texture(sampler2D(g_Textures2D[material.albedoTexture], g_Samplers[0]), in_UV0);
 
-    out_Color = vec4(material.albedo, 1);
+    out_Color = vec4(color.xyz * material.albedo, 1);
 }

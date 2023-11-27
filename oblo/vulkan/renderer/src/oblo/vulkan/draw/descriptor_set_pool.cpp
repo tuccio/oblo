@@ -113,7 +113,7 @@ namespace oblo::vk
         return layout;
     }
 
-    VkDescriptorSet descriptor_set_pool::acquire(const VkDescriptorSetLayout layout)
+    VkDescriptorSet descriptor_set_pool::acquire(const VkDescriptorSetLayout layout, void* pNext)
     {
         const VkDevice device = m_ctx->get_device();
 
@@ -122,6 +122,7 @@ namespace oblo::vk
 
         const VkDescriptorSetAllocateInfo allocInfo{
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+            .pNext = pNext,
             .descriptorPool = pool,
             .descriptorSetCount = 1,
             .pSetLayouts = &layout,

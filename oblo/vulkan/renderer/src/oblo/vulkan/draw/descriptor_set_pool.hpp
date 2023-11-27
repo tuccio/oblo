@@ -41,7 +41,7 @@ namespace oblo::vk
 
         VkDescriptorSetLayout get_or_add_layout(std::span<const descriptor_binding> bindings);
 
-        VkDescriptorSet acquire(VkDescriptorSetLayout layout);
+        VkDescriptorSet acquire(VkDescriptorSetLayout layout, void* pNext = nullptr);
 
     private:
         VkDescriptorPool create_pool();
