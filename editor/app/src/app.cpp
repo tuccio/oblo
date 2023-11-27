@@ -56,6 +56,7 @@ namespace oblo::editor
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES,
             .descriptorBindingPartiallyBound = true,
             .descriptorBindingVariableDescriptorCount = true,
+            .runtimeDescriptorArray = true,
         };
 
         VkPhysicalDeviceShaderDrawParametersFeatures ShaderDrawParameters{

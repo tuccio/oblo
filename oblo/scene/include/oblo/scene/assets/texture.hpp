@@ -46,6 +46,8 @@ namespace oblo
         std::span<std::byte> get_data(u32 level, u32 face, u32 layer);
         std::span<const std::byte> get_data(u32 level, u32 face, u32 layer) const;
 
+        u32 get_row_pitch(u32 level) const;
+
         bool save(const std::filesystem::path& path) const;
         bool load(const std::filesystem::path& path);
 

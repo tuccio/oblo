@@ -1,7 +1,7 @@
 #version 460
 
 layout(location = 0) in vec3 in_Position;
-// layout(location = 1) in vec3 in_UV0;
+layout(location = 1) in vec2 in_UV0;
 
 layout(location = 0) out vec2 out_UV0;
 layout(location = 1) out uint out_InstanceId;
@@ -31,5 +31,5 @@ void main()
     const mat4 viewProj =  b_Camera.projection * b_Camera.view;
     const vec4 position = viewProj * model * vec4(in_Position, 1);
     gl_Position = position;
-    out_UV0 = position.xy;
+    out_UV0 = in_UV0;
 }

@@ -32,13 +32,16 @@ namespace oblo::vk
             auto convertedDesc = desc;
             convertedDesc.vkFormat = u32(newFormat);
 
-            if (!converted.allocate(desc))
+            if (!converted.allocate(convertedDesc))
             {
                 return false;
             }
 
             for (u32 level = 0; level < desc.numLevels; ++level)
             {
+                const auto srcRowPitch = source.get_row_pitch(level);
+                const auto dstRowPitch = converted.get_row_pitch(level);
+
                 for (u32 face = 0; face < desc.numFaces; ++face)
                 {
                     for (u32 layer = 0; layer < desc.numLayers; ++layer)
@@ -46,18 +49,21 @@ namespace oblo::vk
                         const std::span src = source.get_data(level, face, layer);
                         const std::span dst = converted.get_data(level, face, layer);
 
-                        auto* outIt = dst.data();
-                        auto* inIt = src.data();
-
-                        while (outIt != dst.data() + 4 * desc.width)
+                        for (u32 y = 0; y < desc.height; ++y)
                         {
-                            outIt[0] = inIt[0];
-                            outIt[1] = inIt[1];
-                            outIt[2] = inIt[2];
-                            outIt[3] = std::byte(0xff);
+                            usize dstIndex = y * dstRowPitch;
+                            usize srcIndex = y * srcRowPitch;
 
-                            outIt += 4;
-                            inIt += 3;
+                            while (dstIndex <= (y + 1) * dstRowPitch)
+                            {
+                                dst[dstIndex + 0] = src[srcIndex + 0];
+                                dst[dstIndex + 1] = src[srcIndex + 1];
+                                dst[dstIndex + 2] = src[srcIndex + 2];
+                                dst[dstIndex + 3] = std::byte(0xff);
+
+                                dstIndex += 4;
+                                srcIndex += 3;
+                            }
                         }
                     }
                 }
@@ -150,13 +156,9 @@ namespace oblo::vk
 
         if (index >= m_imageInfo.size())
         {
-            const auto newCapacity = index * 2;
             const auto newSize = index + 1;
 
-            m_imageInfo.reserve(newCapacity);
             m_imageInfo.resize(newSize);
-
-            m_textures.reserve(newCapacity);
             m_textures.resize(newSize);
 
             m_imageInfo[index] = {
@@ -229,7 +231,7 @@ namespace oblo::vk
         switch (srcFormat)
         {
         case VK_FORMAT_R8G8B8_SRGB:
-            format = VK_FORMAT_R8G8B8A8_SNORM;
+            format = VK_FORMAT_R8G8B8A8_SRGB;
             convertRGB8toRGBA8 = true;
             break;
 

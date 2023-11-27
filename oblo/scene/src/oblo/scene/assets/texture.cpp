@@ -127,6 +127,11 @@ namespace oblo
         return get_data().subspan(offset, size);
     }
 
+    u32 texture::get_row_pitch(u32 level) const
+    {
+        return ktxTexture_GetRowPitch(to_ktx(m_impl), level);
+    }
+
     bool texture::save(const std::filesystem::path& path) const
     {
         const file_ptr f{open_file(path, "wb")};
