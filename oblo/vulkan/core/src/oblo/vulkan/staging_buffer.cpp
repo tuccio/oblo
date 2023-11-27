@@ -5,6 +5,7 @@
 #include <oblo/core/utility.hpp>
 #include <oblo/vulkan/allocator.hpp>
 #include <oblo/vulkan/error.hpp>
+#include <oblo/vulkan/pipeline_barrier.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
 
 namespace oblo::vk
@@ -197,7 +198,9 @@ namespace oblo::vk
 
     bool staging_buffer::upload(std::span<const std::byte> source,
         VkImage image,
-        VkImageLayout dstImageLayout,
+        VkFormat format,
+        VkImageLayout initialImageLayout,
+        VkImageLayout finalImageLayout,
         u32 width,
         u32 height,
         VkImageSubresourceLayers subresource,
@@ -239,9 +242,42 @@ namespace oblo::vk
         const auto nextSubmitIndex = get_next_submit_index();
         const auto commandBuffer = m_impl.commandBuffers[nextSubmitIndex];
 
-        // TODO: Pipeline barriers?
-        vkCmdCopyBufferToImage(commandBuffer, m_impl.buffer, image, dstImageLayout, 1, &copyRegion);
+        const VkImageSubresourceRange pipelineRange{
+            .aspectMask = subresource.aspectMask,
+            .baseMipLevel = subresource.mipLevel,
+            .levelCount = 1,
+            .baseArrayLayer = subresource.baseArrayLayer,
+            .layerCount = 1,
+        };
+
+        if (initialImageLayout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+        {
+            add_pipeline_barrier_cmd(commandBuffer,
+                initialImageLayout,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                image,
+                format,
+                pipelineRange);
+        }
+
+        vkCmdCopyBufferToImage(commandBuffer,
+            m_impl.buffer,
+            image,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            1,
+            &copyRegion);
+
         m_impl.pendingUploadBytes += srcSize;
+
+        if (finalImageLayout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+        {
+            add_pipeline_barrier_cmd(commandBuffer,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                finalImageLayout,
+                image,
+                format,
+                pipelineRange);
+        }
 
         return true;
     }

@@ -21,7 +21,9 @@ namespace oblo::editor
     {
     public:
         VkPhysicalDeviceFeatures2 get_required_physical_device_features() const;
-        
+
+        void* get_required_device_features() const;
+
         std::span<const char* const> get_required_device_extensions() const;
 
         bool init(const vk::sandbox_init_context& context);

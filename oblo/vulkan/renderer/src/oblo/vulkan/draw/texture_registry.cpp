@@ -121,6 +121,18 @@ namespace oblo::vk
         return true;
     }
 
+    void texture_registry::shutdown()
+    {
+        const auto submitIndex = m_vkCtx->get_submit_index();
+
+        for (const auto& t : m_textures)
+        {
+            m_vkCtx->destroy_deferred(t.image.image, submitIndex);
+            m_vkCtx->destroy_deferred(t.image.allocation, submitIndex);
+            m_vkCtx->destroy_deferred(t.imageView, submitIndex);
+        }
+    }
+
     h32<resident_texture> texture_registry::add(staging_buffer& staging, const texture_resource& texture)
     {
         resident_texture residentTexture;
@@ -291,11 +303,14 @@ namespace oblo::vk
 
         return staging.upload(finalTexture->get_data(),
             out.image.image,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            format,
+            VK_IMAGE_LAYOUT_UNDEFINED,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
             desc.width,
             desc.height,
             VkImageSubresourceLayers{
                 .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .layerCount = 1,
             },
             VkOffset3D{},
             VkExtent3D{desc.width, desc.height, desc.depth});

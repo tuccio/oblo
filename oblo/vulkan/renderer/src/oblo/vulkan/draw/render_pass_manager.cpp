@@ -27,7 +27,7 @@ namespace oblo::vk
 {
     namespace
     {
-        constexpr u32 TexturesDescriptorSet{16};
+        constexpr u32 TexturesDescriptorSet{1};
         constexpr u32 TexturesSamplerBinding{32};
         constexpr u32 Textures2DBinding{33};
 
@@ -137,7 +137,7 @@ namespace oblo::vk
 
         VkDescriptorSetLayout descriptorSetLayout{};
 
-        bool requiresTexture2D{};
+        bool requiresTexturesDescriptor{};
 
         // TODO: Active stages (e.g. tessellation on/off)
         // TODO: Active options
@@ -253,15 +253,19 @@ namespace oblo::vk
         }
 
         {
-            constexpr VkDescriptorBindingFlags bindlessFlags =
-                VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT_EXT;
+            constexpr VkDescriptorBindingFlags bindlessFlags[] = {
+                VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT_EXT,
+                VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT_EXT,
+            };
 
             const VkDescriptorSetLayoutBinding vkBindings[] = {
-                {.binding = TexturesSamplerBinding,
+                {
+                    .binding = TexturesSamplerBinding,
                     .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
                     .descriptorCount = array_size(m_impl->samplers),
                     .stageFlags = VK_SHADER_STAGE_ALL,
-                    .pImmutableSamplers = m_impl->samplers},
+                    .pImmutableSamplers = m_impl->samplers,
+                },
                 {
                     .binding = Textures2DBinding,
                     .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
@@ -272,8 +276,8 @@ namespace oblo::vk
 
             const VkDescriptorSetLayoutBindingFlagsCreateInfoEXT extendedInfo{
                 .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT,
-                .bindingCount = 1,
-                .pBindingFlags = &bindlessFlags,
+                .bindingCount = array_size(bindlessFlags),
+                .pBindingFlags = bindlessFlags,
             };
 
             const VkDescriptorSetLayoutCreateInfo layoutInfo = {
@@ -516,11 +520,6 @@ namespace oblo::vk
 
                     if (set != 0)
                     {
-                        if (set == TexturesDescriptorSet)
-                        {
-                            newPipeline.requiresTexture2D = true;
-                        }
-
                         continue;
                     }
 
@@ -573,6 +572,17 @@ namespace oblo::vk
                         .stageFlags = VkShaderStageFlags(vkStage),
                     });
                 }
+
+                for (const auto& image : shaderResources.separate_images)
+                {
+                    const auto set = compiler.get_decoration(image.id, spv::DecorationDescriptorSet);
+
+                    if (set == TexturesDescriptorSet)
+                    {
+                        newPipeline.requiresTexturesDescriptor = true;
+                        break;
+                    }
+                }
             }
 
             ++actualStagesCount;
@@ -607,11 +617,19 @@ namespace oblo::vk
         newPipeline.descriptorSetLayout =
             m_impl->descriptorSetPool.get_or_add_layout(newPipeline.descriptorSetBindings);
 
+        VkDescriptorSetLayout descriptorSetLayouts[2] = {newPipeline.descriptorSetLayout};
+        u32 descriptorSetLayoutsCount{newPipeline.descriptorSetLayout != nullptr};
+
+        if (newPipeline.requiresTexturesDescriptor)
+        {
+            descriptorSetLayouts[descriptorSetLayoutsCount++] = m_impl->textures2DSetLayout;
+        }
+
         // TODO: Figure out inputs
         const VkPipelineLayoutCreateInfo pipelineLayoutInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            .setLayoutCount = u32{newPipeline.descriptorSetLayout != nullptr},
-            .pSetLayouts = &newPipeline.descriptorSetLayout,
+            .setLayoutCount = descriptorSetLayoutsCount,
+            .pSetLayouts = descriptorSetLayouts,
         };
 
         if (vkCreatePipelineLayout(m_impl->device, &pipelineLayoutInfo, nullptr, &newPipeline.pipelineLayout) !=
@@ -790,12 +808,12 @@ namespace oblo::vk
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline);
         vkCmdBeginRendering(commandBuffer, &renderingInfo);
 
-        if (pipeline->requiresTexture2D && m_impl->currentTextures2DSet)
+        if (pipeline->requiresTexturesDescriptor && m_impl->currentTextures2DSet)
         {
             vkCmdBindDescriptorSets(commandBuffer,
                 VK_PIPELINE_BIND_POINT_GRAPHICS,
                 pipeline->pipelineLayout,
-                TexturesSamplerBinding,
+                TexturesDescriptorSet,
                 1,
                 &m_impl->currentTextures2DSet,
                 0,

@@ -52,6 +52,12 @@ namespace oblo::editor
             return g.instantiate();
         }
 
+        VkPhysicalDeviceDescriptorIndexingFeatures IndexingFeatures{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES,
+            .descriptorBindingPartiallyBound = true,
+            .descriptorBindingVariableDescriptorCount = true,
+        };
+
         VkPhysicalDeviceShaderDrawParametersFeatures ShaderDrawParameters{
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES,
             .shaderDrawParameters = true,
@@ -72,6 +78,11 @@ namespace oblo::editor
                     .multiDrawIndirect = true,
                 },
         };
+    }
+
+    void* app::get_required_device_features() const
+    {
+        return &IndexingFeatures;
     }
 
     std::span<const char* const> app::get_required_device_extensions() const
