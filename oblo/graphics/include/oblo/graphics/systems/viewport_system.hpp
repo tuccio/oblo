@@ -40,6 +40,8 @@ namespace oblo
 
         void destroy_graph_vulkan_objects(render_graph_data& renderGraphData);
 
+        bool prepare_picking_buffers(render_graph_data& graphData);
+
     private:
         vk::renderer* m_renderer{nullptr};
         VkDescriptorPool m_descriptorPool{};

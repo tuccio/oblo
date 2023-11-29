@@ -332,6 +332,7 @@ namespace oblo::vk
         {
             for (const auto& renderPipeline : m_impl->renderPipelines.values())
             {
+                // TODO: These should be deferred instead
                 destroy_pipeline(device, renderPipeline);
             }
 
@@ -407,6 +408,17 @@ namespace oblo::vk
         // TODO: We need to consider the initializer, for now we'd only end up with one variant
         u64 expectedHash{renderPassHandle.value};
 
+        u32 requiredDefinesLength{0};
+
+        // Consider defines at least for now, but order matters here, which is undesirable
+        for (const auto define : desc.defines)
+        {
+            constexpr u32 fixedSize = std::string_view{"#define \n"}.size();
+            requiredDefinesLength = fixedSize + m_impl->interner->str(define).size();
+
+            expectedHash = hash_mix(expectedHash, hash_all<std::hash>(define.value));
+        }
+
         if (const auto variantIt = std::find_if(renderPass->variants.begin(),
                 renderPass->variants.end(),
                 [expectedHash](const render_pass_variant& variant) { return variant.hash == expectedHash; });
@@ -458,7 +470,42 @@ namespace oblo::vk
             const auto vkStage = to_vulkan_stage_bits(pipelineStage);
 
             const auto& filePath = renderPass->shaderSourcePath[stageIndex];
-            const auto sourceCode = load_text_file_into_memory(m_impl->frameAllocator, filePath);
+            auto sourceCode = load_text_file_into_memory(m_impl->frameAllocator, filePath);
+
+            if (requiredDefinesLength > 0)
+            {
+                constexpr std::string_view lineDirective{"#line 0\n"};
+
+                const auto firstLineEnd = std::find(sourceCode.begin(), sourceCode.end(), '\n');
+                const auto firstLineLen = 1 + (firstLineEnd - sourceCode.begin());
+
+                auto sourceWithDefines = allocate_n_span<char>(m_impl->frameAllocator,
+                    sourceCode.size() + requiredDefinesLength + firstLineLen + lineDirective.size());
+
+                auto it = sourceWithDefines.begin();
+
+                // We copy the first line first, because it must contain the #version directive
+                it = std::copy(sourceCode.begin(), firstLineEnd, it);
+                *it = '\n';
+                ++it;
+
+                for (const auto define : desc.defines)
+                {
+                    constexpr std::string_view directive{"#define "};
+                    it = std::copy(directive.begin(), directive.end(), it);
+
+                    const auto str = m_impl->interner->str(define);
+                    it = std::copy(str.begin(), str.end(), it);
+
+                    *it = '\n';
+                    ++it;
+                }
+
+                it = std::copy(lineDirective.begin(), lineDirective.end(), it);
+
+                const auto end = std::copy(firstLineEnd, sourceCode.end(), it);
+                sourceCode = sourceWithDefines.subspan(0, end - sourceWithDefines.begin());
+            }
 
             spirv.clear();
 
@@ -804,7 +851,8 @@ namespace oblo::vk
             .pDescriptorCounts = &maxBinding,
         };
 
-        const VkDescriptorSet descriptorSet = m_impl->texturesDescriptorSetPool.acquire(m_impl->textures2DSetLayout, &countInfo);
+        const VkDescriptorSet descriptorSet =
+            m_impl->texturesDescriptorSetPool.acquire(m_impl->textures2DSetLayout, &countInfo);
 
         const VkWriteDescriptorSet descriptorSetWrites[] = {
             {
@@ -880,7 +928,7 @@ namespace oblo::vk
     void render_pass_manager::draw(const render_pass_context& context,
         const resource_manager& resourceManager,
         const draw_registry& drawRegistry,
-        std::span<const buffer_binding_table> bindingTables)
+        std::span<const buffer_binding_table* const> bindingTables)
     {
         const auto drawCalls = drawRegistry.get_draw_calls();
 
@@ -982,9 +1030,9 @@ namespace oblo::vk
                 {
                     bool found = false;
 
-                    for (const auto& table : bindingTables)
+                    for (const auto* const table : bindingTables)
                     {
-                        auto* const buffer = table.try_find(binding.name);
+                        auto* const buffer = table->try_find(binding.name);
 
                         if (buffer)
                         {
@@ -1012,6 +1060,11 @@ namespace oblo::vk
                             found = true;
                             break;
                         }
+                    }
+
+                    if (!found)
+                    {
+                        log::debug("Unable to find matching buffer for binding {}", m_impl->interner->str(binding.name));
                     }
                 }
 

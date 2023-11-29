@@ -97,14 +97,17 @@ namespace oblo::vk
 
         constexpr float queuePriorities[] = {1.f};
 
-        const VkDeviceQueueCreateInfo deviceQueueCreateInfo{.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+        const VkDeviceQueueCreateInfo deviceQueueCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0u,
             .queueFamilyIndex = graphicsQueueFamilyIndex,
             .queueCount = 1u,
-            .pQueuePriorities = queuePriorities};
+            .pQueuePriorities = queuePriorities,
+        };
 
-        const VkDeviceCreateInfo createInfo{.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+        const VkDeviceCreateInfo createInfo{
+            .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
             .pNext = deviceCreateInfoChain,
             .queueCreateInfoCount = 1,
             .pQueueCreateInfos = &deviceQueueCreateInfo,
@@ -112,7 +115,8 @@ namespace oblo::vk
             .ppEnabledLayerNames = enabledLayers.data(),
             .enabledExtensionCount = u32(enabledExtensions.size()),
             .ppEnabledExtensionNames = enabledExtensions.data(),
-            .pEnabledFeatures = physicalDeviceFeatures};
+            .pEnabledFeatures = physicalDeviceFeatures,
+        };
 
         if (vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device) != VK_SUCCESS)
         {

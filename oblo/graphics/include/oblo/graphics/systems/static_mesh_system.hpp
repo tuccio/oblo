@@ -30,5 +30,6 @@ namespace oblo
         vk::resource_cache* m_resourceCache;
         h32<vk::draw_buffer> m_transformBuffer{};
         h32<vk::draw_buffer> m_materialsBuffer{};
+        h32<vk::draw_buffer> m_entityIdBuffer{};
     };
 }

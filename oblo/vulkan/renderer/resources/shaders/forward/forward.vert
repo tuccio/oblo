@@ -6,7 +6,6 @@ layout(location = 1) in vec2 in_UV0;
 layout(location = 0) out vec2 out_UV0;
 layout(location = 1) out uint out_InstanceId;
 
-
 layout(binding = 0) uniform CameraBuffer
 {
     mat4 view;

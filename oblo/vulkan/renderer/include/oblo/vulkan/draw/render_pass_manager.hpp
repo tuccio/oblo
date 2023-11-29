@@ -69,7 +69,7 @@ namespace oblo::vk
         void draw(const render_pass_context& context,
             const resource_manager& resourceManager,
             const draw_registry& drawRegistry,
-            std::span<const buffer_binding_table> bindingTables = {});
+            std::span<const buffer_binding_table* const> bindingTables = {});
 
     private:
         struct impl;

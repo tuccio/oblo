@@ -76,6 +76,9 @@ namespace oblo::vk
     {
         u32 size;
         VkBufferUsageFlags usage;
+
+        // One between required flags and memory usage has to be non-zero
+        VkMemoryPropertyFlags requiredFlags;
         memory_usage memoryUsage;
     };
 

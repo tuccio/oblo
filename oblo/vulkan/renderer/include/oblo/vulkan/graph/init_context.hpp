@@ -14,6 +14,11 @@ namespace oblo::vk
             return m_renderer->get_render_pass_manager();
         }
 
+        string_interner& get_string_interner() const
+        {
+            return m_renderer->get_string_interner();
+        }
+
     private:
         renderer* m_renderer;
     };

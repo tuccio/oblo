@@ -4,6 +4,7 @@
 
 layout(location = 0) in vec2 in_UV0;
 layout(location = 1) flat in uint in_InstanceId;
+
 layout(location = 0) out vec4 out_Color;
 
 #define OBLO_DESCRIPTOR_SET_SAMPLERS 1
@@ -37,6 +38,27 @@ struct gpu_material
     uint albedoTexture;
 };
 
+#ifdef OBLO_PICKING_ENABLED
+
+layout(binding = 10) uniform PickingCoordinatesBuffer
+{
+    vec2 coordinates;
+}
+b_Picking;
+
+layout(std430, binding = 11) restrict buffer b_PickingResult
+{
+    uint pickingId;
+};
+
+layout(std430, binding = 12) restrict readonly buffer i_EntityIdBuffer
+{
+    uint entityIds[];
+};
+
+
+#endif
+
 layout(std430, binding = 2) restrict readonly buffer i_MaterialBuffer
 {
     gpu_material materials[];
@@ -49,4 +71,14 @@ void main()
     const vec4 color = sample_texture_2d(material.albedoTexture, OBLO_SAMPLER_LINEAR, in_UV0);
 
     out_Color = vec4(color.xyz * material.albedo, 1);
+
+#ifdef OBLO_PICKING_ENABLED
+    const uvec2 uFrag = uvec2(gl_FragCoord);
+    const uvec2 uCoords = uvec2(b_Picking.coordinates);
+
+    if (uFrag.x == uCoords.x && uFrag.y == uCoords.y)
+    { 
+        pickingId = entityIds[in_InstanceId];
+    }
+#endif
 }

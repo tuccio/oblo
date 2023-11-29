@@ -392,7 +392,13 @@ namespace oblo::vk
             .bufferDeviceAddress = VK_TRUE,
         };
 
-        VkPhysicalDeviceFeatures2 physicalDeviceFeatures2{*physicalDeviceFeatures};
+        VkPhysicalDeviceFeatures2 physicalDeviceFeatures2{};
+
+        if (physicalDeviceFeatures)
+        {
+            physicalDeviceFeatures2 = *physicalDeviceFeatures;
+        }
+
         physicalDeviceFeatures2.pNext = &bufferDeviceAddressFeature;
 
         return m_engine.init(m_instance.get(), m_surface, {}, {extensions}, &physicalDeviceFeatures2, nullptr) &&
