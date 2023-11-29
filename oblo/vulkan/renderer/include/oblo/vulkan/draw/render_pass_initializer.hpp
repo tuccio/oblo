@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/small_vector.hpp>
+#include <oblo/core/string_interner.hpp>
 #include <oblo/core/types.hpp>
 
 #include <filesystem>
@@ -70,5 +71,6 @@ namespace oblo::vk
         render_pass_targets renderTargets;
         depth_stencil_state depthStencilState;
         rasterization_state rasterizationState;
+        std::span<const h32<string>> defines;
     };
 }

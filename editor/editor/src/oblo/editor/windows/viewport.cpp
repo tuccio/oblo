@@ -38,6 +38,9 @@ namespace oblo::editor
         m_inputQueue = ctx.services.find<const input_queue>();
         OBLO_ASSERT(m_inputQueue);
 
+        m_selection = ctx.services.find<selected_entities>();
+        OBLO_ASSERT(m_selection);
+
         using action = fps_camera_controller::action;
         m_cameraController.clear_bindings();
 
@@ -83,9 +86,48 @@ namespace oblo::editor
 
             if (auto const imageId = v.imageId)
             {
+                const bool hasFocus = ImGui::IsWindowFocused();
+
                 ImGui::Image(imageId, windowSize);
 
-                if (ImGui::IsWindowFocused() && m_entity)
+                switch (v.picking.state)
+                {
+                case picking_request::state::none:
+                    if (ImGui::IsItemClicked())
+                    {
+                        const auto [viewportX, viewportY] = ImGui::GetItemRectMin();
+                        const auto [mouseX, mouseY] = ImGui::GetMousePos();
+                        v.picking.coordinates = {mouseX - viewportX, mouseY - viewportY};
+                        v.picking.state = picking_request::state::requested;
+                    }
+
+                    break;
+
+                case picking_request::state::served: {
+                    m_selection->clear();
+
+                    if (const ecs::entity selectedEntity{v.picking.result};
+                        selectedEntity && m_entities->contains(selectedEntity))
+                    {
+                        m_selection->add({&selectedEntity, 1});
+                    }
+
+                    v.picking.state = picking_request::state::none;
+                    break;
+                }
+
+                break;
+
+                case picking_request::state::failed: {
+                    v.picking.state = picking_request::state::none;
+                    break;
+                }
+
+                default:
+                    break;
+                }
+
+                if (hasFocus)
                 {
                     const auto [w, h] = ImGui::GetItemRectSize();
                     m_cameraController.set_screen_size({w, h});

@@ -130,12 +130,14 @@ namespace oblo::vk
 
             if (renderPassManager.begin_rendering(renderPassContext, renderInfo))
             {
-                auto* const bindingTable = context.access(inPerViewBindingTable);
+                const buffer_binding_table* bindingTables[] = {
+                    context.access(inPerViewBindingTable),
+                };
 
                 renderPassManager.draw(renderPassContext,
                     context.get_resource_manager(),
                     context.get_draw_registry(),
-                    {bindingTable, 1});
+                    bindingTables);
 
                 renderPassManager.end_rendering(renderPassContext);
             }

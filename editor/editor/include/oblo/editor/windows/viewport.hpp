@@ -16,6 +16,7 @@ namespace oblo::ecs
 
 namespace oblo::editor
 {
+    class selected_entities;
     struct window_update_context;
 
     class viewport final
@@ -27,6 +28,7 @@ namespace oblo::editor
     private:
         resource_registry* m_resources{};
         ecs::entity_registry* m_entities{};
+        selected_entities* m_selection{};
         const input_queue* m_inputQueue{};
         ecs::entity m_entity{};
         fps_camera_controller m_cameraController;

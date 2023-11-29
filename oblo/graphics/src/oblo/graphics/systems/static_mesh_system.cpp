@@ -73,17 +73,21 @@ namespace oblo
 
         auto& drawRegistry = m_renderer->get_draw_registry();
         m_transformBuffer = drawRegistry.get_or_register({"i_TransformBuffer", sizeof(mat4), alignof(mat4)});
+
         m_materialsBuffer =
             drawRegistry.get_or_register({"i_MaterialBuffer", sizeof(gpu_material), alignof(gpu_material)});
+
+        m_entityIdBuffer =
+            drawRegistry.get_or_register({"i_EntityIdBuffer", sizeof(ecs::entity), alignof(ecs::entity)});
 
         update(ctx);
     }
 
     void static_mesh_system::update(const ecs::system_update_context& ctx)
     {
-        const h32<vk::draw_buffer> bufferNames[] = {m_transformBuffer, m_materialsBuffer};
+        const h32<vk::draw_buffer> bufferNames[] = {m_transformBuffer, m_materialsBuffer, m_entityIdBuffer};
 
-        std::byte* buffersData[2];
+        std::byte* buffersData[3];
 
         auto& drawRegistry = m_renderer->get_draw_registry();
 
@@ -111,6 +115,8 @@ namespace oblo
                     const resource_ptr m = m_resourceRegistry->get_resource(meshComponent.material.id).as<material>();
 
                     new (buffersData[1]) gpu_material{convert(*m_resourceCache, m)};
+
+                    new (buffersData[2]) ecs::entity{entity};
                 }
                 else
                 {

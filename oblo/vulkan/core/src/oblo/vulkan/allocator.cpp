@@ -72,7 +72,10 @@ namespace oblo::vk
             .usage = initializer.usage,
         };
 
-        const VmaAllocationCreateInfo allocInfo{.usage = VmaMemoryUsage(initializer.memoryUsage)};
+        const VmaAllocationCreateInfo allocInfo{
+            .usage = VmaMemoryUsage(initializer.memoryUsage),
+            .requiredFlags = initializer.requiredFlags,
+        };
 
         return vmaCreateBuffer(m_allocator,
             &bufferCreateInfo,

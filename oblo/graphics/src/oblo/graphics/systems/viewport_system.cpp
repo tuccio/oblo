@@ -33,9 +33,14 @@ namespace oblo
 {
     namespace
     {
+        constexpr std::string_view InPickingConfiguration{"Picking Configuration"};
+
         constexpr std::string_view OutFinalRenderTarget{"Final Render Target"};
+        constexpr std::string_view OutPickingBuffer{"Picking Buffer"};
         constexpr std::string_view InResolution{"Resolution"};
         constexpr std::string_view InCamera{"Camera"};
+
+        constexpr u32 PickingResultSize{sizeof(u32)};
     }
 
     struct viewport_system::render_graph_data
@@ -46,6 +51,10 @@ namespace oblo
         u32 width{};
         u32 height{};
         VkDescriptorSet descriptorSet{};
+
+        vk::allocated_buffer pickingBuffer;
+        vk::allocated_buffer pickingDownloadBuffer;
+        u64 lastPickingSubmitIndex{};
     };
 
     viewport_system::viewport_system() = default;
@@ -154,6 +163,55 @@ namespace oblo
             vkCtx.destroy_deferred(renderGraphData.descriptorSet, m_descriptorPool, submitIndex);
             renderGraphData.descriptorSet = {};
         }
+
+        if (renderGraphData.pickingBuffer.buffer)
+        {
+            vkCtx.destroy_deferred(renderGraphData.pickingBuffer.buffer, submitIndex);
+            vkCtx.destroy_deferred(renderGraphData.pickingBuffer.allocation, submitIndex);
+            renderGraphData.pickingBuffer = {};
+        }
+
+        if (renderGraphData.pickingDownloadBuffer.buffer)
+        {
+            vkCtx.destroy_deferred(renderGraphData.pickingDownloadBuffer.buffer, submitIndex);
+            vkCtx.destroy_deferred(renderGraphData.pickingDownloadBuffer.allocation, submitIndex);
+            renderGraphData.pickingDownloadBuffer = {};
+        }
+    }
+
+    bool viewport_system::prepare_picking_buffers(render_graph_data& graphData)
+    {
+        auto& allocator = m_renderer->get_allocator();
+
+        if (!graphData.pickingBuffer.buffer &&
+            allocator.create_buffer(
+                {
+                    .size = PickingResultSize,
+                    .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+                        VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                    .memoryUsage = vk::memory_usage::gpu_only,
+                },
+                &graphData.pickingBuffer) != VK_SUCCESS)
+        {
+            return false;
+        }
+
+        if (!graphData.pickingDownloadBuffer.buffer &&
+            allocator.create_buffer(
+                {
+                    .size = PickingResultSize,
+                    .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                    .requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                    // .memoryUsage = vk::memory_usage::gpu_to_cpu,
+                },
+                &graphData.pickingDownloadBuffer) != VK_SUCCESS)
+        {
+            return false;
+        }
+
+        graphData.lastPickingSubmitIndex = m_renderer->get_vulkan_context().get_submit_index();
+
+        return true;
     }
 
     void viewport_system::first_update(const ecs::system_update_context& ctx)
@@ -196,11 +254,14 @@ namespace oblo
                             .add_node<forward_pass>()
                             .add_node<view_buffers_node>()
                             .add_output<h32<vk::texture>>(OutFinalRenderTarget)
+                            .add_output<h32<vk::texture>>(OutPickingBuffer)
                             .add_input<vec2u>(InResolution)
                             .add_input<camera_buffer>(InCamera)
+                            .add_input<picking_configuration>(InPickingConfiguration)
                             .connect_output(&forward_pass::outRenderTarget, OutFinalRenderTarget)
                             .connect_input(InCamera, &view_buffers_node::inCameraData)
                             .connect_input(InResolution, &forward_pass::inResolution)
+                            .connect_input(InPickingConfiguration, &forward_pass::inPickingConfiguration)
                             .connect(&view_buffers_node::outPerViewBindingTable, &forward_pass::inPerViewBindingTable)
                             .build();
 #else
@@ -313,6 +374,57 @@ namespace oblo
                         .projection = projT,
                         .viewProjection = projT * viewT,
                     };
+                }
+
+                if (auto* const pickingCfg = graph->find_input<picking_configuration>(InPickingConfiguration))
+                {
+                    switch (viewport.picking.state)
+                    {
+                    case picking_request::state::requested:
+                        if (prepare_picking_buffers(*renderGraphData))
+                        {
+                            pickingCfg->enabled = true;
+                            pickingCfg->coordinates = viewport.picking.coordinates;
+                            pickingCfg->resultBuffer = {.buffer = renderGraphData->pickingBuffer.buffer,
+                                .size = PickingResultSize};
+                            pickingCfg->downloadBuffer = {.buffer = renderGraphData->pickingDownloadBuffer.buffer,
+                                .size = PickingResultSize};
+                            viewport.picking.state = picking_request::state::awaiting;
+                        }
+                        else
+                        {
+                            viewport.picking.state = picking_request::state::failed;
+                        }
+
+                        break;
+
+                    case picking_request::state::awaiting:
+
+                        if (m_renderer->get_vulkan_context().is_submit_done(renderGraphData->lastPickingSubmitIndex))
+                        {
+                            auto& allocator = m_renderer->get_allocator();
+
+                            if (void* ptr;
+                                allocator.map(renderGraphData->pickingDownloadBuffer.allocation, &ptr) == VK_SUCCESS)
+                            {
+                                std::memcpy(&viewport.picking.result, ptr, sizeof(u32));
+                                viewport.picking.state = picking_request::state::served;
+
+                                allocator.unmap(renderGraphData->pickingDownloadBuffer.allocation);
+                            }
+                            else
+                            {
+                                viewport.picking.state = picking_request::state::failed;
+                            }
+                        }
+
+                        pickingCfg->enabled = false;
+                        break;
+
+                    default:
+                        pickingCfg->enabled = false;
+                        break;
+                    }
                 }
 
                 if (renderGraphData->texture)
