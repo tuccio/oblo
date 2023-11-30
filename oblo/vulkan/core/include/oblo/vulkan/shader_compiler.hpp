@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <span>
 #include <string_view>
 #include <vector>
@@ -13,10 +14,12 @@ namespace oblo
 
 namespace oblo::vk::shader_compiler
 {
+    class include_handler;
     class scope;
 
     struct options
     {
+        include_handler* includeHandler{nullptr};
         bool codeOptimization{false};
     };
 
@@ -55,5 +58,15 @@ namespace oblo::vk::shader_compiler
         {
             shutdown();
         }
+    };
+
+    class include_handler
+    {
+    public:
+        virtual ~include_handler() = default;
+
+        virtual frame_allocator& get_allocator() = 0;
+
+        virtual bool resolve(std::string_view header, std::filesystem::path& path) = 0;
     };
 }

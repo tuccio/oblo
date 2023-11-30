@@ -51,7 +51,7 @@ namespace oblo
                 return {};
             }
 
-            auto* const buffer = allocate_impl(allocator, fileSize);
+            auto* const buffer = fileSize == 0 ? nullptr : allocate_impl(allocator, fileSize);
             const auto readBytes = fread(buffer, 1, fileSize, file);
 
             if (readBytes < 0)

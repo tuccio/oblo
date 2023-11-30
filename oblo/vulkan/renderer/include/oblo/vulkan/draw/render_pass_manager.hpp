@@ -4,6 +4,7 @@
 
 #include <vulkan/vulkan.h>
 
+#include <filesystem>
 #include <memory>
 #include <span>
 
@@ -55,6 +56,8 @@ namespace oblo::vk
             const texture_registry& textureRegistry);
 
         void shutdown(vulkan_context& vkContext);
+
+        void set_system_include_paths(std::span<const std::filesystem::path> paths);
 
         h32<render_pass> register_render_pass(const render_pass_initializer& desc);
 

@@ -166,11 +166,45 @@ namespace oblo::vk
                 }
             }
         }
+
+        struct includer final : shader_compiler::include_handler
+        {
+            explicit includer(frame_allocator& allocator) : allocator{allocator} {}
+
+            frame_allocator& get_allocator() override
+            {
+                return allocator;
+            }
+
+            bool resolve(std::string_view header, std::filesystem::path& outPath) override
+            {
+                for (auto& path : systemIncludePaths)
+                {
+                    outPath = path;
+                    outPath /= header;
+                    outPath.concat(".glsl");
+
+                    if (std::error_code ec; std::filesystem::exists(outPath, ec))
+                    {
+                        resolvedIncludes.emplace_back(outPath);
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            frame_allocator& allocator;
+            std::vector<std::filesystem::path> systemIncludePaths;
+            std::vector<std::filesystem::path> resolvedIncludes;
+        };
     }
 
     struct render_pass_manager::impl
     {
         frame_allocator frameAllocator;
+        includer includer{frameAllocator};
+
         VkDevice device{};
         h32_flat_pool_dense_map<render_pass> renderPasses;
         h32_flat_pool_dense_map<render_pipeline> renderPipelines;
@@ -356,6 +390,11 @@ namespace oblo::vk
         m_impl.reset();
     }
 
+    void render_pass_manager::set_system_include_paths(std::span<const std::filesystem::path> paths)
+    {
+        m_impl->includer.systemIncludePaths.assign(paths.begin(), paths.end());
+    }
+
     h32<render_pass> render_pass_manager::register_render_pass(const render_pass_initializer& desc)
     {
         const auto [it, handle] = m_impl->renderPasses.emplace();
@@ -462,7 +501,10 @@ namespace oblo::vk
         VkVertexInputAttributeDescription* vertexInputAttributeDescs;
         u32 vertexInputsCount{0u};
 
-        constexpr shader_compiler::options compilerOptions{.codeOptimization = WithShaderCodeOptimizations};
+        const shader_compiler::options compilerOptions{
+            .includeHandler = &m_impl->includer,
+            .codeOptimization = WithShaderCodeOptimizations,
+        };
 
         for (u8 stageIndex = 0; stageIndex < renderPass->stagesCount; ++stageIndex)
         {
@@ -511,6 +553,9 @@ namespace oblo::vk
 
             const std::string_view debugName{makeDebugName(*renderPass, filePath)};
 
+            // Clear the resolved includes, we keep track of them for adding watches
+            m_impl->includer.resolvedIncludes.clear();
+
             if (!shader_compiler::compile_glsl_to_spirv(debugName,
                     {sourceCode.data(), sourceCode.size()},
                     vkStage,
@@ -525,6 +570,11 @@ namespace oblo::vk
             if (!shaderModule)
             {
                 return failure();
+            }
+
+            for (const auto& include : m_impl->includer.resolvedIncludes)
+            {
+                m_impl->fileWatcher->addWatch(include.parent_path().string(), renderPass->watcher.get());
             }
 
             newPipeline.shaderModules[stageIndex] = shaderModule;

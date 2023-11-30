@@ -42,6 +42,9 @@ namespace oblo::vk
         m_stringInterner.init(64);
         m_renderPassManager.init(*m_vkContext, m_stringInterner, m_dummy, m_textureRegistry);
 
+        const std::filesystem::path includePaths[] = {"./vulkan/shaders/"};
+        m_renderPassManager.set_system_include_paths(includePaths);
+
         m_textureRegistry.init(*m_vkContext, m_stagingBuffer);
 
         m_drawRegistry.init(*m_vkContext, m_stagingBuffer, m_stringInterner);

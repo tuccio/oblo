@@ -1,37 +1,15 @@
 #version 460
 
+#extension GL_GOOGLE_include_directive : enable
 #extension GL_EXT_nonuniform_qualifier : enable
+
+#include <renderer/textures>
 
 layout(location = 0) in vec2 in_UV0;
 layout(location = 1) flat in uint in_InstanceId;
 
 layout(location = 0) out vec4 out_Color;
 layout(location = 1) out uint out_PickingId;
-
-#define OBLO_DESCRIPTOR_SET_SAMPLERS 1
-#define OBLO_DESCRIPTOR_SET_TEXTURES_2D 2
-
-#define OBLO_BINDING_SAMPLERS 32
-#define OBLO_BINDING_TEXTURES_2D 33
-
-layout(set = OBLO_DESCRIPTOR_SET_SAMPLERS, binding = OBLO_BINDING_SAMPLERS) uniform sampler g_Samplers[];
-layout(set = OBLO_DESCRIPTOR_SET_TEXTURES_2D, binding = OBLO_BINDING_TEXTURES_2D) uniform texture2D g_Textures2D[];
-
-#define OBLO_SAMPLER_LINEAR 0
-
-uint get_texture_index(uint textureId)
-{
-    // We use 4 bits for generation id
-    const uint generationBits = 4;
-    const uint mask = ~0u >> generationBits;
-    return textureId & mask;
-}
-
-vec4 sample_texture_2d(uint textureId, uint samplerId, vec2 uv)
-{
-    const uint textureIndex = get_texture_index(textureId);
-    return texture(sampler2D(g_Textures2D[textureIndex], g_Samplers[samplerId]), uv);
-}
 
 struct gpu_material
 {
