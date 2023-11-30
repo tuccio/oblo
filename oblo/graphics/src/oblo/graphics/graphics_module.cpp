@@ -18,6 +18,7 @@ namespace oblo
         {
             reg.add_class<static_mesh_component>()
                 .add_field(&static_mesh_component::mesh, "mesh")
+                .add_field(&static_mesh_component::material, "material")
                 .add_ranged_type_erasure()
                 .add_tag<oblo::ecs::component_type_tag>();
 
@@ -29,6 +30,9 @@ namespace oblo
                 .add_field(&camera_component::far, "far")
                 .add_ranged_type_erasure()
                 .add_tag<oblo::ecs::component_type_tag>();
+
+            reg.add_class<resource_ref<mesh>>().add_field(&resource_ref<mesh>::id, "id");
+            reg.add_class<resource_ref<material>>().add_field(&resource_ref<material>::id, "id");
         }
     }
 

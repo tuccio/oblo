@@ -4,6 +4,7 @@
 #include <oblo/core/hash.hpp>
 #include <oblo/core/overload.hpp>
 #include <oblo/core/utility.hpp>
+#include <oblo/core/uuid.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/editor/service_context.hpp>
@@ -66,18 +67,36 @@ namespace oblo::editor
                     [&ptr](const property_node& node, const property_node_finish) { ptr -= node.offset; },
                     [&ptr](const property& property)
                     {
+                        const auto makeId = [&property] { return (int(hash_mix(property.offset, property.parent))); };
+
                         switch (property.kind)
                         {
                         case property_kind::f32:
-                            ImGui::PushID(int(hash_mix(property.offset, property.parent)));
+                            ImGui::PushID(makeId());
                             ImGui::DragFloat(property.name.c_str(),
                                 reinterpret_cast<float*>(ptr + property.offset),
                                 0.1f);
+                            ImGui::PopID();
                             break;
 
                         case property_kind::boolean:
-                            ImGui::PushID(int(hash_mix(property.offset, property.parent)));
+                            ImGui::PushID(makeId());
                             ImGui::Checkbox(property.name.c_str(), reinterpret_cast<bool*>(ptr + property.offset));
+                            ImGui::PopID();
+                            break;
+
+                        case property_kind::uuid:
+                            ImGui::PushID(makeId());
+
+                            {
+                                char buf[36];
+                                const auto& v = *reinterpret_cast<uuid*>(ptr + property.offset);
+                                v.format_to(buf);
+
+                                ImGui::TextUnformatted(buf, buf + array_size(buf));
+                            }
+
+                            ImGui::PopID();
                             break;
 
                         default:
