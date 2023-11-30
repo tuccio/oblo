@@ -7,6 +7,7 @@
 
 #include <glslang/SPIRV/GlslangToSpv.h>
 
+#include <deque>
 #include <mutex>
 #include <string_view>
 
@@ -142,6 +143,40 @@ namespace oblo::vk::shader_compiler
             return resources;
         }
 
+        struct glslang_includer final : glslang::TShader::Includer
+        {
+        public:
+            explicit glslang_includer(include_handler& handler) : m_handler{handler} {}
+
+            IncludeResult* includeSystem(
+                const char* headerName, const char* /*includerName*/, size_t /*inclusionDepth*/) override
+            {
+                if (!m_handler.resolve(headerName, m_pathBuffer))
+                {
+                    return nullptr;
+                }
+
+                const std::span data = load_text_file_into_memory(m_allocator, m_pathBuffer);
+
+                auto& result = m_includeResults.emplace_back(m_pathBuffer.string(), data.data(), data.size(), nullptr);
+                return &result;
+            }
+
+            IncludeResult* includeLocal(
+                const char* /*headerName*/, const char* /*includerName*/, size_t /*inclusionDepth*/) override
+            {
+                return nullptr;
+            }
+
+            void releaseInclude(IncludeResult*) override {}
+
+        private:
+            include_handler& m_handler;
+            frame_allocator& m_allocator{m_handler.get_allocator()};
+            std::deque<IncludeResult> m_includeResults;
+            std::filesystem::path m_pathBuffer;
+        };
+
         std::mutex s_initMutex;
         int s_counter{0};
     }
@@ -182,7 +217,19 @@ namespace oblo::vk::shader_compiler
         const int sourceLengths[] = {int(sourceCode.size())};
         shader.setStringsWithLengths(sources, sourceLengths, 1);
 
-        if (constexpr auto resources = get_resources(); !shader.parse(&resources, 100, false, messages))
+        constexpr auto resources = get_resources();
+
+        glslang::TShader::ForbidIncluder forbidIncluder;
+        std::optional<glslang_includer> userIncluder;
+
+        glslang::TShader::Includer* includer{&forbidIncluder};
+
+        if (options.includeHandler)
+        {
+            includer = &userIncluder.emplace(*options.includeHandler);
+        }
+
+        if (!shader.parse(&resources, 100, false, messages, *includer))
         {
             const auto* infoLog = shader.getInfoLog();
             const auto* infoDebugLog = shader.getInfoDebugLog();
