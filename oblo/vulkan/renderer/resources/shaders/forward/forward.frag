@@ -6,6 +6,7 @@ layout(location = 0) in vec2 in_UV0;
 layout(location = 1) flat in uint in_InstanceId;
 
 layout(location = 0) out vec4 out_Color;
+layout(location = 1) out uint out_PickingId;
 
 #define OBLO_DESCRIPTOR_SET_SAMPLERS 1
 #define OBLO_DESCRIPTOR_SET_TEXTURES_2D 2
@@ -80,5 +81,7 @@ void main()
     { 
         pickingId = entityIds[in_InstanceId];
     }
+    
+    out_PickingId = entityIds[in_InstanceId];
 #endif
 }
