@@ -93,7 +93,7 @@ namespace oblo::editor
                 switch (v.picking.state)
                 {
                 case picking_request::state::none:
-                    if (ImGui::IsItemClicked())
+                    if (hasFocus && ImGui::IsItemClicked())
                     {
                         const auto [viewportX, viewportY] = ImGui::GetItemRectMin();
                         const auto [mouseX, mouseY] = ImGui::GetMousePos();
