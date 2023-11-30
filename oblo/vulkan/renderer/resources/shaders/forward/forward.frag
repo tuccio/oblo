@@ -41,22 +41,10 @@ struct gpu_material
 
 #ifdef OBLO_PICKING_ENABLED
 
-layout(binding = 10) uniform PickingCoordinatesBuffer
-{
-    vec2 coordinates;
-}
-b_Picking;
-
-layout(std430, binding = 11) restrict buffer b_PickingResult
-{
-    uint pickingId;
-};
-
 layout(std430, binding = 12) restrict readonly buffer i_EntityIdBuffer
 {
     uint entityIds[];
 };
-
 
 #endif
 
@@ -74,14 +62,6 @@ void main()
     out_Color = vec4(color.xyz * material.albedo, 1);
 
 #ifdef OBLO_PICKING_ENABLED
-    const uvec2 uFrag = uvec2(gl_FragCoord);
-    const uvec2 uCoords = uvec2(b_Picking.coordinates);
-
-    if (uFrag.x == uCoords.x && uFrag.y == uCoords.y)
-    { 
-        pickingId = entityIds[in_InstanceId];
-    }
-    
     out_PickingId = entityIds[in_InstanceId];
 #endif
 }

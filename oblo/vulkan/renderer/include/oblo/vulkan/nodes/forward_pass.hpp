@@ -16,7 +16,6 @@ namespace oblo::vk
     {
         bool enabled;
         vec2 coordinates;
-        buffer resultBuffer;
         buffer downloadBuffer;
     };
 
@@ -37,9 +36,6 @@ namespace oblo::vk
         resource<texture> outRenderTarget;
         resource<texture> outPickingIdBuffer;
         resource<texture> outDepthBuffer;
-
-        resource<buffer> pickingCoordinatesBuffer;
-        resource<buffer> inPickingBuffer;
 
         h32<render_pass> renderPass;
 
@@ -77,12 +73,6 @@ namespace oblo::vk
 
             if (isPickingEnabled)
             {
-                builder.create(pickingCoordinatesBuffer,
-                    {
-                        .size = sizeof(vec2),
-                        .data = std::as_bytes(std::span{&pickingConfiguration.coordinates, 1}),
-                    });
-
                 builder.create(outPickingIdBuffer,
                     {
                         .width = resolution.x,
@@ -202,30 +192,10 @@ namespace oblo::vk
 
             setup_viewport_scissor(commandBuffer, renderWidth, renderHeight);
 
-            buffer_binding_table nodeTable;
-
-            if (isPickingEnabled)
-            {
-                auto& interner = context.get_string_interner();
-
-                const buffer pickingCoordinates = context.access(pickingCoordinatesBuffer);
-                const auto coordinates = interner.get_or_add("PickingCoordinatesBuffer");
-                nodeTable.emplace(coordinates, pickingCoordinates);
-
-                const auto* const cfg = context.access(inPickingConfiguration);
-
-                const auto& resultBuffer = cfg->downloadBuffer;
-                const auto result = interner.get_or_add("b_PickingResult");
-                nodeTable.emplace(result, resultBuffer);
-
-                // vkCmdFillBuffer(commandBuffer, resultBuffer.buffer, resultBuffer.offset, resultBuffer.size, 0);
-            }
-
             if (renderPassManager.begin_rendering(renderPassContext, renderInfo))
             {
                 const buffer_binding_table* bindingTables[] = {
                     context.access(inPerViewBindingTable),
-                    &nodeTable,
                 };
 
                 renderPassManager.draw(renderPassContext,
@@ -237,7 +207,7 @@ namespace oblo::vk
 
                 if (isPickingEnabled)
                 {
-                    ///
+                    // TODO: Move this copy to its own node, and let it handle pipeline barriers
                     const auto* cfg = context.access(inPickingConfiguration);
                     const auto pickingBuffer = context.access(outPickingIdBuffer);
 
@@ -256,9 +226,6 @@ namespace oblo::vk
                         .imageExtent = {1, 1, 1},
                     };
 
-                    // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-                    // VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
-
                     add_pipeline_barrier_cmd(commandBuffer,
                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
@@ -267,75 +234,12 @@ namespace oblo::vk
                         1,
                         1);
 
-                    // VkImageMemoryBarrier imageMemoryBarrier = {
-                    //     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-                    //     .srcMask = VK_ACCESS_.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                    //     .newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    //     .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                    //     .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                    //     .image = pickingBuffer.image,
-                    // };
-
-                    // vkCmdPipelineBarrier(commandBuffer,
-                    //     VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                    //     VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    //     0,
-                    //     0,
-                    //     nullptr,
-                    //     0,
-                    //     nullptr,
-                    //     1,
-                    //     &imageMemoryBarrier);
-
                     vkCmdCopyImageToBuffer(commandBuffer,
                         pickingBuffer.image,
                         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                         cfg->downloadBuffer.buffer,
                         1,
                         &copyRegion);
-
-                    // const VkMemoryBarrier2 memoryBarrier{
-                    //     .srcStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
-                    //     .srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT,
-                    //     .dstStageMask = VK_PIPELINE_STAGE_2_HOST_BIT,
-                    //     .dstAccessMask = VK_ACCESS_2_HOST_READ_BIT,
-                    // };
-
-                    // const VkDependencyInfo dependency{
-                    //     .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-                    //     .memoryBarrierCount = 1,
-                    //     .pMemoryBarriers = &memoryBarrier,
-                    // };
-
-                    // vkCmdPipelineBarrier2(commandBuffer, &dependency);
-
-                    ///
-
-                    // const auto* cfg = context.access(inPickingConfiguration);
-
-                    // const buffer& downloadBuffer = cfg->downloadBuffer;
-
-                    // const VkBufferMemoryBarrier bufferMemoryBarrier{
-                    //     .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-                    //     .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
-                    //     .dstAccessMask = VK_ACCESS_HOST_READ_BIT,
-                    //     .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                    //     .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                    //     .buffer = downloadBuffer.buffer,
-                    //     .offset = downloadBuffer.offset,
-                    //     .size = downloadBuffer.size,
-                    // };
-
-                    // vkCmdPipelineBarrier(commandBuffer,
-                    //     VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                    //     VK_PIPELINE_STAGE_HOST_BIT,
-                    //     0,
-                    //     0,
-                    //     nullptr,
-                    //     1,
-                    //     &bufferMemoryBarrier,
-                    //     0,
-                    //     nullptr);
                 }
             }
         }

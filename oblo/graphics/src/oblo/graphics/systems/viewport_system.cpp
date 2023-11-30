@@ -52,7 +52,6 @@ namespace oblo
         u32 height{};
         VkDescriptorSet descriptorSet{};
 
-        vk::allocated_buffer pickingBuffer;
         vk::allocated_buffer pickingDownloadBuffer;
         u64 lastPickingSubmitIndex{};
     };
@@ -164,13 +163,6 @@ namespace oblo
             renderGraphData.descriptorSet = {};
         }
 
-        if (renderGraphData.pickingBuffer.buffer)
-        {
-            vkCtx.destroy_deferred(renderGraphData.pickingBuffer.buffer, submitIndex);
-            vkCtx.destroy_deferred(renderGraphData.pickingBuffer.allocation, submitIndex);
-            renderGraphData.pickingBuffer = {};
-        }
-
         if (renderGraphData.pickingDownloadBuffer.buffer)
         {
             vkCtx.destroy_deferred(renderGraphData.pickingDownloadBuffer.buffer, submitIndex);
@@ -183,26 +175,12 @@ namespace oblo
     {
         auto& allocator = m_renderer->get_allocator();
 
-        if (!graphData.pickingBuffer.buffer &&
-            allocator.create_buffer(
-                {
-                    .size = PickingResultSize,
-                    .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
-                        VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                    .memoryUsage = vk::memory_usage::gpu_only,
-                },
-                &graphData.pickingBuffer) != VK_SUCCESS)
-        {
-            return false;
-        }
-
         if (!graphData.pickingDownloadBuffer.buffer &&
             allocator.create_buffer(
                 {
                     .size = PickingResultSize,
                     .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                    .requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                    // .memoryUsage = vk::memory_usage::gpu_to_cpu,
+                    .memoryUsage = vk::memory_usage::gpu_to_cpu,
                 },
                 &graphData.pickingDownloadBuffer) != VK_SUCCESS)
         {
@@ -385,14 +363,12 @@ namespace oblo
                         {
                             pickingCfg->enabled = true;
                             pickingCfg->coordinates = viewport.picking.coordinates;
-                            pickingCfg->resultBuffer = {
-                                .buffer = renderGraphData->pickingBuffer.buffer,
-                                .size = PickingResultSize,
-                            };
+
                             pickingCfg->downloadBuffer = {
                                 .buffer = renderGraphData->pickingDownloadBuffer.buffer,
                                 .size = PickingResultSize,
                             };
+
                             viewport.picking.state = picking_request::state::awaiting;
                         }
                         else
