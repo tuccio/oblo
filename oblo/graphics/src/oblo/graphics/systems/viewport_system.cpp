@@ -385,10 +385,14 @@ namespace oblo
                         {
                             pickingCfg->enabled = true;
                             pickingCfg->coordinates = viewport.picking.coordinates;
-                            pickingCfg->resultBuffer = {.buffer = renderGraphData->pickingBuffer.buffer,
-                                .size = PickingResultSize};
-                            pickingCfg->downloadBuffer = {.buffer = renderGraphData->pickingDownloadBuffer.buffer,
-                                .size = PickingResultSize};
+                            pickingCfg->resultBuffer = {
+                                .buffer = renderGraphData->pickingBuffer.buffer,
+                                .size = PickingResultSize,
+                            };
+                            pickingCfg->downloadBuffer = {
+                                .buffer = renderGraphData->pickingDownloadBuffer.buffer,
+                                .size = PickingResultSize,
+                            };
                             viewport.picking.state = picking_request::state::awaiting;
                         }
                         else

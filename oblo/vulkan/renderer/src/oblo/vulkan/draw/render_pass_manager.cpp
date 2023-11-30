@@ -711,9 +711,11 @@ namespace oblo::vk
             return failure();
         }
 
+        const u32 numAttachments = u32(desc.renderTargets.colorAttachmentFormats.size());
+
         const VkPipelineRenderingCreateInfo pipelineRenderingCreateInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
-            .colorAttachmentCount = narrow_cast<u32>(desc.renderTargets.colorAttachmentFormats.size()),
+            .colorAttachmentCount = numAttachments,
             .pColorAttachmentFormats = desc.renderTargets.colorAttachmentFormats.data(),
             .depthAttachmentFormat = desc.renderTargets.depthFormat,
             .stencilAttachmentFormat = desc.renderTargets.stencilFormat,
@@ -767,12 +769,22 @@ namespace oblo::vk
                 VK_COLOR_COMPONENT_A_BIT,
         };
 
+        // TODO: Just hardcoded max number of 4 right now
+        const VkPipelineColorBlendAttachmentState colorBlendAttachments[] = {
+            colorBlendAttachment,
+            colorBlendAttachment,
+            colorBlendAttachment,
+            colorBlendAttachment,
+        };
+
+        OBLO_ASSERT(numAttachments <= array_size(colorBlendAttachments));
+
         const VkPipelineColorBlendStateCreateInfo colorBlending{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
             .logicOpEnable = VK_FALSE,
             .logicOp = VK_LOGIC_OP_COPY,
-            .attachmentCount = 1,
-            .pAttachments = &colorBlendAttachment,
+            .attachmentCount = numAttachments,
+            .pAttachments = colorBlendAttachments,
             .blendConstants = {0.f},
         };
 
@@ -1064,7 +1076,8 @@ namespace oblo::vk
 
                     if (!found)
                     {
-                        log::debug("Unable to find matching buffer for binding {}", m_impl->interner->str(binding.name));
+                        log::debug("Unable to find matching buffer for binding {}",
+                            m_impl->interner->str(binding.name));
                     }
                 }
 
