@@ -50,6 +50,19 @@ namespace oblo::importers
         uuid id;
     };
 
+    namespace
+    {
+        int find_image_from_texture(const tinygltf::Model& model, int textureIndex)
+        {
+            if (textureIndex < 0)
+            {
+                return textureIndex;
+            }
+
+            return usize(textureIndex) < model.textures.size() ? model.textures[textureIndex].source : -1;
+        }
+    }
+
     gltf::gltf() = default;
 
     gltf::~gltf() = default;
@@ -155,7 +168,7 @@ namespace oblo::importers
             }
 
             const u32 nodeIndex = u32(preview.nodes.size());
-            preview.nodes.emplace_back(get_type_id<texture>(), gltfImage.name);
+            preview.nodes.emplace_back(get_type_id<texture>(), name);
 
             // TODO: Look for the best registered image importer instead
             auto importer = std::make_unique<stb_image>();
@@ -239,7 +252,8 @@ namespace oblo::importers
 
             oblo::material materialArtifact;
 
-            auto& gltfMaterial = m_model.materials[&material - m_importMaterials.data()];
+            const auto materialIndex = &material - m_importMaterials.data();
+            auto& gltfMaterial = m_model.materials[materialIndex];
 
             auto& pbr = gltfMaterial.pbrMetallicRoughness;
 
@@ -256,8 +270,8 @@ namespace oblo::importers
 
             materialArtifact.set_property(pbr::Albedo, albedo);
 
-            if (const auto imageIndex = usize(pbr.baseColorTexture.index);
-                imageIndex >= 0 && imageIndex < m_importImages.size() && !m_importImages[imageIndex].id.is_nil())
+            if (const auto imageIndex = find_image_from_texture(m_model, pbr.baseColorTexture.index);
+                imageIndex >= 0 && usize(imageIndex) < m_importImages.size() && !m_importImages[imageIndex].id.is_nil())
             {
                 materialArtifact.set_property(pbr::AlbedoTexture, resource_ref<texture>(m_importImages[imageIndex].id));
             }
@@ -265,17 +279,19 @@ namespace oblo::importers
             materialArtifact.set_property(pbr::Metalness, f32(pbr.metallicFactor));
             materialArtifact.set_property(pbr::Roughness, f32(pbr.roughnessFactor));
 
-            if (const auto imageIndex = usize(pbr.metallicRoughnessTexture.index);
-                imageIndex >= 0 && imageIndex < m_importImages.size() && !m_importImages[imageIndex].id.is_nil())
+            if (const auto imageIndex = find_image_from_texture(m_model, pbr.metallicRoughnessTexture.index);
+                imageIndex >= 0 && usize(imageIndex) < m_importImages.size() && !m_importImages[imageIndex].id.is_nil())
             {
                 materialArtifact.set_property(pbr::MetalnessRoughnessTexture,
                     resource_ref<texture>(m_importImages[imageIndex].id));
             }
 
+            const auto& name = ctx.nodes[material.nodeIndex].name;
+
             m_artifacts.push_back({
                 .id = nodeConfig.id,
                 .data = any_asset{std::move(materialArtifact)},
-                .name = ctx.nodes[material.nodeIndex].name,
+                .name = name.empty() ? std::format("Material#{}", materialIndex) : name,
             });
 
             material.id = nodeConfig.id;
