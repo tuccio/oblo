@@ -333,6 +333,8 @@ namespace oblo::importers
                     continue;
                 }
 
+                meshAsset.update_aabb();
+
                 modelAsset.meshes.emplace_back(meshNodeConfig.id);
                 modelAsset.materials.emplace_back(m_importMaterials[primitive.material].id);
 

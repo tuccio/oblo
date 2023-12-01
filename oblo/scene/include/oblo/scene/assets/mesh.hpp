@@ -1,7 +1,9 @@
 #pragma once
 
+#include <oblo/core/debug.hpp>
 #include <oblo/core/lifetime.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/math/aabb.hpp>
 
 #include <span>
 #include <vector>
@@ -65,6 +67,10 @@ namespace oblo
         u32 get_index_count() const;
         u32 get_elements_count(attribute_kind attribute) const;
 
+        void update_aabb();
+        aabb get_aabb() const;
+        void set_aabb(aabb aabb);
+
     private:
         template <typename T, typename Self>
         static auto get_attribute_impl(Self& self, attribute_kind attribute)
@@ -93,6 +99,7 @@ namespace oblo
         u32 m_indexCount{};
         std::vector<std::byte> m_storage;
         std::vector<attribute_data> m_attributes;
+        aabb m_aabb{aabb::make_invalid()};
     };
 
     template <typename T>
