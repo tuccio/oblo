@@ -8,7 +8,7 @@
 #include <oblo/sandbox/sandbox_app_config.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/draw/render_pass_initializer.hpp>
-#include <oblo/vulkan/draw/render_pass_manager.hpp>
+#include <oblo/vulkan/draw/pass_manager.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/graph/init_context.hpp>
 #include <oblo/vulkan/graph/resource_pool.hpp>
@@ -45,9 +45,9 @@ namespace oblo::vk::test
 
             void init(const init_context& context)
             {
-                auto& renderPassManager = context.get_render_pass_manager();
+                auto& passManager = context.get_pass_manager();
 
-                renderPass = renderPassManager.register_render_pass({
+                renderPass = passManager.register_render_pass({
                     .name = "fill_depth_node",
                     .stages =
                         {
@@ -63,9 +63,9 @@ namespace oblo::vk::test
             {
                 const auto depthBuffer = context.access(outDepthBuffer);
 
-                auto& renderPassManager = context.get_render_pass_manager();
+                auto& passManager = context.get_pass_manager();
 
-                const auto pipeline = renderPassManager.get_or_create_pipeline(renderPass,
+                const auto pipeline = passManager.get_or_create_pipeline(renderPass,
                     {
                         .renderTargets =
                             {
@@ -109,7 +109,7 @@ namespace oblo::vk::test
                     .pDepthAttachment = &depthAttachment,
                 };
 
-                ASSERT_TRUE(renderPassManager.begin_rendering(renderPassContext, renderInfo));
+                ASSERT_TRUE(passManager.begin_rendering(renderPassContext, renderInfo));
 
                 {
                     const VkViewport viewport{
@@ -127,7 +127,7 @@ namespace oblo::vk::test
 
                 vkCmdDraw(commandBuffer, 4, 1, 0, 0);
 
-                renderPassManager.end_rendering(renderPassContext);
+                passManager.end_rendering(renderPassContext);
             }
         };
 
@@ -158,9 +158,9 @@ namespace oblo::vk::test
 
             void init(const init_context& context)
             {
-                auto& renderPassManager = context.get_render_pass_manager();
+                auto& passManager = context.get_pass_manager();
 
-                renderPass = renderPassManager.register_render_pass({
+                renderPass = passManager.register_render_pass({
                     .name = "fill_color_node",
                     .stages =
                         {
@@ -181,9 +181,9 @@ namespace oblo::vk::test
                 const auto renderTarget = context.access(outRenderTarget);
                 const auto depthBuffer = context.access(inDepthBuffer);
 
-                auto& renderPassManager = context.get_render_pass_manager();
+                auto& passManager = context.get_pass_manager();
 
-                const auto pipeline = renderPassManager.get_or_create_pipeline(renderPass,
+                const auto pipeline = passManager.get_or_create_pipeline(renderPass,
                     {
                         .renderTargets =
                             {
@@ -238,7 +238,7 @@ namespace oblo::vk::test
                     .pDepthAttachment = &depthAttachment,
                 };
 
-                ASSERT_TRUE(renderPassManager.begin_rendering(renderPassContext, renderInfo));
+                ASSERT_TRUE(passManager.begin_rendering(renderPassContext, renderInfo));
 
                 {
                     const VkViewport viewport{
@@ -256,7 +256,7 @@ namespace oblo::vk::test
 
                 vkCmdDraw(commandBuffer, 4, 1, 0, 0);
 
-                renderPassManager.end_rendering(renderPassContext);
+                passManager.end_rendering(renderPassContext);
             }
         };
 

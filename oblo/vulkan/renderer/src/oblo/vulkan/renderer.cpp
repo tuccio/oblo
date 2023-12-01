@@ -40,10 +40,10 @@ namespace oblo::vk
             });
 
         m_stringInterner.init(64);
-        m_renderPassManager.init(*m_vkContext, m_stringInterner, m_dummy, m_textureRegistry);
+        m_passManager.init(*m_vkContext, m_stringInterner, m_dummy, m_textureRegistry);
 
         const std::filesystem::path includePaths[] = {"./vulkan/shaders/"};
-        m_renderPassManager.set_system_include_paths(includePaths);
+        m_passManager.set_system_include_paths(includePaths);
 
         m_textureRegistry.init(*m_vkContext, m_stagingBuffer);
 
@@ -62,7 +62,7 @@ namespace oblo::vk
         m_renderGraphs.clear();
         m_graphResourcePool.shutdown(*m_vkContext);
 
-        m_renderPassManager.shutdown(*m_vkContext);
+        m_passManager.shutdown(*m_vkContext);
 
         resourceManager.destroy(allocator, m_dummy);
 
@@ -77,7 +77,7 @@ namespace oblo::vk
         m_stagingBuffer.flush();
 
         m_graphResourcePool.begin_build();
-        m_renderPassManager.begin_frame();
+        m_passManager.begin_frame();
 
         // TODO: Graph dependencies, e.g. shadow maps should run before other graphs
         for (auto& graphData : m_renderGraphs.values())
@@ -94,7 +94,7 @@ namespace oblo::vk
             graphData.execute(*this, m_graphResourcePool);
         }
 
-        m_renderPassManager.end_frame();
+        m_passManager.end_frame();
         m_drawRegistry.end_frame();
     }
 

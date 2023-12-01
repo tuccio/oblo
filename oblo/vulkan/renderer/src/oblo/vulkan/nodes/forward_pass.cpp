@@ -13,9 +13,9 @@ namespace oblo::vk
 {
     void forward_pass::init(const init_context& context)
     {
-        auto& renderPassManager = context.get_render_pass_manager();
+        auto& passManager = context.get_pass_manager();
 
-        renderPass = renderPassManager.register_render_pass({
+        renderPass = passManager.register_render_pass({
             .name = "Forward Pass",
             .stages =
                 {
@@ -79,7 +79,7 @@ namespace oblo::vk
         const auto renderTarget = context.access(outRenderTarget);
         const auto depthBuffer = context.access(outDepthBuffer);
 
-        auto& renderPassManager = context.get_render_pass_manager();
+        auto& passManager = context.get_pass_manager();
 
         render_pipeline_initializer pipelineInitializer{
             .renderTargets =
@@ -128,7 +128,7 @@ namespace oblo::vk
             });
         }
 
-        const auto pipeline = renderPassManager.get_or_create_pipeline(renderPass, pipelineInitializer);
+        const auto pipeline = passManager.get_or_create_pipeline(renderPass, pipelineInitializer);
 
         const VkCommandBuffer commandBuffer = context.get_command_buffer();
 
@@ -158,18 +158,18 @@ namespace oblo::vk
 
         setup_viewport_scissor(commandBuffer, renderWidth, renderHeight);
 
-        if (renderPassManager.begin_rendering(renderPassContext, renderInfo))
+        if (passManager.begin_rendering(renderPassContext, renderInfo))
         {
             const buffer_binding_table* bindingTables[] = {
                 context.access(inPerViewBindingTable),
             };
 
-            renderPassManager.draw(renderPassContext,
+            passManager.draw(renderPassContext,
                 context.get_resource_manager(),
                 context.get_draw_registry(),
                 bindingTables);
 
-            renderPassManager.end_rendering(renderPassContext);
+            passManager.end_rendering(renderPassContext);
         }
     }
 }

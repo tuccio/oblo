@@ -1,4 +1,4 @@
-#include <oblo/vulkan/draw/render_pass_manager.hpp>
+#include <oblo/vulkan/draw/pass_manager.hpp>
 
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/array_size.hpp>
@@ -200,7 +200,7 @@ namespace oblo::vk
         };
     }
 
-    struct render_pass_manager::impl
+    struct pass_manager::impl
     {
         frame_allocator frameAllocator;
         includer includer{frameAllocator};
@@ -223,10 +223,10 @@ namespace oblo::vk
         VkSampler samplers[1]{};
     };
 
-    render_pass_manager::render_pass_manager() = default;
-    render_pass_manager::~render_pass_manager() = default;
+    pass_manager::pass_manager() = default;
+    pass_manager::~pass_manager() = default;
 
-    void render_pass_manager::init(const vulkan_context& vkContext,
+    void pass_manager::init(const vulkan_context& vkContext,
         string_interner& interner,
         const h32<buffer> dummy,
         const texture_registry& textureRegistry)
@@ -355,7 +355,7 @@ namespace oblo::vk
         watcher.watch();
     }
 
-    void render_pass_manager::shutdown(vulkan_context& vkContext)
+    void pass_manager::shutdown(vulkan_context& vkContext)
     {
         if (!m_impl)
         {
@@ -390,12 +390,12 @@ namespace oblo::vk
         m_impl.reset();
     }
 
-    void render_pass_manager::set_system_include_paths(std::span<const std::filesystem::path> paths)
+    void pass_manager::set_system_include_paths(std::span<const std::filesystem::path> paths)
     {
         m_impl->includer.systemIncludePaths.assign(paths.begin(), paths.end());
     }
 
-    h32<render_pass> render_pass_manager::register_render_pass(const render_pass_initializer& desc)
+    h32<render_pass> pass_manager::register_render_pass(const render_pass_initializer& desc)
     {
         const auto [it, handle] = m_impl->renderPasses.emplace();
         OBLO_ASSERT(handle);
@@ -419,7 +419,7 @@ namespace oblo::vk
         return handle;
     }
 
-    h32<render_pipeline> render_pass_manager::get_or_create_pipeline(h32<render_pass> renderPassHandle,
+    h32<render_pipeline> pass_manager::get_or_create_pipeline(h32<render_pass> renderPassHandle,
         const render_pipeline_initializer& desc)
     {
         auto* const renderPass = m_impl->renderPasses.try_find(renderPassHandle);
@@ -890,7 +890,7 @@ namespace oblo::vk
         return failure();
     }
 
-    void render_pass_manager::begin_frame()
+    void pass_manager::begin_frame()
     {
         m_impl->descriptorSetPool.begin_frame();
         m_impl->texturesDescriptorSetPool.begin_frame();
@@ -933,13 +933,13 @@ namespace oblo::vk
         m_impl->currentTextures2DDescriptor = descriptorSet;
     }
 
-    void render_pass_manager::end_frame()
+    void pass_manager::end_frame()
     {
         m_impl->descriptorSetPool.end_frame();
         m_impl->texturesDescriptorSetPool.end_frame();
     }
 
-    bool render_pass_manager::begin_rendering(render_pass_context& context, const VkRenderingInfo& renderingInfo) const
+    bool pass_manager::begin_rendering(render_pass_context& context, const VkRenderingInfo& renderingInfo) const
     {
         const auto* pipeline = m_impl->renderPipelines.try_find(context.pipeline);
 
@@ -981,13 +981,13 @@ namespace oblo::vk
         return true;
     }
 
-    void render_pass_manager::end_rendering(const render_pass_context& context)
+    void pass_manager::end_rendering(const render_pass_context& context)
     {
         vkCmdEndRendering(context.commandBuffer);
         m_impl->frameAllocator.restore_all();
     }
 
-    void render_pass_manager::draw(const render_pass_context& context,
+    void pass_manager::draw(const render_pass_context& context,
         const resource_manager& resourceManager,
         const draw_registry& drawRegistry,
         std::span<const buffer_binding_table* const> bindingTables)
