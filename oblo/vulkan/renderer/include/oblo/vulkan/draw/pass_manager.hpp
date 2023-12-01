@@ -40,15 +40,15 @@ namespace oblo::vk
 
     struct render_pass_context;
 
-    class render_pass_manager
+    class pass_manager
     {
     public:
-        render_pass_manager();
-        render_pass_manager(const render_pass_manager&) = delete;
-        render_pass_manager(render_pass_manager&&) noexcept = delete;
-        render_pass_manager& operator=(const render_pass_manager&) = delete;
-        render_pass_manager& operator=(render_pass_manager&&) noexcept = delete;
-        ~render_pass_manager();
+        pass_manager();
+        pass_manager(const pass_manager&) = delete;
+        pass_manager(pass_manager&&) noexcept = delete;
+        pass_manager& operator=(const pass_manager&) = delete;
+        pass_manager& operator=(pass_manager&&) noexcept = delete;
+        ~pass_manager();
 
         void init(const vulkan_context& vkContext,
             string_interner& interner,

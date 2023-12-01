@@ -4,7 +4,7 @@
 #include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/core/string_interner.hpp>
 #include <oblo/vulkan/draw/draw_registry.hpp>
-#include <oblo/vulkan/draw/render_pass_manager.hpp>
+#include <oblo/vulkan/draw/pass_manager.hpp>
 #include <oblo/vulkan/draw/texture_registry.hpp>
 #include <oblo/vulkan/graph/resource_pool.hpp>
 #include <oblo/vulkan/renderer_context.hpp>
@@ -48,7 +48,7 @@ namespace oblo::vk
         allocator& get_allocator();
         resource_manager& get_resource_manager();
         string_interner& get_string_interner();
-        render_pass_manager& get_render_pass_manager();
+        pass_manager& get_pass_manager();
         draw_registry& get_draw_registry();
         staging_buffer& get_staging_buffer();
         stateful_command_buffer& get_active_command_buffer();
@@ -69,7 +69,7 @@ namespace oblo::vk
         texture_registry m_textureRegistry;
 
         string_interner m_stringInterner;
-        render_pass_manager m_renderPassManager;
+        pass_manager m_passManager;
 
         h32<buffer> m_dummy;
 
@@ -93,9 +93,9 @@ namespace oblo::vk
         return m_stringInterner;
     }
 
-    inline render_pass_manager& renderer::get_render_pass_manager()
+    inline pass_manager& renderer::get_pass_manager()
     {
-        return m_renderPassManager;
+        return m_passManager;
     }
 
     inline draw_registry& renderer::get_draw_registry()

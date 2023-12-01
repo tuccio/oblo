@@ -9,9 +9,9 @@ namespace oblo::vk
     public:
         explicit init_context(renderer& renderer) : m_renderer{&renderer} {}
 
-        render_pass_manager& get_render_pass_manager() const
+        pass_manager& get_pass_manager() const
         {
-            return m_renderer->get_render_pass_manager();
+            return m_renderer->get_pass_manager();
         }
 
         string_interner& get_string_interner() const

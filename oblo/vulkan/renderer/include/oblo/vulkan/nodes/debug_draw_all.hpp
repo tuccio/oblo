@@ -46,9 +46,9 @@ namespace oblo::vk
 
         void init(const init_context& context)
         {
-            auto& renderPassManager = context.get_render_pass_manager();
+            auto& passManager = context.get_pass_manager();
 
-            renderPass = renderPassManager.register_render_pass({
+            renderPass = passManager.register_render_pass({
                 .name = "Debug Draw All",
                 .stages =
                     {
@@ -69,9 +69,9 @@ namespace oblo::vk
             const auto renderTarget = context.access(outRenderTarget);
             const auto depthBuffer = context.access(outDepthBuffer);
 
-            auto& renderPassManager = context.get_render_pass_manager();
+            auto& passManager = context.get_pass_manager();
 
-            const auto pipeline = renderPassManager.get_or_create_pipeline(renderPass,
+            const auto pipeline = passManager.get_or_create_pipeline(renderPass,
                 {
                     .renderTargets =
                         {
@@ -128,18 +128,18 @@ namespace oblo::vk
 
             setup_viewport_scissor(commandBuffer, renderWidth, renderHeight);
 
-            if (renderPassManager.begin_rendering(renderPassContext, renderInfo))
+            if (passManager.begin_rendering(renderPassContext, renderInfo))
             {
                 const buffer_binding_table* bindingTables[] = {
                     context.access(inPerViewBindingTable),
                 };
 
-                renderPassManager.draw(renderPassContext,
+                passManager.draw(renderPassContext,
                     context.get_resource_manager(),
                     context.get_draw_registry(),
                     bindingTables);
 
-                renderPassManager.end_rendering(renderPassContext);
+                passManager.end_rendering(renderPassContext);
             }
         }
     };

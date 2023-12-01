@@ -13,7 +13,7 @@ namespace oblo
 namespace oblo::vk
 {
     class vulkan_context;
-    class render_pass_manager;
+    class pass_manager;
     struct texture;
 
     struct sandbox_init_context

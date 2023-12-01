@@ -15,7 +15,7 @@ namespace oblo::vk
 namespace oblo::vk
 {
     class render_graph;
-    class render_pass_manager;
+    class pass_manager;
 
     class runtime_context
     {
@@ -40,9 +40,9 @@ namespace oblo::vk
             return m_commandBuffer;
         }
 
-        render_pass_manager& get_render_pass_manager() const
+        pass_manager& get_pass_manager() const
         {
-            return m_renderer->get_render_pass_manager();
+            return m_renderer->get_pass_manager();
         }
 
         resource_manager& get_resource_manager() const
