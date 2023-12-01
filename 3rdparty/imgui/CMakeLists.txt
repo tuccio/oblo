@@ -12,7 +12,6 @@ target_link_libraries(
 )
 
 # SDL + OpenGL3
-
 add_library(imgui_sdl_gl3 sdl2/src/imgui_impl_sdl2.cpp opengl3/src/imgui_impl_opengl3.cpp)
 target_include_directories(imgui_sdl_gl3 PUBLIC sdl2/include opengl3/include)
 

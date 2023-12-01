@@ -4,7 +4,6 @@
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/type_desc.hpp>
 
-
 #include <algorithm>
 
 namespace oblo

@@ -106,7 +106,7 @@ namespace oblo::vk
         struct texture_transition;
         struct transient_texture;
         struct pending_copy;
-        
+
         using bitset = std::bitset<128>;
 
         using destruct_fn = void (*)(void*);

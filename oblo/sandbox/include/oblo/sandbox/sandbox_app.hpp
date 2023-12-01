@@ -19,7 +19,6 @@
 #include <oblo/vulkan/texture.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
 
-
 struct SDL_Window;
 union SDL_Event;
 
