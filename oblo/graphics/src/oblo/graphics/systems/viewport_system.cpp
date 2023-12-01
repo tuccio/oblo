@@ -21,6 +21,7 @@
 #include <oblo/vulkan/nodes/debug_draw_all.hpp>
 #include <oblo/vulkan/nodes/debug_triangle_node.hpp>
 #include <oblo/vulkan/nodes/forward_pass.hpp>
+#include <oblo/vulkan/nodes/picking_readback.hpp>
 #include <oblo/vulkan/nodes/view_buffers_node.hpp>
 #include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/renderer_context.hpp>
@@ -231,6 +232,7 @@ namespace oblo
                         topology_builder{}
                             .add_node<forward_pass>()
                             .add_node<view_buffers_node>()
+                            .add_node<picking_readback>()
                             .add_output<h32<vk::texture>>(OutFinalRenderTarget)
                             .add_output<h32<vk::texture>>(OutPickingBuffer)
                             .add_input<vec2u>(InResolution)
@@ -240,7 +242,9 @@ namespace oblo
                             .connect_input(InCamera, &view_buffers_node::inCameraData)
                             .connect_input(InResolution, &forward_pass::inResolution)
                             .connect_input(InPickingConfiguration, &forward_pass::inPickingConfiguration)
+                            .connect_input(InPickingConfiguration, &picking_readback::inPickingConfiguration)
                             .connect(&view_buffers_node::outPerViewBindingTable, &forward_pass::inPerViewBindingTable)
+                            .connect(&forward_pass::outPickingIdBuffer, &picking_readback::inPickingIdBuffer)
                             .build();
 #else
                     expected res =

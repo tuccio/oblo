@@ -1,7 +1,5 @@
 #pragma once
 
-#include <oblo/math/vec2.hpp>
-#include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/draw/buffer_binding_table.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 
@@ -19,14 +17,8 @@ namespace oblo::vk
 
     struct buffer;
     struct texture;
+    struct picking_configuration;
     struct render_pass;
-
-    struct picking_configuration
-    {
-        bool enabled;
-        vec2 coordinates;
-        buffer downloadBuffer;
-    };
 
     struct forward_pass
     {
@@ -42,12 +34,11 @@ namespace oblo::vk
 
         h32<string> pickingEnabledDefine;
 
-        // Cached in build to avoid re-accessing all the time
         bool isPickingEnabled;
 
-        void build(const runtime_builder& builder);
-
         void init(const init_context& context);
+
+        void build(const runtime_builder& builder);
 
         void execute(const runtime_context& context);
     };
