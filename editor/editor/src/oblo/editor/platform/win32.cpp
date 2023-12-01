@@ -38,7 +38,7 @@ namespace oblo::editor::platform
             .lpstrFileTitle = nullptr,
             .nMaxFileTitle = 0,
             .lpstrInitialDir = nullptr,
-            .Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST,
+            .Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR,
 
         };
 
