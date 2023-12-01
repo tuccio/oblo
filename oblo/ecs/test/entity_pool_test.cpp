@@ -14,7 +14,7 @@ namespace oblo::ecs
         // +1 because id 0 is invalid, then -1 make it a mask (since it's a power of two)
         constexpr u32 Mask{((N + 1) << 1) - 1};
 
-        entity entities[N] {};
+        entity entities[N]{};
 
         for (u32 i = 0; i < N; ++i)
         {

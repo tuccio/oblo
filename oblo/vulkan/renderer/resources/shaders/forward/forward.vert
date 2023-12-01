@@ -27,7 +27,7 @@ layout(std430, binding = 1) restrict readonly buffer i_TransformBuffer
 void main()
 {
     const mat4 model = transforms[gl_DrawID].localToWorld;
-    const mat4 viewProj =  b_Camera.projection * b_Camera.view;
+    const mat4 viewProj = b_Camera.projection * b_Camera.view;
     const vec4 position = viewProj * model * vec4(in_Position, 1);
     gl_Position = position;
     out_UV0 = in_UV0;

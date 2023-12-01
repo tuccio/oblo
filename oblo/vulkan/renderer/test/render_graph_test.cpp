@@ -7,8 +7,8 @@
 #include <oblo/sandbox/sandbox_app.hpp>
 #include <oblo/sandbox/sandbox_app_config.hpp>
 #include <oblo/vulkan/buffer.hpp>
-#include <oblo/vulkan/draw/render_pass_initializer.hpp>
 #include <oblo/vulkan/draw/pass_manager.hpp>
+#include <oblo/vulkan/draw/render_pass_initializer.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/graph/init_context.hpp>
 #include <oblo/vulkan/graph/resource_pool.hpp>
@@ -16,6 +16,7 @@
 #include <oblo/vulkan/graph/runtime_context.hpp>
 #include <oblo/vulkan/graph/topology_builder.hpp>
 #include <oblo/vulkan/renderer.hpp>
+
 
 namespace oblo::vk::test
 {

@@ -17,7 +17,7 @@ namespace oblo::editor
         constexpr drag_and_drop_payload pack_uuid(const uuid& id)
         {
             drag_and_drop_payload p;
-            *start_lifetime_as<uuid>(p.data) = id;;
+            *start_lifetime_as<uuid>(p.data) = id;
             return p;
         }
 

@@ -4,7 +4,6 @@
 #include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/core/types.hpp>
 
-
 #include <vulkan/vulkan.h>
 
 #include <vector>

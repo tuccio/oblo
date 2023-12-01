@@ -31,7 +31,7 @@ float random(float seedX, float seedY)
 void main()
 {
     const mat4 model = transforms[gl_DrawID].localToWorld;
-    const mat4 viewProj =  b_Camera.projection * b_Camera.view;
+    const mat4 viewProj = b_Camera.projection * b_Camera.view;
     const vec4 position = viewProj * model * vec4(in_Position, 1);
     gl_Position = position;
     out_Color = vec3(random(gl_DrawID, 0), random(gl_DrawID, 1), random(gl_DrawID, 2));
