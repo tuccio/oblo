@@ -6,18 +6,32 @@
 #include <oblo/vulkan/graph/render_graph.hpp>
 #include <oblo/vulkan/graph/runtime_builder.hpp>
 #include <oblo/vulkan/graph/runtime_context.hpp>
+#include <oblo/vulkan/nodes/picking_readback.hpp>
 #include <oblo/vulkan/utility.hpp>
 
 namespace oblo::vk
 {
-    // TODO: Get rid of this by making a specific node for picking, and let that one handle transitions
-    void add_pipeline_barrier_cmd(VkCommandBuffer commandBuffer,
-        VkImageLayout oldLayout,
-        VkImageLayout newLayout,
-        VkImage image,
-        VkFormat format,
-        u32 layerCount,
-        u32 mipLevels);
+    void forward_pass::init(const init_context& context)
+    {
+        auto& renderPassManager = context.get_render_pass_manager();
+
+        renderPass = renderPassManager.register_render_pass({
+            .name = "Forward Pass",
+            .stages =
+                {
+                    {
+                        .stage = pipeline_stages::vertex,
+                        .shaderSourcePath = "./vulkan/shaders/forward/forward.vert",
+                    },
+                    {
+                        .stage = pipeline_stages::fragment,
+                        .shaderSourcePath = "./vulkan/shaders/forward/forward.frag",
+                    },
+                },
+        });
+
+        pickingEnabledDefine = context.get_string_interner().get_or_add("OBLO_PICKING_ENABLED");
+    }
 
     void forward_pass::build(const runtime_builder& builder)
     {
@@ -58,28 +72,6 @@ namespace oblo::vk
                 },
                 resource_usage::render_target_write);
         }
-    }
-
-    void forward_pass::init(const init_context& context)
-    {
-        auto& renderPassManager = context.get_render_pass_manager();
-
-        renderPass = renderPassManager.register_render_pass({
-            .name = "Forward Pass",
-            .stages =
-                {
-                    {
-                        .stage = pipeline_stages::vertex,
-                        .shaderSourcePath = "./vulkan/shaders/forward/forward.vert",
-                    },
-                    {
-                        .stage = pipeline_stages::fragment,
-                        .shaderSourcePath = "./vulkan/shaders/forward/forward.frag",
-                    },
-                },
-        });
-
-        pickingEnabledDefine = context.get_string_interner().get_or_add("OBLO_PICKING_ENABLED");
     }
 
     void forward_pass::execute(const runtime_context& context)
@@ -178,43 +170,6 @@ namespace oblo::vk
                 bindingTables);
 
             renderPassManager.end_rendering(renderPassContext);
-
-            if (isPickingEnabled)
-            {
-                // TODO: Move this copy to its own node, and let it handle pipeline barriers
-                const auto* cfg = context.access(inPickingConfiguration);
-                const auto pickingBuffer = context.access(outPickingIdBuffer);
-
-                const VkBufferImageCopy copyRegion{
-                    .bufferOffset = cfg->downloadBuffer.offset,
-                    .bufferRowLength = pickingBuffer.initializer.extent.width,
-                    .bufferImageHeight = pickingBuffer.initializer.extent.height,
-                    .imageSubresource =
-                        {
-                            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                            .mipLevel = 0,
-                            .baseArrayLayer = 0,
-                            .layerCount = 1,
-                        },
-                    .imageOffset = {i32(cfg->coordinates.x), i32(cfg->coordinates.y), 0},
-                    .imageExtent = {1, 1, 1},
-                };
-
-                add_pipeline_barrier_cmd(commandBuffer,
-                    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    pickingBuffer.image,
-                    pickingBuffer.initializer.format,
-                    1,
-                    1);
-
-                vkCmdCopyImageToBuffer(commandBuffer,
-                    pickingBuffer.image,
-                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    cfg->downloadBuffer.buffer,
-                    1,
-                    &copyRegion);
-            }
         }
     }
 }
