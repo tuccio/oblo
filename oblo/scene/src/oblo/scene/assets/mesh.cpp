@@ -141,4 +141,20 @@ namespace oblo
     {
         return m_attributes[index];
     }
+
+    void mesh::update_aabb()
+    {
+        const auto positions = get_attribute<vec3>(attribute_kind::position);
+        m_aabb = compute_aabb(positions);
+    }
+
+    aabb mesh::get_aabb() const
+    {
+        return m_aabb;
+    }
+
+    void mesh::set_aabb(aabb aabb)
+    {
+        m_aabb = aabb;
+    }
 }

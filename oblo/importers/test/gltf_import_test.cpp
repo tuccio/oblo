@@ -107,6 +107,17 @@ namespace oblo::importers
             ASSERT_EQ(positions.size(), expectedVertexCount);
             ASSERT_EQ(normals.size(), expectedVertexCount);
             ASSERT_EQ(indices.size(), expectedIndexCount);
+
+            const auto aabb = meshResource->get_aabb();
+            ASSERT_TRUE(is_valid(aabb));
+
+            ASSERT_NEAR(aabb.min.x, -.5f, .0001f);
+            ASSERT_NEAR(aabb.min.y, -.5f, .0001f);
+            ASSERT_NEAR(aabb.min.z, -.5f, .0001f);
+
+            ASSERT_NEAR(aabb.max.x, .5f, .0001f);
+            ASSERT_NEAR(aabb.max.y, .5f, .0001f);
+            ASSERT_NEAR(aabb.max.z, .5f, .0001f);
         }
     }
 }

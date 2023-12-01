@@ -20,6 +20,8 @@ namespace oblo
         constexpr bool PrettyFormatGLTF{!WriteBinaryGLB};
         constexpr bool AddScene{true}; // This is useful to look at the file in other software
 
+        constexpr const char* ExtraAbb{"aabb"};
+
         constexpr std::string_view get_attribute_name(attribute_kind kind)
         {
             switch (kind)
@@ -150,6 +152,21 @@ namespace oblo
         auto& primitive = gltfMesh.primitives.emplace_back();
 
         primitive.mode = get_primitive_mode(mesh.get_primitive_kind());
+
+        if (const auto aabb = mesh.get_aabb(); is_valid(aabb))
+        {
+            using tinygltf::Value;
+
+            gltfMesh.extras = Value{Value::Object{{ExtraAbb,
+                Value{
+                    Value::Object{{"min", Value{Value::Array{Value{aabb.min.x}, Value{aabb.min.y}, Value{aabb.min.z}}}},
+                        {"max",
+                            Value{Value::Array{
+                                Value{aabb.max.x},
+                                Value{aabb.max.y},
+                                Value{aabb.max.z},
+                            }}}}}}}};
+        }
 
         const u32 numAttributes = mesh.get_attributes_count();
         model.accessors.reserve(numAttributes);
@@ -414,6 +431,8 @@ namespace oblo
         ifs.read(content.data(), fileSize);
 
         tinygltf::TinyGLTF loader;
+        loader.SetStoreOriginalJSONForExtrasAndExtensions(true);
+
         tinygltf::Model model;
 
         const auto parentPath = source.parent_path().string();
@@ -457,6 +476,42 @@ namespace oblo
         std::vector<gltf_accessor> sources;
         sources.reserve(maxAttributes);
 
-        return load_mesh(mesh, model, primitive, attributes, sources, nullptr);
+        if (load_mesh(mesh, model, primitive, attributes, sources, nullptr))
+        {
+            aabb aabb = aabb::make_invalid();
+
+            if (const auto& extra = model.meshes[0].extras_json_string; !extra.empty())
+            {
+                using tinygltf::Value;
+
+                const auto json = tinygltf::detail::json::parse(extra, nullptr, false);
+
+                Value extraValue;
+
+                if (!json.is_discarded() && tinygltf::ParseJsonAsValue(&extraValue, json))
+                {
+                    auto& aabbValue = extraValue.Get(ExtraAbb);
+
+                    if (aabbValue.IsObject())
+                    {
+
+                        auto& minValue = aabbValue.Get("min");
+                        auto& maxValue = aabbValue.Get("max");
+
+                        for (usize i = 0; i < 3; ++i)
+                        {
+                            aabb.min[i] = f32(minValue.Get(i).GetNumberAsDouble());
+                            aabb.max[i] = f32(maxValue.Get(i).GetNumberAsDouble());
+                        }
+                    }
+                }
+            }
+
+            mesh.set_aabb(aabb);
+
+            return true;
+        }
+
+        return false;
     }
 }
