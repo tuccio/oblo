@@ -9,6 +9,7 @@
 #include <oblo/core/string_interner.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/vulkan/buffer.hpp>
+#include <oblo/vulkan/draw/compute_pass_initializer.hpp>
 #include <oblo/vulkan/draw/descriptor_set_pool.hpp>
 #include <oblo/vulkan/draw/draw_registry.hpp>
 #include <oblo/vulkan/draw/mesh_table.hpp>
@@ -49,6 +50,11 @@ namespace oblo::vk
         {
             u64 hash;
             h32<render_pipeline> pipeline;
+        };
+
+        struct compute_pass_variant
+        {
+            u64 hash;
         };
 
         enum resource_kind : u8
@@ -111,24 +117,42 @@ namespace oblo::vk
 
             std::atomic<bool> anyEvent{};
         };
+
+        struct vertex_inputs_reflection
+        {
+            VkVertexInputBindingDescription* bindingDescs;
+            VkVertexInputAttributeDescription* attributeDescs;
+            u32 count;
+        };
     }
 
     struct render_pass
     {
         h32<string> name;
+        u8 stagesCount{0};
+
         std::filesystem::path shaderSourcePath[MaxPipelineStages];
         pipeline_stages stages[MaxPipelineStages];
-
-        u8 stagesCount{0};
 
         std::vector<render_pass_variant> variants;
 
         std::unique_ptr<watch_listener> watcher;
     };
 
-    struct render_pipeline
+    struct compute_pass
     {
-        VkShaderModule shaderModules[MaxPipelineStages];
+        h32<string> name;
+        u8 stagesCount{0};
+
+        std::filesystem::path shaderSourcePath;
+
+        std::vector<compute_pass_variant> variants;
+
+        std::unique_ptr<watch_listener> watcher;
+    };
+
+    struct base_pipeline
+    {
         VkPipelineLayout pipelineLayout;
         VkPipeline pipeline;
 
@@ -139,9 +163,19 @@ namespace oblo::vk
         VkDescriptorSetLayout descriptorSetLayout{};
 
         bool requiresTextures2D{};
+    };
+
+    struct render_pipeline : base_pipeline
+    {
+        VkShaderModule shaderModules[MaxPipelineStages];
 
         // TODO: Active stages (e.g. tessellation on/off)
         // TODO: Active options
+    };
+
+    struct compute_pipeline : base_pipeline
+    {
+        VkShaderModule shaderModule;
     };
 
     namespace
@@ -206,6 +240,7 @@ namespace oblo::vk
         includer includer{frameAllocator};
 
         VkDevice device{};
+        h32_flat_pool_dense_map<compute_pass> computePasses;
         h32_flat_pool_dense_map<render_pass> renderPasses;
         h32_flat_pool_dense_map<render_pipeline> renderPipelines;
         string_interner* interner{};
@@ -221,7 +256,209 @@ namespace oblo::vk
         VkDescriptorSet currentTextures2DDescriptor{};
 
         VkSampler samplers[1]{};
+
+        VkShaderModule create_shader_module(VkShaderStageFlagBits vkStage,
+            const std::filesystem::path& filePath,
+            std::span<const h32<string>> defines,
+            u32 requiredDefinesLength,
+            std::string_view debugName,
+            const shader_compiler::options& compilerOptions,
+            std::vector<u32>& spirv);
+
+        void create_reflection(base_pipeline& newPipeline,
+            pipeline_stages stage,
+            VkShaderStageFlagBits vkStage,
+            std::span<const u32> spirv,
+            vertex_inputs_reflection& vertexInputsReflection);
     };
+
+    VkShaderModule pass_manager::impl::create_shader_module(VkShaderStageFlagBits vkStage,
+        const std::filesystem::path& filePath,
+        std::span<const h32<string>> defines,
+        u32 requiredDefinesLength,
+        std::string_view debugName,
+        const shader_compiler::options& compilerOptions,
+        std::vector<u32>& spirv)
+    {
+        auto sourceCode = load_text_file_into_memory(frameAllocator, filePath);
+
+        if (requiredDefinesLength > 0)
+        {
+            constexpr std::string_view lineDirective{"#line 0\n"};
+
+            const auto firstLineEnd = std::find(sourceCode.begin(), sourceCode.end(), '\n');
+            const auto firstLineLen = 1 + (firstLineEnd - sourceCode.begin());
+
+            auto sourceWithDefines = allocate_n_span<char>(frameAllocator,
+                sourceCode.size() + requiredDefinesLength + firstLineLen + lineDirective.size());
+
+            auto it = sourceWithDefines.begin();
+
+            // We copy the first line first, because it must contain the #version directive
+            it = std::copy(sourceCode.begin(), firstLineEnd, it);
+            *it = '\n';
+            ++it;
+
+            for (const auto define : defines)
+            {
+                constexpr std::string_view directive{"#define "};
+                it = std::copy(directive.begin(), directive.end(), it);
+
+                const auto str = interner->str(define);
+                it = std::copy(str.begin(), str.end(), it);
+
+                *it = '\n';
+                ++it;
+            }
+
+            it = std::copy(lineDirective.begin(), lineDirective.end(), it);
+
+            const auto end = std::copy(firstLineEnd, sourceCode.end(), it);
+            sourceCode = sourceWithDefines.subspan(0, end - sourceWithDefines.begin());
+        }
+
+        spirv.clear();
+
+        // Clear the resolved includes, we keep track of them for adding watches
+        includer.resolvedIncludes.clear();
+
+        if (!shader_compiler::compile_glsl_to_spirv(debugName,
+                {sourceCode.data(), sourceCode.size()},
+                vkStage,
+                spirv,
+                compilerOptions))
+        {
+            return nullptr;
+        }
+
+        return shader_compiler::create_shader_module_from_spirv(device, spirv);
+    }
+
+    void pass_manager::impl::create_reflection(base_pipeline& newPipeline,
+        pipeline_stages stage,
+        VkShaderStageFlagBits vkStage,
+        std::span<const u32> spirv,
+        vertex_inputs_reflection& vertexInputsReflection)
+    {
+        spirv_cross::Compiler compiler{spirv.data(), spirv.size()};
+
+        const auto shaderResources = compiler.get_shader_resources();
+
+        if (stage == pipeline_stages::vertex)
+        {
+            vertexInputsReflection.count = u32(shaderResources.stage_inputs.size());
+
+            if (vertexInputsReflection.count > 0)
+            {
+                vertexInputsReflection.bindingDescs =
+                    allocate_n<VkVertexInputBindingDescription>(frameAllocator, vertexInputsReflection.count);
+                vertexInputsReflection.attributeDescs =
+                    allocate_n<VkVertexInputAttributeDescription>(frameAllocator, vertexInputsReflection.count);
+            }
+
+            u32 vertexAttributeIndex = 0;
+
+            for (const auto& stageInput : shaderResources.stage_inputs)
+            {
+                const auto name = interner->get_or_add(stageInput.name);
+                const auto location = compiler.get_decoration(stageInput.id, spv::DecorationLocation);
+
+                newPipeline.resources.push_back({
+                    .name = name,
+                    .location = location,
+                    .binding = vertexAttributeIndex,
+                    .kind = resource_kind::vertex_stage_input,
+                });
+
+                const spirv_cross::SPIRType& type = compiler.get_type(stageInput.type_id);
+
+                vertexInputsReflection.bindingDescs[vertexAttributeIndex] = {
+                    .binding = vertexAttributeIndex,
+                    .stride = get_type_byte_size(type),
+                    .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+                };
+
+                vertexInputsReflection.attributeDescs[vertexAttributeIndex] = {
+                    .location = location,
+                    .binding = vertexAttributeIndex,
+                    .format = get_type_format(type),
+                    .offset = 0,
+                };
+
+                ++vertexAttributeIndex;
+            }
+        }
+
+        for (const auto& storageBuffer : shaderResources.storage_buffers)
+        {
+            const auto set = compiler.get_decoration(storageBuffer.id, spv::DecorationDescriptorSet);
+
+            if (set != 0)
+            {
+                continue;
+            }
+
+            // TODO: We are ignoring the descriptor set here
+            const auto name = interner->get_or_add(storageBuffer.name);
+            const auto location = compiler.get_decoration(storageBuffer.id, spv::DecorationLocation);
+            const auto binding = compiler.get_decoration(storageBuffer.id, spv::DecorationBinding);
+
+            newPipeline.resources.push_back({
+                .name = name,
+                .location = location,
+                .binding = binding,
+                .kind = resource_kind::storage_buffer,
+                .stage = stage,
+            });
+
+            newPipeline.descriptorSetBindings.push_back({
+                .name = name,
+                .binding = binding,
+                .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                .stageFlags = VkShaderStageFlags(vkStage),
+            });
+        }
+
+        for (const auto& uniformBuffer : shaderResources.uniform_buffers)
+        {
+            const auto set = compiler.get_decoration(uniformBuffer.id, spv::DecorationDescriptorSet);
+
+            if (set != 0)
+            {
+                continue;
+            }
+
+            const auto name = interner->get_or_add(uniformBuffer.name);
+            const auto location = compiler.get_decoration(uniformBuffer.id, spv::DecorationLocation);
+            const auto binding = compiler.get_decoration(uniformBuffer.id, spv::DecorationBinding);
+
+            newPipeline.resources.push_back({
+                .name = name,
+                .location = location,
+                .binding = binding,
+                .kind = resource_kind::uniform_buffer,
+                .stage = stage,
+            });
+
+            newPipeline.descriptorSetBindings.push_back({
+                .name = name,
+                .binding = binding,
+                .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                .stageFlags = VkShaderStageFlags(vkStage),
+            });
+        }
+
+        for (const auto& image : shaderResources.separate_images)
+        {
+            const auto set = compiler.get_decoration(image.id, spv::DecorationDescriptorSet);
+
+            if (set == Textures2DDescriptorSet)
+            {
+                newPipeline.requiresTextures2D = true;
+                break;
+            }
+        }
+    }
 
     pass_manager::pass_manager() = default;
     pass_manager::~pass_manager() = default;
@@ -419,6 +656,23 @@ namespace oblo::vk
         return handle;
     }
 
+    h32<compute_pass> pass_manager::register_compute_pass(const compute_pass_initializer& desc)
+    {
+        const auto [it, handle] = m_impl->computePasses.emplace();
+        OBLO_ASSERT(handle);
+
+        auto& computePass = *it;
+
+        computePass.name = m_impl->interner->get_or_add(desc.name);
+        computePass.watcher = std::make_unique<watch_listener>();
+
+        computePass.shaderSourcePath = desc.shaderSourcePath;
+
+        m_impl->fileWatcher->addWatch(desc.shaderSourcePath.parent_path().string(), computePass.watcher.get());
+
+        return handle;
+    }
+
     h32<render_pipeline> pass_manager::get_or_create_pipeline(h32<render_pass> renderPassHandle,
         const render_pipeline_initializer& desc)
     {
@@ -497,9 +751,7 @@ namespace oblo::vk
             return std::string_view{debugName};
         };
 
-        VkVertexInputBindingDescription* vertexInputBindingDescs;
-        VkVertexInputAttributeDescription* vertexInputAttributeDescs;
-        u32 vertexInputsCount{0u};
+        vertex_inputs_reflection vertexInputReflection{};
 
         const shader_compiler::options compilerOptions{
             .includeHandler = &m_impl->includer,
@@ -512,60 +764,14 @@ namespace oblo::vk
             const auto vkStage = to_vulkan_stage_bits(pipelineStage);
 
             const auto& filePath = renderPass->shaderSourcePath[stageIndex];
-            auto sourceCode = load_text_file_into_memory(m_impl->frameAllocator, filePath);
 
-            if (requiredDefinesLength > 0)
-            {
-                constexpr std::string_view lineDirective{"#line 0\n"};
-
-                const auto firstLineEnd = std::find(sourceCode.begin(), sourceCode.end(), '\n');
-                const auto firstLineLen = 1 + (firstLineEnd - sourceCode.begin());
-
-                auto sourceWithDefines = allocate_n_span<char>(m_impl->frameAllocator,
-                    sourceCode.size() + requiredDefinesLength + firstLineLen + lineDirective.size());
-
-                auto it = sourceWithDefines.begin();
-
-                // We copy the first line first, because it must contain the #version directive
-                it = std::copy(sourceCode.begin(), firstLineEnd, it);
-                *it = '\n';
-                ++it;
-
-                for (const auto define : desc.defines)
-                {
-                    constexpr std::string_view directive{"#define "};
-                    it = std::copy(directive.begin(), directive.end(), it);
-
-                    const auto str = m_impl->interner->str(define);
-                    it = std::copy(str.begin(), str.end(), it);
-
-                    *it = '\n';
-                    ++it;
-                }
-
-                it = std::copy(lineDirective.begin(), lineDirective.end(), it);
-
-                const auto end = std::copy(firstLineEnd, sourceCode.end(), it);
-                sourceCode = sourceWithDefines.subspan(0, end - sourceWithDefines.begin());
-            }
-
-            spirv.clear();
-
-            const std::string_view debugName{makeDebugName(*renderPass, filePath)};
-
-            // Clear the resolved includes, we keep track of them for adding watches
-            m_impl->includer.resolvedIncludes.clear();
-
-            if (!shader_compiler::compile_glsl_to_spirv(debugName,
-                    {sourceCode.data(), sourceCode.size()},
-                    vkStage,
-                    spirv,
-                    compilerOptions))
-            {
-                return failure();
-            }
-
-            const auto shaderModule = shader_compiler::create_shader_module_from_spirv(m_impl->device, spirv);
+            const auto shaderModule = m_impl->create_shader_module(vkStage,
+                filePath,
+                desc.defines,
+                requiredDefinesLength,
+                makeDebugName(*renderPass, filePath),
+                compilerOptions,
+                spirv);
 
             if (!shaderModule)
             {
@@ -586,126 +792,7 @@ namespace oblo::vk
                 .pName = "main",
             };
 
-            {
-                spirv_cross::Compiler compiler{spirv.data(), spirv.size()};
-
-                const auto shaderResources = compiler.get_shader_resources();
-
-                if (pipelineStage == pipeline_stages::vertex)
-                {
-                    vertexInputsCount = u32(shaderResources.stage_inputs.size());
-
-                    if (vertexInputsCount > 0)
-                    {
-                        vertexInputBindingDescs =
-                            allocate_n<VkVertexInputBindingDescription>(m_impl->frameAllocator, vertexInputsCount);
-                        vertexInputAttributeDescs =
-                            allocate_n<VkVertexInputAttributeDescription>(m_impl->frameAllocator, vertexInputsCount);
-                    }
-
-                    u32 vertexAttributeIndex = 0;
-
-                    for (const auto& stageInput : shaderResources.stage_inputs)
-                    {
-                        const auto name = m_impl->interner->get_or_add(stageInput.name);
-                        const auto location = compiler.get_decoration(stageInput.id, spv::DecorationLocation);
-
-                        newPipeline.resources.push_back({
-                            .name = name,
-                            .location = location,
-                            .binding = vertexAttributeIndex,
-                            .kind = resource_kind::vertex_stage_input,
-                        });
-
-                        const spirv_cross::SPIRType& type = compiler.get_type(stageInput.type_id);
-
-                        vertexInputBindingDescs[vertexAttributeIndex] = {
-                            .binding = vertexAttributeIndex,
-                            .stride = get_type_byte_size(type),
-                            .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
-                        };
-
-                        vertexInputAttributeDescs[vertexAttributeIndex] = {
-                            .location = location,
-                            .binding = vertexAttributeIndex,
-                            .format = get_type_format(type),
-                            .offset = 0,
-                        };
-
-                        ++vertexAttributeIndex;
-                    }
-                }
-
-                for (const auto& storageBuffer : shaderResources.storage_buffers)
-                {
-                    const auto set = compiler.get_decoration(storageBuffer.id, spv::DecorationDescriptorSet);
-
-                    if (set != 0)
-                    {
-                        continue;
-                    }
-
-                    // TODO: We are ignoring the descriptor set here
-                    const auto name = m_impl->interner->get_or_add(storageBuffer.name);
-                    const auto location = compiler.get_decoration(storageBuffer.id, spv::DecorationLocation);
-                    const auto binding = compiler.get_decoration(storageBuffer.id, spv::DecorationBinding);
-
-                    newPipeline.resources.push_back({
-                        .name = name,
-                        .location = location,
-                        .binding = binding,
-                        .kind = resource_kind::storage_buffer,
-                        .stage = pipelineStage,
-                    });
-
-                    newPipeline.descriptorSetBindings.push_back({
-                        .name = name,
-                        .binding = binding,
-                        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                        .stageFlags = VkShaderStageFlags(vkStage),
-                    });
-                }
-
-                for (const auto& uniformBuffer : shaderResources.uniform_buffers)
-                {
-                    const auto set = compiler.get_decoration(uniformBuffer.id, spv::DecorationDescriptorSet);
-
-                    if (set != 0)
-                    {
-                        continue;
-                    }
-
-                    const auto name = m_impl->interner->get_or_add(uniformBuffer.name);
-                    const auto location = compiler.get_decoration(uniformBuffer.id, spv::DecorationLocation);
-                    const auto binding = compiler.get_decoration(uniformBuffer.id, spv::DecorationBinding);
-
-                    newPipeline.resources.push_back({
-                        .name = name,
-                        .location = location,
-                        .binding = binding,
-                        .kind = resource_kind::uniform_buffer,
-                        .stage = pipelineStage,
-                    });
-
-                    newPipeline.descriptorSetBindings.push_back({
-                        .name = name,
-                        .binding = binding,
-                        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                        .stageFlags = VkShaderStageFlags(vkStage),
-                    });
-                }
-
-                for (const auto& image : shaderResources.separate_images)
-                {
-                    const auto set = compiler.get_decoration(image.id, spv::DecorationDescriptorSet);
-
-                    if (set == Textures2DDescriptorSet)
-                    {
-                        newPipeline.requiresTextures2D = true;
-                        break;
-                    }
-                }
-            }
+            m_impl->create_reflection(newPipeline, pipelineStage, vkStage, spirv, vertexInputReflection);
 
             ++actualStagesCount;
         }
@@ -779,10 +866,10 @@ namespace oblo::vk
 
         const VkPipelineVertexInputStateCreateInfo vertexBufferInputInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-            .vertexBindingDescriptionCount = vertexInputsCount,
-            .pVertexBindingDescriptions = vertexInputBindingDescs,
-            .vertexAttributeDescriptionCount = vertexInputsCount,
-            .pVertexAttributeDescriptions = vertexInputAttributeDescs,
+            .vertexBindingDescriptionCount = vertexInputReflection.count,
+            .pVertexBindingDescriptions = vertexInputReflection.bindingDescs,
+            .vertexAttributeDescriptionCount = vertexInputReflection.count,
+            .pVertexAttributeDescriptions = vertexInputReflection.attributeDescs,
         };
 
         constexpr VkPipelineViewportStateCreateInfo viewportState{
@@ -939,7 +1026,7 @@ namespace oblo::vk
         m_impl->texturesDescriptorSetPool.end_frame();
     }
 
-    bool pass_manager::begin_rendering(render_pass_context& context, const VkRenderingInfo& renderingInfo) const
+    bool pass_manager::begin_render(render_pass_context& context, const VkRenderingInfo& renderingInfo) const
     {
         const auto* pipeline = m_impl->renderPipelines.try_find(context.pipeline);
 

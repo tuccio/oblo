@@ -3,11 +3,6 @@
 #include <oblo/core/flat_dense_map.hpp>
 #include <oblo/vulkan/buffer_table.hpp>
 
-namespace oblo
-{
-    class frameAllocator;
-}
-
 namespace oblo::vk
 {
     struct buffer;
