@@ -97,7 +97,7 @@ namespace oblo::vk
                 .pColorAttachments = &colorAttachment,
             };
 
-            if (passManager.begin_rendering(renderPassContext, renderInfo))
+            if (passManager.begin_render(renderPassContext, renderInfo))
             {
                 setup_viewport_scissor(commandBuffer, renderWidth, renderHeight);
                 vkCmdDraw(commandBuffer, 3, 1, 0, 0);

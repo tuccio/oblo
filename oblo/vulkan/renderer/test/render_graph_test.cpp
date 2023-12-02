@@ -110,7 +110,7 @@ namespace oblo::vk::test
                     .pDepthAttachment = &depthAttachment,
                 };
 
-                ASSERT_TRUE(passManager.begin_rendering(renderPassContext, renderInfo));
+                ASSERT_TRUE(passManager.begin_render(renderPassContext, renderInfo));
 
                 {
                     const VkViewport viewport{
@@ -239,7 +239,7 @@ namespace oblo::vk::test
                     .pDepthAttachment = &depthAttachment,
                 };
 
-                ASSERT_TRUE(passManager.begin_rendering(renderPassContext, renderInfo));
+                ASSERT_TRUE(passManager.begin_render(renderPassContext, renderInfo));
 
                 {
                     const VkViewport viewport{

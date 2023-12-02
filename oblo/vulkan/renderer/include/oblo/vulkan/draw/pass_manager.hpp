@@ -29,6 +29,10 @@ namespace oblo::vk
     class texture_registry;
     class vulkan_context;
     struct buffer;
+    struct compute_pass;
+    struct compute_pass_initializer;
+    struct compute_pipeline;
+    struct compute_pipeline_initializer;
     struct render_pass;
     struct render_pass_initializer;
     struct render_pipeline;
@@ -60,13 +64,16 @@ namespace oblo::vk
         void set_system_include_paths(std::span<const std::filesystem::path> paths);
 
         h32<render_pass> register_render_pass(const render_pass_initializer& desc);
+        h32<compute_pass> register_compute_pass(const compute_pass_initializer& desc);
 
         h32<render_pipeline> get_or_create_pipeline(h32<render_pass> handle, const render_pipeline_initializer& desc);
+        h32<compute_pipeline> get_or_create_pipeline(h32<compute_pass> handle,
+            const compute_pipeline_initializer& desc);
 
         void begin_frame();
         void end_frame();
 
-        [[nodiscard]] bool begin_rendering(render_pass_context& context, const VkRenderingInfo& renderingInfo) const;
+        [[nodiscard]] bool begin_render(render_pass_context& context, const VkRenderingInfo& renderingInfo) const;
         void end_rendering(const render_pass_context& context);
 
         void draw(const render_pass_context& context,

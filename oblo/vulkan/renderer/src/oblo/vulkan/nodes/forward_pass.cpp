@@ -158,7 +158,7 @@ namespace oblo::vk
 
         setup_viewport_scissor(commandBuffer, renderWidth, renderHeight);
 
-        if (passManager.begin_rendering(renderPassContext, renderInfo))
+        if (passManager.begin_render(renderPassContext, renderInfo))
         {
             const buffer_binding_table* bindingTables[] = {
                 context.access(inPerViewBindingTable),
