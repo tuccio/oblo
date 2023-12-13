@@ -32,7 +32,7 @@ namespace oblo::vk
         const buffer_initializer initializer{
             .size = size,
             .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            .memoryUsage = memory_usage::cpu_to_gpu,
+            .requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
         };
 
         allocated_buffer allocatedBuffer;
