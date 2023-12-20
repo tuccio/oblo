@@ -37,6 +37,12 @@ namespace oblo
     };
 
     template <typename Tag>
+    using h8 = handle<Tag, u8>;
+
+    template <typename Tag>
+    using h16 = handle<Tag, u16>;
+
+    template <typename Tag>
     using h32 = handle<Tag, u32>;
 
     template <typename Tag>
