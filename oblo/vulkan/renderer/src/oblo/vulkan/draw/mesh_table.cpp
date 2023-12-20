@@ -182,7 +182,6 @@ namespace oblo::vk
 
         for (const auto& mesh : meshes)
         {
-            OBLO_ASSERT(mesh.numIndices > 0 && mesh.numVertices > 0);
             numVertices += mesh.numVertices;
             numIndices += mesh.numIndices;
         }
