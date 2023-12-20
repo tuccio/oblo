@@ -55,6 +55,11 @@ namespace oblo
             m_storage == type{0};
         }
 
+        type data() const noexcept
+        {
+            return m_storage;
+        }
+
         constexpr auto operator<=>(const flags&) const = default;
 
     private:
@@ -63,6 +68,11 @@ namespace oblo
     private:
         type m_storage{};
     };
+
+    template <typename E, u32 Size>
+    constexpr flags<E, Size>::flags(E value) : m_storage{as_flag(value)}
+    {
+    }
 
     template <typename E, u32 Size>
     constexpr flags<E, Size>& flags<E, Size>::operator|=(E rhs)
