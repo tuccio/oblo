@@ -7,6 +7,7 @@
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/vulkan/allocator.hpp>
+#include <oblo/vulkan/draw/mesh_database.hpp>
 #include <oblo/vulkan/monotonic_gbu_buffer.hpp>
 
 #include <span>
@@ -24,7 +25,6 @@ namespace oblo
 
 namespace oblo::vk
 {
-    class mesh_table;
     class staging_buffer;
     class vulkan_context;
     struct buffer_column_description;
@@ -37,6 +37,9 @@ namespace oblo::vk
         VkDeviceSize offset;
         u32 drawCount;
         bool isIndexed;
+        VkBuffer indexBuffer;
+        u32 indexBufferOffset;
+        VkIndexType indexType;
     };
 
     struct draw_buffer
@@ -55,7 +58,6 @@ namespace oblo::vk
 
     struct batch_draw_data
     {
-        u32 meshBatch;
         draw_instance_buffers instanceBuffers;
         draw_commands drawCommands;
     };
@@ -77,11 +79,11 @@ namespace oblo::vk
 
         void end_frame();
 
-        h64<draw_mesh> get_or_create_mesh(oblo::resource_registry& resourceRegistry,
+        h32<draw_mesh> get_or_create_mesh(oblo::resource_registry& resourceRegistry,
             const resource_ref<mesh>& resourceId);
 
         h32<draw_instance> create_instance(
-            h64<draw_mesh> mesh, std::span<const h32<draw_buffer>> buffers, std::span<std::byte*> outData);
+            h32<draw_mesh> mesh, std::span<const h32<draw_buffer>> buffers, std::span<std::byte*> outData);
 
         void get_instance_data(
             h32<draw_instance> instance, std::span<const h32<draw_buffer>> buffers, std::span<std::byte*> outData);
@@ -91,19 +93,12 @@ namespace oblo::vk
         h32<draw_buffer> get_or_register(const draw_buffer& buffer);
         h32<string> get_name(h32<draw_buffer> drawBuffer) const;
 
-        const mesh_table* try_get_mesh_table(u32 id) const;
-
+        void generate_mesh_database(frame_allocator& allocator, staging_buffer& stagingBuffer);
         void generate_draw_calls(frame_allocator& allocator, staging_buffer& stagingBuffer);
 
         std::span<const batch_draw_data> get_draw_calls() const;
 
-    private:
-        struct mesh_batch;
-        struct mesh_batch_id;
-
-    private:
-        mesh_batch* get_or_create_mesh_batch(const mesh_batch_id& batchId,
-            std::span<const buffer_column_description> unsortedAttributeNames);
+        buffer get_mesh_database_buffer() const;
 
     private:
         vulkan_context* m_ctx{};
@@ -112,17 +107,22 @@ namespace oblo::vk
 
         staging_buffer* m_stagingBuffer{};
         string_interner* m_interner{};
-        std::vector<buffer_column_description> m_vertexAttributes;
-        std::vector<mesh_batch> m_meshBatches;
+        mesh_database m_meshes;
         ecs::type_registry m_typeRegistry;
         ecs::entity_registry m_instances;
 
-        ecs::component_type m_meshBatchComponent;
+        ecs::component_type m_meshComponent{};
+        ecs::tag_type m_indexNoneTag{};
+        ecs::tag_type m_indexU16Tag{};
+        ecs::tag_type m_indexU32Tag{};
 
         const batch_draw_data* m_drawData{};
+        VkBuffer m_meshTablesBuffer{};
         u32 m_drawDataCount{};
+        u32 m_meshTablesBufferOffset{};
+        u32 m_meshTablesBufferSize{};
 
-        std::unordered_map<uuid, h64<draw_mesh>> m_cachedMeshes;
+        std::unordered_map<uuid, h32<draw_mesh>> m_cachedMeshes;
 
         flat_dense_map<h32<draw_buffer>, h32<string>> m_meshNames;
     };

@@ -1111,28 +1111,6 @@ namespace oblo::vk
 
         for (const auto& draw : drawCalls)
         {
-            buffer indexBuffer;
-
-            const auto& meshTable = *drawRegistry.try_get_mesh_table(draw.meshBatch);
-
-            meshTable.fetch_buffers(resourceManager, attributeNames, buffers, &indexBuffer);
-
-            auto* const vkBuffers = allocate_n<VkBuffer>(m_impl->frameAllocator, numVertexAttributes);
-            auto* const offsets = allocate_n<VkDeviceSize>(m_impl->frameAllocator, numVertexAttributes);
-
-            for (u32 i = 0; i < numVertexAttributes; ++i)
-            {
-                vkBuffers[i] = buffers[i].buffer;
-                offsets[i] = buffers[i].offset;
-            }
-
-            vkCmdBindVertexBuffers(context.commandBuffer, 0, numVertexAttributes, vkBuffers, offsets);
-
-            if (const auto indexType = meshTable.get_index_type(); indexType != VK_INDEX_TYPE_MAX_ENUM)
-            {
-                vkCmdBindIndexBuffer(context.commandBuffer, indexBuffer.buffer, indexBuffer.offset, indexType);
-            }
-
             if (const auto descriptorSetLayout = pipeline->descriptorSetLayout)
             {
                 const VkDescriptorSet descriptorSet = m_impl->descriptorSetPool.acquire(descriptorSetLayout);
@@ -1234,6 +1212,11 @@ namespace oblo::vk
 
                 if (draw.drawCommands.isIndexed)
                 {
+                    vkCmdBindIndexBuffer(context.commandBuffer,
+                        draw.drawCommands.indexBuffer,
+                        draw.drawCommands.indexBufferOffset,
+                        draw.drawCommands.indexType);
+
                     vkCmdDrawIndexedIndirect(context.commandBuffer,
                         draw.drawCommands.buffer,
                         draw.drawCommands.offset,

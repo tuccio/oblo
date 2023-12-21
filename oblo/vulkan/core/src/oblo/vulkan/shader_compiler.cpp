@@ -229,6 +229,8 @@ namespace oblo::vk::shader_compiler
             includer = &userIncluder.emplace(*options.includeHandler);
         }
 
+        shader.setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_5);
+
         if (!shader.parse(&resources, 100, false, messages, *includer))
         {
             const auto* infoLog = shader.getInfoLog();
@@ -251,7 +253,9 @@ namespace oblo::vk::shader_compiler
         spvOptions.disableOptimizer = !options.codeOptimization;
 
         outSpirv.clear();
-        glslang::GlslangToSpv(*program.getIntermediate(language), outSpirv);
+
+        auto* const intermediate = program.getIntermediate(language);
+        glslang::GlslangToSpv(*intermediate, outSpirv);
 
         return true;
     }

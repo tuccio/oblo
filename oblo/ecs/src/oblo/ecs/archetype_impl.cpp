@@ -228,6 +228,11 @@ namespace oblo::ecs
         }
     }
 
+    component_and_tags_sets get_component_and_tag_sets(const archetype_storage& storage)
+    {
+        return storage.archetype->types;
+    }
+
     std::span<const component_type> get_component_types(const archetype_storage& storage)
     {
         return {storage.archetype->components, storage.archetype->numComponents};

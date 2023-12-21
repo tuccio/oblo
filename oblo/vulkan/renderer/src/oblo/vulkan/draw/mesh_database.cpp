@@ -1,7 +1,12 @@
 #include <oblo/vulkan/draw/mesh_database.hpp>
 
+#include <oblo/core/allocation_helpers.hpp>
+#include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/unreachable.hpp>
+#include <oblo/vulkan/allocator.hpp>
+#include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/draw/mesh_table.hpp>
+#include <oblo/vulkan/resource_manager.hpp>
 
 #include <bit>
 #include <memory>
@@ -13,6 +18,11 @@ namespace oblo::vk
         constexpr u64 make_table_id(u32 meshAttributesMask, mesh_index_type indexType)
         {
             return u64{meshAttributesMask} | (u64(indexType) << 32);
+        }
+
+        constexpr u32 get_mesh_attribute_mask_from_id(u64 id)
+        {
+            return u32(id);
         }
 
         constexpr mesh_handle make_mesh_handle(u32 tableId, u32 meshId)
@@ -32,10 +42,10 @@ namespace oblo::vk
             std::span<buffer_column_description> columns)
         {
             u32 n = 0;
-            u32 attributeId = 0;
 
             for (u32 i = 0; i < 32; ++i)
             {
+                const u32 attributeId = i;
                 const u32 attributeMask = 1u << attributeId;
                 if (attributeMask & meshAttributesMask)
                 {
@@ -191,5 +201,83 @@ namespace oblo::vk
             names,
             vertexBuffers,
             indexBuffer);
+    }
+
+    mesh_index_type mesh_database::get_index_type(mesh_handle mesh) const
+    {
+        const auto [tableId, meshId] = parse_mesh_handle(mesh);
+
+        switch (m_tables[tableId].meshes->get_index_type())
+        {
+        case VK_INDEX_TYPE_NONE_KHR:
+            return mesh_index_type::none;
+
+        case VK_INDEX_TYPE_UINT16:
+            return mesh_index_type::u16;
+
+        case VK_INDEX_TYPE_UINT32:
+            return mesh_index_type::u32;
+
+        default:
+            unreachable();
+        }
+    }
+
+    mesh_database::table_range mesh_database::get_table_range(mesh_handle mesh) const
+    {
+        const auto [tableId, meshId] = parse_mesh_handle(mesh);
+        const auto range = m_tables[tableId].meshes->get_mesh_range(h32<string>{meshId});
+        return std::bit_cast<table_range>(range);
+    }
+
+    std::span<const std::byte> mesh_database::create_mesh_table_lookup(frame_allocator& allocator) const
+    {
+        if (m_tables.empty())
+        {
+            return {};
+        }
+
+        struct mesh_table_gpu
+        {
+            u64 deviceAddress;
+            u32 mask;
+            u32 padding;
+            u32 offsets[MaxAttributes];
+        };
+
+        const std::span gpuTables = allocate_n_span<mesh_table_gpu>(allocator, m_tables.size());
+
+        for (usize i = 0; i < m_tables.size(); ++i)
+        {
+            const auto& t = m_tables[i];
+
+            const auto buffers = t.meshes->vertex_attribute_buffers();
+
+            if (buffers.empty())
+            {
+                continue;
+            }
+
+            const VkBufferDeviceAddressInfo info{
+                .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+                .buffer = m_resourceManager->get(buffers[0]).buffer,
+            };
+
+            auto& gpuTable = gpuTables[i];
+
+            gpuTable = {
+                .deviceAddress = vkGetBufferDeviceAddress(m_allocator->get_device(), &info),
+                .mask = get_mesh_attribute_mask_from_id(t.id),
+            };
+
+            for (u32 v = 0; v < buffers.size(); ++v)
+            {
+                const auto buffer = m_resourceManager->get(buffers[v]);
+                gpuTable.offsets[v] = buffer.offset;
+                OBLO_ASSERT(buffer.buffer == info.buffer);
+            }
+        }
+
+        return std::as_bytes(gpuTables);
     }
 }

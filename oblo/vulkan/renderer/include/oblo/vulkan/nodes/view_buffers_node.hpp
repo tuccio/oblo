@@ -35,6 +35,15 @@ namespace oblo::vk
 
             const h32<string> cameraBufferName = interner.get_or_add("CameraBuffer");
             perViewTable->emplace(cameraBufferName, buf);
+
+            // TODO: Find a better place for this, maybe consider per frame descriptor sets
+            const auto meshDbBuffer = context.get_draw_registry().get_mesh_database_buffer();
+
+            if (meshDbBuffer.buffer)
+            {
+                const h32<string> meshTablesName = interner.get_or_add("b_MeshTables");
+                perViewTable->emplace(meshTablesName, meshDbBuffer);
+            }
         }
     };
 }
