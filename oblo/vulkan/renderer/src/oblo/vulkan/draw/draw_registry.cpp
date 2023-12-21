@@ -462,6 +462,8 @@ namespace oblo::vk
                 u32 meshHandleOffset;
                 std::byte* meshHandleBegin;
 
+                u32 meshTableIndex{~0u};
+
                 ecs::for_each_chunk(archetype,
                     {&m_meshComponent, 1},
                     {&meshHandleOffset, 1},
@@ -475,8 +477,7 @@ namespace oblo::vk
                         {
                             const auto range = m_meshes.get_table_range(meshId);
 
-                            // TODO: The first index buffer would be enough, maybe we can get it once?
-                            m_meshes.fetch_buffers(meshId, {}, {}, &indexBuffer);
+                            meshTableIndex = m_meshes.get_table_index(meshId);
 
                             *nextCommand = {
                                 .indexCount = range.indexCount,
@@ -489,6 +490,8 @@ namespace oblo::vk
                             ++nextCommand;
                         }
                     });
+
+                indexBuffer = m_meshes.get_index_buffer(meshTableIndex);
 
                 if (typeSets.tags.contains(m_indexU16Tag))
                 {
