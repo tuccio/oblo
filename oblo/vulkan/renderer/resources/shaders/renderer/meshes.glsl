@@ -46,7 +46,7 @@ uint get_mesh_table_index(in mesh_handle h)
 uint get_mesh_index(in mesh_handle h)
 {
     const uint mask = ~0u >> 8u;
-    return h.value & mask;
+    return (h.value & mask) - 1;
 }
 
 mesh_table get_mesh_table(in mesh_handle h)
