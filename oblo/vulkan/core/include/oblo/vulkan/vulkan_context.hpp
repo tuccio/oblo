@@ -57,6 +57,9 @@ namespace oblo::vk
         void destroy_deferred(VmaAllocation allocation, u64 submitIndex);
         void destroy_deferred(h32<texture> texture, u64 submitIndex);
 
+        void begin_debug_label(VkCommandBuffer commandBuffer, const char* label) const;
+        void end_debug_label(VkCommandBuffer commandBuffer) const;
+
     private:
         struct submit_info;
 
@@ -68,6 +71,9 @@ namespace oblo::vk
         single_queue_engine* m_engine;
         allocator* m_allocator;
         resource_manager* m_resourceManager;
+
+        PFN_vkCmdBeginDebugUtilsLabelEXT m_vkCmdBeginDebugUtilsLabelEXT{};
+        PFN_vkCmdEndDebugUtilsLabelEXT m_vkCmdEndDebugUtilsLabelEXT{};
 
         std::vector<submit_info> m_submitInfo;
 

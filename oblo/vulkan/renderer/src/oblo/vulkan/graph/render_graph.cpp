@@ -177,7 +177,10 @@ namespace oblo::vk
 
         if (!m_pendingCopies.empty())
         {
+            auto& vkCtx = renderer.get_vulkan_context();
+            vkCtx.begin_debug_label(commandBuffer.get(), "render_graph::flush_copies");
             flush_copies(commandBuffer, resourceManager);
+            vkCtx.end_debug_label(commandBuffer.get());
         }
     }
 

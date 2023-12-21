@@ -65,10 +65,19 @@ namespace oblo::editor
             .shaderDrawParameters = true,
         };
 
+        constexpr const char* InstanceExtensions[] = {
+            VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
+        };
+
         constexpr const char* DeviceExtensions[] = {
             VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
             VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
         };
+    }
+
+    std::span<const char* const> app::get_required_instance_extensions() const
+    {
+        return InstanceExtensions;
     }
 
     VkPhysicalDeviceFeatures2 app::get_required_physical_device_features() const
