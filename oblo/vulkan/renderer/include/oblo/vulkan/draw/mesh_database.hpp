@@ -74,6 +74,10 @@ namespace oblo::vk
 
         mesh_index_type get_index_type(mesh_handle mesh) const;
 
+        buffer get_index_buffer(u32 meshTableIndex) const;
+
+        u32 get_table_index(mesh_handle mesh) const;
+
         table_range get_table_range(mesh_handle mesh) const;
 
         std::span<const std::byte> create_mesh_table_lookup(frame_allocator& allocator) const;

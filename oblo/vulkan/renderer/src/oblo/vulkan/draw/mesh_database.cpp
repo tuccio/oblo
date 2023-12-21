@@ -223,6 +223,18 @@ namespace oblo::vk
         }
     }
 
+    buffer mesh_database::get_index_buffer(u32 meshTableIndex) const
+    {
+        buffer indexBuffer{};
+        m_tables[meshTableIndex].meshes->fetch_buffers(*m_resourceManager, {}, {}, &indexBuffer);
+        return indexBuffer;
+    }
+
+    u32 mesh_database::get_table_index(mesh_handle mesh) const
+    {
+        return parse_mesh_handle(mesh).first;
+    }
+
     mesh_database::table_range mesh_database::get_table_range(mesh_handle mesh) const
     {
         const auto [tableId, meshId] = parse_mesh_handle(mesh);
