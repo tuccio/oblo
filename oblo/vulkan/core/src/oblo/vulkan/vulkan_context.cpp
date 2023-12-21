@@ -110,6 +110,11 @@ namespace oblo::vk
 
         m_pending = std::make_unique<pending_disposal_queues>();
 
+        m_vkCmdBeginDebugUtilsLabelEXT = reinterpret_cast<PFN_vkCmdBeginDebugUtilsLabelEXT>(
+            vkGetDeviceProcAddr(m_engine->get_device(), "vkCmdBeginDebugUtilsLabelEXT"));
+        m_vkCmdEndDebugUtilsLabelEXT = reinterpret_cast<PFN_vkCmdEndDebugUtilsLabelEXT>(
+            vkGetDeviceProcAddr(m_engine->get_device(), "vkCmdEndDebugUtilsLabelEXT"));
+
         return true;
     }
 
@@ -378,5 +383,30 @@ namespace oblo::vk
 
                 m_resourceManager->unregister_texture(texture);
             });
+    }
+
+    void vulkan_context::begin_debug_label(VkCommandBuffer commandBuffer, const char* label) const
+    {
+        if (!m_vkCmdBeginDebugUtilsLabelEXT)
+        {
+            return;
+        }
+
+        const VkDebugUtilsLabelEXT labelInfo{
+            .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
+            .pLabelName = label,
+        };
+
+        m_vkCmdBeginDebugUtilsLabelEXT(commandBuffer, &labelInfo);
+    }
+
+    void vulkan_context::end_debug_label(VkCommandBuffer commandBuffer) const
+    {
+        if (!m_vkCmdEndDebugUtilsLabelEXT)
+        {
+            return;
+        }
+
+        m_vkCmdEndDebugUtilsLabelEXT(commandBuffer);
     }
 }

@@ -163,6 +163,8 @@ namespace oblo::vk
         VkDescriptorSetLayout descriptorSetLayout{};
 
         bool requiresTextures2D{};
+
+        const char* label{};
     };
 
     struct render_pipeline : base_pipeline
@@ -239,6 +241,7 @@ namespace oblo::vk
         frame_allocator frameAllocator;
         includer includer{frameAllocator};
 
+        const vulkan_context* vkCtx{};
         VkDevice device{};
         h32_flat_pool_dense_map<compute_pass> computePasses;
         h32_flat_pool_dense_map<render_pass> renderPasses;
@@ -472,6 +475,7 @@ namespace oblo::vk
 
         m_impl->frameAllocator.init(1u << 22);
 
+        m_impl->vkCtx = &vkContext;
         m_impl->device = vkContext.get_device();
         m_impl->interner = &interner;
         m_impl->dummy = dummy;
@@ -725,6 +729,8 @@ namespace oblo::vk
         const auto [pipelineIt, pipelineHandle] = m_impl->renderPipelines.emplace();
         OBLO_ASSERT(pipelineHandle);
         auto& newPipeline = *pipelineIt;
+
+        newPipeline.label = m_impl->interner->c_str(renderPass->name);
 
         const auto failure = [this, &newPipeline, pipelineHandle, renderPass, expectedHash]
         {
@@ -1038,6 +1044,9 @@ namespace oblo::vk
         context.internalPipeline = pipeline;
 
         const auto commandBuffer = context.commandBuffer;
+
+        m_impl->vkCtx->begin_debug_label(commandBuffer, context.internalPipeline->label);
+
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline);
         vkCmdBeginRendering(commandBuffer, &renderingInfo);
 
@@ -1071,6 +1080,7 @@ namespace oblo::vk
     void pass_manager::end_rendering(const render_pass_context& context)
     {
         vkCmdEndRendering(context.commandBuffer);
+        m_impl->vkCtx->end_debug_label(context.commandBuffer);
         m_impl->frameAllocator.restore_all();
     }
 

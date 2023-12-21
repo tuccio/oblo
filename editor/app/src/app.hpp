@@ -20,6 +20,8 @@ namespace oblo::editor
     class app
     {
     public:
+        std::span<const char* const> get_required_instance_extensions() const;
+
         VkPhysicalDeviceFeatures2 get_required_physical_device_features() const;
 
         void* get_required_device_features() const;
