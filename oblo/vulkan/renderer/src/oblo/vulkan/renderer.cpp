@@ -72,6 +72,7 @@ namespace oblo::vk
 
     void renderer::update(frame_allocator& frameAllocator)
     {
+        m_drawRegistry.generate_mesh_database(frameAllocator, m_stagingBuffer);
         m_drawRegistry.generate_draw_calls(frameAllocator, m_stagingBuffer);
 
         m_stagingBuffer.flush();

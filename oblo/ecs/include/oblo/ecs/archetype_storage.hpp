@@ -9,11 +9,14 @@
 namespace oblo::ecs
 {
     struct archetype_impl;
+    struct component_and_tags_sets;
 
     struct archetype_storage
     {
         archetype_impl* archetype;
     };
+
+    component_and_tags_sets get_component_and_tag_sets(const archetype_storage& storage);
 
     std::span<const component_type> get_component_types(const archetype_storage& storage);
 

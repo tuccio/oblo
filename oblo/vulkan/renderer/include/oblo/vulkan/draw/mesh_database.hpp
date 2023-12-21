@@ -10,6 +10,7 @@
 
 namespace oblo
 {
+    class frame_allocator;
     struct string;
 }
 
@@ -70,6 +71,12 @@ namespace oblo::vk
             std::span<const u32> attributes,
             std::span<buffer> vertexBuffers,
             buffer* indexBuffer) const;
+
+        mesh_index_type get_index_type(mesh_handle mesh) const;
+
+        table_range get_table_range(mesh_handle mesh) const;
+
+        std::span<const std::byte> create_mesh_table_lookup(frame_allocator& allocator) const;
 
     private:
         struct table;

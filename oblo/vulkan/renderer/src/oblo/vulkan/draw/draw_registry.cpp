@@ -3,7 +3,6 @@
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/data_format.hpp>
 #include <oblo/core/flags.hpp>
-#include <oblo/core/stack_allocator.hpp>
 #include <oblo/core/zip_range.hpp>
 #include <oblo/ecs/archetype_storage.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
@@ -34,58 +33,34 @@ namespace oblo::vk
         constexpr u32 MaxAttributesCount{u32(attribute_kind::enum_max)};
         using buffer_columns = std::array<buffer_column_description, MaxAttributesCount>;
 
-        constexpr std::string_view MeshBatchPrefix{"$m"};
+        enum class vertex_attributes : u8
+        {
+            position,
+            normal,
+            uv0,
+            enum_max,
+        };
 
-        constexpr std::string_view get_attribute_name(attribute_kind attribute)
+        constexpr vertex_attributes convert_vertex_attribute(attribute_kind attribute)
         {
             switch (attribute)
             {
             case attribute_kind::position:
-                return "in_Position";
+                return vertex_attributes::position;
             case attribute_kind::normal:
-                return "in_Normal";
+                return vertex_attributes::normal;
             case attribute_kind::uv0:
-                return "in_UV0";
+                return vertex_attributes::uv0;
             default:
                 unreachable();
             }
         }
 
-        using local_mesh_id = h32<string>;
-
-        struct mesh_batch_component
+        constexpr h32<draw_mesh> make_mesh_id(const mesh_handle m)
         {
-            u32 offset;
-        };
-
-        h64<draw_mesh> make_mesh_id(ptrdiff batchOffset, local_mesh_id meshId)
-        {
-            const u64 batchId{u64(batchOffset) << 32};
-            return h64<draw_mesh>{batchId | meshId.value};
-        }
-
-        std::pair<ptrdiff, local_mesh_id> parse_mesh_id(h64<draw_mesh> meshId)
-        {
-            return {ptrdiff(meshId.value >> 32), local_mesh_id{u32(meshId.value)}};
+            return std::bit_cast<h32<draw_mesh>>(m);
         }
     }
-
-    struct draw_registry::mesh_batch_id
-    {
-        u8 indicesBytes;
-        u8 numAttributes;
-        flags<attribute_kind> attributes;
-
-        constexpr auto operator<=>(const mesh_batch_id&) const = default;
-    };
-
-    struct draw_registry::mesh_batch
-    {
-        mesh_batch_id id{};
-        std::unique_ptr<mesh_table> table;
-        local_mesh_id lastMeshId{};
-        ecs::component_type component{};
-    };
 
     draw_registry::draw_registry() = default;
 
@@ -97,47 +72,59 @@ namespace oblo::vk
         m_stagingBuffer = &stagingBuffer;
         m_interner = &interner;
 
-        m_vertexAttributes.resize(MaxAttributesCount);
+        mesh_attribute_description attributes[u32(vertex_attributes::enum_max)];
 
-        for (u32 i = 0; i < MaxAttributesCount; ++i)
-        {
-            const auto attribute = static_cast<attribute_kind>(i);
+        attributes[u32(vertex_attributes::position)] = {
+            .name = interner.get_or_add("in_Position"),
+            .elementSize = sizeof(f32) * 3,
+        };
 
-            if (attribute == attribute_kind::indices)
-            {
-                continue;
-            }
+        attributes[u32(vertex_attributes::normal)] = {
+            .name = interner.get_or_add("in_Normal"),
+            .elementSize = sizeof(f32) * 3,
+        };
 
-            data_format format;
+        attributes[u32(vertex_attributes::uv0)] = {
+            .name = interner.get_or_add("in_UV0"),
+            .elementSize = sizeof(f32) * 2,
+        };
 
-            switch (attribute)
-            {
-            case attribute_kind::position:
-            case attribute_kind::normal:
-                format = data_format::vec3;
-                break;
+        [[maybe_unused]] const auto meshDbInit = m_meshes.init({
+            .allocator = ctx.get_allocator(),
+            .resourceManager = ctx.get_resource_manager(),
+            .attributes = attributes,
+            .bufferUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+            .tableVertexCount = MaxVerticesPerBatch,
+            .tableIndexCount = MaxIndicesPerBatch,
+        });
 
-            case attribute_kind::uv0:
-                format = data_format::vec2;
-                break;
-
-            default:
-                unreachable();
-            }
-
-            const auto attributeName = get_attribute_name(attribute);
-
-            const auto [size, alignment] = get_size_and_alignment(format);
-
-            m_vertexAttributes[i] = {
-                .name = interner.get_or_add(attributeName),
-                .elementSize = u32(size),
-            };
-        }
+        OBLO_ASSERT(meshDbInit);
 
         m_instances.init(&m_typeRegistry);
 
-        m_meshBatchComponent = m_typeRegistry.register_component(ecs::make_component_type_desc<mesh_batch_component>());
+        struct mesh_index_none_tag
+        {
+        };
+
+        struct mesh_index_u16_tag
+        {
+        };
+
+        struct mesh_index_u32_tag
+        {
+        };
+
+        const auto meshHandleInstancBuffer = get_or_register({
+            .name = "i_MeshHandles",
+            .elementSize = sizeof(mesh_handle),
+            .elementAlignment = alignof(mesh_handle),
+        });
+
+        m_meshComponent = ecs::component_type{meshHandleInstancBuffer.value};
+        m_indexNoneTag = m_typeRegistry.register_tag(ecs::make_tag_type_desc<mesh_index_none_tag>());
+        m_indexU16Tag = m_typeRegistry.register_tag(ecs::make_tag_type_desc<mesh_index_u16_tag>());
+        m_indexU32Tag = m_typeRegistry.register_tag(ecs::make_tag_type_desc<mesh_index_u32_tag>());
 
         VkPhysicalDeviceProperties properties{};
         vkGetPhysicalDeviceProperties(m_ctx->get_physical_device(), &properties);
@@ -157,10 +144,7 @@ namespace oblo::vk
 
     void draw_registry::shutdown()
     {
-        for (auto& batch : m_meshBatches)
-        {
-            batch.table->shutdown(m_ctx->get_allocator(), m_ctx->get_resource_manager());
-        }
+        m_meshes.shutdown();
     }
 
     void draw_registry::end_frame()
@@ -168,11 +152,15 @@ namespace oblo::vk
         m_drawData = {};
         m_drawDataCount = 0;
 
+        m_meshTablesBuffer = {};
+        m_meshTablesBufferOffset = 0;
+        m_meshTablesBufferSize = 0;
+
         m_storageBuffer.restore_all();
         m_drawCallsBuffer.restore_all();
     }
 
-    h64<draw_mesh> draw_registry::get_or_create_mesh(oblo::resource_registry& resourceRegistry,
+    h32<draw_mesh> draw_registry::get_or_create_mesh(oblo::resource_registry& resourceRegistry,
         const resource_ref<mesh>& resourceId)
     {
         if (const auto it = m_cachedMeshes.find(resourceId.id); it != m_cachedMeshes.end())
@@ -183,8 +171,6 @@ namespace oblo::vk
         const auto anyResource = resourceRegistry.get_resource(resourceId.id);
         const auto meshResource = anyResource.as<mesh>();
 
-        stack_allocator<1024> stackAllocator;
-
         if (!meshResource)
         {
             return {};
@@ -194,13 +180,13 @@ namespace oblo::vk
 
         const u32 numAttributes = meshPtr->get_attributes_count();
 
-        mesh_batch_id id{};
-        buffer_columns columns{};
-
-        auto* const attributeNames = allocate_n<h32<string>>(stackAllocator, numAttributes);
-        auto* const attributes = allocate_n<attribute_kind>(stackAllocator, numAttributes);
-
         u32 vertexAttributesCount{0};
+
+        auto indexType = mesh_index_type::none;
+
+        flags<vertex_attributes> attributeFlags;
+        attribute_kind meshAttributes[u32(vertex_attributes::enum_max)];
+        u32 attributeIds[u32(vertex_attributes::enum_max)];
 
         for (u32 i = 0; i < numAttributes; ++i)
         {
@@ -208,36 +194,23 @@ namespace oblo::vk
 
             if (const auto kind = meshAttribute.kind; kind != attribute_kind::indices)
             {
-                const buffer_column_description& expectedAttribute = m_vertexAttributes[u32(kind)];
-
-                auto& column = columns[vertexAttributesCount];
-
-                OBLO_ASSERT(get_size_and_alignment(meshAttribute.format).first == expectedAttribute.elementSize);
-                column = expectedAttribute;
-
-                id.attributes |= kind;
-
-                attributeNames[vertexAttributesCount] = column.name;
-                attributes[vertexAttributesCount] = kind;
+                const auto a = convert_vertex_attribute(kind);
+                meshAttributes[vertexAttributesCount] = kind;
+                attributeIds[vertexAttributesCount] = u32(a);
+                attributeFlags |= a;
 
                 ++vertexAttributesCount;
             }
             else
             {
-                OBLO_ASSERT(id.indicesBytes == 0, "Two different index buffers?");
-
                 switch (meshAttribute.format)
                 {
-                case data_format::u8:
-                    id.indicesBytes = 1;
-                    break;
-
                 case data_format::u16:
-                    id.indicesBytes = 2;
+                    indexType = mesh_index_type::u16;
                     break;
 
                 case data_format::u32:
-                    id.indicesBytes = 4;
+                    indexType = mesh_index_type::u32;
                     break;
 
                 default:
@@ -247,36 +220,20 @@ namespace oblo::vk
             }
         }
 
-        auto* const meshBatch = get_or_create_mesh_batch(id, columns);
-
-        if (!meshBatch)
-        {
-            return {};
-        }
-
-        ++meshBatch->lastMeshId.value;
-
-        const auto newMeshId = meshBatch->lastMeshId;
-
-        const mesh_table_entry meshEntry{
-            .id = newMeshId,
-            .numVertices = meshPtr->get_vertex_count(),
-            .numIndices = meshPtr->get_index_count(),
-        };
-
-        if (!meshBatch->table->allocate_meshes({&meshEntry, 1u}))
-        {
-            return {};
-        }
+        const auto meshHandle = m_meshes.create_mesh(attributeFlags.data(),
+            indexType,
+            meshPtr->get_vertex_count(),
+            meshPtr->get_index_count());
 
         buffer indexBuffer{};
-        auto buffers = allocate_n_span<buffer>(stackAllocator, vertexAttributesCount);
+        buffer vertexBuffers[u32(vertex_attributes::enum_max)];
 
-        meshBatch->table->fetch_buffers(m_ctx->get_resource_manager(),
-            meshEntry.id,
-            {attributeNames, vertexAttributesCount},
-            buffers,
+        [[maybe_unused]] const auto fetchedBuffers = m_meshes.fetch_buffers(meshHandle,
+            {attributeIds, vertexAttributesCount},
+            {vertexBuffers, vertexAttributesCount},
             &indexBuffer);
+
+        OBLO_ASSERT(fetchedBuffers);
 
         const auto doUpload = [this](const std::span<const std::byte> data, const buffer& b)
         {
@@ -294,43 +251,42 @@ namespace oblo::vk
 
         for (u32 i = 0; i < vertexAttributesCount; ++i)
         {
-            const auto kind = attributes[i];
+            const auto kind = meshAttributes[i];
             const auto data = meshPtr->get_attribute(kind);
 
-            doUpload(data, buffers[i]);
+            doUpload(data, vertexBuffers[i]);
         }
 
-        const auto meshOffset{meshBatch - m_meshBatches.data()};
-        const h64<draw_mesh> globalMeshId{make_mesh_id(meshOffset, newMeshId)};
+        const h32<draw_mesh> globalMeshId{make_mesh_id(meshHandle)};
         m_cachedMeshes.emplace(resourceId.id, globalMeshId);
 
         return globalMeshId;
     }
 
-    const mesh_table* draw_registry::try_get_mesh_table(u32 id) const
-    {
-        if (id >= m_meshBatches.size())
-        {
-            return nullptr;
-        }
-
-        return m_meshBatches[id].table.get();
-    }
-
     h32<draw_instance> draw_registry::create_instance(
-        h64<draw_mesh> mesh, std::span<const h32<draw_buffer>> buffers, std::span<std::byte*> outData)
+        h32<draw_mesh> mesh, std::span<const h32<draw_buffer>> buffers, std::span<std::byte*> outData)
     {
         OBLO_ASSERT(buffers.size() == outData.size());
-
-        const auto [batchOffset, localMeshid] = parse_mesh_id(mesh);
 
         ecs::component_and_tags_sets sets{};
 
         const auto userBuffersCount{buffers.size()};
 
-        const auto localMeshIdComponent = m_meshBatches[batchOffset].component;
-        sets.components.add(localMeshIdComponent);
-        sets.components.add(m_meshBatchComponent);
+        // We add tags for different index types, because we won't be able to draw these meshes together
+        switch (m_meshes.get_index_type({mesh.value}))
+        {
+        case mesh_index_type::none:
+            sets.tags.add(m_indexNoneTag);
+            break;
+        case mesh_index_type::u16:
+            sets.tags.add(m_indexU16Tag);
+            break;
+        case mesh_index_type::u32:
+            sets.tags.add(m_indexU32Tag);
+            break;
+        }
+
+        sets.components.add(m_meshComponent);
 
         for (usize i = 0; i < userBuffersCount; ++i)
         {
@@ -345,9 +301,9 @@ namespace oblo::vk
         // Retrieve the user buffers data
         m_instances.get(entity, {components, userBuffersCount}, outData);
 
-        std::byte* localMeshIdPtr;
-        m_instances.get(entity, {&localMeshIdComponent, 1}, {&localMeshIdPtr, 1});
-        new (localMeshIdPtr) local_mesh_id{localMeshid};
+        std::byte* meshComponentPtr;
+        m_instances.get(entity, {&m_meshComponent, 1}, {&meshComponentPtr, 1});
+        new (meshComponentPtr) mesh_handle{mesh.value};
 
         return h32<draw_instance>{entity.value};
     }
@@ -395,51 +351,28 @@ namespace oblo::vk
         return str ? *str : h32<string>{};
     }
 
-    draw_registry::mesh_batch* draw_registry::get_or_create_mesh_batch(const mesh_batch_id& batchId,
-        std::span<const buffer_column_description> columns)
+    void draw_registry::generate_mesh_database(frame_allocator& allocator, staging_buffer& stagingBuffer)
     {
-        for (auto& batch : m_meshBatches)
+        const std::span lookup = m_meshes.create_mesh_table_lookup(allocator);
+
+        if (lookup.empty())
         {
-            if (batch.id == batchId)
-            {
-                return &batch;
-            }
+            m_meshTablesBuffer = {};
+            m_meshTablesBufferOffset = 0;
+            m_meshTablesBufferSize = 0;
+            return;
         }
 
-        auto table = std::make_unique<mesh_table>();
+        const auto b = m_storageBuffer.allocate(*m_ctx, u32(lookup.size()));
 
-        if (!table->init(columns,
-                m_ctx->get_allocator(),
-                m_ctx->get_resource_manager(),
-                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                batchId.indicesBytes,
-                MaxVerticesPerBatch,
-                MaxIndicesPerBatch))
-        {
-            return nullptr;
-        }
+        m_meshTablesBuffer = b.buffer;
+        m_meshTablesBufferOffset = b.offset;
+        m_meshTablesBufferSize = b.size;
 
-        const auto batchOffset = m_meshBatches.size();
+        [[maybe_unused]] const bool success =
+            stagingBuffer.upload(lookup, m_meshTablesBuffer, m_meshTablesBufferOffset);
 
-        auto& newBatch = m_meshBatches.emplace_back();
-        newBatch.id = batchId;
-        newBatch.table = std::move(table);
-
-        constexpr u32 BufferSize{128};
-
-        char buffer[BufferSize];
-        std::memcpy(buffer, MeshBatchPrefix.data(), MeshBatchPrefix.size());
-
-        const auto [end, ec] = std::to_chars(buffer + MeshBatchPrefix.size(), buffer + BufferSize, batchOffset);
-
-        const h32<string> name{m_interner->get_or_add(std::string_view{buffer, end})};
-
-        auto typeDesc = ecs::make_component_type_desc<local_mesh_id>();
-        typeDesc.type = type_id{m_interner->str(name)};
-
-        newBatch.component = m_typeRegistry.register_component(typeDesc);
-
-        return &newBatch;
+        OBLO_ASSERT(success);
     }
 
     void draw_registry::generate_draw_calls(frame_allocator& allocator, staging_buffer& stagingBuffer)
@@ -466,44 +399,19 @@ namespace oblo::vk
                 continue;
             }
 
-            const std::span componentTypes = ecs::get_component_types(archetype);
-
-            ecs::component_type meshBatchComponent{};
-
-            for (const auto componentType : componentTypes)
-            {
-                const auto& typeDesc = m_typeRegistry.get_component_type_desc(componentType);
-
-                if (typeDesc.type.name.starts_with(MeshBatchPrefix))
-                {
-                    meshBatchComponent = componentType;
-                    break;
-                }
-            }
-
-            if (!meshBatchComponent)
-            {
-                OBLO_ASSERT(false, "A batch without mesh batch component is not expected currently");
-                break;
-            }
-
-            const auto meshBatchIt = std::find_if(m_meshBatches.begin(),
-                m_meshBatches.end(),
-                [meshBatchComponent](const mesh_batch& meshBatch)
-                { return meshBatch.component == meshBatchComponent; });
-
-            OBLO_ASSERT(meshBatchIt != m_meshBatches.end());
-
             ++currentDrawBatch;
 
-            *currentDrawBatch = {
-                .meshBatch = u32(meshBatchIt - m_meshBatches.begin()),
-            };
+            *currentDrawBatch = {};
 
             std::span<const std::byte> drawCommands;
             buffer drawCommandsBuffer;
 
-            const bool isIndexed = meshBatchIt->table->get_index_type() != VK_INDEX_TYPE_NONE_KHR;
+            const std::span componentTypes = ecs::get_component_types(archetype);
+            const ecs::component_and_tags_sets typeSets = ecs::get_component_and_tag_sets(archetype);
+            const bool isIndexed = !typeSets.tags.contains(m_indexNoneTag);
+
+            VkIndexType indexType = VK_INDEX_TYPE_NONE_KHR;
+            buffer indexBuffer{};
 
             if (!isIndexed)
             {
@@ -514,21 +422,21 @@ namespace oblo::vk
 
                 auto* nextCommand = commands.data();
 
-                u32 meshLocalIdOffset;
-                std::byte* meshLocalIdBegin;
+                u32 meshHandleOffset;
+                std::byte* meshHandleBegin;
 
                 ecs::for_each_chunk(archetype,
-                    {&meshBatchComponent, 1},
-                    {&meshLocalIdOffset, 1},
-                    {&meshLocalIdBegin, 1},
+                    {&m_meshComponent, 1},
+                    {&meshHandleOffset, 1},
+                    {&meshHandleBegin, 1},
                     [&](const ecs::entity*, std::span<std::byte*> componentArrays, u32 numEntitiesInChunk)
                     {
-                        auto* const meshLocalIds =
-                            start_lifetime_as_array<h32<string>>(componentArrays[0], numEntitiesInChunk);
+                        auto* const meshHandles =
+                            start_lifetime_as_array<mesh_handle>(componentArrays[0], numEntitiesInChunk);
 
-                        for (const auto meshId : std::span{meshLocalIds, numEntitiesInChunk})
+                        for (const auto meshId : std::span{meshHandles, numEntitiesInChunk})
                         {
-                            const auto range = meshBatchIt->table->get_mesh_range(meshId);
+                            const auto range = m_meshes.get_table_range(meshId);
 
                             *nextCommand = {
                                 .vertexCount = range.vertexCount,
@@ -551,21 +459,24 @@ namespace oblo::vk
 
                 auto* nextCommand = indexedCommands.data();
 
-                u32 meshLocalIdOffset;
-                std::byte* meshLocalIdBegin;
+                u32 meshHandleOffset;
+                std::byte* meshHandleBegin;
 
                 ecs::for_each_chunk(archetype,
-                    {&meshBatchComponent, 1},
-                    {&meshLocalIdOffset, 1},
-                    {&meshLocalIdBegin, 1},
+                    {&m_meshComponent, 1},
+                    {&meshHandleOffset, 1},
+                    {&meshHandleBegin, 1},
                     [&](const ecs::entity*, std::span<std::byte*> componentArrays, u32 numEntitiesInChunk)
                     {
-                        auto* const meshLocalIds =
-                            start_lifetime_as_array<h32<string>>(componentArrays[0], numEntitiesInChunk);
+                        auto* const meshHandles =
+                            start_lifetime_as_array<mesh_handle>(componentArrays[0], numEntitiesInChunk);
 
-                        for (const auto meshId : std::span{meshLocalIds, numEntitiesInChunk})
+                        for (const auto meshId : std::span{meshHandles, numEntitiesInChunk})
                         {
-                            const auto range = meshBatchIt->table->get_mesh_range(meshId);
+                            const auto range = m_meshes.get_table_range(meshId);
+
+                            // TODO: The first index buffer would be enough, maybe we can get it once?
+                            m_meshes.fetch_buffers(meshId, {}, {}, &indexBuffer);
 
                             *nextCommand = {
                                 .indexCount = range.indexCount,
@@ -578,6 +489,17 @@ namespace oblo::vk
                             ++nextCommand;
                         }
                     });
+
+                if (typeSets.tags.contains(m_indexU16Tag))
+                {
+                    indexType = VK_INDEX_TYPE_UINT16;
+                }
+                else if (typeSets.tags.contains(m_indexU16Tag))
+                {
+                    indexType = VK_INDEX_TYPE_UINT32;
+                }
+
+                OBLO_ASSERT(indexType != VK_INDEX_TYPE_NONE_KHR);
             }
 
             stagingBuffer.upload(drawCommands, drawCommandsBuffer.buffer, drawCommandsBuffer.offset);
@@ -588,6 +510,9 @@ namespace oblo::vk
                 .offset = drawCommandsBuffer.offset,
                 .drawCount = numEntities,
                 .isIndexed = isIndexed,
+                .indexBuffer = indexBuffer.buffer,
+                .indexBufferOffset = indexBuffer.offset,
+                .indexType = indexType,
             };
 
             // TODO: Don't blindly update all instance buffers every frame
@@ -610,6 +535,7 @@ namespace oblo::vk
                 const u32 bufferSize = typeDesc.size * numEntities;
 
                 instanceBuffers.buffers[i] = m_storageBuffer.allocate(*m_ctx, bufferSize);
+                instanceBuffers.bindings[i] = h32<draw_buffer>{componentTypes[i].value};
             }
 
             u32 numProcessedEntities{0};
@@ -633,8 +559,6 @@ namespace oblo::vk
                         stagingBuffer.upload({componentArrays[i], chunkSize},
                             instanceBuffer.buffer,
                             instanceBuffer.offset + dstOffset);
-
-                        instanceBuffers.bindings[i] = h32<draw_buffer>{componentTypes[i].value};
                     }
 
                     numProcessedEntities += numEntitiesInChunk;
@@ -650,5 +574,10 @@ namespace oblo::vk
     std::span<const batch_draw_data> draw_registry::get_draw_calls() const
     {
         return {m_drawData, m_drawDataCount};
+    }
+
+    buffer draw_registry::get_mesh_database_buffer() const
+    {
+        return {.buffer = m_meshTablesBuffer, .offset = m_meshTablesBufferOffset, .size = m_meshTablesBufferSize};
     }
 }
