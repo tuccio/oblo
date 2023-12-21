@@ -83,7 +83,7 @@ namespace oblo::ecs
 
     struct archetype_impl
     {
-        component_and_tags_sets types;
+        component_and_tag_sets types;
         component_type* components;
         u32* offsets;
         u32* sizes;
@@ -107,7 +107,7 @@ namespace oblo::ecs
 
     archetype_impl* create_archetype_impl(memory_pool& pool,
         const type_registry& typeRegistry,
-        const component_and_tags_sets& types,
+        const component_and_tag_sets& types,
         std::span<const component_type> components);
 
     void destroy_archetype_impl(memory_pool& pool, archetype_impl* storage);

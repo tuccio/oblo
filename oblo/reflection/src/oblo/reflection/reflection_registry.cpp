@@ -86,7 +86,7 @@ namespace oblo::reflection
             return;
         }
 
-        ecs::component_and_tags_sets sets{};
+        ecs::component_and_tag_sets sets{};
         sets.tags.add(tagType);
 
         // TODO: (#10) A component is necessary here

@@ -67,7 +67,7 @@ namespace oblo::reflection
         const ecs::entity e{entityIndex};
         const auto tag = m_impl.typesRegistry.get_or_register_tag({.type = type});
 
-        ecs::component_and_tags_sets sets{};
+        ecs::component_and_tag_sets sets{};
         sets.tags.add(tag);
 
         m_impl.registry.add(e, sets);
@@ -88,7 +88,7 @@ namespace oblo::reflection
             .moveAssign = rte.moveAssign,
         });
 
-        ecs::component_and_tags_sets sets{};
+        ecs::component_and_tag_sets sets{};
         sets.components.add(component);
 
         m_impl.registry.add(e, sets);

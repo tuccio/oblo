@@ -18,8 +18,8 @@ namespace oblo::ecs
         class iterator;
 
     public:
-        typed_range& with(const component_and_tags_sets& sets);
-        typed_range& exclude(const component_and_tags_sets& sets);
+        typed_range& with(const component_and_tag_sets& sets);
+        typed_range& exclude(const component_and_tag_sets& sets);
 
         template <typename... ComponentOrTags>
         typed_range& with();
@@ -35,8 +35,8 @@ namespace oblo::ecs
         iterator end() const;
 
     private:
-        component_and_tags_sets m_include;
-        component_and_tags_sets m_exclude;
+        component_and_tag_sets m_include;
+        component_and_tag_sets m_exclude;
         component_type m_targets[sizeof...(Components)];
         u8 m_mapping[sizeof...(Components)];
         entity_registry* m_registry;
@@ -174,7 +174,7 @@ namespace oblo::ecs
 
     template <typename... Components>
     entity_registry::typed_range<Components...>& entity_registry::typed_range<Components...>::with(
-        const component_and_tags_sets& includes)
+        const component_and_tag_sets& includes)
     {
         m_include.components.add(includes.components);
         m_include.tags.add(includes.tags);
@@ -184,7 +184,7 @@ namespace oblo::ecs
 
     template <typename... Components>
     entity_registry::typed_range<Components...>& entity_registry::typed_range<Components...>::exclude(
-        const component_and_tags_sets& excludes)
+        const component_and_tag_sets& excludes)
     {
         m_exclude.components.add(excludes.components);
         m_exclude.tags.add(excludes.tags);

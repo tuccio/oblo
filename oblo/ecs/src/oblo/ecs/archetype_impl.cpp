@@ -16,7 +16,7 @@ namespace oblo::ecs
 
     archetype_impl* create_archetype_impl(memory_pool& pool,
         const type_registry& typeRegistry,
-        const component_and_tags_sets& types,
+        const component_and_tag_sets& types,
         std::span<const component_type> components)
     {
         OBLO_ASSERT(std::is_sorted(components.begin(), components.end()));
@@ -228,7 +228,7 @@ namespace oblo::ecs
         }
     }
 
-    component_and_tags_sets get_component_and_tag_sets(const archetype_storage& storage)
+    component_and_tag_sets get_component_and_tag_sets(const archetype_storage& storage)
     {
         return storage.archetype->types;
     }

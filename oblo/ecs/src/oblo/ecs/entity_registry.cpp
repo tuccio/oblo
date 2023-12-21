@@ -58,14 +58,14 @@ namespace oblo::ecs
         *this = entity_registry{typeRegistry};
     }
 
-    entity entity_registry::create(const component_and_tags_sets& types)
+    entity entity_registry::create(const component_and_tag_sets& types)
     {
         entity e;
         create(types, 1, {&e, 1});
         return e;
     }
 
-    void entity_registry::create(const component_and_tags_sets& types, const u32 count, std::span<entity> outEntityIds)
+    void entity_registry::create(const component_and_tag_sets& types, const u32 count, std::span<entity> outEntityIds)
     {
         OBLO_ASSERT(outEntityIds.size() == 0 || outEntityIds.size() == count);
 
@@ -151,7 +151,7 @@ namespace oblo::ecs
         m_entities.erase(e);
     }
 
-    void entity_registry::add(entity e, const component_and_tags_sets& newTypes)
+    void entity_registry::add(entity e, const component_and_tag_sets& newTypes)
     {
         if (newTypes.components.is_empty() && newTypes.tags.is_empty())
         {
@@ -168,7 +168,7 @@ namespace oblo::ecs
         archetype_impl& oldArchetype = *entityData->archetype;
         const auto oldArchetypeIndex = entityData->archetypeIndex;
 
-        component_and_tags_sets types = oldArchetype.types;
+        component_and_tag_sets types = oldArchetype.types;
         types.components.add(newTypes.components);
         types.tags.add(newTypes.tags);
 
@@ -346,7 +346,7 @@ namespace oblo::ecs
     }
 
     const archetype_storage* entity_registry::find_first_match(
-        const archetype_storage* begin, usize increment, const component_and_tags_sets& types)
+        const archetype_storage* begin, usize increment, const component_and_tag_sets& types)
     {
         auto* const end = m_componentsStorage.data() + m_componentsStorage.size();
 
@@ -442,7 +442,7 @@ namespace oblo::ecs
         }
     }
 
-    const archetype_storage& entity_registry::find_or_create_storage(const component_and_tags_sets& types)
+    const archetype_storage& entity_registry::find_or_create_storage(const component_and_tag_sets& types)
     {
         for (const auto& storage : m_componentsStorage)
         {
@@ -572,7 +572,7 @@ namespace oblo::ecs
         --archetype.numCurrentEntities;
     }
 
-    component_and_tags_sets entity_registry::get_type_sets(entity e) const
+    component_and_tag_sets entity_registry::get_type_sets(entity e) const
     {
         auto* const entityData = m_entities.try_find(e);
         return entityData->archetype->types;
