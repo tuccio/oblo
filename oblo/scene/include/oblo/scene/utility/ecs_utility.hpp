@@ -17,7 +17,7 @@ namespace oblo::ecs
 {
     class entity_registry;
     class type_registry;
-    struct component_and_tags_sets;
+    struct component_and_tag_sets;
 }
 
 namespace oblo::reflection
@@ -32,7 +32,7 @@ namespace oblo::ecs_utility
         property_registry* propertyRegistry);
 
     SCENE_API ecs::entity create_named_physical_entity(ecs::entity_registry& registry,
-        const ecs::component_and_tags_sets& extraComponentsOrTags,
+        const ecs::component_and_tag_sets& extraComponentsOrTags,
         std::string_view name,
         const vec3& position,
         const quaternion& rotation,

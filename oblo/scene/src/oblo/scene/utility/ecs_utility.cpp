@@ -72,7 +72,7 @@ namespace oblo::ecs_utility
     }
 
     ecs::entity create_named_physical_entity(ecs::entity_registry& registry,
-        const ecs::component_and_tags_sets& extraComponentsOrTags,
+        const ecs::component_and_tag_sets& extraComponentsOrTags,
         std::string_view name,
         const vec3& position,
         const quaternion& rotation,

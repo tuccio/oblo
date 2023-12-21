@@ -268,7 +268,7 @@ namespace oblo::vk
     {
         OBLO_ASSERT(buffers.size() == outData.size());
 
-        ecs::component_and_tags_sets sets{};
+        ecs::component_and_tag_sets sets{};
 
         const auto userBuffersCount{buffers.size()};
 
@@ -407,7 +407,7 @@ namespace oblo::vk
             buffer drawCommandsBuffer;
 
             const std::span componentTypes = ecs::get_component_types(archetype);
-            const ecs::component_and_tags_sets typeSets = ecs::get_component_and_tag_sets(archetype);
+            const ecs::component_and_tag_sets typeSets = ecs::get_component_and_tag_sets(archetype);
             const bool isIndexed = !typeSets.tags.contains(m_indexNoneTag);
 
             VkIndexType indexType = VK_INDEX_TYPE_NONE_KHR;

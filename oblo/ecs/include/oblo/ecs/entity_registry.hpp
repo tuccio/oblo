@@ -14,7 +14,7 @@ namespace oblo::ecs
 {
     class type_registry;
     struct archetype_storage;
-    struct component_and_tags_sets;
+    struct component_and_tag_sets;
     struct type_set;
 
     class entity_registry final
@@ -33,8 +33,8 @@ namespace oblo::ecs
 
         void init(const type_registry* typeRegistry);
 
-        entity create(const component_and_tags_sets& types);
-        void create(const component_and_tags_sets& types, u32 count, std::span<entity> outEntityIds = {});
+        entity create(const component_and_tag_sets& types);
+        void create(const component_and_tag_sets& types, u32 count, std::span<entity> outEntityIds = {});
 
         template <typename... ComponentsOrTags>
         entity create();
@@ -44,12 +44,12 @@ namespace oblo::ecs
 
         void destroy(entity e);
 
-        void add(entity e, const component_and_tags_sets& types);
+        void add(entity e, const component_and_tag_sets& types);
 
         template <typename... ComponentsOrTags>
         auto&& add(entity e);
 
-        void remove(entity e, const component_and_tags_sets& types);
+        void remove(entity e, const component_and_tag_sets& types);
 
         template <typename... ComponentsOrTags>
         void remove(entity e);
@@ -106,7 +106,7 @@ namespace oblo::ecs
 
     private:
         const archetype_storage* find_first_match(
-            const archetype_storage* begin, usize increment, const component_and_tags_sets& types);
+            const archetype_storage* begin, usize increment, const component_and_tag_sets& types);
 
         static void sort_and_map(std::span<component_type> componentTypes, std::span<u8> mapping);
 
@@ -119,7 +119,7 @@ namespace oblo::ecs
             const entity** entities,
             std::span<std::byte*> componentData);
 
-        const archetype_storage& find_or_create_storage(const component_and_tags_sets& types);
+        const archetype_storage& find_or_create_storage(const component_and_tag_sets& types);
 
         void find_component_types(std::span<const type_id> typeIds, std::span<component_type> types);
 
@@ -128,7 +128,7 @@ namespace oblo::ecs
 
         void move_last_and_pop(const entity_data& entityData);
 
-        component_and_tags_sets get_type_sets(entity e) const;
+        component_and_tag_sets get_type_sets(entity e) const;
 
     private:
         using entities_map = h32_flat_pool_dense_map<entity_handle, entity_data>;

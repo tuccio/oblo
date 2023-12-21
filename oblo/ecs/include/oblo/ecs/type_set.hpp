@@ -68,18 +68,18 @@ namespace oblo::ecs
         u64 bitset[BlocksCount];
     };
 
-    struct component_and_tags_sets
+    struct component_and_tag_sets
     {
         type_set components;
         type_set tags;
 
-        constexpr auto operator<=>(const component_and_tags_sets&) const = default;
+        constexpr auto operator<=>(const component_and_tag_sets&) const = default;
     };
 
     template <typename... ComponentsOrTags>
-    component_and_tags_sets make_type_sets(const type_registry& typeRegistry)
+    component_and_tag_sets make_type_sets(const type_registry& typeRegistry)
     {
-        component_and_tags_sets sets{};
+        component_and_tag_sets sets{};
 
         const auto doAdd = [&typeRegistry, &sets]<typename T>(const T*)
         {
