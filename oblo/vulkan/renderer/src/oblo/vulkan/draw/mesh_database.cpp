@@ -92,6 +92,7 @@ namespace oblo::vk
     {
         u64 id;
         u32 nextMeshId;
+        u32 globalIndexOffset;
         std::unique_ptr<mesh_table> meshes;
     };
 
@@ -158,16 +159,23 @@ namespace oblo::vk
             std::array<buffer_column_description, MaxAttributes> columnsBuffer;
             const std::span columns = attributes_to_buffer_columns(meshAttributesMask, m_attributes, columnsBuffer);
 
+            const u32 indexByteSize = get_index_byte_size(indexType);
+            const buffer indexBuffer = allocate_index_buffer(indexType);
+
+            newTable.globalIndexOffset = indexBuffer.offset / indexByteSize;
+
             const auto success = newTable.meshes->init(columns,
                 *m_allocator,
                 *m_resourceManager,
                 m_bufferUsage,
-                get_index_byte_size(indexType),
+                indexByteSize,
                 m_tableVertexCount,
-                m_tableIndexCount);
+                m_tableIndexCount,
+                indexBuffer);
 
             if (!success)
             {
+                // TODO: Clean-up allocations (e.g. index buffer)
                 m_tables.pop_back();
                 return {};
             }
@@ -223,10 +231,21 @@ namespace oblo::vk
         }
     }
 
-    buffer mesh_database::get_index_buffer(u32 meshTableIndex) const
+    buffer mesh_database::get_index_buffer(mesh_index_type meshIndexType) const
     {
+        if (meshIndexType == mesh_index_type::none)
+        {
+            return {};
+        }
+
         buffer indexBuffer{};
-        m_tables[meshTableIndex].meshes->fetch_buffers(*m_resourceManager, {}, {}, &indexBuffer);
+        auto& pool = m_indexBuffers[u32(meshIndexType) - 1];
+
+        if (pool.handle)
+        {
+            indexBuffer = m_resourceManager->get(pool.handle);
+        }
+
         return indexBuffer;
     }
 
@@ -238,8 +257,15 @@ namespace oblo::vk
     mesh_database::table_range mesh_database::get_table_range(mesh_handle mesh) const
     {
         const auto [tableId, meshId] = parse_mesh_handle(mesh);
-        const auto range = m_tables[tableId].meshes->get_mesh_range(h32<string>{meshId});
-        return std::bit_cast<table_range>(range);
+        const auto& table = m_tables[tableId];
+        const auto range = table.meshes->get_mesh_range(h32<string>{meshId});
+
+        return {
+            .vertexOffset = range.vertexOffset,
+            .vertexCount = range.vertexCount,
+            .indexOffset = table.globalIndexOffset + range.indexOffset,
+            .indexCount = range.indexCount,
+        };
     }
 
     std::span<const std::byte> mesh_database::create_mesh_table_lookup(frame_allocator& allocator) const
@@ -291,5 +317,43 @@ namespace oblo::vk
         }
 
         return std::as_bytes(gpuTables);
+    }
+
+    buffer mesh_database::allocate_index_buffer(mesh_index_type indexType)
+    {
+        auto& pool = m_indexBuffers[u32(indexType) - 1];
+
+        if (!pool.handle)
+        {
+            const u32 indexByteSize = get_index_byte_size(indexType);
+
+            // TODO: For now we simply allow a set number of tables using the same index buffer
+            constexpr u32 MaxTables{4};
+
+            const u32 tableByteSize = indexByteSize * m_tableIndexCount;
+
+            pool.handle = m_resourceManager->create(*m_allocator,
+                buffer_initializer{
+                    .size = tableByteSize * MaxTables,
+                    .usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | m_bufferUsage,
+                    .memoryUsage = memory_usage::gpu_only,
+                });
+
+            pool.freeList.reserve(MaxTables);
+
+            for (u32 i = 0; i < MaxTables; ++i)
+            {
+                pool.freeList.emplace_back(i * tableByteSize, tableByteSize);
+            }
+        }
+
+        OBLO_ASSERT(!pool.freeList.empty(), "Ran out of tables, could bump MaxTables or implement growth");
+
+        const auto range = pool.freeList.back();
+        pool.freeList.pop_back();
+
+        const auto b = m_resourceManager->get(pool.handle);
+
+        return {.buffer = b.buffer, .offset = b.offset + range.begin, .size = range.size};
     }
 }

@@ -410,7 +410,7 @@ namespace oblo::vk
             const ecs::component_and_tag_sets typeSets = ecs::get_component_and_tag_sets(archetype);
             const bool isIndexed = !typeSets.tags.contains(m_indexNoneTag);
 
-            VkIndexType indexType = VK_INDEX_TYPE_NONE_KHR;
+            VkIndexType vkIndexType = VK_INDEX_TYPE_NONE_KHR;
             buffer indexBuffer{};
 
             if (!isIndexed)
@@ -462,8 +462,6 @@ namespace oblo::vk
                 u32 meshHandleOffset;
                 std::byte* meshHandleBegin;
 
-                u32 meshTableIndex{~0u};
-
                 ecs::for_each_chunk(archetype,
                     {&m_meshComponent, 1},
                     {&meshHandleOffset, 1},
@@ -477,8 +475,6 @@ namespace oblo::vk
                         {
                             const auto range = m_meshes.get_table_range(meshId);
 
-                            meshTableIndex = m_meshes.get_table_index(meshId);
-
                             *nextCommand = {
                                 .indexCount = range.indexCount,
                                 .instanceCount = 1,
@@ -491,18 +487,22 @@ namespace oblo::vk
                         }
                     });
 
-                indexBuffer = m_meshes.get_index_buffer(meshTableIndex);
+                mesh_index_type indexType{mesh_index_type::none};
 
                 if (typeSets.tags.contains(m_indexU16Tag))
                 {
-                    indexType = VK_INDEX_TYPE_UINT16;
+                    vkIndexType = VK_INDEX_TYPE_UINT16;
+                    indexType = mesh_index_type::u16;
                 }
                 else if (typeSets.tags.contains(m_indexU16Tag))
                 {
-                    indexType = VK_INDEX_TYPE_UINT32;
+                    vkIndexType = VK_INDEX_TYPE_UINT32;
+                    indexType = mesh_index_type::u32;
                 }
 
-                OBLO_ASSERT(indexType != VK_INDEX_TYPE_NONE_KHR);
+                indexBuffer = m_meshes.get_index_buffer(indexType);
+
+                OBLO_ASSERT(vkIndexType != VK_INDEX_TYPE_NONE_KHR);
             }
 
             stagingBuffer.upload(drawCommands, drawCommandsBuffer.buffer, drawCommandsBuffer.offset);
@@ -515,7 +515,7 @@ namespace oblo::vk
                 .isIndexed = isIndexed,
                 .indexBuffer = indexBuffer.buffer,
                 .indexBufferOffset = indexBuffer.offset,
-                .indexType = indexType,
+                .indexType = vkIndexType,
             };
 
             // TODO: Don't blindly update all instance buffers every frame
