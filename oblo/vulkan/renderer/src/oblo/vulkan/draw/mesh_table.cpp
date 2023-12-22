@@ -13,7 +13,8 @@ namespace oblo::vk
         VkBufferUsageFlags bufferUsage,
         u32 indexByteSize,
         u32 numVertices,
-        u32 numIndices)
+        u32 numIndices,
+        const buffer& indexBuffer)
     {
         // TODO: Actually read it
         constexpr u32 alignment = 16u;
@@ -61,14 +62,18 @@ namespace oblo::vk
 
         const auto indexBufferSize = u32(numIndices * m_indexByteSize);
 
+        if (indexBuffer.size < indexBufferSize)
+        {
+            return false;
+        }
+
         if (indexBufferSize != 0)
         {
-            m_indexBuffer = resourceManager.create(allocator,
-                {
-                    .size = indexBufferSize,
-                    .usage = bufferUsage | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                    .memoryUsage = memory_usage::gpu_only,
-                });
+            m_indexBuffer = resourceManager.register_buffer({
+                .buffer = indexBuffer.buffer,
+                .offset = indexBuffer.offset,
+                .size = indexBufferSize,
+            });
 
             m_totalIndices = numIndices;
         }
@@ -89,7 +94,7 @@ namespace oblo::vk
 
         if (m_indexBuffer)
         {
-            resourceManager.destroy(allocator, m_indexBuffer);
+            resourceManager.unregister_buffer(m_indexBuffer);
             m_indexBuffer = {};
         }
 

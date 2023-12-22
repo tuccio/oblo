@@ -74,7 +74,7 @@ namespace oblo::vk
 
         mesh_index_type get_index_type(mesh_handle mesh) const;
 
-        buffer get_index_buffer(u32 meshTableIndex) const;
+        buffer get_index_buffer(mesh_index_type indexType) const;
 
         u32 get_table_index(mesh_handle mesh) const;
 
@@ -85,6 +85,21 @@ namespace oblo::vk
     private:
         struct table;
 
+        struct buffer_pool
+        {
+            struct range
+            {
+                u32 begin;
+                u32 size;
+            };
+
+            h32<buffer> handle{};
+            std::vector<range> freeList;
+        };
+
+    private:
+        buffer allocate_index_buffer(mesh_index_type indexType);
+
     private:
         allocator* m_allocator{};
         resource_manager* m_resourceManager{};
@@ -92,6 +107,7 @@ namespace oblo::vk
         u32 m_tableIndexCount{};
         VkBufferUsageFlags m_bufferUsage{};
         std::vector<table> m_tables;
+        buffer_pool m_indexBuffers[2];
         std::array<mesh_attribute_description, MaxAttributes> m_attributes{};
     };
 

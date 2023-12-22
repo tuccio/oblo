@@ -39,7 +39,8 @@ namespace oblo::vk
             VkBufferUsageFlags bufferUsage,
             u32 indexByteSize,
             u32 numVertices,
-            u32 numIndices);
+            u32 numIndices,
+            const buffer& indexBuffer);
 
         void shutdown(allocator& allocator, resource_manager& resourceManager);
 
