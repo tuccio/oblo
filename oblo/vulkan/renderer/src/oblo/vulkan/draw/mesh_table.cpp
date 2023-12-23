@@ -110,7 +110,7 @@ namespace oblo::vk
     }
 
     bool mesh_table::fetch_buffers(const resource_manager& resourceManager,
-        h32<string> mesh,
+        mesh_table_entry_id mesh,
         std::span<const h32<string>> names,
         std::span<buffer> vertexBuffers,
         buffer* indexBuffer) const
@@ -180,8 +180,11 @@ namespace oblo::vk
         }
     }
 
-    bool mesh_table::allocate_meshes(std::span<const mesh_table_entry> meshes)
+    bool mesh_table::allocate_meshes(std::span<const mesh_table_entry> meshes,
+        std::span<mesh_table_entry_id> outHandles)
     {
+        OBLO_ASSERT(meshes.size() == outHandles.size());
+
         u32 numVertices{0};
         u32 numIndices{0};
 
@@ -201,23 +204,27 @@ namespace oblo::vk
 
         bool allSucceeded = true;
 
-        for (const auto [meshId, meshVertices, meshIndices] : meshes)
-        {
-            const auto [it, ok] = m_ranges.emplace(meshId,
-                buffer_range{
-                    .vertexOffset = m_firstFreeVertex,
-                    .vertexCount = meshVertices,
-                    .indexOffset = m_firstFreeIndex,
-                    .indexCount = meshIndices,
-                });
+        auto outIt = outHandles.begin();
 
-            if (ok)
+        for (const auto [meshVertices, meshIndices] : meshes)
+        {
+            const auto [it, key] = m_ranges.emplace(buffer_range{
+                .vertexOffset = m_firstFreeVertex,
+                .vertexCount = meshVertices,
+                .indexOffset = m_firstFreeIndex,
+                .indexCount = meshIndices,
+            });
+
+            if (key)
             {
                 m_firstFreeVertex += meshVertices;
                 m_firstFreeIndex += meshIndices;
+                *outIt = key;
             }
 
-            allSucceeded &= ok;
+            ++outIt;
+
+            allSucceeded &= bool{key};
         }
 
         return allSucceeded;
@@ -263,7 +270,7 @@ namespace oblo::vk
         return m_indexType;
     }
 
-    mesh_table::buffer_range mesh_table::get_mesh_range(h32<string> mesh) const
+    mesh_table::buffer_range mesh_table::get_mesh_range(mesh_table_entry_id mesh) const
     {
         auto* const range = m_ranges.try_find(mesh);
 

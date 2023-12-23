@@ -25,16 +25,16 @@ namespace oblo::vk
             return u32(id);
         }
 
-        constexpr mesh_handle make_mesh_handle(u32 tableId, u32 meshId)
+        constexpr mesh_handle make_mesh_handle(u32 tableId, mesh_table_entry_id meshId)
         {
-            return mesh_handle{(tableId << 24u) | meshId};
+            return mesh_handle{(tableId << 24u) | meshId.value};
         }
 
-        constexpr std::pair<u32, u32> parse_mesh_handle(const mesh_handle handle)
+        constexpr std::pair<u32, mesh_table_entry_id> parse_mesh_handle(const mesh_handle handle)
         {
             const u32 tableId = (handle.value & 0xFF000000) >> 24u;
             const u32 meshId = handle.value & 0x00FFFFFF;
-            return {tableId, meshId};
+            return {tableId, mesh_table_entry_id{meshId}};
         }
 
         std::span<const buffer_column_description> attributes_to_buffer_columns(u32 meshAttributesMask,
@@ -91,7 +91,6 @@ namespace oblo::vk
     struct mesh_database::table
     {
         u64 id;
-        u32 nextMeshId;
         u32 globalIndexOffset;
         std::unique_ptr<mesh_table> meshes;
     };
@@ -153,7 +152,6 @@ namespace oblo::vk
         {
             auto& newTable = m_tables.emplace_back();
             newTable.id = tableId;
-            newTable.nextMeshId = 1u;
             newTable.meshes = std::make_unique<mesh_table>();
 
             std::array<buffer_column_description, MaxAttributes> columnsBuffer;
@@ -183,17 +181,15 @@ namespace oblo::vk
             it = m_tables.rbegin();
         }
 
-        const u32 meshId = it->nextMeshId++;
+        const mesh_table_entry meshEntry[] = {{.numVertices = vertexCount, .numIndices = indexCount}};
+        mesh_table_entry_id outHandle[1];
 
-        const mesh_table_entry meshEntry[] = {
-            {.id = h32<string>{meshId}, .numVertices = vertexCount, .numIndices = indexCount}};
-
-        if (!it->meshes->allocate_meshes(meshEntry))
+        if (!it->meshes->allocate_meshes(meshEntry, outHandle))
         {
             return {};
         }
 
-        return make_mesh_handle(u32(&*it - m_tables.data()), meshId);
+        return make_mesh_handle(u32(&*it - m_tables.data()), outHandle[0]);
     }
 
     bool mesh_database::fetch_buffers(
@@ -205,7 +201,7 @@ namespace oblo::vk
         const std::span names = attributes_to_names(attributes, m_attributes, namesBuffer);
 
         return m_tables[tableId].meshes->fetch_buffers(*m_resourceManager,
-            h32<string>{meshId},
+            mesh_table_entry_id{meshId},
             names,
             vertexBuffers,
             indexBuffer);
@@ -258,7 +254,7 @@ namespace oblo::vk
     {
         const auto [tableId, meshId] = parse_mesh_handle(mesh);
         const auto& table = m_tables[tableId];
-        const auto range = table.meshes->get_mesh_range(h32<string>{meshId});
+        const auto range = table.meshes->get_mesh_range(mesh_table_entry_id{meshId});
 
         return {
             .vertexOffset = range.vertexOffset,

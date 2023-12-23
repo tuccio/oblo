@@ -1,6 +1,6 @@
 #pragma once
 
-#include <oblo/core/flat_dense_map.hpp>
+#include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/vulkan/buffer_table.hpp>
 
 namespace oblo::vk
@@ -9,10 +9,11 @@ namespace oblo::vk
 
     struct mesh_table_entry
     {
-        h32<string> id;
         u32 numVertices;
         u32 numIndices;
     };
+
+    using mesh_table_entry_id = h32<mesh_table_entry>;
 
     class mesh_table
     {
@@ -45,7 +46,7 @@ namespace oblo::vk
         void shutdown(allocator& allocator, resource_manager& resourceManager);
 
         bool fetch_buffers(const resource_manager& resourceManager,
-            h32<string> mesh,
+            mesh_table_entry_id mesh,
             std::span<const h32<string>> names,
             std::span<buffer> vertexBuffers,
             buffer* indexBuffer) const;
@@ -55,7 +56,7 @@ namespace oblo::vk
             std::span<buffer> vertexBuffers,
             buffer* indexBuffer) const;
 
-        bool allocate_meshes(std::span<const mesh_table_entry> meshes);
+        bool allocate_meshes(std::span<const mesh_table_entry> meshes, std::span<mesh_table_entry_id> outHandles);
 
         std::span<const h32<string>> vertex_attribute_names() const;
         std::span<const h32<buffer>> vertex_attribute_buffers() const;
@@ -69,11 +70,14 @@ namespace oblo::vk
 
         VkIndexType get_index_type() const;
 
-        buffer_range get_mesh_range(h32<string> mesh) const;
+        buffer_range get_mesh_range(mesh_table_entry_id mesh) const;
+
+    private:
+        static constexpr u32 GenIdBits = 0;
 
     private:
         buffer_table m_buffers;
-        flat_dense_map<h32<string>, buffer_range> m_ranges;
+        h32_flat_pool_dense_map<mesh_table_entry, buffer_range, GenIdBits> m_ranges;
         u32 m_firstFreeVertex{0u};
         u32 m_firstFreeIndex{0u};
         u32 m_totalIndices{0u};

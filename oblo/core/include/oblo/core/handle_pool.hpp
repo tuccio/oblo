@@ -21,7 +21,7 @@ namespace oblo
 
     private:
         static constexpr T GenOffset{sizeof(T) * 8 - GenBits};
-        static constexpr T GenMask{~T{} << GenOffset};
+        static constexpr T GenMask{GenBits == 0 ? 0 : ~T{} << GenOffset};
 
     private:
         std::deque<T> m_handles;
@@ -56,11 +56,18 @@ namespace oblo
     template <typename T, u32 GenBits>
     constexpr T handle_pool<T, GenBits>::increment_gen(T value)
     {
-        static_assert(std::is_unsigned_v<T>);
+        if constexpr (GenBits == 0)
+        {
+            return 0;
+        }
+        else
+        {
+            static_assert(std::is_unsigned_v<T>);
 
-        const auto gen = (value & GenMask) >> GenOffset;
-        const auto newGen = (gen + 1) << GenOffset;
+            const auto gen = (value & GenMask) >> GenOffset;
+            const auto newGen = (gen + 1) << GenOffset;
 
-        return newGen | value;
+            return newGen | value;
+        }
     }
 }
