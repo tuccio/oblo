@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <oblo/core/array_size.hpp>
+#include <oblo/core/finally.hpp>
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/string_interner.hpp>
 #include <oblo/math/vec2.hpp>
@@ -8,7 +9,10 @@
 #include <oblo/vulkan/allocator.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/buffer_table.hpp>
+#include <oblo/vulkan/dynamic_array_buffer.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
+#include <oblo/vulkan/staging_buffer.hpp>
+#include <oblo/vulkan/vulkan_context.hpp>
 
 #include <array>
 #include <numeric>
@@ -108,6 +112,99 @@ namespace oblo::vk
             bufferTable.shutdown(resourceManager);
 
             allocator.destroy(allocatedBuffer);
+        }
+
+        const auto errorsString = validationErrors.str();
+        ASSERT_TRUE(errorsString.empty()) << errorsString;
+    }
+
+    TEST(dynamic_array_buffer, dynamic_array_buffer)
+    {
+        std::stringstream validationErrors;
+
+        test_sandbox sandbox;
+        ASSERT_TRUE(sandbox.init({}, {}, {}, nullptr, nullptr, &validationErrors));
+
+        allocator allocator;
+        ASSERT_TRUE(
+            allocator.init(sandbox.instance.get(), sandbox.engine.get_physical_device(), sandbox.engine.get_device()));
+
+        resource_manager resourceManager;
+
+        vulkan_context ctx;
+
+        ASSERT_TRUE(ctx.init({
+            .instance = sandbox.instance.get(),
+            .engine = sandbox.engine,
+            .allocator = allocator,
+            .resourceManager = resourceManager,
+            .buffersPerFrame = 4,
+            .submitsInFlight = 2,
+        }));
+
+        staging_buffer staging;
+        ASSERT_TRUE(staging.init(sandbox.engine, allocator, 1u << 30));
+
+        std::vector<u32> cpuData;
+        std::vector<u32> downloadedData;
+
+        dynamic_array_buffer buffer;
+        buffer.init<u32>(ctx, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 0);
+
+        const auto cleanup = finally(
+            [&]
+            {
+                buffer.shutdown();
+                ctx.shutdown();
+            });
+
+        const auto submitAndCheckEquality = [&]
+        {
+            downloadedData.assign(cpuData.size(), 0xdeadbeef);
+
+            const auto vkBuffer = buffer.get_buffer();
+
+            const auto result =
+                staging.download(vkBuffer.buffer, vkBuffer.offset, std::as_writable_bytes(std::span{downloadedData}));
+
+            if (!result)
+            {
+                return false;
+            }
+
+            staging.flush();
+            staging.wait_all();
+
+            return downloadedData == cpuData;
+        };
+
+        for (u32 i = 0; i < 10; ++i)
+        {
+            {
+                ctx.frame_begin();
+
+                const u32 newSize = 1u << (i + 1);
+
+                cpuData.resize(newSize);
+                buffer.resize(ctx.get_active_command_buffer().get(), newSize);
+
+                ctx.frame_end();
+
+                vkDeviceWaitIdle(ctx.get_device());
+            }
+
+            ASSERT_TRUE(submitAndCheckEquality());
+
+            {
+                std::iota(cpuData.begin(), cpuData.end(), 0);
+
+                const auto vkBuffer = buffer.get_buffer();
+
+                ASSERT_TRUE(staging.upload(std::as_bytes(std::span{cpuData}), vkBuffer.buffer, vkBuffer.offset));
+                staging.flush();
+            }
+
+            ASSERT_TRUE(submitAndCheckEquality());
         }
 
         const auto errorsString = validationErrors.str();

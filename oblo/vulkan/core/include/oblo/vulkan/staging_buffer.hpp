@@ -4,6 +4,7 @@
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/allocator.hpp>
 
+#include <deque>
 #include <span>
 
 namespace oblo::vk
@@ -39,11 +40,16 @@ namespace oblo::vk
             VkOffset3D imageOffset,
             VkExtent3D imageExtent);
 
+        bool download(VkBuffer buffer, u32 bufferOffset, std::span<std::byte> destination);
+
         void flush();
 
         void poll_submissions();
 
+        void wait_all();
         void wait_for_free_space(u32 freeSpace);
+
+        VkCommandBuffer get_active_command_buffer() const;
 
     private:
         u8 get_next_submit_index() const;
@@ -68,8 +74,7 @@ namespace oblo::vk
             u32 queueFamilyIndex;
             allocator* allocator;
             ring_buffer_tracker<u32> ring;
-            u32 pendingUploadStart;
-            u32 pendingUploadBytes;
+            u32 pendingBytes;
             VkBuffer buffer;
             VmaAllocation allocation;
             std::byte* memoryMap;
@@ -80,7 +85,16 @@ namespace oblo::vk
             u32 nextTimelineId;
         };
 
+        struct pending_copy
+        {
+            void* dst;
+            u32 segmentOffsets[2];
+            u32 segmentSizes[2];
+            u64 timelineId;
+        };
+
     private:
         impl m_impl{};
+        std::deque<pending_copy> m_pendingCopies;
     };
 }
