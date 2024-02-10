@@ -59,9 +59,9 @@ namespace oblo
                 ASSERT_EQ(usedSegments.firstSegmentEnd - usedSegments.firstSegmentBegin, i + 1);
                 ASSERT_EQ(usedSegments.secondSegmentBegin, usedSegments.secondSegmentEnd);
 
-                for (int j = 0; j < N; ++j)
+                for (int k = 0; k < N; ++k)
                 {
-                    ASSERT_EQ(usedSegments.firstSegmentBegin[j], j);
+                    ASSERT_EQ(usedSegments.firstSegmentBegin[k], k);
                 }
             }
 
@@ -79,9 +79,9 @@ namespace oblo
                 ASSERT_EQ(usedSegments.firstSegmentEnd - usedSegments.firstSegmentBegin, N - i - 1);
                 ASSERT_EQ(usedSegments.secondSegmentBegin, usedSegments.secondSegmentEnd);
 
-                for (int j = 0; j < N - i - 1; ++j)
+                for (int k = 0; k < N - i - 1; ++k)
                 {
-                    ASSERT_EQ(usedSegments.firstSegmentBegin[j], i + j + 1);
+                    ASSERT_EQ(usedSegments.firstSegmentBegin[k], i + k + 1);
                 }
             }
         }

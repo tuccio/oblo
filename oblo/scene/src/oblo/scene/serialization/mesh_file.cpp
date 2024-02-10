@@ -303,7 +303,7 @@ namespace oblo
         if (const auto it = primitive.attributes.find(std::string{get_attribute_name(attribute_kind::position)});
             it != primitive.attributes.end())
         {
-            vertexCount = model.accessors[it->second].count;
+            vertexCount = narrow_cast<u32>(model.accessors[u32(it->second)].count);
         }
         else
         {
@@ -313,7 +313,7 @@ namespace oblo
         if (primitive.indices >= 0)
         {
             const auto& accessor = model.accessors[primitive.indices];
-            indexCount = accessor.count;
+            indexCount = narrow_cast<u32>(accessor.count);
 
             const data_format format = convert_data_format(accessor.componentType);
 
@@ -404,7 +404,7 @@ namespace oblo
             return false;
         }
 
-        const auto fileSize = ifs.tellg();
+        const auto fileSize = narrow_cast<u32>(ifs.tellg());
 
         constexpr auto MagicCharsCount{4};
 
@@ -498,7 +498,7 @@ namespace oblo
                         auto& minValue = aabbValue.Get("min");
                         auto& maxValue = aabbValue.Get("max");
 
-                        for (usize i = 0; i < 3; ++i)
+                        for (u32 i = 0; i < 3; ++i)
                         {
                             aabb.min[i] = f32(minValue.Get(i).GetNumberAsDouble());
                             aabb.max[i] = f32(maxValue.Get(i).GetNumberAsDouble());

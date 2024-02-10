@@ -60,7 +60,7 @@ namespace oblo
         std::unordered_map<std::string, h32<string>> strings;
         strings.reserve(stringsCount);
 
-        char buf[string_interner::MaxStringLength];
+        char buf[string_interner::MaxStringLength + 1];
 
         for (u32 i = 0; i < stringsCount; ++i)
         {

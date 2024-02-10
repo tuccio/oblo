@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/handles.hpp>
 #include <oblo/ecs/type_set.hpp>
 

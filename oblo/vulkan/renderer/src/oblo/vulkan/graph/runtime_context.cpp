@@ -25,4 +25,9 @@ namespace oblo::vk
     {
         return *static_cast<buffer*>(m_graph->access_resource_storage(h.value));
     }
+
+    void* runtime_context::access_resource_storage(u32 index) const
+    {
+        return m_graph->access_resource_storage(index);
+    }
 }

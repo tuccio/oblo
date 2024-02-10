@@ -8,13 +8,13 @@ template <>
 struct std::formatter<oblo::uuid>
 {
     template <typename FormatParseContext>
-    auto parse(FormatParseContext& pc)
+    auto parse(FormatParseContext& pc) const
     {
         return pc.end();
     }
 
     template <typename FormatContext>
-    auto format(const oblo::uuid& uuid, FormatContext& fc)
+    auto format(const oblo::uuid& uuid, FormatContext& fc) const
     {
         constexpr auto N = 36;
         char buffer[N];

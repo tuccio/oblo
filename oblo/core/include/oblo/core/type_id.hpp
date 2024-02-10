@@ -24,7 +24,7 @@ namespace oblo
 #elif defined(_MSC_VER)
                 constexpr auto offset = sizeof("static std::string_view oblo::detail::static_type_name<") - 1;
 
-                constexpr std::string_view str{__FUNCTION__};
+                constexpr std::string_view str{__FUNCSIG__};
                 constexpr auto end = str.find_first_of('[') - sizeof(">::get()");
 
                 return str.substr(offset, end - offset);

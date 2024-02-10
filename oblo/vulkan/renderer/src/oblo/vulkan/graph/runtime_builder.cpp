@@ -110,4 +110,9 @@ namespace oblo::vk
             break;
         }
     }
+
+    void* runtime_builder::access_resource_storage(u32 index) const
+    {
+        return m_graph->access_resource_storage(index);
+    }
 }

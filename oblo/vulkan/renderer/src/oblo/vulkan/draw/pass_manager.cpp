@@ -710,8 +710,8 @@ namespace oblo::vk
         // Consider defines at least for now, but order matters here, which is undesirable
         for (const auto define : desc.defines)
         {
-            constexpr u32 fixedSize = std::string_view{"#define \n"}.size();
-            requiredDefinesLength = fixedSize + m_impl->interner->str(define).size();
+            constexpr auto fixedSize = std::string_view{"#define \n"}.size();
+            requiredDefinesLength = u32(fixedSize + m_impl->interner->str(define).size());
 
             expectedHash = hash_mix(expectedHash, hash_all<std::hash>(define.value));
         }
@@ -998,7 +998,7 @@ namespace oblo::vk
             return;
         }
 
-        u32 maxBinding = textures2DInfo.size();
+        u32 maxBinding = u32(textures2DInfo.size());
 
         VkDescriptorSetVariableDescriptorCountAllocateInfoEXT countInfo{
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO_EXT,

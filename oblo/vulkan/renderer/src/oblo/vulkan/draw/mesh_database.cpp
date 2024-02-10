@@ -115,8 +115,8 @@ namespace oblo::vk
         m_resourceManager = &initializer.resourceManager;
 
         m_bufferUsage = initializer.bufferUsage;
-        m_tableIndexCount = initializer.tableIndexCount;
-        m_tableVertexCount = initializer.tableVertexCount;
+        m_tableIndexCount = narrow_cast<u32>(initializer.tableIndexCount);
+        m_tableVertexCount = narrow_cast<u32>(initializer.tableVertexCount);
 
         m_attributes = {};
 
@@ -174,6 +174,7 @@ namespace oblo::vk
             if (!success)
             {
                 // TODO: Clean-up allocations (e.g. index buffer)
+                OBLO_ASSERT(success, "Allocations might not be cleaned up properly");
                 m_tables.pop_back();
                 return {};
             }

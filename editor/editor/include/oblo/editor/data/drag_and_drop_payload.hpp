@@ -14,19 +14,19 @@ namespace oblo::editor
     {
         constexpr const char* Resource{"oblo::resource"};
 
-        constexpr drag_and_drop_payload pack_uuid(const uuid& id)
+        inline drag_and_drop_payload pack_uuid(const uuid& id)
         {
             drag_and_drop_payload p;
             *start_lifetime_as<uuid>(p.data) = id;
             return p;
         }
 
-        constexpr uuid parse_uuid(const drag_and_drop_payload& payload)
+        inline uuid parse_uuid(const drag_and_drop_payload& payload)
         {
             return *start_lifetime_as<uuid>(payload.data);
         }
 
-        constexpr uuid parse_uuid(const void* payload)
+        inline uuid parse_uuid(const void* payload)
         {
             return parse_uuid(*start_lifetime_as<drag_and_drop_payload>(payload));
         }

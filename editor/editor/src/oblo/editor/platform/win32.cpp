@@ -18,7 +18,8 @@ namespace oblo::editor::platform
 
     void open_folder(const std::filesystem::path& dir)
     {
-        const auto res = ShellExecuteW(nullptr, L"explore", dir.native().c_str(), nullptr, nullptr, SW_SHOWDEFAULT);
+        [[maybe_unused]] const auto res =
+            ShellExecuteW(nullptr, L"explore", dir.native().c_str(), nullptr, nullptr, SW_SHOWDEFAULT);
         OBLO_ASSERT(res != 0);
     }
 

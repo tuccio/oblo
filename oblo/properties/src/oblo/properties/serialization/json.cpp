@@ -324,7 +324,7 @@ namespace oblo::json
                     break;
 
                 case property_kind::i64:
-                    writer.Int(*static_cast<i64*>(current.value.data));
+                    writer.Int64(*static_cast<i64*>(current.value.data));
                     break;
 
                 case property_kind::u8:
@@ -353,7 +353,7 @@ namespace oblo::json
 
                 case property_kind::string: {
                     const auto str = *reinterpret_cast<data_string*>(current.value.data);
-                    writer.String(str.data, str.length);
+                    writer.String(str.data, rapidjson::SizeType(str.length));
                 }
                 break;
 

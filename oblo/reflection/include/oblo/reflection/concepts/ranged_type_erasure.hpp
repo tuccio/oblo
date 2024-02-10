@@ -2,6 +2,8 @@
 
 #include <oblo/core/types.hpp>
 
+#include <memory>
+
 namespace oblo::reflection
 {
     using ranged_create_fn = void (*)(void* dst, usize count);
