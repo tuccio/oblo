@@ -139,6 +139,11 @@ namespace oblo::vk
 
         if (m_impl.allocation)
         {
+            if (m_impl.memoryMap)
+            {
+                m_impl.allocator->unmap(m_impl.allocation);
+            }
+
             m_impl.allocator->destroy(allocated_buffer{m_impl.buffer, m_impl.allocation});
         }
 
