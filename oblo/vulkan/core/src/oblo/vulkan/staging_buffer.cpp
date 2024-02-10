@@ -1,5 +1,6 @@
 #include <oblo/vulkan/staging_buffer.hpp>
 
+#include <oblo/core/array_size.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/ring_buffer_tracker.hpp>
 #include <oblo/core/utility.hpp>
@@ -31,7 +32,7 @@ namespace oblo::vk
 
         const buffer_initializer initializer{
             .size = size,
-            .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
             .requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
         };
 
@@ -191,7 +192,7 @@ namespace oblo::vk
 
         // TODO: Pipeline barriers?
         vkCmdCopyBuffer(commandBuffer, m_impl.buffer, buffer, regionsCount, copyRegions);
-        m_impl.pendingUploadBytes += srcSize;
+        m_impl.pendingBytes += srcSize;
 
         return true;
     }
@@ -267,7 +268,7 @@ namespace oblo::vk
             1,
             &copyRegion);
 
-        m_impl.pendingUploadBytes += srcSize;
+        m_impl.pendingBytes += srcSize;
 
         if (finalImageLayout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
         {
@@ -282,9 +283,63 @@ namespace oblo::vk
         return true;
     }
 
+    bool staging_buffer::download(VkBuffer buffer, u32 bufferOffset, std::span<std::byte> destination)
+    {
+        const auto dstSize = narrow_cast<u32>(destination.size());
+
+        const auto available = m_impl.ring.available_count();
+
+        if (available < dstSize)
+        {
+            return false;
+        }
+
+        const auto segmentedSpan = m_impl.ring.fetch(dstSize);
+
+        VkBufferCopy copyRegions[2];
+        u32 regionsCount{0u};
+
+        u32 segmentOffset{0u};
+
+        auto& pendingCopy = m_pendingCopies.emplace_back();
+
+        pendingCopy = {
+            .dst = destination.data(),
+            .timelineId = m_impl.nextTimelineId,
+        };
+
+        for (const auto& segment : segmentedSpan.segments)
+        {
+            if (segment.begin != segment.end)
+            {
+                const auto segmentSize = segment.end - segment.begin;
+                pendingCopy.segmentSizes[regionsCount] = segmentSize;
+                pendingCopy.segmentOffsets[regionsCount] = segment.begin;
+
+                copyRegions[regionsCount] = {
+                    .srcOffset = bufferOffset + segmentOffset,
+                    .dstOffset = segment.begin,
+                    .size = segmentSize,
+                };
+
+                segmentOffset += segmentSize;
+                ++regionsCount;
+            }
+        }
+
+        const auto nextSubmitIndex = get_next_submit_index();
+        const auto commandBuffer = m_impl.commandBuffers[nextSubmitIndex];
+
+        // TODO: Pipeline barriers?
+        vkCmdCopyBuffer(commandBuffer, buffer, m_impl.buffer, regionsCount, copyRegions);
+        m_impl.pendingBytes += dstSize;
+
+        return true;
+    }
+
     void staging_buffer::flush()
     {
-        if (m_impl.pendingUploadBytes == 0)
+        if (m_impl.pendingBytes == 0)
         {
             return;
         }
@@ -319,9 +374,9 @@ namespace oblo::vk
 
             auto& currentSubmit = m_impl.submittedUploads[currentSubmitIndex];
             currentSubmit.timelineId = m_impl.nextTimelineId;
-            currentSubmit.size = m_impl.pendingUploadBytes;
+            currentSubmit.size = m_impl.pendingBytes;
 
-            m_impl.pendingUploadBytes = 0;
+            m_impl.pendingBytes = 0;
         }
 
         poll_submissions();
@@ -351,6 +406,11 @@ namespace oblo::vk
         u64 value;
         OBLO_VK_PANIC(vkGetSemaphoreCounterValue(m_impl.device, m_impl.semaphore, &value));
         free_submissions(narrow_cast<u32>(value));
+    }
+
+    void staging_buffer::wait_all()
+    {
+        wait_for_free_space(m_impl.ring.size());
     }
 
     void staging_buffer::wait_for_free_space(u32 freeSpace)
@@ -402,6 +462,28 @@ namespace oblo::vk
 
             nextSubmit = {};
         }
+
+        while (!m_pendingCopies.empty())
+        {
+            const auto& first = m_pendingCopies.front();
+
+            if (first.timelineId > timelineId)
+            {
+                break;
+            }
+
+            auto* dst = static_cast<u8*>(first.dst);
+
+            for (u32 i = 0; i < array_size(first.segmentOffsets); ++i)
+            {
+                const auto offset = first.segmentOffsets[i];
+                const auto size = first.segmentSizes[i];
+                std::memcpy(dst, m_impl.memoryMap + offset, size);
+                dst += size;
+            }
+
+            m_pendingCopies.pop_front();
+        }
     }
 
     u32 staging_buffer::wait_for_timeline(u32 timelineId)
@@ -417,5 +499,10 @@ namespace oblo::vk
 
         OBLO_VK_PANIC(vkWaitSemaphores(m_impl.device, &waitInfo, UINT64_MAX));
         return narrow_cast<u32>(waitValue);
+    }
+
+    VkCommandBuffer staging_buffer::get_active_command_buffer() const
+    {
+        return m_impl.commandBuffers[get_next_submit_index()];
     }
 }
