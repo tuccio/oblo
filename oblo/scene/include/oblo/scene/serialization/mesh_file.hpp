@@ -5,7 +5,7 @@
 
 namespace tinygltf
 {
-    struct Model;
+    class Model;
     struct Primitive;
 }
 

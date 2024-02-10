@@ -33,23 +33,23 @@ namespace oblo
         data_format format;
     };
 
-    class SCENE_API mesh
+    class mesh
     {
     public:
-        mesh();
+        SCENE_API mesh();
         mesh(const mesh&) = delete;
-        mesh(mesh&& other) noexcept;
+        SCENE_API mesh(mesh&& other) noexcept;
         mesh& operator=(const mesh&) = delete;
         mesh& operator=(mesh&& other) noexcept;
-        ~mesh();
+        SCENE_API ~mesh();
 
-        void allocate(
+        SCENE_API void allocate(
             primitive_kind primitive, u32 vertexCount, u32 indexCount, std::span<const mesh_attribute> attributes);
 
-        void clear();
+        SCENE_API void clear();
 
-        std::span<std::byte> get_attribute(attribute_kind kind, data_format* outFormat = nullptr);
-        std::span<const std::byte> get_attribute(attribute_kind kind, data_format* outFormat = nullptr) const;
+        SCENE_API std::span<std::byte> get_attribute(attribute_kind kind, data_format* outFormat = nullptr);
+        SCENE_API std::span<const std::byte> get_attribute(attribute_kind kind, data_format* outFormat = nullptr) const;
 
         template <typename T>
         std::span<T> get_attribute(attribute_kind attribute);
@@ -57,19 +57,19 @@ namespace oblo
         template <typename T>
         std::span<const T> get_attribute(attribute_kind attribute) const;
 
-        data_format get_attribute_format(attribute_kind attribute) const;
+        SCENE_API data_format get_attribute_format(attribute_kind attribute) const;
 
-        u32 get_attributes_count() const;
-        mesh_attribute get_attribute_at(u32 index) const;
+        SCENE_API u32 get_attributes_count() const;
+        SCENE_API mesh_attribute get_attribute_at(u32 index) const;
 
-        primitive_kind get_primitive_kind() const;
-        u32 get_vertex_count() const;
-        u32 get_index_count() const;
-        u32 get_elements_count(attribute_kind attribute) const;
+        SCENE_API primitive_kind get_primitive_kind() const;
+        SCENE_API u32 get_vertex_count() const;
+        SCENE_API u32 get_index_count() const;
+        SCENE_API u32 get_elements_count(attribute_kind attribute) const;
 
-        void update_aabb();
-        aabb get_aabb() const;
-        void set_aabb(aabb aabb);
+        SCENE_API void update_aabb();
+        SCENE_API aabb get_aabb() const;
+        SCENE_API void set_aabb(aabb aabb);
 
     private:
         template <typename T, typename Self>

@@ -16,12 +16,23 @@ namespace oblo
         static constexpr T get_index(T value);
 
     private:
-        static constexpr T get_gen_mask();
+        static consteval T get_gen_mask()
+        {
+            if constexpr (GenBits == 0)
+            {
+                return 0;
+            }
+            else
+            {
+                return ~T{} << GenOffset;
+            }
+        }
+
         static constexpr T increment_gen(T value);
 
     private:
         static constexpr T GenOffset{sizeof(T) * 8 - GenBits};
-        static constexpr T GenMask{GenBits == 0 ? 0 : ~T{} << GenOffset};
+        static constexpr T GenMask{get_gen_mask()};
 
     private:
         std::deque<T> m_handles;

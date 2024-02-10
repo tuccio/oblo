@@ -32,7 +32,7 @@ namespace oblo::vk
         template <typename T>
         T* access(data<T> h) const
         {
-            return static_cast<T*>(m_graph->access_resource_storage(h.value));
+            return static_cast<T*>(access_resource_storage(h.value));
         }
 
         VkCommandBuffer get_command_buffer() const
@@ -59,6 +59,9 @@ namespace oblo::vk
         {
             return m_renderer->get_string_interner();
         }
+
+    private:
+        void* access_resource_storage(u32 index) const;
 
     private:
         render_graph* m_graph;

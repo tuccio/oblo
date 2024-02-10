@@ -164,7 +164,7 @@ namespace oblo
         }
         else
         {
-            m_currentChunk->used = u32(static_cast<u8*>(ptr) - begin) + size;
+            m_currentChunk->used = u32(u32(static_cast<u8*>(ptr) - begin) + size);
         }
 
         return ptr;

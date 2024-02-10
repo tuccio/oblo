@@ -18,7 +18,7 @@ namespace oblo::vk
     {
         // TODO: Actually read it
         constexpr u32 alignment = 16u;
-        u32 maxBufferSize = (alignment - 1) * columns.size();
+        u32 maxBufferSize = narrow_cast<u32>((alignment - 1) * columns.size());
 
         for (const auto& column : columns)
         {

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <oblo/core/debug.hpp>
+
 #include <utility>
 
 namespace oblo
@@ -29,9 +31,11 @@ namespace oblo
     }
 
     template <typename T, typename U>
-    constexpr T narrow_cast(U&& u) noexcept
+        requires std::is_arithmetic_v<T>
+    constexpr T narrow_cast(U u) noexcept
     {
-        return static_cast<T>(std::forward<U>(u));
+        OBLO_ASSERT(static_cast<U>(static_cast<T>(u)) == u, "A narrow cast failed");
+        return static_cast<T>(u);
     }
 
     template <typename T>

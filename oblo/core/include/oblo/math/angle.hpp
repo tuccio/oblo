@@ -30,12 +30,12 @@ namespace oblo
 
         angle() = default;
         angle(const angle&) = default;
-        angle(const angle&&) noexcept = default;
+        angle(angle&&) noexcept = default;
 
         constexpr explicit angle(f32 value) : value{value} {}
 
         angle& operator=(const angle&) = default;
-        angle& operator=(const angle&&) noexcept = default;
+        angle& operator=(angle&&) noexcept = default;
 
         ~angle() = default;
 

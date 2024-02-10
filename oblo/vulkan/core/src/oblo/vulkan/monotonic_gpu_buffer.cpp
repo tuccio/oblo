@@ -87,7 +87,7 @@ namespace oblo::vk
 
     void monotonic_gpu_buffer::restore_all()
     {
-        m_currentIndex = -1;
+        m_currentIndex = ~u32{};
         m_spaceInCurrentChunk = 0;
     }
 }

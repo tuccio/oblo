@@ -34,7 +34,7 @@ namespace oblo::editor
 
                 auto* const name = entity_utility::get_name_cstr(*m_registry, e);
 
-                if (ImGui::TreeNodeEx(reinterpret_cast<void*>(e.value), flags, "%s", name))
+                if (ImGui::TreeNodeEx(reinterpret_cast<void*>(intptr(e.value)), flags, "%s", name))
                 {
                     ImGui::TreePop();
                 }

@@ -8,7 +8,7 @@
 
 namespace oblo
 {
-    constexpr mat4 make_perspective_matrix(radians verticalFov, f32 aspectRatio, f32 n, f32 f, mat4* inverse = nullptr)
+    inline mat4 make_perspective_matrix(radians verticalFov, f32 aspectRatio, f32 n, f32 f, mat4* inverse = nullptr)
     {
         const f32 focalLength = 1.f / std::tan(f32{verticalFov} * .5f);
 
@@ -37,7 +37,7 @@ namespace oblo
         return projection;
     }
 
-    constexpr mat4 make_look_at(const vec3& position, const vec3& up, const vec3& target)
+    inline mat4 make_look_at(const vec3& position, const vec3& up, const vec3& target)
     {
         const vec3 z = normalize(position - target);
         const vec3 x = normalize(cross(up, z));

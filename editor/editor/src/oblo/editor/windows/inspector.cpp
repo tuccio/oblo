@@ -129,8 +129,8 @@ namespace oblo::editor
             {
                 if (e && m_registry->contains(e))
                 {
-                    auto* const name = entity_utility::get_name_cstr(*m_registry, e);
-                    ImGui::TextUnformatted(name);
+                    auto* const entityName = entity_utility::get_name_cstr(*m_registry, e);
+                    ImGui::TextUnformatted(entityName);
 
                     const auto& typeRegistry = m_registry->get_type_registry();
                     const std::span components = m_registry->get_component_types(e);

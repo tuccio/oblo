@@ -53,7 +53,7 @@ namespace oblo
     template <typename T>
     constexpr material_property_type get_material_property_type();
 
-    class SCENE_API material
+    class material
     {
     public:
         material() = default;
@@ -66,11 +66,12 @@ namespace oblo
 
         ~material() = default;
 
-        void set_property(std::string_view name, material_property_type type, const material_data_storage& value);
+        SCENE_API void set_property(
+            std::string_view name, material_property_type type, const material_data_storage& value);
 
-        const material_property* get_property(const std::string_view name) const;
+        SCENE_API const material_property* get_property(const std::string_view name) const;
 
-        std::span<const material_property> get_properties() const;
+        SCENE_API std::span<const material_property> get_properties() const;
 
         template <typename T>
         void set_property(std::string_view name, const T& value)
@@ -80,8 +81,8 @@ namespace oblo
             set_property(std::move(name), get_material_property_type<T>(), storage);
         }
 
-        bool save(const std::filesystem::path& destination) const;
-        bool load(const std::filesystem::path& source);
+        SCENE_API bool save(const std::filesystem::path& destination) const;
+        SCENE_API bool load(const std::filesystem::path& source);
 
     private:
         struct string_hash

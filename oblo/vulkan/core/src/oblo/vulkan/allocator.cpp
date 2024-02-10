@@ -160,7 +160,7 @@ namespace oblo::vk
 
     VkResult allocator::invalidate_mapped_memory_ranges(std::span<const VmaAllocation> allocations)
     {
-        return vmaInvalidateAllocations(m_allocator, allocations.size(), allocations.data(), nullptr, nullptr);
+        return vmaInvalidateAllocations(m_allocator, u32(allocations.size()), allocations.data(), nullptr, nullptr);
     }
 
     const VkAllocationCallbacks* allocator::get_allocation_callbacks() const

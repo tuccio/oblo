@@ -133,7 +133,7 @@ namespace oblo::vk
 
         m_storageBuffer.init(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
             memory_usage::gpu_only,
-            narrow_cast<u32>(properties.limits.minStorageBufferOffsetAlignment),
+            narrow_cast<u8>(properties.limits.minStorageBufferOffsetAlignment),
             bufferChunkSize);
 
         m_drawCallsBuffer.init(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,

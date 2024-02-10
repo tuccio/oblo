@@ -1,5 +1,7 @@
 #include <oblo/vulkan/vulkan_context.hpp>
 
+#include <oblo/core/overload.hpp>
+#include <oblo/core/struct_apply.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/vulkan/command_buffer_pool.hpp>
@@ -307,16 +309,13 @@ namespace oblo::vk
                     break;
                 }
 
-                if constexpr (requires { [&] { auto&& [object, frameIndex] = pending; }; })
-                {
-                    auto&& [object, frameIndex] = pending;
-                    doDestroy(object);
-                }
-                else
-                {
-                    auto&& [object, secondaryObject, frameIndex] = pending;
-                    doDestroy(object, secondaryObject);
-                }
+                struct_apply(
+                    overload{
+                        [&doDestroy](const auto& object, u64) { doDestroy(object); },
+                        [&doDestroy](const auto& object, const auto& secondaryObject, u64)
+                        { doDestroy(object, secondaryObject); },
+                    },
+                    pending);
 
                 ++destroyedObjects;
             }

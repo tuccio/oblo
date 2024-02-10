@@ -15,11 +15,6 @@ namespace oblo
         }
     };
 
-    constexpr vec2u operator-(const vec2u& lhs) noexcept
-    {
-        return {-lhs.x, -lhs.y};
-    }
-
     constexpr vec2u operator-(const vec2u& lhs, const vec2u& rhs) noexcept
     {
         return {

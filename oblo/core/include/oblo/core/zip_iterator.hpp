@@ -174,8 +174,6 @@ namespace std
     template <typename... T>
     void swap(std::tuple<T&...> lhs, std::tuple<T&...> rhs)
     {
-        std::tuple<T&...>& lhsRef{lhs};
-        std::tuple<T&...>& rhsRef{rhs};
-        swap(lhsRef, rhsRef);
+        std::apply([&](auto&&... l) { return std::apply([&](auto&&... r) { (swap(l, r), ...); }, lhs); }, rhs);
     }
 }

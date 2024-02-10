@@ -10,20 +10,20 @@ namespace oblo
 {
     class module_interface;
 
-    class MODULES_API module_manager
+    class module_manager
     {
     public:
-        static module_manager& get();
+        MODULES_API static module_manager& get();
 
     public:
-        module_manager();
+        MODULES_API module_manager();
         module_manager(const module_manager&) = delete;
         module_manager(module_manager&&) noexcept = delete;
 
         module_manager& operator=(const module_manager&) = delete;
         module_manager& operator=(module_manager&&) noexcept = delete;
 
-        ~module_manager();
+        MODULES_API ~module_manager();
 
         template <typename T>
         T* load();
@@ -31,11 +31,11 @@ namespace oblo
         template <typename T>
         T* find() const;
 
-        void shutdown();
+        MODULES_API void shutdown();
 
     private:
-        module_interface* find(const type_id& id) const;
-        [[nodiscard]] bool load(const type_id& id, std::unique_ptr<module_interface> module);
+        MODULES_API module_interface* find(const type_id& id) const;
+        [[nodiscard]] MODULES_API bool load(const type_id& id, std::unique_ptr<module_interface> module);
 
     private:
         struct module_storage;

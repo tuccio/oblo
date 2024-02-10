@@ -70,7 +70,6 @@ namespace oblo::reflection
         template <typename U>
         class_builder& add_field(U(T::*member), std::string_view name)
         {
-            static_assert(std::is_standard_layout_v<T>);
             const u32 offset = get_member_offset<T>(member);
             m_registrant.add_field(m_entityIndex, get_type_id<U>(), name, offset);
             return *this;

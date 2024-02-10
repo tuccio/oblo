@@ -65,6 +65,8 @@ namespace oblo::editor
 
         window_update_context make_window_update_context(window_handle handle);
 
+        service_registry* create_new_registry(service_registry&& services);
+
     private:
         memory_pool m_pool;
         window_entry* m_root{};
@@ -73,10 +75,7 @@ namespace oblo::editor
     template <typename T>
     window_handle window_manager::create_window(service_registry&& services)
     {
-        auto* const registry = new (m_pool.allocate(sizeof(service_registry), alignof(service_registry)))
-            service_registry{std::move(services)};
-
-        return create_window_impl<T>(m_root, registry);
+        return create_window_impl<T>(m_root, create_new_registry(std::move(services)));
     }
 
     template <typename T>

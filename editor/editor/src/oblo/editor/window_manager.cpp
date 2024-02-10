@@ -173,4 +173,10 @@ namespace oblo::editor
             .services = entry->services,
         };
     }
+
+    service_registry* window_manager::create_new_registry(service_registry&& services)
+    {
+        return new (m_pool.allocate(sizeof(service_registry), alignof(service_registry)))
+            service_registry{std::move(services)};
+    }
 }

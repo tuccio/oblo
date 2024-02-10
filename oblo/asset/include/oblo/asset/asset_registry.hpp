@@ -95,5 +95,5 @@ namespace oblo
         std::unique_ptr<impl> m_impl;
     };
 
-    constexpr std::filesystem::path::string_type AssetMetaExtension{L".oasset"};
+    inline const std::filesystem::path::string_type AssetMetaExtension{L".oasset"};
 }

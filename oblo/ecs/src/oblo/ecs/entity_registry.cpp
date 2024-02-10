@@ -251,8 +251,6 @@ namespace oblo::ecs
 
     std::byte* entity_registry::try_get(entity e, component_type component)
     {
-        std::byte* res{};
-
         const entity_data* entityData = m_entities.try_find(e);
 
         if (!entityData || !component)
@@ -272,8 +270,6 @@ namespace oblo::ecs
         const auto [chunkIndex, chunkOffset] = get_entity_location(*archetype, entityData->archetypeIndex);
 
         return get_component_pointer(archetype->chunks[chunkIndex]->data, *archetype, componentIndex, chunkOffset);
-
-        return res;
     }
 
     void entity_registry::get(

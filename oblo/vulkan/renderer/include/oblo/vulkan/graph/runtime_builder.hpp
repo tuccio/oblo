@@ -59,8 +59,11 @@ namespace oblo::vk
         template <typename T>
         T& access(data<T> data) const
         {
-            return *static_cast<T*>(m_graph->access_resource_storage(data.value));
+            return *static_cast<T*>(access_resource_storage(data.value));
         }
+
+    private:
+        void* access_resource_storage(u32 index) const;
 
     private:
         render_graph* m_graph;

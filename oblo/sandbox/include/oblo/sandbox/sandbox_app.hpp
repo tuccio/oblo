@@ -236,11 +236,11 @@ namespace oblo::vk
             {
                 m_imgui.begin_frame();
 
-                const sandbox_update_imgui_context context{
+                const sandbox_update_imgui_context imguiContext{
                     .vkContext = &m_context,
                 };
 
-                TApp::update_imgui(context);
+                TApp::update_imgui(imguiContext);
 
                 m_imgui.end_frame(cb.get(), m_swapchain.get_image_view(imageIndex), m_renderWidth, m_renderHeight);
             }
