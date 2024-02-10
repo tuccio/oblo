@@ -22,12 +22,13 @@ namespace oblo
 
                 return str.substr(offset, end - offset);
 #elif defined(_MSC_VER)
-                constexpr auto offset = sizeof("static std::string_view oblo::detail::static_type_name<") - 1;
+                constexpr auto offset = sizeof("class std::basic_string_view<char,struct std::char_traits<char> > "
+                                               "__cdecl oblo::detail::static_type_name<") -
+                    1;
 
                 constexpr std::string_view str{__FUNCSIG__};
-                constexpr auto end = str.find_first_of('[') - sizeof(">::get()");
 
-                return str.substr(offset, end - offset);
+                return str.substr(offset, str.find_last_of('>') - offset);
 #else
 #error "Unsupported compiler"
 #endif
