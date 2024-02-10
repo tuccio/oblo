@@ -108,6 +108,8 @@ namespace oblo::editor
                             ImGui::EndDragDropSource();
                         }
 
+                        ImGui::PopID();
+
                         if (m_expandedAsset == meta.id)
                         {
                             std::vector<oblo::uuid> artifacts;
@@ -125,6 +127,8 @@ namespace oblo::editor
                                         ImGui::Button(artifactMeta.importName.empty()
                                                 ? "Unnamed Artifact"
                                                 : artifactMeta.importName.c_str());
+
+                                        ImGui::PopID();
 
                                         if (ImGui::BeginDragDropSource())
                                         {

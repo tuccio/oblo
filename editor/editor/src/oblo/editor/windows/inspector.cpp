@@ -32,12 +32,15 @@ namespace oblo::editor
 
             ImGui::PushID(int(hash_mix(node.offset, 0)));
             anyChange |= ImGui::DragFloat("x", &x, 0.1f);
+            ImGui::PopID();
 
             ImGui::PushID(int(hash_mix(node.offset, 1)));
             anyChange |= ImGui::DragFloat("y", &y, 0.1f);
+            ImGui::PopID();
 
             ImGui::PushID(int(hash_mix(node.offset, 2)));
             anyChange |= ImGui::DragFloat("z", &z, 0.1f);
+            ImGui::PopID();
 
             if (anyChange)
             {
