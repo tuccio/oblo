@@ -32,7 +32,8 @@ namespace oblo::vk
                 .memoryUsage = memory_usage::gpu_only,
             });
 
-        if (!m_buffers.init(resourceManager.get(m_buffer), columns, resourceManager, numVertices, alignment))
+        if (const auto buffer = resourceManager.get(m_buffer);
+            !m_buffers.init(buffer, columns, resourceManager, numVertices, alignment))
         {
             resourceManager.destroy(allocator, m_buffer);
             m_buffer = {};

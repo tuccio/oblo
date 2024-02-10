@@ -54,7 +54,7 @@ namespace oblo::vk
                             usize dstIndex = y * dstRowPitch;
                             usize srcIndex = y * srcRowPitch;
 
-                            while (dstIndex <= (y + 1) * dstRowPitch)
+                            while (dstIndex < (y + 1) * dstRowPitch)
                             {
                                 dst[dstIndex + 0] = src[srcIndex + 0];
                                 dst[dstIndex + 1] = src[srcIndex + 1];
