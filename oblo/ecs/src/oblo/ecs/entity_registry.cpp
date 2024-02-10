@@ -210,7 +210,7 @@ namespace oblo::ecs
             if (isSameComponent)
             {
                 auto* src = get_component_pointer(oldChunk->data, oldArchetype, oldComponentIndex, oldChunkOffset);
-                newArchetype.fnTables[newComponentIndex].do_move_assign(newArchetype.sizes[newComponentIndex],
+                newArchetype.fnTables[newComponentIndex].do_move(newArchetype.sizes[newComponentIndex],
                     dst,
                     src,
                     1);
