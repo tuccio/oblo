@@ -1,9 +1,21 @@
 #include <oblo/vulkan/allocator.hpp>
 
 #include <oblo/core/debug.hpp>
+#include <oblo/core/log.hpp>
 
 #pragma warning(push)
 #pragma warning(disable : 4100 4127 4189 4324 4505)
+
+#ifndef NDEBUG
+#define VMA_DEBUG_LOG(...)                                                                                             \
+    {                                                                                                                  \
+        constexpr auto bufSize = oblo::log::detail::MaxLogMessageLength;                                               \
+        char buf[bufSize];                                                                                             \
+        sprintf_s(buf, bufSize, __VA_ARGS__);                                                                          \
+        oblo::log::debug("[VMA] {}", buf);                                                                                   \
+    }
+
+#endif
 
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>

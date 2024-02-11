@@ -16,14 +16,14 @@ namespace oblo::log
 
     namespace detail
     {
-        static constexpr usize MaxLogMessageLength{1024u};
-        void sink_it(severity severity, const char* str, usize n);
+        static constexpr usize MaxLogMessageLength{1023u};
+        void sink_it(severity severity, char* str, usize n);
     }
 
     template <typename... Args>
     void generic(severity severity, std::format_string<Args...> formatString, Args&&... args)
     {
-        char buffer[detail::MaxLogMessageLength];
+        char buffer[detail::MaxLogMessageLength + 1];
 
         const auto endIt =
             std::format_to_n(buffer, detail::MaxLogMessageLength, formatString, std::forward<Args>(args)...);
