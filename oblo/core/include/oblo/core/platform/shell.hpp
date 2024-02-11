@@ -2,7 +2,7 @@
 
 #include <filesystem>
 
-namespace oblo::editor::platform
+namespace oblo::platform
 {
     void open_folder(const std::filesystem::path& dir);
 

@@ -1,20 +1,28 @@
 #ifdef _WIN32
 
 #include <oblo/core/debug.hpp>
-#include <oblo/editor/platform/init.hpp>
-#include <oblo/editor/platform/shell.hpp>
+#include <oblo/core/platform/core.hpp>
+#include <oblo/core/platform/shell.hpp>
 
+#if defined(WIN32)
+#define NOMINMAX
 #include <Windows.h>
+#endif
 
-namespace oblo::editor::platform
+namespace oblo::platform
 {
     bool init()
     {
-        CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-        return true;
+        const auto res = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+        return res == S_OK || res == S_FALSE || res == RPC_E_CHANGED_MODE;
     }
 
     void shutdown() {}
+
+    void debug_output(const char* str)
+    {
+        OutputDebugStringA(str);
+    }
 
     void open_folder(const std::filesystem::path& dir)
     {

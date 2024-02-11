@@ -2,12 +2,12 @@
 
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/importers/importers_module.hpp>
+#include <oblo/core/platform/core.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/systems/system_graph.hpp>
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/ecs/utility/registration.hpp>
-#include <oblo/editor/platform/init.hpp>
 #include <oblo/editor/ui/style.hpp>
 #include <oblo/editor/windows/asset_browser.hpp>
 #include <oblo/editor/windows/inspector.hpp>
