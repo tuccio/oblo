@@ -163,13 +163,21 @@ function(oblo_add_library name)
         add_executable("${_alias_prefix}::test::${name}" ALIAS ${_test_target})
         add_test(NAME ${name} COMMAND ${_test_target})
 
-        set_target_properties(${_test_target} PROPERTIES FOLDER ${OBLO_FOLDER_TESTS})
+        set_target_properties(
+            ${_test_target} PROPERTIES
+            FOLDER ${OBLO_FOLDER_TESTS}
+            PROJECT_LABEL "${name}_tests"
+        )
     endif()
 
     add_library("${_alias_prefix}::${name}" ALIAS ${_target})
     oblo_setup_source_groups(${_target})
 
-    set_target_properties(${_target} PROPERTIES FOLDER ${OBLO_FOLDER_LIBRARIES})
+    set_target_properties(
+        ${_target} PROPERTIES
+        FOLDER ${OBLO_FOLDER_LIBRARIES}
+        PROJECT_LABEL ${name}
+    )
 endfunction(oblo_add_library target)
 
 function(oblo_3rdparty_create_aliases)
