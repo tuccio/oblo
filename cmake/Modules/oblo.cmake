@@ -80,6 +80,10 @@ function(oblo_add_executable name)
     oblo_setup_include_dirs(${_target})
     oblo_setup_source_groups(${_target})
     add_executable("oblo::${name}" ALIAS ${_target})
+
+    if(MSVC)
+        set_target_properties(${_target} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+    endif(MSVC)
 endfunction(oblo_add_executable target)
 
 function(oblo_add_library name)
@@ -147,6 +151,7 @@ function(oblo_add_library name)
         target_link_libraries(${_test_target} PRIVATE ${_target} GTest::gtest GTest::gtest_main)
 
         add_executable("${_alias_prefix}::test::${name}" ALIAS ${_test_target})
+        add_test(NAME ${name} COMMAND ${_test_target})
     endif()
 
     add_library("${_alias_prefix}::${name}" ALIAS ${_target})
@@ -166,6 +171,7 @@ function(oblo_create_symlink source target)
         # We create a junction on Windows, to avoid admin rights issues
         file(TO_NATIVE_PATH "${source}" _src)
         file(TO_NATIVE_PATH "${target}" _dst)
+        message("################### cmd.exe /c mklink /J ${_dst} ${_src}")
         execute_process(COMMAND cmd.exe /c mklink /J "${_dst}" "${_src}")
     else()
         execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${source} ${target})
