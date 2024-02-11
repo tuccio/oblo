@@ -45,10 +45,10 @@ namespace oblo
         timestamp m_lastTimestamp{};
 
         bool m_isMouseLookEnabled{};
-        std::array<bool, 6> m_strafe;
+        std::array<bool, 6> m_strafe{};
 
-        std::array<action, u32(mouse_key::enum_max)> m_mouseKeyActions;
-        std::array<action, u32(keyboard_key::enum_max)> m_keyboardKeyActions;
+        std::array<action, 1 + u32(mouse_key::enum_max)> m_mouseKeyActions{};
+        std::array<action, 1 + u32(keyboard_key::enum_max)> m_keyboardKeyActions{};
     };
 
     enum class fps_camera_controller::action : u8
