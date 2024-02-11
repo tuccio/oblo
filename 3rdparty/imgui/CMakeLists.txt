@@ -20,3 +20,6 @@ target_link_libraries(
     imgui::imgui
     SDL2::SDL2
 )
+
+set_target_properties(imgui_sdl_vk PROPERTIES FOLDER ${OBLO_FOLDER_THIRDPARTY})
+set_target_properties(imgui_sdl_gl3 PROPERTIES FOLDER ${OBLO_FOLDER_THIRDPARTY})

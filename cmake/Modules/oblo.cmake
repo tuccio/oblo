@@ -4,6 +4,11 @@ option(OBLO_DEBUG "Activates code useful for debugging" OFF)
 
 define_property(GLOBAL PROPERTY oblo_3rdparty_targets BRIEF_DOCS "3rd party targets" FULL_DOCS "List of 3rd party targets")
 
+set(OBLO_FOLDER_APPLICATIONS "1 - Applications")
+set(OBLO_FOLDER_LIBRARIES "2 - Libraries")
+set(OBLO_FOLDER_TESTS "3 - Tests")
+set(OBLO_FOLDER_THIRDPARTY "4 - Third-party")
+
 macro(oblo_remove_cxx_flag _option_regex)
     string(TOUPPER ${CMAKE_BUILD_TYPE} _build_type)
 
@@ -24,6 +29,9 @@ function(oblo_init_compiler_settings)
             oblo_remove_cxx_flag("(\/O([a-z])?[0-9a-z])")
             add_compile_options(/Od)
         endif()
+
+        # Enable folders for the solution
+        set_property(GLOBAL PROPERTY USE_FOLDERS ON)
     else()
         message(SEND_ERROR "Not supported yet")
     endif()
@@ -80,6 +88,8 @@ function(oblo_add_executable name)
     oblo_setup_include_dirs(${_target})
     oblo_setup_source_groups(${_target})
     add_executable("oblo::${name}" ALIAS ${_target})
+
+    set_target_properties(${_target} PROPERTIES FOLDER ${OBLO_FOLDER_APPLICATIONS})
 
     if(MSVC)
         set_target_properties(${_target} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
@@ -152,10 +162,14 @@ function(oblo_add_library name)
 
         add_executable("${_alias_prefix}::test::${name}" ALIAS ${_test_target})
         add_test(NAME ${name} COMMAND ${_test_target})
+
+        set_target_properties(${_test_target} PROPERTIES FOLDER ${OBLO_FOLDER_TESTS})
     endif()
 
     add_library("${_alias_prefix}::${name}" ALIAS ${_target})
     oblo_setup_source_groups(${_target})
+
+    set_target_properties(${_target} PROPERTIES FOLDER ${OBLO_FOLDER_LIBRARIES})
 endfunction(oblo_add_library target)
 
 function(oblo_3rdparty_create_aliases)
@@ -171,7 +185,6 @@ function(oblo_create_symlink source target)
         # We create a junction on Windows, to avoid admin rights issues
         file(TO_NATIVE_PATH "${source}" _src)
         file(TO_NATIVE_PATH "${target}" _dst)
-        message("################### cmd.exe /c mklink /J ${_dst} ${_src}")
         execute_process(COMMAND cmd.exe /c mklink /J "${_dst}" "${_src}")
     else()
         execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${source} ${target})
