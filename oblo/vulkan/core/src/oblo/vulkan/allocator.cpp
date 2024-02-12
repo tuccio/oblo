@@ -12,7 +12,7 @@
         constexpr auto bufSize = oblo::log::detail::MaxLogMessageLength;                                               \
         char buf[bufSize];                                                                                             \
         sprintf_s(buf, bufSize, __VA_ARGS__);                                                                          \
-        oblo::log::debug("[VMA] {}", buf);                                                                                   \
+        oblo::log::debug("[VMA] {}", buf);                                                                             \
     }
 
 #endif
@@ -89,12 +89,19 @@ namespace oblo::vk
             .requiredFlags = initializer.requiredFlags,
         };
 
-        return vmaCreateBuffer(m_allocator,
+        const auto result = vmaCreateBuffer(m_allocator,
             &bufferCreateInfo,
             &allocInfo,
             &outBuffer->buffer,
             &outBuffer->allocation,
             nullptr);
+
+        if (result == VK_SUCCESS)
+        {
+            vmaSetAllocationName(m_allocator, outBuffer->allocation, initializer.debugLabel.get());
+        }
+
+        return result;
     }
 
     VkResult allocator::create_image(const image_initializer& initializer, allocated_image* outImage)
@@ -115,12 +122,15 @@ namespace oblo::vk
 
         const VmaAllocationCreateInfo allocInfo{.usage = VmaMemoryUsage(initializer.memoryUsage)};
 
-        return vmaCreateImage(m_allocator,
-            &imageCreateInfo,
-            &allocInfo,
-            &outImage->image,
-            &outImage->allocation,
-            nullptr);
+        const auto result =
+            vmaCreateImage(m_allocator, &imageCreateInfo, &allocInfo, &outImage->image, &outImage->allocation, nullptr);
+
+        if (result == VK_SUCCESS)
+        {
+            vmaSetAllocationName(m_allocator, outImage->allocation, initializer.debugLabel.get());
+        }
+
+        return result;
     }
 
     void allocator::destroy(const allocated_buffer& buffer)
