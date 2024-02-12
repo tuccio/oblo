@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/debug_label.hpp>
 #include <oblo/core/types.hpp>
 #include <vulkan/vulkan.h>
 
@@ -80,6 +81,8 @@ namespace oblo::vk
         // One between required flags and memory usage has to be non-zero
         VkMemoryPropertyFlags requiredFlags;
         memory_usage memoryUsage;
+
+        debug_label debugLabel{std::source_location::current()};
     };
 
     struct allocated_image
@@ -101,5 +104,7 @@ namespace oblo::vk
         VkImageUsageFlags usage;
         VkImageLayout initialLayout;
         memory_usage memoryUsage;
+
+        debug_label debugLabel{std::source_location::current()};
     };
 }
