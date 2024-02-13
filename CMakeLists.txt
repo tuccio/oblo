@@ -41,6 +41,3 @@ add_library(imgui::sdl_gl3 ALIAS imgui_sdl_gl3)
 add_subdirectory(editor)
 add_subdirectory(oblo)
 add_subdirectory(sandbox)
-
-# This sets up compiler flags for imported targets
-oblo_finalize_imported_targets()
