@@ -145,6 +145,8 @@ namespace oblo::vk
     void draw_registry::shutdown()
     {
         m_meshes.shutdown();
+        m_storageBuffer.shutdown(*m_ctx);
+        m_drawCallsBuffer.shutdown(*m_ctx);
     }
 
     void draw_registry::end_frame()
