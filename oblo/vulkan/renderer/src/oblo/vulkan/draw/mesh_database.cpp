@@ -133,6 +133,15 @@ namespace oblo::vk
         }
 
         m_tables.clear();
+
+        for (auto& bufferPools : m_indexBuffers)
+        {
+            if (bufferPools.handle)
+            {
+                m_resourceManager->destroy(*m_allocator, bufferPools.handle);
+                bufferPools = {};
+            }
+        }
     }
 
     mesh_handle mesh_database::create_mesh(
