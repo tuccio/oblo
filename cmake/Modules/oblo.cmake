@@ -1,3 +1,5 @@
+include(build_configurations)
+
 option(OBLO_ENABLE_ASSERT "Enables internal asserts" OFF)
 option(OBLO_DISABLE_COMPILER_OPTIMIZATIONS "Disables compiler optimizations" OFF)
 option(OBLO_DEBUG "Activates code useful for debugging" OFF)
