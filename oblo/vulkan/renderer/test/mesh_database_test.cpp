@@ -79,6 +79,8 @@ namespace oblo::vk::test
 
         ASSERT_TRUE(app.init());
 
+        const auto cleanup = finally([&] { app.shutdown(); });
+
         mesh_handle handles[N * 4]{};
 
         for (u32 i = 0; i < N; ++i)

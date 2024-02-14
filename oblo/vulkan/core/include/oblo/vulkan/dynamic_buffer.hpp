@@ -16,15 +16,16 @@ namespace oblo::vk
     public:
         dynamic_buffer() = default;
         dynamic_buffer(const dynamic_buffer&) = delete;
-        dynamic_buffer(dynamic_buffer&&) noexcept;
+        dynamic_buffer(dynamic_buffer&&) noexcept = delete;
         ~dynamic_buffer();
 
         dynamic_buffer& operator=(const dynamic_buffer&) = delete;
-        dynamic_buffer& operator=(dynamic_buffer&&) noexcept;
+        dynamic_buffer& operator=(dynamic_buffer&&) noexcept = delete;
 
         void init(vulkan_context& ctx, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryPropertyFlags);
-
         void shutdown();
+
+        void clear_and_shrink();
 
         void resize(VkCommandBuffer cmd, u32 size);
 

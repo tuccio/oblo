@@ -166,10 +166,16 @@ namespace oblo::vk
             std::array<buffer_column_description, MaxAttributes> columnsBuffer;
             const std::span columns = attributes_to_buffer_columns(meshAttributesMask, m_attributes, columnsBuffer);
 
-            const u32 indexByteSize = get_index_byte_size(indexType);
-            const buffer indexBuffer = allocate_index_buffer(indexType);
+            u32 indexByteSize{};
+            buffer indexBuffer{};
 
-            newTable.globalIndexOffset = indexBuffer.offset / indexByteSize;
+            if (indexType != mesh_index_type::none)
+            {
+                indexByteSize = get_index_byte_size(indexType);
+                indexBuffer = allocate_index_buffer(indexType);
+
+                newTable.globalIndexOffset = indexBuffer.offset / indexByteSize;
+            }
 
             const auto success = newTable.meshes->init(columns,
                 *m_allocator,
@@ -327,6 +333,7 @@ namespace oblo::vk
 
     buffer mesh_database::allocate_index_buffer(mesh_index_type indexType)
     {
+        OBLO_ASSERT(indexType != mesh_index_type::none);
         auto& pool = m_indexBuffers[u32(indexType) - 1];
 
         if (!pool.handle)

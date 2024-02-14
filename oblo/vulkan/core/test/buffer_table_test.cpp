@@ -154,7 +154,7 @@ namespace oblo::vk
         const auto cleanup = finally(
             [&]
             {
-                buffer.shutdown();
+                buffer.clear_and_shrink();
                 ctx.shutdown();
             });
 

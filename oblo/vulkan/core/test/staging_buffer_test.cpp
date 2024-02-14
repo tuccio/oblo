@@ -56,6 +56,7 @@ namespace oblo::vk
                 {
                     for (auto buffer : buffers)
                     {
+                        allocator.unmap(buffer.allocation);
                         allocator.destroy(buffer);
                     }
                 });

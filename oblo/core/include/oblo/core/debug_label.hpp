@@ -8,12 +8,10 @@ namespace oblo
     class debug_label
     {
     public:
-        static debug_label from_source_location(std::source_location loc = std::source_location::current());
-
         constexpr debug_label() : m_label{} {}
 
         debug_label(std::string_view str);
-        explicit debug_label(std::source_location loc);
+        debug_label(std::source_location loc);
 
         constexpr debug_label(const debug_label&) = default;
         constexpr debug_label(debug_label&&) noexcept = default;

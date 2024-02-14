@@ -163,7 +163,7 @@ function(oblo_add_library name)
         target_link_libraries(${_test_target} PRIVATE ${_target} GTest::gtest GTest::gtest_main)
 
         add_executable("${_alias_prefix}::test::${name}" ALIAS ${_test_target})
-        add_test(NAME ${name} COMMAND ${_test_target})
+        add_test(NAME ${name} COMMAND ${_test_target} WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 
         set_target_properties(
             ${_test_target} PROPERTIES

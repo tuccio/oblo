@@ -48,6 +48,9 @@ namespace oblo::vk
         u64 get_submit_index() const;
         bool is_submit_done(u64 submitIndex) const;
 
+        void destroy_immediate(VkBuffer buffer) const;
+        void destroy_immediate(VmaAllocation allocation) const;
+
         void destroy_deferred(VkBuffer buffer, u64 submitIndex);
         void destroy_deferred(VkImage image, u64 submitIndex);
         void destroy_deferred(VkImageView image, u64 submitIndex);

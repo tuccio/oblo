@@ -15,6 +15,7 @@
         oblo::log::debug("[VMA] {}", buf);                                                                             \
     }
 
+#define VMA_ASSERT(...) OBLO_ASSERT(__VA_ARGS__)
 #endif
 
 #define VMA_IMPLEMENTATION
@@ -143,7 +144,8 @@ namespace oblo::vk
         vmaDestroyImage(m_allocator, image.image, image.allocation);
     }
 
-    VmaAllocation gpu_allocator::create_memory(VkMemoryRequirements requirements, memory_usage memoryUsage)
+    VmaAllocation gpu_allocator::create_memory(
+        VkMemoryRequirements requirements, memory_usage memoryUsage, debug_label debugLabel)
     {
         const VmaAllocationCreateInfo createInfo{
             .usage = VmaMemoryUsage(memoryUsage),
@@ -152,6 +154,12 @@ namespace oblo::vk
 
         VmaAllocation allocation{};
         vmaAllocateMemory(m_allocator, &requirements, &createInfo, &allocation, nullptr);
+
+        if (allocation)
+        {
+            vmaSetAllocationName(m_allocator, allocation, debugLabel.get());
+        }
+
         return allocation;
     }
 

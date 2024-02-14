@@ -17,6 +17,8 @@ namespace oblo::vk
 
         void shutdown();
 
+        void clear_and_shrink();
+
         buffer get_buffer() const;
 
         buffer get_element_at(u32 index) const;

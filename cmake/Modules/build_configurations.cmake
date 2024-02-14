@@ -19,8 +19,8 @@ function(oblo_setup_build_configurations)
             # Disable optimizations in development builds
             set(_cxx CXX "/Od /Ob0 /DNDEBUG")
 
-            add_compile_definitions("$<$<CONFIG:Debug>:-DOBLO_ENABLE_ASSERT>")
-            add_compile_definitions("$<$<CONFIG:Debug>:-DOBLO_DEBUG>")
+            add_compile_definitions("$<$<CONFIG:Debug>:OBLO_ENABLE_ASSERT>")
+            add_compile_definitions("$<$<CONFIG:Debug>:OBLO_DEBUG>")
         endif()
     elseif(MSVC)
         # Disable optimizations if specified, only really useful for single config generators

@@ -484,5 +484,8 @@ namespace oblo::vk::test
             ASSERT_EQ(depthU16[i], 0xffff);
             ASSERT_EQ(colorU32[i], 0xff0000ff);
         }
+
+        allocator.unmap(app.depthImageDownload.allocation);
+        allocator.unmap(app.renderTargetDownload.allocation);
     }
 }
