@@ -3,9 +3,9 @@
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/unreachable.hpp>
-#include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/draw/mesh_table.hpp>
+#include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 
 #include <bit>

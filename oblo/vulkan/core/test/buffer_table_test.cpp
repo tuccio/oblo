@@ -6,10 +6,10 @@
 #include <oblo/core/string_interner.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec3.hpp>
-#include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/buffer_table.hpp>
 #include <oblo/vulkan/dynamic_array_buffer.hpp>
+#include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/staging_buffer.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>

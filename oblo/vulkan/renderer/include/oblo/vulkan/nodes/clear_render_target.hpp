@@ -12,7 +12,6 @@
 #include <oblo/vulkan/stateful_command_buffer.hpp>
 #include <oblo/vulkan/texture.hpp>
 
-
 namespace oblo::vk
 {
     struct clear_render_target
