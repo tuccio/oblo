@@ -17,7 +17,6 @@
 #include <oblo/vulkan/graph/topology_builder.hpp>
 #include <oblo/vulkan/renderer.hpp>
 
-
 namespace oblo::vk::test
 {
     namespace
@@ -368,8 +367,6 @@ namespace oblo::vk::test
 
             void update(const vk::sandbox_render_context& ctx)
             {
-                constexpr vec2u resolution{.x = 16u, .y = 16u};
-
                 graph.set_input("RenderResolution", resolution);
                 graph.set_input("DepthDownload", depthImageDownload.buffer);
                 graph.set_input("RenderTargetDownload", renderTargetDownload.buffer);

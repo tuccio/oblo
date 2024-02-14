@@ -121,4 +121,22 @@ namespace oblo
         lhs ^= rhs;
         return lhs;
     }
+
+    template <typename E>
+    constexpr flags<E> operator|(E lhs, E rhs) noexcept
+    {
+        return flags{lhs} | rhs;
+    }
+
+    template <typename E>
+    constexpr flags<E> operator&(E lhs, E rhs) noexcept
+    {
+        return flags{lhs} & rhs;
+    }
+
+    template <typename E>
+    constexpr flags<E> operator^(E lhs, E rhs) noexcept
+    {
+        return flags{lhs} ^ rhs;
+    }
 }
