@@ -26,8 +26,29 @@ namespace oblo::vk
     {
         if (m_buffer.buffer)
         {
-            m_ctx->destroy_deferred(m_buffer.buffer, m_ctx->get_submit_index());
+            m_ctx->destroy_immediate(m_buffer.buffer);
+            m_ctx->destroy_immediate(m_buffer.allocation);
+
             m_buffer = {};
+            m_capacity = 0;
+            m_usedBytes = {};
+        }
+
+        m_ctx = {};
+    }
+
+    void dynamic_buffer::clear_and_shrink()
+    {
+        if (m_buffer.buffer)
+        {
+            const auto submitIndex = m_ctx->get_submit_index();
+
+            m_ctx->destroy_deferred(m_buffer.buffer, submitIndex);
+            m_ctx->destroy_deferred(m_buffer.allocation, submitIndex);
+
+            m_buffer = {};
+            m_capacity = 0;
+            m_usedBytes = {};
         }
     }
 

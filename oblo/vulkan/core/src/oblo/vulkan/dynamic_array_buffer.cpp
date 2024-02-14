@@ -19,6 +19,11 @@ namespace oblo::vk
         m_buffer.shutdown();
     }
 
+    void dynamic_array_buffer::clear_and_shrink()
+    {
+        m_buffer.clear_and_shrink();
+    }
+
     u32 dynamic_array_buffer::get_elements_count() const
     {
         return get_used_bytes() / m_elementSize;

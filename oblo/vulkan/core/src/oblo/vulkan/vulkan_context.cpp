@@ -116,6 +116,8 @@ namespace oblo::vk
         vkDeviceWaitIdle(m_engine->get_device());
 
         destroy_resources(~u64{});
+        OBLO_ASSERT(m_disposableObjects.empty());
+
         reset_device_objects(m_engine->get_device(), m_timelineSemaphore);
 
         for (auto& submitInfo : m_submitInfo)
@@ -240,12 +242,22 @@ namespace oblo::vk
         OBLO_VK_PANIC(vkQueueSubmit(m_engine->get_queue(), 1, &submitInfo, currentSubmit.fence));
     }
 
+    void vulkan_context::destroy_immediate(VkBuffer buffer) const
+    {
+        vkDestroyBuffer(get_device(), buffer, get_allocator().get_allocation_callbacks());
+    }
+
+    void vulkan_context::destroy_immediate(VmaAllocation allocation) const
+    {
+        auto& allocator = get_allocator();
+        allocator.destroy_memory(allocation);
+    }
+
     void vulkan_context::destroy_deferred(VkBuffer buffer, u64 submitIndex)
     {
         dispose(
             submitIndex,
-            [](vulkan_context& ctx, VkBuffer buffer)
-            { vkDestroyBuffer(ctx.get_device(), buffer, ctx.get_allocator().get_allocation_callbacks()); },
+            [](vulkan_context& ctx, VkBuffer buffer) { ctx.destroy_immediate(buffer); },
             buffer);
     }
 
@@ -311,7 +323,7 @@ namespace oblo::vk
     {
         dispose(
             submitIndex,
-            [](vulkan_context& ctx, VmaAllocation allocation) { ctx.get_allocator().destroy_memory(allocation); },
+            [](vulkan_context& ctx, VmaAllocation allocation) { ctx.destroy_immediate(allocation); },
             allocation);
     }
 
