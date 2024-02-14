@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <oblo/core/finally.hpp>
-#include <oblo/vulkan/allocator.hpp>
+#include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/staging_buffer.hpp>
 
 #include <array>
@@ -23,7 +23,7 @@ namespace oblo::vk
             test_sandbox sandbox;
             ASSERT_TRUE(sandbox.init({}, {}, {}, nullptr, nullptr, &validationErrors));
 
-            allocator allocator;
+            gpu_allocator allocator;
             ASSERT_TRUE(allocator.init(sandbox.instance.get(),
                 sandbox.engine.get_physical_device(),
                 sandbox.engine.get_device()));

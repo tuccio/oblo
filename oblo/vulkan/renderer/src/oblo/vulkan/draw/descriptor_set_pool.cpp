@@ -5,7 +5,7 @@
 #include <oblo/core/hash.hpp>
 #include <oblo/core/small_vector.hpp>
 #include <oblo/core/struct_apply.hpp>
-#include <oblo/vulkan/allocator.hpp>
+#include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
 

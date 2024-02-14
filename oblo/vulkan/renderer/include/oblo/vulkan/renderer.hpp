@@ -45,7 +45,7 @@ namespace oblo::vk
 
         vulkan_context& get_vulkan_context();
         single_queue_engine& get_engine();
-        allocator& get_allocator();
+        gpu_allocator& get_allocator();
         resource_manager& get_resource_manager();
         string_interner& get_string_interner();
         pass_manager& get_pass_manager();

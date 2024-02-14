@@ -1,6 +1,6 @@
 #include <oblo/vulkan/draw/mesh_table.hpp>
 
-#include <oblo/vulkan/allocator.hpp>
+#include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
@@ -8,7 +8,7 @@
 namespace oblo::vk
 {
     bool mesh_table::init(std::span<const buffer_column_description> columns,
-        allocator& allocator,
+        gpu_allocator& allocator,
         resource_manager& resourceManager,
         VkBufferUsageFlags bufferUsage,
         u32 indexByteSize,
@@ -89,7 +89,7 @@ namespace oblo::vk
         return true;
     }
 
-    void mesh_table::shutdown(allocator& allocator, resource_manager& resourceManager)
+    void mesh_table::shutdown(gpu_allocator& allocator, resource_manager& resourceManager)
     {
         m_buffers.shutdown(resourceManager);
 

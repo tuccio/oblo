@@ -19,7 +19,7 @@ namespace oblo::vk
     struct buffer;
     struct gpu_mesh;
 
-    class allocator;
+    class gpu_allocator;
     class mesh_table;
     class resource_manager;
 
@@ -101,7 +101,7 @@ namespace oblo::vk
         buffer allocate_index_buffer(mesh_index_type indexType);
 
     private:
-        allocator* m_allocator{};
+        gpu_allocator* m_allocator{};
         resource_manager* m_resourceManager{};
         u32 m_tableVertexCount{};
         u32 m_tableIndexCount{};
@@ -113,7 +113,7 @@ namespace oblo::vk
 
     struct mesh_database::initializer
     {
-        allocator& allocator;
+        gpu_allocator& allocator;
         resource_manager& resourceManager;
         std::span<const mesh_attribute_description> attributes;
         VkBufferUsageFlags bufferUsage;

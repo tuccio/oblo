@@ -2,7 +2,7 @@
 
 #include <oblo/core/debug.hpp>
 #include <oblo/core/handle.hpp>
-#include <oblo/vulkan/allocator.hpp>
+#include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/pass_manager.hpp>
 #include <oblo/vulkan/render_pass_initializer.hpp>
 #include <oblo/vulkan/renderer.hpp>

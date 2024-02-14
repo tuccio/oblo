@@ -6,7 +6,7 @@
 #include <oblo/core/uuid.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/type_registry.hpp>
-#include <oblo/vulkan/allocator.hpp>
+#include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/draw/mesh_database.hpp>
 #include <oblo/vulkan/monotonic_gbu_buffer.hpp>
 

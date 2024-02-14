@@ -627,7 +627,7 @@ namespace oblo::vk
             VK_SUCCESS;
     }
 
-    bool vertex_pull::create_buffers(VkDevice device, allocator& allocator)
+    bool vertex_pull::create_buffers(VkDevice device, gpu_allocator& allocator)
     {
         const auto totalVerticesCount = m_objectsPerBatch * m_verticesPerObject;
         const auto positionsSize = u32(totalVerticesCount * sizeof(m_positions[0]));
@@ -1062,7 +1062,7 @@ namespace oblo::vk
         }
     }
 
-    void vertex_pull::destroy_buffers(allocator& allocator)
+    void vertex_pull::destroy_buffers(gpu_allocator& allocator)
     {
         for (auto& buffer : m_positionBuffers)
         {

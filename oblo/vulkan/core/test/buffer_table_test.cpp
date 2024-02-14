@@ -6,7 +6,7 @@
 #include <oblo/core/string_interner.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec3.hpp>
-#include <oblo/vulkan/allocator.hpp>
+#include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/buffer_table.hpp>
 #include <oblo/vulkan/dynamic_array_buffer.hpp>
@@ -30,7 +30,7 @@ namespace oblo::vk
             test_sandbox sandbox;
             ASSERT_TRUE(sandbox.init({}, {}, {}, nullptr, nullptr, &validationErrors));
 
-            allocator allocator;
+            gpu_allocator allocator;
             ASSERT_TRUE(allocator.init(sandbox.instance.get(),
                 sandbox.engine.get_physical_device(),
                 sandbox.engine.get_device()));
@@ -125,7 +125,7 @@ namespace oblo::vk
         test_sandbox sandbox;
         ASSERT_TRUE(sandbox.init({}, {}, {}, nullptr, nullptr, &validationErrors));
 
-        allocator allocator;
+        gpu_allocator allocator;
         ASSERT_TRUE(
             allocator.init(sandbox.instance.get(), sandbox.engine.get_physical_device(), sandbox.engine.get_device()));
 

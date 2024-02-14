@@ -1,6 +1,6 @@
 #pragma once
 
-#include <oblo/vulkan/allocator.hpp>
+#include <oblo/vulkan/gpu_allocator.hpp>
 
 namespace oblo::vk
 {

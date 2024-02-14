@@ -35,7 +35,7 @@ namespace oblo::vk
         ~mesh_table() = default;
 
         [[nodiscard]] bool init(std::span<const buffer_column_description> columns,
-            allocator& allocator,
+            gpu_allocator& allocator,
             resource_manager& resourceManager,
             VkBufferUsageFlags bufferUsage,
             u32 indexByteSize,
@@ -43,7 +43,7 @@ namespace oblo::vk
             u32 numIndices,
             const buffer& indexBuffer);
 
-        void shutdown(allocator& allocator, resource_manager& resourceManager);
+        void shutdown(gpu_allocator& allocator, resource_manager& resourceManager);
 
         bool fetch_buffers(const resource_manager& resourceManager,
             mesh_table_entry_id mesh,

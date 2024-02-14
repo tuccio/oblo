@@ -1,8 +1,8 @@
 #pragma once
 
 #include <oblo/core/types.hpp>
-#include <oblo/vulkan/allocator.hpp>
 #include <oblo/vulkan/command_buffer_pool.hpp>
+#include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/instance.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
@@ -42,7 +42,7 @@ namespace oblo::vk
         VkPhysicalDevice get_physical_device() const;
 
         single_queue_engine& get_engine() const;
-        allocator& get_allocator() const;
+        gpu_allocator& get_allocator() const;
         resource_manager& get_resource_manager() const;
 
         u64 get_submit_index() const;
@@ -81,7 +81,7 @@ namespace oblo::vk
     private:
         VkInstance m_instance;
         single_queue_engine* m_engine;
-        allocator* m_allocator;
+        gpu_allocator* m_allocator;
         resource_manager* m_resourceManager;
 
         PFN_vkCmdBeginDebugUtilsLabelEXT m_vkCmdBeginDebugUtilsLabelEXT{};
@@ -109,7 +109,7 @@ namespace oblo::vk
     {
         VkInstance instance;
         single_queue_engine& engine;
-        allocator& allocator;
+        gpu_allocator& allocator;
         resource_manager& resourceManager;
         u32 buffersPerFrame;
         u32 submitsInFlight;
@@ -135,7 +135,7 @@ namespace oblo::vk
         return *m_engine;
     }
 
-    inline allocator& vulkan_context::get_allocator() const
+    inline gpu_allocator& vulkan_context::get_allocator() const
     {
         return *m_allocator;
     }

@@ -104,7 +104,7 @@ namespace oblo::vk
         return m_vkContext->get_engine();
     }
 
-    allocator& renderer::get_allocator()
+    gpu_allocator& renderer::get_allocator()
     {
         return m_vkContext->get_allocator();
     }
