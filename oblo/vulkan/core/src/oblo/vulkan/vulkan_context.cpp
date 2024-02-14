@@ -1,13 +1,13 @@
 #include <oblo/vulkan/vulkan_context.hpp>
 
-#include <oblo/core/overload.hpp>
-#include <oblo/core/struct_apply.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/vulkan/command_buffer_pool.hpp>
 #include <oblo/vulkan/destroy_device_objects.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/texture.hpp>
+
+#include <tuple>
 
 namespace oblo::vk
 {
@@ -38,15 +38,6 @@ namespace oblo::vk
 
     struct vulkan_context::pending_disposal_queues
     {
-        std::vector<pending_disposal<VkBuffer>> buffers;
-        std::vector<pending_disposal<VkImage>> images;
-        std::vector<pending_disposal<VkImageView>> imageViews;
-        std::vector<pending_disposal<VkDescriptorSet>> descriptorSets;
-        std::vector<pending_disposal<VkDescriptorPool>> descriptorPools;
-        std::vector<pending_disposal<VkDescriptorSetLayout>> descriptorSetLayouts;
-        std::vector<pending_disposal<VkSampler>> samplers;
-        std::vector<pending_disposal<VmaAllocation>> allocations;
-        std::vector<pending_disposal<h32<texture>>> textures;
     };
 
     vulkan_context::vulkan_context() = default;
@@ -251,119 +242,95 @@ namespace oblo::vk
 
     void vulkan_context::destroy_deferred(VkBuffer buffer, u64 submitIndex)
     {
-        m_pending->buffers.emplace_back(buffer, submitIndex);
+        dispose(
+            submitIndex,
+            [](vulkan_context& ctx, VkBuffer buffer)
+            { vkDestroyBuffer(ctx.get_device(), buffer, ctx.get_allocator().get_allocation_callbacks()); },
+            buffer);
     }
 
     void vulkan_context::destroy_deferred(VkImage image, u64 submitIndex)
     {
-        m_pending->images.emplace_back(image, submitIndex);
+        dispose(
+            submitIndex,
+            [](vulkan_context& ctx, VkImage image)
+            { vkDestroyImage(ctx.get_device(), image, ctx.get_allocator().get_allocation_callbacks()); },
+            image);
     }
 
     void vulkan_context::destroy_deferred(VkImageView imageView, u64 submitIndex)
     {
-        m_pending->imageViews.emplace_back(imageView, submitIndex);
+        dispose(
+            submitIndex,
+            [](vulkan_context& ctx, VkImageView imageView)
+            { vkDestroyImageView(ctx.get_device(), imageView, ctx.get_allocator().get_allocation_callbacks()); },
+            imageView);
     }
 
     void vulkan_context::destroy_deferred(VkDescriptorSet descriptorSet, VkDescriptorPool pool, u64 submitIndex)
     {
-        m_pending->descriptorSets.emplace_back(descriptorSet, pool, submitIndex);
+        dispose(
+            submitIndex,
+            [](vulkan_context& ctx, VkDescriptorSet descriptorSet, VkDescriptorPool pool)
+            { vkFreeDescriptorSets(ctx.get_device(), pool, 1, &descriptorSet); },
+            descriptorSet,
+            pool);
     }
 
     void vulkan_context::destroy_deferred(VkDescriptorPool pool, u64 submitIndex)
     {
-        m_pending->descriptorPools.emplace_back(pool, submitIndex);
+        dispose(
+            submitIndex,
+            [](vulkan_context& ctx, VkDescriptorPool pool)
+            { vkDestroyDescriptorPool(ctx.get_device(), pool, ctx.get_allocator().get_allocation_callbacks()); },
+            pool);
     }
 
     void vulkan_context::destroy_deferred(VkDescriptorSetLayout setLayout, u64 submitIndex)
     {
-        m_pending->descriptorSetLayouts.emplace_back(setLayout, submitIndex);
+        dispose(
+            submitIndex,
+            [](vulkan_context& ctx, VkDescriptorSetLayout setLayout) {
+                vkDestroyDescriptorSetLayout(ctx.get_device(),
+                    setLayout,
+                    ctx.get_allocator().get_allocation_callbacks());
+            },
+            setLayout);
     }
 
     void vulkan_context::destroy_deferred(VkSampler sampler, u64 submitIndex)
     {
-        m_pending->samplers.emplace_back(sampler, submitIndex);
+        dispose(
+            submitIndex,
+            [](vulkan_context& ctx, VkSampler sampler)
+            { vkDestroySampler(ctx.get_device(), sampler, ctx.get_allocator().get_allocation_callbacks()); },
+            sampler);
     }
 
     void vulkan_context::destroy_deferred(VmaAllocation allocation, u64 submitIndex)
     {
-        m_pending->allocations.emplace_back(allocation, submitIndex);
+        dispose(
+            submitIndex,
+            [](vulkan_context& ctx, VmaAllocation allocation) { ctx.get_allocator().destroy_memory(allocation); },
+            allocation);
     }
 
-    void vulkan_context::destroy_deferred(h32<texture> texture, u64 submitIndex)
+    void vulkan_context::destroy_deferred(h32<texture> handle, u64 submitIndex)
     {
-        m_pending->textures.emplace_back(texture, submitIndex);
-    }
-
-    void vulkan_context::destroy_resources(u64 maxSubmitIndex)
-    {
-        auto destroyObjects = [maxSubmitIndex](auto& array, auto doDestroy)
-        {
-            u32 destroyedObjects{0};
-
-            for (const auto& pending : array)
+        dispose(
+            submitIndex,
+            [](vulkan_context& ctx, h32<texture> handle)
             {
-                // Not quite perfect because we don't always insert in order,
-                // but it might be good enough for now
-                if (pending.frameIndex >= maxSubmitIndex)
-                {
-                    break;
-                }
-
-                struct_apply(
-                    overload{
-                        [&doDestroy](const auto& object, u64) { doDestroy(object); },
-                        [&doDestroy](const auto& object, const auto& secondaryObject, u64)
-                        { doDestroy(object, secondaryObject); },
-                    },
-                    pending);
-
-                ++destroyedObjects;
-            }
-
-            if (destroyedObjects > 0)
-            {
-                array.erase(array.begin(), array.begin() + destroyedObjects);
-            }
-        };
-
-        const VkDevice device = get_device();
-        auto* const allocationCbs = m_allocator->get_allocation_callbacks();
-
-        destroyObjects(m_pending->buffers,
-            [device, allocationCbs](VkBuffer buffer) { vkDestroyBuffer(device, buffer, allocationCbs); });
-
-        destroyObjects(m_pending->images,
-            [device, allocationCbs](VkImage image) { vkDestroyImage(device, image, allocationCbs); });
-
-        destroyObjects(m_pending->imageViews,
-            [device, allocationCbs](VkImageView imageView) { vkDestroyImageView(device, imageView, allocationCbs); });
-
-        destroyObjects(m_pending->descriptorSets,
-            [device](VkDescriptorSet descriptorSet, VkDescriptorPool pool)
-            { vkFreeDescriptorSets(device, pool, 1, &descriptorSet); });
-
-        destroyObjects(m_pending->descriptorPools,
-            [device, allocationCbs](VkDescriptorPool pool) { vkDestroyDescriptorPool(device, pool, allocationCbs); });
-
-        destroyObjects(m_pending->descriptorSetLayouts,
-            [device, allocationCbs](VkDescriptorSetLayout setLayout)
-            { vkDestroyDescriptorSetLayout(device, setLayout, allocationCbs); });
-
-        destroyObjects(m_pending->samplers,
-            [device, allocationCbs](VkSampler sampler) { vkDestroySampler(device, sampler, allocationCbs); });
-
-        destroyObjects(m_pending->allocations,
-            [this](VmaAllocation allocation) { m_allocator->destroy_memory(allocation); });
-
-        destroyObjects(m_pending->textures,
-            [this, device, allocationCbs](h32<texture> texture)
-            {
-                auto* t = m_resourceManager->try_find(texture);
+                auto* t = ctx.m_resourceManager->try_find(handle);
 
                 if (!t)
                 {
                     return;
                 }
+
+                const VkDevice device = ctx.get_device();
+                auto& allocator = ctx.get_allocator();
+                const VkAllocationCallbacks* const allocationCbs = allocator.get_allocation_callbacks();
 
                 if (auto image = t->image)
                 {
@@ -377,11 +344,30 @@ namespace oblo::vk
 
                 if (auto allocation = t->allocation)
                 {
-                    m_allocator->destroy_memory(allocation);
+                    allocator.destroy_memory(allocation);
                 }
 
-                m_resourceManager->unregister_texture(texture);
-            });
+                ctx.m_resourceManager->unregister_texture(handle);
+            },
+            handle);
+    }
+
+    void vulkan_context::destroy_resources(u64 maxSubmitIndex)
+    {
+        while (!m_disposableObjects.empty())
+        {
+            auto& disposableObject = m_disposableObjects.front();
+
+            // Not quite perfect because we don't always insert in order,
+            // but it might be good enough for now
+            if (disposableObject.submitIndex >= maxSubmitIndex)
+            {
+                break;
+            }
+
+            disposableObject.dispose(*this, disposableObject);
+            m_disposableObjects.pop_front();
+        }
     }
 
     void vulkan_context::begin_debug_label(VkCommandBuffer commandBuffer, const char* label) const
@@ -407,5 +393,29 @@ namespace oblo::vk
         }
 
         m_vkCmdEndDebugUtilsLabelEXT(commandBuffer);
+    }
+
+    template <typename F, typename... T>
+    void vulkan_context::dispose(u64 submitIndex, F&& f, T&&... args)
+    {
+        using A = std::tuple<std::decay_t<T>...>;
+
+        static_assert(sizeof(F) <= sizeof(void*) && alignof(F) <= alignof(void*));
+        static_assert(sizeof(A) <= sizeof(disposable_object::buffer) && alignof(A) <= alignof(void*));
+
+        auto& obj = m_disposableObjects.emplace_back();
+
+        obj.dispose = [](vulkan_context& ctx, disposable_object& obj)
+        {
+            A* const t = reinterpret_cast<A*>(obj.buffer);
+            F* const cb = reinterpret_cast<F*>(obj.cb);
+
+            std::apply([&ctx, cb](T&... args) { (*cb)(ctx, args...); }, *t);
+            std::destroy_at(t);
+        };
+
+        new (obj.cb) F{std::forward<F>(f)};
+        new (obj.buffer) A{std::forward<T>(args)...};
+        obj.submitIndex = submitIndex;
     }
 }
