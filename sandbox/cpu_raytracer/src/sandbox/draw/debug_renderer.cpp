@@ -261,7 +261,7 @@ namespace oblo
             m_impl->trianglesArray.bind();
             m_impl->trianglesArray.upload_vertices(std::as_bytes(std::span{m_impl->trianglesVertices}));
 
-            glDrawArrays(GL_TRIANGLES, 0, m_impl->trianglesVertices.size());
+            glDrawArrays(GL_TRIANGLES, 0, GLsizei(m_impl->trianglesVertices.size()));
         }
 
         if (!hasNoLines)
@@ -272,7 +272,7 @@ namespace oblo
             m_impl->linesArray.bind();
             m_impl->linesArray.upload_vertices(std::as_bytes(std::span{m_impl->linesVertices}));
 
-            glDrawArrays(GL_LINES, 0, m_impl->linesVertices.size());
+            glDrawArrays(GL_LINES, 0, GLsizei(m_impl->linesVertices.size()));
         }
 
         ssbo::unbind();

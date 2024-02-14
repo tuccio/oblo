@@ -207,14 +207,14 @@ int main(int argc, char* argv[])
 
         if (!state.renderRasterized)
         {
-            const auto w = state.raytracerState->get_width();
-            const auto h = state.raytracerState->get_height();
+            const u16 w = state.raytracerState->get_width();
+            const u16 h = state.raytracerState->get_height();
 
-            const auto minX = tileX * s_tileSize;
-            const auto maxX = min(w, u16(minX + s_tileSize));
+            const u16 minX = tileX * s_tileSize;
+            const u16 maxX = min(w, u16(minX + s_tileSize));
 
-            const auto minY = tileY * s_tileSize;
-            const auto maxY = min(h, u16(minY + s_tileSize));
+            const u16 minY = tileY * s_tileSize;
+            const u16 maxY = min(h, u16(minY + s_tileSize));
 
             raytracer.render_tile(raytracerState, state.camera, minX, minY, maxX, maxY);
 
