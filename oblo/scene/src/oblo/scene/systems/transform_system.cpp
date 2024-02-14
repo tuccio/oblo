@@ -10,7 +10,6 @@
 #include <oblo/scene/components/rotation_component.hpp>
 #include <oblo/scene/components/scale_component.hpp>
 
-
 namespace oblo
 {
     void transform_system::update(const ecs::system_update_context& ctx)

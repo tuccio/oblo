@@ -1,8 +1,8 @@
 #include <oblo/vulkan/draw/mesh_table.hpp>
 
-#include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/error.hpp>
+#include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 
 namespace oblo::vk

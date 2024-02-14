@@ -1,6 +1,6 @@
 #include <oblo/core/log.hpp>
-#include <oblo/core/utility.hpp>
 #include <oblo/core/platform/core.hpp>
+#include <oblo/core/utility.hpp>
 
 #include <cstdio>
 #include <string_view>

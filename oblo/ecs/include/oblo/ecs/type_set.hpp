@@ -7,7 +7,6 @@
 #include <oblo/ecs/traits.hpp>
 #include <oblo/ecs/type_registry.hpp>
 
-
 #include <compare>
 
 namespace oblo::ecs
