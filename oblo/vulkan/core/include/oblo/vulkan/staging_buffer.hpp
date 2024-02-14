@@ -2,7 +2,7 @@
 
 #include <oblo/core/ring_buffer_tracker.hpp>
 #include <oblo/core/types.hpp>
-#include <oblo/vulkan/allocator.hpp>
+#include <oblo/vulkan/gpu_allocator.hpp>
 
 #include <deque>
 #include <span>
@@ -24,7 +24,7 @@ namespace oblo::vk
 
         ~staging_buffer();
 
-        bool init(const single_queue_engine& engine, allocator& allocator, u32 size);
+        bool init(const single_queue_engine& engine, gpu_allocator& allocator, u32 size);
         void shutdown();
 
         bool upload(std::span<const std::byte> source, VkBuffer buffer, u32 bufferOffset);
@@ -72,7 +72,7 @@ namespace oblo::vk
             VkDevice device;
             VkQueue queue;
             u32 queueFamilyIndex;
-            allocator* allocator;
+            gpu_allocator* allocator;
             ring_buffer_tracker<u32> ring;
             u32 pendingBytes;
             VkBuffer buffer;

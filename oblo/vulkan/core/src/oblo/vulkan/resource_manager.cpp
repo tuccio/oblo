@@ -50,7 +50,7 @@ namespace oblo::vk
         OBLO_ASSERT(n == 1);
     }
 
-    h32<texture> resource_manager::create(allocator& allocator, const image_initializer& initializer)
+    h32<texture> resource_manager::create(gpu_allocator& allocator, const image_initializer& initializer)
     {
         allocated_image allocatedImage;
 
@@ -69,7 +69,7 @@ namespace oblo::vk
             VK_IMAGE_LAYOUT_UNDEFINED);
     }
 
-    h32<buffer> resource_manager::create(allocator& allocator, const buffer_initializer& initializer)
+    h32<buffer> resource_manager::create(gpu_allocator& allocator, const buffer_initializer& initializer)
     {
         allocated_buffer allocatedBuffer;
 
@@ -86,14 +86,14 @@ namespace oblo::vk
         });
     }
 
-    void resource_manager::destroy(allocator& allocator, h32<texture> handle)
+    void resource_manager::destroy(gpu_allocator& allocator, h32<texture> handle)
     {
         const texture& res = get(handle);
         allocator.destroy(allocated_image{.image = res.image, .allocation = res.allocation});
         unregister_texture(handle);
     }
 
-    void resource_manager::destroy(allocator& allocator, h32<buffer> handle)
+    void resource_manager::destroy(gpu_allocator& allocator, h32<buffer> handle)
     {
         const buffer& res = get(handle);
         allocator.destroy(allocated_buffer{.buffer = res.buffer, .allocation = res.allocation});

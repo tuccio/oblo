@@ -1,9 +1,9 @@
 #include <oblo/vulkan/monotonic_gbu_buffer.hpp>
 
 #include <oblo/core/utility.hpp>
-#include <oblo/vulkan/allocator.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/error.hpp>
+#include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
 
 namespace oblo::vk

@@ -252,7 +252,7 @@ namespace oblo::vk
             VK_SUCCESS;
     }
 
-    bool hello_world::create_vertex_buffers(allocator& allocator)
+    bool hello_world::create_vertex_buffers(gpu_allocator& allocator)
     {
         constexpr vec2 positions[] = {{0.0f, -0.5f}, {0.5f, 0.5f}, {-0.5f, 0.5f}};
         constexpr vec3 colors[] = {{1.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}};

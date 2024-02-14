@@ -10,7 +10,7 @@
 
 namespace oblo::vk
 {
-    class allocator;
+    class gpu_allocator;
     class command_buffer_state;
     struct buffer;
     struct buffer_initializer;
@@ -33,11 +33,11 @@ namespace oblo::vk
         h32<buffer> register_buffer(const buffer& buffer);
         void unregister_buffer(h32<buffer> handle);
 
-        h32<texture> create(allocator& allocator, const image_initializer& initializer);
-        h32<buffer> create(allocator& allocator, const buffer_initializer& initializer);
+        h32<texture> create(gpu_allocator& allocator, const image_initializer& initializer);
+        h32<buffer> create(gpu_allocator& allocator, const buffer_initializer& initializer);
 
-        void destroy(allocator& allocator, h32<texture> texture);
-        void destroy(allocator& allocator, h32<buffer> texture);
+        void destroy(gpu_allocator& allocator, h32<texture> texture);
+        void destroy(gpu_allocator& allocator, h32<buffer> texture);
 
         const texture* try_find(h32<texture> handle) const;
         texture* try_find(h32<texture> handle);

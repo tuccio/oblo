@@ -14,7 +14,7 @@ namespace oblo
 
 namespace oblo::vk
 {
-    class allocator;
+    class gpu_allocator;
     class resource_manager;
     struct buffer;
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <oblo/vulkan/allocator.hpp>
+#include <oblo/vulkan/gpu_allocator.hpp>
 
 namespace oblo
 {
@@ -25,7 +25,7 @@ namespace oblo::vk
     private:
         bool create_shader_modules(frame_allocator& allocator, VkDevice device);
         bool create_graphics_pipeline(VkDevice device, const VkFormat swapchainFormat);
-        bool create_vertex_buffers(allocator& allocator);
+        bool create_vertex_buffers(gpu_allocator& allocator);
 
         void destroy_graphics_pipeline(VkDevice device);
 

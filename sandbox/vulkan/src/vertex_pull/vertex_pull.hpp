@@ -2,7 +2,7 @@
 
 #include <oblo/core/types.hpp>
 #include <oblo/math/vec3.hpp>
-#include <oblo/vulkan/allocator.hpp>
+#include <oblo/vulkan/gpu_allocator.hpp>
 
 #include <span>
 #include <vector>
@@ -46,12 +46,12 @@ namespace oblo::vk
         bool create_descriptor_set_layouts(VkDevice device);
         bool create_pipelines(VkDevice device, VkFormat swapchainFormat);
 
-        bool create_buffers(VkDevice device, allocator& allocator);
+        bool create_buffers(VkDevice device, gpu_allocator& allocator);
         bool create_descriptor_sets(VkDevice device);
 
         void create_geometry();
 
-        void destroy_buffers(allocator& allocator);
+        void destroy_buffers(gpu_allocator& allocator);
         void destroy_pipelines(VkDevice device);
         void destroy_shader_modules(VkDevice device);
         void destroy_pools(VkDevice device);

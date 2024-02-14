@@ -1,6 +1,6 @@
 #pragma once
 
-#include <oblo/vulkan/allocator.hpp>
+#include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/monotonic_gbu_buffer.hpp>
 #include <oblo/vulkan/texture.hpp>
 

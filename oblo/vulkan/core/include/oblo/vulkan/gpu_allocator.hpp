@@ -26,18 +26,18 @@ namespace oblo::vk
     struct buffer_initializer;
     struct image_initializer;
 
-    class allocator
+    class gpu_allocator
     {
     public:
-        allocator() = default;
-        allocator(const allocator&) = delete;
+        gpu_allocator() = default;
+        gpu_allocator(const gpu_allocator&) = delete;
 
-        allocator(allocator&&) noexcept;
+        gpu_allocator(gpu_allocator&&) noexcept;
 
-        allocator& operator=(const allocator&) = delete;
-        allocator& operator=(allocator&&) noexcept;
+        gpu_allocator& operator=(const gpu_allocator&) = delete;
+        gpu_allocator& operator=(gpu_allocator&&) noexcept;
 
-        ~allocator();
+        ~gpu_allocator();
 
         bool init(VkInstance instance, VkPhysicalDevice physicalDevice, VkDevice device);
 

@@ -4,7 +4,7 @@
 
 namespace oblo::vk
 {
-    vk_result<texture> create_2d_render_target(allocator& allocator,
+    vk_result<texture> create_2d_render_target(gpu_allocator& allocator,
         u32 width,
         u32 height,
         VkFormat format,

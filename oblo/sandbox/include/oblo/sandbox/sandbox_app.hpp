@@ -9,8 +9,8 @@
 #include <oblo/sandbox/context.hpp>
 #include <oblo/sandbox/imgui.hpp>
 #include <oblo/sandbox/sandbox_app_config.hpp>
-#include <oblo/vulkan/allocator.hpp>
 #include <oblo/vulkan/command_buffer_pool.hpp>
+#include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/instance.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
@@ -82,7 +82,7 @@ namespace oblo::vk
 
         instance m_instance;
         single_queue_engine m_engine;
-        allocator m_allocator;
+        gpu_allocator m_allocator;
 
         resource_manager m_resourceManager;
 
