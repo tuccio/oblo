@@ -8,6 +8,7 @@
 #include <oblo/vulkan/single_queue_engine.hpp>
 #include <oblo/vulkan/stateful_command_buffer.hpp>
 
+#include <deque>
 #include <memory>
 #include <vector>
 
@@ -63,8 +64,19 @@ namespace oblo::vk
     private:
         struct submit_info;
 
+        struct disposable_object
+        {
+            u64 submitIndex;
+            void (*dispose)(vulkan_context& ctx, disposable_object& obj);
+            alignas(void*) char cb[sizeof(void*)];
+            alignas(void*) char buffer[32];
+        };
+
     private:
         void destroy_resources(u64 maxSubmitIndex);
+
+        template <typename F, typename... T>
+        void dispose(u64 submitIndex, F&& f, T&&... args);
 
     private:
         VkInstance m_instance;
@@ -89,6 +101,8 @@ namespace oblo::vk
 
         struct pending_disposal_queues;
         std::unique_ptr<pending_disposal_queues> m_pending;
+
+        std::deque<disposable_object> m_disposableObjects;
     };
 
     struct vulkan_context::initializer
