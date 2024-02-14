@@ -73,7 +73,7 @@ namespace oblo::vk::test
 
         sandbox_app<mesh_database_test> app;
 
-        app.set_config(sandbox_app_config{
+        app.set_config({
             .vkUseValidationLayers = true,
         });
 
@@ -84,13 +84,13 @@ namespace oblo::vk::test
         for (u32 i = 0; i < N; ++i)
         {
             handles[0 + 4 * i] = app.meshes.create_mesh(
-                (flags{mesh_database_test::attributes::position} | mesh_database_test::attributes::normal).data(),
+                (mesh_database_test::attributes::position | mesh_database_test::attributes::normal).data(),
                 mesh_index_type::none,
                 3,
                 0);
 
             handles[1 + 4 * i] =
-                app.meshes.create_mesh((flags{mesh_database_test::attributes::position} |
+                app.meshes.create_mesh((mesh_database_test::attributes::position |
                                            mesh_database_test::attributes::normal | mesh_database_test::attributes::uv0)
                                            .data(),
                     mesh_index_type::none,
@@ -98,7 +98,7 @@ namespace oblo::vk::test
                     0);
 
             handles[2 + 4 * i] = app.meshes.create_mesh(
-                (flags{mesh_database_test::attributes::position} | mesh_database_test::attributes::uv0).data(),
+                (mesh_database_test::attributes::position | mesh_database_test::attributes::uv0).data(),
                 mesh_index_type::u16,
                 3,
                 3);
