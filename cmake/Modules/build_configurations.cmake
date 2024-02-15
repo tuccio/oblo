@@ -7,6 +7,9 @@ function(oblo_setup_build_configurations)
 
         # Ignore warning C4324: i.e. padding of structs
         add_compile_options(/wd4324)
+
+        add_compile_options(/permissive-)
+        add_compile_options(/Zc:preprocessor)
     endif()
 
     if(${_is_multiconfig})
