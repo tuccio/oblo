@@ -25,4 +25,6 @@ namespace oblo
 
     using isize = std::intptr_t;
     using usize = std::size_t;
+
+    using byte = std::byte;
 }
