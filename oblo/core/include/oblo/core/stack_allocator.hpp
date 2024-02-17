@@ -1,5 +1,8 @@
 #pragma once
 
+#include <oblo/core/allocator.hpp>
+#include <oblo/math/power_of_two.hpp>
+
 #include <memory_resource>
 
 namespace oblo
@@ -28,6 +31,47 @@ namespace oblo
         std::pmr::monotonic_buffer_resource m_resource{m_buffer, Size};
     };
 
-    template <typename T, std::size_t N>
+    template <usize Size, usize Alignment = alignof(std::max_align_t)>
+    class stack_allocator_v2 : public allocator
+    {
+    public:
+        stack_allocator_v2() = default;
+        stack_allocator_v2(const stack_allocator_v2&) = delete;
+        stack_allocator_v2(stack_allocator_v2&&) = delete;
+        stack_allocator_v2& operator=(const stack_allocator_v2&) = delete;
+        stack_allocator_v2& operator=(stack_allocator_v2&&) = delete;
+
+        byte* allocate(usize count, usize alignment) noexcept override
+        {
+            OBLO_ASSERT(is_power_of_two(alignment));
+
+            auto* const ptr = reinterpret_cast<byte*>(align_power_of_two(uintptr(m_next), alignment));
+            auto* const newNext = ptr + count;
+
+            if (newNext > m_buffer + Size)
+            {
+                return nullptr;
+            }
+
+            m_next = newNext;
+            return ptr;
+        }
+
+        void deallocate(byte* const, const usize, const usize) noexcept override {}
+
+        void reset()
+        {
+            m_next = m_buffer;
+        }
+
+    private:
+        alignas(Alignment) byte m_buffer[Size];
+        byte* m_next{m_buffer};
+    };
+
+    template <typename T, usize N>
     using array_stack_allocator = stack_allocator<sizeof(T) * N, alignof(T)>;
+
+    template <typename T, usize N>
+    using array_stack_allocator_v2 = stack_allocator_v2<sizeof(T) * N, alignof(T)>;
 }
