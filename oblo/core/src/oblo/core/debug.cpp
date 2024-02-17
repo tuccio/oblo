@@ -16,7 +16,9 @@ namespace oblo
 }
 
 #else
+#if defined(WIN32)
 #include <crtdbg.h>
+#endif
 
 namespace oblo
 {
@@ -27,7 +29,9 @@ namespace oblo
             OBLO_DEBUGBREAK();
         }
 
+#if defined(WIN32)
         _CrtDbgReport(_CRT_ASSERT, filename, lineNumber, "oblo", message);
+#endif
     }
 }
 

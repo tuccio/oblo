@@ -4,6 +4,7 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/math/power_of_two.hpp>
 
+#include <initializer_list>
 #include <memory>
 #include <utility>
 
@@ -42,6 +43,8 @@ namespace oblo
 
         dynamic_array& operator=(const dynamic_array& other);
         dynamic_array& operator=(dynamic_array&& other) noexcept;
+
+        dynamic_array& operator=(std::initializer_list<T> values) noexcept;
 
         ~dynamic_array();
 
@@ -122,7 +125,7 @@ namespace oblo
     };
 
     template <typename T>
-    dynamic_array<T>::dynamic_array() : m_allocator{get_global_allocator()}
+    dynamic_array<T>::dynamic_array() : m_allocator{select_global_allocator<alignof(T)>()}
     {
     }
 
@@ -191,6 +194,13 @@ namespace oblo
             other.m_size = 0;
         }
 
+        return *this;
+    }
+
+    template <typename T>
+    inline dynamic_array<T>& dynamic_array<T>::operator=(std::initializer_list<T> values) noexcept
+    {
+        assign(values.begin(), values.end());
         return *this;
     }
 
@@ -368,12 +378,12 @@ namespace oblo
 
         reserve(count);
 
-        for (T* it = m_data; it != m_data + count; ++it)
+        for (T* it = m_data; it != m_data + count; ++it, ++first)
         {
-            new (it) T(*it);
+            new (it) T(*first);
         }
 
-        m_size += count;
+        m_size = count;
     }
 
     template <typename T>
@@ -389,7 +399,7 @@ namespace oblo
             new (it) T(value);
         }
 
-        m_size += count;
+        m_size = count;
     }
 
     template <typename T>
