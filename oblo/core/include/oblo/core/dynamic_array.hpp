@@ -107,6 +107,7 @@ namespace oblo
         iterator insert(const_iterator pos, OtherIt begin, OtherIt end);
 
         iterator erase(const_iterator pos);
+        iterator erase(const_iterator begin, const_iterator end);
         iterator erase_unordered(const_iterator pos);
 
         template <typename OtherIt>
@@ -397,6 +398,46 @@ namespace oblo
         const auto it = m_data + i;
 
         rotate(it, m_data + m_size - 1, m_data + m_size);
+        return it;
+    }
+
+    template <typename T>
+    inline dynamic_array<T>::iterator dynamic_array<T>::erase(const_iterator pos)
+    {
+        return erase(pos, pos + 1);
+    }
+
+    template <typename T>
+    inline dynamic_array<T>::iterator dynamic_array<T>::erase(const_iterator begin, const_iterator end)
+    {
+        OBLO_ASSERT(begin < m_data + m_size);
+
+        const auto beginIt = const_cast<iterator>(begin);
+        const auto endIt = const_cast<iterator>(end);
+
+        rotate(beginIt, endIt, m_data + m_size);
+
+        const auto newSize = m_size - (end - begin);
+        resize(newSize);
+
+        return beginIt;
+    }
+
+    template <typename T>
+    inline dynamic_array<T>::iterator dynamic_array<T>::erase_unordered(const_iterator pos)
+    {
+        OBLO_ASSERT(pos < m_data + m_size);
+
+        const auto it = const_cast<iterator>(pos);
+        const auto backIt = m_data + m_size - 1;
+
+        if (it != backIt)
+        {
+            std::swap(*it, *backIt);
+        }
+
+        pop_back();
+
         return it;
     }
 
