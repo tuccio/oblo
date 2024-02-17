@@ -1,4 +1,4 @@
-#include <oblo/core/allocators/allocator.hpp>
+#include <oblo/core/allocator.hpp>
 
 #include <oblo/core/debug.hpp>
 

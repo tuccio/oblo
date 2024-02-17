@@ -1,6 +1,6 @@
 #pragma once
 
-#include <oblo/core/allocators/allocator.hpp>
+#include <oblo/core/allocator.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/math/power_of_two.hpp>
 
