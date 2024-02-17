@@ -51,6 +51,7 @@ namespace oblo
         void reserve_exponential(usize capacity);
 
         void resize(usize size);
+        void resize(usize size, const T& value);
         void resize_default(usize size);
 
         const T* cbegin() const;
@@ -106,6 +107,8 @@ namespace oblo
 
         template <typename Iterator>
         void assign(usize count, const T& value) noexcept;
+
+        bool operator==(const dynamic_array& other) const noexcept;
 
     private:
         void maybe_grow_capacity(usize newCapacity, bool exact);
@@ -164,6 +167,8 @@ namespace oblo
 
         m_size = other.m_size;
         other.m_size = 0;
+
+        return *this;
     }
 
     template <typename T>
@@ -185,6 +190,8 @@ namespace oblo
             m_size = other.m_size;
             other.m_size = 0;
         }
+
+        return *this;
     }
 
     template <typename T>
@@ -197,7 +204,12 @@ namespace oblo
     template <typename T>
     void dynamic_array<T>::clear()
     {
-        resize(0);
+        if constexpr (!std::is_trivially_destructible_v<T>)
+        {
+            std::destroy(m_data, m_data + m_size);
+        }
+
+        m_size = 0;
     }
 
     template <typename T>
@@ -219,6 +231,22 @@ namespace oblo
         {
             maybe_grow_capacity(newSize, true);
             std::uninitialized_value_construct(m_data + m_size, m_data + newSize);
+        }
+        else if constexpr (!std::is_trivially_destructible_v<T>)
+        {
+            std::destroy(m_data + newSize, m_data + m_size);
+        }
+
+        m_size = newSize;
+    }
+
+    template <typename T>
+    void dynamic_array<T>::resize(usize newSize, const T& value)
+    {
+        if (newSize > m_size)
+        {
+            maybe_grow_capacity(newSize, true);
+            std::uninitialized_fill(m_data + m_size, m_data + newSize, value);
         }
         else
         {
@@ -393,14 +421,14 @@ namespace oblo
     T& dynamic_array<T>::back()
     {
         OBLO_ASSERT(m_size > 0);
-        return *(m_data + m_size);
+        return *(m_data + m_size - 1);
     }
 
     template <typename T>
     const T& dynamic_array<T>::back() const
     {
         OBLO_ASSERT(m_size > 0);
-        return *(m_data + m_size);
+        return *(m_data + m_size - 1);
     }
 
     template <typename T>
@@ -516,5 +544,12 @@ namespace oblo
 
         m_data = reinterpret_cast<T*>(newData);
         m_capacity = newCapacity;
+    }
+
+    template <typename T>
+    bool dynamic_array<T>::operator==(const dynamic_array& other) const noexcept
+    {
+        const auto isSizeEqual = m_size == other.m_size;
+        return isSizeEqual && std::equal(begin(), end(), other.begin());
     }
 }

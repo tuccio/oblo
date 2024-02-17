@@ -24,6 +24,11 @@ namespace oblo::platform
         OutputDebugStringA(str);
     }
 
+    bool is_debugger_attached()
+    {
+        return IsDebuggerPresent() == TRUE;
+    }
+
     void open_folder(const std::filesystem::path& dir)
     {
         [[maybe_unused]] const auto res =

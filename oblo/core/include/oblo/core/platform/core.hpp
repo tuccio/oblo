@@ -6,4 +6,5 @@ namespace oblo::platform
     void shutdown();
 
     void debug_output(const char* str);
+    bool is_debugger_attached();
 }
