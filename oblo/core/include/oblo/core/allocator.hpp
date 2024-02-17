@@ -12,4 +12,18 @@ namespace oblo
     };
 
     allocator* get_global_allocator() noexcept;
+    allocator* get_global_aligned_allocator() noexcept;
+
+    template <usize Alignment>
+    allocator* select_global_allocator()
+    {
+        if constexpr (Alignment <= alignof(std::max_align_t))
+        {
+            return get_global_allocator();
+        }
+        else
+        {
+            return get_global_aligned_allocator();
+        }
+    }
 }

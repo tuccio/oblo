@@ -154,4 +154,28 @@ namespace oblo
 
         ASSERT_EQ(allocator.allocations.size(), 0);
     }
+
+    struct aligned32_value
+    {
+        alignas(32) u32 values[16];
+    };
+
+    TEST(dynamic_array, dynamic_array_alignment)
+    {
+        dynamic_array<aligned32_value> array;
+        ASSERT_EQ(array.data(), nullptr);
+
+        array = {aligned32_value{{1}}, aligned32_value{{2}}, aligned32_value{{3}}};
+
+        ASSERT_NE(array.data(), nullptr);
+        ASSERT_EQ(uintptr(array.data()) % 32, 0);
+
+        ASSERT_EQ(array.size(), 3);
+
+        ASSERT_EQ(array.data(), &array[0]);
+
+        ASSERT_EQ(array[0].values[0], 1);
+        ASSERT_EQ(array[1].values[0], 2);
+        ASSERT_EQ(array[2].values[0], 3);
+    }
 }
