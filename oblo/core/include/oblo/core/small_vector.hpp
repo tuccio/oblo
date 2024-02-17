@@ -1,23 +1,22 @@
 #pragma once
 
-#include <memory_resource>
-#include <vector>
+#include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/stack_allocator.hpp>
 
 namespace oblo
 {
-    template <typename T, std::size_t N>
+    template <typename T, usize N>
     class small_vector
     {
     public:
-        small_vector() : m_vector{&m_resource}
+        small_vector()
         {
-            m_vector.reserve(N);
+            m_array.reserve(N);
         }
 
-        small_vector(const std::initializer_list<T> initializer) : m_vector{&m_resource}
+        small_vector(const std::initializer_list<T> initializer)
         {
-            m_vector.reserve(N);
-            m_vector.assign(initializer.begin(), initializer.end());
+            m_array = initializer;
         }
 
         small_vector(const small_vector&) = delete;
@@ -27,110 +26,109 @@ namespace oblo
 
         decltype(auto) begin()
         {
-            return m_vector.begin();
+            return m_array.begin();
         }
 
         decltype(auto) end()
         {
-            return m_vector.end();
+            return m_array.end();
         }
 
         decltype(auto) begin() const
         {
-            return m_vector.begin();
+            return m_array.begin();
         }
 
         decltype(auto) end() const
         {
-            return m_vector.end();
+            return m_array.end();
         }
 
-        void resize(std::size_t n)
+        void resize(usize n)
         {
-            m_vector.resize(n);
+            m_array.resize(n);
         }
 
-        void resize(std::size_t n, const T& value)
+        void resize(usize n, const T& value)
         {
-            m_vector.resize(n, value);
+            m_array.resize(n, value);
         }
 
         T* data()
         {
-            return m_vector.data();
+            return m_array.data();
         }
 
         const T* data() const
         {
-            return m_vector.data();
+            return m_array.data();
         }
 
         bool empty() const
         {
-            return m_vector.empty();
+            return m_array.empty();
         }
 
-        std::size_t size() const
+        usize size() const
         {
-            return m_vector.size();
+            return m_array.size();
         }
 
         template <typename... TArgs>
-        decltype(auto) emplace_back(TArgs&&... args)
+        T& emplace_back(TArgs&&... args)
         {
-            return m_vector.emplace_back(std::forward<TArgs>(args)...);
+            return m_array.emplace_back(std::forward<TArgs>(args)...);
         }
 
-        decltype(auto) push_back(const T& value)
+        auto push_back(const T& value)
         {
-            return m_vector.push_back(value);
+            return m_array.push_back(value);
         }
 
-        decltype(auto) push_back(T&& value)
+        auto push_back(T&& value)
         {
-            return m_vector.push_back(std::move(value));
+            return m_array.push_back(std::move(value));
         }
 
         void pop_back()
         {
-            return m_vector.pop_back();
+            return m_array.pop_back();
         }
 
         const T& front() const
         {
-            return m_vector.front();
+            return m_array.front();
         }
 
         const T& back() const
         {
-            return m_vector.back();
+            return m_array.back();
         }
 
-        const T& operator[](std::size_t index) const
+        const T& operator[](usize index) const
         {
-            return m_vector[index];
+            return m_array[index];
         }
 
-        T& operator[](std::size_t index)
+        T& operator[](usize index)
         {
-            return m_vector[index];
-        }
-
-        template <typename... TArgs>
-        decltype(auto) insert(TArgs&&... args)
-        {
-            return m_vector.insert(std::forward<TArgs>(args)...);
+            return m_array[index];
         }
 
         template <typename... TArgs>
-        decltype(auto) assign(TArgs&&... args)
+        auto insert(TArgs&&... args)
         {
-            return m_vector.assign(std::forward<TArgs>(args)...);
+            return m_array.insert(std::forward<TArgs>(args)...);
+        }
+
+        template <typename... TArgs>
+        auto assign(TArgs&&... args)
+        {
+            return m_array.assign(std::forward<TArgs>(args)...);
         }
 
     private:
-        alignas(T) char m_buffer[sizeof(T) * N];
-        std::pmr::monotonic_buffer_resource m_resource{m_buffer, sizeof(T) * N};
-        std::pmr::vector<T> m_vector;
+        stack_allocator_v2<(sizeof(T) * N), alignof(T)> m_allocator;
+        dynamic_array<T> m_array{&m_allocator};
     };
 }

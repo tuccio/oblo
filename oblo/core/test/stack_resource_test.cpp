@@ -1,12 +1,12 @@
 #include <gtest/gtest.h>
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/small_vector.hpp>
 #include <oblo/core/stack_allocator.hpp>
 #include <oblo/core/types.hpp>
 
 namespace oblo
 {
-    // Stack tests may fail in debug, e.g. due to Microsoft STL allocating for iterator debugging
     TEST(stack_allocator, stack)
     {
         constexpr u32 N{1024};
@@ -15,8 +15,8 @@ namespace oblo
         {
             constexpr auto stackSize = sizeof(u32) * N;
 
-            const stack_allocator<stackSize, alignof(u32)> stack;
-            std::pmr::vector<u32> vec{stack};
+            stack_allocator_v2<stackSize, alignof(u32)> stack;
+            dynamic_array<u32> vec{&stack};
             vec.reserve(N);
 
             vec.resize(i, i);
