@@ -238,4 +238,109 @@ namespace oblo
             ASSERT_EQ(array[i], i + 1);
         }
     }
+
+    TEST(dynamic_array, dynamic_array_erase_range)
+    {
+        dynamic_array<i32> array;
+
+        array = {1, 2, 0, 0, 3, 4, 5, 42, 42};
+
+        ASSERT_EQ(array.size(), 9);
+
+        const auto it = array.begin() + 3;
+        ASSERT_EQ(*it, 0);
+
+        const auto newIt = array.erase(array.begin() + 2, array.begin() + 4);
+        ASSERT_EQ(*newIt, 3);
+
+        ASSERT_EQ(array.size(), 7);
+
+        for (i32 i = 0; i < 5; ++i)
+        {
+            ASSERT_EQ(array[i], i + 1);
+        }
+
+        for (i32 i = 6; i < 7; ++i)
+        {
+            ASSERT_EQ(array[i], 42);
+        }
+
+        const auto endIt = array.erase(array.begin() + 5, array.end());
+        ASSERT_EQ(endIt, array.end());
+
+        ASSERT_EQ(array.size(), 5);
+
+        for (i32 i = 0; i < 5; ++i)
+        {
+            ASSERT_EQ(array[i], i + 1);
+        }
+    }
+
+    TEST(dynamic_array, dynamic_array_erase_single_element)
+    {
+        dynamic_array<i32> array;
+
+        array = {1, 2, -1, -1, 3, 4, 5, -1, -1};
+
+        ASSERT_EQ(array.size(), 9);
+
+        u32 iterations{0};
+
+        for (auto it = array.begin(); it != array.end();)
+        {
+            ++iterations;
+
+            if (*it < 0)
+            {
+                it = array.erase(it);
+            }
+            else
+            {
+                ++it;
+            }
+        }
+
+        ASSERT_EQ(array.size(), 5);
+        ASSERT_EQ(iterations, 9);
+
+        for (i32 i = 0; i < 5; ++i)
+        {
+            ASSERT_EQ(array[i], i + 1);
+        }
+    }
+
+    TEST(dynamic_array, dynamic_array_erase_unordered)
+    {
+        dynamic_array<i32> array;
+
+        array = {1, 2, -1, -1, 3, 4, 5, -1, -1};
+
+        ASSERT_EQ(array.size(), 9);
+
+        u32 iterations{0};
+
+        for (auto it = array.begin(); it != array.end();)
+        {
+            ++iterations;
+
+            if (*it < 0)
+            {
+                it = array.erase_unordered(it);
+            }
+            else
+            {
+                ++it;
+            }
+        }
+
+        ASSERT_EQ(array.size(), 5);
+        ASSERT_EQ(iterations, 9);
+
+        std::sort(array.begin(), array.end());
+
+        for (i32 i = 0; i < 5; ++i)
+        {
+            ASSERT_EQ(array[i], i + 1);
+        }
+    }
 }

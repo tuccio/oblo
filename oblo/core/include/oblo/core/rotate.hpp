@@ -5,6 +5,10 @@
 
 namespace oblo
 {
+    /// \brief Performs a left rotation on a range of elements.
+    /// Swaps the elements in the range [first, last) in such a way that the elements in [first, middle) are placed
+    /// after the elements in [middle, last) while the orders of the elements in both ranges are preserved. \remarks
+    /// Equivalent to std::rotate.
     // Simple implementation of std::rotate for forward iterators, random access could be smarter.
     template <std::forward_iterator Iterator>
     Iterator rotate(Iterator first, Iterator middle, Iterator last)
@@ -23,7 +27,9 @@ namespace oblo
 
         while (true)
         {
-            std::swap(*first, *it);
+            using namespace std;
+            swap(*first, *it);
+
             ++first;
 
             if (++it == last)
@@ -44,7 +50,9 @@ namespace oblo
             it = middle;
             while (true)
             {
-                std::swap(*first, *it);
+                using namespace std;
+                swap(*first, *it);
+
                 ++first;
 
                 if (++it == last)
