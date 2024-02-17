@@ -2,7 +2,7 @@
 
 #include <gtest/gtest.h>
 
-#include <oblo/core/containers/dynamic_array.hpp>
+#include <oblo/core/dynamic_array.hpp>
 
 #include <span>
 #include <unordered_map>
