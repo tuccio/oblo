@@ -178,4 +178,28 @@ namespace oblo
         ASSERT_EQ(array[1].values[0], 2);
         ASSERT_EQ(array[2].values[0], 3);
     }
+
+    TEST(dynamic_array, dynamic_array_insert)
+    {
+        dynamic_array<i32> array;
+
+        array = {1, 2, 3, 7, 8, 9, 10};
+
+        constexpr i32 elements[] = {4, 5, 6};
+
+        ASSERT_EQ(array.size(), 7);
+
+        const auto it = array.begin() + 3;
+        ASSERT_EQ(*it, 7);
+
+        const auto newIt = array.insert(it, std::begin(elements), std::end(elements));
+        ASSERT_EQ(*newIt, 4);
+
+        ASSERT_EQ(array.size(), 10);
+
+        for (i32 i = 0; i < 10; ++i)
+        {
+            ASSERT_EQ(array[i], i + 1);
+        }
+    }
 }

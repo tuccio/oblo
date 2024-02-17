@@ -2,6 +2,7 @@
 
 #include <oblo/core/allocator.hpp>
 #include <oblo/core/debug.hpp>
+#include <oblo/core/rotate.hpp>
 #include <oblo/math/power_of_two.hpp>
 
 #include <initializer_list>
@@ -107,6 +108,9 @@ namespace oblo
 
         iterator erase(const_iterator pos);
         iterator erase_unordered(const_iterator pos);
+
+        template <typename OtherIt>
+        iterator append(OtherIt begin, OtherIt end);
 
         template <typename Iterator>
         void assign(Iterator first, Iterator last) noexcept;
@@ -368,6 +372,44 @@ namespace oblo
         auto* const r = new (m_data + m_size) T(std::forward<Args>(args)...);
         ++m_size;
         return *r;
+    }
+
+    template <typename T>
+    template <typename OtherIt>
+    inline dynamic_array<T>::iterator dynamic_array<T>::insert(const_iterator pos, OtherIt it, OtherIt end)
+    {
+        const auto i = pos - m_data;
+        OBLO_ASSERT(pos <= m_data + m_size);
+
+        // If we insert at the end, it's just an append, otherwise it needs a rotate
+        const auto inTheMiddle = pos != m_data + m_size;
+
+        const auto appendedIt = append(it, end);
+        const auto insertedIt = m_data + i;
+
+        if (inTheMiddle)
+        {
+            rotate(insertedIt, appendedIt, m_data + m_size);
+        }
+
+        return insertedIt;
+    }
+
+    template <typename T>
+    template <typename OtherIt>
+    inline dynamic_array<T>::iterator dynamic_array<T>::append(OtherIt it, OtherIt end)
+    {
+        const auto count = end - it;
+
+        const auto first = m_size;
+        reserve_exponential(m_size + count);
+
+        for (; it != end; ++it)
+        {
+            emplace_back(*it);
+        }
+
+        return m_data + first;
     }
 
     template <typename T>
