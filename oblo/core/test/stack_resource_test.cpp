@@ -15,7 +15,7 @@ namespace oblo
         {
             constexpr auto stackSize = sizeof(u32) * N;
 
-            stack_allocator_v2<stackSize, alignof(u32)> stack;
+            stack_only_allocator<stackSize, alignof(u32)> stack;
             dynamic_array<u32> vec{&stack};
             vec.reserve(N);
 
@@ -39,8 +39,10 @@ namespace oblo
 
         for (u32 i = N + 1; i < 2 * N; ++i)
         {
-            const stack_allocator<sizeof(u32) * N, alignof(u32)> stack;
-            std::pmr::vector<u32> vec{stack};
+            constexpr auto stackSize = sizeof(u32) * N;
+
+            stack_fallback_allocator<stackSize, alignof(u32)> stack;
+            dynamic_array<u32> vec{&stack};
             vec.reserve(N);
 
             vec.resize(i, i);
