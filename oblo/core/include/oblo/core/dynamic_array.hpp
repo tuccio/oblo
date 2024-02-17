@@ -375,6 +375,32 @@ namespace oblo
     }
 
     template <typename T>
+    inline dynamic_array<T>::iterator dynamic_array<T>::insert(const_iterator pos, const T& value)
+    {
+        const auto i = pos - m_data;
+        OBLO_ASSERT(pos <= m_data + m_size);
+
+        emplace_back(value);
+        const auto it = m_data + i;
+
+        rotate(it, m_data + m_size - 1, m_data + m_size);
+        return it;
+    }
+
+    template <typename T>
+    inline dynamic_array<T>::iterator dynamic_array<T>::insert(const_iterator pos, T&& value)
+    {
+        const auto i = pos - m_data;
+        OBLO_ASSERT(pos <= m_data + m_size);
+
+        emplace_back(std::move(value));
+        const auto it = m_data + i;
+
+        rotate(it, m_data + m_size - 1, m_data + m_size);
+        return it;
+    }
+
+    template <typename T>
     template <typename OtherIt>
     inline dynamic_array<T>::iterator dynamic_array<T>::insert(const_iterator pos, OtherIt it, OtherIt end)
     {

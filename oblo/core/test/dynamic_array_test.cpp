@@ -179,7 +179,7 @@ namespace oblo
         ASSERT_EQ(array[2].values[0], 3);
     }
 
-    TEST(dynamic_array, dynamic_array_insert)
+    TEST(dynamic_array, dynamic_array_insert_range)
     {
         dynamic_array<i32> array;
 
@@ -198,6 +198,42 @@ namespace oblo
         ASSERT_EQ(array.size(), 10);
 
         for (i32 i = 0; i < 10; ++i)
+        {
+            ASSERT_EQ(array[i], i + 1);
+        }
+    }
+
+    TEST(dynamic_array, dynamic_array_insert_single_elements)
+    {
+        dynamic_array<i32> array;
+
+        array = {1, 2, 3, 7, 8, 9, 10};
+
+        ASSERT_EQ(array.size(), 7);
+
+        const auto it = array.begin() + 3;
+        ASSERT_EQ(*it, 7);
+
+        for (i32 i = 4; i <= 6; ++i)
+        {
+            const auto newIt = array.insert(array.begin() + i - 1, i);
+            ASSERT_EQ(*newIt, i);
+
+            ASSERT_TRUE(std::is_sorted(array.begin(), array.end()));
+        }
+
+        ASSERT_EQ(array.size(), 10);
+
+        for (i32 i = 0; i < 10; ++i)
+        {
+            ASSERT_EQ(array[i], i + 1);
+        }
+
+        array.insert(array.end(), 11);
+        array.insert(array.end(), 12);
+        array.insert(array.end(), 13);
+
+        for (i32 i = 0; i < 13; ++i)
         {
             ASSERT_EQ(array[i], i + 1);
         }

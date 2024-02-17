@@ -9,6 +9,16 @@ namespace oblo
     template <std::forward_iterator Iterator>
     Iterator rotate(Iterator first, Iterator middle, Iterator last)
     {
+        if (first == middle)
+        {
+            return last;
+        }
+
+        if (middle == last)
+        {
+            return first;
+        }
+
         Iterator it = middle;
 
         while (true)
