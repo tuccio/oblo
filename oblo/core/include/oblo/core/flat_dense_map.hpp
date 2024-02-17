@@ -1,7 +1,7 @@
 #pragma once
 
-#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/debug.hpp>
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/utility.hpp>
 
@@ -32,6 +32,17 @@ namespace oblo
         using key_type = Key;
         using value_type = Value;
         using extractor_type = KeyExtractor;
+
+        flat_dense_map() = default;
+        flat_dense_map(const flat_dense_map&) = default;
+        flat_dense_map(flat_dense_map&&) noexcept = default;
+
+        flat_dense_map(allocator* allocator) : m_sparse{allocator}, m_denseKey{allocator}, m_denseValue{allocator} {};
+
+        flat_dense_map& operator=(const flat_dense_map&) = default;
+        flat_dense_map& operator=(flat_dense_map&&) noexcept = default;
+
+        ~flat_dense_map() = default;
 
         template <typename... Args>
         auto emplace(Key key, Args&&... args) noexcept
