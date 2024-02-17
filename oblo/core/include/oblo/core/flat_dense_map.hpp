@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/utility.hpp>
@@ -43,11 +44,7 @@ namespace oblo
                 const u32 newSize = keyIndex + 1;
 
                 // Resize will cause the allocation to be exact, which might cause a lot of reallocations
-                if (const auto capacity = m_sparse.capacity(); newSize > capacity)
-                {
-                    m_sparse.reserve(max(usize{16}, usize(capacity * 1.5f)));
-                }
-
+                m_sparse.reserve_exponential(newSize);
                 m_sparse.resize(newSize, Invalid);
             }
             else if (const auto pointedIndex = m_sparse[keyIndex];
@@ -189,8 +186,8 @@ namespace oblo
         static constexpr u32 Invalid{KeyExtractor::invalid_key()};
 
     private:
-        std::vector<u32> m_sparse;
-        std::vector<Key> m_denseKey;
-        std::vector<Value> m_denseValue;
+        dynamic_array<u32> m_sparse;
+        dynamic_array<Key> m_denseKey;
+        dynamic_array<Value> m_denseValue;
     };
 }

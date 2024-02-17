@@ -12,7 +12,7 @@ namespace oblo
         {
             byte* allocate(usize size, [[maybe_unused]] usize alignment) noexcept override
             {
-                OBLO_ASSERT(alignment < alignof(std::max_align_t));
+                OBLO_ASSERT(alignment <= alignof(std::max_align_t));
                 return reinterpret_cast<byte*>(std::malloc(size));
             }
 
