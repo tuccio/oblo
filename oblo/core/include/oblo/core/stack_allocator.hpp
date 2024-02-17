@@ -31,15 +31,15 @@ namespace oblo
         std::pmr::monotonic_buffer_resource m_resource{m_buffer, Size};
     };
 
-    template <usize Size, usize Alignment = alignof(std::max_align_t)>
-    class stack_allocator_v2 : public allocator
+    template <usize Size, usize Alignment = alignof(std::max_align_t), bool AssertOnOverflow = true>
+    class stack_only_allocator final : public allocator
     {
     public:
-        stack_allocator_v2() = default;
-        stack_allocator_v2(const stack_allocator_v2&) = delete;
-        stack_allocator_v2(stack_allocator_v2&&) = delete;
-        stack_allocator_v2& operator=(const stack_allocator_v2&) = delete;
-        stack_allocator_v2& operator=(stack_allocator_v2&&) = delete;
+        stack_only_allocator() = default;
+        stack_only_allocator(const stack_only_allocator&) = delete;
+        stack_only_allocator(stack_only_allocator&&) = delete;
+        stack_only_allocator& operator=(const stack_only_allocator&) = delete;
+        stack_only_allocator& operator=(stack_only_allocator&&) = delete;
 
         byte* allocate(usize count, usize alignment) noexcept override
         {
@@ -50,6 +50,11 @@ namespace oblo
 
             if (newNext > m_buffer + Size)
             {
+                if constexpr (AssertOnOverflow)
+                {
+                    OBLO_ASSERT(false, "Overflow on stack only allocator");
+                }
+
                 return nullptr;
             }
 
@@ -64,14 +69,60 @@ namespace oblo
             m_next = m_buffer;
         }
 
+        bool contains(const byte* const ptr) const noexcept
+        {
+            return ptr >= m_buffer && ptr < m_buffer + Size;
+        }
+
     private:
         alignas(Alignment) byte m_buffer[Size];
         byte* m_next{m_buffer};
+    };
+
+    template <usize Size, usize Alignment = alignof(std::max_align_t)>
+    class stack_fallback_allocator final : public allocator
+    {
+    public:
+        explicit stack_fallback_allocator(allocator* fallback) : m_fallback(fallback){};
+
+        stack_fallback_allocator() : m_fallback{select_global_allocator<Alignment>()} {}
+
+        stack_fallback_allocator(const stack_fallback_allocator&) = delete;
+        stack_fallback_allocator(stack_fallback_allocator&&) = delete;
+        stack_fallback_allocator& operator=(const stack_fallback_allocator&) = delete;
+        stack_fallback_allocator& operator=(stack_fallback_allocator&&) = delete;
+
+        byte* allocate(usize count, usize alignment) noexcept override
+        {
+            auto* const stack = m_stack.allocate(count, alignment);
+
+            if (stack != nullptr)
+            {
+                return stack;
+            }
+
+            return m_fallback->allocate(count, alignment);
+        }
+
+        void deallocate(byte* ptr, usize size, usize alignment) noexcept override
+        {
+            if (!m_stack.contains(ptr))
+            {
+                m_fallback->deallocate(ptr, size, alignment);
+            }
+        }
+
+    private:
+        stack_only_allocator<Size, Alignment, false> m_stack;
+        allocator* m_fallback{};
     };
 
     template <typename T, usize N>
     using array_stack_allocator = stack_allocator<sizeof(T) * N, alignof(T)>;
 
     template <typename T, usize N>
-    using array_stack_allocator_v2 = stack_allocator_v2<sizeof(T) * N, alignof(T)>;
+    using array_stack_only_allocator = stack_fallback_allocator<sizeof(T) * N, alignof(T)>;
+
+    template <typename T, usize N>
+    using array_stack_fallback_allocator = stack_fallback_allocator<sizeof(T) * N, alignof(T)>;
 }

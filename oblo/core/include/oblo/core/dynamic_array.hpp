@@ -102,6 +102,9 @@ namespace oblo
         iterator insert(const_iterator pos, const T& value);
         iterator insert(const_iterator pos, T&& value);
 
+        template <typename OtherIt>
+        iterator insert(const_iterator pos, OtherIt begin, OtherIt end);
+
         iterator erase(const_iterator pos);
         iterator erase_unordered(const_iterator pos);
 

@@ -14,8 +14,14 @@ namespace oblo
             m_array.reserve(N);
         }
 
+        small_vector(allocator* fallback) : m_allocator{fallback}
+        {
+            m_array.reserve(N);
+        }
+
         small_vector(const std::initializer_list<T> initializer)
         {
+            m_array.reserve(N);
             m_array = initializer;
         }
 
@@ -128,7 +134,7 @@ namespace oblo
         }
 
     private:
-        stack_allocator_v2<(sizeof(T) * N), alignof(T)> m_allocator;
+        stack_fallback_allocator<(sizeof(T) * N), alignof(T)> m_allocator;
         dynamic_array<T> m_array{&m_allocator};
     };
 }
