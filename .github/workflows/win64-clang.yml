@@ -1,6 +1,10 @@
 name: Win64 clang-cl Debug
 
 on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
   workflow_dispatch:
 
 concurrency:
@@ -23,8 +27,8 @@ jobs:
     - name: Configure CMake
       shell: cmd
       run: |
-        "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
-        cmake -B ${{github.workspace}}/build --preset windows-clang-cl-debug
+        call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
+        call cmake -B ${{github.workspace}}/build --preset windows-clang-cl-debug
 
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
