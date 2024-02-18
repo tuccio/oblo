@@ -14,7 +14,7 @@
             "installDir": "${sourceDir}/.install/${presetName}",
             "cacheVariables": {
                 "CMAKE_PROJECT_TOP_LEVEL_INCLUDES": "${sourceDir}/cmake/Modules/conan_provider.cmake",
-                "OBLO_GLTF_SAMPLE_MODELS": "${sourceDir}/../glTF-Sample-Models"
+                "OBLO_GLTF_SAMPLE_MODELS": "${sourceDir}/testing/glTF-Sample-Assets/Models"
             }
         },
         {
