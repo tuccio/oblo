@@ -66,6 +66,18 @@
             }
         },
         {
+            "name": "windows-clang-cl-debug",
+            "displayName": "Windows clang-cl Debug",
+            "description": "Windows clang-cl Debug",
+            "inherits": "conf-windows-clang-cl",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "OBLO_DISABLE_COMPILER_OPTIMIZATIONS": true,
+                "OBLO_ENABLE_ASSERT": true,
+                "OBLO_DEBUG": true
+            }
+        },
+        {
             "name": "windows-clang-cl-unoptimized",
             "displayName": "Windows clang-cl Unoptimized",
             "description": "Windows clang-cl Unoptimized",
