@@ -2,6 +2,7 @@
 
 #include <oblo/core/debug.hpp>
 
+#include <cmath>
 #include <utility>
 
 namespace oblo
@@ -34,8 +35,34 @@ namespace oblo
         requires std::is_arithmetic_v<T>
     constexpr T narrow_cast(U u) noexcept
     {
-        OBLO_ASSERT(static_cast<U>(static_cast<T>(u)) == u, "A narrow cast failed");
-        return static_cast<T>(u);
+        const auto t = static_cast<T>(u);
+
+        if constexpr (std::is_floating_point_v<U> || std::is_floating_point_v<T>)
+        {
+            // The NaN check would work with the other assert, but we dont want to check equality comparisons on
+            // floating points otherwise
+
+            if constexpr (std::is_floating_point_v<U>)
+            {
+                OBLO_ASSERT(!std::isnan(u), "A narrow cast failed");
+            }
+
+            if constexpr (std::is_floating_point_v<T>)
+            {
+                OBLO_ASSERT(!std::isnan(t), "A narrow cast failed");
+            }
+        }
+        else
+        {
+            OBLO_ASSERT(static_cast<U>(t) == u, "A narrow cast failed");
+        }
+
+        if constexpr (std::is_signed_v<T> != std::is_signed_v<U>)
+        {
+            OBLO_ASSERT((t >= T{}) && (u >= U{}), "A narrow cast failed");
+        }
+
+        return t;
     }
 
     template <typename T>
