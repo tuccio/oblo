@@ -26,7 +26,7 @@ namespace oblo
         template <typename PrimitiveContainer>
         void build(PrimitiveContainer& primitives)
         {
-            OBLO_ASSERT(primitives.size() <= narrow_cast<u32>(-1));
+            OBLO_ASSERT(primitives.size() <= ~u32{});
             clear();
 
             if (primitives.empty())

@@ -36,7 +36,7 @@ namespace oblo
             u8 buffer[s_tileSize * s_tileSize * numChannels];
             auto bufferIt = buffer;
 
-            const auto correctAndNormalize = [weight = 1.f / numSamples](f32 color)
+            const auto correctAndNormalize = [weight = 1.f / (1 + numSamples)](f32 color)
             {
                 constexpr auto invGamma = 1.f / 2.2f;
                 const auto radiance = color * weight;
