@@ -1,6 +1,10 @@
 name: Win64 clang-cl Debug
 
 on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
   workflow_dispatch:
 
 concurrency:
