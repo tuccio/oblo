@@ -1,4 +1,4 @@
-name: Win64 VS2022 Debug
+name: Win64 clang-cl Debug
 
 on:
   push:
@@ -21,10 +21,12 @@ jobs:
         submodules: 'true'
 
     - name: Configure CMake
-      run: cmake -B ${{github.workspace}}/build --preset windows-vs2022
+      shell: cmd
+      run: |
+        "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
+        cmake -B ${{github.workspace}}/build --preset windows-clang-cl-debug
 
     - name: Build
-      # Build your program with the given configuration
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
 
     - name: Test
