@@ -10,6 +10,8 @@ function(oblo_setup_build_configurations)
 
         add_compile_options(/permissive-)
         add_compile_options(/Zc:preprocessor)
+
+        add_compile_options(/MP)
     endif()
 
     if(${_is_multiconfig})
