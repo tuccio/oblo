@@ -3,6 +3,7 @@
 #include <oblo/core/debug.hpp>
 
 #include <cstdlib>
+#include <memory>
 
 namespace oblo
 {

@@ -60,7 +60,7 @@ namespace oblo
         {
             if (m_wrapper->get_type() == get_type_id<T>())
             {
-                return static_cast<T*>(m_wrapper.get());
+                return static_cast<T*>(m_wrapper->get());
             }
         }
 
@@ -69,7 +69,7 @@ namespace oblo
         {
             if (m_wrapper->get_type() == get_type_id<T>())
             {
-                return static_cast<const T*>(m_wrapper.get());
+                return static_cast<const T*>(m_wrapper->get());
             }
         }
 

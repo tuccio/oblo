@@ -9,9 +9,12 @@ function(oblo_setup_build_configurations)
         add_compile_options(/wd4324)
 
         add_compile_options(/permissive-)
-        add_compile_options(/Zc:preprocessor)
 
-        add_compile_options(/MP)
+        # Flags that are note supported or needed by clang-cl
+        if(NOT DEFINED CMAKE_CXX_SIMULATE_ID)
+            add_compile_options(/Zc:preprocessor)
+            add_compile_options(/MP)
+        endif()
     endif()
 
     if(${_is_multiconfig})
