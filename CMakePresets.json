@@ -14,7 +14,7 @@
             "installDir": "${sourceDir}/.install/${presetName}",
             "cacheVariables": {
                 "CMAKE_PROJECT_TOP_LEVEL_INCLUDES": "${sourceDir}/cmake/Modules/conan_provider.cmake",
-                "OBLO_GLTF_SAMPLE_MODELS": "${sourceDir}/../glTF-Sample-Models"
+                "OBLO_GLTF_SAMPLE_MODELS": "${sourceDir}/testing/glTF-Sample-Assets/Models"
             }
         },
         {
@@ -63,6 +63,18 @@
                 "CMAKE_C_COMPILER": "clang-cl",
                 "CMAKE_CXX_COMPILER": "clang-cl",
                 "CONAN_FORCE_DEFAULT_COMPILER": true
+            }
+        },
+        {
+            "name": "windows-clang-cl-debug",
+            "displayName": "Windows clang-cl Debug",
+            "description": "Windows clang-cl Debug",
+            "inherits": "conf-windows-clang-cl",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "OBLO_DISABLE_COMPILER_OPTIMIZATIONS": true,
+                "OBLO_ENABLE_ASSERT": true,
+                "OBLO_DEBUG": true
             }
         },
         {

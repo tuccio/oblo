@@ -11,6 +11,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(oblo)
 
+enable_testing()
+
 oblo_setup_build_configurations()
 
 find_package(assimp REQUIRED)
