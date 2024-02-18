@@ -1,10 +1,10 @@
-name: Win64 VS2022 Debug
+name: Win64 vs2022 Debug
 
 on:
-  # push:
-  #   branches: [ "master" ]
-  # pull_request:
-  #   branches: [ "master" ]
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
   workflow_dispatch:
 
 concurrency:
