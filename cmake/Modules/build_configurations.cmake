@@ -11,7 +11,7 @@ function(oblo_setup_build_configurations)
         add_compile_options(/permissive-)
 
         # Flags that are note supported or needed by clang-cl
-        if(NOT DEFINED CMAKE_CXX_SIMULATE_ID)
+        if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
             add_compile_options(/Zc:preprocessor)
             add_compile_options(/MP)
         endif()
