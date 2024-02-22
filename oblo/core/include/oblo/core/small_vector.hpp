@@ -50,6 +50,11 @@ namespace oblo
             return m_array.end();
         }
 
+        void reserve(usize n)
+        {
+            m_array.reserve(n);
+        }
+
         void resize(usize n)
         {
             m_array.resize(n);

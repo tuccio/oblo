@@ -1,6 +1,7 @@
 #include <oblo/vulkan/draw/draw_registry.hpp>
 
 #include <oblo/core/allocation_helpers.hpp>
+#include <oblo/core/array_size.hpp>
 #include <oblo/core/data_format.hpp>
 #include <oblo/core/flags.hpp>
 #include <oblo/core/zip_range.hpp>
@@ -14,6 +15,7 @@
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/assets/mesh.hpp>
 #include <oblo/vulkan/buffer.hpp>
+#include <oblo/vulkan/data/gpu_aabb.hpp>
 #include <oblo/vulkan/draw/mesh_table.hpp>
 #include <oblo/vulkan/monotonic_gbu_buffer.hpp>
 #include <oblo/vulkan/staging_buffer.hpp>
@@ -29,6 +31,7 @@ namespace oblo::vk
         // TODO: Remove the limitation, instead allocate 1 buffer and sub-allocate it with fixed size batches
         constexpr u32 MaxVerticesPerBatch{4 << 20};
         constexpr u32 MaxIndicesPerBatch{4 << 20};
+        constexpr u32 MaxMeshesPerBatch{4 << 10};
 
         constexpr u32 MaxAttributesCount{u32(attribute_kind::enum_max)};
         using buffer_columns = std::array<buffer_column_description, MaxAttributesCount>;
@@ -89,14 +92,33 @@ namespace oblo::vk
             .elementSize = sizeof(f32) * 2,
         };
 
+        const mesh_attribute_description meshData[] = {
+            {
+                .name = interner.get_or_add("g_MeshAABB"),
+                .elementSize = sizeof(gpu_aabb),
+            },
+        };
+
+        static_assert(array_size(meshData) == MeshBuffersCount);
+
+        for (usize i = 0; i < MeshBuffersCount; ++i)
+        {
+            m_meshDataNames[i] = meshData[i].name;
+        }
+
         [[maybe_unused]] const auto meshDbInit = m_meshes.init({
             .allocator = ctx.get_allocator(),
             .resourceManager = ctx.get_resource_manager(),
             .attributes = attributes,
-            .bufferUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+            .meshData = meshData,
+            .vertexBufferUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+            .indexBufferUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+            .meshBufferUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                 VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
             .tableVertexCount = MaxVerticesPerBatch,
             .tableIndexCount = MaxIndicesPerBatch,
+            .tableMeshCount = MaxMeshesPerBatch,
         });
 
         OBLO_ASSERT(meshDbInit);
@@ -230,10 +252,14 @@ namespace oblo::vk
         buffer indexBuffer{};
         buffer vertexBuffers[u32(vertex_attributes::enum_max)];
 
+        buffer meshDataBuffers[MeshBuffersCount]{};
+
         [[maybe_unused]] const auto fetchedBuffers = m_meshes.fetch_buffers(meshHandle,
             {attributeIds, vertexAttributesCount},
             {vertexBuffers, vertexAttributesCount},
-            &indexBuffer);
+            &indexBuffer,
+            m_meshDataNames,
+            meshDataBuffers);
 
         OBLO_ASSERT(fetchedBuffers);
 
@@ -257,6 +283,12 @@ namespace oblo::vk
             const auto data = meshPtr->get_attribute(kind);
 
             doUpload(data, vertexBuffers[i]);
+        }
+
+        {
+            const auto aabb = meshPtr->get_aabb();
+            const gpu_aabb gpuAabb{.min = aabb.min, .max = aabb.max};
+            doUpload(std::as_bytes(std::span{&gpuAabb, 1}), meshDataBuffers[0]);
         }
 
         const h32<draw_mesh> globalMeshId{make_mesh_id(meshHandle)};

@@ -2,13 +2,14 @@
 
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/frame_allocator.hpp>
+#include <oblo/core/small_vector.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/draw/mesh_table.hpp>
 #include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 
-#include <bit>
+#include <array>
 #include <memory>
 
 namespace oblo::vk
@@ -38,7 +39,7 @@ namespace oblo::vk
         }
 
         std::span<const buffer_column_description> attributes_to_buffer_columns(u32 meshAttributesMask,
-            std::span<const mesh_attribute_description> attributeDescs,
+            std::span<const buffer_column_description> attributeDescs,
             std::span<buffer_column_description> columns)
         {
             u32 n = 0;
@@ -49,7 +50,7 @@ namespace oblo::vk
                 const u32 attributeMask = 1u << attributeId;
                 if (attributeMask & meshAttributesMask)
                 {
-                    columns[n] = std::bit_cast<buffer_column_description>(attributeDescs[attributeId]);
+                    columns[n] = attributeDescs[attributeId];
                     ++n;
                 }
             }
@@ -58,7 +59,7 @@ namespace oblo::vk
         }
 
         std::span<const h32<string>> attributes_to_names(std::span<const u32> attributeIds,
-            std::span<const mesh_attribute_description> attributeDescs,
+            std::span<const buffer_column_description> attributeDescs,
             std::span<h32<string>> columns)
         {
             usize n = 0;
@@ -114,13 +115,23 @@ namespace oblo::vk
         m_allocator = &initializer.allocator;
         m_resourceManager = &initializer.resourceManager;
 
-        m_bufferUsage = initializer.bufferUsage;
+        m_vertexBufferUsage = initializer.indexBufferUsage;
+        m_indexBufferUsage = initializer.vertexBufferUsage;
+        m_meshBufferUsage = initializer.meshBufferUsage;
         m_tableIndexCount = narrow_cast<u32>(initializer.tableIndexCount);
         m_tableVertexCount = narrow_cast<u32>(initializer.tableVertexCount);
+        m_tableMeshCount = narrow_cast<u32>(initializer.tableMeshCount);
 
         m_attributes = {};
 
-        std::copy(initializer.attributes.begin(), initializer.attributes.end(), m_attributes.begin());
+        const std::span meshDataColumns{start_lifetime_as<buffer_column_description>(initializer.meshData.data()),
+            initializer.meshData.size()};
+
+        const std::span attributesColumns{start_lifetime_as<buffer_column_description>(initializer.attributes.data()),
+            initializer.attributes.size()};
+
+        m_attributes.assign(attributesColumns.begin(), attributesColumns.end());
+        m_meshData.assign(meshDataColumns.begin(), meshDataColumns.end());
 
         return true;
     }
@@ -178,12 +189,15 @@ namespace oblo::vk
             }
 
             const auto success = newTable.meshes->init(columns,
+                m_meshData,
                 *m_allocator,
                 *m_resourceManager,
-                m_bufferUsage,
+                m_vertexBufferUsage,
+                m_meshBufferUsage,
                 indexByteSize,
                 m_tableVertexCount,
                 m_tableIndexCount,
+                m_tableMeshCount,
                 indexBuffer);
 
             if (!success)
@@ -208,19 +222,25 @@ namespace oblo::vk
         return make_mesh_handle(u32(&*it - m_tables.data()), outHandle[0]);
     }
 
-    bool mesh_database::fetch_buffers(
-        mesh_handle mesh, std::span<const u32> attributes, std::span<buffer> vertexBuffers, buffer* indexBuffer) const
+    bool mesh_database::fetch_buffers(mesh_handle mesh,
+        std::span<const u32> vertexAttributes,
+        std::span<buffer> vertexBuffers,
+        buffer* indexBuffer,
+        std::span<const h32<string>> meshBufferNames,
+        std::span<buffer> meshBuffers) const
     {
         const auto [tableId, meshId] = parse_mesh_handle(mesh);
 
         std::array<h32<string>, MaxAttributes> namesBuffer;
-        const std::span names = attributes_to_names(attributes, m_attributes, namesBuffer);
+        const std::span vertexAttributeNames = attributes_to_names(vertexAttributes, m_attributes, namesBuffer);
 
         return m_tables[tableId].meshes->fetch_buffers(*m_resourceManager,
             mesh_table_entry_id{meshId},
-            names,
+            vertexAttributeNames,
             vertexBuffers,
-            indexBuffer);
+            indexBuffer,
+            meshBufferNames,
+            meshBuffers);
     }
 
     mesh_index_type mesh_database::get_index_type(mesh_handle mesh) const
@@ -348,7 +368,7 @@ namespace oblo::vk
             pool.handle = m_resourceManager->create(*m_allocator,
                 buffer_initializer{
                     .size = tableByteSize * MaxTables,
-                    .usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | m_bufferUsage,
+                    .usage = m_indexBufferUsage,
                     .memoryUsage = memory_usage::gpu_only,
                 });
 
