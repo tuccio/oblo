@@ -7,37 +7,65 @@
 
 namespace oblo::vk
 {
-    bool mesh_table::init(std::span<const buffer_column_description> columns,
+    namespace
+    {
+        u32 compute_buffer_size(std::span<const buffer_column_description> columns, u32 multiplier, u32 alignment)
+        {
+            u32 maxBufferSize = narrow_cast<u32>((alignment - 1) * columns.size());
+
+            for (const auto& column : columns)
+            {
+                maxBufferSize += column.elementSize * multiplier;
+            }
+
+            return maxBufferSize;
+        }
+    }
+
+    bool mesh_table::init(std::span<const buffer_column_description> vertexAttributes,
+        std::span<const buffer_column_description> meshAttributes,
         gpu_allocator& allocator,
         resource_manager& resourceManager,
-        VkBufferUsageFlags bufferUsage,
+        VkBufferUsageFlags vertexBufferUsage,
+        VkBufferUsageFlags meshBufferUsage,
         u32 indexByteSize,
         u32 numVertices,
         u32 numIndices,
+        u32 numMeshes,
         const buffer& indexBuffer)
     {
-        // TODO: Actually read it
+        // TODO: Actually read the correct value for the usage
         constexpr u32 alignment = 16u;
-        u32 maxBufferSize = narrow_cast<u32>((alignment - 1) * columns.size());
 
-        for (const auto& column : columns)
-        {
-            maxBufferSize += column.elementSize * numVertices;
-        }
-
-        m_buffer = resourceManager.create(allocator,
+        m_vertexBuffer = resourceManager.create(allocator,
             {
-                .size = maxBufferSize,
-                .usage = bufferUsage,
+                .size = compute_buffer_size(vertexAttributes, numVertices, alignment),
+                .usage = vertexBufferUsage,
                 .memoryUsage = memory_usage::gpu_only,
             });
 
-        if (const auto buffer = resourceManager.get(m_buffer);
-            !m_buffers.init(buffer, columns, resourceManager, numVertices, alignment))
+        if (const auto buffer = resourceManager.get(m_vertexBuffer);
+            !m_vertexTable.init(buffer, vertexAttributes, resourceManager, numVertices, alignment))
         {
-            resourceManager.destroy(allocator, m_buffer);
-            m_buffer = {};
+            shutdown(allocator, resourceManager);
             return false;
+        }
+
+        if (!meshAttributes.empty())
+        {
+            m_meshDataBuffer = resourceManager.create(allocator,
+                {
+                    .size = compute_buffer_size(meshAttributes, numMeshes, alignment),
+                    .usage = meshBufferUsage,
+                    .memoryUsage = memory_usage::gpu_only,
+                });
+
+            if (const auto buffer = resourceManager.get(m_meshDataBuffer);
+                !m_meshDataTable.init(buffer, meshAttributes, resourceManager, numMeshes, alignment))
+            {
+                shutdown(allocator, resourceManager);
+                return false;
+            }
         }
 
         m_indexByteSize = indexByteSize;
@@ -91,7 +119,8 @@ namespace oblo::vk
 
     void mesh_table::shutdown(gpu_allocator& allocator, resource_manager& resourceManager)
     {
-        m_buffers.shutdown(resourceManager);
+        m_vertexTable.shutdown(resourceManager);
+        m_meshDataTable.shutdown(resourceManager);
 
         if (m_indexBuffer)
         {
@@ -99,10 +128,16 @@ namespace oblo::vk
             m_indexBuffer = {};
         }
 
-        if (m_buffer)
+        if (m_vertexBuffer)
         {
-            resourceManager.destroy(allocator, m_buffer);
-            m_buffer = {};
+            resourceManager.destroy(allocator, m_vertexBuffer);
+            m_vertexBuffer = {};
+        }
+
+        if (m_meshDataBuffer)
+        {
+            resourceManager.destroy(allocator, m_meshDataBuffer);
+            m_meshDataBuffer = {};
         }
 
         m_ranges.clear();
@@ -112,9 +147,11 @@ namespace oblo::vk
 
     bool mesh_table::fetch_buffers(const resource_manager& resourceManager,
         mesh_table_entry_id mesh,
-        std::span<const h32<string>> names,
+        std::span<const h32<string>> vertexBufferNames,
         std::span<buffer> vertexBuffers,
-        buffer* indexBuffer) const
+        buffer* indexBuffer,
+        std::span<const h32<string>> meshDataNames,
+        std::span<buffer> meshDataBuffers) const
     {
         const auto* range = m_ranges.try_find(mesh);
 
@@ -123,28 +160,58 @@ namespace oblo::vk
             return false;
         }
 
-        OBLO_ASSERT(names.size() == vertexBuffers.size())
-
-        const std::span allBuffers = m_buffers.buffers();
-        const std::span elementSizes = m_buffers.element_sizes();
-
-        for (usize i = 0; i < names.size(); ++i)
         {
-            const auto columnIndex = m_buffers.find(names[i]);
+            // Handle vertex buffers
+            OBLO_ASSERT(vertexBufferNames.size() == vertexBuffers.size())
 
-            buffer result{};
+            const std::span allBuffers = m_vertexTable.buffers();
+            const std::span elementSizes = m_vertexTable.element_sizes();
 
-            if (columnIndex >= 0)
+            for (usize i = 0; i < vertexBufferNames.size(); ++i)
             {
-                const auto elementSize = elementSizes[columnIndex];
+                const auto columnIndex = m_vertexTable.find(vertexBufferNames[i]);
 
-                const auto buffer = allBuffers[columnIndex];
-                result = resourceManager.get(buffer);
-                result.offset += elementSize * range->vertexOffset;
-                result.size = elementSize * range->vertexCount;
+                buffer result{};
+
+                if (columnIndex >= 0)
+                {
+                    const auto elementSize = elementSizes[columnIndex];
+
+                    const auto buffer = allBuffers[columnIndex];
+                    result = resourceManager.get(buffer);
+                    result.offset += elementSize * range->vertexOffset;
+                    result.size = elementSize * range->vertexCount;
+                }
+
+                vertexBuffers[i] = result;
             }
+        }
 
-            vertexBuffers[i] = result;
+        {
+            // Handle mesh data
+            OBLO_ASSERT(meshDataNames.size() == meshDataBuffers.size())
+
+            const std::span allBuffers = m_meshDataTable.buffers();
+            const std::span elementSizes = m_meshDataTable.element_sizes();
+
+            for (usize i = 0; i < meshDataNames.size(); ++i)
+            {
+                const auto columnIndex = m_meshDataTable.find(meshDataNames[i]);
+
+                buffer result{};
+
+                if (columnIndex >= 0)
+                {
+                    const auto elementSize = elementSizes[columnIndex];
+
+                    const auto buffer = allBuffers[columnIndex];
+                    result = resourceManager.get(buffer);
+                    result.offset += elementSize * range->meshOffset;
+                    result.size = elementSize;
+                }
+
+                meshDataBuffers[i] = result;
+            }
         }
 
         if (indexBuffer)
@@ -162,11 +229,11 @@ namespace oblo::vk
         std::span<buffer> vertexBuffers,
         buffer* indexBuffer) const
     {
-        const std::span allBuffers = m_buffers.buffers();
+        const std::span allBuffers = m_vertexTable.buffers();
 
         for (usize i = 0; i < names.size(); ++i)
         {
-            const auto columnIndex = m_buffers.find(names[i]);
+            const auto columnIndex = m_vertexTable.find(names[i]);
 
             if (columnIndex >= 0)
             {
@@ -197,8 +264,10 @@ namespace oblo::vk
 
         const auto newVertexEnd = m_firstFreeVertex + numVertices;
         const auto newIndexEnd = m_firstFreeIndex + numIndices;
+        const auto newMeshesEnd = m_firstFreeMesh + meshes.size();
 
-        if (newVertexEnd > m_buffers.rows_count() || newIndexEnd > m_totalIndices)
+        if (newVertexEnd > m_vertexTable.rows_count() || newMeshesEnd > m_meshDataTable.rows_count() ||
+            newIndexEnd > m_totalIndices)
         {
             return false;
         }
@@ -214,12 +283,14 @@ namespace oblo::vk
                 .vertexCount = meshVertices,
                 .indexOffset = m_firstFreeIndex,
                 .indexCount = meshIndices,
+                .meshOffset = m_firstFreeMesh,
             });
 
             if (key)
             {
                 m_firstFreeVertex += meshVertices;
                 m_firstFreeIndex += meshIndices;
+                ++m_firstFreeMesh;
                 *outIt = key;
             }
 
@@ -233,22 +304,22 @@ namespace oblo::vk
 
     std::span<const h32<string>> mesh_table::vertex_attribute_names() const
     {
-        return m_buffers.names();
+        return m_vertexTable.names();
     }
 
     std::span<const h32<buffer>> mesh_table::vertex_attribute_buffers() const
     {
-        return m_buffers.buffers();
+        return m_vertexTable.buffers();
     }
 
     std::span<const u32> mesh_table::vertex_attribute_element_sizes() const
     {
-        return m_buffers.element_sizes();
+        return m_vertexTable.element_sizes();
     }
 
     i32 mesh_table::find_vertex_attribute(h32<string> name) const
     {
-        return m_buffers.find(name);
+        return m_vertexTable.find(name);
     }
 
     u32 mesh_table::vertex_count() const
