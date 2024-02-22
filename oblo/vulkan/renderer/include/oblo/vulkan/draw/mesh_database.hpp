@@ -1,8 +1,8 @@
 #pragma once
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle.hpp>
 
-#include <array>
 #include <span>
 #include <vector>
 
@@ -17,6 +17,7 @@ namespace oblo
 namespace oblo::vk
 {
     struct buffer;
+    struct buffer_column_description;
     struct gpu_mesh;
 
     class gpu_allocator;
@@ -68,9 +69,11 @@ namespace oblo::vk
         mesh_handle create_mesh(u32 meshAttributesMask, mesh_index_type indexType, u32 vertexCount, u32 indexCount);
 
         bool fetch_buffers(mesh_handle mesh,
-            std::span<const u32> attributes,
+            std::span<const u32> vertexAttributes,
             std::span<buffer> vertexBuffers,
-            buffer* indexBuffer) const;
+            buffer* indexBuffer,
+            std::span<const h32<string>> meshBufferNames,
+            std::span<buffer> meshBuffers) const;
 
         mesh_index_type get_index_type(mesh_handle mesh) const;
 
@@ -105,10 +108,14 @@ namespace oblo::vk
         resource_manager* m_resourceManager{};
         u32 m_tableVertexCount{};
         u32 m_tableIndexCount{};
-        VkBufferUsageFlags m_bufferUsage{};
+        u32 m_tableMeshCount{};
+        VkBufferUsageFlags m_indexBufferUsage{};
+        VkBufferUsageFlags m_vertexBufferUsage{};
+        VkBufferUsageFlags m_meshBufferUsage{};
         std::vector<table> m_tables;
         buffer_pool m_indexBuffers[2];
-        std::array<mesh_attribute_description, MaxAttributes> m_attributes{};
+        dynamic_array<buffer_column_description> m_attributes{};
+        dynamic_array<buffer_column_description> m_meshData{};
     };
 
     struct mesh_database::initializer
@@ -116,9 +123,13 @@ namespace oblo::vk
         gpu_allocator& allocator;
         resource_manager& resourceManager;
         std::span<const mesh_attribute_description> attributes;
-        VkBufferUsageFlags bufferUsage;
+        std::span<const mesh_attribute_description> meshData;
+        VkBufferUsageFlags vertexBufferUsage;
+        VkBufferUsageFlags indexBufferUsage;
+        VkBufferUsageFlags meshBufferUsage;
         VkDeviceSize tableVertexCount;
         VkDeviceSize tableIndexCount;
+        VkDeviceSize tableMeshCount;
     };
 
     struct mesh_database::table_range

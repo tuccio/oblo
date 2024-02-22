@@ -10,6 +10,7 @@
 #include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/monotonic_gbu_buffer.hpp>
 
+#include <array>
 #include <span>
 #include <unordered_map>
 #include <vector>
@@ -125,5 +126,8 @@ namespace oblo::vk
         std::unordered_map<uuid, h32<draw_mesh>> m_cachedMeshes;
 
         flat_dense_map<h32<draw_buffer>, h32<string>> m_meshNames;
+
+        static constexpr u32 MeshBuffersCount{1};
+        std::array<h32<string>, MeshBuffersCount> m_meshDataNames{};
     };
 }
