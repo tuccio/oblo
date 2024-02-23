@@ -1,3 +1,4 @@
+#include "runtime_builder.hpp"
 #include <oblo/vulkan/graph/runtime_builder.hpp>
 
 #include <oblo/vulkan/buffer.hpp>
@@ -109,6 +110,26 @@ namespace oblo::vk
         default:
             break;
         }
+    }
+
+    resource<buffer> runtime_builder::create_dynamic_buffer(const transient_buffer_initializer& initializer) const
+    {
+        const auto pinHandle = m_graph->allocate_dynamic_resource_pin();
+
+        const resource<buffer> resource{pinHandle};
+        create(resource, initializer);
+
+        return resource;
+    }
+
+    frame_allocator& runtime_builder::get_frame_allocator() const
+    {
+        return m_graph->m_dynamicAllocator;
+    }
+
+    const draw_registry& runtime_builder::get_draw_registry() const
+    {
+        return m_renderer->get_draw_registry();
     }
 
     void* runtime_builder::access_resource_storage(u32 index) const

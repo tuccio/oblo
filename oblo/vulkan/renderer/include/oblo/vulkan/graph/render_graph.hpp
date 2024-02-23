@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/debug.hpp>
+#include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
@@ -89,14 +90,17 @@ namespace oblo::vk
     private:
         void* access_resource_storage(u32 h) const;
 
-        void add_transient_resource(resource<texture> texture, u32 poolIndex);
-        void add_resource_transition(resource<texture> texture, VkImageLayout target);
-        u32 find_pool_index(resource<texture> texture) const;
+        void add_transient_resource(resource<texture> handle, u32 poolIndex);
+        void add_resource_transition(resource<texture> handle, VkImageLayout target);
+        u32 find_pool_index(resource<texture> handle) const;
         u32 find_output_storage_index(std::string_view name) const;
 
-        void add_transient_buffer(resource<buffer> texture, const buffer& buffer);
+        void add_transient_buffer(resource<buffer> handle, const buffer& buffer);
 
         void flush_copies(stateful_command_buffer& commandBuffer, resource_manager& resourceManager);
+
+        u32 allocate_dynamic_resource_pin();
+        void destroy_dynamic_pins();
 
     private:
         struct pin_data;
@@ -113,6 +117,7 @@ namespace oblo::vk
 
     private:
         std::unique_ptr<std::byte[]> m_allocator;
+        frame_allocator m_dynamicAllocator;
         std::vector<node> m_nodes;
         std::vector<node_transitions> m_nodeTransitions;
         std::vector<texture_transition> m_textureTransitions;
@@ -127,6 +132,9 @@ namespace oblo::vk
         std::vector<u32> m_resourcePoolId;
 
         std::vector<pending_copy> m_pendingCopies;
+
+        u32 m_staticPinCount{};
+        u32 m_staticPinStorageCount{};
     };
 
     struct render_graph::named_pin_data

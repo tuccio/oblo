@@ -11,7 +11,7 @@ namespace oblo
 
         frame_allocator() = default;
         frame_allocator(const frame_allocator&) = delete;
-        frame_allocator(frame_allocator&&) noexcept = delete;
+        frame_allocator(frame_allocator&&) noexcept;
         frame_allocator& operator=(const frame_allocator&) = delete;
         frame_allocator& operator=(frame_allocator&&) noexcept = delete;
         ~frame_allocator();
