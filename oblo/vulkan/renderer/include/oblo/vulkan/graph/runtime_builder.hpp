@@ -7,9 +7,16 @@
 
 #include <span>
 
+namespace oblo
+{
+    class frame_allocator;
+}
+
 namespace oblo::vk
 {
+    class draw_registry;
     class renderer;
+
     struct buffer;
     struct texture;
 
@@ -56,11 +63,17 @@ namespace oblo::vk
 
         void acquire(resource<texture> texture, resource_usage usage) const;
 
+        resource<buffer> create_dynamic_buffer(const transient_buffer_initializer& initializer) const;
+
         template <typename T>
         T& access(data<T> data) const
         {
             return *static_cast<T*>(access_resource_storage(data.value));
         }
+
+        frame_allocator& get_frame_allocator() const;
+
+        const draw_registry& get_draw_registry() const;
 
     private:
         void* access_resource_storage(u32 index) const;

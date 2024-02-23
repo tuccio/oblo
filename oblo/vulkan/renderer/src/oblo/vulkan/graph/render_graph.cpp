@@ -91,6 +91,12 @@ namespace oblo::vk
 
     void render_graph::init(renderer& renderer)
     {
+        m_staticPinCount = u32(m_pins.size());
+        m_staticPinStorageCount = u32(m_pinStorage.size());
+
+        // TODO: Hardcoded max size
+        m_dynamicAllocator.init(4 << 20);
+
         const init_context context{renderer};
 
         for (auto& node : m_nodes)
@@ -104,14 +110,18 @@ namespace oblo::vk
 
     void render_graph::build(renderer& renderer, resource_pool& resourcePool)
     {
-        const runtime_builder builder{*this, resourcePool, renderer};
+        destroy_dynamic_pins();
 
         m_nodeTransitions.assign(m_nodes.size(), node_transitions{});
         m_textureTransitions.clear();
         m_transientTextures.clear();
         m_resourcePoolId.assign(m_pinStorage.size(), ~u32{});
 
+        m_dynamicAllocator.restore_all();
+
         u32 nodeIndex{0};
+
+        const runtime_builder builder{*this, resourcePool, renderer};
 
         for (auto& node : m_nodes)
         {
@@ -228,6 +238,34 @@ namespace oblo::vk
         m_pendingCopies.clear();
     }
 
+    u32 render_graph::allocate_dynamic_resource_pin()
+    {
+        const auto handle = u32(m_pins.size());
+        const auto storageIndex = u32(m_pinStorage.size());
+
+        m_pins.emplace_back(storageIndex);
+
+        m_pinStorage.push_back({.ptr = m_dynamicAllocator.allocate(sizeof(u32), alignof(u32))});
+
+        return handle;
+    }
+
+    void render_graph::destroy_dynamic_pins()
+    {
+        for (usize i = m_staticPinStorageCount; i < m_pinStorage.size(); ++i)
+        {
+            const auto& storage = m_pinStorage[i];
+
+            if (storage.destruct)
+            {
+                storage.destruct(storage.ptr);
+            }
+        }
+
+        m_pinStorage.resize(m_staticPinStorageCount);
+        m_pins.resize(m_staticPinCount);
+    }
+
     bool render_graph::copy_output(std::string_view name, h32<texture> target, VkImageLayout transitionAfterCopy)
     {
         u32 storageIndex = find_output_storage_index(name);
@@ -249,21 +287,21 @@ namespace oblo::vk
         return data.ptr;
     }
 
-    void render_graph::add_transient_resource(resource<texture> texture, u32 poolIndex)
+    void render_graph::add_transient_resource(resource<texture> handle, u32 poolIndex)
     {
-        m_transientTextures.emplace_back(texture, poolIndex);
-        const u32 storageIndex = m_pins[texture.value].storageIndex;
+        m_transientTextures.emplace_back(handle, poolIndex);
+        const u32 storageIndex = m_pins[handle.value].storageIndex;
         m_resourcePoolId[storageIndex] = poolIndex;
     }
 
-    void render_graph::add_resource_transition(resource<texture> texture, VkImageLayout target)
+    void render_graph::add_resource_transition(resource<texture> handle, VkImageLayout target)
     {
-        m_textureTransitions.emplace_back(texture, target);
+        m_textureTransitions.emplace_back(handle, target);
     }
 
-    u32 render_graph::find_pool_index(resource<texture> texture) const
+    u32 render_graph::find_pool_index(resource<texture> handle) const
     {
-        const u32 storageIndex = m_pins[texture.value].storageIndex;
+        const u32 storageIndex = m_pins[handle.value].storageIndex;
         return m_resourcePoolId[storageIndex];
     }
 
@@ -281,8 +319,8 @@ namespace oblo::vk
         return 0u;
     }
 
-    void render_graph::add_transient_buffer(resource<buffer> texture, const buffer& buf)
+    void render_graph::add_transient_buffer(resource<buffer> handle, const buffer& buf)
     {
-        new (access_resource_storage(texture.value)) buffer{buf};
+        new (access_resource_storage(handle.value)) buffer{buf};
     }
 }
