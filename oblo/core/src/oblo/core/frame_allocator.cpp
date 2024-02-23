@@ -18,6 +18,14 @@ namespace oblo
         bool virtual_memory_decommit(void* ptr, usize size);
     }
 
+    frame_allocator::frame_allocator(frame_allocator&& other) noexcept
+    {
+        std::swap(m_virtualMemory, other.m_virtualMemory);
+        std::swap(m_end, other.m_end);
+        std::swap(m_commitEnd, other.m_commitEnd);
+        std::swap(m_chunkSize, other.m_chunkSize);
+    }
+
     frame_allocator::~frame_allocator()
     {
         shutdown();

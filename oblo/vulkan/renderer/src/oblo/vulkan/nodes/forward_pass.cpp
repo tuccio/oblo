@@ -164,9 +164,12 @@ namespace oblo::vk
                 context.access(inPerViewBindingTable),
             };
 
+            const auto& drawRegistry = context.get_draw_registry();
+
             passManager.draw(renderPassContext,
                 context.get_resource_manager(),
-                context.get_draw_registry(),
+                drawRegistry,
+                drawRegistry.get_draw_calls(),
                 bindingTables);
 
             passManager.end_rendering(renderPassContext);

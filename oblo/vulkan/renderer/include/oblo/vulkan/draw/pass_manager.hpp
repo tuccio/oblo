@@ -28,6 +28,7 @@ namespace oblo::vk
     class resource_manager;
     class texture_registry;
     class vulkan_context;
+    struct batch_draw_data;
     struct buffer;
     struct compute_pass;
     struct compute_pass_initializer;
@@ -79,6 +80,7 @@ namespace oblo::vk
         void draw(const render_pass_context& context,
             const resource_manager& resourceManager,
             const draw_registry& drawRegistry,
+            std::span<const batch_draw_data> drawCalls,
             std::span<const buffer_binding_table* const> bindingTables = {});
 
     private:
