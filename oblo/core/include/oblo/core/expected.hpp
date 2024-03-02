@@ -9,15 +9,13 @@ namespace oblo
 {
     enum class expected_state : u8
     {
-        uninitialized,
         error,
         valid,
     };
 
-    // A monostate to indicate failure, used as default error enum for expected.
-    enum class expected_monostate : u8
+    // A monostate to indicate failure, used as default error type for expected.
+    struct expected_monostate
     {
-        failure,
     };
 
     template <typename T>
@@ -34,7 +32,7 @@ namespace oblo
     class [[nodiscard]] expected<T, E>
     {
     public:
-        constexpr expected() : m_state{expected_state::uninitialized} {}
+        constexpr expected() = delete;
         constexpr expected(const expected&) = default;
         constexpr expected(expected&&) noexcept = default;
         constexpr expected(T value) : m_state{expected_state::valid}, m_value{value} {}
@@ -92,7 +90,6 @@ namespace oblo
 
         constexpr T value_or(const T& fallback) const noexcept
         {
-            OBLO_ASSERT(m_state != expected_state::uninitialized);
             return m_state == expected_state::valid ? m_value : fallback;
         }
 
@@ -109,7 +106,7 @@ namespace oblo
     class [[nodiscard]] expected<T, E>
     {
     public:
-        constexpr expected() : m_state{expected_state::uninitialized} {}
+        constexpr expected() = delete;
         constexpr expected(const expected& other)
         {
             m_state = other.m_state;
