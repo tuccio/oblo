@@ -7,12 +7,6 @@
 
 namespace oblo
 {
-    enum class expected_state : u8
-    {
-        error,
-        valid,
-    };
-
     // A monostate to indicate failure, used as default error type for expected.
     struct expected_monostate
     {
@@ -35,8 +29,8 @@ namespace oblo
         constexpr expected() = delete;
         constexpr expected(const expected&) = default;
         constexpr expected(expected&&) noexcept = default;
-        constexpr expected(T value) : m_state{expected_state::valid}, m_value{value} {}
-        constexpr expected(E error) : m_state{expected_state::error}, m_error{error} {}
+        constexpr expected(T value) : m_hasValue{true}, m_value{value} {}
+        constexpr expected(E error) : m_hasValue{false}, m_error{error} {}
 
         constexpr expected& operator=(const expected&) = default;
         constexpr expected& operator=(expected&&) noexcept = default;
@@ -44,57 +38,57 @@ namespace oblo
     public:
         constexpr const T* operator->() const noexcept
         {
-            OBLO_ASSERT(m_state == expected_state::valid);
+            OBLO_ASSERT(has_value());
             return &m_value;
         }
 
         constexpr T* operator->() noexcept
         {
-            OBLO_ASSERT(m_state == expected_state::valid);
+            OBLO_ASSERT(has_value());
             return &m_value;
         }
 
         constexpr const T& operator*() const noexcept
         {
-            OBLO_ASSERT(m_state == expected_state::valid);
+            OBLO_ASSERT(has_value());
             return m_value;
         }
 
         constexpr T& operator*() noexcept
         {
-            OBLO_ASSERT(m_state == expected_state::valid);
+            OBLO_ASSERT(has_value());
             return m_value;
         }
 
         constexpr bool has_value() const noexcept
         {
-            return m_state == expected_state::valid;
+            return m_hasValue;
         }
 
         constexpr explicit operator bool() const noexcept
         {
-            return m_state == expected_state::valid;
+            return m_hasValue;
         }
 
         constexpr E error() const noexcept
         {
-            OBLO_ASSERT(m_state == expected_state::error);
+            OBLO_ASSERT(!has_value());
             return m_error;
         }
 
         constexpr const T& value() const noexcept
         {
-            OBLO_ASSERT(m_state == expected_state::valid);
+            OBLO_ASSERT(has_value());
             return m_value;
         }
 
         constexpr T value_or(const T& fallback) const noexcept
         {
-            return m_state == expected_state::valid ? m_value : fallback;
+            return m_hasValue ? m_value : fallback;
         }
 
     private:
-        expected_state m_state;
+        bool m_hasValue;
         union {
             T m_value;
             E m_error;
@@ -109,18 +103,15 @@ namespace oblo
         constexpr expected() = delete;
         constexpr expected(const expected& other)
         {
-            m_state = other.m_state;
+            m_hasValue = other.m_hasValue;
 
-            switch (other.m_state)
+            switch (other.m_hasValue)
             {
-            case expected_state::uninitialized:
-                break;
-
-            case expected_state::error:
+            case false:
                 m_error = other.error;
                 break;
 
-            case expected_state::valid:
+            case true:
                 new (m_value) T{*other};
                 break;
             }
@@ -128,34 +119,31 @@ namespace oblo
 
         constexpr expected(expected&& other) noexcept
         {
-            m_state = other.m_state;
+            m_hasValue = other.m_hasValue;
 
-            switch (other.m_state)
+            switch (other.m_hasValue)
             {
-            case expected_state::uninitialized:
-                break;
-
-            case expected_state::error:
+            case false:
                 m_error = other.error;
                 break;
 
-            case expected_state::valid:
+            case true:
                 new (m_value) T{std::move(*other)};
                 break;
             }
         }
 
         template <typename U>
-        constexpr expected(U&& value) : m_state{expected_state::valid}
+        constexpr expected(U&& value) : m_hasValue{true}
         {
             new (m_value) T{std::forward<U>(value)};
         }
 
-        constexpr expected(E error) : m_state{expected_state::error}, m_error{error} {}
+        constexpr expected(E error) : m_hasValue{false}, m_error{error} {}
 
         constexpr ~expected()
         {
-            if (m_state == expected_state::valid)
+            if (m_hasValue)
             {
                 value().~T();
             }
@@ -178,41 +166,41 @@ namespace oblo
     public:
         constexpr const T* operator->() const noexcept
         {
-            OBLO_ASSERT(m_state == expected_state::valid);
+            OBLO_ASSERT(has_value());
             return reinterpret_cast<const T*>(m_value);
         }
 
         constexpr T* operator->() noexcept
         {
-            OBLO_ASSERT(m_state == expected_state::valid);
+            OBLO_ASSERT(has_value());
             return reinterpret_cast<T*>(m_value);
         }
 
         constexpr const T& operator*() const noexcept
         {
-            OBLO_ASSERT(m_state == expected_state::valid);
+            OBLO_ASSERT(has_value());
             return *reinterpret_cast<const T*>(m_value);
         }
 
         constexpr T& operator*() noexcept
         {
-            OBLO_ASSERT(m_state == expected_state::valid);
+            OBLO_ASSERT(has_value());
             return *reinterpret_cast<T*>(m_value);
         }
 
         constexpr bool has_value() const noexcept
         {
-            return m_state == expected_state::valid;
+            return m_hasValue;
         }
 
         constexpr explicit operator bool() const noexcept
         {
-            return m_state == expected_state::valid;
+            return m_hasValue;
         }
 
         constexpr E error() const noexcept
         {
-            OBLO_ASSERT(m_state == expected_state::error);
+            OBLO_ASSERT(!has_value());
             return m_error;
         }
 
@@ -229,12 +217,11 @@ namespace oblo
         template <typename U>
         constexpr T value_or(U&& fallback) const noexcept
         {
-            OBLO_ASSERT(m_state != expected_state::uninitialized);
-            return m_state == expected_state::valid ? *reinterpret_cast<T*>(m_value) : std::forward<U>(fallback);
+            return m_hasValue ? *reinterpret_cast<T*>(m_value) : std::forward<U>(fallback);
         }
 
     private:
-        expected_state m_state;
+        bool m_hasValue;
         union {
             alignas(T) char m_value[sizeof(T)];
             E m_error;
