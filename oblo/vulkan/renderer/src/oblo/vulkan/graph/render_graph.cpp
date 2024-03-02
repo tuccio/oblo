@@ -334,6 +334,12 @@ namespace oblo::vk
         return m_resourcePoolId[storageIndex];
     }
 
+    u32 render_graph::find_pool_index(resource<buffer> handle) const
+    {
+        const u32 storageIndex = m_pins[handle.value].storageIndex;
+        return m_resourcePoolId[storageIndex];
+    }
+
     u32 render_graph::find_output_storage_index(std::string_view name) const
     {
         for (auto& output : m_outputs)
@@ -348,12 +354,7 @@ namespace oblo::vk
         return 0u;
     }
 
-    void render_graph::add_transient_buffer(resource<buffer> handle, const buffer& buf)
-    {
-        new (access_resource_storage(handle.value)) buffer{buf};
-    }
-
-    void render_graph::add_transient_buffer2(resource<buffer> handle, u32 poolIndex, const staging_buffer_span* upload)
+    void render_graph::add_transient_buffer(resource<buffer> handle, u32 poolIndex, const staging_buffer_span* upload)
     {
         m_transientBuffers.emplace_back(handle, poolIndex);
         const u32 storageIndex = m_pins[handle.value].storageIndex;

@@ -117,17 +117,7 @@ namespace oblo::vk
         m_graph->add_resource_transition(texture, convert_layout(usage));
     }
 
-    void runtime_builder::create(resource<buffer> buffer, const transient_buffer_initializer& initializer) const
-    {
-        const auto vkBuf = m_resourcePool->add_uniform_buffer(m_renderer->get_vulkan_context(), initializer.size);
-        [[maybe_unused]] const auto res =
-            m_renderer->get_staging_buffer().upload(initializer.data, vkBuf.buffer, vkBuf.offset);
-        OBLO_ASSERT(res, "Out of space on the staging buffer, we should flush instead");
-
-        m_graph->add_transient_buffer(buffer, vkBuf);
-    }
-
-    void runtime_builder::create2(
+    void runtime_builder::create(
         resource<buffer> buffer, const transient_buffer_initializer& initializer, flags<buffer_usage> usages) const
     {
         const auto poolIndex = m_resourcePool->add_buffer(initializer.size, convert_buffer_usage(usages));
@@ -144,7 +134,7 @@ namespace oblo::vk
             stagedDataPtr = &stagedData;
         }
 
-        m_graph->add_transient_buffer2(buffer, poolIndex, stagedDataPtr);
+        m_graph->add_transient_buffer(buffer, poolIndex, stagedDataPtr);
     }
 
     void runtime_builder::acquire(resource<texture> texture, resource_usage usage) const
@@ -166,13 +156,19 @@ namespace oblo::vk
         }
     }
 
+    void runtime_builder::acquire(resource<buffer> buffer, flags<buffer_usage> usages) const
+    {
+        const auto poolIndex = m_graph->find_pool_index(buffer);
+        m_resourcePool->add_buffer_usage(poolIndex, convert_buffer_usage(usages));
+    }
+
     resource<buffer> runtime_builder::create_dynamic_buffer(const transient_buffer_initializer& initializer,
         flags<buffer_usage> usages) const
     {
         const auto pinHandle = m_graph->allocate_dynamic_resource_pin();
 
         const resource<buffer> resource{pinHandle};
-        create2(resource, initializer, usages);
+        create(resource, initializer, usages);
 
         return resource;
     }

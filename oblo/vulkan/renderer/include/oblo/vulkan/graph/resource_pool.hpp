@@ -1,8 +1,8 @@
 #pragma once
 
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/gpu_allocator.hpp>
-#include <oblo/vulkan/monotonic_gbu_buffer.hpp>
 #include <oblo/vulkan/texture.hpp>
 
 #include <vector>
@@ -38,7 +38,6 @@ namespace oblo::vk
         void end_graph();
 
         u32 add(const image_initializer& initializer, lifetime_range range);
-        buffer add_uniform_buffer(vulkan_context& ctx, u32 size);
 
         u32 add_buffer(u32 size, VkBufferUsageFlags usage);
 
@@ -67,7 +66,6 @@ namespace oblo::vk
 
         dynamic_array<buffer_resource> m_bufferResources;
 
-        monotonic_gpu_buffer m_uniformBuffersPool;
         dynamic_array<buffer_pool> m_bufferPools;
 
         VmaAllocation m_allocation{};
