@@ -94,6 +94,8 @@ namespace oblo::vk
 
         void dispatch(const compute_pass_context& context, u32 x, u32 y, u32 z);
 
+        u32 get_subgroup_size() const;
+
     private:
         struct impl;
 
@@ -106,5 +108,12 @@ namespace oblo::vk
         VkCommandBuffer commandBuffer;
         h32<render_pipeline> pipeline;
         const render_pipeline* internalPipeline;
+    };
+
+    struct compute_pass_context
+    {
+        VkCommandBuffer commandBuffer;
+        h32<compute_pipeline> pipeline;
+        const compute_pipeline* internalPipeline;
     };
 }
