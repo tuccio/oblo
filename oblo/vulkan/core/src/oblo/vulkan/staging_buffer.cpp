@@ -342,6 +342,69 @@ namespace oblo::vk
         return true;
     }
 
+    expected<staging_buffer_span> staging_buffer::stage(std::span<const std::byte> source)
+    {
+        auto* const srcPtr = source.data();
+        const auto srcSize = narrow_cast<u32>(source.size());
+
+        const auto available = m_impl.ring.available_count();
+
+        if (available < srcSize)
+        {
+            return expected_monostate::failure;
+        }
+
+        const auto segmentedSpan = m_impl.ring.fetch(srcSize);
+
+        u32 segmentOffset{0u};
+
+        for (const auto& segment : segmentedSpan.segments)
+        {
+            if (segment.begin != segment.end)
+            {
+                const auto segmentSize = segment.end - segment.begin;
+                std::memcpy(m_impl.memoryMap + segment.begin, srcPtr + segmentOffset, segmentSize);
+
+                segmentOffset += segmentSize;
+            }
+        }
+
+        m_impl.pendingBytes += srcSize;
+
+        return staging_buffer_span{segmentedSpan};
+    }
+
+    void staging_buffer::upload(staging_buffer_span source, VkBuffer buffer, u32 bufferOffset)
+    {
+        VkBufferCopy copyRegions[2];
+        u32 regionsCount{0u};
+
+        u32 segmentOffset{0u};
+
+        for (const auto& segment : source.segments)
+        {
+            if (segment.begin != segment.end)
+            {
+                const auto segmentSize = segment.end - segment.begin;
+
+                copyRegions[regionsCount] = {
+                    .srcOffset = segment.begin,
+                    .dstOffset = bufferOffset + segmentOffset,
+                    .size = segmentSize,
+                };
+
+                segmentOffset += segmentSize;
+                ++regionsCount;
+            }
+        }
+
+        const auto nextSubmitIndex = get_next_submit_index();
+        const auto commandBuffer = m_impl.commandBuffers[nextSubmitIndex];
+
+        // TODO: Pipeline barriers?
+        vkCmdCopyBuffer(commandBuffer, m_impl.buffer, buffer, regionsCount, copyRegions);
+    }
+
     void staging_buffer::flush()
     {
         if (m_impl.pendingBytes == 0)

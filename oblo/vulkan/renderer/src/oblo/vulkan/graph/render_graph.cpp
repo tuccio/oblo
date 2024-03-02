@@ -19,6 +19,12 @@ namespace oblo::vk
         VkImageLayout transitionAfterCopy;
     };
 
+    struct render_graph::pending_upload
+    {
+        resource<buffer> target;
+        staging_buffer_span source;
+    };
+
     render_graph::render_graph() = default;
 
     render_graph::render_graph(render_graph&&) noexcept = default;
@@ -95,7 +101,8 @@ namespace oblo::vk
         m_staticPinStorageCount = u32(m_pinStorage.size());
 
         // TODO: Hardcoded max size
-        m_dynamicAllocator.init(4 << 20);
+        m_dynamicAllocator = std::make_unique<frame_allocator>();
+        m_dynamicAllocator->init(4 << 20);
 
         const init_context context{renderer};
 
@@ -117,7 +124,7 @@ namespace oblo::vk
         m_transientTextures.clear();
         m_resourcePoolId.assign(m_pinStorage.size(), ~u32{});
 
-        m_dynamicAllocator.restore_all();
+        m_dynamicAllocator->restore_all();
 
         u32 nodeIndex{0};
 
@@ -149,6 +156,17 @@ namespace oblo::vk
     {
         auto& resourceManager = renderer.get_resource_manager();
         auto& commandBuffer = renderer.get_active_command_buffer();
+
+        for (const auto [resource, poolIndex] : m_transientBuffers)
+        {
+            const auto buf = resourcePool.get_buffer(poolIndex);
+            new (access_resource_storage(resource.value)) buffer{buf};
+        }
+
+        if (!m_pendingUploads.empty())
+        {
+            flush_uploads(renderer.get_staging_buffer());
+        }
 
         for (const auto [resource, poolIndex] : m_transientTextures)
         {
@@ -238,6 +256,17 @@ namespace oblo::vk
         m_pendingCopies.clear();
     }
 
+    void render_graph::flush_uploads(staging_buffer& stagingBuffer)
+    {
+        for (const auto& upload : m_pendingUploads)
+        {
+            const auto* const b = reinterpret_cast<buffer*>(access_resource_storage(upload.target.value));
+            stagingBuffer.upload(upload.source, b->buffer, b->offset);
+        }
+
+        m_pendingUploads.clear();
+    }
+
     u32 render_graph::allocate_dynamic_resource_pin()
     {
         const auto handle = u32(m_pins.size());
@@ -245,7 +274,7 @@ namespace oblo::vk
 
         m_pins.emplace_back(storageIndex);
 
-        m_pinStorage.push_back({.ptr = m_dynamicAllocator.allocate(sizeof(u32), alignof(u32))});
+        m_pinStorage.push_back({.ptr = m_dynamicAllocator->allocate(sizeof(u32), alignof(u32))});
 
         return handle;
     }
@@ -322,5 +351,17 @@ namespace oblo::vk
     void render_graph::add_transient_buffer(resource<buffer> handle, const buffer& buf)
     {
         new (access_resource_storage(handle.value)) buffer{buf};
+    }
+
+    void render_graph::add_transient_buffer2(resource<buffer> handle, u32 poolIndex, const staging_buffer_span* upload)
+    {
+        m_transientBuffers.emplace_back(handle, poolIndex);
+        const u32 storageIndex = m_pins[handle.value].storageIndex;
+        m_resourcePoolId[storageIndex] = poolIndex;
+
+        if (upload)
+        {
+            m_pendingUploads.emplace_back(handle, *upload);
+        }
     }
 }

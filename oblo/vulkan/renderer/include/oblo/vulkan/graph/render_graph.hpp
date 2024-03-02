@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/debug.hpp>
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/type_id.hpp>
@@ -19,6 +20,7 @@ namespace oblo::vk
     class resource_manager;
     class resource_pool;
     class runtime_context;
+    class staging_buffer;
     class stateful_command_buffer;
     class topology_builder;
 
@@ -27,6 +29,7 @@ namespace oblo::vk
     struct gpu_resource;
     struct node;
     struct pin;
+    struct staging_buffer_span;
     struct texture;
 
     class render_graph
@@ -96,8 +99,10 @@ namespace oblo::vk
         u32 find_output_storage_index(std::string_view name) const;
 
         void add_transient_buffer(resource<buffer> handle, const buffer& buffer);
+        void add_transient_buffer2(resource<buffer> handle, u32 poolIndex, const staging_buffer_span* upload);
 
         void flush_copies(stateful_command_buffer& commandBuffer, resource_manager& resourceManager);
+        void flush_uploads(staging_buffer& stagingBuffer);
 
         u32 allocate_dynamic_resource_pin();
         void destroy_dynamic_pins();
@@ -108,8 +113,10 @@ namespace oblo::vk
         struct data_storage;
         struct node_transitions;
         struct texture_transition;
+        struct transient_buffer;
         struct transient_texture;
         struct pending_copy;
+        struct pending_upload;
 
         using bitset = std::bitset<128>;
 
@@ -117,11 +124,13 @@ namespace oblo::vk
 
     private:
         std::unique_ptr<std::byte[]> m_allocator;
-        frame_allocator m_dynamicAllocator;
+        std::unique_ptr<frame_allocator> m_dynamicAllocator;
         std::vector<node> m_nodes;
         std::vector<node_transitions> m_nodeTransitions;
         std::vector<texture_transition> m_textureTransitions;
         std::vector<transient_texture> m_transientTextures;
+
+        dynamic_array<transient_buffer> m_transientBuffers;
 
         std::vector<named_pin_data> m_inputs;
         std::vector<named_pin_data> m_outputs;
@@ -132,6 +141,7 @@ namespace oblo::vk
         std::vector<u32> m_resourcePoolId;
 
         std::vector<pending_copy> m_pendingCopies;
+        dynamic_array<pending_upload> m_pendingUploads;
 
         u32 m_staticPinCount{};
         u32 m_staticPinStorageCount{};
@@ -169,6 +179,12 @@ namespace oblo::vk
     struct render_graph::transient_texture
     {
         resource<texture> texture;
+        u32 poolIndex;
+    };
+
+    struct render_graph::transient_buffer
+    {
+        resource<buffer> buffer;
         u32 poolIndex;
     };
 }

@@ -14,13 +14,19 @@ namespace oblo
         valid,
     };
 
+    // A monostate to indicate failure, used as default error enum for expected.
+    enum class expected_monostate : u8
+    {
+        failure,
+    };
+
     template <typename T>
     concept trivial_type = std::is_trivial_v<T>;
 
     template <typename T>
     concept non_trivial_type = !std::is_trivial_v<T>;
 
-    template <typename T, trivial_type E>
+    template <typename T, trivial_type E = expected_monostate>
     class [[nodiscard]] expected;
 
     // A simplified version of std::expected for trivial types.

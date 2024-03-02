@@ -1,5 +1,6 @@
 #include <oblo/vulkan/graph/resource_pool.hpp>
 
+#include <oblo/core/array_size.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
@@ -30,6 +31,7 @@ namespace oblo::vk
             }
         }
     }
+
     struct resource_pool::texture_resource
     {
         image_initializer initializer;
@@ -37,6 +39,20 @@ namespace oblo::vk
         VkImage image;
         VkImageView imageView;
         VkDeviceSize size;
+    };
+
+    struct resource_pool::buffer_resource
+    {
+        u32 size;
+        VkBufferUsageFlags usage;
+        VkBuffer buffer;
+        u32 offset;
+    };
+
+    struct resource_pool::buffer_pool
+    {
+        monotonic_gpu_buffer buffer;
+        VkBufferUsageFlags usage;
     };
 
     resource_pool::resource_pool() = default;
@@ -58,6 +74,39 @@ namespace oblo::vk
             narrow_cast<u8>(properties.limits.minUniformBufferOffsetAlignment),
             bufferChunkSize);
 
+        struct buffer_pool_desc
+        {
+            VkBufferUsageFlags flags;
+            u8 alignment;
+        };
+
+        const buffer_pool_desc descs[] = {
+            {
+                .flags = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                .alignment = narrow_cast<u8>(properties.limits.minUniformBufferOffsetAlignment),
+            },
+            {
+                .flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                .alignment = narrow_cast<u8>(properties.limits.minStorageBufferOffsetAlignment),
+            },
+            {
+                .flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
+                .alignment = narrow_cast<u8>(
+                    properties.limits.minStorageBufferOffsetAlignment), // TODO: Is there a min indirect alignment?
+            },
+        };
+
+        m_bufferPools.reserve(array_size(descs));
+
+        for (const auto& desc : descs)
+        {
+            auto& pool = m_bufferPools.emplace_back();
+            pool.usage = desc.flags;
+            pool.buffer.init(desc.flags, memory_usage::gpu_only, desc.alignment, bufferChunkSize);
+        }
+
         return true;
     }
 
@@ -68,6 +117,11 @@ namespace oblo::vk
         free_last_frame_resources(ctx);
 
         m_uniformBuffersPool.shutdown(ctx);
+
+        for (auto& pool : m_bufferPools)
+        {
+            pool.buffer.shutdown(ctx);
+        }
     }
 
     void resource_pool::begin_build()
@@ -81,6 +135,11 @@ namespace oblo::vk
         m_allocation = nullptr;
 
         m_uniformBuffersPool.restore_all();
+
+        for (auto& pool : m_bufferPools)
+        {
+            pool.buffer.restore_all();
+        }
     }
 
     void resource_pool::end_build(vulkan_context& ctx)
@@ -89,6 +148,89 @@ namespace oblo::vk
         // simply free the objects from last frame
         free_last_frame_resources(ctx);
 
+        create_textures(ctx);
+        create_buffers(ctx);
+    }
+
+    void resource_pool::begin_graph()
+    {
+        m_graphBegin = u32(m_textureResources.size());
+    }
+
+    void resource_pool::end_graph() {}
+
+    u32 resource_pool::add(const image_initializer& initializer, lifetime_range range)
+    {
+        const auto id = u32(m_textureResources.size());
+        m_textureResources.emplace_back(initializer, range);
+        return id;
+    }
+
+    buffer resource_pool::add_uniform_buffer(vulkan_context& ctx, u32 size)
+    {
+        return m_uniformBuffersPool.allocate(ctx, size);
+    }
+
+    u32 resource_pool::add_buffer(u32 size, VkBufferUsageFlags usage)
+    {
+        const auto id = u32(m_textureResources.size());
+        m_bufferResources.push_back({
+            .size = size,
+            .usage = usage,
+        });
+        return id;
+    }
+
+    void resource_pool::add_usage(u32 poolIndex, VkImageUsageFlags usage)
+    {
+        m_textureResources[poolIndex].initializer.usage |= usage;
+    }
+
+    void resource_pool::add_buffer_usage(u32 poolIndex, VkBufferUsageFlags usage)
+    {
+        m_bufferResources[poolIndex].usage |= usage;
+    }
+
+    texture resource_pool::get_texture(u32 id) const
+    {
+        auto& resource = m_textureResources[id];
+
+        return {
+            .image = resource.image,
+            .view = resource.imageView,
+            .initializer = resource.initializer,
+        };
+    }
+
+    buffer resource_pool::get_buffer(u32 id) const
+    {
+        auto& resource = m_bufferResources[id];
+
+        return {
+            .buffer = resource.buffer,
+            .offset = resource.offset,
+            .size = resource.size,
+        };
+    }
+
+    void resource_pool::free_last_frame_resources(vulkan_context& ctx)
+    {
+        const auto submitIndex = ctx.get_submit_index() - 1;
+
+        for (const auto& resource : m_lastFrameTextureResources)
+        {
+            ctx.destroy_deferred(resource.image, submitIndex);
+            ctx.destroy_deferred(resource.imageView, submitIndex);
+        }
+
+        if (m_lastFrameAllocation)
+        {
+            ctx.destroy_deferred(m_lastFrameAllocation, submitIndex);
+        }
+    }
+
+    void resource_pool::create_textures(vulkan_context& ctx)
+    {
         VkDevice device{ctx.get_device()};
 
         auto& allocator = ctx.get_allocator();
@@ -170,54 +312,27 @@ namespace oblo::vk
         }
     }
 
-    void resource_pool::begin_graph()
+    void resource_pool::create_buffers(vulkan_context& ctx)
     {
-        m_graphBegin = u32(m_textureResources.size());
-    }
-
-    void resource_pool::end_graph() {}
-
-    u32 resource_pool::add(const image_initializer& initializer, lifetime_range range)
-    {
-        const auto id = u32(m_textureResources.size());
-        m_textureResources.emplace_back(initializer, range);
-        return id;
-    }
-
-    buffer resource_pool::add_uniform_buffer(vulkan_context& ctx, u32 size)
-    {
-        return m_uniformBuffersPool.allocate(ctx, size);
-    }
-
-    void resource_pool::add_usage(u32 poolIndex, VkImageUsageFlags usage)
-    {
-        m_textureResources[poolIndex].initializer.usage |= usage;
-    }
-
-    texture resource_pool::get_texture(u32 id) const
-    {
-        auto& resource = m_textureResources[id];
-
-        return {
-            .image = resource.image,
-            .view = resource.imageView,
-            .initializer = resource.initializer,
-        };
-    }
-
-    void resource_pool::free_last_frame_resources(vulkan_context& ctx)
-    {
-        const auto submitIndex = ctx.get_submit_index() - 1;
-
-        for (const auto& resource : m_lastFrameTextureResources)
+        for (auto& buffer : m_bufferResources)
         {
-            ctx.destroy_deferred(resource.image, submitIndex);
-            ctx.destroy_deferred(resource.imageView, submitIndex);
-        }
+            monotonic_gpu_buffer* poolBuffer{};
 
-        if (m_lastFrameAllocation)
-        {
-            ctx.destroy_deferred(m_lastFrameAllocation, submitIndex);
+            for (auto& pool : m_bufferPools)
+            {
+                if ((buffer.usage & pool.usage) == buffer.usage)
+                {
+                    poolBuffer = &pool.buffer;
+                    break;
+                }
+            }
+
+            OBLO_ASSERT(poolBuffer, "Couldn't find compatible pool");
+
+            const auto r = poolBuffer->allocate(ctx, buffer.size);
+
+            buffer.buffer = r.buffer;
+            buffer.offset = r.offset;
         }
     }
 }
