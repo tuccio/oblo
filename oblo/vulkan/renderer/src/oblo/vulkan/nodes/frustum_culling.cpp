@@ -58,6 +58,19 @@ namespace oblo::vk
 
         const auto pipeline = pm.get_or_create_pipeline(cullPass, {});
 
-        // pm.dispatch(pipeline, );
+        if (const auto pass = pm.begin_compute_pass(context.get_command_buffer(), pipeline))
+        {
+            const auto cullData = *context.access(outCullData);
+
+            const auto subgroupSize = pm.get_subgroup_size();
+
+            for (const auto& cullSet : cullData)
+            {
+                const auto count = cullSet.sourceData.drawCommands.drawCount;
+                pm.dispatch(*pass, round_up_multiple(count, subgroupSize), 1, 1);
+            }
+
+            pm.end_compute_pass(*pass);
+        }
     }
 }

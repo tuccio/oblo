@@ -1,6 +1,10 @@
-layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in; // TODO: Macro for subgroup size
+#version 460
 
-void main() 
+layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
+
+void main()
 {
     const uint index = gl_GlobalInvocationID.x;
+
+    // if (index > actualNumberOfDraws) { return; }
 }
