@@ -2,6 +2,9 @@
 
 #include <oblo/core/types.hpp>
 
+#include <compare>
+#include <bit>
+
 namespace oblo
 {
     namespace detail
@@ -50,17 +53,22 @@ namespace oblo
         constexpr flags& operator&=(E rhs);
         constexpr flags& operator^=(E rhs);
 
-        bool is_empty() const noexcept
+        constexpr bool is_empty() const noexcept
         {
-            m_storage == type{0};
+            return m_storage == type{0};
         }
 
-        type data() const noexcept
+        constexpr type data() const noexcept
         {
             return m_storage;
         }
 
+        constexpr void set(E e) noexcept;
+        constexpr void unset(E e) noexcept;
+
         constexpr auto operator<=>(const flags&) const = default;
+
+        constexpr E find_first() const noexcept;
 
     private:
         constexpr static type as_flag(E e) noexcept;
@@ -93,6 +101,25 @@ namespace oblo
     {
         m_storage ^= as_flag(rhs);
         return *this;
+    }
+
+    template <typename E, u32 Size>
+    constexpr void flags<E, Size>::set(E e) noexcept
+    {
+        m_storage |= as_flag(e);
+    }
+
+    template <typename E, u32 Size>
+    constexpr void flags<E, Size>::unset(E e) noexcept
+    {
+        m_storage &= ~as_flag(e);
+    }
+
+    template <typename E, u32 Size>
+    constexpr E flags<E, Size>::find_first() const noexcept
+    {
+        const auto count = u32(std::countr_zero(m_storage));
+        return static_cast<E>(count < Size ? count : Size);
     }
 
     template <typename E, u32 Size>

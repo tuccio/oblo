@@ -983,6 +983,15 @@ namespace oblo::vk
         return failure();
     }
 
+    h32<compute_pipeline> pass_manager::get_or_create_pipeline(h32<compute_pass> handle,
+        const compute_pipeline_initializer& desc)
+    {
+        // TODO
+        (void) desc;
+        (void) handle;
+        return {};
+    }
+
     void pass_manager::begin_frame()
     {
         m_impl->descriptorSetPool.begin_frame();
