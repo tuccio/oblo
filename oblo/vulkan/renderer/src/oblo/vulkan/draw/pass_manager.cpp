@@ -142,7 +142,6 @@ namespace oblo::vk
     struct compute_pass
     {
         h32<string> name;
-        u8 stagesCount{0};
 
         std::filesystem::path shaderSourcePath;
 
@@ -234,6 +233,25 @@ namespace oblo::vk
             std::vector<std::filesystem::path> systemIncludePaths;
             std::vector<std::filesystem::path> resolvedIncludes;
         };
+
+        template <typename Pass, typename Pipelines>
+        void poll_hot_reloading(VkDevice device, Pass& pass, Pipelines& pipelines)
+        {
+            if (bool expected{true}; pass.watcher->anyEvent.compare_exchange_weak(expected, false))
+            {
+                for (auto& variant : pass.variants)
+                {
+                    if (auto* const pipeline = pipelines.try_find(variant.pipeline))
+                    {
+                        // TODO: Does destruction need to be deferred?
+                        pipelines.erase(variant.pipeline);
+                        destroy_pipeline(device, *pipeline);
+                    }
+
+                    pass.variants.clear();
+                }
+            }
+        }
     }
 
     struct pass_manager::impl
@@ -692,20 +710,7 @@ namespace oblo::vk
             return {};
         }
 
-        if (bool expected{true}; renderPass->watcher->anyEvent.compare_exchange_weak(expected, false))
-        {
-            for (auto& variant : renderPass->variants)
-            {
-                if (auto* const pipeline = m_impl->renderPipelines.try_find(variant.pipeline))
-                {
-                    // TODO: Does destruction need to be deferred?
-                    m_impl->renderPipelines.erase(variant.pipeline);
-                    destroy_pipeline(m_impl->device, *pipeline);
-                }
-
-                renderPass->variants.clear();
-            }
-        }
+        poll_hot_reloading(m_impl->device, *renderPass, m_impl->renderPipelines);
 
         // TODO: We need to consider the initializer, for now we'd only end up with one variant
         u64 expectedHash{renderPassHandle.value};
@@ -1259,5 +1264,24 @@ namespace oblo::vk
                 }
             }
         }
+    }
+    expected<compute_pass_context> pass_manager::begin_compute_pass(VkCommandBuffer commandBuffer,
+        h32<compute_pipeline> pipeline) const
+    {
+        (void) commandBuffer;
+        (void) pipeline;
+        return unspecified_error{};
+    }
+
+    void pass_manager::end_compute_pass(const compute_pass_context&) {}
+
+    void pass_manager::dispatch(const compute_pass_context& context, u32 x, u32 y, u32 z)
+    {
+        vkCmdDispatch(context.commandBuffer, x, y, z);
+    }
+
+    u32 pass_manager::get_subgroup_size() const
+    {
+        return m_impl->subgroupSize;
     }
 }
