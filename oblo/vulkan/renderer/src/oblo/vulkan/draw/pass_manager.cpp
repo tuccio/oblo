@@ -55,6 +55,7 @@ namespace oblo::vk
         struct compute_pass_variant
         {
             u64 hash;
+            h32<compute_pipeline> pipeline;
         };
 
         enum resource_kind : u8
@@ -70,7 +71,7 @@ namespace oblo::vk
             u32 location;
             u32 binding;
             resource_kind kind;
-            pipeline_stages stage;
+            pipeline_stages stage2;
         };
 
         constexpr u32 combine_type_vecsize(spirv_cross::SPIRType::BaseType type, u32 vecsize)
@@ -202,6 +203,24 @@ namespace oblo::vk
             }
         }
 
+        void destroy_pipeline(VkDevice device, const compute_pipeline& variant)
+        {
+            if (const auto pipeline = variant.pipeline)
+            {
+                vkDestroyPipeline(device, pipeline, nullptr);
+            }
+
+            if (const auto pipelineLayout = variant.pipelineLayout)
+            {
+                vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+            }
+
+            if (variant.shaderModule)
+            {
+                vkDestroyShaderModule(device, variant.shaderModule, nullptr);
+            }
+        }
+
         struct includer final : shader_compiler::include_handler
         {
             explicit includer(frame_allocator& allocator) : allocator{allocator} {}
@@ -304,6 +323,7 @@ namespace oblo::vk
         h32_flat_pool_dense_map<compute_pass> computePasses;
         h32_flat_pool_dense_map<render_pass> renderPasses;
         h32_flat_pool_dense_map<render_pipeline> renderPipelines;
+        h32_flat_pool_dense_map<compute_pipeline> computePipelines;
         string_interner* interner{};
         descriptor_set_pool descriptorSetPool;
         descriptor_set_pool texturesDescriptorSetPool;
@@ -327,8 +347,9 @@ namespace oblo::vk
             const shader_compiler::options& compilerOptions,
             std::vector<u32>& spirv);
 
+        bool create_pipeline_layout(base_pipeline& newPipeline);
+
         void create_reflection(base_pipeline& newPipeline,
-            pipeline_stages stage,
             VkShaderStageFlagBits vkStage,
             std::span<const u32> spirv,
             vertex_inputs_reflection& vertexInputsReflection);
@@ -413,8 +434,56 @@ namespace oblo::vk
         return shader_compiler::create_shader_module_from_spirv(device, spirv);
     }
 
+    bool pass_manager::impl::create_pipeline_layout(base_pipeline& newPipeline)
+    {
+        struct shader_resource_sorting
+        {
+            resource_kind kind;
+            u32 binding;
+            u32 location;
+
+            static constexpr shader_resource_sorting from(const shader_resource& r)
+            {
+                return {
+                    .kind = r.kind,
+                    .binding = r.binding,
+                    .location = r.location,
+                };
+            }
+
+            constexpr auto operator<=>(const shader_resource_sorting&) const = default;
+        };
+
+        std::sort(newPipeline.resources.begin(),
+            newPipeline.resources.end(),
+            [](const shader_resource& lhs, const shader_resource& rhs)
+            { return shader_resource_sorting::from(lhs) < shader_resource_sorting::from(rhs); });
+
+        // TODO: We could merge the bindings with the same name and kind that belong to different stages, to make
+        // descriptors smaller
+
+        newPipeline.descriptorSetLayout = descriptorSetPool.get_or_add_layout(newPipeline.descriptorSetBindings);
+
+        VkDescriptorSetLayout descriptorSetLayouts[3] = {newPipeline.descriptorSetLayout};
+        u32 descriptorSetLayoutsCount{newPipeline.descriptorSetLayout != nullptr};
+
+        if (newPipeline.requiresTextures2D)
+        {
+            descriptorSetLayouts[descriptorSetLayoutsCount++] = samplersSetLayout;
+            descriptorSetLayouts[descriptorSetLayoutsCount++] = textures2DSetLayout;
+        }
+
+        // TODO: Figure out inputs
+        const VkPipelineLayoutCreateInfo pipelineLayoutInfo{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .setLayoutCount = descriptorSetLayoutsCount,
+            .pSetLayouts = descriptorSetLayouts,
+        };
+
+        return vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &newPipeline.pipelineLayout) == VK_SUCCESS;
+    }
+
     void pass_manager::impl::create_reflection(base_pipeline& newPipeline,
-        pipeline_stages stage,
         VkShaderStageFlagBits vkStage,
         std::span<const u32> spirv,
         vertex_inputs_reflection& vertexInputsReflection)
@@ -423,7 +492,7 @@ namespace oblo::vk
 
         const auto shaderResources = compiler.get_shader_resources();
 
-        if (stage == pipeline_stages::vertex)
+        if (vkStage == VK_SHADER_STAGE_VERTEX_BIT)
         {
             vertexInputsReflection.count = u32(shaderResources.stage_inputs.size());
 
@@ -487,7 +556,6 @@ namespace oblo::vk
                 .location = location,
                 .binding = binding,
                 .kind = resource_kind::storage_buffer,
-                .stage = stage,
             });
 
             newPipeline.descriptorSetBindings.push_back({
@@ -516,7 +584,6 @@ namespace oblo::vk
                 .location = location,
                 .binding = binding,
                 .kind = resource_kind::uniform_buffer,
-                .stage = stage,
             });
 
             newPipeline.descriptorSetBindings.push_back({
@@ -690,6 +757,12 @@ namespace oblo::vk
                 destroy_pipeline(device, renderPipeline);
             }
 
+            for (const auto& computePipeline : m_impl->computePipelines.values())
+            {
+                // TODO: These should be deferred instead
+                destroy_pipeline(device, computePipeline);
+            }
+
             shader_compiler::shutdown();
         }
 
@@ -844,58 +917,12 @@ namespace oblo::vk
                 .pName = "main",
             };
 
-            m_impl->create_reflection(newPipeline, pipelineStage, vkStage, spirv, vertexInputReflection);
+            m_impl->create_reflection(newPipeline, vkStage, spirv, vertexInputReflection);
 
             ++actualStagesCount;
         }
 
-        struct shader_resource_sorting
-        {
-            resource_kind kind;
-            u32 binding;
-            u32 location;
-
-            static constexpr shader_resource_sorting from(const shader_resource& r)
-            {
-                return {
-                    .kind = r.kind,
-                    .binding = r.binding,
-                    .location = r.location,
-                };
-            }
-
-            constexpr auto operator<=>(const shader_resource_sorting&) const = default;
-        };
-
-        std::sort(newPipeline.resources.begin(),
-            newPipeline.resources.end(),
-            [](const shader_resource& lhs, const shader_resource& rhs)
-            { return shader_resource_sorting::from(lhs) < shader_resource_sorting::from(rhs); });
-
-        // TODO: We could merge the bindings with the same name and kind that belong to different stages, to make
-        // descriptors smaller
-
-        newPipeline.descriptorSetLayout =
-            m_impl->descriptorSetPool.get_or_add_layout(newPipeline.descriptorSetBindings);
-
-        VkDescriptorSetLayout descriptorSetLayouts[3] = {newPipeline.descriptorSetLayout};
-        u32 descriptorSetLayoutsCount{newPipeline.descriptorSetLayout != nullptr};
-
-        if (newPipeline.requiresTextures2D)
-        {
-            descriptorSetLayouts[descriptorSetLayoutsCount++] = m_impl->samplersSetLayout;
-            descriptorSetLayouts[descriptorSetLayoutsCount++] = m_impl->textures2DSetLayout;
-        }
-
-        // TODO: Figure out inputs
-        const VkPipelineLayoutCreateInfo pipelineLayoutInfo{
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            .setLayoutCount = descriptorSetLayoutsCount,
-            .pSetLayouts = descriptorSetLayouts,
-        };
-
-        if (vkCreatePipelineLayout(m_impl->device, &pipelineLayoutInfo, nullptr, &newPipeline.pipelineLayout) !=
-            VK_SUCCESS)
+        if (!m_impl->create_pipeline_layout(newPipeline))
         {
             return failure();
         }
@@ -1029,13 +1056,111 @@ namespace oblo::vk
         return failure();
     }
 
-    h32<compute_pipeline> pass_manager::get_or_create_pipeline(h32<compute_pass> handle,
+    h32<compute_pipeline> pass_manager::get_or_create_pipeline(h32<compute_pass> computePassHandle,
         const compute_pipeline_initializer& desc)
     {
-        // TODO
-        (void) desc;
-        (void) handle;
-        return {};
+        auto* const computePass = m_impl->computePasses.try_find(computePassHandle);
+
+        if (!computePass)
+        {
+            return {};
+        }
+
+        poll_hot_reloading(m_impl->device, *computePass, m_impl->computePipelines);
+
+        const u64 definesHash = hash_defines(desc.defines);
+
+        // The whole initializer should be considered, but we only look at defines for now
+        const u64 expectedHash = hash_mix(hash_all<std::hash>(computePassHandle.value), definesHash);
+
+        if (const auto variantIt = std::find_if(computePass->variants.begin(),
+                computePass->variants.end(),
+                [expectedHash](const compute_pass_variant& variant) { return variant.hash == expectedHash; });
+            variantIt != computePass->variants.end())
+        {
+            return variantIt->pipeline;
+        }
+
+        const auto restore = m_impl->frameAllocator.make_scoped_restore();
+
+        const auto [pipelineIt, pipelineHandle] = m_impl->computePipelines.emplace();
+        OBLO_ASSERT(pipelineHandle);
+        auto& newPipeline = *pipelineIt;
+
+        newPipeline.label = m_impl->interner->c_str(computePass->name);
+
+        const auto failure = [this, &newPipeline, pipelineHandle, computePass, expectedHash]
+        {
+            destroy_pipeline(m_impl->device, newPipeline);
+            m_impl->computePipelines.erase(pipelineHandle);
+            // We push an invalid variant so we avoid trying to rebuild a failed pipeline every frame
+            computePass->variants.emplace_back().hash = expectedHash;
+            return h32<compute_pipeline>{};
+        };
+
+        std::vector<unsigned> spirv;
+        spirv.reserve(1u << 16);
+
+        vertex_inputs_reflection vertexInputReflection{};
+
+        const shader_compiler::options compilerOptions{
+            .includeHandler = &m_impl->includer,
+            .codeOptimization = WithShaderCodeOptimizations,
+        };
+
+        {
+            constexpr auto vkStage = VK_SHADER_STAGE_COMPUTE_BIT;
+
+            const auto& filePath = computePass->shaderSourcePath;
+
+            const auto shaderModule = m_impl->create_shader_module(vkStage,
+                filePath,
+                desc.defines,
+                make_debug_name(*m_impl->interner, computePass->name, filePath),
+                compilerOptions,
+                spirv);
+
+            if (!shaderModule)
+            {
+                return failure();
+            }
+
+            for (const auto& include : m_impl->includer.resolvedIncludes)
+            {
+                m_impl->fileWatcher->addWatch(include.parent_path().string(), computePass->watcher.get());
+            }
+
+            newPipeline.shaderModule = shaderModule;
+
+            m_impl->create_reflection(newPipeline, vkStage, spirv, vertexInputReflection);
+        }
+
+        if (!m_impl->create_pipeline_layout(newPipeline))
+        {
+            return failure();
+        }
+
+        const VkComputePipelineCreateInfo pipelineInfo{
+            .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+            .flags = 0,
+            .stage =
+                {
+                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                    .stage = VK_SHADER_STAGE_COMPUTE_BIT,
+                    .module = newPipeline.shaderModule,
+                    .pName = "main",
+                },
+            .layout = newPipeline.pipelineLayout,
+        };
+
+        if (vkCreateComputePipelines(m_impl->device, nullptr, 1, &pipelineInfo, nullptr, &newPipeline.pipeline) ==
+            VK_SUCCESS)
+        {
+            computePass->variants.push_back({.hash = expectedHash, .pipeline = pipelineHandle});
+            return pipelineHandle;
+        }
+
+        return failure();
     }
 
     void pass_manager::begin_frame()
@@ -1099,7 +1224,6 @@ namespace oblo::vk
 
         const render_pass_context renderPassContext{
             .commandBuffer = commandBuffer,
-            .pipeline = pipelineHandle,
             .internalPipeline = pipeline,
         };
 
@@ -1302,14 +1426,31 @@ namespace oblo::vk
         }
     }
     expected<compute_pass_context> pass_manager::begin_compute_pass(VkCommandBuffer commandBuffer,
-        h32<compute_pipeline> pipeline) const
+        h32<compute_pipeline> pipelineHandle) const
     {
-        (void) commandBuffer;
-        (void) pipeline;
-        return unspecified_error{};
+        const auto* pipeline = m_impl->computePipelines.try_find(pipelineHandle);
+
+        if (!pipeline)
+        {
+            return unspecified_error{};
+        }
+
+        const compute_pass_context computePassContext{
+            .commandBuffer = commandBuffer,
+            .internalPipeline = pipeline,
+        };
+
+        m_impl->vkCtx->begin_debug_label(commandBuffer, pipeline->label);
+
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->pipeline);
+
+        return computePassContext;
     }
 
-    void pass_manager::end_compute_pass(const compute_pass_context&) {}
+    void pass_manager::end_compute_pass(const compute_pass_context& context)
+    {
+        m_impl->vkCtx->end_debug_label(context.commandBuffer);
+    }
 
     void pass_manager::dispatch(const compute_pass_context& context, u32 x, u32 y, u32 z)
     {
