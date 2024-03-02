@@ -273,6 +273,7 @@ namespace oblo::vk
         const auto storageIndex = u32(m_pinStorage.size());
 
         m_pins.emplace_back(storageIndex);
+        m_resourcePoolId.emplace_back(~u32{});
 
         m_pinStorage.push_back({.ptr = m_dynamicAllocator->allocate(sizeof(u32), alignof(u32))});
 

@@ -21,6 +21,7 @@
 #include <oblo/vulkan/nodes/debug_draw_all.hpp>
 #include <oblo/vulkan/nodes/debug_triangle_node.hpp>
 #include <oblo/vulkan/nodes/forward_pass.hpp>
+#include <oblo/vulkan/nodes/frustum_culling.hpp>
 #include <oblo/vulkan/nodes/picking_readback.hpp>
 #include <oblo/vulkan/nodes/view_buffers_node.hpp>
 #include <oblo/vulkan/renderer.hpp>
@@ -230,6 +231,7 @@ namespace oblo
 #if 1
                     expected res =
                         topology_builder{}
+                            .add_node<frustum_culling>()
                             .add_node<forward_pass>()
                             .add_node<view_buffers_node>()
                             .add_node<picking_readback>()
@@ -245,6 +247,7 @@ namespace oblo
                             .connect_input(InPickingConfiguration, &picking_readback::inPickingConfiguration)
                             .connect(&view_buffers_node::outPerViewBindingTable, &forward_pass::inPerViewBindingTable)
                             .connect(&forward_pass::outPickingIdBuffer, &picking_readback::inPickingIdBuffer)
+                            .connect(&frustum_culling::outCullData, &forward_pass::inCullData)
                             .build();
 #else
                     expected res =

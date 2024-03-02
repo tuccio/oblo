@@ -260,6 +260,8 @@ namespace oblo::vk
 
         VkSampler samplers[1]{};
 
+        u32 subgroupSize;
+
         VkShaderModule create_shader_module(VkShaderStageFlagBits vkStage,
             const std::filesystem::path& filePath,
             std::span<const h32<string>> defines,
@@ -594,6 +596,9 @@ namespace oblo::vk
 
         auto& watcher = m_impl->fileWatcher.emplace();
         watcher.watch();
+
+        const auto subgroupProperties = vkContext.get_physical_device_subgroup_properties();
+        m_impl->subgroupSize = subgroupProperties.subgroupSize;
     }
 
     void pass_manager::shutdown(vulkan_context& vkContext)
@@ -1041,20 +1046,23 @@ namespace oblo::vk
         m_impl->texturesDescriptorSetPool.end_frame();
     }
 
-    bool pass_manager::begin_render(render_pass_context& context, const VkRenderingInfo& renderingInfo) const
+    expected<render_pass_context> pass_manager::begin_render_pass(
+        VkCommandBuffer commandBuffer, h32<render_pipeline> pipelineHandle, const VkRenderingInfo& renderingInfo) const
     {
-        const auto* pipeline = m_impl->renderPipelines.try_find(context.pipeline);
+        const auto* pipeline = m_impl->renderPipelines.try_find(pipelineHandle);
 
         if (!pipeline)
         {
-            return false;
+            return unspecified_error{};
         }
 
-        context.internalPipeline = pipeline;
+        const render_pass_context renderPassContext{
+            .commandBuffer = commandBuffer,
+            .pipeline = pipelineHandle,
+            .internalPipeline = pipeline,
+        };
 
-        const auto commandBuffer = context.commandBuffer;
-
-        m_impl->vkCtx->begin_debug_label(commandBuffer, context.internalPipeline->label);
+        m_impl->vkCtx->begin_debug_label(commandBuffer, pipeline->label);
 
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline);
         vkCmdBeginRendering(commandBuffer, &renderingInfo);
@@ -1083,10 +1091,10 @@ namespace oblo::vk
                 nullptr);
         }
 
-        return true;
+        return renderPassContext;
     }
 
-    void pass_manager::end_rendering(const render_pass_context& context)
+    void pass_manager::end_render_pass(const render_pass_context& context)
     {
         vkCmdEndRendering(context.commandBuffer);
         m_impl->vkCtx->end_debug_label(context.commandBuffer);

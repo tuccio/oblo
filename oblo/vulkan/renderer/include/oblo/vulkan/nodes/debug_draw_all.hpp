@@ -94,11 +94,6 @@ namespace oblo::vk
 
             const VkCommandBuffer commandBuffer = context.get_command_buffer();
 
-            render_pass_context renderPassContext{
-                .commandBuffer = commandBuffer,
-                .pipeline = pipeline,
-            };
-
             const VkRenderingAttachmentInfo colorAttachment{
                 .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
                 .imageView = renderTarget.view,
@@ -128,7 +123,7 @@ namespace oblo::vk
 
             setup_viewport_scissor(commandBuffer, renderWidth, renderHeight);
 
-            if (passManager.begin_render(renderPassContext, renderInfo))
+            if (const auto pass = passManager.begin_render_pass(commandBuffer, pipeline, renderInfo))
             {
                 const buffer_binding_table* bindingTables[] = {
                     context.access(inPerViewBindingTable),
@@ -136,13 +131,13 @@ namespace oblo::vk
 
                 const auto& drawRegistry = context.get_draw_registry();
 
-                passManager.draw(renderPassContext,
+                passManager.draw(*pass,
                     context.get_resource_manager(),
                     drawRegistry,
                     drawRegistry.get_draw_calls(),
                     bindingTables);
 
-                passManager.end_rendering(renderPassContext);
+                passManager.end_render_pass(*pass);
             }
         }
     };

@@ -242,6 +242,22 @@ namespace oblo::vk
         OBLO_VK_PANIC(vkQueueSubmit(m_engine->get_queue(), 1, &submitInfo, currentSubmit.fence));
     }
 
+    VkPhysicalDeviceSubgroupProperties vulkan_context::get_physical_device_subgroup_properties() const
+    {
+        VkPhysicalDeviceSubgroupProperties subgroupProperties{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES,
+        };
+
+        VkPhysicalDeviceProperties2 physicalDeviceProperties{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+            .pNext = &subgroupProperties,
+        };
+
+        vkGetPhysicalDeviceProperties2(get_physical_device(), &physicalDeviceProperties);
+
+        return subgroupProperties;
+    }
+
     void vulkan_context::destroy_immediate(VkBuffer buffer) const
     {
         vkDestroyBuffer(get_device(), buffer, get_allocator().get_allocation_callbacks());
