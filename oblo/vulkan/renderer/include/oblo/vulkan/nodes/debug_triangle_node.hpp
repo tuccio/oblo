@@ -74,11 +74,6 @@ namespace oblo::vk
 
             const VkCommandBuffer commandBuffer = context.get_command_buffer();
 
-            render_pass_context renderPassContext{
-                .commandBuffer = commandBuffer,
-                .pipeline = pipeline,
-            };
-
             const VkRenderingAttachmentInfo colorAttachment{
                 .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
                 .imageView = renderTarget.view,
@@ -97,12 +92,12 @@ namespace oblo::vk
                 .pColorAttachments = &colorAttachment,
             };
 
-            if (passManager.begin_render(renderPassContext, renderInfo))
+            if (const auto pass = passManager.begin_render_pass(commandBuffer, pipeline, renderInfo))
             {
                 setup_viewport_scissor(commandBuffer, renderWidth, renderHeight);
                 vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 
-                passManager.end_rendering(renderPassContext);
+                passManager.end_render_pass(*pass);
             }
         }
     };

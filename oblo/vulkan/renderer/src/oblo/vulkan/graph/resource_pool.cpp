@@ -162,7 +162,7 @@ namespace oblo::vk
 
     u32 resource_pool::add_buffer(u32 size, VkBufferUsageFlags usage)
     {
-        const auto id = u32(m_textureResources.size());
+        const auto id = u32(m_bufferResources.size());
         m_bufferResources.push_back({
             .size = size,
             .usage = usage,
