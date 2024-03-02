@@ -252,6 +252,46 @@ namespace oblo::vk
                 }
             }
         }
+
+        u64 hash_defines(std::span<const h32<string>> defines)
+        {
+            u64 hash{0};
+
+            // Consider defines at least for now, but order matters here, which is undesirable
+            for (const auto define : defines)
+            {
+                hash = hash_mix(hash, hash_all<std::hash>(define.value));
+            }
+
+            return hash;
+        }
+
+        struct fixed_string_buffer
+        {
+            char buffer[2048];
+            u32 length;
+
+            operator std::string_view() const noexcept
+            {
+                return {buffer, length};
+            }
+        };
+
+        fixed_string_buffer make_debug_name(
+            const string_interner& interner, h32<string> name, const std::filesystem::path& filePath)
+        {
+            fixed_string_buffer debugName;
+
+            auto const [end, size] = std::format_to_n(debugName.buffer,
+                array_size(debugName.buffer),
+                "[{}] {}",
+                interner.str(name),
+                filePath.filename().string());
+
+            debugName.length = narrow_cast<u32>(size);
+
+            return debugName;
+        };
     }
 
     struct pass_manager::impl
@@ -283,7 +323,6 @@ namespace oblo::vk
         VkShaderModule create_shader_module(VkShaderStageFlagBits vkStage,
             const std::filesystem::path& filePath,
             std::span<const h32<string>> defines,
-            u32 requiredDefinesLength,
             std::string_view debugName,
             const shader_compiler::options& compilerOptions,
             std::vector<u32>& spirv);
@@ -298,47 +337,64 @@ namespace oblo::vk
     VkShaderModule pass_manager::impl::create_shader_module(VkShaderStageFlagBits vkStage,
         const std::filesystem::path& filePath,
         std::span<const h32<string>> defines,
-        u32 requiredDefinesLength,
         std::string_view debugName,
         const shader_compiler::options& compilerOptions,
         std::vector<u32>& spirv)
     {
-        auto sourceCode = load_text_file_into_memory(frameAllocator, filePath);
+        const auto sourceCode = load_text_file_into_memory(frameAllocator, filePath);
 
-        if (requiredDefinesLength > 0)
+        u32 requiredDefinesLength{0};
+
+        char builtInDefinesBuffer[64];
+
+        auto* const builtInEnd = std::format_to(builtInDefinesBuffer,
+            R"(#define OBLO_SUBGROUP_SIZE {}
+)",
+            subgroupSize);
+
+        const u64 builtInDefinesLength = u64(builtInEnd - builtInDefinesBuffer);
+
+        OBLO_ASSERT(builtInEnd - builtInDefinesBuffer <= array_size(builtInDefinesBuffer));
+
+        for (const h32 define : defines)
         {
-            constexpr std::string_view lineDirective{"#line 0\n"};
+            constexpr auto fixedSize = std::string_view{"#define \n"}.size();
+            requiredDefinesLength += u32(fixedSize + interner->str(define).size());
+        }
 
-            const auto firstLineEnd = std::find(sourceCode.begin(), sourceCode.end(), '\n');
-            const auto firstLineLen = 1 + (firstLineEnd - sourceCode.begin());
+        constexpr std::string_view lineDirective{"#line 0\n"};
 
-            auto sourceWithDefines = allocate_n_span<char>(frameAllocator,
-                sourceCode.size() + requiredDefinesLength + firstLineLen + lineDirective.size());
+        const auto firstLineEnd = std::find(sourceCode.begin(), sourceCode.end(), '\n');
+        const auto firstLineLen = 1 + (firstLineEnd - sourceCode.begin());
 
-            auto it = sourceWithDefines.begin();
+        auto sourceWithDefines = allocate_n_span<char>(frameAllocator,
+            sourceCode.size() + builtInDefinesLength + requiredDefinesLength + firstLineLen + lineDirective.size());
 
-            // We copy the first line first, because it must contain the #version directive
-            it = std::copy(sourceCode.begin(), firstLineEnd, it);
+        auto it = sourceWithDefines.begin();
+
+        // We copy the first line first, because it must contain the #version directive
+        it = std::copy(sourceCode.begin(), firstLineEnd, it);
+        *it = '\n';
+        ++it;
+
+        it = std::copy(builtInDefinesBuffer, builtInEnd, it);
+
+        for (const auto define : defines)
+        {
+            constexpr std::string_view directive{"#define "};
+            it = std::copy(directive.begin(), directive.end(), it);
+
+            const auto str = interner->str(define);
+            it = std::copy(str.begin(), str.end(), it);
+
             *it = '\n';
             ++it;
-
-            for (const auto define : defines)
-            {
-                constexpr std::string_view directive{"#define "};
-                it = std::copy(directive.begin(), directive.end(), it);
-
-                const auto str = interner->str(define);
-                it = std::copy(str.begin(), str.end(), it);
-
-                *it = '\n';
-                ++it;
-            }
-
-            it = std::copy(lineDirective.begin(), lineDirective.end(), it);
-
-            const auto end = std::copy(firstLineEnd, sourceCode.end(), it);
-            sourceCode = sourceWithDefines.subspan(0, end - sourceWithDefines.begin());
         }
+
+        it = std::copy(lineDirective.begin(), lineDirective.end(), it);
+
+        const auto end = std::copy(firstLineEnd, sourceCode.end(), it);
+        const auto processedSourceCode = sourceWithDefines.subspan(0, end - sourceWithDefines.begin());
 
         spirv.clear();
 
@@ -346,7 +402,7 @@ namespace oblo::vk
         includer.resolvedIncludes.clear();
 
         if (!shader_compiler::compile_glsl_to_spirv(debugName,
-                {sourceCode.data(), sourceCode.size()},
+                {processedSourceCode.data(), processedSourceCode.size()},
                 vkStage,
                 spirv,
                 compilerOptions))
@@ -712,19 +768,10 @@ namespace oblo::vk
 
         poll_hot_reloading(m_impl->device, *renderPass, m_impl->renderPipelines);
 
-        // TODO: We need to consider the initializer, for now we'd only end up with one variant
-        u64 expectedHash{renderPassHandle.value};
+        const u64 definesHash = hash_defines(desc.defines);
 
-        u32 requiredDefinesLength{0};
-
-        // Consider defines at least for now, but order matters here, which is undesirable
-        for (const auto define : desc.defines)
-        {
-            constexpr auto fixedSize = std::string_view{"#define \n"}.size();
-            requiredDefinesLength = u32(fixedSize + m_impl->interner->str(define).size());
-
-            expectedHash = hash_mix(expectedHash, hash_all<std::hash>(define.value));
-        }
+        // The whole initializer should be considered, but we only look at defines for now
+        const u64 expectedHash = hash_mix(hash_all<std::hash>(renderPassHandle.value), definesHash);
 
         if (const auto variantIt = std::find_if(renderPass->variants.begin(),
                 renderPass->variants.end(),
@@ -746,7 +793,7 @@ namespace oblo::vk
         {
             destroy_pipeline(m_impl->device, newPipeline);
             m_impl->renderPipelines.erase(pipelineHandle);
-            // We push an invalid handle so we avoid trying to rebuild a failed pipeline every frame
+            // We push an invalid variant so we avoid trying to rebuild a failed pipeline every frame
             renderPass->variants.emplace_back().hash = expectedHash;
             return h32<render_pipeline>{};
         };
@@ -755,17 +802,7 @@ namespace oblo::vk
         u32 actualStagesCount{0};
 
         std::vector<unsigned> spirv;
-        spirv.reserve(4096);
-
-        auto makeDebugName =
-            [debugName = std::string{}, this](const render_pass& pass, const std::filesystem::path& filePath) mutable
-        {
-            debugName = "[";
-            debugName += m_impl->interner->str(pass.name);
-            debugName += "] ";
-            debugName += filePath.filename().string();
-            return std::string_view{debugName};
-        };
+        spirv.reserve(1u << 16);
 
         vertex_inputs_reflection vertexInputReflection{};
 
@@ -784,8 +821,7 @@ namespace oblo::vk
             const auto shaderModule = m_impl->create_shader_module(vkStage,
                 filePath,
                 desc.defines,
-                requiredDefinesLength,
-                makeDebugName(*renderPass, filePath),
+                make_debug_name(*m_impl->interner, renderPass->name, filePath),
                 compilerOptions,
                 spirv);
 
