@@ -69,9 +69,7 @@ namespace oblo::vk
         void create(
             resource<texture> texture, const transient_texture_initializer& initializer, resource_usage usage) const;
 
-        void create(resource<buffer> buffer, const transient_buffer_initializer& initializer) const;
-
-        void create2(
+        void create(
             resource<buffer> buffer, const transient_buffer_initializer& initializer, flags<buffer_usage> usages) const;
 
         void acquire(resource<texture> texture, resource_usage usage) const;
