@@ -633,7 +633,7 @@ namespace oblo
     template <typename T>
     bool dynamic_array<T>::empty() const
     {
-        return m_size != 0;
+        return m_size == 0;
     }
 
     template <typename T>

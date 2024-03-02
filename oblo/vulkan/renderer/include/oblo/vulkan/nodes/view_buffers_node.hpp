@@ -23,7 +23,8 @@ namespace oblo::vk
                 {
                     .size = sizeof(camera_buffer),
                     .data = std::as_bytes(std::span{&cameraBuffer, 1}),
-                });
+                },
+                buffer_usage::uniform);
         }
 
         void execute(const runtime_context& context)

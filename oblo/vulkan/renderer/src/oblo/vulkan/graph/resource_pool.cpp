@@ -3,6 +3,7 @@
 #include <oblo/core/array_size.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/error.hpp>
+#include <oblo/vulkan/monotonic_gbu_buffer.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
 
 namespace oblo::vk
@@ -69,11 +70,6 @@ namespace oblo::vk
 
         constexpr u32 bufferChunkSize{1u << 20};
 
-        m_uniformBuffersPool.init(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            memory_usage::gpu_only,
-            narrow_cast<u8>(properties.limits.minUniformBufferOffsetAlignment),
-            bufferChunkSize);
-
         struct buffer_pool_desc
         {
             VkBufferUsageFlags flags;
@@ -116,8 +112,6 @@ namespace oblo::vk
         std::swap(m_lastFrameTextureResources, m_textureResources);
         free_last_frame_resources(ctx);
 
-        m_uniformBuffersPool.shutdown(ctx);
-
         for (auto& pool : m_bufferPools)
         {
             pool.buffer.shutdown(ctx);
@@ -134,12 +128,12 @@ namespace oblo::vk
         m_lastFrameAllocation = m_allocation;
         m_allocation = nullptr;
 
-        m_uniformBuffersPool.restore_all();
-
         for (auto& pool : m_bufferPools)
         {
             pool.buffer.restore_all();
         }
+
+        m_bufferResources.clear();
     }
 
     void resource_pool::end_build(vulkan_context& ctx)
@@ -164,11 +158,6 @@ namespace oblo::vk
         const auto id = u32(m_textureResources.size());
         m_textureResources.emplace_back(initializer, range);
         return id;
-    }
-
-    buffer resource_pool::add_uniform_buffer(vulkan_context& ctx, u32 size)
-    {
-        return m_uniformBuffersPool.allocate(ctx, size);
     }
 
     u32 resource_pool::add_buffer(u32 size, VkBufferUsageFlags usage)
