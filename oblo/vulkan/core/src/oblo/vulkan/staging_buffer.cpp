@@ -351,7 +351,7 @@ namespace oblo::vk
 
         if (available < srcSize)
         {
-            return expected_monostate::failure;
+            return expected_monostate{};
         }
 
         const auto segmentedSpan = m_impl.ring.fetch(srcSize);
