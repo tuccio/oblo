@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/expected.hpp>
 #include <oblo/core/handle.hpp>
 
 #include <vulkan/vulkan.h>
@@ -43,6 +44,7 @@ namespace oblo::vk
 
     enum class pipeline_stages : u8;
 
+    struct compute_pass_context;
     struct render_pass_context;
 
     class pass_manager
@@ -74,14 +76,23 @@ namespace oblo::vk
         void begin_frame();
         void end_frame();
 
-        [[nodiscard]] bool begin_render(render_pass_context& context, const VkRenderingInfo& renderingInfo) const;
-        void end_rendering(const render_pass_context& context);
+        [[nodiscard]] expected<render_pass_context> begin_render_pass(
+            VkCommandBuffer commandBuffer, h32<render_pipeline> pipeline, const VkRenderingInfo& renderingInfo) const;
+
+        void end_render_pass(const render_pass_context& context);
 
         void draw(const render_pass_context& context,
             const resource_manager& resourceManager,
             const draw_registry& drawRegistry,
             std::span<const batch_draw_data> drawCalls,
             std::span<const buffer_binding_table* const> bindingTables = {});
+
+        expected<compute_pass_context> begin_compute_pass(VkCommandBuffer commandBuffer,
+            h32<compute_pipeline> pipeline) const;
+
+        void end_compute_pass(const compute_pass_context& context);
+
+        void dispatch(const compute_pass_context& context, u32 x, u32 y, u32 z);
 
     private:
         struct impl;

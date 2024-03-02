@@ -3,6 +3,8 @@
 #include <oblo/vulkan/draw/buffer_binding_table.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 
+#include <span>
+
 namespace oblo
 {
     struct string;
@@ -16,6 +18,7 @@ namespace oblo::vk
     class runtime_context;
 
     struct buffer;
+    struct frustum_culling_data;
     struct texture;
     struct picking_configuration;
     struct render_pass;
@@ -26,6 +29,8 @@ namespace oblo::vk
 
         data<vec2u> inResolution;
         data<buffer_binding_table> inPerViewBindingTable;
+        data<std::span<frustum_culling_data>> inCullData;
+
         resource<texture> outRenderTarget;
         resource<texture> outPickingIdBuffer;
         resource<texture> outDepthBuffer;

@@ -7,8 +7,8 @@
 
 namespace oblo
 {
-    // A monostate to indicate failure, used as default error type for expected.
-    struct expected_monostate
+    // A tag that indicates failure, used as default error type for expected.
+    struct unspecified_error
     {
     };
 
@@ -18,7 +18,7 @@ namespace oblo
     template <typename T>
     concept non_trivial_type = !std::is_trivial_v<T>;
 
-    template <typename T, trivial_type E = expected_monostate>
+    template <typename T, trivial_type E = unspecified_error>
     class [[nodiscard]] expected;
 
     // A simplified version of std::expected for trivial types.

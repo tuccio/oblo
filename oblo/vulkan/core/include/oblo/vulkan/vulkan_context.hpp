@@ -41,6 +41,8 @@ namespace oblo::vk
         VkDevice get_device() const;
         VkPhysicalDevice get_physical_device() const;
 
+        VkPhysicalDeviceSubgroupProperties get_physical_device_subgroup_properties() const;
+
         single_queue_engine& get_engine() const;
         gpu_allocator& get_allocator() const;
         resource_manager& get_resource_manager() const;
