@@ -216,6 +216,7 @@ namespace oblo::vk
 
         if (!it->meshes->allocate_meshes(meshEntry, outHandle))
         {
+            OBLO_ASSERT(false, "Failed to allocate mesh");
             return {};
         }
 

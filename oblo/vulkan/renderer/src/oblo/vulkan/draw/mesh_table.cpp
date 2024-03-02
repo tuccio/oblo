@@ -264,7 +264,10 @@ namespace oblo::vk
 
         const auto newVertexEnd = m_firstFreeVertex + numVertices;
         const auto newIndexEnd = m_firstFreeIndex + numIndices;
-        const auto newMeshesEnd = m_firstFreeMesh + meshes.size();
+
+        // If we have no mesh data to attach, we can ignore allocations for m_meshDataTable
+        const u32 meshDataRow = m_meshDataTable.rows_count() == 0 ? 0 : 1;
+        const auto newMeshesEnd = m_firstFreeMesh + meshDataRow * meshes.size();
 
         if (newVertexEnd > m_vertexTable.rows_count() || newMeshesEnd > m_meshDataTable.rows_count() ||
             newIndexEnd > m_totalIndices)
@@ -290,7 +293,7 @@ namespace oblo::vk
             {
                 m_firstFreeVertex += meshVertices;
                 m_firstFreeIndex += meshIndices;
-                ++m_firstFreeMesh;
+                m_firstFreeMesh += meshDataRow;
                 *outIt = key;
             }
 
