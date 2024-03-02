@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/expected.hpp>
 #include <oblo/core/ring_buffer_tracker.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/gpu_allocator.hpp>
@@ -11,6 +12,10 @@ namespace oblo::vk
 {
     class single_queue_engine;
     class stateful_command_buffer;
+
+    struct staging_buffer_span : ring_buffer_tracker<u32>::segmented_span
+    {
+    };
 
     class staging_buffer
     {
@@ -41,6 +46,10 @@ namespace oblo::vk
             VkExtent3D imageExtent);
 
         bool download(VkBuffer buffer, u32 bufferOffset, std::span<std::byte> destination);
+
+        expected<staging_buffer_span> stage(std::span<const std::byte> source);
+
+        void upload(staging_buffer_span source, VkBuffer buffer, u32 bufferOffset);
 
         void flush();
 

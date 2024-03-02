@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/flags.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 
@@ -20,7 +21,8 @@ namespace oblo::vk
     struct buffer;
     struct texture;
 
-    enum class resource_usage
+    // TODO: Rename to texture_usage
+    enum class resource_usage : u8
     {
         render_target_write,
         depth_stencil_read,
@@ -28,6 +30,14 @@ namespace oblo::vk
         shader_read,
         transfer_source,
         transfer_destination,
+    };
+
+    enum class buffer_usage : u8
+    {
+        storage,
+        uniform,
+        indirect,
+        enum_max,
     };
 
     struct transient_texture_initializer
@@ -61,9 +71,15 @@ namespace oblo::vk
 
         void create(resource<buffer> buffer, const transient_buffer_initializer& initializer) const;
 
+        void create2(
+            resource<buffer> buffer, const transient_buffer_initializer& initializer, flags<buffer_usage> usages) const;
+
         void acquire(resource<texture> texture, resource_usage usage) const;
 
-        resource<buffer> create_dynamic_buffer(const transient_buffer_initializer& initializer) const;
+        void acquire(resource<buffer> buffer, flags<buffer_usage> usages) const;
+
+        resource<buffer> create_dynamic_buffer(const transient_buffer_initializer& initializer,
+            flags<buffer_usage> usages) const;
 
         template <typename T>
         T& access(data<T> data) const

@@ -43,12 +43,10 @@ namespace oblo::vk
 
             const auto indicesBufferSize = u32(drawCount * sizeof(u32));
 
-#error "Check todo"
             cullData[i] = {
-                // TODO: This creates a uniform buffer, we want draw commands
-                .drawCallBuffer = builder.create_dynamic_buffer({.size = drawBufferSize}),
-                // TODO: This creates a uniform buffer, we want ssbo
-                .preCullingIndicesBuffer = builder.create_dynamic_buffer({.size = indicesBufferSize}),
+                .drawCallBuffer = builder.create_dynamic_buffer({.size = drawBufferSize}, buffer_usage::storage),
+                .preCullingIndicesBuffer =
+                    builder.create_dynamic_buffer({.size = indicesBufferSize}, buffer_usage::storage),
                 .sourceData = draw,
             };
         }
