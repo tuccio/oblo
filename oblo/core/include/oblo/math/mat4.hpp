@@ -39,7 +39,7 @@ namespace oblo
 
                 for (u32 k = 0; k < 4; ++k)
                 {
-                    d += lhs[i][k] * rhs[k][i];
+                    d += lhs[i][k] * rhs[k][j];
                 }
 
                 r[i][j] = d;
