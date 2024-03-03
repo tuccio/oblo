@@ -74,8 +74,8 @@ aabb transform_aabb(in aabb box, in mat4 m)
     corners[7] = vec3(box.max.x, box.max.y, box.max.z);
 
     aabb res;
-    res.min = vec3(make_positive_infinity());
-    res.max = vec3(make_negative_infinity());
+    res.min = vec3(float_positive_infinity());
+    res.max = vec3(float_negative_infinity());
 
     for (uint i = 0; i < 8; ++i)
     {
