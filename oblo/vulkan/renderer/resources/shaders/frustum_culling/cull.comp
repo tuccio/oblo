@@ -4,14 +4,11 @@
 #extension GL_EXT_buffer_reference : require
 #extension GL_ARB_gpu_shader_int64 : require
 
-#extension GL_EXT_debug_printf : enable
-
 #include <renderer/camera>
 #include <renderer/intersection>
 #include <renderer/meshes>
 
 layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
-
 
 struct vk_draw_indirect_command
 {
@@ -70,23 +67,13 @@ void main()
     const mesh_table table = get_mesh_table(meshHandle);
     const uint meshIndex = get_mesh_index(meshHandle);
 
-    // const aabb box = get_mesh_aabb(table, meshIndex);
-
-    if (index == 0)
-    {
-        debugPrintfEXT("Hi!\n");
-        // debugPrintfEXT("Mesh index %u\n", meshIndex);
-    }
-
-    aabb box;
-    box.min = vec3(-5);
-    box.max = vec3(5);
+    const aabb box = get_mesh_aabb(table, meshIndex);
 
     draw_command_t drawCmd = inDrawCalls[index];
 
     frustum f = g_Camera.frustum;
 
-    // drawCmd.instanceCount = intersects_or_contains(f, box) ? 1 : 0;
+    drawCmd.instanceCount = intersects_or_contains(f, box) ? 1 : 0;
 
     outDrawCalls[index] = drawCmd;
 }
