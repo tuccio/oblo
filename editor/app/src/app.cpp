@@ -70,8 +70,9 @@ namespace oblo::editor
         };
 
         constexpr const char* DeviceExtensions[] = {
-            VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
             VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
+            VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
+            VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME, // This is only needed for debug printf
         };
     }
 

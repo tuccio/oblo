@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/math/frustum.hpp>
 #include <oblo/math/mat4.hpp>
 
 namespace oblo::vk
@@ -9,5 +10,6 @@ namespace oblo::vk
         mat4 view;
         mat4 projection;
         mat4 viewProjection;
+        frustum frustum;
     };
 }

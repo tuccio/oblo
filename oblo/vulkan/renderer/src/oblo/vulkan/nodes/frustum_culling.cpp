@@ -87,6 +87,11 @@ namespace oblo::vk
         usize nextIndex = 0;
 
         auto& interner = context.get_string_interner();
+        const auto& drawRegistry = context.get_draw_registry();
+
+        const auto cullingConfigName = interner.get_or_add("b_CullingConfig");
+        const auto inDrawCallsBufferName = interner.get_or_add("b_InDrawCallsBuffer");
+        const auto outDrawCallsBufferName = interner.get_or_add("b_OutDrawCallsBuffer");
 
         buffer_binding_table bindingTable;
 
@@ -112,22 +117,33 @@ namespace oblo::vk
                     const buffer configBuffer = context.access(cullSet.configBuffer);
                     const buffer outDrawCallsBuffer = context.access(cullSet.drawCallBuffer);
 
-                    bindingTable.emplace(interner.get_or_add("CullingConfigBuffer"), configBuffer);
+                    bindingTable.emplace(cullingConfigName, configBuffer);
 
                     const auto& drawCommands = cullSet.sourceData.drawCommands;
 
-                    bindingTable.emplace(interner.get_or_add("b_InDrawCallsBuffer"),
+                    bindingTable.emplace(inDrawCallsBufferName,
                         buffer{
                             .buffer = drawCommands.buffer,
                             .offset = u32(drawCommands.bufferOffset),
                             .size = u32(drawCommands.bufferSize),
                         });
 
-                    bindingTable.emplace(interner.get_or_add("b_OutDrawCallsBuffer"), outDrawCallsBuffer);
+                    bindingTable.emplace(outDrawCallsBufferName, outDrawCallsBuffer);
 
                     const u32 count = cullSet.sourceData.drawCommands.drawCount;
 
-                    const buffer_binding_table* bindingTables[] = {&bindingTable};
+                    const buffer_binding_table* bindingTables[] = {
+                        context.access(inPerViewBindingTable),
+                        &bindingTable,
+                    };
+
+                    for (u32 i = 0; i < cullSet.sourceData.instanceBuffers.count; ++i)
+                    {
+                        const auto binding = cullSet.sourceData.instanceBuffers.bindings[i];
+                        const auto name = drawRegistry.get_name(binding);
+
+                        bindingTable.emplace(name, cullSet.sourceData.instanceBuffers.buffers[i]);
+                    }
 
                     pm.dispatch(*pass, round_up_multiple(count, subgroupSize), 1, 1, bindingTables);
                 }

@@ -10,7 +10,7 @@ class ObloConanRecipe(ConanFile):
         self.requires("cxxopts/2.2.1")
         self.requires("efsw/1.3.1")
         self.requires("glew/2.1.0")
-        self.requires("glslang/8.13.3559")
+        self.requires("glslang/11.7.0")
         self.requires("gtest/1.10.0")
         self.requires("ktx/4.0.0")
         self.requires("imgui/1.89.9-docking")
@@ -37,6 +37,12 @@ class ObloConanRecipe(ConanFile):
 
         stb = self.options["stb/*"]
         stb.with_deprecated = False
+
+        glslang = self.options["glslang/*"]
+        glslang.enable_optimizer = False
+        glslang.spv_remapper = False
+        glslang.hlsl = False
+        glslang.build_executables = False
 
     def generate(self):
         imgui = self.dependencies["imgui"]

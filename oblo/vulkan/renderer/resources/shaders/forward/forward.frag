@@ -4,6 +4,7 @@
 #extension GL_EXT_nonuniform_qualifier : require
 
 #include <renderer/textures>
+#include <renderer/volumes>
 
 layout(location = 0) in vec2 in_UV0;
 layout(location = 1) flat in uint in_InstanceId;

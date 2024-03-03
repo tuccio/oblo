@@ -320,6 +320,11 @@ namespace oblo::vk
         return m_vertexTable.element_sizes();
     }
 
+    std::span<const h32<buffer>> mesh_table::mesh_buffers() const
+    {
+        return m_meshDataTable.buffers();
+    }
+
     i32 mesh_table::find_vertex_attribute(h32<string> name) const
     {
         return m_vertexTable.find(name);
