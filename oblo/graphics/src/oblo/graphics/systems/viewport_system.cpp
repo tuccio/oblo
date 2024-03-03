@@ -346,7 +346,8 @@ namespace oblo
 
                 if (auto* const cameraBuffer = graph->find_input<camera_buffer>(InCamera))
                 {
-                    const mat4 view = inverse(transform.value);
+                    // TODO: Deal with errors, also transposing would be enough here most likely
+                    const mat4 view = *inverse(transform.value);
 
                     const f32 ratio = f32(viewport.height) / viewport.width;
                     const auto proj = make_perspective_matrix(camera.fovy, ratio, camera.near, camera.far);
