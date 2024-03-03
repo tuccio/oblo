@@ -2,7 +2,7 @@
 
 #include <oblo/core/types.hpp>
 
-#include <cmath>
+#include <cfloat>
 
 namespace oblo
 {
