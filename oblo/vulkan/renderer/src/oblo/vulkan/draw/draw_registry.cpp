@@ -94,7 +94,7 @@ namespace oblo::vk
 
         const mesh_attribute_description meshData[] = {
             {
-                .name = interner.get_or_add("g_MeshAABB"),
+                .name = interner.get_or_add("b_MeshAABBs"),
                 .elementSize = sizeof(gpu_aabb),
             },
         };
@@ -158,7 +158,8 @@ namespace oblo::vk
             narrow_cast<u8>(properties.limits.minStorageBufferOffsetAlignment),
             bufferChunkSize);
 
-        m_drawCallsBuffer.init(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
+        m_drawCallsBuffer.init(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
+                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, // TODO: Probably move this somewhere else
             memory_usage::gpu_only,
             alignof(VkDrawIndexedIndirectCommand),
             bufferChunkSize);

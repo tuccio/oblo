@@ -68,6 +68,8 @@ namespace oblo::vk
         std::span<const h32<buffer>> vertex_attribute_buffers() const;
         std::span<const u32> vertex_attribute_element_sizes() const;
 
+        std::span<const h32<buffer>> mesh_buffers() const;
+
         u32 vertex_count() const;
         u32 index_count() const;
         u32 meshes_count() const;

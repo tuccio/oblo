@@ -1,6 +1,7 @@
 #include <oblo/sandbox/sandbox_app.hpp>
 
 #include <oblo/core/array_size.hpp>
+#include <oblo/core/log.hpp>
 #include <oblo/core/small_vector.hpp>
 #include <oblo/vulkan/destroy_device_objects.hpp>
 #include <oblo/vulkan/error.hpp>
@@ -16,13 +17,32 @@ namespace oblo::vk
 {
     namespace
     {
-        VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
-            [[maybe_unused]] VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-            [[maybe_unused]] VkDebugUtilsMessageTypeFlagsEXT messageType,
+        VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+            VkDebugUtilsMessageTypeFlagsEXT messageType,
             const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
             [[maybe_unused]] void* pUserData)
         {
-            fprintf(stderr, "[Vulkan Validation] (%x) %s\n", messageType, pCallbackData->pMessage);
+            log::severity severity = log::severity::debug;
+
+            switch (messageSeverity)
+            {
+            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
+                severity = log::severity::info;
+                break;
+
+            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
+                severity = log::severity::warn;
+                break;
+
+            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
+                severity = log::severity::error;
+                break;
+
+            default:
+                break;
+            }
+
+            log::generic(severity, "[Vulkan] (0x{:x}) {}", messageType, pCallbackData->pMessage);
             return VK_FALSE;
         }
     }
@@ -335,6 +355,7 @@ namespace oblo::vk
         if (m_config.vkUseValidationLayers)
         {
             layers.emplace_back("VK_LAYER_KHRONOS_validation");
+            extensions.emplace_back(VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
         }
 
         extensions.insert(extensions.end(), instanceExtensions.begin(), instanceExtensions.end());

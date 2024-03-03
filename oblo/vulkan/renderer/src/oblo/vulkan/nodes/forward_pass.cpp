@@ -73,6 +73,11 @@ namespace oblo::vk
                 },
                 resource_usage::render_target_write);
         }
+
+        for (const auto& cullData : builder.access(inCullData))
+        {
+            builder.acquire(cullData.drawCallBuffer, buffer_usage::indirect);
+        }
     }
 
     void forward_pass::execute(const runtime_context& context)

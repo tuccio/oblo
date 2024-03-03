@@ -31,7 +31,7 @@ namespace oblo
         {
             FILE* file;
 
-            // TODO: Should avoid transcoding and possibily allocating with path::string()
+            // TODO: Should avoid transcoding and possibly allocating with path::string()
             if (fopen_s(&file, path.string().c_str(), mode) != 0)
             {
                 return {};
