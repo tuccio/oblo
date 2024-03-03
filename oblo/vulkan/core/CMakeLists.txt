@@ -10,5 +10,5 @@ target_link_libraries(
     vulkan-memory-allocator::vulkan-memory-allocator
     glslang::glslang
     glslang::SPIRV
-    # spirv-tools::spirv-tools
+    spirv-tools::spirv-tools
 )
