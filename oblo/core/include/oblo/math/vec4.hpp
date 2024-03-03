@@ -24,6 +24,8 @@ namespace oblo
         }
 
         inline vec4& operator+=(const vec4& rhs) noexcept;
+
+        static constexpr vec4 splat(f32 v);
     };
 
     constexpr vec4 operator-(const vec4& lhs) noexcept
@@ -119,6 +121,11 @@ namespace oblo
     inline vec4& vec4::operator+=(const vec4& rhs) noexcept
     {
         return *this = *this + rhs;
+    }
+
+    inline constexpr vec4 vec4::splat(f32 v)
+    {
+        return {.x = v, .y = v, .z = v, .w = v};
     }
 
     template <>
