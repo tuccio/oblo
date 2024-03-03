@@ -1,7 +1,8 @@
 #pragma once
 
-#include <cmath>
+#include <oblo/core/expected.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/math/constants.hpp>
 #include <oblo/math/vec4.hpp>
 
 namespace oblo
@@ -48,6 +49,18 @@ namespace oblo
         return r;
     }
 
+    constexpr vec4 operator*(const mat4& lhs, const vec4& rhs)
+    {
+        vec4 r;
+
+        for (u32 i = 0; i < 4; ++i)
+        {
+            r[i] = dot(lhs.rows[i], rhs);
+        }
+
+        return r;
+    }
+
     constexpr mat4 operator*(const mat4& lhs, const f32 rhs)
     {
         mat4 r;
@@ -80,7 +93,7 @@ namespace oblo
         return r;
     }
 
-    constexpr mat4 inverse(const mat4& m, f32* outDeterminant = nullptr)
+    constexpr expected<mat4> inverse(const mat4& m, f32* outDeterminant = nullptr)
     {
         mat4 inv;
 
@@ -132,10 +145,14 @@ namespace oblo
         inv[3][3] = m[0][0] * m[1][1] * m[2][2] - m[0][0] * m[1][2] * m[2][1] - m[1][0] * m[0][1] * m[2][2] +
             m[1][0] * m[0][2] * m[2][1] + m[2][0] * m[0][1] * m[1][2] - m[2][0] * m[0][2] * m[1][1];
 
-        float det = m[0][0] * inv[0][0] + m[0][1] * inv[1][0] + m[0][2] * inv[2][0] + m[0][3] * inv[3][0];
-        OBLO_ASSERT(det != 0);
+        const f32 det = m[0][0] * inv[0][0] + m[0][1] * inv[1][0] + m[0][2] * inv[2][0] + m[0][3] * inv[3][0];
 
-        float invDet = 1.f / det;
+        if (det <= epsilon && det >= -epsilon)
+        {
+            return unspecified_error{};
+        }
+
+        const f32 invDet = 1.f / det;
 
         if (outDeterminant)
         {
