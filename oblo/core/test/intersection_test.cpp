@@ -1,6 +1,9 @@
 #include <gtest/gtest.h>
 
+#include <oblo/math/frustum.hpp>
+#include <oblo/math/frustum_intersection.hpp>
 #include <oblo/math/ray_intersection.hpp>
+#include <oblo/math/view_projection.hpp>
 
 #include <iterator>
 #include <random>
@@ -113,5 +116,48 @@ namespace oblo
 
             ++i;
         }
+    }
+
+    TEST(frustum_intersection, frustum_aabb_intersection)
+    {
+        const auto view = make_look_at(vec3{}, vec3{.y = 1.f}, vec3{.z = 1.f});
+        const auto perspective = make_perspective_matrix(75_rad, 1.f, .001f, 100.f);
+
+        const auto viewProjection = perspective * view;
+        const auto inverseViewProjection = inverse(viewProjection);
+
+        ASSERT_TRUE(inverseViewProjection);
+
+        const auto frustum = normalize(make_frustum_from_inverse_view_projection(*inverseViewProjection));
+
+        ASSERT_TRUE(intersects_or_contains(frustum,
+            aabb{
+                .min = {.x = -5.f, .y = -5.f, .z = 5.f},
+                .max = {.x = 5.f, .y = 5.f, .z = 10.f},
+            }));
+
+        ASSERT_FALSE(intersects_or_contains(frustum,
+            aabb{
+                .min = {.x = -5.f, .y = -5.f, .z = -10.f},
+                .max = {.x = 5.f, .y = 5.f, .z = -5.f},
+            }));
+
+        ASSERT_TRUE(intersects_or_contains(frustum,
+            aabb{
+                .min = {.x = -5.f, .y = -5.f, .z = 90.f},
+                .max = {.x = 5.f, .y = 5.f, .z = 120.f},
+            }));
+
+        ASSERT_FALSE(intersects_or_contains(frustum,
+            aabb{
+                .min = {.x = -5.f, .y = -5.f, .z = 101.f},
+                .max = {.x = 5.f, .y = 5.f, .z = 120.f},
+            }));
+
+        ASSERT_FALSE(intersects_or_contains(frustum,
+            aabb{
+                .min = {.x = -5.f, .y = 200.f, .z = 5.f},
+                .max = {.x = 5.f, .y = 210.f, .z = 10.f},
+            }));
     }
 }
