@@ -92,7 +92,11 @@ namespace oblo::vk
 
         void end_compute_pass(const compute_pass_context& context);
 
-        void dispatch(const compute_pass_context& context, u32 x, u32 y, u32 z);
+        void dispatch(const compute_pass_context& context,
+            u32 x,
+            u32 y,
+            u32 z,
+            std::span<const buffer_binding_table* const> bindingTables = {});
 
         u32 get_subgroup_size() const;
 

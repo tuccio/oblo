@@ -35,7 +35,8 @@ namespace oblo::vk
     struct draw_commands
     {
         VkBuffer buffer;
-        VkDeviceSize offset;
+        VkDeviceSize bufferOffset;
+        VkDeviceSize bufferSize;
         u32 drawCount;
         bool isIndexed;
         VkBuffer indexBuffer;
