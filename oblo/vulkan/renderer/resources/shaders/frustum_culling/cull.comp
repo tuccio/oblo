@@ -50,7 +50,6 @@ void main()
         return;
     }
 
-    // For now, just cull half of the instances for testing purposes
+    // No culling yet
     outDrawCalls[index] = inDrawCalls[index];
-    outDrawCalls[index].instanceCount = index % 2;
 }
