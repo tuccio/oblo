@@ -87,11 +87,6 @@ namespace oblo::vk::test
 
                 const VkCommandBuffer commandBuffer = context.get_command_buffer();
 
-                render_pass_context renderPassContext{
-                    .commandBuffer = commandBuffer,
-                    .pipeline = pipeline,
-                };
-
                 const VkRenderingAttachmentInfo depthAttachment{
                     .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
                     .imageView = depthBuffer.view,
@@ -109,7 +104,9 @@ namespace oblo::vk::test
                     .pDepthAttachment = &depthAttachment,
                 };
 
-                ASSERT_TRUE(passManager.begin_render(renderPassContext, renderInfo));
+                const auto renderPassContext = passManager.begin_render_pass(commandBuffer, pipeline, renderInfo);
+
+                ASSERT_TRUE(renderPassContext);
 
                 {
                     const VkViewport viewport{
@@ -127,7 +124,7 @@ namespace oblo::vk::test
 
                 vkCmdDraw(commandBuffer, 4, 1, 0, 0);
 
-                passManager.end_rendering(renderPassContext);
+                passManager.end_render_pass(*renderPassContext);
             }
         };
 
@@ -206,11 +203,6 @@ namespace oblo::vk::test
 
                 const VkCommandBuffer commandBuffer = context.get_command_buffer();
 
-                render_pass_context renderPassContext{
-                    .commandBuffer = commandBuffer,
-                    .pipeline = pipeline,
-                };
-
                 const VkRenderingAttachmentInfo colorAttachment{
                     .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
                     .imageView = renderTarget.view,
@@ -238,7 +230,8 @@ namespace oblo::vk::test
                     .pDepthAttachment = &depthAttachment,
                 };
 
-                ASSERT_TRUE(passManager.begin_render(renderPassContext, renderInfo));
+                const auto renderPassContext = passManager.begin_render_pass(commandBuffer, pipeline, renderInfo);
+                ASSERT_TRUE(renderPassContext);
 
                 {
                     const VkViewport viewport{
@@ -256,7 +249,7 @@ namespace oblo::vk::test
 
                 vkCmdDraw(commandBuffer, 4, 1, 0, 0);
 
-                passManager.end_rendering(renderPassContext);
+                passManager.end_render_pass(*renderPassContext);
             }
         };
 
