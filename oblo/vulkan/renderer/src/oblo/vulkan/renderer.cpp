@@ -90,6 +90,8 @@ namespace oblo::vk
 
         m_graphResourcePool.end_build(*m_vkContext);
 
+        m_stagingBuffer.flush();
+
         for (auto& graphData : m_renderGraphs.values())
         {
             graphData.execute(*this, m_graphResourcePool);

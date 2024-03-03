@@ -353,6 +353,12 @@ namespace oblo::vk
             VkShaderStageFlagBits vkStage,
             std::span<const u32> spirv,
             vertex_inputs_reflection& vertexInputsReflection);
+
+        template <typename F>
+        VkDescriptorSet create_descriptor_set(VkDescriptorSetLayout descriptorSetLayout,
+            const base_pipeline& pipeline,
+            std::span<const buffer_binding_table* const> bindingTables,
+            F&& fallback);
     };
 
     VkShaderModule pass_manager::impl::create_shader_module(VkShaderStageFlagBits vkStage,
@@ -604,6 +610,92 @@ namespace oblo::vk
                 break;
             }
         }
+    }
+
+    template <typename F>
+    VkDescriptorSet pass_manager::impl::create_descriptor_set(VkDescriptorSetLayout descriptorSetLayout,
+        const base_pipeline& pipeline,
+        std::span<const buffer_binding_table* const> bindingTables,
+        F&& fallback)
+    {
+        const VkDescriptorSet descriptorSet = descriptorSetPool.acquire(descriptorSetLayout);
+
+        constexpr u32 MaxWrites{64};
+
+        u32 buffersCount{0};
+        u32 writesCount{0};
+
+        VkDescriptorBufferInfo bufferInfo[MaxWrites];
+        VkWriteDescriptorSet descriptorSetWrites[MaxWrites];
+
+        auto writeToDescriptorSet = [descriptorSet, &bufferInfo, &descriptorSetWrites, &buffersCount, &writesCount](
+                                        const descriptor_binding& binding,
+                                        const buffer& buffer)
+        {
+            // TODO: Handle more
+            OBLO_ASSERT(buffersCount < MaxWrites);
+            OBLO_ASSERT(writesCount < MaxWrites);
+            OBLO_ASSERT(buffer.buffer);
+
+            bufferInfo[buffersCount] = {
+                .buffer = buffer.buffer,
+                .offset = buffer.offset,
+                .range = buffer.size,
+            };
+
+            descriptorSetWrites[writesCount] = {
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .dstSet = descriptorSet,
+                .dstBinding = binding.binding,
+                .dstArrayElement = 0,
+                .descriptorCount = 1,
+                .descriptorType = binding.descriptorType,
+                .pBufferInfo = bufferInfo + buffersCount,
+            };
+
+            ++buffersCount;
+            ++writesCount;
+        };
+
+        for (const auto& binding : pipeline.descriptorSetBindings)
+        {
+            bool found = false;
+
+            for (const auto* const table : bindingTables)
+            {
+                auto* const buffer = table->try_find(binding.name);
+
+                if (buffer)
+                {
+                    writeToDescriptorSet(binding, *buffer);
+                    found = true;
+                    break;
+                }
+            }
+
+            if (found)
+            {
+                continue;
+            }
+
+            const buffer fallbackBuffer = fallback(binding.name);
+
+            if (fallbackBuffer.buffer)
+            {
+                writeToDescriptorSet(binding, fallbackBuffer);
+                continue;
+            }
+
+            OBLO_ASSERT(!found);
+            log::debug("Unable to find matching buffer for binding {}", interner->str(binding.name));
+        }
+
+        if (writesCount > 0)
+        {
+            vkUpdateDescriptorSets(device, writesCount, descriptorSetWrites, 0, nullptr);
+        }
+
+        return descriptorSet;
     }
 
     pass_manager::pass_manager() = default;
@@ -1304,93 +1396,24 @@ namespace oblo::vk
         {
             if (const auto descriptorSetLayout = pipeline->descriptorSetLayout)
             {
-                const VkDescriptorSet descriptorSet = m_impl->descriptorSetPool.acquire(descriptorSetLayout);
-
-                constexpr u32 MaxWrites{64};
-
-                u32 buffersCount{0};
-                u32 writesCount{0};
-
-                VkDescriptorBufferInfo bufferInfo[MaxWrites];
-                VkWriteDescriptorSet descriptorSetWrites[MaxWrites];
-
-                auto writeToDescriptorSet = [descriptorSet,
-                                                &bufferInfo,
-                                                &descriptorSetWrites,
-                                                &buffersCount,
-                                                &writesCount](const descriptor_binding& binding, const buffer& buffer)
-                {
-                    // TODO: Handle more
-                    OBLO_ASSERT(buffersCount < MaxWrites);
-                    OBLO_ASSERT(writesCount < MaxWrites);
-
-                    bufferInfo[buffersCount] = {
-                        .buffer = buffer.buffer,
-                        .offset = buffer.offset,
-                        .range = buffer.size,
-                    };
-
-                    descriptorSetWrites[writesCount] = {
-                        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                        .dstSet = descriptorSet,
-                        .dstBinding = binding.binding,
-                        .dstArrayElement = 0,
-                        .descriptorCount = 1,
-                        .descriptorType = binding.descriptorType,
-                        .pBufferInfo = bufferInfo + buffersCount,
-                    };
-
-                    ++buffersCount;
-                    ++writesCount;
-                };
-
-                for (const auto& binding : pipeline->descriptorSetBindings)
-                {
-                    bool found = false;
-
-                    for (const auto* const table : bindingTables)
+                const VkDescriptorSet descriptorSet = m_impl->create_descriptor_set(descriptorSetLayout,
+                    *pipeline,
+                    bindingTables,
+                    [&draw, &drawRegistry](h32<string> bindingName)
                     {
-                        auto* const buffer = table->try_find(binding.name);
+                        const auto instanceBuffers = draw.instanceBuffers;
 
-                        if (buffer)
+                        for (u32 i = 0; i < instanceBuffers.count; ++i)
                         {
-                            writeToDescriptorSet(binding, *buffer);
-                            found = true;
-                            break;
+                            const auto name = drawRegistry.get_name(instanceBuffers.bindings[i]);
+
+                            if (name == bindingName)
+                            {
+                                return instanceBuffers.buffers[i];
+                            }
                         }
-                    }
-
-                    if (found)
-                    {
-                        continue;
-                    }
-
-                    const auto instanceBuffers = draw.instanceBuffers;
-
-                    for (u32 i = 0; i < instanceBuffers.count; ++i)
-                    {
-                        const auto name = drawRegistry.get_name(instanceBuffers.bindings[i]);
-
-                        if (name == binding.name)
-                        {
-                            const auto& buffer = instanceBuffers.buffers[i];
-                            writeToDescriptorSet(binding, buffer);
-                            found = true;
-                            break;
-                        }
-                    }
-
-                    if (!found)
-                    {
-                        log::debug("Unable to find matching buffer for binding {}",
-                            m_impl->interner->str(binding.name));
-                    }
-                }
-
-                if (writesCount > 0)
-                {
-                    vkUpdateDescriptorSets(m_impl->device, writesCount, descriptorSetWrites, 0, nullptr);
-                }
+                        return buffer{};
+                    });
 
                 vkCmdBindDescriptorSets(context.commandBuffer,
                     VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -1410,7 +1433,7 @@ namespace oblo::vk
 
                     vkCmdDrawIndexedIndirect(context.commandBuffer,
                         draw.drawCommands.buffer,
-                        draw.drawCommands.offset,
+                        draw.drawCommands.bufferOffset,
                         draw.drawCommands.drawCount,
                         sizeof(VkDrawIndexedIndirectCommand));
                 }
@@ -1418,7 +1441,7 @@ namespace oblo::vk
                 {
                     vkCmdDrawIndirect(context.commandBuffer,
                         draw.drawCommands.buffer,
-                        draw.drawCommands.offset,
+                        draw.drawCommands.bufferOffset,
                         draw.drawCommands.drawCount,
                         sizeof(VkDrawIndirectCommand));
                 }
@@ -1452,8 +1475,31 @@ namespace oblo::vk
         m_impl->vkCtx->end_debug_label(context.commandBuffer);
     }
 
-    void pass_manager::dispatch(const compute_pass_context& context, u32 x, u32 y, u32 z)
+    void pass_manager::dispatch(const compute_pass_context& context,
+        u32 x,
+        u32 y,
+        u32 z,
+        std::span<const buffer_binding_table* const> bindingTables)
     {
+        auto* const pipeline = context.internalPipeline;
+
+        if (const auto descriptorSetLayout = pipeline->descriptorSetLayout)
+        {
+            const VkDescriptorSet descriptorSet = m_impl->create_descriptor_set(descriptorSetLayout,
+                *pipeline,
+                bindingTables,
+                [](h32<string>) { return buffer{}; });
+
+            vkCmdBindDescriptorSets(context.commandBuffer,
+                VK_PIPELINE_BIND_POINT_COMPUTE,
+                pipeline->pipelineLayout,
+                0,
+                1,
+                &descriptorSet,
+                0,
+                nullptr);
+        }
+
         vkCmdDispatch(context.commandBuffer, x, y, z);
     }
 
