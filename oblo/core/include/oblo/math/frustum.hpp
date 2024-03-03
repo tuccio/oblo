@@ -3,8 +3,6 @@
 #include <oblo/math/mat4.hpp>
 #include <oblo/math/plane.hpp>
 
-#include <bit>
-
 namespace oblo
 {
     struct frustum

@@ -247,6 +247,8 @@ namespace oblo
                             .connect_input(InPickingConfiguration, &picking_readback::inPickingConfiguration)
                             .connect(&view_buffers_node::outPerViewBindingTable, &forward_pass::inPerViewBindingTable)
                             .connect(&forward_pass::outPickingIdBuffer, &picking_readback::inPickingIdBuffer)
+                            .connect(&view_buffers_node::outPerViewBindingTable,
+                                &frustum_culling::inPerViewBindingTable)
                             .connect(&frustum_culling::outCullData, &forward_pass::inCullData)
                             .build();
 #else
@@ -352,13 +354,16 @@ namespace oblo
                     const f32 ratio = f32(viewport.height) / viewport.width;
                     const auto proj = make_perspective_matrix(camera.fovy, ratio, camera.near, camera.far);
 
-                    const mat4 viewT{transpose(view)};
-                    const mat4 projT{transpose(proj)};
+                    const mat4 viewT = transpose(view);
+                    const mat4 projT = transpose(proj);
+
+                    const mat4 invViewProj = *inverse(proj * view);
 
                     *cameraBuffer = camera_buffer{
                         .view = viewT,
                         .projection = projT,
                         .viewProjection = projT * viewT,
+                        .frustum = make_frustum_from_inverse_view_projection(invViewProj),
                     };
                 }
 

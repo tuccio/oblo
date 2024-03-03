@@ -51,6 +51,7 @@ namespace oblo::vk
         struct table_range;
 
         static constexpr u32 MaxAttributes{32};
+        static constexpr u32 MaxMeshBuffers{2};
 
     public:
         mesh_database();

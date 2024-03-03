@@ -34,7 +34,7 @@ namespace oblo::vk
 
             auto& interner = context.get_string_interner();
 
-            const h32<string> cameraBufferName = interner.get_or_add("CameraBuffer");
+            const h32<string> cameraBufferName = interner.get_or_add("b_CameraBuffer");
             perViewTable->emplace(cameraBufferName, buf);
 
             // TODO: Find a better place for this, maybe consider per frame descriptor sets
