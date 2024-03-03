@@ -19,9 +19,12 @@ namespace oblo::vk
         [[maybe_unused]] const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
         void* pUserData)
     {
-        auto& errors = *static_cast<std::stringstream*>(pUserData);
+        if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
+        {
+            auto& errors = *static_cast<std::stringstream*>(pUserData);
+            errors << "[Vulkan Validation] (" << std::hex << messageType << ") " << pCallbackData->pMessage;
+        }
 
-        errors << "[Vulkan Validation] (" << std::hex << messageType << ") " << pCallbackData->pMessage;
         return VK_FALSE;
     }
 

@@ -38,6 +38,12 @@ class ObloConanRecipe(ConanFile):
         stb = self.options["stb/*"]
         stb.with_deprecated = False
 
+        glslang = self.options["glslang/*"]
+        glslang.enable_optimizer = False
+        glslang.spv_remapper = False
+        glslang.hlsl = False
+        glslang.build_executables = False
+
     def generate(self):
         imgui = self.dependencies["imgui"]
         src_dir = f"{imgui.package_folder}/res/bindings/"
