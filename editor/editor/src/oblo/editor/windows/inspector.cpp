@@ -156,7 +156,9 @@ namespace oblo::editor
                             {
                                 auto* const data = m_registry->try_get(e, type);
 
+                                ImGui::PushID(int(type.value));
                                 build_property_grid(*propertyTree, data);
+                                ImGui::PopID();
                             }
                         }
                     }
