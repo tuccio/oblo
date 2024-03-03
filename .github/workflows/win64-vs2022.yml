@@ -16,7 +16,7 @@ env:
 
 jobs:
   build:
-    name: Build
+    name: Win64 vs2022 Debug
     runs-on: self-hosted
 
     steps:
