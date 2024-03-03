@@ -5,8 +5,10 @@
 #extension GL_ARB_gpu_shader_int64 : require
 
 #include <renderer/camera>
+#include <renderer/constants>
 #include <renderer/intersection>
 #include <renderer/meshes>
+#include <renderer/transform>
 
 layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
@@ -53,27 +55,62 @@ layout(std430, binding = 6) restrict buffer b_OutDrawCallsBuffer
     draw_command_t outDrawCalls[];
 };
 
+layout(std430, binding = 7) restrict readonly buffer i_TransformBuffer
+{
+    transform g_Transforms[];
+};
+
+aabb transform_aabb(in aabb box, in mat4 m)
+{
+    vec3 corners[8];
+
+    corners[0] = vec3(box.min.x, box.min.y, box.min.z);
+    corners[1] = vec3(box.max.x, box.min.y, box.min.z);
+    corners[2] = vec3(box.min.x, box.max.y, box.min.z);
+    corners[3] = vec3(box.max.x, box.max.y, box.min.z);
+    corners[4] = vec3(box.min.x, box.min.y, box.max.z);
+    corners[5] = vec3(box.max.x, box.min.y, box.max.z);
+    corners[6] = vec3(box.min.x, box.max.y, box.max.z);
+    corners[7] = vec3(box.max.x, box.max.y, box.max.z);
+
+    aabb res;
+    res.min = vec3(make_positive_infinity());
+    res.max = vec3(make_negative_infinity());
+
+    for (uint i = 0; i < 8; ++i)
+    {
+        const vec4 h = (m * vec4(corners[i], 1));
+        const vec3 p = h.xyz;
+
+        res.min = min(res.min, p);
+        res.max = max(res.max, p);
+    }
+
+    return res;
+}
+
 void main()
 {
-    const uint index = gl_GlobalInvocationID.x;
+    const uint drawId = gl_GlobalInvocationID.x;
 
-    if (index >= g_numberOfDraws)
+    if (drawId >= g_numberOfDraws)
     {
         return;
     }
 
-    const mesh_handle meshHandle = g_MeshHandles[index];
+    const mesh_handle meshHandle = g_MeshHandles[drawId];
 
     const mesh_table table = get_mesh_table(meshHandle);
     const uint meshIndex = get_mesh_index(meshHandle);
 
-    const aabb box = get_mesh_aabb(table, meshIndex);
+    // Instance id and draw id are the same since we don't support instancing currently
+    const mat4 localToWorld = g_Transforms[drawId].localToWorld;
 
-    draw_command_t drawCmd = inDrawCalls[index];
+    const aabb msBox = get_mesh_aabb(table, meshIndex);
+    const aabb wsBox = transform_aabb(msBox, localToWorld);
 
-    frustum f = g_Camera.frustum;
+    draw_command_t drawCmd = inDrawCalls[drawId];
+    drawCmd.instanceCount = intersects_or_contains(g_Camera.frustum, wsBox) ? 1 : 0;
 
-    drawCmd.instanceCount = intersects_or_contains(f, box) ? 1 : 0;
-
-    outDrawCalls[index] = drawCmd;
+    outDrawCalls[drawId] = drawCmd;
 }
