@@ -72,14 +72,6 @@ namespace oblo
             ASSERT_NEAR(o.w, e.w(), tolerance);
         }
 
-        void assert_near(const vec4& o, const Eigen::Vector4f& e, const f32 tolerance = Tolerance)
-        {
-            for (u32 i = 0; i < 4; ++i)
-            {
-                ASSERT_NEAR(e[i], o[i], tolerance);
-            }
-        }
-
         void assert_near(const mat4& o, const Eigen::Matrix4f& e, const f32 tolerance = Tolerance)
         {
             for (u32 i = 0; i < 4; ++i)

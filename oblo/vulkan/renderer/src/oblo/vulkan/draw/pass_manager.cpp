@@ -383,7 +383,7 @@ namespace oblo::vk
 
         OBLO_ASSERT(builtInEnd - builtInDefinesBuffer <= array_size(builtInDefinesBuffer));
 
-        for (const h32 define : defines)
+        for (const auto define : defines)
         {
             constexpr auto fixedSize = std::string_view{"#define \n"}.size();
             requiredDefinesLength += u32(fixedSize + interner->str(define).size());
