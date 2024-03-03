@@ -6,6 +6,7 @@
 #include <oblo/vulkan/graph/render_graph.hpp>
 #include <oblo/vulkan/graph/runtime_builder.hpp>
 #include <oblo/vulkan/graph/runtime_context.hpp>
+#include <oblo/vulkan/nodes/frustum_culling.hpp>
 #include <oblo/vulkan/nodes/picking_readback.hpp>
 #include <oblo/vulkan/utility.hpp>
 
@@ -161,11 +162,26 @@ namespace oblo::vk
 
             const auto& drawRegistry = context.get_draw_registry();
 
-            passManager.draw(*pass,
-                context.get_resource_manager(),
-                drawRegistry,
-                drawRegistry.get_draw_calls(),
-                bindingTables);
+            const std::span culledDrawData = *context.access(inCullData);
+
+            dynamic_array<batch_draw_data> drawCalls;
+            drawCalls.resize_default(culledDrawData.size());
+
+            for (usize i = 0; i < drawCalls.size(); ++i)
+            {
+                auto& draw = drawCalls[i];
+                const auto& culledDraw = culledDrawData[i];
+
+                draw = culledDraw.sourceData;
+
+                const auto drawCallBuffer = context.access(culledDraw.drawCallBuffer);
+
+                draw.drawCommands.buffer = drawCallBuffer.buffer;
+                draw.drawCommands.bufferOffset = drawCallBuffer.offset;
+                draw.drawCommands.bufferSize = drawCallBuffer.size;
+            }
+
+            passManager.draw(*pass, context.get_resource_manager(), drawRegistry, drawCalls, bindingTables);
 
             passManager.end_render_pass(*pass);
         }
