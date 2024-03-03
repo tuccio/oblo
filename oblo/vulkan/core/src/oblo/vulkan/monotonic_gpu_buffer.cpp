@@ -42,6 +42,8 @@ namespace oblo::vk
 
     buffer monotonic_gpu_buffer::allocate(vulkan_context& ctx, u32 size)
     {
+        OBLO_ASSERT(size > 0);
+
         const auto alignedSize = round_up_multiple<u32>(size, m_alignment);
 
         OBLO_ASSERT(alignedSize <= m_chunkSize);

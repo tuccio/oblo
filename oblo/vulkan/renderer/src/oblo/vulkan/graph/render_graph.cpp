@@ -160,7 +160,17 @@ namespace oblo::vk
         for (const auto [resource, poolIndex] : m_transientBuffers)
         {
             const auto buf = resourcePool.get_buffer(poolIndex);
-            new (access_resource_storage(resource.value)) buffer{buf};
+
+            const auto storageIndex = m_pins[resource.value].storageIndex;
+            auto& data = m_pinStorage[storageIndex];
+
+            // This should only really happen for dynamic pins, we could consider adding some debug check though
+            if (!data.ptr)
+            {
+                data.ptr = m_dynamicAllocator->allocate(sizeof(buffer), alignof(buffer));
+            }
+
+            new (data.ptr) buffer{buf};
         }
 
         if (!m_pendingUploads.empty())
@@ -275,7 +285,7 @@ namespace oblo::vk
         m_pins.emplace_back(storageIndex);
         m_resourcePoolId.emplace_back(~u32{});
 
-        m_pinStorage.push_back({.ptr = m_dynamicAllocator->allocate(sizeof(u32), alignof(u32))});
+        m_pinStorage.emplace_back();
 
         return handle;
     }

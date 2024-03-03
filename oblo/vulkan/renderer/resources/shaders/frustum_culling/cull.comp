@@ -2,9 +2,55 @@
 
 layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
+struct vk_draw_indirect_command
+{
+    uint vertexCount;
+    uint instanceCount;
+    uint firstVertex;
+    uint firstInstance;
+};
+
+struct vk_draw_indexed_indirect_command
+{
+    uint indexCount;
+    uint instanceCount;
+    uint firstIndex;
+    int vertexOffset;
+    uint firstInstance;
+};
+
+#ifndef DRAW_INDEXED
+#define draw_command_t vk_draw_indirect_command
+#else
+#define draw_command_t vk_draw_indexed_indirect_command
+#endif
+
+layout(binding = 0) uniform CullingConfigBuffer
+{
+    uint numberOfDraws;
+}
+b_CullingConfig;
+
+layout(std430, binding = 1) restrict readonly buffer b_InDrawCallsBuffer
+{
+    draw_command_t inDrawCalls[];
+};
+
+layout(std430, binding = 2) restrict buffer b_OutDrawCallsBuffer
+{
+    draw_command_t outDrawCalls[];
+};
+
 void main()
 {
     const uint index = gl_GlobalInvocationID.x;
 
-    // if (index > actualNumberOfDraws) { return; }
+    if (index > b_CullingConfig.numberOfDraws)
+    {
+        return;
+    }
+
+    // For now, just cull half of the instances for testing purposes
+    outDrawCalls[index] = inDrawCalls[index];
+    outDrawCalls[index].instanceCount = index % 2;
 }

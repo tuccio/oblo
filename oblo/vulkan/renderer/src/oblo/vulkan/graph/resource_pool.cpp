@@ -162,11 +162,15 @@ namespace oblo::vk
 
     u32 resource_pool::add_buffer(u32 size, VkBufferUsageFlags usage)
     {
+        OBLO_ASSERT(size > 0);
+
         const auto id = u32(m_bufferResources.size());
+
         m_bufferResources.push_back({
             .size = size,
             .usage = usage,
         });
+
         return id;
     }
 

@@ -544,7 +544,8 @@ namespace oblo::vk
 
             currentDrawBatch->drawCommands = {
                 .buffer = drawCommandsBuffer.buffer,
-                .offset = drawCommandsBuffer.offset,
+                .bufferOffset = drawCommandsBuffer.offset,
+                .bufferSize = drawCommandsBuffer.size,
                 .drawCount = numEntities,
                 .isIndexed = isIndexed,
                 .indexBuffer = indexBuffer.buffer,
