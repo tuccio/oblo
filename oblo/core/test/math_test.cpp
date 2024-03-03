@@ -205,6 +205,34 @@ namespace oblo
         }
     }
 
+    TEST(mat4, multiply)
+    {
+        std::default_random_engine rng{42};
+        std::uniform_real_distribution<float> f32Dist{-1, 1};
+
+        constexpr u32 N = 1024;
+
+        for (u32 i = 0; i < N; ++i)
+        {
+            mat4 m1, m2;
+
+            for (auto& row : m1.rows)
+            {
+                row = random_vec4(rng, f32Dist);
+            }
+
+            for (auto& row : m2.rows)
+            {
+                row = random_vec4(rng, f32Dist);
+            }
+
+            const Eigen::Matrix4f eM1 = from_oblo(m1);
+            const Eigen::Matrix4f eM2 = from_oblo(m2);
+
+            assert_near(m1 * m2, eM1 * eM2);
+        }
+    }
+
     TEST(mat4, inverse)
     {
         std::default_random_engine rng{42};
