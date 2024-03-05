@@ -24,14 +24,14 @@ namespace oblo::ecs
         class typed_range;
 
         entity_registry();
-        explicit entity_registry(const type_registry* typeRegistry);
+        explicit entity_registry(type_registry* typeRegistry);
         entity_registry(const entity_registry&) = delete;
         entity_registry(entity_registry&&) noexcept;
         entity_registry& operator=(const entity_registry&) = delete;
         entity_registry& operator=(entity_registry&&) noexcept;
         ~entity_registry();
 
-        void init(const type_registry* typeRegistry);
+        void init(type_registry* typeRegistry);
 
         entity create(const component_and_tag_sets& types);
         void create(const component_and_tag_sets& types, u32 count, std::span<entity> outEntityIds = {});
@@ -47,7 +47,7 @@ namespace oblo::ecs
         void add(entity e, const component_and_tag_sets& types);
 
         template <typename... ComponentsOrTags>
-        auto&& add(entity e);
+        decltype(auto) add(entity e);
 
         void remove(entity e, const component_and_tag_sets& types);
 
@@ -95,7 +95,7 @@ namespace oblo::ecs
 
         std::span<const component_type> get_component_types(entity e) const;
 
-        const type_registry& get_type_registry() const;
+        type_registry& get_type_registry() const;
 
         std::span<const archetype_storage> get_archetypes() const;
 
@@ -105,8 +105,10 @@ namespace oblo::ecs
         struct entity_data;
 
     private:
-        const archetype_storage* find_first_match(
-            const archetype_storage* begin, usize increment, const component_and_tag_sets& types);
+        const archetype_storage* find_first_match(const archetype_storage* begin,
+            usize increment,
+            const component_and_tag_sets& includes,
+            const component_and_tag_sets& excludes);
 
         static void sort_and_map(std::span<component_type> componentTypes, std::span<u8> mapping);
 
@@ -133,7 +135,7 @@ namespace oblo::ecs
     private:
         using entities_map = h32_flat_pool_dense_map<entity_handle, entity_data>;
 
-        const type_registry* m_typeRegistry{nullptr};
+        type_registry* m_typeRegistry{nullptr};
         std::unique_ptr<memory_pool> m_pool;
         entities_map m_entities;
         std::vector<archetype_storage> m_componentsStorage;
@@ -236,7 +238,7 @@ namespace oblo::ecs
     }
 
     template <typename... ComponentsOrTags>
-    auto&& entity_registry::add(entity e)
+    decltype(auto) entity_registry::add(entity e)
     {
         const auto sets = make_type_sets<ComponentsOrTags...>(*m_typeRegistry);
         add(e, sets);

@@ -29,7 +29,7 @@ namespace oblo::ecs
 
     entity_registry::entity_registry() = default;
 
-    entity_registry::entity_registry(const type_registry* typeRegistry) : m_typeRegistry{typeRegistry}
+    entity_registry::entity_registry(type_registry* typeRegistry) : m_typeRegistry{typeRegistry}
     {
         OBLO_ASSERT(m_typeRegistry);
 
@@ -53,7 +53,7 @@ namespace oblo::ecs
         }
     }
 
-    void entity_registry::init(const type_registry* typeRegistry)
+    void entity_registry::init(type_registry* typeRegistry)
     {
         *this = entity_registry{typeRegistry};
     }
@@ -328,7 +328,7 @@ namespace oblo::ecs
         return {archetype->components, archetype->numComponents};
     }
 
-    const type_registry& entity_registry::get_type_registry() const
+    type_registry& entity_registry::get_type_registry() const
     {
         return *m_typeRegistry;
     }
@@ -338,17 +338,30 @@ namespace oblo::ecs
         return m_componentsStorage;
     }
 
-    const archetype_storage* entity_registry::find_first_match(
-        const archetype_storage* begin, usize increment, const component_and_tag_sets& types)
+    const archetype_storage* entity_registry::find_first_match(const archetype_storage* begin,
+        usize increment,
+        const component_and_tag_sets& includes,
+        const component_and_tag_sets& excludes)
     {
         auto* const end = m_componentsStorage.data() + m_componentsStorage.size();
 
         for (auto* it = begin + increment; it != end; ++it)
         {
-            const auto compInt = it->archetype->types.components.intersection(types.components);
-            const auto tagsInt = it->archetype->types.tags.intersection(types.tags);
+            if (it->archetype->numCurrentEntities == 0)
+            {
+                continue;
+            }
 
-            if (compInt == types.components && tagsInt == types.tags && it->archetype->numCurrentEntities != 0)
+            const auto& archetypeTypes = it->archetype->types;
+
+            const auto compInt = archetypeTypes.components.intersection(includes.components);
+            const auto tagsInt = archetypeTypes.tags.intersection(includes.tags);
+
+            const auto forbiddenCompInt = archetypeTypes.components.intersection(excludes.components);
+            const auto forbiddenTagsInt = archetypeTypes.tags.intersection(excludes.tags);
+
+            if (compInt == includes.components && tagsInt == includes.tags && forbiddenCompInt.is_empty() &&
+                forbiddenTagsInt.is_empty())
             {
                 return it;
             }
