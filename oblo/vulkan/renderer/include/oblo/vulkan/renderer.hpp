@@ -17,6 +17,11 @@ namespace oblo
     class frame_allocator;
 }
 
+namespace oblo::ecs
+{
+    class entity_registry;
+}
+
 namespace oblo::vk
 {
     class render_graph;
@@ -81,6 +86,7 @@ namespace oblo::vk
     {
         vulkan_context& vkContext;
         frame_allocator& frameAllocator;
+        ecs::entity_registry& entities;
     };
 
     inline vulkan_context& renderer::get_vulkan_context()

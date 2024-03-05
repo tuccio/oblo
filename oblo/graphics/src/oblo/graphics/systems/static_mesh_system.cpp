@@ -58,6 +58,17 @@ namespace oblo
 
             return out;
         }
+
+        struct entity_id_component
+        {
+            ecs::entity entityId;
+        };
+
+        // Seems redundant, this is necessary just because we need to transpose this data
+        struct gpu_transform_component
+        {
+            mat4 transform;
+        };
     }
 
     void static_mesh_system::first_update(const ecs::system_update_context& ctx)
@@ -72,63 +83,79 @@ namespace oblo
         OBLO_ASSERT(m_resourceCache);
 
         auto& drawRegistry = m_renderer->get_draw_registry();
-        m_transformBuffer = drawRegistry.get_or_register({"i_TransformBuffer", sizeof(mat4), alignof(mat4)});
 
-        m_materialsBuffer =
-            drawRegistry.get_or_register({"i_MaterialBuffer", sizeof(gpu_material), alignof(gpu_material)});
+        auto& typeRegistry = ctx.entities->get_type_registry();
 
-        m_entityIdBuffer =
-            drawRegistry.get_or_register({"i_EntityIdBuffer", sizeof(ecs::entity), alignof(ecs::entity)});
+        const auto gpuTransform =
+            typeRegistry.register_component(ecs::make_component_type_desc<gpu_transform_component>());
+        const auto gpuMaterial = typeRegistry.register_component(ecs::make_component_type_desc<gpu_material>());
+        const auto entityid = typeRegistry.register_component(ecs::make_component_type_desc<entity_id_component>());
+
+        drawRegistry.register_instance_data(gpuTransform, "i_TransformBuffer");
+        drawRegistry.register_instance_data(gpuMaterial, "i_MaterialBuffer");
+        drawRegistry.register_instance_data(entityid, "i_EntityIdBuffer");
 
         update(ctx);
     }
 
     void static_mesh_system::update(const ecs::system_update_context& ctx)
     {
-        const h32<vk::draw_buffer> bufferNames[] = {m_transformBuffer, m_materialsBuffer, m_entityIdBuffer};
-
-        std::byte* buffersData[3];
-
         auto& drawRegistry = m_renderer->get_draw_registry();
 
+        struct deferred_creation
+        {
+            ecs::entity e;
+            h32<vk::draw_mesh> mesh;
+            resource_ref<material> material;
+            mat4 transform;
+        };
+
         // TODO: (#7) Implement a way to create components while iterating, or deferring
+        dynamic_array<deferred_creation> deferred;
+
+        // Update data if necessary
+        for (const auto [entities, staticMeshComponents, gpuTransforms, globalTransforms] :
+            ctx.entities->range<static_mesh_component, gpu_transform_component, global_transform_component>())
+        {
+            for (auto&& [entity, gpuTransform, globalTransform] : zip_range(entities, gpuTransforms, globalTransforms))
+            {
+                gpuTransform.transform = transpose(globalTransform.value);
+            }
+        }
+
         for (const auto [entities, meshComponents, globalTransforms] :
-            ctx.entities->range<static_mesh_component, global_transform_component>())
+            ctx.entities->range<static_mesh_component, global_transform_component>().exclude<vk::draw_mesh_component>())
         {
             for (auto&& [entity, meshComponent, globalTransform] :
                 zip_range(entities, meshComponents, globalTransforms))
             {
-                if (!meshComponent.instance)
+                const auto mesh = drawRegistry.get_or_create_mesh(*m_resourceRegistry, meshComponent.mesh);
+
+                if (!mesh)
                 {
-                    const auto mesh = drawRegistry.get_or_create_mesh(*m_resourceRegistry, meshComponent.mesh);
-
-                    if (!mesh)
-                    {
-                        continue;
-                    }
-
-                    const auto instance = drawRegistry.create_instance(mesh, bufferNames, buffersData);
-                    meshComponent.instance = instance.value;
-
-                    new (buffersData[0]) mat4{transpose(globalTransform.value)};
-
-                    const resource_ptr m = m_resourceRegistry->get_resource(meshComponent.material.id).as<material>();
-
-                    new (buffersData[1]) gpu_material{convert(*m_resourceCache, m)};
-
-                    new (buffersData[2]) ecs::entity{entity};
+                    continue;
                 }
-                else
-                {
-                    std::byte* transformData{};
 
-                    drawRegistry.get_instance_data(h32<vk::draw_instance>{meshComponent.instance},
-                        {&m_transformBuffer, 1},
-                        {&transformData, 1});
-
-                    new (transformData) mat4{transpose(globalTransform.value)};
-                }
+                deferred.push_back_default() = {
+                    .e = entity,
+                    .mesh = mesh,
+                    .material = meshComponent.material,
+                    .transform = transpose(globalTransform.value),
+                };
             }
+        }
+
+        // Finally create components if necessary
+        for (const auto& [e, mesh, materialRef, transform] : deferred)
+        {
+            auto&& [gpuTransform, gpuMaterial, pickingId, meshComponent] =
+                ctx.entities->add<gpu_transform_component, gpu_material, entity_id_component, vk::draw_mesh_component>(
+                    e);
+
+            gpuTransform.transform = transform;
+            gpuMaterial = convert(*m_resourceCache, m_resourceRegistry->get_resource(materialRef.id).as<material>());
+            pickingId.entityId = e;
+            meshComponent.mesh = mesh;
         }
     }
 }

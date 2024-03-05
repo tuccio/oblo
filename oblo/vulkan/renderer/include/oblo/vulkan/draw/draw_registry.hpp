@@ -29,7 +29,6 @@ namespace oblo::vk
     class staging_buffer;
     class vulkan_context;
     struct buffer_column_description;
-    struct draw_instance;
     struct draw_mesh;
 
     struct draw_commands
@@ -64,6 +63,11 @@ namespace oblo::vk
         draw_commands drawCommands;
     };
 
+    struct draw_mesh_component
+    {
+        h32<draw_mesh> mesh;
+    };
+
     class draw_registry
     {
     public:
@@ -76,23 +80,20 @@ namespace oblo::vk
         draw_registry& operator=(const draw_registry&) = delete;
         draw_registry& operator=(draw_registry&&) noexcept = delete;
 
-        void init(vulkan_context& ctx, staging_buffer& stagingBuffer, string_interner& interner);
+        void init(vulkan_context& ctx,
+            staging_buffer& stagingBuffer,
+            string_interner& interner,
+            ecs::entity_registry& entities);
+
         void shutdown();
+
+        void register_instance_data(ecs::component_type type, std::string_view instanceName);
 
         void end_frame();
 
         h32<draw_mesh> get_or_create_mesh(oblo::resource_registry& resourceRegistry,
             const resource_ref<mesh>& resourceId);
 
-        h32<draw_instance> create_instance(
-            h32<draw_mesh> mesh, std::span<const h32<draw_buffer>> buffers, std::span<std::byte*> outData);
-
-        void get_instance_data(
-            h32<draw_instance> instance, std::span<const h32<draw_buffer>> buffers, std::span<std::byte*> outData);
-
-        void destroy_instance(h32<draw_instance> id);
-
-        h32<draw_buffer> get_or_register(const draw_buffer& buffer);
         h32<string> get_name(h32<draw_buffer> drawBuffer) const;
 
         void generate_mesh_database(frame_allocator& allocator, staging_buffer& stagingBuffer);
@@ -103,6 +104,9 @@ namespace oblo::vk
         buffer get_mesh_database_buffer() const;
 
     private:
+        void create_instances();
+
+    private:
         vulkan_context* m_ctx{};
         monotonic_gpu_buffer m_storageBuffer;
         monotonic_gpu_buffer m_drawCallsBuffer;
@@ -110,10 +114,10 @@ namespace oblo::vk
         staging_buffer* m_stagingBuffer{};
         string_interner* m_interner{};
         mesh_database m_meshes;
-        ecs::type_registry m_typeRegistry;
-        ecs::entity_registry m_instances;
+        ecs::entity_registry* m_entities{};
+        ecs::type_registry* m_typeRegistry{};
 
-        ecs::component_type m_meshComponent{};
+        ecs::component_type m_instanceComponent{};
         ecs::tag_type m_indexNoneTag{};
         ecs::tag_type m_indexU16Tag{};
         ecs::tag_type m_indexU32Tag{};
@@ -126,7 +130,8 @@ namespace oblo::vk
 
         std::unordered_map<uuid, h32<draw_mesh>> m_cachedMeshes;
 
-        flat_dense_map<h32<draw_buffer>, h32<string>> m_meshNames;
+        flat_dense_map<ecs::component_type, h32<string>> m_instanceDataTypeNames;
+        ecs::type_set m_instanceDataTypes{};
 
         static constexpr u32 MeshBuffersCount{1};
         std::array<h32<string>, MeshBuffersCount> m_meshDataNames{};
