@@ -86,7 +86,7 @@ namespace oblo::ecs
         {
             if (++m_chunkIndex == m_numChunks)
             {
-                m_it = m_range->m_registry->find_first_match(m_it, 1, m_range->m_include);
+                m_it = m_range->m_registry->find_first_match(m_it, 1, m_range->m_include, m_range->m_exclude);
                 m_chunkIndex = 0;
 
                 if (!m_it || !update_iterator_data())
@@ -196,14 +196,14 @@ namespace oblo::ecs
     template <typename... ComponentOrTags>
     entity_registry::typed_range<Components...>& entity_registry::typed_range<Components...>::with()
     {
-        return with(make_type_sets<Components...>(*m_registry->m_typeRegistry));
+        return with(make_type_sets<ComponentOrTags...>(*m_registry->m_typeRegistry));
     }
 
     template <typename... Components>
     template <typename... ComponentOrTags>
     entity_registry::typed_range<Components...>& entity_registry::typed_range<Components...>::exclude()
     {
-        return exclude(make_type_sets<Components...>(*m_registry->m_typeRegistry));
+        return exclude(make_type_sets<ComponentOrTags...>(*m_registry->m_typeRegistry));
     }
 
     template <typename... Components>
@@ -214,8 +214,8 @@ namespace oblo::ecs
 
         auto* const begin = m_registry->m_componentsStorage.data();
 
-        for (auto* it = m_registry->find_first_match(begin, 0, m_include); it != nullptr;
-             it = m_registry->find_first_match(it, 1, m_include))
+        for (auto* it = m_registry->find_first_match(begin, 0, m_include, m_exclude); it != nullptr;
+             it = m_registry->find_first_match(it, 1, m_include, m_exclude))
         {
             u32 offsets[numComponents];
 
@@ -261,7 +261,7 @@ namespace oblo::ecs
     entity_registry::typed_range<Components...>::iterator entity_registry::typed_range<Components...>::begin() const
     {
         auto* const begin = m_registry->m_componentsStorage.data();
-        return {this, m_registry->find_first_match(begin, 0, m_include)};
+        return {this, m_registry->find_first_match(begin, 0, m_include, m_exclude)};
     }
 
     template <typename... Components>
