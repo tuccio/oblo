@@ -18,9 +18,9 @@ namespace oblo::vk
     renderer::renderer() = default;
     renderer::~renderer() = default;
 
-    bool renderer::init(const renderer::initializer& context)
+    bool renderer::init(const renderer::initializer& initializer)
     {
-        m_vkContext = &context.vkContext;
+        m_vkContext = &initializer.vkContext;
 
         if (!m_stagingBuffer.init(get_engine(), get_allocator(), 1u << 29))
         {
@@ -47,7 +47,7 @@ namespace oblo::vk
 
         m_textureRegistry.init(*m_vkContext, m_stagingBuffer);
 
-        m_drawRegistry.init(*m_vkContext, m_stagingBuffer, m_stringInterner);
+        m_drawRegistry.init(*m_vkContext, m_stagingBuffer, m_stringInterner, initializer.entities);
 
         return true;
     }

@@ -111,14 +111,6 @@ namespace oblo::editor
             return false;
         }
 
-        if (!m_renderer.init({
-                .vkContext = *ctx.vkContext,
-                .frameAllocator = *ctx.frameAllocator,
-            }))
-        {
-            return false;
-        }
-
         init_ui_style();
 
         auto& mm = module_manager::get();
@@ -169,6 +161,12 @@ namespace oblo::editor
         resourceCache->init(resourceRegistry, m_renderer.get_texture_registry(), m_renderer.get_staging_buffer());
 
         m_executor = create_system_executor();
+
+        if (!m_renderer.init(
+                {.vkContext = *ctx.vkContext, .frameAllocator = *ctx.frameAllocator, .entities = m_entities}))
+        {
+            return false;
+        }
 
         return true;
     }

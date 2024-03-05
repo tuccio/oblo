@@ -63,17 +63,24 @@ namespace oblo::vk
         {
             return std::bit_cast<h32<draw_mesh>>(m);
         }
+
+        struct draw_instance_component
+        {
+            mesh_handle mesh;
+        };
     }
 
     draw_registry::draw_registry() = default;
 
     draw_registry::~draw_registry() = default;
 
-    void draw_registry::init(vulkan_context& ctx, staging_buffer& stagingBuffer, string_interner& interner)
+    void draw_registry::init(
+        vulkan_context& ctx, staging_buffer& stagingBuffer, string_interner& interner, ecs::entity_registry& entities)
     {
         m_ctx = &ctx;
         m_stagingBuffer = &stagingBuffer;
         m_interner = &interner;
+        m_entities = &entities;
 
         mesh_attribute_description attributes[u32(vertex_attributes::enum_max)];
 
@@ -123,8 +130,6 @@ namespace oblo::vk
 
         OBLO_ASSERT(meshDbInit);
 
-        m_instances.init(&m_typeRegistry);
-
         struct mesh_index_none_tag
         {
         };
@@ -137,16 +142,18 @@ namespace oblo::vk
         {
         };
 
-        const auto meshHandleInstancBuffer = get_or_register({
-            .name = "i_MeshHandles",
-            .elementSize = sizeof(mesh_handle),
-            .elementAlignment = alignof(mesh_handle),
-        });
+        m_typeRegistry = &entities.get_type_registry();
 
-        m_meshComponent = ecs::component_type{meshHandleInstancBuffer.value};
-        m_indexNoneTag = m_typeRegistry.register_tag(ecs::make_tag_type_desc<mesh_index_none_tag>());
-        m_indexU16Tag = m_typeRegistry.register_tag(ecs::make_tag_type_desc<mesh_index_u16_tag>());
-        m_indexU32Tag = m_typeRegistry.register_tag(ecs::make_tag_type_desc<mesh_index_u32_tag>());
+        m_typeRegistry->register_component(ecs::make_component_type_desc<draw_mesh_component>());
+
+        m_instanceComponent =
+            m_typeRegistry->register_component(ecs::make_component_type_desc<draw_instance_component>());
+
+        register_instance_data(m_instanceComponent, "i_MeshHandles");
+
+        m_indexNoneTag = m_typeRegistry->register_tag(ecs::make_tag_type_desc<mesh_index_none_tag>());
+        m_indexU16Tag = m_typeRegistry->register_tag(ecs::make_tag_type_desc<mesh_index_u16_tag>());
+        m_indexU32Tag = m_typeRegistry->register_tag(ecs::make_tag_type_desc<mesh_index_u32_tag>());
 
         VkPhysicalDeviceProperties properties{};
         vkGetPhysicalDeviceProperties(m_ctx->get_physical_device(), &properties);
@@ -170,6 +177,13 @@ namespace oblo::vk
         m_meshes.shutdown();
         m_storageBuffer.shutdown(*m_ctx);
         m_drawCallsBuffer.shutdown(*m_ctx);
+    }
+
+    void draw_registry::register_instance_data(ecs::component_type type, std::string_view name)
+    {
+        const auto internedName = m_interner->get_or_add(name);
+        m_instanceDataTypeNames.emplace(type, internedName);
+        m_instanceDataTypes.add(type);
     }
 
     void draw_registry::end_frame()
@@ -298,91 +312,62 @@ namespace oblo::vk
         return globalMeshId;
     }
 
-    h32<draw_instance> draw_registry::create_instance(
-        h32<draw_mesh> mesh, std::span<const h32<draw_buffer>> buffers, std::span<std::byte*> outData)
+    void draw_registry::create_instances()
     {
-        OBLO_ASSERT(buffers.size() == outData.size());
-
-        ecs::component_and_tag_sets sets{};
-
-        const auto userBuffersCount{buffers.size()};
-
-        // We add tags for different index types, because we won't be able to draw these meshes together
-        switch (m_meshes.get_index_type({mesh.value}))
+        // Just gather entities and create after the iteration for now, should do something better after fixing #7
+        struct deferred_creation
         {
-        case mesh_index_type::none:
-            sets.tags.add(m_indexNoneTag);
-            break;
-        case mesh_index_type::u16:
-            sets.tags.add(m_indexU16Tag);
-            break;
-        case mesh_index_type::u32:
-            sets.tags.add(m_indexU32Tag);
-            break;
+            ecs::entity entity;
+            h32<draw_mesh> mesh;
+        };
+
+        dynamic_array<deferred_creation> entitiesToUpdate;
+
+        for (const auto [entities, meshes] :
+            m_entities->range<draw_mesh_component>().exclude<draw_instance_component>())
+        {
+            for (const auto [entity, mesh] : zip_range(entities, meshes))
+            {
+                entitiesToUpdate.emplace_back(entity, mesh.mesh);
+            }
         }
 
-        sets.components.add(m_meshComponent);
-
-        for (usize i = 0; i < userBuffersCount; ++i)
+        for (const auto [entity, mesh] : entitiesToUpdate)
         {
-            const ecs::component_type component{buffers[i].value};
-            sets.components.add(component);
+            if (!mesh)
+            {
+                continue;
+            }
+
+            ecs::component_and_tag_sets sets{};
+
+            // We add tags for different index types, because we won't be able to draw these meshes together
+            switch (m_meshes.get_index_type({mesh.value}))
+            {
+            case mesh_index_type::none:
+                sets.tags.add(m_indexNoneTag);
+                break;
+            case mesh_index_type::u16:
+                sets.tags.add(m_indexU16Tag);
+                break;
+            case mesh_index_type::u32:
+                sets.tags.add(m_indexU32Tag);
+                break;
+            }
+
+            sets.components.add(m_instanceComponent);
+
+            m_entities->add(entity, sets);
+
+            auto& instance = m_entities->get<draw_instance_component>(entity);
+            instance.mesh = mesh_handle{mesh.value};
         }
-
-        const auto entity = m_instances.create(sets);
-
-        auto* const components = start_lifetime_as_array<ecs::component_type>(buffers.data(), userBuffersCount);
-
-        // Retrieve the user buffers data
-        m_instances.get(entity, {components, userBuffersCount}, outData);
-
-        std::byte* meshComponentPtr;
-        m_instances.get(entity, {&m_meshComponent, 1}, {&meshComponentPtr, 1});
-        new (meshComponentPtr) mesh_handle{mesh.value};
-
-        return h32<draw_instance>{entity.value};
-    }
-
-    void draw_registry::get_instance_data(
-        h32<draw_instance> instance, std::span<const h32<draw_buffer>> buffers, std::span<std::byte*> outData)
-    {
-        const ecs::entity e{instance.value};
-
-        auto* const components = start_lifetime_as_array<ecs::component_type>(buffers.data(), buffers.size());
-        m_instances.get(e, {components, buffers.size()}, outData);
-    }
-
-    void draw_registry::destroy_instance(h32<draw_instance> instance)
-    {
-        m_instances.destroy(ecs::entity{instance.value});
-    }
-
-    h32<draw_buffer> draw_registry::get_or_register(const draw_buffer& buffer)
-    {
-        if (const auto id = m_typeRegistry.find_component(type_id{buffer.name}))
-        {
-            return h32<draw_buffer>{id.value};
-        }
-
-        // Store the name in the interner, since these names are anyway used in reflection for render passes,
-        // and we need to make sure the string stays alive.
-        const h32<string> bufferName{m_interner->get_or_add(buffer.name)};
-
-        const auto id = m_typeRegistry.register_component(ecs::component_type_desc{
-            .type = type_id{m_interner->str(bufferName)},
-            .size = buffer.elementSize,
-            .alignment = buffer.elementAlignment,
-        });
-
-        const auto bufferId = h32<draw_buffer>{id.value};
-        m_meshNames.emplace(bufferId, bufferName);
-
-        return bufferId;
     }
 
     h32<string> draw_registry::get_name(h32<draw_buffer> drawBuffer) const
     {
-        auto* const str = m_meshNames.try_find(drawBuffer);
+        // We use the component type as draw buffer id, so we just reinterpret it here
+        auto* const str = m_instanceDataTypeNames.try_find({.value = drawBuffer.value});
         return str ? *str : h32<string>{};
     }
 
@@ -412,7 +397,9 @@ namespace oblo::vk
 
     void draw_registry::generate_draw_calls(frame_allocator& allocator, staging_buffer& stagingBuffer)
     {
-        const std::span archetypes = m_instances.get_archetypes();
+        create_instances();
+
+        const std::span archetypes = m_entities->get_archetypes();
 
         if (archetypes.empty())
         {
@@ -427,6 +414,13 @@ namespace oblo::vk
 
         for (const auto archetype : archetypes)
         {
+            const ecs::component_and_tag_sets typeSets = ecs::get_component_and_tag_sets(archetype);
+
+            if (!typeSets.components.contains(m_instanceComponent))
+            {
+                continue;
+            }
+
             const u32 numEntities = ecs::get_entities_count(archetype);
 
             if (numEntities == 0)
@@ -442,7 +436,6 @@ namespace oblo::vk
             buffer drawCommandsBuffer;
 
             const std::span componentTypes = ecs::get_component_types(archetype);
-            const ecs::component_and_tag_sets typeSets = ecs::get_component_and_tag_sets(archetype);
             const bool isIndexed = !typeSets.tags.contains(m_indexNoneTag);
 
             VkIndexType vkIndexType = VK_INDEX_TYPE_NONE_KHR;
@@ -461,17 +454,17 @@ namespace oblo::vk
                 std::byte* meshHandleBegin;
 
                 ecs::for_each_chunk(archetype,
-                    {&m_meshComponent, 1},
+                    {&m_instanceComponent, 1},
                     {&meshHandleOffset, 1},
                     {&meshHandleBegin, 1},
                     [&](const ecs::entity*, std::span<std::byte*> componentArrays, u32 numEntitiesInChunk)
                     {
-                        auto* const meshHandles =
-                            start_lifetime_as_array<mesh_handle>(componentArrays[0], numEntitiesInChunk);
+                        auto* const instances =
+                            start_lifetime_as_array<draw_instance_component>(componentArrays[0], numEntitiesInChunk);
 
-                        for (const auto meshId : std::span{meshHandles, numEntitiesInChunk})
+                        for (const auto instance : std::span{instances, numEntitiesInChunk})
                         {
-                            const auto range = m_meshes.get_table_range(meshId);
+                            const auto range = m_meshes.get_table_range(instance.mesh);
 
                             *nextCommand = {
                                 .vertexCount = range.vertexCount,
@@ -498,17 +491,17 @@ namespace oblo::vk
                 std::byte* meshHandleBegin;
 
                 ecs::for_each_chunk(archetype,
-                    {&m_meshComponent, 1},
+                    {&m_instanceComponent, 1},
                     {&meshHandleOffset, 1},
                     {&meshHandleBegin, 1},
                     [&](const ecs::entity*, std::span<std::byte*> componentArrays, u32 numEntitiesInChunk)
                     {
-                        auto* const meshHandles =
-                            start_lifetime_as_array<mesh_handle>(componentArrays[0], numEntitiesInChunk);
+                        auto* const instances =
+                            start_lifetime_as_array<draw_instance_component>(componentArrays[0], numEntitiesInChunk);
 
-                        for (const auto meshId : std::span{meshHandles, numEntitiesInChunk})
+                        for (const auto instance : std::span{instances, numEntitiesInChunk})
                         {
-                            const auto range = m_meshes.get_table_range(meshId);
+                            const auto range = m_meshes.get_table_range(instance.mesh);
 
                             *nextCommand = {
                                 .indexCount = range.indexCount,
@@ -557,24 +550,34 @@ namespace oblo::vk
             // TODO: Don't blindly update all instance buffers every frame
             // Update instance buffers
 
-            const auto componentsCount = componentTypes.size();
+            // All
+            const auto allComponentsCount = componentTypes.size();
 
             draw_instance_buffers instanceBuffers{
-                .bindings = allocate_n<h32<vk::draw_buffer>>(allocator, componentsCount),
-                .buffers = allocate_n<vk::buffer>(allocator, componentsCount),
-                .count = u32(componentsCount),
+                .bindings = allocate_n<h32<vk::draw_buffer>>(allocator, allComponentsCount),
+                .buffers = allocate_n<vk::buffer>(allocator, allComponentsCount),
+                .count = 0u,
             };
 
-            const auto dataOffsets = allocate_n_span<u32>(allocator, componentsCount);
-            const auto componentData = allocate_n_span<std::byte*>(allocator, componentsCount);
+            const auto dataOffsets = allocate_n_span<u32>(allocator, allComponentsCount);
+            const auto componentData = allocate_n_span<std::byte*>(allocator, allComponentsCount);
 
-            for (usize i = 0; i < componentsCount; ++i)
+            for (usize i = 0; i < allComponentsCount; ++i)
             {
-                const auto& typeDesc = m_typeRegistry.get_component_type_desc(componentTypes[i]);
+                const auto componentType = componentTypes[i];
+
+                if (!m_instanceDataTypes.contains(componentType))
+                {
+                    continue;
+                }
+
+                const auto& typeDesc = m_typeRegistry->get_component_type_desc(componentType);
                 const u32 bufferSize = typeDesc.size * numEntities;
 
-                instanceBuffers.buffers[i] = m_storageBuffer.allocate(*m_ctx, bufferSize);
-                instanceBuffers.bindings[i] = h32<draw_buffer>{componentTypes[i].value};
+                instanceBuffers.buffers[instanceBuffers.count] = m_storageBuffer.allocate(*m_ctx, bufferSize);
+                instanceBuffers.bindings[instanceBuffers.count] = h32<draw_buffer>{componentType.value};
+
+                ++instanceBuffers.count;
             }
 
             u32 numProcessedEntities{0};
@@ -585,19 +588,25 @@ namespace oblo::vk
                 componentData,
                 [&](const ecs::entity*, std::span<std::byte*> componentArrays, u32 numEntitiesInChunk)
                 {
-                    for (usize i = 0; i < componentsCount; ++i)
+                    for (usize i = 0, j = 0; i < allComponentsCount; ++i)
                     {
-                        // TODO: Maybe skip some special components?
-                        const auto& typeDesc = m_typeRegistry.get_component_type_desc(componentTypes[i]);
+                        if (!m_instanceDataTypes.contains(componentTypes[i]))
+                        {
+                            continue;
+                        }
+
+                        const auto& typeDesc = m_typeRegistry->get_component_type_desc(componentTypes[i]);
 
                         const u32 chunkSize = typeDesc.size * numEntitiesInChunk;
                         const u32 dstOffset = typeDesc.size * numProcessedEntities;
 
-                        const auto& instanceBuffer = instanceBuffers.buffers[i];
+                        const auto& instanceBuffer = instanceBuffers.buffers[j];
 
                         stagingBuffer.upload({componentArrays[i], chunkSize},
                             instanceBuffer.buffer,
                             instanceBuffer.offset + dstOffset);
+
+                        ++j;
                     }
 
                     numProcessedEntities += numEntitiesInChunk;

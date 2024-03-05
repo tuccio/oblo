@@ -289,6 +289,8 @@ namespace oblo::vk
 
     mesh_database::table_range mesh_database::get_table_range(mesh_handle mesh) const
     {
+        OBLO_ASSERT(mesh);
+
         const auto [tableId, meshId] = parse_mesh_handle(mesh);
         const auto& table = m_tables[tableId];
         const auto range = table.meshes->get_mesh_range(mesh_table_entry_id{meshId});

@@ -12,6 +12,5 @@ namespace oblo
     {
         resource_ref<mesh> mesh;
         resource_ref<material> material;
-        u32 instance; // Just temporarily here
     };
 }
