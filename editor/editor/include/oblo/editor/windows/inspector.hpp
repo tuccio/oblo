@@ -12,7 +12,9 @@ namespace oblo::ecs
 
 namespace oblo::editor
 {
+    class component_factory;
     class selected_entities;
+
     struct window_update_context;
 
     class inspector final
@@ -25,5 +27,6 @@ namespace oblo::editor
         const property_registry* m_propertyRegistry{};
         ecs::entity_registry* m_registry{};
         const selected_entities* m_selection{};
+        const component_factory* m_factory{};
     };
 }

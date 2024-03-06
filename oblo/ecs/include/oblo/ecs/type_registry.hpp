@@ -3,6 +3,7 @@
 #include <oblo/core/type_id.hpp>
 #include <oblo/ecs/handles.hpp>
 
+#include <span>
 #include <unordered_map>
 
 namespace oblo::ecs
@@ -37,6 +38,9 @@ namespace oblo::ecs
 
         const component_type_desc& get_component_type_desc(component_type type) const;
         const tag_type_desc& get_tag_type_desc(tag_type type) const;
+
+        std::span<const component_type_desc> get_component_types() const;
+        std::span<const tag_type_desc> get_tag_types() const;
 
     private:
         struct any_type_info;
