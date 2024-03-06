@@ -15,26 +15,26 @@ namespace oblo
         return {{
             vec4{
                 s.x * (1 - 2 * ry2 - 2 * rz2),
-                s.y * (2 * r.x * r.y - 2 * r.z * r.w),
-                s.z * (2 * r.x * r.z + 2 * r.y * r.w),
-                p.x,
-            },
-            vec4{
                 s.x * (2 * r.x * r.y + 2 * r.z * r.w),
-                s.y * (1 - 2 * rx2 - 2 * rz2),
-                s.z * (2 * r.y * r.z - 2 * r.x * r.w),
-                p.y,
+                s.x * (2 * r.x * r.z - 2 * r.y * r.w),
+                0.f,
             },
             vec4{
-                s.x * (2 * r.x * r.z - 2 * r.y * r.w),
+                s.y * (2 * r.x * r.y - 2 * r.z * r.w),
+                s.y * (1 - 2 * rx2 - 2 * rz2),
                 s.y * (2 * r.y * r.z + 2 * r.x * r.w),
+                0.f,
+            },
+            vec4{
+                s.z * (2 * r.x * r.z + 2 * r.y * r.w),
+                s.z * (2 * r.y * r.z - 2 * r.x * r.w),
                 s.z * (1 - 2 * rx2 - 2 * ry2),
-                p.z,
+                0.f,
             },
             {
-                0.f,
-                0.f,
-                0.f,
+                p.x,
+                p.y,
+                p.z,
                 1.f,
             },
         }};
