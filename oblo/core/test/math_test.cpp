@@ -57,7 +57,7 @@ namespace oblo
             {
                 for (u32 j = 0; j < 4; ++j)
                 {
-                    e(i, j) = m[i][j];
+                    e(i, j) = m.at(i, j);
                 }
             }
 
@@ -78,7 +78,7 @@ namespace oblo
             {
                 for (u32 j = 0; j < 4; ++j)
                 {
-                    ASSERT_NEAR(e(i, j), o[i][j], tolerance);
+                    ASSERT_NEAR(e(i, j), o.at(i, j), tolerance);
                 }
             }
         }
@@ -98,7 +98,7 @@ namespace oblo
             {
                 for (u32 j = 0; j < 4; ++j)
                 {
-                    assert_near_adaptive(e(i, j), o[i][j]);
+                    assert_near_adaptive(e(i, j), o.at(i, j));
                 }
             }
         }
@@ -208,14 +208,14 @@ namespace oblo
         {
             mat4 m1, m2;
 
-            for (auto& row : m1.rows)
+            for (auto& column : m1.columns)
             {
-                row = random_vec4(rng, f32Dist);
+                column = random_vec4(rng, f32Dist);
             }
 
-            for (auto& row : m2.rows)
+            for (auto& column : m2.columns)
             {
-                row = random_vec4(rng, f32Dist);
+                column = random_vec4(rng, f32Dist);
             }
 
             const Eigen::Matrix4f eM1 = from_oblo(m1);
@@ -236,9 +236,9 @@ namespace oblo
         {
             mat4 mat;
 
-            for (auto& row : mat.rows)
+            for (auto& column : mat.columns)
             {
-                row = random_vec4(rng, f32Dist);
+                column = random_vec4(rng, f32Dist);
             }
 
             const Eigen::Matrix4f eMat = from_oblo(mat);
