@@ -8,6 +8,7 @@
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/editor/service_context.hpp>
+#include <oblo/editor/services/component_factory.hpp>
 #include <oblo/editor/services/selected_entities.hpp>
 #include <oblo/editor/utility/entity_utility.hpp>
 #include <oblo/editor/window_update_context.hpp>
@@ -16,6 +17,8 @@
 #include <oblo/properties/property_registry.hpp>
 #include <oblo/properties/property_tree.hpp>
 #include <oblo/properties/visit.hpp>
+
+#include <format>
 
 #include <imgui.h>
 
@@ -118,6 +121,7 @@ namespace oblo::editor
         m_propertyRegistry = ctx.services.find<property_registry>();
         m_registry = ctx.services.find<ecs::entity_registry>();
         m_selection = ctx.services.find<selected_entities>();
+        m_factory = ctx.services.find<component_factory>();
     }
 
     bool inspector::update(const window_update_context&)
@@ -128,6 +132,35 @@ namespace oblo::editor
         {
             const std::span selectedEntities = m_selection->get();
 
+            const auto& typeRegistry = m_registry->get_type_registry();
+
+            ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
+
+            if (!selectedEntities.empty() && ImGui::BeginCombo("Add Component", nullptr, ImGuiComboFlags_NoPreview))
+            {
+                char buf[1024];
+
+                ecs::component_type type{};
+
+                for (const auto& component : typeRegistry.get_component_types())
+                {
+                    ++type.value;
+
+                    auto [end, len] = std::format_to_n(buf, array_size(buf) - 1, "{}", component.type.name);
+                    *end = '\0';
+
+                    if (ImGui::Selectable(buf))
+                    {
+                        for (const auto e : selectedEntities)
+                        {
+                            m_factory->add(*m_registry, e, type);
+                        }
+                    }
+                }
+
+                ImGui::EndCombo();
+            }
+
             for (const auto e : selectedEntities)
             {
                 if (e && m_registry->contains(e))
@@ -135,7 +168,6 @@ namespace oblo::editor
                     auto* const entityName = entity_utility::get_name_cstr(*m_registry, e);
                     ImGui::TextUnformatted(entityName);
 
-                    const auto& typeRegistry = m_registry->get_type_registry();
                     const std::span components = m_registry->get_component_types(e);
 
                     for (const ecs::component_type type : components)

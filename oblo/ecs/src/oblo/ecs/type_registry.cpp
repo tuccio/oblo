@@ -141,4 +141,14 @@ namespace oblo::ecs
     {
         return m_tags[type.value];
     }
+
+    std::span<const component_type_desc> type_registry::get_component_types() const
+    {
+        return std::span{m_components}.subspan(1);
+    }
+
+    std::span<const tag_type_desc> type_registry::get_tag_types() const
+    {
+        return std::span{m_tags}.subspan(1);
+    }
 }
