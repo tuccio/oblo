@@ -315,9 +315,12 @@ namespace oblo::vk::test
         {
             bool init(const vk::sandbox_init_context& ctx)
             {
+                entities.init(&typeRegistry);
+
                 if (!renderer.init({
                         .vkContext = *ctx.vkContext,
                         .frameAllocator = *ctx.frameAllocator,
+                        .entities = entities,
                     }))
                 {
                     return false;
@@ -388,6 +391,9 @@ namespace oblo::vk::test
             renderer renderer;
             resource_pool resourcePool;
             render_graph graph;
+
+            ecs::type_registry typeRegistry;
+            ecs::entity_registry entities;
         };
     }
 
