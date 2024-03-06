@@ -8,6 +8,7 @@
 #include <oblo/ecs/systems/system_graph.hpp>
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/ecs/utility/registration.hpp>
+#include <oblo/editor/services/component_factory.hpp>
 #include <oblo/editor/ui/style.hpp>
 #include <oblo/editor/windows/asset_browser.hpp>
 #include <oblo/editor/windows/inspector.hpp>
@@ -140,6 +141,7 @@ namespace oblo::editor
             globalRegistry.add<asset_registry>().externally_owned(&engine->get_asset_registry());
             globalRegistry.add<property_registry>().externally_owned(&engine->get_property_registry());
             globalRegistry.add<const input_queue>().externally_owned(ctx.inputQueue);
+            globalRegistry.add<component_factory>().unique();
 
             service_registry sceneRegistry{};
             sceneRegistry.add<ecs::entity_registry>().externally_owned(&m_entities);
