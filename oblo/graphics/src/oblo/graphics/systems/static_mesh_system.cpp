@@ -63,12 +63,6 @@ namespace oblo
         {
             ecs::entity entityId;
         };
-
-        // Seems redundant, this is necessary just because we need to transpose this data
-        struct gpu_transform_component
-        {
-            mat4 transform;
-        };
     }
 
     void static_mesh_system::first_update(const ecs::system_update_context& ctx)
@@ -86,14 +80,13 @@ namespace oblo
 
         auto& typeRegistry = ctx.entities->get_type_registry();
 
-        const auto gpuTransform =
-            typeRegistry.register_component(ecs::make_component_type_desc<gpu_transform_component>());
+        const auto gpuTransform = typeRegistry.find_component<global_transform_component>();
         const auto gpuMaterial = typeRegistry.register_component(ecs::make_component_type_desc<gpu_material>());
-        const auto entityid = typeRegistry.register_component(ecs::make_component_type_desc<entity_id_component>());
+        const auto entityId = typeRegistry.register_component(ecs::make_component_type_desc<entity_id_component>());
 
         drawRegistry.register_instance_data(gpuTransform, "i_TransformBuffer");
         drawRegistry.register_instance_data(gpuMaterial, "i_MaterialBuffer");
-        drawRegistry.register_instance_data(entityid, "i_EntityIdBuffer");
+        drawRegistry.register_instance_data(entityId, "i_EntityIdBuffer");
 
         update(ctx);
     }
@@ -107,21 +100,10 @@ namespace oblo
             ecs::entity e;
             h32<vk::draw_mesh> mesh;
             resource_ref<material> material;
-            mat4 transform;
         };
 
         // TODO: (#7) Implement a way to create components while iterating, or deferring
         dynamic_array<deferred_creation> deferred;
-
-        // Update data if necessary
-        for (const auto [entities, staticMeshComponents, gpuTransforms, globalTransforms] :
-            ctx.entities->range<static_mesh_component, gpu_transform_component, global_transform_component>())
-        {
-            for (auto&& [entity, gpuTransform, globalTransform] : zip_range(entities, gpuTransforms, globalTransforms))
-            {
-                gpuTransform.transform = transpose(globalTransform.value);
-            }
-        }
 
         for (const auto [entities, meshComponents, globalTransforms] :
             ctx.entities->range<static_mesh_component, global_transform_component>().exclude<vk::draw_mesh_component>())
@@ -140,19 +122,16 @@ namespace oblo
                     .e = entity,
                     .mesh = mesh,
                     .material = meshComponent.material,
-                    .transform = transpose(globalTransform.value),
                 };
             }
         }
 
         // Finally create components if necessary
-        for (const auto& [e, mesh, materialRef, transform] : deferred)
+        for (const auto& [e, mesh, materialRef] : deferred)
         {
-            auto&& [gpuTransform, gpuMaterial, pickingId, meshComponent] =
-                ctx.entities->add<gpu_transform_component, gpu_material, entity_id_component, vk::draw_mesh_component>(
-                    e);
+            auto&& [gpuMaterial, pickingId, meshComponent] =
+                ctx.entities->add<gpu_material, entity_id_component, vk::draw_mesh_component>(e);
 
-            gpuTransform.transform = transform;
             gpuMaterial = convert(*m_resourceCache, m_resourceRegistry->get_resource(materialRef.id).as<material>());
             pickingId.entityId = e;
             meshComponent.mesh = mesh;

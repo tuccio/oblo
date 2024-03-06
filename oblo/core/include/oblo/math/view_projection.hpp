@@ -20,8 +20,8 @@ namespace oblo
         mat4 projection{{
             {x, 0.f, 0.f, 0.f},
             {0.f, y, 0.f, 0.f},
-            {0.f, 0.f, A, B},
-            {0.f, 0.f, -1.f, 0.f},
+            {0.f, 0.f, A, -1.f},
+            {0.f, 0.f, B, 0.f},
         }};
 
         if (inverse)
@@ -29,8 +29,8 @@ namespace oblo
             *inverse = mat4{{
                 {1.f / x, 0.f, 0.f, 0.f},
                 {0.f, 1 / y, 0.f, 0.f},
-                {0.f, 0.f, 0.f, -1.f},
-                {0.f, 0.f, 1 / B, A / B},
+                {0.f, 0.f, 0.f, 1 / B},
+                {0.f, 0.f, -1.f, A / B},
             }};
         }
 
@@ -44,10 +44,10 @@ namespace oblo
         const vec3 y = cross(z, x);
 
         return mat4({
-            {x.x, x.y, x.z, -dot(x, position)},
-            {y.x, y.y, y.z, -dot(y, position)},
-            {z.x, z.y, z.z, -dot(z, position)},
-            {0.f, 0.f, 0.f, 1.f},
+            {x.x, y.x, z.x, 0.f},
+            {x.y, y.y, z.y, 0.f},
+            {x.z, y.z, z.z, 0.f},
+            {-dot(x, position), -dot(y, position), -dot(z, position), 1.f},
         });
     }
 }
