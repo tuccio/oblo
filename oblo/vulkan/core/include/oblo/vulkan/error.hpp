@@ -5,6 +5,10 @@
 namespace oblo::vk
 {
     [[noreturn]] void panic(const char* file, int line, const char* call, VkResult result);
+
+    using panic_handler = void (*)(const char* file, int line, const char* call, VkResult result, void* userdata);
+
+    void set_panic_handler(panic_handler handler, void* userdata);
 }
 
 #define OBLO_VK_PANIC(Call)                                                                                            \
