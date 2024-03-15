@@ -131,4 +131,81 @@ namespace oblo::ecs
             ASSERT_TRUE(entitiesSet['D']);
         }
     }
+
+    TEST(components_tags_test, remove_component)
+    {
+        type_registry typeRegistry;
+
+        {
+            const component_type name = register_type<mock_name_component>(typeRegistry);
+            const component_type sprite = register_type<mock_sprite_component>(typeRegistry);
+            const component_type audio = register_type<mock_audio_source_component>(typeRegistry);
+            const tag_type selected = register_type<mock_selected_tag>(typeRegistry);
+            const tag_type disabled = register_type<mock_disabled_tag>(typeRegistry);
+
+            ASSERT_TRUE(sprite);
+            ASSERT_TRUE(audio);
+            ASSERT_TRUE(name);
+            ASSERT_TRUE(selected);
+            ASSERT_TRUE(disabled);
+        }
+
+        entity_registry reg{&typeRegistry};
+
+        const auto e = reg.create<mock_name_component, mock_audio_source_component>();
+
+        {
+            auto&& [name, audio] = reg.get<mock_name_component, mock_audio_source_component>(e);
+
+            name.name = 'A';
+            audio.resourceId = 42u;
+        }
+
+        auto checkEntity = [&reg, e]
+        {
+            const auto entityArch = reg.get_archetype_storage(e);
+
+            for (const auto arch : reg.get_archetypes())
+            {
+                if (entityArch == arch)
+                {
+                    ASSERT_EQ(get_entities_count(arch), 1);
+                    ASSERT_EQ(get_entities_count_in_chunk(arch, 0), 1);
+                }
+                else
+                {
+                    ASSERT_EQ(get_entities_count(arch), 0);
+                    ASSERT_EQ(get_entities_count_in_chunk(arch, 0), 0);
+                }
+            }
+        };
+
+        ASSERT_EQ(reg.get_archetypes().size(), 1);
+        checkEntity();
+
+        // Nothing should happen
+        reg.remove<mock_sprite_component>(e);
+
+        {
+            auto&& [name, audio] = reg.get<mock_name_component, mock_audio_source_component>(e);
+
+            ASSERT_EQ(name.name, 'A');
+            ASSERT_EQ(audio.resourceId, 42u);
+        }
+
+        ASSERT_EQ(reg.get_archetypes().size(), 1);
+        checkEntity();
+
+        // This should move to a different archetype
+        reg.remove<mock_audio_source_component>(e);
+
+        {
+            auto&& name = reg.get<mock_name_component>(e);
+
+            ASSERT_EQ(name.name, 'A');
+        }
+
+        ASSERT_EQ(reg.get_archetypes().size(), 2);
+        checkEntity();
+    }
 }

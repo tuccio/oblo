@@ -91,6 +91,8 @@ namespace oblo::ecs
         template <typename... Components>
         typed_range<Components...> range();
 
+        archetype_storage get_archetype_storage(entity e) const;
+
         std::span<const entity> entities() const;
 
         std::span<const component_type> get_component_types(entity e) const;
@@ -131,6 +133,8 @@ namespace oblo::ecs
         void move_last_and_pop(const entity_data& entityData);
 
         component_and_tag_sets get_type_sets(entity e) const;
+
+        void move_archetype(entity_data& entityData, const archetype_storage& newStorage);
 
     private:
         using entities_map = h32_flat_pool_dense_map<entity_handle, entity_data>;
@@ -243,6 +247,13 @@ namespace oblo::ecs
         const auto sets = make_type_sets<ComponentsOrTags...>(*m_typeRegistry);
         add(e, sets);
         return get<ComponentsOrTags...>(e);
+    }
+
+    template <typename... ComponentsOrTags>
+    void entity_registry::remove(entity e)
+    {
+        const auto sets = make_type_sets<ComponentsOrTags...>(*m_typeRegistry);
+        remove(e, sets);
     }
 
     template <typename... ComponentsOrTags>

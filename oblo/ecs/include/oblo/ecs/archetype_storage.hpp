@@ -14,6 +14,8 @@ namespace oblo::ecs
     struct archetype_storage
     {
         archetype_impl* archetype;
+
+        constexpr bool operator==(const archetype_storage&) const noexcept = default;
     };
 
     component_and_tag_sets get_component_and_tag_sets(const archetype_storage& storage);
