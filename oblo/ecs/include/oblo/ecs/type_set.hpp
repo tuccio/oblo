@@ -31,6 +31,24 @@ namespace oblo::ecs
             }
         }
 
+        template <typename T>
+        void remove(h32<T> index)
+        {
+            OBLO_ASSERT(index);
+            const u64 maskOffset = index.value % BitsPerBlock;
+            const u64 mask = u64(1) << maskOffset;
+            const u64 block = index.value / BitsPerBlock;
+            bitset[block] &= ~mask;
+        }
+
+        void remove(const type_set& other)
+        {
+            for (u32 i = 0; i < BlocksCount; ++i)
+            {
+                bitset[i] &= ~other.bitset[i];
+            }
+        }
+
         constexpr bool is_empty() const
         {
             return *this == type_set{};
