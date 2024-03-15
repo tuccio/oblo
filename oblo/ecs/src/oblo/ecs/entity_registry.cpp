@@ -165,80 +165,34 @@ namespace oblo::ecs
             return;
         }
 
-        archetype_impl& oldArchetype = *entityData->archetype;
-        const auto oldArchetypeIndex = entityData->archetypeIndex;
-
-        component_and_tag_sets types = oldArchetype.types;
+        component_and_tag_sets types = entityData->archetype->types;
         types.components.add(newTypes.components);
         types.tags.add(newTypes.tags);
 
         const archetype_storage& newStorage = find_or_create_storage(types);
-        archetype_impl& newArchetype = *newStorage.archetype;
+        move_archetype(*entityData, newStorage);
+    }
 
-        OBLO_ASSERT(oldArchetype.numCurrentEntities != 0);
-
-        if (&newArchetype == &oldArchetype)
+    void entity_registry::remove(entity e, const component_and_tag_sets& removedTypes)
+    {
+        if (removedTypes.components.is_empty() && removedTypes.tags.is_empty())
         {
-            // Nothing to do
             return;
         }
 
-        // First we get the entity index and move into the new archetype
-        const auto [oldChunkIndex, oldChunkOffset] = get_entity_location(oldArchetype, oldArchetypeIndex);
+        auto* const entityData = m_entities.try_find(e);
 
-        // Reserve space at the end of the new archetype
-        const auto newArchetypeIndex = newArchetype.numCurrentEntities;
-
-        const auto [newChunkIndex, newChunkOffset] = get_entity_location(newArchetype, newArchetypeIndex);
-
-        reserve_chunks(*m_pool, newArchetype, newChunkIndex + 1);
-
-        // TODO: Move assign old into new
-        chunk* const oldChunk = oldArchetype.chunks[oldChunkIndex];
-        chunk* const newChunk = newArchetype.chunks[newChunkIndex];
-
-        u8 oldComponentIndex{0};
-
-        for (u8 newComponentIndex = 0; newComponentIndex < newArchetype.numComponents; ++newComponentIndex)
+        if (!entityData)
         {
-            auto* dst = get_component_pointer(newChunk->data, newArchetype, newComponentIndex, newChunkOffset);
-
-            const bool isSameComponent = oldComponentIndex <= oldArchetype.numComponents &&
-                oldArchetype.components[oldComponentIndex] == newArchetype.components[newComponentIndex];
-
-            // If we have the old component, we can move it, otherwise we default construct a new one
-            if (isSameComponent)
-            {
-                auto* src = get_component_pointer(oldChunk->data, oldArchetype, oldComponentIndex, oldChunkOffset);
-                newArchetype.fnTables[newComponentIndex].do_move(newArchetype.sizes[newComponentIndex], dst, src, 1);
-
-                ++oldComponentIndex;
-            }
-            else
-            {
-                newArchetype.fnTables[newComponentIndex].do_create(dst, 1);
-            }
+            return;
         }
 
-        // Update entity
-        entity* const oldEntityPtr = get_entity_pointer(oldChunk->data, oldChunkOffset);
-        entity* const newEntityPtr = get_entity_pointer(newChunk->data, newChunkOffset);
-        *newEntityPtr = *oldEntityPtr;
+        component_and_tag_sets types = entityData->archetype->types;
+        types.components.remove(removedTypes.components);
+        types.tags.remove(removedTypes.tags);
 
-        // Update tags
-        entity_tags* const newTags = get_entity_tags_pointer(newChunk->data, newArchetype, newChunkOffset);
-        *newTags = {newArchetype.types.tags};
-
-        // Move last and pop (also decrements old archetype counters)
-        move_last_and_pop(*entityData);
-
-        // Update the references of the entity
-        entityData->archetype = &newArchetype;
-        entityData->archetypeIndex = newArchetypeIndex;
-
-        // Update new chunk counters
-        ++newChunk->header.numEntities;
-        ++newArchetype.numCurrentEntities;
+        const archetype_storage& newStorage = find_or_create_storage(types);
+        move_archetype(*entityData, newStorage);
     }
 
     bool entity_registry::contains(entity e) const
@@ -308,6 +262,12 @@ namespace oblo::ecs
         entity e, const std::span<const component_type> components, std::span<std::byte*> outComponents)
     {
         get(e, components, {const_cast<const std::byte**>(outComponents.data()), outComponents.size()});
+    }
+
+    archetype_storage entity_registry::get_archetype_storage(entity e) const
+    {
+        const entity_data* entityData = m_entities.try_find(e);
+        return {entityData ? entityData->archetype : nullptr};
     }
 
     std::span<const entity> entity_registry::entities() const
@@ -582,5 +542,88 @@ namespace oblo::ecs
     {
         auto* const entityData = m_entities.try_find(e);
         return entityData->archetype->types;
+    }
+
+    void entity_registry::move_archetype(entity_data& entityData, const archetype_storage& newStorage)
+    {
+        archetype_impl& oldArchetype = *entityData.archetype;
+        const auto oldArchetypeIndex = entityData.archetypeIndex;
+
+        archetype_impl& newArchetype = *newStorage.archetype;
+
+        OBLO_ASSERT(oldArchetype.numCurrentEntities != 0);
+
+        if (&newArchetype == &oldArchetype)
+        {
+            // Nothing to do
+            return;
+        }
+
+        // First we get the entity index and move into the new archetype
+        const auto [oldChunkIndex, oldChunkOffset] = get_entity_location(oldArchetype, oldArchetypeIndex);
+
+        // Reserve space at the end of the new archetype
+        const auto newArchetypeIndex = newArchetype.numCurrentEntities;
+
+        const auto [newChunkIndex, newChunkOffset] = get_entity_location(newArchetype, newArchetypeIndex);
+
+        reserve_chunks(*m_pool, newArchetype, newChunkIndex + 1);
+
+        // Move old components into the new ones
+        chunk* const oldChunk = oldArchetype.chunks[oldChunkIndex];
+        chunk* const newChunk = newArchetype.chunks[newChunkIndex];
+
+        u8 oldComponentIndex{0};
+
+        for (u8 newComponentIndex = 0; newComponentIndex < newArchetype.numComponents;)
+        {
+            auto* dst = get_component_pointer(newChunk->data, newArchetype, newComponentIndex, newChunkOffset);
+
+            const bool isSameComponent = oldComponentIndex <= oldArchetype.numComponents &&
+                oldArchetype.components[oldComponentIndex] == newArchetype.components[newComponentIndex];
+
+            const bool isRemovedComponent = oldComponentIndex <= oldArchetype.numComponents &&
+                oldArchetype.components[oldComponentIndex] < newArchetype.components[newComponentIndex];
+
+            // If we have the old component, we can move it, otherwise we default construct a new one
+            if (isSameComponent)
+            {
+                auto* src = get_component_pointer(oldChunk->data, oldArchetype, oldComponentIndex, oldChunkOffset);
+                newArchetype.fnTables[newComponentIndex].do_move(newArchetype.sizes[newComponentIndex], dst, src, 1);
+
+                ++oldComponentIndex;
+                ++newComponentIndex;
+            }
+            else if (isRemovedComponent)
+            {
+                // An old component we are removing, it will be destroyed later, just ignore it for now
+                ++oldComponentIndex;
+            }
+            else
+            {
+                newArchetype.fnTables[newComponentIndex].do_create(dst, 1);
+                ++newComponentIndex;
+            }
+        }
+
+        // Update entity
+        entity* const oldEntityPtr = get_entity_pointer(oldChunk->data, oldChunkOffset);
+        entity* const newEntityPtr = get_entity_pointer(newChunk->data, newChunkOffset);
+        *newEntityPtr = *oldEntityPtr;
+
+        // Update tags
+        entity_tags* const newTags = get_entity_tags_pointer(newChunk->data, newArchetype, newChunkOffset);
+        *newTags = {newArchetype.types.tags};
+
+        // Move last and pop (also decrements old archetype counters)
+        move_last_and_pop(entityData);
+
+        // Update the references of the entity
+        entityData.archetype = &newArchetype;
+        entityData.archetypeIndex = newArchetypeIndex;
+
+        // Update new chunk counters
+        ++newChunk->header.numEntities;
+        ++newArchetype.numCurrentEntities;
     }
 }
