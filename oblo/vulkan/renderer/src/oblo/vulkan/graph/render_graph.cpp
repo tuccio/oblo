@@ -122,6 +122,7 @@ namespace oblo::vk
         m_nodeTransitions.assign(m_nodes.size(), node_transitions{});
         m_textureTransitions.clear();
         m_transientTextures.clear();
+        m_transientBuffers.clear();
         m_resourcePoolId.assign(m_pinStorage.size(), ~u32{});
 
         m_dynamicAllocator->restore_all();

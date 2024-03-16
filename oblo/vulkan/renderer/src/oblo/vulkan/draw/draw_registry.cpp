@@ -168,7 +168,7 @@ namespace oblo::vk
         m_drawCallsBuffer.init(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, // TODO: Probably move this somewhere else
             memory_usage::gpu_only,
-            alignof(VkDrawIndexedIndirectCommand),
+            16, // The actual required gpu alignment (storage + indirect)
             bufferChunkSize);
     }
 
