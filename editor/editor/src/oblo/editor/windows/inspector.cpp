@@ -7,6 +7,7 @@
 #include <oblo/core/uuid.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/entity_registry.hpp>
+#include <oblo/ecs/tag_type_desc.hpp>
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/services/component_factory.hpp>
 #include <oblo/editor/services/selected_entities.hpp>
@@ -126,6 +127,8 @@ namespace oblo::editor
 
     bool inspector::update(const window_update_context&)
     {
+        char buffer[1024];
+
         bool open{true};
 
         if (ImGui::Begin("Inspector", &open))
@@ -138,18 +141,16 @@ namespace oblo::editor
 
             if (!selectedEntities.empty() && ImGui::BeginCombo("Add Component", nullptr, ImGuiComboFlags_NoPreview))
             {
-                char buf[1024];
-
                 ecs::component_type type{};
 
                 for (const auto& component : typeRegistry.get_component_types())
                 {
                     ++type.value;
 
-                    auto [end, len] = std::format_to_n(buf, array_size(buf) - 1, "{}", component.type.name);
+                    auto [end, len] = std::format_to_n(buffer, array_size(buffer) - 1, "{}", component.type.name);
                     *end = '\0';
 
-                    if (ImGui::Selectable(buf))
+                    if (ImGui::Selectable(buffer))
                     {
                         for (const auto e : selectedEntities)
                         {
@@ -174,25 +175,38 @@ namespace oblo::editor
                     {
                         const auto& desc = typeRegistry.get_component_type_desc(type);
 
-                        char name[128];
-                        const auto length = min<usize>(array_size(name) - 1, desc.type.name.size());
-                        std::memcpy(name, desc.type.name.data(), length);
+                        const auto length = min<usize>(array_size(buffer) - 1, desc.type.name.size());
+                        std::memcpy(buffer, desc.type.name.data(), length);
 
-                        name[length] = '\0';
+                        buffer[length] = '\0';
 
-                        if (ImGui::CollapsingHeader(name, ImGuiTreeNodeFlags_DefaultOpen))
+                        ImGui::PushID(static_cast<int>(type.value));
+
+                        if (ImGui::CollapsingHeader(buffer, ImGuiTreeNodeFlags_DefaultOpen))
                         {
-                            auto* const propertyTree = m_propertyRegistry->try_get(desc.type);
-
-                            if (propertyTree)
+                            if (ImGui::Button("Delete"))
                             {
-                                auto* const data = m_registry->try_get(e, type);
+                                ecs::component_and_tag_sets types{};
+                                types.components.add(type);
 
-                                ImGui::PushID(int(type.value));
-                                build_property_grid(*propertyTree, data);
-                                ImGui::PopID();
+                                m_registry->remove(e, types);
+                            }
+                            else
+                            {
+                                auto* const propertyTree = m_propertyRegistry->try_get(desc.type);
+
+                                if (propertyTree)
+                                {
+                                    auto* const data = m_registry->try_get(e, type);
+
+                                    ImGui::PushID(int(type.value));
+                                    build_property_grid(*propertyTree, data);
+                                    ImGui::PopID();
+                                }
                             }
                         }
+
+                        ImGui::PopID();
                     }
 
                     // Just pick the first entity for now
