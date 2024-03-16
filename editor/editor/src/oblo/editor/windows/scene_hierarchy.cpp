@@ -6,6 +6,9 @@
 #include <oblo/editor/services/selected_entities.hpp>
 #include <oblo/editor/utility/entity_utility.hpp>
 #include <oblo/editor/window_update_context.hpp>
+#include <oblo/math/quaternion.hpp>
+#include <oblo/math/vec3.hpp>
+#include <oblo/scene/utility/ecs_utility.hpp>
 
 #include <imgui.h>
 
@@ -23,6 +26,38 @@ namespace oblo::editor
 
         if (ImGui::Begin("Hierarchy", &open))
         {
+            if (ImGui::IsMouseReleased(ImGuiButtonFlags_MouseButtonRight) && ImGui::IsWindowHovered())
+            {
+                ImGui::OpenPopup("##context");
+            }
+
+            if (ImGui::BeginPopupContextItem("##context", ImGuiPopupFlags_None))
+            {
+                const std::span selectedEntities = m_selection->get();
+
+                if (ImGui::MenuItem("Create Entity"))
+                {
+                    ecs_utility::create_named_physical_entity(*m_registry,
+                        "New Entity",
+                        {},
+                        quaternion::identity(),
+                        vec3::splat(1));
+                }
+
+                if (!selectedEntities.empty())
+                {
+                    if (ImGui::MenuItem(selectedEntities.size() == 1 ? "Delete Entity" : "Delete Entities"))
+                    {
+                        for (const auto e : selectedEntities)
+                        {
+                            m_registry->destroy(e);
+                        }
+                    }
+                }
+
+                ImGui::EndPopup();
+            }
+
             for (const auto e : m_registry->entities())
             {
                 ImGuiTreeNodeFlags flags{ImGuiTreeNodeFlags_Leaf};
