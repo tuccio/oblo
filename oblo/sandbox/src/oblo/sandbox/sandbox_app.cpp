@@ -95,8 +95,7 @@ namespace oblo::vk
                 instanceLayers,
                 deviceExtensions,
                 deviceFeaturesList,
-                physicalDeviceFeatures) ||
-            !m_allocator.init(m_instance.get(), m_engine.get_physical_device(), m_engine.get_device()))
+                physicalDeviceFeatures))
         {
             return false;
         }
@@ -423,6 +422,7 @@ namespace oblo::vk
         physicalDeviceFeatures2.pNext = &bufferDeviceAddressFeature;
 
         return m_engine.init(m_instance.get(), m_surface, {}, {extensions}, &physicalDeviceFeatures2, nullptr) &&
+            m_allocator.init(m_instance.get(), m_engine.get_physical_device(), m_engine.get_device()) &&
             m_context.init({
                 .instance = m_instance.get(),
                 .engine = m_engine,
