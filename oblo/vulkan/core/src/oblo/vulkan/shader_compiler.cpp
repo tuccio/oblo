@@ -250,6 +250,8 @@ namespace oblo::vk::shader_compiler
         }
 
         glslang::SpvOptions spvOptions{};
+        spvOptions.generateDebugInfo = options.generateDebugInfo;
+        spvOptions.stripDebugInfo = false;
         spvOptions.disableOptimizer = !options.codeOptimization;
 
         outSpirv.clear();

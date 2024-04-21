@@ -16,6 +16,7 @@
 #include <oblo/vulkan/draw/render_pass_initializer.hpp>
 #include <oblo/vulkan/draw/texture_registry.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
+#include <oblo/vulkan/shader_cache.hpp>
 #include <oblo/vulkan/shader_compiler.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
 
@@ -34,6 +35,7 @@ namespace oblo::vk
         constexpr u32 Textures2DBinding{33};
 
         constexpr bool WithShaderCodeOptimizations{false};
+        constexpr bool WithShaderDebugInfo{true};
 
         constexpr u8 MaxPipelineStages = u8(pipeline_stages::enum_max);
 
@@ -316,6 +318,7 @@ namespace oblo::vk
     struct pass_manager::impl
     {
         frame_allocator frameAllocator;
+        shader_cache shaderCache;
         includer includer{frameAllocator};
 
         const vulkan_context* vkCtx{};
@@ -359,6 +362,8 @@ namespace oblo::vk
             const base_pipeline& pipeline,
             std::span<const buffer_binding_table* const> bindingTables,
             F&& fallback);
+
+        shader_compiler::options make_compiler_options();
     };
 
     VkShaderModule pass_manager::impl::create_shader_module(VkShaderStageFlagBits vkStage,
@@ -423,21 +428,24 @@ namespace oblo::vk
         const auto end = std::copy(firstLineEnd, sourceCode.end(), it);
         const auto processedSourceCode = sourceWithDefines.subspan(0, end - sourceWithDefines.begin());
 
-        spirv.clear();
-
         // Clear the resolved includes, we keep track of them for adding watches
         includer.resolvedIncludes.clear();
 
-        if (!shader_compiler::compile_glsl_to_spirv(debugName,
+        std::span<u32> spirvData;
+
+        if (!shaderCache.find_or_add(spirvData,
+                frameAllocator,
+                debugName,
                 {processedSourceCode.data(), processedSourceCode.size()},
                 vkStage,
-                spirv,
                 compilerOptions))
         {
             return nullptr;
         }
 
-        return shader_compiler::create_shader_module_from_spirv(device, spirv);
+        spirv.assign(spirvData.begin(), spirvData.end());
+
+        return shader_compiler::create_shader_module_from_spirv(device, spirvData);
     }
 
     bool pass_manager::impl::create_pipeline_layout(base_pipeline& newPipeline)
@@ -612,6 +620,15 @@ namespace oblo::vk
         }
     }
 
+    shader_compiler::options pass_manager::impl::make_compiler_options()
+    {
+        return {
+            .includeHandler = &includer,
+            .codeOptimization = WithShaderCodeOptimizations,
+            .generateDebugInfo = WithShaderDebugInfo,
+        };
+    }
+
     template <typename F>
     VkDescriptorSet pass_manager::impl::create_descriptor_set(VkDescriptorSetLayout descriptorSetLayout,
         const base_pipeline& pipeline,
@@ -718,6 +735,7 @@ namespace oblo::vk
         m_impl->textureRegistry = &textureRegistry;
 
         shader_compiler::init();
+        m_impl->shaderCache.init("./spirv");
 
         {
             const VkSamplerCreateInfo samplerInfo{
@@ -971,10 +989,7 @@ namespace oblo::vk
 
         vertex_inputs_reflection vertexInputReflection{};
 
-        const shader_compiler::options compilerOptions{
-            .includeHandler = &m_impl->includer,
-            .codeOptimization = WithShaderCodeOptimizations,
-        };
+        const shader_compiler::options compilerOptions{m_impl->make_compiler_options()};
 
         for (u8 stageIndex = 0; stageIndex < renderPass->stagesCount; ++stageIndex)
         {
@@ -1195,10 +1210,7 @@ namespace oblo::vk
 
         vertex_inputs_reflection vertexInputReflection{};
 
-        const shader_compiler::options compilerOptions{
-            .includeHandler = &m_impl->includer,
-            .codeOptimization = WithShaderCodeOptimizations,
-        };
+        const shader_compiler::options compilerOptions{m_impl->make_compiler_options()};
 
         {
             constexpr auto vkStage = VK_SHADER_STAGE_COMPUTE_BIT;
