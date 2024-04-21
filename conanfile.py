@@ -23,6 +23,7 @@ class ObloConanRecipe(ConanFile):
         self.requires("sdl/2.0.20")
         self.requires("stb/cci.20230920")
         self.requires("tinygltf/2.8.13")
+        self.requires("xxhash/0.8.2")
 
         # This is only needed for unit tests
         self.requires("eigen/3.4.0")
