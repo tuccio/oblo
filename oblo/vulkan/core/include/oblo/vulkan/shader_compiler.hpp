@@ -21,6 +21,7 @@ namespace oblo::vk::shader_compiler
     {
         include_handler* includeHandler{nullptr};
         bool codeOptimization{false};
+        bool generateDebugInfo{false};
     };
 
     void init();
