@@ -103,10 +103,12 @@ namespace oblo::vk
 
         m_pending = std::make_unique<pending_disposal_queues>();
 
-        m_vkCmdBeginDebugUtilsLabelEXT = reinterpret_cast<PFN_vkCmdBeginDebugUtilsLabelEXT>(
-            vkGetDeviceProcAddr(m_engine->get_device(), "vkCmdBeginDebugUtilsLabelEXT"));
-        m_vkCmdEndDebugUtilsLabelEXT = reinterpret_cast<PFN_vkCmdEndDebugUtilsLabelEXT>(
-            vkGetDeviceProcAddr(m_engine->get_device(), "vkCmdEndDebugUtilsLabelEXT"));
+        m_debugUtilsLabel = {
+            .vkCmdBeginDebugUtilsLabelEXT = reinterpret_cast<PFN_vkCmdBeginDebugUtilsLabelEXT>(
+                vkGetDeviceProcAddr(m_engine->get_device(), "vkCmdBeginDebugUtilsLabelEXT")),
+            .vkCmdEndDebugUtilsLabelEXT = reinterpret_cast<PFN_vkCmdEndDebugUtilsLabelEXT>(
+                vkGetDeviceProcAddr(m_engine->get_device(), "vkCmdEndDebugUtilsLabelEXT")),
+        };
 
         return true;
     }
@@ -380,6 +382,11 @@ namespace oblo::vk
             handle);
     }
 
+    debug_utils_label vulkan_context::get_debug_utils_label() const
+    {
+        return m_debugUtilsLabel;
+    }
+
     void vulkan_context::destroy_resources(u64 maxSubmitIndex)
     {
         while (!m_disposableObjects.empty())
@@ -400,27 +407,12 @@ namespace oblo::vk
 
     void vulkan_context::begin_debug_label(VkCommandBuffer commandBuffer, const char* label) const
     {
-        if (!m_vkCmdBeginDebugUtilsLabelEXT)
-        {
-            return;
-        }
-
-        const VkDebugUtilsLabelEXT labelInfo{
-            .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
-            .pLabelName = label,
-        };
-
-        m_vkCmdBeginDebugUtilsLabelEXT(commandBuffer, &labelInfo);
+        m_debugUtilsLabel.begin(commandBuffer, label);
     }
 
     void vulkan_context::end_debug_label(VkCommandBuffer commandBuffer) const
     {
-        if (!m_vkCmdEndDebugUtilsLabelEXT)
-        {
-            return;
-        }
-
-        m_vkCmdEndDebugUtilsLabelEXT(commandBuffer);
+        m_debugUtilsLabel.end(commandBuffer);
     }
 
     template <typename F, typename... T>
