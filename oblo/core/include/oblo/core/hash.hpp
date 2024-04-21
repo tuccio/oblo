@@ -23,4 +23,8 @@ namespace oblo
         ((h = hash_mix(h, Hash<Others>{}(args))), ...);
         return h;
     }
+
+    u32 hash_xxh32(const void* p, u64 size, u32 seed = 0);
+
+    u64 hash_xxh64(const void* p, u64 size, u64 seed = 0);
 }
