@@ -9,15 +9,6 @@
 
 namespace oblo::vk
 {
-    namespace
-    {
-        struct frustum_culling_buffer
-        {
-            u32 numberOfDraws;
-            u32 firstFreeIndex;
-        };
-    }
-
     void frustum_culling::init(const init_context& context)
     {
         auto& pm = context.get_pass_manager();

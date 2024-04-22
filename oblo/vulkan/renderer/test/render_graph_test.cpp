@@ -7,6 +7,7 @@
 #include <oblo/sandbox/sandbox_app.hpp>
 #include <oblo/sandbox/sandbox_app_config.hpp>
 #include <oblo/vulkan/buffer.hpp>
+#include <oblo/vulkan/draw/compute_pass_initializer.hpp>
 #include <oblo/vulkan/draw/pass_manager.hpp>
 #include <oblo/vulkan/draw/render_pass_initializer.hpp>
 #include <oblo/vulkan/error.hpp>
@@ -21,6 +22,33 @@ namespace oblo::vk::test
 {
     namespace
     {
+        struct fill_value_node
+        {
+            static constexpr u32 Value{42};
+
+            resource<buffer> outValueBuffer;
+
+            h32<compute_pass> computePass{};
+
+            void build(const runtime_builder& builder)
+            {
+                builder.create(outValueBuffer,
+                    {
+                        .size = sizeof(u32),
+                        .data = std::as_bytes(std::span{&Value, 1}),
+                    },
+                    buffer_usage::uniform);
+            }
+
+            void init(const init_context&)
+            {
+            }
+
+            void execute(const runtime_context&)
+            {
+            }
+        };
+
         struct fill_depth_node
         {
             resource<texture> outDepthBuffer;
@@ -258,8 +286,12 @@ namespace oblo::vk::test
             data<VkBuffer> inDownloadRenderTarget;
             data<VkBuffer> inDownloadDepth;
 
+            data<VkBuffer> inDownloadValueBuffer;
+
             resource<texture> inRenderTarget;
             resource<texture> inDetphBuffer;
+
+            resource<buffer> inValueBuffer;
 
             void build(const runtime_builder& builder)
             {
@@ -276,6 +308,9 @@ namespace oblo::vk::test
 
                 auto* const dstRenderTarget = context.access(inDownloadRenderTarget);
                 auto* const dstDepthBuffer = context.access(inDownloadDepth);
+
+                auto const srcValueBuffer = context.access(inValueBuffer);
+                auto* const dstValueBuffer = context.access(inDownloadValueBuffer);
 
                 const VkBufferImageCopy renderTargetRegion{
                     .imageSubresource =
@@ -308,6 +343,13 @@ namespace oblo::vk::test
                     *dstDepthBuffer,
                     1,
                     &depthBufferRegion);
+
+                const VkBufferCopy valueBufferRegion{
+                    .srcOffset = srcValueBuffer.offset,
+                    .size = sizeof(fill_value_node::Value),
+                };
+
+                vkCmdCopyBuffer(cb, srcValueBuffer.buffer, *dstValueBuffer, 1, &valueBufferRegion);
             }
         };
 
@@ -327,12 +369,14 @@ namespace oblo::vk::test
                 }
 
                 expected res = topology_builder{}
+                                   .add_node<fill_value_node>()
                                    .add_node<fill_depth_node>()
                                    .add_node<fill_color_node>()
                                    .add_node<download_node>()
                                    .add_input<vec2u>("RenderResolution")
                                    .add_input<VkBuffer>("DepthDownload")
                                    .add_input<VkBuffer>("RenderTargetDownload")
+                                   .add_input<VkBuffer>("FilledValueDownload")
                                    .add_output<h32<texture>>("FinalRender")
                                    .add_output<h32<texture>>("DepthBuffer")
                                    .connect_input("RenderResolution", &fill_depth_node::inResolution)
@@ -340,13 +384,20 @@ namespace oblo::vk::test
                                    .connect(&fill_depth_node::outDepthBuffer, &fill_color_node::inDepthBuffer)
                                    .connect(&fill_color_node::inDepthBuffer, &download_node::inDetphBuffer)
                                    .connect(&fill_color_node::outRenderTarget, &download_node::inRenderTarget)
+                                   .connect(&fill_value_node::outValueBuffer, &download_node::inValueBuffer)
                                    .connect_output(&download_node::inRenderTarget, "FinalRender")
                                    .connect_output(&download_node::inDetphBuffer, "DepthBuffer")
                                    .connect_input("DepthDownload", &download_node::inDownloadDepth)
                                    .connect_input("RenderTargetDownload", &download_node::inDownloadRenderTarget)
+                                   .connect_input("FilledValueDownload", &download_node::inDownloadValueBuffer)
                                    .build();
 
                 if (!res)
+                {
+                    return false;
+                }
+
+                if (!resourcePool.init(*ctx.vkContext))
                 {
                     return false;
                 }
@@ -366,6 +417,7 @@ namespace oblo::vk::test
                 graph.set_input("RenderResolution", resolution);
                 graph.set_input("DepthDownload", depthImageDownload.buffer);
                 graph.set_input("RenderTargetDownload", renderTargetDownload.buffer);
+                graph.set_input("FilledValueDownload", filledValueDownload.buffer);
                 // graph.enable_output("FinalRender");
 
                 graph.init(renderer);
@@ -387,6 +439,7 @@ namespace oblo::vk::test
 
             allocated_buffer depthImageDownload{};
             allocated_buffer renderTargetDownload{};
+            allocated_buffer filledValueDownload{};
 
             renderer renderer;
             resource_pool resourcePool;
@@ -408,10 +461,12 @@ namespace oblo::vk::test
         const auto cleanup = finally([&app] { app.shutdown(); });
         ASSERT_TRUE(app.init());
 
+        auto* const valueNode = app.graph.find_node<fill_value_node>();
         auto* const depthNode = app.graph.find_node<fill_depth_node>();
         auto* const colorNode = app.graph.find_node<fill_color_node>();
         auto* const downloadNode = app.graph.find_node<download_node>();
 
+        ASSERT_TRUE(valueNode);
         ASSERT_TRUE(depthNode);
         ASSERT_TRUE(colorNode);
         ASSERT_TRUE(downloadNode);
@@ -450,6 +505,14 @@ namespace oblo::vk::test
             },
             &app.renderTargetDownload));
 
+        OBLO_VK_PANIC(allocator.create_buffer(
+            {
+                .size = sizeof(u32),
+                .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                .memoryUsage = memory_usage::gpu_to_cpu,
+            },
+            &app.filledValueDownload));
+
 #if 0
         while (app.run_frame())
         {
@@ -461,30 +524,44 @@ namespace oblo::vk::test
         auto& engine = app.renderer.get_engine();
         vkDeviceWaitIdle(engine.get_device());
 
-        void* depthBufferData;
-        void* renderTargetData;
-
-        OBLO_VK_PANIC(allocator.map(app.depthImageDownload.allocation, &depthBufferData));
-        OBLO_VK_PANIC(allocator.map(app.renderTargetDownload.allocation, &renderTargetData));
-
         const auto destroyBuffers = finally(
             [&allocator, &app]
             {
                 allocator.destroy(app.depthImageDownload);
                 allocator.destroy(app.renderTargetDownload);
+                allocator.destroy(app.filledValueDownload);
             });
 
-        constexpr u32 N{app.resolution.x * app.resolution.y};
-        auto* const depthU16 = start_lifetime_as_array<u16>(depthBufferData, N);
-        auto* const colorU32 = start_lifetime_as_array<u32>(renderTargetData, N);
-
-        for (u32 i = 0; i < N; ++i)
         {
-            ASSERT_EQ(depthU16[i], 0xffff);
-            ASSERT_EQ(colorU32[i], 0xff0000ff);
+            void* depthBufferData;
+            void* renderTargetData;
+
+            OBLO_VK_PANIC(allocator.map(app.depthImageDownload.allocation, &depthBufferData));
+            OBLO_VK_PANIC(allocator.map(app.renderTargetDownload.allocation, &renderTargetData));
+
+            constexpr u32 N{app.resolution.x * app.resolution.y};
+            auto* const depthU16 = start_lifetime_as_array<u16>(depthBufferData, N);
+            auto* const colorU32 = start_lifetime_as_array<u32>(renderTargetData, N);
+
+            for (u32 i = 0; i < N; ++i)
+            {
+                ASSERT_EQ(depthU16[i], 0xffff);
+                ASSERT_EQ(colorU32[i], 0xff0000ff);
+            }
+
+            allocator.unmap(app.depthImageDownload.allocation);
+            allocator.unmap(app.renderTargetDownload.allocation);
         }
 
-        allocator.unmap(app.depthImageDownload.allocation);
-        allocator.unmap(app.renderTargetDownload.allocation);
+        {
+            void* filledValue;
+            OBLO_VK_PANIC(allocator.map(app.filledValueDownload.allocation, &filledValue));
+
+            u32 value;
+            std::memcpy(&value, filledValue, sizeof(u32));
+            ASSERT_EQ(value, fill_value_node::Value);
+
+            allocator.unmap(app.filledValueDownload.allocation);
+        }
     }
 }

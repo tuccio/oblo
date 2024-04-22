@@ -269,12 +269,15 @@ namespace oblo::vk
 
     void render_graph::flush_uploads(staging_buffer& stagingBuffer)
     {
+        OBLO_ASSERT(!m_pendingUploads.empty());
+
         for (const auto& upload : m_pendingUploads)
         {
             const auto* const b = reinterpret_cast<buffer*>(access_resource_storage(upload.target.value));
             stagingBuffer.upload(upload.source, b->buffer, b->offset);
         }
 
+        stagingBuffer.flush();
         m_pendingUploads.clear();
     }
 
