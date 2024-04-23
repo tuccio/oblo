@@ -265,8 +265,8 @@ namespace oblo::vk
                     if (auto* const pipeline = pipelines.try_find(variant.pipeline))
                     {
                         // TODO: Does destruction need to be deferred?
-                        pipelines.erase(variant.pipeline);
                         destroy_pipeline(device, *pipeline);
+                        pipelines.erase(variant.pipeline);
                     }
 
                     pass.variants.clear();
