@@ -12,6 +12,7 @@ namespace oblo::vk
 {
     namespace
     {
+        constexpr bool DisableCache{true};
         constexpr bool OutputSource{true};
 
         template <typename T>
@@ -71,13 +72,16 @@ namespace oblo::vk
 
         auto spvPath = m_path / buf;
 
-        const auto diskSpv = load_binary_file_into_memory(allocator, spvPath, alignof(u32));
-
-        if (!diskSpv.empty())
+        if constexpr (!DisableCache)
         {
-            const auto count = diskSpv.size() / sizeof(u32);
-            outSpirv = {start_lifetime_as_array<unsigned>(diskSpv.data(), count), count};
-            return true;
+            const auto diskSpv = load_binary_file_into_memory(allocator, spvPath, alignof(u32));
+
+            if (!diskSpv.empty())
+            {
+                const auto count = diskSpv.size() / sizeof(u32);
+                outSpirv = {start_lifetime_as_array<unsigned>(diskSpv.data(), count), count};
+                return true;
+            }
         }
 
         std::vector<u32> spirv;
@@ -90,7 +94,10 @@ namespace oblo::vk
         outSpirv = allocate_n_span<u32>(allocator, spirv.size());
         std::copy(spirv.begin(), spirv.end(), outSpirv.begin());
 
-        write_file(spvPath, as_bytes(outSpirv));
+        if constexpr (!DisableCache)
+        {
+            write_file(spvPath, as_bytes(outSpirv));
+        }
 
         if constexpr (OutputSource)
         {
