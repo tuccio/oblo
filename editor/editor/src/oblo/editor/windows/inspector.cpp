@@ -21,6 +21,8 @@
 
 #include <format>
 
+#include <IconsFontAwesome6.h>
+
 #include <imgui.h>
 
 namespace oblo::editor
@@ -182,27 +184,44 @@ namespace oblo::editor
 
                         ImGui::PushID(static_cast<int>(type.value));
 
-                        if (ImGui::CollapsingHeader(buffer, ImGuiTreeNodeFlags_DefaultOpen))
+                        const auto isComponentExpanded = ImGui::CollapsingHeader(buffer,
+                            ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_DefaultOpen);
+
+                        const auto headerY = ImGui::GetItemRectMin().y;
+                        const auto hamburgerX = ImGui::GetItemRectMax().x - 24;
+
+                        ImGui::SetCursorScreenPos({hamburgerX, headerY});
+
+                        bool wasDeleted{false};
+
+                        ImGui::Button(ICON_FA_ELLIPSIS_VERTICAL);
+
+                        if (ImGui::BeginPopupContextItem(nullptr, ImGuiPopupFlags_MouseButtonLeft))
                         {
-                            if (ImGui::Button("Delete"))
+                            if (ImGui::MenuItem("Delete"))
                             {
                                 ecs::component_and_tag_sets types{};
                                 types.components.add(type);
 
                                 m_registry->remove(e, types);
+
+                                wasDeleted = true;
                             }
-                            else
+
+                            ImGui::EndPopup();
+                        }
+
+                        if (isComponentExpanded && !wasDeleted)
+                        {
+                            auto* const propertyTree = m_propertyRegistry->try_get(desc.type);
+
+                            if (propertyTree)
                             {
-                                auto* const propertyTree = m_propertyRegistry->try_get(desc.type);
+                                auto* const data = m_registry->try_get(e, type);
 
-                                if (propertyTree)
-                                {
-                                    auto* const data = m_registry->try_get(e, type);
-
-                                    ImGui::PushID(int(type.value));
-                                    build_property_grid(*propertyTree, data);
-                                    ImGui::PopID();
-                                }
+                                ImGui::PushID(int(type.value));
+                                build_property_grid(*propertyTree, data);
+                                ImGui::PopID();
                             }
                         }
 

@@ -12,6 +12,7 @@ class ObloConanRecipe(ConanFile):
         self.requires("glew/2.1.0")
         self.requires("glslang/11.7.0")
         self.requires("gtest/1.10.0")
+        self.requires("iconfontcppheaders/cci.20240128")
         self.requires("ktx/4.0.0")
         self.requires("imgui/1.89.9-docking")
         self.requires("nlohmann_json/3.11.2")

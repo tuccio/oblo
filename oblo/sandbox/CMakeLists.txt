@@ -7,6 +7,7 @@ target_link_libraries(
     oblo::input
     oblo::vk
     PRIVATE
+    iconfontcppheaders::iconfontcppheaders
     imgui::sdl_vk
     SDL2::SDL2
 )
