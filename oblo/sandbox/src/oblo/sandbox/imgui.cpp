@@ -7,6 +7,8 @@
 #include <imgui_impl_sdl2.h>
 #include <imgui_impl_vulkan.h>
 
+#include <IconsFontAwesome6.h>
+
 #include <SDL.h>
 #include <imgui.h>
 
@@ -17,13 +19,22 @@ namespace oblo::vk
     namespace
     {
 #include <oblo/sandbox/Archivo-Regular.ttf.h>
+#include <oblo/sandbox/fa-solid-900.ttf.h>
 
-        ImFont* init_font(ImGuiIO& io)
+        constexpr ImWchar FontAwesome6Ranges[]{ImWchar{ICON_MIN_FA}, ImWchar{ICON_MAX_FA}, ImWchar{}};
+
+        void init_fonts(ImGuiIO& io)
         {
-            constexpr int pixels{14};
+            constexpr f32 pixels{14.f};
             ImFontConfig config{};
+
             config.FontDataOwnedByAtlas = false;
-            return io.Fonts->AddFontFromMemoryTTF(Archivo_Regular_ttf, Archivo_Regular_ttf_len, pixels, &config);
+
+            io.Fonts->AddFontFromMemoryTTF(Archivo_Regular_ttf, Archivo_Regular_ttf_len, pixels, &config);
+
+            config.MergeMode = true;
+
+            io.Fonts->AddFontFromMemoryTTF(fa_solid_900_ttf, fa_solid_900_ttf_len, pixels, &config, FontAwesome6Ranges);
         }
     }
 
@@ -74,7 +85,7 @@ namespace oblo::vk
 
         auto& io = ImGui::GetIO();
 
-        init_font(io);
+        init_fonts(io);
 
         io.IniFilename = config.imguiIniFile;
 
