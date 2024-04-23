@@ -89,13 +89,20 @@ namespace oblo
                 return 0;
             }
 
-            if (const auto lastElementIndex = m_denseKey.size() - 1; pointedIndex != m_denseKey.size() - 1)
+            if (const auto lastElementIndex = m_denseKey.size() - 1; pointedIndex != lastElementIndex)
             {
                 using namespace std;
                 const auto lastElementKey = KeyExtractor::extract_key(m_denseKey[lastElementIndex]);
                 m_sparse[lastElementKey] = pointedIndex;
-                swap(m_denseKey[pointedIndex], m_denseKey[lastElementIndex]);
-                swap(m_denseValue[pointedIndex], m_denseValue[lastElementIndex]);
+
+                auto& removedKey = m_denseKey[pointedIndex];
+                auto& lastKey = m_denseKey[lastElementIndex];
+
+                auto& removedValue = m_denseValue[pointedIndex];
+                auto& lastValue = m_denseValue[lastElementIndex];
+
+                removedKey = std::move(lastKey);
+                removedValue = std::move(lastValue);
             }
 
             m_sparse[keyIndex] = Invalid;
