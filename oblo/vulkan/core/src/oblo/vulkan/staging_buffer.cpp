@@ -573,4 +573,9 @@ namespace oblo::vk
     {
         return m_impl.commandBuffers[get_next_submit_index()];
     }
+
+    bool oblo::vk::staging_buffer::has_pending_uploads() const
+    {
+        return m_impl.pendingBytes != 0;
+    }
 }
