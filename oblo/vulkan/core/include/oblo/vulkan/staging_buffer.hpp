@@ -60,6 +60,8 @@ namespace oblo::vk
 
         VkCommandBuffer get_active_command_buffer() const;
 
+        bool has_pending_uploads() const;
+
     private:
         u8 get_next_submit_index() const;
 
