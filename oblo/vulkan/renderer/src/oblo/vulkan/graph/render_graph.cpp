@@ -208,6 +208,9 @@ namespace oblo::vk
                 commandBuffer.add_pipeline_barrier(resourceManager, *texturePtr, textureTransition.target);
             }
 
+            OBLO_ASSERT(!renderer.get_staging_buffer().has_pending_uploads(),
+                "Staging buffer should have been flushed, uploading now probably is a mistake");
+
             if (node.execute)
             {
                 node.execute(ptr, runtime);
