@@ -26,7 +26,7 @@ namespace oblo::editor
 
         if (ImGui::Begin("Hierarchy", &open))
         {
-            if (ImGui::IsMouseReleased(ImGuiButtonFlags_MouseButtonRight) && ImGui::IsWindowHovered())
+            if (ImGui::IsMouseReleased(ImGuiMouseButton_Right) && ImGui::IsWindowHovered())
             {
                 ImGui::OpenPopup("##context");
             }
