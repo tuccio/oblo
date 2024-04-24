@@ -103,6 +103,8 @@ namespace oblo::vk
 
         buffer get_mesh_database_buffer() const;
 
+        void debug_log(const batch_draw_data& drawData) const;
+
     private:
         void create_instances();
 

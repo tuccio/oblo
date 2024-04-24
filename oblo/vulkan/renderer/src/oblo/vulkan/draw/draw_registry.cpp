@@ -4,6 +4,7 @@
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/data_format.hpp>
 #include <oblo/core/flags.hpp>
+#include <oblo/core/log.hpp>
 #include <oblo/core/zip_range.hpp>
 #include <oblo/ecs/archetype_storage.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
@@ -626,6 +627,38 @@ namespace oblo::vk
 
     buffer draw_registry::get_mesh_database_buffer() const
     {
-        return {.buffer = m_meshTablesBuffer, .offset = m_meshTablesBufferOffset, .size = m_meshTablesBufferSize};
+        return {
+            .buffer = m_meshTablesBuffer,
+            .offset = m_meshTablesBufferOffset,
+            .size = m_meshTablesBufferSize,
+        };
+    }
+
+    void draw_registry::debug_log(const batch_draw_data& drawData) const
+    {
+        char stringBuffer[4096];
+
+        auto fmtAppend = [outIt = stringBuffer, &stringBuffer]<typename... T>(const std::format_string<T...>& fmt,
+                             T&&... args) mutable
+        {
+            outIt = std::format_to(outIt, fmt, std::forward<T>(args)...);
+            *outIt = '\0';
+            OBLO_ASSERT(outIt < std::end(stringBuffer));
+        };
+
+        fmtAppend("Entities count: {}\n", drawData.drawCommands.drawCount);
+        fmtAppend("Indexed: {}\n", drawData.drawCommands.isIndexed ? 'Y' : 'N');
+
+        fmtAppend("Listing {} instance buffers: \n", drawData.instanceBuffers.count);
+
+        for (u32 i = 0; i < drawData.instanceBuffers.count; ++i)
+        {
+            const auto binding = drawData.instanceBuffers.bindings[i];
+            const auto buffer = drawData.instanceBuffers.buffers[i];
+
+            fmtAppend("{} [id: {}] [size: {}]\n", m_interner->str(get_name(binding)), binding.value, buffer.size);
+        }
+
+        log::debug("{}", stringBuffer);
     }
 }
