@@ -33,9 +33,7 @@ namespace oblo::vk
 
     struct draw_commands
     {
-        VkBuffer buffer;
-        VkDeviceSize bufferOffset;
-        VkDeviceSize bufferSize;
+        std::span<const byte> drawCommands;
         u32 drawCount;
         bool isIndexed;
         VkBuffer indexBuffer;
@@ -111,7 +109,6 @@ namespace oblo::vk
     private:
         vulkan_context* m_ctx{};
         monotonic_gpu_buffer m_storageBuffer;
-        monotonic_gpu_buffer m_drawCallsBuffer;
 
         staging_buffer* m_stagingBuffer{};
         string_interner* m_interner{};

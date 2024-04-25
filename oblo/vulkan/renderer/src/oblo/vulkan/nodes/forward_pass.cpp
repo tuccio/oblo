@@ -174,6 +174,9 @@ namespace oblo::vk
             dynamic_array<batch_draw_data> drawCalls;
             drawCalls.resize_default(drawData.size());
 
+            dynamic_array<buffer> drawCommands;
+            drawCommands.resize_default(drawData.size());
+
             for (usize i = 0; i < drawCalls.size(); ++i)
             {
                 auto& draw = drawCalls[i];
@@ -182,13 +185,11 @@ namespace oblo::vk
                 draw = culledDraw.sourceData;
 
                 const auto drawCallBuffer = context.access(culledDraw.drawCallBuffer);
-
-                draw.drawCommands.buffer = drawCallBuffer.buffer;
-                draw.drawCommands.bufferOffset = drawCallBuffer.offset;
-                draw.drawCommands.bufferSize = drawCallBuffer.size;
+                drawCommands[i] = drawCallBuffer;
             }
 
-            passManager.draw(*pass, context.get_resource_manager(), drawRegistry, drawCalls, bindingTables);
+            passManager
+                .draw(*pass, context.get_resource_manager(), drawRegistry, drawCommands, drawCalls, bindingTables);
 
             passManager.end_render_pass(*pass);
         }

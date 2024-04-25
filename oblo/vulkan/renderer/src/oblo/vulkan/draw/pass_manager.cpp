@@ -35,7 +35,7 @@ namespace oblo::vk
         constexpr u32 Textures2DBinding{33};
 
         constexpr bool WithShaderCodeOptimizations{false};
-        constexpr bool WithShaderDebugInfo{true};
+        constexpr bool WithShaderDebugInfo{false};
 
         constexpr u8 MaxPipelineStages = u8(pipeline_stages::enum_max);
 
@@ -1373,10 +1373,13 @@ namespace oblo::vk
     void pass_manager::draw(const render_pass_context& context,
         const resource_manager& resourceManager,
         const draw_registry& drawRegistry,
-        std::span<const batch_draw_data> drawCalls,
+        std::span<const buffer> batchDrawCommands,
+        std::span<const batch_draw_data> batchDrawData,
         std::span<const buffer_binding_table* const> bindingTables)
     {
-        if (drawCalls.empty())
+        OBLO_ASSERT(batchDrawCommands.size() == batchDrawData.size());
+
+        if (batchDrawData.empty())
         {
             return;
         }
@@ -1404,8 +1407,10 @@ namespace oblo::vk
             buffers[i] = dummy;
         };
 
-        for (const auto& draw : drawCalls)
+        for (usize drawIndex = 0; drawIndex < batchDrawCommands.size(); ++drawIndex)
         {
+            auto& draw = batchDrawData[drawIndex];
+
             if (const auto descriptorSetLayout = pipeline->descriptorSetLayout)
             {
                 const VkDescriptorSet descriptorSet = m_impl->create_descriptor_set(descriptorSetLayout,
@@ -1436,24 +1441,30 @@ namespace oblo::vk
                     0,
                     nullptr);
 
+                auto& drawBuffer = batchDrawCommands[drawIndex];
+
                 if (draw.drawCommands.isIndexed)
                 {
+                    OBLO_ASSERT(drawBuffer.size == draw.drawCommands.drawCount * sizeof(VkDrawIndexedIndirectCommand));
+
                     vkCmdBindIndexBuffer(context.commandBuffer,
                         draw.drawCommands.indexBuffer,
                         draw.drawCommands.indexBufferOffset,
                         draw.drawCommands.indexType);
 
                     vkCmdDrawIndexedIndirect(context.commandBuffer,
-                        draw.drawCommands.buffer,
-                        draw.drawCommands.bufferOffset,
+                        drawBuffer.buffer,
+                        drawBuffer.offset,
                         draw.drawCommands.drawCount,
                         sizeof(VkDrawIndexedIndirectCommand));
                 }
                 else
                 {
+                    OBLO_ASSERT(drawBuffer.size == draw.drawCommands.drawCount * sizeof(VkDrawIndirectCommand));
+
                     vkCmdDrawIndirect(context.commandBuffer,
-                        draw.drawCommands.buffer,
-                        draw.drawCommands.bufferOffset,
+                        drawBuffer.buffer,
+                        drawBuffer.offset,
                         draw.drawCommands.drawCount,
                         sizeof(VkDrawIndirectCommand));
                 }

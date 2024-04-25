@@ -165,19 +165,12 @@ namespace oblo::vk
             memory_usage::gpu_only,
             narrow_cast<u8>(properties.limits.minStorageBufferOffsetAlignment),
             bufferChunkSize);
-
-        m_drawCallsBuffer.init(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
-                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, // TODO: Probably move this somewhere else
-            memory_usage::gpu_only,
-            narrow_cast<u8>(properties.limits.minStorageBufferOffsetAlignment),
-            bufferChunkSize);
     }
 
     void draw_registry::shutdown()
     {
         m_meshes.shutdown();
         m_storageBuffer.shutdown(*m_ctx);
-        m_drawCallsBuffer.shutdown(*m_ctx);
     }
 
     void draw_registry::register_instance_data(ecs::component_type type, std::string_view name)
@@ -197,7 +190,6 @@ namespace oblo::vk
         m_meshTablesBufferSize = 0;
 
         m_storageBuffer.restore_all();
-        m_drawCallsBuffer.restore_all();
     }
 
     h32<draw_mesh> draw_registry::get_or_create_mesh(oblo::resource_registry& resourceRegistry,
@@ -434,7 +426,6 @@ namespace oblo::vk
             *currentDrawBatch = {};
 
             std::span<const std::byte> drawCommands;
-            buffer drawCommandsBuffer;
 
             const std::span componentTypes = ecs::get_component_types(archetype);
             const bool isIndexed = !typeSets.tags.contains(m_indexNoneTag);
@@ -447,7 +438,6 @@ namespace oblo::vk
                 const auto commands = allocate_n_span<VkDrawIndirectCommand>(allocator, numEntities);
 
                 drawCommands = std::as_bytes(commands);
-                drawCommandsBuffer = m_drawCallsBuffer.allocate(*m_ctx, sizeof(VkDrawIndirectCommand) * numEntities);
 
                 auto* nextCommand = commands.data();
 
@@ -483,8 +473,6 @@ namespace oblo::vk
                 const auto indexedCommands = allocate_n_span<VkDrawIndexedIndirectCommand>(allocator, numEntities);
 
                 drawCommands = std::as_bytes(indexedCommands);
-                drawCommandsBuffer =
-                    m_drawCallsBuffer.allocate(*m_ctx, sizeof(VkDrawIndexedIndirectCommand) * numEntities);
 
                 auto* nextCommand = indexedCommands.data();
 
@@ -534,13 +522,10 @@ namespace oblo::vk
                 OBLO_ASSERT(vkIndexType != VK_INDEX_TYPE_NONE_KHR);
             }
 
-            stagingBuffer.upload(drawCommands, drawCommandsBuffer.buffer, drawCommandsBuffer.offset);
             ++drawBatches;
 
             currentDrawBatch->drawCommands = {
-                .buffer = drawCommandsBuffer.buffer,
-                .bufferOffset = drawCommandsBuffer.offset,
-                .bufferSize = drawCommandsBuffer.size,
+                .drawCommands = drawCommands,
                 .drawCount = numEntities,
                 .isIndexed = isIndexed,
                 .indexBuffer = indexBuffer.buffer,
