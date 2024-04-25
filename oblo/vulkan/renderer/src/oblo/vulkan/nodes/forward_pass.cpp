@@ -1,6 +1,7 @@
 #include <oblo/vulkan/nodes/forward_pass.hpp>
 
 #include <oblo/math/vec2u.hpp>
+#include <oblo/vulkan/data/draw_buffer_data.hpp>
 #include <oblo/vulkan/draw/render_pass_initializer.hpp>
 #include <oblo/vulkan/graph/init_context.hpp>
 #include <oblo/vulkan/graph/render_graph.hpp>
@@ -74,9 +75,9 @@ namespace oblo::vk
                 resource_usage::render_target_write);
         }
 
-        for (const auto& cullData : builder.access(inCullData))
+        for (const auto& drawData : builder.access(inDrawData))
         {
-            builder.acquire(cullData.drawCallBuffer, buffer_usage::indirect);
+            builder.acquire(drawData.drawCallBuffer, buffer_usage::indirect);
         }
     }
 
@@ -167,15 +168,16 @@ namespace oblo::vk
 
             const auto& drawRegistry = context.get_draw_registry();
 
-            const std::span culledDrawData = *context.access(inCullData);
+            const std::span drawData = *context.access(inDrawData);
 
+            // TODO: Could use the frame allocator here
             dynamic_array<batch_draw_data> drawCalls;
-            drawCalls.resize_default(culledDrawData.size());
+            drawCalls.resize_default(drawData.size());
 
             for (usize i = 0; i < drawCalls.size(); ++i)
             {
                 auto& draw = drawCalls[i];
-                const auto& culledDraw = culledDrawData[i];
+                const auto& culledDraw = drawData[i];
 
                 draw = culledDraw.sourceData;
 

@@ -37,6 +37,8 @@ namespace oblo::vk
         storage,
         uniform,
         indirect,
+        transfer_source,
+        transfer_destination,
         enum_max,
     };
 

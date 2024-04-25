@@ -82,6 +82,14 @@ namespace oblo::vk
                     result |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
                     break;
 
+                case buffer_usage::transfer_source:
+                    result |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+                    break;
+
+                case buffer_usage::transfer_destination:
+                    result |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+                    break;
+
                 default:
                     unreachable();
                 }

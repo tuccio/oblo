@@ -12,21 +12,19 @@ namespace oblo::vk
 
     struct compute_pass;
 
-    struct frustum_culling_data
-    {
-        resource<buffer> drawCallBuffer;
-        resource<buffer> configBuffer;
-        batch_draw_data sourceData;
-    };
+    struct draw_buffer_data;
+    struct frustum_culling_data;
 
     struct frustum_culling
     {
         h32<compute_pass> cullPass;
         h32<string> drawIndexedDefine;
 
+        data<std::span<frustum_culling_data>> cullInternalData;
+
         data<buffer_binding_table> inPerViewBindingTable;
 
-        data<std::span<frustum_culling_data>> outCullData;
+        data<std::span<draw_buffer_data>> outDrawBufferData;
 
         void init(const init_context& context);
 
