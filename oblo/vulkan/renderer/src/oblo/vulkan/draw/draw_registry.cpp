@@ -467,6 +467,8 @@ namespace oblo::vk
                             ++nextCommand;
                         }
                     });
+
+                OBLO_ASSERT(nextCommand == commands.data() + commands.size());
             }
             else
             {
@@ -503,6 +505,8 @@ namespace oblo::vk
                             ++nextCommand;
                         }
                     });
+
+                OBLO_ASSERT(nextCommand == indexedCommands.data() + indexedCommands.size());
 
                 mesh_index_type indexType{mesh_index_type::none};
 
