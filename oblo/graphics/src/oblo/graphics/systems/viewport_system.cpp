@@ -248,7 +248,7 @@ namespace oblo
                         .connect(&view_buffers_node::outPerViewBindingTable, &forward_pass::inPerViewBindingTable)
                         .connect(&forward_pass::outPickingIdBuffer, &picking_readback::inPickingIdBuffer);
 
-                    constexpr bool withFrustumCulling{false};
+                    constexpr bool withFrustumCulling{true};
 
                     if constexpr (withFrustumCulling)
                     {

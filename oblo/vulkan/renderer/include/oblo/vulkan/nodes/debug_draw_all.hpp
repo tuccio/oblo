@@ -131,9 +131,12 @@ namespace oblo::vk
 
                 const auto& drawRegistry = context.get_draw_registry();
 
+                OBLO_ASSERT(false);
+
                 passManager.draw(*pass,
                     context.get_resource_manager(),
                     drawRegistry,
+                    {}, // TODO: Either fix or get rid of this
                     drawRegistry.get_draw_calls(),
                     bindingTables);
 
