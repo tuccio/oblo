@@ -16,6 +16,5 @@ namespace oblo::vk
         data<std::span<draw_buffer_data>> outDrawBufferData;
 
         void build(const runtime_builder& builder);
-        void execute(const runtime_context& builder);
     };
 }

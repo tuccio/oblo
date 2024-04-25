@@ -30,7 +30,8 @@ namespace oblo::vk
         {
             const auto drawCallBuffer = builder.create_dynamic_buffer(
                 {
-                    .size = u32(draw.drawCommands.bufferSize),
+                    .size = u32(draw.drawCommands.drawCommands.size()),
+                    .data = draw.drawCommands.drawCommands,
                 },
                 buffer_usage::indirect | buffer_usage::transfer_destination);
 
@@ -40,27 +41,6 @@ namespace oblo::vk
             };
 
             ++outIndex;
-        }
-    }
-
-    void bypass_culling::execute(const runtime_context& context)
-    {
-        const std::span drawBufferData = *context.access(outDrawBufferData);
-
-        const auto cb = context.get_command_buffer();
-
-        for (const auto& draw : drawBufferData)
-        {
-            const auto dstBuffer = context.access(draw.drawCallBuffer);
-
-            const VkBufferCopy region{
-                .srcOffset = draw.sourceData.drawCommands.bufferOffset,
-                .dstOffset = dstBuffer.offset,
-                .size = draw.sourceData.drawCommands.bufferSize,
-            };
-
-            OBLO_ASSERT(draw.sourceData.drawCommands.bufferSize == dstBuffer.size);
-            vkCmdCopyBuffer(cb, draw.sourceData.drawCommands.buffer, dstBuffer.buffer, 1, &region);
         }
     }
 }

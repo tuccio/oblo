@@ -21,6 +21,7 @@ namespace oblo::vk
     struct frustum_culling_data
     {
         resource<buffer> configBuffer;
+        resource<buffer> srcDrawCommands;
     };
 
     void frustum_culling::init(const init_context& context)
@@ -76,12 +77,18 @@ namespace oblo::vk
                         .data = std::as_bytes(std::span{&config, 1}),
                     },
                     buffer_usage::uniform),
+                .srcDrawCommands = builder.create_dynamic_buffer(
+                    {
+                        .size = u32(draw.drawCommands.drawCommands.size()),
+                        .data = draw.drawCommands.drawCommands,
+                    },
+                    buffer_usage::storage),
             };
 
             drawBufferData[outIndex] = {
                 .drawCallBuffer = builder.create_dynamic_buffer(
                     {
-                        .size = u32(draw.drawCommands.bufferSize),
+                        .size = u32(draw.drawCommands.drawCommands.size()),
                     },
                     buffer_usage::storage),
                 .sourceData = draw,
@@ -125,21 +132,22 @@ namespace oblo::vk
                      ++nextIndex)
                 {
                     const auto& currentDraw = drawData[nextIndex];
+                    const auto& internalData = cullData[nextIndex];
 
                     bindingTable.clear();
 
-                    const buffer configBuffer = context.access(cullData[nextIndex].configBuffer);
+                    const buffer configBuffer = context.access(internalData.configBuffer);
                     const buffer outDrawCallsBuffer = context.access(currentDraw.drawCallBuffer);
 
                     bindingTable.emplace(cullingConfigName, configBuffer);
 
-                    const auto& drawCommands = currentDraw.sourceData.drawCommands;
+                    const auto srcBuffer = context.access(internalData.srcDrawCommands);
 
                     bindingTable.emplace(inDrawCallsBufferName,
                         buffer{
-                            .buffer = drawCommands.buffer,
-                            .offset = u32(drawCommands.bufferOffset),
-                            .size = u32(drawCommands.bufferSize),
+                            .buffer = srcBuffer.buffer,
+                            .offset = u32(srcBuffer.offset),
+                            .size = u32(srcBuffer.size),
                         });
 
                     bindingTable.emplace(outDrawCallsBufferName, outDrawCallsBuffer);
