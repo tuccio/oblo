@@ -18,7 +18,7 @@ namespace oblo::vk
     class runtime_context;
 
     struct buffer;
-    struct frustum_culling_data;
+    struct draw_buffer_data;
     struct texture;
     struct picking_configuration;
     struct render_pass;
@@ -29,7 +29,7 @@ namespace oblo::vk
 
         data<vec2u> inResolution;
         data<buffer_binding_table> inPerViewBindingTable;
-        data<std::span<frustum_culling_data>> inCullData;
+        data<std::span<draw_buffer_data>> inDrawData;
 
         resource<texture> outRenderTarget;
         resource<texture> outPickingIdBuffer;

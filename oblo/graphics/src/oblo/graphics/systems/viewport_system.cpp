@@ -18,6 +18,7 @@
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/graph/render_graph.hpp>
 #include <oblo/vulkan/graph/topology_builder.hpp>
+#include <oblo/vulkan/nodes/bypass_culling.hpp>
 #include <oblo/vulkan/nodes/debug_draw_all.hpp>
 #include <oblo/vulkan/nodes/debug_triangle_node.hpp>
 #include <oblo/vulkan/nodes/forward_pass.hpp>
@@ -229,28 +230,40 @@ namespace oblo
                 if (!renderGraphData)
                 {
 #if 1
-                    expected res =
-                        topology_builder{}
-                            .add_node<frustum_culling>()
-                            .add_node<forward_pass>()
-                            .add_node<view_buffers_node>()
-                            .add_node<picking_readback>()
-                            .add_output<h32<vk::texture>>(OutFinalRenderTarget)
-                            .add_output<h32<vk::texture>>(OutPickingBuffer)
-                            .add_input<vec2u>(InResolution)
-                            .add_input<camera_buffer>(InCamera)
-                            .add_input<picking_configuration>(InPickingConfiguration)
-                            .connect_output(&forward_pass::outRenderTarget, OutFinalRenderTarget)
-                            .connect_input(InCamera, &view_buffers_node::inCameraData)
-                            .connect_input(InResolution, &forward_pass::inResolution)
-                            .connect_input(InPickingConfiguration, &forward_pass::inPickingConfiguration)
-                            .connect_input(InPickingConfiguration, &picking_readback::inPickingConfiguration)
-                            .connect(&view_buffers_node::outPerViewBindingTable, &forward_pass::inPerViewBindingTable)
-                            .connect(&forward_pass::outPickingIdBuffer, &picking_readback::inPickingIdBuffer)
+                    topology_builder graphBuilder;
+
+                    graphBuilder.add_node<forward_pass>()
+                        .add_node<view_buffers_node>()
+                        .add_node<picking_readback>()
+                        .add_output<h32<vk::texture>>(OutFinalRenderTarget)
+                        .add_output<h32<vk::texture>>(OutPickingBuffer)
+                        .add_input<vec2u>(InResolution)
+                        .add_input<camera_buffer>(InCamera)
+                        .add_input<picking_configuration>(InPickingConfiguration)
+                        .connect_output(&forward_pass::outRenderTarget, OutFinalRenderTarget)
+                        .connect_input(InCamera, &view_buffers_node::inCameraData)
+                        .connect_input(InResolution, &forward_pass::inResolution)
+                        .connect_input(InPickingConfiguration, &forward_pass::inPickingConfiguration)
+                        .connect_input(InPickingConfiguration, &picking_readback::inPickingConfiguration)
+                        .connect(&view_buffers_node::outPerViewBindingTable, &forward_pass::inPerViewBindingTable)
+                        .connect(&forward_pass::outPickingIdBuffer, &picking_readback::inPickingIdBuffer);
+
+                    constexpr bool withFrustumCulling{false};
+
+                    if constexpr (withFrustumCulling)
+                    {
+                        graphBuilder.add_node<frustum_culling>()
                             .connect(&view_buffers_node::outPerViewBindingTable,
                                 &frustum_culling::inPerViewBindingTable)
-                            .connect(&frustum_culling::outCullData, &forward_pass::inCullData)
-                            .build();
+                            .connect(&frustum_culling::outDrawBufferData, &forward_pass::inDrawData);
+                    }
+                    else
+                    {
+                        graphBuilder.add_node<bypass_culling>().connect(&bypass_culling::outDrawBufferData,
+                            &forward_pass::inDrawData);
+                    }
+
+                    expected res = graphBuilder.build();
 #else
                     expected res =
                         topology_builder{}
