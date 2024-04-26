@@ -223,9 +223,11 @@ namespace oblo::vk
             return false;
         }
 
+        // Segments here should be aligned with the texel size, probably we should also be mindful of not splitting a
+        // texel in 2 different segments
         const auto segmentedSpan = m_impl.ring.fetch(srcSize);
 
-        if (auto& secondSecment = segmentedSpan.segments[1]; secondSecment.begin != secondSecment.end)
+        if (auto& secondSegment = segmentedSpan.segments[1]; secondSegment.begin != secondSegment.end)
         {
             // TODO: Rather than failing, try to extend it
             OBLO_ASSERT(false,
