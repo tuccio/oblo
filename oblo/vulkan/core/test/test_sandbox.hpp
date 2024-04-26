@@ -78,9 +78,14 @@ namespace oblo::vk
             small_vector<const char*, extensionsArraySize> extensions;
             small_vector<const char*, layersArraySize> layers;
 
-            extensions.assign(instanceExtensions.begin(), instanceExtensions.end());
-            layers.assign(instanceLayers.begin(), instanceLayers.end());
+            constexpr const char* InstanceExtensions[] = {
+                VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
+            };
 
+            extensions.assign(instanceExtensions.begin(), instanceExtensions.end());
+            extensions.insert(extensions.end(), std::begin(InstanceExtensions), std::end(InstanceExtensions));
+
+            layers.assign(instanceLayers.begin(), instanceLayers.end());
             layers.emplace_back("VK_LAYER_KHRONOS_validation");
 
             constexpr u32 apiVersion{VK_API_VERSION_1_3};
