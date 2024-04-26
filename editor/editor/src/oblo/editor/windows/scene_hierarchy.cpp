@@ -52,10 +52,24 @@ namespace oblo::editor
                         {
                             m_registry->destroy(e);
                         }
+
+                        m_selection->clear();
                     }
                 }
 
                 ImGui::EndPopup();
+            }
+            else
+            {
+                if (ImGui::IsKeyPressed(ImGuiKey_Delete, false))
+                {
+                    for (const auto e : m_selection->get())
+                    {
+                        m_registry->destroy(e);
+                    }
+
+                    m_selection->clear();
+                }
             }
 
             for (const auto e : m_registry->entities())
