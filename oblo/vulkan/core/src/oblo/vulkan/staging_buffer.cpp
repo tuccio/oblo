@@ -223,9 +223,17 @@ namespace oblo::vk
             return false;
         }
 
+        constexpr u32 maxTexelSize = sizeof(f32) * 4;
+
         // Segments here should be aligned with the texel size, probably we should also be mindful of not splitting a
         // texel in 2 different segments
-        const auto segmentedSpan = m_impl.ring.fetch(srcSize);
+        const auto segmentedSpan = m_impl.ring.try_fetch_contiguous_aligned(srcSize, maxTexelSize);
+
+        if (segmentedSpan.segments[0].begin == segmentedSpan.segments[0].end)
+        {
+            OBLO_ASSERT(false, "Failed to allocate space to upload");
+            return false;
+        }
 
         if (auto& secondSegment = segmentedSpan.segments[1]; secondSegment.begin != secondSegment.end)
         {
