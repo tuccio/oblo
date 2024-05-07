@@ -24,7 +24,12 @@ endmacro(oblo_remove_cxx_flag)
 function(oblo_init_compiler_settings)
     if(MSVC)
         # Warning as errors
-        add_compile_options(/W4 /WX /wd4324)
+        add_compile_options(
+            /W4 /WX
+            /wd4324 # Padding was added at the end of a structure because you specified an alignment specifier.
+            /wd4274 # An exported class was derived from a class that wasn't exported. Disabled because we don't really mix and match DLLs.
+            /wd4251 # An exported class was derived from a class that wasn't exported. Disabled because we don't really mix and match DLLs.
+        )
 
         # Disable optimizations if specified
         if(OBLO_DISABLE_COMPILER_OPTIMIZATIONS)

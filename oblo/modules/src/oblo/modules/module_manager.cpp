@@ -1,6 +1,9 @@
 #include <oblo/modules/module_manager.hpp>
 
 #include <oblo/core/debug.hpp>
+#include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/service_registry.hpp>
+#include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_interface.hpp>
 
 #include <algorithm>
@@ -17,7 +20,13 @@ namespace oblo
     struct module_manager::module_storage
     {
         std::unique_ptr<module_interface> ptr;
+        service_registry services;
         u32 loadOrder{};
+    };
+
+    struct module_manager::service_storage
+    {
+        dynamic_array<void*> implementations;
     };
 
     module_manager& module_manager::get()
@@ -96,9 +105,13 @@ namespace oblo
             return false;
         }
 
+        service_registry services;
+
         try
         {
-            if (!module->startup())
+            if (!module->startup({
+                    .services = &services,
+                }))
             {
                 m_modules.erase(it);
                 return false;
@@ -110,9 +123,32 @@ namespace oblo
             return false;
         }
 
-        it->second.ptr = std::move(module);
-        it->second.loadOrder = ++m_nextLoadIndex;
+        auto& moduleEntry = it->second;
+
+        moduleEntry.ptr = std::move(module);
+        moduleEntry.services = std::move(services);
+        moduleEntry.loadOrder = ++m_nextLoadIndex;
+
+        dynamic_array<service_entry> moduleServices;
+        moduleEntry.services.fetch_services(moduleServices);
+
+        for (auto& service : moduleServices)
+        {
+            m_services[service.type].implementations.push_back(service.pointer);
+        }
 
         return true;
+    }
+
+    std::span<void* const> module_manager::find_services(const type_id& type) const
+    {
+        const auto it = m_services.find(type);
+
+        if (it == m_services.end())
+        {
+            return {};
+        }
+
+        return it->second.implementations;
     }
 }

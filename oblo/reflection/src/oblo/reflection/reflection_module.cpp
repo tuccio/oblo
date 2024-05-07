@@ -14,7 +14,7 @@ namespace oblo::reflection
         }
     }
 
-    bool reflection_module::startup()
+    bool reflection_module::startup(const module_initializer&)
     {
         register_reflection(m_registry.get_registrant());
         return true;

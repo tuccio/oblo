@@ -3,8 +3,9 @@ oblo_add_executable(oblo)
 target_link_libraries(
     oblo
     PRIVATE
+    oblo::asset
     oblo::editor
-    oblo::engine
+    oblo::runtime
     oblo::ecs
     oblo::graphics
     oblo::importers

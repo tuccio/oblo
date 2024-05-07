@@ -7,7 +7,7 @@ target_link_libraries(
     oblo::modules
     oblo::scene
     PRIVATE
-    oblo::engine
+    oblo::runtime
     TinyGLTF::TinyGLTF
     stb::stb
     Vulkan::Headers
