@@ -4,10 +4,10 @@
 
 namespace oblo
 {
-    class SCENE_API scene_module final : public module_interface
+    class scene_module final : public module_interface
     {
     public:
-        bool startup() override;
-        void shutdown() override;
+        SCENE_API bool startup(const module_initializer& initializer) override;
+        SCENE_API void shutdown() override;
     };
 }

@@ -1,9 +1,11 @@
 #pragma once
 
+#include <oblo/core/lifetime.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
 
 #include <memory>
+#include <span>
 #include <unordered_map>
 
 namespace oblo
@@ -33,15 +35,22 @@ namespace oblo
 
         MODULES_API void shutdown();
 
+        template <typename T>
+        std::span<T* const> find_services() const;
+
     private:
         MODULES_API module_interface* find(const type_id& id) const;
         [[nodiscard]] MODULES_API bool load(const type_id& id, std::unique_ptr<module_interface> module);
 
+        MODULES_API std::span<void* const> find_services(const type_id& type) const;
+
     private:
         struct module_storage;
+        struct service_storage;
 
     private:
         std::unordered_map<type_id, module_storage> m_modules;
+        std::unordered_map<type_id, service_storage> m_services;
         u32 m_nextLoadIndex{};
     };
 
@@ -77,5 +86,21 @@ namespace oblo
         }
 
         return nullptr;
+    }
+
+    template <typename T>
+    inline std::span<T* const> module_manager::find_services() const
+    {
+        const auto services = find_services(get_type_id<T>());
+
+        if (services.empty())
+        {
+            return {};
+        }
+
+        const auto count = services.size();
+
+        auto* const ptr = start_lifetime_as_array<T*>(services.data(), count);
+        return {ptr, count};
     }
 }

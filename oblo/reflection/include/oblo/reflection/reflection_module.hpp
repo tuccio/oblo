@@ -9,7 +9,7 @@ namespace oblo::reflection
     class reflection_module final : public module_interface
     {
     public:
-        bool startup() override;
+        bool startup(const module_initializer& initializer) override;
         void shutdown() override;
 
         const reflection_registry& get_registry() const;

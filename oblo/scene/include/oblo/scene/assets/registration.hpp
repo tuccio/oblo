@@ -1,20 +1,10 @@
 #pragma once
 
-namespace oblo
-{
-    class resource_registry;
-}
+#include <oblo/core/dynamic_array.hpp>
 
 namespace oblo
 {
-    class asset_registry;
-}
+    struct resource_type_desc;
 
-namespace oblo
-{
-    SCENE_API void register_asset_types(asset_registry& registry);
-    SCENE_API void unregister_asset_types(asset_registry& registry);
-
-    SCENE_API void register_resource_types(resource_registry& registry);
-    SCENE_API void unregister_resource_types(resource_registry& registry);
+    SCENE_API void fetch_scene_resource_types(dynamic_array<resource_type_desc>& outResourceTypes);
 }

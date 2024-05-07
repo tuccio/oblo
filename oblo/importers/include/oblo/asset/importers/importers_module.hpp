@@ -4,10 +4,10 @@
 
 namespace oblo::importers
 {
-    class IMPORTERS_API importers_module final : public module_interface
+    class importers_module final : public module_interface
     {
     public:
-        bool startup() override;
-        void shutdown() override;
+        IMPORTERS_API bool startup(const module_initializer& initializer) override;
+        IMPORTERS_API void shutdown() override;
     };
 }

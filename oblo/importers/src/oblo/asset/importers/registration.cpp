@@ -17,12 +17,14 @@ namespace oblo::importers
                 .extensions = extensions,
             };
         }
+
+        constexpr std::string_view g_gltfExtensions[] = {".gltf", ".glb"};
+        constexpr std::string_view g_stbExtensions[] = {".jpg", ".jpeg", ".png", ".tga", ".bmp"};
     }
 
     void register_gltf_importer(asset_registry& registry)
     {
-        constexpr std::string_view extensions[] = {".gltf", ".glb"};
-        registry.register_file_importer(make_file_importer_desc<gltf>(extensions));
+        registry.register_file_importer(make_file_importer_desc<gltf>(g_gltfExtensions));
     }
 
     void unregister_gltf_importer(asset_registry& registry)
@@ -32,12 +34,17 @@ namespace oblo::importers
 
     void register_stb_image_importer(asset_registry& registry)
     {
-        constexpr std::string_view extensions[] = {".jpg", ".jpeg", ".png", ".tga", ".bmp"};
-        registry.register_file_importer(make_file_importer_desc<stb_image>(extensions));
+        registry.register_file_importer(make_file_importer_desc<stb_image>(g_stbExtensions));
     }
 
     void unregister_stb_image_importer(asset_registry& registry)
     {
         registry.unregister_file_importer(get_type_id<stb_image>());
+    }
+
+    void fetch_importers(dynamic_array<file_importer_desc>& outResourceTypes)
+    {
+        outResourceTypes.emplace_back(make_file_importer_desc<gltf>(g_gltfExtensions));
+        outResourceTypes.emplace_back(make_file_importer_desc<stb_image>(g_stbExtensions));
     }
 }

@@ -1,11 +1,18 @@
 #pragma once
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/type_id.hpp>
 
 #include <unordered_map>
 
 namespace oblo
 {
+    struct service_entry
+    {
+        type_id type;
+        void* pointer;
+    };
+
     class service_registry
     {
     public:
@@ -28,6 +35,8 @@ namespace oblo
         template <typename T>
         T* find() const;
 
+        void fetch_services(dynamic_array<service_entry>& out);
+
     private:
         struct service
         {
@@ -39,6 +48,7 @@ namespace oblo
         std::unordered_map<type_id, void*> m_map;
         std::vector<service> m_services;
     };
+
     template <typename T, typename... Bases>
     class service_registry::builder
     {
@@ -103,5 +113,15 @@ namespace oblo
     {
         const auto it = m_map.find(get_type_id<T>());
         return it == m_map.end() ? nullptr : static_cast<T*>(it->second);
+    }
+
+    inline void service_registry::fetch_services(dynamic_array<service_entry>& out)
+    {
+        out.reserve(out.size() + m_map.size());
+
+        for (const auto& [type, pointer] : m_map)
+        {
+            out.emplace_back(type, pointer);
+        }
     }
 }
