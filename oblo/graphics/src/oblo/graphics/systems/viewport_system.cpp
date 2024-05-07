@@ -460,8 +460,5 @@ namespace oblo
                 m_renderGraphs.erase(e);
             }
         }
-
-        // TODO: Find a better home for the renderer update
-        m_renderer->update(*ctx.frameAllocator);
     }
 }

@@ -1,11 +1,12 @@
 #pragma once
 
-#include <oblo/core/service_registry.hpp>
-#include <oblo/ecs/entity_registry.hpp>
-#include <oblo/ecs/systems/system_seq_executor.hpp>
-#include <oblo/ecs/type_registry.hpp>
+#include <oblo/asset/asset_registry.hpp>
 #include <oblo/editor/window_manager.hpp>
-#include <oblo/vulkan/renderer.hpp>
+#include <oblo/runtime/runtime.hpp>
+
+#include <span>
+
+#include <vulkan/vulkan.h>
 
 namespace oblo::vk
 {
@@ -38,10 +39,7 @@ namespace oblo::editor
 
     private:
         window_manager m_windowManager;
-        ecs::system_seq_executor m_executor;
-        ecs::type_registry m_typeRegistry;
-        ecs::entity_registry m_entities;
-        service_registry m_services;
-        vk::renderer m_renderer;
+        runtime m_runtime;
+        asset_registry m_assetRegistry;
     };
 }

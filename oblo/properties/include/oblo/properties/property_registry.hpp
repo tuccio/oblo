@@ -30,7 +30,6 @@ namespace oblo
         ~property_registry();
 
         void init(const reflection::reflection_registry& reflection);
-        void shutdown();
 
         property_kind find_property_kind(const type_id& type) const;
 

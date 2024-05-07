@@ -36,14 +36,11 @@ namespace oblo
         }
     }
 
-    bool graphics_module::startup()
+    bool graphics_module::startup(const module_initializer&)
     {
         reflection::load_module_and_register(register_reflection);
         return true;
     }
 
-    void graphics_module::shutdown()
-    {
-        //
-    }
+    void graphics_module::shutdown() {}
 }

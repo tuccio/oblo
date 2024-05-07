@@ -7,7 +7,7 @@ namespace oblo
     class graphics_module final : public module_interface
     {
     public:
-        bool startup() override;
+        bool startup(const module_initializer& initializer) override;
         void shutdown() override;
     };
 }

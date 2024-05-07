@@ -1,11 +1,13 @@
 #include <oblo/scene/scene_module.hpp>
 
 #include <oblo/core/debug.hpp>
-#include <oblo/engine/engine_module.hpp>
+#include <oblo/core/service_registry.hpp>
+#include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/reflection/reflection_module.hpp>
 #include <oblo/reflection/reflection_registry.hpp>
 #include <oblo/reflection/registration/registrant.hpp>
+#include <oblo/resource/resource_types_provider.hpp>
 #include <oblo/scene/assets/registration.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/scene/components/name_component.hpp>
@@ -49,25 +51,27 @@ namespace oblo
                 .add_ranged_type_erasure()
                 .add_tag<ecs::component_type_tag>();
         }
+
+        class scene_resources_provider final : public resource_types_provider
+        {
+            void fetch_resource_types(dynamic_array<resource_type_desc>& outResourceTypes) const override
+            {
+                fetch_scene_resource_types(outResourceTypes);
+            }
+        };
     }
 
-    bool scene_module::startup()
+    bool scene_module::startup(const module_initializer& initializer)
     {
         auto& mm = module_manager::get();
 
         auto* reflection = mm.load<reflection::reflection_module>();
         register_reflection(reflection->get_registrant());
 
-        auto* const engineModule = module_manager::get().load<engine_module>();
-        register_asset_types(engineModule->get_asset_registry());
-        register_resource_types(engineModule->get_resource_registry());
+        initializer.services->add<scene_resources_provider>().as<resource_types_provider>().unique();
+
         return true;
     }
 
-    void scene_module::shutdown()
-    {
-        auto* const engineModule = module_manager::get().find<engine_module>();
-        unregister_asset_types(engineModule->get_asset_registry());
-        unregister_resource_types(engineModule->get_resource_registry());
-    }
+    void scene_module::shutdown() {}
 }
