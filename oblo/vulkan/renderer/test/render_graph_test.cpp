@@ -40,13 +40,9 @@ namespace oblo::vk::test
                     buffer_usage::uniform);
             }
 
-            void init(const init_context&)
-            {
-            }
+            void init(const init_context&) {}
 
-            void execute(const runtime_context&)
-            {
-            }
+            void execute(const runtime_context&) {}
         };
 
         struct fill_depth_node
@@ -357,11 +353,13 @@ namespace oblo::vk::test
         {
             bool init(const vk::sandbox_init_context& ctx)
             {
+                frameAllocator.init(1u << 26);
+
                 entities.init(&typeRegistry);
 
                 if (!renderer.init({
                         .vkContext = *ctx.vkContext,
-                        .frameAllocator = *ctx.frameAllocator,
+                        .frameAllocator = frameAllocator,
                         .entities = entities,
                     }))
                 {
@@ -410,6 +408,7 @@ namespace oblo::vk::test
             {
                 resourcePool.shutdown(*ctx.vkContext);
                 renderer.shutdown();
+                frameAllocator.shutdown();
             }
 
             void update(const vk::sandbox_render_context& ctx)
@@ -436,6 +435,8 @@ namespace oblo::vk::test
             void update_imgui(const vk::sandbox_update_imgui_context&) {}
 
             static constexpr vec2u resolution{.x = 16u, .y = 16u};
+
+            frame_allocator frameAllocator;
 
             allocated_buffer depthImageDownload{};
             allocated_buffer renderTargetDownload{};
