@@ -1,6 +1,6 @@
 #pragma once
 
-#include <oblo/core/small_vector.hpp>
+#include <oblo/core/buffered_array.hpp>
 #include <oblo/vulkan/instance.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
 
@@ -75,8 +75,8 @@ namespace oblo::vk
             constexpr u32 extensionsArraySize{64};
             constexpr u32 layersArraySize{16};
 
-            small_vector<const char*, extensionsArraySize> extensions;
-            small_vector<const char*, layersArraySize> layers;
+            buffered_array<const char*, extensionsArraySize> extensions;
+            buffered_array<const char*, layersArraySize> layers;
 
             constexpr const char* InstanceExtensions[] = {
                 VK_EXT_DEBUG_UTILS_EXTENSION_NAME,

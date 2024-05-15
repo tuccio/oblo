@@ -1,7 +1,7 @@
 #include <oblo/vulkan/single_queue_engine.hpp>
 
+#include <oblo/core/buffered_array.hpp>
 #include <oblo/core/debug.hpp>
-#include <oblo/core/small_vector.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/instance.hpp>
@@ -45,7 +45,7 @@ namespace oblo::vk
                 return false;
             }
 
-            small_vector<VkPhysicalDevice, 32> devices;
+            buffered_array<VkPhysicalDevice, 32> devices;
             devices.resize(physicalDevicesCount);
 
             if (vkEnumeratePhysicalDevices(instance, &physicalDevicesCount, devices.data()) != VK_SUCCESS)
@@ -69,7 +69,7 @@ namespace oblo::vk
 
             vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &queueFamilyCount, nullptr);
 
-            small_vector<VkQueueFamilyProperties, 32> queueProperties;
+            buffered_array<VkQueueFamilyProperties, 32> queueProperties;
             queueProperties.resize(queueFamilyCount);
 
             vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &queueFamilyCount, queueProperties.data());

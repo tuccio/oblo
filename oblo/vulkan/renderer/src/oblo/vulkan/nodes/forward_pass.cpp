@@ -108,7 +108,7 @@ namespace oblo::vk
                 },
         };
 
-        small_vector<VkRenderingAttachmentInfo, 2> colorAttachments = {
+        buffered_array<VkRenderingAttachmentInfo, 2> colorAttachments = {
             {
                 .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
                 .imageView = renderTarget.view,

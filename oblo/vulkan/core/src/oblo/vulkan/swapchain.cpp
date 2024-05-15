@@ -1,4 +1,4 @@
-#include <oblo/core/small_vector.hpp>
+#include <oblo/core/buffered_array.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
 
 namespace oblo::vk::detail
@@ -21,7 +21,7 @@ namespace oblo::vk::detail
             return false;
         }
 
-        small_vector<VkSurfaceFormatKHR, 64> surfaceFormats;
+        buffered_array<VkSurfaceFormatKHR, 64> surfaceFormats;
         u32 surfaceFormatsCount;
         vkGetPhysicalDeviceSurfaceFormatsKHR(engine.get_physical_device(), surface, &surfaceFormatsCount, nullptr);
         surfaceFormats.resize(surfaceFormatsCount);
