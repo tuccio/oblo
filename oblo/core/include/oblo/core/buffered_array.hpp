@@ -14,7 +14,7 @@ namespace oblo
             m_array.reserve(N);
         }
 
-        buffered_array(allocator* fallback) : m_allocator{fallback}
+        explicit buffered_array(allocator* fallback) : m_allocator{fallback}
         {
             m_array.reserve(N);
         }
