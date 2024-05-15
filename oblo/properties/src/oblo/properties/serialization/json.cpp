@@ -1,9 +1,9 @@
 #include <oblo/properties/serialization/json.hpp>
 
+#include <oblo/core/buffered_array.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/file_utility.hpp>
 #include <oblo/core/log.hpp>
-#include <oblo/core/small_vector.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/properties/property_kind.hpp>

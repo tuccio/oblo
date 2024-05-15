@@ -1,8 +1,8 @@
 #include <oblo/vulkan/draw/mesh_database.hpp>
 
 #include <oblo/core/allocation_helpers.hpp>
+#include <oblo/core/buffered_array.hpp>
 #include <oblo/core/frame_allocator.hpp>
-#include <oblo/core/small_vector.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/draw/mesh_table.hpp>

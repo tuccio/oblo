@@ -1,8 +1,8 @@
 #include <oblo/sandbox/sandbox_app.hpp>
 
 #include <oblo/core/array_size.hpp>
+#include <oblo/core/buffered_array.hpp>
 #include <oblo/core/log.hpp>
-#include <oblo/core/small_vector.hpp>
 #include <oblo/vulkan/destroy_device_objects.hpp>
 #include <oblo/vulkan/error.hpp>
 
@@ -330,8 +330,8 @@ namespace oblo::vk
         constexpr u32 extensionsArraySize{64};
         constexpr u32 layersArraySize{16};
 
-        small_vector<const char*, extensionsArraySize> extensions;
-        small_vector<const char*, layersArraySize> layers;
+        buffered_array<const char*, extensionsArraySize> extensions;
+        buffered_array<const char*, layersArraySize> layers;
 
         u32 sdlExtensionsCount;
 

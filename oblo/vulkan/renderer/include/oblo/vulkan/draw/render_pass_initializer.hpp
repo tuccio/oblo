@@ -1,6 +1,6 @@
 #pragma once
 
-#include <oblo/core/small_vector.hpp>
+#include <oblo/core/buffered_array.hpp>
 #include <oblo/core/string_interner.hpp>
 #include <oblo/core/types.hpp>
 
@@ -27,12 +27,12 @@ namespace oblo::vk
     struct render_pass_initializer
     {
         std::string name;
-        small_vector<render_pass_stage, u8(pipeline_stages::enum_max)> stages;
+        buffered_array<render_pass_stage, u8(pipeline_stages::enum_max)> stages;
     };
 
     struct render_pass_targets
     {
-        small_vector<VkFormat, 4> colorAttachmentFormats;
+        buffered_array<VkFormat, 4> colorAttachmentFormats;
         VkFormat depthFormat{VK_FORMAT_UNDEFINED};
         VkFormat stencilFormat{VK_FORMAT_UNDEFINED};
     };
