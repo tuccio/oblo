@@ -117,12 +117,15 @@ namespace oblo::editor
 
         resourceRegistry.register_provider(&asset_registry::find_artifact_resource, &m_assetRegistry);
 
-        m_runtime.init({
-            .reflectionRegistry = &reflection->get_registry(),
-            .propertyRegistry = &propertyRegistry,
-            .resourceRegistry = &resourceRegistry,
-            .vulkanContext = ctx.vkContext,
-        });
+        if (!m_runtime.init({
+                .reflectionRegistry = &reflection->get_registry(),
+                .propertyRegistry = &propertyRegistry,
+                .resourceRegistry = &resourceRegistry,
+                .vulkanContext = ctx.vkContext,
+            }))
+        {
+            return false;
+        }
 
         auto& renderer = m_runtime.get_renderer();
 
