@@ -73,8 +73,6 @@ namespace oblo::vk
             SDL_DestroyWindow(m_window);
             m_window = nullptr;
         }
-
-        m_frameAllocator.shutdown();
     }
 
     void sandbox_base::set_config(const sandbox_app_config& config)
@@ -88,8 +86,6 @@ namespace oblo::vk
         void* deviceFeaturesList,
         const VkPhysicalDeviceFeatures2* physicalDeviceFeatures)
     {
-        m_frameAllocator.init(1u << 30, 1u << 24, 1u);
-
         if (!create_window() ||
             !create_engine(instanceExtensions,
                 instanceLayers,

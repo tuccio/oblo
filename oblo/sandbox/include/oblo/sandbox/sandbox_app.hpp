@@ -2,7 +2,6 @@
 
 #include <concepts>
 
-#include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/input/input_queue.hpp>
@@ -72,8 +71,6 @@ namespace oblo::vk
     protected:
         static constexpr u32 SwapchainImages{2u};
         static constexpr VkFormat SwapchainFormat{VK_FORMAT_B8G8R8A8_UNORM};
-
-        frame_allocator m_frameAllocator;
 
         SDL_Window* m_window;
         VkSurfaceKHR m_surface{nullptr};
@@ -173,7 +170,6 @@ namespace oblo::vk
 
             const sandbox_init_context context{
                 .vkContext = &m_context,
-                .frameAllocator = &m_frameAllocator,
                 .inputQueue = &m_inputQueue,
                 .swapchainFormat = SwapchainFormat,
             };
@@ -221,7 +217,6 @@ namespace oblo::vk
 
             const sandbox_render_context context{
                 .vkContext = &m_context,
-                .frameAllocator = &m_frameAllocator,
                 .swapchainTexture = swapchainTexture,
                 .width = m_renderWidth,
                 .height = m_renderHeight,
@@ -257,7 +252,6 @@ namespace oblo::vk
 
             const sandbox_shutdown_context context{
                 .vkContext = &m_context,
-                .frameAllocator = &m_frameAllocator,
             };
 
             TApp::shutdown(context);

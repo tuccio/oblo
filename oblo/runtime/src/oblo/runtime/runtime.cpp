@@ -41,6 +41,7 @@ namespace oblo
 
     struct runtime::impl
     {
+        frame_allocator frameAllocator;
         ecs::system_seq_executor executor;
         ecs::type_registry typeRegistry;
         ecs::entity_registry entities;
@@ -60,6 +61,12 @@ namespace oblo
     bool runtime::init(const runtime_initializer& initializer)
     {
         m_impl = std::make_unique<impl>();
+
+        if (!m_impl->frameAllocator.init(initializer.frameAllocatorMaxSize))
+        {
+            m_impl.reset();
+            return false;
+        }
 
         ecs_utility::register_reflected_component_types(*initializer.reflectionRegistry,
             &m_impl->typeRegistry,
@@ -83,7 +90,7 @@ namespace oblo
 
         if (!m_impl->renderer.init({
                 .vkContext = *m_impl->vulkanContext,
-                .frameAllocator = *initializer.frameAllocator,
+                .frameAllocator = m_impl->frameAllocator,
                 .entities = m_impl->entities,
             }))
         {
@@ -101,15 +108,15 @@ namespace oblo
         m_impl.reset();
     }
 
-    void runtime::update(const runtime_update_context& ctx)
+    void runtime::update(const runtime_update_context&)
     {
         m_impl->executor.update({
             .entities = &m_impl->entities,
             .services = &m_impl->services,
-            .frameAllocator = ctx.frameAllocator,
+            .frameAllocator = &m_impl->frameAllocator,
         });
 
-        m_impl->renderer.update(*ctx.frameAllocator);
+        m_impl->renderer.update(m_impl->frameAllocator);
     }
 
     vk::renderer& oblo::runtime::get_renderer() const

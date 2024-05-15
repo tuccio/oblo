@@ -17,8 +17,13 @@ namespace oblo::vk
 {
     bool hello_world::init(const sandbox_init_context& context)
     {
+        if (!m_frameAllocator.init(1u << 30))
+        {
+            return false;
+        }
+
         const auto device = context.vkContext->get_device();
-        return create_shader_modules(*context.frameAllocator, device) &&
+        return create_shader_modules(m_frameAllocator, device) &&
             create_graphics_pipeline(device, context.swapchainFormat) &&
             create_vertex_buffers(context.vkContext->get_allocator());
     }
@@ -35,10 +40,14 @@ namespace oblo::vk
             m_pipelineLayout,
             m_vertShaderModule,
             m_fragShaderModule);
+
+        m_frameAllocator.shutdown();
     }
 
     void hello_world::update(const sandbox_render_context& context)
     {
+        m_frameAllocator.restore_all();
+
         auto& vkContext = *context.vkContext;
         auto& resourceManager = vkContext.get_resource_manager();
 
