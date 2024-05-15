@@ -51,7 +51,7 @@ namespace oblo
         runtime& operator=(const runtime&) = delete;
         RUNTIME_API runtime& operator=(runtime&&) noexcept;
 
-        RUNTIME_API [[nodiscard]] bool init(const runtime_initializer& initializer);
+        [[nodiscard]] RUNTIME_API bool init(const runtime_initializer& initializer);
         RUNTIME_API void shutdown();
 
         RUNTIME_API void update(const runtime_update_context& ctx);
