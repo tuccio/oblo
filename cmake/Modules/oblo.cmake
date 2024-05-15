@@ -68,6 +68,24 @@ function(oblo_add_source_files target)
     target_sources(${target} PRIVATE ${_oblo_src} ${_oblo_private_includes} PUBLIC ${_oblo_public_includes})
 endfunction(oblo_add_source_files)
 
+function(oblo_add_test_impl name)
+    set(_test_target "${_oblo_target_prefix}_test_${name}")
+    
+    add_executable(${_test_target} ${_oblo_test_src})
+    target_link_libraries(${_test_target} PRIVATE ${_target} GTest::gtest GTest::gtest_main)
+
+    add_executable("${_oblo_alias_prefix}::test::${name}" ALIAS ${_test_target})
+    add_test(NAME ${name} COMMAND ${_test_target} WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+
+    set_target_properties(
+        ${_test_target} PROPERTIES
+        FOLDER ${OBLO_FOLDER_TESTS}
+        PROJECT_LABEL "${name}_tests"
+    )
+
+    set(_oblo_test_target ${_test_target} PARENT_SCOPE)
+endfunction(oblo_add_test_impl)
+
 function(oblo_setup_source_groups target)
     source_group("Private\\Source" FILES ${_oblo_src})
     source_group("Private\\Headers" FILES ${_oblo_private_includes})
@@ -86,6 +104,16 @@ function(oblo_setup_include_dirs target)
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     )
 endfunction(oblo_setup_include_dirs)
+
+macro(_oblo_setup_target_namespace namespace)
+    if(NOT DEFINED namespace OR namespace STREQUAL "")
+        set(_oblo_alias_prefix "oblo")
+        set(_oblo_target_prefix "oblo")
+    else()
+        set(_oblo_alias_prefix "oblo::${namespace}")
+        set(_oblo_target_prefix "oblo_${namespace}")
+    endif()
+endmacro(_oblo_setup_target_namespace)
 
 function(oblo_add_executable name)
     set(_target "${name}")
@@ -112,15 +140,9 @@ function(oblo_add_library name)
         ${ARGN}
     )
 
-    if(OBLO_LIB_NAMESPACE)
-        set(_target_prefix "oblo_${OBLO_LIB_NAMESPACE}")
-        set(_alias_prefix "oblo::${OBLO_LIB_NAMESPACE}")
-    else()
-        set(_target_prefix "oblo")
-        set(_alias_prefix "oblo")
-    endif()
+    _oblo_setup_target_namespace("${OBLO_LIB_NAMESPACE}")
 
-    set(_target "${_target_prefix}_${name}")
+    set(_target "${_oblo_target_prefix}_${name}")
     oblo_find_source_files()
 
     if(NOT DEFINED _oblo_src)
@@ -163,21 +185,11 @@ function(oblo_add_library name)
     endif()
 
     if(DEFINED _oblo_test_src)
-        set(_test_target "${_target_prefix}_test_${name}")
-        add_executable(${_test_target} ${_oblo_test_src})
-        target_link_libraries(${_test_target} PRIVATE ${_target} GTest::gtest GTest::gtest_main)
-
-        add_executable("${_alias_prefix}::test::${name}" ALIAS ${_test_target})
-        add_test(NAME ${name} COMMAND ${_test_target} WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
-
-        set_target_properties(
-            ${_test_target} PROPERTIES
-            FOLDER ${OBLO_FOLDER_TESTS}
-            PROJECT_LABEL "${name}_tests"
-        )
+        oblo_add_test_impl(${name} TEST_TARGET ${_target})
+        target_link_libraries(${_oblo_test_target} PRIVATE ${_target})
     endif()
 
-    add_library("${_alias_prefix}::${name}" ALIAS ${_target})
+    add_library("${_oblo_alias_prefix}::${name}" ALIAS ${_target})
     oblo_setup_source_groups(${_target})
 
     set_target_properties(
@@ -186,6 +198,26 @@ function(oblo_add_library name)
         PROJECT_LABEL ${name}
     )
 endfunction(oblo_add_library target)
+
+function(oblo_add_test name)
+    cmake_parse_arguments(
+        OBLO_TEST
+        ""
+        "NAMESPACE"
+        ""
+        ${ARGN}
+    )
+
+    _oblo_setup_target_namespace("${OBLO_TEST_NAMESPACE}")
+
+    oblo_find_source_files()
+
+    if(NOT DEFINED _oblo_test_src)
+        message(FATAL_ERROR "Attempting to add a test project '${name}', but no test source files were found")
+    endif()
+    
+    oblo_add_test_impl(${name})
+endfunction(oblo_add_test name)
 
 function(oblo_3rdparty_create_aliases)
     get_property(_targets GLOBAL PROPERTY oblo_3rdparty_targets)
