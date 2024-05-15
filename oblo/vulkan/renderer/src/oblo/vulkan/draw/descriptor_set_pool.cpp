@@ -1,9 +1,9 @@
 #include <oblo/vulkan/draw/descriptor_set_pool.hpp>
 
 #include <oblo/core/array_size.hpp>
+#include <oblo/core/buffered_array.hpp>
 #include <oblo/core/handle_hash.hpp>
 #include <oblo/core/hash.hpp>
-#include <oblo/core/small_vector.hpp>
 #include <oblo/core/struct_apply.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/gpu_allocator.hpp>
@@ -79,7 +79,7 @@ namespace oblo::vk
             const VkDevice device = m_ctx->get_device();
             auto* const allocationCbs = m_ctx->get_allocator().get_allocation_callbacks();
 
-            small_vector<VkDescriptorSetLayoutBinding, 32> vkBindings;
+            buffered_array<VkDescriptorSetLayoutBinding, 32> vkBindings;
             vkBindings.resize(bindings.size());
 
             for (usize i = 0; i < bindings.size(); ++i)

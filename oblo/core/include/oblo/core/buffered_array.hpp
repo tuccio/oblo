@@ -6,29 +6,29 @@
 namespace oblo
 {
     template <typename T, usize N>
-    class small_vector
+    class buffered_array
     {
     public:
-        small_vector()
+        buffered_array()
         {
             m_array.reserve(N);
         }
 
-        small_vector(allocator* fallback) : m_allocator{fallback}
+        buffered_array(allocator* fallback) : m_allocator{fallback}
         {
             m_array.reserve(N);
         }
 
-        small_vector(const std::initializer_list<T> initializer)
+        buffered_array(const std::initializer_list<T> initializer)
         {
             m_array.reserve(N);
             m_array = initializer;
         }
 
-        small_vector(const small_vector&) = delete;
-        small_vector(small_vector&&) = delete;
-        small_vector& operator=(const small_vector&) = delete;
-        small_vector& operator=(small_vector&&) = delete;
+        buffered_array(const buffered_array&) = delete;
+        buffered_array(buffered_array&&) = delete;
+        buffered_array& operator=(const buffered_array&) = delete;
+        buffered_array& operator=(buffered_array&&) = delete;
 
         decltype(auto) begin()
         {
