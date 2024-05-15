@@ -52,12 +52,17 @@ namespace oblo::vk
 
     bool vertex_pull::init(const sandbox_init_context& context)
     {
+        if (!m_frameAllocator.init(1u << 30))
+        {
+            return false;
+        }
+
         create_geometry();
         compute_layout_params();
 
         const VkDevice device = context.vkContext->get_device();
 
-        return compile_shader_modules(*context.frameAllocator, device) && create_pools(device) &&
+        return compile_shader_modules(m_frameAllocator, device) && create_pools(device) &&
             create_descriptor_set_layouts(device) && create_pipelines(device, context.swapchainFormat) &&
             create_buffers(device, context.vkContext->get_allocator());
     }
@@ -69,10 +74,14 @@ namespace oblo::vk
         destroy_pipelines(device);
         destroy_pools(device);
         destroy_shader_modules(device);
+
+        m_frameAllocator.shutdown();
     }
 
     void vertex_pull::update(const sandbox_render_context& context)
     {
+        m_frameAllocator.restore_all();
+
         const VkCommandBuffer commandBuffer = context.vkContext->get_active_command_buffer().get();
 
         {

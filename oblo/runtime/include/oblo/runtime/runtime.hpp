@@ -1,5 +1,7 @@
 #pragma once
 
+#include <oblo/core/types.hpp>
+
 #include <memory>
 
 namespace oblo::reflection
@@ -26,16 +28,15 @@ namespace oblo
 
     struct runtime_initializer
     {
-        frame_allocator* frameAllocator;
         const reflection::reflection_registry* reflectionRegistry;
         property_registry* propertyRegistry;
         resource_registry* resourceRegistry;
         vk::vulkan_context* vulkanContext;
+        usize frameAllocatorMaxSize{1u << 28};
     };
 
     struct runtime_update_context
     {
-        frame_allocator* frameAllocator;
     };
 
     class runtime

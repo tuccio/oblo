@@ -118,7 +118,6 @@ namespace oblo::editor
         resourceRegistry.register_provider(&asset_registry::find_artifact_resource, &m_assetRegistry);
 
         m_runtime.init({
-            .frameAllocator = ctx.frameAllocator,
             .reflectionRegistry = &reflection->get_registry(),
             .propertyRegistry = &propertyRegistry,
             .resourceRegistry = &resourceRegistry,
@@ -164,7 +163,7 @@ namespace oblo::editor
 
     void app::update(const vk::sandbox_render_context& context)
     {
-        m_runtime.update({.frameAllocator = context.frameAllocator});
+        m_runtime.update({});
 
         auto& resourceManager = context.vkContext->get_resource_manager();
         auto& commandBuffer = context.vkContext->get_active_command_buffer();

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/frame_allocator.hpp>
 #include <oblo/vulkan/gpu_allocator.hpp>
 
 namespace oblo
@@ -30,6 +31,8 @@ namespace oblo::vk
         void destroy_graphics_pipeline(VkDevice device);
 
     private:
+        frame_allocator m_frameAllocator;
+
         VkShaderModule m_vertShaderModule{nullptr};
         VkShaderModule m_fragShaderModule{nullptr};
         VkPipelineLayout m_pipelineLayout{nullptr};

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/vulkan/gpu_allocator.hpp>
@@ -60,6 +61,8 @@ namespace oblo::vk
 
     private:
         static constexpr u32 MaxFramesInFlight{2};
+
+        frame_allocator m_frameAllocator;
 
         std::vector<allocated_buffer> m_positionBuffers;
         std::vector<allocated_buffer> m_colorBuffers;

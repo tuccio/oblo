@@ -6,7 +6,6 @@
 
 namespace oblo
 {
-    class frame_allocator;
     class input_queue;
 }
 
@@ -19,7 +18,6 @@ namespace oblo::vk
     struct sandbox_init_context
     {
         vulkan_context* vkContext;
-        frame_allocator* frameAllocator;
         const input_queue* inputQueue;
         VkFormat swapchainFormat;
         u32 width;
@@ -29,13 +27,11 @@ namespace oblo::vk
     struct sandbox_shutdown_context
     {
         vulkan_context* vkContext;
-        frame_allocator* frameAllocator;
     };
 
     struct sandbox_render_context
     {
         vulkan_context* vkContext;
-        frame_allocator* frameAllocator;
         h32<texture> swapchainTexture;
         u32 width;
         u32 height;
