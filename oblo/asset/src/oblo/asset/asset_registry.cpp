@@ -490,7 +490,7 @@ namespace oblo
         return true;
     }
 
-    bool asset_registry::find_asset_artifacts(const uuid& id, std::vector<uuid>& artifacts) const
+    bool asset_registry::find_asset_artifacts(const uuid& id, dynamic_array<uuid>& artifacts) const
     {
         const auto it = m_impl->assets.find(id);
 

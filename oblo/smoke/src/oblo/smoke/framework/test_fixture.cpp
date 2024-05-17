@@ -81,11 +81,11 @@ namespace oblo::smoke
             {
                 // TODO: Wipe test folder
                 std::error_code ec;
-                std::filesystem::remove_all("./smoke_tests/project/", ec);
+                std::filesystem::remove_all("./test/smoke/", ec);
 
-                if (!assetRegistry.initialize("./smoke_tests/project/assets",
-                        "./smoke_tests/project/artifacts",
-                        "./smoke_tests/project/sources"))
+                if (!assetRegistry.initialize("./test/smoke/assets",
+                        "./test/smoke/artifacts",
+                        "./test/smoke/sources"))
                 {
                     return false;
                 }

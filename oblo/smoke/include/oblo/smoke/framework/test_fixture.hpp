@@ -1,7 +1,5 @@
 #pragma once
 
-#include <gtest/gtest.h>
-
 namespace oblo::smoke
 {
     class test;
