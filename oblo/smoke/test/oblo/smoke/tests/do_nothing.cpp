@@ -1,5 +1,7 @@
 #include <oblo/smoke/framework.hpp>
 
+#include <gtest/gtest.h>
+
 namespace oblo::smoke
 {
     class do_nothing final : public test

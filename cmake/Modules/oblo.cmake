@@ -139,7 +139,7 @@ endfunction(oblo_add_executable target)
 function(oblo_add_library name)
     cmake_parse_arguments(
         OBLO_LIB
-        "MODULE"
+        "MODULE;TEST_MAIN"
         "NAMESPACE"
         ""
         ${ARGN}
@@ -191,7 +191,11 @@ function(oblo_add_library name)
 
     if(DEFINED _oblo_test_src)
         oblo_add_test_impl(${name})
-        target_link_libraries(${_oblo_test_target} PRIVATE ${_target} GTest::gtest_main)
+        target_link_libraries(${_oblo_test_target} PRIVATE ${_target})
+
+        if(NOT DEFINED OBLO_LIBRARY_TEST_MAIN)
+            target_link_libraries(${_oblo_test_target} PRIVATE GTest::gtest_main)
+        endif()
     endif()
 
     add_library("${_oblo_alias_prefix}::${name}" ALIAS ${_target})

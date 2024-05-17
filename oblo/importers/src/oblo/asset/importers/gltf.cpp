@@ -336,7 +336,8 @@ namespace oblo::importers
                 meshAsset.update_aabb();
 
                 modelAsset.meshes.emplace_back(meshNodeConfig.id);
-                modelAsset.materials.emplace_back(m_importMaterials[primitive.material].id);
+                modelAsset.materials.emplace_back(
+                    primitive.material >= 0 ? m_importMaterials[primitive.material].id : uuid{});
 
                 m_artifacts.push_back({
                     .id = meshNodeConfig.id,

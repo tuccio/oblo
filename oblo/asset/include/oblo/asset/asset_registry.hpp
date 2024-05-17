@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/type_id.hpp>
 
 #include <filesystem>
@@ -54,7 +55,7 @@ namespace oblo
         bool find_asset_by_path(const std::filesystem::path& path, uuid& id, asset_meta& assetMeta) const;
         bool find_asset_by_meta_path(const std::filesystem::path& path, uuid& id, asset_meta& assetMeta) const;
 
-        bool find_asset_artifacts(const uuid& id, std::vector<uuid>& artifacts) const;
+        bool find_asset_artifacts(const uuid& id, dynamic_array<uuid>& artifacts) const;
 
         bool load_artifact_meta(const uuid& artifactId, artifact_meta& artifact) const;
 
