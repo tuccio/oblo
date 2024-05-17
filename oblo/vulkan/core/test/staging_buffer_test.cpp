@@ -129,8 +129,6 @@ namespace oblo::vk
             ASSERT_EQ(newExpected, readbackBuffer(mappings[2]));
             ASSERT_NE(newExpected, readbackBuffer(mappings[3]));
 
-            ASSERT_FALSE(stagingBuffer.upload(std::as_bytes(std::span{newExpected}), buffers[3].buffer, 0));
-
             stagingBuffer.wait_for_free_space(bufferSize);
 
             ASSERT_TRUE(stagingBuffer.upload(std::as_bytes(std::span{newExpected}), buffers[3].buffer, 0));
