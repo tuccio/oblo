@@ -164,35 +164,9 @@ namespace oblo::editor
         platform::shutdown();
     }
 
-    void app::update(const vk::sandbox_render_context& context)
+    void app::update(const vk::sandbox_render_context&)
     {
         m_runtime.update({});
-
-        auto& resourceManager = context.vkContext->get_resource_manager();
-        auto& commandBuffer = context.vkContext->get_active_command_buffer();
-
-        commandBuffer.add_pipeline_barrier(resourceManager,
-            context.swapchainTexture,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
-        constexpr VkClearColorValue black{};
-
-        const auto& texture = resourceManager.get(context.swapchainTexture);
-
-        const VkImageSubresourceRange range{
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        };
-
-        vkCmdClearColorImage(commandBuffer.get(),
-            texture.image,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            &black,
-            1,
-            &range);
     }
 
     void app::update_imgui(const vk::sandbox_update_imgui_context&)
