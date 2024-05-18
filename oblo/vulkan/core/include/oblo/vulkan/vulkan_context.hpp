@@ -53,6 +53,10 @@ namespace oblo::vk
 
         void destroy_immediate(VkBuffer buffer) const;
         void destroy_immediate(VmaAllocation allocation) const;
+        void destroy_immediate(VkSemaphore semaphore) const;
+
+        template <typename T>
+        void reset_immediate(T& any) const;
 
         void destroy_deferred(VkBuffer buffer, u64 submitIndex);
         void destroy_deferred(VkImage image, u64 submitIndex);
@@ -61,6 +65,7 @@ namespace oblo::vk
         void destroy_deferred(VkDescriptorPool pool, u64 submitIndex);
         void destroy_deferred(VkDescriptorSetLayout setLayout, u64 submitIndex);
         void destroy_deferred(VkSampler sampler, u64 submitIndex);
+        void destroy_deferred(VkSemaphore semaphore, u64 submitIndex);
         void destroy_deferred(VmaAllocation allocation, u64 submitIndex);
         void destroy_deferred(h32<texture> texture, u64 submitIndex);
 
@@ -162,5 +167,15 @@ namespace oblo::vk
     inline bool vulkan_context::is_submit_done(u64 submitIndex) const
     {
         return m_currentSemaphoreValue >= submitIndex;
+    }
+
+    template <typename T>
+    void vulkan_context::reset_immediate(T& any) const
+    {
+        if (any)
+        {
+            destroy_immediate(any);
+            any = nullptr;
+        }
     }
 }
