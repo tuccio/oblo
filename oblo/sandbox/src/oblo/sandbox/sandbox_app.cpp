@@ -319,12 +319,22 @@ namespace oblo::vk
 
     bool sandbox_base::create_window()
     {
+        auto windowFlags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_VULKAN;
+
+        if (m_config.uiWindowMaximized)
+        {
+            windowFlags |= SDL_WINDOW_MAXIMIZED;
+        }
+
+        const i32 w = m_config.uiWindowWidth < 0 ? 1280u : m_config.uiWindowWidth;
+        const i32 h = m_config.uiWindowHeight < 0 ? 720u : m_config.uiWindowHeight;
+
         m_window = SDL_CreateWindow(m_config.appMainWindowTitle,
             SDL_WINDOWPOS_UNDEFINED,
             SDL_WINDOWPOS_UNDEFINED,
-            1280,
-            720,
-            SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_VULKAN | SDL_WINDOW_MAXIMIZED);
+            w,
+            h,
+            windowFlags);
 
         return m_window != nullptr;
     }

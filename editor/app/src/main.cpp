@@ -15,6 +15,7 @@ int SDL_main(int, char*[])
 
     app.set_config({
         .imguiIniFile = "oblo.imgui.ini",
+        .uiWindowMaximized = true,
         .uiUseDocking = true,
         .uiUseMultiViewport = true,
         .vkUseValidationLayers = true,
