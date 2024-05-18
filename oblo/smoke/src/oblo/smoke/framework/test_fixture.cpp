@@ -259,14 +259,23 @@ namespace oblo::smoke
 
         app.set_input_processing(false);
 
+        bool shouldQuit{false};
+
         while (!task.is_done())
         {
             task.resume();
 
             if (!app.run_frame())
             {
+                shouldQuit = true;
                 break;
             }
+        }
+
+        // One extra frame in order to swap buffers and show the final frame
+        if (!shouldQuit)
+        {
+            app.run_frame();
         }
 
         return true;
