@@ -1,15 +1,17 @@
 #include <oblo/resource/resource_ptr.hpp>
 
 #include <oblo/core/debug.hpp>
+#include <oblo/core/uuid.hpp>
 #include <oblo/resource/resource.hpp>
 
 namespace oblo::detail
 {
-    resource* resource_create(void* data, type_id type, std::string name, destroy_resource_fn destroy)
+    resource* resource_create(void* data, type_id type, uuid id, std::string name, destroy_resource_fn destroy)
     {
         return new resource{
             .data = data,
             .type = type,
+            .id = id,
             .name = std::move(name),
             .counter = 0,
             .destroy = destroy,
@@ -43,5 +45,10 @@ namespace oblo::detail
     std::string_view resource_name(resource* resource)
     {
         return resource->name;
+    }
+
+    uuid resource_uuid(resource* resource)
+    {
+        return resource->id;
     }
 }

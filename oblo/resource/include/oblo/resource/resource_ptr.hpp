@@ -2,10 +2,12 @@
 
 #include <oblo/core/debug.hpp>
 #include <oblo/core/type_id.hpp>
+#include <oblo/resource/resource_ref.hpp>
 
 namespace oblo
 {
     struct resource;
+    struct uuid;
 
     namespace detail
     {
@@ -14,6 +16,7 @@ namespace oblo
         void* resource_data(resource* resource);
         type_id resource_type(resource* resource);
         std::string_view resource_name(resource* resource);
+        uuid resource_uuid(resource* resource);
     }
 
     template <typename T = void>
@@ -104,6 +107,11 @@ namespace oblo
             return detail::resource_name(m_resource);
         }
 
+        uuid get_id() const noexcept
+        {
+            return detail::resource_uuid(m_resource);
+        }
+
         const T* get() const noexcept
         {
             return m_ptr;
@@ -148,6 +156,16 @@ namespace oblo
             }
 
             return other;
+        }
+
+        resource_ref<T> as_ref() const noexcept
+        {
+            if (m_resource)
+            {
+                return resource_ref<T>{.id = get_id()};
+            }
+
+            return {};
         }
 
     private:

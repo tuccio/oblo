@@ -52,6 +52,7 @@ namespace oblo
 
         [[nodiscard]] importer create_importer(const std::filesystem::path& sourceFile);
 
+        bool find_asset_by_id(const uuid& id, asset_meta& assetMeta) const;
         bool find_asset_by_path(const std::filesystem::path& path, uuid& id, asset_meta& assetMeta) const;
         bool find_asset_by_meta_path(const std::filesystem::path& path, uuid& id, asset_meta& assetMeta) const;
 
@@ -62,8 +63,11 @@ namespace oblo
         const std::filesystem::path& get_asset_directory() const;
 
     public:
-        static bool find_artifact_resource(
-            const uuid& id, type_id& type, std::string& name, std::filesystem::path& path, const void* userdata);
+        static bool find_artifact_resource(const uuid& id,
+            type_id& outType,
+            std::string& outName,
+            std::filesystem::path& outPath,
+            const void* userdata);
 
     private:
         struct impl;

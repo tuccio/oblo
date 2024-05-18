@@ -92,7 +92,7 @@ namespace oblo
                 return {};
             }
 
-            auto* const resource = detail::resource_create(data, type, name, typeIt->second.destroy);
+            auto* const resource = detail::resource_create(data, type, id, name, typeIt->second.destroy);
             resource_ptr<void> handle{resource};
             m_resources.emplace(id, resource_storage{.resource = resource, .handle = handle});
             return handle;

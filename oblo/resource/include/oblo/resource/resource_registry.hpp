@@ -22,7 +22,7 @@ namespace oblo
     struct resource_type_desc;
 
     using find_resource_fn = bool (*)(
-        const uuid& id, type_id& type, std::string& name, std::filesystem::path& path, const void* userdata);
+        const uuid& id, type_id& outType, std::string& outName, std::filesystem::path& outPath, const void* userdata);
 
     class resource_registry
     {

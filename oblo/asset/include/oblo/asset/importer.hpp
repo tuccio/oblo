@@ -61,12 +61,11 @@ namespace oblo
 
         bool execute(const std::filesystem::path& destinationDir);
 
-        bool is_valid() const noexcept
-        {
-            return m_importer != nullptr;
-        }
+        bool is_valid() const noexcept;
 
         const importer_config& get_config() const;
+
+        uuid get_uuid() const;
 
     private:
         bool begin_import(asset_registry& registry, std::span<import_node_config> importNodesConfig);
