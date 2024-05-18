@@ -61,9 +61,9 @@ namespace oblo::importers
         const std::filesystem::path gltfSampleModels{OBLO_GLTF_SAMPLE_MODELS};
 
         const std::filesystem::path files[] = {
-            gltfSampleModels / "Box" / "glTF-Embedded" / "Box.gltf",
-            gltfSampleModels / "Box" / "glTF" / "Box.gltf",
-            gltfSampleModels / "Box" / "glTF-Binary" / "Box.glb",
+            gltfSampleModels / "Models" / "Box" / "glTF-Embedded" / "Box.gltf",
+            gltfSampleModels / "Models" / "Box" / "glTF" / "Box.gltf",
+            gltfSampleModels / "Models" / "Box" / "glTF-Binary" / "Box.glb",
         };
 
         for (const auto& file : files)
