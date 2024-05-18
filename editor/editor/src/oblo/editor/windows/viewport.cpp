@@ -41,7 +41,6 @@ namespace oblo::editor
         m_selection = ctx.services.find<selected_entities>();
         OBLO_ASSERT(m_selection);
 
-        using action = fps_camera_controller::action;
         m_cameraController.set_common_wasd_bindings();
     }
 
