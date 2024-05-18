@@ -2,12 +2,12 @@
 
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/command_buffer_pool.hpp>
-#include <oblo/vulkan/debug_utils_label.hpp>
 #include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/instance.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
 #include <oblo/vulkan/stateful_command_buffer.hpp>
+#include <oblo/vulkan/utility/debug_utils.hpp>
 
 #include <deque>
 #include <memory>
@@ -64,7 +64,8 @@ namespace oblo::vk
         void destroy_deferred(VmaAllocation allocation, u64 submitIndex);
         void destroy_deferred(h32<texture> texture, u64 submitIndex);
 
-        debug_utils_label get_debug_utils_label() const;
+        debug_utils::label get_debug_utils_label() const;
+        debug_utils::object get_debug_utils_object() const;
 
         void begin_debug_label(VkCommandBuffer commandBuffer, const char* label) const;
         void end_debug_label(VkCommandBuffer commandBuffer) const;
@@ -92,7 +93,8 @@ namespace oblo::vk
         gpu_allocator* m_allocator;
         resource_manager* m_resourceManager;
 
-        debug_utils_label m_debugUtilsLabel{};
+        debug_utils::label m_debugUtilsLabel{};
+        debug_utils::object m_debugUtilsObject{};
 
         std::vector<submit_info> m_submitInfo;
 

@@ -9,7 +9,8 @@ namespace oblo::vk
         u32 height,
         VkFormat format,
         VkImageUsageFlags usage,
-        VkImageAspectFlags aspectMask)
+        VkImageAspectFlags aspectMask,
+        debug_label debugLabel)
     {
 
         usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
@@ -27,6 +28,7 @@ namespace oblo::vk
             .usage = usage,
             .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
             .memoryUsage = memory_usage::gpu_only,
+            .debugLabel = debugLabel,
         };
 
         allocated_image allocatedImage{};
@@ -62,6 +64,8 @@ namespace oblo::vk
             allocator.destroy(allocatedImage);
             return imageViewRes;
         }
+
+        allocator.get_object_debug_utils().set_object_name(allocator.get_device(), res.view, debugLabel.get());
 
         return res;
     }

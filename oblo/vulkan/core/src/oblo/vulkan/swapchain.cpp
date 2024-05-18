@@ -1,9 +1,9 @@
 #include <oblo/core/buffered_array.hpp>
-#include <oblo/vulkan/single_queue_engine.hpp>
+#include <oblo/vulkan/vulkan_context.hpp>
 
 namespace oblo::vk::detail
 {
-    bool create_impl(const single_queue_engine& engine,
+    bool create_impl(const vulkan_context& ctx,
         VkSurfaceKHR surface,
         u32 width,
         u32 height,
@@ -15,7 +15,7 @@ namespace oblo::vk::detail
     {
         VkSurfaceCapabilitiesKHR surfaceCapabilities;
 
-        if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(engine.get_physical_device(), surface, &surfaceCapabilities) !=
+        if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(ctx.get_physical_device(), surface, &surfaceCapabilities) !=
             VK_SUCCESS)
         {
             return false;
@@ -23,9 +23,9 @@ namespace oblo::vk::detail
 
         buffered_array<VkSurfaceFormatKHR, 64> surfaceFormats;
         u32 surfaceFormatsCount;
-        vkGetPhysicalDeviceSurfaceFormatsKHR(engine.get_physical_device(), surface, &surfaceFormatsCount, nullptr);
+        vkGetPhysicalDeviceSurfaceFormatsKHR(ctx.get_physical_device(), surface, &surfaceFormatsCount, nullptr);
         surfaceFormats.resize(surfaceFormatsCount);
-        vkGetPhysicalDeviceSurfaceFormatsKHR(engine.get_physical_device(),
+        vkGetPhysicalDeviceSurfaceFormatsKHR(ctx.get_physical_device(),
             surface,
             &surfaceFormatsCount,
             surfaceFormats.data());
@@ -45,7 +45,8 @@ namespace oblo::vk::detail
         }
 
         // We assume the graphics and present queue are the same family here
-        const VkSwapchainCreateInfoKHR createInfo = {.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+        const VkSwapchainCreateInfoKHR createInfo = {
+            .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
             .pNext = nullptr,
             .flags = 0,
             .surface = surface,
@@ -62,16 +63,21 @@ namespace oblo::vk::detail
             .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
             .presentMode = VK_PRESENT_MODE_FIFO_KHR,
             .clipped = VK_TRUE,
-            .oldSwapchain = nullptr};
+            .oldSwapchain = nullptr,
+        };
 
-        if (vkCreateSwapchainKHR(engine.get_device(), &createInfo, nullptr, swapchain) != VK_SUCCESS)
+        auto& allocator = ctx.get_allocator();
+        auto* const allocationCbs = allocator.get_allocation_callbacks();
+        const auto debugUtilsObject = allocator.get_object_debug_utils();
+
+        if (vkCreateSwapchainKHR(ctx.get_device(), &createInfo, allocationCbs, swapchain) != VK_SUCCESS)
         {
             return false;
         }
 
         u32 createdImageCount{imageCount};
 
-        if (vkGetSwapchainImagesKHR(engine.get_device(), *swapchain, &createdImageCount, images) != VK_SUCCESS ||
+        if (vkGetSwapchainImagesKHR(ctx.get_device(), *swapchain, &createdImageCount, images) != VK_SUCCESS ||
             createdImageCount != imageCount)
         {
             return false;
@@ -79,32 +85,43 @@ namespace oblo::vk::detail
 
         for (u32 i = 0; i < imageCount; ++i)
         {
-            const VkImageViewCreateInfo imageViewCreateInfo{.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            const VkImageViewCreateInfo imageViewCreateInfo{
+                .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
                 .pNext = nullptr,
                 .flags = 0u,
                 .image = images[i],
                 .viewType = VK_IMAGE_VIEW_TYPE_2D,
                 .format = format,
-                .components = {VK_COMPONENT_SWIZZLE_IDENTITY,
-                    VK_COMPONENT_SWIZZLE_IDENTITY,
-                    VK_COMPONENT_SWIZZLE_IDENTITY,
-                    VK_COMPONENT_SWIZZLE_IDENTITY},
-                .subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                    .baseMipLevel = 0,
-                    .levelCount = 1,
-                    .baseArrayLayer = 0,
-                    .layerCount = 1}};
+                .components =
+                    {
+                        VK_COMPONENT_SWIZZLE_IDENTITY,
+                        VK_COMPONENT_SWIZZLE_IDENTITY,
+                        VK_COMPONENT_SWIZZLE_IDENTITY,
+                        VK_COMPONENT_SWIZZLE_IDENTITY,
+                    },
+                .subresourceRange =
+                    {
+                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .baseMipLevel = 0,
+                        .levelCount = 1,
+                        .baseArrayLayer = 0,
+                        .layerCount = 1,
+                    },
+            };
 
-            if (vkCreateImageView(engine.get_device(), &imageViewCreateInfo, nullptr, &imageViews[i]) != VK_SUCCESS)
+            if (vkCreateImageView(ctx.get_device(), &imageViewCreateInfo, nullptr, &imageViews[i]) != VK_SUCCESS)
             {
                 return false;
             }
+
+            debugUtilsObject.set_object_name(ctx.get_device(), images[i], "Swapchain Image");
+            debugUtilsObject.set_object_name(ctx.get_device(), imageViews[i], "Swapchain ImageView");
         }
 
         return true;
     }
 
-    void destroy_impl(const single_queue_engine& engine,
+    void destroy_impl(const vulkan_context& ctx,
         VkSwapchainKHR* swapchain,
         VkImage* images,
         VkImageView* imageViews,
@@ -112,19 +129,22 @@ namespace oblo::vk::detail
     {
         if (*swapchain)
         {
+            auto& allocator = ctx.get_allocator();
+            auto* const allocationCbs = allocator.get_allocation_callbacks();
+
             for (u32 i = 0; i < imageCount; ++i)
             {
                 auto& imageView = imageViews[i];
                 if (imageView)
                 {
-                    vkDestroyImageView(engine.get_device(), imageView, nullptr);
+                    vkDestroyImageView(ctx.get_device(), imageView, allocationCbs);
                     imageView = nullptr;
                 }
 
                 images[i] = nullptr;
             }
 
-            vkDestroySwapchainKHR(engine.get_device(), *swapchain, nullptr);
+            vkDestroySwapchainKHR(ctx.get_device(), *swapchain, allocationCbs);
             *swapchain = nullptr;
         }
     }

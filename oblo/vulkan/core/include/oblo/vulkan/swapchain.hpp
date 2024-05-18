@@ -5,11 +5,11 @@
 
 namespace oblo::vk
 {
-    class single_queue_engine;
+    class vulkan_context;
 
     namespace detail
     {
-        bool create_impl(const single_queue_engine& engine,
+        bool create_impl(const vulkan_context& ctx,
             VkSurfaceKHR surface,
             u32 width,
             u32 height,
@@ -19,7 +19,7 @@ namespace oblo::vk
             VkImage* images,
             VkImageView* imageViews);
 
-        void destroy_impl(const single_queue_engine& engine,
+        void destroy_impl(const vulkan_context& ctx,
             VkSwapchainKHR* swapchain,
             VkImage* images,
             VkImageView* imageViews,
@@ -36,14 +36,14 @@ namespace oblo::vk
         swapchain& operator=(const swapchain&) = delete;
         swapchain& operator=(swapchain&&) noexcept = delete;
 
-        bool create(const single_queue_engine& engine, VkSurfaceKHR surface, u32 width, u32 height, VkFormat format)
+        bool create(const vulkan_context& ctx, VkSurfaceKHR surface, u32 width, u32 height, VkFormat format)
         {
             if (m_swapchain)
             {
                 return false;
             }
 
-            return detail::create_impl(engine,
+            return detail::create_impl(ctx,
                 surface,
                 width,
                 height,
@@ -54,9 +54,9 @@ namespace oblo::vk
                 m_imageViews);
         }
 
-        void destroy(const single_queue_engine& engine)
+        void destroy(const vulkan_context& ctx)
         {
-            detail::destroy_impl(engine, &m_swapchain, m_images, m_imageViews, SwapChainImageCount);
+            detail::destroy_impl(ctx, &m_swapchain, m_images, m_imageViews, SwapChainImageCount);
         }
 
         VkSwapchainKHR get() const
@@ -80,7 +80,7 @@ namespace oblo::vk
         }
 
     private:
-        friend bool detail::create_impl(const single_queue_engine& engine,
+        friend bool detail::create_impl(const vulkan_context& ctx,
             VkSurfaceKHR surface,
             u32 width,
             u32 height,
@@ -90,7 +90,7 @@ namespace oblo::vk
             VkImage* images,
             VkImageView* imageViews);
 
-        friend void detail::destroy_impl(const single_queue_engine& engine,
+        friend void detail::destroy_impl(const vulkan_context& ctx,
             VkSwapchainKHR* swapchain,
             VkImage* images,
             VkImageView* imageViews,

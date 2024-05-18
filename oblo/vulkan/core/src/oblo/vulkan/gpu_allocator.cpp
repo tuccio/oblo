@@ -102,6 +102,7 @@ namespace oblo::vk
         if (result == VK_SUCCESS)
         {
             vmaSetAllocationName(m_allocator, outBuffer->allocation, initializer.debugLabel.get());
+            m_objectDebugUtils.set_object_name(get_device(), outBuffer->buffer, initializer.debugLabel.get());
         }
 
         return result;
@@ -131,6 +132,7 @@ namespace oblo::vk
         if (result == VK_SUCCESS)
         {
             vmaSetAllocationName(m_allocator, outImage->allocation, initializer.debugLabel.get());
+            m_objectDebugUtils.set_object_name(get_device(), outImage->image, initializer.debugLabel.get());
         }
 
         return result;
@@ -198,5 +200,15 @@ namespace oblo::vk
     const VkAllocationCallbacks* gpu_allocator::get_allocation_callbacks() const
     {
         return m_allocator->GetAllocationCallbacks();
+    }
+
+    debug_utils::object gpu_allocator::get_object_debug_utils() const
+    {
+        return m_objectDebugUtils;
+    }
+
+    void gpu_allocator::set_object_debug_utils(debug_utils::object objectUtils)
+    {
+        m_objectDebugUtils = objectUtils;
     }
 }
