@@ -1,10 +1,11 @@
 #include <oblo/runtime/runtime_module.hpp>
 
+#include <oblo/core/debug.hpp>
 #include <oblo/graphics/graphics_module.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/properties/property_registry.hpp>
 #include <oblo/reflection/reflection_module.hpp>
-#include <oblo/resource/resource_registry.hpp>
+#include <oblo/runtime/runtime_registry.hpp>
 #include <oblo/scene/scene_module.hpp>
 
 namespace oblo
@@ -17,7 +18,6 @@ namespace oblo
     struct runtime_module::impl
     {
         property_registry propertyRegistry;
-        resource_registry resourceRegistry;
     };
 
     runtime_module& runtime_module::get()
@@ -56,13 +56,8 @@ namespace oblo
         m_impl.reset();
     }
 
-    property_registry& oblo::runtime_module::get_property_registry() const
+    runtime_registry runtime_module::create_runtime_registry() const
     {
-        return m_impl->propertyRegistry;
-    }
-
-    resource_registry& oblo::runtime_module::get_resource_registry() const
-    {
-        return m_impl->resourceRegistry;
+        return runtime_registry{&m_impl->propertyRegistry};
     }
 }

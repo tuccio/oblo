@@ -47,6 +47,7 @@ namespace oblo::smoke
             OBLO_SMOKE_EQ(modelResource->materials.size(), 1);
             OBLO_SMOKE_EQ(modelResource->meshes.size(), 1);
 
+
             auto& entities = ctx.get_entity_registry();
 
             const auto triangleEntity = ecs_utility::create_named_physical_entity<static_mesh_component>(entities,
