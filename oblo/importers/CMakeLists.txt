@@ -13,7 +13,7 @@ target_link_libraries(
     Vulkan::Headers
 )
 
-target_compile_definitions(
+target_link_libraries(
     oblo_test_importers
     PRIVATE
     oblo::test::glTF::SampleModels
