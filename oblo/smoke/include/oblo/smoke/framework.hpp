@@ -11,29 +11,33 @@ namespace testing
     class Test;
 }
 
-inline thread_local testing::Test* g_currentTest{};
+namespace oblo::smoke
+{
+    inline thread_local testing::Test* g_currentTest{};
+    inline bool g_interactiveMode{};
+}
 
 #define OBLO_SMOKE_TEST(Class)                                                                                         \
     TEST(smoke_test, Class)                                                                                            \
     {                                                                                                                  \
-        g_currentTest = this;                                                                                          \
-        const auto cleanup = finally([] { g_currentTest = nullptr; });                                                 \
+        ::oblo::smoke::g_currentTest = this;                                                                           \
+        const auto cleanup = finally([] { ::oblo::smoke::g_currentTest = nullptr; });                                  \
                                                                                                                        \
         Class test;                                                                                                    \
         ::oblo::smoke::test_fixture fixture;                                                                           \
                                                                                                                        \
-        if (HasFatalFailure())                                                                                         \
-        {                                                                                                              \
-            return;                                                                                                    \
-        }                                                                                                              \
+        const ::oblo::smoke::test_fixture_config cfg{                                                                  \
+            .name = #Class,                                                                                            \
+            .interactiveMode = ::oblo::smoke::g_interactiveMode,                                                       \
+        };                                                                                                             \
                                                                                                                        \
-        ASSERT_TRUE(fixture.run_test(test));                                                                           \
+        ASSERT_TRUE(fixture.run_test(test, cfg));                                                                      \
     }
 
 #define _OBLO_SMOKE_ASSERT_IMPL(Check, ...)                                                                            \
     EXPECT_##Check(__VA_ARGS__);                                                                                       \
                                                                                                                        \
-    if (g_currentTest->HasFailure())                                                                                   \
+    if (::oblo::smoke::g_currentTest->HasFailure())                                                                    \
     {                                                                                                                  \
         co_return;                                                                                                     \
     }

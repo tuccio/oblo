@@ -60,11 +60,6 @@ namespace oblo::smoke
             mesh.mesh = modelResource->meshes[0];
 
             co_await ctx.next_frame();
-
-            while (true)
-            {
-                co_await ctx.next_frame();
-            }
         }
     };
 
