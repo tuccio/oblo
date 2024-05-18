@@ -17,8 +17,9 @@ namespace oblo::smoke
     inline bool g_interactiveMode{};
 }
 
-#define OBLO_SMOKE_TEST(Class)                                                                                         \
-    TEST(smoke_test, Class)                                                                                            \
+#define _OBLO_SMOKE_TEST_HEADER(Class) TEST(smoke_test, Class)
+
+#define _OBLO_SMOKE_TEST_IMPL(Class)                                                                                   \
     {                                                                                                                  \
         ::oblo::smoke::g_currentTest = this;                                                                           \
         const auto cleanup = finally([] { ::oblo::smoke::g_currentTest = nullptr; });                                  \
@@ -45,6 +46,18 @@ namespace oblo::smoke
     if (::oblo::smoke::g_currentTest->HasFailure())                                                                    \
     {                                                                                                                  \
         co_return;                                                                                                     \
+    }
+
+#define OBLO_SMOKE_TEST_SKIP(Class, Reason)                                                                            \
+    _OBLO_SMOKE_TEST_HEADER(Class)                                                                                     \
+    {                                                                                                                  \
+        GTEST_SKIP() << Reason;                                                                                        \
+    }
+
+#define OBLO_SMOKE_TEST(Class)                                                                                         \
+    _OBLO_SMOKE_TEST_HEADER(Class)                                                                                     \
+    {                                                                                                                  \
+        _OBLO_SMOKE_TEST_IMPL(Class)                                                                                   \
     }
 
 #define OBLO_SMOKE_TRUE(...) _OBLO_SMOKE_ASSERT_IMPL(TRUE, __VA_ARGS__)

@@ -2,6 +2,7 @@
 
 #include <oblo/core/debug_label.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/vulkan/utility/debug_utils.hpp>
 #include <vulkan/vulkan.h>
 
 #include <span>
@@ -66,8 +67,12 @@ namespace oblo::vk
 
         const VkAllocationCallbacks* get_allocation_callbacks() const;
 
+        debug_utils::object get_object_debug_utils() const;
+        void set_object_debug_utils(debug_utils::object objectUtils);
+
     private:
         VmaAllocator m_allocator{nullptr};
+        debug_utils::object m_objectDebugUtils{};
     };
 
     struct allocated_buffer

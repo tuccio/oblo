@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/debug_label.hpp>
 #include <oblo/vulkan/texture.hpp>
 #include <oblo/vulkan/vk_result.hpp>
 
@@ -12,5 +13,6 @@ namespace oblo::vk
         u32 height,
         VkFormat format,
         VkImageUsageFlags usage,
-        VkImageAspectFlags aspectMask);
+        VkImageAspectFlags aspectMask,
+        debug_label debugLabel = std::source_location::current());
 }

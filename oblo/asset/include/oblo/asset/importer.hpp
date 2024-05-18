@@ -65,7 +65,7 @@ namespace oblo
 
         const importer_config& get_config() const;
 
-        uuid get_uuid() const;
+        uuid get_import_id() const;
 
     private:
         bool begin_import(asset_registry& registry, std::span<import_node_config> importNodesConfig);

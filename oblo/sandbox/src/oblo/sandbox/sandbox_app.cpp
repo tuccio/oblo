@@ -55,7 +55,7 @@ namespace oblo::vk
 
             reset_device_objects(m_engine.get_device(), m_presentSemaphore);
 
-            m_swapchain.destroy(m_engine);
+            m_swapchain.destroy(m_context);
         }
 
         if (m_surface)
@@ -450,7 +450,7 @@ namespace oblo::vk
 
     bool sandbox_base::create_swapchain()
     {
-        if (!m_swapchain.create(m_engine, m_surface, m_renderWidth, m_renderHeight, SwapchainFormat))
+        if (!m_swapchain.create(m_context, m_surface, m_renderWidth, m_renderHeight, SwapchainFormat))
         {
             return false;
         }
@@ -524,7 +524,7 @@ namespace oblo::vk
 
     void sandbox_base::destroy_swapchain()
     {
-        m_swapchain.destroy(m_engine);
+        m_swapchain.destroy(m_context);
 
         for (auto& handle : m_swapchainTextures)
         {

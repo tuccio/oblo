@@ -237,7 +237,7 @@ namespace oblo
         return m_config;
     }
 
-    uuid importer::get_uuid() const
+    uuid importer::get_import_id() const
     {
         return m_importId;
     }

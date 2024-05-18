@@ -110,6 +110,13 @@ namespace oblo::vk
                 vkGetDeviceProcAddr(m_engine->get_device(), "vkCmdEndDebugUtilsLabelEXT")),
         };
 
+        m_debugUtilsObject = {
+            .vkSetDebugUtilsObjectNameEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(
+                vkGetDeviceProcAddr(m_engine->get_device(), "vkSetDebugUtilsObjectNameEXT")),
+        };
+
+        m_allocator->set_object_debug_utils(m_debugUtilsObject);
+
         return true;
     }
 
@@ -382,9 +389,14 @@ namespace oblo::vk
             handle);
     }
 
-    debug_utils_label vulkan_context::get_debug_utils_label() const
+    debug_utils::label vulkan_context::get_debug_utils_label() const
     {
         return m_debugUtilsLabel;
+    }
+
+    debug_utils::object vulkan_context::get_debug_utils_object() const
+    {
+        return m_debugUtilsObject;
     }
 
     void vulkan_context::destroy_resources(u64 maxSubmitIndex)
