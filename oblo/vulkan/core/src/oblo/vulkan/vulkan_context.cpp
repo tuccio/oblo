@@ -278,6 +278,11 @@ namespace oblo::vk
         allocator.destroy_memory(allocation);
     }
 
+    void vulkan_context::destroy_immediate(VkSemaphore semaphore) const
+    {
+        vkDestroySemaphore(get_device(), semaphore, get_allocator().get_allocation_callbacks());
+    }
+
     void vulkan_context::destroy_deferred(VkBuffer buffer, u64 submitIndex)
     {
         dispose(
@@ -342,6 +347,14 @@ namespace oblo::vk
             [](vulkan_context& ctx, VkSampler sampler)
             { vkDestroySampler(ctx.get_device(), sampler, ctx.get_allocator().get_allocation_callbacks()); },
             sampler);
+    }
+
+    void vulkan_context::destroy_deferred(VkSemaphore semaphore, u64 submitIndex)
+    {
+        dispose(
+            submitIndex,
+            [](vulkan_context& ctx, VkSemaphore semaphore) { ctx.destroy_immediate(semaphore); },
+            semaphore);
     }
 
     void vulkan_context::destroy_deferred(VmaAllocation allocation, u64 submitIndex)
