@@ -20,6 +20,8 @@
 #include <oblo/smoke/framework/test_context_impl.hpp>
 #include <oblo/smoke/framework/test_task.hpp>
 
+#include <imgui.h>
+
 namespace oblo::smoke
 {
     namespace
@@ -53,6 +55,7 @@ namespace oblo::smoke
             asset_registry assetRegistry;
             runtime_registry runtimeRegistry;
             runtime runtime;
+            ecs::entity cameraEntity{};
 
             std::span<const char* const> get_required_instance_extensions() const
             {
@@ -130,12 +133,38 @@ namespace oblo::smoke
                 runtime.shutdown();
             }
 
-            void update(const vk::sandbox_render_context&)
+            void update(const vk::sandbox_render_context& ctx)
             {
+                auto& viewport = runtime.get_entity_registry().get<viewport_component>(cameraEntity);
+                viewport.width = ctx.width;
+                viewport.height = ctx.height;
+
                 runtime.update({});
             }
 
-            void update_imgui(const vk::sandbox_update_imgui_context&) {}
+            void update_imgui(const vk::sandbox_update_imgui_context&)
+            {
+                if (cameraEntity)
+                {
+                    auto& viewport = runtime.get_entity_registry().get<viewport_component>(cameraEntity);
+
+                    if (viewport.imageId)
+                    {
+                        const auto viewportSize = ImVec2{f32(viewport.width), f32(viewport.height)};
+
+                        ImGui::SetNextWindowPos({});
+                        ImGui::SetNextWindowSize(viewportSize);
+
+                        if (bool open{true}; ImGui::Begin("fullscreen",
+                                &open,
+                                ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground))
+                        {
+                            ImGui::Image(viewport.imageId, viewportSize);
+                            ImGui::End();
+                        }
+                    }
+                }
+            }
         };
     }
 
@@ -162,26 +191,30 @@ namespace oblo::smoke
             .appMainWindowTitle = cfg.name,
         });
 
-        return app.init();
+        if (!app.init())
+        {
+            return false;
+        }
+
+        auto& entities = app.runtime.get_entity_registry();
+
+        app.cameraEntity = ecs_utility::create_named_physical_entity<camera_component, viewport_component>(entities,
+            "Camera",
+            {},
+            {},
+            vec3::splat(1));
+
+        auto& camera = entities.get<camera_component>(app.cameraEntity);
+        camera.near = 0.01f;
+        camera.far = 1000.f;
+        camera.fovy = 75_deg;
+
+        return true;
     }
 
     bool test_fixture::run_test(test& test)
     {
         auto& app = m_impl->app;
-
-        auto& entities = app.runtime.get_entity_registry();
-
-        const auto cameraEntity =
-            ecs_utility::create_named_physical_entity<camera_component, viewport_component>(entities,
-                "Camera",
-                {},
-                {},
-                vec3::splat(1));
-
-        auto& camera = entities.get<camera_component>(cameraEntity);
-        camera.near = 0.01f;
-        camera.far = 1000.f;
-        camera.fovy = 75_deg;
 
         const test_context_impl impl{
             .entities = &app.runtime.get_entity_registry(),

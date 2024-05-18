@@ -8,6 +8,8 @@ target_link_libraries(
     oblo::resource
     oblo::runtime
     oblo::sandbox
+    PRIVATE
+    imgui::imgui
 )
 
 target_link_libraries(
