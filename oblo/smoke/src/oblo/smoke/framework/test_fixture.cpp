@@ -83,9 +83,7 @@ namespace oblo::smoke
                 std::error_code ec;
                 std::filesystem::remove_all("./test/smoke/", ec);
 
-                if (!assetRegistry.initialize("./test/smoke/assets",
-                        "./test/smoke/artifacts",
-                        "./test/smoke/sources"))
+                if (!assetRegistry.initialize("./test/smoke/assets", "./test/smoke/artifacts", "./test/smoke/sources"))
                 {
                     return false;
                 }
@@ -133,9 +131,14 @@ namespace oblo::smoke
         };
     }
 
-    bool test_fixture::run_test(test& test)
+    bool test_fixture::run_test(test& test, const test_fixture_config& cfg)
     {
         vk::sandbox_app<test_app> app;
+
+        app.set_config({
+            .appName = cfg.name,
+            .appMainWindowTitle = cfg.name,
+        });
 
         if (!app.init())
         {
@@ -156,7 +159,18 @@ namespace oblo::smoke
         while (!task.is_done())
         {
             task.resume();
-            app.run_frame();
+
+            if (!app.run_frame())
+            {
+                break;
+            }
+        }
+
+        if (cfg.interactiveMode)
+        {
+            while (app.run_frame())
+            {
+            }
         }
 
         return true;
