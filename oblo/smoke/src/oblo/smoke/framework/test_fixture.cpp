@@ -2,7 +2,6 @@
 
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/registration.hpp>
-#include <oblo/core/finally.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
 #include <oblo/math/quaternion.hpp>
@@ -85,9 +84,10 @@ namespace oblo::smoke
 
             bool init(const vk::sandbox_init_context& ctx)
             {
-                // TODO: Wipe test folder
-                std::error_code ec;
-                std::filesystem::remove_all("./test/smoke/", ec);
+                {
+                    std::error_code ec;
+                    std::filesystem::remove_all("./test/smoke/", ec);
+                }
 
                 if (!assetRegistry.initialize("./test/smoke/assets", "./test/smoke/artifacts", "./test/smoke/sources"))
                 {
@@ -139,21 +139,35 @@ namespace oblo::smoke
         };
     }
 
-    bool test_fixture::run_test(test& test, const test_fixture_config& cfg)
+    struct test_fixture::impl
     {
         vk::sandbox_app<test_app> app;
+
+        ~impl()
+        {
+            app.shutdown();
+        }
+    };
+
+    test_fixture::test_fixture() = default;
+    test_fixture::~test_fixture() = default;
+
+    bool test_fixture::init(const test_fixture_config& cfg)
+    {
+        m_impl = std::make_unique<impl>();
+        auto& app = m_impl->app;
 
         app.set_config({
             .appName = cfg.name,
             .appMainWindowTitle = cfg.name,
         });
 
-        if (!app.init())
-        {
-            return false;
-        }
+        return app.init();
+    }
 
-        const auto cleanup = finally([&app] { app.shutdown(); });
+    bool test_fixture::run_test(test& test)
+    {
+        auto& app = m_impl->app;
 
         auto& entities = app.runtime.get_entity_registry();
 
@@ -188,13 +202,15 @@ namespace oblo::smoke
             }
         }
 
-        if (cfg.interactiveMode)
-        {
-            while (app.run_frame())
-            {
-            }
-        }
-
         return true;
+    }
+
+    void test_fixture::run_interactive()
+    {
+        auto& app = m_impl->app;
+
+        while (app.run_frame())
+        {
+        }
     }
 }

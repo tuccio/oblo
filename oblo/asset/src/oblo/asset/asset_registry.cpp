@@ -463,6 +463,19 @@ namespace oblo
         return importDir;
     }
 
+    bool asset_registry::find_asset_by_id(const uuid& id, asset_meta& assetMeta) const
+    {
+        const auto it = m_impl->assets.find(id);
+
+        if (it == m_impl->assets.end())
+        {
+            return false;
+        }
+
+        assetMeta = it->second.meta;
+        return true;
+    }
+
     bool asset_registry::find_asset_by_path(const std::filesystem::path& path, uuid& id, asset_meta& assetMeta) const
     {
         auto fullPath = m_impl->assetsDir / path;
@@ -479,15 +492,7 @@ namespace oblo
             return false;
         }
 
-        const auto it = m_impl->assets.find(id);
-
-        if (it == m_impl->assets.end())
-        {
-            return false;
-        }
-
-        assetMeta = it->second.meta;
-        return true;
+        return find_asset_by_id(id, assetMeta);
     }
 
     bool asset_registry::find_asset_artifacts(const uuid& id, dynamic_array<uuid>& artifacts) const
@@ -528,7 +533,7 @@ namespace oblo
     }
 
     bool asset_registry::find_artifact_resource(
-        const uuid& id, type_id& type, std::string& name, std::filesystem::path& path, const void* userdata)
+        const uuid& id, type_id& outType, std::string& outName, std::filesystem::path& outPath, const void* userdata)
     {
         char uuidBuffer[36];
 
@@ -552,9 +557,9 @@ namespace oblo
             return false;
         }
 
-        type = meta.type;
-        path = std::move(resourceFile);
-        name = std::move(meta.importName);
+        outType = meta.type;
+        outPath = std::move(resourceFile);
+        outName = std::move(meta.importName);
 
         return true;
     }

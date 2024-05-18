@@ -17,36 +17,47 @@
 
 namespace oblo::smoke
 {
+    namespace
+    {
+        template <typename T>
+        resource_ptr<T> import_as_resource(
+            asset_registry& assetRegistry, resource_registry& resourceRegistry, const std::filesystem::path& source)
+        {
+            importer assetImporter = assetRegistry.create_importer(source);
+
+            if (!assetImporter.is_valid() || !assetImporter.init() || !assetImporter.execute("."))
+            {
+                return {};
+            }
+
+            const uuid assetUuid = assetImporter.get_uuid();
+
+            asset_meta assetMeta;
+            assetRegistry.find_asset_by_id(assetUuid, assetMeta);
+
+            if (assetMeta.typeHint != get_type_id<T>())
+            {
+                return {};
+            }
+
+            return resourceRegistry.get_resource(assetMeta.mainArtifactHint).as<T>();
+        }
+    }
     class draw_triangle final : public test
     {
     public:
         test_task run(const test_context& ctx) override
         {
             auto& assetRegistry = ctx.get_asset_registry();
-
-            constexpr auto triangleSource = OBLO_GLTF_SAMPLE_MODELS "/Models/Triangle/glTF/Triangle.gltf";
-
-            auto triangleImporter = assetRegistry.create_importer(triangleSource);
-
-            OBLO_SMOKE_TRUE(triangleImporter.is_valid());
-
-            OBLO_SMOKE_TRUE(triangleImporter.init());
-            OBLO_SMOKE_TRUE(triangleImporter.execute("."));
-
-            uuid assetUuid;
-            asset_meta assetMeta;
-            OBLO_SMOKE_TRUE(assetRegistry.find_asset_by_path("./Triangle", assetUuid, assetMeta));
-
             auto& resourceRegistry = ctx.get_resource_registry();
 
-            OBLO_SMOKE_EQ(assetMeta.typeHint, get_type_id<model>());
+            const auto triangle = import_as_resource<model>(assetRegistry,
+                resourceRegistry,
+                OBLO_GLTF_SAMPLE_MODELS "/Models/SimpleMaterial/glTF-Embedded/SimpleMaterial.gltf");
 
-            const auto modelResource = resourceRegistry.get_resource(assetMeta.mainArtifactHint).as<model>();
-            OBLO_SMOKE_TRUE(modelResource);
-
-            OBLO_SMOKE_EQ(modelResource->materials.size(), 1);
-            OBLO_SMOKE_EQ(modelResource->meshes.size(), 1);
-
+            OBLO_SMOKE_TRUE(triangle);
+            OBLO_SMOKE_EQ(triangle->materials.size(), 1);
+            OBLO_SMOKE_EQ(triangle->meshes.size(), 1);
 
             auto& entities = ctx.get_entity_registry();
 
@@ -57,8 +68,8 @@ namespace oblo::smoke
                 vec3::splat(1.f));
 
             auto& mesh = entities.get<static_mesh_component>(triangleEntity);
-            mesh.material = modelResource->materials[0];
-            mesh.mesh = modelResource->meshes[0];
+            mesh.material = triangle->materials[0];
+            mesh.mesh = triangle->meshes[0];
 
             co_await ctx.next_frame();
         }

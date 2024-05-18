@@ -28,10 +28,15 @@ namespace oblo::smoke
                                                                                                                        \
         const ::oblo::smoke::test_fixture_config cfg{                                                                  \
             .name = #Class,                                                                                            \
-            .interactiveMode = ::oblo::smoke::g_interactiveMode,                                                       \
         };                                                                                                             \
                                                                                                                        \
-        ASSERT_TRUE(fixture.run_test(test, cfg));                                                                      \
+        ASSERT_TRUE(fixture.init(cfg));                                                                                \
+        ASSERT_TRUE(fixture.run_test(test));                                                                           \
+                                                                                                                       \
+        if (::oblo::smoke::g_interactiveMode && !::oblo::smoke::g_currentTest->HasFailure())                           \
+        {                                                                                                              \
+            fixture.run_interactive();                                                                                 \
+        }                                                                                                              \
     }
 
 #define _OBLO_SMOKE_ASSERT_IMPL(Check, ...)                                                                            \

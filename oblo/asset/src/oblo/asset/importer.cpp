@@ -227,9 +227,19 @@ namespace oblo
         return allSucceeded;
     }
 
+    bool importer::is_valid() const noexcept
+    {
+        return m_importer != nullptr;
+    }
+
     const importer_config& importer::get_config() const
     {
         return m_config;
+    }
+
+    uuid importer::get_uuid() const
+    {
+        return m_importId;
     }
 
     bool importer::write_source_files(std::span<const std::filesystem::path> sourceFiles)
