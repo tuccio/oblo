@@ -17,6 +17,7 @@ int main(int argc, char** argv)
         if (std::string_view{argv[i]} == "--interactive")
         {
             oblo::smoke::g_interactiveMode = true;
+            break;
         }
     }
 

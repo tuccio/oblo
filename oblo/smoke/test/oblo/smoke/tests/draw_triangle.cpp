@@ -51,7 +51,7 @@ namespace oblo::smoke
 
             const auto triangleEntity = ecs_utility::create_named_physical_entity<static_mesh_component>(entities,
                 "triangle",
-                vec3{},
+                vec3{.z = -.5f},
                 quaternion::identity(),
                 vec3::splat(1.f));
 
