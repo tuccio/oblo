@@ -3,6 +3,7 @@
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/editor/window_manager.hpp>
 #include <oblo/runtime/runtime.hpp>
+#include <oblo/runtime/runtime_registry.hpp>
 
 #include <span>
 
@@ -39,6 +40,7 @@ namespace oblo::editor
 
     private:
         window_manager m_windowManager;
+        runtime_registry m_runtimeRegistry;
         runtime m_runtime;
         asset_registry m_assetRegistry;
     };

@@ -100,14 +100,16 @@ namespace oblo::editor
         auto* const reflection = mm.load<oblo::reflection::reflection_module>();
         mm.load<importers::importers_module>();
 
+        m_runtimeRegistry = runtime->create_runtime_registry();
+
         // TODO: Load a project instead
         if (!m_assetRegistry.initialize("./project/assets", "./project/artifacts", "./project/sources"))
         {
             return false;
         }
 
-        auto& propertyRegistry = runtime->get_property_registry();
-        auto& resourceRegistry = runtime->get_resource_registry();
+        auto& propertyRegistry = m_runtimeRegistry.get_property_registry();
+        auto& resourceRegistry = m_runtimeRegistry.get_resource_registry();
 
         register_asset_types(m_assetRegistry, mm.find_services<resource_types_provider>());
         register_file_importers(m_assetRegistry, mm.find_services<file_importers_provider>());

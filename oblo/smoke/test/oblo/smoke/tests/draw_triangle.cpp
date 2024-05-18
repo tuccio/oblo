@@ -43,6 +43,7 @@ namespace oblo::smoke
             return resourceRegistry.get_resource(assetMeta.mainArtifactHint).as<T>();
         }
     }
+
     class draw_triangle final : public test
     {
     public:
@@ -63,7 +64,7 @@ namespace oblo::smoke
 
             const auto triangleEntity = ecs_utility::create_named_physical_entity<static_mesh_component>(entities,
                 "triangle",
-                vec3{.z = -.5f},
+                vec3{.z = -2.f},
                 quaternion::identity(),
                 vec3::splat(1.f));
 
