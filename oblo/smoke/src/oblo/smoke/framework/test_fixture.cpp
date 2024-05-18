@@ -146,6 +146,32 @@ namespace oblo::smoke
                 viewport.height = ctx.height;
 
                 runtime.update({});
+
+                auto& resourceManager = ctx.vkContext->get_resource_manager();
+                auto& commandBuffer = ctx.vkContext->get_active_command_buffer();
+
+                commandBuffer.add_pipeline_barrier(resourceManager,
+                    ctx.swapchainTexture,
+                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+                constexpr VkClearColorValue black{};
+
+                const auto& texture = resourceManager.get(ctx.swapchainTexture);
+
+                const VkImageSubresourceRange range{
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .baseMipLevel = 0,
+                    .levelCount = 1,
+                    .baseArrayLayer = 0,
+                    .layerCount = 1,
+                };
+
+                vkCmdClearColorImage(commandBuffer.get(),
+                    texture.image,
+                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    &black,
+                    1,
+                    &range);
             }
 
             void update_imgui(const vk::sandbox_update_imgui_context&)
@@ -207,7 +233,7 @@ namespace oblo::smoke
         app.cameraEntity = ecs_utility::create_named_physical_entity<camera_component, viewport_component>(entities,
             "Camera",
             {},
-            {},
+            quaternion::identity(),
             vec3::splat(1));
 
         auto& camera = entities.get<camera_component>(app.cameraEntity);
@@ -264,9 +290,12 @@ namespace oblo::smoke
 
         while (app.run_frame())
         {
+            auto&& [position, rotation, viewport] =
+                entities.get<position_component, rotation_component, viewport_component>(app.cameraEntity);
+
+            controller.set_screen_size({f32(viewport.width), f32(viewport.height)});
             controller.process(app.inputQueue->get_events());
 
-            auto&& [position, rotation] = entities.get<position_component, rotation_component>(app.cameraEntity);
             position.value = controller.get_position();
             rotation.value = controller.get_orientation();
         }
