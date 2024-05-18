@@ -42,16 +42,7 @@ namespace oblo::editor
         OBLO_ASSERT(m_selection);
 
         using action = fps_camera_controller::action;
-        m_cameraController.clear_bindings();
-
-        m_cameraController.bind(mouse_key::right, action::mouse_look);
-
-        m_cameraController.bind(keyboard_key::w, action::strafe_forward);
-        m_cameraController.bind(keyboard_key::a, action::strafe_left);
-        m_cameraController.bind(keyboard_key::s, action::strafe_backward);
-        m_cameraController.bind(keyboard_key::d, action::strafe_right);
-        m_cameraController.bind(keyboard_key::e, action::strafe_upward);
-        m_cameraController.bind(keyboard_key::q, action::strafe_downward);
+        m_cameraController.set_common_wasd_bindings();
     }
 
     bool viewport::update(const window_update_context& ctx)

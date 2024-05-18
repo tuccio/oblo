@@ -42,6 +42,7 @@ namespace oblo
         x,
         y,
         z,
+        left_shift,
         enum_max
     };
 

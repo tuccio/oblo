@@ -101,6 +101,7 @@ namespace oblo::vk
 
         bool m_minimized{false};
         bool m_showImgui{true};
+        bool m_processInput{true};
     };
 
     template <typename TApp>
@@ -256,6 +257,11 @@ namespace oblo::vk
 
             TApp::shutdown(context);
             sandbox_base::shutdown();
+        }
+
+        void set_input_processing(bool enable)
+        {
+            m_processInput = enable;
         }
 
     private:

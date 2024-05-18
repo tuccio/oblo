@@ -34,17 +34,23 @@ namespace oblo
         void set_speed(f32 speed);
         void set_sensitivity(f32 sensitivity);
 
+        void reset(const vec3& position, const quaternion& rotation);
+
+        void set_common_wasd_bindings();
+
     private:
         vec3 m_position{};
         quaternion m_orientation{quaternion::identity()};
         f32 m_sensitivity{1.f};
-        f32 m_speed{1.f};
+        f32 m_speed{.1f};
+        f32 m_speedMultiplier{100.f};
 
         vec2 m_screenSize{1, 1};
         vec2 m_mousePosition{};
         timestamp m_lastTimestamp{};
 
         bool m_isMouseLookEnabled{};
+        bool m_applySpeedMultiplier{};
         std::array<bool, 6> m_strafe{};
 
         std::array<action, 1 + u32(mouse_key::enum_max)> m_mouseKeyActions{};
@@ -61,5 +67,6 @@ namespace oblo
         strafe_backward,
         strafe_upward,
         strafe_downward,
+        speed_multiplier,
     };
 }
