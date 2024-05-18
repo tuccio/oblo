@@ -3,6 +3,10 @@
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/registration.hpp>
 #include <oblo/core/finally.hpp>
+#include <oblo/graphics/components/camera_component.hpp>
+#include <oblo/graphics/components/viewport_component.hpp>
+#include <oblo/math/quaternion.hpp>
+#include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/reflection/reflection_module.hpp>
 #include <oblo/resource/registration.hpp>
@@ -10,6 +14,7 @@
 #include <oblo/runtime/runtime.hpp>
 #include <oblo/runtime/runtime_module.hpp>
 #include <oblo/sandbox/sandbox_app.hpp>
+#include <oblo/scene/utility/ecs_utility.hpp>
 #include <oblo/smoke/framework/test.hpp>
 #include <oblo/smoke/framework/test_context.hpp>
 #include <oblo/smoke/framework/test_context_impl.hpp>
@@ -146,6 +151,20 @@ namespace oblo::smoke
         }
 
         const auto cleanup = finally([&app] { app.shutdown(); });
+
+        auto& entities = app.runtime.get_entity_registry();
+
+        const auto cameraEntity =
+            ecs_utility::create_named_physical_entity<camera_component, viewport_component>(entities,
+                "Camera",
+                {},
+                {},
+                vec3::splat(1));
+
+        auto& camera = entities.get<camera_component>(cameraEntity);
+        camera.near = 0.01f;
+        camera.far = 1000.f;
+        camera.fovy = 75_deg;
 
         const test_context_impl impl{
             .entities = &app.runtime.get_entity_registry(),
