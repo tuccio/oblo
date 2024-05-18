@@ -143,6 +143,12 @@ namespace oblo::vk
                 return keyboard_key(u32(keyboard_key::a) + (key - 'a'));
             }
 
+            switch (key)
+            {
+            case SDLK_LSHIFT:
+                return keyboard_key::left_shift;
+            }
+
             return keyboard_key::enum_max;
         }
 
@@ -176,64 +182,67 @@ namespace oblo::vk
                 return true;
             }
 
-            switch (event.type)
+            if (m_processInput)
             {
-            case SDL_MOUSEBUTTONDOWN:
-                m_inputQueue.push({
-                    .kind = input_event_kind::mouse_press,
-                    .time = sdl_convert_time(event.button.timestamp),
-                    .mousePress =
-                        {
-                            .key = sdl_map_mouse_key(event.button.button),
-                        },
-                });
-                break;
+                switch (event.type)
+                {
+                case SDL_MOUSEBUTTONDOWN:
+                    m_inputQueue.push({
+                        .kind = input_event_kind::mouse_press,
+                        .time = sdl_convert_time(event.button.timestamp),
+                        .mousePress =
+                            {
+                                .key = sdl_map_mouse_key(event.button.button),
+                            },
+                    });
+                    break;
 
-            case SDL_MOUSEBUTTONUP:
-                m_inputQueue.push({
-                    .kind = input_event_kind::mouse_release,
-                    .time = sdl_convert_time(event.button.timestamp),
-                    .mouseRelease =
-                        {
-                            .key = sdl_map_mouse_key(event.button.button),
-                        },
-                });
-                break;
+                case SDL_MOUSEBUTTONUP:
+                    m_inputQueue.push({
+                        .kind = input_event_kind::mouse_release,
+                        .time = sdl_convert_time(event.button.timestamp),
+                        .mouseRelease =
+                            {
+                                .key = sdl_map_mouse_key(event.button.button),
+                            },
+                    });
+                    break;
 
-            case SDL_MOUSEMOTION:
-                m_inputQueue.push({
-                    .kind = input_event_kind::mouse_move,
-                    .time = sdl_convert_time(event.motion.timestamp),
-                    .mouseMove =
-                        {
-                            .x = f32(event.motion.x),
-                            .y = f32(event.motion.y),
-                        },
-                });
-                break;
+                case SDL_MOUSEMOTION:
+                    m_inputQueue.push({
+                        .kind = input_event_kind::mouse_move,
+                        .time = sdl_convert_time(event.motion.timestamp),
+                        .mouseMove =
+                            {
+                                .x = f32(event.motion.x),
+                                .y = f32(event.motion.y),
+                            },
+                    });
+                    break;
 
-            case SDL_KEYDOWN:
-                m_inputQueue.push({
-                    .kind = input_event_kind::keyboard_press,
-                    .time = sdl_convert_time(event.key.timestamp),
-                    .keyboardPress =
-                        {
-                            .key = sdl_map_keyboard_key(event.key.keysym.sym),
-                        },
-                });
-                break;
+                case SDL_KEYDOWN:
+                    m_inputQueue.push({
+                        .kind = input_event_kind::keyboard_press,
+                        .time = sdl_convert_time(event.key.timestamp),
+                        .keyboardPress =
+                            {
+                                .key = sdl_map_keyboard_key(event.key.keysym.sym),
+                            },
+                    });
+                    break;
 
-            case SDL_KEYUP:
-                m_inputQueue.push({
-                    .kind = input_event_kind::keyboard_release,
-                    .time = sdl_convert_time(event.key.timestamp),
-                    .keyboardRelease =
-                        {
-                            .key = sdl_map_keyboard_key(event.key.keysym.sym),
-                        },
-                });
+                case SDL_KEYUP:
+                    m_inputQueue.push({
+                        .kind = input_event_kind::keyboard_release,
+                        .time = sdl_convert_time(event.key.timestamp),
+                        .keyboardRelease =
+                            {
+                                .key = sdl_map_keyboard_key(event.key.keysym.sym),
+                            },
+                    });
 
-                break;
+                    break;
+                }
             }
         }
 

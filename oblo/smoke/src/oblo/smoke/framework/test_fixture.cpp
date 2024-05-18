@@ -4,6 +4,7 @@
 #include <oblo/asset/registration.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
+#include <oblo/input/utility/fps_camera_controller.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_manager.hpp>
@@ -14,6 +15,8 @@
 #include <oblo/runtime/runtime_module.hpp>
 #include <oblo/runtime/runtime_registry.hpp>
 #include <oblo/sandbox/sandbox_app.hpp>
+#include <oblo/scene/components/position_component.hpp>
+#include <oblo/scene/components/rotation_component.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
 #include <oblo/smoke/framework/test.hpp>
 #include <oblo/smoke/framework/test_context.hpp>
@@ -56,6 +59,7 @@ namespace oblo::smoke
             runtime_registry runtimeRegistry;
             runtime runtime;
             ecs::entity cameraEntity{};
+            const input_queue* inputQueue{};
 
             std::span<const char* const> get_required_instance_extensions() const
             {
@@ -124,6 +128,8 @@ namespace oblo::smoke
                 {
                     return false;
                 }
+
+                inputQueue = ctx.inputQueue;
 
                 return true;
             }
@@ -225,6 +231,8 @@ namespace oblo::smoke
         const test_context ctx{&impl};
         const auto task = test.run(ctx);
 
+        app.set_input_processing(false);
+
         while (!task.is_done())
         {
             task.resume();
@@ -242,8 +250,25 @@ namespace oblo::smoke
     {
         auto& app = m_impl->app;
 
+        app.set_input_processing(true);
+
+        fps_camera_controller controller;
+        controller.set_common_wasd_bindings();
+
+        auto& entities = app.runtime.get_entity_registry();
+
+        {
+            const auto& [position, rotation] = entities.get<position_component, rotation_component>(app.cameraEntity);
+            controller.reset(position.value, rotation.value);
+        }
+
         while (app.run_frame())
         {
+            controller.process(app.inputQueue->get_events());
+
+            auto&& [position, rotation] = entities.get<position_component, rotation_component>(app.cameraEntity);
+            position.value = controller.get_position();
+            rotation.value = controller.get_orientation();
         }
     }
 }

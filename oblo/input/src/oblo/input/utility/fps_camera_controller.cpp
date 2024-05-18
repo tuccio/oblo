@@ -134,7 +134,8 @@ namespace oblo
         // TODO: (#11) Time units and conversions
         const f32 dtSeconds{(m_lastTimestamp - prevTimestamp) * .001f};
 
-        m_position = m_position + m_orientation * (strafe * m_speed * dtSeconds);
+        const f32 speed = m_applySpeedMultiplier ? m_speed * m_speedMultiplier : m_speed;
+        m_position = m_position + m_orientation * (strafe * speed * dtSeconds);
     }
 
     void fps_camera_controller::bind(mouse_key key, action a)
@@ -170,6 +171,10 @@ namespace oblo
             m_strafe[get_strafe_index(a)] = true;
             break;
 
+        case action::speed_multiplier:
+            m_applySpeedMultiplier = true;
+            break;
+
         default:
             break;
         }
@@ -192,6 +197,9 @@ namespace oblo
             m_strafe[get_strafe_index(a)] = false;
             break;
 
+        case action::speed_multiplier:
+            m_applySpeedMultiplier = false;
+
         default:
             break;
         }
@@ -210,5 +218,25 @@ namespace oblo
     void fps_camera_controller::set_sensitivity(f32 sensitivity)
     {
         m_sensitivity = sensitivity;
+    }
+
+    void fps_camera_controller::reset(const vec3& position, const quaternion& rotation)
+    {
+        m_position = position;
+        m_orientation = rotation;
+    }
+
+    void fps_camera_controller::set_common_wasd_bindings()
+    {
+        bind(mouse_key::right, action::mouse_look);
+
+        bind(keyboard_key::w, action::strafe_forward);
+        bind(keyboard_key::a, action::strafe_left);
+        bind(keyboard_key::s, action::strafe_backward);
+        bind(keyboard_key::d, action::strafe_right);
+        bind(keyboard_key::e, action::strafe_upward);
+        bind(keyboard_key::q, action::strafe_downward);
+
+        bind(keyboard_key::left_shift, action::speed_multiplier);
     }
 }
