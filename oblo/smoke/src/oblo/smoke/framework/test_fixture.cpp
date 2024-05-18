@@ -13,6 +13,7 @@
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/runtime/runtime.hpp>
 #include <oblo/runtime/runtime_module.hpp>
+#include <oblo/runtime/runtime_registry.hpp>
 #include <oblo/sandbox/sandbox_app.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
 #include <oblo/smoke/framework/test.hpp>
@@ -51,8 +52,8 @@ namespace oblo::smoke
         struct test_app
         {
             asset_registry assetRegistry;
+            runtime_registry runtimeRegistry;
             runtime runtime;
-            resource_registry* resourceRegistry{};
 
             std::span<const char* const> get_required_instance_extensions() const
             {
@@ -98,21 +99,23 @@ namespace oblo::smoke
                 auto* const runtimeModule = mm.load<runtime_module>();
                 auto* const reflectionModule = mm.load<reflection::reflection_module>();
 
-                auto& propertyRegistry = runtimeModule->get_property_registry();
-                resourceRegistry = &runtimeModule->get_resource_registry();
+                runtimeRegistry = runtimeModule->create_runtime_registry();
+
+                auto& propertyRegistry = runtimeRegistry.get_property_registry();
+                auto& resourceRegistry = runtimeRegistry.get_resource_registry();
 
                 register_asset_types(assetRegistry, mm.find_services<resource_types_provider>());
                 register_file_importers(assetRegistry, mm.find_services<file_importers_provider>());
-                register_resource_types(*resourceRegistry, mm.find_services<resource_types_provider>());
+                register_resource_types(resourceRegistry, mm.find_services<resource_types_provider>());
 
                 assetRegistry.discover_assets();
 
-                resourceRegistry->register_provider(&asset_registry::find_artifact_resource, &assetRegistry);
+                resourceRegistry.register_provider(&asset_registry::find_artifact_resource, &assetRegistry);
 
                 if (!runtime.init({
                         .reflectionRegistry = &reflectionModule->get_registry(),
                         .propertyRegistry = &propertyRegistry,
-                        .resourceRegistry = resourceRegistry,
+                        .resourceRegistry = &resourceRegistry,
                         .vulkanContext = ctx.vkContext,
                     }))
                 {
@@ -169,7 +172,7 @@ namespace oblo::smoke
         const test_context_impl impl{
             .entities = &app.runtime.get_entity_registry(),
             .assetRegistry = &app.assetRegistry,
-            .resourceRegistry = app.resourceRegistry,
+            .resourceRegistry = &app.runtimeRegistry.get_resource_registry(),
         };
 
         const test_context ctx{&impl};
