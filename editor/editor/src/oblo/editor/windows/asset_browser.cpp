@@ -112,7 +112,7 @@ namespace oblo::editor
 
                         if (m_expandedAsset == meta.id)
                         {
-                            std::vector<oblo::uuid> artifacts;
+                            dynamic_array<oblo::uuid> artifacts;
 
                             if (m_registry->find_asset_artifacts(meta.id, artifacts))
                             {
