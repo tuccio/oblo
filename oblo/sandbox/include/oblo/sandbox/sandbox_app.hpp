@@ -69,7 +69,7 @@ namespace oblo::vk
         bool handle_window_events(const SDL_Event& event);
 
     protected:
-        static constexpr u32 SwapchainImages{2u};
+        static constexpr u32 SwapchainImages{3u};
         static constexpr VkFormat SwapchainFormat{VK_FORMAT_B8G8R8A8_UNORM};
 
         SDL_Window* m_window;
@@ -91,7 +91,8 @@ namespace oblo::vk
         u32 m_renderWidth;
         u32 m_renderHeight;
 
-        VkSemaphore m_presentSemaphore{nullptr};
+        VkSemaphore m_acquiredImage{nullptr};
+        VkSemaphore m_frameCompleted{nullptr};
 
         u64 m_currentSemaphoreValue{0};
 

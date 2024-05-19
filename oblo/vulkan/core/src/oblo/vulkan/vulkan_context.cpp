@@ -11,11 +11,14 @@
 
 namespace oblo::vk
 {
-    struct vulkan_context::submit_info
+    struct vulkan_context::frame_info
     {
         command_buffer_pool pool;
         VkFence fence{VK_NULL_HANDLE};
         u64 submitIndex{0};
+
+        // Semaphore to wait on for the first submission, externally owned
+        VkSemaphore waitSemaphore{VK_NULL_HANDLE};
     };
 
     namespace
@@ -60,7 +63,7 @@ namespace oblo::vk
         m_allocator = &init.allocator;
         m_resourceManager = &init.resourceManager;
 
-        m_submitInfo.resize(init.submitsInFlight);
+        m_frameInfo.resize(init.submitsInFlight);
 
         const VkSemaphoreTypeCreateInfo timelineTypeCreateInfo{
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
@@ -81,7 +84,7 @@ namespace oblo::vk
             return false;
         }
 
-        for (auto& submitInfo : m_submitInfo)
+        for (auto& submitInfo : m_frameInfo)
         {
             if (!submitInfo.pool
                      .init(m_engine->get_device(), m_engine->get_queue_family_index(), false, init.buffersPerFrame, 1u))
@@ -129,33 +132,35 @@ namespace oblo::vk
 
         reset_device_objects(m_engine->get_device(), m_timelineSemaphore);
 
-        for (auto& submitInfo : m_submitInfo)
+        for (auto& submitInfo : m_frameInfo)
         {
             reset_device_objects(m_engine->get_device(), submitInfo.fence);
         }
 
-        m_submitInfo.clear();
+        m_frameInfo.clear();
     }
 
-    void vulkan_context::frame_begin()
+    void vulkan_context::frame_begin(VkSemaphore waitSemaphore)
     {
-        m_poolIndex = u32(m_submitIndex % m_submitInfo.size());
+        m_poolIndex = u32(m_frameIndex % m_frameInfo.size());
 
-        auto& submitInfo = m_submitInfo[m_poolIndex];
+        auto& frameInfo = m_frameInfo[m_poolIndex];
+
+        frameInfo.waitSemaphore = waitSemaphore;
 
         OBLO_VK_PANIC(
             vkGetSemaphoreCounterValue(m_engine->get_device(), m_timelineSemaphore, &m_currentSemaphoreValue));
 
-        if (m_currentSemaphoreValue < submitInfo.submitIndex)
+        if (m_currentSemaphoreValue < frameInfo.submitIndex)
         {
-            OBLO_VK_PANIC(vkWaitForFences(m_engine->get_device(), 1, &submitInfo.fence, 0, UINT64_MAX));
+            OBLO_VK_PANIC(vkWaitForFences(m_engine->get_device(), 1, &frameInfo.fence, 0, UINT64_MAX));
         }
 
         destroy_resources(m_currentSemaphoreValue);
 
-        OBLO_VK_PANIC(vkResetFences(m_engine->get_device(), 1, &submitInfo.fence));
+        OBLO_VK_PANIC(vkResetFences(m_engine->get_device(), 1, &frameInfo.fence));
 
-        auto& pool = submitInfo.pool;
+        auto& pool = frameInfo.pool;
 
         pool.reset_buffers(m_submitIndex);
         pool.reset_pool();
@@ -169,14 +174,14 @@ namespace oblo::vk
             submit_active_command_buffer();
         }
 
-        ++m_submitIndex;
+        ++m_frameIndex;
     }
 
     stateful_command_buffer& vulkan_context::get_active_command_buffer()
     {
         if (!m_currentCb.is_valid())
         {
-            auto& pool = m_submitInfo[m_poolIndex].pool;
+            auto& pool = m_frameInfo[m_poolIndex].pool;
 
             const VkCommandBuffer cb{pool.fetch_buffer()};
 
@@ -200,12 +205,12 @@ namespace oblo::vk
         u32 commandBufferBegin = 1;
         constexpr u32 commandBufferEnd = 2;
 
-        auto& currentSubmit = m_submitInfo[m_poolIndex];
-        currentSubmit.submitIndex = m_submitIndex;
+        auto& currentFrame = m_frameInfo[m_poolIndex];
+        currentFrame.submitIndex = m_submitIndex;
 
         if (m_currentCb.has_incomplete_transitions())
         {
-            preparationCb = currentSubmit.pool.fetch_buffer();
+            preparationCb = currentFrame.pool.fetch_buffer();
 
             constexpr VkCommandBufferBeginInfo commandBufferBeginInfo{
                 .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -237,18 +242,25 @@ namespace oblo::vk
             .pSignalSemaphoreValues = &m_submitIndex,
         };
 
+        constexpr VkPipelineStageFlags submitPipelineStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+
         const VkSubmitInfo submitInfo{
             .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
             .pNext = &timelineInfo,
-            .waitSemaphoreCount = 0,
-            .pWaitSemaphores = nullptr,
+            .waitSemaphoreCount = u32{currentFrame.waitSemaphore != nullptr},
+            .pWaitSemaphores = &currentFrame.waitSemaphore,
+            .pWaitDstStageMask = submitPipelineStages,
             .commandBufferCount = commandBufferEnd - commandBufferBegin,
             .pCommandBuffers = commandBuffers + commandBufferBegin,
             .signalSemaphoreCount = 1,
             .pSignalSemaphores = &m_timelineSemaphore,
         };
 
-        OBLO_VK_PANIC(vkQueueSubmit(m_engine->get_queue(), 1, &submitInfo, currentSubmit.fence));
+        OBLO_VK_PANIC(vkQueueSubmit(m_engine->get_queue(), 1, &submitInfo, currentFrame.fence));
+
+        ++m_submitIndex;
+
+        currentFrame.waitSemaphore = nullptr;
     }
 
     VkPhysicalDeviceSubgroupProperties vulkan_context::get_physical_device_subgroup_properties() const

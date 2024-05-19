@@ -50,7 +50,7 @@ namespace oblo::vk::detail
             .pNext = nullptr,
             .flags = 0,
             .surface = surface,
-            .minImageCount = surfaceCapabilities.minImageCount,
+            .minImageCount = imageCount,
             .imageFormat = surfaceFormatIt->format,
             .imageColorSpace = surfaceFormatIt->colorSpace,
             .imageExtent = VkExtent2D{.width = width, .height = height},

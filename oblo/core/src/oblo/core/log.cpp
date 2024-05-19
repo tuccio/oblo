@@ -9,13 +9,9 @@ namespace oblo::log::detail
 {
     namespace
     {
-#if defined(WIN32)
-        using severity_string = const char*;
-#else
-        using severity_string = std::string_view;
-#endif
+        constexpr bool logToStderr{true};
 
-        constexpr severity_string severityStrings[]{
+        constexpr std::string_view severityStrings[]{
             "[DEBUG] ",
             "[INFO] ",
             "[WARN] ",
@@ -32,14 +28,16 @@ namespace oblo::log::detail
         const auto last = min(detail::MaxLogMessageLength, n);
         str[last] = '\0';
 
-        platform::debug_output(severityString);
+        platform::debug_output(severityString.data());
         platform::debug_output(str);
         platform::debug_output("\n");
-
-#else
-        std::fwrite(severityString.data(), 1, severityStrings->size(), stderr);
-        std::fwrite(str, 1, n, stderr);
-        std::fputc('\n', stderr);
 #endif
+
+        if constexpr (logToStderr)
+        {
+            std::fwrite(severityString.data(), 1, severityString.size(), stderr);
+            std::fwrite(str, 1, n, stderr);
+            std::fputc('\n', stderr);
+        }
     }
 }
