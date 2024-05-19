@@ -77,3 +77,6 @@ namespace oblo
         return round_up_div(number, multiple) * multiple;
     }
 }
+
+#define OBLO_STRINGIZE_IMPL(Name) #Name
+#define OBLO_STRINGIZE(Name) OBLO_STRINGIZE_IMPL(Name)

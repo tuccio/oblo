@@ -53,7 +53,8 @@ namespace oblo::vk
         {
             m_imgui.shutdown(m_engine.get_device());
 
-            reset_device_objects(m_engine.get_device(), m_presentSemaphore);
+            m_context.reset_immediate(m_acquiredImage);
+            m_context.reset_immediate(m_frameCompleted);
 
             m_swapchain.destroy(m_context);
         }
@@ -102,12 +103,17 @@ namespace oblo::vk
         m_renderWidth = u32(width);
         m_renderHeight = u32(height);
 
+        if (!create_synchronization_objects())
+        {
+            return false;
+        }
+
         if (!create_swapchain())
         {
             return false;
         }
 
-        return create_synchronization_objects() && init_imgui();
+        return init_imgui();
     }
 
     void sandbox_base::wait_idle()
@@ -251,7 +257,8 @@ namespace oblo::vk
 
     void sandbox_base::begin_frame(u32* outImageIndex)
     {
-        m_context.frame_begin();
+        // We could submit the semaphore to wait on here, if everyone submitted through the context
+        m_context.frame_begin(nullptr);
 
         u32 imageIndex;
 
@@ -262,12 +269,26 @@ namespace oblo::vk
             acquireImageResult = vkAcquireNextImageKHR(m_engine.get_device(),
                 m_swapchain.get(),
                 UINT64_MAX,
-                m_presentSemaphore,
+                m_acquiredImage,
                 VK_NULL_HANDLE,
                 &imageIndex);
 
             if (acquireImageResult == VK_SUCCESS)
             {
+                // Make sure we wait for the acquired image for any future submission, not optimal, it would be better
+                // to piggy-back to the next submission, but we submit in different places (e.g. staging_buffer)
+
+                constexpr VkPipelineStageFlags submitPipelineStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+
+                const VkSubmitInfo submitInfo{
+                    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                    .waitSemaphoreCount = 1,
+                    .pWaitSemaphores = &m_acquiredImage,
+                    .pWaitDstStageMask = submitPipelineStages,
+                };
+
+                OBLO_VK_PANIC(vkQueueSubmit(m_engine.get_queue(), 1, &submitInfo, nullptr));
+
                 break;
             }
             else if (acquireImageResult == VK_ERROR_OUT_OF_DATE_KHR)
@@ -301,13 +322,34 @@ namespace oblo::vk
     {
         m_context.frame_end();
 
+        // Again, not ideal, just submit to signal the render being completed, so present can wait on it
+        const VkSubmitInfo submitInfo{
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .waitSemaphoreCount = 0,
+            .pWaitSemaphores = nullptr,
+            .signalSemaphoreCount = 1,
+            .pSignalSemaphores = &m_frameCompleted,
+        };
+
+        OBLO_VK_PANIC(vkQueueSubmit(m_engine.get_queue(), 1, &submitInfo, nullptr));
+
+        /*  const VkTimelineSemaphoreSubmitInfo timelineInfo{
+              .sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
+              .pNext = nullptr,
+              .waitSemaphoreValueCount = 0,
+              .pWaitSemaphoreValues = nullptr,
+              .signalSemaphoreValueCount = 1,
+              .pSignalSemaphoreValues = &submitIndex,
+          };*/
+
         const auto swapchain = m_swapchain.get();
 
         const VkPresentInfoKHR presentInfo{
             .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-            .pNext = nullptr,
+            //.pNext = &timelineInfo,
             .waitSemaphoreCount = 1,
-            .pWaitSemaphores = &m_presentSemaphore,
+            .pWaitSemaphores = &m_frameCompleted,
+            //.pWaitSemaphores = &submitSemaphore,
             .swapchainCount = 1,
             .pSwapchains = &swapchain,
             .pImageIndices = &imageIndex,
@@ -450,6 +492,8 @@ namespace oblo::vk
 
     bool sandbox_base::create_swapchain()
     {
+        log::debug("Create swapchain");
+
         if (!m_swapchain.create(m_context, m_surface, m_renderWidth, m_renderHeight, SwapchainFormat))
         {
             return false;
@@ -487,19 +531,38 @@ namespace oblo::vk
 
     bool sandbox_base::create_synchronization_objects()
     {
-        const VkSemaphoreCreateInfo presentSemaphoreCreateInfo{
+        const VkSemaphoreCreateInfo semaphoreInfo{
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-            .pNext = nullptr,
-            .flags = 0,
         };
 
-        return vkCreateSemaphore(m_engine.get_device(), &presentSemaphoreCreateInfo, nullptr, &m_presentSemaphore) ==
-            VK_SUCCESS;
+        if (vkCreateSemaphore(m_engine.get_device(),
+                &semaphoreInfo,
+                m_allocator.get_allocation_callbacks(),
+                &m_acquiredImage) != VK_SUCCESS ||
+            vkCreateSemaphore(m_engine.get_device(),
+                &semaphoreInfo,
+                m_allocator.get_allocation_callbacks(),
+                &m_frameCompleted) != VK_SUCCESS)
+        {
+            return false;
+        }
+
+        const auto debugUtilsObject = m_allocator.get_object_debug_utils();
+
+        debugUtilsObject.set_object_name(m_engine.get_device(),
+            m_acquiredImage,
+            OBLO_STRINGIZE(sandbox_base::m_acquiredImage));
+
+        debugUtilsObject.set_object_name(m_engine.get_device(),
+            m_frameCompleted,
+            OBLO_STRINGIZE(sandbox_base::m_frameCompleted));
+
+        return true;
     }
 
     bool sandbox_base::init_imgui()
     {
-        m_context.frame_begin();
+        m_context.frame_begin(nullptr);
 
         auto& commandBuffer = m_context.get_active_command_buffer();
 
@@ -524,6 +587,8 @@ namespace oblo::vk
 
     void sandbox_base::destroy_swapchain()
     {
+        log::debug("Destroy swapchain");
+
         m_swapchain.destroy(m_context);
 
         for (auto& handle : m_swapchainTextures)

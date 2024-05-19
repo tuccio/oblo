@@ -32,7 +32,7 @@ namespace oblo::vk
         bool init(const initializer& init);
         void shutdown();
 
-        void frame_begin();
+        void frame_begin(VkSemaphore waitSemaphore);
         void frame_end();
 
         stateful_command_buffer& get_active_command_buffer();
@@ -76,7 +76,7 @@ namespace oblo::vk
         void end_debug_label(VkCommandBuffer commandBuffer) const;
 
     private:
-        struct submit_info;
+        struct frame_info;
 
         struct disposable_object
         {
@@ -101,7 +101,7 @@ namespace oblo::vk
         debug_utils::label m_debugUtilsLabel{};
         debug_utils::object m_debugUtilsObject{};
 
-        std::vector<submit_info> m_submitInfo;
+        std::vector<frame_info> m_frameInfo;
 
         VkSemaphore m_timelineSemaphore{};
 
@@ -112,6 +112,7 @@ namespace oblo::vk
 
         // We want the submit index to start from more than 0, which is the starting value of the semaphore
         u64 m_submitIndex{1};
+        u64 m_frameIndex{0};
 
         struct pending_disposal_queues;
         std::unique_ptr<pending_disposal_queues> m_pending;

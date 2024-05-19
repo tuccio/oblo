@@ -103,9 +103,12 @@ namespace oblo
 
     void runtime::shutdown()
     {
-        m_impl->executor.shutdown();
-        m_impl->renderer.shutdown();
-        m_impl.reset();
+        if (m_impl)
+        {
+            m_impl->executor.shutdown();
+            m_impl->renderer.shutdown();
+            m_impl.reset();
+        }
     }
 
     void runtime::update(const runtime_update_context&)
