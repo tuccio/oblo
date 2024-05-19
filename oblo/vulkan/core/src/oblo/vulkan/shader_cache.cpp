@@ -12,7 +12,7 @@ namespace oblo::vk
 {
     namespace
     {
-        constexpr bool DisableCache{true};
+        constexpr bool DisableCache{false};
         constexpr bool OutputSource{true};
 
         template <typename T>
@@ -101,7 +101,24 @@ namespace oblo::vk
 
         if constexpr (OutputSource)
         {
-            spvPath.replace_extension("glsl");
+            const char* extension = "glsl";
+
+            switch (stage)
+            {
+            case VK_SHADER_STAGE_VERTEX_BIT:
+                extension = "vert";
+                break;
+
+            case VK_SHADER_STAGE_FRAGMENT_BIT:
+                extension = "frag";
+                break;
+
+            case VK_SHADER_STAGE_COMPUTE_BIT:
+                extension = "comp";
+                break;
+            }
+
+            spvPath.replace_extension(extension);
             write_file(spvPath, as_bytes(std::span{sourceCode.data(), sourceCode.size()}));
         }
 
