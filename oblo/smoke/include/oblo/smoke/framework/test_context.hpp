@@ -37,13 +37,15 @@ namespace oblo::smoke
 
         std::suspend_always next_frame() const;
 
+        void request_renderdoc_capture() const;
+
     private:
         friend class test_fixture;
 
     private:
-        explicit test_context(const test_context_impl* impl);
+        explicit test_context(test_context_impl* impl);
 
     private:
-        const test_context_impl* m_impl{};
+        test_context_impl* m_impl{};
     };
 }

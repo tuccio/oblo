@@ -2,6 +2,9 @@
 
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/registration.hpp>
+#include <oblo/core/log.hpp>
+#include <oblo/core/platform/shared_library.hpp>
+#include <oblo/core/platform/shell.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
 #include <oblo/input/utility/fps_camera_controller.hpp>
@@ -25,13 +28,22 @@
 
 #include <imgui.h>
 
+#include <renderdoc_app.h>
+
 namespace oblo::smoke
 {
     namespace
     {
         // These are actually required by runtime, so they should probably be taken from there somehow
+
+        VkPhysicalDeviceSynchronization2Features SynchronizationFeatures{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES,
+            .synchronization2 = true,
+        };
+
         VkPhysicalDeviceDescriptorIndexingFeatures IndexingFeatures{
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES,
+            .pNext = &SynchronizationFeatures,
             .descriptorBindingSampledImageUpdateAfterBind = true,
             .descriptorBindingPartiallyBound = true,
             .descriptorBindingVariableDescriptorCount = true,
@@ -60,6 +72,7 @@ namespace oblo::smoke
             runtime runtime;
             ecs::entity cameraEntity{};
             const input_queue* inputQueue{};
+            test_context_impl* testCtx{};
 
             std::span<const char* const> get_required_instance_extensions() const
             {
@@ -141,6 +154,8 @@ namespace oblo::smoke
 
             void update(const vk::sandbox_render_context& ctx)
             {
+                handle_renderdoc_captures();
+
                 auto& viewport = runtime.get_entity_registry().get<viewport_component>(cameraEntity);
                 viewport.width = ctx.width;
                 viewport.height = ctx.height;
@@ -197,6 +212,52 @@ namespace oblo::smoke
                     }
                 }
             }
+
+            bool isRenderDocFirstUsage{true};
+            bool isRenderDocCapturing{};
+
+            RENDERDOC_API_1_1_2* renderdocApi{};
+            platform::shared_library renderdoc;
+
+            void handle_renderdoc_captures()
+            {
+                if (isRenderDocCapturing)
+                {
+                    renderdocApi->EndFrameCapture(nullptr, nullptr);
+                }
+
+                if (testCtx->renderdocCapture)
+                {
+                    if (isRenderDocFirstUsage)
+                    {
+                        if (auto path = platform::search_program_files("./RenderDoc/renderdoc.dll"))
+                        {
+                            renderdoc.open(*path);
+
+                            const auto RENDERDOC_GetAPI =
+                                static_cast<pRENDERDOC_GetAPI>(renderdoc.symbol("RENDERDOC_GetAPI"));
+                            const auto ret =
+                                RENDERDOC_GetAPI(eRENDERDOC_API_Version_1_1_2, reinterpret_cast<void**>(&renderdocApi));
+
+                            if (ret != 1)
+                            {
+                                log::error("Unable to load renderdoc.dll");
+
+                                renderdoc.close();
+                                renderdocApi = {};
+                            }
+                        }
+                    }
+
+                    if (renderdocApi)
+                    {
+                        renderdocApi->StartFrameCapture(nullptr, nullptr);
+                        isRenderDocCapturing = true;
+                    }
+
+                    testCtx->renderdocCapture = false;
+                }
+            }
         };
     }
 
@@ -248,7 +309,7 @@ namespace oblo::smoke
     {
         auto& app = m_impl->app;
 
-        const test_context_impl impl{
+        test_context_impl impl{
             .entities = &app.runtime.get_entity_registry(),
             .assetRegistry = &app.assetRegistry,
             .resourceRegistry = &app.runtimeRegistry.get_resource_registry(),
@@ -258,6 +319,7 @@ namespace oblo::smoke
         const auto task = test.run(ctx);
 
         app.set_input_processing(false);
+        app.testCtx = &impl;
 
         bool shouldQuit{false};
 
@@ -278,6 +340,7 @@ namespace oblo::smoke
             app.run_frame();
         }
 
+        app.testCtx = nullptr;
         return true;
     }
 
