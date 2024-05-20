@@ -7,6 +7,9 @@
 #if defined(WIN32)
 #define NOMINMAX
 #include <Windows.h>
+
+#include <ShlObj.h>
+#include <ShlObj_core.h>
 #endif
 
 namespace oblo::platform
@@ -53,7 +56,6 @@ namespace oblo::platform
             .nMaxFileTitle = 0,
             .lpstrInitialDir = nullptr,
             .Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR,
-
         };
 
         if (GetOpenFileNameW(&ofn) == TRUE)
@@ -63,6 +65,25 @@ namespace oblo::platform
         }
 
         return false;
+    }
+
+    expected<std::filesystem::path> search_program_files(const std::filesystem::path& relativePath)
+    {
+        std::filesystem::path result;
+
+        wchar_t path[MAX_PATH];
+
+        if (SHGetSpecialFolderPathW(0, path, CSIDL_PROGRAM_FILES, FALSE) == TRUE)
+        {
+            result = path / relativePath;
+
+            if (std::error_code ec; std::filesystem::exists(result, ec))
+            {
+                return std::move(result);
+            }
+        }
+
+        return unspecified_error{};
     }
 }
 

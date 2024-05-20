@@ -492,8 +492,6 @@ namespace oblo::vk
 
     bool sandbox_base::create_swapchain()
     {
-        log::debug("Create swapchain");
-
         if (!m_swapchain.create(m_context, m_surface, m_renderWidth, m_renderHeight, SwapchainFormat))
         {
             return false;
@@ -587,8 +585,6 @@ namespace oblo::vk
 
     void sandbox_base::destroy_swapchain()
     {
-        log::debug("Destroy swapchain");
-
         m_swapchain.destroy(m_context);
 
         for (auto& handle : m_swapchainTextures)

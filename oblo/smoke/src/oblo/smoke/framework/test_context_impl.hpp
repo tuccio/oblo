@@ -15,8 +15,9 @@ namespace oblo::smoke
 {
     struct test_context_impl
     {
-        ecs::entity_registry* entities;
-        asset_registry* assetRegistry;
-        resource_registry* resourceRegistry;
+        ecs::entity_registry* entities{};
+        asset_registry* assetRegistry{};
+        resource_registry* resourceRegistry{};
+        bool renderdocCapture{};
     };
 }

@@ -4,7 +4,7 @@
 
 namespace oblo::smoke
 {
-    test_context::test_context(const test_context_impl* impl) : m_impl{impl} {}
+    test_context::test_context(test_context_impl* impl) : m_impl{impl} {}
 
     asset_registry& test_context::get_asset_registry() const
     {
@@ -24,5 +24,10 @@ namespace oblo::smoke
     std::suspend_always test_context::next_frame() const
     {
         return {};
+    }
+
+    void test_context::request_renderdoc_capture() const
+    {
+        m_impl->renderdocCapture = true;
     }
 }
