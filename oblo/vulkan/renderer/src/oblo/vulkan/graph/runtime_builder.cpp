@@ -58,46 +58,77 @@ namespace oblo::vk
             };
         }
 
-        VkBufferUsageFlags convert_buffer_usage(flags<buffer_usage> flags)
+        VkBufferUsageFlags convert_buffer_usage(buffer_usage usage)
         {
             VkBufferUsageFlags result{};
 
-            while (!flags.is_empty())
+            OBLO_ASSERT(usage != buffer_usage::enum_max);
+
+            switch (usage)
             {
-                const auto flag = flags.find_first();
+            case buffer_usage::storage_read:
+            case buffer_usage::storage_write:
+                result |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+                break;
 
-                OBLO_ASSERT(flag != buffer_usage::enum_max);
+            case buffer_usage::indirect:
+                result |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+                break;
 
-                switch (flag)
-                {
-                case buffer_usage::storage:
-                    result |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-                    break;
+            case buffer_usage::uniform:
+                result |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+                break;
 
-                case buffer_usage::indirect:
-                    result |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
-                    break;
+                // case buffer_usage::transfer_source:
+                //     result |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+                //     break;
 
-                case buffer_usage::uniform:
-                    result |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-                    break;
+                // case buffer_usage::transfer_destination:
+                //     result |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+                //     break;
 
-                case buffer_usage::transfer_source:
-                    result |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-                    break;
-
-                case buffer_usage::transfer_destination:
-                    result |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-                    break;
-
-                default:
-                    unreachable();
-                }
-
-                flags.unset(flag);
+            default:
+                unreachable();
             }
 
             return result;
+        }
+
+        std::pair<VkPipelineStageFlags2, VkAccessFlags2> convert_for_sync2(pass_kind passKind, buffer_usage usage)
+        {
+            VkPipelineStageFlags2 pipelineStage{};
+            VkAccessFlags2 access{};
+
+            switch (passKind)
+            {
+            case pass_kind::graphics:
+                pipelineStage = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
+                break;
+
+            case pass_kind::compute:
+                pipelineStage = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+                break;
+            }
+
+            switch (usage)
+            {
+            case buffer_usage::storage_read:
+                access = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
+                break;
+            case buffer_usage::storage_write:
+                access = VK_ACCESS_2_SHADER_WRITE_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
+                break;
+            case buffer_usage::uniform:
+                access = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_UNIFORM_READ_BIT;
+                break;
+            case buffer_usage::indirect:
+                access = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
+                break;
+            default:
+                unreachable();
+            }
+
+            return {pipelineStage, access};
         }
     }
 
@@ -117,7 +148,7 @@ namespace oblo::vk
             .memoryUsage = memory_usage::gpu_only,
         };
 
-        // TODO
+        // TODO: (#29) Reuse and alias texture memory
         constexpr lifetime_range range{0, 0};
 
         const auto poolIndex = m_resourcePool->add(imageInitializer, range);
@@ -125,10 +156,19 @@ namespace oblo::vk
         m_graph->add_resource_transition(texture, convert_layout(usage));
     }
 
-    void runtime_builder::create(
-        resource<buffer> buffer, const transient_buffer_initializer& initializer, flags<buffer_usage> usages) const
+    void runtime_builder::create(resource<buffer> buffer,
+        const transient_buffer_initializer& initializer,
+        pass_kind passKind,
+        buffer_usage usage) const
     {
-        const auto poolIndex = m_resourcePool->add_buffer(initializer.size, convert_buffer_usage(usages));
+        auto vkUsage = convert_buffer_usage(usage);
+
+        if (!initializer.data.empty())
+        {
+            vkUsage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        }
+
+        const auto poolIndex = m_resourcePool->add_buffer(initializer.size, vkUsage);
 
         staging_buffer_span stagedData{};
         staging_buffer_span* stagedDataPtr{};
@@ -140,9 +180,40 @@ namespace oblo::vk
 
             stagedData = *res;
             stagedDataPtr = &stagedData;
+
+            // All copies will be added to the command buffer upfront, so we start with a buffer that has been
+            // transfered to
+            m_graph->add_buffer_access(buffer, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
         }
 
         m_graph->add_transient_buffer(buffer, poolIndex, stagedDataPtr);
+
+        const auto [pipelineStage, access] = convert_for_sync2(passKind, usage);
+        m_graph->add_buffer_access(buffer, pipelineStage, access);
+    }
+
+    void runtime_builder::create(
+        resource<buffer> buffer, const staging_buffer_span& stagedData, pass_kind passKind, buffer_usage usage) const
+    {
+        auto vkUsage = convert_buffer_usage(usage);
+
+        const auto stagedDataSize = calculate_size(stagedData);
+
+        if (stagedDataSize != 0)
+        {
+            vkUsage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        }
+
+        const auto poolIndex = m_resourcePool->add_buffer(stagedDataSize, vkUsage);
+
+        // All copies will be added to the command buffer upfront, so we start with a buffer that has been
+        // transfered to
+        m_graph->add_buffer_access(buffer, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
+
+        m_graph->add_transient_buffer(buffer, poolIndex, &stagedData);
+
+        const auto [pipelineStage, access] = convert_for_sync2(passKind, usage);
+        m_graph->add_buffer_access(buffer, pipelineStage, access);
     }
 
     void runtime_builder::acquire(resource<texture> texture, resource_usage usage) const
@@ -164,19 +235,32 @@ namespace oblo::vk
         }
     }
 
-    void runtime_builder::acquire(resource<buffer> buffer, flags<buffer_usage> usages) const
+    void runtime_builder::acquire(resource<buffer> buffer, pass_kind passKind, buffer_usage usage) const
     {
         const auto poolIndex = m_graph->find_pool_index(buffer);
-        m_resourcePool->add_buffer_usage(poolIndex, convert_buffer_usage(usages));
+        m_resourcePool->add_buffer_usage(poolIndex, convert_buffer_usage(usage));
+        const auto [pipelineStage, access] = convert_for_sync2(passKind, usage);
+        m_graph->add_buffer_access(buffer, pipelineStage, access);
     }
 
-    resource<buffer> runtime_builder::create_dynamic_buffer(const transient_buffer_initializer& initializer,
-        flags<buffer_usage> usages) const
+    resource<buffer> runtime_builder::create_dynamic_buffer(
+        const transient_buffer_initializer& initializer, pass_kind passKind, buffer_usage usage) const
     {
         const auto pinHandle = m_graph->allocate_dynamic_resource_pin();
 
         const resource<buffer> resource{pinHandle};
-        create(resource, initializer, usages);
+        create(resource, initializer, passKind, usage);
+
+        return resource;
+    }
+
+    resource<buffer> runtime_builder::create_dynamic_buffer(
+        const staging_buffer_span& stagedData, pass_kind passKind, buffer_usage usage) const
+    {
+        const auto pinHandle = m_graph->allocate_dynamic_resource_pin();
+
+        const resource<buffer> resource{pinHandle};
+        create(resource, stagedData, passKind, usage);
 
         return resource;
     }

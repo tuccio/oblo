@@ -47,6 +47,7 @@ namespace oblo
         VkDescriptorPool m_descriptorPool{};
         VkDescriptorSetLayout m_descriptorSetLayout{};
         VkSampler m_sampler{};
+        u32 m_frameIndex{};
 
         flat_dense_map<ecs::entity, render_graph_data> m_renderGraphs;
     };

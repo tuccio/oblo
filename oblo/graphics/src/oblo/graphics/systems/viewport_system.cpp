@@ -42,6 +42,7 @@ namespace oblo
         constexpr std::string_view OutPickingBuffer{"Picking Buffer"};
         constexpr std::string_view InResolution{"Resolution"};
         constexpr std::string_view InCamera{"Camera"};
+        constexpr std::string_view InTime{"Time"};
 
         constexpr u32 PickingResultSize{sizeof(u32)};
     }
@@ -239,9 +240,11 @@ namespace oblo
                         .add_output<h32<vk::texture>>(OutPickingBuffer)
                         .add_input<vec2u>(InResolution)
                         .add_input<camera_buffer>(InCamera)
+                        .add_input<time_buffer>(InTime)
                         .add_input<picking_configuration>(InPickingConfiguration)
                         .connect_output(&forward_pass::outRenderTarget, OutFinalRenderTarget)
                         .connect_input(InCamera, &view_buffers_node::inCameraData)
+                        .connect_input(InTime, &view_buffers_node::inTimeData)
                         .connect_input(InResolution, &forward_pass::inResolution)
                         .connect_input(InPickingConfiguration, &forward_pass::inPickingConfiguration)
                         .connect_input(InPickingConfiguration, &picking_readback::inPickingConfiguration)
@@ -377,6 +380,13 @@ namespace oblo
                     };
                 }
 
+                if (auto* const timeBuffer = graph->find_input<time_buffer>(InTime))
+                {
+                    *timeBuffer = {
+                        .frameIndex = m_frameIndex,
+                    };
+                }
+
                 if (auto* const pickingCfg = graph->find_input<picking_configuration>(InPickingConfiguration))
                 {
                     switch (viewport.picking.state)
@@ -460,5 +470,7 @@ namespace oblo
                 m_renderGraphs.erase(e);
             }
         }
+
+        ++m_frameIndex;
     }
 }

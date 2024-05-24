@@ -100,9 +100,10 @@ namespace oblo::vk
         u32 find_output_storage_index(std::string_view name) const;
 
         void add_transient_buffer(resource<buffer> handle, u32 poolIndex, const staging_buffer_span* upload);
+        void add_buffer_access(resource<buffer> handle, VkPipelineStageFlags2 pipelineStage, VkAccessFlags2 access);
 
-        void flush_copies(stateful_command_buffer& commandBuffer, resource_manager& resourceManager);
-        void flush_uploads(staging_buffer& stagingBuffer);
+        void flush_image_copies(stateful_command_buffer& commandBuffer, resource_manager& resourceManager);
+        void flush_uploads(VkCommandBuffer commandBuffer, const staging_buffer& stagingBuffer);
 
         u32 allocate_dynamic_resource_pin();
         void destroy_dynamic_pins();
@@ -112,6 +113,7 @@ namespace oblo::vk
         struct named_pin_data;
         struct data_storage;
         struct node_transitions;
+        struct buffer_barrier;
         struct texture_transition;
         struct transient_buffer;
         struct transient_texture;
@@ -127,6 +129,7 @@ namespace oblo::vk
         std::unique_ptr<frame_allocator> m_dynamicAllocator;
         std::vector<node> m_nodes;
         std::vector<node_transitions> m_nodeTransitions;
+        std::vector<buffer_barrier> m_bufferBarriers;
         std::vector<texture_transition> m_textureTransitions;
         std::vector<transient_texture> m_transientTextures;
 
@@ -168,12 +171,21 @@ namespace oblo::vk
     {
         u32 firstTextureTransition;
         u32 lastTextureTransition;
+        u32 firstBufferBarrier;
+        u32 lastBufferBarrier;
     };
 
     struct render_graph::texture_transition
     {
         resource<texture> texture;
         VkImageLayout target;
+    };
+
+    struct render_graph::buffer_barrier
+    {
+        resource<buffer> buffer;
+        VkPipelineStageFlags2 pipelineStage;
+        VkAccessFlags2 access;
     };
 
     struct render_graph::transient_texture

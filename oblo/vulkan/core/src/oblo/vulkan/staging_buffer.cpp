@@ -352,6 +352,33 @@ namespace oblo::vk
         return true;
     }
 
+    expected<staging_buffer_span> staging_buffer::stage_allocate(u32 size)
+    {
+        const auto available = m_impl.ring.available_count();
+
+        if (available < size)
+        {
+            return unspecified_error{};
+        }
+
+        const auto segmentedSpan = m_impl.ring.fetch(size);
+
+        u32 segmentOffset{0u};
+
+        for (const auto& segment : segmentedSpan.segments)
+        {
+            if (segment.begin != segment.end)
+            {
+                const auto segmentSize = segment.end - segment.begin;
+                segmentOffset += segmentSize;
+            }
+        }
+
+        m_impl.pendingBytes += size;
+
+        return staging_buffer_span{segmentedSpan};
+    }
+
     expected<staging_buffer_span> staging_buffer::stage(std::span<const std::byte> source)
     {
         auto* const srcPtr = source.data();
@@ -384,7 +411,79 @@ namespace oblo::vk
         return staging_buffer_span{segmentedSpan};
     }
 
+    void staging_buffer::copy_to(staging_buffer_span destination, u32 offset, std::span<const std::byte> source)
+    {
+        // Create a subspan out of the destination
+        staging_buffer_span subspan = destination;
+        subspan.segments[0].begin += offset;
+
+        if (subspan.segments[0].begin > subspan.segments[0].end)
+        {
+            subspan.segments[0].begin = subspan.segments[0].end;
+            subspan.segments[1].begin += subspan.segments[0].end - subspan.segments[0].begin;
+
+            if (subspan.segments[1].begin > subspan.segments[1].end)
+            {
+                subspan.segments[1].begin = subspan.segments[1].end;
+            }
+        }
+
+        // Finally try to copy
+        u32 remaining = u32(source.size());
+
+        for (u32 segmentIndex = 0; segmentIndex < 2 && remaining > 0; ++segmentIndex)
+        {
+            const auto& segment = subspan.segments[segmentIndex];
+
+            const auto segmentSize = segment.end - segment.begin;
+
+            if (segmentSize > 0)
+            {
+                const auto segmentCopySize = min(segmentSize, remaining);
+                std::memcpy(m_impl.memoryMap + segment.begin, source.data(), segmentCopySize);
+                remaining -= segmentCopySize;
+            }
+        }
+
+        OBLO_ASSERT(remaining == 0);
+    }
+
     void staging_buffer::upload(staging_buffer_span source, VkBuffer buffer, u32 bufferOffset)
+    {
+        const auto nextSubmitIndex = get_next_submit_index();
+        const auto commandBuffer = m_impl.commandBuffers[nextSubmitIndex];
+
+        // for (u32 i = 0; i < regionsCount; ++i)
+        //{
+        //     const VkBufferMemoryBarrier bufferBarrier{
+        //         .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+        //         .srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_SHADER_READ_BIT,
+        //         .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+        //         .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        //         .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        //         .buffer = buffer,
+        //         .offset = copyRegions[i].dstOffset,
+        //         .size = copyRegions[i].size,
+        //     };
+
+        //    vkCmdPipelineBarrier(commandBuffer,
+        //        VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT,
+        //        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        //        0,
+        //        0,
+        //        nullptr,
+        //        1,
+        //        &bufferBarrier,
+        //        0,
+        //        nullptr);
+        //}
+
+        // vkCmdCopyBuffer(commandBuffer, m_impl.buffer, buffer, regionsCount, copyRegions);
+        upload(commandBuffer, source, buffer, bufferOffset);
+    }
+
+    void staging_buffer::upload(
+        VkCommandBuffer commandBuffer, staging_buffer_span source, VkBuffer buffer, u32 bufferOffset) const
     {
         VkBufferCopy copyRegions[2];
         u32 regionsCount{0u};
@@ -408,10 +507,6 @@ namespace oblo::vk
             }
         }
 
-        const auto nextSubmitIndex = get_next_submit_index();
-        const auto commandBuffer = m_impl.commandBuffers[nextSubmitIndex];
-
-        // TODO: Pipeline barriers?
         vkCmdCopyBuffer(commandBuffer, m_impl.buffer, buffer, regionsCount, copyRegions);
     }
 
@@ -424,8 +519,24 @@ namespace oblo::vk
 
         {
             const auto currentSubmitIndex = get_next_submit_index();
-
             const auto commandBuffer = m_impl.commandBuffers[currentSubmitIndex];
+
+            const VkMemoryBarrier2 memoryBarrier{
+                .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+                .srcStageMask = VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT,
+                .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                .dstStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT,
+            };
+
+            const VkDependencyInfo dependencyInfo{
+                .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                .memoryBarrierCount = 1,
+                .pMemoryBarriers = &memoryBarrier,
+            };
+
+            vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
+
             OBLO_VK_PANIC(vkEndCommandBuffer(commandBuffer))
 
             const u64 signalValue{m_impl.nextTimelineId};
@@ -587,5 +698,10 @@ namespace oblo::vk
     bool oblo::vk::staging_buffer::has_pending_uploads() const
     {
         return m_impl.pendingBytes != 0;
+    }
+
+    u32 calculate_size(const staging_buffer_span& span)
+    {
+        return (span.segments[0].end - span.segments[0].begin) + (span.segments[1].end - span.segments[1].begin);
     }
 }

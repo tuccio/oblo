@@ -275,19 +275,22 @@ namespace oblo::vk
 
             if (acquireImageResult == VK_SUCCESS)
             {
-                // Make sure we wait for the acquired image for any future submission, not optimal, it would be better
-                // to piggy-back to the next submission, but we submit in different places (e.g. staging_buffer)
+                //// Make sure we wait for the acquired image for any future submission, not optimal, it would be better
+                //// to piggy-back to the next submission, but we submit in different places (e.g. staging_buffer)
 
-                constexpr VkPipelineStageFlags submitPipelineStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+                // constexpr VkPipelineStageFlags submitPipelineStages[] =
+                // {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 
-                const VkSubmitInfo submitInfo{
-                    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                    .waitSemaphoreCount = 1,
-                    .pWaitSemaphores = &m_acquiredImage,
-                    .pWaitDstStageMask = submitPipelineStages,
-                };
+                // const VkSubmitInfo submitInfo{
+                //     .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                //     .waitSemaphoreCount = 1,
+                //     .pWaitSemaphores = &m_acquiredImage,
+                //     .pWaitDstStageMask = submitPipelineStages,
+                // };
 
-                OBLO_VK_PANIC(vkQueueSubmit(m_engine.get_queue(), 1, &submitInfo, nullptr));
+                // OBLO_VK_PANIC(vkQueueSubmit(m_engine.get_queue(), 1, &submitInfo, nullptr));
+
+                //vkDeviceWaitIdle(m_engine.get_device());
 
                 break;
             }

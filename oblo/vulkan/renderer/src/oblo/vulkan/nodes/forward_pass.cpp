@@ -77,7 +77,7 @@ namespace oblo::vk
 
         for (const auto& drawData : builder.access(inDrawData))
         {
-            builder.acquire(drawData.drawCallBuffer, buffer_usage::indirect);
+            builder.acquire(drawData.drawCallBuffer, pass_kind::graphics, buffer_usage::indirect);
         }
     }
 
@@ -166,8 +166,6 @@ namespace oblo::vk
                 context.access(inPerViewBindingTable),
             };
 
-            const auto& drawRegistry = context.get_draw_registry();
-
             const std::span drawData = *context.access(inDrawData);
 
             // TODO: Could use the frame allocator here
@@ -177,19 +175,41 @@ namespace oblo::vk
             dynamic_array<buffer> drawCommands;
             drawCommands.resize_default(drawData.size());
 
-            for (usize i = 0; i < drawCalls.size(); ++i)
+            dynamic_array<buffer_binding_table> instanceBufferBindings;
+            instanceBufferBindings.resize_default(drawData.size());
+
+            const auto& drawRegistry = context.get_draw_registry();
+
+            for (usize drawCallIndex = 0; drawCallIndex < drawCalls.size(); ++drawCallIndex)
             {
-                auto& draw = drawCalls[i];
-                const auto& culledDraw = drawData[i];
+                auto& draw = drawCalls[drawCallIndex];
+                const auto& culledDraw = drawData[drawCallIndex];
 
                 draw = culledDraw.sourceData;
 
                 const auto drawCallBuffer = context.access(culledDraw.drawCallBuffer);
-                drawCommands[i] = drawCallBuffer;
+                drawCommands[drawCallIndex] = drawCallBuffer;
+
+                auto& bindings = instanceBufferBindings[drawCallIndex];
+
+                for (u32 bufferIndex = 0; bufferIndex < draw.instanceBuffers.count; ++bufferIndex)
+                {
+                    const auto instanceBuffer = context.access(culledDraw.instanceBuffers[bufferIndex]);
+                    OBLO_ASSERT(instanceBuffer.buffer);
+
+                    const auto name = drawRegistry.get_name(draw.instanceBuffers.bindings[bufferIndex]);
+                    OBLO_ASSERT(name);
+
+                    bindings.emplace(name, instanceBuffer);
+                }
             }
 
-            passManager
-                .draw(*pass, context.get_resource_manager(), drawRegistry, drawCommands, drawCalls, bindingTables);
+            passManager.draw(*pass,
+                context.get_resource_manager(),
+                drawCommands,
+                drawCalls,
+                instanceBufferBindings,
+                bindingTables);
 
             passManager.end_render_pass(*pass);
         }

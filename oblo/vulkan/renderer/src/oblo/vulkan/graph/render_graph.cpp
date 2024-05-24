@@ -1,5 +1,6 @@
 #include <oblo/vulkan/graph/render_graph.hpp>
 
+#include <oblo/core/buffered_array.hpp>
 #include <oblo/core/zip_range.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/graph/graph_data.hpp>
@@ -120,6 +121,7 @@ namespace oblo::vk
         destroy_dynamic_pins();
 
         m_nodeTransitions.assign(m_nodes.size(), node_transitions{});
+        m_bufferBarriers.clear();
         m_textureTransitions.clear();
         m_transientTextures.clear();
         m_transientBuffers.clear();
@@ -139,11 +141,15 @@ namespace oblo::vk
             {
                 auto& nodeTransitions = m_nodeTransitions[nodeIndex];
                 nodeTransitions.firstTextureTransition = u32(m_textureTransitions.size());
+                nodeTransitions.firstBufferBarrier = u32(m_bufferBarriers.size());
 
                 node.build(ptr, builder);
 
                 nodeTransitions.lastTextureTransition = u32(m_textureTransitions.size());
+                nodeTransitions.lastBufferBarrier = u32(m_bufferBarriers.size());
             }
+
+            ++nodeIndex;
         }
 
         for (const auto& pendingCopy : m_pendingCopies)
@@ -176,7 +182,7 @@ namespace oblo::vk
 
         if (!m_pendingUploads.empty())
         {
-            flush_uploads(renderer.get_staging_buffer());
+            flush_uploads(commandBuffer.get(), renderer.get_staging_buffer());
         }
 
         for (const auto [resource, poolIndex] : m_transientTextures)
@@ -193,6 +199,10 @@ namespace oblo::vk
 
         runtime_context runtime{*this, renderer, commandBuffer.get()};
 
+        buffered_array<VkBufferMemoryBarrier2, 32> bufferBarriers;
+
+        flat_dense_map<resource<buffer>, buffer_barrier> m_bufferStates;
+
         for (auto&& [node, transitions] : zip_range(m_nodes, m_nodeTransitions))
         {
             auto* const ptr = node.node;
@@ -208,6 +218,56 @@ namespace oblo::vk
                 commandBuffer.add_pipeline_barrier(resourceManager, *texturePtr, textureTransition.target);
             }
 
+            bufferBarriers.clear();
+
+            for (u32 i = transitions.firstBufferBarrier; i < transitions.lastBufferBarrier; ++i)
+            {
+                const auto& dst = m_bufferBarriers[i];
+
+                const auto [it, inserted] = m_bufferStates.emplace(dst.buffer);
+
+                if (!inserted)
+                {
+                    // The buffer was already tracked, add the pipeline barrier
+                    auto& src = *it;
+
+                    const auto* const bufferPtr = static_cast<buffer*>(access_resource_storage(dst.buffer.value));
+                    OBLO_ASSERT(bufferPtr && bufferPtr->buffer);
+
+                    bufferBarriers.push_back({
+                        .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+                        .srcStageMask = src.pipelineStage,
+                        .srcAccessMask = src.access,
+                        .dstStageMask = dst.pipelineStage,
+                        .dstAccessMask = dst.access,
+                        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                        .buffer = bufferPtr->buffer,
+                        .offset = bufferPtr->offset,
+                        .size = bufferPtr->size,
+                    });
+
+                    // Track the new state as the new buffer state
+                    *it = dst;
+                }
+                else
+                {
+                    // First time we encounter the buffer, add it to the states
+                    m_bufferStates.emplace(dst.buffer, dst);
+                }
+            }
+
+            if (!bufferBarriers.empty())
+            {
+                const VkDependencyInfo dependencyInfo{
+                    .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                    .bufferMemoryBarrierCount = u32(bufferBarriers.size()),
+                    .pBufferMemoryBarriers = bufferBarriers.data(),
+                };
+
+                vkCmdPipelineBarrier2(commandBuffer.get(), &dependencyInfo);
+            }
+
             OBLO_ASSERT(!renderer.get_staging_buffer().has_pending_uploads(),
                 "Staging buffer should have been flushed, uploading now probably is a mistake");
 
@@ -221,12 +281,12 @@ namespace oblo::vk
         {
             auto& vkCtx = renderer.get_vulkan_context();
             vkCtx.begin_debug_label(commandBuffer.get(), "render_graph::flush_copies");
-            flush_copies(commandBuffer, resourceManager);
+            flush_image_copies(commandBuffer, resourceManager);
             vkCtx.end_debug_label(commandBuffer.get());
         }
     }
 
-    void render_graph::flush_copies(stateful_command_buffer& commandBuffer, resource_manager& resourceManager)
+    void render_graph::flush_image_copies(stateful_command_buffer& commandBuffer, resource_manager& resourceManager)
     {
         for (const auto [target, storageIndex, transitionAfterCopy] : m_pendingCopies)
         {
@@ -270,17 +330,17 @@ namespace oblo::vk
         m_pendingCopies.clear();
     }
 
-    void render_graph::flush_uploads(staging_buffer& stagingBuffer)
+    void render_graph::flush_uploads(VkCommandBuffer commandBuffer, const staging_buffer& stagingBuffer)
     {
         OBLO_ASSERT(!m_pendingUploads.empty());
 
         for (const auto& upload : m_pendingUploads)
         {
             const auto* const b = reinterpret_cast<buffer*>(access_resource_storage(upload.target.value));
-            stagingBuffer.upload(upload.source, b->buffer, b->offset);
+            stagingBuffer.upload(commandBuffer, upload.source, b->buffer, b->offset);
         }
 
-        stagingBuffer.flush();
+        // stagingBuffer.flush();
         m_pendingUploads.clear();
     }
 
@@ -382,5 +442,15 @@ namespace oblo::vk
         {
             m_pendingUploads.emplace_back(handle, *upload);
         }
+    }
+
+    void render_graph::add_buffer_access(
+        resource<buffer> handle, VkPipelineStageFlags2 pipelineStage, VkAccessFlags2 access)
+    {
+        m_bufferBarriers.push_back({
+            .buffer = handle,
+            .pipelineStage = pipelineStage,
+            .access = access,
+        });
     }
 }
