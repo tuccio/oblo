@@ -138,6 +138,11 @@ namespace oblo
             return m_array.assign(std::forward<TArgs>(args)...);
         }
 
+        void clear()
+        {
+            m_array.clear();
+        }
+
     private:
         stack_fallback_allocator<(sizeof(T) * N), alignof(T)> m_allocator;
         dynamic_array<T> m_array{&m_allocator};

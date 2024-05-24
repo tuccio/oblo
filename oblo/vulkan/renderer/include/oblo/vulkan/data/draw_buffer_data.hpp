@@ -9,5 +9,6 @@ namespace oblo::vk
     {
         resource<buffer> drawCallBuffer;
         batch_draw_data sourceData;
+        resource<buffer>* instanceBuffers;
     };
 }

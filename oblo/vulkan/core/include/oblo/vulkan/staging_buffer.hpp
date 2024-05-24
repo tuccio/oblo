@@ -47,9 +47,13 @@ namespace oblo::vk
 
         bool download(VkBuffer buffer, u32 bufferOffset, std::span<std::byte> destination);
 
+        expected<staging_buffer_span> stage_allocate(u32 size);
         expected<staging_buffer_span> stage(std::span<const std::byte> source);
 
+        void copy_to(staging_buffer_span destination, u32 offset, std::span<const std::byte> source);
+
         void upload(staging_buffer_span source, VkBuffer buffer, u32 bufferOffset);
+        void upload(VkCommandBuffer commandBuffer, staging_buffer_span source, VkBuffer buffer, u32 bufferOffset) const;
 
         void flush();
 
@@ -108,4 +112,6 @@ namespace oblo::vk
         impl m_impl{};
         std::deque<pending_copy> m_pendingCopies;
     };
+
+    u32 calculate_size(const staging_buffer_span& span);
 }

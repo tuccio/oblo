@@ -67,6 +67,15 @@ namespace oblo::vk
                 .numberOfDraws = draw.drawCommands.drawCount,
             };
 
+            const std::span instanceBuffers = allocate_n_span<resource<buffer>>(allocator, draw.instanceBuffers.count);
+
+            for (u32 i = 0; i < draw.instanceBuffers.count; ++i)
+            {
+                builder.create_dynamic_buffer(draw.instanceBuffers.buffersData[i],
+                    pass_kind::compute,
+                    buffer_usage::storage_read);
+            }
+
             // We effectively partition non-indexed and indexed calls here
             const auto outIndex = draw.drawCommands.isIndexed ? --last : first++;
 
@@ -76,13 +85,15 @@ namespace oblo::vk
                         .size = sizeof(frustum_culling_config),
                         .data = std::as_bytes(std::span{&config, 1}),
                     },
+                    pass_kind::compute,
                     buffer_usage::uniform),
                 .srcDrawCommands = builder.create_dynamic_buffer(
                     {
                         .size = u32(draw.drawCommands.drawCommands.size()),
                         .data = draw.drawCommands.drawCommands,
                     },
-                    buffer_usage::storage),
+                    pass_kind::compute,
+                    buffer_usage::storage_write),
             };
 
             drawBufferData[outIndex] = {
@@ -90,9 +101,19 @@ namespace oblo::vk
                     {
                         .size = u32(draw.drawCommands.drawCommands.size()),
                     },
-                    buffer_usage::storage),
+                    pass_kind::compute,
+                    buffer_usage::storage_write),
                 .sourceData = draw,
+                .instanceBuffers = instanceBuffers.data(),
             };
+
+            for (u32 bufferIndex = 0; bufferIndex < draw.instanceBuffers.count; ++bufferIndex)
+            {
+                instanceBuffers[bufferIndex] =
+                    builder.create_dynamic_buffer(draw.instanceBuffers.buffersData[bufferIndex],
+                        pass_kind::compute,
+                        buffer_usage::storage_read);
+            }
         }
     }
 
@@ -164,7 +185,10 @@ namespace oblo::vk
                         const auto binding = currentDraw.sourceData.instanceBuffers.bindings[i];
                         const auto name = drawRegistry.get_name(binding);
 
-                        bindingTable.emplace(name, currentDraw.sourceData.instanceBuffers.buffers[i]);
+                        const buffer instanceBuffer = context.access(currentDraw.instanceBuffers[i]);
+                        OBLO_ASSERT(instanceBuffer.buffer);
+
+                        bindingTable.emplace(name, instanceBuffer);
                     }
 
                     pm.dispatch(*pass, round_up_multiple(count, subgroupSize), 1, 1, bindingTables);

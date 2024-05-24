@@ -185,10 +185,6 @@ namespace oblo::vk
         m_drawData = {};
         m_drawDataCount = 0;
 
-        m_meshTablesBuffer = {};
-        m_meshTablesBufferOffset = 0;
-        m_meshTablesBufferSize = 0;
-
         m_storageBuffer.restore_all();
     }
 
@@ -364,28 +360,9 @@ namespace oblo::vk
         return str ? *str : h32<string>{};
     }
 
-    void draw_registry::generate_mesh_database(frame_allocator& allocator, staging_buffer& stagingBuffer)
+    void draw_registry::generate_mesh_database(frame_allocator& allocator)
     {
-        const std::span lookup = m_meshes.create_mesh_table_lookup(allocator);
-
-        if (lookup.empty())
-        {
-            m_meshTablesBuffer = {};
-            m_meshTablesBufferOffset = 0;
-            m_meshTablesBufferSize = 0;
-            return;
-        }
-
-        const auto b = m_storageBuffer.allocate(*m_ctx, u32(lookup.size()));
-
-        m_meshTablesBuffer = b.buffer;
-        m_meshTablesBufferOffset = b.offset;
-        m_meshTablesBufferSize = b.size;
-
-        [[maybe_unused]] const bool success =
-            stagingBuffer.upload(lookup, m_meshTablesBuffer, m_meshTablesBufferOffset);
-
-        OBLO_ASSERT(success);
+        m_meshDatabaseData = m_meshes.create_mesh_table_lookup(allocator);
     }
 
     void draw_registry::generate_draw_calls(frame_allocator& allocator, staging_buffer& stagingBuffer)
@@ -540,12 +517,11 @@ namespace oblo::vk
             // TODO: Don't blindly update all instance buffers every frame
             // Update instance buffers
 
-            // All
             const auto allComponentsCount = componentTypes.size();
 
             draw_instance_buffers instanceBuffers{
                 .bindings = allocate_n<h32<vk::draw_buffer>>(allocator, allComponentsCount),
-                .buffers = allocate_n<vk::buffer>(allocator, allComponentsCount),
+                .buffersData = allocate_n<staging_buffer_span>(allocator, allComponentsCount),
                 .count = 0u,
             };
 
@@ -564,7 +540,10 @@ namespace oblo::vk
                 const auto& typeDesc = m_typeRegistry->get_component_type_desc(componentType);
                 const u32 bufferSize = typeDesc.size * numEntities;
 
-                instanceBuffers.buffers[instanceBuffers.count] = m_storageBuffer.allocate(*m_ctx, bufferSize);
+                const expected allocation = stagingBuffer.stage_allocate(bufferSize);
+                OBLO_ASSERT(allocation);
+
+                instanceBuffers.buffersData[instanceBuffers.count] = *allocation;
                 instanceBuffers.bindings[instanceBuffers.count] = h32<draw_buffer>{componentType.value};
 
                 ++instanceBuffers.count;
@@ -590,11 +569,9 @@ namespace oblo::vk
                         const u32 chunkSize = typeDesc.size * numEntitiesInChunk;
                         const u32 dstOffset = typeDesc.size * numProcessedEntities;
 
-                        const auto& instanceBuffer = instanceBuffers.buffers[j];
+                        const auto& instanceBuffer = instanceBuffers.buffersData[j];
 
-                        stagingBuffer.upload({componentArrays[i], chunkSize},
-                            instanceBuffer.buffer,
-                            instanceBuffer.offset + dstOffset);
+                        stagingBuffer.copy_to(instanceBuffer, dstOffset, {componentArrays[i], chunkSize});
 
                         ++j;
                     }
@@ -614,13 +591,9 @@ namespace oblo::vk
         return {m_drawData, m_drawDataCount};
     }
 
-    buffer draw_registry::get_mesh_database_buffer() const
+    std::span<const std::byte> draw_registry::get_mesh_database_data() const
     {
-        return {
-            .buffer = m_meshTablesBuffer,
-            .offset = m_meshTablesBufferOffset,
-            .size = m_meshTablesBufferSize,
-        };
+        return m_meshDatabaseData;
     }
 
     void draw_registry::debug_log(const batch_draw_data& drawData) const
@@ -643,9 +616,12 @@ namespace oblo::vk
         for (u32 i = 0; i < drawData.instanceBuffers.count; ++i)
         {
             const auto binding = drawData.instanceBuffers.bindings[i];
-            const auto buffer = drawData.instanceBuffers.buffers[i];
+            const auto buffer = drawData.instanceBuffers.buffersData[i];
 
-            fmtAppend("{} [id: {}] [size: {}]\n", m_interner->str(get_name(binding)), binding.value, buffer.size);
+            const auto bufferSize = (buffer.segments[0].end - buffer.segments[0].begin) +
+                (buffer.segments[1].end - buffer.segments[1].begin);
+
+            fmtAppend("{} [id: {}] [size: {}]\n", m_interner->str(get_name(binding)), binding.value, bufferSize);
         }
 
         log::debug("{}", stringBuffer);

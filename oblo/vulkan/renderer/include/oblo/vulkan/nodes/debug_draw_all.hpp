@@ -127,6 +127,7 @@ namespace oblo::vk
             {
                 const buffer_binding_table* bindingTables[] = {
                     context.access(inPerViewBindingTable),
+                    // instanceBufferBindings, // TODO
                 };
 
                 const auto& drawRegistry = context.get_draw_registry();
@@ -135,9 +136,9 @@ namespace oblo::vk
 
                 passManager.draw(*pass,
                     context.get_resource_manager(),
-                    drawRegistry,
                     {}, // TODO: Either fix or get rid of this
                     drawRegistry.get_draw_calls(),
+                    {}, // TODO
                     bindingTables);
 
                 passManager.end_render_pass(*pass);

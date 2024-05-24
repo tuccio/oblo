@@ -33,7 +33,8 @@ namespace oblo::vk
                     .size = u32(draw.drawCommands.drawCommands.size()),
                     .data = draw.drawCommands.drawCommands,
                 },
-                buffer_usage::indirect | buffer_usage::transfer_destination);
+                pass_kind::graphics,
+                buffer_usage::indirect); // TODO: This is actually not used
 
             drawBufferData[outIndex] = {
                 .drawCallBuffer = drawCallBuffer,

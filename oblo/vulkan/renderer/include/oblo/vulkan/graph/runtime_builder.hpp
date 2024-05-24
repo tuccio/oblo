@@ -1,6 +1,5 @@
 #pragma once
 
-#include <oblo/core/flags.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 
@@ -20,6 +19,7 @@ namespace oblo::vk
 
     struct buffer;
     struct texture;
+    struct staging_buffer_span;
 
     // TODO: Rename to texture_usage
     enum class resource_usage : u8
@@ -34,12 +34,17 @@ namespace oblo::vk
 
     enum class buffer_usage : u8
     {
-        storage,
+        storage_read,
+        storage_write,
         uniform,
         indirect,
-        transfer_source,
-        transfer_destination,
         enum_max,
+    };
+
+    enum class pass_kind : u8
+    {
+        graphics,
+        compute,
     };
 
     struct transient_texture_initializer
@@ -71,15 +76,25 @@ namespace oblo::vk
         void create(
             resource<texture> texture, const transient_texture_initializer& initializer, resource_usage usage) const;
 
-        void create(
-            resource<buffer> buffer, const transient_buffer_initializer& initializer, flags<buffer_usage> usages) const;
+        void create(resource<buffer> buffer,
+            const transient_buffer_initializer& initializer,
+            pass_kind passKind,
+            buffer_usage usage) const;
+
+        void create(resource<buffer> buffer,
+            const staging_buffer_span& stagedData,
+            pass_kind passKind,
+            buffer_usage usage) const;
 
         void acquire(resource<texture> texture, resource_usage usage) const;
 
-        void acquire(resource<buffer> buffer, flags<buffer_usage> usages) const;
+        void acquire(resource<buffer> buffer, pass_kind passKind, buffer_usage usage) const;
 
-        resource<buffer> create_dynamic_buffer(const transient_buffer_initializer& initializer,
-            flags<buffer_usage> usages) const;
+        resource<buffer> create_dynamic_buffer(
+            const transient_buffer_initializer& initializer, pass_kind passKind, buffer_usage usage) const;
+
+        resource<buffer> create_dynamic_buffer(
+            const staging_buffer_span& stagedData, pass_kind passKind, buffer_usage usage) const;
 
         template <typename T>
         T& access(data<T> data) const

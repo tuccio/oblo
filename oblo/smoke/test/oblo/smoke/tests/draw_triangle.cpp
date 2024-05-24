@@ -99,7 +99,7 @@ namespace oblo::smoke
 
             auto& entities = ctx.get_entity_registry();
 
-            ecs::entity triangles[3]{};
+            ecs::entity triangles[2]{};
 
             for (u32 i = 0; i < std::size(triangles); ++i)
             {
@@ -116,18 +116,17 @@ namespace oblo::smoke
                 triangles[i] = triangleEntity;
             }
 
+            // ctx.request_renderdoc_capture();
+
             co_await ctx.next_frame();
 
+            // TODO: THIS IS MESSING UP FRAME 0!!
             entities.remove<scale_component>(triangles[0]);
             co_await ctx.next_frame();
 
-            entities.remove<position_component>(triangles[1]);
-            co_await ctx.next_frame();
+            // ctx.request_renderdoc_capture();
 
-            entities.remove<rotation_component>(triangles[2]);
-            co_await ctx.next_frame();
-
-            co_await ctx.next_frame();
+            // co_await ctx.next_frame();
         }
     };
 

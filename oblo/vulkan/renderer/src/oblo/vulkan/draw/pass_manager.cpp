@@ -35,7 +35,7 @@ namespace oblo::vk
         constexpr u32 Textures2DBinding{33};
 
         constexpr bool WithShaderCodeOptimizations{false};
-        constexpr bool WithShaderDebugInfo{false};
+        constexpr bool WithShaderDebugInfo{true};
 
         constexpr u8 MaxPipelineStages = u8(pipeline_stages::enum_max);
 
@@ -653,6 +653,7 @@ namespace oblo::vk
             OBLO_ASSERT(buffersCount < MaxWrites);
             OBLO_ASSERT(writesCount < MaxWrites);
             OBLO_ASSERT(buffer.buffer);
+            OBLO_ASSERT(buffer.size > 0);
 
             bufferInfo[buffersCount] = {
                 .buffer = buffer.buffer,
@@ -1372,9 +1373,9 @@ namespace oblo::vk
 
     void pass_manager::draw(const render_pass_context& context,
         const resource_manager& resourceManager,
-        const draw_registry& drawRegistry,
         std::span<const buffer> batchDrawCommands,
         std::span<const batch_draw_data> batchDrawData,
+        std::span<const buffer_binding_table> perDrawBindingTable,
         std::span<const buffer_binding_table* const> bindingTables)
     {
         OBLO_ASSERT(batchDrawCommands.size() == batchDrawData.size());
@@ -1416,20 +1417,10 @@ namespace oblo::vk
                 const VkDescriptorSet descriptorSet = m_impl->create_descriptor_set(descriptorSetLayout,
                     *pipeline,
                     bindingTables,
-                    [&draw, &drawRegistry](h32<string> bindingName)
+                    [perDrawBindingTable, drawIndex](h32<string> binding)
                     {
-                        const auto instanceBuffers = draw.instanceBuffers;
-
-                        for (u32 i = 0; i < instanceBuffers.count; ++i)
-                        {
-                            const auto name = drawRegistry.get_name(instanceBuffers.bindings[i]);
-
-                            if (name == bindingName)
-                            {
-                                return instanceBuffers.buffers[i];
-                            }
-                        }
-                        return buffer{};
+                        auto* const b = perDrawBindingTable[drawIndex].try_find(binding);
+                        return b ? *b : buffer{};
                     });
 
                 vkCmdBindDescriptorSets(context.commandBuffer,
