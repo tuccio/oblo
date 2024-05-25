@@ -112,7 +112,7 @@ namespace oblo
                 break;
 
             case true:
-                new (m_value) T{*other};
+                new (m_buffer) T{*other};
                 break;
             }
         }
@@ -128,7 +128,7 @@ namespace oblo
                 break;
 
             case true:
-                new (m_value) T{std::move(*other)};
+                new (m_buffer) T{std::move(*other)};
                 break;
             }
         }
@@ -136,7 +136,7 @@ namespace oblo
         template <typename U>
         constexpr expected(U&& value) : m_hasValue{true}
         {
-            new (m_value) T{std::forward<U>(value)};
+            new (m_buffer) T{std::forward<U>(value)};
         }
 
         constexpr expected(E error) : m_hasValue{false}, m_error{error} {}
@@ -167,25 +167,25 @@ namespace oblo
         constexpr const T* operator->() const noexcept
         {
             OBLO_ASSERT(has_value());
-            return reinterpret_cast<const T*>(m_value);
+            return reinterpret_cast<const T*>(m_buffer);
         }
 
         constexpr T* operator->() noexcept
         {
             OBLO_ASSERT(has_value());
-            return reinterpret_cast<T*>(m_value);
+            return reinterpret_cast<T*>(m_buffer);
         }
 
         constexpr const T& operator*() const noexcept
         {
             OBLO_ASSERT(has_value());
-            return *reinterpret_cast<const T*>(m_value);
+            return *reinterpret_cast<const T*>(m_buffer);
         }
 
         constexpr T& operator*() noexcept
         {
             OBLO_ASSERT(has_value());
-            return *reinterpret_cast<T*>(m_value);
+            return *reinterpret_cast<T*>(m_buffer);
         }
 
         constexpr bool has_value() const noexcept
@@ -217,13 +217,13 @@ namespace oblo
         template <typename U>
         constexpr T value_or(U&& fallback) const noexcept
         {
-            return m_hasValue ? *reinterpret_cast<T*>(m_value) : std::forward<U>(fallback);
+            return m_hasValue ? *reinterpret_cast<T*>(m_buffer) : std::forward<U>(fallback);
         }
 
     private:
         bool m_hasValue;
         union {
-            alignas(T) char m_value[sizeof(T)];
+            alignas(T) char m_buffer[sizeof(T)];
             E m_error;
         };
     };

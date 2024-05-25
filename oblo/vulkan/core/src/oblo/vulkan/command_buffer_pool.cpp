@@ -149,7 +149,7 @@ namespace oblo::vk
 
     void command_buffer_pool::reset_pool()
     {
-        OBLO_ASSERT(m_commandBuffers.available_count() == m_commandBuffers.size());
+        OBLO_ASSERT(m_commandBuffers.available_count() == m_commandBuffers.capacity());
         OBLO_VK_PANIC(vkResetCommandPool(m_device, m_commandPool, 0u));
     }
 
@@ -177,7 +177,7 @@ namespace oblo::vk
 
     void command_buffer_pool::allocate_buffers(std::size_t count)
     {
-        OBLO_ASSERT(m_commandBuffers.size() == 0);
+        OBLO_ASSERT(m_commandBuffers.capacity() == 0);
 
         m_commandBuffers.grow(count);
 

@@ -1,8 +1,9 @@
 #pragma once
 
-#include <concepts>
-#include <cstddef>
+#include <type_traits>
+
 #include <oblo/core/debug.hpp>
+#include <oblo/core/types.hpp>
 
 namespace oblo
 {
@@ -25,15 +26,15 @@ namespace oblo
         ring_buffer(ring_buffer&& other) noexcept
         {
             std::swap(m_buffer, other.m_buffer);
-            std::swap(m_size, other.m_size);
+            std::swap(m_capacity, other.m_capacity);
             std::swap(m_firstUnused, other.m_firstUnused);
             std::swap(m_usedCount, other.m_usedCount);
         }
 
-        explicit ring_buffer(std::size_t size)
+        explicit ring_buffer(usize size)
         {
             m_buffer = new T[size];
-            m_size = size;
+            m_capacity = size;
         }
 
         ring_buffer& operator=(const ring_buffer&) = delete;
@@ -41,7 +42,7 @@ namespace oblo
         ring_buffer& operator=(ring_buffer&& other) noexcept
         {
             std::swap(m_buffer, other.m_buffer);
-            std::swap(m_size, other.m_size);
+            std::swap(m_capacity, other.m_capacity);
             std::swap(m_firstUnused, other.m_firstUnused);
             std::swap(m_usedCount, other.m_usedCount);
             return *this;
@@ -62,15 +63,15 @@ namespace oblo
             delete[] m_buffer;
 
             m_buffer = nullptr;
-            m_size = 0u;
+            m_capacity = 0u;
             m_firstUnused = 0u;
             m_usedCount = 0u;
         }
 
-        void grow(std::size_t newSize)
+        void grow(usize newSize)
             requires std::is_nothrow_move_assignable_v<T>
         {
-            if (newSize == m_size)
+            if (newSize == m_capacity)
             {
                 return;
             }
@@ -78,9 +79,9 @@ namespace oblo
             auto* const newBuffer = new T[newSize];
             auto* outIt = newBuffer;
 
-            for (std::size_t i = 0; i < m_size; ++i)
+            for (usize i = 0; i < m_capacity; ++i)
             {
-                const auto oldestIndex = (m_firstUnused + i) % m_size;
+                const auto oldestIndex = (m_firstUnused + i) % m_capacity;
                 *outIt = std::move(m_buffer[oldestIndex]);
                 ++outIt;
             }
@@ -88,19 +89,19 @@ namespace oblo
             delete[] m_buffer;
             m_buffer = newBuffer;
             m_firstUnused = m_usedCount;
-            m_size = newSize;
+            m_capacity = newSize;
         }
 
-        bool has_available(std::size_t count)
+        bool has_available(usize count)
         {
-            return count <= m_size - m_usedCount;
+            return count <= m_capacity - m_usedCount;
         }
 
-        segmented_span fetch(std::size_t count)
+        segmented_span fetch(usize count)
         {
             OBLO_ASSERT(has_available(count));
 
-            const auto availableFirstSegment = m_size - m_firstUnused;
+            const auto availableFirstSegment = m_capacity - m_firstUnused;
 
             segmented_span result{};
 
@@ -108,7 +109,7 @@ namespace oblo
             {
                 result.firstSegmentBegin = m_buffer + m_firstUnused;
                 result.firstSegmentEnd = result.firstSegmentBegin + count;
-                m_firstUnused = (m_firstUnused + count) % m_size;
+                m_firstUnused = (m_firstUnused + count) % m_capacity;
             }
             else
             {
@@ -130,25 +131,25 @@ namespace oblo
             return used_segments(m_usedCount);
         }
 
-        segmented_span used_segments(std::size_t maxCount)
+        segmented_span used_segments(usize maxCount)
         {
             OBLO_ASSERT(maxCount <= m_usedCount);
             segmented_span result{};
 
             const auto available = available_count();
-            const auto firstUnused = (m_firstUnused + available) % m_size;
+            const auto firstUnused = (m_firstUnused + available) % m_capacity;
             const auto lastUnused = firstUnused + maxCount;
 
-            if (lastUnused < m_size)
+            if (lastUnused < m_capacity)
             {
                 result.firstSegmentBegin = m_buffer + firstUnused;
                 result.firstSegmentEnd = m_buffer + lastUnused;
             }
             else
             {
-                const auto lastUnusedSecondSegmentLength = lastUnused % m_size;
+                const auto lastUnusedSecondSegmentLength = lastUnused % m_capacity;
                 result.firstSegmentBegin = m_buffer + firstUnused;
-                result.firstSegmentEnd = m_buffer + m_size;
+                result.firstSegmentEnd = m_buffer + m_capacity;
                 result.secondSegmentBegin = m_buffer;
                 result.secondSegmentEnd = m_buffer + lastUnusedSecondSegmentLength;
             }
@@ -159,35 +160,35 @@ namespace oblo
         T* first_used()
         {
             OBLO_ASSERT(m_usedCount > 0);
-            const auto firstUnused = (m_firstUnused + available_count()) % m_size;
+            const auto firstUnused = (m_firstUnused + available_count()) % m_capacity;
             return m_buffer + firstUnused;
         }
 
-        void release(std::size_t count)
+        void release(usize count)
         {
             OBLO_ASSERT(count <= m_usedCount);
             m_usedCount -= count;
         }
 
-        std::size_t size() const
+        usize capacity() const
         {
-            return m_size;
+            return m_capacity;
         }
 
-        std::size_t used_count() const
+        usize used_count() const
         {
             return m_usedCount;
         }
 
-        std::size_t available_count() const
+        usize available_count() const
         {
-            return m_size - m_usedCount;
+            return m_capacity - m_usedCount;
         }
 
     private:
         T* m_buffer{nullptr};
-        std::size_t m_size{0u};
-        std::size_t m_firstUnused{0u};
-        std::size_t m_usedCount{0u};
+        usize m_capacity{0u};
+        usize m_firstUnused{0u};
+        usize m_usedCount{0u};
     };
 }
