@@ -81,6 +81,8 @@ namespace oblo::vk
 
         resource_pool m_graphResourcePool;
         h32_flat_pool_dense_map<render_graph, wrapped_render_graph> m_renderGraphs;
+
+        bool m_firstUpdate{};
     };
 
     struct renderer::initializer

@@ -81,7 +81,7 @@ namespace oblo::smoke
 
     OBLO_SMOKE_TEST(draw_triangle)
 
-    class crash_repro final : public test
+    class draw_and_remove final : public test
     {
     public:
         test_task run(const test_context& ctx) override
@@ -116,19 +116,14 @@ namespace oblo::smoke
                 triangles[i] = triangleEntity;
             }
 
-            // ctx.request_renderdoc_capture();
-
             co_await ctx.next_frame();
 
-            // TODO: THIS IS MESSING UP FRAME 0!!
-            entities.remove<scale_component>(triangles[0]);
+            // TODO: (#30) Removing this should remove the mesh from rendering, but it does not currently
+            entities.remove<static_mesh_component>(triangles[0]);
+
             co_await ctx.next_frame();
-
-            // ctx.request_renderdoc_capture();
-
-            // co_await ctx.next_frame();
         }
     };
 
-    OBLO_SMOKE_TEST(crash_repro)
+    OBLO_SMOKE_TEST(draw_and_remove)
 }

@@ -143,7 +143,7 @@ namespace oblo::vk
         }));
 
         staging_buffer staging;
-        ASSERT_TRUE(staging.init(sandbox.engine, allocator, 1u << 30));
+        ASSERT_TRUE(staging.init(allocator, 1u << 30));
 
         std::vector<u32> cpuData;
         std::vector<u32> downloadedData;
@@ -160,20 +160,31 @@ namespace oblo::vk
 
         const auto submitAndCheckEquality = [&]
         {
+            ctx.frame_begin(nullptr);
+
             downloadedData.assign(cpuData.size(), 0xdeadbeef);
+
+            auto bytes = std::as_writable_bytes(std::span{downloadedData});
 
             const auto vkBuffer = buffer.get_buffer();
 
-            const auto result =
-                staging.download(vkBuffer.buffer, vkBuffer.offset, std::as_writable_bytes(std::span{downloadedData}));
+            const auto result = staging.stage_allocate(u32(bytes.size()));
 
             if (!result)
             {
                 return false;
             }
 
-            staging.flush();
-            staging.wait_all();
+            staging.begin_frame(1);
+            staging.download(ctx.get_active_command_buffer().get(), vkBuffer.buffer, vkBuffer.offset, *result);
+            staging.end_frame();
+
+            ctx.submit_active_command_buffer();
+            ctx.frame_end();
+
+            vkDeviceWaitIdle(ctx.get_device());
+
+            staging.copy_from(bytes, *result, 0);
 
             return downloadedData == cpuData;
         };
@@ -181,7 +192,7 @@ namespace oblo::vk
         for (u32 i = 0; i < 10; ++i)
         {
             {
-                ctx.frame_begin();
+                ctx.frame_begin(nullptr);
 
                 const u32 newSize = 1u << (i + 1);
 
@@ -200,8 +211,20 @@ namespace oblo::vk
 
                 const auto vkBuffer = buffer.get_buffer();
 
-                ASSERT_TRUE(staging.upload(std::as_bytes(std::span{cpuData}), vkBuffer.buffer, vkBuffer.offset));
-                staging.flush();
+                const auto staged = staging.stage(std::as_bytes(std::span{cpuData}));
+                ASSERT_TRUE(staged);
+
+                ctx.frame_begin(nullptr);
+
+                staging.begin_frame(2);
+                staging.upload(ctx.get_active_command_buffer().get(), *staged, vkBuffer.buffer, vkBuffer.offset);
+                staging.end_frame();
+
+                ctx.submit_active_command_buffer();
+
+                ctx.frame_end();
+
+                vkDeviceWaitIdle(ctx.get_device());
             }
 
             ASSERT_TRUE(submitAndCheckEquality());

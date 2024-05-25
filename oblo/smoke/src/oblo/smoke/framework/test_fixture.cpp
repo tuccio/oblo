@@ -12,6 +12,7 @@
 #include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/reflection/reflection_module.hpp>
+#include <oblo/renderdoc/renderdoc_module.hpp>
 #include <oblo/resource/registration.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/runtime/runtime.hpp>
@@ -216,8 +217,7 @@ namespace oblo::smoke
             bool isRenderDocFirstUsage{true};
             bool isRenderDocCapturing{};
 
-            RENDERDOC_API_1_1_2* renderdocApi{};
-            platform::shared_library renderdoc;
+            renderdoc_module::api* renderdocApi{};
 
             void handle_renderdoc_captures()
             {
@@ -230,22 +230,11 @@ namespace oblo::smoke
                 {
                     if (isRenderDocFirstUsage)
                     {
-                        if (auto path = platform::search_program_files("./RenderDoc/renderdoc.dll"))
+                        auto* const renderdoc = module_manager::get().load<renderdoc_module>();
+
+                        if (renderdoc)
                         {
-                            renderdoc.open(*path);
-
-                            const auto RENDERDOC_GetAPI =
-                                static_cast<pRENDERDOC_GetAPI>(renderdoc.symbol("RENDERDOC_GetAPI"));
-                            const auto ret =
-                                RENDERDOC_GetAPI(eRENDERDOC_API_Version_1_1_2, reinterpret_cast<void**>(&renderdocApi));
-
-                            if (ret != 1)
-                            {
-                                log::error("Unable to load renderdoc.dll");
-
-                                renderdoc.close();
-                                renderdocApi = {};
-                            }
+                            renderdocApi = renderdoc->get_api();
                         }
                     }
 

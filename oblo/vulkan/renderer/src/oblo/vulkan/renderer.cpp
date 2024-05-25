@@ -32,6 +32,11 @@ namespace oblo::vk
             return false;
         }
 
+        if (!m_textureRegistry.init(*m_vkContext, m_stagingBuffer))
+        {
+            return false;
+        }
+
         m_dummy = m_vkContext->get_resource_manager().create(get_allocator(),
             {
                 .size = 16u,
@@ -45,9 +50,9 @@ namespace oblo::vk
         const std::filesystem::path includePaths[] = {"./vulkan/shaders/"};
         m_passManager.set_system_include_paths(includePaths);
 
-        m_textureRegistry.init(*m_vkContext, m_stagingBuffer);
-
         m_drawRegistry.init(*m_vkContext, m_stagingBuffer, m_stringInterner, initializer.entities);
+
+        m_firstUpdate = true;
 
         return true;
     }
@@ -77,6 +82,12 @@ namespace oblo::vk
         m_stagingBuffer.notify_finished_frames(m_vkContext->get_last_finished_submit());
 
         m_stagingBuffer.begin_frame(m_vkContext->get_submit_index());
+
+        if (m_firstUpdate)
+        {
+            m_textureRegistry.on_first_frame();
+            m_firstUpdate = false;
+        }
 
         m_drawRegistry.flush_uploads(commandBuffer.get());
         m_textureRegistry.flush_uploads(commandBuffer.get());

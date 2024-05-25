@@ -12,6 +12,25 @@ namespace oblo::vk
     namespace
     {
         constexpr u32 InvalidTimelineId{0u};
+
+        staging_buffer_span make_subspan(const staging_buffer_span& destination, u32 offset)
+        {
+            staging_buffer_span subspan = destination;
+            subspan.segments[0].begin += offset;
+
+            if (subspan.segments[0].begin > subspan.segments[0].end)
+            {
+                subspan.segments[0].begin = subspan.segments[0].end;
+                subspan.segments[1].begin += subspan.segments[0].end - subspan.segments[0].begin;
+
+                if (subspan.segments[1].begin > subspan.segments[1].end)
+                {
+                    subspan.segments[1].begin = subspan.segments[1].end;
+                }
+            }
+
+            return subspan;
+        }
     }
 
     staging_buffer::staging_buffer() = default;
@@ -76,12 +95,27 @@ namespace oblo::vk
 
     void staging_buffer::begin_frame(u64 frameIndex)
     {
+        OBLO_ASSERT(frameIndex != InvalidTimelineId);
+        OBLO_ASSERT(m_impl.nextTimelineId == InvalidTimelineId);
+        OBLO_ASSERT(m_impl.transferredBytes == 0);
+
         m_impl.nextTimelineId = frameIndex;
     }
 
     void staging_buffer::end_frame()
     {
+        OBLO_ASSERT(m_impl.nextTimelineId != InvalidTimelineId);
+
+        // TODO: Maybe some debug check to see segments that have been staged but not uploaded could be useful
+        if (m_impl.pendingBytes != 0)
+        {
+            m_impl.submittedUploads.push_back({.timelineId = m_impl.nextTimelineId, .size = m_impl.pendingBytes});
+        }
+
         m_impl.pendingBytes = 0;
+        m_impl.transferredBytes = 0;
+
+        m_impl.nextTimelineId = InvalidTimelineId;
     }
 
     void staging_buffer::notify_finished_frames(u64 lastFinishedFrame)
@@ -192,22 +226,11 @@ namespace oblo::vk
     void staging_buffer::copy_to(staging_buffer_span destination, u32 offset, std::span<const std::byte> source)
     {
         // Create a subspan out of the destination
-        staging_buffer_span subspan = destination;
-        subspan.segments[0].begin += offset;
-
-        if (subspan.segments[0].begin > subspan.segments[0].end)
-        {
-            subspan.segments[0].begin = subspan.segments[0].end;
-            subspan.segments[1].begin += subspan.segments[0].end - subspan.segments[0].begin;
-
-            if (subspan.segments[1].begin > subspan.segments[1].end)
-            {
-                subspan.segments[1].begin = subspan.segments[1].end;
-            }
-        }
+        const staging_buffer_span subspan = make_subspan(destination, offset);
 
         // Finally try to copy
         u32 remaining = u32(source.size());
+        auto* sourcePtr = source.data();
 
         for (u32 segmentIndex = 0; segmentIndex < 2 && remaining > 0; ++segmentIndex)
         {
@@ -218,8 +241,36 @@ namespace oblo::vk
             if (segmentSize > 0)
             {
                 const auto segmentCopySize = min(segmentSize, remaining);
-                std::memcpy(m_impl.memoryMap + segment.begin, source.data(), segmentCopySize);
+                std::memcpy(m_impl.memoryMap + segment.begin, sourcePtr, segmentCopySize);
                 remaining -= segmentCopySize;
+                sourcePtr += segmentCopySize;
+            }
+        }
+
+        OBLO_ASSERT(remaining == 0);
+    }
+
+    void staging_buffer::copy_from(std::span<std::byte> dst, staging_buffer_span source, u32 offset)
+    {
+        // Create a subspan out of the destination
+        const staging_buffer_span subspan = make_subspan(source, offset);
+
+        // Finally try to copy
+        u32 remaining = u32(dst.size());
+        auto* dstPtr = dst.data();
+
+        for (u32 segmentIndex = 0; segmentIndex < 2 && remaining > 0; ++segmentIndex)
+        {
+            const auto& segment = subspan.segments[segmentIndex];
+
+            const auto segmentSize = segment.end - segment.begin;
+
+            if (segmentSize > 0)
+            {
+                const auto segmentCopySize = min(segmentSize, remaining);
+                std::memcpy(dstPtr, m_impl.memoryMap + segment.begin, segmentCopySize);
+                remaining -= segmentCopySize;
+                dstPtr += segmentCopySize;
             }
         }
 
@@ -227,8 +278,11 @@ namespace oblo::vk
     }
 
     void staging_buffer::upload(
-        VkCommandBuffer commandBuffer, staging_buffer_span source, VkBuffer buffer, u32 bufferOffset) const
+        VkCommandBuffer commandBuffer, staging_buffer_span source, VkBuffer buffer, u32 bufferOffset)
     {
+        OBLO_ASSERT(m_impl.nextTimelineId != InvalidTimelineId);
+
+        OBLO_ASSERT(calculate_size(source) > 0);
         VkBufferCopy copyRegions[2];
         u32 regionsCount{0u};
 
@@ -248,6 +302,8 @@ namespace oblo::vk
 
                 segmentOffset += segmentSize;
                 ++regionsCount;
+
+                m_impl.transferredBytes += segmentSize;
             }
         }
 
@@ -266,6 +322,8 @@ namespace oblo::vk
         VkOffset3D imageOffset,
         VkExtent3D imageExtent)
     {
+        OBLO_ASSERT(m_impl.nextTimelineId != InvalidTimelineId);
+
         OBLO_ASSERT(calculate_size(source) > 0)
         OBLO_ASSERT(source.segments[1].begin == source.segments[1].end, "Images need contiguous memory");
 
@@ -314,6 +372,41 @@ namespace oblo::vk
                 format,
                 pipelineRange);
         }
+
+        m_impl.transferredBytes += calculate_size(source);
+    }
+
+    void staging_buffer::download(
+        VkCommandBuffer commandBuffer, VkBuffer buffer, u32 bufferOffset, staging_buffer_span source)
+    {
+        OBLO_ASSERT(m_impl.nextTimelineId != InvalidTimelineId);
+        OBLO_ASSERT(calculate_size(source) > 0);
+
+        VkBufferCopy copyRegions[2];
+        u32 regionsCount{0u};
+
+        u32 segmentOffset{0u};
+
+        for (const auto& segment : source.segments)
+        {
+            if (segment.begin != segment.end)
+            {
+                const auto segmentSize = segment.end - segment.begin;
+
+                copyRegions[regionsCount] = {
+                    .srcOffset = bufferOffset + segmentOffset,
+                    .dstOffset = segment.begin,
+                    .size = segmentSize,
+                };
+
+                segmentOffset += segmentSize;
+                ++regionsCount;
+
+                m_impl.transferredBytes += segmentSize;
+            }
+        }
+
+        vkCmdCopyBuffer(commandBuffer, buffer, m_impl.buffer, regionsCount, copyRegions);
     }
 
     void staging_buffer::free_submissions(u64 timelineId)
@@ -327,6 +420,7 @@ namespace oblo::vk
                 return;
             }
 
+            m_impl.ring.release(first.size);
             m_impl.submittedUploads.pop_front();
         }
     }

@@ -327,7 +327,7 @@ namespace oblo::vk
         m_pendingCopies.clear();
     }
 
-    void render_graph::flush_uploads(VkCommandBuffer commandBuffer, const staging_buffer& stagingBuffer)
+    void render_graph::flush_uploads(VkCommandBuffer commandBuffer, staging_buffer& stagingBuffer)
     {
         OBLO_ASSERT(!m_pendingUploads.empty());
 

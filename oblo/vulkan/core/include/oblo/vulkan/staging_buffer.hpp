@@ -42,9 +42,10 @@ namespace oblo::vk
 
         expected<staging_buffer_span> stage_image(std::span<const std::byte> source, VkFormat format);
 
-        void copy_to(staging_buffer_span destination, u32 offset, std::span<const std::byte> source);
+        void copy_to(staging_buffer_span destination, u32 destinationOffset, std::span<const std::byte> source);
+        void copy_from(std::span<std::byte> destination, staging_buffer_span source, u32 sourceOffset);
 
-        void upload(VkCommandBuffer commandBuffer, staging_buffer_span source, VkBuffer buffer, u32 bufferOffset) const;
+        void upload(VkCommandBuffer commandBuffer, staging_buffer_span source, VkBuffer buffer, u32 bufferOffset);
 
         void upload(VkCommandBuffer commandBuffer,
             staging_buffer_span source,
@@ -57,6 +58,8 @@ namespace oblo::vk
             VkImageSubresourceLayers subresource,
             VkOffset3D imageOffset,
             VkExtent3D imageExtent);
+
+        void download(VkCommandBuffer commandBuffer, VkBuffer buffer, u32 bufferOffset, staging_buffer_span source);
 
     private:
         void free_submissions(u64 timelineId);
@@ -73,6 +76,7 @@ namespace oblo::vk
             gpu_allocator* allocator;
             ring_buffer_tracker<u32> ring;
             u32 pendingBytes;
+            u32 transferredBytes;
             VkBuffer buffer;
             VmaAllocation allocation;
             std::byte* memoryMap;
