@@ -74,6 +74,10 @@ namespace oblo::vk
     {
         auto& commandBuffer = m_vkContext->get_active_command_buffer();
 
+        m_stagingBuffer.notify_finished_frames(m_vkContext->get_last_finished_submit());
+
+        m_stagingBuffer.begin_frame(m_vkContext->get_submit_index());
+
         m_drawRegistry.flush_uploads(commandBuffer.get());
         m_textureRegistry.flush_uploads(commandBuffer.get());
 
@@ -93,8 +97,6 @@ namespace oblo::vk
 
         m_graphResourcePool.end_build(*m_vkContext);
 
-        m_stagingBuffer.flush();
-
         for (auto& graphData : m_renderGraphs.values())
         {
             graphData.execute(*this, m_graphResourcePool);
@@ -102,6 +104,7 @@ namespace oblo::vk
 
         m_passManager.end_frame();
         m_drawRegistry.end_frame();
+        m_stagingBuffer.end_frame();
     }
 
     single_queue_engine& renderer::get_engine()

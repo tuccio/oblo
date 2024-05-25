@@ -268,9 +268,6 @@ namespace oblo::vk
                 vkCmdPipelineBarrier2(commandBuffer.get(), &dependencyInfo);
             }
 
-            OBLO_ASSERT(!renderer.get_staging_buffer().has_pending_uploads(),
-                "Staging buffer should have been flushed, uploading now probably is a mistake");
-
             if (node.execute)
             {
                 node.execute(ptr, runtime);
