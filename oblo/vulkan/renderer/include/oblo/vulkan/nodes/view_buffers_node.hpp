@@ -58,7 +58,7 @@ namespace oblo::vk
 
         void execute(const runtime_context& context)
         {
-            // TODO: Find a better place for this stuff, maybe consider per frame descriptor sets
+            // TODO (#31): Find a better place for these buffers
             auto* const perViewTable = context.access(outPerViewBindingTable);
             const buffer cameraBuffer = context.access(outCameraBuffer);
             const buffer meshDatabaseBuffer = context.access(outMeshDatabase);
@@ -80,14 +80,6 @@ namespace oblo::vk
             {
                 perViewTable->emplace(meshTablesName, meshDatabaseBuffer);
             }
-
-            // context.add_transient_buffer("b_CameraBuffer", outCameraBuffer);
-            // context.add_transient_buffer("b_TimeBuffer", timeBuffer, buffer_usage::transfer_destination);
-
-            // if (meshDbBuffer.buffer)
-            //{
-            //     context.add_transient_buffer("b_MeshTables", meshDbBuffer, buffer_usage::transfer_destination);
-            // }
         }
     };
 }
