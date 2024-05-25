@@ -34,8 +34,14 @@ namespace oblo::editor
 {
     namespace
     {
+        VkPhysicalDeviceSynchronization2Features SynchronizationFeatures{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES,
+            .synchronization2 = true,
+        };
+
         VkPhysicalDeviceDescriptorIndexingFeatures IndexingFeatures{
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES,
+            .pNext = &SynchronizationFeatures,
             .descriptorBindingSampledImageUpdateAfterBind = true,
             .descriptorBindingPartiallyBound = true,
             .descriptorBindingVariableDescriptorCount = true,

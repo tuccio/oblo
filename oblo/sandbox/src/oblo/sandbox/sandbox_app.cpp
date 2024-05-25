@@ -290,7 +290,7 @@ namespace oblo::vk
 
                 // OBLO_VK_PANIC(vkQueueSubmit(m_engine.get_queue(), 1, &submitInfo, nullptr));
 
-                //vkDeviceWaitIdle(m_engine.get_device());
+                // vkDeviceWaitIdle(m_engine.get_device());
 
                 break;
             }
@@ -563,7 +563,7 @@ namespace oblo::vk
 
     bool sandbox_base::init_imgui()
     {
-        m_context.frame_begin(nullptr);
+        m_context.frame_begin(m_acquiredImage);
 
         auto& commandBuffer = m_context.get_active_command_buffer();
 

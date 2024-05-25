@@ -22,7 +22,7 @@ namespace oblo::vk
     {
         m_vkContext = &initializer.vkContext;
 
-        if (!m_stagingBuffer.init(get_engine(), get_allocator(), 1u << 29))
+        if (!m_stagingBuffer.init(get_allocator(), 1u << 29))
         {
             return false;
         }

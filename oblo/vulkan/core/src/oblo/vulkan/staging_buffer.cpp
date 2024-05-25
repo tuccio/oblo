@@ -1,13 +1,11 @@
 #include <oblo/vulkan/staging_buffer.hpp>
 
-#include <oblo/core/array_size.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/ring_buffer_tracker.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/pipeline_barrier.hpp>
-#include <oblo/vulkan/single_queue_engine.hpp>
 
 namespace oblo::vk
 {
@@ -23,7 +21,7 @@ namespace oblo::vk
         shutdown();
     }
 
-    bool staging_buffer::init(const single_queue_engine& engine, gpu_allocator& allocator, u32 size)
+    bool staging_buffer::init(gpu_allocator& allocator, u32 size)
     {
         OBLO_ASSERT(!m_impl.buffer, "This instance has to be shutdown explicitly");
         OBLO_ASSERT(size > 0);
@@ -43,13 +41,6 @@ namespace oblo::vk
             return false;
         }
 
-        const VkDevice device = engine.get_device();
-        const VkQueue queue = engine.get_queue();
-        const u32 queueFamilyIndex = engine.get_queue_family_index();
-
-        m_impl.device = device;
-        m_impl.queue = queue;
-        m_impl.queueFamilyIndex = queueFamilyIndex;
         m_impl.allocator = &allocator;
         m_impl.ring.reset(size);
         m_impl.buffer = allocatedBuffer.buffer;
