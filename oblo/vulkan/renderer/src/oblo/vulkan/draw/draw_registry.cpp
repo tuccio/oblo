@@ -4,6 +4,7 @@
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/data_format.hpp>
 #include <oblo/core/flags.hpp>
+#include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/log.hpp>
 #include <oblo/core/zip_range.hpp>
 #include <oblo/ecs/archetype_storage.hpp>
@@ -70,6 +71,12 @@ namespace oblo::vk
             mesh_handle mesh;
         };
     }
+
+    struct draw_registry::pending_mesh_upload
+    {
+        staging_buffer_span src;
+        buffer dst;
+    };
 
     draw_registry::draw_registry() = default;
 
@@ -269,10 +276,13 @@ namespace oblo::vk
 
         const auto doUpload = [this](const std::span<const std::byte> data, const buffer& b)
         {
-            [[maybe_unused]] const auto result = m_stagingBuffer->upload(data, b.buffer, b.offset);
+            // Do we need info on pipeline barriers?
+            [[maybe_unused]] const auto result = m_stagingBuffer->stage(data);
 
             OBLO_ASSERT(result,
                 "We need to flush uploads every now and then instead, or let staging buffer take care of it");
+
+            m_pendingMeshUploads.emplace_back(*result, b);
         };
 
         if (indexBuffer.buffer)
@@ -358,6 +368,51 @@ namespace oblo::vk
         // We use the component type as draw buffer id, so we just reinterpret it here
         auto* const str = m_instanceDataTypeNames.try_find({.value = drawBuffer.value});
         return str ? *str : h32<string>{};
+    }
+
+    void draw_registry::flush_uploads(VkCommandBuffer commandBuffer)
+    {
+        if (!m_pendingMeshUploads.empty())
+        {
+            const VkMemoryBarrier2 before{
+                .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+                .srcStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                .srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT,
+                .dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                .dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+            };
+
+            const VkDependencyInfo beforeDependencyInfo{
+                .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                .memoryBarrierCount = 1u,
+                .pMemoryBarriers = &before,
+            };
+
+            vkCmdPipelineBarrier2(commandBuffer, &beforeDependencyInfo);
+
+            for (const auto& upload : m_pendingMeshUploads)
+            {
+                m_stagingBuffer->upload(commandBuffer, upload.src, upload.dst.buffer, upload.dst.offset);
+            }
+
+            const VkMemoryBarrier2 after{
+                .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+                .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                .dstStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                .dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT,
+            };
+
+            const VkDependencyInfo afterDependencyInfo{
+                .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                .memoryBarrierCount = 1u,
+                .pMemoryBarriers = &after,
+            };
+
+            vkCmdPipelineBarrier2(commandBuffer, &afterDependencyInfo);
+
+            m_pendingMeshUploads.clear();
+        }
     }
 
     void draw_registry::generate_mesh_database(frame_allocator& allocator)

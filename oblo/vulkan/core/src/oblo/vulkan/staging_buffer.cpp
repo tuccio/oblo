@@ -202,102 +202,6 @@ namespace oblo::vk
         return true;
     }
 
-    bool staging_buffer::upload(std::span<const std::byte> source,
-        VkImage image,
-        VkFormat format,
-        VkImageLayout initialImageLayout,
-        VkImageLayout finalImageLayout,
-        u32 width,
-        u32 height,
-        VkImageSubresourceLayers subresource,
-        VkOffset3D imageOffset,
-        VkExtent3D imageExtent)
-    {
-        auto* const srcPtr = source.data();
-        const auto srcSize = narrow_cast<u32>(source.size());
-
-        const auto available = m_impl.ring.available_count();
-
-        if (available < srcSize)
-        {
-            return false;
-        }
-
-        constexpr u32 maxTexelSize = sizeof(f32) * 4;
-
-        // Segments here should be aligned with the texel size, probably we should also be mindful of not splitting a
-        // texel in 2 different segments
-        const auto segmentedSpan = m_impl.ring.try_fetch_contiguous_aligned(srcSize, maxTexelSize);
-
-        if (segmentedSpan.segments[0].begin == segmentedSpan.segments[0].end)
-        {
-            OBLO_ASSERT(false, "Failed to allocate space to upload");
-            return false;
-        }
-
-        if (auto& secondSegment = segmentedSpan.segments[1]; secondSegment.begin != secondSegment.end)
-        {
-            // TODO: Rather than failing, try to extend it
-            OBLO_ASSERT(false,
-                "We don't split the image upload, we could at least make sure we have enough space for it");
-            return false;
-        }
-
-        const auto segment = segmentedSpan.segments[0];
-        std::memcpy(m_impl.memoryMap + segment.begin, srcPtr, srcSize);
-
-        const VkBufferImageCopy copyRegion{
-            .bufferOffset = segment.begin,
-            .bufferRowLength = width,
-            .bufferImageHeight = height,
-            .imageSubresource = subresource,
-            .imageOffset = imageOffset,
-            .imageExtent = imageExtent,
-        };
-
-        const auto nextSubmitIndex = get_next_submit_index();
-        const auto commandBuffer = m_impl.commandBuffers[nextSubmitIndex];
-
-        const VkImageSubresourceRange pipelineRange{
-            .aspectMask = subresource.aspectMask,
-            .baseMipLevel = subresource.mipLevel,
-            .levelCount = 1,
-            .baseArrayLayer = subresource.baseArrayLayer,
-            .layerCount = 1,
-        };
-
-        if (initialImageLayout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-        {
-            add_pipeline_barrier_cmd(commandBuffer,
-                initialImageLayout,
-                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                image,
-                format,
-                pipelineRange);
-        }
-
-        vkCmdCopyBufferToImage(commandBuffer,
-            m_impl.buffer,
-            image,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            1,
-            &copyRegion);
-
-        m_impl.pendingBytes += srcSize;
-
-        if (finalImageLayout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-        {
-            add_pipeline_barrier_cmd(commandBuffer,
-                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                finalImageLayout,
-                image,
-                format,
-                pipelineRange);
-        }
-
-        return true;
-    }
-
     bool staging_buffer::download(VkBuffer buffer, u32 bufferOffset, std::span<std::byte> destination)
     {
         const auto dstSize = narrow_cast<u32>(destination.size());
@@ -411,6 +315,47 @@ namespace oblo::vk
         return staging_buffer_span{segmentedSpan};
     }
 
+    expected<staging_buffer_span> staging_buffer::stage_image(std::span<const std::byte> source, VkFormat format)
+    {
+        auto* const srcPtr = source.data();
+        const auto srcSize = narrow_cast<u32>(source.size());
+
+        const auto available = m_impl.ring.available_count();
+
+        if (available < srcSize)
+        {
+            return unspecified_error{};
+        }
+
+        (void) format; // TODO: Use the format to determine the alignment instead
+        constexpr u32 maxTexelSize = sizeof(f32) * 4;
+
+        // Segments here should be aligned with the texel size, probably we should also be mindful of not splitting a
+        // texel in 2 different segments
+        const auto segmentedSpan = m_impl.ring.try_fetch_contiguous_aligned(srcSize, maxTexelSize);
+
+        if (segmentedSpan.segments[0].begin == segmentedSpan.segments[0].end)
+        {
+            OBLO_ASSERT(false, "Failed to allocate space to upload");
+            return unspecified_error{};
+        }
+
+        if (auto& secondSegment = segmentedSpan.segments[1]; secondSegment.begin != secondSegment.end)
+        {
+            // TODO: Rather than failing, try to extend it
+            OBLO_ASSERT(false,
+                "We don't split the image upload, we could at least make sure we have enough space for it");
+            return unspecified_error{};
+        }
+
+        const auto segment = segmentedSpan.segments[0];
+        std::memcpy(m_impl.memoryMap + segment.begin, srcPtr, srcSize);
+
+        m_impl.pendingBytes += srcSize;
+
+        return staging_buffer_span{segmentedSpan};
+    }
+
     void staging_buffer::copy_to(staging_buffer_span destination, u32 offset, std::span<const std::byte> source)
     {
         // Create a subspan out of the destination
@@ -448,40 +393,6 @@ namespace oblo::vk
         OBLO_ASSERT(remaining == 0);
     }
 
-    void staging_buffer::upload(staging_buffer_span source, VkBuffer buffer, u32 bufferOffset)
-    {
-        const auto nextSubmitIndex = get_next_submit_index();
-        const auto commandBuffer = m_impl.commandBuffers[nextSubmitIndex];
-
-        // for (u32 i = 0; i < regionsCount; ++i)
-        //{
-        //     const VkBufferMemoryBarrier bufferBarrier{
-        //         .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-        //         .srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_SHADER_READ_BIT,
-        //         .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-        //         .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-        //         .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-        //         .buffer = buffer,
-        //         .offset = copyRegions[i].dstOffset,
-        //         .size = copyRegions[i].size,
-        //     };
-
-        //    vkCmdPipelineBarrier(commandBuffer,
-        //        VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT,
-        //        VK_PIPELINE_STAGE_TRANSFER_BIT,
-        //        0,
-        //        0,
-        //        nullptr,
-        //        1,
-        //        &bufferBarrier,
-        //        0,
-        //        nullptr);
-        //}
-
-        // vkCmdCopyBuffer(commandBuffer, m_impl.buffer, buffer, regionsCount, copyRegions);
-        upload(commandBuffer, source, buffer, bufferOffset);
-    }
-
     void staging_buffer::upload(
         VkCommandBuffer commandBuffer, staging_buffer_span source, VkBuffer buffer, u32 bufferOffset) const
     {
@@ -510,6 +421,68 @@ namespace oblo::vk
         vkCmdCopyBuffer(commandBuffer, m_impl.buffer, buffer, regionsCount, copyRegions);
     }
 
+    void staging_buffer::upload(VkCommandBuffer commandBuffer,
+        staging_buffer_span source,
+        VkImage image,
+        VkFormat format,
+        VkImageLayout initialImageLayout,
+        VkImageLayout finalImageLayout,
+        u32 width,
+        u32 height,
+        VkImageSubresourceLayers subresource,
+        VkOffset3D imageOffset,
+        VkExtent3D imageExtent)
+    {
+        OBLO_ASSERT(calculate_size(source) > 0)
+        OBLO_ASSERT(source.segments[1].begin == source.segments[1].end, "Images need contiguous memory");
+
+        const auto& segment = source.segments[0];
+
+        const VkBufferImageCopy copyRegion{
+            .bufferOffset = segment.begin,
+            .bufferRowLength = width,
+            .bufferImageHeight = height,
+            .imageSubresource = subresource,
+            .imageOffset = imageOffset,
+            .imageExtent = imageExtent,
+        };
+
+        const VkImageSubresourceRange pipelineRange{
+            .aspectMask = subresource.aspectMask,
+            .baseMipLevel = subresource.mipLevel,
+            .levelCount = 1,
+            .baseArrayLayer = subresource.baseArrayLayer,
+            .layerCount = 1,
+        };
+
+        if (initialImageLayout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+        {
+            add_pipeline_barrier_cmd(commandBuffer,
+                initialImageLayout,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                image,
+                format,
+                pipelineRange);
+        }
+
+        vkCmdCopyBufferToImage(commandBuffer,
+            m_impl.buffer,
+            image,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            1,
+            &copyRegion);
+
+        if (finalImageLayout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+        {
+            add_pipeline_barrier_cmd(commandBuffer,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                finalImageLayout,
+                image,
+                format,
+                pipelineRange);
+        }
+    }
+
     void staging_buffer::flush()
     {
         if (m_impl.pendingBytes == 0)
@@ -520,22 +493,6 @@ namespace oblo::vk
         {
             const auto currentSubmitIndex = get_next_submit_index();
             const auto commandBuffer = m_impl.commandBuffers[currentSubmitIndex];
-
-            const VkMemoryBarrier2 memoryBarrier{
-                .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
-                .srcStageMask = VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT,
-                .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                .dstStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT,
-            };
-
-            const VkDependencyInfo dependencyInfo{
-                .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-                .memoryBarrierCount = 1,
-                .pMemoryBarriers = &memoryBarrier,
-            };
-
-            vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
 
             OBLO_VK_PANIC(vkEndCommandBuffer(commandBuffer))
 

@@ -34,7 +34,20 @@ namespace oblo::vk
 
         bool upload(std::span<const std::byte> source, VkBuffer buffer, u32 bufferOffset);
 
-        bool upload(std::span<const std::byte> source,
+        bool download(VkBuffer buffer, u32 bufferOffset, std::span<std::byte> destination);
+
+        expected<staging_buffer_span> stage_allocate(u32 size);
+
+        expected<staging_buffer_span> stage(std::span<const std::byte> source);
+
+        expected<staging_buffer_span> stage_image(std::span<const std::byte> source, VkFormat format);
+
+        void copy_to(staging_buffer_span destination, u32 offset, std::span<const std::byte> source);
+
+        void upload(VkCommandBuffer commandBuffer, staging_buffer_span source, VkBuffer buffer, u32 bufferOffset) const;
+
+        void upload(VkCommandBuffer commandBuffer,
+            staging_buffer_span source,
             VkImage image,
             VkFormat format,
             VkImageLayout initialImageLayout,
@@ -44,16 +57,6 @@ namespace oblo::vk
             VkImageSubresourceLayers subresource,
             VkOffset3D imageOffset,
             VkExtent3D imageExtent);
-
-        bool download(VkBuffer buffer, u32 bufferOffset, std::span<std::byte> destination);
-
-        expected<staging_buffer_span> stage_allocate(u32 size);
-        expected<staging_buffer_span> stage(std::span<const std::byte> source);
-
-        void copy_to(staging_buffer_span destination, u32 offset, std::span<const std::byte> source);
-
-        void upload(staging_buffer_span source, VkBuffer buffer, u32 bufferOffset);
-        void upload(VkCommandBuffer commandBuffer, staging_buffer_span source, VkBuffer buffer, u32 bufferOffset) const;
 
         void flush();
 

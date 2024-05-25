@@ -17,7 +17,6 @@ namespace oblo
 
 namespace oblo::vk
 {
-    class staging_buffer;
     class texture_registry;
     struct resident_texture;
 
@@ -33,7 +32,7 @@ namespace oblo::vk
         resource_cache& operator=(resource_cache&&) noexcept = delete;
         ~resource_cache();
 
-        void init(resource_registry& resources, texture_registry& textureRegistry, staging_buffer& staging);
+        void init(resource_registry& resources, texture_registry& textureRegistry);
 
         h32<resident_texture> get_or_add(const texture_resource_ref& t);
 
@@ -42,7 +41,6 @@ namespace oblo::vk
 
     private:
         resource_registry* m_resources{};
-        staging_buffer* m_staging{};
         texture_registry* m_textureRegistry{};
         std::unordered_map<uuid, cached_texture> m_textures;
     };

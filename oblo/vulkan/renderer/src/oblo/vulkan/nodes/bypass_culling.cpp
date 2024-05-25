@@ -1,6 +1,7 @@
 #include <oblo/vulkan/nodes/bypass_culling.hpp>
 
 #include <oblo/core/allocation_helpers.hpp>
+#include <oblo/core/frame_allocator.hpp>
 #include <oblo/vulkan/data/draw_buffer_data.hpp>
 #include <oblo/vulkan/graph/runtime_builder.hpp>
 #include <oblo/vulkan/graph/runtime_context.hpp>

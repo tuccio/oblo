@@ -116,7 +116,6 @@ namespace oblo
         template <typename Iterator>
         void assign(Iterator first, Iterator last) noexcept;
 
-        template <typename Iterator>
         void assign(usize count, const T& value) noexcept;
 
         bool operator==(const dynamic_array& other) const noexcept;
@@ -499,7 +498,6 @@ namespace oblo
     }
 
     template <typename T>
-    template <typename Iterator>
     inline void dynamic_array<T>::assign(usize count, const T& value) noexcept
     {
         clear();

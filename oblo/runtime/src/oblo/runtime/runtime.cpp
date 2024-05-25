@@ -1,5 +1,6 @@
 #include <oblo/runtime/runtime.hpp>
 
+#include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/entity_registry.hpp>
@@ -80,9 +81,7 @@ namespace oblo
 
         auto* const resourceCache = m_impl->services.add<vk::resource_cache>().unique();
 
-        resourceCache->init(*initializer.resourceRegistry,
-            m_impl->renderer.get_texture_registry(),
-            m_impl->renderer.get_staging_buffer());
+        resourceCache->init(*initializer.resourceRegistry, m_impl->renderer.get_texture_registry());
 
         m_impl->executor = create_system_executor();
 
