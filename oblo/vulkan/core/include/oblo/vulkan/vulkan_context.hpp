@@ -32,7 +32,7 @@ namespace oblo::vk
         bool init(const initializer& init);
         void shutdown();
 
-        void frame_begin(VkSemaphore waitSemaphore);
+        void frame_begin(VkSemaphore waitSemaphore, VkSemaphore signalSemaphore);
         void frame_end();
 
         stateful_command_buffer& get_active_command_buffer();
