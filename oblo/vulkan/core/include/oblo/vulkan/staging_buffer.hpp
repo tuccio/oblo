@@ -10,7 +10,6 @@
 
 namespace oblo::vk
 {
-    class single_queue_engine;
     class stateful_command_buffer;
 
     struct staging_buffer_span : ring_buffer_tracker<u32>::segmented_span
@@ -29,7 +28,7 @@ namespace oblo::vk
 
         ~staging_buffer();
 
-        bool init(const single_queue_engine& engine, gpu_allocator& allocator, u32 size);
+        bool init(gpu_allocator& allocator, u32 size);
         void shutdown();
 
         void begin_frame(u64 frameIndex);
@@ -71,9 +70,6 @@ namespace oblo::vk
 
         struct impl
         {
-            VkDevice device;
-            VkQueue queue;
-            u32 queueFamilyIndex;
             gpu_allocator* allocator;
             ring_buffer_tracker<u32> ring;
             u32 pendingBytes;

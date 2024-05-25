@@ -26,6 +26,7 @@ namespace oblo::vk
 {
     class render_graph;
     class resource_pool;
+    class single_queue_engine;
 
     class vulkan_context;
     struct buffer;
