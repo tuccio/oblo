@@ -49,6 +49,7 @@ namespace oblo::vk
         resource_manager& get_resource_manager() const;
 
         u64 get_submit_index() const;
+        u64 get_last_finished_submit() const;
         bool is_submit_done(u64 submitIndex) const;
 
         void destroy_immediate(VkBuffer buffer) const;
@@ -163,6 +164,11 @@ namespace oblo::vk
     inline u64 vulkan_context::get_submit_index() const
     {
         return m_submitIndex;
+    }
+
+    inline u64 vulkan_context::get_last_finished_submit() const
+    {
+        return m_currentSemaphoreValue;
     }
 
     inline bool vulkan_context::is_submit_done(u64 submitIndex) const

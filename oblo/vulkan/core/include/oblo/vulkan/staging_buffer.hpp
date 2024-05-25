@@ -32,9 +32,10 @@ namespace oblo::vk
         bool init(const single_queue_engine& engine, gpu_allocator& allocator, u32 size);
         void shutdown();
 
-        bool upload(std::span<const std::byte> source, VkBuffer buffer, u32 bufferOffset);
+        void begin_frame(u64 frameIndex);
+        void end_frame();
 
-        bool download(VkBuffer buffer, u32 bufferOffset, std::span<std::byte> destination);
+        void notify_finished_frames(u64 lastFinishedFrame);
 
         expected<staging_buffer_span> stage_allocate(u32 size);
 
@@ -58,30 +59,13 @@ namespace oblo::vk
             VkOffset3D imageOffset,
             VkExtent3D imageExtent);
 
-        void flush();
-
-        void poll_submissions();
-
-        void wait_all();
-        void wait_for_free_space(u32 freeSpace);
-
-        VkCommandBuffer get_active_command_buffer() const;
-
-        bool has_pending_uploads() const;
+    private:
+        void free_submissions(u64 timelineId);
 
     private:
-        u8 get_next_submit_index() const;
-
-        void free_submissions(u32 timelineId);
-
-        u32 wait_for_timeline(u32 timelineId);
-
-    private:
-        static constexpr u32 MaxConcurrentSubmits{8u};
-
         struct submitted_upload
         {
-            u32 timelineId;
+            u64 timelineId;
             u32 size;
         };
 
@@ -96,24 +80,12 @@ namespace oblo::vk
             VkBuffer buffer;
             VmaAllocation allocation;
             std::byte* memoryMap;
-            VkSemaphore semaphore;
-            VkCommandPool commandPool;
-            VkCommandBuffer commandBuffers[MaxConcurrentSubmits];
-            submitted_upload submittedUploads[MaxConcurrentSubmits];
-            u32 nextTimelineId;
-        };
-
-        struct pending_copy
-        {
-            void* dst;
-            u32 segmentOffsets[2];
-            u32 segmentSizes[2];
-            u64 timelineId;
+            std::deque<submitted_upload> submittedUploads;
+            u64 nextTimelineId;
         };
 
     private:
         impl m_impl{};
-        std::deque<pending_copy> m_pendingCopies;
     };
 
     u32 calculate_size(const staging_buffer_span& span);
