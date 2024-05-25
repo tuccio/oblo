@@ -16,10 +16,9 @@ namespace oblo::vk
 
     resource_cache::~resource_cache() = default;
 
-    void resource_cache::init(resource_registry& resources, texture_registry& textureRegistry, staging_buffer& staging)
+    void resource_cache::init(resource_registry& resources, texture_registry& textureRegistry)
     {
         m_resources = &resources;
-        m_staging = &staging;
         m_textureRegistry = &textureRegistry;
     }
 
@@ -37,7 +36,7 @@ namespace oblo::vk
             return {};
         }
 
-        const auto handle = m_textureRegistry->add(*m_staging, *resource.get());
+        const auto handle = m_textureRegistry->add(*resource.get());
 
         if (handle)
         {

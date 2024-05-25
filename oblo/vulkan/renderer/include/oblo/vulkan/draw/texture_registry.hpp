@@ -1,12 +1,12 @@
 #pragma once
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/handle_pool.hpp>
 
 #include <span>
-#include <vector>
 
-struct VkDescriptorImageInfo;
+#include <vulkan/vulkan_core.h>
 
 namespace oblo
 {
@@ -35,21 +35,28 @@ namespace oblo::vk
         bool init(vulkan_context& vkCtx, staging_buffer& staging);
         void shutdown();
 
-        h32<resident_texture> add(staging_buffer& staging, const texture_resource& texture);
+        h32<resident_texture> add(const texture_resource& texture);
         void remove(h32<resident_texture> texture);
 
         std::span<const VkDescriptorImageInfo> get_textures2d_info() const;
 
         u32 get_max_descriptor_count() const;
 
+        void flush_uploads(VkCommandBuffer commandBuffer);
+
     private:
-        bool create(staging_buffer& staging, const texture_resource& texture, resident_texture& out);
+        struct pending_texture_upload;
+
+    private:
+        bool create(const texture_resource& texture, resident_texture& out);
 
     private:
         vulkan_context* m_vkCtx{};
+        staging_buffer* m_staging{};
         handle_pool<u32, 4> m_handlePool;
 
-        std::vector<VkDescriptorImageInfo> m_imageInfo;
-        std::vector<resident_texture> m_textures;
+        dynamic_array<VkDescriptorImageInfo> m_imageInfo;
+        dynamic_array<resident_texture> m_textures;
+        dynamic_array<pending_texture_upload> m_pendingUploads;
     };
 }

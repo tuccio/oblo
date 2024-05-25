@@ -81,6 +81,20 @@ namespace oblo::vk
         VkImageView imageView;
     };
 
+    struct texture_registry::pending_texture_upload
+    {
+        staging_buffer_span src;
+        VkImage image;
+        VkFormat format;
+        VkImageLayout initialImageLayout;
+        VkImageLayout finalImageLayout;
+        u32 width;
+        u32 height;
+        VkImageSubresourceLayers subresource;
+        VkOffset3D imageOffset;
+        VkExtent3D imageExtents;
+    };
+
     texture_registry::texture_registry() = default;
 
     texture_registry::~texture_registry() = default;
@@ -93,6 +107,7 @@ namespace oblo::vk
         m_textures.reserve(maxDescriptorCount);
 
         m_vkCtx = &vkCtx;
+        m_staging = &staging;
 
         texture_resource dummy;
 
@@ -111,7 +126,7 @@ namespace oblo::vk
 
         resident_texture residentTexture;
 
-        if (!create(staging, dummy, residentTexture))
+        if (!create(dummy, residentTexture))
         {
             return false;
         }
@@ -139,11 +154,11 @@ namespace oblo::vk
         }
     }
 
-    h32<resident_texture> texture_registry::add(staging_buffer& staging, const texture_resource& texture)
+    h32<resident_texture> texture_registry::add(const texture_resource& texture)
     {
         resident_texture residentTexture;
 
-        if (!create(staging, texture, residentTexture))
+        if (!create(texture, residentTexture))
         {
             return {};
         }
@@ -206,7 +221,27 @@ namespace oblo::vk
         return 2048;
     }
 
-    bool texture_registry::create(staging_buffer& staging, const texture_resource& texture, resident_texture& out)
+    void texture_registry::flush_uploads(VkCommandBuffer commandBuffer)
+    {
+        for (const auto& upload : m_pendingUploads)
+        {
+            m_staging->upload(commandBuffer,
+                upload.src,
+                upload.image,
+                upload.format,
+                upload.initialImageLayout,
+                upload.finalImageLayout,
+                upload.width,
+                upload.height,
+                upload.subresource,
+                upload.imageOffset,
+                upload.imageExtents);
+        }
+
+        m_pendingUploads.clear();
+    }
+
+    bool texture_registry::create(const texture_resource& texture, resident_texture& out)
     {
         out = resident_texture{};
 
@@ -303,18 +338,30 @@ namespace oblo::vk
         // TOOD: When failing, we should destroy the texture
         // TODO: Mips
 
-        return staging.upload(finalTexture->get_data(),
-            out.image.image,
-            format,
-            VK_IMAGE_LAYOUT_UNDEFINED,
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            desc.width,
-            desc.height,
-            VkImageSubresourceLayers{
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                .layerCount = 1,
-            },
-            VkOffset3D{},
-            VkExtent3D{desc.width, desc.height, desc.depth});
+        auto staged = m_staging->stage_image(finalTexture->get_data(), format);
+
+        if (!staged)
+        {
+            return false;
+        }
+
+        m_pendingUploads.push_back({
+            .src = *staged,
+            .image = out.image.image,
+            .format = format,
+            .initialImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .finalImageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            .width = desc.width,
+            .height = desc.height,
+            .subresource =
+                VkImageSubresourceLayers{
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .layerCount = 1,
+                },
+            .imageOffset = VkOffset3D{},
+            .imageExtents = VkExtent3D{desc.width, desc.height, desc.depth},
+        });
+
+        return true;
     }
 }

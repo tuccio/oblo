@@ -1,6 +1,6 @@
 #pragma once
 
-#include <oblo/core/frame_allocator.hpp>
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/string_interner.hpp>
 #include <oblo/core/uuid.hpp>
@@ -95,6 +95,8 @@ namespace oblo::vk
 
         h32<string> get_name(h32<draw_buffer> drawBuffer) const;
 
+        void flush_uploads(VkCommandBuffer commandBuffer);
+
         void generate_mesh_database(frame_allocator& allocator);
         void generate_draw_calls(frame_allocator& allocator, staging_buffer& stagingBuffer);
 
@@ -103,6 +105,9 @@ namespace oblo::vk
         std::span<const std::byte> get_mesh_database_data() const;
 
         void debug_log(const batch_draw_data& drawData) const;
+
+    private:
+        struct pending_mesh_upload;
 
     private:
         void create_instances();
@@ -134,5 +139,7 @@ namespace oblo::vk
 
         static constexpr u32 MeshBuffersCount{1};
         std::array<h32<string>, MeshBuffersCount> m_meshDataNames{};
+
+        dynamic_array<pending_mesh_upload> m_pendingMeshUploads;
     };
 }
