@@ -126,8 +126,7 @@ void main()
     //     drawId,
     //     g_Time.frameIndex);
 
-    // const aabb msBox = get_mesh_aabb(table, meshIndex);
-    const aabb msBox = get_mesh_aabb(table, 0);
+    const aabb msBox = get_mesh_aabb(table, meshIndex);
     const aabb wsBox = transform_aabb(msBox, localToWorld);
 
     draw_command_t drawCmd = inDrawCalls[drawId];

@@ -602,6 +602,11 @@ namespace oblo::vk
 
     bool sandbox_base::handle_window_events(const SDL_Event& event)
     {
+        if (SDL_GetWindowID(m_window) != event.window.windowID)
+        {
+            return true;
+        }
+
         switch (event.window.event)
         {
         case SDL_WINDOWEVENT_MAXIMIZED:
@@ -630,10 +635,7 @@ namespace oblo::vk
             break;
 
         case SDL_WINDOWEVENT_CLOSE:
-            if (SDL_GetWindowID(m_window) == event.window.windowID)
-            {
-                return false;
-            }
+            return false;
 
             break;
         }
