@@ -9,8 +9,8 @@ target_link_libraries(
     oblo::runtime
     oblo::sandbox
     PRIVATE
+    oblo::renderdoc
     imgui::imgui
-    renderdoc::api
 )
 
 target_link_libraries(

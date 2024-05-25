@@ -103,7 +103,7 @@ namespace oblo::vk
         void add_buffer_access(resource<buffer> handle, VkPipelineStageFlags2 pipelineStage, VkAccessFlags2 access);
 
         void flush_image_copies(stateful_command_buffer& commandBuffer, resource_manager& resourceManager);
-        void flush_uploads(VkCommandBuffer commandBuffer, const staging_buffer& stagingBuffer);
+        void flush_uploads(VkCommandBuffer commandBuffer, staging_buffer& stagingBuffer);
 
         u32 allocate_dynamic_resource_pin();
         void destroy_dynamic_pins();

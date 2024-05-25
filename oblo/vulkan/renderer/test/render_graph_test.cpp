@@ -37,6 +37,7 @@ namespace oblo::vk::test
                         .size = sizeof(u32),
                         .data = std::as_bytes(std::span{&Value, 1}),
                     },
+                    pass_kind::graphics,
                     buffer_usage::uniform);
             }
 

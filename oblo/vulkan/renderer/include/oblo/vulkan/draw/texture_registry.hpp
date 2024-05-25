@@ -35,6 +35,8 @@ namespace oblo::vk
         bool init(vulkan_context& vkCtx, staging_buffer& staging);
         void shutdown();
 
+        void on_first_frame();
+
         h32<resident_texture> add(const texture_resource& texture);
         void remove(h32<resident_texture> texture);
 

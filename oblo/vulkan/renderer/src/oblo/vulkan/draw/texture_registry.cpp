@@ -109,6 +109,23 @@ namespace oblo::vk
         m_vkCtx = &vkCtx;
         m_staging = &staging;
 
+        return true;
+    }
+
+    void texture_registry::shutdown()
+    {
+        const auto submitIndex = m_vkCtx->get_submit_index();
+
+        for (const auto& t : m_textures)
+        {
+            m_vkCtx->destroy_deferred(t.image.image, submitIndex);
+            m_vkCtx->destroy_deferred(t.image.allocation, submitIndex);
+            m_vkCtx->destroy_deferred(t.imageView, submitIndex);
+        }
+    }
+
+    void texture_registry::on_first_frame()
+    {
         texture_resource dummy;
 
         // TODO: Make it a more recognizable texture, since sampling it should only happen by mistake
@@ -128,7 +145,7 @@ namespace oblo::vk
 
         if (!create(dummy, residentTexture))
         {
-            return false;
+            return;
         }
 
         const VkDescriptorImageInfo dummyInfo{
@@ -138,20 +155,6 @@ namespace oblo::vk
 
         m_imageInfo.assign(1, dummyInfo);
         m_textures.assign(1, residentTexture);
-
-        return true;
-    }
-
-    void texture_registry::shutdown()
-    {
-        const auto submitIndex = m_vkCtx->get_submit_index();
-
-        for (const auto& t : m_textures)
-        {
-            m_vkCtx->destroy_deferred(t.image.image, submitIndex);
-            m_vkCtx->destroy_deferred(t.image.allocation, submitIndex);
-            m_vkCtx->destroy_deferred(t.imageView, submitIndex);
-        }
     }
 
     h32<resident_texture> texture_registry::add(const texture_resource& texture)
