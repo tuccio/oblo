@@ -134,17 +134,6 @@ namespace oblo::vk
 
         const auto segmentedSpan = m_impl.ring.fetch(size);
 
-        u32 segmentOffset{0u};
-
-        for (const auto& segment : segmentedSpan.segments)
-        {
-            if (segment.begin != segment.end)
-            {
-                const auto segmentSize = segment.end - segment.begin;
-                segmentOffset += segmentSize;
-            }
-        }
-
         m_impl.pendingBytes += size;
 
         return staging_buffer_span{segmentedSpan};

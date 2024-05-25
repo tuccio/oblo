@@ -12,7 +12,7 @@ namespace oblo
         {
             m_library.open(*path);
 
-            const auto RENDERDOC_GetAPI = static_cast<pRENDERDOC_GetAPI>(m_library.symbol("RENDERDOC_GetAPI"));
+            const auto RENDERDOC_GetAPI = reinterpret_cast<pRENDERDOC_GetAPI>(m_library.symbol("RENDERDOC_GetAPI"));
             const auto ret = RENDERDOC_GetAPI(eRENDERDOC_API_Version_1_1_2, reinterpret_cast<void**>(&m_api));
 
             if (ret != 1)
