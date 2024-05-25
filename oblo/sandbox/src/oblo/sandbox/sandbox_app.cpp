@@ -11,7 +11,6 @@
 
 #include <fstream>
 #include <span>
-#include <vector>
 
 namespace oblo::vk
 {
@@ -257,8 +256,7 @@ namespace oblo::vk
 
     void sandbox_base::begin_frame(u32* outImageIndex)
     {
-        // We could submit the semaphore to wait on here, if everyone submitted through the context
-        m_context.frame_begin(nullptr);
+        m_context.frame_begin(m_acquiredImage, m_frameCompleted);
 
         u32 imageIndex;
 
@@ -307,17 +305,6 @@ namespace oblo::vk
     void sandbox_base::submit_and_present(u32 imageIndex)
     {
         m_context.frame_end();
-
-        // Again, not ideal, just submit to signal the render being completed, so present can wait on it
-        const VkSubmitInfo submitInfo{
-            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            .waitSemaphoreCount = 0,
-            .pWaitSemaphores = nullptr,
-            .signalSemaphoreCount = 1,
-            .pSignalSemaphores = &m_frameCompleted,
-        };
-
-        OBLO_VK_PANIC(vkQueueSubmit(m_engine.get_queue(), 1, &submitInfo, nullptr));
 
         const auto swapchain = m_swapchain.get();
 
@@ -460,7 +447,8 @@ namespace oblo::vk
                 .engine = m_engine,
                 .allocator = m_allocator,
                 .resourceManager = m_resourceManager,
-                .buffersPerFrame = 2,
+                .buffersPerFrame =
+                    2, // This number includes the buffer for incomplete transition, so it's effectively half
                 .submitsInFlight = SwapchainImages,
             });
     }
@@ -535,7 +523,7 @@ namespace oblo::vk
 
     bool sandbox_base::init_imgui()
     {
-        m_context.frame_begin(m_acquiredImage);
+        m_context.frame_begin(nullptr, nullptr);
 
         auto& commandBuffer = m_context.get_active_command_buffer();
 
