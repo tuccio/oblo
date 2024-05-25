@@ -275,23 +275,6 @@ namespace oblo::vk
 
             if (acquireImageResult == VK_SUCCESS)
             {
-                //// Make sure we wait for the acquired image for any future submission, not optimal, it would be better
-                //// to piggy-back to the next submission, but we submit in different places (e.g. staging_buffer)
-
-                // constexpr VkPipelineStageFlags submitPipelineStages[] =
-                // {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-
-                // const VkSubmitInfo submitInfo{
-                //     .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                //     .waitSemaphoreCount = 1,
-                //     .pWaitSemaphores = &m_acquiredImage,
-                //     .pWaitDstStageMask = submitPipelineStages,
-                // };
-
-                // OBLO_VK_PANIC(vkQueueSubmit(m_engine.get_queue(), 1, &submitInfo, nullptr));
-
-                // vkDeviceWaitIdle(m_engine.get_device());
-
                 break;
             }
             else if (acquireImageResult == VK_ERROR_OUT_OF_DATE_KHR)
@@ -336,23 +319,12 @@ namespace oblo::vk
 
         OBLO_VK_PANIC(vkQueueSubmit(m_engine.get_queue(), 1, &submitInfo, nullptr));
 
-        /*  const VkTimelineSemaphoreSubmitInfo timelineInfo{
-              .sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
-              .pNext = nullptr,
-              .waitSemaphoreValueCount = 0,
-              .pWaitSemaphoreValues = nullptr,
-              .signalSemaphoreValueCount = 1,
-              .pSignalSemaphoreValues = &submitIndex,
-          };*/
-
         const auto swapchain = m_swapchain.get();
 
         const VkPresentInfoKHR presentInfo{
             .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-            //.pNext = &timelineInfo,
             .waitSemaphoreCount = 1,
             .pWaitSemaphores = &m_frameCompleted,
-            //.pWaitSemaphores = &submitSemaphore,
             .swapchainCount = 1,
             .pSwapchains = &swapchain,
             .pImageIndices = &imageIndex,
