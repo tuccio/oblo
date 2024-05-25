@@ -58,6 +58,6 @@ namespace oblo::platform
 
     void* shared_library::symbol(const char* name) const
     {
-        return GetProcAddress(HMODULE(m_handle), name);
+        return reinterpret_cast<void*>(GetProcAddress(HMODULE(m_handle), name));
     }
 }

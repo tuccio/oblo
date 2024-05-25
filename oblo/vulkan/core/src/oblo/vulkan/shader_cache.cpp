@@ -6,6 +6,7 @@
 #include <oblo/core/hash.hpp>
 #include <oblo/core/lifetime.hpp>
 #include <oblo/core/struct_apply.hpp>
+#include <oblo/core/unreachable.hpp>
 #include <oblo/vulkan/shader_compiler.hpp>
 
 namespace oblo::vk
@@ -116,6 +117,9 @@ namespace oblo::vk
             case VK_SHADER_STAGE_COMPUTE_BIT:
                 extension = "comp";
                 break;
+
+            default:
+                unreachable();
             }
 
             spvPath.replace_extension(extension);
