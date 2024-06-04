@@ -3,6 +3,7 @@
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/log.hpp>
+#include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/destroy_device_objects.hpp>
 #include <oblo/vulkan/error.hpp>
 
@@ -259,8 +260,9 @@ namespace oblo::vk
         m_context.frame_begin(m_acquiredImage, m_frameCompleted);
 
         u32 imageIndex;
-
         VkResult acquireImageResult;
+
+        OBLO_PROFILE_SCOPE("Acquire swapchain image");
 
         do
         {
@@ -319,6 +321,58 @@ namespace oblo::vk
         };
 
         OBLO_VK_PANIC_EXCEPT(vkQueuePresentKHR(m_engine.get_queue(), &presentInfo), VK_ERROR_OUT_OF_DATE_KHR);
+    }
+
+    bool sandbox_base::run_frame_impl(void* instance, update_fn update, update_imgui_fn updateImgui)
+    {
+        OBLO_PROFILE_FRAME_BEGIN();
+
+        if (!poll_events())
+        {
+            return false;
+        }
+
+        if (m_minimized)
+        {
+            return true;
+        }
+
+        u32 imageIndex;
+        begin_frame(&imageIndex);
+
+        const h32<texture> swapchainTexture = m_swapchainTextures[imageIndex];
+
+        const sandbox_render_context context{
+            .vkContext = &m_context,
+            .swapchainTexture = swapchainTexture,
+            .width = m_renderWidth,
+            .height = m_renderHeight,
+        };
+
+        update(instance, context);
+
+        auto& cb = m_context.get_active_command_buffer();
+
+        if (m_showImgui)
+        {
+            m_imgui.begin_frame();
+
+            const sandbox_update_imgui_context imguiContext{
+                .vkContext = &m_context,
+            };
+
+            updateImgui(instance, imguiContext);
+
+            m_imgui.end_frame(cb.get(), m_swapchain.get_image_view(imageIndex), m_renderWidth, m_renderHeight);
+        }
+
+        cb.add_pipeline_barrier(m_resourceManager, swapchainTexture, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+        submit_and_present(imageIndex);
+
+        OBLO_PROFILE_FRAME_END();
+
+        return true;
     }
 
     bool sandbox_base::create_window()

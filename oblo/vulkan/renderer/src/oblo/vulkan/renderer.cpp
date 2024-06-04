@@ -1,5 +1,6 @@
 #include <oblo/vulkan/renderer.hpp>
 
+#include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/draw/descriptor_set_pool.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/graph/render_graph.hpp>
@@ -77,6 +78,8 @@ namespace oblo::vk
 
     void renderer::update(frame_allocator& frameAllocator)
     {
+        OBLO_PROFILE_SCOPE();
+
         auto& commandBuffer = m_vkContext->get_active_command_buffer();
 
         m_stagingBuffer.notify_finished_frames(m_vkContext->get_last_finished_submit());

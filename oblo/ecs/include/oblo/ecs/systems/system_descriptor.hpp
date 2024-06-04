@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string_view>
+
 namespace oblo::ecs
 {
     struct system_update_context;
@@ -10,6 +12,7 @@ namespace oblo::ecs
 
     struct system_descriptor
     {
+        std::string_view name;
         system_create_fn create;
         system_destroy_fn destroy;
         system_update_fn firstUpdate;
