@@ -1,9 +1,22 @@
 from conan import ConanFile
 from conan.tools.files import copy
+from itertools import chain
+from os import path
 
 class ObloConanRecipe(ConanFile):
+    name = "oblo"
     settings = "os", "compiler", "build_type", "arch"
-    generators =  "CMakeDeps"
+    generators = "CMakeDeps"
+
+    options = {
+        "is_multiconfig": [True, False],
+        "with_tracy": [True, False],
+    }
+
+    default_options = {
+        "is_multiconfig": False,
+        "with_tracy": False,
+    }
 
     def requirements(self):
         self.requires("assimp/5.0.1")
@@ -29,10 +42,13 @@ class ObloConanRecipe(ConanFile):
         # This is only needed for unit tests
         self.requires("eigen/3.4.0")
 
+        if self.options.with_tracy:
+            self.requires("tracy/0.10")
+
     def configure(self):
         self.options["efsw/*"].shared = False
         self.options["eigen/*"].MPL2_only = True
-        
+
         tinygltf = self.options["tinygltf/*"]
         tinygltf.stb_image = False
         tinygltf.stb_image_write = False
@@ -46,6 +62,11 @@ class ObloConanRecipe(ConanFile):
         glslang.hlsl = False
         glslang.build_executables = False
 
+        if self.options.with_tracy:
+            tracy = self.options["tracy/*"]
+            tracy.enable = True
+            tracy.shared = True
+
     def generate(self):
         imgui = self.dependencies["imgui"]
         src_dir = f"{imgui.package_folder}/res/bindings/"
@@ -54,3 +75,24 @@ class ObloConanRecipe(ConanFile):
             copy(self, f"imgui_impl_{backend}.h", src_dir, f"{self.recipe_folder}/3rdparty/imgui/{backend}/include")
             copy(self, f"imgui_impl_{backend}_*", src_dir, f"{self.recipe_folder}/3rdparty/imgui/{backend}/src")
             copy(self, f"imgui_impl_{backend}.cpp", src_dir, f"{self.recipe_folder}/3rdparty/imgui/{backend}/src")
+
+        out_bin_dir = path.join(self.build_folder, "..", "out", "bin")
+
+        if self.options.is_multiconfig:
+            if self.settings.build_type == "Debug":
+                out_dirs = [path.join(out_bin_dir, "Debug")]
+            elif self.settings.build_type == "Release":
+                out_dirs = [path.join(out_bin_dir, "Release"), path.join(out_bin_dir, "RelWithDebInfo")]
+            else:
+                raise ValueError("Unsupported configuration")
+        else:
+                out_dirs = [out_bin_dir]
+
+        for out_dir in out_dirs:
+            for dep in self.dependencies.values():
+                for bin_dir in chain(dep.cpp_info.libdirs, dep.cpp_info.bindirs):
+                    # Some relative paths that are just lib/bin end up copying our own files recursively
+                    # To fix that, check if the path is absolute
+                    if path.isabs(bin_dir):
+                        copy(self, "*.dylib", bin_dir, out_dir)
+                        copy(self, "*.dll", bin_dir, out_dir)

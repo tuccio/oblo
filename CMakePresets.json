@@ -13,7 +13,8 @@
             "binaryDir": "${sourceDir}/.build/${presetName}",
             "installDir": "${sourceDir}/.install/${presetName}",
             "cacheVariables": {
-                "CMAKE_PROJECT_TOP_LEVEL_INCLUDES": "${sourceDir}/cmake/Modules/conan_provider.cmake"
+                "CMAKE_PROJECT_TOP_LEVEL_INCLUDES": "${sourceDir}/cmake/Modules/conan_provider.cmake",
+                "CONAN_INSTALL_ARGS": "--build=missing;-o;oblo/*:is_multiconfig=${env:OBLO_CONAN_MULTICONFIG};-o;oblo/*:with_tracy=True"
             }
         },
         {
@@ -25,6 +26,9 @@
                 "type": "equals",
                 "lhs": "${hostSystemName}",
                 "rhs": "Windows"
+            },
+            "environment": {
+                "OBLO_CONAN_MULTICONFIG": "True"
             }
         },
         {
@@ -32,7 +36,10 @@
             "description": "Settings for Ninja configurations",
             "inherits": "conf-common",
             "hidden": true,
-            "generator": "Ninja"
+            "generator": "Ninja",
+            "environment": {
+                "OBLO_CONAN_MULTICONFIG": "False"
+            }
         },
         {
             "name": "conf-windows-ninja",

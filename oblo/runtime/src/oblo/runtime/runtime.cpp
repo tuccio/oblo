@@ -16,6 +16,7 @@
 #include <oblo/scene/scene_module.hpp>
 #include <oblo/scene/systems/transform_system.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
+#include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/draw/resource_cache.hpp>
 #include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
@@ -112,6 +113,8 @@ namespace oblo
 
     void runtime::update(const runtime_update_context&)
     {
+        OBLO_PROFILE_SCOPE();
+
         m_impl->executor.update({
             .entities = &m_impl->entities,
             .services = &m_impl->services,

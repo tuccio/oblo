@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/handle.hpp>
+#include <oblo/core/type_id.hpp>
 #include <oblo/ecs/systems/system_descriptor.hpp>
 
 #include <vector>
@@ -41,6 +42,7 @@ namespace oblo::ecs
     h32<system> system_graph::add_system()
     {
         system_descriptor desc{
+            .name = get_type_id<T>().name,
             .create = []() -> void* { return new T{}; },
             .destroy = [](void* ptr) { delete static_cast<T*>(ptr); },
         };

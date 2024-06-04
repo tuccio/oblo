@@ -13,7 +13,6 @@
 #include <oblo/vulkan/instance.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
-#include <oblo/vulkan/stateful_command_buffer.hpp>
 #include <oblo/vulkan/swapchain.hpp>
 #include <oblo/vulkan/texture.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
@@ -50,6 +49,12 @@ namespace oblo::vk
         void begin_frame(u32* outImageIndex);
 
         void submit_and_present(u32 imageIndex);
+
+    protected:
+        using update_fn = void (*)(void*, const sandbox_render_context&);
+        using update_imgui_fn = void (*)(void*, const sandbox_update_imgui_context&);
+
+        bool run_frame_impl(void* instance, update_fn update, update_imgui_fn updateImgui);
 
     private:
         bool create_window();
@@ -176,14 +181,7 @@ namespace oblo::vk
                 .swapchainFormat = SwapchainFormat,
             };
 
-            if constexpr (requires(TApp& app, const sandbox_render_context& context) { app.first_update(context); })
-            {
-                m_updateCb = &TApp::first_update;
-            }
-            else
-            {
-                m_updateCb = &TApp::update;
-            }
+            m_isFirstUpdate = true;
 
             return sandbox_base::init(instanceExtensions,
                        instanceLayers,
@@ -202,50 +200,39 @@ namespace oblo::vk
 
         bool run_frame()
         {
-            if (!poll_events())
-            {
-                return false;
-            }
+            constexpr update_fn updateCbs[] = {
+                [](void* instance, const sandbox_render_context& context)
+                {
+                    auto* const self = static_cast<TApp*>(instance);
+                    self->update(context);
+                },
+                [](void* instance, const sandbox_render_context& context)
+                {
+                    auto* const self = static_cast<TApp*>(instance);
 
-            if (m_minimized)
-            {
-                return true;
-            }
-
-            u32 imageIndex;
-            begin_frame(&imageIndex);
-
-            const h32<texture> swapchainTexture = m_swapchainTextures[imageIndex];
-
-            const sandbox_render_context context{
-                .vkContext = &m_context,
-                .swapchainTexture = swapchainTexture,
-                .width = m_renderWidth,
-                .height = m_renderHeight,
+                    if constexpr (requires(TApp& app, const sandbox_render_context& context) {
+                                      app.first_update(context);
+                                  })
+                    {
+                        self->first_update(context);
+                    }
+                    else
+                    {
+                        self->update(context);
+                    }
+                },
             };
 
-            (static_cast<TApp*>(this)->*m_updateCb)(context);
-            m_updateCb = &TApp::update;
-
-            auto& cb = m_context.get_active_command_buffer();
-
-            if (m_showImgui)
+            constexpr update_imgui_fn updateImgui = [](void* instance, const sandbox_update_imgui_context& context)
             {
-                m_imgui.begin_frame();
+                auto* const self = static_cast<TApp*>(instance);
+                self->update_imgui(context);
+            };
 
-                const sandbox_update_imgui_context imguiContext{
-                    .vkContext = &m_context,
-                };
+            const auto updateCb = updateCbs[u32{m_isFirstUpdate}];
+            m_isFirstUpdate = false;
 
-                TApp::update_imgui(imguiContext);
-
-                m_imgui.end_frame(cb.get(), m_swapchain.get_image_view(imageIndex), m_renderWidth, m_renderHeight);
-            }
-
-            cb.add_pipeline_barrier(m_resourceManager, swapchainTexture, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-
-            submit_and_present(imageIndex);
-            return true;
+            return run_frame_impl(static_cast<TApp*>(this), updateCb, updateImgui);
         }
 
         void shutdown()
@@ -266,6 +253,6 @@ namespace oblo::vk
         }
 
     private:
-        void (TApp::*m_updateCb)(const sandbox_render_context&){};
+        bool m_isFirstUpdate{true};
     };
 }

@@ -1,6 +1,7 @@
 #include <oblo/ecs/systems/system_seq_executor.hpp>
 
 #include <oblo/ecs/systems/system_descriptor.hpp>
+#include <oblo/trace/profile.hpp>
 
 namespace oblo::ecs
 {
@@ -26,8 +27,13 @@ namespace oblo::ecs
         const auto updateFunc = m_firstUpdate ? &system_descriptor::firstUpdate : &system_descriptor::update;
         m_firstUpdate = false;
 
+        OBLO_PROFILE_SCOPE();
+
         for (const auto& [desc, system] : m_systems)
         {
+            OBLO_PROFILE_SCOPE("Update");
+            OBLO_PROFILE_TAG(desc.name)
+
             (desc.*updateFunc)(system, &ctx);
         }
     }
