@@ -120,6 +120,9 @@ namespace oblo
 
         bool operator==(const dynamic_array& other) const noexcept;
 
+        template <typename Other>
+        bool operator==(const Other& other) const noexcept;
+
     private:
         void maybe_grow_capacity(usize newCapacity, bool exact);
         void do_grow_capacity(usize newCapacity) noexcept;
@@ -671,5 +674,12 @@ namespace oblo
     {
         const auto isSizeEqual = m_size == other.m_size;
         return isSizeEqual && std::equal(begin(), end(), other.begin());
+    }
+
+    template <typename T>
+    template <typename Other>
+    bool dynamic_array<T>::operator==(const Other& other) const noexcept
+    {
+        return std::equal(begin(), end(), std::begin(other), std::end(other));
     }
 }
