@@ -55,8 +55,11 @@ namespace oblo
             const auto [it, key] = m_edges.emplace(std::forward<Args>(args)...);
             const edge_handle edge{key};
 
+            it->from = from;
+            it->to = to;
+
             src->outEdges.emplace_back(to, edge);
-            dst->inEdges.emplace_back(to, edge);
+            dst->inEdges.emplace_back(from, edge);
 
             return edge;
         }
@@ -146,6 +149,16 @@ namespace oblo
         const Edge& operator[](edge_handle edge) const
         {
             return get_edge(edge);
+        }
+
+        vertex_handle get_source(edge_handle edge) const
+        {
+            return m_edges.try_find(edge)->from;
+        }
+
+        vertex_handle get_destination(edge_handle edge) const
+        {
+            return m_edges.try_find(edge)->to;
         }
 
         std::span<const vertex_handle> get_vertices() const
