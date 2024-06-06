@@ -3,6 +3,8 @@
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/types.hpp>
 
+#include <span>
+
 namespace oblo
 {
     template <typename Graph>
