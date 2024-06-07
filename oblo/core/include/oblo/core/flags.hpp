@@ -2,8 +2,8 @@
 
 #include <oblo/core/types.hpp>
 
-#include <compare>
 #include <bit>
+#include <compare>
 
 namespace oblo
 {
@@ -38,7 +38,7 @@ namespace oblo
     }
 
     template <typename E, u32 Size = u32(E::enum_max)>
-    class flags
+    struct flags
     {
     public:
         using type = detail::flags_underlying_type<Size>;
@@ -55,70 +55,77 @@ namespace oblo
 
         constexpr bool is_empty() const noexcept
         {
-            return m_storage == type{0};
+            return storage == type{0};
         }
 
         constexpr type data() const noexcept
         {
-            return m_storage;
+            return storage;
         }
 
         constexpr void set(E e) noexcept;
         constexpr void unset(E e) noexcept;
 
+        constexpr bool contains(E e) const noexcept;
+
         constexpr auto operator<=>(const flags&) const = default;
 
         constexpr E find_first() const noexcept;
 
-    private:
         constexpr static type as_flag(E e) noexcept;
 
-    private:
-        type m_storage{};
+    public:
+        type storage{};
     };
 
     template <typename E, u32 Size>
-    constexpr flags<E, Size>::flags(E value) : m_storage{as_flag(value)}
+    constexpr flags<E, Size>::flags(E value) : storage{as_flag(value)}
     {
     }
 
     template <typename E, u32 Size>
     constexpr flags<E, Size>& flags<E, Size>::operator|=(E rhs)
     {
-        m_storage |= as_flag(rhs);
+        storage |= as_flag(rhs);
         return *this;
     }
 
     template <typename E, u32 Size>
     constexpr flags<E, Size>& flags<E, Size>::operator&=(E rhs)
     {
-        m_storage &= as_flag(rhs);
+        storage &= as_flag(rhs);
         return *this;
     }
 
     template <typename E, u32 Size>
     constexpr flags<E, Size>& flags<E, Size>::operator^=(E rhs)
     {
-        m_storage ^= as_flag(rhs);
+        storage ^= as_flag(rhs);
         return *this;
     }
 
     template <typename E, u32 Size>
     constexpr void flags<E, Size>::set(E e) noexcept
     {
-        m_storage |= as_flag(e);
+        storage |= as_flag(e);
     }
 
     template <typename E, u32 Size>
     constexpr void flags<E, Size>::unset(E e) noexcept
     {
-        m_storage &= ~as_flag(e);
+        storage &= ~as_flag(e);
+    }
+
+    template <typename E, u32 Size>
+    constexpr bool flags<E, Size>::contains(E e) const noexcept
+    {
+        return (storage & as_flag(e)) != 0;
     }
 
     template <typename E, u32 Size>
     constexpr E flags<E, Size>::find_first() const noexcept
     {
-        const auto count = u32(std::countr_zero(m_storage));
+        const auto count = u32(std::countr_zero(storage));
         return static_cast<E>(count < Size ? count : Size);
     }
 
