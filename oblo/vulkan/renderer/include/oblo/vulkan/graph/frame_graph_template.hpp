@@ -29,6 +29,7 @@ namespace oblo::vk
         /// Determines whether the vertex is a node or a pin.
         frame_graph_vertex_kind kind;
 
+        // TODO: Should maybe store the index in the pins array instead?
         /// Only valid for pins, it's the offset of the member in the node struct.
         u32 pinMemberOffset;
 
@@ -42,11 +43,8 @@ namespace oblo::vk
         /// Name of the node or pin, if any.
         std::string name;
 
-        /// Pointer to the node descriptor, only for node vertices.
-        const frame_graph_node_desc* nodeDesc;
-
-        /// Info on the pin type.
-        frame_graph_data_desc pinTypeDesc;
+        /// Node descriptor, only for node vertices.
+        frame_graph_node_desc nodeDesc;
     };
 
     class frame_graph_template

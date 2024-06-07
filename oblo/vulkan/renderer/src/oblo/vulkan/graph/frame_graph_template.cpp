@@ -38,7 +38,7 @@ namespace oblo::vk
         m_graph[v] = {
             .kind = frame_graph_vertex_kind::node,
             .nodeId = id,
-            .nodeDesc = &desc,
+            .nodeDesc = desc,
         };
 
         for (const auto& pin : desc.pins)
@@ -50,7 +50,6 @@ namespace oblo::vk
                 .pinMemberOffset = pin.offset,
                 .nodeId = id,
                 .nodeHandle = v,
-                .pinTypeDesc = pin.typeDesc,
             };
 
             m_graph.add_edge(v, p);
