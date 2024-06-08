@@ -11,9 +11,9 @@
 
 namespace oblo::vk
 {
-    struct frame_graph_init_context;
-    struct frame_graph_build_context;
-    struct frame_graph_execute_context;
+    class frame_graph_init_context;
+    class frame_graph_build_context;
+    class frame_graph_execute_context;
 
     using frame_graph_construct_fn = void (*)(void*);
     using frame_graph_destruct_fn = void (*)(void*);
@@ -104,12 +104,9 @@ namespace oblo::vk
     template <typename T>
     frame_graph_node_desc make_frame_graph_node_desc()
     {
-        frame_graph_node_desc nodeDesc;
-
-        alignas(T) const u8 buffer[sizeof(T)]{};
-        const T* instance = reinterpret_cast<const T*>(buffer);
-
-        nodeDesc.typeDesc = frame_graph_data_desc::make<T>();
+        frame_graph_node_desc nodeDesc{
+            .typeDesc = frame_graph_data_desc::make<T>(),
+        };
 
         if constexpr (requires(T& node, const frame_graph_init_context& context) { node.init(context); })
         {
@@ -128,6 +125,11 @@ namespace oblo::vk
             nodeDesc.execute = [](void* node, const frame_graph_execute_context& context)
             { static_cast<T*>(node)->execute(context); };
         }
+
+        // DIY reflection, we don't need a proper instance, just something to iterate member pointers and calculate
+        // their offsets
+        alignas(T) const u8 buffer[sizeof(T)]{};
+        const T* instance = reinterpret_cast<const T*>(buffer);
 
         struct_apply(
             [instance, &nodeDesc](auto&... fields)
