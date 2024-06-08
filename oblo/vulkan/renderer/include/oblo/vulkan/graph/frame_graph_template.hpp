@@ -45,6 +45,9 @@ namespace oblo::vk
 
         /// Node descriptor, only for node vertices.
         frame_graph_node_desc nodeDesc;
+
+        /// Data desc, only for pins.
+        frame_graph_data_desc pinDesc;
     };
 
     class frame_graph_template
@@ -106,6 +109,7 @@ namespace oblo::vk
     template <typename R, typename Node>
     void frame_graph_template::make_input(vertex_handle node, R(Node::*pin), std::string_view name)
     {
+        // TODO: Could maybe somehow check that the template types match
         const auto pinVertex = find_pin(node, calculate_offset(pin));
         make_input(pinVertex, name);
     }
@@ -113,6 +117,7 @@ namespace oblo::vk
     template <typename R, typename Node>
     void frame_graph_template::make_output(vertex_handle node, R(Node::*pin), std::string_view name)
     {
+        // TODO: Could maybe somehow check that the template types match
         const auto pinVertex = find_pin(node, calculate_offset(pin));
         make_output(pinVertex, name);
     }

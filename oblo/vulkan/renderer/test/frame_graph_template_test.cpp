@@ -1,6 +1,7 @@
 #include <oblo/core/graph/dot.hpp>
 #include <oblo/core/graph/topological_sort.hpp>
 #include <oblo/vulkan/buffer.hpp>
+#include <oblo/vulkan/graph/frame_graph.hpp>
 #include <oblo/vulkan/graph/frame_graph_registry.hpp>
 #include <oblo/vulkan/graph/frame_graph_template.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
@@ -12,33 +13,31 @@ namespace oblo::vk::test
 {
     namespace
     {
-        struct fgt_camera_data
+        struct fgt_cpu_data
         {
-        };
-
-        struct fgt_light_data
-        {
+            u32 value;
         };
 
         struct fgt_gbuffer_pass
         {
-            data<fgt_camera_data> inCameraData;
+            data<fgt_cpu_data> inCpuData;
             resource<texture> outGBuffer;
             resource<texture> outDepth;
         };
 
         struct fgt_lighting_pass
         {
-            data<fgt_light_data> inLightData;
+            data<fgt_cpu_data> inShadowMapAtlasId;
+            resource<texture> inShadowMap;
             resource<texture> inGBuffer;
             resource<texture> outLit;
         };
 
         struct fgt_shadow_pass
         {
-            data<fgt_light_data> inLightData;
-            data<u32> inLightIndex;
+            data<fgt_cpu_data> inCpuData;
             resource<texture> outShadowMap;
+            data<fgt_cpu_data> outShadowMapAtlasId;
         };
 
         frame_graph_registry fgt_create_registry()
@@ -62,9 +61,25 @@ namespace oblo::vk::test
             const auto lightingNode = tmpl.add_node<fgt_lighting_pass>();
 
             tmpl.connect(gbufferNode, &fgt_gbuffer_pass::outGBuffer, lightingNode, &fgt_lighting_pass::inGBuffer);
-            tmpl.make_input(gbufferNode, &fgt_gbuffer_pass::inCameraData, "in_Camera");
-            tmpl.make_input(lightingNode, &fgt_lighting_pass::inLightData, "in_LightData");
+            tmpl.make_input(gbufferNode, &fgt_gbuffer_pass::inCpuData, "in_CpuData");
+            tmpl.make_input(lightingNode, &fgt_lighting_pass::inShadowMap, "in_ShadowMap");
+            tmpl.make_input(lightingNode, &fgt_lighting_pass::inShadowMapAtlasId, "in_ShadowMapAtlasId");
             tmpl.make_output(lightingNode, &fgt_lighting_pass::outLit, "out_Lit");
+
+            return tmpl;
+        }
+
+        frame_graph_template fgt_create_shadow_map(const frame_graph_registry& registry)
+        {
+            frame_graph_template tmpl;
+
+            tmpl.init(registry);
+
+            const auto shadowPassNode = tmpl.add_node<fgt_shadow_pass>();
+
+            tmpl.make_input(shadowPassNode, &fgt_shadow_pass::inCpuData, "in_CpuData");
+            tmpl.make_output(shadowPassNode, &fgt_shadow_pass::outShadowMap, "out_ShadowMap");
+            tmpl.make_output(shadowPassNode, &fgt_shadow_pass::outShadowMapAtlasId, "out_ShadowMapAtlasId");
 
             return tmpl;
         }
@@ -81,11 +96,12 @@ namespace oblo::vk::test
         const std::span inputs = mainViewTemplate.get_inputs();
         const std::span outputs = mainViewTemplate.get_outputs();
 
-        ASSERT_EQ(inputs.size(), 2);
+        ASSERT_EQ(inputs.size(), 3);
         ASSERT_EQ(outputs.size(), 1);
 
-        ASSERT_EQ(mainViewTemplate.get_name(inputs[0]), "in_Camera");
-        ASSERT_EQ(mainViewTemplate.get_name(inputs[1]), "in_LightData");
+        ASSERT_EQ(mainViewTemplate.get_name(inputs[0]), "in_CpuData");
+        ASSERT_EQ(mainViewTemplate.get_name(inputs[1]), "in_ShadowMap");
+        ASSERT_EQ(mainViewTemplate.get_name(inputs[2]), "in_ShadowMapAtlasId");
 
         ASSERT_EQ(mainViewTemplate.get_name(outputs[0]), "out_Lit");
 
@@ -128,5 +144,30 @@ namespace oblo::vk::test
 
         ASSERT_EQ(g[sortedNodes[0]].nodeId, registry.get_uuid<fgt_lighting_pass>());
         ASSERT_EQ(g[sortedNodes[1]].nodeId, registry.get_uuid<fgt_gbuffer_pass>());
+    }
+
+    TEST(frame_graph, frame_graph_mock_shadow)
+    {
+        const auto registry = fgt_create_registry();
+
+        const auto mainViewTemplate = fgt_create_main_view(registry);
+
+        frame_graph frameGraph;
+        frameGraph.init();
+
+        const auto mainView = frameGraph.instantiate(mainViewTemplate);
+        ASSERT_TRUE(mainView);
+
+        ASSERT_TRUE(frameGraph.set_input(mainView, "in_CpuData", fgt_cpu_data{42}));
+
+        const auto shadowMapTemplate = fgt_create_shadow_map(registry);
+
+        const auto shadowMapping = frameGraph.instantiate(shadowMapTemplate);
+        ASSERT_TRUE(shadowMapping);
+
+        ASSERT_TRUE(frameGraph.set_input(shadowMapping, "in_CpuData", fgt_cpu_data{666}));
+
+        ASSERT_TRUE(frameGraph.connect(shadowMapping, "out_ShadowMap", mainView, "in_ShadowMap"));
+        ASSERT_TRUE(frameGraph.connect(shadowMapping, "out_ShadowMapAtlasId", mainView, "in_ShadowMapAtlasId"));
     }
 }
