@@ -8,9 +8,13 @@
 
 namespace oblo::vk
 {
-    class renderer;
+    class frame_graph_build_context;
+    class frame_graph_execute_context;
+    class frame_graph_init_context;
     class frame_graph_template;
+    class renderer;
     class resource_pool;
+    struct frame_graph_pin_storage;
     struct frame_graph_subgraph;
 
     class frame_graph
@@ -40,7 +44,14 @@ namespace oblo::vk
         void execute(renderer& renderer, resource_pool& resourcePool);
 
     private:
+        void* access_storage(h32<frame_graph_pin_storage> handle) const;
+
+    private:
         struct impl;
+
+        friend class frame_graph_build_context;
+        friend class frame_graph_execute_context;
+        friend class frame_graph_init_context;
 
     private:
         void* try_get_input(h32<frame_graph_subgraph> graph, std::string_view name, const type_id& typeId);

@@ -1,10 +1,16 @@
+#include <oblo/core/finally.hpp>
+#include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/graph/dot.hpp>
 #include <oblo/core/graph/topological_sort.hpp>
+#include <oblo/sandbox/sandbox_app.hpp>
+#include <oblo/sandbox/sandbox_app_config.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/graph/frame_graph.hpp>
+#include <oblo/vulkan/graph/frame_graph_context.hpp>
 #include <oblo/vulkan/graph/frame_graph_registry.hpp>
 #include <oblo/vulkan/graph/frame_graph_template.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
+#include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/texture.hpp>
 
 #include <gtest/gtest.h>
@@ -15,7 +21,8 @@ namespace oblo::vk::test
     {
         struct fgt_cpu_data
         {
-            u32 value;
+            dynamic_array<std::string>* executionLog;
+            dynamic_array<std::string>* errorLog;
         };
 
         struct fgt_gbuffer_pass
@@ -23,21 +30,58 @@ namespace oblo::vk::test
             data<fgt_cpu_data> inCpuData;
             resource<texture> outGBuffer;
             resource<texture> outDepth;
+
+            void build(const frame_graph_build_context& ctx)
+            {
+                auto& cpuData = ctx.access(inCpuData);
+                cpuData.executionLog->push_back("fgt_gbuffer_pass::build");
+            }
+
+            void execute(const frame_graph_execute_context& ctx)
+            {
+                auto& cpuData = ctx.access(inCpuData);
+                cpuData.executionLog->push_back("fgt_gbuffer_pass::execute");
+            }
         };
 
         struct fgt_lighting_pass
         {
-            data<fgt_cpu_data> inShadowMapAtlasId;
+            data<fgt_cpu_data> inCpuData;
+            data<u32> inShadowMapAtlasId;
             resource<texture> inShadowMap;
             resource<texture> inGBuffer;
             resource<texture> outLit;
+
+            void build(const frame_graph_build_context& ctx)
+            {
+                auto& cpuData = ctx.access(inCpuData);
+                cpuData.executionLog->push_back("fgt_lighting_pass::build");
+            }
+
+            void execute(const frame_graph_execute_context& ctx)
+            {
+                auto& cpuData = ctx.access(inCpuData);
+                cpuData.executionLog->push_back("fgt_lighting_pass::execute");
+            }
         };
 
         struct fgt_shadow_pass
         {
             data<fgt_cpu_data> inCpuData;
             resource<texture> outShadowMap;
-            data<fgt_cpu_data> outShadowMapAtlasId;
+            data<u32> outShadowMapAtlasId;
+
+            void build(const frame_graph_build_context& ctx)
+            {
+                auto& cpuData = ctx.access(inCpuData);
+                cpuData.executionLog->push_back("fgt_shadow_pass::build");
+            }
+
+            void execute(const frame_graph_execute_context& ctx)
+            {
+                auto& cpuData = ctx.access(inCpuData);
+                cpuData.executionLog->push_back("fgt_shadow_pass::execute");
+            }
         };
 
         frame_graph_registry fgt_create_registry()
@@ -60,6 +104,7 @@ namespace oblo::vk::test
             const auto gbufferNode = tmpl.add_node<fgt_gbuffer_pass>();
             const auto lightingNode = tmpl.add_node<fgt_lighting_pass>();
 
+            tmpl.connect(gbufferNode, &fgt_gbuffer_pass::inCpuData, lightingNode, &fgt_lighting_pass::inCpuData);
             tmpl.connect(gbufferNode, &fgt_gbuffer_pass::outGBuffer, lightingNode, &fgt_lighting_pass::inGBuffer);
             tmpl.make_input(gbufferNode, &fgt_gbuffer_pass::inCpuData, "in_CpuData");
             tmpl.make_input(lightingNode, &fgt_lighting_pass::inShadowMap, "in_ShadowMap");
@@ -83,6 +128,51 @@ namespace oblo::vk::test
 
             return tmpl;
         }
+
+        struct test_wrapper
+        {
+            bool init(const sandbox_init_context& ctx)
+            {
+                frameAllocator.init(1u << 26);
+
+                entities.init(&typeRegistry);
+
+                if (!renderer.init({
+                        .vkContext = *ctx.vkContext,
+                        .frameAllocator = frameAllocator,
+                        .entities = entities,
+                    }))
+                {
+                    return false;
+                }
+
+                return true;
+            }
+
+            void shutdown(const sandbox_shutdown_context& ctx)
+            {
+                resourcePool.shutdown(*ctx.vkContext);
+                renderer.shutdown();
+                frameAllocator.shutdown();
+            }
+
+            void update(const sandbox_render_context& ctx)
+            {
+                updateCb(ctx);
+            }
+
+            void update_imgui(const sandbox_update_imgui_context&) {}
+
+            frame_allocator frameAllocator;
+
+            renderer renderer;
+            resource_pool resourcePool;
+
+            ecs::type_registry typeRegistry;
+            ecs::entity_registry entities;
+
+            std::function<void(const sandbox_render_context&)> updateCb;
+        };
     }
 
     TEST(frame_graph_template, frame_graph_template_main_view)
@@ -148,6 +238,8 @@ namespace oblo::vk::test
 
     TEST(frame_graph, frame_graph_mock_shadow)
     {
+        dynamic_array<std::string> executionLog;
+
         const auto registry = fgt_create_registry();
 
         const auto mainViewTemplate = fgt_create_main_view(registry);
@@ -158,16 +250,55 @@ namespace oblo::vk::test
         const auto mainView = frameGraph.instantiate(mainViewTemplate);
         ASSERT_TRUE(mainView);
 
-        ASSERT_TRUE(frameGraph.set_input(mainView, "in_CpuData", fgt_cpu_data{42}));
+        ASSERT_TRUE(frameGraph.set_input(mainView, "in_CpuData", fgt_cpu_data{&executionLog}));
 
         const auto shadowMapTemplate = fgt_create_shadow_map(registry);
 
         const auto shadowMapping = frameGraph.instantiate(shadowMapTemplate);
         ASSERT_TRUE(shadowMapping);
 
-        ASSERT_TRUE(frameGraph.set_input(shadowMapping, "in_CpuData", fgt_cpu_data{666}));
+        ASSERT_TRUE(frameGraph.set_input(shadowMapping, "in_CpuData", fgt_cpu_data{&executionLog}));
 
         ASSERT_TRUE(frameGraph.connect(shadowMapping, "out_ShadowMap", mainView, "in_ShadowMap"));
         ASSERT_TRUE(frameGraph.connect(shadowMapping, "out_ShadowMapAtlasId", mainView, "in_ShadowMapAtlasId"));
+
+        sandbox_app<test_wrapper> app;
+
+        app.updateCb = [&](const sandbox_render_context&)
+        {
+            frameGraph.build(app.renderer, app.resourcePool);
+
+            // Order between gbuffer and shadow is not determined, but lighting has to run last
+            ASSERT_EQ(executionLog.size(), 3);
+            ASSERT_TRUE(executionLog[1] != executionLog[0]);
+            ASSERT_TRUE(executionLog[0] == "fgt_gbuffer_pass::build" || executionLog[0] == "fgt_shadow_pass::build");
+            ASSERT_TRUE(executionLog[1] == "fgt_gbuffer_pass::build" || executionLog[1] == "fgt_shadow_pass::build");
+            ASSERT_TRUE(executionLog[2] == "fgt_lighting_pass::build");
+
+            executionLog.clear();
+
+            frameGraph.execute(app.renderer, app.resourcePool);
+
+            ASSERT_EQ(executionLog.size(), 3);
+            ASSERT_TRUE(executionLog[1] != executionLog[0]);
+            ASSERT_TRUE(
+                executionLog[0] == "fgt_gbuffer_pass::execute" || executionLog[0] == "fgt_shadow_pass::execute");
+            ASSERT_TRUE(
+                executionLog[1] == "fgt_gbuffer_pass::execute" || executionLog[1] == "fgt_shadow_pass::execute");
+            ASSERT_TRUE(executionLog[2] == "fgt_lighting_pass::execute");
+
+            // TODO: Check that nodes built in order
+            // TODO: Check that nodes executed in order
+            // TODO: Check that nodes received the right values from pins
+        };
+
+        app.set_config(sandbox_app_config{
+            .vkUseValidationLayers = true,
+        });
+
+        ASSERT_TRUE(app.init());
+        const auto cleanup = finally([&] { app.shutdown(); });
+
+        app.run_frame();
     }
 }
