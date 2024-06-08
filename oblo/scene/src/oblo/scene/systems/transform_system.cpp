@@ -1,6 +1,6 @@
 #include <oblo/scene/systems/transform_system.hpp>
 
-#include <oblo/core/zip_range.hpp>
+#include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/range.hpp>
 #include <oblo/ecs/systems/system_update_context.hpp>

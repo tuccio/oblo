@@ -7,7 +7,7 @@
 #include <oblo/core/iterator/reverse_range.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/unreachable.hpp>
-#include <oblo/core/zip_range.hpp>
+#include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/vulkan/graph/frame_graph_context.hpp>
 #include <oblo/vulkan/graph/frame_graph_data.hpp>
 #include <oblo/vulkan/graph/frame_graph_template.hpp>

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <oblo/core/iterator/iterator_range.hpp>
-#include <oblo/core/zip_iterator.hpp>
+#include <oblo/core/iterator/zip_iterator.hpp>
 
 namespace oblo
 {

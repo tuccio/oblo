@@ -1,7 +1,7 @@
 #include <oblo/vulkan/graph/render_graph.hpp>
 
 #include <oblo/core/buffered_array.hpp>
-#include <oblo/core/zip_range.hpp>
+#include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/graph/graph_data.hpp>
 #include <oblo/vulkan/graph/init_context.hpp>

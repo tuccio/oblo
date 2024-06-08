@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include <oblo/core/zip_range.hpp>
+#include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/range.hpp>
 #include <oblo/ecs/type_registry.hpp>
