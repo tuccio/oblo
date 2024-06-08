@@ -3,7 +3,7 @@
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/service_registry.hpp>
-#include <oblo/core/zip_range.hpp>
+#include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/ecs/range.hpp>
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/ecs/type_registry.hpp>

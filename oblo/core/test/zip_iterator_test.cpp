@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include <oblo/core/zip_range.hpp>
+#include <oblo/core/iterator/zip_range.hpp>
 
 #include <array>
 #include <span>
