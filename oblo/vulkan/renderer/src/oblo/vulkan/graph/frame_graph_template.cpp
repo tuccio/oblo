@@ -50,6 +50,7 @@ namespace oblo::vk
                 .pinMemberOffset = pin.offset,
                 .nodeId = id,
                 .nodeHandle = v,
+                .pinDesc = pin.typeDesc,
             };
 
             m_graph.add_edge(v, p);

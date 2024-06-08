@@ -11,15 +11,15 @@
 
 namespace oblo::vk
 {
-    class init_context;
-    class runtime_builder;
-    class runtime_context;
+    struct frame_graph_init_context;
+    struct frame_graph_build_context;
+    struct frame_graph_execute_context;
 
     using frame_graph_construct_fn = void (*)(void*);
     using frame_graph_destruct_fn = void (*)(void*);
-    using frame_graph_init_fn = void (*)(void*, const init_context&);
-    using frame_graph_build_fn = void (*)(void*, const runtime_builder&);
-    using frame_graph_execute_fn = void (*)(void*, const runtime_context&);
+    using frame_graph_init_fn = void (*)(void*, const frame_graph_init_context&);
+    using frame_graph_build_fn = void (*)(void*, const frame_graph_build_context&);
+    using frame_graph_execute_fn = void (*)(void*, const frame_graph_execute_context&);
 
     struct frame_graph_data_desc
     {
@@ -27,6 +27,7 @@ namespace oblo::vk
         u32 alignment;
         frame_graph_construct_fn construct;
         frame_graph_destruct_fn destruct;
+        type_id typeId;
 
         template <typename T>
         static frame_graph_data_desc make()
@@ -36,6 +37,7 @@ namespace oblo::vk
                 .alignment = alignof(T),
                 .construct = [](void* p) { new (p) T{}; },
                 .destruct = [](void* p) { static_cast<T*>(p)->~T(); },
+                .typeId = get_type_id<T>(),
             };
         }
     };
@@ -50,8 +52,8 @@ namespace oblo::vk
     {
         std::string name;
 
-        frame_graph_construct_fn construct;
-        frame_graph_destruct_fn destruct;
+        frame_graph_data_desc typeDesc;
+
         frame_graph_init_fn init;
         frame_graph_build_fn build;
         frame_graph_execute_fn execute;
@@ -104,34 +106,36 @@ namespace oblo::vk
     {
         frame_graph_node_desc nodeDesc;
 
-        const T instance{};
+        alignas(T) const u8 buffer[sizeof(T)]{};
+        const T* instance = reinterpret_cast<const T*>(buffer);
 
-        nodeDesc.construct = [](void* ptr) { new (ptr) T{}; };
-        nodeDesc.destruct = [](void* ptr) { static_cast<T*>(ptr)->~T(); };
+        nodeDesc.typeDesc = frame_graph_data_desc::make<T>();
 
-        if constexpr (requires(T& node, const init_context& context) { node.init(context); })
+        if constexpr (requires(T& node, const frame_graph_init_context& context) { node.init(context); })
         {
-            nodeDesc.init = [](void* node, const init_context& context) { static_cast<T*>(node)->init(context); };
+            nodeDesc.init = [](void* node, const frame_graph_init_context& context)
+            { static_cast<T*>(node)->init(context); };
         }
 
-        if constexpr (requires(T& node, const runtime_builder& builder) { node.build(builder); })
+        if constexpr (requires(T& node, const frame_graph_build_context& context) { node.build(context); })
         {
-            nodeDesc.build = [](void* node, const runtime_builder& builder) { static_cast<T*>(node)->build(builder); };
+            nodeDesc.build = [](void* node, const frame_graph_build_context& context)
+            { static_cast<T*>(node)->build(context); };
         }
 
-        if constexpr (requires(T& node, const runtime_context& context) { node.execute(context); })
+        if constexpr (requires(T& node, const frame_graph_execute_context& context) { node.execute(context); })
         {
-            nodeDesc.execute = [](void* node, const runtime_context& context)
+            nodeDesc.execute = [](void* node, const frame_graph_execute_context& context)
             { static_cast<T*>(node)->execute(context); };
         }
 
         struct_apply(
-            [&instance, &nodeDesc](auto&... fields)
+            [instance, &nodeDesc](auto&... fields)
             {
                 nodeDesc.pins.reserve(sizeof...(fields));
-                (detail::register_pin(&nodeDesc, reinterpret_cast<const u8*>(&instance), &fields), ...);
+                (detail::register_pin(&nodeDesc, reinterpret_cast<const u8*>(instance), &fields), ...);
             },
-            instance);
+            *instance);
 
         return nodeDesc;
     }
