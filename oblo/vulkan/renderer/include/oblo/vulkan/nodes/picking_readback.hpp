@@ -2,6 +2,7 @@
 
 #include <oblo/math/vec2.hpp>
 #include <oblo/vulkan/buffer.hpp>
+#include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 
 namespace oblo::vk
@@ -29,10 +30,12 @@ namespace oblo::vk
         // Cached in build to avoid re-accessing all the time
         bool isPickingEnabled;
 
-        void init(const init_context& context);
-
         void build(const runtime_builder& builder);
 
         void execute(const runtime_context& context);
+
+        void build(const frame_graph_build_context& builder);
+
+        void execute(const frame_graph_execute_context& context);
     };
 }

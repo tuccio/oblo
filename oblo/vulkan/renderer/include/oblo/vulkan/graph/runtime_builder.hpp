@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/types.hpp>
+#include <oblo/vulkan/graph/frame_graph_context.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 
 #include <vulkan/vulkan.h>
@@ -30,36 +31,6 @@ namespace oblo::vk
         shader_read,
         transfer_source,
         transfer_destination,
-    };
-
-    enum class buffer_usage : u8
-    {
-        storage_read,
-        storage_write,
-        uniform,
-        indirect,
-        enum_max,
-    };
-
-    enum class pass_kind : u8
-    {
-        graphics,
-        compute,
-    };
-
-    struct transient_texture_initializer
-    {
-        u32 width;
-        u32 height;
-        VkFormat format;
-        VkImageUsageFlags usage;
-        VkImageAspectFlags aspectMask;
-    };
-
-    struct transient_buffer_initializer
-    {
-        u32 size;
-        std::span<const std::byte> data;
     };
 
     class render_graph;

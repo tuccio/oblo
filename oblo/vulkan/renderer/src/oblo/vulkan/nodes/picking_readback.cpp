@@ -6,8 +6,6 @@
 
 namespace oblo::vk
 {
-    void picking_readback::init(const init_context&) {}
-
     void picking_readback::build(const runtime_builder& context)
     {
         isPickingEnabled = context.access(inPickingConfiguration).enabled;
@@ -50,5 +48,15 @@ namespace oblo::vk
             cfg->downloadBuffer.buffer,
             1,
             &copyRegion);
+    }
+
+    void picking_readback::build(const frame_graph_build_context& context)
+    {
+        (void) context; // TODO: Needs to be implemented somehow differently now
+    }
+
+    void picking_readback::execute(const frame_graph_execute_context& context)
+    {
+        (void) context; // TODO: Needs to be implemented somehow differently now
     }
 }

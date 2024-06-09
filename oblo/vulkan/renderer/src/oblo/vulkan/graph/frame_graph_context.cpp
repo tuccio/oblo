@@ -306,27 +306,27 @@ namespace oblo::vk
         return *static_cast<buffer*>(m_frameGraph.access_storage(storage));
     }
 
-    inline VkCommandBuffer frame_graph_execute_context::get_command_buffer() const
+    VkCommandBuffer frame_graph_execute_context::get_command_buffer() const
     {
         return m_commandBuffer;
     }
 
-    inline pass_manager& frame_graph_execute_context::get_pass_manager() const
+    pass_manager& frame_graph_execute_context::get_pass_manager() const
     {
         return m_renderer.get_pass_manager();
     }
 
-    inline resource_manager& frame_graph_execute_context::get_resource_manager() const
+    resource_manager& frame_graph_execute_context::get_resource_manager() const
     {
         return m_renderer.get_resource_manager();
     }
 
-    inline draw_registry& frame_graph_execute_context::get_draw_registry() const
+    draw_registry& frame_graph_execute_context::get_draw_registry() const
     {
         return m_renderer.get_draw_registry();
     }
 
-    inline string_interner& frame_graph_execute_context::get_string_interner() const
+    string_interner& frame_graph_execute_context::get_string_interner() const
     {
         return m_renderer.get_string_interner();
     }

@@ -3,8 +3,8 @@
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/frame_allocator.hpp>
-#include <oblo/core/service_registry.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
+#include <oblo/core/service_registry.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/range.hpp>
 #include <oblo/ecs/systems/system_update_context.hpp>
@@ -16,6 +16,8 @@
 #include <oblo/vulkan/create_render_target.hpp>
 #include <oblo/vulkan/draw/buffer_binding_table.hpp>
 #include <oblo/vulkan/error.hpp>
+#include <oblo/vulkan/graph/frame_graph.hpp>
+#include <oblo/vulkan/graph/frame_graph_template.hpp>
 #include <oblo/vulkan/graph/render_graph.hpp>
 #include <oblo/vulkan/graph/topology_builder.hpp>
 #include <oblo/vulkan/nodes/bypass_culling.hpp>
@@ -45,6 +47,45 @@ namespace oblo
         constexpr std::string_view InTime{"Time"};
 
         constexpr u32 PickingResultSize{sizeof(u32)};
+
+        vk::frame_graph_template create_main_view(const vk::frame_graph_registry& registry)
+        {
+            using namespace oblo::vk;
+
+            vk::frame_graph_template graph;
+
+            graph.init(registry);
+
+            const auto viewBuffers = graph.add_node<view_buffers_node>();
+            const auto frustumCulling = graph.add_node<frustum_culling>();
+            const auto forwardPass = graph.add_node<forward_pass>();
+            const auto pickingReadback = graph.add_node<picking_readback>();
+
+            graph.make_input(viewBuffers, &view_buffers_node::inCameraData, InCamera);
+            graph.make_input(viewBuffers, &view_buffers_node::inTimeData, InTime);
+
+            graph.make_input(forwardPass, &forward_pass::inResolution, InResolution);
+            graph.make_input(forwardPass, &forward_pass::inPickingConfiguration, InPickingConfiguration);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::outPerViewBindingTable,
+                forwardPass,
+                &forward_pass::inPerViewBindingTable);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::outPerViewBindingTable,
+                frustumCulling,
+                &frustum_culling::inPerViewBindingTable);
+
+            graph.connect(forwardPass,
+                &forward_pass::outPickingIdBuffer,
+                pickingReadback,
+                &picking_readback::inPickingIdBuffer);
+
+            graph.connect(frustumCulling, &frustum_culling::outDrawBufferData, forwardPass, &forward_pass::inDrawData);
+
+            return graph;
+        }
     }
 
     struct viewport_system::render_graph_data

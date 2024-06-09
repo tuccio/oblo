@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/vulkan/draw/buffer_binding_table.hpp>
+#include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 
 #include <span>
@@ -46,5 +47,11 @@ namespace oblo::vk
         void build(const runtime_builder& builder);
 
         void execute(const runtime_context& context);
+
+        void init(const frame_graph_init_context& context);
+
+        void build(const frame_graph_build_context& builder);
+
+        void execute(const frame_graph_execute_context& context);
     };
 }
