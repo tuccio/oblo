@@ -17,7 +17,6 @@ namespace oblo
 namespace oblo::vk
 {
     class draw_registry;
-    class frame_graph;
     class pass_manager;
     class renderer;
     class resource_manager;
@@ -26,6 +25,7 @@ namespace oblo::vk
     struct buffer;
     struct texture;
 
+    struct frame_graph_impl;
     struct frame_graph_pin_storage;
     struct staging_buffer_span;
 
@@ -85,7 +85,8 @@ namespace oblo::vk
     class frame_graph_build_context
     {
     public:
-        explicit frame_graph_build_context(frame_graph& frameGraph, renderer& renderer, resource_pool& resourcePool);
+        explicit frame_graph_build_context(
+            frame_graph_impl& frameGraph, renderer& renderer, resource_pool& resourcePool);
 
         void create(
             resource<texture> texture, const transient_texture_initializer& initializer, texture_usage usage) const;
@@ -124,7 +125,7 @@ namespace oblo::vk
         void* access_storage(h32<frame_graph_pin_storage> handle) const;
 
     private:
-        frame_graph& m_frameGraph;
+        frame_graph_impl& m_frameGraph;
         renderer& m_renderer;
         resource_pool& m_resourcePool;
     };
@@ -133,7 +134,7 @@ namespace oblo::vk
     {
     public:
         explicit frame_graph_execute_context(
-            frame_graph& frameGraph, renderer& renderer, VkCommandBuffer commandBuffer);
+            frame_graph_impl& frameGraph, renderer& renderer, VkCommandBuffer commandBuffer);
 
         template <typename T>
         T& access(data<T> data) const
@@ -159,7 +160,7 @@ namespace oblo::vk
         void* access_storage(h32<frame_graph_pin_storage> handle) const;
 
     private:
-        frame_graph& m_frameGraph;
+        frame_graph_impl& m_frameGraph;
         renderer& m_renderer;
         VkCommandBuffer m_commandBuffer;
     };
