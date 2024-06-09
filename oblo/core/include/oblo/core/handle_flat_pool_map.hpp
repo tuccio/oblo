@@ -63,6 +63,7 @@ namespace oblo
             return res;
         }
 
+        using base::at;
         using base::try_find;
 
         using base::keys;

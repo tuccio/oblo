@@ -149,6 +149,20 @@ namespace oblo
             return &m_denseValue[pointedIndex];
         }
 
+        Value& at(Key key)
+        {
+            auto* const v = try_find(key);
+            OBLO_ASSERT(v);
+            return *v;
+        }
+
+        const Value& at(Key key) const
+        {
+            auto* const v = try_find(key);
+            OBLO_ASSERT(v);
+            return *v;
+        }
+
         std::span<const Key> keys() const
         {
             return m_denseKey;
