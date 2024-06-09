@@ -19,7 +19,7 @@ namespace oblo::vk
     class frame_graph_template;
 
     class renderer;
-    class resource_pool;
+    class vulkan_context;
 
     struct frame_graph_impl;
     struct frame_graph_subgraph;
@@ -44,11 +44,12 @@ namespace oblo::vk
         template <typename T>
         expected<> set_input(h32<frame_graph_subgraph> graph, std::string_view name, T&& value);
 
-        void init();
+        bool init(vulkan_context& ctx);
+        void shutdown(vulkan_context& ctx);
 
-        void build(renderer& renderer, resource_pool& resourcePool);
+        void build(renderer& renderer);
 
-        void execute(renderer& renderer, resource_pool& resourcePool);
+        void execute(renderer& renderer);
 
     private:
         void* try_get_input(h32<frame_graph_subgraph> graph, std::string_view name, const type_id& typeId);

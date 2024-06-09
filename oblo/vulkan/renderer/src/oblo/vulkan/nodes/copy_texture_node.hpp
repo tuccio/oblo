@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/vulkan/data/copy_texture_info.hpp>
 #include <oblo/vulkan/graph/frame_graph_context.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
@@ -8,14 +9,6 @@
 
 namespace oblo::vk
 {
-    struct copy_texture_info
-    {
-        VkImage image;
-        VkImageLayout initialLayout;
-        VkImageLayout finalLayout;
-        VkImageAspectFlags aspect;
-    };
-
     struct copy_texture_node
     {
         data<copy_texture_info> inTarget;

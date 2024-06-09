@@ -3,7 +3,6 @@
 #include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/draw/descriptor_set_pool.hpp>
 #include <oblo/vulkan/error.hpp>
-#include <oblo/vulkan/graph/render_graph.hpp>
 #include <oblo/vulkan/renderer_context.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
@@ -12,9 +11,7 @@
 
 namespace oblo::vk
 {
-    struct renderer::wrapped_render_graph : render_graph
-    {
-    };
+    constexpr u32 StagingBufferSize{1u << 29};
 
     renderer::renderer() = default;
     renderer::~renderer() = default;
@@ -23,12 +20,7 @@ namespace oblo::vk
     {
         m_vkContext = &initializer.vkContext;
 
-        if (!m_stagingBuffer.init(get_allocator(), 1u << 29))
-        {
-            return false;
-        }
-
-        if (!m_graphResourcePool.init(*m_vkContext))
+        if (!m_stagingBuffer.init(get_allocator(), StagingBufferSize))
         {
             return false;
         }
@@ -38,7 +30,10 @@ namespace oblo::vk
             return false;
         }
 
-        m_frameGraph.init();
+        if (!m_frameGraph.init(*m_vkContext))
+        {
+            return false;
+        }
 
         m_dummy = m_vkContext->get_resource_manager().create(get_allocator(),
             {
@@ -67,8 +62,7 @@ namespace oblo::vk
 
         m_drawRegistry.shutdown();
 
-        m_renderGraphs.clear();
-        m_graphResourcePool.shutdown(*m_vkContext);
+        m_frameGraph.shutdown(*m_vkContext);
 
         m_passManager.shutdown(*m_vkContext);
 
@@ -100,29 +94,10 @@ namespace oblo::vk
         m_drawRegistry.generate_mesh_database(frameAllocator);
         m_drawRegistry.generate_draw_calls(frameAllocator, m_stagingBuffer);
 
-        m_graphResourcePool.begin_build();
         m_passManager.begin_frame();
 
-        // TODO: Graph dependencies, e.g. shadow maps should run before other graphs
-        for (auto& graphData : m_renderGraphs.values())
-        {
-            m_graphResourcePool.begin_graph();
-            graphData.build(*this, m_graphResourcePool);
-            m_graphResourcePool.end_graph();
-        }
-
-        m_graphResourcePool.begin_graph();
-        m_frameGraph.build(*this, m_graphResourcePool);
-        m_graphResourcePool.end_graph();
-
-        m_graphResourcePool.end_build(*m_vkContext);
-
-        for (auto& graphData : m_renderGraphs.values())
-        {
-            graphData.execute(*this, m_graphResourcePool);
-        }
-
-        m_frameGraph.execute(*this, m_graphResourcePool);
+        m_frameGraph.build(*this);
+        m_frameGraph.execute(*this);
 
         m_passManager.end_frame();
         m_drawRegistry.end_frame();
@@ -147,28 +122,5 @@ namespace oblo::vk
     stateful_command_buffer& renderer::get_active_command_buffer()
     {
         return m_vkContext->get_active_command_buffer();
-    }
-
-    h32<render_graph> renderer::add(render_graph&& graph)
-    {
-        auto [it, id] = m_renderGraphs.emplace(std::move(graph));
-
-        if (!id)
-        {
-            return {};
-        }
-
-        it->init(*this);
-        return id;
-    }
-
-    void renderer::remove(h32<render_graph> graph)
-    {
-        m_renderGraphs.erase(graph);
-    }
-
-    render_graph* renderer::find(h32<render_graph> graph)
-    {
-        return m_renderGraphs.try_find(graph);
     }
 }

@@ -3,12 +3,11 @@
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/vulkan/data/draw_buffer_data.hpp>
-#include <oblo/vulkan/graph/runtime_builder.hpp>
-#include <oblo/vulkan/graph/runtime_context.hpp>
+#include <oblo/vulkan/graph/node_common.hpp>
 
 namespace oblo::vk
 {
-    void bypass_culling::build(const runtime_builder& builder)
+    void bypass_culling::build(const frame_graph_build_context& builder)
     {
         auto& drawBufferData = builder.access(outDrawBufferData);
 

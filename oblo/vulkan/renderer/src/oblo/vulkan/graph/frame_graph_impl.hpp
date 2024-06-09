@@ -9,6 +9,7 @@
 #include <oblo/vulkan/graph/frame_graph_template.hpp>
 #include <oblo/vulkan/graph/frame_graph_vertex_kind.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
+#include <oblo/vulkan/graph/resource_pool.hpp>
 #include <oblo/vulkan/staging_buffer.hpp>
 
 #include <memory_resource>
@@ -146,6 +147,8 @@ namespace oblo::vk
         dynamic_array<frame_graph_buffer> transientBuffers;
         dynamic_array<frame_graph_pending_upload> pendingUploads;
         dynamic_array<h32<frame_graph_pin_storage>> dynamicPins;
+
+        resource_pool resourcePool;
 
     public: // Internals for frame graph execution
         void rebuild_runtime(renderer& renderer);

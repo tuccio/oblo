@@ -2,10 +2,8 @@
 
 #include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/draw/render_pass_initializer.hpp>
-#include <oblo/vulkan/graph/init_context.hpp>
+#include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
-#include <oblo/vulkan/graph/runtime_builder.hpp>
-#include <oblo/vulkan/graph/runtime_context.hpp>
 #include <oblo/vulkan/utility.hpp>
 
 namespace oblo::vk
@@ -19,32 +17,7 @@ namespace oblo::vk
 
         h32<render_pass> renderPass{};
 
-        void build(const runtime_builder& builder)
-        {
-            const auto resolution = builder.access(inResolution);
-
-            builder.create(outRenderTarget,
-                {
-                    .width = resolution.x,
-                    .height = resolution.y,
-                    .format = VK_FORMAT_R8G8B8A8_UNORM,
-                    .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                },
-                resource_usage::render_target_write);
-
-            builder.create(outDepthBuffer,
-                {
-                    .width = resolution.x,
-                    .height = resolution.y,
-                    .format = VK_FORMAT_D24_UNORM_S8_UINT,
-                    .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                    .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
-                },
-                resource_usage::depth_stencil_write);
-        }
-
-        void init(const init_context& context)
+        void init(const frame_graph_init_context& context)
         {
             auto& passManager = context.get_pass_manager();
 
@@ -64,7 +37,32 @@ namespace oblo::vk
             });
         }
 
-        void execute(const runtime_context& context)
+        void build(const frame_graph_build_context& builder)
+        {
+            const auto resolution = builder.access(inResolution);
+
+            builder.create(outRenderTarget,
+                {
+                    .width = resolution.x,
+                    .height = resolution.y,
+                    .format = VK_FORMAT_R8G8B8A8_UNORM,
+                    .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                },
+                texture_usage::render_target_write);
+
+            builder.create(outDepthBuffer,
+                {
+                    .width = resolution.x,
+                    .height = resolution.y,
+                    .format = VK_FORMAT_D24_UNORM_S8_UINT,
+                    .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                    .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+                },
+                texture_usage::depth_stencil_write);
+        }
+
+        void execute(const frame_graph_execute_context& context)
         {
             const auto renderTarget = context.access(outRenderTarget);
             const auto depthBuffer = context.access(outDepthBuffer);
@@ -126,7 +124,7 @@ namespace oblo::vk
             if (const auto pass = passManager.begin_render_pass(commandBuffer, pipeline, renderInfo))
             {
                 const buffer_binding_table* bindingTables[] = {
-                    context.access(inPerViewBindingTable),
+                    &context.access(inPerViewBindingTable),
                     // instanceBufferBindings, // TODO
                 };
 
