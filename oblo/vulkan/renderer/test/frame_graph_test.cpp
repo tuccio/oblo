@@ -154,9 +154,8 @@ namespace oblo::vk::test
                 return true;
             }
 
-            void shutdown(const sandbox_shutdown_context& ctx)
+            void shutdown(const sandbox_shutdown_context&)
             {
-                resourcePool.shutdown(*ctx.vkContext);
                 renderer.shutdown();
                 frameAllocator.shutdown();
             }
@@ -171,7 +170,6 @@ namespace oblo::vk::test
             frame_allocator frameAllocator;
 
             renderer renderer;
-            resource_pool resourcePool;
 
             ecs::type_registry typeRegistry;
             ecs::entity_registry entities;
@@ -249,29 +247,29 @@ namespace oblo::vk::test
 
         const auto mainViewTemplate = fgt_create_main_view(registry);
 
-        frame_graph frameGraph;
-        frameGraph.init();
-
-        const auto mainView = frameGraph.instantiate(mainViewTemplate);
-        ASSERT_TRUE(mainView);
-
-        ASSERT_TRUE(frameGraph.set_input(mainView, "in_CpuData", fgt_cpu_data{&executionLog}));
-
-        const auto shadowMapTemplate = fgt_create_shadow_map(registry);
-
-        const auto shadowMapping = frameGraph.instantiate(shadowMapTemplate);
-        ASSERT_TRUE(shadowMapping);
-
-        ASSERT_TRUE(frameGraph.set_input(shadowMapping, "in_CpuData", fgt_cpu_data{&executionLog}));
-
-        ASSERT_TRUE(frameGraph.connect(shadowMapping, "out_ShadowMap", mainView, "in_ShadowMap"));
-        ASSERT_TRUE(frameGraph.connect(shadowMapping, "out_ShadowMapAtlasId", mainView, "in_ShadowMapAtlasId"));
-
         sandbox_app<test_wrapper> app;
 
-        app.updateCb = [&](const sandbox_render_context&)
+        app.updateCb = [&](const sandbox_render_context& ctx)
         {
-            frameGraph.build(app.renderer, app.resourcePool);
+            frame_graph frameGraph;
+            frameGraph.init(*ctx.vkContext);
+
+            const auto mainView = frameGraph.instantiate(mainViewTemplate);
+            ASSERT_TRUE(mainView);
+
+            ASSERT_TRUE(frameGraph.set_input(mainView, "in_CpuData", fgt_cpu_data{&executionLog}));
+
+            const auto shadowMapTemplate = fgt_create_shadow_map(registry);
+
+            const auto shadowMapping = frameGraph.instantiate(shadowMapTemplate);
+            ASSERT_TRUE(shadowMapping);
+
+            ASSERT_TRUE(frameGraph.set_input(shadowMapping, "in_CpuData", fgt_cpu_data{&executionLog}));
+
+            ASSERT_TRUE(frameGraph.connect(shadowMapping, "out_ShadowMap", mainView, "in_ShadowMap"));
+            ASSERT_TRUE(frameGraph.connect(shadowMapping, "out_ShadowMapAtlasId", mainView, "in_ShadowMapAtlasId"));
+
+            frameGraph.build(app.renderer);
 
             // Order between gbuffer and shadow is not determined, but lighting has to run last
             ASSERT_EQ(executionLog.size(), 3);
@@ -282,7 +280,7 @@ namespace oblo::vk::test
 
             executionLog.clear();
 
-            frameGraph.execute(app.renderer, app.resourcePool);
+            frameGraph.execute(app.renderer);
 
             ASSERT_EQ(executionLog.size(), 3);
             ASSERT_TRUE(executionLog[1] != executionLog[0]);
@@ -291,10 +289,6 @@ namespace oblo::vk::test
             ASSERT_TRUE(
                 executionLog[1] == "fgt_gbuffer_pass::execute" || executionLog[1] == "fgt_shadow_pass::execute");
             ASSERT_TRUE(executionLog[2] == "fgt_lighting_pass::execute");
-
-            // TODO: Check that nodes built in order
-            // TODO: Check that nodes executed in order
-            // TODO: Check that nodes received the right values from pins
         };
 
         app.set_config(sandbox_app_config{
