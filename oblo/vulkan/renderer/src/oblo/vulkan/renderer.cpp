@@ -120,8 +120,9 @@ namespace oblo::vk
         for (auto& graphData : m_renderGraphs.values())
         {
             graphData.execute(*this, m_graphResourcePool);
-            m_frameGraph.execute(*this, m_graphResourcePool);
         }
+
+        m_frameGraph.execute(*this, m_graphResourcePool);
 
         m_passManager.end_frame();
         m_drawRegistry.end_frame();
