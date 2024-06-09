@@ -50,7 +50,7 @@ namespace oblo
 
         constexpr u32 PickingResultSize{sizeof(u32)};
 
-        constexpr bool UseNewFrameGraph{false};
+        constexpr bool UseNewFrameGraph{true};
 
         vk::frame_graph_template create_main_view(const vk::frame_graph_registry& registry)
         {

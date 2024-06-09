@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <string_view>
+#include <utility>
 
 namespace oblo
 {
@@ -59,11 +60,13 @@ namespace oblo::vk
     template <typename T>
     expected<> frame_graph::set_input(h32<frame_graph_subgraph> graph, std::string_view name, T&& value)
     {
-        auto* const dst = try_get_input(graph, name, get_type_id<T>());
+        using type = std::decay_t<T>;
 
-        if (dst)
+        auto* const dst = try_get_input(graph, name, get_type_id<type>());
+
+        if (type* const concrete = static_cast<type*>(dst))
         {
-            *static_cast<T*>(dst) = std::forward<T>(value);
+            *concrete = std::forward<T>(value);
             return no_error;
         }
 

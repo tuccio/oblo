@@ -154,7 +154,7 @@ namespace oblo::vk
             dst.pin = h32<frame_graph_pin>{pinKey};
 
             // TODO: Check if it's an input or output pin?
-            // TODO: Allocate storage? Maybe we can allocate storage when building instead, only if necessary
+            // We don't allocate storage yet, this will happen when building, only if necessary
 
             const auto [pinStorageIt, pinStorageKey] = m_impl->pinStorage.emplace();
 
@@ -285,7 +285,10 @@ namespace oblo::vk
 
         buffered_array<VkBufferMemoryBarrier2, 32> bufferBarriers;
 
-        flat_dense_map<h32<frame_graph_pin_storage>, frame_graph_buffer_barrier> m_bufferStates;
+        flat_dense_map<h32<frame_graph_pin_storage>,
+            frame_graph_buffer_barrier,
+            decltype(m_impl->pinStorage)::extractor_type>
+            m_bufferStates;
 
         for (auto&& [node, transitions] : zip_range(m_impl->sortedNodes, m_impl->nodeTransitions))
         {
@@ -459,8 +462,13 @@ namespace oblo::vk
     void frame_graph_impl::add_buffer_access(
         resource<buffer> handle, VkPipelineStageFlags2 pipelineStage, VkAccessFlags2 access)
     {
+        const auto storage = to_storage_handle(handle);
+
+        OBLO_ASSERT(storage);
+        OBLO_ASSERT(pinStorage.try_find(storage));
+
         bufferBarriers.push_back({
-            .buffer = to_storage_handle(handle),
+            .buffer = storage,
             .pipelineStage = pipelineStage,
             .access = access,
         });

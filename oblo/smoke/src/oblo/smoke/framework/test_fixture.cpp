@@ -226,7 +226,7 @@ namespace oblo::smoke
                     renderdocApi->EndFrameCapture(nullptr, nullptr);
                 }
 
-                if (testCtx->renderdocCapture)
+                if (testCtx && testCtx->renderdocCapture)
                 {
                     if (isRenderDocFirstUsage)
                     {
