@@ -48,6 +48,8 @@ namespace oblo
 
         constexpr u32 PickingResultSize{sizeof(u32)};
 
+        constexpr bool UseNewFrameGraph{false};
+
         vk::frame_graph_template create_main_view(const vk::frame_graph_registry& registry)
         {
             using namespace oblo::vk;
@@ -86,6 +88,19 @@ namespace oblo
 
             return graph;
         }
+
+        vk::frame_graph_registry create_frame_graph_registry()
+        {
+            using namespace vk;
+            frame_graph_registry registry;
+
+            registry.register_node<view_buffers_node>();
+            registry.register_node<frustum_culling>();
+            registry.register_node<forward_pass>();
+            registry.register_node<picking_readback>();
+
+            return registry;
+        }
     }
 
     struct viewport_system::render_graph_data
@@ -99,6 +114,8 @@ namespace oblo
 
         vk::allocated_buffer pickingDownloadBuffer;
         u64 lastPickingSubmitIndex{};
+
+        h32<vk::frame_graph_subgraph> subgraph{};
     };
 
     viewport_system::viewport_system() = default;
@@ -330,7 +347,21 @@ namespace oblo
 
                     const auto [it, ok] = m_renderGraphs.emplace(entity);
                     it->isAlive = true;
-                    it->id = m_renderer->add(std::move(*res));
+
+                    if (UseNewFrameGraph)
+                    {
+                        const auto registry = create_frame_graph_registry();
+                        const auto mainViewTemplate = create_main_view(registry);
+
+                        auto& frameGraph = m_renderer->get_frame_graph();
+                        const auto subgraph = frameGraph.instantiate(mainViewTemplate);
+
+                        it->subgraph = subgraph;
+                    }
+                    else
+                    {
+                        it->id = m_renderer->add(std::move(*res));
+                    }
 
                     renderGraphData = &*it;
 
@@ -351,7 +382,7 @@ namespace oblo
                     renderGraphData->height != renderHeight)
                 {
                     // TODO: If descriptor set already exists, destroy
-                    // TODO: If texture already exists, unregister and dstroy
+                    // TODO: If texture already exists, unregister and destroy
 
                     destroy_graph_vulkan_objects(*renderGraphData);
 
@@ -501,7 +532,16 @@ namespace oblo
                     continue;
                 }
 
-                m_renderer->remove(renderGraphData.id);
+                if constexpr (UseNewFrameGraph)
+                {
+                    // TODO: Implement subgraph removal
+                    OBLO_ASSERT(false);
+                }
+                else
+                {
+                    m_renderer->remove(renderGraphData.id);
+                }
+
                 elementsToRemove[numRemovedElements] = entity;
                 ++numRemovedElements;
             }

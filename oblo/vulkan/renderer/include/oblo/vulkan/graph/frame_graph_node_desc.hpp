@@ -99,6 +99,11 @@ namespace oblo::vk
                 .typeDesc = frame_graph_data_desc::make<T>(),
             });
         }
+
+        inline void register_pin(frame_graph_node_desc*, const u8*, ...)
+        {
+            // Fallback for regular fields
+        }
     }
 
     template <typename T>

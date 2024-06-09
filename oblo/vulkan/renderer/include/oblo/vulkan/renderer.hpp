@@ -124,4 +124,9 @@ namespace oblo::vk
     {
         return m_textureRegistry;
     }
+
+    inline frame_graph& vk::renderer::get_frame_graph()
+    {
+        return m_frameGraph;
+    }
 }
