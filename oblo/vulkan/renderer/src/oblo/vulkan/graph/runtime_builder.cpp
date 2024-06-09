@@ -174,7 +174,7 @@ namespace oblo::vk
             stagedDataPtr = &stagedData;
 
             // All copies will be added to the command buffer upfront, so we start with a buffer that has been
-            // transfered to
+            // transferred to
             m_graph->add_buffer_access(buffer, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
         }
 
@@ -199,7 +199,7 @@ namespace oblo::vk
         const auto poolIndex = m_resourcePool->add_buffer(stagedDataSize, vkUsage);
 
         // All copies will be added to the command buffer upfront, so we start with a buffer that has been
-        // transfered to
+        // transferred to
         m_graph->add_buffer_access(buffer, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
 
         m_graph->add_transient_buffer(buffer, poolIndex, &stagedData);
