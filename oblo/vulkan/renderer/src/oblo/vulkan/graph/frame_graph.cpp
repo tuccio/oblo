@@ -192,15 +192,23 @@ namespace oblo::vk
         return h32<frame_graph_subgraph>{key};
     }
 
-    void frame_graph::init()
+    bool frame_graph::init(vulkan_context& ctx)
     {
+        // Just arbitrary fixed size for now
+        constexpr u32 maxAllocationSize{64u << 20};
+
         m_impl = std::make_unique<frame_graph_impl>();
 
-        // Just arbitrary fixed size for now
-        m_impl->dynamicAllocator.init(64u << 20);
+        return m_impl->dynamicAllocator.init(maxAllocationSize) && m_impl->resourcePool.init(ctx);
     }
 
-    void frame_graph::build(renderer& renderer, resource_pool& resourcePool)
+    void frame_graph::shutdown(vulkan_context& ctx)
+    {
+        m_impl->resourcePool.shutdown(ctx);
+        m_impl->dynamicAllocator.shutdown();
+    }
+
+    void frame_graph::build(renderer& renderer)
     {
         m_impl->dynamicAllocator.restore_all();
 
@@ -208,13 +216,18 @@ namespace oblo::vk
 
         m_impl->nodeTransitions.assign(m_impl->sortedNodes.size(), {});
 
-        const frame_graph_build_context buildCtx{*m_impl, renderer, resourcePool};
+        const frame_graph_build_context buildCtx{*m_impl, renderer, m_impl->resourcePool};
 
         // This is not really necessary, we might just do it in debug
         for (auto& ps : m_impl->pinStorage.values())
         {
             ps.poolIndex = ~u32{};
         }
+
+        // The two calls are from a time where we managed multiple small graphs sharing the resource pool, rather than 1
+        // big graph owning it.
+        m_impl->resourcePool.begin_build();
+        m_impl->resourcePool.begin_graph();
 
         u32 nodeIndex{};
 
@@ -237,17 +250,15 @@ namespace oblo::vk
             ++nodeIndex;
         }
 
-        // for (const auto& pendingCopy : m_impl->pendingCopies)
-        //{
-        //     const u32 poolIndex = m_impl->resourcePoolId[pendingCopy.sourceStorageIndex];
-        //     resourcePool.add_usage(poolIndex, VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
-        // }
+        m_impl->resourcePool.end_graph();
+        m_impl->resourcePool.end_build(renderer.get_vulkan_context());
     }
 
-    void frame_graph::execute(renderer& renderer, resource_pool& resourcePool)
+    void frame_graph::execute(renderer& renderer)
     {
         auto& resourceManager = renderer.get_resource_manager();
         auto& commandBuffer = renderer.get_active_command_buffer();
+        auto& resourcePool = m_impl->resourcePool;
 
         const frame_graph_execute_context executeCtx{*m_impl, renderer, commandBuffer.get()};
 
@@ -276,6 +287,7 @@ namespace oblo::vk
             constexpr VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
             const auto tex = resourcePool.get_texture(poolIndex);
+
             // TODO: Unregister them
             const auto handle = resourceManager.register_texture(tex, initialLayout);
             commandBuffer.set_starting_layout(handle, initialLayout);
@@ -422,8 +434,6 @@ namespace oblo::vk
         const auto storage = to_storage_handle(handle);
         transientTextures.emplace_back(storage, poolIndex);
         pinStorage.at(storage).poolIndex = poolIndex;
-        // const u32 poolIndex = m_impl->pins.at(to_storage_handle(handle)).poolIndex;
-        // m_impl->resourcePoolId[storageIndex] = poolIndex;
     }
 
     void frame_graph_impl::add_resource_transition(resource<texture> handle, VkImageLayout target)

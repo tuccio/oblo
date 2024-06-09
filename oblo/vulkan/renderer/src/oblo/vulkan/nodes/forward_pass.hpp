@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/draw/buffer_binding_table.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
@@ -9,20 +10,12 @@
 namespace oblo
 {
     struct string;
-    struct vec2u;
 }
 
 namespace oblo::vk
 {
-    class init_context;
-    class runtime_builder;
-    class runtime_context;
-
-    struct buffer;
     struct draw_buffer_data;
-    struct texture;
     struct picking_configuration;
-    struct render_pass;
 
     struct forward_pass
     {
@@ -41,12 +34,6 @@ namespace oblo::vk
         h32<string> pickingEnabledDefine;
 
         bool isPickingEnabled;
-
-        void init(const init_context& context);
-
-        void build(const runtime_builder& builder);
-
-        void execute(const runtime_context& context);
 
         void init(const frame_graph_init_context& context);
 

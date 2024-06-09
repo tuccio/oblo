@@ -4,16 +4,9 @@
 #include <oblo/vulkan/draw/draw_registry.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
-#include <oblo/vulkan/graph/render_graph.hpp>
 
 namespace oblo::vk
 {
-    class init_context;
-    class runtime_builder;
-    class runtime_context;
-
-    struct compute_pass;
-
     struct draw_buffer_data;
     struct frustum_culling_data;
 
@@ -27,12 +20,6 @@ namespace oblo::vk
         data<buffer_binding_table> inPerViewBindingTable;
 
         data<std::span<draw_buffer_data>> outDrawBufferData;
-
-        void init(const init_context& context);
-
-        void build(const runtime_builder& builder);
-
-        void execute(const runtime_context& context);
 
         void init(const frame_graph_init_context& context);
 

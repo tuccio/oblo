@@ -1,13 +1,11 @@
 #pragma once
 
 #include <oblo/core/handle.hpp>
-#include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/core/string_interner.hpp>
 #include <oblo/vulkan/draw/draw_registry.hpp>
 #include <oblo/vulkan/draw/pass_manager.hpp>
 #include <oblo/vulkan/draw/texture_registry.hpp>
 #include <oblo/vulkan/graph/frame_graph.hpp>
-#include <oblo/vulkan/graph/resource_pool.hpp>
 #include <oblo/vulkan/renderer_context.hpp>
 #include <oblo/vulkan/staging_buffer.hpp>
 
@@ -25,7 +23,6 @@ namespace oblo::ecs
 
 namespace oblo::vk
 {
-    class render_graph;
     class single_queue_engine;
 
     class vulkan_context;
@@ -62,13 +59,6 @@ namespace oblo::vk
 
         frame_graph& get_frame_graph();
 
-        h32<render_graph> add(render_graph&& graph);
-        void remove(h32<render_graph> graph);
-        render_graph* find(h32<render_graph> graph);
-
-    private:
-        struct wrapped_render_graph;
-
     private:
         vulkan_context* m_vkContext{nullptr};
 
@@ -81,8 +71,6 @@ namespace oblo::vk
 
         h32<buffer> m_dummy;
 
-        resource_pool m_graphResourcePool;
-        h32_flat_pool_dense_map<render_graph, wrapped_render_graph> m_renderGraphs;
         frame_graph m_frameGraph;
 
         bool m_firstUpdate{};
