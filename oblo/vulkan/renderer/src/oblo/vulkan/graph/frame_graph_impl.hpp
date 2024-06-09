@@ -12,6 +12,7 @@
 #include <oblo/vulkan/graph/resource_pool.hpp>
 #include <oblo/vulkan/staging_buffer.hpp>
 
+#include <iosfwd>
 #include <memory_resource>
 #include <string>
 #include <unordered_map>
@@ -26,9 +27,9 @@ namespace oblo::vk
     struct frame_graph_node
     {
         void* node;
-        frame_graph_init_fn init;
         frame_graph_build_fn build;
         frame_graph_execute_fn execute;
+        frame_graph_init_fn init;
         frame_graph_destruct_fn destruct;
         type_id typeId;
         u32 size;
@@ -174,6 +175,6 @@ namespace oblo::vk
     public: // Utility
         void free_pin_storage(const frame_graph_pin_storage& storage, bool isFrameAllocated);
 
-        [[maybe_unused]] std::string to_graphviz_dot() const;
+        [[maybe_unused]] void write_dot(std::ostream& os) const;
     };
 }

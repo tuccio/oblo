@@ -6,6 +6,9 @@
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/editor/windows/demo_window.hpp>
 #include <oblo/editor/windows/style_window.hpp>
+#include <oblo/editor/windows/viewport.hpp>
+#include <oblo/vulkan/graph/frame_graph.hpp>
+#include <oblo/vulkan/renderer.hpp>
 
 #include <imgui.h>
 
@@ -27,10 +30,10 @@ namespace oblo::editor
         // because it would be confusing to have two docking targets within each others.
         ImGuiWindowFlags windowFlags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
 
-        const ImGuiViewport* viewport = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos(viewport->WorkPos);
-        ImGui::SetNextWindowSize(viewport->WorkSize);
-        ImGui::SetNextWindowViewport(viewport->ID);
+        const ImGuiViewport* imguiViewport = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(imguiViewport->WorkPos);
+        ImGui::SetNextWindowSize(imguiViewport->WorkSize);
+        ImGui::SetNextWindowViewport(imguiViewport->ID);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
 
@@ -61,6 +64,16 @@ namespace oblo::editor
         {
             if (ImGui::BeginMenu("Windows"))
             {
+                if (ImGui::MenuItem("Viewport"))
+                {
+                    ctx.windowManager.create_child_window<viewport>(ctx.windowHandle);
+                }
+
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Dev"))
+            {
                 if (ImGui::MenuItem("Demo Window"))
                 {
                     ctx.windowManager.create_child_window<demo_window>(ctx.windowHandle);
@@ -69,6 +82,16 @@ namespace oblo::editor
                 if (ImGui::MenuItem("Style Window"))
                 {
                     ctx.windowManager.create_child_window<style_window>(ctx.windowHandle);
+                }
+
+                if (ImGui::MenuItem("Copy frame graph to clipboard"))
+                {
+                    const auto& frameGraph = ctx.services.find<vk::renderer>()->get_frame_graph();
+
+                    std::stringstream ss;
+                    frameGraph.write_dot(ss);
+
+                    ImGui::SetClipboardText(ss.str().data());
                 }
 
                 ImGui::EndMenu();

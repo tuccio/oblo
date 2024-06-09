@@ -22,6 +22,8 @@ namespace oblo::editor
     class viewport final
     {
     public:
+        ~viewport();
+
         void init(const window_update_context& ctx);
         bool update(const window_update_context& ctx);
 
@@ -32,5 +34,6 @@ namespace oblo::editor
         const input_queue* m_inputQueue{};
         ecs::entity m_entity{};
         fps_camera_controller m_cameraController;
+        u32 m_viewportId{};
     };
 }

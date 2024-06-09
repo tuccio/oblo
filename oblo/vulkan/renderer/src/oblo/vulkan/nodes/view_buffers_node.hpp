@@ -60,6 +60,8 @@ namespace oblo::vk
         {
             // TODO (#31): Find a better place for these buffers
             auto* const perViewTable = &context.access(outPerViewBindingTable);
+            perViewTable->clear();
+
             const buffer cameraBuffer = context.access(outCameraBuffer);
             const buffer meshDatabaseBuffer = context.access(outMeshDatabase);
 

@@ -27,6 +27,16 @@
 
 namespace oblo::editor
 {
+    namespace
+    {
+        u32 s_viewportInstances{};
+    }
+
+    viewport::~viewport()
+    {
+        --s_viewportInstances;
+    }
+
     void viewport::init(const window_update_context& ctx)
     {
         m_entities = ctx.services.find<ecs::entity_registry>();
@@ -42,13 +52,18 @@ namespace oblo::editor
         OBLO_ASSERT(m_selection);
 
         m_cameraController.set_common_wasd_bindings();
+
+        m_viewportId = s_viewportInstances++;
     }
 
     bool viewport::update(const window_update_context& ctx)
     {
         bool open{true};
 
-        if (ImGui::Begin("Viewport", &open))
+        char buffer[64];
+        *std::format_to(buffer, "Viewport##{}", m_viewportId) = '\0';
+
+        if (ImGui::Begin(buffer, &open))
         {
             const auto regionMin = ImGui::GetWindowContentRegionMin();
             const auto regionMax = ImGui::GetWindowContentRegionMax();
@@ -57,8 +72,10 @@ namespace oblo::editor
 
             if (!m_entity)
             {
+                *std::format_to(buffer, "Viewport Camera #{}", m_viewportId) = '\0';
+
                 m_entity = ecs_utility::create_named_physical_entity<camera_component, viewport_component>(*m_entities,
-                    "Editor Camera",
+                    buffer,
                     m_cameraController.get_position(),
                     m_cameraController.get_orientation(),
                     vec3::splat(1));
@@ -169,9 +186,9 @@ namespace oblo::editor
                     }
                 }
             }
-
-            ImGui::End();
         }
+
+        ImGui::End();
 
         return open;
     }

@@ -329,7 +329,7 @@ namespace oblo
                     const f32 ratio = f32(viewport.height) / viewport.width;
                     const mat4 proj = make_perspective_matrix(camera.fovy, ratio, camera.near, camera.far);
 
-                    const mat4 invViewProj = *inverse(proj * view);
+                    const mat4 invViewProj = inverse(proj * view).value_or(mat4::identity());
 
                     const camera_buffer cameraBuffer{
                         .view = view,

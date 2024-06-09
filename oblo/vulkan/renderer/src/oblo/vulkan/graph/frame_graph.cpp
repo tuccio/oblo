@@ -8,6 +8,7 @@
 #include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/unreachable.hpp>
+#include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/graph/frame_graph_context.hpp>
 #include <oblo/vulkan/graph/frame_graph_impl.hpp>
@@ -112,9 +113,9 @@ namespace oblo::vk
 
                 *nodeIt = {
                     .node = nodePtr,
-                    .init = nodeDesc.init,
                     .build = nodeDesc.build,
                     .execute = nodeDesc.execute,
+                    .init = nodeDesc.init,
                     .destruct = nodeDesc.typeDesc.destruct,
                     .typeId = src.nodeDesc.typeDesc.typeId,
                     .size = nodeDesc.typeDesc.size,
@@ -234,6 +235,8 @@ namespace oblo::vk
 
     void frame_graph::build(renderer& renderer)
     {
+        OBLO_PROFILE_SCOPE("frame_graph::execute");
+
         m_impl->dynamicAllocator.restore_all();
 
         m_impl->rebuild_runtime(renderer);
@@ -261,6 +264,9 @@ namespace oblo::vk
 
             if (node.build)
             {
+                OBLO_PROFILE_SCOPE("Build");
+                OBLO_PROFILE_TAG(node.typeId.name);
+
                 auto& nodeTransitions = m_impl->nodeTransitions[nodeIndex];
                 nodeTransitions.firstTextureTransition = u32(m_impl->textureTransitions.size());
                 nodeTransitions.firstBufferBarrier = u32(m_impl->bufferBarriers.size());
@@ -280,6 +286,8 @@ namespace oblo::vk
 
     void frame_graph::execute(renderer& renderer)
     {
+        OBLO_PROFILE_SCOPE("Execute");
+
         auto& resourceManager = renderer.get_resource_manager();
         auto& commandBuffer = renderer.get_active_command_buffer();
         auto& resourcePool = m_impl->resourcePool;
@@ -393,11 +401,18 @@ namespace oblo::vk
 
             if (node.execute)
             {
+                OBLO_PROFILE_SCOPE("Execute");
+                OBLO_PROFILE_TAG(node.typeId.name);
                 node.execute(ptr, executeCtx);
             }
         }
 
         m_impl->finish_frame();
+    }
+
+    void frame_graph::write_dot(std::ostream& os) const
+    {
+        m_impl->write_dot(os);
     }
 
     void* frame_graph::try_get_input(h32<frame_graph_subgraph> graph, std::string_view name, const type_id& typeId)
@@ -508,7 +523,8 @@ namespace oblo::vk
 
     void* frame_graph_impl::access_storage(h32<frame_graph_pin_storage> handle) const
     {
-        return pinStorage.at(handle).data;
+        const auto& storage = pinStorage.at(handle);
+        return storage.data;
     }
 
     void frame_graph_impl::rebuild_runtime(renderer& renderer)
@@ -660,11 +676,9 @@ namespace oblo::vk
         }
     }
 
-    std::string frame_graph_impl::to_graphviz_dot() const
+    void frame_graph_impl::write_dot(std::ostream& os) const
     {
-        std::stringstream ss;
-
-        write_graphviz_dot(ss,
+        write_graphviz_dot(os,
             graph,
             [this](const frame_graph_topology::vertex_handle v) -> std::string_view
             {
@@ -685,7 +699,5 @@ namespace oblo::vk
                     unreachable();
                 }
             });
-
-        return ss.str();
     }
 }

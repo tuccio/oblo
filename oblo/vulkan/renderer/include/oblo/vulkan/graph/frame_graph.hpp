@@ -5,6 +5,7 @@
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
 
+#include <iosfwd>
 #include <memory>
 #include <string_view>
 #include <utility>
@@ -50,6 +51,8 @@ namespace oblo::vk
         void build(renderer& renderer);
 
         void execute(renderer& renderer);
+
+        void write_dot(std::ostream& os) const;
 
     private:
         void* try_get_input(h32<frame_graph_subgraph> graph, std::string_view name, const type_id& typeId);
