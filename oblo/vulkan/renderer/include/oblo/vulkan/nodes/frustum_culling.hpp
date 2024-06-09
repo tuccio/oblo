@@ -3,6 +3,7 @@
 #include <oblo/vulkan/draw/buffer_binding_table.hpp>
 #include <oblo/vulkan/draw/draw_registry.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
+#include <oblo/vulkan/graph/pins.hpp>
 #include <oblo/vulkan/graph/render_graph.hpp>
 
 namespace oblo::vk
