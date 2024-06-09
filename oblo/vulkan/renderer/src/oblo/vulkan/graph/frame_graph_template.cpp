@@ -5,29 +5,24 @@ namespace oblo::vk
     void frame_graph_template::init(const frame_graph_registry& registry)
     {
         m_registry = &registry;
-        m_input = m_graph.add_vertex(frame_graph_vertex_kind::pin);
-        m_output = m_graph.add_vertex(frame_graph_vertex_kind::pin);
-
-        m_graph[m_input].name = "<in>";
-        m_graph[m_output].name = "<out>";
     }
 
     void frame_graph_template::make_input(vertex_handle pin, std::string_view name)
     {
-        auto& dst = m_graph[pin];
-        OBLO_ASSERT(dst.kind == frame_graph_vertex_kind::pin);
+        auto& v = m_graph[pin];
+        OBLO_ASSERT(v.kind == frame_graph_vertex_kind::pin);
 
-        m_graph.add_edge(m_input, pin);
-        dst.name = name;
+        m_inputs.emplace_back(pin);
+        v.name = name;
     }
 
     void frame_graph_template::make_output(vertex_handle pin, std::string_view name)
     {
-        auto& src = m_graph[pin];
-        OBLO_ASSERT(src.kind == frame_graph_vertex_kind::pin);
+        auto& v = m_graph[pin];
+        OBLO_ASSERT(v.kind == frame_graph_vertex_kind::pin);
 
-        m_graph.add_edge(pin, m_output);
-        src.name = name;
+        m_outputs.emplace_back(pin);
+        v.name = name;
     }
 
     frame_graph_template::vertex_handle frame_graph_template::add_node(const uuid& id,
@@ -78,26 +73,26 @@ namespace oblo::vk
         return m_graph;
     }
 
-    std::span<const frame_graph_template::edge_reference> frame_graph_template::get_inputs() const
+    std::span<const frame_graph_template::vertex_handle> frame_graph_template::get_inputs() const
     {
-        return m_graph.get_out_edges(m_input);
+        return m_inputs;
     }
 
-    std::span<const frame_graph_template::edge_reference> frame_graph_template::get_outputs() const
+    std::span<const frame_graph_template::vertex_handle> frame_graph_template::get_outputs() const
     {
-        return m_graph.get_in_edges(m_output);
+        return m_outputs;
     }
 
-    std::string_view frame_graph_template::get_name(edge_reference inputOrOutput) const
+    std::string_view frame_graph_template::get_name(vertex_handle inputOrOutput) const
     {
-        return m_graph[inputOrOutput.vertex].name;
+        return m_graph[inputOrOutput].name;
     }
 
     frame_graph_template::vertex_handle frame_graph_template::find_pin(vertex_handle node, u32 offset) const
     {
         OBLO_ASSERT(m_graph[node].kind == frame_graph_vertex_kind::node);
 
-        for (const edge_reference e : m_graph.get_out_edges(node))
+        for (const auto e : m_graph.get_out_edges(node))
         {
             const auto& v = m_graph[e.vertex];
 

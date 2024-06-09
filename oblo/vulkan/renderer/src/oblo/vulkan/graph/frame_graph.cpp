@@ -180,14 +180,14 @@ namespace oblo::vk
 
         for (const auto in : graphTemplate.get_inputs())
         {
-            const auto inVertex = *it->templateToInstanceMap.try_find(in.vertex);
-            it->inputs.emplace(templateGraph[in.vertex].name, inVertex);
+            const auto inVertex = *it->templateToInstanceMap.try_find(in);
+            it->inputs.emplace(templateGraph[in].name, inVertex);
         }
 
         for (const auto out : graphTemplate.get_outputs())
         {
-            const auto outVertex = *it->templateToInstanceMap.try_find(out.vertex);
-            it->outputs.emplace(templateGraph[out.vertex].name, outVertex);
+            const auto outVertex = *it->templateToInstanceMap.try_find(out);
+            it->outputs.emplace(templateGraph[out].name, outVertex);
         }
 
         return h32<frame_graph_subgraph>{key};
@@ -397,16 +397,6 @@ namespace oblo::vk
             }
         }
 
-        // Hopefully get rid of this
-
-        // if (!m_pendingCopies.empty())
-        //{
-        //     auto& vkCtx = renderer.get_vulkan_context();
-        //     vkCtx.begin_debug_label(commandBuffer.get(), "render_graph::flush_copies");
-        //     flush_image_copies(commandBuffer, resourceManager);
-        //     vkCtx.end_debug_label(commandBuffer.get());
-        // }
-
         m_impl->finish_frame();
     }
 
@@ -484,8 +474,6 @@ namespace oblo::vk
         const auto storage = to_storage_handle(handle);
         transientBuffers.emplace_back(storage, poolIndex);
         pinStorage.at(storage).poolIndex = poolIndex;
-        // const u32 storageIndex = m_pins[handle.value].storageIndex;
-        // m_impl->resourcePoolId[storageIndex] = poolIndex;
 
         if (upload)
         {
@@ -583,11 +571,7 @@ namespace oblo::vk
         {
             const auto& pinVertex = graph[v];
 
-            if (!pinVertex.pin)
-            {
-                // Special pin vertices like input/output from graphs are not backed by actual pins
-                continue;
-            }
+            OBLO_ASSERT(pinVertex.pin);
 
             auto* pin = pins.try_find(pinVertex.pin);
             OBLO_ASSERT(pin);
@@ -692,11 +676,7 @@ namespace oblo::vk
                     return nodes.try_find(vertex.node)->typeId.name;
 
                 case frame_graph_vertex_kind::pin: {
-                    if (!vertex.pin)
-                    {
-                        return "<in> or <out>";
-                    }
-
+                    OBLO_ASSERT(vertex.pin);
                     const auto storage = pins.try_find(vertex.pin)->ownedStorage;
                     return pinStorage.try_find(storage)->typeDesc.typeId.name;
                 }

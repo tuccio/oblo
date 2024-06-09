@@ -51,7 +51,6 @@ namespace oblo::vk
         using topology = frame_graph_template_topology;
         using vertex_handle = topology::vertex_handle;
         using edge_handle = topology::edge_handle;
-        using edge_reference = topology::edge_reference;
 
     public:
         void init(const frame_graph_registry& registry);
@@ -81,10 +80,10 @@ namespace oblo::vk
 
         const topology& get_graph() const;
 
-        std::span<const edge_reference> get_inputs() const;
-        std::span<const edge_reference> get_outputs() const;
+        std::span<const vertex_handle> get_inputs() const;
+        std::span<const vertex_handle> get_outputs() const;
 
-        std::string_view get_name(edge_reference inputOrOutput) const;
+        std::string_view get_name(vertex_handle inputOrOutput) const;
 
     private:
         vertex_handle find_pin(vertex_handle node, u32 offset) const;
@@ -96,9 +95,9 @@ namespace oblo::vk
 
     private:
         const frame_graph_registry* m_registry{};
-        vertex_handle m_input{};
-        vertex_handle m_output{};
         topology m_graph;
+        dynamic_array<topology::vertex_handle> m_inputs;
+        dynamic_array<topology::vertex_handle> m_outputs;
     };
 
     template <typename R, typename Node>
