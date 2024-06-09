@@ -31,6 +31,8 @@ namespace oblo::vk
         frame_graph_execute_fn execute;
         frame_graph_destruct_fn destruct;
         type_id typeId;
+        u32 size;
+        u32 alignment;
         bool initialized;
     };
 
@@ -170,6 +172,8 @@ namespace oblo::vk
         h32<frame_graph_pin_storage> allocate_dynamic_resource_pin();
 
     public: // Utility
+        void free_pin_storage(const frame_graph_pin_storage& storage, bool isFrameAllocated);
+
         [[maybe_unused]] std::string to_graphviz_dot() const;
     };
 }
