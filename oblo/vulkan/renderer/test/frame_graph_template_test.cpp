@@ -22,7 +22,6 @@ namespace oblo::vk::test
         struct fgt_cpu_data
         {
             dynamic_array<std::string>* executionLog;
-            dynamic_array<std::string>* errorLog;
         };
 
         struct fgt_gbuffer_pass
@@ -62,6 +61,9 @@ namespace oblo::vk::test
             {
                 auto& cpuData = ctx.access(inCpuData);
                 cpuData.executionLog->push_back("fgt_lighting_pass::execute");
+
+                auto& id = ctx.access(inShadowMapAtlasId);
+                ASSERT_TRUE(id == 42);
             }
         };
 
@@ -81,6 +83,9 @@ namespace oblo::vk::test
             {
                 auto& cpuData = ctx.access(inCpuData);
                 cpuData.executionLog->push_back("fgt_shadow_pass::execute");
+
+                auto& id = ctx.access(outShadowMapAtlasId);
+                id = 42;
             }
         };
 
