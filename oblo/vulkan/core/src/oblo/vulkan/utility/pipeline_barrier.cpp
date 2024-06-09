@@ -1,4 +1,4 @@
-#include <oblo/vulkan/pipeline_barrier.hpp>
+#include <oblo/vulkan/utility/pipeline_barrier.hpp>
 
 #include <oblo/core/types.hpp>
 #include <oblo/core/unreachable.hpp>

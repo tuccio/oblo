@@ -1,67 +1,80 @@
 #pragma once
 
-#include <oblo/vulkan/graph/init_context.hpp>
+#include <oblo/vulkan/graph/frame_graph_context.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
-#include <oblo/vulkan/graph/runtime_builder.hpp>
-#include <oblo/vulkan/graph/runtime_context.hpp>
+#include <oblo/vulkan/resource_manager.hpp>
+#include <oblo/vulkan/texture.hpp>
+#include <oblo/vulkan/utility/pipeline_barrier.hpp>
 
 namespace oblo::vk
 {
+    struct copy_texture_info
+    {
+        VkImage image;
+        VkImageLayout initialLayout;
+        VkImageLayout finalLayout;
+        VkImageAspectFlags aspect;
+    };
+
     struct copy_texture_node
     {
-        data<VkBuffer> inDownloadRenderTarget;
-        data<VkBuffer> inDownloadDepth;
+        data<copy_texture_info> inTarget;
 
-        resource<texture> inRenderTarget;
-        resource<texture> inDetphBuffer;
+        resource<texture> inSource;
 
-        void build(const runtime_builder& builder)
+        void build(const frame_graph_build_context& context)
         {
-            builder.acquire(inRenderTarget, resource_usage::transfer_source);
-            builder.acquire(inDetphBuffer, resource_usage::transfer_source);
+            context.acquire(inSource, texture_usage::transfer_source);
         }
 
-        void execute(const runtime_context& context)
+        void execute(const frame_graph_execute_context& context)
         {
-            const auto cb = context.get_command_buffer();
+            const auto targetInfo = context.access(inTarget);
 
-            const auto srcRenderTarget = context.access(inRenderTarget);
-            const auto srcDepthBuffer = context.access(inDetphBuffer);
+            const texture sourceTex = context.access(inSource);
 
-            auto* const dstRenderTarget = context.access(inDownloadRenderTarget);
-            auto* const dstDepthBuffer = context.access(inDownloadDepth);
-
-            const VkBufferImageCopy renderTargetRegion{
-                .imageSubresource =
+            const VkImageCopy copy{
+                .srcSubresource =
                     {
-                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .aspectMask = targetInfo.aspect,
                         .layerCount = 1,
                     },
-                .imageExtent = srcRenderTarget.initializer.extent,
-            };
-
-            vkCmdCopyImageToBuffer(cb,
-                srcRenderTarget.image,
-                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                *dstRenderTarget,
-                1,
-                &renderTargetRegion);
-
-            const VkBufferImageCopy depthBufferRegion{
-                .imageSubresource =
+                .dstSubresource =
                     {
-                        .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+                        .aspectMask = targetInfo.aspect,
                         .layerCount = 1,
                     },
-                .imageExtent = srcDepthBuffer.initializer.extent,
+                .extent = sourceTex.initializer.extent,
             };
 
-            vkCmdCopyImageToBuffer(cb,
-                srcDepthBuffer.image,
+            const auto commandBuffer = context.get_command_buffer();
+
+            add_pipeline_barrier_cmd(commandBuffer,
+                targetInfo.initialLayout,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                targetInfo.image,
+                sourceTex.initializer.format,
+                sourceTex.initializer.arrayLayers,
+                sourceTex.initializer.mipLevels);
+
+            vkCmdCopyImage(commandBuffer,
+                sourceTex.image,
                 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                *dstDepthBuffer,
+                targetInfo.image,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                 1,
-                &depthBufferRegion);
+                &copy);
+
+            if (targetInfo.finalLayout != VK_IMAGE_LAYOUT_UNDEFINED)
+            {
+                add_pipeline_barrier_cmd(commandBuffer,
+                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    targetInfo.finalLayout,
+                    targetInfo.image,
+                    sourceTex.initializer.format,
+                    sourceTex.initializer.arrayLayers,
+                    sourceTex.initializer.mipLevels);
+            }
         }
     };
 }

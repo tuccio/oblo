@@ -83,7 +83,7 @@ namespace oblo::platform
             }
         }
 
-        return unspecified_error{};
+        return unspecified_error;
     }
 }
 

@@ -21,6 +21,7 @@
 #include <oblo/vulkan/graph/render_graph.hpp>
 #include <oblo/vulkan/graph/topology_builder.hpp>
 #include <oblo/vulkan/nodes/bypass_culling.hpp>
+#include <oblo/vulkan/nodes/copy_texture_node.hpp>
 #include <oblo/vulkan/nodes/debug_draw_all.hpp>
 #include <oblo/vulkan/nodes/debug_triangle_node.hpp>
 #include <oblo/vulkan/nodes/forward_pass.hpp>
@@ -45,6 +46,7 @@ namespace oblo
         constexpr std::string_view InResolution{"Resolution"};
         constexpr std::string_view InCamera{"Camera"};
         constexpr std::string_view InTime{"Time"};
+        constexpr std::string_view InFinalRenderTarget{"Final Render Target"};
 
         constexpr u32 PickingResultSize{sizeof(u32)};
 
@@ -62,12 +64,15 @@ namespace oblo
             const auto frustumCulling = graph.add_node<frustum_culling>();
             const auto forwardPass = graph.add_node<forward_pass>();
             const auto pickingReadback = graph.add_node<picking_readback>();
+            const auto copyFinalTarget = graph.add_node<copy_texture_node>();
 
             graph.make_input(viewBuffers, &view_buffers_node::inCameraData, InCamera);
             graph.make_input(viewBuffers, &view_buffers_node::inTimeData, InTime);
 
             graph.make_input(forwardPass, &forward_pass::inResolution, InResolution);
             graph.make_input(forwardPass, &forward_pass::inPickingConfiguration, InPickingConfiguration);
+
+            graph.make_input(copyFinalTarget, &copy_texture_node::inTarget, InFinalRenderTarget);
 
             graph.connect(viewBuffers,
                 &view_buffers_node::outPerViewBindingTable,
@@ -86,6 +91,8 @@ namespace oblo
 
             graph.connect(frustumCulling, &frustum_culling::outDrawBufferData, forwardPass, &forward_pass::inDrawData);
 
+            graph.connect(forwardPass, &forward_pass::outRenderTarget, copyFinalTarget, &copy_texture_node::inSource);
+
             return graph;
         }
 
@@ -94,6 +101,7 @@ namespace oblo
             using namespace vk;
             frame_graph_registry registry;
 
+            registry.register_node<copy_texture_node>();
             registry.register_node<view_buffers_node>();
             registry.register_node<frustum_culling>();
             registry.register_node<forward_pass>();
@@ -111,6 +119,7 @@ namespace oblo
         u32 width{};
         u32 height{};
         VkDescriptorSet descriptorSet{};
+        VkImage image{};
 
         vk::allocated_buffer pickingDownloadBuffer;
         u64 lastPickingSubmitIndex{};
@@ -217,6 +226,7 @@ namespace oblo
         {
             vkCtx.destroy_deferred(renderGraphData.texture, submitIndex);
             renderGraphData.texture = {};
+            renderGraphData.image = {};
         }
 
         if (renderGraphData.descriptorSet)
@@ -271,6 +281,7 @@ namespace oblo
         const auto device = m_renderer->get_engine().get_device();
 
         auto& rm = m_renderer->get_resource_manager();
+        auto& frameGraph = m_renderer->get_frame_graph();
 
         for (auto& renderGraphData : m_renderGraphs.values())
         {
@@ -353,9 +364,7 @@ namespace oblo
                         const auto registry = create_frame_graph_registry();
                         const auto mainViewTemplate = create_main_view(registry);
 
-                        auto& frameGraph = m_renderer->get_frame_graph();
                         const auto subgraph = frameGraph.instantiate(mainViewTemplate);
-
                         it->subgraph = subgraph;
                     }
                     else
@@ -425,96 +434,146 @@ namespace oblo
                     renderGraphData->width = renderWidth;
                     renderGraphData->height = renderHeight;
                     renderGraphData->texture = rm.register_texture(*result, VK_IMAGE_LAYOUT_UNDEFINED);
+                    renderGraphData->image = result->image;
 
                     viewport.imageId = renderGraphData->descriptorSet;
                 }
 
-                if (auto* const resolution = graph->find_input<vec2u>(InResolution))
+                if constexpr (!UseNewFrameGraph)
                 {
-                    *resolution = vec2u{renderWidth, renderHeight};
-                }
-
-                if (auto* const cameraBuffer = graph->find_input<camera_buffer>(InCamera))
-                {
-                    // TODO: Deal with errors, also transposing would be enough here most likely
-                    const mat4 view = *inverse(transform.value);
-
-                    const f32 ratio = f32(viewport.height) / viewport.width;
-                    const auto proj = make_perspective_matrix(camera.fovy, ratio, camera.near, camera.far);
-
-                    const mat4 invViewProj = *inverse(proj * view);
-
-                    *cameraBuffer = camera_buffer{
-                        .view = view,
-                        .projection = proj,
-                        .viewProjection = proj * view,
-                        .frustum = make_frustum_from_inverse_view_projection(invViewProj),
-                    };
-                }
-
-                if (auto* const timeBuffer = graph->find_input<time_buffer>(InTime))
-                {
-                    *timeBuffer = {
-                        .frameIndex = m_frameIndex,
-                    };
-                }
-
-                if (auto* const pickingCfg = graph->find_input<picking_configuration>(InPickingConfiguration))
-                {
-                    switch (viewport.picking.state)
+                    if (auto* const resolution = graph->find_input<vec2u>(InResolution))
                     {
-                    case picking_request::state::requested:
-                        if (prepare_picking_buffers(*renderGraphData))
+                        *resolution = vec2u{renderWidth, renderHeight};
+                    }
+
+                    if (auto* const cameraBuffer = graph->find_input<camera_buffer>(InCamera))
+                    {
+                        // TODO: Deal with errors, also transposing would be enough here most likely
+                        const mat4 view = *inverse(transform.value);
+
+                        const f32 ratio = f32(viewport.height) / viewport.width;
+                        const auto proj = make_perspective_matrix(camera.fovy, ratio, camera.near, camera.far);
+
+                        const mat4 invViewProj = *inverse(proj * view);
+
+                        *cameraBuffer = camera_buffer{
+                            .view = view,
+                            .projection = proj,
+                            .viewProjection = proj * view,
+                            .frustum = make_frustum_from_inverse_view_projection(invViewProj),
+                        };
+                    }
+
+                    if (auto* const timeBuffer = graph->find_input<time_buffer>(InTime))
+                    {
+                        *timeBuffer = {
+                            .frameIndex = m_frameIndex,
+                        };
+                    }
+
+                    if (auto* const pickingCfg = graph->find_input<picking_configuration>(InPickingConfiguration))
+                    {
+                        switch (viewport.picking.state)
                         {
-                            pickingCfg->enabled = true;
-                            pickingCfg->coordinates = viewport.picking.coordinates;
-
-                            pickingCfg->downloadBuffer = {
-                                .buffer = renderGraphData->pickingDownloadBuffer.buffer,
-                                .size = PickingResultSize,
-                            };
-
-                            viewport.picking.state = picking_request::state::awaiting;
-                        }
-                        else
-                        {
-                            viewport.picking.state = picking_request::state::failed;
-                        }
-
-                        break;
-
-                    case picking_request::state::awaiting:
-
-                        if (m_renderer->get_vulkan_context().is_submit_done(renderGraphData->lastPickingSubmitIndex))
-                        {
-                            auto& allocator = m_renderer->get_allocator();
-
-                            if (void* ptr;
-                                allocator.map(renderGraphData->pickingDownloadBuffer.allocation, &ptr) == VK_SUCCESS)
+                        case picking_request::state::requested:
+                            if (prepare_picking_buffers(*renderGraphData))
                             {
-                                std::memcpy(&viewport.picking.result, ptr, sizeof(u32));
-                                viewport.picking.state = picking_request::state::served;
+                                pickingCfg->enabled = true;
+                                pickingCfg->coordinates = viewport.picking.coordinates;
 
-                                allocator.unmap(renderGraphData->pickingDownloadBuffer.allocation);
+                                pickingCfg->downloadBuffer = {
+                                    .buffer = renderGraphData->pickingDownloadBuffer.buffer,
+                                    .size = PickingResultSize,
+                                };
+
+                                viewport.picking.state = picking_request::state::awaiting;
                             }
                             else
                             {
                                 viewport.picking.state = picking_request::state::failed;
                             }
+
+                            break;
+
+                        case picking_request::state::awaiting:
+
+                            if (m_renderer->get_vulkan_context().is_submit_done(
+                                    renderGraphData->lastPickingSubmitIndex))
+                            {
+                                auto& allocator = m_renderer->get_allocator();
+
+                                if (void* ptr; allocator.map(renderGraphData->pickingDownloadBuffer.allocation, &ptr) ==
+                                    VK_SUCCESS)
+                                {
+                                    std::memcpy(&viewport.picking.result, ptr, sizeof(u32));
+                                    viewport.picking.state = picking_request::state::served;
+
+                                    allocator.unmap(renderGraphData->pickingDownloadBuffer.allocation);
+                                }
+                                else
+                                {
+                                    viewport.picking.state = picking_request::state::failed;
+                                }
+                            }
+
+                            pickingCfg->enabled = false;
+                            break;
+
+                        default:
+                            pickingCfg->enabled = false;
+                            break;
                         }
+                    }
 
-                        pickingCfg->enabled = false;
-                        break;
-
-                    default:
-                        pickingCfg->enabled = false;
-                        break;
+                    if (renderGraphData->texture)
+                    {
+                        graph->copy_output(OutFinalRenderTarget, renderGraphData->texture, viewportImageLayout);
                     }
                 }
-
-                if (renderGraphData->texture)
+                else
                 {
-                    graph->copy_output(OutFinalRenderTarget, renderGraphData->texture, viewportImageLayout);
+                    frameGraph.set_input(renderGraphData->subgraph, InResolution, vec2u{renderWidth, renderHeight})
+                        .or_panic();
+
+                    frameGraph
+                        .set_input(renderGraphData->subgraph,
+                            InTime,
+                            time_buffer{
+                                .frameIndex = m_frameIndex,
+                            })
+                        .or_panic();
+
+                    frameGraph
+                        .set_input(renderGraphData->subgraph,
+                            InFinalRenderTarget,
+                            copy_texture_info{
+                                .image = renderGraphData->image,
+                                .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                                .finalLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                                .aspect = VK_IMAGE_ASPECT_COLOR_BIT,
+                            })
+                        .or_panic();
+
+                    {
+                        // TODO: Deal with errors, also transposing would be enough here most likely
+                        const mat4 view = *inverse(transform.value);
+
+                        const f32 ratio = f32(viewport.height) / viewport.width;
+                        const mat4 proj = make_perspective_matrix(camera.fovy, ratio, camera.near, camera.far);
+
+                        const mat4 invViewProj = *inverse(proj * view);
+
+                        const camera_buffer cameraBuffer{
+                            .view = view,
+                            .projection = proj,
+                            .viewProjection = proj * view,
+                            .frustum = make_frustum_from_inverse_view_projection(invViewProj),
+                        };
+
+                        frameGraph.set_input(renderGraphData->subgraph, InCamera, cameraBuffer).or_panic();
+                    }
+
+                    // TODO: Picking
                 }
             }
         }
