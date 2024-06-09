@@ -31,6 +31,8 @@ namespace oblo
 
         scoped_restore make_scoped_restore();
 
+        bool contains(const void* ptr) const;
+
     private:
         u8* m_virtualMemory{nullptr};
         u8* m_end{nullptr};

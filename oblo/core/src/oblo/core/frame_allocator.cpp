@@ -154,6 +154,11 @@ namespace oblo
     {
         return m_end;
     }
+
+    bool frame_allocator::contains(const void* ptr) const
+    {
+        return ptr >= m_virtualMemory && ptr < m_commitEnd;
+    }
 }
 
 #ifdef WIN32

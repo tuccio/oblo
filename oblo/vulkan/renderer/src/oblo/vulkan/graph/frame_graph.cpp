@@ -109,7 +109,6 @@ namespace oblo::vk
 
                 void* const nodePtr = m_impl->memoryPool.allocate(nodeDesc.typeDesc.size, nodeDesc.typeDesc.alignment);
                 nodeDesc.typeDesc.construct(nodePtr);
-                // TODO: Init or delay until later?
 
                 *nodeIt = {
                     .node = nodePtr,
@@ -118,6 +117,8 @@ namespace oblo::vk
                     .execute = nodeDesc.execute,
                     .destruct = nodeDesc.typeDesc.destruct,
                     .typeId = src.nodeDesc.typeDesc.typeId,
+                    .size = nodeDesc.typeDesc.size,
+                    .alignment = nodeDesc.typeDesc.alignment,
                 };
 
                 dst.node = h32<frame_graph_node>{nodeKey};
@@ -204,8 +205,31 @@ namespace oblo::vk
 
     void frame_graph::shutdown(vulkan_context& ctx)
     {
+        for (const auto& node : m_impl->nodes.values())
+        {
+            if (!node.node)
+            {
+                continue;
+            }
+
+            if (node.destruct)
+            {
+                node.destruct(node.node);
+            }
+
+            // We are deallocating just for keeping track, it's not really necessary
+            m_impl->memoryPool.deallocate(node.node, node.size, node.alignment);
+        }
+
+        for (const auto& pinStorage : m_impl->pinStorage.values())
+        {
+            m_impl->free_pin_storage(pinStorage, false);
+        }
+
         m_impl->resourcePool.shutdown(ctx);
         m_impl->dynamicAllocator.shutdown();
+
+        m_impl.reset();
     }
 
     void frame_graph::build(renderer& renderer)
@@ -486,12 +510,6 @@ namespace oblo::vk
 
     h32<frame_graph_pin_storage> frame_graph_impl::allocate_dynamic_resource_pin()
     {
-        /* const auto handle = u32(m_impl->pins.size());
-         const auto storageIndex = u32(m_impl->pinStorage.size());*/
-
-        // m_pins.emplace_back(storageIndex);
-        // m_resourcePoolId.emplace_back(~u32{});
-
         const auto [storage, key] = pinStorage.emplace();
         const auto handle = h32<frame_graph_pin_storage>{key};
 
@@ -631,12 +649,7 @@ namespace oblo::vk
         for (auto& h : dynamicPins)
         {
             const auto& storage = pinStorage.at(h);
-
-            if (storage.data && storage.typeDesc.destruct)
-            {
-                storage.typeDesc.destruct(storage.data);
-            }
-
+            free_pin_storage(storage, true);
             pinStorage.erase(h);
         }
 
@@ -645,6 +658,22 @@ namespace oblo::vk
         transientTextures.clear();
         transientBuffers.clear();
         dynamicPins.clear();
+    }
+
+    void frame_graph_impl::free_pin_storage(const frame_graph_pin_storage& storage, bool isFrameAllocated)
+    {
+        if (storage.data && storage.typeDesc.destruct)
+        {
+            storage.typeDesc.destruct(storage.data);
+
+            // These pointers should always come from the frame allocator, no need to delete them
+            OBLO_ASSERT(isFrameAllocated == dynamicAllocator.contains(storage.data));
+
+            if (!isFrameAllocated)
+            {
+                memoryPool.deallocate(storage.data, storage.typeDesc.size, storage.typeDesc.alignment);
+            }
+        }
     }
 
     std::string frame_graph_impl::to_graphviz_dot() const
