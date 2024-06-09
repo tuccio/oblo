@@ -38,6 +38,8 @@ namespace oblo::vk
             return false;
         }
 
+        m_frameGraph.init();
+
         m_dummy = m_vkContext->get_resource_manager().create(get_allocator(),
             {
                 .size = 16u,
@@ -109,11 +111,16 @@ namespace oblo::vk
             m_graphResourcePool.end_graph();
         }
 
+        m_graphResourcePool.begin_graph();
+        m_frameGraph.build(*this, m_graphResourcePool);
+        m_graphResourcePool.end_graph();
+
         m_graphResourcePool.end_build(*m_vkContext);
 
         for (auto& graphData : m_renderGraphs.values())
         {
             graphData.execute(*this, m_graphResourcePool);
+            m_frameGraph.execute(*this, m_graphResourcePool);
         }
 
         m_passManager.end_frame();

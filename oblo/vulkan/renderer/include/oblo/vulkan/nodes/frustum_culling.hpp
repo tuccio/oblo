@@ -2,6 +2,7 @@
 
 #include <oblo/vulkan/draw/buffer_binding_table.hpp>
 #include <oblo/vulkan/draw/draw_registry.hpp>
+#include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/render_graph.hpp>
 
 namespace oblo::vk
@@ -31,5 +32,11 @@ namespace oblo::vk
         void build(const runtime_builder& builder);
 
         void execute(const runtime_context& context);
+
+        void init(const frame_graph_init_context& context);
+
+        void build(const frame_graph_build_context& builder);
+
+        void execute(const frame_graph_execute_context& context);
     };
 }

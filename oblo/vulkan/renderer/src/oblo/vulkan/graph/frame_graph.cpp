@@ -195,6 +195,9 @@ namespace oblo::vk
     void frame_graph::init()
     {
         m_impl = std::make_unique<frame_graph_impl>();
+
+        // Just arbitrary fixed size for now
+        m_impl->dynamicAllocator.init(64u << 20);
     }
 
     void frame_graph::build(renderer& renderer, resource_pool& resourcePool)
