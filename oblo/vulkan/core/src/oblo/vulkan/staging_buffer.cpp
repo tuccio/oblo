@@ -5,7 +5,7 @@
 #include <oblo/core/utility.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/gpu_allocator.hpp>
-#include <oblo/vulkan/pipeline_barrier.hpp>
+#include <oblo/vulkan/utility/pipeline_barrier.hpp>
 
 namespace oblo::vk
 {
@@ -129,7 +129,7 @@ namespace oblo::vk
 
         if (available < size)
         {
-            return unspecified_error{};
+            return unspecified_error;
         }
 
         const auto segmentedSpan = m_impl.ring.fetch(size);
@@ -148,7 +148,7 @@ namespace oblo::vk
 
         if (available < srcSize)
         {
-            return unspecified_error{};
+            return unspecified_error;
         }
 
         const auto segmentedSpan = m_impl.ring.fetch(srcSize);
@@ -180,7 +180,7 @@ namespace oblo::vk
 
         if (available < srcSize)
         {
-            return unspecified_error{};
+            return unspecified_error;
         }
 
         (void) format; // TODO: Use the format to determine the alignment instead
@@ -193,7 +193,7 @@ namespace oblo::vk
         if (segmentedSpan.segments[0].begin == segmentedSpan.segments[0].end)
         {
             OBLO_ASSERT(false, "Failed to allocate space to upload");
-            return unspecified_error{};
+            return unspecified_error;
         }
 
         if (auto& secondSegment = segmentedSpan.segments[1]; secondSegment.begin != secondSegment.end)
@@ -201,7 +201,7 @@ namespace oblo::vk
             // TODO: Rather than failing, try to extend it
             OBLO_ASSERT(false,
                 "We don't split the image upload, we could at least make sure we have enough space for it");
-            return unspecified_error{};
+            return unspecified_error;
         }
 
         const auto segment = segmentedSpan.segments[0];

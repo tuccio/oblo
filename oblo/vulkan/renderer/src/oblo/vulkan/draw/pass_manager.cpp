@@ -1324,7 +1324,7 @@ namespace oblo::vk
 
         if (!pipeline)
         {
-            return unspecified_error{};
+            return unspecified_error;
         }
 
         const render_pass_context renderPassContext{
@@ -1469,7 +1469,7 @@ namespace oblo::vk
 
         if (!pipeline)
         {
-            return unspecified_error{};
+            return unspecified_error;
         }
 
         const compute_pass_context computePassContext{

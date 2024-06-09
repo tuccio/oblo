@@ -3,12 +3,18 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/core/types.hpp>
 
+#include <source_location>
 #include <type_traits>
 
 namespace oblo
 {
     // A tag that indicates failure, used as default error type for expected.
-    struct unspecified_error
+    struct unspecified_error_tag
+    {
+    };
+
+    // A tag for success, useful as default value for expected, if we only care about success.
+    struct success_tag
     {
     };
 
@@ -18,7 +24,7 @@ namespace oblo
     template <typename T>
     concept non_trivial_type = !std::is_trivial_v<T>;
 
-    template <typename T, trivial_type E = unspecified_error>
+    template <typename T = success_tag, trivial_type E = unspecified_error_tag>
     class [[nodiscard]] expected;
 
     // A simplified version of std::expected for trivial types.
@@ -85,6 +91,15 @@ namespace oblo
         constexpr T value_or(const T& fallback) const noexcept
         {
             return m_hasValue ? m_value : fallback;
+        }
+
+        void or_panic(const char* message = "Unexpected failure",
+            const std::source_location& src = std::source_location::current()) const
+        {
+            if (!has_value()) [[unlikely]]
+            {
+                debug_assert_report(src.file_name(), src.line(), message);
+            }
         }
 
     private:
@@ -220,6 +235,15 @@ namespace oblo
             return m_hasValue ? *reinterpret_cast<T*>(m_buffer) : std::forward<U>(fallback);
         }
 
+        void or_panic(const char* message = "Unexpected failure",
+            const std::source_location& src = std::source_location::current()) const
+        {
+            if (!has_value()) [[unlikely]]
+            {
+                debug_assert_report(src.file_name(), src.line(), message);
+            }
+        }
+
     private:
         bool m_hasValue;
         union {
@@ -227,4 +251,7 @@ namespace oblo
             E m_error;
         };
     };
+
+    constexpr unspecified_error_tag unspecified_error{};
+    constexpr success_tag no_error{};
 }

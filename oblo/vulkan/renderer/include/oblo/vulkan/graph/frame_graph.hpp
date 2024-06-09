@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/expected.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
@@ -40,7 +41,7 @@ namespace oblo::vk
             std::string_view dstName);
 
         template <typename T>
-        bool set_input(h32<frame_graph_subgraph> graph, std::string_view name, const T& value);
+        expected<> set_input(h32<frame_graph_subgraph> graph, std::string_view name, T&& value);
 
         void init();
 
@@ -56,16 +57,16 @@ namespace oblo::vk
     };
 
     template <typename T>
-    bool frame_graph::set_input(h32<frame_graph_subgraph> graph, std::string_view name, const T& value)
+    expected<> frame_graph::set_input(h32<frame_graph_subgraph> graph, std::string_view name, T&& value)
     {
         auto* const dst = try_get_input(graph, name, get_type_id<T>());
 
         if (dst)
         {
-            *static_cast<T*>(dst) = value;
-            return true;
+            *static_cast<T*>(dst) = std::forward<T>(value);
+            return no_error;
         }
 
-        return false;
+        return unspecified_error;
     }
 }

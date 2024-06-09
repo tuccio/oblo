@@ -167,7 +167,7 @@ namespace oblo
 
         if (det <= epsilon && det >= -epsilon)
         {
-            return unspecified_error{};
+            return unspecified_error;
         }
 
         const f32 invDet = 1.f / det;
