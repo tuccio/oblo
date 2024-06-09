@@ -2,7 +2,7 @@
 
 #include <oblo/core/unreachable.hpp>
 #include <oblo/vulkan/buffer.hpp>
-#include <oblo/vulkan/graph/frame_graph.hpp>
+#include <oblo/vulkan/graph/frame_graph_impl.hpp>
 #include <oblo/vulkan/graph/resource_pool.hpp>
 #include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
@@ -259,7 +259,7 @@ namespace oblo::vk
 
     frame_allocator& frame_graph_build_context::get_frame_allocator() const
     {
-        return m_frameGraph.get_frame_allocator();
+        return m_frameGraph.dynamicAllocator;
     }
 
     const draw_registry& frame_graph_build_context::get_draw_registry() const
@@ -267,7 +267,7 @@ namespace oblo::vk
         return m_renderer.get_draw_registry();
     }
     frame_graph_build_context::frame_graph_build_context(
-        frame_graph& frameGraph, renderer& renderer, resource_pool& resourcePool) :
+        frame_graph_impl& frameGraph, renderer& renderer, resource_pool& resourcePool) :
         m_frameGraph{frameGraph},
         m_renderer{renderer}, m_resourcePool{resourcePool}
     {
@@ -279,7 +279,7 @@ namespace oblo::vk
     }
 
     frame_graph_execute_context::frame_graph_execute_context(
-        frame_graph& frameGraph, renderer& renderer, VkCommandBuffer commandBuffer) :
+        frame_graph_impl& frameGraph, renderer& renderer, VkCommandBuffer commandBuffer) :
         m_frameGraph{frameGraph},
         m_renderer{renderer}, m_commandBuffer{commandBuffer}
     {

@@ -3,6 +3,7 @@
 #include <oblo/core/graph/directed_graph.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/vulkan/graph/frame_graph_registry.hpp>
+#include <oblo/vulkan/graph/frame_graph_vertex_kind.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 
 #include <string>
@@ -11,12 +12,6 @@
 namespace oblo::vk
 {
     struct frame_graph_node_desc;
-
-    enum class frame_graph_vertex_kind : u8
-    {
-        node,
-        pin,
-    };
 
     struct frame_graph_template_vertex;
 
