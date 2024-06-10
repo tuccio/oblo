@@ -21,7 +21,9 @@
 
 namespace oblo::vk
 {
+    struct frame_graph_subgraph;
     struct frame_graph_vertex;
+
     using frame_graph_topology = directed_graph<frame_graph_vertex>;
 
     struct frame_graph_node
@@ -35,6 +37,7 @@ namespace oblo::vk
         u32 size;
         u32 alignment;
         bool initialized;
+        bool markedForRemoval;
     };
 
     struct frame_graph_pin

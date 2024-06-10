@@ -36,6 +36,7 @@ namespace oblo::vk
         ~frame_graph();
 
         h32<frame_graph_subgraph> instantiate(const frame_graph_template& graphTemplate);
+        void remove(h32<frame_graph_subgraph> graph);
 
         bool connect(h32<frame_graph_subgraph> srcGraph,
             std::string_view srcName,

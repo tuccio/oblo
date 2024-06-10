@@ -34,6 +34,8 @@ namespace oblo::editor
 
     viewport::~viewport()
     {
+        on_close();
+
         --s_viewportInstances;
     }
 
@@ -190,6 +192,20 @@ namespace oblo::editor
 
         ImGui::End();
 
+        if (!open)
+        {
+            on_close();
+        }
+
         return open;
+    }
+
+    void viewport::on_close()
+    {
+        if (m_entity)
+        {
+            m_entities->destroy(m_entity);
+            m_entity = {};
+        }
     }
 }

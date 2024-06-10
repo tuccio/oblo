@@ -63,7 +63,12 @@ namespace oblo::vk
         OBLO_ASSERT(dst.kind == frame_graph_vertex_kind::pin);
 
         m_graph.add_edge(srcPin, dstPin);
-        m_graph.add_edge(src.nodeHandle, dst.nodeHandle);
+
+        if (!m_graph.has_edge(src.nodeHandle, dst.nodeHandle))
+        {
+            // We add an extra node between the nodes to ensure execution order
+            m_graph.add_edge(src.nodeHandle, dst.nodeHandle);
+        }
 
         return true;
     }

@@ -167,8 +167,8 @@ namespace oblo::editor
 
     void app::shutdown(const vk::sandbox_shutdown_context&)
     {
-        m_runtime.shutdown();
         m_windowManager.shutdown();
+        m_runtime.shutdown();
         platform::shutdown();
     }
 

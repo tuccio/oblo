@@ -78,7 +78,11 @@ namespace oblo::vk
 
         // Connect the pins, as well as the nodes they belong to, to ensure the correct order of execution
         m_impl->graph.add_edge(outIt->second, inIt->second);
-        m_impl->graph.add_edge(srcNode, dstNode);
+
+        if (!m_impl->graph.has_edge(srcNode, dstNode))
+        {
+            m_impl->graph.add_edge(srcNode, dstNode);
+        }
 
         return true;
     }
@@ -89,6 +93,8 @@ namespace oblo::vk
 
         auto& frameGraph = m_impl->graph;
         const auto& templateGraph = graphTemplate.get_graph();
+
+        const h32<frame_graph_subgraph> subgraph{key};
 
         for (const auto v : templateGraph.get_vertices())
         {
@@ -191,7 +197,87 @@ namespace oblo::vk
             it->outputs.emplace(templateGraph[out].name, outVertex);
         }
 
-        return h32<frame_graph_subgraph>{key};
+        return subgraph;
+    }
+
+    void frame_graph::remove(h32<frame_graph_subgraph> graph)
+    {
+        auto* const g = m_impl->subgraphs.try_find(graph);
+
+        if (!g)
+        {
+            return;
+        }
+
+        // TODO: (#8) This could be a set
+        using edge_handle = frame_graph_topology::edge_handle;
+
+        buffered_array<edge_handle, 32> edgesToRemove;
+
+        for (const auto v : g->templateToInstanceMap.values())
+        {
+            const auto& vertexData = m_impl->graph[v];
+
+            switch (vertexData.kind)
+            {
+            case frame_graph_vertex_kind::node:
+                if (vertexData.node)
+                {
+                    auto& node = m_impl->nodes.at(vertexData.node);
+
+                    if (node.node)
+                    {
+                        if (node.destruct)
+                        {
+                            node.destruct(node.node);
+                        }
+
+                        m_impl->memoryPool.deallocate(node.node, node.size, node.alignment);
+                        m_impl->nodes.erase(vertexData.node);
+                    }
+                }
+
+                break;
+
+            case frame_graph_vertex_kind::pin:
+                if (vertexData.pin)
+                {
+                    auto& pin = m_impl->pins.at(vertexData.pin);
+                    auto& storage = m_impl->pinStorage.at(pin.ownedStorage);
+
+                    m_impl->free_pin_storage(storage, false);
+
+                    m_impl->pinStorage.erase(pin.ownedStorage);
+                    m_impl->pins.erase(vertexData.pin);
+                }
+                break;
+            }
+
+            edgesToRemove.clear();
+
+            for (const auto e : m_impl->graph.get_out_edges(v))
+            {
+                if (auto* const src = m_impl->graph.try_get(e.vertex))
+                {
+                    edgesToRemove.push_back(e.handle);
+                }
+            }
+
+            for (const auto e : m_impl->graph.get_in_edges(v))
+            {
+                if (auto* const dst = m_impl->graph.try_get(e.vertex))
+                {
+                    edgesToRemove.push_back(e.handle);
+                }
+            }
+
+            for (const auto e : edgesToRemove)
+            {
+                m_impl->graph.remove_edge(e);
+            }
+
+            m_impl->graph.remove_vertex(v);
+        }
     }
 
     bool frame_graph::init(vulkan_context& ctx)
@@ -332,7 +418,7 @@ namespace oblo::vk
         flat_dense_map<h32<frame_graph_pin_storage>,
             frame_graph_buffer_barrier,
             decltype(m_impl->pinStorage)::extractor_type>
-            m_bufferStates;
+            bufferStates;
 
         for (auto&& [node, transitions] : zip_range(m_impl->sortedNodes, m_impl->nodeTransitions))
         {
@@ -355,7 +441,7 @@ namespace oblo::vk
             {
                 const auto& dst = m_impl->bufferBarriers[i];
 
-                const auto [it, inserted] = m_bufferStates.emplace(dst.buffer);
+                const auto [it, inserted] = bufferStates.emplace(dst.buffer);
 
                 if (!inserted)
                 {
@@ -384,7 +470,7 @@ namespace oblo::vk
                 else
                 {
                     // First time we encounter the buffer, add it to the states
-                    m_bufferStates.emplace(dst.buffer, dst);
+                    bufferStates.emplace(dst.buffer, dst);
                 }
             }
 
