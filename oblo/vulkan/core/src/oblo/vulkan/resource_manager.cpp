@@ -201,16 +201,9 @@ namespace oblo::vk
         m_transitions.emplace(texture, currentLayout);
     }
 
-    void command_buffer_state::add_pipeline_barrier(const resource_manager& resourceManager,
-        h32<texture> handle,
-        VkCommandBuffer commandBuffer,
-        VkImageLayout newLayout)
+    void command_buffer_state::add_pipeline_barrier(
+        const texture& tex, h32<texture> handle, VkCommandBuffer commandBuffer, VkImageLayout newLayout)
     {
-        auto* texturePtr = resourceManager.try_find(handle);
-        OBLO_ASSERT(texturePtr);
-
-        auto& texture = *texturePtr;
-
         auto* const transitionPtr = m_transitions.try_find(handle);
 
         if (!transitionPtr)
@@ -220,9 +213,9 @@ namespace oblo::vk
             m_incompleteTransitions.emplace_back(image_transition{
                 .handle = handle,
                 .newLayout = newLayout,
-                .format = texture.initializer.format,
-                .layerCount = texture.initializer.arrayLayers,
-                .mipLevels = texture.initializer.mipLevels,
+                .format = tex.initializer.format,
+                .layerCount = tex.initializer.arrayLayers,
+                .mipLevels = tex.initializer.mipLevels,
             });
         }
         else
@@ -233,11 +226,22 @@ namespace oblo::vk
             add_pipeline_barrier_cmd(commandBuffer,
                 oldLayout,
                 newLayout,
-                texture.image,
-                texture.initializer.format,
-                texture.initializer.arrayLayers,
-                texture.initializer.mipLevels);
+                tex.image,
+                tex.initializer.format,
+                tex.initializer.arrayLayers,
+                tex.initializer.mipLevels);
         }
+    }
+
+    void command_buffer_state::add_pipeline_barrier(const resource_manager& resourceManager,
+        h32<texture> handle,
+        VkCommandBuffer commandBuffer,
+        VkImageLayout newLayout)
+    {
+        auto* texturePtr = resourceManager.try_find(handle);
+        OBLO_ASSERT(texturePtr);
+
+        add_pipeline_barrier(*texturePtr, handle, commandBuffer, newLayout);
     }
 
     void command_buffer_state::clear()
