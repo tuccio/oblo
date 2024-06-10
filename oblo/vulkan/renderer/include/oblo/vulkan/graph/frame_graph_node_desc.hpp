@@ -71,7 +71,7 @@ namespace oblo::vk
 
             nodeDesc->pins.push_back({
                 .offset = offset,
-                .typeDesc = frame_graph_data_desc::make<h32<texture>>(),
+                .typeDesc = frame_graph_data_desc::make<texture>(),
             });
         }
 

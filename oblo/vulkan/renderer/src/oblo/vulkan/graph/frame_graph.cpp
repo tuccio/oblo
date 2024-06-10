@@ -14,7 +14,6 @@
 #include <oblo/vulkan/graph/frame_graph_impl.hpp>
 #include <oblo/vulkan/graph/frame_graph_template.hpp>
 #include <oblo/vulkan/renderer.hpp>
-#include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/stateful_command_buffer.hpp>
 
 #include <sstream>
@@ -374,7 +373,6 @@ namespace oblo::vk
     {
         OBLO_PROFILE_SCOPE("Execute");
 
-        auto& resourceManager = renderer.get_resource_manager();
         auto& commandBuffer = renderer.get_active_command_buffer();
         auto& resourcePool = m_impl->resourcePool;
 
@@ -400,17 +398,17 @@ namespace oblo::vk
             m_impl->flush_uploads(commandBuffer.get(), renderer.get_staging_buffer());
         }
 
+        command_buffer_state commandBufferState;
+
         for (const auto [resource, poolIndex] : m_impl->transientTextures)
         {
             constexpr VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
             const auto tex = resourcePool.get_texture(poolIndex);
 
-            // TODO: Unregister them
-            const auto handle = resourceManager.register_texture(tex, initialLayout);
-            commandBuffer.set_starting_layout(handle, initialLayout);
+            commandBufferState.set_starting_layout(h32<texture>{resource.value}, initialLayout);
 
-            new (m_impl->access_storage(resource)) h32<texture>{handle};
+            new (m_impl->access_storage(resource)) texture{tex};
         }
 
         buffered_array<VkBufferMemoryBarrier2, 32> bufferBarriers;
@@ -428,11 +426,13 @@ namespace oblo::vk
             {
                 const auto& textureTransition = m_impl->textureTransitions[i];
 
-                const auto* const texturePtr =
-                    static_cast<h32<texture>*>(m_impl->access_storage(textureTransition.texture));
-                OBLO_ASSERT(texturePtr && *texturePtr);
+                const auto* const texturePtr = static_cast<texture*>(m_impl->access_storage(textureTransition.texture));
+                OBLO_ASSERT(texturePtr && texturePtr->image);
 
-                commandBuffer.add_pipeline_barrier(resourceManager, *texturePtr, textureTransition.target);
+                commandBufferState.add_pipeline_barrier(*texturePtr,
+                    h32<texture>{textureTransition.texture.value},
+                    commandBuffer.get(),
+                    textureTransition.target);
             }
 
             bufferBarriers.clear();

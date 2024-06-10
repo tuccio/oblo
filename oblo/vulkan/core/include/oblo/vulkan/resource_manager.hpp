@@ -73,6 +73,9 @@ namespace oblo::vk
 
         void set_starting_layout(h32<texture> handle, VkImageLayout currentLayout);
 
+        void add_pipeline_barrier(
+            const texture& tex, h32<texture> handle, VkCommandBuffer commandBuffer, VkImageLayout newLayout);
+
         void add_pipeline_barrier(const resource_manager& resourceManager,
             h32<texture> handle,
             VkCommandBuffer commandBuffer,

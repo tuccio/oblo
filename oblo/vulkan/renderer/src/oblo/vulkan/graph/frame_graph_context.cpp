@@ -288,16 +288,10 @@ namespace oblo::vk
     texture frame_graph_execute_context::access(resource<texture> h) const
     {
         const auto storage = h32<frame_graph_pin_storage>{h.value};
-        const auto textureHandle = *static_cast<h32<texture>*>(m_frameGraph.access_storage(storage));
+        const auto* texturePtr = static_cast<texture*>(m_frameGraph.access_storage(storage));
 
-        texture result{};
-
-        if (auto* const texture = get_resource_manager().try_find(textureHandle))
-        {
-            result = *texture;
-        }
-
-        return result;
+        OBLO_ASSERT(texturePtr);
+        return *texturePtr;
     }
 
     buffer frame_graph_execute_context::access(resource<buffer> h) const
