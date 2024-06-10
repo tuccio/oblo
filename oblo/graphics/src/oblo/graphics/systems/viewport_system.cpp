@@ -62,7 +62,7 @@ namespace oblo
 
         for (auto& graphData : m_renderGraphs.values())
         {
-            // TODO: Remove graph
+            m_renderer->get_frame_graph().remove(graphData.subgraph);
             destroy_graph_vulkan_objects(graphData);
         }
 
@@ -413,8 +413,7 @@ namespace oblo
                     continue;
                 }
 
-                // TODO: Implement subgraph removal
-                OBLO_ASSERT(false);
+                m_renderer->get_frame_graph().remove(renderGraphData.subgraph);
 
                 elementsToRemove[numRemovedElements] = entity;
                 ++numRemovedElements;

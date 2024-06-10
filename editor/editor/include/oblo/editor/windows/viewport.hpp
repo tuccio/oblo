@@ -28,6 +28,9 @@ namespace oblo::editor
         bool update(const window_update_context& ctx);
 
     private:
+        void on_close();
+
+    private:
         resource_registry* m_resources{};
         ecs::entity_registry* m_entities{};
         selected_entities* m_selection{};

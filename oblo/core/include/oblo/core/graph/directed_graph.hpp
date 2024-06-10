@@ -55,6 +55,8 @@ namespace oblo
             const auto [it, key] = m_edges.emplace(std::forward<Args>(args)...);
             const edge_handle edge{key};
 
+            OBLO_ASSERT(!has_edge(from, to), "The edge is already present");
+
             it->from = from;
             it->to = to;
 
@@ -64,67 +66,131 @@ namespace oblo
             return edge;
         }
 
-        void remove_edge(edge_handle edge)
+        bool remove_vertex(vertex_handle vertex)
         {
-            auto* const storage = m_edges.try_find(edge);
-            remove_edge(storage->from, storage->to);
+            return m_vertices.erase(vertex) == 1;
         }
 
-        void remove_edge(vertex_handle from, vertex_handle to)
+        bool remove_edge(edge_handle edge)
         {
-            vertex_storage* const src = m_vertices.try_find(from);
-            vertex_storage* const dst = m_vertices.try_find(to);
+            auto* const storage = m_edges.try_find(edge);
 
-            OBLO_ASSERT(src && dst);
+            if (!storage)
+            {
+                return false;
+            }
 
+            return remove_edge(storage->from, storage->to);
+        }
+
+        bool remove_edge(vertex_handle from, vertex_handle to)
+        {
             edge_handle edge{};
 
-            for (auto it = src->outEdges.begin(); it != src->outEdges.end(); ++it)
+            vertex_storage* const src = m_vertices.try_find(from);
+
+            if (src)
             {
-                if (*it == to)
+                for (auto it = src->outEdges.begin(); it != src->outEdges.end(); ++it)
                 {
-                    edge = it->handle;
-                    src->outEdges.erase_unordered(it);
-                    break;
+                    if (it->vertex == to)
+                    {
+                        edge = it->handle;
+                        src->outEdges.erase_unordered(it);
+                        break;
+                    }
                 }
             }
 
-            OBLO_ASSERT(edge);
+            vertex_storage* const dst = m_vertices.try_find(to);
 
-            for (auto it = dst->inEdges.begin(); it != dst->inEdges.end(); ++it)
+            if (dst)
             {
-                if (*it == to)
+                for (auto it = dst->inEdges.begin(); it != dst->inEdges.end(); ++it)
                 {
-                    dst->inEdges.erase_unordered(it);
-                    break;
+                    if (it->vertex == to)
+                    {
+                        edge = it->handle;
+                        dst->inEdges.erase_unordered(it);
+                        break;
+                    }
                 }
             }
 
-            m_edges.erase(edge);
+            if (edge)
+            {
+                m_edges.erase(edge);
+                return true;
+            }
+
+            return false;
         }
 
-        Vertex& get_vertex(vertex_handle vertex)
+        bool has_edge(vertex_handle from, vertex_handle to)
+        {
+            vertex_storage* const src = m_vertices.try_find(from);
+
+            if (src)
+            {
+                // Assuming that if it's in this list, it's the caller's responsibility to keep it in sync
+                for (auto it = src->outEdges.begin(); it != src->outEdges.end(); ++it)
+                {
+                    if (it->vertex == to)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        Vertex* try_get(vertex_handle vertex)
+        {
+            auto* const storage = m_vertices.try_find(vertex);
+            return storage ? &storage->data : nullptr;
+        }
+
+        const Vertex& try_get(vertex_handle vertex) const
+        {
+            auto* const storage = m_vertices.try_find(vertex);
+            return storage ? &storage->data : nullptr;
+        }
+
+        Vertex& get(vertex_handle vertex)
         {
             auto* const storage = m_vertices.try_find(vertex);
             OBLO_ASSERT(storage);
             return storage->data;
         }
 
-        const Vertex& get_vertex(vertex_handle vertex) const
+        const Vertex& get(vertex_handle vertex) const
         {
             auto* const storage = m_vertices.try_find(vertex);
             OBLO_ASSERT(storage);
             return storage->data;
         }
 
-        Edge& get_edge(edge_handle edge)
+        Edge* try_get(edge_handle edge)
+        {
+            auto* const storage = m_edges.try_find(edge);
+            return storage ? &storage->data : nullptr;
+        }
+
+        const Edge& try_get(edge_handle edge) const
+        {
+            auto* const storage = m_edges.try_find(edge);
+            return storage ? &storage->data : nullptr;
+        }
+
+        Edge& get(edge_handle edge)
         {
             auto* const storage = m_edges.try_find(edge);
             OBLO_ASSERT(storage);
             return storage->data;
         }
 
-        const Edge& get_edge(edge_handle edge) const
+        const Edge& get(edge_handle edge) const
         {
             auto* const storage = m_edges.try_find(edge);
             OBLO_ASSERT(storage);
@@ -133,22 +199,22 @@ namespace oblo
 
         Vertex& operator[](vertex_handle vertex)
         {
-            return get_vertex(vertex);
+            return get(vertex);
         }
 
         const Vertex& operator[](vertex_handle vertex) const
         {
-            return get_vertex(vertex);
+            return get(vertex);
         }
 
         Edge& operator[](edge_handle edge)
         {
-            return get_edge(edge);
+            return get(edge);
         }
 
         const Edge& operator[](edge_handle edge) const
         {
-            return get_edge(edge);
+            return get(edge);
         }
 
         vertex_handle get_source(edge_handle edge) const
