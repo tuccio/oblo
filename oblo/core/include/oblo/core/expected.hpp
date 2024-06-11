@@ -93,7 +93,7 @@ namespace oblo
             return m_hasValue ? m_value : fallback;
         }
 
-        void or_panic(const char* message = "Unexpected failure",
+        void or_panic(const char* message = "Panic!",
             const std::source_location& src = std::source_location::current()) const
         {
             if (!has_value()) [[unlikely]]

@@ -87,4 +87,12 @@ namespace oblo
 
     template <typename Tag, typename Value = Tag, u32 GenBits = 8>
     using h64_flat_pool_dense_map = handle_flat_pool_dense_map<Tag, Value, u64, GenBits>;
+
+    template <typename Tag, typename Value = Tag, u32 GenBits = 4>
+    using h32_flat_extpool_dense_map =
+        flat_dense_map<handle<Tag, u32>, Value, pool_flat_key_extractor<Tag, u32, GenBits>>;
+
+    template <typename Tag, typename Value = Tag, u32 GenBits = 8>
+    using h64_flat_extpool_dense_map =
+        flat_dense_map<handle<Tag, u64>, Value, pool_flat_key_extractor<Tag, u64, GenBits>>;
 }
