@@ -84,7 +84,7 @@ namespace oblo::editor
 
                 auto& camera = m_entities->get<camera_component>(m_entity);
                 camera.near = 0.01f;
-                camera.far = 1000.f;
+                camera.far = 10000.f;
                 camera.fovy = 75_deg;
             }
 

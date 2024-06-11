@@ -27,7 +27,7 @@ namespace oblo
         const auto e = ecs_utility::create_named_physical_entity<light_component>(*ctx.entities,
             "Sun",
             {},
-            quaternion::from_euler_xyz_intrinsic(degrees_tag{}, vec3{.x = 53.f, .y = 16.f, .z = -32.f}),
+            quaternion::from_euler_xyz_intrinsic(degrees_tag{}, vec3{.x = -53.f, .y = -8.f, .z = -32.f}),
             vec3::splat(1.f));
 
         ctx.entities->get<light_component>(e) = {
@@ -51,7 +51,7 @@ namespace oblo
             for (const auto& [light, transform] : zip_range(lights, transforms))
             {
                 const auto position = transform.value.columns[3];
-                const auto direction = transform.value * vec4{.z = 1.f};
+                const auto direction = normalize(transform.value * vec4{.z = -1.f});
 
                 lightData.push_back({
                     .position = {position.x, position.y, position.z},
