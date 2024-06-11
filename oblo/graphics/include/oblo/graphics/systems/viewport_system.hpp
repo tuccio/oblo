@@ -17,6 +17,8 @@ namespace oblo::vk
 
 namespace oblo
 {
+    class scene_renderer;
+
     class viewport_system
     {
     public:
@@ -43,7 +45,8 @@ namespace oblo
         bool prepare_picking_buffers(render_graph_data& graphData);
 
     private:
-        vk::renderer* m_renderer{nullptr};
+        vk::renderer* m_renderer{};
+        scene_renderer* m_sceneRenderer{};
         VkDescriptorPool m_descriptorPool{};
         VkDescriptorSetLayout m_descriptorSetLayout{};
         VkSampler m_sampler{};

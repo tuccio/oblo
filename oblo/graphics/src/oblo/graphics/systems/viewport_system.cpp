@@ -11,6 +11,7 @@
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
+#include <oblo/graphics/systems/scene_renderer.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/math/view_projection.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
@@ -193,6 +194,10 @@ namespace oblo
         m_renderer = ctx.services->find<vk::renderer>();
         OBLO_ASSERT(m_renderer);
 
+        m_sceneRenderer = ctx.services->find<scene_renderer>();
+        OBLO_ASSERT(m_sceneRenderer);
+        m_sceneRenderer->ensure_setup();
+
         create_vulkan_objects();
 
         update(ctx);
@@ -234,6 +239,8 @@ namespace oblo
 
                     const auto subgraph = frameGraph.instantiate(mainViewTemplate);
                     it->subgraph = subgraph;
+
+                    m_sceneRenderer->add_scene_view(subgraph);
 
                     renderGraphData = &*it;
                 }
@@ -414,6 +421,7 @@ namespace oblo
                 }
 
                 m_renderer->get_frame_graph().remove(renderGraphData.subgraph);
+                m_sceneRenderer->remove_scene_view(renderGraphData.subgraph);
 
                 elementsToRemove[numRemovedElements] = entity;
                 ++numRemovedElements;

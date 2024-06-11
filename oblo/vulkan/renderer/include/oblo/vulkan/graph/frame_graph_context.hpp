@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/flat_dense_forward.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
@@ -7,11 +8,14 @@
 #include <vulkan/vulkan_core.h>
 
 #include <span>
+#include <string_view>
 
 namespace oblo
 {
     class frame_allocator;
     class string_interner;
+
+    struct string;
 }
 
 namespace oblo::vk
@@ -28,6 +32,8 @@ namespace oblo::vk
     struct frame_graph_impl;
     struct frame_graph_pin_storage;
     struct staging_buffer_span;
+
+    using buffer_binding_table = flat_dense_map<h32<string>, buffer>;
 
     class frame_graph_init_context
     {
@@ -130,6 +136,12 @@ namespace oblo::vk
         resource_pool& m_resourcePool;
     };
 
+    struct pin_binding_desc
+    {
+        resource<buffer> buffer;
+        std::string_view name;
+    };
+
     class frame_graph_execute_context
     {
     public:
@@ -155,6 +167,8 @@ namespace oblo::vk
         draw_registry& get_draw_registry() const;
 
         string_interner& get_string_interner() const;
+
+        void add_bindings(buffer_binding_table& table, std::initializer_list<pin_binding_desc> bindings) const;
 
     private:
         void* access_storage(h32<frame_graph_pin_storage> handle) const;

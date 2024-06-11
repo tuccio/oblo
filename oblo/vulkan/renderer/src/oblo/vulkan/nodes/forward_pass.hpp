@@ -25,6 +25,9 @@ namespace oblo::vk
         data<buffer_binding_table> inPerViewBindingTable;
         data<std::span<draw_buffer_data>> inDrawData;
 
+        resource<buffer> inLightData;
+        resource<buffer> inLightConfig;
+
         resource<texture> outRenderTarget;
         resource<texture> outPickingIdBuffer;
         resource<texture> outDepthBuffer;
