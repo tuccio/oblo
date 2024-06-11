@@ -53,9 +53,10 @@ namespace oblo
     class service_registry::builder
     {
     public:
-        T* unique() &&
+        template <typename... Args>
+        T* unique(Args&&... args) &&
         {
-            T* const ptr = new T{};
+            T* const ptr = new T{std::forward<Args>(args)...};
             m_registry->m_services.emplace_back(ptr, [](void* p) { delete static_cast<T*>(p); });
 
             (m_registry->m_map.emplace(get_type_id<Bases>(), static_cast<Bases*>(ptr)), ...);

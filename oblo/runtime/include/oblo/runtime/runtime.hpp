@@ -3,6 +3,7 @@
 #include <oblo/core/types.hpp>
 
 #include <memory>
+#include <span>
 
 namespace oblo::reflection
 {
@@ -12,6 +13,7 @@ namespace oblo::reflection
 namespace oblo::ecs
 {
     class entity_registry;
+    struct service_registrant;
 }
 
 namespace oblo::vk
@@ -32,6 +34,7 @@ namespace oblo
         property_registry* propertyRegistry;
         resource_registry* resourceRegistry;
         vk::vulkan_context* vulkanContext;
+        std::span<ecs::service_registrant* const> serviceRegistrants;
         usize frameAllocatorMaxSize{1u << 28};
     };
 
