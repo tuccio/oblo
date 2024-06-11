@@ -2,6 +2,7 @@
 
 #include <oblo/core/unreachable.hpp>
 #include <oblo/vulkan/buffer.hpp>
+#include <oblo/vulkan/draw/buffer_binding_table.hpp>
 #include <oblo/vulkan/graph/frame_graph_impl.hpp>
 #include <oblo/vulkan/graph/resource_pool.hpp>
 #include <oblo/vulkan/renderer.hpp>
@@ -323,6 +324,17 @@ namespace oblo::vk
     string_interner& frame_graph_execute_context::get_string_interner() const
     {
         return m_renderer.get_string_interner();
+    }
+
+    void frame_graph_execute_context::add_bindings(buffer_binding_table& table,
+        std::initializer_list<pin_binding_desc> bindings) const
+    {
+        auto& interner = get_string_interner();
+
+        for (const auto& b : bindings)
+        {
+            table.emplace(interner.get_or_add(b.name), access(b.buffer));
+        }
     }
 
     void* frame_graph_execute_context::access_storage(h32<frame_graph_pin_storage> handle) const

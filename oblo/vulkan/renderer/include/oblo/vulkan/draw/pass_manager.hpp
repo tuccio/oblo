@@ -58,7 +58,7 @@ namespace oblo::vk
 
         void init(const vulkan_context& vkContext,
             string_interner& interner,
-            const h32<buffer> dummy,
+            const buffer& dummy,
             const texture_registry& textureRegistry);
 
         void shutdown(vulkan_context& vkContext);
@@ -81,7 +81,6 @@ namespace oblo::vk
         void end_render_pass(const render_pass_context& context);
 
         void draw(const render_pass_context& context,
-            const resource_manager& resourceManager,
             std::span<const buffer> batchDrawCommands,
             std::span<const batch_draw_data> batchDrawData,
             std::span<const buffer_binding_table> perDrawBindingTable,

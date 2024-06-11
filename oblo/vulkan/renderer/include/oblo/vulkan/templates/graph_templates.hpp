@@ -12,6 +12,9 @@ namespace oblo::vk::main_view
     constexpr std::string_view InTime{"Time"};
     constexpr std::string_view InFinalRenderTarget{"Final Render Target"};
 
+    constexpr std::string_view InLightData{"LightDataBuffer"};
+    constexpr std::string_view InLightConfig{"LightConfig"};
+
     struct config
     {
         bool bypassCulling{false};
@@ -19,6 +22,15 @@ namespace oblo::vk::main_view
     };
 
     frame_graph_template create(const frame_graph_registry& registry, const config& cfg = {});
+}
+
+namespace oblo::vk::scene_data
+{
+    constexpr std::string_view InLightData{"LightData"};
+    constexpr std::string_view OutLightData{"LightDataBuffer"};
+    constexpr std::string_view OutLightConfig{"LightConfig"};
+
+    frame_graph_template create(const frame_graph_registry& registry);
 }
 
 namespace oblo::vk

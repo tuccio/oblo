@@ -35,7 +35,9 @@ namespace oblo::vk
             return false;
         }
 
-        m_dummy = m_vkContext->get_resource_manager().create(get_allocator(),
+        auto& resourceManager = m_vkContext->get_resource_manager();
+
+        m_dummy = resourceManager.create(get_allocator(),
             {
                 .size = 16u,
                 .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
@@ -43,7 +45,7 @@ namespace oblo::vk
             });
 
         m_stringInterner.init(64);
-        m_passManager.init(*m_vkContext, m_stringInterner, m_dummy, m_textureRegistry);
+        m_passManager.init(*m_vkContext, m_stringInterner, resourceManager.get(m_dummy), m_textureRegistry);
 
         const std::filesystem::path includePaths[] = {"./vulkan/shaders/"};
         m_passManager.set_system_include_paths(includePaths);

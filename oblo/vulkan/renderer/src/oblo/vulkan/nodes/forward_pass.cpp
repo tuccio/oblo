@@ -56,6 +56,9 @@ namespace oblo::vk
             },
             texture_usage::depth_stencil_write);
 
+        builder.acquire(inLightConfig, pass_kind::graphics, buffer_usage::uniform);
+        builder.acquire(inLightData, pass_kind::graphics, buffer_usage::storage_read);
+
         const auto& pickingConfiguration = builder.access(inPickingConfiguration);
         isPickingEnabled = pickingConfiguration.enabled;
 
@@ -157,9 +160,18 @@ namespace oblo::vk
 
         setup_viewport_scissor(commandBuffer, renderWidth, renderHeight);
 
+        buffer_binding_table passBindingTable;
+
+        context.add_bindings(passBindingTable,
+            {
+                {inLightData, "b_LightData"},
+                {inLightConfig, "b_LightConfig"},
+            });
+
         if (const auto pass = passManager.begin_render_pass(commandBuffer, pipeline, renderInfo))
         {
             const buffer_binding_table* bindingTables[] = {
+                &passBindingTable,
                 &context.access(inPerViewBindingTable),
             };
 
@@ -201,12 +213,7 @@ namespace oblo::vk
                 }
             }
 
-            passManager.draw(*pass,
-                context.get_resource_manager(),
-                drawCommands,
-                drawCalls,
-                instanceBufferBindings,
-                bindingTables);
+            passManager.draw(*pass, drawCommands, drawCalls, instanceBufferBindings, bindingTables);
 
             passManager.end_render_pass(*pass);
         }

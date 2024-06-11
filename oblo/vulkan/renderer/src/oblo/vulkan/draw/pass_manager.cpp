@@ -331,7 +331,7 @@ namespace oblo::vk
         descriptor_set_pool descriptorSetPool;
         descriptor_set_pool texturesDescriptorSetPool;
         const texture_registry* textureRegistry{};
-        h32<buffer> dummy{};
+        buffer dummy{};
         std::optional<efsw::FileWatcher> fileWatcher;
         VkDescriptorSetLayout samplersSetLayout{};
         VkDescriptorSetLayout textures2DSetLayout{};
@@ -705,7 +705,8 @@ namespace oblo::vk
             }
 
             OBLO_ASSERT(!found);
-            log::debug("Unable to find matching buffer for binding {}", interner->str(binding.name));
+            log::debug("Unable to find matching buffer for binding {} in any of the provided binding tables",
+                interner->str(binding.name));
         }
 
         if (writesCount > 0)
@@ -721,7 +722,7 @@ namespace oblo::vk
 
     void pass_manager::init(const vulkan_context& vkContext,
         string_interner& interner,
-        const h32<buffer> dummy,
+        const buffer& dummy,
         const texture_registry& textureRegistry)
     {
         m_impl = std::make_unique<impl>();
@@ -1372,7 +1373,6 @@ namespace oblo::vk
     }
 
     void pass_manager::draw(const render_pass_context& context,
-        const resource_manager& resourceManager,
         std::span<const buffer> batchDrawCommands,
         std::span<const batch_draw_data> batchDrawData,
         std::span<const buffer_binding_table> perDrawBindingTable,
@@ -1400,12 +1400,10 @@ namespace oblo::vk
         const std::span attributeNames = allocate_n_span<h32<string>>(m_impl->frameAllocator, numVertexAttributes);
         const std::span buffers = allocate_n_span<buffer>(m_impl->frameAllocator, numVertexAttributes);
 
-        const auto dummy = resourceManager.get(m_impl->dummy);
-
         for (u32 i = 0; i < numVertexAttributes; ++i)
         {
             attributeNames[i] = resources[i].name;
-            buffers[i] = dummy;
+            buffers[i] = m_impl->dummy;
         };
 
         for (usize drawIndex = 0; drawIndex < batchDrawCommands.size(); ++drawIndex)
