@@ -1,5 +1,6 @@
 #include <oblo/graphics/systems/lighting_system.hpp>
 
+#include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/ecs/entity_registry.hpp>
@@ -26,12 +27,12 @@ namespace oblo
         const auto e = ecs_utility::create_named_physical_entity<light_component>(*ctx.entities,
             "Sun",
             {},
-            quaternion::from_euler_xyz_intrinsic(degrees_tag{}, vec3{.x = 53.f}),
+            quaternion::from_euler_xyz_intrinsic(degrees_tag{}, vec3{.x = 53.f, .y = 16.f, .z = -32.f}),
             vec3::splat(1.f));
 
         ctx.entities->get<light_component>(e) = {
             .color = vec3::splat(1.f),
-            .intensity = 12.f,
+            .intensity = 3.f,
             .type = light_type::directional,
         };
 
@@ -40,10 +41,12 @@ namespace oblo
 
     void lighting_system::update(const ecs::system_update_context& ctx)
     {
-        dynamic_array<vk::light_data> lightData;
+        const auto lightsRange = ctx.entities->range<light_component, global_transform_component>();
 
-        for (const auto [entities, lights, transforms] :
-            ctx.entities->range<light_component, global_transform_component>())
+        dynamic_array<vk::light_data> lightData{ctx.frameAllocator};
+        lightData.reserve(lightsRange.count());
+
+        for (const auto [entities, lights, transforms] : lightsRange)
         {
             for (const auto& [light, transform] : zip_range(lights, transforms))
             {

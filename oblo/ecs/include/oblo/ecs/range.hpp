@@ -34,6 +34,8 @@ namespace oblo::ecs
 
         iterator end() const;
 
+        u32 count() const;
+
     private:
         component_and_tag_sets m_include;
         component_and_tag_sets m_exclude;
@@ -268,5 +270,20 @@ namespace oblo::ecs
     entity_registry::typed_range<Components...>::iterator entity_registry::typed_range<Components...>::end() const
     {
         return {};
+    }
+
+    template <typename... Components>
+    u32 entity_registry::typed_range<Components...>::count() const
+    {
+        u32 count{};
+
+        for_each_chunk(
+            [&count](auto&&... spans)
+            {
+                count += (u32(spans.size()) + ...);
+                return count;
+            });
+
+        return count;
     }
 }

@@ -1,10 +1,11 @@
 #pragma once
 
+#include <oblo/core/allocator.hpp>
 #include <oblo/core/types.hpp>
 
 namespace oblo
 {
-    class frame_allocator
+    class frame_allocator final : public allocator
     {
     public:
         class scoped_restore;
@@ -19,7 +20,9 @@ namespace oblo
         bool init(usize maxSize, usize chunkSize = 4u << 20, usize startingChunks = 0);
         void shutdown();
 
-        void* allocate(usize size, usize alignment);
+        byte* allocate(usize size, usize alignment) noexcept;
+        void deallocate(byte*, usize, usize) noexcept {}
+
         void free_unused();
 
         void restore(void* point);

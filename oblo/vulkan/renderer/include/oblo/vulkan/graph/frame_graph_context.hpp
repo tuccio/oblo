@@ -162,8 +162,6 @@ namespace oblo::vk
 
         pass_manager& get_pass_manager() const;
 
-        resource_manager& get_resource_manager() const;
-
         draw_registry& get_draw_registry() const;
 
         string_interner& get_string_interner() const;

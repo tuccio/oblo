@@ -311,11 +311,6 @@ namespace oblo::vk
         return m_renderer.get_pass_manager();
     }
 
-    resource_manager& frame_graph_execute_context::get_resource_manager() const
-    {
-        return m_renderer.get_resource_manager();
-    }
-
     draw_registry& frame_graph_execute_context::get_draw_registry() const
     {
         return m_renderer.get_draw_registry();

@@ -21,7 +21,7 @@ namespace oblo::vk
 
             builder.create(outLightData,
                 {
-                    .size = lightsCount,
+                    .size = u32(lightsCount * sizeof(light_data)),
                     .data = std::as_bytes(lights),
                 },
                 pass_kind::graphics,
