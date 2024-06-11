@@ -2,6 +2,7 @@
 
 #include <oblo/core/debug.hpp>
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/flat_dense_forward.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/utility.hpp>
 
@@ -25,7 +26,7 @@ namespace oblo
         }
     };
 
-    template <typename Key, typename Value, typename KeyExtractor = flat_key_extractor<Key>>
+    template <typename Key, typename Value, typename KeyExtractor>
     class flat_dense_map
     {
     public:
