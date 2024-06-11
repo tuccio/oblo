@@ -4,12 +4,14 @@
 #include <oblo/core/service_registry.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/entity_registry.hpp>
+#include <oblo/ecs/services/service_registrant.hpp>
 #include <oblo/ecs/systems/system_graph.hpp>
 #include <oblo/ecs/systems/system_seq_executor.hpp>
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/ecs/utility/registration.hpp>
 #include <oblo/graphics/graphics_module.hpp>
+#include <oblo/graphics/systems/lighting_system.hpp>
 #include <oblo/graphics/systems/static_mesh_system.hpp>
 #include <oblo/graphics/systems/viewport_system.hpp>
 #include <oblo/scene/components/name_component.hpp>
@@ -35,6 +37,7 @@ namespace oblo
 
             g.add_system<transform_system>();
             g.add_system<static_mesh_system>();
+            g.add_system<lighting_system>();
             g.add_system<viewport_system>();
 
             return g.instantiate();
@@ -79,6 +82,11 @@ namespace oblo
         m_impl->services.add<vk::vulkan_context>().externally_owned(initializer.vulkanContext);
         m_impl->services.add<vk::renderer>().externally_owned(&m_impl->renderer);
         m_impl->services.add<resource_registry>().externally_owned(initializer.resourceRegistry);
+
+        for (const auto* serviceRegistrant : initializer.serviceRegistrants)
+        {
+            serviceRegistrant->registerServices(m_impl->services);
+        }
 
         auto* const resourceCache = m_impl->services.add<vk::resource_cache>().unique();
 
