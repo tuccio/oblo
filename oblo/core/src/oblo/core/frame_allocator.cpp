@@ -75,7 +75,7 @@ namespace oblo
         }
     }
 
-    void* frame_allocator::allocate(usize size, usize alignment)
+    byte* frame_allocator::allocate(usize size, usize alignment) noexcept
     {
         OBLO_ASSERT(size != 0);
         OBLO_ASSERT(alignment != 0);
@@ -110,7 +110,7 @@ namespace oblo
         }
 
         m_end = newEnd;
-        return ptr;
+        return reinterpret_cast<byte*>(ptr);
     }
 
     void frame_allocator::free_unused()
