@@ -261,7 +261,8 @@ namespace oblo::vk::shader_compiler
         return true;
     }
 
-    VkShaderModule create_shader_module_from_spirv(VkDevice device, std::span<const unsigned> spirv)
+    VkShaderModule create_shader_module_from_spirv(
+        VkDevice device, std::span<const unsigned> spirv, const VkAllocationCallbacks* allocationCbs)
     {
         const VkShaderModuleCreateInfo shaderModuleCreateInfo{
             .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -271,7 +272,7 @@ namespace oblo::vk::shader_compiler
 
         VkShaderModule shaderModule;
 
-        if (vkCreateShaderModule(device, &shaderModuleCreateInfo, nullptr, &shaderModule) != VK_SUCCESS)
+        if (vkCreateShaderModule(device, &shaderModuleCreateInfo, allocationCbs, &shaderModule) != VK_SUCCESS)
         {
             return nullptr;
         }
@@ -283,6 +284,7 @@ namespace oblo::vk::shader_compiler
         VkDevice device,
         VkShaderStageFlagBits stage,
         std::string_view filePath,
+        const VkAllocationCallbacks* allocationCbs,
         const options& options)
     {
         std::vector<unsigned> spirv;
@@ -297,6 +299,6 @@ namespace oblo::vk::shader_compiler
             return VK_NULL_HANDLE;
         }
 
-        return shader_compiler::create_shader_module_from_spirv(device, spirv);
+        return shader_compiler::create_shader_module_from_spirv(device, spirv, allocationCbs);
     }
 }

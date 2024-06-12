@@ -56,7 +56,7 @@ namespace oblo::vk
         pass_manager& operator=(pass_manager&&) noexcept = delete;
         ~pass_manager();
 
-        void init(const vulkan_context& vkContext,
+        void init(vulkan_context& vkContext,
             string_interner& interner,
             const buffer& dummy,
             const texture_registry& textureRegistry);

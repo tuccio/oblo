@@ -54,7 +54,10 @@ namespace oblo::vk
 
         void destroy_immediate(VkBuffer buffer) const;
         void destroy_immediate(VmaAllocation allocation) const;
+        void destroy_immediate(VkPipeline pipeline) const;
+        void destroy_immediate(VkPipelineLayout pipelineLayout) const;
         void destroy_immediate(VkSemaphore semaphore) const;
+        void destroy_immediate(VkShaderModule shaderModule) const;
 
         template <typename T>
         void reset_immediate(T& any) const;
@@ -65,8 +68,11 @@ namespace oblo::vk
         void destroy_deferred(VkDescriptorSet descriptorSet, VkDescriptorPool pool, u64 submitIndex);
         void destroy_deferred(VkDescriptorPool pool, u64 submitIndex);
         void destroy_deferred(VkDescriptorSetLayout setLayout, u64 submitIndex);
+        void destroy_deferred(VkPipeline pipeline, u64 submitIndex);
+        void destroy_deferred(VkPipelineLayout pipelineLayout, u64 submitIndex);
         void destroy_deferred(VkSampler sampler, u64 submitIndex);
         void destroy_deferred(VkSemaphore semaphore, u64 submitIndex);
+        void destroy_deferred(VkShaderModule shaderModule, u64 submitIndex);
         void destroy_deferred(VmaAllocation allocation, u64 submitIndex);
         void destroy_deferred(h32<texture> texture, u64 submitIndex);
 
