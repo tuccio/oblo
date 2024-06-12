@@ -184,42 +184,46 @@ namespace oblo::vk
 
     namespace
     {
-        void destroy_pipeline(VkDevice device, const render_pipeline& variant)
+        void destroy_pipeline(vulkan_context& ctx, const render_pipeline& variant)
         {
+            const auto submitIndex = ctx.get_submit_index();
+
             if (const auto pipeline = variant.pipeline)
             {
-                vkDestroyPipeline(device, pipeline, nullptr);
+                ctx.destroy_deferred(pipeline, submitIndex);
             }
 
             if (const auto pipelineLayout = variant.pipelineLayout)
             {
-                vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+                ctx.destroy_deferred(pipelineLayout, submitIndex);
             }
 
             for (const auto shaderModule : variant.shaderModules)
             {
                 if (shaderModule)
                 {
-                    vkDestroyShaderModule(device, shaderModule, nullptr);
+                    ctx.destroy_deferred(shaderModule, submitIndex);
                 }
             }
         }
 
-        void destroy_pipeline(VkDevice device, const compute_pipeline& variant)
+        void destroy_pipeline(vulkan_context& ctx, const compute_pipeline& variant)
         {
+            const auto submitIndex = ctx.get_submit_index();
+
             if (const auto pipeline = variant.pipeline)
             {
-                vkDestroyPipeline(device, pipeline, nullptr);
+                ctx.destroy_deferred(pipeline, submitIndex);
             }
 
             if (const auto pipelineLayout = variant.pipelineLayout)
             {
-                vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+                ctx.destroy_deferred(pipelineLayout, submitIndex);
             }
 
-            if (variant.shaderModule)
+            if (const auto shaderModule = variant.shaderModule)
             {
-                vkDestroyShaderModule(device, variant.shaderModule, nullptr);
+                ctx.destroy_deferred(shaderModule, submitIndex);
             }
         }
 
@@ -256,7 +260,7 @@ namespace oblo::vk
         };
 
         template <typename Pass, typename Pipelines>
-        void poll_hot_reloading(VkDevice device, Pass& pass, Pipelines& pipelines)
+        void poll_hot_reloading(vulkan_context& vkCtx, Pass& pass, Pipelines& pipelines)
         {
             if (bool expected{true}; pass.watcher->anyEvent.compare_exchange_weak(expected, false))
             {
@@ -264,8 +268,7 @@ namespace oblo::vk
                 {
                     if (auto* const pipeline = pipelines.try_find(variant.pipeline))
                     {
-                        // TODO: Does destruction need to be deferred?
-                        destroy_pipeline(device, *pipeline);
+                        destroy_pipeline(vkCtx, *pipeline);
                         pipelines.erase(variant.pipeline);
                     }
 
@@ -321,7 +324,7 @@ namespace oblo::vk
         shader_cache shaderCache;
         includer includer{frameAllocator};
 
-        const vulkan_context* vkCtx{};
+        vulkan_context* vkCtx{};
         VkDevice device{};
         h32_flat_pool_dense_map<compute_pass> computePasses;
         h32_flat_pool_dense_map<render_pass> renderPasses;
@@ -445,7 +448,9 @@ namespace oblo::vk
 
         spirv.assign(spirvData.begin(), spirvData.end());
 
-        return shader_compiler::create_shader_module_from_spirv(device, spirvData);
+        return shader_compiler::create_shader_module_from_spirv(device,
+            spirvData,
+            vkCtx->get_allocator().get_allocation_callbacks());
     }
 
     bool pass_manager::impl::create_pipeline_layout(base_pipeline& newPipeline)
@@ -494,7 +499,10 @@ namespace oblo::vk
             .pSetLayouts = descriptorSetLayouts,
         };
 
-        return vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &newPipeline.pipelineLayout) == VK_SUCCESS;
+        return vkCreatePipelineLayout(device,
+                   &pipelineLayoutInfo,
+                   vkCtx->get_allocator().get_allocation_callbacks(),
+                   &newPipeline.pipelineLayout) == VK_SUCCESS;
     }
 
     void pass_manager::impl::create_reflection(base_pipeline& newPipeline,
@@ -720,7 +728,7 @@ namespace oblo::vk
     pass_manager::pass_manager() = default;
     pass_manager::~pass_manager() = default;
 
-    void pass_manager::init(const vulkan_context& vkContext,
+    void pass_manager::init(vulkan_context& vkContext,
         string_interner& interner,
         const buffer& dummy,
         const texture_registry& textureRegistry)
@@ -865,14 +873,12 @@ namespace oblo::vk
         {
             for (const auto& renderPipeline : m_impl->renderPipelines.values())
             {
-                // TODO: These should be deferred instead
-                destroy_pipeline(device, renderPipeline);
+                destroy_pipeline(*m_impl->vkCtx, renderPipeline);
             }
 
             for (const auto& computePipeline : m_impl->computePipelines.values())
             {
-                // TODO: These should be deferred instead
-                destroy_pipeline(device, computePipeline);
+                destroy_pipeline(*m_impl->vkCtx, computePipeline);
             }
 
             shader_compiler::shutdown();
@@ -951,7 +957,7 @@ namespace oblo::vk
             return {};
         }
 
-        poll_hot_reloading(m_impl->device, *renderPass, m_impl->renderPipelines);
+        poll_hot_reloading(*m_impl->vkCtx, *renderPass, m_impl->renderPipelines);
 
         const u64 definesHash = hash_defines(desc.defines);
 
@@ -976,7 +982,7 @@ namespace oblo::vk
 
         const auto failure = [this, &newPipeline, pipelineHandle, renderPass, expectedHash]
         {
-            destroy_pipeline(m_impl->device, newPipeline);
+            destroy_pipeline(*m_impl->vkCtx, newPipeline);
             m_impl->renderPipelines.erase(pipelineHandle);
             // We push an invalid variant so we avoid trying to rebuild a failed pipeline every frame
             renderPass->variants.emplace_back().hash = expectedHash;
@@ -1155,8 +1161,12 @@ namespace oblo::vk
             .basePipelineIndex = -1,
         };
 
-        if (vkCreateGraphicsPipelines(m_impl->device, nullptr, 1, &pipelineInfo, nullptr, &newPipeline.pipeline) ==
-            VK_SUCCESS)
+        if (vkCreateGraphicsPipelines(m_impl->device,
+                nullptr,
+                1,
+                &pipelineInfo,
+                m_impl->vkCtx->get_allocator().get_allocation_callbacks(),
+                &newPipeline.pipeline) == VK_SUCCESS)
         {
             renderPass->variants.push_back({.hash = expectedHash, .pipeline = pipelineHandle});
             return pipelineHandle;
@@ -1175,7 +1185,7 @@ namespace oblo::vk
             return {};
         }
 
-        poll_hot_reloading(m_impl->device, *computePass, m_impl->computePipelines);
+        poll_hot_reloading(*m_impl->vkCtx, *computePass, m_impl->computePipelines);
 
         const u64 definesHash = hash_defines(desc.defines);
 
@@ -1200,7 +1210,7 @@ namespace oblo::vk
 
         const auto failure = [this, &newPipeline, pipelineHandle, computePass, expectedHash]
         {
-            destroy_pipeline(m_impl->device, newPipeline);
+            destroy_pipeline(*m_impl->vkCtx, newPipeline);
             m_impl->computePipelines.erase(pipelineHandle);
             // We push an invalid variant so we avoid trying to rebuild a failed pipeline every frame
             computePass->variants.emplace_back().hash = expectedHash;

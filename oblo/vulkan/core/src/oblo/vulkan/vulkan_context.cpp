@@ -300,9 +300,24 @@ namespace oblo::vk
         allocator.destroy_memory(allocation);
     }
 
+    void vulkan_context::destroy_immediate(VkPipeline pipeline) const
+    {
+        vkDestroyPipeline(get_device(), pipeline, get_allocator().get_allocation_callbacks());
+    }
+
+    void vulkan_context::destroy_immediate(VkPipelineLayout pipelineLayout) const
+    {
+        vkDestroyPipelineLayout(get_device(), pipelineLayout, get_allocator().get_allocation_callbacks());
+    }
+
     void vulkan_context::destroy_immediate(VkSemaphore semaphore) const
     {
         vkDestroySemaphore(get_device(), semaphore, get_allocator().get_allocation_callbacks());
+    }
+
+    void vulkan_context::destroy_immediate(VkShaderModule shaderModule) const
+    {
+        vkDestroyShaderModule(get_device(), shaderModule, get_allocator().get_allocation_callbacks());
     }
 
     void vulkan_context::destroy_deferred(VkBuffer buffer, u64 submitIndex)
@@ -362,6 +377,22 @@ namespace oblo::vk
             setLayout);
     }
 
+    void vulkan_context::destroy_deferred(VkPipeline pipeline, u64 submitIndex)
+    {
+        dispose(
+            submitIndex,
+            [](vulkan_context& ctx, VkPipeline pipeline) { ctx.destroy_immediate(pipeline); },
+            pipeline);
+    }
+
+    void vulkan_context::destroy_deferred(VkPipelineLayout pipelineLayout, u64 submitIndex)
+    {
+        dispose(
+            submitIndex,
+            [](vulkan_context& ctx, VkPipelineLayout pipelineLayout) { ctx.destroy_immediate(pipelineLayout); },
+            pipelineLayout);
+    }
+
     void vulkan_context::destroy_deferred(VkSampler sampler, u64 submitIndex)
     {
         dispose(
@@ -377,6 +408,14 @@ namespace oblo::vk
             submitIndex,
             [](vulkan_context& ctx, VkSemaphore semaphore) { ctx.destroy_immediate(semaphore); },
             semaphore);
+    }
+
+    void vulkan_context::destroy_deferred(VkShaderModule shaderModule, u64 submitIndex)
+    {
+        dispose(
+            submitIndex,
+            [](vulkan_context& ctx, VkShaderModule shaderModule) { ctx.destroy_immediate(shaderModule); },
+            shaderModule);
     }
 
     void vulkan_context::destroy_deferred(VmaAllocation allocation, u64 submitIndex)
