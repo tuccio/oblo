@@ -8,17 +8,19 @@ namespace oblo::vk
     enum class light_type : u32
     {
         point,
+        spot,
         directional,
     };
 
     struct light_data
     {
         vec3 position;
-        f32 _padding0;
+        f32 invSqrRadius;
         vec3 direction;
-        f32 _padding1;
-        vec3 intensity;
         light_type type;
+        vec3 intensity;
+        f32 lightAngleScale;
+        f32 lightAngleOffset;
     };
 
     struct light_config

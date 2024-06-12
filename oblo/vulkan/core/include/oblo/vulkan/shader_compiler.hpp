@@ -33,12 +33,14 @@ namespace oblo::vk::shader_compiler
         std::vector<unsigned>& outSpirv,
         const options& options = {});
 
-    VkShaderModule create_shader_module_from_spirv(VkDevice device, std::span<const unsigned> spirv);
+    VkShaderModule create_shader_module_from_spirv(
+        VkDevice device, std::span<const unsigned> spirv, const VkAllocationCallbacks* allocationCbs);
 
     VkShaderModule create_shader_module_from_glsl_file(frame_allocator& allocator,
         VkDevice device,
         VkShaderStageFlagBits stage,
         std::string_view filePath,
+        const VkAllocationCallbacks* allocationCbs,
         const options& options = {});
 
     class scope

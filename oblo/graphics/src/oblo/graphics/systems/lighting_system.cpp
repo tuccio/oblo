@@ -31,9 +31,9 @@ namespace oblo
             vec3::splat(1.f));
 
         ctx.entities->get<light_component>(e) = {
+            .type = light_type::directional,
             .color = vec3::splat(1.f),
             .intensity = 3.f,
-            .type = light_type::directional,
         };
 
         update(ctx);
@@ -50,14 +50,29 @@ namespace oblo
         {
             for (const auto& [light, transform] : zip_range(lights, transforms))
             {
-                const auto position = transform.value.columns[3];
-                const auto direction = normalize(transform.value * vec4{.z = -1.f});
+                const vec4 position = transform.value.columns[3];
+                const vec4 direction = normalize(transform.value * vec4{.z = -1.f});
+
+                const f32 cosInner = std::cos(light.spotInnerAngle.value);
+                const f32 cosOuter = std::cos(light.spotOuterAngle.value);
+
+                f32 angleScale{0.f};
+                f32 angleOffset{1.f};
+
+                if (light.type == light_type::spot)
+                {
+                    angleScale = 1.f / max(.001f, cosInner - cosOuter);
+                    angleOffset = -cosOuter * angleScale;
+                }
 
                 lightData.push_back({
                     .position = {position.x, position.y, position.z},
+                    .invSqrRadius = 1.f / (light.radius * light.radius),
                     .direction = {direction.x, direction.y, direction.z},
-                    .intensity = light.color * light.intensity,
                     .type = light.type,
+                    .intensity = light.color * light.intensity,
+                    .lightAngleScale = angleScale,
+                    .lightAngleOffset = angleOffset,
                 });
             }
         }

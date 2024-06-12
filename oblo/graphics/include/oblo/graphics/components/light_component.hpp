@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/types.hpp>
+#include <oblo/math/angle.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/vulkan/data/light_data.hpp>
 
@@ -10,8 +11,11 @@ namespace oblo
 
     struct light_component
     {
+        light_type type;
         vec3 color;
         f32 intensity;
-        light_type type;
+        f32 radius;
+        radians spotInnerAngle;
+        radians spotOuterAngle;
     };
 }

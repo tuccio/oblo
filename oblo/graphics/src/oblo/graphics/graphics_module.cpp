@@ -40,7 +40,10 @@ namespace oblo
             reg.add_class<light_component>()
                 .add_field(&light_component::color, "color")
                 .add_field(&light_component::intensity, "intensity")
+                .add_field(&light_component::radius, "radius")
                 .add_field(&light_component::type, "type")
+                .add_field(&light_component::spotInnerAngle, "spotInnerAngle")
+                .add_field(&light_component::spotOuterAngle, "spotOuterAngle")
                 .add_ranged_type_erasure()
                 .add_tag<oblo::ecs::component_type_tag>();
 
