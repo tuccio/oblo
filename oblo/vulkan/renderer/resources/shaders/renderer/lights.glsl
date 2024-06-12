@@ -61,7 +61,6 @@ vec3 light_contribution(in light_data light, in vec3 positionWS, in vec3 N)
     {
         L = -light.direction;
     }
-    
     else
     {
         const vec3 unnormalizedLightVector = light.position - positionWS;
@@ -69,9 +68,9 @@ vec3 light_contribution(in light_data light, in vec3 positionWS, in vec3 N)
         attenuation = light_distance_attenuation(unnormalizedLightVector, light.invSqrRadius);
         attenuation *= light_angle_attenuation(light.direction, L, light.lightAngleScale, light.lightAngleOffset);
     }
+
     const float NdotL = saturate(dot(N, L));
     return NdotL * attenuation * light.intensity;
-
 }
 
 #endif
