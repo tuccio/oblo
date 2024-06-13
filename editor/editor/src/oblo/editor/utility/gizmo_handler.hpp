@@ -10,11 +10,20 @@ namespace oblo::ecs
     class entity_registry;
 }
 
-namespace oblo::editor::gizmo_handler
+namespace oblo::editor
 {
-    bool handle_transform_gizmos(ecs::entity_registry& reg,
-        std::span<const ecs::entity> entities,
-        vec2 origin,
-        vec2 size,
-        const ecs::entity cameraEntity);
+    class gizmo_handler
+    {
+    public:
+        explicit gizmo_handler(u32 id) : m_id{id} {}
+
+        bool handle_translation(ecs::entity_registry& reg,
+            std::span<const ecs::entity> entities,
+            vec2 origin,
+            vec2 size,
+            ecs::entity cameraEntity);
+
+    private:
+        u32 m_id{};
+    };
 }
