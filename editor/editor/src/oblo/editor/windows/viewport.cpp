@@ -7,6 +7,7 @@
 #include <oblo/editor/data/drag_and_drop_payload.hpp>
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/services/selected_entities.hpp>
+#include <oblo/editor/utility/gizmo_handler.hpp>
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
@@ -70,6 +71,7 @@ namespace oblo::editor
             const auto regionMin = ImGui::GetWindowContentRegionMin();
             const auto regionMax = ImGui::GetWindowContentRegionMax();
 
+            const auto viewportPos = ImGui::GetWindowPos();
             const auto windowSize = ImVec2{regionMax.x - regionMin.x, regionMax.y - regionMin.y};
 
             if (!m_entity)
@@ -99,10 +101,18 @@ namespace oblo::editor
 
                 ImGui::Image(imageId, windowSize);
 
+                // Maybe use item size?
+
+                const auto gizmoActive = gizmo_handler::handle_transform_gizmos(*m_entities,
+                    m_selection->get(),
+                    {viewportPos.x, viewportPos.y},
+                    {windowSize.x, windowSize.y},
+                    m_entity);
+
                 switch (v.picking.state)
                 {
                 case picking_request::state::none:
-                    if (hasFocus && ImGui::IsItemClicked())
+                    if (hasFocus && !gizmoActive && ImGui::IsItemClicked())
                     {
                         const auto [viewportX, viewportY] = ImGui::GetItemRectMin();
                         const auto [mouseX, mouseY] = ImGui::GetMousePos();
