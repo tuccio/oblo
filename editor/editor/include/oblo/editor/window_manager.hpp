@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/editor/window_handle.hpp>
@@ -15,13 +16,14 @@ namespace oblo
 
 namespace oblo::editor
 {
+    class window_module;
     struct window_entry;
     struct window_update_context;
 
     class window_manager
     {
     public:
-        window_manager() = default;
+        window_manager();
         window_manager(const window_manager&) = delete;
         window_manager(window_manager&&) noexcept = delete;
 
@@ -70,6 +72,7 @@ namespace oblo::editor
     private:
         memory_pool m_pool;
         window_entry* m_root{};
+        dynamic_array<std::unique_ptr<window_module>> m_windowModules;
     };
 
     template <typename T>
