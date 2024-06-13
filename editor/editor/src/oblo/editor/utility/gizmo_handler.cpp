@@ -15,7 +15,7 @@
 
 #include <cmath>
 
-namespace oblo::editor::gizmo_handler
+namespace oblo::editor
 {
     namespace
     {
@@ -53,7 +53,7 @@ namespace oblo::editor::gizmo_handler
         }
     }
 
-    bool handle_transform_gizmos(ecs::entity_registry& reg,
+    bool gizmo_handler::handle_translation(ecs::entity_registry& reg,
         std::span<const ecs::entity> entities,
         vec2 origin,
         vec2 size,
@@ -112,6 +112,8 @@ namespace oblo::editor::gizmo_handler
         projection.at(1, 1) = -projection.at(1, 1);
 
         f32* matrix = &transformComp->value.at(0, 0);
+
+        ImGuizmo::SetID(int(m_id));
 
         const auto interacting =
             ImGuizmo::Manipulate(&view.at(0, 0), &projection.at(0, 0), ImGuizmo::TRANSLATE, ImGuizmo::WORLD, matrix);

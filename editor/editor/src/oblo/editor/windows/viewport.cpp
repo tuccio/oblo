@@ -103,7 +103,9 @@ namespace oblo::editor
 
                 // Maybe use item size?
 
-                const auto gizmoActive = gizmo_handler::handle_transform_gizmos(*m_entities,
+                gizmo_handler gizmoHandler{m_viewportId};
+
+                const auto gizmoActive = gizmoHandler.handle_translation(*m_entities,
                     m_selection->get(),
                     {viewportPos.x, viewportPos.y},
                     {windowSize.x, windowSize.y},
