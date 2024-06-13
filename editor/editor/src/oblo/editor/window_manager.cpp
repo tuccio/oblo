@@ -3,7 +3,9 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/editor/window_entry.hpp>
+#include <oblo/editor/window_module.hpp>
 #include <oblo/editor/window_update_context.hpp>
+#include <oblo/modules/module_manager.hpp>
 
 #include <bit>
 
@@ -11,6 +13,8 @@
 
 namespace oblo::editor
 {
+    window_manager::window_manager() = default;
+
     window_manager::~window_manager()
     {
         shutdown();
@@ -59,6 +63,11 @@ namespace oblo::editor
 
     void window_manager::update()
     {
+        for (const auto& windowModule : m_windowModules)
+        {
+            windowModule->update();
+        }
+
         update_window(m_root);
     }
 
@@ -71,6 +80,18 @@ namespace oblo::editor
             new (m_pool.allocate(sizeof(service_registry), alignof(service_registry))) service_registry{};
 
         m_root->services = service_context{nullptr, serviceRegistry};
+
+        const std::span windowModuleProviders = module_manager::get().find_services<window_modules_provider>();
+
+        for (const auto* const provider : windowModuleProviders)
+        {
+            provider->fetch_window_modules(m_windowModules);
+        }
+
+        for (const auto& windowModule : m_windowModules)
+        {
+            windowModule->init();
+        }
     }
 
     void window_manager::shutdown()

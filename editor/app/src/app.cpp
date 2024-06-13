@@ -6,11 +6,11 @@
 #include <oblo/core/platform/core.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/uuid.hpp>
+#include <oblo/editor/editor_module.hpp>
 #include <oblo/editor/services/component_factory.hpp>
 #include <oblo/editor/ui/style.hpp>
 #include <oblo/editor/windows/asset_browser.hpp>
 #include <oblo/editor/windows/inspector.hpp>
-#include <oblo/editor/windows/main_window.hpp>
 #include <oblo/editor/windows/scene_editing_window.hpp>
 #include <oblo/editor/windows/scene_hierarchy.hpp>
 #include <oblo/editor/windows/style_window.hpp>
@@ -105,6 +105,7 @@ namespace oblo::editor
         auto* const runtime = mm.load<oblo::runtime_module>();
         auto* const reflection = mm.load<oblo::reflection::reflection_module>();
         mm.load<importers::importers_module>();
+        mm.load<editor_module>();
 
         m_runtimeRegistry = runtime->create_runtime_registry();
 

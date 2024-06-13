@@ -59,11 +59,9 @@ namespace oblo::editor::gizmo_handler
         vec2 size,
         const ecs::entity cameraEntity)
     {
-        ImGuizmo::BeginFrame();
-
-        ImGuizmo::AllowAxisFlip(true);
-
         ImGuizmo::SetOrthographic(false);
+        ImGuizmo::AllowAxisFlip(false);
+
         ImGuizmo::SetDrawlist();
         ImGuizmo::SetRect(origin.x, origin.y, size.x, size.y);
 
