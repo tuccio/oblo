@@ -7,6 +7,7 @@
 #include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
 #include <oblo/graphics/systems/scene_renderer.hpp>
+#include <oblo/math/color.hpp>
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/reflection/registration/module_registration.hpp>
 #include <oblo/vulkan/renderer.hpp>
@@ -31,21 +32,22 @@ namespace oblo
             reg.add_class<viewport_component>().add_ranged_type_erasure().add_tag<oblo::ecs::component_type_tag>();
 
             reg.add_class<camera_component>()
+                .add_ranged_type_erasure()
+                .add_tag<oblo::ecs::component_type_tag>()
                 .add_field(&camera_component::fovy, "fovy")
                 .add_field(&camera_component::near, "near")
-                .add_field(&camera_component::far, "far")
-                .add_ranged_type_erasure()
-                .add_tag<oblo::ecs::component_type_tag>();
+                .add_field(&camera_component::far, "far");
 
             reg.add_class<light_component>()
+                .add_ranged_type_erasure()
+                .add_tag<oblo::ecs::component_type_tag>()
                 .add_field(&light_component::color, "color")
+                .add_attribute<linear_color_tag>()
                 .add_field(&light_component::intensity, "intensity")
                 .add_field(&light_component::radius, "radius")
                 .add_field(&light_component::type, "type")
                 .add_field(&light_component::spotInnerAngle, "spotInnerAngle")
-                .add_field(&light_component::spotOuterAngle, "spotOuterAngle")
-                .add_ranged_type_erasure()
-                .add_tag<oblo::ecs::component_type_tag>();
+                .add_field(&light_component::spotOuterAngle, "spotOuterAngle");
 
             reg.add_class<resource_ref<mesh>>().add_field(&resource_ref<mesh>::id, "id");
             reg.add_class<resource_ref<material>>().add_field(&resource_ref<material>::id, "id");

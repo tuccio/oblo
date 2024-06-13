@@ -14,6 +14,7 @@
 #include <oblo/editor/utility/entity_utility.hpp>
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/math/quaternion.hpp>
+#include <oblo/properties/attributes.hpp>
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/property_registry.hpp>
 #include <oblo/properties/property_tree.hpp>
@@ -24,6 +25,11 @@
 #include <IconsFontAwesome6.h>
 
 #include <imgui.h>
+
+namespace oblo
+{
+    struct linear_color_tag;
+}
 
 namespace oblo::editor
 {
@@ -54,20 +60,36 @@ namespace oblo::editor
             }
         }
 
+        void build_linear_color_editor(const property_node& node, std::byte* const data)
+        {
+            auto* const v = new (data) vec3;
+            ImGui::ColorEdit3(node.name.c_str(), &v->x);
+        }
+
         void build_property_grid(const property_tree& tree, std::byte* const data)
         {
             auto* ptr = data;
 
             visit(tree,
                 overload{
-                    [&ptr, data](const property_node& node, const property_node_start)
+                    [&ptr, &tree, data](const property_node& node, const property_node_start)
                     {
                         ptr += node.offset;
+
+                        if (node.type == get_type_id<vec3>())
+                        {
+                            if (find_attribute<linear_color_tag>(tree, node))
+                            {
+                                build_linear_color_editor(node, ptr);
+                                return visit_result::sibling;
+                            }
+                        }
+
                         ImGui::TextUnformatted(node.name.c_str());
 
                         if (node.type == get_type_id<quaternion>())
                         {
-                            build_quaternion_editor(node, data);
+                            build_quaternion_editor(node, ptr);
                             return visit_result::sibling;
                         }
 
