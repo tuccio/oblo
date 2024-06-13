@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
 
@@ -19,10 +20,17 @@ namespace oblo::reflection
         u32 alignment;
     };
 
+    struct attribute_data
+    {
+        type_id type;
+        const void* ptr;
+    };
+
     struct field_data
     {
         type_id type;
         std::string_view name;
         u32 offset;
+        dynamic_array<attribute_data> attributes;
     };
 }

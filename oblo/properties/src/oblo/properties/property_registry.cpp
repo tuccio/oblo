@@ -141,11 +141,22 @@ namespace oblo
             {
                 const u32 newNodeIndex = narrow_cast<u32>(tree.nodes.size());
 
+                const u32 firstAttribute = u32(tree.attributes.size());
+
+                for (const auto& attribute : field.attributes)
+                {
+                    tree.attributes.emplace_back(attribute.type, attribute.ptr);
+                }
+
+                const u32 lastAttribute = u32(tree.attributes.size());
+
                 tree.nodes.push_back({
                     .type = field.type,
                     .name = std::string{field.name},
-                    .parent = currentNodeIndex,
                     .offset = field.offset,
+                    .parent = currentNodeIndex,
+                    .firstAttribute = firstAttribute,
+                    .lastAttribute = lastAttribute,
                 });
 
                 build_recursive(tree, newNodeIndex, fieldType);
@@ -169,12 +180,23 @@ namespace oblo
     {
         if (const auto it = m_kindLookups.find(field.type); it != m_kindLookups.end())
         {
+            const u32 firstAttribute = u32(tree.attributes.size());
+
+            for (const auto& attribute : field.attributes)
+            {
+                tree.attributes.emplace_back(attribute.type, attribute.ptr);
+            }
+
+            const u32 lastAttribute = u32(tree.attributes.size());
+
             tree.properties.push_back({
                 .type = field.type,
                 .name = std::string{field.name},
                 .kind = it->second,
                 .offset = field.offset,
                 .parent = currentNodeIndex,
+                .firstAttribute = firstAttribute,
+                .lastAttribute = lastAttribute,
             });
 
             return true;

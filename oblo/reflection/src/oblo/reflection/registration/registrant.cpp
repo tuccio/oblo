@@ -48,18 +48,39 @@ namespace oblo::reflection
         return e.value;
     }
 
-    void reflection_registry::registrant::add_field(
+    u32 reflection_registry::registrant::add_field(
         u32 entityIndex, const type_id& type, std::string_view name, u32 offset)
     {
         const ecs::entity e{entityIndex};
 
         auto& classData = m_impl.registry.get<class_data>(e);
 
+        const u32 fieldIndex = u32(classData.fields.size());
+
         classData.fields.emplace_back(field_data{
             .type = type,
             .name = name,
             .offset = offset,
         });
+
+        return fieldIndex;
+    }
+
+    void* reflection_registry::registrant::add_field_attribute(
+        u32 entityIndex, u32 fieldIndex, const type_id& type, u32 size, u32 alignment, void (*destroy)(void*))
+    {
+        const ecs::entity e{entityIndex};
+
+        auto& classData = m_impl.registry.get<class_data>(e);
+
+        auto& any = classData.attributeStorage.emplace_back(&m_impl.pool,
+            m_impl.pool.allocate(size, alignment),
+            destroy,
+            size,
+            alignment);
+
+        classData.fields[fieldIndex].attributes.emplace_back(type, any.get());
+        return any.get();
     }
 
     void reflection_registry::registrant::add_tag(u32 entityIndex, const type_id& type)

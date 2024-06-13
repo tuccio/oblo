@@ -1,10 +1,10 @@
 #pragma once
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
 
 #include <string>
-#include <vector>
 
 namespace oblo
 {
@@ -14,12 +14,14 @@ namespace oblo
     {
         type_id type;
         std::string name;
+        u32 offset;
         u32 parent;
         u32 firstChild;
         u32 firstSibling;
         u32 firstProperty;
         u32 lastProperty;
-        u32 offset;
+        u32 firstAttribute;
+        u32 lastAttribute;
     };
 
     struct property
@@ -29,11 +31,20 @@ namespace oblo
         property_kind kind;
         u32 offset;
         u32 parent;
+        u32 firstAttribute;
+        u32 lastAttribute;
+    };
+
+    struct property_attribute
+    {
+        type_id type;
+        const void* ptr;
     };
 
     struct property_tree
     {
-        std::vector<property_node> nodes;
-        std::vector<property> properties;
+        dynamic_array<property_node> nodes;
+        dynamic_array<property> properties;
+        dynamic_array<property_attribute> attributes;
     };
 }

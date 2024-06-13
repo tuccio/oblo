@@ -24,6 +24,9 @@ namespace oblo::reflection
         template <typename T>
         class class_builder;
 
+        template <typename T>
+        class field_builder;
+
     public:
         explicit registrant(reflection_registry& registry) : m_impl{*registry.m_impl} {}
 
@@ -43,7 +46,9 @@ namespace oblo::reflection
             return add_new_type(get_type_id<T>(), sizeof(T), alignof(T), kind);
         }
 
-        void add_field(u32 entityIndex, const type_id& type, std::string_view name, u32 offset);
+        u32 add_field(u32 entityIndex, const type_id& type, std::string_view name, u32 offset);
+        void* add_field_attribute(
+            u32 entityIndex, u32 fieldIndex, const type_id& type, u32 size, u32 alignment, void (*destroy)(void*));
         void add_tag(u32 entityIndex, const type_id& type);
         void add_concept(
             u32 entityIndex, const type_id& type, u32 size, u32 alignment, const ranged_type_erasure& rte, void* src);
@@ -68,12 +73,7 @@ namespace oblo::reflection
     {
     public:
         template <typename U>
-        class_builder& add_field(U(T::*member), std::string_view name)
-        {
-            const u32 offset = get_member_offset<T>(member);
-            m_registrant.add_field(m_entityIndex, get_type_id<U>(), name, offset);
-            return *this;
-        }
+        field_builder<T> add_field(U(T::*member), std::string_view name);
 
         template <typename U>
         class_builder& add_tag()
@@ -106,9 +106,42 @@ namespace oblo::reflection
     private:
         friend class registrant;
 
-    private:
+    protected:
         registrant& m_registrant;
         u32 m_entityIndex;
+    };
+
+    template <typename T>
+    class reflection_registry::registrant::field_builder : public class_builder<T>
+    {
+        using class_builder<T>::m_registrant;
+        using class_builder<T>::m_entityIndex;
+
+    public:
+        friend class class_builder<T>;
+
+        template <typename P, typename... Args>
+        field_builder add_attribute(Args&&... args)
+        {
+            auto* ptr = m_registrant.add_field_attribute(m_entityIndex,
+                m_fieldIndex,
+                get_type_id<P>(),
+                sizeof(T),
+                alignof(T),
+                [](void* p) { static_cast<T*>(p)->~T(); });
+
+            new (ptr) T{std::forward<Args>(args)...};
+            return *this;
+        }
+
+    private:
+        field_builder(registrant& reg, u32 entityIndex, u32 fieldIndex) :
+            class_builder<T>{reg, entityIndex}, m_fieldIndex{fieldIndex}
+        {
+        }
+
+    private:
+        u32 m_fieldIndex;
     };
 
     template <typename T>
@@ -122,5 +155,15 @@ namespace oblo::reflection
     void reflection_registry::registrant::add_fundamental()
     {
         add_new_type<T>(type_kind::fundamental_kind);
+    }
+
+    template <typename T>
+    template <typename U>
+    inline reflection_registry::registrant::field_builder<T> reflection_registry::registrant::class_builder<
+        T>::add_field(U(T::*member), std::string_view name)
+    {
+        const u32 offset = get_member_offset<T>(member);
+        const u32 fieldIndex = m_registrant.add_field(m_entityIndex, get_type_id<U>(), name, offset);
+        return field_builder<T>{m_registrant, m_entityIndex, fieldIndex};
     }
 }
