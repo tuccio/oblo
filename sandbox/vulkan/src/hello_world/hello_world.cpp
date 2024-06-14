@@ -136,12 +136,14 @@ namespace oblo::vk
         m_vertShaderModule = shader_compiler::create_shader_module_from_glsl_file(allocator,
             device,
             VK_SHADER_STAGE_VERTEX_BIT,
-            "./shaders/hello_world/hello_world.vert");
+            "./shaders/hello_world/hello_world.vert",
+            nullptr);
 
         m_fragShaderModule = shader_compiler::create_shader_module_from_glsl_file(allocator,
             device,
             VK_SHADER_STAGE_FRAGMENT_BIT,
-            "./shaders/hello_world/hello_world.frag");
+            "./shaders/hello_world/hello_world.frag",
+            nullptr);
 
         return m_vertShaderModule && m_fragShaderModule;
     }

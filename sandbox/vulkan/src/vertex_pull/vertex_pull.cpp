@@ -522,22 +522,26 @@ namespace oblo::vk
         m_shaderVertexBuffersVert = shader_compiler::create_shader_module_from_glsl_file(allocator,
             device,
             VK_SHADER_STAGE_VERTEX_BIT,
-            "./shaders/vertex_pull/vertex_buffers.vert");
+            "./shaders/vertex_pull/vertex_buffers.vert",
+            nullptr);
 
         m_shaderVertexPullVert = shader_compiler::create_shader_module_from_glsl_file(allocator,
             device,
             VK_SHADER_STAGE_VERTEX_BIT,
-            "./shaders/vertex_pull/vertex_pull.vert");
+            "./shaders/vertex_pull/vertex_pull.vert",
+            nullptr);
 
         m_shaderVertexPullMergeVert = shader_compiler::create_shader_module_from_glsl_file(allocator,
             device,
             VK_SHADER_STAGE_VERTEX_BIT,
-            "./shaders/vertex_pull/vertex_pull_merge.vert");
+            "./shaders/vertex_pull/vertex_pull_merge.vert",
+            nullptr);
 
         m_shaderSharedFrag = shader_compiler::create_shader_module_from_glsl_file(allocator,
             device,
             VK_SHADER_STAGE_FRAGMENT_BIT,
-            "./shaders/vertex_pull/shared.frag");
+            "./shaders/vertex_pull/shared.frag",
+            nullptr);
 
         return m_shaderVertexBuffersVert && m_shaderSharedFrag && m_shaderVertexPullMergeVert;
     }

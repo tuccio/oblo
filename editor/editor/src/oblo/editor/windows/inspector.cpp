@@ -59,10 +59,9 @@ namespace oblo::editor
         void build_vec3_editor(const property_node& node, std::byte* const data)
         {
             auto* const v = new (data) vec3;
-            bool anyChange{false};
 
             ImGui::PushID(int(hash_mix(node.offset, 0)));
-            anyChange |= ui::dragfloat_n_xyz(node.name.c_str(), &v->x, 3, .1f);
+            ui::dragfloat_n_xyz(node.name.c_str(), &v->x, 3, .1f);
             ImGui::PopID();
         }
 
@@ -79,7 +78,7 @@ namespace oblo::editor
 
             visit(tree,
                 overload{
-                    [&ptr, &tree, data](const property_node& node, const property_node_start)
+                    [&ptr, &tree](const property_node& node, const property_node_start)
                     {
                         ptr += node.offset;
 

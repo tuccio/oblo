@@ -306,7 +306,7 @@ namespace oblo::importers
 
         for (auto& node : m_model.nodes)
         {
-            if (node.mesh >= 0 && node.mesh <= m_importModels.size())
+            if (node.mesh >= 0 && usize(node.mesh) <= m_importModels.size())
             {
                 vec3 translation = vec3::splat(0.f);
                 quaternion rotation = quaternion::identity();
