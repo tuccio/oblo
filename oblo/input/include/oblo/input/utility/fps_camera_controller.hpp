@@ -43,8 +43,8 @@ namespace oblo
         vec3 m_position{};
         quaternion m_orientation{quaternion::identity()};
         f32 m_sensitivity{1.f};
-        f32 m_speed{.1f};
-        f32 m_speedMultiplier{100.f};
+        f32 m_speed{1.f};
+        f32 m_speedMultiplier{10.f};
 
         vec2 m_screenSize{1, 1};
         vec2 m_mousePosition{};
