@@ -11,6 +11,7 @@
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/services/component_factory.hpp>
 #include <oblo/editor/services/selected_entities.hpp>
+#include <oblo/editor/ui/widgets.hpp>
 #include <oblo/editor/utility/entity_utility.hpp>
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/math/quaternion.hpp>
@@ -26,8 +27,6 @@
 #include <IconsFontAwesome6.h>
 
 #include <imgui.h>
-
-#include <ImGuizmo.h>
 
 namespace oblo
 {
@@ -48,7 +47,7 @@ namespace oblo::editor
             bool anyChange{false};
 
             ImGui::PushID(int(hash_mix(node.offset, 0)));
-            anyChange |= ImGui::DragFloat3(node.name.c_str(), values, .1f);
+            anyChange |= ui::dragfloat_n_xyz(node.name.c_str(), values, 3, .1f);
             ImGui::PopID();
 
             if (anyChange)
@@ -63,7 +62,7 @@ namespace oblo::editor
             bool anyChange{false};
 
             ImGui::PushID(int(hash_mix(node.offset, 0)));
-            anyChange |= ImGui::DragFloat3(node.name.c_str(), &v->x, .1f);
+            anyChange |= ui::dragfloat_n_xyz(node.name.c_str(), &v->x, 3, .1f);
             ImGui::PopID();
         }
 
