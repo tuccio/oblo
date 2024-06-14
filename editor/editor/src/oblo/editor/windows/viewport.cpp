@@ -7,7 +7,6 @@
 #include <oblo/editor/data/drag_and_drop_payload.hpp>
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/services/selected_entities.hpp>
-#include <oblo/editor/utility/gizmo_handler.hpp>
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
@@ -53,8 +52,6 @@ namespace oblo::editor
 
         m_selection = ctx.services.find<selected_entities>();
         OBLO_ASSERT(m_selection);
-
-        m_cameraController.set_common_wasd_bindings();
 
         m_viewportId = s_viewportInstances++;
     }
@@ -102,10 +99,9 @@ namespace oblo::editor
                 ImGui::Image(imageId, windowSize);
 
                 // Maybe use item size?
+                m_gizmoHandler.set_id(m_viewportId);
 
-                gizmo_handler gizmoHandler{m_viewportId};
-
-                const auto gizmoActive = gizmoHandler.handle_translation(*m_entities,
+                const auto gizmoActive = m_gizmoHandler.handle(*m_entities,
                     m_selection->get(),
                     {viewportPos.x, viewportPos.y},
                     {windowSize.x, windowSize.y},
@@ -150,14 +146,43 @@ namespace oblo::editor
 
                 if (hasFocus)
                 {
+                    if (ImGui::IsMouseDown(ImGuiMouseButton_Right))
+                    {
+                        m_cameraController.set_common_wasd_bindings();
+                    }
+                    else
+                    {
+                        m_cameraController.clear_bindings();
+                        m_cameraController.reset_actions();
+
+                        if (!gizmoActive)
+                        {
+                            if (ImGui::IsKeyPressed(ImGuiKey_W))
+                            {
+                                m_gizmoHandler.set_operation(gizmo_handler::operation::translation);
+                            }
+
+                            if (ImGui::IsKeyPressed(ImGuiKey_E))
+                            {
+                                m_gizmoHandler.set_operation(gizmo_handler::operation::rotation);
+                            }
+
+                            if (ImGui::IsKeyPressed(ImGuiKey_R))
+                            {
+                                m_gizmoHandler.set_operation(gizmo_handler::operation::scale);
+                            }
+                        }
+                    }
+
+                    auto& p = m_entities->get<position_component>(m_entity);
+                    auto& r = m_entities->get<rotation_component>(m_entity);
+
                     const auto [w, h] = ImGui::GetItemRectSize();
                     m_cameraController.set_screen_size({w, h});
                     m_cameraController.process(m_inputQueue->get_events());
 
-                    auto& p = m_entities->get<position_component>(m_entity);
                     p.value = m_cameraController.get_position();
 
-                    auto& r = m_entities->get<rotation_component>(m_entity);
                     r.value = m_cameraController.get_orientation();
                 }
 

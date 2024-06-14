@@ -226,6 +226,13 @@ namespace oblo
         m_orientation = rotation;
     }
 
+    void fps_camera_controller::reset_actions()
+    {
+        m_isMouseLookEnabled = false;
+        m_applySpeedMultiplier = false;
+        m_strafe = {};
+    }
+
     void fps_camera_controller::set_common_wasd_bindings()
     {
         bind(mouse_key::right, action::mouse_look);

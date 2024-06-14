@@ -1,6 +1,7 @@
 #include <oblo/editor/utility/gizmo_handler.hpp>
 
 #include <oblo/core/debug.hpp>
+#include <oblo/core/unreachable.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/math/view_projection.hpp>
@@ -51,9 +52,42 @@ namespace oblo::editor
             xmax = ymax * aspectRatio;
             imguizmo_frustum(-xmax, xmax, -ymax, ymax, znear, zfar, m16);
         }
+
+        auto get_imguizmo_operation(gizmo_handler::operation op)
+        {
+            switch (op)
+            {
+            case gizmo_handler::operation::translation:
+                return ImGuizmo::TRANSLATE;
+
+            case gizmo_handler::operation::rotation:
+                return ImGuizmo::ROTATE;
+
+            case gizmo_handler::operation::scale:
+                return ImGuizmo::SCALE;
+
+            default:
+                unreachable();
+            }
+        }
     }
 
-    bool gizmo_handler::handle_translation(ecs::entity_registry& reg,
+    void gizmo_handler::set_id(u32 id)
+    {
+        m_id = id;
+    }
+
+    gizmo_handler::operation gizmo_handler::get_operation() const
+    {
+        return m_op;
+    }
+
+    void gizmo_handler::set_operation(operation op)
+    {
+        m_op = op;
+    }
+
+    bool gizmo_handler::handle(ecs::entity_registry& reg,
         std::span<const ecs::entity> entities,
         vec2 origin,
         vec2 size,
@@ -115,8 +149,11 @@ namespace oblo::editor
 
         ImGuizmo::SetID(int(m_id));
 
-        const auto interacting =
-            ImGuizmo::Manipulate(&view.at(0, 0), &projection.at(0, 0), ImGuizmo::TRANSLATE, ImGuizmo::WORLD, matrix);
+        const auto interacting = ImGuizmo::Manipulate(&view.at(0, 0),
+            &projection.at(0, 0),
+            get_imguizmo_operation(m_op),
+            ImGuizmo::WORLD,
+            matrix);
 
         if (interacting)
         {
@@ -126,8 +163,28 @@ namespace oblo::editor
 
             ImGuizmo::DecomposeMatrixToComponents(matrix, &translation.x, &rotation.x, &scale.x);
 
+            switch (m_op)
+            {
+            case gizmo_handler::operation::translation:
+                positionComp->value = translation;
+                break;
+
+            case gizmo_handler::operation::rotation: {
+                std::swap(rotation.x, rotation.z);
+                const auto q = quaternion::from_euler_zyx_intrinsic(degrees_tag{}, rotation);
+                rotationComp->value = q;
+            }
+
+            break;
+
+            case gizmo_handler::operation::scale:
+                scaleComp->value = scale;
+                break;
+
+            default:
+                unreachable();
+            }
             // We are only transforming the position for now
-            positionComp->value = translation;
         }
 
         return interacting || ImGuizmo::IsUsing();
