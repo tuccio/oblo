@@ -68,6 +68,14 @@ namespace oblo::reflection
         std::deque<any_attribute> attributeStorage;
     };
 
+    struct enum_data
+    {
+        type_id type;
+        dynamic_array<std::string_view> names;
+        dynamic_array<std::byte> values;
+        type_id underlyingType;
+    };
+
     struct reflection_registry_impl
     {
         std::pmr::unsynchronized_pool_resource pool;

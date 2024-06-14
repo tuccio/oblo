@@ -178,7 +178,16 @@ namespace oblo
     bool property_registry::try_add_property(
         property_tree& tree, u32 currentNodeIndex, const reflection::field_data& field)
     {
-        if (const auto it = m_kindLookups.find(field.type); it != m_kindLookups.end())
+        type_id lookupType = field.type;
+        bool isEnum = false;
+
+        if (const auto e = m_reflection->find_enum(field.type))
+        {
+            lookupType = m_reflection->get_underlying_type(e);
+            isEnum = true;
+        }
+
+        if (const auto it = m_kindLookups.find(lookupType); it != m_kindLookups.end())
         {
             const u32 firstAttribute = u32(tree.attributes.size());
 
@@ -193,6 +202,7 @@ namespace oblo
                 .type = field.type,
                 .name = std::string{field.name},
                 .kind = it->second,
+                .isEnum = isEnum,
                 .offset = field.offset,
                 .parent = currentNodeIndex,
                 .firstAttribute = firstAttribute,

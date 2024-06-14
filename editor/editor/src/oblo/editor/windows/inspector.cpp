@@ -19,6 +19,7 @@
 #include <oblo/properties/property_registry.hpp>
 #include <oblo/properties/property_tree.hpp>
 #include <oblo/properties/visit.hpp>
+#include <oblo/reflection/reflection_registry.hpp>
 
 #include <format>
 
@@ -66,7 +67,8 @@ namespace oblo::editor
             ImGui::ColorEdit3(node.name.c_str(), &v->x);
         }
 
-        void build_property_grid(const property_tree& tree, std::byte* const data)
+        void build_property_grid(
+            const reflection::reflection_registry& refl, const property_tree& tree, std::byte* const data)
         {
             auto* ptr = data;
 
@@ -96,9 +98,57 @@ namespace oblo::editor
                         return visit_result::recurse;
                     },
                     [&ptr](const property_node& node, const property_node_finish) { ptr -= node.offset; },
-                    [&ptr](const property& property)
+                    [&ptr, &refl](const property& property)
                     {
                         const auto makeId = [&property] { return (int(hash_mix(property.offset, property.parent))); };
+
+                        if (property.isEnum)
+                        {
+                            const auto e = refl.find_enum(property.type);
+
+                            if (e)
+                            {
+                                const auto names = refl.get_enumerator_names(e);
+                                const auto values = refl.get_enumerator_values(e);
+
+                                const u32 size = refl.get_type_data(e).size;
+
+                                const char* preview = "<Undefined>";
+
+                                for (usize i = 0; i < names.size(); ++i)
+                                {
+                                    const auto it = values.begin() + i * size;
+
+                                    if (std::equal(it, it + size, ptr))
+                                    {
+                                        preview = names[i].data();
+                                        break;
+                                    }
+                                }
+
+                                ImGui::PushID(makeId());
+
+                                if (ImGui::BeginCombo(property.name.c_str(), preview))
+                                {
+                                    for (usize i = 0; i < names.size(); ++i)
+                                    {
+                                        bool selected{};
+
+                                        if (ImGui::Selectable(names[i].data(), &selected) && selected)
+                                        {
+                                            const auto it = values.begin() + i * size;
+                                            std::memcpy(ptr, &*it, size);
+                                        }
+                                    }
+
+                                    ImGui::EndCombo();
+                                }
+
+                                ImGui::PopID();
+
+                                return visit_result::recurse;
+                            }
+                        }
 
                         switch (property.kind)
                         {
@@ -144,6 +194,7 @@ namespace oblo::editor
     void inspector::init(const window_update_context& ctx)
     {
         m_propertyRegistry = ctx.services.find<property_registry>();
+        m_reflection = ctx.services.find<const reflection::reflection_registry>();
         m_registry = ctx.services.find<ecs::entity_registry>();
         m_selection = ctx.services.find<selected_entities>();
         m_factory = ctx.services.find<component_factory>();
@@ -242,7 +293,7 @@ namespace oblo::editor
                                 auto* const data = m_registry->try_get(e, type);
 
                                 ImGui::PushID(int(type.value));
-                                build_property_grid(*propertyTree, data);
+                                build_property_grid(*m_reflection, *propertyTree, data);
                                 ImGui::PopID();
                             }
                         }

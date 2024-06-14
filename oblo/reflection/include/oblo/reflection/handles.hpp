@@ -36,4 +36,22 @@ namespace oblo::reflection
             return type_handle{value};
         }
     };
+
+    struct enum_handle
+    {
+        constexpr explicit operator bool() const noexcept
+        {
+            return value != u32{};
+        }
+
+        constexpr auto operator<=>(const enum_handle&) const = default;
+
+        u32 value;
+
+        // Enum handles are also type handles, conversion is implicit
+        operator type_handle() const noexcept
+        {
+            return type_handle{value};
+        }
+    };
 }

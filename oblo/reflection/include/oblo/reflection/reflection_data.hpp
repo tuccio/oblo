@@ -10,6 +10,7 @@ namespace oblo::reflection
     {
         fundamental_kind,
         class_kind,
+        enum_kind,
     };
 
     struct type_data
