@@ -11,6 +11,7 @@ namespace oblo::reflection
     {
         m_impl->typesRegistry.register_component(ecs::make_component_type_desc<type_data>());
         m_impl->typesRegistry.register_component(ecs::make_component_type_desc<class_data>());
+        m_impl->typesRegistry.register_component(ecs::make_component_type_desc<enum_data>());
         m_impl->typesRegistry.register_component(ecs::make_component_type_desc<fundamental_tag>());
     }
 
@@ -59,6 +60,25 @@ namespace oblo::reflection
         return classId;
     }
 
+    enum_handle reflection_registry::find_enum(const type_id& type) const
+    {
+        enum_handle enumId{};
+
+        const auto it = m_impl->typesMap.find(type);
+
+        if (it != m_impl->typesMap.end())
+        {
+            const auto e = it->second;
+
+            if (m_impl->registry.has<enum_data>(e))
+            {
+                enumId = enum_handle{e.value};
+            }
+        }
+
+        return enumId;
+    }
+
     type_data reflection_registry::get_type_data(type_handle typeId) const
     {
         const ecs::entity e{typeId.value};
@@ -71,10 +91,34 @@ namespace oblo::reflection
         return e && m_impl->registry.try_get<class_data>(e) != nullptr ? class_handle{e.value} : class_handle{};
     }
 
+    enum_handle reflection_registry::try_get_enum(type_handle typeId) const
+    {
+        const ecs::entity e{typeId.value};
+        return e && m_impl->registry.try_get<enum_data>(e) != nullptr ? enum_handle{e.value} : enum_handle{};
+    }
+
     std::span<const field_data> reflection_registry::get_fields(class_handle classId) const
     {
         const auto e = ecs::entity{classId.value};
         return m_impl->registry.get<class_data>(e).fields;
+    }
+
+    std::span<const std::string_view> reflection_registry::get_enumerator_names(enum_handle enumId) const
+    {
+        const auto e = ecs::entity{enumId.value};
+        return m_impl->registry.get<enum_data>(e).names;
+    }
+
+    std::span<const byte> reflection_registry::get_enumerator_values(enum_handle enumId) const
+    {
+        const auto e = ecs::entity{enumId.value};
+        return m_impl->registry.get<enum_data>(e).values;
+    }
+
+    type_id reflection_registry::get_underlying_type(enum_handle enumId) const
+    {
+        const auto e = ecs::entity{enumId.value};
+        return m_impl->registry.get<enum_data>(e).underlyingType;
     }
 
     void reflection_registry::find_by_tag(const type_id& tag, std::vector<type_handle>& types) const

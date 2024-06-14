@@ -29,6 +29,7 @@ namespace oblo
         type_id type;
         std::string name;
         property_kind kind;
+        bool isEnum;
         u32 offset;
         u32 parent;
         u32 firstAttribute;

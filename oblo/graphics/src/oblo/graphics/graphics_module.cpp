@@ -51,6 +51,11 @@ namespace oblo
 
             reg.add_class<resource_ref<mesh>>().add_field(&resource_ref<mesh>::id, "id");
             reg.add_class<resource_ref<material>>().add_field(&resource_ref<material>::id, "id");
+
+            reg.add_enum<light_type>()
+                .add_enumerator("point", light_type::point)
+                .add_enumerator("spot", light_type::spot)
+                .add_enumerator("directional", light_type::directional);
         }
     }
 

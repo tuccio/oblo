@@ -9,7 +9,7 @@
 
 namespace oblo::reflection
 {
-    u32 reflection_registry::registrant::add_new_type(const type_id& type, u32 size, u32 alignment, type_kind kind)
+    u32 reflection_registry::registrant::add_type(const type_id& type, u32 size, u32 alignment, type_kind kind)
     {
         const auto [it, ok] = m_impl.typesMap.emplace(type, ecs::entity{});
         OBLO_ASSERT(ok);
@@ -31,6 +31,10 @@ namespace oblo::reflection
             e = m_impl.registry.create<type_data, class_data>();
             break;
 
+        case type_kind::enum_kind:
+            e = m_impl.registry.create<type_data, enum_data>();
+            break;
+
         default:
             unreachable();
         }
@@ -46,6 +50,20 @@ namespace oblo::reflection
         };
 
         return e.value;
+    }
+
+    u32 reflection_registry::registrant::add_enum_type(
+        const type_id& type, u32 size, u32 alignment, const type_id& underlying)
+    {
+        const auto e = add_type(type, size, alignment, type_kind::enum_kind);
+
+        if (e != 0)
+        {
+            auto& enumData = m_impl.registry.get<enum_data>(ecs::entity{e});
+            enumData.underlyingType = underlying;
+        }
+
+        return e;
     }
 
     u32 reflection_registry::registrant::add_field(
@@ -116,5 +134,17 @@ namespace oblo::reflection
         auto* const dst = m_impl.registry.try_get(e, component);
 
         rte.moveAssign(dst, src, 1u);
+    }
+
+    void reflection_registry::registrant::add_enumerator(
+        u32 entityIndex, std::string_view name, std::span<const byte> value)
+    {
+        const ecs::entity e{entityIndex};
+
+        auto& enumData = m_impl.registry.get<enum_data>(e);
+        OBLO_ASSERT(value.size() == m_impl.registry.get<type_data>(e).size);
+
+        enumData.names.push_back(name);
+        enumData.values.append(value.begin(), value.end());
     }
 }

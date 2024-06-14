@@ -22,7 +22,12 @@ namespace oblo::reflection
     {
     public:
         template <typename T>
+            requires std::is_class_v<T>
         class class_builder;
+
+        template <typename T>
+            requires std::is_enum_v<T>
+        class enum_builder;
 
         template <typename T>
         class field_builder;
@@ -34,16 +39,20 @@ namespace oblo::reflection
         class_builder<T> add_class();
 
         template <typename T>
+        enum_builder<T> add_enum();
+
+        template <typename T>
             requires std::is_fundamental_v<T>
         void add_fundamental();
 
     private:
-        u32 add_new_type(const type_id& type, u32 size, u32 alignment, type_kind kind);
+        u32 add_type(const type_id& type, u32 size, u32 alignment, type_kind kind);
+        u32 add_enum_type(const type_id& type, u32 size, u32 alignment, const type_id& underlying);
 
         template <typename T>
-        u32 add_new_type(type_kind kind)
+        u32 add_type(type_kind kind)
         {
-            return add_new_type(get_type_id<T>(), sizeof(T), alignof(T), kind);
+            return add_type(get_type_id<T>(), sizeof(T), alignof(T), kind);
         }
 
         u32 add_field(u32 entityIndex, const type_id& type, std::string_view name, u32 offset);
@@ -52,6 +61,7 @@ namespace oblo::reflection
         void add_tag(u32 entityIndex, const type_id& type);
         void add_concept(
             u32 entityIndex, const type_id& type, u32 size, u32 alignment, const ranged_type_erasure& rte, void* src);
+        void add_enumerator(u32 entityIndex, std::string_view name, std::span<const byte> value);
 
         template <typename T, typename U>
         static u32 get_member_offset(U(T::*m))
@@ -69,6 +79,7 @@ namespace oblo::reflection
     };
 
     template <typename T>
+        requires std::is_class_v<T>
     class reflection_registry::registrant::class_builder
     {
     public:
@@ -102,6 +113,35 @@ namespace oblo::reflection
 
     private:
         class_builder(registrant& reg, u32 entityIndex) : m_registrant{reg}, m_entityIndex{entityIndex} {}
+
+    private:
+        friend class registrant;
+
+    protected:
+        registrant& m_registrant;
+        u32 m_entityIndex;
+    };
+
+    template <typename T>
+        requires std::is_enum_v<T>
+    class reflection_registry::registrant::enum_builder
+    {
+    public:
+        template <typename U>
+        enum_builder& add_tag()
+        {
+            m_registrant.add_tag(m_entityIndex, get_type_id<tag_type<U>>());
+            return *this;
+        }
+
+        enum_builder& add_enumerator(std::string_view name, T value)
+        {
+            m_registrant.add_enumerator(m_entityIndex, name, std::as_bytes(std::span{&value, 1}));
+            return *this;
+        }
+
+    private:
+        enum_builder(registrant& reg, u32 entityIndex) : m_registrant{reg}, m_entityIndex{entityIndex} {}
 
     private:
         friend class registrant;
@@ -147,17 +187,27 @@ namespace oblo::reflection
     template <typename T>
     reflection_registry::registrant::class_builder<T> reflection_registry::registrant::add_class()
     {
-        return {*this, add_new_type<T>(type_kind::class_kind)};
+        return {*this, add_type<T>(type_kind::class_kind)};
+    }
+
+    template <typename T>
+    reflection_registry::registrant::enum_builder<T> reflection_registry::registrant::add_enum()
+    {
+        return {
+            *this,
+            add_enum_type(get_type_id<T>(), sizeof(T), alignof(T), get_type_id<std::underlying_type_t<T>>()),
+        };
     }
 
     template <typename T>
         requires std::is_fundamental_v<T>
     void reflection_registry::registrant::add_fundamental()
     {
-        add_new_type<T>(type_kind::fundamental_kind);
+        add_type<T>(type_kind::fundamental_kind);
     }
 
     template <typename T>
+        requires std::is_class_v<T>
     template <typename U>
     inline reflection_registry::registrant::field_builder<T> reflection_registry::registrant::class_builder<
         T>::add_field(U(T::*member), std::string_view name)

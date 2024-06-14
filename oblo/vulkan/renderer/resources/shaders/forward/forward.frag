@@ -45,27 +45,6 @@ layout(std430, binding = 4) restrict readonly buffer b_LightData
     light_data lights[];
 };
 
-vec3 light_contribution(in light_data light, in vec3 positionWS, in vec3 N)
-{
-    float attenuation = 1.f;
-    vec3 L;
-
-    if (light.type == OBLO_LIGHT_TYPE_DIRECTIONAL)
-    {
-        L = -light.direction;
-    }
-    else
-    {
-        const vec3 unnormalizedLightVector = light.position - positionWS;
-        L = normalize(unnormalizedLightVector);
-        attenuation = light_distance_attenuation(unnormalizedLightVector, light.invSqrRadius);
-        attenuation *= light_angle_attenuation(light.direction, L, light.lightAngleScale, light.lightAngleOffset);
-    }
-
-    const float NdotL = saturate(dot(N, L));
-    return NdotL * attenuation * light.intensity;
-}
-
 void main()
 {
     const gpu_material material = materials[in_InstanceId];

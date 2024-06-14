@@ -45,13 +45,22 @@ namespace oblo::reflection
         template <typename T>
         class_handle find_class() const;
 
+        template <typename T>
+        enum_handle find_enum() const;
+
         type_handle find_type(const type_id& type) const;
         class_handle find_class(const type_id& type) const;
+        enum_handle find_enum(const type_id& type) const;
 
         type_data get_type_data(type_handle typeId) const;
         class_handle try_get_class(type_handle typeId) const;
+        enum_handle try_get_enum(type_handle typeId) const;
 
         std::span<const field_data> get_fields(class_handle classId) const;
+
+        std::span<const std::string_view> get_enumerator_names(enum_handle enumId) const;
+        std::span<const byte> get_enumerator_values(enum_handle enumId) const;
+        type_id get_underlying_type(enum_handle enumId) const;
 
         template <typename T>
         void find_by_tag(std::vector<type_handle>& types) const;

@@ -19,7 +19,7 @@ namespace oblo
         f64,
         uuid,
         string,
-        enum_max,
+        enum_max
     };
 
     constexpr std::pair<usize, usize> get_size_and_alignment(property_kind propertyKind)
