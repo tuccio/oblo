@@ -27,6 +27,8 @@
 
 #include <imgui.h>
 
+#include <ImGuizmo.h>
+
 namespace oblo
 {
     struct linear_color_tag;
@@ -41,24 +43,28 @@ namespace oblo::editor
             auto* const q = new (data) quaternion;
             auto [z, y, x] = quaternion::to_euler_zyx_intrinsic(degrees_tag{}, *q);
 
+            float values[] = {x, y, z};
+
             bool anyChange{false};
 
             ImGui::PushID(int(hash_mix(node.offset, 0)));
-            anyChange |= ImGui::DragFloat("x", &x, 0.1f);
-            ImGui::PopID();
-
-            ImGui::PushID(int(hash_mix(node.offset, 1)));
-            anyChange |= ImGui::DragFloat("y", &y, 0.1f);
-            ImGui::PopID();
-
-            ImGui::PushID(int(hash_mix(node.offset, 2)));
-            anyChange |= ImGui::DragFloat("z", &z, 0.1f);
+            anyChange |= ImGui::DragFloat3(node.name.c_str(), values, .1f);
             ImGui::PopID();
 
             if (anyChange)
             {
-                *q = quaternion::from_euler_zyx_intrinsic(degrees_tag{}, {z, y, x});
+                *q = quaternion::from_euler_zyx_intrinsic(degrees_tag{}, {values[2], values[1], values[0]});
             }
+        }
+
+        void build_vec3_editor(const property_node& node, std::byte* const data)
+        {
+            auto* const v = new (data) vec3;
+            bool anyChange{false};
+
+            ImGui::PushID(int(hash_mix(node.offset, 0)));
+            anyChange |= ImGui::DragFloat3(node.name.c_str(), &v->x, .1f);
+            ImGui::PopID();
         }
 
         void build_linear_color_editor(const property_node& node, std::byte* const data)
@@ -85,6 +91,9 @@ namespace oblo::editor
                                 build_linear_color_editor(node, ptr);
                                 return visit_result::sibling;
                             }
+
+                            build_vec3_editor(node, ptr);
+                            return visit_result::sibling;
                         }
 
                         ImGui::TextUnformatted(node.name.c_str());
