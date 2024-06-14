@@ -35,6 +35,7 @@ namespace oblo
         void set_sensitivity(f32 sensitivity);
 
         void reset(const vec3& position, const quaternion& rotation);
+        void reset_actions();
 
         void set_common_wasd_bindings();
 
