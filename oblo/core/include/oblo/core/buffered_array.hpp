@@ -106,6 +106,16 @@ namespace oblo
             return m_array.pop_back();
         }
 
+        T& front()
+        {
+            return m_array.front();
+        }
+
+        T& back()
+        {
+            return m_array.back();
+        }
+
         const T& front() const
         {
             return m_array.front();

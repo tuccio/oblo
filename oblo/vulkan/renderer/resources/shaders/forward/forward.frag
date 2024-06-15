@@ -49,7 +49,7 @@ void main()
 {
     const gpu_material material = materials[in_InstanceId];
 
-    const vec4 color = sample_texture_2d(material.albedoTexture, OBLO_SAMPLER_LINEAR, in_UV0);
+    const vec4 color = texture_sample_2d(material.albedoTexture, OBLO_SAMPLER_LINEAR, in_UV0);
 
     vec3 reflected = vec3(0, 0, 0);
 
@@ -59,8 +59,6 @@ void main()
     }
 
     out_Color = vec4(color.xyz * material.albedo * reflected, 1);
-    // out_Color = vec4(in_Normal, 1);
-    // out_Color = vec4(color.xyz * material.albedo, 1);
 
 #ifdef OBLO_PICKING_ENABLED
     out_PickingId = entityIds[in_InstanceId];

@@ -1,5 +1,6 @@
 #include <oblo/vulkan/staging_buffer.hpp>
 
+#include <oblo/core/buffered_array.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/ring_buffer_tracker.hpp>
 #include <oblo/core/utility.hpp>
@@ -302,65 +303,19 @@ namespace oblo::vk
     void staging_buffer::upload(VkCommandBuffer commandBuffer,
         staging_buffer_span source,
         VkImage image,
-        VkFormat format,
-        VkImageLayout initialImageLayout,
-        VkImageLayout finalImageLayout,
-        u32 width,
-        u32 height,
-        VkImageSubresourceLayers subresource,
-        VkOffset3D imageOffset,
-        VkExtent3D imageExtent)
+        std::span<const VkBufferImageCopy> copies)
     {
         OBLO_ASSERT(m_impl.nextTimelineId != InvalidTimelineId);
 
         OBLO_ASSERT(calculate_size(source) > 0)
         OBLO_ASSERT(source.segments[1].begin == source.segments[1].end, "Images need contiguous memory");
 
-        const auto& segment = source.segments[0];
-
-        const VkBufferImageCopy copyRegion{
-            .bufferOffset = segment.begin,
-            .bufferRowLength = width,
-            .bufferImageHeight = height,
-            .imageSubresource = subresource,
-            .imageOffset = imageOffset,
-            .imageExtent = imageExtent,
-        };
-
-        const VkImageSubresourceRange pipelineRange{
-            .aspectMask = subresource.aspectMask,
-            .baseMipLevel = subresource.mipLevel,
-            .levelCount = 1,
-            .baseArrayLayer = subresource.baseArrayLayer,
-            .layerCount = 1,
-        };
-
-        if (initialImageLayout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-        {
-            add_pipeline_barrier_cmd(commandBuffer,
-                initialImageLayout,
-                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                image,
-                format,
-                pipelineRange);
-        }
-
         vkCmdCopyBufferToImage(commandBuffer,
             m_impl.buffer,
             image,
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            1,
-            &copyRegion);
-
-        if (finalImageLayout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-        {
-            add_pipeline_barrier_cmd(commandBuffer,
-                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                finalImageLayout,
-                image,
-                format,
-                pipelineRange);
-        }
+            u32(copies.size()),
+            copies.data());
 
         m_impl.transferredBytes += calculate_size(source);
     }

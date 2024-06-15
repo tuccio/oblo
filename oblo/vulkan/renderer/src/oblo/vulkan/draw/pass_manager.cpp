@@ -76,6 +76,14 @@ namespace oblo::vk
             pipeline_stages stage2;
         };
 
+        // This has to match the OBLO_SAMPLER_ flags in shaders
+        enum class sampler : u8
+        {
+            linear,
+            nearest,
+            enum_max
+        };
+
         constexpr u32 combine_type_vecsize(spirv_cross::SPIRType::BaseType type, u32 vecsize)
         {
             return (u32(type) << 2) | vecsize;
@@ -342,7 +350,7 @@ namespace oblo::vk
         VkDescriptorSet currentSamplersDescriptor{};
         VkDescriptorSet currentTextures2DDescriptor{};
 
-        VkSampler samplers[1]{};
+        VkSampler samplers[u32(sampler::enum_max)]{};
 
         u32 subgroupSize;
 
@@ -760,7 +768,7 @@ namespace oblo::vk
                 .compareEnable = false,
                 .compareOp = VK_COMPARE_OP_ALWAYS,
                 .minLod = 0.0f,
-                .maxLod = 0.0f,
+                .maxLod = VK_LOD_CLAMP_NONE,
                 .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
                 .unnormalizedCoordinates = false,
             };
@@ -768,7 +776,31 @@ namespace oblo::vk
             vkCreateSampler(vkContext.get_device(),
                 &samplerInfo,
                 vkContext.get_allocator().get_allocation_callbacks(),
-                &m_impl->samplers[0]);
+                &m_impl->samplers[u32(sampler::linear)]);
+        }
+
+        {
+            const VkSamplerCreateInfo samplerInfo{
+                .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+                .magFilter = VK_FILTER_NEAREST,
+                .minFilter = VK_FILTER_NEAREST,
+                .mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST,
+                .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                .mipLodBias = 0.0f,
+                .compareEnable = false,
+                .compareOp = VK_COMPARE_OP_ALWAYS,
+                .minLod = 0.0f,
+                .maxLod = VK_LOD_CLAMP_NONE,
+                .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+                .unnormalizedCoordinates = false,
+            };
+
+            vkCreateSampler(vkContext.get_device(),
+                &samplerInfo,
+                vkContext.get_allocator().get_allocation_callbacks(),
+                &m_impl->samplers[u32(sampler::nearest)]);
         }
 
         {
@@ -1284,7 +1316,10 @@ namespace oblo::vk
         m_impl->descriptorSetPool.begin_frame();
         m_impl->texturesDescriptorSetPool.begin_frame();
 
-        m_impl->currentSamplersDescriptor = m_impl->texturesDescriptorSetPool.acquire(m_impl->samplersSetLayout);
+        const auto debugUtils = m_impl->vkCtx->get_debug_utils_object();
+
+        const auto samplerDescriptorSet = m_impl->texturesDescriptorSetPool.acquire(m_impl->samplersSetLayout);
+        debugUtils.set_object_name(m_impl->device, samplerDescriptorSet, "Sampler Descriptor Set");
 
         const std::span textures2DInfo = m_impl->textureRegistry->get_textures2d_info();
 
@@ -1305,6 +1340,16 @@ namespace oblo::vk
         const VkDescriptorSet descriptorSet =
             m_impl->texturesDescriptorSetPool.acquire(m_impl->textures2DSetLayout, &countInfo);
 
+        debugUtils.set_object_name(m_impl->device, descriptorSet, "Textures 2D Descriptor Set");
+
+        constexpr u32 numSamplers = u32(sampler::enum_max);
+        VkDescriptorImageInfo samplers[numSamplers];
+
+        for (u32 i = 0; i < numSamplers; ++i)
+        {
+            samplers[i] = {.sampler = m_impl->samplers[i]};
+        }
+
         const VkWriteDescriptorSet descriptorSetWrites[] = {
             {
                 .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -1315,11 +1360,21 @@ namespace oblo::vk
                 .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
                 .pImageInfo = textures2DInfo.data(),
             },
+            {
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .dstSet = samplerDescriptorSet,
+                .dstBinding = TexturesSamplerBinding,
+                .dstArrayElement = 0,
+                .descriptorCount = numSamplers,
+                .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
+                .pImageInfo = samplers,
+            },
         };
 
         vkUpdateDescriptorSets(m_impl->device, array_size(descriptorSetWrites), descriptorSetWrites, 0, nullptr);
 
         m_impl->currentTextures2DDescriptor = descriptorSet;
+        m_impl->currentSamplersDescriptor = m_impl->texturesDescriptorSetPool.acquire(m_impl->samplersSetLayout);
     }
 
     void pass_manager::end_frame()
