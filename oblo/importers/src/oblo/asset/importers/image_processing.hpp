@@ -29,20 +29,20 @@ namespace oblo::importers::image_processing
         template <component... OtherComponents, typename F, typename P>
         static constexpr void for_each(F&& f, const P& pixel)
         {
-            (apply<OtherComponents>(f, pixel), ...);
+            (apply<find<OtherComponents>()>(f, pixel), ...);
         }
 
-        template <component Component, typename F, typename P>
-        static constexpr void apply(F&& f, const P& pixel)
+        template <u32 Index, typename F, typename P>
+        static constexpr void apply([[maybe_unused]] F&& f, [[maybe_unused]] const P& pixel)
         {
-            if constexpr (const u32 index = find<Component>(); index != ~u32{})
+            if constexpr (Index != ~u32{})
             {
-                f(pixel[find<Component>()], index);
+                f(pixel[Index], Index);
             }
         }
 
         template <component Target>
-        consteval static u32 find()
+        static constexpr u32 find()
         {
             constexpr component components[] = {Components...};
 
@@ -95,7 +95,7 @@ namespace oblo::importers::image_processing
             OBLO_ASSERT(row < m_height && column < m_width);
 
             const u32 offset = m_rowPitch * row + column * Components;
-            return m_view.subspan(offset).subspan<0, Components>();
+            return m_view.subspan(offset).template subspan<0, Components>();
         }
 
         u32 get_width() const
@@ -176,7 +176,7 @@ namespace oblo::importers::image_processing
 
                     const auto source = previousLevel.at(ip, jp);
 
-                    Swizzle::for_each<component::red, component::green, component::blue>(
+                    Swizzle::template for_each<component::red, component::green, component::blue>(
                         [&sum](const T& c, u32 index)
                         {
                             const f32 f = color_convert_linear_f32(ColorSpace{}, c);
@@ -184,7 +184,7 @@ namespace oblo::importers::image_processing
                         },
                         source);
 
-                    Swizzle::for_each<component::alpha>(
+                    Swizzle::template for_each<component::alpha>(
                         [&sum](const T& c, u32 index)
                         {
                             // We assume alpha is always linear
@@ -195,7 +195,7 @@ namespace oblo::importers::image_processing
                 }
             }
 
-            Swizzle::for_each<component::red, component::green, component::blue>(
+            Swizzle::template for_each<component::red, component::green, component::blue>(
                 [&sum, samples](T& c, u32 index)
                 {
                     const f32 avg = sum[index] / f32(samples);
@@ -203,7 +203,7 @@ namespace oblo::importers::image_processing
                 },
                 out);
 
-            Swizzle::for_each<component::alpha>(
+            Swizzle::template for_each<component::alpha>(
                 [&sum, samples](T& c, u32 index)
                 {
                     const f32 avg = sum[index] / f32(samples);
