@@ -29,25 +29,20 @@ namespace oblo
         return m_orientation;
     }
 
-    void fps_camera_controller::process(std::span<const input_event> events)
+    void fps_camera_controller::process(std::span<const input_event> events, time dt)
     {
         m_strafe = {};
 
         const auto lastMousePosition = m_mousePosition;
 
-        // TODO: Maybe add dt to the process function instead
-        const timestamp prevTimestamp = m_lastTimestamp;
-
         for (const auto& e : events)
         {
-            m_lastTimestamp = e.time;
-
             switch (e.kind)
             {
             case input_event_kind::mouse_press:
                 if (const auto action = m_mouseKeyActions[u32(e.mousePress.key)]; action != action::none)
                 {
-                    action_begin(action, e.time);
+                    action_begin(action);
                 }
 
                 break;
@@ -55,7 +50,7 @@ namespace oblo
             case input_event_kind::mouse_release:
                 if (const auto action = m_mouseKeyActions[u32(e.keyboardRelease.key)]; action != action::none)
                 {
-                    action_end(action, e.time);
+                    action_end(action);
                 }
 
                 break;
@@ -67,7 +62,7 @@ namespace oblo
             case input_event_kind::keyboard_press:
                 if (const auto action = m_keyboardKeyActions[u32(e.keyboardPress.key)]; action != action::none)
                 {
-                    action_begin(action, e.time);
+                    action_begin(action);
                 }
 
                 break;
@@ -75,7 +70,7 @@ namespace oblo
             case input_event_kind::keyboard_release:
                 if (const auto action = m_keyboardKeyActions[u32(e.keyboardRelease.key)]; action != action::none)
                 {
-                    action_end(action, e.time);
+                    action_end(action);
                 }
 
                 break;
@@ -131,8 +126,7 @@ namespace oblo
             strafe.y -= 1.f;
         }
 
-        // TODO: (#11) Time units and conversions
-        const f32 dtSeconds{(m_lastTimestamp - prevTimestamp) * .001f};
+        const f32 dtSeconds{to_f32_seconds(dt)};
 
         const f32 speed = m_applySpeedMultiplier ? m_speed * m_speedMultiplier : m_speed;
         m_position = m_position + m_orientation * (strafe * speed * dtSeconds);
@@ -154,7 +148,7 @@ namespace oblo
         m_keyboardKeyActions = {};
     }
 
-    void fps_camera_controller::action_begin(action a, timestamp)
+    void fps_camera_controller::action_begin(action a)
     {
         switch (a)
         {
@@ -180,7 +174,7 @@ namespace oblo
         }
     }
 
-    void fps_camera_controller::action_end(action a, timestamp)
+    void fps_camera_controller::action_end(action a)
     {
         switch (a)
         {

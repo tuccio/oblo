@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/ecs/handles.hpp>
+#include <oblo/editor/data/time_stats.hpp>
 #include <oblo/editor/utility/gizmo_handler.hpp>
 #include <oblo/input/utility/fps_camera_controller.hpp>
 
@@ -40,5 +41,6 @@ namespace oblo::editor
         fps_camera_controller m_cameraController;
         u32 m_viewportId{};
         gizmo_handler m_gizmoHandler{};
+        const time_stats* m_timeStats{};
     };
 }

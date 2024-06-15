@@ -5,6 +5,7 @@
 #include <oblo/core/log.hpp>
 #include <oblo/core/platform/shared_library.hpp>
 #include <oblo/core/platform/shell.hpp>
+#include <oblo/core/time/clock.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
 #include <oblo/input/utility/fps_camera_controller.hpp>
@@ -68,6 +69,8 @@ namespace oblo::smoke
 
         struct test_app
         {
+            static constexpr time FixedTime = time::from_seconds(1.f / 60);
+
             asset_registry assetRegistry;
             runtime_registry runtimeRegistry;
             runtime runtime;
@@ -162,7 +165,7 @@ namespace oblo::smoke
                 viewport.width = ctx.width;
                 viewport.height = ctx.height;
 
-                runtime.update({});
+                runtime.update({.dt = FixedTime});
 
                 auto& resourceManager = ctx.vkContext->get_resource_manager();
                 auto& commandBuffer = ctx.vkContext->get_active_command_buffer();
@@ -350,13 +353,17 @@ namespace oblo::smoke
             controller.reset(position.value, rotation.value);
         }
 
+        time lastFrame = clock::now();
+
         while (app.run_frame())
         {
+            const auto dt = clock::now() - lastFrame;
+
             auto&& [position, rotation, viewport] =
                 entities.get<position_component, rotation_component, viewport_component>(app.cameraEntity);
 
             controller.set_screen_size({f32(viewport.width), f32(viewport.height)});
-            controller.process(app.inputQueue->get_events());
+            controller.process(app.inputQueue->get_events(), dt);
 
             position.value = controller.get_position();
             rotation.value = controller.get_orientation();

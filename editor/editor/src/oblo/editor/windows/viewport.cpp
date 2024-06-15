@@ -53,6 +53,9 @@ namespace oblo::editor
         m_selection = ctx.services.find<selected_entities>();
         OBLO_ASSERT(m_selection);
 
+        m_timeStats = ctx.services.find<const time_stats>();
+        OBLO_ASSERT(m_timeStats);
+
         m_viewportId = s_viewportInstances++;
     }
 
@@ -179,7 +182,7 @@ namespace oblo::editor
 
                     const auto [w, h] = ImGui::GetItemRectSize();
                     m_cameraController.set_screen_size({w, h});
-                    m_cameraController.process(m_inputQueue->get_events());
+                    m_cameraController.process(m_inputQueue->get_events(), m_timeStats->dt);
 
                     p.value = m_cameraController.get_position();
 

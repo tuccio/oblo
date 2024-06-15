@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/time/time.hpp>
 #include <oblo/core/types.hpp>
 
 #include <memory>
@@ -40,6 +41,7 @@ namespace oblo
 
     struct runtime_update_context
     {
+        time dt;
     };
 
     class runtime

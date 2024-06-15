@@ -158,10 +158,9 @@ namespace oblo::vk
             return keyboard_key::enum_max;
         }
 
-        timestamp sdl_convert_time(u32 time)
+        time sdl_convert_time(u32 time)
         {
-            // TODO: Convert from ms to our unit (maybe 100 ns?)
-            return time;
+            return time::from_milliseconds(time);
         }
     }
 
@@ -197,7 +196,7 @@ namespace oblo::vk
                 case SDL_MOUSEBUTTONDOWN:
                     m_inputQueue.push({
                         .kind = input_event_kind::mouse_press,
-                        .time = sdl_convert_time(event.button.timestamp),
+                        .timestamp = sdl_convert_time(event.button.timestamp),
                         .mousePress =
                             {
                                 .key = sdl_map_mouse_key(event.button.button),
@@ -208,7 +207,7 @@ namespace oblo::vk
                 case SDL_MOUSEBUTTONUP:
                     m_inputQueue.push({
                         .kind = input_event_kind::mouse_release,
-                        .time = sdl_convert_time(event.button.timestamp),
+                        .timestamp = sdl_convert_time(event.button.timestamp),
                         .mouseRelease =
                             {
                                 .key = sdl_map_mouse_key(event.button.button),
@@ -219,7 +218,7 @@ namespace oblo::vk
                 case SDL_MOUSEMOTION:
                     m_inputQueue.push({
                         .kind = input_event_kind::mouse_move,
-                        .time = sdl_convert_time(event.motion.timestamp),
+                        .timestamp = sdl_convert_time(event.motion.timestamp),
                         .mouseMove =
                             {
                                 .x = f32(event.motion.x),
@@ -231,7 +230,7 @@ namespace oblo::vk
                 case SDL_KEYDOWN:
                     m_inputQueue.push({
                         .kind = input_event_kind::keyboard_press,
-                        .time = sdl_convert_time(event.key.timestamp),
+                        .timestamp = sdl_convert_time(event.key.timestamp),
                         .keyboardPress =
                             {
                                 .key = sdl_map_keyboard_key(event.key.keysym.sym),
@@ -242,7 +241,7 @@ namespace oblo::vk
                 case SDL_KEYUP:
                     m_inputQueue.push({
                         .kind = input_event_kind::keyboard_release,
-                        .time = sdl_convert_time(event.key.timestamp),
+                        .timestamp = sdl_convert_time(event.key.timestamp),
                         .keyboardRelease =
                             {
                                 .key = sdl_map_keyboard_key(event.key.keysym.sym),

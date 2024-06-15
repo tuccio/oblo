@@ -6,6 +6,7 @@
 #include <oblo/editor/window_module.hpp>
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/modules/module_manager.hpp>
+#include <oblo/trace/profile.hpp>
 
 #include <bit>
 
@@ -20,14 +21,19 @@ namespace oblo::editor
         shutdown();
     }
 
-    window_handle window_manager::create_window_impl(
-        window_entry* parent, service_registry* overrideCtx, u8* ptr, update_fn update, destroy_fn destroy)
+    window_handle window_manager::create_window_impl(window_entry* parent,
+        service_registry* overrideCtx,
+        u8* ptr,
+        update_fn update,
+        destroy_fn destroy,
+        std::string_view debugName)
     {
         auto* const newEntry = new (m_pool.allocate(sizeof(window_entry), alignof(window_entry))) window_entry{
             .ptr = ptr,
             .update = update,
             .destroy = destroy,
             .services = service_context{&parent->services, overrideCtx},
+            .debugName = debugName,
         };
 
         connect(parent, newEntry);
@@ -63,6 +69,8 @@ namespace oblo::editor
 
     void window_manager::update()
     {
+        OBLO_PROFILE_SCOPE();
+
         for (const auto& windowModule : m_windowModules)
         {
             windowModule->update();
@@ -112,6 +120,9 @@ namespace oblo::editor
     {
         if (entry->update)
         {
+            OBLO_PROFILE_SCOPE("Update Window");
+            OBLO_PROFILE_TAG(entry->debugName);
+
             const auto handle = std::bit_cast<window_handle>(entry);
             const bool shouldDestroy = !entry->update(entry->ptr, make_window_update_context(handle));
 

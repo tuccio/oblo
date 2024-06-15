@@ -19,15 +19,15 @@ namespace oblo
         vec3 get_position() const;
         quaternion get_orientation() const;
 
-        void process(std::span<const input_event> events);
+        void process(std::span<const input_event> events, time dt);
 
         void bind(mouse_key key, action a);
         void bind(keyboard_key key, action a);
 
         void clear_bindings();
 
-        void action_begin(action a, timestamp ts);
-        void action_end(action a, timestamp ts);
+        void action_begin(action a);
+        void action_end(action a);
 
         void set_screen_size(vec2 size);
 
@@ -48,7 +48,6 @@ namespace oblo
 
         vec2 m_screenSize{1, 1};
         vec2 m_mousePosition{};
-        timestamp m_lastTimestamp{};
 
         bool m_isMouseLookEnabled{};
         bool m_applySpeedMultiplier{};
