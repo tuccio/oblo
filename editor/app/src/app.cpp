@@ -24,6 +24,7 @@
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/runtime/runtime_module.hpp>
 #include <oblo/sandbox/context.hpp>
+#include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/draw/resource_cache.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
 #include <oblo/vulkan/stateful_command_buffer.hpp>

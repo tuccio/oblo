@@ -18,7 +18,7 @@ int SDL_main(int, char*[])
         .uiWindowMaximized = true,
         .uiUseDocking = true,
         .uiUseMultiViewport = true,
-        .vkUseValidationLayers = true,
+        .vkUseValidationLayers = false,
     });
 
     if (!app.init())

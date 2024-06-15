@@ -158,7 +158,7 @@ namespace oblo
 
         ktx_size_t offset;
         // It looks like the names of the parameters in the macro are wrong: level, layer, face is the correct order
-        const ktx_error_code_e result = ktxTexture_GetImageOffset(t, level, layer, face, &offset);
+        [[maybe_unused]] const ktx_error_code_e result = ktxTexture_GetImageOffset(t, level, layer, face, &offset);
 
         OBLO_ASSERT(result == ktx_error_code_e::KTX_SUCCESS);
 
