@@ -73,6 +73,7 @@ namespace oblo::importers::image_processing
         static constexpr u32 Components = Swizzle::count();
         using byte_type = std::conditional_t<std::is_const_v<T>, const byte, byte>;
         using pixel_view = std::span<T, Components>;
+        using swizzle = Swizzle;
 
         image_view() = default;
         image_view(const image_view&) = default;

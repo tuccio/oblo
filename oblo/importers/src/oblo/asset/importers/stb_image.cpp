@@ -110,6 +110,49 @@ namespace oblo::importers
                 }
             }
 
+            // Convert RGB8_SRGB to RGBA8_SRGB
+            if (vkFormat == VK_FORMAT_R8G8B8_SRGB)
+            {
+                texture withAlpha;
+
+                withAlpha.allocate({
+                    .vkFormat = VK_FORMAT_R8G8B8A8_SRGB,
+                    .width = u32(w),
+                    .height = u32(h),
+                    .depth = 1,
+                    .dimensions = 2,
+                    .numLevels = numLevels,
+                    .numLayers = 1,
+                    .numFaces = 1,
+                    .isArray = false,
+                });
+
+                for (u32 mipLevel = 0; mipLevel < numLevels; ++mipLevel)
+                {
+                    const u32 mipWidth = width >> mipLevel;
+                    const u32 mipHeight = height >> mipLevel;
+
+                    using namespace image_processing;
+
+                    const image_view_rgb<u8> rgb8{out.get_data(mipLevel, 0, 0), mipWidth, mipHeight};
+                    const image_view_rgba<u8> rgba8{withAlpha.get_data(mipLevel, 0, 0), mipWidth, mipHeight};
+
+                    for_each_pixel(rgba8,
+                        [&rgb8](u32 i, u32 j, image_view_rgba<u8>::pixel_view pixel)
+                        {
+                            const auto source = rgb8.at(i, j);
+
+                            for (u32 k = 0; k < 3; ++k)
+                            {
+                                pixel[k] = source[k];
+                                pixel[3] = u8{0xffu};
+                            }
+                        });
+                }
+
+                out = std::move(withAlpha);
+            }
+
             return true;
         }
     }
