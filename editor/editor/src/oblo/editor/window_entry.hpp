@@ -4,6 +4,7 @@
 #include <oblo/editor/service_context.hpp>
 
 #include <memory_resource>
+#include <string_view>
 
 namespace oblo
 {
@@ -29,5 +30,6 @@ namespace oblo::editor
         window_entry* firstChild;
         window_entry* prevSibling;
         window_entry* firstSibling;
+        std::string_view debugName;
     };
 }

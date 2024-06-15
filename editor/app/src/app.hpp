@@ -1,6 +1,8 @@
 #pragma once
 
 #include <oblo/asset/asset_registry.hpp>
+#include <oblo/core/time/time.hpp>
+#include <oblo/editor/data/time_stats.hpp>
 #include <oblo/editor/window_manager.hpp>
 #include <oblo/runtime/runtime.hpp>
 #include <oblo/runtime/runtime_registry.hpp>
@@ -43,5 +45,7 @@ namespace oblo::editor
         runtime_registry m_runtimeRegistry;
         runtime m_runtime;
         asset_registry m_assetRegistry;
+        time_stats m_timeStats{};
+        time m_lastFrameTime{};
     };
 }

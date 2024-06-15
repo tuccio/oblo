@@ -5,6 +5,7 @@
 #include <oblo/asset/registration.hpp>
 #include <oblo/core/platform/core.hpp>
 #include <oblo/core/service_registry.hpp>
+#include <oblo/core/time/clock.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/editor/editor_module.hpp>
 #include <oblo/editor/services/component_factory.hpp>
@@ -153,6 +154,7 @@ namespace oblo::editor
             globalRegistry.add<const reflection::reflection_registry>().externally_owned(&reflection->get_registry());
             globalRegistry.add<const input_queue>().externally_owned(ctx.inputQueue);
             globalRegistry.add<component_factory>().unique();
+            globalRegistry.add<const time_stats>().externally_owned(&m_timeStats);
 
             service_registry sceneRegistry{};
             sceneRegistry.add<ecs::entity_registry>().externally_owned(&m_runtime.get_entity_registry());
@@ -166,6 +168,8 @@ namespace oblo::editor
             m_windowManager.create_child_window<viewport>(sceneEditingWindow);
         }
 
+        m_lastFrameTime = clock::now();
+
         return true;
     }
 
@@ -178,7 +182,13 @@ namespace oblo::editor
 
     void app::update(const vk::sandbox_render_context&)
     {
-        m_runtime.update({});
+        const auto now = clock::now();
+        const auto dt = now - m_lastFrameTime;
+
+        m_timeStats.dt = dt;
+
+        m_runtime.update({.dt = dt});
+        m_lastFrameTime = now;
     }
 
     void app::update_imgui(const vk::sandbox_update_imgui_context&)

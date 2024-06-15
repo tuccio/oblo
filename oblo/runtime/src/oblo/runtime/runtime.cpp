@@ -119,7 +119,7 @@ namespace oblo
         }
     }
 
-    void runtime::update(const runtime_update_context&)
+    void runtime::update(const runtime_update_context& ctx)
     {
         OBLO_PROFILE_SCOPE();
 
@@ -127,6 +127,7 @@ namespace oblo
             .entities = &m_impl->entities,
             .services = &m_impl->services,
             .frameAllocator = &m_impl->frameAllocator,
+            .dt = ctx.dt,
         });
 
         m_impl->renderer.update(m_impl->frameAllocator);

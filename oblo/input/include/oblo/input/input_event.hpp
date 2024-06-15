@@ -1,11 +1,10 @@
 #pragma once
 
+#include <oblo/core/time/time.hpp>
 #include <oblo/core/types.hpp>
 
 namespace oblo
 {
-    using timestamp = u64;
-
     enum class mouse_key : u8
     {
         left,
@@ -85,7 +84,7 @@ namespace oblo
     struct input_event
     {
         input_event_kind kind;
-        timestamp time;
+        time timestamp;
 
         union {
             mouse_move mouseMove;

@@ -57,8 +57,12 @@ namespace oblo::editor
         template <typename T>
         window_handle create_window_impl(window_entry* parent, service_registry* overrideCtx);
 
-        window_handle create_window_impl(
-            window_entry* parent, service_registry* overrideCtx, u8* ptr, update_fn update, destroy_fn destroy);
+        window_handle create_window_impl(window_entry* parent,
+            service_registry* overrideCtx,
+            u8* ptr,
+            update_fn update,
+            destroy_fn destroy,
+            std::string_view debugName);
 
         window_entry* update_window(window_entry* entry);
 
@@ -97,7 +101,8 @@ namespace oblo::editor
         const update_fn update = [](u8* ptr, const window_update_context& ctx)
         { return reinterpret_cast<T*>(ptr)->update(ctx); };
 
-        const auto newHandle = create_window_impl(parentEntry,
+        const auto newHandle = create_window_impl(
+            parentEntry,
             overrideCtx,
             ptr,
             update,
@@ -105,7 +110,8 @@ namespace oblo::editor
             {
                 reinterpret_cast<T*>(ptr)->~T();
                 pool.deallocate(ptr, sizeof(T), alignof(T));
-            });
+            },
+            get_type_id<T>().name);
 
         if constexpr (requires(T& w, const window_update_context& ctx) { w.init(ctx); })
         {

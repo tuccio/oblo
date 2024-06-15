@@ -1,5 +1,7 @@
 #pragma once
 
+#include <oblo/core/time/time.hpp>
+
 namespace oblo
 {
     class frame_allocator;
@@ -15,5 +17,6 @@ namespace oblo::ecs
         entity_registry* entities;
         service_registry* services;
         frame_allocator* frameAllocator;
+        time dt;
     };
 }
