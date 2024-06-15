@@ -26,9 +26,24 @@ namespace oblo
 #pragma warning(pop)
 
     template <std::unsigned_integral T>
+    constexpr T log2_round_down_power_of_two(T x)
+    {
+        const auto lz = std::countl_zero(x - 1);
+        return 8 * sizeof(T) - 1 - lz;
+    }
+
+    template <std::unsigned_integral T>
     constexpr T round_up_power_of_two(T x)
     {
-        const auto log2 = std::countl_zero(x - 1);
-        return T(1) << (8 * sizeof(T) - log2);
+        const auto lz = std::countl_zero(x - 1);
+        return T(1) << (8 * sizeof(T) - lz);
     }
+
+    template <std::unsigned_integral T>
+    constexpr T round_down_power_of_two(T x)
+    {
+        const auto lz = std::countl_zero(x - 1);
+        return T(1) << (8 * sizeof(T) - 1 - lz);
+    }
+
 }

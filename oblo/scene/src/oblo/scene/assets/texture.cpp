@@ -1,5 +1,6 @@
 #include <oblo/scene/assets/texture.hpp>
 
+#include <oblo/core/debug.hpp>
 #include <oblo/core/file_utility.hpp>
 #include <oblo/math/vec2u.hpp>
 
@@ -113,7 +114,17 @@ namespace oblo
     {
         auto* const t = to_ktx(m_impl);
         ktx_size_t offset;
-        ktxTexture_GetImageOffset(t, face, layer, level, &offset);
+
+        // It looks like the names of the parameters in the macro are wrong: level, layer, face is the correct order
+        const ktx_error_code_e result = ktxTexture_GetImageOffset(t, level, layer, face, &offset);
+
+        OBLO_ASSERT(result == ktx_error_code_e::KTX_SUCCESS);
+
+        if (result != ktx_error_code_e::KTX_SUCCESS)
+        {
+            return {};
+        }
+
         const auto size = ktxTexture_GetImageSize(t, level);
         return get_data().subspan(offset, size);
     }
@@ -122,7 +133,16 @@ namespace oblo
     {
         auto* const t = to_ktx(m_impl);
         ktx_size_t offset;
-        ktxTexture_GetImageOffset(t, face, layer, level, &offset);
+        // It looks like the names of the parameters in the macro are wrong: level, layer, face is the correct order
+        const ktx_error_code_e result = ktxTexture_GetImageOffset(t, level, layer, face, &offset);
+
+        OBLO_ASSERT(result == ktx_error_code_e::KTX_SUCCESS);
+
+        if (result != ktx_error_code_e::KTX_SUCCESS)
+        {
+            return {};
+        }
+
         const auto size = ktxTexture_GetImageSize(t, level);
         return get_data().subspan(offset, size);
     }

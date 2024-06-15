@@ -1,6 +1,11 @@
 #include <oblo/asset/importers/stb_image.hpp>
 
+#include <oblo/asset/importers/image_processing.hpp>
 #include <oblo/core/finally.hpp>
+#include <oblo/core/unreachable.hpp>
+#include <oblo/core/utility.hpp>
+#include <oblo/math/color.hpp>
+#include <oblo/math/power_of_two.hpp>
 #include <oblo/scene/assets/texture.hpp>
 
 #include <vulkan/vulkan_core.h>
@@ -42,24 +47,71 @@ namespace oblo::importers
                 return false;
             }
 
+            const u32 width = u32(w);
+            const u32 height = u32(h);
+            const u32 numLevels = log2_round_down_power_of_two(min(width, height));
+
             out.allocate({
                 .vkFormat = vkFormat,
                 .width = u32(w),
                 .height = u32(h),
                 .depth = 1,
                 .dimensions = 2,
-                .numLevels = 1,
+                .numLevels = numLevels,
                 .numLayers = 1,
                 .numFaces = 1,
                 .isArray = false,
             });
 
-            const auto ktxData = out.get_data();
-            std::memcpy(ktxData.data(), image, ktxData.size());
+            const auto highestMip = out.get_data(0, 0, 0);
+            std::memcpy(highestMip.data(), image, highestMip.size());
+
+            for (u32 mipLevel = 1; mipLevel < numLevels; ++mipLevel)
+            {
+                const std::span<const byte> previous = out.get_data(mipLevel - 1, 0, 0);
+                const std::span<byte> current = out.get_data(mipLevel, 0, 0);
+
+                const u32 prevMipWidth = width >> (mipLevel - 1);
+                const u32 prevMipHeight = height >> (mipLevel - 1);
+
+                const u32 mipWidth = width >> mipLevel;
+                const u32 mipHeight = height >> mipLevel;
+
+                using namespace image_processing;
+
+                switch (vkFormat)
+                {
+                case VK_FORMAT_R8_SRGB:
+                    for_each_pixel(image_view_r<u8>{current, mipWidth, mipHeight},
+                        box_filter_2x2{srgb_color_tag{},
+                            image_view_r<const u8>{previous, prevMipWidth, prevMipHeight}});
+                    break;
+
+                case VK_FORMAT_R8G8_SRGB:
+                    for_each_pixel(image_view_rg<u8>{current, mipWidth, mipHeight},
+                        box_filter_2x2{srgb_color_tag{},
+                            image_view_rg<const u8>{previous, prevMipWidth, prevMipHeight}});
+                    break;
+
+                case VK_FORMAT_R8G8B8_SRGB:
+                    for_each_pixel(image_view_rgb<u8>{current, mipWidth, mipHeight},
+                        box_filter_2x2{srgb_color_tag{},
+                            image_view_rgb<const u8>{previous, prevMipWidth, prevMipHeight}});
+                    break;
+
+                case VK_FORMAT_R8G8B8A8_SRGB:
+                    for_each_pixel(image_view_rgba<u8>{current, mipWidth, mipHeight},
+                        box_filter_2x2{srgb_color_tag{},
+                            image_view_rgba<const u8>{previous, prevMipWidth, prevMipHeight}});
+                    break;
+
+                default:
+                    unreachable();
+                }
+            }
 
             return true;
         }
-
     }
 
     bool stb_image::load_from_file(texture& out, const std::filesystem::path& path)
