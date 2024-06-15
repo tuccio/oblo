@@ -167,6 +167,8 @@ namespace oblo::vk
 
     bool sandbox_base::poll_events()
     {
+        OBLO_PROFILE_SCOPE();
+
         for (SDL_Event event; SDL_PollEvent(&event);)
         {
             if (m_showImgui)
@@ -306,6 +308,8 @@ namespace oblo::vk
 
     void sandbox_base::submit_and_present(u32 imageIndex)
     {
+        OBLO_PROFILE_SCOPE();
+
         m_context.frame_end();
 
         const auto swapchain = m_swapchain.get();
@@ -355,6 +359,8 @@ namespace oblo::vk
 
         if (m_showImgui)
         {
+            OBLO_PROFILE_SCOPE("ImGui update");
+
             m_imgui.begin_frame();
 
             const sandbox_update_imgui_context imguiContext{

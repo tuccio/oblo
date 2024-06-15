@@ -2,6 +2,7 @@
 
 #include <oblo/core/types.hpp>
 #include <oblo/core/utility.hpp>
+#include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/command_buffer_pool.hpp>
 #include <oblo/vulkan/destroy_device_objects.hpp>
 #include <oblo/vulkan/error.hpp>
@@ -144,6 +145,8 @@ namespace oblo::vk
 
     void vulkan_context::frame_begin(VkSemaphore waitSemaphore, VkSemaphore signalSemaphore)
     {
+        OBLO_PROFILE_SCOPE();
+
         m_poolIndex = u32(m_frameIndex % m_frameInfo.size());
 
         auto& frameInfo = m_frameInfo[m_poolIndex];
@@ -156,6 +159,7 @@ namespace oblo::vk
 
         if (m_currentSemaphoreValue < frameInfo.submitIndex)
         {
+            OBLO_PROFILE_SCOPE("vkWaitForFences");
             OBLO_VK_PANIC(vkWaitForFences(m_engine->get_device(), 1, &frameInfo.fence, 0, UINT64_MAX));
         }
 
@@ -172,6 +176,8 @@ namespace oblo::vk
 
     void vulkan_context::frame_end()
     {
+        OBLO_PROFILE_SCOPE();
+
         if (m_currentCb.is_valid())
         {
             submit_active_command_buffer();
