@@ -348,43 +348,6 @@ namespace oblo::vk
             levelOffsets.push_back(texture.get_offset(level, 0, 0));
         }
 
-        // for (u32 level = 0; level < desc.numLevels; ++level)
-        //{
-        //     for (u32 face = 0; face < desc.numFaces; ++face)
-        //     {
-        //         for (u32 layer = 0; layer < desc.numLayers; ++layer)
-        //         {
-        //             const auto data = texture.get_data(level, face, layer);
-        //             const auto staged = m_staging->stage_image(data, format);
-
-        //            OBLO_ASSERT(staged);
-        //            if (!staged)
-        //            {
-        //                return false;
-        //            }
-
-        //            m_pendingUploads.push_back({
-        //                .src = *staged,
-        //                .image = out.image.image,
-        //                .format = format,
-        //                .initialImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-        //                .finalImageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        //                .width = desc.width,
-        //                .height = desc.height,
-        //                .subresource =
-        //                    VkImageSubresourceLayers{
-        //                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-        //                        .mipLevel = level,
-        //                        .baseArrayLayer = layer,
-        //                        .layerCount = 1,
-        //                    },
-        //                .imageOffset = VkOffset3D{},
-        //                .imageExtents = VkExtent3D{desc.width, desc.height, desc.depth},
-        //            });
-        //        }
-        //    }
-        //}
-
         return true;
     }
 }
