@@ -22,11 +22,6 @@ namespace oblo
         return value / f32(0xffu);
     }
 
-    template <typename T, typename U, typename SourceColor, typename DestColor>
-    T color_convert(SourceColor, DestColor, f32 source)
-    {
-    }
-
     template <typename T>
     T color_convert(linear_color_tag, srgb_color_tag, f32 source);
 
