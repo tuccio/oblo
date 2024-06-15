@@ -36,7 +36,7 @@ namespace oblo::vk
             return {};
         }
 
-        const auto handle = m_textureRegistry->add(*resource.get());
+        const auto handle = m_textureRegistry->add(*resource.get(), resource.get_name());
 
         if (handle)
         {

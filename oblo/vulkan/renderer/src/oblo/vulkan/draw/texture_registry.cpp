@@ -1,7 +1,10 @@
 #include <oblo/vulkan/draw/texture_registry.hpp>
 
+#include <oblo/core/buffered_array.hpp>
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/scene/assets/texture.hpp>
 #include <oblo/vulkan/staging_buffer.hpp>
+#include <oblo/vulkan/utility/pipeline_barrier.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
 
 namespace oblo::vk
@@ -25,52 +28,6 @@ namespace oblo::vk
                 return VK_IMAGE_TYPE_MAX_ENUM;
             }
         }
-
-        bool convert_rgb8_to_rgba8(
-            const texture_resource& source, const texture_desc& desc, texture_resource& converted, VkFormat newFormat)
-        {
-            auto convertedDesc = desc;
-            convertedDesc.vkFormat = u32(newFormat);
-
-            if (!converted.allocate(convertedDesc))
-            {
-                return false;
-            }
-
-            for (u32 level = 0; level < desc.numLevels; ++level)
-            {
-                const auto srcRowPitch = source.get_row_pitch(level);
-                const auto dstRowPitch = converted.get_row_pitch(level);
-
-                for (u32 face = 0; face < desc.numFaces; ++face)
-                {
-                    for (u32 layer = 0; layer < desc.numLayers; ++layer)
-                    {
-                        const std::span src = source.get_data(level, face, layer);
-                        const std::span dst = converted.get_data(level, face, layer);
-
-                        for (u32 y = 0; y < desc.height; ++y)
-                        {
-                            usize dstIndex = y * dstRowPitch;
-                            usize srcIndex = y * srcRowPitch;
-
-                            while (dstIndex < (y + 1) * dstRowPitch)
-                            {
-                                dst[dstIndex + 0] = src[srcIndex + 0];
-                                dst[dstIndex + 1] = src[srcIndex + 1];
-                                dst[dstIndex + 2] = src[srcIndex + 2];
-                                dst[dstIndex + 3] = std::byte(0xff);
-
-                                dstIndex += 4;
-                                srcIndex += 3;
-                            }
-                        }
-                    }
-                }
-            }
-
-            return true;
-        }
     }
 
     struct resident_texture
@@ -86,13 +43,10 @@ namespace oblo::vk
         staging_buffer_span src;
         VkImage image;
         VkFormat format;
-        VkImageLayout initialImageLayout;
-        VkImageLayout finalImageLayout;
         u32 width;
         u32 height;
-        VkImageSubresourceLayers subresource;
-        VkOffset3D imageOffset;
-        VkExtent3D imageExtents;
+        u32 levels;
+        dynamic_array<u32> levelOffsets;
     };
 
     texture_registry::texture_registry() = default;
@@ -143,7 +97,7 @@ namespace oblo::vk
 
         resident_texture residentTexture;
 
-        if (!create(dummy, residentTexture))
+        if (!create(dummy, residentTexture, {"dummy_fallback_texture"}))
         {
             return;
         }
@@ -157,11 +111,11 @@ namespace oblo::vk
         m_textures.assign(1, residentTexture);
     }
 
-    h32<resident_texture> texture_registry::add(const texture_resource& texture)
+    h32<resident_texture> texture_registry::add(const texture_resource& texture, const debug_label& debugName)
     {
         resident_texture residentTexture;
 
-        if (!create(texture, residentTexture))
+        if (!create(texture, residentTexture, debugName))
         {
             return {};
         }
@@ -226,25 +180,77 @@ namespace oblo::vk
 
     void texture_registry::flush_uploads(VkCommandBuffer commandBuffer)
     {
+        buffered_array<VkBufferImageCopy, 14> copies;
+
+        constexpr auto initialImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        constexpr auto finalImageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        constexpr auto aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+
         for (const auto& upload : m_pendingUploads)
         {
-            m_staging->upload(commandBuffer,
-                upload.src,
+            const auto& segment = upload.src.segments[0];
+
+            copies.clear();
+            copies.reserve(upload.levels);
+
+            for (u32 level = 0; level < upload.levels; ++level)
+            {
+                const auto bufferOffset = segment.begin + upload.levelOffsets[level];
+
+                // Just detecting obvious mistakes, we should actually add the size of the upload
+                OBLO_ASSERT(bufferOffset < segment.end);
+
+                copies.push_back({
+                    .bufferOffset = bufferOffset,
+                    .imageSubresource =
+                        {
+                            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                            .mipLevel = level,
+                            .baseArrayLayer = 0,
+                            .layerCount = 1,
+                        },
+                    .imageOffset = VkOffset3D{},
+                    .imageExtent =
+                        VkExtent3D{
+                            upload.width >> level,
+                            upload.height >> level,
+                            1,
+                        },
+                });
+
+                auto& lastCopy = copies.back();
+                lastCopy.imageSubresource.mipLevel = level;
+            }
+
+            const VkImageSubresourceRange pipelineRange{
+                .aspectMask = aspectMask,
+                .baseMipLevel = 0,
+                .levelCount = upload.levels,
+                .baseArrayLayer = 0,
+                .layerCount = 1,
+            };
+
+            add_pipeline_barrier_cmd(commandBuffer,
+                initialImageLayout,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                 upload.image,
                 upload.format,
-                upload.initialImageLayout,
-                upload.finalImageLayout,
-                upload.width,
-                upload.height,
-                upload.subresource,
-                upload.imageOffset,
-                upload.imageExtents);
+                pipelineRange);
+
+            m_staging->upload(commandBuffer, upload.src, upload.image, copies);
+
+            add_pipeline_barrier_cmd(commandBuffer,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                finalImageLayout,
+                upload.image,
+                upload.format,
+                pipelineRange);
         }
 
         m_pendingUploads.clear();
     }
 
-    bool texture_registry::create(const texture_resource& texture, resident_texture& out)
+    bool texture_registry::create(const texture_resource& texture, resident_texture& out, const debug_label& debugName)
     {
         out = resident_texture{};
 
@@ -264,19 +270,6 @@ namespace oblo::vk
         const auto srcFormat = VkFormat(desc.vkFormat);
         auto format = srcFormat;
 
-        bool convertRGB8toRGBA8{false};
-
-        switch (srcFormat)
-        {
-        case VK_FORMAT_R8G8B8_SRGB:
-            format = VK_FORMAT_R8G8B8A8_SRGB;
-            convertRGB8toRGBA8 = true;
-            break;
-
-        default:
-            break;
-        }
-
         const image_initializer initializer{
             .imageType = imageType,
             .format = format,
@@ -288,6 +281,7 @@ namespace oblo::vk
             .usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
             .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
             .memoryUsage = memory_usage::gpu_only,
+            .debugLabel = debugName,
         };
 
         if (allocator.create_image(initializer, &out.image) != VK_SUCCESS)
@@ -304,7 +298,7 @@ namespace oblo::vk
                 {
                     .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                     .baseMipLevel = 0,
-                    .levelCount = 1,
+                    .levelCount = desc.numLevels,
                     .baseArrayLayer = 0,
                     .layerCount = 1,
                 },
@@ -325,23 +319,12 @@ namespace oblo::vk
 
         out.imageView = newImageView;
 
-        const texture_resource* finalTexture{&texture};
-        texture_resource converted;
-
-        if (convertRGB8toRGBA8)
-        {
-            if (!convert_rgb8_to_rgba8(texture, desc, converted, format))
-            {
-                return false;
-            }
-
-            finalTexture = &converted;
-        }
-
         // TOOD: When failing, we should destroy the texture
-        // TODO: Mips
 
-        auto staged = m_staging->stage_image(finalTexture->get_data(), format);
+        const auto data = texture.get_data();
+        const auto staged = m_staging->stage_image(data, format);
+
+        OBLO_ASSERT(staged);
 
         if (!staged)
         {
@@ -352,18 +335,55 @@ namespace oblo::vk
             .src = *staged,
             .image = out.image.image,
             .format = format,
-            .initialImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-            .finalImageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
             .width = desc.width,
             .height = desc.height,
-            .subresource =
-                VkImageSubresourceLayers{
-                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                    .layerCount = 1,
-                },
-            .imageOffset = VkOffset3D{},
-            .imageExtents = VkExtent3D{desc.width, desc.height, desc.depth},
+            .levels = desc.numLevels,
         });
+
+        auto& levelOffsets = m_pendingUploads.back().levelOffsets;
+        levelOffsets.reserve(desc.numLevels);
+
+        for (u32 level = 0; level < desc.numLevels; ++level)
+        {
+            levelOffsets.push_back(texture.get_offset(level, 0, 0));
+        }
+
+        // for (u32 level = 0; level < desc.numLevels; ++level)
+        //{
+        //     for (u32 face = 0; face < desc.numFaces; ++face)
+        //     {
+        //         for (u32 layer = 0; layer < desc.numLayers; ++layer)
+        //         {
+        //             const auto data = texture.get_data(level, face, layer);
+        //             const auto staged = m_staging->stage_image(data, format);
+
+        //            OBLO_ASSERT(staged);
+        //            if (!staged)
+        //            {
+        //                return false;
+        //            }
+
+        //            m_pendingUploads.push_back({
+        //                .src = *staged,
+        //                .image = out.image.image,
+        //                .format = format,
+        //                .initialImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        //                .finalImageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        //                .width = desc.width,
+        //                .height = desc.height,
+        //                .subresource =
+        //                    VkImageSubresourceLayers{
+        //                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        //                        .mipLevel = level,
+        //                        .baseArrayLayer = layer,
+        //                        .layerCount = 1,
+        //                    },
+        //                .imageOffset = VkOffset3D{},
+        //                .imageExtents = VkExtent3D{desc.width, desc.height, desc.depth},
+        //            });
+        //        }
+        //    }
+        //}
 
         return true;
     }

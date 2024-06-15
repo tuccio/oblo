@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/debug_label.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/handle_pool.hpp>
@@ -37,7 +38,7 @@ namespace oblo::vk
 
         void on_first_frame();
 
-        h32<resident_texture> add(const texture_resource& texture);
+        h32<resident_texture> add(const texture_resource& texture, const debug_label& debugName);
         void remove(h32<resident_texture> texture);
 
         std::span<const VkDescriptorImageInfo> get_textures2d_info() const;
@@ -50,7 +51,7 @@ namespace oblo::vk
         struct pending_texture_upload;
 
     private:
-        bool create(const texture_resource& texture, resident_texture& out);
+        bool create(const texture_resource& texture, resident_texture& out, const debug_label& debugName);
 
     private:
         vulkan_context* m_vkCtx{};

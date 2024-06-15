@@ -75,5 +75,10 @@ namespace oblo::vk::debug_utils
         {
             set_object_name(device, VK_OBJECT_TYPE_SEMAPHORE, uint64_t(semaphore), name);
         }
+
+        void set_object_name(VkDevice device, VkDescriptorSet descriptorSet, const char* name) const
+        {
+            set_object_name(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, uint64_t(descriptorSet), name);
+        }
     };
 }

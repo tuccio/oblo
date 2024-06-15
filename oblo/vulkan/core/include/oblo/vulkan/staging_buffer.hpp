@@ -50,14 +50,7 @@ namespace oblo::vk
         void upload(VkCommandBuffer commandBuffer,
             staging_buffer_span source,
             VkImage image,
-            VkFormat format,
-            VkImageLayout initialImageLayout,
-            VkImageLayout finalImageLayout,
-            u32 width,
-            u32 height,
-            VkImageSubresourceLayers subresource,
-            VkOffset3D imageOffset,
-            VkExtent3D imageExtent);
+            std::span<const VkBufferImageCopy> copies);
 
         void download(VkCommandBuffer commandBuffer, VkBuffer buffer, u32 bufferOffset, staging_buffer_span source);
 
