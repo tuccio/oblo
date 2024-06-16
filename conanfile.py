@@ -20,6 +20,7 @@ class ObloConanRecipe(ConanFile):
 
     def requirements(self):
         self.requires("assimp/5.0.1")
+        self.requires("concurrentqueue/1.0.4")
         self.requires("cxxopts/2.2.1")
         self.requires("efsw/1.3.1")
         self.requires("glew/2.1.0")

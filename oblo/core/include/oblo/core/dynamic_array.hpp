@@ -39,6 +39,7 @@ namespace oblo
     public:
         dynamic_array();
         explicit dynamic_array(allocator* allocator);
+        explicit dynamic_array(usize count, allocator* allocator);
 
         dynamic_array(const dynamic_array& other);
         dynamic_array(dynamic_array&& other) noexcept;
@@ -119,6 +120,7 @@ namespace oblo
         void assign(Iterator first, Iterator last) noexcept;
 
         void assign(usize count, const T& value) noexcept;
+        void assign_default(usize count) noexcept;
 
         bool operator==(const dynamic_array& other) const noexcept;
 
@@ -128,6 +130,8 @@ namespace oblo
     private:
         void maybe_grow_capacity(usize newCapacity, bool exact);
         void do_grow_capacity(usize newCapacity) noexcept;
+
+        void free_empty();
 
     private:
         allocator* m_allocator{};
@@ -144,6 +148,21 @@ namespace oblo
     template <typename T>
     dynamic_array<T>::dynamic_array(allocator* allocator) : m_allocator{allocator}
     {
+    }
+
+    template <typename T>
+    dynamic_array<T>::dynamic_array(usize count, allocator* allocator) : m_allocator{allocator}
+    {
+        if (count != 0)
+        {
+            byte* const newData = m_allocator->allocate(count * sizeof(T), alignof(T));
+
+            m_data = reinterpret_cast<T*>(newData);
+            m_capacity = count;
+            m_size = count;
+
+            std::uninitialized_value_construct(m_data, m_data + count);
+        }
     }
 
     template <typename T>
@@ -220,7 +239,7 @@ namespace oblo
     dynamic_array<T>::~dynamic_array()
     {
         clear();
-        shrink_to_fit();
+        free_empty();
     }
 
     template <typename T>
@@ -518,6 +537,21 @@ namespace oblo
     }
 
     template <typename T>
+    inline void dynamic_array<T>::assign_default(usize count) noexcept
+    {
+        clear();
+
+        reserve(count);
+
+        for (T* it = m_data; it != m_data + count; ++it)
+        {
+            new (it) T;
+        }
+
+        m_size = count;
+    }
+
+    template <typename T>
     void dynamic_array<T>::pop_back()
     {
         if constexpr (!std::is_trivially_destructible_v<T>)
@@ -573,12 +607,7 @@ namespace oblo
         {
             if (m_size == 0)
             {
-                if (m_data)
-                {
-                    m_allocator->deallocate(reinterpret_cast<byte*>(m_data), m_capacity * sizeof(T), alignof(T));
-                }
-
-                m_data = nullptr;
+                free_empty();
             }
             else
             {
@@ -669,6 +698,19 @@ namespace oblo
 
         m_data = reinterpret_cast<T*>(newData);
         m_capacity = newCapacity;
+    }
+
+    template <typename T>
+    void dynamic_array<T>::free_empty()
+    {
+        OBLO_ASSERT(m_size == 0);
+
+        if (m_data)
+        {
+            m_allocator->deallocate(reinterpret_cast<byte*>(m_data), m_capacity * sizeof(T), alignof(T));
+        }
+
+        m_data = nullptr;
     }
 
     template <typename T>
