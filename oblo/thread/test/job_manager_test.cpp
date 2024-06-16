@@ -43,7 +43,7 @@ namespace oblo
 
         std::atomic<int> value{};
 
-        const auto root = jm.push_waitable([&value] {});
+        const auto root = jm.push_waitable([] {});
 
         std::atomic<int> destructionsCounter{};
 
@@ -69,7 +69,7 @@ namespace oblo
         };
 
         // Push N children, each with 2 children
-        for (auto i = 0; i < N; ++i)
+        for (u32 i = 0; i < N; ++i)
         {
             jm.push_child(root,
                 [&jm, &value, &destructionsCounter, onDestruction = destruction_counter{&destructionsCounter}](
@@ -201,6 +201,6 @@ namespace oblo
             }
         }
 
-        //jm.shutdown();
+        // jm.shutdown();
     }
 }
