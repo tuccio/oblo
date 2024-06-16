@@ -42,6 +42,9 @@ namespace oblo
     class job_manager
     {
     public:
+        THREAD_API static job_manager* get();
+
+    public:
         THREAD_API job_manager();
 
         job_manager(const job_manager&) = delete;
@@ -140,6 +143,7 @@ namespace oblo
         job_manager* manager;
         job_handle job;
         void* userdata;
+        u32 threadId;
     };
 
     template <typename F>

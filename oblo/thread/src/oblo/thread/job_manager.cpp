@@ -1,4 +1,3 @@
-#include "job_manager.hpp"
 #include <oblo/thread/job_manager.hpp>
 
 #include <oblo/core/dynamic_array.hpp>
@@ -77,6 +76,7 @@ namespace oblo
 
         struct worker_thread_context
         {
+            job_manager* manager{};
             job_queue* queue{};
             u32 id{~0u};
         };
@@ -119,12 +119,13 @@ namespace oblo
             }
         }
 
-        void execute(job_manager* jm, job_impl* impl)
+        void execute(job_manager* jm, job_impl* impl, u32 threadId)
         {
             const job_context ctx{
                 .manager = jm,
                 .job = as_job_handle(impl),
                 .userdata = impl->userdata,
+                .threadId = threadId,
             };
 
             impl->function(ctx);
@@ -149,7 +150,7 @@ namespace oblo
             std::atomic<worker_state> state{worker_state::uninitialized};
         };
 
-        void worker_thread_init(u32 id, job_queue* q, std::atomic<worker_state>* state)
+        void worker_thread_init(job_manager* manager, u32 id, job_queue* q, std::atomic<worker_state>* state)
         {
 #ifdef TRACY_ENABLE
 
@@ -158,14 +159,17 @@ namespace oblo
             tracy::SetThreadName(threadName);
 #endif
 
-            s_tlsWorkerCtx.queue = q;
-            s_tlsWorkerCtx.id = id;
+            s_tlsWorkerCtx = {
+                .manager = manager,
+                .queue = q,
+                .id = id,
+            };
 
             state->store(worker_state::ready, std::memory_order_release);
         }
 
         void worker_thread_run(
-            job_manager* jm, std::span<job_queue* const> queues, const std::atomic<worker_state>* state)
+            job_manager* jm, u32 id, std::span<job_queue* const> queues, const std::atomic<worker_state>* state)
         {
             while (state->load(std::memory_order_relaxed) != worker_state::stop_requested)
             {
@@ -185,7 +189,7 @@ namespace oblo
                 }
                 else
                 {
-                    execute(jm, job);
+                    execute(jm, job, id);
                     signal_finished_job(job);
                 }
             }
@@ -199,6 +203,11 @@ namespace oblo
         dynamic_array<worker_thread> threads;
         std::pmr::synchronized_pool_resource userdataPool;
     };
+
+    THREAD_API job_manager* job_manager::get()
+    {
+        return s_tlsWorkerCtx.manager;
+    }
 
     job_manager::job_manager() = default;
 
@@ -260,7 +269,11 @@ namespace oblo
 
     bool job_manager::init(const job_manager_config& cfg)
     {
-        if (s_tlsWorkerCtx.queue || cfg.numThreads < 2)
+        // The calling thread is also used and will get id 0
+        // Other threads are spawned in this fuction
+        constexpr u32 mainThreadId = 0;
+
+        if (s_tlsWorkerCtx.manager || cfg.numThreads < 2)
         {
             return false;
         }
@@ -287,13 +300,13 @@ namespace oblo
                         }
                     }
 
-                    worker_thread_init(i, &thisThread.queue, &thisThread.state);
-                    worker_thread_run(this, queues, &thisThread.state);
+                    worker_thread_init(this, i, &thisThread.queue, &thisThread.state);
+                    worker_thread_run(this, i, queues, &thisThread.state);
                 }};
         }
 
         auto& mainThread = m_impl->threads.front();
-        worker_thread_init(0, &mainThread.queue, &mainThread.state);
+        worker_thread_init(this, mainThreadId, &mainThread.queue, &mainThread.state);
 
         for (u32 i = 1; i < cfg.numThreads; ++i)
         {
@@ -334,6 +347,11 @@ namespace oblo
 
     void job_manager::wait(job_handle job)
     {
+        if (!job)
+        {
+            return;
+        }
+
         auto* const impl = as_job_impl(job);
 
         while (impl->unfinishedJobs.load() > 0)
@@ -342,7 +360,7 @@ namespace oblo
 
             if (s_tlsWorkerCtx.queue->pop(anyJob))
             {
-                execute(this, anyJob);
+                execute(this, anyJob, s_tlsWorkerCtx.id);
                 signal_finished_job(anyJob);
             }
         }
