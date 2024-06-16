@@ -89,4 +89,38 @@ namespace oblo
 
         ASSERT_EQ(destructionsCounter, 0);
     }
+
+    TEST(job_manager, non_copiable_functor)
+    {
+        job_manager jm;
+
+        ASSERT_TRUE(jm.init());
+
+        std::atomic<int> value{};
+
+        struct functor
+        {
+            functor(std::atomic<int>* value) : value{value} {}
+            functor(const functor&) = delete;
+            functor(functor&&) = default;
+
+            functor& operator=(const functor&) = delete;
+            functor& operator=(functor&&) = delete;
+
+            void operator()() const
+            {
+                *value = 42;
+            }
+
+            std::atomic<int>* value{};
+        };
+
+        const auto j = jm.push_waitable(functor{&value});
+
+        jm.wait(j);
+
+        ASSERT_EQ(value, 42);
+
+        jm.shutdown();
+    }
 }
