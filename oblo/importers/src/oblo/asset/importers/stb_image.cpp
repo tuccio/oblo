@@ -82,25 +82,25 @@ namespace oblo::importers
                 switch (vkFormat)
                 {
                 case VK_FORMAT_R8_SRGB:
-                    for_each_pixel(image_view_r<u8>{current, mipWidth, mipHeight},
+                    parallel_for_each_pixel(image_view_r<u8>{current, mipWidth, mipHeight},
                         box_filter_2x2{srgb_color_tag{},
                             image_view_r<const u8>{previous, prevMipWidth, prevMipHeight}});
                     break;
 
                 case VK_FORMAT_R8G8_SRGB:
-                    for_each_pixel(image_view_rg<u8>{current, mipWidth, mipHeight},
+                    parallel_for_each_pixel(image_view_rg<u8>{current, mipWidth, mipHeight},
                         box_filter_2x2{srgb_color_tag{},
                             image_view_rg<const u8>{previous, prevMipWidth, prevMipHeight}});
                     break;
 
                 case VK_FORMAT_R8G8B8_SRGB:
-                    for_each_pixel(image_view_rgb<u8>{current, mipWidth, mipHeight},
+                    parallel_for_each_pixel(image_view_rgb<u8>{current, mipWidth, mipHeight},
                         box_filter_2x2{srgb_color_tag{},
                             image_view_rgb<const u8>{previous, prevMipWidth, prevMipHeight}});
                     break;
 
                 case VK_FORMAT_R8G8B8A8_SRGB:
-                    for_each_pixel(image_view_rgba<u8>{current, mipWidth, mipHeight},
+                    parallel_for_each_pixel(image_view_rgba<u8>{current, mipWidth, mipHeight},
                         box_filter_2x2{srgb_color_tag{},
                             image_view_rgba<const u8>{previous, prevMipWidth, prevMipHeight}});
                     break;
@@ -137,7 +137,7 @@ namespace oblo::importers
                     const image_view_rgb<u8> rgb8{out.get_data(mipLevel, 0, 0), mipWidth, mipHeight};
                     const image_view_rgba<u8> rgba8{withAlpha.get_data(mipLevel, 0, 0), mipWidth, mipHeight};
 
-                    for_each_pixel(rgba8,
+                    parallel_for_each_pixel(rgba8,
                         [&rgb8](u32 i, u32 j, image_view_rgba<u8>::pixel_view pixel)
                         {
                             const auto source = rgb8.at(i, j);
