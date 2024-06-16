@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/thread/job_manager.hpp>
+#include <oblo/thread/parallel_for.hpp>
 
 #include <thread>
 
@@ -120,6 +122,38 @@ namespace oblo
         jm.wait(j);
 
         ASSERT_EQ(value, 42);
+
+        jm.shutdown();
+    }
+
+    TEST(parallel_for, basic_iteration)
+    {
+        job_manager jm;
+
+        ASSERT_TRUE(jm.init());
+
+        constexpr u32 N{1 << 16u};
+
+        dynamic_array<int> values;
+
+        values.resize(N);
+
+        parallel_for(
+            [&values](job_range range)
+            {
+                for (u32 i = range.begin; i < range.end; ++i)
+                {
+                    values[i] = i;
+                }
+            },
+            job_range{0, u32(values.size())});
+
+        ASSERT_EQ(values.size(), N);
+
+        for (u32 i = 0; i < N; ++i)
+        {
+            ASSERT_EQ(values[i], i);
+        }
 
         jm.shutdown();
     }
