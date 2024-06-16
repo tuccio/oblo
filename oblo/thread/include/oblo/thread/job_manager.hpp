@@ -94,8 +94,8 @@ namespace oblo
             requires callable_job<F>
         void push_child(job_handle parent, F&& f);
 
-        void increase_reference(job_handle job);
-        void decrease_reference(job_handle job);
+        THREAD_API void increase_reference(job_handle job);
+        THREAD_API void decrease_reference(job_handle job);
 
     private:
         struct impl;

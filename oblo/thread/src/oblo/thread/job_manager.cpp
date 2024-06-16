@@ -1,3 +1,4 @@
+#include "job_manager.hpp"
 #include <oblo/thread/job_manager.hpp>
 
 #include <oblo/core/dynamic_array.hpp>
@@ -217,6 +218,16 @@ namespace oblo
         return push_impl<true>(parent, job, userdata, cleanup, true);
     }
 
+    void job_manager::push(job_fn job, void* userdata, job_userdata_cleanup_fn cleanup)
+    {
+        push_impl<false>({}, job, userdata, cleanup, true);
+    }
+
+    void job_manager::push_child(job_handle parent, job_fn job, void* userdata, job_userdata_cleanup_fn cleanup)
+    {
+        push_impl<true>(parent, job, userdata, cleanup, true);
+    }
+
     template <bool IsChild>
     job_handle job_manager::push_impl(
         job_handle parent, job_fn f, void* userdata, job_userdata_cleanup_fn cleanup, bool waitable)
@@ -337,6 +348,16 @@ namespace oblo
         }
 
         oblo::decrease_reference(impl);
+    }
+
+    void job_manager::increase_reference(job_handle job)
+    {
+        oblo::increase_reference(as_job_impl(job));
+    }
+
+    void job_manager::decrease_reference(job_handle job)
+    {
+        oblo::decrease_reference(as_job_impl(job));
     }
 
     void* job_manager::allocate_userdata(usize size, usize alignment)
