@@ -154,18 +154,6 @@ namespace oblo
             job_userdata_cleanup_fn cleanup;
         };
 
-        template <typename F>
-        struct wrapped_callable
-        {
-            template <typename U>
-            wrapped_callable(U&& f, job_manager* jm) : f{std::forward<U>(f)}, jm{jm}
-            {
-            }
-
-            F f;
-            job_manager* jm;
-        };
-
     private:
         template <bool IsChild>
         THREAD_API job_handle push_impl(
@@ -194,8 +182,6 @@ namespace oblo
         requires callable_job<F>
     job_manager::any_callable job_manager::make_callable(F&& f)
     {
-        using callable_info = wrapped_callable<F>;
-
         const job_fn cb = [](const job_context& ctx)
         {
             auto& f = *static_cast<F*>(ctx.userdata);
@@ -210,17 +196,16 @@ namespace oblo
             }
         };
 
-        void* const userdata = allocate_userdata(sizeof(callable_info), alignof(callable_info));
-        new (userdata) callable_info{std::forward<F>(f), this};
+        void* const userdata = allocate_userdata(sizeof(F), alignof(F));
+        new (userdata) F{std::forward<F>(f)};
 
         const job_userdata_cleanup_fn cleanup = [](void* userdata)
         {
-            auto* const info = static_cast<callable_info*>(userdata);
-            auto* const jm = info->jm;
+            auto* const f = static_cast<F*>(userdata);
+            f->~F();
 
-            info->~callable_info();
-
-            jm->deallocate_userdata(userdata, sizeof(callable_info), alignof(callable_info));
+            auto* const jm = get();
+            jm->deallocate_userdata(userdata, sizeof(F), alignof(F));
         };
 
         return {cb, userdata, cleanup};
