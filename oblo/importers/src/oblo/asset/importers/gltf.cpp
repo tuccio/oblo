@@ -18,6 +18,7 @@
 #include <oblo/scene/assets/model.hpp>
 #include <oblo/scene/assets/pbr_properties.hpp>
 #include <oblo/scene/serialization/mesh_file.hpp>
+#include <oblo/thread/parallel_for.hpp>
 
 #include <format>
 
@@ -204,15 +205,44 @@ namespace oblo::importers
 
     bool gltf::import(const import_context& ctx)
     {
-        std::vector<mesh_attribute> attributes;
+        dynamic_array<mesh_attribute> attributes;
         attributes.reserve(32);
 
-        std::vector<gltf_accessor> sources;
+        dynamic_array<gltf_accessor> sources;
         sources.reserve(32);
 
-        std::vector<bool> usedBuffer(m_model.buffers.size());
+        dynamic_array<bool> usedBuffer;
+        usedBuffer.resize(m_model.buffers.size());
 
-        // TODO: Parallelize texture importing
+        parallel_for(
+            [&](job_range range)
+            {
+                for (u32 i = range.begin; i < range.end; ++i)
+                {
+                    auto& image = m_importImages[i];
+
+                    if (!image.importer || !ctx.importNodesConfig[image.nodeIndex].enabled)
+                    {
+                        continue;
+                    }
+
+                    const auto imageContext = import_context{
+                        .registry = ctx.registry,
+                        .nodes = ctx.nodes.subspan(image.nodeIndex, 1),
+                        .importNodesConfig = ctx.importNodesConfig.subspan(image.nodeIndex, 1),
+                        .importUuid = ctx.importUuid,
+                    };
+
+                    if (image.importer->import(imageContext))
+                    {
+                        OBLO_ASSERT(image.id.is_nil());
+                        image.id = imageContext.importNodesConfig[0].id;
+                    }
+                }
+            },
+            job_range{0, u32(m_importImages.size())},
+            1);
+
         for (auto& image : m_importImages)
         {
             if (!image.importer || !ctx.importNodesConfig[image.nodeIndex].enabled)
@@ -220,14 +250,7 @@ namespace oblo::importers
                 continue;
             }
 
-            const auto imageContext = import_context{
-                .registry = ctx.registry,
-                .nodes = ctx.nodes.subspan(image.nodeIndex, 1),
-                .importNodesConfig = ctx.importNodesConfig.subspan(image.nodeIndex, 1),
-                .importUuid = ctx.importUuid,
-            };
-
-            if (!image.importer->import(imageContext))
+            if (image.id.is_nil())
             {
                 log::error("Failed to import image {}", ctx.nodes[image.nodeIndex].name);
                 continue;
@@ -243,8 +266,6 @@ namespace oblo::importers
                 {
                     m_artifacts.emplace_back(std::move(artifact));
                 }
-
-                image.id = imageContext.importNodesConfig[0].id;
             }
         }
 
