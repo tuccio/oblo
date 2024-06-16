@@ -146,7 +146,8 @@ namespace oblo
                     values[i] = i;
                 }
             },
-            job_range{0, u32(values.size())});
+            job_range{0, u32(values.size())},
+            32);
 
         ASSERT_EQ(values.size(), N);
 
@@ -156,5 +157,50 @@ namespace oblo
         }
 
         jm.shutdown();
+    }
+
+    TEST(parallel_for, basic_iteration_2d)
+    {
+        job_manager jm;
+
+        ASSERT_TRUE(jm.init());
+
+        static constexpr u32 N{128u};
+
+        static constexpr u32 rowsGran{2};
+        static constexpr u32 colsGran{4};
+
+        i8 matrix[N][N]{};
+
+        parallel_for_2d(
+            [&matrix](job_range rows, job_range cols)
+            {
+                ASSERT_EQ(rows.end - rows.begin, rowsGran);
+                ASSERT_EQ(cols.end - cols.begin, colsGran);
+
+                for (u32 i = rows.begin; i < rows.end; ++i)
+                {
+                    for (u32 j = cols.begin; j < cols.end; ++j)
+                    {
+                        matrix[i][j] = 42;
+                    }
+                }
+            },
+            job_range{0, N},
+            job_range{0, N},
+            rowsGran,
+            colsGran);
+
+        jm.shutdown();
+
+        for (u32 i = 0; i < N; ++i)
+        {
+            for (u32 j = 0; j < N; ++j)
+            {
+                ASSERT_EQ(matrix[i][j], 42) << "i: " << i << " j: " << j;
+            }
+        }
+
+        //jm.shutdown();
     }
 }
