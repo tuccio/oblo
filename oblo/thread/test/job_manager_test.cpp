@@ -1,0 +1,92 @@
+#include <gtest/gtest.h>
+
+#include <oblo/thread/job_manager.hpp>
+
+#include <thread>
+
+namespace oblo
+{
+    TEST(job_manager, init_shutdown)
+    {
+        job_manager jm;
+
+        ASSERT_TRUE(jm.init());
+        jm.shutdown();
+    }
+
+    TEST(job_manager, basic_waitable)
+    {
+        job_manager jm;
+
+        ASSERT_TRUE(jm.init());
+
+        std::atomic<int> value{};
+
+        const auto j = jm.push_waitable([&value] { value = 42; });
+
+        jm.wait(j);
+
+        ASSERT_EQ(value, 42);
+
+        jm.shutdown();
+    }
+
+    TEST(job_manager, waitable_child)
+    {
+        job_manager jm;
+
+        ASSERT_TRUE(jm.init());
+
+        constexpr u32 N{4096};
+
+        std::atomic<int> value{};
+
+        const auto root = jm.push_waitable([&value] {});
+
+        std::atomic<int> destructionsCounter{};
+
+        struct destruction_counter
+        {
+            std::atomic<int>* leakCheck;
+
+            destruction_counter(std::atomic<int>* leakCheck) : leakCheck{leakCheck}
+            {
+                ++(*leakCheck);
+            }
+
+            destruction_counter(const destruction_counter&) = delete;
+            destruction_counter(destruction_counter&& other) noexcept : leakCheck{other.leakCheck}
+            {
+                ++(*leakCheck); // Ideally we can delete the move instead
+            }
+
+            ~destruction_counter()
+            {
+                --(*leakCheck);
+            }
+        };
+
+        // Push N children, each with 2 children
+        for (auto i = 0; i < N; ++i)
+        {
+            jm.push_child(root,
+                [&jm, &value, &destructionsCounter, onDestruction = destruction_counter{&destructionsCounter}](
+                    const job_context& ctx)
+                {
+                    ++value;
+                    jm.push_child(ctx.job,
+                        [&value, onDestruction = destruction_counter{&destructionsCounter}] { ++value; });
+                    jm.push_child(ctx.job,
+                        [&value, onDestruction = destruction_counter{&destructionsCounter}] { ++value; });
+                });
+        }
+
+        jm.wait(root);
+
+        ASSERT_EQ(value, 3 * N);
+
+        jm.shutdown();
+
+        ASSERT_EQ(destructionsCounter, 0);
+    }
+}
