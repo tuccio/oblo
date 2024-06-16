@@ -1,11 +1,11 @@
 #pragma once
 
 #include <oblo/asset/importer.hpp>
+#include <oblo/core/dynamic_array.hpp>
 
 #include <tiny_gltf.h>
 
 #include <filesystem>
-#include <vector>
 
 namespace oblo::importers
 {
@@ -32,13 +32,13 @@ namespace oblo::importers
     private:
         tinygltf::Model m_model;
         tinygltf::TinyGLTF m_loader;
-        std::vector<import_model> m_importModels;
-        std::vector<import_mesh> m_importMeshes;
-        std::vector<import_material> m_importMaterials;
-        std::vector<import_image> m_importImages;
+        dynamic_array<import_model> m_importModels;
+        dynamic_array<import_mesh> m_importMeshes;
+        dynamic_array<import_material> m_importMaterials;
+        dynamic_array<import_image> m_importImages;
 
-        std::vector<import_artifact> m_artifacts;
-        std::vector<std::filesystem::path> m_sourceFiles;
+        dynamic_array<import_artifact> m_artifacts;
+        dynamic_array<std::filesystem::path> m_sourceFiles;
         std::filesystem::path m_sourceFileDir;
         uuid m_mainArtifactHint{};
     };

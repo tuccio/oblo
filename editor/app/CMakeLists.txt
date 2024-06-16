@@ -12,6 +12,7 @@ target_link_libraries(
     oblo::modules
     oblo::sandbox
     oblo::scene
+    oblo::thread
     SDL2::SDL2
     SDL2::SDL2main
 )

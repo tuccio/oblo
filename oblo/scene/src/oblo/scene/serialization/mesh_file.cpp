@@ -284,9 +284,9 @@ namespace oblo
     bool load_mesh(mesh& mesh,
         const tinygltf::Model& model,
         const tinygltf::Primitive& primitive,
-        std::vector<mesh_attribute>& attributes,
-        std::vector<gltf_accessor>& sources,
-        std::vector<bool>* usedBuffers)
+        dynamic_array<mesh_attribute>& attributes,
+        dynamic_array<gltf_accessor>& sources,
+        dynamic_array<bool>* usedBuffers)
     {
         const auto primitiveKind = convert_primitive_kind(primitive.mode);
 
@@ -470,10 +470,10 @@ namespace oblo
         // We count indices as attributes here
         const auto maxAttributes = primitive.attributes.size() + 1;
 
-        std::vector<mesh_attribute> attributes;
+        dynamic_array<mesh_attribute> attributes;
         attributes.reserve(maxAttributes);
 
-        std::vector<gltf_accessor> sources;
+        dynamic_array<gltf_accessor> sources;
         sources.reserve(maxAttributes);
 
         if (load_mesh(mesh, model, primitive, attributes, sources, nullptr))

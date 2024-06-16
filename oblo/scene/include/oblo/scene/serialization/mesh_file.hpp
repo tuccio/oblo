@@ -1,7 +1,8 @@
 #pragma once
 
+#include <oblo/core/dynamic_array.hpp>
+
 #include <filesystem>
-#include <vector>
 
 namespace tinygltf
 {
@@ -21,9 +22,9 @@ namespace oblo
     SCENE_API bool load_mesh(mesh& mesh,
         const tinygltf::Model& model,
         const tinygltf::Primitive& primitive,
-        std::vector<mesh_attribute>& attributes,
-        std::vector<gltf_accessor>& sources,
-        std::vector<bool>* usedBuffers);
+        dynamic_array<mesh_attribute>& attributes,
+        dynamic_array<gltf_accessor>& sources,
+        dynamic_array<bool>* usedBuffers);
 
     SCENE_API bool load_mesh(mesh& mesh, const std::filesystem::path& source);
 }

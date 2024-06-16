@@ -25,6 +25,7 @@
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/runtime/runtime_module.hpp>
 #include <oblo/sandbox/context.hpp>
+#include <oblo/thread/job_manager.hpp>
 #include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/draw/resource_cache.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
@@ -100,6 +101,8 @@ namespace oblo::editor
         {
             return false;
         }
+
+        m_jobManager.init();
 
         init_ui_style();
 
@@ -178,6 +181,8 @@ namespace oblo::editor
         m_windowManager.shutdown();
         m_runtime.shutdown();
         platform::shutdown();
+
+        m_jobManager.shutdown();
     }
 
     void app::update(const vk::sandbox_render_context&)
