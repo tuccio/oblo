@@ -58,46 +58,90 @@ namespace oblo
         THREAD_API bool init(const job_manager_config& cfg = job_manager_config::make_default());
         THREAD_API void shutdown();
 
-        /// @brief Creates a waitable job.
+        /// @brief Creates a waitable child job, that will be destroyed once the execution of its children is completed
+        /// and the job is waited for.
         /// @param job The job function.
         /// @param userdata Userdata for the job function call.
         /// @param cleanup Optional cleanup for the userdata.
-        /// @return A handle that can be waited on. In order to let multiple threads wait on the same handle references
-        /// have to be added through increase_reference.
+        /// @return A handle that can be waited on.
         [[nodiscard]] THREAD_API job_handle push_waitable(job_fn job, void* userdata, job_userdata_cleanup_fn cleanup);
 
-        /// @brief Creates a waitable child job.
+        /// @brief Creates a waitable child job, that will be destroyed once the execution of its children is completed
+        /// and the job is waited for.
         /// @param parent The parent handle, will be incremented by this call.
         /// @param job The job function.
         /// @param userdata Userdata for the job function call.
         /// @param cleanup Optional cleanup for the userdata.
-        /// @return A handle that can be waited on. In order to let multiple threads wait on the same handle references
-        /// have to be added through increase_reference.
+        /// @return A handle that can be waited on.
         [[nodiscard]] THREAD_API job_handle push_waitable_child(
             job_handle parent, job_fn job, void* userdata, job_userdata_cleanup_fn cleanup);
 
+        /// @brief Creates a non-waitable job, that will be destroyed once the execution of the job itself and its
+        /// children is completed.
+        /// @param job The job function.
+        /// @param userdata Userdata for the job function call.
+        /// @param cleanup Optional cleanup for the userdata.
         THREAD_API void push(job_fn job, void* userdata, job_userdata_cleanup_fn cleanup);
+
+        /// @brief Creates a non-waitable job, that will be destroyed once the execution of the job itself and its
+        /// children is completed.
+        /// @param parent The parent handle, will be incremented by this call.
+        /// @param job The job function.
+        /// @param userdata Userdata for the job function call.
+        /// @param cleanup Optional cleanup for the userdata.
         THREAD_API void push_child(job_handle parent, job_fn job, void* userdata, job_userdata_cleanup_fn cleanup);
 
+        /// @brief Waits for a job to finish, possibily picking up more jobs to complete during the wait.
+        /// Jobs with a reference count (i.e. waitable jobs or jobs with manually increased reference) have to be waited
+        /// exactly once per reference.
+        /// @param job The job to wait for.
         THREAD_API void wait(job_handle job);
 
+        /// @brief Creates a waitable child job, that will be destroyed once the execution of its children is completed
+        /// and the job is waited for.
+        /// @tparam F A job functor that satisfied callable_job.
+        /// @param f The callable job functor, which will be stored for later execution.
+        /// @return A handle that can be waited on.
         template <typename F>
             requires callable_job<F>
         [[nodiscard]] job_handle push_waitable(F&& f);
 
+        /// @brief Creates a waitable child job, that will be destroyed once the execution of its children is completed
+        /// and the job is waited for.
+        /// @tparam F A job functor that satisfied callable_job.
+        /// @param parent The parent handle, will be incremented by this call.
+        /// @param f The callable job functor, which will be stored for later execution.
+        /// @return A handle that can be waited on.
         template <typename F>
             requires callable_job<F>
         [[nodiscard]] job_handle push_waitable_child(job_handle parent, F&& f);
 
+        /// @brief Creates a non-waitable job, that will be destroyed once the execution of the job itself and its
+        /// children is completed.
+        /// @tparam F A job functor that satisfied callable_job.
+        /// @param f The callable job functor, which will be stored for later execution.
         template <typename F>
             requires callable_job<F>
         void push(F&& f);
 
+        /// @brief Creates a non-waitable job, that will be destroyed once the execution of the job itself and its
+        /// children is completed.
+        /// @tparam F A job functor that satisfied callable_job.
+        /// @param parent The parent handle, will be incremented by this call.
+        /// @param f The callable job functor, which will be stored for later execution.
         template <typename F>
             requires callable_job<F>
         void push_child(job_handle parent, F&& f);
 
+        /// @brief Explicitly increases the job ref count.
+        /// @remarks The function can be used to let multiple threads wait for the same job.
+        /// @param job The job to increase the reference of.
         THREAD_API void increase_reference(job_handle job);
+
+        /// @brief Explicitly decreases the job ref count.
+        /// @remarks The function can be used to let the system manage the lifetime of a waitable job if waiting is no
+        /// longer necessary.
+        /// @param job The job to decrease the reference of.
         THREAD_API void decrease_reference(job_handle job);
 
     private:
