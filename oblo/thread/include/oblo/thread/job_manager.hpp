@@ -64,7 +64,7 @@ namespace oblo
         /// @param cleanup Optional cleanup for the userdata.
         /// @return A handle that can be waited on. In order to let multiple threads wait on the same handle references
         /// have to be added through increase_reference.
-        THREAD_API [[nodiscard]] job_handle push_waitable(job_fn job, void* userdata, job_userdata_cleanup_fn cleanup);
+        [[nodiscard]] THREAD_API job_handle push_waitable(job_fn job, void* userdata, job_userdata_cleanup_fn cleanup);
 
         /// @brief Creates a waitable child job.
         /// @param parent The parent handle, will be incremented by this call.
@@ -73,7 +73,7 @@ namespace oblo
         /// @param cleanup Optional cleanup for the userdata.
         /// @return A handle that can be waited on. In order to let multiple threads wait on the same handle references
         /// have to be added through increase_reference.
-        THREAD_API [[nodiscard]] job_handle push_waitable_child(
+        [[nodiscard]] THREAD_API job_handle push_waitable_child(
             job_handle parent, job_fn job, void* userdata, job_userdata_cleanup_fn cleanup);
 
         THREAD_API void push(job_fn job, void* userdata, job_userdata_cleanup_fn cleanup);
@@ -124,14 +124,14 @@ namespace oblo
 
     private:
         template <bool IsChild>
-        THREAD_API [[nodiscard]] job_handle push_impl(
+        THREAD_API job_handle push_impl(
             job_handle parent, job_fn job, void* userdata, job_userdata_cleanup_fn cleanup, bool waitable);
 
         template <typename F>
             requires callable_job<F>
         any_callable make_callable(F&& f);
 
-        THREAD_API [[nodiscard]] void* allocate_userdata(usize size, usize alignment);
+        [[nodiscard]] THREAD_API void* allocate_userdata(usize size, usize alignment);
         THREAD_API void deallocate_userdata(void* ptr, usize size, usize alignment);
 
     private:
