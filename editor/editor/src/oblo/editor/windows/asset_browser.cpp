@@ -4,8 +4,10 @@
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/importer.hpp>
 #include <oblo/core/debug.hpp>
+#include <oblo/core/log.hpp>
 #include <oblo/core/platform/shell.hpp>
 #include <oblo/core/service_registry.hpp>
+#include <oblo/core/time/clock.hpp>
 #include <oblo/editor/data/drag_and_drop_payload.hpp>
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/window_update_context.hpp>
@@ -41,7 +43,15 @@ namespace oblo::editor
 
                         if (importer.is_valid() && importer.init())
                         {
-                            importer.execute(m_current);
+                            const auto timeBegin = clock::now();
+                            const auto success = importer.execute(m_current);
+                            const auto timeEnd = clock::now();
+                            const f32 executionTime = to_f32_seconds(timeEnd - timeBegin);
+
+                            log::info("Import of '{}' {}. Execution time: {:.2f}s",
+                                file.string(),
+                                success ? "succeeded" : "failed",
+                                executionTime);
                         }
                     }
                 }

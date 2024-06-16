@@ -4,6 +4,7 @@
 #include <oblo/core/types.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/math/color.hpp>
+#include <oblo/thread/parallel_for.hpp>
 
 #include <span>
 #include <type_traits>
@@ -140,6 +141,29 @@ namespace oblo::importers::image_processing
                 f(i, j, image.at(i, j));
             }
         }
+    }
+
+    template <typename T, typename Swizzle, typename F>
+    void parallel_for_each_pixel(image_view<T, Swizzle> image, F&& f)
+    {
+        const u32 h = image.get_height();
+        const u32 w = image.get_width();
+
+        parallel_for_2d(
+            [&image, &f](job_range rows, job_range cols)
+            {
+                for (u32 i = rows.begin; i < rows.end; ++i)
+                {
+                    for (u32 j = cols.begin; j < cols.end; ++j)
+                    {
+                        f(i, j, image.at(i, j));
+                    }
+                }
+            },
+            job_range{0, h},
+            job_range{0, w},
+            64,
+            64);
     }
 
     template <typename ColorSpace, typename T, typename Swizzle>
