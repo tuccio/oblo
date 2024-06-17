@@ -165,12 +165,12 @@ namespace oblo
 
         ASSERT_TRUE(jm.init());
 
-        static constexpr u32 N{128u};
+        static constexpr u32 N{128u}, M{256};
 
         static constexpr u32 rowsGran{2};
         static constexpr u32 colsGran{4};
 
-        i8 matrix[N][N]{};
+        i8 matrix[N][M]{};
 
         parallel_for_2d(
             [&matrix](job_range rows, job_range cols)
@@ -187,11 +187,9 @@ namespace oblo
                 }
             },
             job_range{0, N},
-            job_range{0, N},
+            job_range{0, M},
             rowsGran,
             colsGran);
-
-        jm.shutdown();
 
         for (u32 i = 0; i < N; ++i)
         {
@@ -201,6 +199,6 @@ namespace oblo
             }
         }
 
-        // jm.shutdown();
+        jm.shutdown();
     }
 }
