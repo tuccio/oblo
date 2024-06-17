@@ -111,10 +111,10 @@ namespace oblo::vk
 
         void acquire(resource<buffer> buffer, pass_kind passKind, buffer_usage usage) const;
 
-        resource<buffer> create_dynamic_buffer(
+        [[nodiscard]] resource<buffer> create_dynamic_buffer(
             const transient_buffer_initializer& initializer, pass_kind passKind, buffer_usage usage) const;
 
-        resource<buffer> create_dynamic_buffer(
+        [[nodiscard]] resource<buffer> create_dynamic_buffer(
             const staging_buffer_span& stagedData, pass_kind passKind, buffer_usage usage) const;
 
         template <typename T>

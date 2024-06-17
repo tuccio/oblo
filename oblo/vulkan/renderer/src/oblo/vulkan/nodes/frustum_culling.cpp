@@ -67,13 +67,6 @@ namespace oblo::vk
 
             const std::span instanceBuffers = allocate_n_span<resource<buffer>>(allocator, draw.instanceBuffers.count);
 
-            for (u32 i = 0; i < draw.instanceBuffers.count; ++i)
-            {
-                builder.create_dynamic_buffer(draw.instanceBuffers.buffersData[i],
-                    pass_kind::compute,
-                    buffer_usage::storage_read);
-            }
-
             // We effectively partition non-indexed and indexed calls here
             const auto outIndex = draw.drawCommands.isIndexed ? --last : first++;
 
