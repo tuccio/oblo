@@ -145,7 +145,7 @@ namespace oblo::vk
         std::filesystem::path shaderSourcePath[MaxPipelineStages];
         pipeline_stages stages[MaxPipelineStages];
 
-        std::vector<render_pass_variant> variants;
+        dynamic_array<render_pass_variant> variants;
 
         std::unique_ptr<watch_listener> watcher;
     };
@@ -156,7 +156,7 @@ namespace oblo::vk
 
         std::filesystem::path shaderSourcePath;
 
-        std::vector<compute_pass_variant> variants;
+        dynamic_array<compute_pass_variant> variants;
 
         std::unique_ptr<watch_listener> watcher;
     };
@@ -167,8 +167,8 @@ namespace oblo::vk
         VkPipeline pipeline;
 
         shader_resource vertexInputs;
-        std::vector<shader_resource> resources;
-        std::vector<descriptor_binding> descriptorSetBindings;
+        dynamic_array<shader_resource> resources;
+        dynamic_array<descriptor_binding> descriptorSetBindings;
 
         VkDescriptorSetLayout descriptorSetLayout{};
 
@@ -263,8 +263,8 @@ namespace oblo::vk
             }
 
             frame_allocator& allocator;
-            std::vector<std::filesystem::path> systemIncludePaths;
-            std::vector<std::filesystem::path> resolvedIncludes;
+            dynamic_array<std::filesystem::path> systemIncludePaths;
+            dynamic_array<std::filesystem::path> resolvedIncludes;
         };
 
         template <typename Pass, typename Pipelines>
@@ -359,7 +359,7 @@ namespace oblo::vk
             std::span<const h32<string>> defines,
             std::string_view debugName,
             const shader_compiler::options& compilerOptions,
-            std::vector<u32>& spirv);
+            dynamic_array<u32>& spirv);
 
         bool create_pipeline_layout(base_pipeline& newPipeline);
 
@@ -382,7 +382,7 @@ namespace oblo::vk
         std::span<const h32<string>> defines,
         std::string_view debugName,
         const shader_compiler::options& compilerOptions,
-        std::vector<u32>& spirv)
+        dynamic_array<u32>& spirv)
     {
         const auto sourceCode = load_text_file_into_memory(frameAllocator, filePath);
 
@@ -1024,7 +1024,7 @@ namespace oblo::vk
         VkPipelineShaderStageCreateInfo stageCreateInfo[MaxPipelineStages]{};
         u32 actualStagesCount{0};
 
-        std::vector<unsigned> spirv;
+        dynamic_array<unsigned> spirv;
         spirv.reserve(1u << 16);
 
         vertex_inputs_reflection vertexInputReflection{};
@@ -1249,7 +1249,7 @@ namespace oblo::vk
             return h32<compute_pipeline>{};
         };
 
-        std::vector<unsigned> spirv;
+        dynamic_array<unsigned> spirv;
         spirv.reserve(1u << 16);
 
         vertex_inputs_reflection vertexInputReflection{};
