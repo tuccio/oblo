@@ -61,6 +61,7 @@ namespace oblo::vk
     {
         draw_instance_buffers instanceBuffers;
         draw_commands drawCommands;
+        u32 instanceTableId;
     };
 
     struct draw_mesh_component

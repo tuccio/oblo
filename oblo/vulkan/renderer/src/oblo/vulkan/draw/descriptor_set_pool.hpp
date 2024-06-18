@@ -26,6 +26,12 @@ namespace oblo::vk
         VkShaderStageFlags stageFlags;
     };
 
+    struct push_constant_info
+    {
+        VkPipelineStageFlags stages;
+        u32 size;
+    };
+
     class descriptor_set_pool
     {
     public:

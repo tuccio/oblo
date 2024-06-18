@@ -169,6 +169,7 @@ namespace oblo::vk
         shader_resource vertexInputs;
         dynamic_array<shader_resource> resources;
         dynamic_array<descriptor_binding> descriptorSetBindings;
+        flat_dense_map<h32<string>, push_constant_info> pushConstants;
 
         VkDescriptorSetLayout descriptorSetLayout{};
 
@@ -505,11 +506,23 @@ namespace oblo::vk
             descriptorSetLayouts[descriptorSetLayoutsCount++] = textures2DSetLayout;
         }
 
+        buffered_array<VkPushConstantRange, 2> pushConstantRanges;
+
+        for (const auto& pushConstant : newPipeline.pushConstants.values())
+        {
+            pushConstantRanges.push_back({
+                .stageFlags = pushConstant.stages,
+                .size = pushConstant.size,
+            });
+        }
+
         // TODO: Figure out inputs
         const VkPipelineLayoutCreateInfo pipelineLayoutInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             .setLayoutCount = descriptorSetLayoutsCount,
             .pSetLayouts = descriptorSetLayouts,
+            .pushConstantRangeCount = u32(pushConstantRanges.size()),
+            .pPushConstantRanges = pushConstantRanges.data(),
         };
 
         return vkCreatePipelineLayout(device,
@@ -638,6 +651,15 @@ namespace oblo::vk
                 newPipeline.requiresTextures2D = true;
                 break;
             }
+        }
+
+        for (const auto& pushConstant : shaderResources.push_constant_buffers)
+        {
+            const auto name = interner->get_or_add(pushConstant.name);
+
+            auto [it, inserted] = newPipeline.pushConstants.emplace(name);
+            it->stages |= vkStage;
+            it->size = 128; // We should figure if we can get the size from reflection instead
         }
     }
 
@@ -1523,6 +1545,17 @@ namespace oblo::vk
                     nullptr);
 
                 auto& drawBuffer = batchDrawCommands[drawIndex];
+
+                // A little hacky, sets the draw as push constant
+                // We could maybe tell this function whether or not the draw index should be set somewhere?
+                u32 instanceTableId{draw.instanceTableId};
+
+                vkCmdPushConstants(context.commandBuffer,
+                    pipeline->pipelineLayout,
+                    VK_SHADER_STAGE_VERTEX_BIT,
+                    0,
+                    sizeof(u32),
+                    &instanceTableId);
 
                 if (draw.drawCommands.isIndexed)
                 {

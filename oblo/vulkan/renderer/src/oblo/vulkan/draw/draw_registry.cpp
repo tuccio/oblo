@@ -570,6 +570,7 @@ namespace oblo::vk
                 OBLO_ASSERT(vkIndexType != VK_INDEX_TYPE_NONE_KHR);
             }
 
+            currentDrawBatch->instanceTableId = drawBatches;
             ++drawBatches;
 
             currentDrawBatch->drawCommands = {
