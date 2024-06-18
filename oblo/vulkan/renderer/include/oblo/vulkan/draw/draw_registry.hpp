@@ -52,7 +52,6 @@ namespace oblo::vk
     struct draw_instance_buffers
     {
         u32* instanceBufferIds;
-        h32<draw_buffer>* bindings;
         staging_buffer_span* buffersData;
         u32 count;
     };
@@ -96,8 +95,6 @@ namespace oblo::vk
 
         h32<draw_mesh> get_or_create_mesh(oblo::resource_registry& resourceRegistry,
             const resource_ref<mesh>& resourceId);
-
-        h32<string> get_name(h32<draw_buffer> drawBuffer) const;
 
         void flush_uploads(VkCommandBuffer commandBuffer);
 

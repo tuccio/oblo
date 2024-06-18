@@ -375,13 +375,6 @@ namespace oblo::vk
         }
     }
 
-    h32<string> draw_registry::get_name(h32<draw_buffer> drawBuffer) const
-    {
-        // We use the component type as draw buffer id, so we just reinterpret it here
-        auto* const str = m_instanceDataTypeNames.try_find({.value = drawBuffer.value});
-        return str ? str->name : h32<string>{};
-    }
-
     void draw_registry::flush_uploads(VkCommandBuffer commandBuffer)
     {
         if (!m_pendingMeshUploads.empty())
@@ -589,7 +582,6 @@ namespace oblo::vk
 
             draw_instance_buffers instanceBuffers{
                 .instanceBufferIds = allocate_n<u32>(allocator, allComponentsCount),
-                .bindings = allocate_n<h32<vk::draw_buffer>>(allocator, allComponentsCount),
                 .buffersData = allocate_n<staging_buffer_span>(allocator, allComponentsCount),
                 .count = 0u,
             };
@@ -615,7 +607,6 @@ namespace oblo::vk
                 auto* const typeInfo = m_instanceDataTypeNames.try_find(componentType);
 
                 instanceBuffers.buffersData[instanceBuffers.count] = *allocation;
-                instanceBuffers.bindings[instanceBuffers.count] = h32<draw_buffer>{componentType.value};
                 instanceBuffers.instanceBufferIds[instanceBuffers.count] =
                     typeInfo ? typeInfo->gpuInstanceBufferId : ~u32{};
 
@@ -713,13 +704,15 @@ namespace oblo::vk
 
         for (u32 i = 0; i < drawData.instanceBuffers.count; ++i)
         {
-            const auto binding = drawData.instanceBuffers.bindings[i];
+            const auto id = drawData.instanceBuffers.instanceBufferIds[i];
             const auto buffer = drawData.instanceBuffers.buffersData[i];
 
             const auto bufferSize = (buffer.segments[0].end - buffer.segments[0].begin) +
                 (buffer.segments[1].end - buffer.segments[1].begin);
 
-            fmtAppend("{} [id: {}] [size: {}]\n", m_interner->str(get_name(binding)), binding.value, bufferSize);
+            const auto name = m_instanceDataTypeNames.values()[id].name;
+
+            fmtAppend("{} [id: {}] [size: {}]\n", m_interner->str(name), id, bufferSize);
         }
 
         log::debug("{}", stringBuffer);
