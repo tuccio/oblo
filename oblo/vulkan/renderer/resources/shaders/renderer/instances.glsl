@@ -1,7 +1,11 @@
 #ifndef OBLO_INCLUDE_RENDERER_INSTANCES
 #define OBLO_INCLUDE_RENDERER_INSTANCES
 
-#define OBLO_BINDING_INSTANCE_DATA_TABLES 70
+// These are required to use this header
+// #extension GL_EXT_buffer_reference : require
+// #extension GL_ARB_gpu_shader_int64 : require
+
+#define OBLO_BINDING_INSTANCE_DATA_TABLES 50
 
 #define OBLO_INSTANCE_DATA_CAT(A, B) A##B
 
@@ -10,7 +14,7 @@
 
 /// Gets the instance data from a table, automatically casting to a buffer reference named MyInstanceType, where
 /// MyInstance is the second argument
-#define OBLO_INSTANCE_DATA(Table, Instance, Index)                                                                            \
+#define OBLO_INSTANCE_DATA(Table, Instance, Index)                                                                     \
     (OBLO_INSTANCE_DATA_CAT(Instance, Type)(get_instance_data(Table, OBLO_INSTANCE_DATA_ID(Instance)))).values[Index]
 
 #define OBLO_INSTANCE_DATA_MAX 32

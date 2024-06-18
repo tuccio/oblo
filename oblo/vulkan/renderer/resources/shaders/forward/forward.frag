@@ -2,8 +2,12 @@
 
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_nonuniform_qualifier : require
+#extension GL_EXT_buffer_reference : require
+#extension GL_ARB_gpu_shader_int64 : require
 
+#include <renderer/instances>
 #include <renderer/lights>
+#include <renderer/material>
 #include <renderer/textures>
 #include <renderer/volumes>
 
@@ -15,24 +19,9 @@ layout(location = 3) in vec2 in_UV0;
 layout(location = 0) out vec4 out_Color;
 layout(location = 1) out uint out_PickingId;
 
-struct gpu_material
+layout(buffer_reference) buffer i_EntityIdBufferType
 {
-    vec3 albedo;
-    uint albedoTexture;
-};
-
-#ifdef OBLO_PICKING_ENABLED
-
-layout(std430, binding = 12) restrict readonly buffer i_EntityIdBuffer
-{
-    uint entityIds[];
-};
-
-#endif
-
-layout(std430, binding = 2) restrict readonly buffer i_MaterialBuffer
-{
-    gpu_material materials[];
+    uint values[];
 };
 
 layout(binding = 3) uniform b_LightConfig
@@ -45,9 +34,16 @@ layout(std430, binding = 4) restrict readonly buffer b_LightData
     light_data lights[];
 };
 
+layout(push_constant) uniform c_PushConstants
+{
+    uint instanceTableId;
+}
+g_Constants;
+
 void main()
 {
-    const gpu_material material = materials[in_InstanceId];
+    const instance_table instanceTable = get_instance_table(g_Constants.instanceTableId);
+    const gpu_material material = OBLO_INSTANCE_DATA(instanceTable, i_MaterialBuffer, in_InstanceId);
 
     const vec4 color = texture_sample_2d(material.albedoTexture, OBLO_SAMPLER_LINEAR, in_UV0);
 
@@ -61,6 +57,7 @@ void main()
     out_Color = vec4(color.xyz * material.albedo * reflected, 1);
 
 #ifdef OBLO_PICKING_ENABLED
-    out_PickingId = entityIds[in_InstanceId];
+    const uint entityId = OBLO_INSTANCE_DATA(instanceTable, i_EntityIdBuffer, in_InstanceId);
+    out_PickingId = entityId;
 #endif
 }
