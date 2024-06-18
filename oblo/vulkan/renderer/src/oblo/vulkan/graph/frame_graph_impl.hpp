@@ -93,6 +93,8 @@ namespace oblo::vk
         u32 lastTextureTransition;
         u32 firstBufferBarrier;
         u32 lastBufferBarrier;
+        u32 firstExecTimeUpload;
+        u32 lastExecTimeUpload;
     };
 
     struct frame_graph_pending_upload
@@ -152,7 +154,12 @@ namespace oblo::vk
         dynamic_array<frame_graph_texture> transientTextures;
         dynamic_array<frame_graph_buffer> transientBuffers;
         dynamic_array<frame_graph_pending_upload> pendingUploads;
+        dynamic_array<h32<frame_graph_pin_storage>> execTimeUploads;
+
         dynamic_array<h32<frame_graph_pin_storage>> dynamicPins;
+
+        // TODO: (#8) This could be a set
+        h32_flat_extpool_dense_map<frame_graph_pin_storage, bool> currentNodeUploads;
 
         resource_pool resourcePool;
 
@@ -172,6 +179,12 @@ namespace oblo::vk
 
         void add_transient_buffer(resource<buffer> handle, u32 poolIndex, const staging_buffer_span* upload);
         void add_buffer_access(resource<buffer> handle, VkPipelineStageFlags2 pipelineStage, VkAccessFlags2 access);
+
+        // This is called by builders, to enable a node to upload on a buffer at execution time.
+        void register_exec_time_upload(resource<buffer> handle);
+
+        // This is called by executors, to check that registration happened before uploading.
+        bool can_exec_time_upload(resource<buffer> handle) const;
 
         h32<frame_graph_pin_storage> allocate_dynamic_resource_pin();
 

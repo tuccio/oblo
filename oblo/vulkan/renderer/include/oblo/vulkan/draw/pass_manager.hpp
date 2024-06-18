@@ -75,6 +75,8 @@ namespace oblo::vk
         void begin_frame();
         void end_frame();
 
+        void update_instance_data_defines(std::string_view defines);
+
         [[nodiscard]] expected<render_pass_context> begin_render_pass(
             VkCommandBuffer commandBuffer, h32<render_pipeline> pipeline, const VkRenderingInfo& renderingInfo) const;
 

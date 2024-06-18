@@ -10,6 +10,7 @@ namespace oblo::vk::main_view
     constexpr std::string_view InResolution{"Resolution"};
     constexpr std::string_view InCamera{"Camera"};
     constexpr std::string_view InTime{"Time"};
+    constexpr std::string_view InInstanceTables{"InstanceTables"};
     constexpr std::string_view InFinalRenderTarget{"Final Render Target"};
 
     constexpr std::string_view InLightData{"LightDataBuffer"};
@@ -29,6 +30,7 @@ namespace oblo::vk::scene_data
     constexpr std::string_view InLightData{"LightData"};
     constexpr std::string_view OutLightData{"LightDataBuffer"};
     constexpr std::string_view OutLightConfig{"LightConfig"};
+    constexpr std::string_view OutInstanceTables{"InstanceTables"};
 
     frame_graph_template create(const frame_graph_registry& registry);
 }

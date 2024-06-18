@@ -5,8 +5,8 @@
 #include <oblo/core/data_format.hpp>
 #include <oblo/core/flags.hpp>
 #include <oblo/core/frame_allocator.hpp>
-#include <oblo/core/log.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
+#include <oblo/core/log.hpp>
 #include <oblo/ecs/archetype_storage.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/range.hpp>
@@ -76,6 +76,12 @@ namespace oblo::vk
     {
         staging_buffer_span src;
         buffer dst;
+    };
+
+    struct draw_registry::instance_data_type_info
+    {
+        h32<string> name;
+        u32 gpuInstanceBufferId;
     };
 
     draw_registry::draw_registry() = default;
@@ -185,6 +191,12 @@ namespace oblo::vk
         const auto internedName = m_interner->get_or_add(name);
         m_instanceDataTypeNames.emplace(type, internedName);
         m_instanceDataTypes.add(type);
+        m_isInstanceTypeInfoDirty = true;
+    }
+
+    bool draw_registry::needs_reloading_instance_data_types() const
+    {
+        return m_isInstanceTypeInfoDirty;
     }
 
     void draw_registry::end_frame()
@@ -367,7 +379,7 @@ namespace oblo::vk
     {
         // We use the component type as draw buffer id, so we just reinterpret it here
         auto* const str = m_instanceDataTypeNames.try_find({.value = drawBuffer.value});
-        return str ? *str : h32<string>{};
+        return str ? str->name : h32<string>{};
     }
 
     void draw_registry::flush_uploads(VkCommandBuffer commandBuffer)
@@ -575,6 +587,7 @@ namespace oblo::vk
             const auto allComponentsCount = componentTypes.size();
 
             draw_instance_buffers instanceBuffers{
+                .instanceBufferIds = allocate_n<u32>(allocator, allComponentsCount),
                 .bindings = allocate_n<h32<vk::draw_buffer>>(allocator, allComponentsCount),
                 .buffersData = allocate_n<staging_buffer_span>(allocator, allComponentsCount),
                 .count = 0u,
@@ -598,8 +611,12 @@ namespace oblo::vk
                 const expected allocation = stagingBuffer.stage_allocate(bufferSize);
                 OBLO_ASSERT(allocation);
 
+                auto* const typeInfo = m_instanceDataTypeNames.try_find(componentType);
+
                 instanceBuffers.buffersData[instanceBuffers.count] = *allocation;
                 instanceBuffers.bindings[instanceBuffers.count] = h32<draw_buffer>{componentType.value};
+                instanceBuffers.instanceBufferIds[instanceBuffers.count] =
+                    typeInfo ? typeInfo->gpuInstanceBufferId : ~u32{};
 
                 ++instanceBuffers.count;
             }
@@ -639,6 +656,31 @@ namespace oblo::vk
 
         m_drawData = frameDrawData;
         m_drawDataCount = drawBatches;
+    }
+
+    std::string_view draw_registry::refresh_instance_data_defines(frame_allocator& allocator)
+    {
+        if (m_instanceDataTypeNames.empty())
+        {
+            return {};
+        }
+
+        constexpr auto sizePerLine = sizeof("#define OBLO_INSTANCE_DATA_ 99\n") + 128;
+
+        auto* const str = reinterpret_cast<char*>(allocator.allocate(m_instanceDataTypeNames.size() * sizePerLine, 1));
+        auto* it = str;
+
+        u32 id{};
+
+        for (auto& info : m_instanceDataTypeNames.values())
+        {
+            const auto newId = id++;
+            info.gpuInstanceBufferId = newId;
+
+            it = std::format_to(it, "#define OBLO_INSTANCE_DATA_{} {}\n", m_interner->c_str(info.name), newId);
+        }
+
+        return {str, it};
     }
 
     std::span<const batch_draw_data> draw_registry::get_draw_calls() const

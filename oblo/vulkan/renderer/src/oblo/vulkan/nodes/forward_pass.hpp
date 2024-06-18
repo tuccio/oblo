@@ -28,6 +28,8 @@ namespace oblo::vk
         resource<buffer> inLightData;
         resource<buffer> inLightConfig;
 
+        resource<buffer> inInstanceTables;
+
         resource<texture> outRenderTarget;
         resource<texture> outPickingIdBuffer;
         resource<texture> outDepthBuffer;

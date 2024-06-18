@@ -12,6 +12,8 @@ namespace oblo
         {
             g.connect(sceneDataProvider, vk::scene_data::OutLightConfig, mainView, vk::main_view::InLightConfig);
             g.connect(sceneDataProvider, vk::scene_data::OutLightData, mainView, vk::main_view::InLightData);
+
+            g.connect(sceneDataProvider, vk::scene_data::OutInstanceTables, mainView, vk::main_view::InInstanceTables);
         }
     }
 

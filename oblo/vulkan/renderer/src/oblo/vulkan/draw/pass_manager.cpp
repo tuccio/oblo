@@ -123,10 +123,10 @@ namespace oblo::vk
         {
             void handleFileAction(efsw::WatchID, const std::string&, const std::string&, efsw::Action, std::string)
             {
-                anyEvent = true;
+                isDirty = true;
             }
 
-            std::atomic<bool> anyEvent{};
+            std::atomic<bool> isDirty{};
         };
 
         struct vertex_inputs_reflection
@@ -270,7 +270,7 @@ namespace oblo::vk
         template <typename Pass, typename Pipelines>
         void poll_hot_reloading(vulkan_context& vkCtx, Pass& pass, Pipelines& pipelines)
         {
-            if (bool expected{true}; pass.watcher->anyEvent.compare_exchange_weak(expected, false))
+            if (bool expected{true}; pass.watcher->isDirty.compare_exchange_weak(expected, false))
             {
                 for (auto& variant : pass.variants)
                 {
@@ -354,6 +354,8 @@ namespace oblo::vk
 
         u32 subgroupSize;
 
+        std::string instanceDataDefines;
+
         VkShaderModule create_shader_module(VkShaderStageFlagBits vkStage,
             const std::filesystem::path& filePath,
             std::span<const h32<string>> defines,
@@ -405,6 +407,8 @@ namespace oblo::vk
             requiredDefinesLength += u32(fixedSize + interner->str(define).size());
         }
 
+        requiredDefinesLength += u32(instanceDataDefines.size());
+
         constexpr std::string_view lineDirective{"#line 0\n"};
 
         const auto firstLineEnd = std::find(sourceCode.begin(), sourceCode.end(), '\n');
@@ -421,6 +425,7 @@ namespace oblo::vk
         ++it;
 
         it = std::copy(builtInDefinesBuffer, builtInEnd, it);
+        it = std::copy(instanceDataDefines.begin(), instanceDataDefines.end(), it);
 
         for (const auto define : defines)
         {
@@ -1381,6 +1386,28 @@ namespace oblo::vk
     {
         m_impl->descriptorSetPool.end_frame();
         m_impl->texturesDescriptorSetPool.end_frame();
+    }
+
+    void pass_manager::update_instance_data_defines(std::string_view defines)
+    {
+        m_impl->instanceDataDefines = defines;
+
+        // Invalidate all passes as well, to trigger recompilation of shaders
+        for (auto& pass : m_impl->renderPasses.values())
+        {
+            if (pass.watcher)
+            {
+                pass.watcher->isDirty.store(true);
+            }
+        }
+
+        for (auto& pass : m_impl->computePasses.values())
+        {
+            if (pass.watcher)
+            {
+                pass.watcher->isDirty.store(true);
+            }
+        }
     }
 
     expected<render_pass_context> pass_manager::begin_render_pass(

@@ -5,6 +5,7 @@
 #include <oblo/vulkan/nodes/copy_texture_node.hpp>
 #include <oblo/vulkan/nodes/forward_pass.hpp>
 #include <oblo/vulkan/nodes/frustum_culling.hpp>
+#include <oblo/vulkan/nodes/instance_table_node.hpp>
 #include <oblo/vulkan/nodes/light_provider.hpp>
 #include <oblo/vulkan/nodes/picking_readback.hpp>
 #include <oblo/vulkan/nodes/view_buffers_node.hpp>
@@ -30,6 +31,9 @@ namespace oblo::vk::main_view
         graph.make_input(forwardPass, &forward_pass::inPickingConfiguration, InPickingConfiguration);
         graph.make_input(forwardPass, &forward_pass::inLightConfig, InLightConfig);
         graph.make_input(forwardPass, &forward_pass::inLightData, InLightData);
+
+        // Culling should be the one getting it first, so that should be the input
+        graph.make_input(forwardPass, &forward_pass::inInstanceTables, InInstanceTables);
 
         // Final blit
         graph.make_input(copyFinalTarget, &copy_texture_node::inTarget, InFinalRenderTarget);
@@ -95,6 +99,9 @@ namespace oblo::vk::scene_data
         graph.make_output(lightProvider, &light_provider::outLightConfig, OutLightConfig);
         graph.make_output(lightProvider, &light_provider::outLightData, OutLightData);
 
+        const auto instanceTableNode = graph.add_node<instance_table_node>();
+        graph.make_output(instanceTableNode, &instance_table_node::outInstanceTables, OutInstanceTables);
+
         return graph;
     }
 }
@@ -114,6 +121,7 @@ namespace oblo::vk
 
         // Scene data
         registry.register_node<light_provider>();
+        registry.register_node<instance_table_node>();
 
         return registry;
     }
