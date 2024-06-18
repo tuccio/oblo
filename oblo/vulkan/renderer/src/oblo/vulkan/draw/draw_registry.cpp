@@ -80,7 +80,7 @@ namespace oblo::vk
 
     struct draw_registry::instance_data_type_info
     {
-        h32<string> name;
+        std::string name;
         u32 gpuInstanceBufferId;
     };
 
@@ -93,7 +93,6 @@ namespace oblo::vk
     {
         m_ctx = &ctx;
         m_stagingBuffer = &stagingBuffer;
-        m_interner = &interner;
         m_entities = &entities;
 
         mesh_attribute_description attributes[u32(vertex_attributes::enum_max)];
@@ -188,8 +187,7 @@ namespace oblo::vk
 
     void draw_registry::register_instance_data(ecs::component_type type, std::string_view name)
     {
-        const auto internedName = m_interner->get_or_add(name);
-        m_instanceDataTypeNames.emplace(type, internedName);
+        m_instanceDataTypeNames.emplace(type, std::string{name});
         m_instanceDataTypes.add(type);
         m_isInstanceTypeInfoDirty = true;
     }
@@ -669,7 +667,7 @@ namespace oblo::vk
             const auto newId = id++;
             info.gpuInstanceBufferId = newId;
 
-            it = std::format_to(it, "#define OBLO_INSTANCE_DATA_{} {}\n", m_interner->c_str(info.name), newId);
+            it = std::format_to(it, "#define OBLO_INSTANCE_DATA_{} {}\n", info.name, newId);
         }
 
         return {str, it};
@@ -712,7 +710,7 @@ namespace oblo::vk
 
             const auto name = m_instanceDataTypeNames.values()[id].name;
 
-            fmtAppend("{} [id: {}] [size: {}]\n", m_interner->str(name), id, bufferSize);
+            fmtAppend("{} [id: {}] [size: {}]\n", name, id, bufferSize);
         }
 
         log::debug("{}", stringBuffer);
