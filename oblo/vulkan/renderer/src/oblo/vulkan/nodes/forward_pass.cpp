@@ -187,11 +187,6 @@ namespace oblo::vk
             dynamic_array<buffer> drawCommands;
             drawCommands.resize_default(drawData.size());
 
-            dynamic_array<buffer_binding_table> instanceBufferBindings;
-            instanceBufferBindings.resize_default(drawData.size());
-
-            const auto& drawRegistry = context.get_draw_registry();
-
             for (usize drawCallIndex = 0; drawCallIndex < drawCalls.size(); ++drawCallIndex)
             {
                 auto& draw = drawCalls[drawCallIndex];
@@ -201,22 +196,9 @@ namespace oblo::vk
 
                 const auto drawCallBuffer = context.access(culledDraw.drawCallBuffer);
                 drawCommands[drawCallIndex] = drawCallBuffer;
-
-                auto& bindings = instanceBufferBindings[drawCallIndex];
-
-                for (u32 bufferIndex = 0; bufferIndex < draw.instanceBuffers.count; ++bufferIndex)
-                {
-                    const auto instanceBuffer = context.access(culledDraw.instanceBuffers[bufferIndex]);
-                    OBLO_ASSERT(instanceBuffer.buffer);
-
-                    const auto name = drawRegistry.get_name(draw.instanceBuffers.bindings[bufferIndex]);
-                    OBLO_ASSERT(name);
-
-                    bindings.emplace(name, instanceBuffer);
-                }
             }
 
-            passManager.draw(*pass, drawCommands, drawCalls, instanceBufferBindings, bindingTables);
+            passManager.draw(*pass, drawCommands, drawCalls, bindingTables);
 
             passManager.end_render_pass(*pass);
         }

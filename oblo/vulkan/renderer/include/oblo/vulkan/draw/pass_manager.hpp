@@ -85,7 +85,6 @@ namespace oblo::vk
         void draw(const render_pass_context& context,
             std::span<const buffer> batchDrawCommands,
             std::span<const batch_draw_data> batchDrawData,
-            std::span<const buffer_binding_table> perDrawBindingTable,
             std::span<const buffer_binding_table* const> bindingTables = {});
 
         expected<compute_pass_context> begin_compute_pass(VkCommandBuffer commandBuffer,

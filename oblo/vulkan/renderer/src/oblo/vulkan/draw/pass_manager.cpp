@@ -1512,7 +1512,6 @@ namespace oblo::vk
     void pass_manager::draw(const render_pass_context& context,
         std::span<const buffer> batchDrawCommands,
         std::span<const batch_draw_data> batchDrawData,
-        std::span<const buffer_binding_table> perDrawBindingTable,
         std::span<const buffer_binding_table* const> bindingTables)
     {
         OBLO_ASSERT(batchDrawCommands.size() == batchDrawData.size());
@@ -1552,11 +1551,7 @@ namespace oblo::vk
                 const VkDescriptorSet descriptorSet = m_impl->create_descriptor_set(descriptorSetLayout,
                     *pipeline,
                     bindingTables,
-                    [perDrawBindingTable, drawIndex](h32<string> binding)
-                    {
-                        auto* const b = perDrawBindingTable[drawIndex].try_find(binding);
-                        return b ? *b : buffer{};
-                    });
+                    [](h32<string>) { return buffer{}; });
 
                 vkCmdBindDescriptorSets(context.commandBuffer,
                     VK_PIPELINE_BIND_POINT_GRAPHICS,
