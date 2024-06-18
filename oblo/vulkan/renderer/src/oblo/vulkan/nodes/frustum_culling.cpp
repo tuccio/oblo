@@ -14,6 +14,11 @@ namespace oblo::vk
         {
             u32 numberOfDraws;
         };
+
+        struct frustum_culling_push_constants
+        {
+            u32 instanceTableId;
+        };
     }
 
     struct frustum_culling_data
@@ -119,13 +124,15 @@ namespace oblo::vk
         usize nextIndex = 0;
 
         auto& interner = context.get_string_interner();
-        const auto& drawRegistry = context.get_draw_registry();
 
         const auto cullingConfigName = interner.get_or_add("b_CullingConfig");
         const auto inDrawCallsBufferName = interner.get_or_add("b_InDrawCallsBuffer");
         const auto outDrawCallsBufferName = interner.get_or_add("b_OutDrawCallsBuffer");
+        const auto inInstanceTablesName = interner.get_or_add("b_InstanceTables");
 
         buffer_binding_table bindingTable;
+
+        const buffer inInstanceTablesBuffer = context.access(inInstanceTables);
 
         for (const auto indexedPipeline : {false, true})
         {
@@ -163,6 +170,7 @@ namespace oblo::vk
                         });
 
                     bindingTable.emplace(outDrawCallsBufferName, outDrawCallsBuffer);
+                    bindingTable.emplace(inInstanceTablesName, inInstanceTablesBuffer);
 
                     const u32 count = currentDraw.sourceData.drawCommands.drawCount;
 
@@ -171,16 +179,10 @@ namespace oblo::vk
                         &bindingTable,
                     };
 
-                    for (u32 i = 0; i < currentDraw.sourceData.instanceBuffers.count; ++i)
-                    {
-                        const auto binding = currentDraw.sourceData.instanceBuffers.bindings[i];
-                        const auto name = drawRegistry.get_name(binding);
+                    const frustum_culling_push_constants pcData{
+                        .instanceTableId = currentDraw.sourceData.instanceTableId};
 
-                        const buffer instanceBuffer = context.access(currentDraw.instanceBuffers[i]);
-                        OBLO_ASSERT(instanceBuffer.buffer);
-
-                        bindingTable.emplace(name, instanceBuffer);
-                    }
+                    pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&pcData, 1}));
 
                     pm.dispatch(*pass, round_up_multiple(count, subgroupSize), 1, 1, bindingTables);
                 }

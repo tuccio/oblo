@@ -20,6 +20,8 @@ namespace oblo::vk
         resource<buffer> outTimeBuffer;
         resource<buffer> outMeshDatabase;
 
+        resource<buffer> inInstanceTables;
+
         void build(const frame_graph_build_context& builder)
         {
             const auto& cameraBuffer = builder.access(inCameraData);

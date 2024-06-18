@@ -101,6 +101,12 @@ namespace oblo::vk
 
         u32 get_subgroup_size() const;
 
+        void push_constants(
+            const render_pass_context& ctx, VkShaderStageFlags stages, u32 offset, std::span<const byte> data) const;
+
+        void push_constants(
+            const compute_pass_context& ctx, VkShaderStageFlags stages, u32 offset, std::span<const byte> data) const;
+
     private:
         struct impl;
 

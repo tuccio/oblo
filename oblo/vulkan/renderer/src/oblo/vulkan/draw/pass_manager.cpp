@@ -1673,4 +1673,26 @@ namespace oblo::vk
     {
         return m_impl->subgroupSize;
     }
+
+    void pass_manager::push_constants(
+        const render_pass_context& ctx, VkShaderStageFlags stages, u32 offset, std::span<const byte> data) const
+    {
+        vkCmdPushConstants(ctx.commandBuffer,
+            ctx.internalPipeline->pipelineLayout,
+            stages,
+            offset,
+            u32(data.size()),
+            data.data());
+    }
+
+    void pass_manager::push_constants(
+        const compute_pass_context& ctx, VkShaderStageFlags stages, u32 offset, std::span<const byte> data) const
+    {
+        vkCmdPushConstants(ctx.commandBuffer,
+            ctx.internalPipeline->pipelineLayout,
+            stages,
+            offset,
+            u32(data.size()),
+            data.data());
+    }
 }

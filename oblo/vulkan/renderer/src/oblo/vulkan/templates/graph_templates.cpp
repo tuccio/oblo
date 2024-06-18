@@ -25,15 +25,13 @@ namespace oblo::vk::main_view
         // Hacky view buffers node
         graph.make_input(viewBuffers, &view_buffers_node::inCameraData, InCamera);
         graph.make_input(viewBuffers, &view_buffers_node::inTimeData, InTime);
+        graph.make_input(viewBuffers, &view_buffers_node::inInstanceTables, InInstanceTables);
 
         // Forward pass inputs
         graph.make_input(forwardPass, &forward_pass::inResolution, InResolution);
         graph.make_input(forwardPass, &forward_pass::inPickingConfiguration, InPickingConfiguration);
         graph.make_input(forwardPass, &forward_pass::inLightConfig, InLightConfig);
         graph.make_input(forwardPass, &forward_pass::inLightData, InLightData);
-
-        // Culling should be the one getting it first, so that should be the input
-        graph.make_input(forwardPass, &forward_pass::inInstanceTables, InInstanceTables);
 
         // Final blit
         graph.make_input(copyFinalTarget, &copy_texture_node::inTarget, InFinalRenderTarget);
@@ -43,6 +41,9 @@ namespace oblo::vk::main_view
             &view_buffers_node::outPerViewBindingTable,
             forwardPass,
             &forward_pass::inPerViewBindingTable);
+
+        // Connect instance tables to forward
+        graph.connect(viewBuffers, &view_buffers_node::inInstanceTables, forwardPass, &forward_pass::inInstanceTables);
 
         // Connect forward to final blit
         graph.connect(forwardPass, &forward_pass::outRenderTarget, copyFinalTarget, &copy_texture_node::inSource);
@@ -63,6 +64,11 @@ namespace oblo::vk::main_view
                 &frustum_culling::inPerViewBindingTable);
 
             graph.connect(frustumCulling, &frustum_culling::outDrawBufferData, forwardPass, &forward_pass::inDrawData);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::inInstanceTables,
+                frustumCulling,
+                &frustum_culling::inInstanceTables);
         }
 
         // Picking

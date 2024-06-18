@@ -6,6 +6,7 @@
 
 #include <renderer/camera>
 #include <renderer/constants>
+#include <renderer/instances>
 #include <renderer/intersection>
 #include <renderer/meshes>
 #include <renderer/transform>
@@ -55,10 +56,11 @@ layout(std430, binding = 6) restrict buffer b_OutDrawCallsBuffer
     draw_command_t outDrawCalls[];
 };
 
-layout(std430, binding = 7) restrict readonly buffer i_TransformBuffer
+layout(push_constant) uniform c_PushConstants
 {
-    transform g_Transforms[];
-};
+    uint instanceTableId;
+}
+g_Constants;
 
 aabb transform_aabb(in aabb box, in mat4 m)
 {
@@ -98,13 +100,16 @@ void main()
         return;
     }
 
-    const mesh_handle meshHandle = g_MeshHandles[drawId];
+    const instance_table instanceTable = get_instance_table(g_Constants.instanceTableId);
+    const mesh_handle meshHandle = OBLO_INSTANCE_DATA(instanceTable, i_MeshHandles, drawId);
+
+    // Instance id and draw id are the same since we don't support instancing currently
+    const transform instanceTransform = OBLO_INSTANCE_DATA(instanceTable, i_TransformBuffer, drawId);
 
     const mesh_table table = get_mesh_table(meshHandle);
     const uint meshIndex = get_mesh_index(meshHandle);
 
-    // Instance id and draw id are the same since we don't support instancing currently
-    const mat4 localToWorld = g_Transforms[drawId].localToWorld;
+    const mat4 localToWorld = instanceTransform.localToWorld;
 
     const aabb msBox = get_mesh_aabb(table, meshIndex);
     const aabb wsBox = transform_aabb(msBox, localToWorld);

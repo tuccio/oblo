@@ -21,6 +21,8 @@ namespace oblo::vk
 
         data<std::span<draw_buffer_data>> outDrawBufferData;
 
+        resource<buffer> inInstanceTables;
+
         void init(const frame_graph_init_context& context);
 
         void build(const frame_graph_build_context& builder);
