@@ -37,6 +37,9 @@ namespace oblo::vk
         constexpr bool WithShaderCodeOptimizations{false};
         constexpr bool WithShaderDebugInfo{true};
 
+        // Push constants with this names are detected through reflection to be set at each draw
+        constexpr auto InstanceTableIdPushConstant = "instanceTableId";
+
         constexpr u8 MaxPipelineStages = u8(pipeline_stages::enum_max);
 
         constexpr VkShaderStageFlagBits to_vulkan_stage_bits(pipeline_stages stage)
@@ -74,6 +77,13 @@ namespace oblo::vk
             u32 binding;
             resource_kind kind;
             pipeline_stages stage2;
+        };
+
+        struct push_constant_info
+        {
+            VkPipelineStageFlags stages{};
+            u32 size{};
+            i32 instanceTableIdOffset{-1};
         };
 
         // This has to match the OBLO_SAMPLER_ flags in shaders
@@ -660,6 +670,19 @@ namespace oblo::vk
             auto [it, inserted] = newPipeline.pushConstants.emplace(name);
             it->stages |= vkStage;
             it->size = 128; // We should figure if we can get the size from reflection instead
+
+            const auto& type = compiler.get_type(pushConstant.base_type_id);
+
+            for (u32 i = 0; i < type.member_types.size(); ++i)
+            {
+                const auto pcName = compiler.get_member_name(type.self, i);
+
+                if (pcName == InstanceTableIdPushConstant)
+                {
+                    const auto offset = compiler.type_struct_member_offset(type, i);
+                    it->instanceTableIdOffset = i32(offset);
+                }
+            }
         }
     }
 
@@ -1546,16 +1569,22 @@ namespace oblo::vk
 
                 auto& drawBuffer = batchDrawCommands[drawIndex];
 
-                // A little hacky, sets the draw as push constant
-                // We could maybe tell this function whether or not the draw index should be set somewhere?
-                u32 instanceTableId{draw.instanceTableId};
+                for (auto& pushConstantInfo : pipeline->pushConstants.values())
+                {
+                    if (pushConstantInfo.instanceTableIdOffset >= 0)
+                    {
+                        u32 instanceTableId{draw.instanceTableId};
 
-                vkCmdPushConstants(context.commandBuffer,
-                    pipeline->pipelineLayout,
-                    VK_SHADER_STAGE_VERTEX_BIT,
-                    0,
-                    sizeof(u32),
-                    &instanceTableId);
+                        vkCmdPushConstants(context.commandBuffer,
+                            pipeline->pipelineLayout,
+                            pushConstantInfo.stages,
+                            u32(pushConstantInfo.instanceTableIdOffset),
+                            sizeof(u32),
+                            &instanceTableId);
+
+                        break;
+                    }
+                }
 
                 if (draw.drawCommands.isIndexed)
                 {
