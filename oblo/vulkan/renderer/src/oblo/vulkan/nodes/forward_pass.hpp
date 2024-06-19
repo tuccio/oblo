@@ -4,6 +4,7 @@
 #include <oblo/vulkan/draw/buffer_binding_table.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
+#include <oblo/vulkan/nodes/instance_table_node.hpp>
 
 #include <span>
 
@@ -29,6 +30,7 @@ namespace oblo::vk
         resource<buffer> inLightConfig;
 
         resource<buffer> inInstanceTables;
+        data<instance_data_table_buffers_span> inInstanceBuffers;
 
         resource<texture> outRenderTarget;
         resource<texture> outPickingIdBuffer;

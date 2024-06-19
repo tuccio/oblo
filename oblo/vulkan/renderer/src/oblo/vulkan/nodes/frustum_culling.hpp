@@ -4,6 +4,7 @@
 #include <oblo/vulkan/draw/draw_registry.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
+#include <oblo/vulkan/nodes/instance_table_node.hpp>
 
 namespace oblo::vk
 {
@@ -22,6 +23,7 @@ namespace oblo::vk
         data<std::span<draw_buffer_data>> outDrawBufferData;
 
         resource<buffer> inInstanceTables;
+        data<instance_data_table_buffers_span> inInstanceBuffers;
 
         void init(const frame_graph_init_context& context);
 

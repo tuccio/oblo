@@ -47,7 +47,7 @@ void main()
 
     const vec4 color = texture_sample_2d(material.albedoTexture, OBLO_SAMPLER_LINEAR, in_UV0);
 
-    vec3 reflected = vec3(0, 0, 0);
+    vec3 reflected = vec3(0);
 
     for (uint lightIndex = 0; lightIndex < g_LightConfig.lightsCount; ++lightIndex)
     {

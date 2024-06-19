@@ -13,18 +13,14 @@ namespace oblo::vk
         u64 bufferAddress[MaxInstanceBuffers];
     };
 
-    struct instance_data_table_buffers
-    {
-        std::span<resource<buffer>> bufferResources;
-        const u32* bufferIds;
-    };
-
     void instance_table_node::build(const frame_graph_build_context& ctx)
     {
         const auto& drawRegistry = ctx.get_draw_registry();
 
         const std::span drawCalls = drawRegistry.get_draw_calls();
         const auto numTables = drawCalls.size();
+
+        auto& instanceBuffers = ctx.access(outInstanceBuffers);
 
         if (numTables == 0)
         {
@@ -71,6 +67,8 @@ namespace oblo::vk
 
     void instance_table_node::execute(const frame_graph_execute_context& ctx)
     {
+        auto& instanceBuffers = ctx.access(outInstanceBuffers);
+
         if (instanceBuffers.empty())
         {
             return;
@@ -92,8 +90,6 @@ namespace oblo::vk
                 const auto id = instanceBuffers[i].bufferIds[j];
                 instanceTableArray[i].bufferAddress[id] = vkGetBufferDeviceAddress(ctx.get_device(), &info) + b.offset;
             }
-
-            const auto instances = instanceBuffers[i];
         }
 
         ctx.upload(outInstanceTables, as_bytes(instanceTableArray));

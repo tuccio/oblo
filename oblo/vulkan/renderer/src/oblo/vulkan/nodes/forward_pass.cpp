@@ -79,8 +79,6 @@ namespace oblo::vk
         {
             builder.acquire(drawData.drawCallBuffer, pass_kind::graphics, buffer_usage::indirect);
         }
-
-        builder.acquire(inInstanceTables, pass_kind::graphics, buffer_usage::storage_read);
     }
 
     void forward_pass::execute(const frame_graph_execute_context& context)

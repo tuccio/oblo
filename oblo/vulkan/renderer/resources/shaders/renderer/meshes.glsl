@@ -13,11 +13,12 @@
 #define OBLO_VERTEX_ATTRIBUTE_UV0 2
 #define OBLO_VERTEX_ATTRIBUTE_MAX 32
 
-#define OBLO_MESH_DATA_AABBS 0
+#define OBLO_MESH_DATA_DRAW_RANGE 0
+#define OBLO_MESH_DATA_AABBS 1
 #define OBLO_MESH_DATA_MAX 2
 
 #define OBLO_DESCRIPTOR_SET_MESH_DATABASE 0
-#define OBLO_BINDING_MESH_DATABASE 64
+#define OBLO_BINDING_MESH_DATABASE 33
 
 // This needs to match mesh_database::mesh_table_gpu
 struct mesh_table
@@ -66,6 +67,14 @@ struct vec3_attribute
     float x, y, z;
 };
 
+struct mesh_draw_range
+{
+    uint vertexOffset;
+    uint vertexCount;
+    uint indexOffset;
+    uint indexCount;
+};
+
 // Buffer references
 
 layout(buffer_reference) buffer Vec2AttributeType
@@ -81,6 +90,11 @@ layout(buffer_reference) buffer Vec3AttributeType
 layout(buffer_reference) buffer AabbAttributeType
 {
     padded_aabb values[];
+};
+
+layout(buffer_reference) buffer MeshDrawRangeType
+{
+    mesh_draw_range values[];
 };
 
 // Generic vertex data fetch
@@ -128,6 +142,13 @@ aabb get_mesh_aabb(in mesh_table t, in uint meshId)
     res.min = padded.min;
     res.max = padded.max;
     return res;
+}
+
+mesh_draw_range get_mesh_draw_range(in mesh_table t, in uint meshId)
+{
+    const uint64_t address = t.meshDataAddress + t.meshDataOffsets[OBLO_MESH_DATA_DRAW_RANGE];
+    MeshDrawRangeType attributeBuffer = MeshDrawRangeType(address);
+    return attributeBuffer.values[meshId];
 }
 
 #endif

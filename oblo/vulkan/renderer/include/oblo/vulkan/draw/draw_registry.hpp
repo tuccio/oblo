@@ -117,7 +117,6 @@ namespace oblo::vk
 
     private:
         vulkan_context* m_ctx{};
-        monotonic_gpu_buffer m_storageBuffer;
 
         staging_buffer* m_stagingBuffer{};
         string_interner* m_interner{};
@@ -142,7 +141,7 @@ namespace oblo::vk
         flat_dense_map<ecs::component_type, instance_data_type_info> m_instanceDataTypeNames;
         ecs::type_set m_instanceDataTypes{};
 
-        static constexpr u32 MeshBuffersCount{1};
+        static constexpr u32 MeshBuffersCount{2};
         std::array<h32<string>, MeshBuffersCount> m_meshDataNames{};
 
         dynamic_array<pending_mesh_upload> m_pendingMeshUploads;

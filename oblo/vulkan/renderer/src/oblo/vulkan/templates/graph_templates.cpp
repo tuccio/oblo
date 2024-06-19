@@ -26,6 +26,7 @@ namespace oblo::vk::main_view
         graph.make_input(viewBuffers, &view_buffers_node::inCameraData, InCamera);
         graph.make_input(viewBuffers, &view_buffers_node::inTimeData, InTime);
         graph.make_input(viewBuffers, &view_buffers_node::inInstanceTables, InInstanceTables);
+        graph.make_input(viewBuffers, &view_buffers_node::inInstanceBuffers, InInstanceBuffers);
 
         // Forward pass inputs
         graph.make_input(forwardPass, &forward_pass::inResolution, InResolution);
@@ -44,6 +45,10 @@ namespace oblo::vk::main_view
 
         // Connect instance tables to forward
         graph.connect(viewBuffers, &view_buffers_node::inInstanceTables, forwardPass, &forward_pass::inInstanceTables);
+        graph.connect(viewBuffers,
+            &view_buffers_node::inInstanceBuffers,
+            forwardPass,
+            &forward_pass::inInstanceBuffers);
 
         // Connect forward to final blit
         graph.connect(forwardPass, &forward_pass::outRenderTarget, copyFinalTarget, &copy_texture_node::inSource);
@@ -69,6 +74,11 @@ namespace oblo::vk::main_view
                 &view_buffers_node::inInstanceTables,
                 frustumCulling,
                 &frustum_culling::inInstanceTables);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::inInstanceBuffers,
+                frustumCulling,
+                &frustum_culling::inInstanceBuffers);
         }
 
         // Picking
@@ -107,6 +117,7 @@ namespace oblo::vk::scene_data
 
         const auto instanceTableNode = graph.add_node<instance_table_node>();
         graph.make_output(instanceTableNode, &instance_table_node::outInstanceTables, OutInstanceTables);
+        graph.make_output(instanceTableNode, &instance_table_node::outInstanceBuffers, OutInstanceBuffers);
 
         return graph;
     }

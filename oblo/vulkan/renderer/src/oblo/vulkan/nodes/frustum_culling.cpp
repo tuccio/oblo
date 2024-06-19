@@ -100,7 +100,6 @@ namespace oblo::vk
                     pass_kind::compute,
                     buffer_usage::storage_write),
                 .sourceData = draw,
-                .instanceBuffers = instanceBuffers.data(),
             };
 
             for (u32 bufferIndex = 0; bufferIndex < draw.instanceBuffers.count; ++bufferIndex)

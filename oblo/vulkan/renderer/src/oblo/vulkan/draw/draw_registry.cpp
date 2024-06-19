@@ -46,6 +46,12 @@ namespace oblo::vk
             enum_max,
         };
 
+        enum class mesh_data_buffers : u8
+        {
+            mesh_draw_range,
+            aabb,
+        };
+
         constexpr vertex_attributes convert_vertex_attribute(attribute_kind attribute)
         {
             switch (attribute)
@@ -69,6 +75,14 @@ namespace oblo::vk
         struct draw_instance_component
         {
             mesh_handle mesh;
+        };
+
+        struct mesh_draw_range
+        {
+            u32 vertexOffset;
+            u32 vertexCount;
+            u32 indexOffset;
+            u32 indexCount;
         };
     }
 
@@ -113,6 +127,10 @@ namespace oblo::vk
         };
 
         const mesh_attribute_description meshData[] = {
+            {
+                .name = interner.get_or_add("b_meshDrawRange"),
+                .elementSize = sizeof(mesh_draw_range),
+            },
             {
                 .name = interner.get_or_add("b_MeshAABBs"),
                 .elementSize = sizeof(gpu_aabb),
@@ -167,22 +185,11 @@ namespace oblo::vk
         m_indexNoneTag = m_typeRegistry->register_tag(ecs::make_tag_type_desc<mesh_index_none_tag>());
         m_indexU16Tag = m_typeRegistry->register_tag(ecs::make_tag_type_desc<mesh_index_u16_tag>());
         m_indexU32Tag = m_typeRegistry->register_tag(ecs::make_tag_type_desc<mesh_index_u32_tag>());
-
-        VkPhysicalDeviceProperties properties{};
-        vkGetPhysicalDeviceProperties(m_ctx->get_physical_device(), &properties);
-
-        u32 bufferChunkSize{1u << 26};
-
-        m_storageBuffer.init(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-            memory_usage::gpu_only,
-            narrow_cast<u8>(properties.limits.minStorageBufferOffsetAlignment),
-            bufferChunkSize);
     }
 
     void draw_registry::shutdown()
     {
         m_meshes.shutdown();
-        m_storageBuffer.shutdown(*m_ctx);
     }
 
     void draw_registry::register_instance_data(ecs::component_type type, std::string_view name)
@@ -201,8 +208,6 @@ namespace oblo::vk
     {
         m_drawData = {};
         m_drawDataCount = 0;
-
-        m_storageBuffer.restore_all();
     }
 
     h32<draw_mesh> draw_registry::get_or_create_mesh(oblo::resource_registry& resourceRegistry,
@@ -310,9 +315,22 @@ namespace oblo::vk
         }
 
         {
+            const auto range = m_meshes.get_table_range(meshHandle);
+
+            const mesh_draw_range drawRange{
+                .vertexOffset = range.vertexOffset,
+                .vertexCount = range.vertexCount,
+                .indexOffset = range.indexOffset,
+                .indexCount = range.indexCount,
+            };
+
+            doUpload(std::as_bytes(std::span{&drawRange, 1}), meshDataBuffers[u32(mesh_data_buffers::mesh_draw_range)]);
+        }
+
+        {
             const auto aabb = meshPtr->get_aabb();
             const gpu_aabb gpuAabb{.min = aabb.min, .max = aabb.max};
-            doUpload(std::as_bytes(std::span{&gpuAabb, 1}), meshDataBuffers[0]);
+            doUpload(std::as_bytes(std::span{&gpuAabb, 1}), meshDataBuffers[u32(mesh_data_buffers::aabb)]);
         }
 
         const h32<draw_mesh> globalMeshId{make_mesh_id(meshHandle)};

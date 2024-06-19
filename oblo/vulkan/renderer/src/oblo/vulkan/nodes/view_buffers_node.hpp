@@ -7,6 +7,7 @@
 #include <oblo/vulkan/graph/frame_graph_context.hpp>
 #include <oblo/vulkan/graph/node_common.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
+#include <oblo/vulkan/nodes/instance_table_node.hpp>
 
 namespace oblo::vk
 {
@@ -21,6 +22,7 @@ namespace oblo::vk
         resource<buffer> outMeshDatabase;
 
         resource<buffer> inInstanceTables;
+        data<instance_data_table_buffers_span> inInstanceBuffers;
 
         void build(const frame_graph_build_context& builder)
         {
@@ -55,6 +57,19 @@ namespace oblo::vk
                     },
                     pass_kind::compute, // TODO: Actually not used
                     buffer_usage::storage_read);
+            }
+
+            // The nodes after this one will read instance buffers, so let's add a barrier here
+            builder.acquire(inInstanceTables, pass_kind::compute, buffer_usage::storage_read);
+            builder.acquire(inInstanceTables, pass_kind::graphics, buffer_usage::storage_read);
+
+            for (const auto& instanceBufferTable : builder.access(inInstanceBuffers))
+            {
+                for (const auto& instanceBuffer : instanceBufferTable.bufferResources)
+                {
+                    builder.acquire(instanceBuffer, pass_kind::compute, buffer_usage::storage_read);
+                    builder.acquire(instanceBuffer, pass_kind::graphics, buffer_usage::storage_read);
+                }
             }
         }
 

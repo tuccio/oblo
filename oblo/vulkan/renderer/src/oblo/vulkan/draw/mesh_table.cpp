@@ -42,6 +42,7 @@ namespace oblo::vk
                 .size = compute_buffer_size(vertexAttributes, numVertices, alignment),
                 .usage = vertexBufferUsage,
                 .memoryUsage = memory_usage::gpu_only,
+                .debugLabel = "mesh_table_vertex_attributes",
             });
 
         if (const auto buffer = resourceManager.get(m_vertexBuffer);
@@ -58,6 +59,7 @@ namespace oblo::vk
                     .size = compute_buffer_size(meshAttributes, numMeshes, alignment),
                     .usage = meshBufferUsage,
                     .memoryUsage = memory_usage::gpu_only,
+                    .debugLabel = "mesh_table_per_mesh_data",
                 });
 
             if (const auto buffer = resourceManager.get(m_meshDataBuffer);
