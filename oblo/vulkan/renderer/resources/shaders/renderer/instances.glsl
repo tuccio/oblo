@@ -5,7 +5,7 @@
 // #extension GL_EXT_buffer_reference : require
 // #extension GL_ARB_gpu_shader_int64 : require
 
-#define OBLO_BINDING_INSTANCE_DATA_TABLES 50
+#define OBLO_BINDING_INSTANCE_DATA_TABLES 36
 
 #define OBLO_INSTANCE_DATA_CAT(A, B) A##B
 
@@ -14,8 +14,10 @@
 
 /// Gets the instance data from a table, automatically casting to a buffer reference named MyInstanceType, where
 /// MyInstance is the second argument
-#define OBLO_INSTANCE_DATA(Table, Instance, Index)                                                                     \
-    (OBLO_INSTANCE_DATA_CAT(Instance, Type)(get_instance_data(Table, OBLO_INSTANCE_DATA_ID(Instance)))).values[Index]
+#define OBLO_INSTANCE_DATA(TableId, Instance, Index)                                                                   \
+    (OBLO_INSTANCE_DATA_CAT(Instance, Type)(                                                                           \
+         get_instance_data(g_InstanceTables[TableId], OBLO_INSTANCE_DATA_ID(Instance))))                               \
+        .values[Index]
 
 #define OBLO_INSTANCE_DATA_MAX 32
 
@@ -32,11 +34,6 @@ layout(std430, binding = OBLO_BINDING_INSTANCE_DATA_TABLES) restrict readonly bu
 uint64_t get_instance_data(in instance_table t, in uint instanceDataId)
 {
     return t.bufferAddress[instanceDataId];
-}
-
-instance_table get_instance_table(in uint instanceTableIndex)
-{
-    return g_InstanceTables[instanceTableIndex];
 }
 
 #endif

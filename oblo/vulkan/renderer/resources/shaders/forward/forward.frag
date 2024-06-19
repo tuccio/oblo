@@ -42,8 +42,7 @@ g_Constants;
 
 void main()
 {
-    const instance_table instanceTable = get_instance_table(g_Constants.instanceTableId);
-    const gpu_material material = OBLO_INSTANCE_DATA(instanceTable, i_MaterialBuffer, in_InstanceId);
+    const gpu_material material = OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_MaterialBuffer, in_InstanceId);
 
     const vec4 color = texture_sample_2d(material.albedoTexture, OBLO_SAMPLER_LINEAR, in_UV0);
 
@@ -57,7 +56,7 @@ void main()
     out_Color = vec4(color.xyz * material.albedo * reflected, 1);
 
 #ifdef OBLO_PICKING_ENABLED
-    const uint entityId = OBLO_INSTANCE_DATA(instanceTable, i_EntityIdBuffer, in_InstanceId);
+    const uint entityId = OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_EntityIdBuffer, in_InstanceId);
     out_PickingId = entityId;
 #endif
 }

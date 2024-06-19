@@ -100,11 +100,10 @@ void main()
         return;
     }
 
-    const instance_table instanceTable = get_instance_table(g_Constants.instanceTableId);
-    const mesh_handle meshHandle = OBLO_INSTANCE_DATA(instanceTable, i_MeshHandles, drawId);
+    const mesh_handle meshHandle = OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_MeshHandles, drawId);
 
     // Instance id and draw id are the same since we don't support instancing currently
-    const transform instanceTransform = OBLO_INSTANCE_DATA(instanceTable, i_TransformBuffer, drawId);
+    const transform instanceTransform = OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_TransformBuffer, drawId);
 
     const mesh_table table = get_mesh_table(meshHandle);
     const uint meshIndex = get_mesh_index(meshHandle);

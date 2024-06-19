@@ -76,7 +76,7 @@ namespace oblo::vk
             u32 location;
             u32 binding;
             resource_kind kind;
-            pipeline_stages stage2;
+            VkShaderStageFlags stageFlags;
         };
 
         struct push_constant_info
@@ -502,8 +502,49 @@ namespace oblo::vk
             [](const shader_resource& lhs, const shader_resource& rhs)
             { return shader_resource_sorting::from(lhs) < shader_resource_sorting::from(rhs); });
 
-        // TODO: We could merge the bindings with the same name and kind that belong to different stages, to make
-        // descriptors smaller
+        for (u32 current = 0, next = 1; next < newPipeline.resources.size(); ++current)
+        {
+            if (shader_resource_sorting::from(newPipeline.resources[current]) ==
+                shader_resource_sorting::from(newPipeline.resources[next]))
+            {
+                newPipeline.resources[current].stageFlags |= newPipeline.resources[next].stageFlags;
+
+                // Remove the next but keep the order
+                newPipeline.resources.erase(newPipeline.resources.begin() + next);
+            }
+            else
+            {
+                ++next;
+            }
+        }
+
+        newPipeline.descriptorSetBindings.reserve(newPipeline.resources.size());
+
+        for (const auto& resource : newPipeline.resources)
+        {
+            VkDescriptorType descriptorType;
+
+            switch (resource.kind)
+            {
+            case resource_kind::storage_buffer:
+                descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                break;
+
+            case resource_kind::uniform_buffer:
+                descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                break;
+
+            default:
+                continue;
+            }
+
+            newPipeline.descriptorSetBindings.push_back({
+                .name = resource.name,
+                .binding = resource.binding,
+                .descriptorType = descriptorType,
+                .stageFlags = resource.stageFlags,
+            });
+        }
 
         newPipeline.descriptorSetLayout = descriptorSetPool.get_or_add_layout(newPipeline.descriptorSetBindings);
 
@@ -574,6 +615,7 @@ namespace oblo::vk
                     .location = location,
                     .binding = vertexAttributeIndex,
                     .kind = resource_kind::vertex_stage_input,
+                    .stageFlags = VkShaderStageFlags(vkStage),
                 });
 
                 const spirv_cross::SPIRType& type = compiler.get_type(stageInput.type_id);
@@ -614,12 +656,6 @@ namespace oblo::vk
                 .location = location,
                 .binding = binding,
                 .kind = resource_kind::storage_buffer,
-            });
-
-            newPipeline.descriptorSetBindings.push_back({
-                .name = name,
-                .binding = binding,
-                .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                 .stageFlags = VkShaderStageFlags(vkStage),
             });
         }
@@ -642,12 +678,6 @@ namespace oblo::vk
                 .location = location,
                 .binding = binding,
                 .kind = resource_kind::uniform_buffer,
-            });
-
-            newPipeline.descriptorSetBindings.push_back({
-                .name = name,
-                .binding = binding,
-                .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                 .stageFlags = VkShaderStageFlags(vkStage),
             });
         }

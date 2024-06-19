@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/buffered_array.hpp>
+#include <oblo/core/flags.hpp>
 #include <oblo/core/string_interner.hpp>
 #include <oblo/core/types.hpp>
 
