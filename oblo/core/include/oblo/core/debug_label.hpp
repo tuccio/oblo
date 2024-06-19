@@ -10,6 +10,19 @@ namespace oblo
     public:
         constexpr debug_label() : m_label{} {}
 
+        template <unsigned N>
+        constexpr debug_label(const char (&name)[N])
+        {
+            unsigned i = 0;
+
+            for (; i < N - 1 && i < Size - 1; ++i)
+            {
+                m_label[i] = name[i];
+            }
+
+            m_label[i] = '\0';
+        }
+
         debug_label(std::string_view str);
         debug_label(std::source_location loc);
 
