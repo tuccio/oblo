@@ -465,15 +465,10 @@ namespace oblo::vk
                         .offset = bufferPtr->offset,
                         .size = bufferPtr->size,
                     });
+                }
 
-                    // Track the new state as the new buffer state
-                    *it = dst;
-                }
-                else
-                {
-                    // First time we encounter the buffer, add it to the states
-                    bufferStates.emplace(dst.buffer, dst);
-                }
+                // Track the new state as the new buffer state
+                *it = dst;
             }
 
             if (!bufferBarriers.empty())
