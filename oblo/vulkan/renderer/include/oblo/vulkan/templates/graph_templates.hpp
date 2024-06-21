@@ -19,7 +19,6 @@ namespace oblo::vk::main_view
 
     struct config
     {
-        bool bypassCulling{false};
         bool withPicking{false};
     };
 

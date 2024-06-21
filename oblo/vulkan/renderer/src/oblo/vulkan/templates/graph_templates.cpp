@@ -1,7 +1,6 @@
 #include <oblo/vulkan/templates/graph_templates.hpp>
 
 #include <oblo/vulkan/graph/frame_graph_registry.hpp>
-#include <oblo/vulkan/nodes/bypass_culling.hpp>
 #include <oblo/vulkan/nodes/copy_texture_node.hpp>
 #include <oblo/vulkan/nodes/draw_call_generator.hpp>
 #include <oblo/vulkan/nodes/forward_pass.hpp>
@@ -54,13 +53,7 @@ namespace oblo::vk::main_view
         // Connect forward to final blit
         graph.connect(forwardPass, &forward_pass::outRenderTarget, copyFinalTarget, &copy_texture_node::inSource);
 
-        // Culling + debug bypass
-        if (cfg.bypassCulling)
-        {
-            const auto bypassCulling = graph.add_node<bypass_culling>();
-            graph.connect(bypassCulling, &bypass_culling::outDrawBufferData, forwardPass, &forward_pass::inDrawData);
-        }
-        else
+        // Culling + draw call generation
         {
             const auto frustumCulling = graph.add_node<frustum_culling>();
 
@@ -102,7 +95,10 @@ namespace oblo::vk::main_view
 
             graph.connect(frustumCulling, &frustum_culling::outDrawBufferData, forwardPass, &forward_pass::inDrawData);
 
-            graph.connect(drawCallGenerator, &draw_call_generator::outDrawCallBuffer, forwardPass, &forward_pass::inDrawCallBuffer);
+            graph.connect(drawCallGenerator,
+                &draw_call_generator::outDrawCallBuffer,
+                forwardPass,
+                &forward_pass::inDrawCallBuffer);
 
             graph.connect(viewBuffers,
                 &view_buffers_node::outMeshDatabase,
