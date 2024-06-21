@@ -62,7 +62,9 @@ void main()
         return;
     }
 
-    const mesh_handle meshHandle = OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_MeshHandles, drawId);
+    const uint preCullingId = inInstancesInFrustum[drawId];
+
+    const mesh_handle meshHandle = OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_MeshHandles, preCullingId);
     const mesh_table table = get_mesh_table(meshHandle);
 
     const uint meshIndex = get_mesh_index(meshHandle);

@@ -11,7 +11,7 @@
 #include <renderer/textures>
 #include <renderer/volumes>
 
-layout(location = 0) flat in uint in_InstanceId;
+layout(location = 0) flat in uint in_PreCullingId;
 layout(location = 1) in vec3 in_PositionWS;
 layout(location = 2) in vec3 in_Normal;
 layout(location = 3) in vec2 in_UV0;
@@ -42,7 +42,7 @@ g_Constants;
 
 void main()
 {
-    const gpu_material material = OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_MaterialBuffer, in_InstanceId);
+    const gpu_material material = OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_MaterialBuffer, in_PreCullingId);
 
     const vec4 color = texture_sample_2d(material.albedoTexture, OBLO_SAMPLER_LINEAR, in_UV0);
 
@@ -56,7 +56,7 @@ void main()
     out_Color = vec4(color.xyz * material.albedo * reflected, 1);
 
 #ifdef OBLO_PICKING_ENABLED
-    const uint entityId = OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_EntityIdBuffer, in_InstanceId);
+    const uint entityId = OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_EntityIdBuffer, in_PreCullingId);
     out_PickingId = entityId;
 #endif
 }
