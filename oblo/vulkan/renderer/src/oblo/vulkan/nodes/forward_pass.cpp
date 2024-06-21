@@ -10,6 +10,14 @@
 
 namespace oblo::vk
 {
+    namespace
+    {
+        struct forward_pass_push_constants
+        {
+            u32 instanceTableId;
+        };
+    }
+
     void forward_pass::init(const frame_graph_init_context& context)
     {
         auto& passManager = context.get_pass_manager();
@@ -32,11 +40,11 @@ namespace oblo::vk
         pickingEnabledDefine = context.get_string_interner().get_or_add("OBLO_PICKING_ENABLED");
     }
 
-    void forward_pass::build(const frame_graph_build_context& builder)
+    void forward_pass::build(const frame_graph_build_context& ctx)
     {
-        const auto resolution = builder.access(inResolution);
+        const auto resolution = ctx.access(inResolution);
 
-        builder.create(outRenderTarget,
+        ctx.create(outRenderTarget,
             {
                 .width = resolution.x,
                 .height = resolution.y,
@@ -46,7 +54,7 @@ namespace oblo::vk
             },
             texture_usage::render_target_write);
 
-        builder.create(outDepthBuffer,
+        ctx.create(outDepthBuffer,
             {
                 .width = resolution.x,
                 .height = resolution.y,
@@ -56,15 +64,15 @@ namespace oblo::vk
             },
             texture_usage::depth_stencil_write);
 
-        builder.acquire(inLightConfig, pass_kind::graphics, buffer_usage::uniform);
-        builder.acquire(inLightData, pass_kind::graphics, buffer_usage::storage_read);
+        ctx.acquire(inLightConfig, pass_kind::graphics, buffer_usage::uniform);
+        ctx.acquire(inLightData, pass_kind::graphics, buffer_usage::storage_read);
 
-        const auto& pickingConfiguration = builder.access(inPickingConfiguration);
+        const auto& pickingConfiguration = ctx.access(inPickingConfiguration);
         isPickingEnabled = pickingConfiguration.enabled;
 
         if (isPickingEnabled)
         {
-            builder.create(outPickingIdBuffer,
+            ctx.create(outPickingIdBuffer,
                 {
                     .width = resolution.x,
                     .height = resolution.y,
@@ -75,18 +83,37 @@ namespace oblo::vk
                 texture_usage::render_target_write);
         }
 
-        for (const auto& drawData : builder.access(inDrawData))
+        for (const auto& drawData : ctx.access(inDrawData))
         {
-            builder.acquire(drawData.drawCallBuffer, pass_kind::graphics, buffer_usage::indirect);
+            ctx.acquire(drawData.drawCallCountBuffer, pass_kind::graphics, buffer_usage::indirect);
+            ctx.acquire(drawData.preCullingIdMap, pass_kind::graphics, buffer_usage::storage_read);
         }
+
+        for (const auto& drawCallBuffer : ctx.access(inDrawCallBuffer))
+        {
+            ctx.acquire(drawCallBuffer, pass_kind::graphics, buffer_usage::indirect);
+        }
+
+        acquire_instance_tables(ctx,
+            inInstanceTables,
+            inInstanceBuffers,
+            pass_kind::graphics,
+            buffer_usage::storage_read);
     }
 
-    void forward_pass::execute(const frame_graph_execute_context& context)
+    void forward_pass::execute(const frame_graph_execute_context& ctx)
     {
-        const auto renderTarget = context.access(outRenderTarget);
-        const auto depthBuffer = context.access(outDepthBuffer);
+        const std::span drawData = ctx.access(inDrawData);
 
-        auto& passManager = context.get_pass_manager();
+        if (drawData.empty())
+        {
+            return;
+        }
+
+        const auto renderTarget = ctx.access(outRenderTarget);
+        const auto depthBuffer = ctx.access(outDepthBuffer);
+
+        auto& passManager = ctx.get_pass_manager();
 
         render_pipeline_initializer pipelineInitializer{
             .renderTargets =
@@ -120,7 +147,7 @@ namespace oblo::vk
 
         if (isPickingEnabled)
         {
-            const auto pickingIdBuffer = context.access(outPickingIdBuffer);
+            const auto pickingIdBuffer = ctx.access(outPickingIdBuffer);
 
             pipelineInitializer.defines = {&pickingEnabledDefine, 1};
 
@@ -137,7 +164,7 @@ namespace oblo::vk
 
         const auto pipeline = passManager.get_or_create_pipeline(renderPass, pipelineInitializer);
 
-        const VkCommandBuffer commandBuffer = context.get_command_buffer();
+        const VkCommandBuffer commandBuffer = ctx.get_command_buffer();
 
         const VkRenderingAttachmentInfo depthAttachment{
             .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -160,60 +187,82 @@ namespace oblo::vk
 
         setup_viewport_scissor(commandBuffer, renderWidth, renderHeight);
 
+        buffer_binding_table perDrawBindingTable;
         buffer_binding_table passBindingTable;
 
-        context.add_bindings(passBindingTable,
+        ctx.add_bindings(passBindingTable,
             {
                 {inLightData, "b_LightData"},
                 {inLightConfig, "b_LightConfig"},
+                {inInstanceTables, "b_InstanceTables"},
             });
+
+        const buffer_binding_table* bindingTables[] = {
+            &perDrawBindingTable,
+            &passBindingTable,
+            &ctx.access(inPerViewBindingTable),
+        };
 
         if (const auto pass = passManager.begin_render_pass(commandBuffer, pipeline, renderInfo))
         {
-            const buffer_binding_table* bindingTables[] = {
-                &passBindingTable,
-                &context.access(inPerViewBindingTable),
-            };
+            const auto drawCallBufferSpan = ctx.access(inDrawCallBuffer);
 
-            const std::span drawData = context.access(inDrawData);
-
-            // TODO: Could use the frame allocator here
-            dynamic_array<batch_draw_data> drawCalls;
-            drawCalls.resize_default(drawData.size());
-
-            dynamic_array<buffer> drawCommands;
-            drawCommands.resize_default(drawData.size());
-
-            dynamic_array<buffer_binding_table> instanceBufferBindings;
-            instanceBufferBindings.resize_default(drawData.size());
-
-            const auto& drawRegistry = context.get_draw_registry();
-
-            for (usize drawCallIndex = 0; drawCallIndex < drawCalls.size(); ++drawCallIndex)
+            for (usize drawCallIndex = 0; drawCallIndex < drawData.size(); ++drawCallIndex)
             {
-                auto& draw = drawCalls[drawCallIndex];
                 const auto& culledDraw = drawData[drawCallIndex];
 
-                draw = culledDraw.sourceData;
+                const auto drawCallBuffer = ctx.access(drawCallBufferSpan[drawCallIndex]);
+                const auto drawCallCountBuffer = ctx.access(culledDraw.drawCallCountBuffer);
 
-                const auto drawCallBuffer = context.access(culledDraw.drawCallBuffer);
-                drawCommands[drawCallIndex] = drawCallBuffer;
+                perDrawBindingTable.clear();
 
-                auto& bindings = instanceBufferBindings[drawCallIndex];
+                ctx.add_bindings(perDrawBindingTable,
+                    {
+                        {culledDraw.preCullingIdMap, "b_PreCullingIdMap"},
+                    });
 
-                for (u32 bufferIndex = 0; bufferIndex < draw.instanceBuffers.count; ++bufferIndex)
+                const forward_pass_push_constants pushConstants{
+                    .instanceTableId = culledDraw.sourceData.instanceTableId,
+                };
+
+                passManager.bind_descriptor_sets(*pass, bindingTables);
+                passManager.push_constants(*pass,
+                    VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                    0,
+                    as_bytes(std::span{&pushConstants, 1}));
+
+                if (culledDraw.sourceData.drawCommands.isIndexed)
                 {
-                    const auto instanceBuffer = context.access(culledDraw.instanceBuffers[bufferIndex]);
-                    OBLO_ASSERT(instanceBuffer.buffer);
+                    OBLO_ASSERT(drawCallBuffer.size ==
+                        culledDraw.sourceData.drawCommands.drawCount * sizeof(VkDrawIndexedIndirectCommand));
 
-                    const auto name = drawRegistry.get_name(draw.instanceBuffers.bindings[bufferIndex]);
-                    OBLO_ASSERT(name);
+                    vkCmdBindIndexBuffer(commandBuffer,
+                        culledDraw.sourceData.drawCommands.indexBuffer,
+                        culledDraw.sourceData.drawCommands.indexBufferOffset,
+                        culledDraw.sourceData.drawCommands.indexType);
 
-                    bindings.emplace(name, instanceBuffer);
+                    vkCmdDrawIndexedIndirectCount(commandBuffer,
+                        drawCallBuffer.buffer,
+                        drawCallBuffer.offset,
+                        drawCallCountBuffer.buffer,
+                        drawCallCountBuffer.offset,
+                        culledDraw.sourceData.drawCommands.drawCount,
+                        sizeof(VkDrawIndexedIndirectCommand));
+                }
+                else
+                {
+                    OBLO_ASSERT(drawCallBuffer.size ==
+                        culledDraw.sourceData.drawCommands.drawCount * sizeof(VkDrawIndirectCommand));
+
+                    vkCmdDrawIndirectCount(commandBuffer,
+                        drawCallBuffer.buffer,
+                        drawCallBuffer.offset,
+                        drawCallCountBuffer.buffer,
+                        drawCallCountBuffer.offset,
+                        culledDraw.sourceData.drawCommands.drawCount,
+                        sizeof(VkDrawIndirectCommand));
                 }
             }
-
-            passManager.draw(*pass, drawCommands, drawCalls, instanceBufferBindings, bindingTables);
 
             passManager.end_render_pass(*pass);
         }

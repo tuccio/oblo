@@ -10,8 +10,9 @@ namespace oblo::vk
 {
     namespace
     {
-        struct frustum_culling_config
+        struct frustum_culling_push_constants
         {
+            u32 instanceTableId;
             u32 numberOfDraws;
         };
     }
@@ -22,102 +23,75 @@ namespace oblo::vk
         resource<buffer> srcDrawCommands;
     };
 
-    void frustum_culling::init(const frame_graph_init_context& context)
+    void frustum_culling::init(const frame_graph_init_context& ctx)
     {
-        auto& pm = context.get_pass_manager();
+        auto& pm = ctx.get_pass_manager();
 
         cullPass = pm.register_compute_pass({
             .name = "Frustum Culling",
             .shaderSourcePath = "./vulkan/shaders/frustum_culling/cull.comp",
         });
 
-        drawIndexedDefine = context.get_string_interner().get_or_add("DRAW_INDEXED");
+        drawIndexedDefine = ctx.get_string_interner().get_or_add("DRAW_INDEXED");
 
         OBLO_ASSERT(cullPass);
     }
 
-    void frustum_culling::build(const frame_graph_build_context& builder)
+    void frustum_culling::build(const frame_graph_build_context& ctx)
     {
-        auto& allocator = builder.get_frame_allocator();
+        auto& allocator = ctx.get_frame_allocator();
 
-        auto& cullData = builder.access(cullInternalData);
-        auto& drawBufferData = builder.access(outDrawBufferData);
+        auto& drawBufferData = ctx.access(outDrawBufferData);
 
-        const auto& drawRegistry = builder.get_draw_registry();
+        const auto& drawRegistry = ctx.get_draw_registry();
         const std::span drawCalls = drawRegistry.get_draw_calls();
 
         if (drawCalls.empty())
         {
-            cullData = {};
             drawBufferData = {};
             return;
         }
 
-        cullData = allocate_n_span<frustum_culling_data>(allocator, drawCalls.size());
         drawBufferData = allocate_n_span<draw_buffer_data>(allocator, drawCalls.size());
 
         usize first = 0;
-        usize last = cullData.size();
+        usize last = drawCalls.size();
+
+        constexpr u32 zero{};
 
         for (const auto& draw : drawCalls)
         {
-            const frustum_culling_config config{
-                .numberOfDraws = draw.drawCommands.drawCount,
-            };
-
-            const std::span instanceBuffers = allocate_n_span<resource<buffer>>(allocator, draw.instanceBuffers.count);
-
-            for (u32 i = 0; i < draw.instanceBuffers.count; ++i)
-            {
-                builder.create_dynamic_buffer(draw.instanceBuffers.buffersData[i],
-                    pass_kind::compute,
-                    buffer_usage::storage_read);
-            }
-
             // We effectively partition non-indexed and indexed calls here
             const auto outIndex = draw.drawCommands.isIndexed ? --last : first++;
 
-            cullData[outIndex] = {
-                .configBuffer = builder.create_dynamic_buffer(
+            drawBufferData[outIndex] = {
+                .drawCallCountBuffer = ctx.create_dynamic_buffer(
                     {
-                        .size = sizeof(frustum_culling_config),
-                        .data = std::as_bytes(std::span{&config, 1}),
-                    },
-                    pass_kind::compute,
-                    buffer_usage::uniform),
-                .srcDrawCommands = builder.create_dynamic_buffer(
-                    {
-                        .size = u32(draw.drawCommands.drawCommands.size()),
-                        .data = draw.drawCommands.drawCommands,
+                        .size = sizeof(u32),
+                        .data = {as_bytes(std::span{&zero, 1})},
                     },
                     pass_kind::compute,
                     buffer_usage::storage_write),
-            };
-
-            drawBufferData[outIndex] = {
-                .drawCallBuffer = builder.create_dynamic_buffer(
+                .preCullingIdMap = ctx.create_dynamic_buffer(
                     {
-                        .size = u32(draw.drawCommands.drawCommands.size()),
+                        .size = u32(draw.drawCommands.drawCommands.size() * sizeof(u32)),
                     },
                     pass_kind::compute,
                     buffer_usage::storage_write),
                 .sourceData = draw,
-                .instanceBuffers = instanceBuffers.data(),
             };
-
-            for (u32 bufferIndex = 0; bufferIndex < draw.instanceBuffers.count; ++bufferIndex)
-            {
-                instanceBuffers[bufferIndex] =
-                    builder.create_dynamic_buffer(draw.instanceBuffers.buffersData[bufferIndex],
-                        pass_kind::compute,
-                        buffer_usage::storage_read);
-            }
         }
+
+        acquire_instance_tables(ctx,
+            inInstanceTables,
+            inInstanceBuffers,
+            pass_kind::compute,
+            buffer_usage::storage_read);
     }
 
-    void frustum_culling::execute(const frame_graph_execute_context& context)
+    void frustum_culling::execute(const frame_graph_execute_context& ctx)
     {
-        auto& pm = context.get_pass_manager();
+        auto& pm = ctx.get_pass_manager();
 
         const h32<string> defines[] = {drawIndexedDefine};
 
@@ -125,71 +99,56 @@ namespace oblo::vk
 
         usize nextIndex = 0;
 
-        auto& interner = context.get_string_interner();
-        const auto& drawRegistry = context.get_draw_registry();
+        auto& interner = ctx.get_string_interner();
 
-        const auto cullingConfigName = interner.get_or_add("b_CullingConfig");
-        const auto inDrawCallsBufferName = interner.get_or_add("b_InDrawCallsBuffer");
-        const auto outDrawCallsBufferName = interner.get_or_add("b_OutDrawCallsBuffer");
+        const auto inInstanceTablesName = interner.get_or_add("b_InstanceTables");
+        const auto outPreCullingIdMap = interner.get_or_add("b_PreCullingIdMap");
+        const auto outDrawCountName = interner.get_or_add("b_OutDrawCount");
 
         buffer_binding_table bindingTable;
 
+        const buffer inInstanceTablesBuffer = ctx.access(inInstanceTables);
+
+        // Indexed and non indexed are partioned before this, in frustum_culling::build
         for (const auto indexedPipeline : {false, true})
         {
             const auto pipeline =
                 pm.get_or_create_pipeline(cullPass, {.defines = allDefines.subspan(0, indexedPipeline ? 1 : 0)});
 
-            if (const auto pass = pm.begin_compute_pass(context.get_command_buffer(), pipeline))
+            if (const auto pass = pm.begin_compute_pass(ctx.get_command_buffer(), pipeline))
             {
-                const std::span cullData = context.access(cullInternalData);
-                const std::span drawData = context.access(outDrawBufferData);
+                const std::span drawData = ctx.access(outDrawBufferData);
 
                 const auto subgroupSize = pm.get_subgroup_size();
 
-                for (; nextIndex < cullData.size() &&
+                for (; nextIndex < drawData.size() &&
                      drawData[nextIndex].sourceData.drawCommands.isIndexed == indexedPipeline;
                      ++nextIndex)
                 {
                     const auto& currentDraw = drawData[nextIndex];
-                    const auto& internalData = cullData[nextIndex];
 
                     bindingTable.clear();
 
-                    const buffer configBuffer = context.access(internalData.configBuffer);
-                    const buffer outDrawCallsBuffer = context.access(currentDraw.drawCallBuffer);
-
-                    bindingTable.emplace(cullingConfigName, configBuffer);
-
-                    const auto srcBuffer = context.access(internalData.srcDrawCommands);
-
-                    bindingTable.emplace(inDrawCallsBufferName,
-                        buffer{
-                            .buffer = srcBuffer.buffer,
-                            .offset = u32(srcBuffer.offset),
-                            .size = u32(srcBuffer.size),
-                        });
-
-                    bindingTable.emplace(outDrawCallsBufferName, outDrawCallsBuffer);
+                    bindingTable.emplace(inInstanceTablesName, inInstanceTablesBuffer);
+                    bindingTable.emplace(outPreCullingIdMap, ctx.access(currentDraw.preCullingIdMap));
+                    bindingTable.emplace(outDrawCountName, ctx.access(currentDraw.drawCallCountBuffer));
 
                     const u32 count = currentDraw.sourceData.drawCommands.drawCount;
 
                     const buffer_binding_table* bindingTables[] = {
-                        &context.access(inPerViewBindingTable),
+                        &ctx.access(inPerViewBindingTable),
                         &bindingTable,
                     };
 
-                    for (u32 i = 0; i < currentDraw.sourceData.instanceBuffers.count; ++i)
-                    {
-                        const auto binding = currentDraw.sourceData.instanceBuffers.bindings[i];
-                        const auto name = drawRegistry.get_name(binding);
+                    const frustum_culling_push_constants pcData{
+                        .instanceTableId = currentDraw.sourceData.instanceTableId,
+                        .numberOfDraws = currentDraw.sourceData.drawCommands.drawCount,
+                    };
 
-                        const buffer instanceBuffer = context.access(currentDraw.instanceBuffers[i]);
-                        OBLO_ASSERT(instanceBuffer.buffer);
+                    pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&pcData, 1}));
+                    pm.bind_descriptor_sets(*pass, bindingTables);
 
-                        bindingTable.emplace(name, instanceBuffer);
-                    }
-
-                    pm.dispatch(*pass, round_up_multiple(count, subgroupSize), 1, 1, bindingTables);
+                    vkCmdDispatch(ctx.get_command_buffer(), round_up_multiple(count, subgroupSize), 1, 1);
                 }
 
                 pm.end_compute_pass(*pass);

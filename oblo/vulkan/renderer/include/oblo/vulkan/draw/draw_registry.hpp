@@ -51,7 +51,7 @@ namespace oblo::vk
 
     struct draw_instance_buffers
     {
-        h32<draw_buffer>* bindings;
+        u32* instanceBufferIds;
         staging_buffer_span* buffersData;
         u32 count;
     };
@@ -60,6 +60,7 @@ namespace oblo::vk
     {
         draw_instance_buffers instanceBuffers;
         draw_commands drawCommands;
+        u32 instanceTableId;
     };
 
     struct draw_mesh_component
@@ -88,17 +89,18 @@ namespace oblo::vk
 
         void register_instance_data(ecs::component_type type, std::string_view instanceName);
 
+        bool needs_reloading_instance_data_types() const;
+
         void end_frame();
 
         h32<draw_mesh> get_or_create_mesh(oblo::resource_registry& resourceRegistry,
             const resource_ref<mesh>& resourceId);
 
-        h32<string> get_name(h32<draw_buffer> drawBuffer) const;
-
         void flush_uploads(VkCommandBuffer commandBuffer);
 
         void generate_mesh_database(frame_allocator& allocator);
         void generate_draw_calls(frame_allocator& allocator, staging_buffer& stagingBuffer);
+        std::string_view refresh_instance_data_defines(frame_allocator& allocator);
 
         std::span<const batch_draw_data> get_draw_calls() const;
 
@@ -108,13 +110,13 @@ namespace oblo::vk
 
     private:
         struct pending_mesh_upload;
+        struct instance_data_type_info;
 
     private:
         void create_instances();
 
     private:
         vulkan_context* m_ctx{};
-        monotonic_gpu_buffer m_storageBuffer;
 
         staging_buffer* m_stagingBuffer{};
         string_interner* m_interner{};
@@ -130,14 +132,16 @@ namespace oblo::vk
         const batch_draw_data* m_drawData{};
         u32 m_drawDataCount{};
 
+        bool m_isInstanceTypeInfoDirty{};
+
         std::span<const std::byte> m_meshDatabaseData;
 
         std::unordered_map<uuid, h32<draw_mesh>> m_cachedMeshes;
 
-        flat_dense_map<ecs::component_type, h32<string>> m_instanceDataTypeNames;
+        flat_dense_map<ecs::component_type, instance_data_type_info> m_instanceDataTypeNames;
         ecs::type_set m_instanceDataTypes{};
 
-        static constexpr u32 MeshBuffersCount{1};
+        static constexpr u32 MeshBuffersCount{2};
         std::array<h32<string>, MeshBuffersCount> m_meshDataNames{};
 
         dynamic_array<pending_mesh_upload> m_pendingMeshUploads;

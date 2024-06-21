@@ -4,6 +4,7 @@
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/graph/directed_graph.hpp>
 #include <oblo/core/handle_flat_pool_map.hpp>
+#include <oblo/core/hash.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/graph/frame_graph_node_desc.hpp>
 #include <oblo/vulkan/graph/frame_graph_template.hpp>
@@ -26,9 +27,15 @@ namespace oblo::vk
 
     using frame_graph_topology = directed_graph<frame_graph_vertex>;
 
+    struct frame_graph_buffer_usage
+    {
+        VkPipelineStageFlags2 stages;
+        VkAccessFlags2 access;
+    };
+
     struct frame_graph_node
     {
-        void* node;
+        void* ptr;
         frame_graph_build_fn build;
         frame_graph_execute_fn execute;
         frame_graph_init_fn init;
@@ -38,6 +45,8 @@ namespace oblo::vk
         u32 alignment;
         bool initialized;
         bool markedForRemoval;
+
+        h32_flat_extpool_dense_map<frame_graph_pin_storage, frame_graph_buffer_usage> bufferUsages;
     };
 
     struct frame_graph_pin
@@ -73,6 +82,7 @@ namespace oblo::vk
         h32<frame_graph_pin_storage> buffer;
         VkPipelineStageFlags2 pipelineStage;
         VkAccessFlags2 access;
+        bool forwardAccess;
     };
 
     struct frame_graph_texture
@@ -91,8 +101,6 @@ namespace oblo::vk
     {
         u32 firstTextureTransition;
         u32 lastTextureTransition;
-        u32 firstBufferBarrier;
-        u32 lastBufferBarrier;
     };
 
     struct frame_graph_pending_upload
@@ -126,11 +134,17 @@ namespace oblo::vk
         name_to_vertex_map outputs;
     };
 
+    struct frame_graph_node_to_execute
+    {
+        frame_graph_node* node;
+        frame_graph_topology::vertex_handle handle;
+    };
+
     struct frame_graph_impl
     {
 
     public: // Topology
-        directed_graph<frame_graph_vertex> graph;
+        frame_graph_topology graph;
         h32_flat_pool_dense_map<frame_graph_node> nodes;
         h32_flat_pool_dense_map<frame_graph_pin> pins;
         h32_flat_pool_dense_map<frame_graph_pin_storage> pinStorage;
@@ -142,19 +156,21 @@ namespace oblo::vk
         frame_allocator dynamicAllocator;
         resource_manager* resourceManager{};
 
-        dynamic_array<frame_graph_node> sortedNodes;
+        dynamic_array<frame_graph_node_to_execute> sortedNodes;
         h32_flat_pool_dense_map<frame_graph_texture> textures;
         h32_flat_pool_dense_map<frame_graph_buffer> buffers;
 
         dynamic_array<frame_graph_node_transitions> nodeTransitions;
-        dynamic_array<frame_graph_buffer_barrier> bufferBarriers;
         dynamic_array<frame_graph_texture_transition> textureTransitions;
         dynamic_array<frame_graph_texture> transientTextures;
         dynamic_array<frame_graph_buffer> transientBuffers;
         dynamic_array<frame_graph_pending_upload> pendingUploads;
+
         dynamic_array<h32<frame_graph_pin_storage>> dynamicPins;
 
         resource_pool resourcePool;
+
+        frame_graph_node* currentNode{};
 
     public: // Internals for frame graph execution
         void rebuild_runtime(renderer& renderer);
@@ -171,7 +187,10 @@ namespace oblo::vk
         u32 find_pool_index(resource<buffer> handle) const;
 
         void add_transient_buffer(resource<buffer> handle, u32 poolIndex, const staging_buffer_span* upload);
-        void add_buffer_access(resource<buffer> handle, VkPipelineStageFlags2 pipelineStage, VkAccessFlags2 access);
+        void set_buffer_access(resource<buffer> handle, VkPipelineStageFlags2 pipelineStage, VkAccessFlags2 access);
+
+        // This is called in assert by executors, to check that we declared the upload when building
+        bool can_exec_time_upload(resource<buffer> handle) const;
 
         h32<frame_graph_pin_storage> allocate_dynamic_resource_pin();
 

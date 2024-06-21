@@ -6,4 +6,9 @@ struct transform
     mat4 localToWorld;
 };
 
+layout(buffer_reference) buffer i_TransformBufferType
+{
+    transform values[];
+};
+
 #endif

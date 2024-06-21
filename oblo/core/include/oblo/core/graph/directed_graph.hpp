@@ -26,6 +26,8 @@ namespace oblo
         struct edge_reference
         {
             vertex_handle vertex;
+
+            /// @brief Represents the destination for out edges, or the source for in edges.
             edge_handle handle;
         };
 

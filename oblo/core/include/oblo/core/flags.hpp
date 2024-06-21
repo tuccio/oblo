@@ -53,6 +53,10 @@ namespace oblo
         constexpr flags& operator&=(E rhs);
         constexpr flags& operator^=(E rhs);
 
+        constexpr flags& operator|=(flags<E> rhs);
+        constexpr flags& operator&=(flags<E> rhs);
+        constexpr flags& operator^=(flags<E> rhs);
+
         constexpr bool is_empty() const noexcept
         {
             return storage == type{0};
@@ -101,6 +105,27 @@ namespace oblo
     constexpr flags<E, Size>& flags<E, Size>::operator^=(E rhs)
     {
         storage ^= as_flag(rhs);
+        return *this;
+    }
+
+    template <typename E, u32 Size>
+    constexpr flags<E, Size>& flags<E, Size>::operator|=(flags<E> rhs)
+    {
+        storage |= rhs.storage;
+        return *this;
+    }
+
+    template <typename E, u32 Size>
+    constexpr flags<E, Size>& flags<E, Size>::operator&=(flags<E> rhs)
+    {
+        storage &= rhs.storage;
+        return *this;
+    }
+
+    template <typename E, u32 Size>
+    constexpr flags<E, Size>& flags<E, Size>::operator^=(flags<E> rhs)
+    {
+        storage ^= rhs.storage;
         return *this;
     }
 

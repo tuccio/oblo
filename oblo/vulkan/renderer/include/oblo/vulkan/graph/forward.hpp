@@ -1,5 +1,7 @@
 #pragma once
 
+#include <oblo/core/types.hpp>
+
 namespace oblo::vk
 {
     class frame_graph;
@@ -13,4 +15,8 @@ namespace oblo::vk
 
     struct buffer;
     struct texture;
+
+    enum class texture_usage : u8;
+    enum class buffer_usage : u8;
+    enum class pass_kind : u8;
 }

@@ -123,7 +123,7 @@ namespace oblo
             switch (other.m_hasValue)
             {
             case false:
-                m_error = other.error;
+                m_error = other.m_error;
                 break;
 
             case true:
@@ -136,15 +136,13 @@ namespace oblo
         {
             m_hasValue = other.m_hasValue;
 
-            switch (other.m_hasValue)
+            if (other.m_hasValue)
             {
-            case false:
-                m_error = other.error;
-                break;
-
-            case true:
                 new (m_buffer) T{std::move(*other)};
-                break;
+            }
+            else
+            {
+                m_error = other.m_error;
             }
         }
 

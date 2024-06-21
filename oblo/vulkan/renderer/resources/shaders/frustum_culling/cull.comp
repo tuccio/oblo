@@ -6,59 +6,34 @@
 
 #include <renderer/camera>
 #include <renderer/constants>
+#include <renderer/instances>
 #include <renderer/intersection>
 #include <renderer/meshes>
 #include <renderer/transform>
 
 layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
-struct vk_draw_indirect_command
-{
-    uint vertexCount;
-    uint instanceCount;
-    uint firstVertex;
-    uint firstInstance;
-};
-
-struct vk_draw_indexed_indirect_command
-{
-    uint indexCount;
-    uint instanceCount;
-    uint firstIndex;
-    int vertexOffset;
-    uint firstInstance;
-};
-
-#ifndef DRAW_INDEXED
-#define draw_command_t vk_draw_indirect_command
-#else
-#define draw_command_t vk_draw_indexed_indirect_command
-#endif
-
-layout(binding = 0) uniform b_CullingConfig
-{
-    uint g_numberOfDraws;
-};
-
-layout(binding = 1) uniform b_CameraBuffer
+layout(binding = 0) uniform b_CameraBuffer
 {
     camera_buffer g_Camera;
 };
 
-layout(std430, binding = 5) restrict readonly buffer b_InDrawCallsBuffer
+layout(std430, binding = 10) restrict buffer b_OutDrawCount
 {
-    draw_command_t inDrawCalls[];
+    uint outDrawCount;
 };
 
-layout(std430, binding = 6) restrict buffer b_OutDrawCallsBuffer
+layout(std430, binding = 11) restrict buffer b_PreCullingIdMap
 {
-    draw_command_t outDrawCalls[];
+    uint preCullingIdMap[];
 };
 
-layout(std430, binding = 7) restrict readonly buffer i_TransformBuffer
+layout(push_constant) uniform c_PushConstants
 {
-    transform g_Transforms[];
-};
+    uint instanceTableId;
+    uint numberOfDraws;
+}
+g_Constants;
 
 aabb transform_aabb(in aabb box, in mat4 m)
 {
@@ -93,24 +68,31 @@ void main()
 {
     const uint drawId = gl_GlobalInvocationID.x;
 
-    if (drawId >= g_numberOfDraws)
+    if (drawId >= g_Constants.numberOfDraws)
     {
         return;
     }
 
-    const mesh_handle meshHandle = g_MeshHandles[drawId];
+    const mesh_handle meshHandle = OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_MeshHandles, drawId);
+
+    // Instance id and draw id are the same since we don't support instancing currently
+    const transform instanceTransform = OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_TransformBuffer, drawId);
 
     const mesh_table table = get_mesh_table(meshHandle);
     const uint meshIndex = get_mesh_index(meshHandle);
 
-    // Instance id and draw id are the same since we don't support instancing currently
-    const mat4 localToWorld = g_Transforms[drawId].localToWorld;
+    const mat4 localToWorld = instanceTransform.localToWorld;
 
     const aabb msBox = get_mesh_aabb(table, meshIndex);
     const aabb wsBox = transform_aabb(msBox, localToWorld);
 
-    draw_command_t drawCmd = inDrawCalls[drawId];
-    drawCmd.instanceCount = intersects_or_contains(g_Camera.frustum, wsBox) ? 1 : 0;
+    const bool isInView = intersects_or_contains(g_Camera.frustum, wsBox);
 
-    outDrawCalls[drawId] = drawCmd;
+    if (!isInView)
+    {
+        return;
+    }
+
+    const uint index = atomicAdd(outDrawCount, 1);
+    preCullingIdMap[index] = drawId;
 }

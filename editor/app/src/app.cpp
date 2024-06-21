@@ -37,8 +37,15 @@ namespace oblo::editor
 {
     namespace
     {
+        VkPhysicalDeviceVulkan12Features DeviceVulkan12Features{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+            .drawIndirectCount = true,
+            .bufferDeviceAddress = true,
+        };
+
         VkPhysicalDeviceSynchronization2Features SynchronizationFeatures{
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES,
+            .pNext = &DeviceVulkan12Features,
             .synchronization2 = true,
         };
 

@@ -87,6 +87,11 @@ namespace oblo::vk
         if (m_firstUpdate)
         {
             m_textureRegistry.on_first_frame();
+
+            // Not sure if we ever need to update it in other frames than the first
+            const auto instanceDataDefines = m_drawRegistry.refresh_instance_data_defines(frameAllocator);
+            m_passManager.update_instance_data_defines(instanceDataDefines);
+
             m_firstUpdate = false;
         }
 

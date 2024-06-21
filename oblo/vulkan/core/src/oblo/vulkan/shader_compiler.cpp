@@ -156,9 +156,16 @@ namespace oblo::vk::shader_compiler
                     return nullptr;
                 }
 
-                const std::span data = load_text_file_into_memory(m_allocator, m_pathBuffer);
+                const auto data = load_text_file_into_memory(m_allocator, m_pathBuffer);
 
-                auto& result = m_includeResults.emplace_back(m_pathBuffer.string(), data.data(), data.size(), nullptr);
+                if (!data)
+                {
+                    return nullptr;
+                }
+
+                auto& result =
+                    m_includeResults.emplace_back(m_pathBuffer.string(), data->data(), data->size(), nullptr);
+
                 return &result;
             }
 
@@ -290,8 +297,13 @@ namespace oblo::vk::shader_compiler
         std::vector<unsigned> spirv;
         const auto sourceSpan = load_text_file_into_memory(allocator, filePath);
 
+        if (!sourceSpan)
+        {
+            return nullptr;
+        }
+
         if (!shader_compiler::compile_glsl_to_spirv(filePath,
-                {sourceSpan.data(), sourceSpan.size()},
+                {sourceSpan->data(), sourceSpan->size()},
                 stage,
                 spirv,
                 options))

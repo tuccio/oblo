@@ -62,6 +62,8 @@ namespace oblo::vk
     {
         storage_read,
         storage_write,
+        /// @brief This means the buffer is not actually used on GPU in this node, just uploaded on.
+        storage_upload,
         uniform,
         indirect,
         enum_max,
@@ -69,8 +71,10 @@ namespace oblo::vk
 
     enum class pass_kind : u8
     {
+        none,
         graphics,
         compute,
+        transfer,
     };
 
     struct transient_texture_initializer
@@ -111,10 +115,10 @@ namespace oblo::vk
 
         void acquire(resource<buffer> buffer, pass_kind passKind, buffer_usage usage) const;
 
-        resource<buffer> create_dynamic_buffer(
+        [[nodiscard]] resource<buffer> create_dynamic_buffer(
             const transient_buffer_initializer& initializer, pass_kind passKind, buffer_usage usage) const;
 
-        resource<buffer> create_dynamic_buffer(
+        [[nodiscard]] resource<buffer> create_dynamic_buffer(
             const staging_buffer_span& stagedData, pass_kind passKind, buffer_usage usage) const;
 
         template <typename T>
@@ -158,7 +162,11 @@ namespace oblo::vk
 
         buffer access(resource<buffer> h) const;
 
+        void upload(resource<buffer> h, std::span<const byte> data, u32 bufferOffset = 0) const;
+
         VkCommandBuffer get_command_buffer() const;
+
+        VkDevice get_device() const;
 
         pass_manager& get_pass_manager() const;
 

@@ -8,6 +8,7 @@
 #include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/staging_buffer.hpp>
+#include <oblo/vulkan/vulkan_context.hpp>
 
 namespace oblo::vk
 {
@@ -69,6 +70,7 @@ namespace oblo::vk
             {
             case buffer_usage::storage_read:
             case buffer_usage::storage_write:
+            case buffer_usage::storage_upload:
                 result |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
                 break;
 
@@ -94,6 +96,10 @@ namespace oblo::vk
 
             switch (passKind)
             {
+            case pass_kind::none:
+                pipelineStage = VK_PIPELINE_STAGE_2_NONE;
+                break;
+
             case pass_kind::graphics:
                 pipelineStage = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
                 break;
@@ -101,6 +107,13 @@ namespace oblo::vk
             case pass_kind::compute:
                 pipelineStage = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
                 break;
+
+            case pass_kind::transfer:
+                pipelineStage = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+                break;
+
+            default:
+                unreachable();
             }
 
             switch (usage)
@@ -110,6 +123,9 @@ namespace oblo::vk
                 break;
             case buffer_usage::storage_write:
                 access = VK_ACCESS_2_SHADER_WRITE_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
+                break;
+            case buffer_usage::storage_upload:
+                access = VK_ACCESS_2_TRANSFER_WRITE_BIT;
                 break;
             case buffer_usage::uniform:
                 access = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_UNIFORM_READ_BIT;
@@ -174,15 +190,14 @@ namespace oblo::vk
             stagedData = *res;
             stagedDataPtr = &stagedData;
 
-            // All copies will be added to the command buffer upfront, so we start with a buffer that has been
-            // transferred to
-            m_frameGraph.add_buffer_access(buffer, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
+            // We rely on a global memory barrier in frame graph to synchronize all uploads before submitting any
+            // command
         }
 
         m_frameGraph.add_transient_buffer(buffer, poolIndex, stagedDataPtr);
 
         const auto [pipelineStage, access] = convert_for_sync2(passKind, usage);
-        m_frameGraph.add_buffer_access(buffer, pipelineStage, access);
+        m_frameGraph.set_buffer_access(buffer, pipelineStage, access);
     }
 
     void frame_graph_build_context::create(
@@ -199,14 +214,12 @@ namespace oblo::vk
 
         const auto poolIndex = m_resourcePool.add_buffer(stagedDataSize, vkUsage);
 
-        // All copies will be added to the command buffer upfront, so we start with a buffer that has been
-        // transferred to
-        m_frameGraph.add_buffer_access(buffer, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
+        // We rely on a global memory barrier in frame graph to synchronize all uploads before submitting any command
 
         m_frameGraph.add_transient_buffer(buffer, poolIndex, &stagedData);
 
         const auto [pipelineStage, access] = convert_for_sync2(passKind, usage);
-        m_frameGraph.add_buffer_access(buffer, pipelineStage, access);
+        m_frameGraph.set_buffer_access(buffer, pipelineStage, access);
     }
 
     void frame_graph_build_context::acquire(resource<texture> texture, texture_usage usage) const
@@ -233,7 +246,7 @@ namespace oblo::vk
         const auto poolIndex = m_frameGraph.find_pool_index(buffer);
         m_resourcePool.add_buffer_usage(poolIndex, convert_buffer_usage(usage));
         const auto [pipelineStage, access] = convert_for_sync2(passKind, usage);
-        m_frameGraph.add_buffer_access(buffer, pipelineStage, access);
+        m_frameGraph.set_buffer_access(buffer, pipelineStage, access);
     }
 
     resource<buffer> frame_graph_build_context::create_dynamic_buffer(
@@ -301,9 +314,31 @@ namespace oblo::vk
         return *static_cast<buffer*>(m_frameGraph.access_storage(storage));
     }
 
+    void frame_graph_execute_context::upload(resource<buffer> h, std::span<const byte> data, u32 bufferOffset) const
+    {
+        OBLO_ASSERT(m_frameGraph.can_exec_time_upload(h));
+
+        auto& stagingBuffer = m_renderer.get_staging_buffer();
+        const auto stagedData = stagingBuffer.stage(data);
+
+        if (!stagedData)
+        {
+            OBLO_ASSERT(stagedData);
+            return;
+        }
+
+        const auto b = access(h);
+        stagingBuffer.upload(get_command_buffer(), *stagedData, b.buffer, b.offset + bufferOffset);
+    }
+
     VkCommandBuffer frame_graph_execute_context::get_command_buffer() const
     {
         return m_commandBuffer;
+    }
+
+    VkDevice frame_graph_execute_context::get_device() const
+    {
+        return m_renderer.get_vulkan_context().get_device();
     }
 
     pass_manager& frame_graph_execute_context::get_pass_manager() const

@@ -7,6 +7,7 @@
 #include <oblo/vulkan/graph/frame_graph_context.hpp>
 #include <oblo/vulkan/graph/node_common.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
+#include <oblo/vulkan/nodes/instance_table_node.hpp>
 
 namespace oblo::vk
 {
@@ -20,58 +21,67 @@ namespace oblo::vk
         resource<buffer> outTimeBuffer;
         resource<buffer> outMeshDatabase;
 
-        void build(const frame_graph_build_context& builder)
+        resource<buffer> inInstanceTables;
+        data<instance_data_table_buffers_span> inInstanceBuffers;
+
+        void build(const frame_graph_build_context& ctx)
         {
-            const auto& cameraBuffer = builder.access(inCameraData);
-            const auto& timeBuffer = builder.access(inTimeData);
-            auto& drawRegistry = builder.get_draw_registry();
+            const auto& cameraBuffer = ctx.access(inCameraData);
+            const auto& timeBuffer = ctx.access(inTimeData);
+            auto& drawRegistry = ctx.get_draw_registry();
 
             const std::span meshDatabaseData = drawRegistry.get_mesh_database_data();
 
-            builder.create(outCameraBuffer,
+            ctx.create(outCameraBuffer,
                 {
                     .size = sizeof(camera_buffer),
                     .data = std::as_bytes(std::span{&cameraBuffer, 1}),
                 },
-                pass_kind::graphics, // TODO: Actually not used
+                pass_kind::none,
                 buffer_usage::uniform);
 
-            builder.create(outTimeBuffer,
+            ctx.create(outTimeBuffer,
                 {
                     .size = sizeof(time_buffer),
                     .data = std::as_bytes(std::span{&timeBuffer, 1}),
                 },
-                pass_kind::graphics, // TODO: Actually not used
+                pass_kind::none,
                 buffer_usage::uniform);
 
             if (!meshDatabaseData.empty())
             {
-                builder.create(outMeshDatabase,
+                ctx.create(outMeshDatabase,
                     {
                         .size = u32(meshDatabaseData.size()),
                         .data = meshDatabaseData,
                     },
-                    pass_kind::compute, // TODO: Actually not used
+                    pass_kind::none,
                     buffer_usage::storage_read);
             }
+
+            acquire_instance_tables(ctx,
+                inInstanceTables,
+                inInstanceBuffers,
+                pass_kind::none,
+                buffer_usage::storage_read);
         }
 
-        void execute(const frame_graph_execute_context& context)
+        void execute(const frame_graph_execute_context& ctx)
         {
             // TODO (#31): Find a better place for these buffers
-            auto* const perViewTable = &context.access(outPerViewBindingTable);
+            auto* const perViewTable = &ctx.access(outPerViewBindingTable);
             perViewTable->clear();
 
-            const buffer cameraBuffer = context.access(outCameraBuffer);
-            const buffer meshDatabaseBuffer = context.access(outMeshDatabase);
+            const buffer cameraBuffer = ctx.access(outCameraBuffer);
+            const buffer meshDatabaseBuffer = ctx.access(outMeshDatabase);
 
-            auto& interner = context.get_string_interner();
+            auto& interner = ctx.get_string_interner();
 
             const h32<string> cameraBufferName = interner.get_or_add("b_CameraBuffer");
             perViewTable->emplace(cameraBufferName, cameraBuffer);
 
             // TODO: This is not really per-view, but global
-            const buffer timeBuffer = context.access(outTimeBuffer);
+            const buffer timeBuffer = ctx.access(outTimeBuffer);
             const h32<string> timeBufferName = interner.get_or_add("b_TimeBuffer");
             perViewTable->emplace(timeBufferName, timeBuffer);
 

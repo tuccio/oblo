@@ -5,8 +5,8 @@
 #include <oblo/core/data_format.hpp>
 #include <oblo/core/flags.hpp>
 #include <oblo/core/frame_allocator.hpp>
-#include <oblo/core/log.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
+#include <oblo/core/log.hpp>
 #include <oblo/ecs/archetype_storage.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/range.hpp>
@@ -46,6 +46,12 @@ namespace oblo::vk
             enum_max,
         };
 
+        enum class mesh_data_buffers : u8
+        {
+            mesh_draw_range,
+            aabb,
+        };
+
         constexpr vertex_attributes convert_vertex_attribute(attribute_kind attribute)
         {
             switch (attribute)
@@ -70,12 +76,26 @@ namespace oblo::vk
         {
             mesh_handle mesh;
         };
+
+        struct mesh_draw_range
+        {
+            u32 vertexOffset;
+            u32 vertexCount;
+            u32 indexOffset;
+            u32 indexCount;
+        };
     }
 
     struct draw_registry::pending_mesh_upload
     {
         staging_buffer_span src;
         buffer dst;
+    };
+
+    struct draw_registry::instance_data_type_info
+    {
+        std::string name;
+        u32 gpuInstanceBufferId;
     };
 
     draw_registry::draw_registry() = default;
@@ -87,7 +107,6 @@ namespace oblo::vk
     {
         m_ctx = &ctx;
         m_stagingBuffer = &stagingBuffer;
-        m_interner = &interner;
         m_entities = &entities;
 
         mesh_attribute_description attributes[u32(vertex_attributes::enum_max)];
@@ -108,6 +127,10 @@ namespace oblo::vk
         };
 
         const mesh_attribute_description meshData[] = {
+            {
+                .name = interner.get_or_add("b_meshDrawRange"),
+                .elementSize = sizeof(mesh_draw_range),
+            },
             {
                 .name = interner.get_or_add("b_MeshAABBs"),
                 .elementSize = sizeof(gpu_aabb),
@@ -162,37 +185,29 @@ namespace oblo::vk
         m_indexNoneTag = m_typeRegistry->register_tag(ecs::make_tag_type_desc<mesh_index_none_tag>());
         m_indexU16Tag = m_typeRegistry->register_tag(ecs::make_tag_type_desc<mesh_index_u16_tag>());
         m_indexU32Tag = m_typeRegistry->register_tag(ecs::make_tag_type_desc<mesh_index_u32_tag>());
-
-        VkPhysicalDeviceProperties properties{};
-        vkGetPhysicalDeviceProperties(m_ctx->get_physical_device(), &properties);
-
-        u32 bufferChunkSize{1u << 26};
-
-        m_storageBuffer.init(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-            memory_usage::gpu_only,
-            narrow_cast<u8>(properties.limits.minStorageBufferOffsetAlignment),
-            bufferChunkSize);
     }
 
     void draw_registry::shutdown()
     {
         m_meshes.shutdown();
-        m_storageBuffer.shutdown(*m_ctx);
     }
 
     void draw_registry::register_instance_data(ecs::component_type type, std::string_view name)
     {
-        const auto internedName = m_interner->get_or_add(name);
-        m_instanceDataTypeNames.emplace(type, internedName);
+        m_instanceDataTypeNames.emplace(type, std::string{name});
         m_instanceDataTypes.add(type);
+        m_isInstanceTypeInfoDirty = true;
+    }
+
+    bool draw_registry::needs_reloading_instance_data_types() const
+    {
+        return m_isInstanceTypeInfoDirty;
     }
 
     void draw_registry::end_frame()
     {
         m_drawData = {};
         m_drawDataCount = 0;
-
-        m_storageBuffer.restore_all();
     }
 
     h32<draw_mesh> draw_registry::get_or_create_mesh(oblo::resource_registry& resourceRegistry,
@@ -300,9 +315,22 @@ namespace oblo::vk
         }
 
         {
+            const auto range = m_meshes.get_table_range(meshHandle);
+
+            const mesh_draw_range drawRange{
+                .vertexOffset = range.vertexOffset,
+                .vertexCount = range.vertexCount,
+                .indexOffset = range.indexOffset,
+                .indexCount = range.indexCount,
+            };
+
+            doUpload(std::as_bytes(std::span{&drawRange, 1}), meshDataBuffers[u32(mesh_data_buffers::mesh_draw_range)]);
+        }
+
+        {
             const auto aabb = meshPtr->get_aabb();
             const gpu_aabb gpuAabb{.min = aabb.min, .max = aabb.max};
-            doUpload(std::as_bytes(std::span{&gpuAabb, 1}), meshDataBuffers[0]);
+            doUpload(std::as_bytes(std::span{&gpuAabb, 1}), meshDataBuffers[u32(mesh_data_buffers::aabb)]);
         }
 
         const h32<draw_mesh> globalMeshId{make_mesh_id(meshHandle)};
@@ -361,13 +389,6 @@ namespace oblo::vk
             auto& instance = m_entities->get<draw_instance_component>(entity);
             instance.mesh = mesh_handle{mesh.value};
         }
-    }
-
-    h32<string> draw_registry::get_name(h32<draw_buffer> drawBuffer) const
-    {
-        // We use the component type as draw buffer id, so we just reinterpret it here
-        auto* const str = m_instanceDataTypeNames.try_find({.value = drawBuffer.value});
-        return str ? *str : h32<string>{};
     }
 
     void draw_registry::flush_uploads(VkCommandBuffer commandBuffer)
@@ -558,6 +579,7 @@ namespace oblo::vk
                 OBLO_ASSERT(vkIndexType != VK_INDEX_TYPE_NONE_KHR);
             }
 
+            currentDrawBatch->instanceTableId = drawBatches;
             ++drawBatches;
 
             currentDrawBatch->drawCommands = {
@@ -575,7 +597,7 @@ namespace oblo::vk
             const auto allComponentsCount = componentTypes.size();
 
             draw_instance_buffers instanceBuffers{
-                .bindings = allocate_n<h32<vk::draw_buffer>>(allocator, allComponentsCount),
+                .instanceBufferIds = allocate_n<u32>(allocator, allComponentsCount),
                 .buffersData = allocate_n<staging_buffer_span>(allocator, allComponentsCount),
                 .count = 0u,
             };
@@ -598,8 +620,11 @@ namespace oblo::vk
                 const expected allocation = stagingBuffer.stage_allocate(bufferSize);
                 OBLO_ASSERT(allocation);
 
+                auto* const typeInfo = m_instanceDataTypeNames.try_find(componentType);
+
                 instanceBuffers.buffersData[instanceBuffers.count] = *allocation;
-                instanceBuffers.bindings[instanceBuffers.count] = h32<draw_buffer>{componentType.value};
+                instanceBuffers.instanceBufferIds[instanceBuffers.count] =
+                    typeInfo ? typeInfo->gpuInstanceBufferId : ~u32{};
 
                 ++instanceBuffers.count;
             }
@@ -641,6 +666,31 @@ namespace oblo::vk
         m_drawDataCount = drawBatches;
     }
 
+    std::string_view draw_registry::refresh_instance_data_defines(frame_allocator& allocator)
+    {
+        if (m_instanceDataTypeNames.empty())
+        {
+            return {};
+        }
+
+        constexpr auto sizePerLine = sizeof("#define OBLO_INSTANCE_DATA_ 99\n") + 128;
+
+        auto* const str = reinterpret_cast<char*>(allocator.allocate(m_instanceDataTypeNames.size() * sizePerLine, 1));
+        auto* it = str;
+
+        u32 id{};
+
+        for (auto& info : m_instanceDataTypeNames.values())
+        {
+            const auto newId = id++;
+            info.gpuInstanceBufferId = newId;
+
+            it = std::format_to(it, "#define OBLO_INSTANCE_DATA_{} {}\n", info.name, newId);
+        }
+
+        return {str, it};
+    }
+
     std::span<const batch_draw_data> draw_registry::get_draw_calls() const
     {
         return {m_drawData, m_drawDataCount};
@@ -670,13 +720,15 @@ namespace oblo::vk
 
         for (u32 i = 0; i < drawData.instanceBuffers.count; ++i)
         {
-            const auto binding = drawData.instanceBuffers.bindings[i];
+            const auto id = drawData.instanceBuffers.instanceBufferIds[i];
             const auto buffer = drawData.instanceBuffers.buffersData[i];
 
             const auto bufferSize = (buffer.segments[0].end - buffer.segments[0].begin) +
                 (buffer.segments[1].end - buffer.segments[1].begin);
 
-            fmtAppend("{} [id: {}] [size: {}]\n", m_interner->str(get_name(binding)), binding.value, bufferSize);
+            const auto name = m_instanceDataTypeNames.values()[id].name;
+
+            fmtAppend("{} [id: {}] [size: {}]\n", name, id, bufferSize);
         }
 
         log::debug("{}", stringBuffer);

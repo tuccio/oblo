@@ -37,6 +37,9 @@ namespace oblo::vk
         constexpr bool WithShaderCodeOptimizations{false};
         constexpr bool WithShaderDebugInfo{true};
 
+        // Push constants with this names are detected through reflection to be set at each draw
+        constexpr auto InstanceTableIdPushConstant = "instanceTableId";
+
         constexpr u8 MaxPipelineStages = u8(pipeline_stages::enum_max);
 
         constexpr VkShaderStageFlagBits to_vulkan_stage_bits(pipeline_stages stage)
@@ -73,7 +76,14 @@ namespace oblo::vk
             u32 location;
             u32 binding;
             resource_kind kind;
-            pipeline_stages stage2;
+            VkShaderStageFlags stageFlags;
+        };
+
+        struct push_constant_info
+        {
+            VkPipelineStageFlags stages{};
+            u32 size{};
+            i32 instanceTableIdOffset{-1};
         };
 
         // This has to match the OBLO_SAMPLER_ flags in shaders
@@ -123,10 +133,10 @@ namespace oblo::vk
         {
             void handleFileAction(efsw::WatchID, const std::string&, const std::string&, efsw::Action, std::string)
             {
-                anyEvent = true;
+                isDirty = true;
             }
 
-            std::atomic<bool> anyEvent{};
+            std::atomic<bool> isDirty{};
         };
 
         struct vertex_inputs_reflection
@@ -145,7 +155,7 @@ namespace oblo::vk
         std::filesystem::path shaderSourcePath[MaxPipelineStages];
         pipeline_stages stages[MaxPipelineStages];
 
-        std::vector<render_pass_variant> variants;
+        dynamic_array<render_pass_variant> variants;
 
         std::unique_ptr<watch_listener> watcher;
     };
@@ -156,7 +166,7 @@ namespace oblo::vk
 
         std::filesystem::path shaderSourcePath;
 
-        std::vector<compute_pass_variant> variants;
+        dynamic_array<compute_pass_variant> variants;
 
         std::unique_ptr<watch_listener> watcher;
     };
@@ -167,8 +177,9 @@ namespace oblo::vk
         VkPipeline pipeline;
 
         shader_resource vertexInputs;
-        std::vector<shader_resource> resources;
-        std::vector<descriptor_binding> descriptorSetBindings;
+        dynamic_array<shader_resource> resources;
+        dynamic_array<descriptor_binding> descriptorSetBindings;
+        flat_dense_map<h32<string>, push_constant_info> pushConstants;
 
         VkDescriptorSetLayout descriptorSetLayout{};
 
@@ -263,15 +274,18 @@ namespace oblo::vk
             }
 
             frame_allocator& allocator;
-            std::vector<std::filesystem::path> systemIncludePaths;
-            std::vector<std::filesystem::path> resolvedIncludes;
+            dynamic_array<std::filesystem::path> systemIncludePaths;
+            dynamic_array<std::filesystem::path> resolvedIncludes;
         };
 
         template <typename Pass, typename Pipelines>
-        void poll_hot_reloading(vulkan_context& vkCtx, Pass& pass, Pipelines& pipelines)
+        void poll_hot_reloading(
+            const string_interner& interner, vulkan_context& vkCtx, Pass& pass, Pipelines& pipelines)
         {
-            if (bool expected{true}; pass.watcher->anyEvent.compare_exchange_weak(expected, false))
+            if (bool expected{true}; pass.watcher->isDirty.compare_exchange_weak(expected, false))
             {
+                log::debug("Recompiling pass {}", interner.str(pass.name));
+
                 for (auto& variant : pass.variants)
                 {
                     if (auto* const pipeline = pipelines.try_find(variant.pipeline))
@@ -354,12 +368,14 @@ namespace oblo::vk
 
         u32 subgroupSize;
 
+        std::string instanceDataDefines;
+
         VkShaderModule create_shader_module(VkShaderStageFlagBits vkStage,
             const std::filesystem::path& filePath,
             std::span<const h32<string>> defines,
             std::string_view debugName,
             const shader_compiler::options& compilerOptions,
-            std::vector<u32>& spirv);
+            dynamic_array<u32>& spirv);
 
         bool create_pipeline_layout(base_pipeline& newPipeline);
 
@@ -368,11 +384,9 @@ namespace oblo::vk
             std::span<const u32> spirv,
             vertex_inputs_reflection& vertexInputsReflection);
 
-        template <typename F>
         VkDescriptorSet create_descriptor_set(VkDescriptorSetLayout descriptorSetLayout,
             const base_pipeline& pipeline,
-            std::span<const buffer_binding_table* const> bindingTables,
-            F&& fallback);
+            std::span<const buffer_binding_table* const> bindingTables);
 
         shader_compiler::options make_compiler_options();
     };
@@ -382,9 +396,17 @@ namespace oblo::vk
         std::span<const h32<string>> defines,
         std::string_view debugName,
         const shader_compiler::options& compilerOptions,
-        std::vector<u32>& spirv)
+        dynamic_array<u32>& spirv)
     {
-        const auto sourceCode = load_text_file_into_memory(frameAllocator, filePath);
+        const auto sourceCodeRes = load_text_file_into_memory(frameAllocator, filePath);
+
+        if (!sourceCodeRes)
+        {
+            log::debug("Failed to read file {}", filePath.string());
+            return nullptr;
+        }
+
+        const auto sourceCode = *sourceCodeRes;
 
         u32 requiredDefinesLength{0};
 
@@ -405,6 +427,8 @@ namespace oblo::vk
             requiredDefinesLength += u32(fixedSize + interner->str(define).size());
         }
 
+        requiredDefinesLength += u32(instanceDataDefines.size());
+
         constexpr std::string_view lineDirective{"#line 0\n"};
 
         const auto firstLineEnd = std::find(sourceCode.begin(), sourceCode.end(), '\n');
@@ -421,6 +445,7 @@ namespace oblo::vk
         ++it;
 
         it = std::copy(builtInDefinesBuffer, builtInEnd, it);
+        it = std::copy(instanceDataDefines.begin(), instanceDataDefines.end(), it);
 
         for (const auto define : defines)
         {
@@ -486,8 +511,49 @@ namespace oblo::vk
             [](const shader_resource& lhs, const shader_resource& rhs)
             { return shader_resource_sorting::from(lhs) < shader_resource_sorting::from(rhs); });
 
-        // TODO: We could merge the bindings with the same name and kind that belong to different stages, to make
-        // descriptors smaller
+        for (u32 current = 0, next = 1; next < newPipeline.resources.size(); ++current)
+        {
+            if (shader_resource_sorting::from(newPipeline.resources[current]) ==
+                shader_resource_sorting::from(newPipeline.resources[next]))
+            {
+                newPipeline.resources[current].stageFlags |= newPipeline.resources[next].stageFlags;
+
+                // Remove the next but keep the order
+                newPipeline.resources.erase(newPipeline.resources.begin() + next);
+            }
+            else
+            {
+                ++next;
+            }
+        }
+
+        newPipeline.descriptorSetBindings.reserve(newPipeline.resources.size());
+
+        for (const auto& resource : newPipeline.resources)
+        {
+            VkDescriptorType descriptorType;
+
+            switch (resource.kind)
+            {
+            case resource_kind::storage_buffer:
+                descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                break;
+
+            case resource_kind::uniform_buffer:
+                descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                break;
+
+            default:
+                continue;
+            }
+
+            newPipeline.descriptorSetBindings.push_back({
+                .name = resource.name,
+                .binding = resource.binding,
+                .descriptorType = descriptorType,
+                .stageFlags = resource.stageFlags,
+            });
+        }
 
         newPipeline.descriptorSetLayout = descriptorSetPool.get_or_add_layout(newPipeline.descriptorSetBindings);
 
@@ -500,11 +566,23 @@ namespace oblo::vk
             descriptorSetLayouts[descriptorSetLayoutsCount++] = textures2DSetLayout;
         }
 
+        buffered_array<VkPushConstantRange, 2> pushConstantRanges;
+
+        for (const auto& pushConstant : newPipeline.pushConstants.values())
+        {
+            pushConstantRanges.push_back({
+                .stageFlags = pushConstant.stages,
+                .size = pushConstant.size,
+            });
+        }
+
         // TODO: Figure out inputs
         const VkPipelineLayoutCreateInfo pipelineLayoutInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             .setLayoutCount = descriptorSetLayoutsCount,
             .pSetLayouts = descriptorSetLayouts,
+            .pushConstantRangeCount = u32(pushConstantRanges.size()),
+            .pPushConstantRanges = pushConstantRanges.data(),
         };
 
         return vkCreatePipelineLayout(device,
@@ -546,6 +624,7 @@ namespace oblo::vk
                     .location = location,
                     .binding = vertexAttributeIndex,
                     .kind = resource_kind::vertex_stage_input,
+                    .stageFlags = VkShaderStageFlags(vkStage),
                 });
 
                 const spirv_cross::SPIRType& type = compiler.get_type(stageInput.type_id);
@@ -586,12 +665,6 @@ namespace oblo::vk
                 .location = location,
                 .binding = binding,
                 .kind = resource_kind::storage_buffer,
-            });
-
-            newPipeline.descriptorSetBindings.push_back({
-                .name = name,
-                .binding = binding,
-                .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                 .stageFlags = VkShaderStageFlags(vkStage),
             });
         }
@@ -614,12 +687,6 @@ namespace oblo::vk
                 .location = location,
                 .binding = binding,
                 .kind = resource_kind::uniform_buffer,
-            });
-
-            newPipeline.descriptorSetBindings.push_back({
-                .name = name,
-                .binding = binding,
-                .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                 .stageFlags = VkShaderStageFlags(vkStage),
             });
         }
@@ -634,6 +701,28 @@ namespace oblo::vk
                 break;
             }
         }
+
+        for (const auto& pushConstant : shaderResources.push_constant_buffers)
+        {
+            const auto name = interner->get_or_add(pushConstant.name);
+
+            auto [it, inserted] = newPipeline.pushConstants.emplace(name);
+            it->stages |= vkStage;
+            it->size = 128; // We should figure if we can get the size from reflection instead
+
+            const auto& type = compiler.get_type(pushConstant.base_type_id);
+
+            for (u32 i = 0; i < type.member_types.size(); ++i)
+            {
+                const auto pcName = compiler.get_member_name(type.self, i);
+
+                if (pcName == InstanceTableIdPushConstant)
+                {
+                    const auto offset = compiler.type_struct_member_offset(type, i);
+                    it->instanceTableIdOffset = i32(offset);
+                }
+            }
+        }
     }
 
     shader_compiler::options pass_manager::impl::make_compiler_options()
@@ -645,11 +734,9 @@ namespace oblo::vk
         };
     }
 
-    template <typename F>
     VkDescriptorSet pass_manager::impl::create_descriptor_set(VkDescriptorSetLayout descriptorSetLayout,
         const base_pipeline& pipeline,
-        std::span<const buffer_binding_table* const> bindingTables,
-        F&& fallback)
+        std::span<const buffer_binding_table* const> bindingTables)
     {
         const VkDescriptorSet descriptorSet = descriptorSetPool.acquire(descriptorSetLayout);
 
@@ -712,15 +799,6 @@ namespace oblo::vk
                 continue;
             }
 
-            const buffer fallbackBuffer = fallback(binding.name);
-
-            if (fallbackBuffer.buffer)
-            {
-                writeToDescriptorSet(binding, fallbackBuffer);
-                continue;
-            }
-
-            OBLO_ASSERT(!found);
             log::debug("Unable to find matching buffer for binding {} in any of the provided binding tables",
                 interner->str(binding.name));
         }
@@ -989,7 +1067,7 @@ namespace oblo::vk
             return {};
         }
 
-        poll_hot_reloading(*m_impl->vkCtx, *renderPass, m_impl->renderPipelines);
+        poll_hot_reloading(*m_impl->interner, *m_impl->vkCtx, *renderPass, m_impl->renderPipelines);
 
         const u64 definesHash = hash_defines(desc.defines);
 
@@ -1024,7 +1102,7 @@ namespace oblo::vk
         VkPipelineShaderStageCreateInfo stageCreateInfo[MaxPipelineStages]{};
         u32 actualStagesCount{0};
 
-        std::vector<unsigned> spirv;
+        dynamic_array<unsigned> spirv;
         spirv.reserve(1u << 16);
 
         vertex_inputs_reflection vertexInputReflection{};
@@ -1217,7 +1295,7 @@ namespace oblo::vk
             return {};
         }
 
-        poll_hot_reloading(*m_impl->vkCtx, *computePass, m_impl->computePipelines);
+        poll_hot_reloading(*m_impl->interner, *m_impl->vkCtx, *computePass, m_impl->computePipelines);
 
         const u64 definesHash = hash_defines(desc.defines);
 
@@ -1249,7 +1327,7 @@ namespace oblo::vk
             return h32<compute_pipeline>{};
         };
 
-        std::vector<unsigned> spirv;
+        dynamic_array<unsigned> spirv;
         spirv.reserve(1u << 16);
 
         vertex_inputs_reflection vertexInputReflection{};
@@ -1383,6 +1461,28 @@ namespace oblo::vk
         m_impl->texturesDescriptorSetPool.end_frame();
     }
 
+    void pass_manager::update_instance_data_defines(std::string_view defines)
+    {
+        m_impl->instanceDataDefines = defines;
+
+        // Invalidate all passes as well, to trigger recompilation of shaders
+        for (auto& pass : m_impl->renderPasses.values())
+        {
+            if (pass.watcher)
+            {
+                pass.watcher->isDirty.store(true);
+            }
+        }
+
+        for (auto& pass : m_impl->computePasses.values())
+        {
+            if (pass.watcher)
+            {
+                pass.watcher->isDirty.store(true);
+            }
+        }
+    }
+
     expected<render_pass_context> pass_manager::begin_render_pass(
         VkCommandBuffer commandBuffer, h32<render_pipeline> pipelineHandle, const VkRenderingInfo& renderingInfo) const
     {
@@ -1437,10 +1537,9 @@ namespace oblo::vk
         m_impl->frameAllocator.restore_all();
     }
 
-    void pass_manager::draw(const render_pass_context& context,
+    /*void pass_manager::draw(const render_pass_context& context,
         std::span<const buffer> batchDrawCommands,
         std::span<const batch_draw_data> batchDrawData,
-        std::span<const buffer_binding_table> perDrawBindingTable,
         std::span<const buffer_binding_table* const> bindingTables)
     {
         OBLO_ASSERT(batchDrawCommands.size() == batchDrawData.size());
@@ -1452,39 +1551,14 @@ namespace oblo::vk
 
         const auto* pipeline = context.internalPipeline;
 
-        const auto& resources = pipeline->resources;
-
-        const auto begin = resources.begin();
-        const auto lastVertexAttribute = std::find_if_not(begin,
-            resources.end(),
-            [](const shader_resource& r) { return r.kind == resource_kind::vertex_stage_input; });
-
-        const auto numVertexAttributes = u32(lastVertexAttribute - begin);
-
-        // TODO: Could prepare this array once when creating the pipeline
-        const std::span attributeNames = allocate_n_span<h32<string>>(m_impl->frameAllocator, numVertexAttributes);
-        const std::span buffers = allocate_n_span<buffer>(m_impl->frameAllocator, numVertexAttributes);
-
-        for (u32 i = 0; i < numVertexAttributes; ++i)
-        {
-            attributeNames[i] = resources[i].name;
-            buffers[i] = m_impl->dummy;
-        };
-
         for (usize drawIndex = 0; drawIndex < batchDrawCommands.size(); ++drawIndex)
         {
             auto& draw = batchDrawData[drawIndex];
 
             if (const auto descriptorSetLayout = pipeline->descriptorSetLayout)
             {
-                const VkDescriptorSet descriptorSet = m_impl->create_descriptor_set(descriptorSetLayout,
-                    *pipeline,
-                    bindingTables,
-                    [perDrawBindingTable, drawIndex](h32<string> binding)
-                    {
-                        auto* const b = perDrawBindingTable[drawIndex].try_find(binding);
-                        return b ? *b : buffer{};
-                    });
+                const VkDescriptorSet descriptorSet =
+                    m_impl->create_descriptor_set(descriptorSetLayout, *pipeline, bindingTables);
 
                 vkCmdBindDescriptorSets(context.commandBuffer,
                     VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -1496,6 +1570,23 @@ namespace oblo::vk
                     nullptr);
 
                 auto& drawBuffer = batchDrawCommands[drawIndex];
+
+                for (auto& pushConstantInfo : pipeline->pushConstants.values())
+                {
+                    if (pushConstantInfo.instanceTableIdOffset >= 0)
+                    {
+                        u32 instanceTableId{draw.instanceTableId};
+
+                        vkCmdPushConstants(context.commandBuffer,
+                            pipeline->pipelineLayout,
+                            pushConstantInfo.stages,
+                            u32(pushConstantInfo.instanceTableIdOffset),
+                            sizeof(u32),
+                            &instanceTableId);
+
+                        break;
+                    }
+                }
 
                 if (draw.drawCommands.isIndexed)
                 {
@@ -1524,7 +1615,8 @@ namespace oblo::vk
                 }
             }
         }
-    }
+    }*/
+
     expected<compute_pass_context> pass_manager::begin_compute_pass(VkCommandBuffer commandBuffer,
         h32<compute_pipeline> pipelineHandle) const
     {
@@ -1552,22 +1644,65 @@ namespace oblo::vk
         m_impl->vkCtx->end_debug_label(context.commandBuffer);
     }
 
-    void pass_manager::dispatch(const compute_pass_context& context,
-        u32 x,
-        u32 y,
-        u32 z,
-        std::span<const buffer_binding_table* const> bindingTables)
+    u32 pass_manager::get_subgroup_size() const
     {
-        auto* const pipeline = context.internalPipeline;
+        return m_impl->subgroupSize;
+    }
+
+    void pass_manager::push_constants(
+        const render_pass_context& ctx, VkShaderStageFlags stages, u32 offset, std::span<const byte> data) const
+    {
+        vkCmdPushConstants(ctx.commandBuffer,
+            ctx.internalPipeline->pipelineLayout,
+            stages,
+            offset,
+            u32(data.size()),
+            data.data());
+    }
+
+    void pass_manager::push_constants(
+        const compute_pass_context& ctx, VkShaderStageFlags stages, u32 offset, std::span<const byte> data) const
+    {
+        vkCmdPushConstants(ctx.commandBuffer,
+            ctx.internalPipeline->pipelineLayout,
+            stages,
+            offset,
+            u32(data.size()),
+            data.data());
+    }
+
+    void pass_manager::bind_descriptor_sets(const render_pass_context& ctx,
+        std::span<const buffer_binding_table* const> bindingTables) const
+    {
+        const auto* pipeline = ctx.internalPipeline;
 
         if (const auto descriptorSetLayout = pipeline->descriptorSetLayout)
         {
-            const VkDescriptorSet descriptorSet = m_impl->create_descriptor_set(descriptorSetLayout,
-                *pipeline,
-                bindingTables,
-                [](h32<string>) { return buffer{}; });
+            const VkDescriptorSet descriptorSet =
+                m_impl->create_descriptor_set(descriptorSetLayout, *pipeline, bindingTables);
 
-            vkCmdBindDescriptorSets(context.commandBuffer,
+            vkCmdBindDescriptorSets(ctx.commandBuffer,
+                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                pipeline->pipelineLayout,
+                0,
+                1,
+                &descriptorSet,
+                0,
+                nullptr);
+        }
+    }
+
+    void pass_manager::bind_descriptor_sets(const compute_pass_context& ctx,
+        std::span<const buffer_binding_table* const> bindingTables) const
+    {
+        auto* const pipeline = ctx.internalPipeline;
+
+        if (const auto descriptorSetLayout = pipeline->descriptorSetLayout)
+        {
+            const VkDescriptorSet descriptorSet =
+                m_impl->create_descriptor_set(descriptorSetLayout, *pipeline, bindingTables);
+
+            vkCmdBindDescriptorSets(ctx.commandBuffer,
                 VK_PIPELINE_BIND_POINT_COMPUTE,
                 pipeline->pipelineLayout,
                 0,
@@ -1576,12 +1711,5 @@ namespace oblo::vk
                 0,
                 nullptr);
         }
-
-        vkCmdDispatch(context.commandBuffer, x, y, z);
-    }
-
-    u32 pass_manager::get_subgroup_size() const
-    {
-        return m_impl->subgroupSize;
     }
 }
