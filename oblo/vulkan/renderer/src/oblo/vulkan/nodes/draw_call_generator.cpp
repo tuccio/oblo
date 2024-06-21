@@ -44,14 +44,14 @@ namespace oblo::vk
 
         drawCallBuffer = allocate_n_span<resource<buffer>>(ctx.get_frame_allocator(), drawBufferData.size());
 
-        auto* nextDraw = drawCallBuffer.data();
-
-        for (auto& draw : drawBufferData)
+        for (usize i = 0; i < drawBufferData.size(); ++i)
         {
+            auto& draw = drawBufferData[i];
+
             ctx.acquire(draw.preCullingIdMap, pass_kind::compute, buffer_usage::storage_read);
             ctx.acquire(draw.drawCallCountBuffer, pass_kind::compute, buffer_usage::storage_read);
 
-            *nextDraw = ctx.create_dynamic_buffer(
+            drawCallBuffer[i] = ctx.create_dynamic_buffer(
                 {
                     .size = u32(draw.sourceData.drawCommands.drawCommands.size()),
                 },
