@@ -198,15 +198,6 @@ namespace oblo::vk
 
         const auto [pipelineStage, access] = convert_for_sync2(passKind, usage);
         m_frameGraph.set_buffer_access(buffer, pipelineStage, access);
-
-        if (passKind == pass_kind::transfer)
-        {
-            OBLO_ASSERT(usage == buffer_usage::storage_upload);
-
-            // Maybe at some point we want to prepare some stuff before uploading, e.g. preallocating the stage in one
-            // go. For now this is just for debugging purposes.
-            m_frameGraph.register_exec_time_upload(buffer);
-        }
     }
 
     void frame_graph_build_context::create(

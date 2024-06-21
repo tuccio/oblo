@@ -362,14 +362,10 @@ namespace oblo::vk
 
                 auto& nodeTransitions = m_impl->nodeTransitions[nodeIndex];
                 nodeTransitions.firstTextureTransition = u32(m_impl->textureTransitions.size());
-                // nodeTransitions.firstBufferBarrier = u32(m_impl->bufferBarriers.size());
-                nodeTransitions.firstExecTimeUpload = u32(m_impl->execTimeUploads.size());
 
                 node->build(ptr, buildCtx);
 
                 nodeTransitions.lastTextureTransition = u32(m_impl->textureTransitions.size());
-                // nodeTransitions.lastBufferBarrier = u32(m_impl->bufferBarriers.size());
-                nodeTransitions.lastExecTimeUpload = u32(m_impl->execTimeUploads.size());
             }
 
             ++nodeIndex;
@@ -541,14 +537,6 @@ namespace oblo::vk
                 vkCmdPipelineBarrier2(commandBuffer.get(), &dependencyInfo);
             }
 
-            m_impl->currentNodeUploads.clear();
-
-            for (u32 i = transitions.firstExecTimeUpload; i < transitions.lastExecTimeUpload; ++i)
-            {
-                const auto buffer = m_impl->execTimeUploads[i];
-                m_impl->currentNodeUploads.emplace(buffer);
-            }
-
             if (node.execute)
             {
                 OBLO_PROFILE_SCOPE("Execute Node");
@@ -663,24 +651,13 @@ namespace oblo::vk
             });
 
         OBLO_ASSERT(ok);
-
-        // bufferBarriers.push_back({
-        //     .buffer = storage,
-        //     .pipelineStage = pipelineStage,
-        //     .access = access,
-        //     .forwardAccess = forward,
-        // });
-    }
-
-    void frame_graph_impl::register_exec_time_upload(resource<buffer> handle)
-    {
-        const auto storage = to_storage_handle(handle);
-        execTimeUploads.push_back(storage);
     }
 
     bool frame_graph_impl::can_exec_time_upload(resource<buffer> handle) const
     {
-        return currentNodeUploads.try_find(to_storage_handle(handle)) != nullptr;
+        auto* const usage = currentNode->bufferUsages.try_find(to_storage_handle(handle));
+        return usage && usage->access == VK_ACCESS_2_TRANSFER_WRITE_BIT &&
+            usage->stages == VK_PIPELINE_STAGE_2_TRANSFER_BIT;
     }
 
     h32<frame_graph_pin_storage> frame_graph_impl::allocate_dynamic_resource_pin()
@@ -825,11 +802,9 @@ namespace oblo::vk
             pinStorage.erase(h);
         }
 
-        // bufferBarriers.clear();
         textureTransitions.clear();
         transientTextures.clear();
         transientBuffers.clear();
-        execTimeUploads.clear();
         dynamicPins.clear();
     }
 
