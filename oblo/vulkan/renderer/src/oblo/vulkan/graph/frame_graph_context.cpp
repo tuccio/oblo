@@ -190,13 +190,8 @@ namespace oblo::vk
             stagedData = *res;
             stagedDataPtr = &stagedData;
 
-            // All copies will be added to the command buffer upfront, so we start with a buffer that has been
-            // transferred to
-            //
-            //
             // We rely on a global memory barrier in frame graph to synchronize all uploads before submitting any
             // command
-            // m_frameGraph.set_buffer_access(buffer, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
         }
 
         m_frameGraph.add_transient_buffer(buffer, poolIndex, stagedDataPtr);
@@ -229,11 +224,6 @@ namespace oblo::vk
         const auto poolIndex = m_resourcePool.add_buffer(stagedDataSize, vkUsage);
 
         // We rely on a global memory barrier in frame graph to synchronize all uploads before submitting any command
-
-        // All copies will be added to the command buffer upfront, so we start with a buffer that has been
-        // transferred to
-        //
-        // m_frameGraph.set_buffer_access(buffer, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
 
         m_frameGraph.add_transient_buffer(buffer, poolIndex, &stagedData);
 

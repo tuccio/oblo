@@ -320,7 +320,7 @@ namespace oblo::vk
 
     void frame_graph::build(renderer& renderer)
     {
-        OBLO_PROFILE_SCOPE("frame_graph::execute");
+        OBLO_PROFILE_SCOPE("Frame Graph Build");
 
         m_impl->dynamicAllocator.restore_all();
 
@@ -357,7 +357,7 @@ namespace oblo::vk
 
             if (node->build)
             {
-                OBLO_PROFILE_SCOPE("Build");
+                OBLO_PROFILE_SCOPE("Build Node");
                 OBLO_PROFILE_TAG(node->typeId.name);
 
                 auto& nodeTransitions = m_impl->nodeTransitions[nodeIndex];
@@ -383,7 +383,7 @@ namespace oblo::vk
 
     void frame_graph::execute(renderer& renderer)
     {
-        OBLO_PROFILE_SCOPE("Execute");
+        OBLO_PROFILE_SCOPE("Frame Graph Execute");
 
         auto& commandBuffer = renderer.get_active_command_buffer();
         auto& resourcePool = m_impl->resourcePool;
@@ -426,13 +426,13 @@ namespace oblo::vk
         buffered_array<VkBufferMemoryBarrier2, 32> bufferBarriers;
 
         {
-            // Global memory barrier to cover all uploads happened before the frame graph execution
+            // Global memory barrier to cover all uploads we just flushed
             const VkMemoryBarrier2 uploadMemoryBarrier{
                 .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
                 .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
                 .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
                 .dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-                .dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
+                .dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT,
             };
 
             const VkDependencyInfo dependencyInfo{
@@ -534,8 +534,6 @@ namespace oblo::vk
             {
                 const VkDependencyInfo dependencyInfo{
                     .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-                    //.memoryBarrierCount = 1,
-                    //.pMemoryBarriers = &uploadMemoryBarrier,
                     .bufferMemoryBarrierCount = u32(bufferBarriers.size()),
                     .pBufferMemoryBarriers = bufferBarriers.data(),
                 };
@@ -553,7 +551,7 @@ namespace oblo::vk
 
             if (node.execute)
             {
-                OBLO_PROFILE_SCOPE("Execute");
+                OBLO_PROFILE_SCOPE("Execute Node");
                 OBLO_PROFILE_TAG(node.typeId.name);
                 node.execute(ptr, executeCtx);
             }

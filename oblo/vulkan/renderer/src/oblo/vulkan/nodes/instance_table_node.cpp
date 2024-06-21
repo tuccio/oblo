@@ -47,7 +47,7 @@ namespace oblo::vk
             for (u32 i = 0; i < srcInstanceBuffer.count; ++i)
             {
                 bufferResources[i] = ctx.create_dynamic_buffer(srcInstanceBuffer.buffersData[i],
-                    pass_kind::transfer,
+                    pass_kind::none, // Not actually used in this node, so this should not matter
                     buffer_usage::storage_upload);
             }
 
