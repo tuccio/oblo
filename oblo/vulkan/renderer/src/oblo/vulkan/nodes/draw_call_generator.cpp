@@ -1,5 +1,6 @@
 #include <oblo/vulkan/nodes/draw_call_generator.hpp>
 
+#include <oblo/core/allocation_helpers.hpp>
 #include <oblo/vulkan/data/draw_buffer_data.hpp>
 #include <oblo/vulkan/draw/compute_pass_initializer.hpp>
 #include <oblo/vulkan/graph/node_common.hpp>
@@ -30,7 +31,8 @@ namespace oblo::vk
 
     void draw_call_generator::build(const frame_graph_build_context& ctx)
     {
-        auto& drawBufferData = ctx.access(inOutDrawBufferData);
+        auto& drawBufferData = ctx.access(inDrawBufferData);
+        auto& drawCallBuffer = ctx.access(outDrawCallBuffer);
 
         const auto& drawRegistry = ctx.get_draw_registry();
         const std::span drawCalls = drawRegistry.get_draw_calls();
@@ -40,21 +42,16 @@ namespace oblo::vk
             return;
         }
 
+        drawCallBuffer = allocate_n_span<resource<buffer>>(ctx.get_frame_allocator(), drawBufferData.size());
+
+        auto* nextDraw = drawCallBuffer.data();
+
         for (auto& draw : drawBufferData)
         {
-            constexpr u32 zero{};
-
-            draw.drawCallCountBuffer = ctx.create_dynamic_buffer(
-                {
-                    .size = sizeof(u32),
-                    .data = {as_bytes(std::span{&zero, 1})},
-                },
-                pass_kind::compute,
-                buffer_usage::storage_read);
-
             ctx.acquire(draw.preCullingIdMap, pass_kind::compute, buffer_usage::storage_read);
+            ctx.acquire(draw.drawCallCountBuffer, pass_kind::compute, buffer_usage::storage_read);
 
-            draw.drawCallBuffer = ctx.create_dynamic_buffer(
+            *nextDraw = ctx.create_dynamic_buffer(
                 {
                     .size = u32(draw.sourceData.drawCommands.drawCommands.size()),
                 },
@@ -99,7 +96,8 @@ namespace oblo::vk
 
             if (const auto pass = pm.begin_compute_pass(ctx.get_command_buffer(), pipeline))
             {
-                const std::span drawData = ctx.access(inOutDrawBufferData);
+                const std::span drawData = ctx.access(inDrawBufferData);
+                const std::span drawCallBuffers = ctx.access(outDrawCallBuffer);
 
                 const auto subgroupSize = pm.get_subgroup_size();
 
@@ -109,7 +107,7 @@ namespace oblo::vk
                 {
                     const auto& currentDraw = drawData[nextIndex];
 
-                    const buffer outDrawCallsBuffer = ctx.access(currentDraw.drawCallBuffer);
+                    const buffer outDrawCallsBuffer = ctx.access(drawCallBuffers[nextIndex]);
 
                     bindingTable.clear();
 

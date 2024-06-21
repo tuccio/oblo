@@ -25,6 +25,7 @@ namespace oblo::vk
         data<vec2u> inResolution;
         data<buffer_binding_table> inPerViewBindingTable;
         data<std::span<draw_buffer_data>> inDrawData;
+        data<std::span<resource<buffer>>> inDrawCallBuffer;
 
         resource<buffer> inLightData;
         resource<buffer> inLightConfig;

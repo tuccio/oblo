@@ -98,12 +98,11 @@ namespace oblo::vk::main_view
             graph.connect(frustumCulling,
                 &frustum_culling::outDrawBufferData,
                 drawCallGenerator,
-                &draw_call_generator::inOutDrawBufferData);
+                &draw_call_generator::inDrawBufferData);
 
-            graph.connect(drawCallGenerator,
-                &draw_call_generator::inOutDrawBufferData,
-                forwardPass,
-                &forward_pass::inDrawData);
+            graph.connect(frustumCulling, &frustum_culling::outDrawBufferData, forwardPass, &forward_pass::inDrawData);
+
+            graph.connect(drawCallGenerator, &draw_call_generator::outDrawCallBuffer, forwardPass, &forward_pass::inDrawCallBuffer);
 
             graph.connect(viewBuffers,
                 &view_buffers_node::outMeshDatabase,

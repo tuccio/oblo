@@ -85,9 +85,13 @@ namespace oblo::vk
 
         for (const auto& drawData : ctx.access(inDrawData))
         {
-            ctx.acquire(drawData.drawCallBuffer, pass_kind::graphics, buffer_usage::indirect);
             ctx.acquire(drawData.drawCallCountBuffer, pass_kind::graphics, buffer_usage::indirect);
             ctx.acquire(drawData.preCullingIdMap, pass_kind::graphics, buffer_usage::storage_read);
+        }
+
+        for (const auto& drawCallBuffer : ctx.access(inDrawCallBuffer))
+        {
+            ctx.acquire(drawCallBuffer, pass_kind::graphics, buffer_usage::indirect);
         }
 
         acquire_instance_tables(ctx,
@@ -201,11 +205,13 @@ namespace oblo::vk
 
         if (const auto pass = passManager.begin_render_pass(commandBuffer, pipeline, renderInfo))
         {
+            const auto drawCallBufferSpan = ctx.access(inDrawCallBuffer);
+
             for (usize drawCallIndex = 0; drawCallIndex < drawData.size(); ++drawCallIndex)
             {
                 const auto& culledDraw = drawData[drawCallIndex];
 
-                const auto drawCallBuffer = ctx.access(culledDraw.drawCallBuffer);
+                const auto drawCallBuffer = ctx.access(drawCallBufferSpan[drawCallIndex]);
                 const auto drawCallCountBuffer = ctx.access(culledDraw.drawCallCountBuffer);
 
                 perDrawBindingTable.clear();

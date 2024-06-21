@@ -57,12 +57,21 @@ namespace oblo::vk
         usize first = 0;
         usize last = drawCalls.size();
 
+        constexpr u32 zero{};
+
         for (const auto& draw : drawCalls)
         {
             // We effectively partition non-indexed and indexed calls here
             const auto outIndex = draw.drawCommands.isIndexed ? --last : first++;
 
             drawBufferData[outIndex] = {
+                .drawCallCountBuffer = ctx.create_dynamic_buffer(
+                    {
+                        .size = sizeof(u32),
+                        .data = {as_bytes(std::span{&zero, 1})},
+                    },
+                    pass_kind::compute,
+                    buffer_usage::storage_write),
                 .preCullingIdMap = ctx.create_dynamic_buffer(
                     {
                         .size = u32(draw.drawCommands.drawCommands.size() * sizeof(u32)),

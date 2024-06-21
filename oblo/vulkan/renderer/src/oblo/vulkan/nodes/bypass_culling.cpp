@@ -37,7 +37,7 @@ namespace oblo::vk
                 buffer_usage::indirect); // TODO: This is actually not used
 
             drawBufferData[outIndex] = {
-                .drawCallBuffer = drawCallBuffer,
+                //.drawCallBuffer = drawCallBuffer,
                 .sourceData = draw,
             };
 
