@@ -123,7 +123,7 @@ namespace oblo
             switch (other.m_hasValue)
             {
             case false:
-                m_error = other.error;
+                m_error = other.m_error;
                 break;
 
             case true:
@@ -139,7 +139,7 @@ namespace oblo
             switch (other.m_hasValue)
             {
             case false:
-                m_error = other.error;
+                m_error = other.m_error;
                 break;
 
             case true:

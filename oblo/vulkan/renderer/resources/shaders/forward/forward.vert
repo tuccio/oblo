@@ -19,26 +19,29 @@ layout(binding = 0) uniform b_CameraBuffer
     camera_buffer g_Camera;
 };
 
+layout(std430, binding = 2) restrict readonly buffer b_PreCullingIdMap
+{
+    uint g_preCullingIdMap[];
+};
+
 layout(push_constant) uniform c_PushConstants
 {
     uint instanceTableId;
 }
 g_Constants;
 
-
-
-
-
 void main()
 {
-    const mesh_handle meshHandle = OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_MeshHandles, gl_DrawID);
+    const uint instanceId = g_preCullingIdMap[gl_DrawID];
+
+    const mesh_handle meshHandle = OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_MeshHandles, instanceId);
     const mesh_table table = get_mesh_table(meshHandle);
 
     const vec3 inPosition = get_mesh_position(table, gl_VertexIndex);
     const vec2 inUV0 = get_mesh_uv0(table, gl_VertexIndex);
     const vec3 inNormal = get_mesh_normal(table, gl_VertexIndex);
 
-    const transform instanceTransform = OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_TransformBuffer, gl_DrawID);
+    const transform instanceTransform = OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_TransformBuffer, instanceId);
     const mat4 model = instanceTransform.localToWorld;
 
     const mat4 viewProj = g_Camera.projection * g_Camera.view;
@@ -49,7 +52,7 @@ void main()
     gl_Position = positionNDC;
 
     out_PositionWS = positionWS.xyz;
-    out_InstanceId = gl_DrawID;
+    out_InstanceId = instanceId;
     out_Normal = inNormal;
     out_UV0 = inUV0;
 }

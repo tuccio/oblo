@@ -1,0 +1,88 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_buffer_reference : require
+#extension GL_ARB_gpu_shader_int64 : require
+
+#include <renderer/instances>
+#include <renderer/meshes>
+
+layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
+
+struct vk_draw_indirect_command
+{
+    uint vertexCount;
+    uint instanceCount;
+    uint firstVertex;
+    uint firstInstance;
+};
+
+struct vk_draw_indexed_indirect_command
+{
+    uint indexCount;
+    uint instanceCount;
+    uint firstIndex;
+    uint vertexOffset; // This is actually int, but we will only use unsigned values
+    uint firstInstance;
+};
+
+#ifndef DRAW_INDEXED
+#define draw_command_t vk_draw_indirect_command
+#else
+#define draw_command_t vk_draw_indexed_indirect_command
+#endif
+
+layout(std430, binding = 0) restrict readonly buffer b_InDrawCount
+{
+    uint inDrawCount;
+};
+
+layout(std430, binding = 1) restrict readonly buffer b_PreCullingIdMap
+{
+    uint inInstancesInFrustum[];
+};
+
+layout(std430, binding = 2) restrict buffer b_OutDrawCallsBuffer
+{
+    draw_command_t outDrawCalls[];
+};
+
+layout(push_constant) uniform c_PushConstants
+{
+    uint instanceTableId;
+}
+g_Constants;
+
+void main()
+{
+    const uint drawId = gl_GlobalInvocationID.x;
+
+    if (drawId >= inDrawCount)
+    {
+        return;
+    }
+
+    const mesh_handle meshHandle = OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_MeshHandles, drawId);
+    const mesh_table table = get_mesh_table(meshHandle);
+
+    const uint meshIndex = get_mesh_index(meshHandle);
+
+    const mesh_draw_range range = get_mesh_draw_range(table, meshIndex);
+
+#ifdef DRAW_INDEXED
+    vk_draw_indexed_indirect_command drawCall;
+    drawCall.indexCount = range.indexCount;
+    drawCall.instanceCount = 1;
+    drawCall.firstIndex = range.indexOffset;
+    drawCall.vertexOffset = range.vertexOffset;
+    drawCall.firstInstance = 0;
+#else
+    vk_draw_indirect_command drawCall;
+    drawCall.vertexCount = range.vertexCount;
+    drawCall.instanceCount = 1;
+    drawCall.firstVertex = range.vertexOffset;
+    drawCall.firstInstance = 0;
+#endif
+
+    outDrawCalls[drawId] = drawCall;
+}

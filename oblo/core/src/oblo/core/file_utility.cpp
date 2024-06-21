@@ -27,29 +27,29 @@ namespace oblo
         }
 
         template <typename Allocator>
-        std::span<char> load_impl(
+        expected<std::span<char>> load_impl(
             Allocator& allocator, const std::filesystem::path& path, const char* mode, usize alignment)
         {
             FILE* file;
 
             // TODO: Should avoid transcoding and possibly allocating with path::string()
-            if (fopen_s(&file, path.string().c_str(), mode) != 0)
+            if (const auto ret = fopen_s(&file, path.string().c_str(), mode); ret != 0)
             {
-                return {};
+                return unspecified_error;
             }
 
             const auto closeFile = finally([file] { fclose(file); });
 
             if (fseek(file, 0, SEEK_END) != 0)
             {
-                return {};
+                return unspecified_error;
             }
 
             const auto fileSize = std::size_t(ftell(file));
 
             if (fseek(file, 0, SEEK_SET) != 0)
             {
-                return {};
+                return unspecified_error;
             }
 
             auto* const buffer = fileSize == 0 ? nullptr : allocate_impl(allocator, fileSize, alignment);
@@ -57,32 +57,49 @@ namespace oblo
 
             if (readBytes < 0)
             {
-                return {};
+                return unspecified_error;
             }
 
-            return {static_cast<char*>(buffer), readBytes};
+            return std::span{static_cast<char*>(buffer), readBytes};
         }
     }
 
-    std::span<std::byte> load_binary_file_into_memory(
+    expected<std::span<std::byte>> load_binary_file_into_memory(
         frame_allocator& allocator, const std::filesystem::path& path, usize alignment)
     {
-        return std::as_writable_bytes(load_impl(allocator, path, "rb", alignment));
+        const auto e = load_impl(allocator, path, "rb", alignment);
+        expected<std::span<std::byte>> res{unspecified_error};
+
+        if (e)
+        {
+            res = std::as_writable_bytes(*e);
+        }
+
+        return res;
     }
 
-    std::span<char> load_text_file_into_memory(
+    expected<std::span<char>> load_text_file_into_memory(
         frame_allocator& allocator, const std::filesystem::path& path, usize alignment)
     {
         return load_impl(allocator, path, "r", alignment);
     }
 
-    std::span<std::byte> load_binary_file_into_memory(
+    expected<std::span<std::byte>> load_binary_file_into_memory(
         std::vector<std::byte>& out, const std::filesystem::path& path, usize alignment)
     {
-        return std::as_writable_bytes(load_impl(out, path, "rb", alignment));
+        const auto e = load_impl(out, path, "rb", alignment);
+        expected<std::span<std::byte>> res{unspecified_error};
+
+        if (e)
+        {
+            res = std::as_writable_bytes(*e);
+        }
+
+        return res;
     }
 
-    std::span<char> load_text_file_into_memory(std::string& out, const std::filesystem::path& path, usize alignment)
+    expected<std::span<char>> load_text_file_into_memory(
+        std::string& out, const std::filesystem::path& path, usize alignment)
     {
         return load_impl(out, path, "r", alignment);
     }

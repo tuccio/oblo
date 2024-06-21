@@ -279,10 +279,13 @@ namespace oblo::vk
         };
 
         template <typename Pass, typename Pipelines>
-        void poll_hot_reloading(vulkan_context& vkCtx, Pass& pass, Pipelines& pipelines)
+        void poll_hot_reloading(
+            const string_interner& interner, vulkan_context& vkCtx, Pass& pass, Pipelines& pipelines)
         {
             if (bool expected{true}; pass.watcher->isDirty.compare_exchange_weak(expected, false))
             {
+                log::debug("Recompiling pass {}", interner.str(pass.name));
+
                 for (auto& variant : pass.variants)
                 {
                     if (auto* const pipeline = pipelines.try_find(variant.pipeline))
@@ -381,11 +384,9 @@ namespace oblo::vk
             std::span<const u32> spirv,
             vertex_inputs_reflection& vertexInputsReflection);
 
-        template <typename F>
         VkDescriptorSet create_descriptor_set(VkDescriptorSetLayout descriptorSetLayout,
             const base_pipeline& pipeline,
-            std::span<const buffer_binding_table* const> bindingTables,
-            F&& fallback);
+            std::span<const buffer_binding_table* const> bindingTables);
 
         shader_compiler::options make_compiler_options();
     };
@@ -397,7 +398,15 @@ namespace oblo::vk
         const shader_compiler::options& compilerOptions,
         dynamic_array<u32>& spirv)
     {
-        const auto sourceCode = load_text_file_into_memory(frameAllocator, filePath);
+        const auto sourceCodeRes = load_text_file_into_memory(frameAllocator, filePath);
+
+        if (!sourceCodeRes)
+        {
+            log::debug("Failed to read file {}", filePath.string());
+            return nullptr;
+        }
+
+        const auto sourceCode = *sourceCodeRes;
 
         u32 requiredDefinesLength{0};
 
@@ -725,11 +734,9 @@ namespace oblo::vk
         };
     }
 
-    template <typename F>
     VkDescriptorSet pass_manager::impl::create_descriptor_set(VkDescriptorSetLayout descriptorSetLayout,
         const base_pipeline& pipeline,
-        std::span<const buffer_binding_table* const> bindingTables,
-        F&& fallback)
+        std::span<const buffer_binding_table* const> bindingTables)
     {
         const VkDescriptorSet descriptorSet = descriptorSetPool.acquire(descriptorSetLayout);
 
@@ -792,15 +799,6 @@ namespace oblo::vk
                 continue;
             }
 
-            const buffer fallbackBuffer = fallback(binding.name);
-
-            if (fallbackBuffer.buffer)
-            {
-                writeToDescriptorSet(binding, fallbackBuffer);
-                continue;
-            }
-
-            OBLO_ASSERT(!found);
             log::debug("Unable to find matching buffer for binding {} in any of the provided binding tables",
                 interner->str(binding.name));
         }
@@ -1069,7 +1067,7 @@ namespace oblo::vk
             return {};
         }
 
-        poll_hot_reloading(*m_impl->vkCtx, *renderPass, m_impl->renderPipelines);
+        poll_hot_reloading(*m_impl->interner, *m_impl->vkCtx, *renderPass, m_impl->renderPipelines);
 
         const u64 definesHash = hash_defines(desc.defines);
 
@@ -1297,7 +1295,7 @@ namespace oblo::vk
             return {};
         }
 
-        poll_hot_reloading(*m_impl->vkCtx, *computePass, m_impl->computePipelines);
+        poll_hot_reloading(*m_impl->interner, *m_impl->vkCtx, *computePass, m_impl->computePipelines);
 
         const u64 definesHash = hash_defines(desc.defines);
 
@@ -1539,7 +1537,7 @@ namespace oblo::vk
         m_impl->frameAllocator.restore_all();
     }
 
-    void pass_manager::draw(const render_pass_context& context,
+    /*void pass_manager::draw(const render_pass_context& context,
         std::span<const buffer> batchDrawCommands,
         std::span<const batch_draw_data> batchDrawData,
         std::span<const buffer_binding_table* const> bindingTables)
@@ -1553,35 +1551,14 @@ namespace oblo::vk
 
         const auto* pipeline = context.internalPipeline;
 
-        const auto& resources = pipeline->resources;
-
-        const auto begin = resources.begin();
-        const auto lastVertexAttribute = std::find_if_not(begin,
-            resources.end(),
-            [](const shader_resource& r) { return r.kind == resource_kind::vertex_stage_input; });
-
-        const auto numVertexAttributes = u32(lastVertexAttribute - begin);
-
-        // TODO: Could prepare this array once when creating the pipeline
-        const std::span attributeNames = allocate_n_span<h32<string>>(m_impl->frameAllocator, numVertexAttributes);
-        const std::span buffers = allocate_n_span<buffer>(m_impl->frameAllocator, numVertexAttributes);
-
-        for (u32 i = 0; i < numVertexAttributes; ++i)
-        {
-            attributeNames[i] = resources[i].name;
-            buffers[i] = m_impl->dummy;
-        };
-
         for (usize drawIndex = 0; drawIndex < batchDrawCommands.size(); ++drawIndex)
         {
             auto& draw = batchDrawData[drawIndex];
 
             if (const auto descriptorSetLayout = pipeline->descriptorSetLayout)
             {
-                const VkDescriptorSet descriptorSet = m_impl->create_descriptor_set(descriptorSetLayout,
-                    *pipeline,
-                    bindingTables,
-                    [](h32<string>) { return buffer{}; });
+                const VkDescriptorSet descriptorSet =
+                    m_impl->create_descriptor_set(descriptorSetLayout, *pipeline, bindingTables);
 
                 vkCmdBindDescriptorSets(context.commandBuffer,
                     VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -1638,7 +1615,8 @@ namespace oblo::vk
                 }
             }
         }
-    }
+    }*/
+
     expected<compute_pass_context> pass_manager::begin_compute_pass(VkCommandBuffer commandBuffer,
         h32<compute_pipeline> pipelineHandle) const
     {
@@ -1666,34 +1644,6 @@ namespace oblo::vk
         m_impl->vkCtx->end_debug_label(context.commandBuffer);
     }
 
-    void pass_manager::dispatch(const compute_pass_context& context,
-        u32 x,
-        u32 y,
-        u32 z,
-        std::span<const buffer_binding_table* const> bindingTables)
-    {
-        auto* const pipeline = context.internalPipeline;
-
-        if (const auto descriptorSetLayout = pipeline->descriptorSetLayout)
-        {
-            const VkDescriptorSet descriptorSet = m_impl->create_descriptor_set(descriptorSetLayout,
-                *pipeline,
-                bindingTables,
-                [](h32<string>) { return buffer{}; });
-
-            vkCmdBindDescriptorSets(context.commandBuffer,
-                VK_PIPELINE_BIND_POINT_COMPUTE,
-                pipeline->pipelineLayout,
-                0,
-                1,
-                &descriptorSet,
-                0,
-                nullptr);
-        }
-
-        vkCmdDispatch(context.commandBuffer, x, y, z);
-    }
-
     u32 pass_manager::get_subgroup_size() const
     {
         return m_impl->subgroupSize;
@@ -1719,5 +1669,47 @@ namespace oblo::vk
             offset,
             u32(data.size()),
             data.data());
+    }
+
+    void pass_manager::bind_descriptor_sets(const render_pass_context& ctx,
+        std::span<const buffer_binding_table* const> bindingTables) const
+    {
+        const auto* pipeline = ctx.internalPipeline;
+
+        if (const auto descriptorSetLayout = pipeline->descriptorSetLayout)
+        {
+            const VkDescriptorSet descriptorSet =
+                m_impl->create_descriptor_set(descriptorSetLayout, *pipeline, bindingTables);
+
+            vkCmdBindDescriptorSets(ctx.commandBuffer,
+                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                pipeline->pipelineLayout,
+                0,
+                1,
+                &descriptorSet,
+                0,
+                nullptr);
+        }
+    }
+
+    void pass_manager::bind_descriptor_sets(const compute_pass_context& ctx,
+        std::span<const buffer_binding_table* const> bindingTables) const
+    {
+        auto* const pipeline = ctx.internalPipeline;
+
+        if (const auto descriptorSetLayout = pipeline->descriptorSetLayout)
+        {
+            const VkDescriptorSet descriptorSet =
+                m_impl->create_descriptor_set(descriptorSetLayout, *pipeline, bindingTables);
+
+            vkCmdBindDescriptorSets(ctx.commandBuffer,
+                VK_PIPELINE_BIND_POINT_COMPUTE,
+                pipeline->pipelineLayout,
+                0,
+                1,
+                &descriptorSet,
+                0,
+                nullptr);
+        }
     }
 }

@@ -8,8 +8,9 @@ namespace oblo::vk
     struct draw_buffer_data
     {
         resource<buffer> drawInstancesBuffer;
-        resource<buffer> drawCallsCountBuffer;
+        resource<buffer> drawCallCountBuffer;
         resource<buffer> drawCallBuffer;
+        resource<buffer> preCullingIdMap;
         batch_draw_data sourceData;
     };
 }

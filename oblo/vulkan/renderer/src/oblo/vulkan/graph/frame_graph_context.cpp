@@ -96,6 +96,10 @@ namespace oblo::vk
 
             switch (passKind)
             {
+            case pass_kind::none:
+                pipelineStage = VK_PIPELINE_STAGE_2_NONE;
+                break;
+
             case pass_kind::graphics:
                 pipelineStage = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
                 break;
@@ -188,13 +192,17 @@ namespace oblo::vk
 
             // All copies will be added to the command buffer upfront, so we start with a buffer that has been
             // transferred to
-            m_frameGraph.add_buffer_access(buffer, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
+            //
+            //
+            // We rely on a global memory barrier in frame graph to synchronize all uploads before submitting any
+            // command
+            // m_frameGraph.set_buffer_access(buffer, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
         }
 
         m_frameGraph.add_transient_buffer(buffer, poolIndex, stagedDataPtr);
 
         const auto [pipelineStage, access] = convert_for_sync2(passKind, usage);
-        m_frameGraph.add_buffer_access(buffer, pipelineStage, access);
+        m_frameGraph.set_buffer_access(buffer, pipelineStage, access);
 
         if (passKind == pass_kind::transfer)
         {
@@ -220,17 +228,17 @@ namespace oblo::vk
 
         const auto poolIndex = m_resourcePool.add_buffer(stagedDataSize, vkUsage);
 
+        // We rely on a global memory barrier in frame graph to synchronize all uploads before submitting any command
+
         // All copies will be added to the command buffer upfront, so we start with a buffer that has been
         // transferred to
-        m_frameGraph.add_buffer_access(buffer, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
+        //
+        // m_frameGraph.set_buffer_access(buffer, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
 
         m_frameGraph.add_transient_buffer(buffer, poolIndex, &stagedData);
 
-        if (passKind != pass_kind::none)
-        {
-            const auto [pipelineStage, access] = convert_for_sync2(passKind, usage);
-            m_frameGraph.add_buffer_access(buffer, pipelineStage, access);
-        }
+        const auto [pipelineStage, access] = convert_for_sync2(passKind, usage);
+        m_frameGraph.set_buffer_access(buffer, pipelineStage, access);
     }
 
     void frame_graph_build_context::acquire(resource<texture> texture, texture_usage usage) const
@@ -257,7 +265,7 @@ namespace oblo::vk
         const auto poolIndex = m_frameGraph.find_pool_index(buffer);
         m_resourcePool.add_buffer_usage(poolIndex, convert_buffer_usage(usage));
         const auto [pipelineStage, access] = convert_for_sync2(passKind, usage);
-        m_frameGraph.add_buffer_access(buffer, pipelineStage, access);
+        m_frameGraph.set_buffer_access(buffer, pipelineStage, access);
     }
 
     resource<buffer> frame_graph_build_context::create_dynamic_buffer(

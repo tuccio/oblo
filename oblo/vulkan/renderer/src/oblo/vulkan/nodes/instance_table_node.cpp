@@ -47,7 +47,7 @@ namespace oblo::vk
             for (u32 i = 0; i < srcInstanceBuffer.count; ++i)
             {
                 bufferResources[i] = ctx.create_dynamic_buffer(srcInstanceBuffer.buffersData[i],
-                    pass_kind::none,
+                    pass_kind::transfer,
                     buffer_usage::storage_upload);
             }
 
@@ -93,5 +93,22 @@ namespace oblo::vk
         }
 
         ctx.upload(outInstanceTables, as_bytes(instanceTableArray));
+    }
+
+    void acquire_instance_tables(const frame_graph_build_context& ctx,
+        resource<buffer> instanceTables,
+        data<instance_data_table_buffers_span> instanceBuffers,
+        pass_kind pass,
+        buffer_usage usage)
+    {
+        ctx.acquire(instanceTables, pass, usage);
+
+        for (const auto& instanceBuffer : ctx.access(instanceBuffers))
+        {
+            for (const auto& r : instanceBuffer.bufferResources)
+            {
+                ctx.acquire(r, pass, usage);
+            }
+        }
     }
 }

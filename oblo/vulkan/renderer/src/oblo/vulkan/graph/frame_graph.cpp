@@ -117,7 +117,7 @@ namespace oblo::vk
                 nodeDesc.typeDesc.construct(nodePtr);
 
                 *nodeIt = {
-                    .node = nodePtr,
+                    .ptr = nodePtr,
                     .build = nodeDesc.build,
                     .execute = nodeDesc.execute,
                     .init = nodeDesc.init,
@@ -224,14 +224,14 @@ namespace oblo::vk
                 {
                     auto& node = m_impl->nodes.at(vertexData.node);
 
-                    if (node.node)
+                    if (node.ptr)
                     {
                         if (node.destruct)
                         {
-                            node.destruct(node.node);
+                            node.destruct(node.ptr);
                         }
 
-                        m_impl->memoryPool.deallocate(node.node, node.size, node.alignment);
+                        m_impl->memoryPool.deallocate(node.ptr, node.size, node.alignment);
                         m_impl->nodes.erase(vertexData.node);
                     }
                 }
@@ -293,18 +293,18 @@ namespace oblo::vk
     {
         for (const auto& node : m_impl->nodes.values())
         {
-            if (!node.node)
+            if (!node.ptr)
             {
                 continue;
             }
 
             if (node.destruct)
             {
-                node.destruct(node.node);
+                node.destruct(node.ptr);
             }
 
             // We are deallocating just for keeping track, it's not really necessary
-            m_impl->memoryPool.deallocate(node.node, node.size, node.alignment);
+            m_impl->memoryPool.deallocate(node.ptr, node.size, node.alignment);
         }
 
         for (const auto& pinStorage : m_impl->pinStorage.values())
@@ -326,6 +326,12 @@ namespace oblo::vk
 
         m_impl->rebuild_runtime(renderer);
 
+        // Reset the buffer usages
+        for (auto& node : m_impl->nodes.values())
+        {
+            node.bufferUsages.clear();
+        }
+
         m_impl->nodeTransitions.assign(m_impl->sortedNodes.size(), {});
 
         const frame_graph_build_context buildCtx{*m_impl, renderer, m_impl->resourcePool};
@@ -343,29 +349,33 @@ namespace oblo::vk
 
         u32 nodeIndex{};
 
-        for (const auto& node : m_impl->sortedNodes)
+        for (const auto& [node, handle] : m_impl->sortedNodes)
         {
-            auto* const ptr = node.node;
+            m_impl->currentNode = node;
 
-            if (node.build)
+            auto* const ptr = node->ptr;
+
+            if (node->build)
             {
                 OBLO_PROFILE_SCOPE("Build");
-                OBLO_PROFILE_TAG(node.typeId.name);
+                OBLO_PROFILE_TAG(node->typeId.name);
 
                 auto& nodeTransitions = m_impl->nodeTransitions[nodeIndex];
                 nodeTransitions.firstTextureTransition = u32(m_impl->textureTransitions.size());
-                nodeTransitions.firstBufferBarrier = u32(m_impl->bufferBarriers.size());
+                // nodeTransitions.firstBufferBarrier = u32(m_impl->bufferBarriers.size());
                 nodeTransitions.firstExecTimeUpload = u32(m_impl->execTimeUploads.size());
 
-                node.build(ptr, buildCtx);
+                node->build(ptr, buildCtx);
 
                 nodeTransitions.lastTextureTransition = u32(m_impl->textureTransitions.size());
-                nodeTransitions.lastBufferBarrier = u32(m_impl->bufferBarriers.size());
+                // nodeTransitions.lastBufferBarrier = u32(m_impl->bufferBarriers.size());
                 nodeTransitions.lastExecTimeUpload = u32(m_impl->execTimeUploads.size());
             }
 
             ++nodeIndex;
         }
+
+        m_impl->currentNode = {};
 
         m_impl->resourcePool.end_graph();
         m_impl->resourcePool.end_build(renderer.get_vulkan_context());
@@ -415,14 +425,33 @@ namespace oblo::vk
 
         buffered_array<VkBufferMemoryBarrier2, 32> bufferBarriers;
 
-        flat_dense_map<h32<frame_graph_pin_storage>,
-            frame_graph_buffer_barrier,
-            decltype(m_impl->pinStorage)::extractor_type>
-            bufferStates;
-
-        for (auto&& [node, transitions] : zip_range(m_impl->sortedNodes, m_impl->nodeTransitions))
         {
-            auto* const ptr = node.node;
+            // Global memory barrier to cover all uploads happened before the frame graph execution
+            const VkMemoryBarrier2 uploadMemoryBarrier{
+                .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+                .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                .dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                .dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
+            };
+
+            const VkDependencyInfo dependencyInfo{
+                .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                .memoryBarrierCount = 1,
+                .pMemoryBarriers = &uploadMemoryBarrier,
+            };
+
+            vkCmdPipelineBarrier2(commandBuffer.get(), &dependencyInfo);
+        }
+
+        buffered_array<h32<frame_graph_node>, 16> incomingNodes;
+
+        for (auto&& [nodeToExecute, transitions] : zip_range(m_impl->sortedNodes, m_impl->nodeTransitions))
+        {
+            m_impl->currentNode = nodeToExecute.node;
+
+            const auto& node = *nodeToExecute.node;
+            auto* const ptr = node.ptr;
 
             for (u32 i = transitions.firstTextureTransition; i != transitions.lastTextureTransition; ++i)
             {
@@ -439,26 +468,59 @@ namespace oblo::vk
 
             bufferBarriers.clear();
 
-            for (u32 i = transitions.firstBufferBarrier; i < transitions.lastBufferBarrier; ++i)
+            incomingNodes.clear();
+
+            for (const auto edge : m_impl->graph.get_in_edges(nodeToExecute.handle))
             {
-                const auto& dst = m_impl->bufferBarriers[i];
+                const auto& v = m_impl->graph.get(edge.vertex);
 
-                const auto [it, inserted] = bufferStates.emplace(dst.buffer);
-
-                if (!inserted)
+                if (!v.node)
                 {
-                    // The buffer was already tracked, add the pipeline barrier
-                    auto& src = *it;
+                    continue;
+                }
 
-                    const auto* const bufferPtr = static_cast<buffer*>(m_impl->access_storage(dst.buffer));
+                incomingNodes.push_back(v.node);
+            }
+
+            for (const auto [storage, usages] :
+                zip_range(nodeToExecute.node->bufferUsages.keys(), nodeToExecute.node->bufferUsages.values()))
+            {
+                VkPipelineStageFlags2 srcStages{};
+                VkAccessFlags2 srcAccess{};
+
+                for (const auto incomingNode : incomingNodes)
+                {
+                    const auto& inNodeValue = m_impl->nodes.at(incomingNode);
+
+                    if (auto* const usage = inNodeValue.bufferUsages.try_find(storage))
+                    {
+                        srcStages |= usage->stages;
+                        srcAccess |= usage->access;
+                    }
+                }
+
+                const auto shouldForwardAccess = usages.stages == VK_PIPELINE_STAGE_2_NONE;
+
+                if (shouldForwardAccess)
+                {
+                    const auto [it, ok] = nodeToExecute.node->bufferUsages.emplace(storage);
+
+                    *it = {
+                        .stages = srcStages,
+                        .access = srcAccess,
+                    };
+                }
+                else if (srcStages != 0 && srcAccess != 0 && usages.access != 0 && usages.stages != 0)
+                {
+                    const auto* const bufferPtr = static_cast<buffer*>(m_impl->access_storage(storage));
                     OBLO_ASSERT(bufferPtr && bufferPtr->buffer);
 
                     bufferBarriers.push_back({
                         .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
-                        .srcStageMask = src.pipelineStage,
-                        .srcAccessMask = src.access,
-                        .dstStageMask = dst.pipelineStage,
-                        .dstAccessMask = dst.access,
+                        .srcStageMask = srcStages,
+                        .srcAccessMask = srcAccess,
+                        .dstStageMask = usages.stages,
+                        .dstAccessMask = usages.access,
                         .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                         .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                         .buffer = bufferPtr->buffer,
@@ -466,15 +528,14 @@ namespace oblo::vk
                         .size = bufferPtr->size,
                     });
                 }
-
-                // Track the new state as the new buffer state
-                *it = dst;
             }
 
             if (!bufferBarriers.empty())
             {
                 const VkDependencyInfo dependencyInfo{
                     .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                    //.memoryBarrierCount = 1,
+                    //.pMemoryBarriers = &uploadMemoryBarrier,
                     .bufferMemoryBarrierCount = u32(bufferBarriers.size()),
                     .pBufferMemoryBarriers = bufferBarriers.data(),
                 };
@@ -497,6 +558,8 @@ namespace oblo::vk
                 node.execute(ptr, executeCtx);
             }
         }
+
+        m_impl->currentNode = {};
 
         m_impl->finish_frame();
     }
@@ -587,7 +650,7 @@ namespace oblo::vk
         }
     }
 
-    void frame_graph_impl::add_buffer_access(
+    void frame_graph_impl::set_buffer_access(
         resource<buffer> handle, VkPipelineStageFlags2 pipelineStage, VkAccessFlags2 access)
     {
         const auto storage = to_storage_handle(handle);
@@ -595,11 +658,20 @@ namespace oblo::vk
         OBLO_ASSERT(storage);
         OBLO_ASSERT(pinStorage.try_find(storage));
 
-        bufferBarriers.push_back({
-            .buffer = storage,
-            .pipelineStage = pipelineStage,
-            .access = access,
-        });
+        const auto [it, ok] = currentNode->bufferUsages.emplace(storage,
+            frame_graph_buffer_usage{
+                .stages = pipelineStage,
+                .access = access,
+            });
+
+        OBLO_ASSERT(ok);
+
+        // bufferBarriers.push_back({
+        //     .buffer = storage,
+        //     .pipelineStage = pipelineStage,
+        //     .access = access,
+        //     .forwardAccess = forward,
+        // });
     }
 
     void frame_graph_impl::register_exec_time_upload(resource<buffer> handle)
@@ -660,12 +732,12 @@ namespace oblo::vk
                         auto* node = nodes.try_find(vertex.node);
                         OBLO_ASSERT(node);
 
-                        sortedNodes.push_back(*node);
+                        sortedNodes.push_back({node, v});
 
                         // If the node needs to be initialized, this is a good time
                         if (node->init && !node->initialized)
                         {
-                            node->init(node->node, initCtx);
+                            node->init(node->ptr, initCtx);
                             node->initialized = true;
                         }
                     }
@@ -725,7 +797,7 @@ namespace oblo::vk
             auto& nodeVertex = graph[pin->nodeHandle];
             OBLO_ASSERT(nodeVertex.node);
 
-            auto* const nodePtr = nodes.try_find(nodeVertex.node)->node;
+            auto* const nodePtr = nodes.try_find(nodeVertex.node)->ptr;
             write_u32(nodePtr, pin->pinMemberOffset, pin->referencedPin.value);
         }
 
@@ -755,7 +827,7 @@ namespace oblo::vk
             pinStorage.erase(h);
         }
 
-        bufferBarriers.clear();
+        // bufferBarriers.clear();
         textureTransitions.clear();
         transientTextures.clear();
         transientBuffers.clear();

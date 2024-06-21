@@ -82,21 +82,10 @@ namespace oblo::vk
 
         void end_render_pass(const render_pass_context& context);
 
-        void draw(const render_pass_context& context,
-            std::span<const buffer> batchDrawCommands,
-            std::span<const batch_draw_data> batchDrawData,
-            std::span<const buffer_binding_table* const> bindingTables = {});
-
         expected<compute_pass_context> begin_compute_pass(VkCommandBuffer commandBuffer,
             h32<compute_pipeline> pipeline) const;
 
         void end_compute_pass(const compute_pass_context& context);
-
-        void dispatch(const compute_pass_context& context,
-            u32 x,
-            u32 y,
-            u32 z,
-            std::span<const buffer_binding_table* const> bindingTables = {});
 
         u32 get_subgroup_size() const;
 
@@ -105,6 +94,12 @@ namespace oblo::vk
 
         void push_constants(
             const compute_pass_context& ctx, VkShaderStageFlags stages, u32 offset, std::span<const byte> data) const;
+
+        void bind_descriptor_sets(const render_pass_context& ctx,
+            std::span<const buffer_binding_table* const> bindingTables) const;
+
+        void bind_descriptor_sets(const compute_pass_context& ctx,
+            std::span<const buffer_binding_table* const> bindingTables) const;
 
     private:
         struct impl;

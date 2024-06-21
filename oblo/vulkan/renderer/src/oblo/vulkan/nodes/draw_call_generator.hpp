@@ -1,7 +1,6 @@
 #pragma once
 
 #include <oblo/vulkan/draw/buffer_binding_table.hpp>
-#include <oblo/vulkan/draw/draw_registry.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 #include <oblo/vulkan/nodes/instance_table_node.hpp>
@@ -10,17 +9,17 @@ namespace oblo::vk
 {
     struct draw_buffer_data;
 
-    struct frustum_culling
+    struct draw_call_generator
     {
-        h32<compute_pass> cullPass;
+        h32<compute_pass> drawCallGeneratorPass;
         h32<string> drawIndexedDefine;
 
-        data<buffer_binding_table> inPerViewBindingTable;
-
-        data<std::span<draw_buffer_data>> outDrawBufferData;
+        data<std::span<draw_buffer_data>> inOutDrawBufferData;
 
         resource<buffer> inInstanceTables;
         data<instance_data_table_buffers_span> inInstanceBuffers;
+
+        resource<buffer> inMeshDatabase;
 
         void init(const frame_graph_init_context& context);
 

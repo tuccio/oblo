@@ -3,6 +3,7 @@
 #include <oblo/vulkan/graph/frame_graph_registry.hpp>
 #include <oblo/vulkan/nodes/bypass_culling.hpp>
 #include <oblo/vulkan/nodes/copy_texture_node.hpp>
+#include <oblo/vulkan/nodes/draw_call_generator.hpp>
 #include <oblo/vulkan/nodes/forward_pass.hpp>
 #include <oblo/vulkan/nodes/frustum_culling.hpp>
 #include <oblo/vulkan/nodes/instance_table_node.hpp>
@@ -68,8 +69,6 @@ namespace oblo::vk::main_view
                 frustumCulling,
                 &frustum_culling::inPerViewBindingTable);
 
-            graph.connect(frustumCulling, &frustum_culling::outDrawBufferData, forwardPass, &forward_pass::inDrawData);
-
             graph.connect(viewBuffers,
                 &view_buffers_node::inInstanceTables,
                 frustumCulling,
@@ -79,6 +78,37 @@ namespace oblo::vk::main_view
                 &view_buffers_node::inInstanceBuffers,
                 frustumCulling,
                 &frustum_culling::inInstanceBuffers);
+
+            const auto drawCallGenerator = graph.add_node<draw_call_generator>();
+
+            // We need to read mesh handles from instance data to generate draw calls
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::inInstanceTables,
+                drawCallGenerator,
+                &draw_call_generator::inInstanceTables);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::inInstanceBuffers,
+                drawCallGenerator,
+                &draw_call_generator::inInstanceBuffers);
+
+            // Connect the draw data
+
+            graph.connect(frustumCulling,
+                &frustum_culling::outDrawBufferData,
+                drawCallGenerator,
+                &draw_call_generator::inOutDrawBufferData);
+
+            graph.connect(drawCallGenerator,
+                &draw_call_generator::inOutDrawBufferData,
+                forwardPass,
+                &forward_pass::inDrawData);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::outMeshDatabase,
+                drawCallGenerator,
+                &draw_call_generator::inMeshDatabase);
         }
 
         // Picking
@@ -134,6 +164,7 @@ namespace oblo::vk
         registry.register_node<view_buffers_node>();
         registry.register_node<frustum_culling>();
         registry.register_node<forward_pass>();
+        registry.register_node<draw_call_generator>();
         registry.register_node<picking_readback>();
 
         // Scene data

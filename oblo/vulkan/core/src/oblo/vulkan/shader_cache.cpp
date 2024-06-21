@@ -77,10 +77,10 @@ namespace oblo::vk
         {
             const auto diskSpv = load_binary_file_into_memory(allocator, spvPath, alignof(u32));
 
-            if (!diskSpv.empty())
+            if (diskSpv && !diskSpv->empty())
             {
-                const auto count = diskSpv.size() / sizeof(u32);
-                outSpirv = {start_lifetime_as_array<unsigned>(diskSpv.data(), count), count};
+                const auto count = diskSpv->size() / sizeof(u32);
+                outSpirv = {start_lifetime_as_array<unsigned>(diskSpv->data(), count), count};
                 return true;
             }
         }
