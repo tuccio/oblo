@@ -13,6 +13,7 @@
 #include <renderer/transform>
 #include <visibility/visibility_buffer>
 
+
 layout(location = 0) out uvec2 out_VisibilityBufferData;
 
 layout(binding = 0) uniform b_CameraBuffer
@@ -50,8 +51,10 @@ void main()
     const vec4 positionWS = localToWorld * vec4(inPosition, 1);
     const vec4 positionNDC = viewProj * positionWS;
 
+
     gl_Position = positionNDC;
 
+    debugPrintfEXT("pos %u: %f %f %f\n", gl_VertexIndex, inPosition.x, inPosition.y, inPosition.z);
     // debugPrintfEXT("pos: %f %f %f\n", gl_Position.x, gl_Position.y, gl_Position.z);
 
     visibility_buffer_data visBufferData;
@@ -59,5 +62,8 @@ void main()
     visBufferData.instanceId = preCullingId;
     visBufferData.triangleIndex = mesh_table_triangle_index(table, gl_VertexIndex);
 
-    out_VisibilityBufferData = visibility_buffer_pack(visBufferData);
+    const uvec2 packed = visibility_buffer_pack(visBufferData);
+    debugPrintfEXT("vis: %u %u\n", packed.x, packed.y);
+
+    out_VisibilityBufferData = packed;
 }

@@ -39,24 +39,25 @@ g_Constants;
 
 void main()
 {
-    const ivec2 screenPos = ivec2(gl_GlobalInvocationID.xy);
-
-    if (screenPos.x >= g_Constants.resolution.x)
+    if (gl_GlobalInvocationID.x >= g_Constants.resolution.x)
     {
         return;
     }
 
-    imageStore(t_OutLitImage, screenPos, vec4(1, 0, 0, 1));
-    return;
-
+    const ivec2 screenPos = ivec2(gl_GlobalInvocationID.xy);
     const uvec4 visBufferData = imageLoad(t_InVisibilityBuffer, screenPos);
 
     visibility_buffer_data vb;
 
     if (!visibility_buffer_parse(visBufferData.xy, vb))
     {
+        imageStore(t_OutLitImage, screenPos, vec4(0));
+        // imageStore(t_OutLitImage, screenPos, vec4(1, 0, 0, 1));
         return;
     }
+
+    imageStore(t_OutLitImage, screenPos, vec4(1, 0, 0, 1));
+    return;
 
     const mesh_handle mesh = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MeshHandles, vb.instanceId);
     const mesh_table meshTable = get_mesh_table(mesh);

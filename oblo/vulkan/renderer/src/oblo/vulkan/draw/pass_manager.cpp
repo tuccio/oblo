@@ -134,12 +134,15 @@ namespace oblo::vk
 
         struct watch_listener final : efsw::FileWatchListener
         {
-            void handleFileAction(efsw::WatchID, const std::string&, const std::string&, efsw::Action, std::string)
+            void handleFileAction(
+                efsw::WatchID, const std::string& dir, const std::string& filename, efsw::Action, std::string)
             {
-                isDirty = true;
+                std::lock_guard lock{mutex};
+                touchedFiles.insert(std::filesystem::path{dir} / filename);
             }
 
-            std::atomic<bool> isDirty{};
+            std::mutex mutex;
+            std::unordered_set<std::filesystem::path> touchedFiles;
         };
 
         struct vertex_inputs_reflection
@@ -178,7 +181,7 @@ namespace oblo::vk
 
         dynamic_array<render_pass_variant> variants;
 
-        std::unique_ptr<watch_listener> watcher;
+        bool shouldRecompile{};
     };
 
     struct compute_pass
@@ -189,7 +192,7 @@ namespace oblo::vk
 
         dynamic_array<compute_pass_variant> variants;
 
-        std::unique_ptr<watch_listener> watcher;
+        bool shouldRecompile{};
     };
 
     struct base_pipeline
@@ -207,6 +210,8 @@ namespace oblo::vk
         bool requiresTextures2D{};
 
         const char* label{};
+
+        u32 lastRecompilationChangeId{};
     };
 
     struct render_pipeline : base_pipeline
@@ -303,7 +308,7 @@ namespace oblo::vk
         void poll_hot_reloading(
             const string_interner& interner, vulkan_context& vkCtx, Pass& pass, Pipelines& pipelines)
         {
-            if (bool expected{true}; pass.watcher->isDirty.compare_exchange_weak(expected, false))
+            if (pass.shouldRecompile)
             {
                 log::debug("Recompiling pass {}", interner.str(pass.name));
 
@@ -317,6 +322,8 @@ namespace oblo::vk
 
                     pass.variants.clear();
                 }
+
+                pass.shouldRecompile = false;
             }
         }
 
@@ -359,6 +366,13 @@ namespace oblo::vk
 
             return debugName;
         };
+
+        struct watching_passes
+        {
+            // Could be sets
+            h32_flat_extpool_dense_map<compute_pass, bool> computePasses;
+            h32_flat_extpool_dense_map<render_pass, bool> renderPasses;
+        };
     }
 
     struct pass_manager::impl
@@ -378,7 +392,6 @@ namespace oblo::vk
         descriptor_set_pool texturesDescriptorSetPool;
         const texture_registry* textureRegistry{};
         buffer dummy{};
-        std::optional<efsw::FileWatcher> fileWatcher;
         VkDescriptorSetLayout samplersSetLayout{};
         VkDescriptorSetLayout textures2DSetLayout{};
 
@@ -390,6 +403,14 @@ namespace oblo::vk
         u32 subgroupSize;
 
         std::string instanceDataDefines;
+
+        watch_listener watchListener;
+        std::optional<efsw::FileWatcher> fileWatcher;
+
+        std::unordered_map<std::filesystem::path, watching_passes> fileToPassList;
+
+        void add_watch(const std::filesystem::path& file, h32<compute_pass> pass);
+        void add_watch(const std::filesystem::path& file, h32<render_pass> pass);
 
         VkShaderModule create_shader_module(VkShaderStageFlagBits vkStage,
             const std::filesystem::path& filePath,
@@ -411,6 +432,24 @@ namespace oblo::vk
 
         shader_compiler::options make_compiler_options();
     };
+
+    void pass_manager::impl::add_watch(const std::filesystem::path& file, h32<compute_pass> pass)
+    {
+        const auto abs = std::filesystem::absolute(file);
+
+        auto& watches = fileToPassList[abs];
+        watches.computePasses.emplace(pass);
+        fileWatcher->addWatch(abs.parent_path().string(), &watchListener);
+    }
+
+    void pass_manager::impl::add_watch(const std::filesystem::path& file, h32<render_pass> pass)
+    {
+        const auto abs = std::filesystem::absolute(file);
+
+        auto& watches = fileToPassList[abs];
+        watches.renderPasses.emplace(pass);
+        fileWatcher->addWatch(abs.parent_path().string(), &watchListener);
+    }
 
     VkShaderModule pass_manager::impl::create_shader_module(VkShaderStageFlagBits vkStage,
         const std::filesystem::path& filePath,
@@ -1133,7 +1172,6 @@ namespace oblo::vk
         renderPass.name = m_impl->interner->get_or_add(desc.name);
 
         renderPass.stagesCount = 0;
-        renderPass.watcher = std::make_unique<watch_listener>();
 
         for (const auto& stage : desc.stages)
         {
@@ -1141,7 +1179,7 @@ namespace oblo::vk
             renderPass.stages[renderPass.stagesCount] = stage.stage;
             ++renderPass.stagesCount;
 
-            m_impl->fileWatcher->addWatch(stage.shaderSourcePath.parent_path().string(), renderPass.watcher.get());
+            m_impl->add_watch(stage.shaderSourcePath, handle);
         }
 
         return handle;
@@ -1155,11 +1193,10 @@ namespace oblo::vk
         auto& computePass = *it;
 
         computePass.name = m_impl->interner->get_or_add(desc.name);
-        computePass.watcher = std::make_unique<watch_listener>();
 
         computePass.shaderSourcePath = desc.shaderSourcePath;
 
-        m_impl->fileWatcher->addWatch(desc.shaderSourcePath.parent_path().string(), computePass.watcher.get());
+        m_impl->add_watch(desc.shaderSourcePath, handle);
 
         return handle;
     }
@@ -1204,13 +1241,6 @@ namespace oblo::vk
             // We push an invalid variant so we avoid trying to rebuild a failed pipeline every frame
             renderPass->variants.emplace_back().hash = expectedHash;
 
-            constexpr bool retryOnFail{true};
-
-            if constexpr (retryOnFail)
-            {
-                renderPass->watcher->isDirty = true;
-            }
-
             return h32<render_pipeline>{};
         };
 
@@ -1245,7 +1275,7 @@ namespace oblo::vk
 
             for (const auto& include : m_impl->includer.resolvedIncludes)
             {
-                m_impl->fileWatcher->addWatch(include.parent_path().string(), renderPass->watcher.get());
+                m_impl->add_watch(include, renderPassHandle);
             }
 
             newPipeline.shaderModules[stageIndex] = shaderModule;
@@ -1468,7 +1498,7 @@ namespace oblo::vk
 
             for (const auto& include : m_impl->includer.resolvedIncludes)
             {
-                m_impl->fileWatcher->addWatch(include.parent_path().string(), computePass->watcher.get());
+                m_impl->add_watch(include, computePassHandle);
             }
 
             newPipeline.shaderModule = shaderModule;
@@ -1568,6 +1598,32 @@ namespace oblo::vk
 
         m_impl->currentTextures2DDescriptor = descriptorSet;
         m_impl->currentSamplersDescriptor = m_impl->texturesDescriptorSetPool.acquire(m_impl->samplersSetLayout);
+
+        {
+            std::lock_guard lock{m_impl->watchListener.mutex};
+
+            for (const auto& f : m_impl->watchListener.touchedFiles)
+            {
+                const auto it = m_impl->fileToPassList.find(f);
+
+                if (it == m_impl->fileToPassList.end())
+                {
+                    continue;
+                }
+
+                for (const auto& r : it->second.renderPasses.keys())
+                {
+                    m_impl->renderPasses.at(r).shouldRecompile = true;
+                }
+
+                for (const auto& c : it->second.computePasses.keys())
+                {
+                    m_impl->computePasses.at(c).shouldRecompile = true;
+                }
+            }
+
+            m_impl->watchListener.touchedFiles.clear();
+        }
     }
 
     void pass_manager::end_frame()
@@ -1583,18 +1639,12 @@ namespace oblo::vk
         // Invalidate all passes as well, to trigger recompilation of shaders
         for (auto& pass : m_impl->renderPasses.values())
         {
-            if (pass.watcher)
-            {
-                pass.watcher->isDirty.store(true);
-            }
+            pass.shouldRecompile = true;
         }
 
         for (auto& pass : m_impl->computePasses.values())
         {
-            if (pass.watcher)
-            {
-                pass.watcher->isDirty.store(true);
-            }
+            pass.shouldRecompile = true;
         }
     }
 
