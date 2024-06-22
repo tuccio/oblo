@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/expected.hpp>
+#include <oblo/core/flat_dense_forward.hpp>
 #include <oblo/core/handle.hpp>
 
 #include <vulkan/vulkan.h>
@@ -29,6 +30,7 @@ namespace oblo::vk
     class texture_registry;
     class vulkan_context;
     struct buffer;
+    struct bindable_object;
     struct batch_draw_data;
     struct compute_pass;
     struct compute_pass_initializer;
@@ -39,7 +41,7 @@ namespace oblo::vk
     struct render_pipeline;
     struct render_pipeline_initializer;
 
-    using buffer_binding_table = flat_dense_map<h32<string>, buffer, flat_key_extractor<h32<string>>>;
+    using binding_table = flat_dense_map<h32<string>, bindable_object>;
 
     enum class pipeline_stages : u8;
 
@@ -96,10 +98,10 @@ namespace oblo::vk
             const compute_pass_context& ctx, VkShaderStageFlags stages, u32 offset, std::span<const byte> data) const;
 
         void bind_descriptor_sets(const render_pass_context& ctx,
-            std::span<const buffer_binding_table* const> bindingTables) const;
+            std::span<const binding_table* const> bindingTables) const;
 
         void bind_descriptor_sets(const compute_pass_context& ctx,
-            std::span<const buffer_binding_table* const> bindingTables) const;
+            std::span<const binding_table* const> bindingTables) const;
 
     private:
         struct impl;

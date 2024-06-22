@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/string_interner.hpp>
+#include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/data/camera_buffer.hpp>
 #include <oblo/vulkan/data/time_buffer.hpp>
@@ -13,10 +14,11 @@ namespace oblo::vk
 {
     struct view_buffers_node
     {
+        data<vec2u> inResolution;
         data<camera_buffer> inCameraData;
         data<time_buffer> inTimeData;
         // TODO: This is terrible: it makes it hard to figure which buffers are being used where
-        data<buffer_binding_table> outPerViewBindingTable;
+        data<binding_table> outPerViewBindingTable;
         resource<buffer> outCameraBuffer;
         resource<buffer> outTimeBuffer;
         resource<buffer> outMeshDatabase;
@@ -48,16 +50,13 @@ namespace oblo::vk
                 pass_kind::none,
                 buffer_usage::uniform);
 
-            if (!meshDatabaseData.empty())
-            {
-                ctx.create(outMeshDatabase,
-                    {
-                        .size = u32(meshDatabaseData.size()),
-                        .data = meshDatabaseData,
-                    },
-                    pass_kind::none,
-                    buffer_usage::storage_read);
-            }
+            ctx.create(outMeshDatabase,
+                {
+                    .size = u32(meshDatabaseData.size()),
+                    .data = meshDatabaseData,
+                },
+                pass_kind::none,
+                buffer_usage::storage_read);
 
             acquire_instance_tables(ctx,
                 inInstanceTables,
@@ -78,19 +77,19 @@ namespace oblo::vk
             auto& interner = ctx.get_string_interner();
 
             const h32<string> cameraBufferName = interner.get_or_add("b_CameraBuffer");
-            perViewTable->emplace(cameraBufferName, cameraBuffer);
+            perViewTable->emplace(cameraBufferName, make_bindable_object(cameraBuffer));
 
             // TODO: This is not really per-view, but global
             const buffer timeBuffer = ctx.access(outTimeBuffer);
             const h32<string> timeBufferName = interner.get_or_add("b_TimeBuffer");
-            perViewTable->emplace(timeBufferName, timeBuffer);
+            perViewTable->emplace(timeBufferName, make_bindable_object(timeBuffer));
 
             const h32<string> meshTablesName = interner.get_or_add("b_MeshTables");
             perViewTable->erase(meshTablesName);
 
             if (meshDatabaseBuffer.buffer)
             {
-                perViewTable->emplace(meshTablesName, meshDatabaseBuffer);
+                perViewTable->emplace(meshTablesName, make_bindable_object(meshDatabaseBuffer));
             }
         }
     };

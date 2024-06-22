@@ -324,6 +324,7 @@ namespace oblo::vk
 
             buffer.buffer = r.buffer;
             buffer.offset = r.offset;
+            buffer.size = r.size;
         }
     }
 }

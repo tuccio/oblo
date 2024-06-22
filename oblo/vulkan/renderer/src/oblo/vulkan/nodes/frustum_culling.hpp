@@ -1,6 +1,6 @@
 #pragma once
 
-#include <oblo/vulkan/draw/buffer_binding_table.hpp>
+#include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/draw_registry.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
@@ -15,7 +15,7 @@ namespace oblo::vk
         h32<compute_pass> cullPass;
         h32<string> drawIndexedDefine;
 
-        data<buffer_binding_table> inPerViewBindingTable;
+        data<binding_table> inPerViewBindingTable;
 
         data<std::span<draw_buffer_data>> outDrawBufferData;
 

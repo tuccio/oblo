@@ -74,7 +74,7 @@ namespace oblo::vk
     struct frame_graph_texture_transition
     {
         h32<frame_graph_pin_storage> texture;
-        VkImageLayout target;
+        texture_usage usage;
     };
 
     struct frame_graph_buffer_barrier
@@ -181,7 +181,7 @@ namespace oblo::vk
         void* access_storage(h32<frame_graph_pin_storage> handle) const;
 
         void add_transient_resource(resource<texture> handle, u32 poolIndex);
-        void add_resource_transition(resource<texture> handle, VkImageLayout target);
+        void add_resource_transition(resource<texture> handle, texture_usage usage);
 
         u32 find_pool_index(resource<texture> handle) const;
         u32 find_pool_index(resource<buffer> handle) const;

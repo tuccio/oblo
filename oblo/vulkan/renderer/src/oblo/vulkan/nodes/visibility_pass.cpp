@@ -1,4 +1,4 @@
-#include <oblo/vulkan/nodes/forward_pass.hpp>
+#include <oblo/vulkan/nodes/visibility_pass.hpp>
 
 #include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/data/draw_buffer_data.hpp>
@@ -12,43 +12,41 @@ namespace oblo::vk
 {
     namespace
     {
-        struct forward_pass_push_constants
+        struct visibility_pass_push_constants
         {
             u32 instanceTableId;
         };
     }
 
-    void forward_pass::init(const frame_graph_init_context& context)
+    void visibility_pass::init(const frame_graph_init_context& context)
     {
         auto& passManager = context.get_pass_manager();
 
         renderPass = passManager.register_render_pass({
-            .name = "Forward Pass",
+            .name = "Visibility Pass",
             .stages =
                 {
                     {
                         .stage = pipeline_stages::vertex,
-                        .shaderSourcePath = "./vulkan/shaders/forward/forward.vert",
+                        .shaderSourcePath = "./vulkan/shaders/visibility/visibility_pass.vert",
                     },
                     {
                         .stage = pipeline_stages::fragment,
-                        .shaderSourcePath = "./vulkan/shaders/forward/forward.frag",
+                        .shaderSourcePath = "./vulkan/shaders/visibility/visibility_pass.frag",
                     },
                 },
         });
-
-        pickingEnabledDefine = context.get_string_interner().get_or_add("OBLO_PICKING_ENABLED");
     }
 
-    void forward_pass::build(const frame_graph_build_context& ctx)
+    void visibility_pass::build(const frame_graph_build_context& ctx)
     {
         const auto resolution = ctx.access(inResolution);
 
-        ctx.create(outRenderTarget,
+        ctx.create(outVisibilityBuffer,
             {
                 .width = resolution.x,
                 .height = resolution.y,
-                .format = VK_FORMAT_R8G8B8A8_UNORM,
+                .format = VK_FORMAT_R32G32_UINT,
                 .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
                 .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
             },
@@ -64,25 +62,6 @@ namespace oblo::vk
             },
             texture_usage::depth_stencil_write);
 
-        ctx.acquire(inLightConfig, pass_kind::graphics, buffer_usage::uniform);
-        ctx.acquire(inLightData, pass_kind::graphics, buffer_usage::storage_read);
-
-        const auto& pickingConfiguration = ctx.access(inPickingConfiguration);
-        isPickingEnabled = pickingConfiguration.enabled;
-
-        if (isPickingEnabled)
-        {
-            ctx.create(outPickingIdBuffer,
-                {
-                    .width = resolution.x,
-                    .height = resolution.y,
-                    .format = VK_FORMAT_R32_UINT,
-                    .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                },
-                texture_usage::render_target_write);
-        }
-
         for (const auto& drawData : ctx.access(inDrawData))
         {
             ctx.acquire(drawData.drawCallCountBuffer, pass_kind::graphics, buffer_usage::indirect);
@@ -94,6 +73,9 @@ namespace oblo::vk
             ctx.acquire(drawCallBuffer, pass_kind::graphics, buffer_usage::indirect);
         }
 
+        ctx.acquire(inCameraBuffer, pass_kind::graphics, buffer_usage::uniform);
+        ctx.acquire(inMeshDatabase, pass_kind::graphics, buffer_usage::storage_read);
+
         acquire_instance_tables(ctx,
             inInstanceTables,
             inInstanceBuffers,
@@ -101,7 +83,7 @@ namespace oblo::vk
             buffer_usage::storage_read);
     }
 
-    void forward_pass::execute(const frame_graph_execute_context& ctx)
+    void visibility_pass::execute(const frame_graph_execute_context& ctx)
     {
         const std::span drawData = ctx.access(inDrawData);
 
@@ -110,15 +92,15 @@ namespace oblo::vk
             return;
         }
 
-        const auto renderTarget = ctx.access(outRenderTarget);
+        const auto visibilityBuffer = ctx.access(outVisibilityBuffer);
         const auto depthBuffer = ctx.access(outDepthBuffer);
 
-        auto& passManager = ctx.get_pass_manager();
+        auto& pm = ctx.get_pass_manager();
 
         render_pipeline_initializer pipelineInitializer{
             .renderTargets =
                 {
-                    .colorAttachmentFormats = {renderTarget.initializer.format},
+                    .colorAttachmentFormats = {visibilityBuffer.initializer.format},
                     .depthFormat = VK_FORMAT_D24_UNORM_S8_UINT,
                 },
             .depthStencilState =
@@ -135,34 +117,15 @@ namespace oblo::vk
                 },
         };
 
-        buffered_array<VkRenderingAttachmentInfo, 2> colorAttachments = {
-            {
-                .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-                .imageView = renderTarget.view,
-                .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-            },
+        const VkRenderingAttachmentInfo colorAttachment = {
+            .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .imageView = visibilityBuffer.view,
+            .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
         };
 
-        if (isPickingEnabled)
-        {
-            const auto pickingIdBuffer = ctx.access(outPickingIdBuffer);
-
-            pipelineInitializer.defines = {&pickingEnabledDefine, 1};
-
-            pipelineInitializer.renderTargets.colorAttachmentFormats.emplace_back(pickingIdBuffer.initializer.format);
-
-            colorAttachments.push_back({
-                .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-                .imageView = pickingIdBuffer.view,
-                .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-            });
-        }
-
-        const auto pipeline = passManager.get_or_create_pipeline(renderPass, pipelineInitializer);
+        const auto pipeline = pm.get_or_create_pipeline(renderPass, pipelineInitializer);
 
         const VkCommandBuffer commandBuffer = ctx.get_command_buffer();
 
@@ -174,36 +137,35 @@ namespace oblo::vk
             .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
         };
 
-        const auto [renderWidth, renderHeight, _] = renderTarget.initializer.extent;
+        const auto [renderWidth, renderHeight, _] = visibilityBuffer.initializer.extent;
 
         const VkRenderingInfo renderInfo{
             .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
             .renderArea = {.extent{.width = renderWidth, .height = renderHeight}},
             .layerCount = 1,
-            .colorAttachmentCount = u32(colorAttachments.size()),
-            .pColorAttachments = colorAttachments.data(),
+            .colorAttachmentCount = 1,
+            .pColorAttachments = &colorAttachment,
             .pDepthAttachment = &depthAttachment,
         };
 
         setup_viewport_scissor(commandBuffer, renderWidth, renderHeight);
 
-        buffer_binding_table perDrawBindingTable;
-        buffer_binding_table passBindingTable;
+        binding_table perDrawBindingTable;
+        binding_table passBindingTable;
 
-        ctx.add_bindings(passBindingTable,
+        ctx.bind_buffers(passBindingTable,
             {
-                {inLightData, "b_LightData"},
-                {inLightConfig, "b_LightConfig"},
-                {inInstanceTables, "b_InstanceTables"},
+                {"b_CameraBuffer", inCameraBuffer},
+                {"b_MeshTables", inMeshDatabase},
+                {"b_InstanceTables", inInstanceTables},
             });
 
-        const buffer_binding_table* bindingTables[] = {
+        const binding_table* bindingTables[] = {
             &perDrawBindingTable,
             &passBindingTable,
-            &ctx.access(inPerViewBindingTable),
         };
 
-        if (const auto pass = passManager.begin_render_pass(commandBuffer, pipeline, renderInfo))
+        if (const auto pass = pm.begin_render_pass(commandBuffer, pipeline, renderInfo))
         {
             const auto drawCallBufferSpan = ctx.access(inDrawCallBuffer);
 
@@ -216,20 +178,17 @@ namespace oblo::vk
 
                 perDrawBindingTable.clear();
 
-                ctx.add_bindings(perDrawBindingTable,
+                ctx.bind_buffers(perDrawBindingTable,
                     {
-                        {culledDraw.preCullingIdMap, "b_PreCullingIdMap"},
+                        {"b_PreCullingIdMap", culledDraw.preCullingIdMap},
                     });
 
-                const forward_pass_push_constants pushConstants{
+                const visibility_pass_push_constants pushConstants{
                     .instanceTableId = culledDraw.sourceData.instanceTableId,
                 };
 
-                passManager.bind_descriptor_sets(*pass, bindingTables);
-                passManager.push_constants(*pass,
-                    VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-                    0,
-                    as_bytes(std::span{&pushConstants, 1}));
+                pm.bind_descriptor_sets(*pass, bindingTables);
+                pm.push_constants(*pass, VK_SHADER_STAGE_VERTEX_BIT, 0, as_bytes(std::span{&pushConstants, 1}));
 
                 if (culledDraw.sourceData.drawCommands.isIndexed)
                 {
@@ -264,7 +223,7 @@ namespace oblo::vk
                 }
             }
 
-            passManager.end_render_pass(*pass);
+            pm.end_render_pass(*pass);
         }
     }
 }

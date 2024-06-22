@@ -2,7 +2,7 @@
 
 #include <oblo/core/unreachable.hpp>
 #include <oblo/vulkan/buffer.hpp>
-#include <oblo/vulkan/draw/buffer_binding_table.hpp>
+#include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/graph/frame_graph_impl.hpp>
 #include <oblo/vulkan/graph/resource_pool.hpp>
 #include <oblo/vulkan/renderer.hpp>
@@ -27,32 +27,6 @@ namespace oblo::vk
 
             case texture_usage::shader_read:
                 return VK_IMAGE_USAGE_SAMPLED_BIT;
-
-            default:
-                OBLO_ASSERT(false);
-                return {};
-            };
-        }
-
-        VkImageLayout convert_layout(texture_usage usage)
-        {
-            switch (usage)
-            {
-            case texture_usage::depth_stencil_read:
-            case texture_usage::depth_stencil_write:
-                return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-            case texture_usage::render_target_write:
-                return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-            case texture_usage::shader_read:
-                return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-            case texture_usage::transfer_destination:
-                return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-
-            case texture_usage::transfer_source:
-                return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 
             default:
                 OBLO_ASSERT(false);
@@ -162,7 +136,7 @@ namespace oblo::vk
 
         const auto poolIndex = m_resourcePool.add(imageInitializer, range);
         m_frameGraph.add_transient_resource(texture, poolIndex);
-        m_frameGraph.add_resource_transition(texture, convert_layout(usage));
+        m_frameGraph.add_resource_transition(texture, usage);
     }
 
     void frame_graph_build_context::create(resource<buffer> buffer,
@@ -224,7 +198,7 @@ namespace oblo::vk
 
     void frame_graph_build_context::acquire(resource<texture> texture, texture_usage usage) const
     {
-        m_frameGraph.add_resource_transition(texture, convert_layout(usage));
+        m_frameGraph.add_resource_transition(texture, usage);
 
         switch (usage)
         {
@@ -356,14 +330,25 @@ namespace oblo::vk
         return m_renderer.get_string_interner();
     }
 
-    void frame_graph_execute_context::add_bindings(buffer_binding_table& table,
-        std::initializer_list<pin_binding_desc> bindings) const
+    void frame_graph_execute_context::bind_buffers(binding_table& table,
+        std::initializer_list<buffer_binding_desc> bindings) const
     {
         auto& interner = get_string_interner();
 
         for (const auto& b : bindings)
         {
-            table.emplace(interner.get_or_add(b.name), access(b.buffer));
+            table.emplace(interner.get_or_add(b.name), make_bindable_object(access(b.resource)));
+        }
+    }
+
+    void frame_graph_execute_context::bind_textures(binding_table& table,
+        std::initializer_list<texture_binding_desc> bindings) const
+    {
+        auto& interner = get_string_interner();
+
+        for (const auto& b : bindings)
+        {
+            table.emplace(interner.get_or_add(b.name), make_bindable_object(access(b.resource)));
         }
     }
 

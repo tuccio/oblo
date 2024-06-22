@@ -9,6 +9,7 @@
 #include <oblo/core/string_interner.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/vulkan/buffer.hpp>
+#include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/compute_pass_initializer.hpp>
 #include <oblo/vulkan/draw/descriptor_set_pool.hpp>
 #include <oblo/vulkan/draw/draw_registry.hpp>
@@ -18,6 +19,7 @@
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/shader_cache.hpp>
 #include <oblo/vulkan/shader_compiler.hpp>
+#include <oblo/vulkan/texture.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
 
 #include <efsw/efsw.hpp>
@@ -68,6 +70,7 @@ namespace oblo::vk
             vertex_stage_input,
             uniform_buffer,
             storage_buffer,
+            storage_image,
         };
 
         struct shader_resource
@@ -145,6 +148,24 @@ namespace oblo::vk
             VkVertexInputAttributeDescription* attributeDescs;
             u32 count;
         };
+
+        bool is_buffer_binding(const descriptor_binding& binding)
+        {
+            switch (binding.descriptorType)
+            {
+            case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+            case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+                return true;
+
+            default:
+                return false;
+            }
+        }
+
+        bool is_image_binding(const descriptor_binding& binding)
+        {
+            return binding.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        }
     }
 
     struct render_pass
@@ -386,7 +407,7 @@ namespace oblo::vk
 
         VkDescriptorSet create_descriptor_set(VkDescriptorSetLayout descriptorSetLayout,
             const base_pipeline& pipeline,
-            std::span<const buffer_binding_table* const> bindingTables);
+            std::span<const binding_table* const> bindingTables);
 
         shader_compiler::options make_compiler_options();
     };
@@ -543,6 +564,10 @@ namespace oblo::vk
                 descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
                 break;
 
+            case resource_kind::storage_image:
+                descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                break;
+
             default:
                 continue;
             }
@@ -691,6 +716,28 @@ namespace oblo::vk
             });
         }
 
+        for (const auto& storageImage : shaderResources.storage_images)
+        {
+            const auto set = compiler.get_decoration(storageImage.id, spv::DecorationDescriptorSet);
+
+            if (set != 0)
+            {
+                continue;
+            }
+
+            const auto name = interner->get_or_add(storageImage.name);
+            const auto location = compiler.get_decoration(storageImage.id, spv::DecorationLocation);
+            const auto binding = compiler.get_decoration(storageImage.id, spv::DecorationBinding);
+
+            newPipeline.resources.push_back({
+                .name = name,
+                .location = location,
+                .binding = binding,
+                .kind = resource_kind::storage_image,
+                .stageFlags = VkShaderStageFlags(vkStage),
+            });
+        }
+
         for (const auto& image : shaderResources.separate_images)
         {
             const auto set = compiler.get_decoration(image.id, spv::DecorationDescriptorSet);
@@ -736,23 +783,26 @@ namespace oblo::vk
 
     VkDescriptorSet pass_manager::impl::create_descriptor_set(VkDescriptorSetLayout descriptorSetLayout,
         const base_pipeline& pipeline,
-        std::span<const buffer_binding_table* const> bindingTables)
+        std::span<const binding_table* const> bindingTables)
     {
         const VkDescriptorSet descriptorSet = descriptorSetPool.acquire(descriptorSetLayout);
 
         constexpr u32 MaxWrites{64};
 
         u32 buffersCount{0};
+        u32 imagesCount{0};
         u32 writesCount{0};
 
         VkDescriptorBufferInfo bufferInfo[MaxWrites];
+        VkDescriptorImageInfo imageInfo[MaxWrites];
         VkWriteDescriptorSet descriptorSetWrites[MaxWrites];
 
-        auto writeToDescriptorSet = [descriptorSet, &bufferInfo, &descriptorSetWrites, &buffersCount, &writesCount](
-                                        const descriptor_binding& binding,
-                                        const buffer& buffer)
+        auto writeBufferToDescriptorSet = [descriptorSet,
+                                              &bufferInfo,
+                                              &descriptorSetWrites,
+                                              &buffersCount,
+                                              &writesCount](const descriptor_binding& binding, const buffer& buffer)
         {
-            // TODO: Handle more
             OBLO_ASSERT(buffersCount < MaxWrites);
             OBLO_ASSERT(writesCount < MaxWrites);
             OBLO_ASSERT(buffer.buffer);
@@ -778,17 +828,73 @@ namespace oblo::vk
             ++writesCount;
         };
 
+        auto writeImageToDescriptorSet = [descriptorSet, &imageInfo, &descriptorSetWrites, &imagesCount, &writesCount](
+                                             const descriptor_binding& binding,
+                                             const texture& texture)
+        {
+            OBLO_ASSERT(imagesCount < MaxWrites);
+            OBLO_ASSERT(writesCount < MaxWrites);
+
+            imageInfo[imagesCount] = {
+                .imageView = texture.view,
+                .imageLayout =
+                    VK_IMAGE_LAYOUT_GENERAL, // Should this be configurable, or are storage image always general anyway?
+            };
+
+            descriptorSetWrites[writesCount] = {
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .dstSet = descriptorSet,
+                .dstBinding = binding.binding,
+                .dstArrayElement = 0,
+                .descriptorCount = 1,
+                .descriptorType = binding.descriptorType,
+                .pImageInfo = imageInfo + imagesCount,
+            };
+
+            ++imagesCount;
+            ++writesCount;
+        };
+
         for (const auto& binding : pipeline.descriptorSetBindings)
         {
             bool found = false;
 
             for (const auto* const table : bindingTables)
             {
-                auto* const buffer = table->try_find(binding.name);
+                auto* const bindableObject = table->try_find(binding.name);
 
-                if (buffer)
+                if (bindableObject)
                 {
-                    writeToDescriptorSet(binding, *buffer);
+                    switch (bindableObject->kind)
+                    {
+                    case bindable_object_kind::buffer:
+                        if (is_buffer_binding(binding))
+                        {
+                            writeBufferToDescriptorSet(binding, bindableObject->buffer);
+                        }
+                        else
+                        {
+                            log::debug("[{}] A binding for {} was found, but it's not a buffer as expected",
+                                pipeline.label,
+                                interner->str(binding.name));
+                        }
+
+                        break;
+                    case bindable_object_kind::texture:
+                        if (is_image_binding(binding))
+                        {
+                            writeImageToDescriptorSet(binding, bindableObject->texture);
+                        }
+                        else
+                        {
+                            log::debug("[{}] A binding for {} was found, but it's not a texture as expected",
+                                pipeline.label,
+                                interner->str(binding.name));
+                        }
+
+                        break;
+                    }
+
                     found = true;
                     break;
                 }
@@ -799,7 +905,8 @@ namespace oblo::vk
                 continue;
             }
 
-            log::debug("Unable to find matching buffer for binding {} in any of the provided binding tables",
+            log::debug("[{}] Unable to find matching buffer for binding {}",
+                pipeline.label,
                 interner->str(binding.name));
         }
 
@@ -1096,6 +1203,14 @@ namespace oblo::vk
             m_impl->renderPipelines.erase(pipelineHandle);
             // We push an invalid variant so we avoid trying to rebuild a failed pipeline every frame
             renderPass->variants.emplace_back().hash = expectedHash;
+
+            constexpr bool retryOnFail{true};
+
+            if constexpr (retryOnFail)
+            {
+                renderPass->watcher->isDirty = true;
+            }
+
             return h32<render_pipeline>{};
         };
 
@@ -1537,86 +1652,6 @@ namespace oblo::vk
         m_impl->frameAllocator.restore_all();
     }
 
-    /*void pass_manager::draw(const render_pass_context& context,
-        std::span<const buffer> batchDrawCommands,
-        std::span<const batch_draw_data> batchDrawData,
-        std::span<const buffer_binding_table* const> bindingTables)
-    {
-        OBLO_ASSERT(batchDrawCommands.size() == batchDrawData.size());
-
-        if (batchDrawData.empty())
-        {
-            return;
-        }
-
-        const auto* pipeline = context.internalPipeline;
-
-        for (usize drawIndex = 0; drawIndex < batchDrawCommands.size(); ++drawIndex)
-        {
-            auto& draw = batchDrawData[drawIndex];
-
-            if (const auto descriptorSetLayout = pipeline->descriptorSetLayout)
-            {
-                const VkDescriptorSet descriptorSet =
-                    m_impl->create_descriptor_set(descriptorSetLayout, *pipeline, bindingTables);
-
-                vkCmdBindDescriptorSets(context.commandBuffer,
-                    VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    pipeline->pipelineLayout,
-                    0,
-                    1,
-                    &descriptorSet,
-                    0,
-                    nullptr);
-
-                auto& drawBuffer = batchDrawCommands[drawIndex];
-
-                for (auto& pushConstantInfo : pipeline->pushConstants.values())
-                {
-                    if (pushConstantInfo.instanceTableIdOffset >= 0)
-                    {
-                        u32 instanceTableId{draw.instanceTableId};
-
-                        vkCmdPushConstants(context.commandBuffer,
-                            pipeline->pipelineLayout,
-                            pushConstantInfo.stages,
-                            u32(pushConstantInfo.instanceTableIdOffset),
-                            sizeof(u32),
-                            &instanceTableId);
-
-                        break;
-                    }
-                }
-
-                if (draw.drawCommands.isIndexed)
-                {
-                    OBLO_ASSERT(drawBuffer.size == draw.drawCommands.drawCount * sizeof(VkDrawIndexedIndirectCommand));
-
-                    vkCmdBindIndexBuffer(context.commandBuffer,
-                        draw.drawCommands.indexBuffer,
-                        draw.drawCommands.indexBufferOffset,
-                        draw.drawCommands.indexType);
-
-                    vkCmdDrawIndexedIndirect(context.commandBuffer,
-                        drawBuffer.buffer,
-                        drawBuffer.offset,
-                        draw.drawCommands.drawCount,
-                        sizeof(VkDrawIndexedIndirectCommand));
-                }
-                else
-                {
-                    OBLO_ASSERT(drawBuffer.size == draw.drawCommands.drawCount * sizeof(VkDrawIndirectCommand));
-
-                    vkCmdDrawIndirect(context.commandBuffer,
-                        drawBuffer.buffer,
-                        drawBuffer.offset,
-                        draw.drawCommands.drawCount,
-                        sizeof(VkDrawIndirectCommand));
-                }
-            }
-        }
-    }*/
-
     expected<compute_pass_context> pass_manager::begin_compute_pass(VkCommandBuffer commandBuffer,
         h32<compute_pipeline> pipelineHandle) const
     {
@@ -1672,7 +1707,7 @@ namespace oblo::vk
     }
 
     void pass_manager::bind_descriptor_sets(const render_pass_context& ctx,
-        std::span<const buffer_binding_table* const> bindingTables) const
+        std::span<const binding_table* const> bindingTables) const
     {
         const auto* pipeline = ctx.internalPipeline;
 
@@ -1693,7 +1728,7 @@ namespace oblo::vk
     }
 
     void pass_manager::bind_descriptor_sets(const compute_pass_context& ctx,
-        std::span<const buffer_binding_table* const> bindingTables) const
+        std::span<const binding_table* const> bindingTables) const
     {
         auto* const pipeline = ctx.internalPipeline;
 

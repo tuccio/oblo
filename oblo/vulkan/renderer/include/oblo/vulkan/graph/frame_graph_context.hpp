@@ -26,6 +26,7 @@ namespace oblo::vk
     class resource_manager;
     class resource_pool;
 
+    struct bindable_object;
     struct buffer;
     struct texture;
 
@@ -33,7 +34,7 @@ namespace oblo::vk
     struct frame_graph_pin_storage;
     struct staging_buffer_span;
 
-    using buffer_binding_table = flat_dense_map<h32<string>, buffer>;
+    using binding_table = flat_dense_map<h32<string>, bindable_object>;
 
     class frame_graph_init_context
     {
@@ -54,6 +55,8 @@ namespace oblo::vk
         depth_stencil_read,
         depth_stencil_write,
         shader_read,
+        compute_storage_read,
+        compute_storage_write,
         transfer_source,
         transfer_destination,
     };
@@ -140,10 +143,16 @@ namespace oblo::vk
         resource_pool& m_resourcePool;
     };
 
-    struct pin_binding_desc
+    struct buffer_binding_desc
     {
-        resource<buffer> buffer;
         std::string_view name;
+        resource<buffer> resource;
+    };
+
+    struct texture_binding_desc
+    {
+        std::string_view name;
+        resource<texture> resource;
     };
 
     class frame_graph_execute_context
@@ -174,7 +183,8 @@ namespace oblo::vk
 
         string_interner& get_string_interner() const;
 
-        void add_bindings(buffer_binding_table& table, std::initializer_list<pin_binding_desc> bindings) const;
+        void bind_buffers(binding_table& table, std::initializer_list<buffer_binding_desc> bindings) const;
+        void bind_textures(binding_table& table, std::initializer_list<texture_binding_desc> bindings) const;
 
     private:
         void* access_storage(h32<frame_graph_pin_storage> handle) const;

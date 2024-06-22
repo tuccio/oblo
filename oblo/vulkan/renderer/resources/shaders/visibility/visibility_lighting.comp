@@ -1,0 +1,101 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_nonuniform_qualifier : require
+#extension GL_EXT_buffer_reference : require
+#extension GL_ARB_gpu_shader_int64 : require
+#extension GL_EXT_shader_16bit_storage : require
+
+#include <renderer/instances>
+#include <renderer/lights>
+#include <renderer/material>
+#include <renderer/meshes>
+#include <renderer/textures>
+#include <renderer/volumes>
+#include <visibility/visibility_buffer>
+
+layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
+
+layout(binding = 0) uniform b_LightConfig
+{
+    light_config g_LightConfig;
+};
+
+layout(std430, binding = 1) restrict readonly buffer b_LightData
+{
+    light_data lights[];
+};
+
+uniform layout(binding = 2, rg32ui)
+readonly uimage2D t_InVisibilityBuffer;
+uniform layout(binding = 3, rgba8)
+writeonly image2D t_OutLitImage;
+
+layout(push_constant) uniform c_PushConstants
+{
+    uvec2 resolution;
+}
+g_Constants;
+
+void main()
+{
+    const ivec2 screenPos = ivec2(gl_GlobalInvocationID.xy);
+
+    if (screenPos.x >= g_Constants.resolution.x)
+    {
+        return;
+    }
+
+    imageStore(t_OutLitImage, screenPos, vec4(1, 0, 0, 1));
+    return;
+
+    const uvec4 visBufferData = imageLoad(t_InVisibilityBuffer, screenPos);
+
+    visibility_buffer_data vb;
+
+    if (!visibility_buffer_parse(visBufferData.xy, vb))
+    {
+        return;
+    }
+
+    const mesh_handle mesh = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MeshHandles, vb.instanceId);
+    const mesh_table meshTable = get_mesh_table(mesh);
+
+    vec3 vPosition[3];
+    vec3 vNormal[3];
+    vec2 vUV0[3];
+
+    // Alternative for position: reconstruct from depth buffer?
+
+    for (uint i = 0; i < 3; ++i)
+    {
+        // Can skip if no index buffer, then triangle index is vertex index
+        // const uint vertexId = mesh_table_triangle_index(meshTable, vb.triangleIndex, i); // TODO
+        const uint vertexId = 0;
+
+        vPosition[i] = get_mesh_position(meshTable, vertexId);
+        vNormal[i] = get_mesh_normal(meshTable, vertexId);
+        vUV0[i] = get_mesh_uv0(meshTable, vertexId);
+    }
+
+    // Interpolate with barycentric coordinates
+    vec3 positionWS = vPosition[0]; // Actually need to transform it too?
+    vec3 normal = vNormal[0];
+    vec2 uv0 = vUV0[0];
+
+    const gpu_material material = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MaterialBuffer, vb.instanceId);
+
+    // TODO: We need to calculate the LOD ourselves
+    const vec4 color = texture_sample_2d(material.albedoTexture, OBLO_SAMPLER_LINEAR, uv0);
+
+    vec3 reflected = vec3(0);
+
+    for (uint lightIndex = 0; lightIndex < g_LightConfig.lightsCount; ++lightIndex)
+    {
+        reflected += light_contribution(lights[lightIndex], positionWS, normal);
+    }
+
+    const vec4 final = vec4(color.xyz * material.albedo * reflected, 1);
+
+    imageStore(t_OutLitImage, screenPos, final);
+}

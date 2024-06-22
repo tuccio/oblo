@@ -93,6 +93,7 @@ namespace oblo::vk
     {
         u64 id;
         u32 globalIndexOffset;
+        mesh_index_type indexType;
         std::unique_ptr<mesh_table> meshes;
     };
 
@@ -172,6 +173,7 @@ namespace oblo::vk
         {
             auto& newTable = m_tables.emplace_back();
             newTable.id = tableId;
+            newTable.indexType = indexType;
             newTable.meshes = std::make_unique<mesh_table>();
 
             std::array<buffer_column_description, MaxAttributes> columnsBuffer;
@@ -313,12 +315,15 @@ namespace oblo::vk
         struct mesh_table_gpu
         {
             u64 vertexDataAddress;
+            u64 indexDataAddress;
             u64 meshDataAddress;
             u32 mask;
-            u32 padding;
+            u32 indexType;
             u32 attributeOffsets[MaxAttributes];
             u32 meshDataOffsets[MaxMeshBuffers];
         };
+
+        static_assert(sizeof(mesh_table_gpu) % 16 == 0);
 
         const std::span gpuTables = allocate_n_span<mesh_table_gpu>(allocator, m_tables.size());
 
@@ -328,7 +333,22 @@ namespace oblo::vk
 
             auto& gpuTable = gpuTables[i];
 
-            gpuTable = {};
+            gpuTable = {
+                .indexType = u32(t.indexType),
+            };
+
+            if (t.indexType != mesh_index_type::none)
+            {
+                const auto indexBufferHandle = t.meshes->index_buffer();
+                const auto buffer = m_resourceManager->get(indexBufferHandle);
+
+                const VkBufferDeviceAddressInfo info{
+                    .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+                    .buffer = buffer.buffer,
+                };
+
+                gpuTable.indexDataAddress = vkGetBufferDeviceAddress(m_allocator->get_device(), &info) + buffer.offset;
+            }
 
             if (const auto buffers = t.meshes->vertex_attribute_buffers(); !buffers.empty())
             {

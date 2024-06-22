@@ -20,7 +20,7 @@
 #include <oblo/vulkan/data/copy_texture_info.hpp>
 #include <oblo/vulkan/data/picking_configuration.hpp>
 #include <oblo/vulkan/data/time_buffer.hpp>
-#include <oblo/vulkan/draw/buffer_binding_table.hpp>
+#include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/graph/frame_graph.hpp>
 #include <oblo/vulkan/graph/frame_graph_template.hpp>
@@ -401,8 +401,9 @@ namespace oblo
                         break;
                     }
 
-                    frameGraph.set_input(renderGraphData->subgraph, main_view::InPickingConfiguration, pickingConfig)
-                        .or_panic();
+                    // Temporarily disabled, picking needs to be implemented differently
+                    //frameGraph.set_input(renderGraphData->subgraph, main_view::InPickingConfiguration, pickingConfig)
+                    //    .or_panic();
                 }
             }
         }

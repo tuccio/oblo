@@ -6,12 +6,13 @@
 // These are required to use this header
 // #extension GL_EXT_buffer_reference : require
 // #extension GL_ARB_gpu_shader_int64 : require
+// #extension GL_EXT_shader_16bit_storage : require
 
-// These need to match oblo::attribute_kind in C++
+// These need to match oblo::vertex_attributes in C++
 #define OBLO_VERTEX_ATTRIBUTE_POSITION 0
 #define OBLO_VERTEX_ATTRIBUTE_NORMAL 1
 #define OBLO_VERTEX_ATTRIBUTE_UV0 2
-#define OBLO_VERTEX_ATTRIBUTE_MAX 32
+#define OBLO_VERTEX_ATTRIBUTE_MAX 6
 
 #define OBLO_MESH_DATA_DRAW_RANGE 0
 #define OBLO_MESH_DATA_AABBS 1
@@ -20,13 +21,19 @@
 #define OBLO_DESCRIPTOR_SET_MESH_DATABASE 0
 #define OBLO_BINDING_MESH_DATABASE 33
 
+// These need to match oblo::mesh_index_type
+#define OBLO_MESH_DATA_INDEX_TYPE_NONE 0
+#define OBLO_MESH_DATA_INDEX_TYPE_U16 1
+#define OBLO_MESH_DATA_INDEX_TYPE_U32 2
+
 // This needs to match mesh_database::mesh_table_gpu
 struct mesh_table
 {
     uint64_t vertexDataAddress;
+    uint64_t indexDataAddress;
     uint64_t meshDataAddress;
     uint attributesMask;
-    uint padding;
+    uint indexType;
     uint attributeOffsets[OBLO_VERTEX_ATTRIBUTE_MAX];
     uint meshDataOffsets[OBLO_MESH_DATA_MAX];
 };
@@ -85,6 +92,16 @@ layout(buffer_reference) buffer Vec2AttributeType
 layout(buffer_reference) buffer Vec3AttributeType
 {
     vec3_attribute values[];
+};
+
+layout(buffer_reference) buffer U16AttributeType
+{
+    uint16_t values[];
+};
+
+layout(buffer_reference) buffer U32AttributeType
+{
+    uint values[];
 };
 
 layout(buffer_reference) buffer AabbAttributeType
@@ -149,6 +166,19 @@ mesh_draw_range get_mesh_draw_range(in mesh_table t, in uint meshId)
     const uint64_t address = t.meshDataAddress + t.meshDataOffsets[OBLO_MESH_DATA_DRAW_RANGE];
     MeshDrawRangeType attributeBuffer = MeshDrawRangeType(address);
     return attributeBuffer.values[meshId];
+}
+
+uint mesh_table_triangle_index(in mesh_table t, in uint vertexId)
+{
+    if (t.indexType == OBLO_MESH_DATA_INDEX_TYPE_NONE)
+    {
+        return vertexId / 3;
+    }
+    else
+    {
+        // TODO
+        return 0;
+    }
 }
 
 #endif

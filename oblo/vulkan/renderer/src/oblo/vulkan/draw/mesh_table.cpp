@@ -327,6 +327,11 @@ namespace oblo::vk
         return m_meshDataTable.buffers();
     }
 
+    h32<buffer> mesh_table::index_buffer() const
+    {
+        return m_indexBuffer;
+    }
+
     i32 mesh_table::find_vertex_attribute(h32<string> name) const
     {
         return m_vertexTable.find(name);

@@ -11,7 +11,7 @@ namespace oblo::vk
     struct debug_draw_all
     {
         data<vec2u> inResolution;
-        data<buffer_binding_table> inPerViewBindingTable;
+        data<binding_table> inPerViewBindingTable;
         resource<texture> outRenderTarget;
         resource<texture> outDepthBuffer;
 
@@ -123,7 +123,7 @@ namespace oblo::vk
 
             if (const auto pass = passManager.begin_render_pass(commandBuffer, pipeline, renderInfo))
             {
-                const buffer_binding_table* bindingTables[] = {
+                const binding_table* bindingTables[] = {
                     &context.access(inPerViewBindingTable),
                     // instanceBufferBindings, // TODO
                 };
