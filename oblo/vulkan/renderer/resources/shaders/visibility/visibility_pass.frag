@@ -8,7 +8,7 @@ layout(location = 0) out uvec2 out_VisibilityBuffer;
 
 void main()
 {
-    debugPrintfEXT("FRAG VIS: %u %u\n", in_VisibilityBufferData.x, in_VisibilityBufferData.y);
+    // debugPrintfEXT("FRAG VIS: %u %u\n", in_VisibilityBufferData.x, in_VisibilityBufferData.y);
 
     out_VisibilityBuffer = in_VisibilityBufferData;
 }

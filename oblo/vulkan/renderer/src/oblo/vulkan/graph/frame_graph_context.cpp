@@ -113,6 +113,29 @@ namespace oblo::vk
 
             return {pipelineStage, access};
         }
+
+        void add_texture_usages(
+            resource_pool& resourcePool, frame_graph_impl& frameGraph, resource<texture> texture, texture_usage usage)
+        {
+            switch (usage)
+            {
+            case texture_usage::transfer_destination:
+                resourcePool.add_usage(frameGraph.find_pool_index(texture), VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+                break;
+
+            case texture_usage::transfer_source:
+                resourcePool.add_usage(frameGraph.find_pool_index(texture), VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+                break;
+
+            case texture_usage::compute_storage_read:
+            case texture_usage::compute_storage_write:
+                resourcePool.add_usage(frameGraph.find_pool_index(texture), VK_IMAGE_USAGE_STORAGE_BIT);
+                break;
+
+            default:
+                break;
+            }
+        }
     }
 
     void frame_graph_build_context::create(
@@ -137,6 +160,8 @@ namespace oblo::vk
         const auto poolIndex = m_resourcePool.add(imageInitializer, range);
         m_frameGraph.add_transient_resource(texture, poolIndex);
         m_frameGraph.add_resource_transition(texture, usage);
+
+        add_texture_usages(m_resourcePool, m_frameGraph, texture, usage);
     }
 
     void frame_graph_build_context::create(resource<buffer> buffer,
@@ -199,20 +224,7 @@ namespace oblo::vk
     void frame_graph_build_context::acquire(resource<texture> texture, texture_usage usage) const
     {
         m_frameGraph.add_resource_transition(texture, usage);
-
-        switch (usage)
-        {
-        case texture_usage::transfer_destination:
-            m_resourcePool.add_usage(m_frameGraph.find_pool_index(texture), VK_IMAGE_USAGE_TRANSFER_DST_BIT);
-            break;
-
-        case texture_usage::transfer_source:
-            m_resourcePool.add_usage(m_frameGraph.find_pool_index(texture), VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
-            break;
-
-        default:
-            break;
-        }
+        add_texture_usages(m_resourcePool, m_frameGraph, texture, usage);
     }
 
     void frame_graph_build_context::acquire(resource<buffer> buffer, pass_kind passKind, buffer_usage usage) const
@@ -348,7 +360,8 @@ namespace oblo::vk
 
         for (const auto& b : bindings)
         {
-            table.emplace(interner.get_or_add(b.name), make_bindable_object(access(b.resource)));
+            const auto& texture = access(b.resource);
+            table.emplace(interner.get_or_add(b.name), make_bindable_object(texture.view));
         }
     }
 

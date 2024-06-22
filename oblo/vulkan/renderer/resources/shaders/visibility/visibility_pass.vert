@@ -13,7 +13,6 @@
 #include <renderer/transform>
 #include <visibility/visibility_buffer>
 
-
 layout(location = 0) out uvec2 out_VisibilityBufferData;
 
 layout(binding = 0) uniform b_CameraBuffer
@@ -51,11 +50,14 @@ void main()
     const vec4 positionWS = localToWorld * vec4(inPosition, 1);
     const vec4 positionNDC = viewProj * positionWS;
 
-
     gl_Position = positionNDC;
 
-    debugPrintfEXT("pos %u: %f %f %f\n", gl_VertexIndex, inPosition.x, inPosition.y, inPosition.z);
+        // debugPrintfEXT("pos %u: %f %f %f\n", gl_VertexIndex, inPosition.x, inPosition.y, inPosition.z);
     // debugPrintfEXT("pos: %f %f %f\n", gl_Position.x, gl_Position.y, gl_Position.z);
+
+    const uint64_t address = table.vertexDataAddress;
+    // debugPrintfEXT("Vertex: %u\n", gl_VertexIndex);
+    // debugPrintfEXT("Addr: %lu, Offset: %u\n", address, table.attributeOffsets[OBLO_VERTEX_ATTRIBUTE_POSITION]);
 
     visibility_buffer_data visBufferData;
     visBufferData.instanceTableId = g_Constants.instanceTableId;
@@ -63,7 +65,7 @@ void main()
     visBufferData.triangleIndex = mesh_table_triangle_index(table, gl_VertexIndex);
 
     const uvec2 packed = visibility_buffer_pack(visBufferData);
-    debugPrintfEXT("vis: %u %u\n", packed.x, packed.y);
+    // debugPrintfEXT("vis: %u %u\n", packed.x, packed.y);
 
     out_VisibilityBufferData = packed;
 }

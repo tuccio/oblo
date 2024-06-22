@@ -18,13 +18,18 @@ namespace oblo::vk
         texture,
     };
 
+    struct bindable_texture
+    {
+        VkImageView view;
+    };
+
     struct bindable_object
     {
         bindable_object_kind kind;
 
         union {
             buffer buffer;
-            texture texture;
+            bindable_texture texture;
         };
     };
 
@@ -33,9 +38,9 @@ namespace oblo::vk
         return {.kind = bindable_object_kind::buffer, .buffer = b};
     }
 
-    constexpr bindable_object make_bindable_object(const vk::texture& t)
+    constexpr bindable_object make_bindable_object(VkImageView view)
     {
-        return {.kind = bindable_object_kind::texture, .texture = t};
+        return {.kind = bindable_object_kind::texture, .texture = {view}};
     }
 
     using binding_table = flat_dense_map<h32<string>, bindable_object>;

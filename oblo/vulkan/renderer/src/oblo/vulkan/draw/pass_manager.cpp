@@ -867,17 +867,23 @@ namespace oblo::vk
             ++writesCount;
         };
 
-        auto writeImageToDescriptorSet = [descriptorSet, &imageInfo, &descriptorSetWrites, &imagesCount, &writesCount](
-                                             const descriptor_binding& binding,
-                                             const texture& texture)
+        auto writeImageToDescriptorSet =
+            [descriptorSet,
+                &imageInfo,
+                &descriptorSetWrites,
+                &imagesCount,
+                &writesCount,
+                sampler = samplers[u32(sampler::nearest)]](const descriptor_binding& binding,
+                const bindable_texture& texture)
         {
             OBLO_ASSERT(imagesCount < MaxWrites);
             OBLO_ASSERT(writesCount < MaxWrites);
 
             imageInfo[imagesCount] = {
+                .sampler = sampler,
                 .imageView = texture.view,
-                .imageLayout =
-                    VK_IMAGE_LAYOUT_GENERAL, // Should this be configurable, or are storage image always general anyway?
+                .imageLayout = VK_IMAGE_LAYOUT_GENERAL, // The only 2 allowed layouts for storage images are general and
+                                                        // VK_IMAGE_LAYOUT_SHARED_PRESENT_KHR
             };
 
             descriptorSetWrites[writesCount] = {
@@ -953,6 +959,12 @@ namespace oblo::vk
         {
             vkUpdateDescriptorSets(device, writesCount, descriptorSetWrites, 0, nullptr);
         }
+
+        char nameBuffer[1024];
+        auto [last, n] = std::format_to_n(nameBuffer, 1023, "{} / pass_manager DescriptorSet", pipeline.label);
+        *last = '\0';
+
+        vkCtx->get_debug_utils_object().set_object_name(device, descriptorSet, nameBuffer);
 
         return descriptorSet;
     }
@@ -1583,15 +1595,15 @@ namespace oblo::vk
                 .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
                 .pImageInfo = textures2DInfo.data(),
             },
-            {
-                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                .dstSet = samplerDescriptorSet,
-                .dstBinding = TexturesSamplerBinding,
-                .dstArrayElement = 0,
-                .descriptorCount = numSamplers,
-                .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
-                .pImageInfo = samplers,
-            },
+            //{
+            //    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            //    .dstSet = samplerDescriptorSet,
+            //    .dstBinding = TexturesSamplerBinding,
+            //    .dstArrayElement = 0,
+            //    .descriptorCount = numSamplers,
+            //    .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
+            //    .pImageInfo = samplers,
+            //},
         };
 
         vkUpdateDescriptorSets(m_impl->device, array_size(descriptorSetWrites), descriptorSetWrites, 0, nullptr);
@@ -1720,6 +1732,30 @@ namespace oblo::vk
         m_impl->vkCtx->begin_debug_label(commandBuffer, pipeline->label);
 
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->pipeline);
+
+        if (pipeline->requiresTextures2D && m_impl->currentSamplersDescriptor)
+        {
+            vkCmdBindDescriptorSets(commandBuffer,
+                VK_PIPELINE_BIND_POINT_COMPUTE,
+                pipeline->pipelineLayout,
+                TextureSamplerDescriptorSet,
+                1,
+                &m_impl->currentSamplersDescriptor,
+                0,
+                nullptr);
+        }
+
+        if (pipeline->requiresTextures2D && m_impl->currentTextures2DDescriptor)
+        {
+            vkCmdBindDescriptorSets(commandBuffer,
+                VK_PIPELINE_BIND_POINT_COMPUTE,
+                pipeline->pipelineLayout,
+                Textures2DDescriptorSet,
+                1,
+                &m_impl->currentTextures2DDescriptor,
+                0,
+                nullptr);
+        }
 
         return computePassContext;
     }

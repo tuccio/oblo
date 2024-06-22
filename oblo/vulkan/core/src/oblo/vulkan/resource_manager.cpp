@@ -254,4 +254,14 @@ namespace oblo::vk
     {
         return !m_incompleteTransitions.empty();
     }
+
+    expected<VkImageLayout> command_buffer_state::try_find(h32<texture> handle) const
+    {
+        if (auto* const layout = m_transitions.try_find(handle))
+        {
+            return *layout;
+        }
+
+        return unspecified_error;
+    }
 }

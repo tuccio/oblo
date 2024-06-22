@@ -11,6 +11,7 @@
 #include <oblo/vulkan/graph/frame_graph_vertex_kind.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 #include <oblo/vulkan/graph/resource_pool.hpp>
+#include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/staging_buffer.hpp>
 
 #include <iosfwd>
@@ -156,6 +157,8 @@ namespace oblo::vk
         frame_allocator dynamicAllocator;
         resource_manager* resourceManager{};
 
+        command_buffer_state commandBufferState;
+
         dynamic_array<frame_graph_node_to_execute> sortedNodes;
         h32_flat_pool_dense_map<frame_graph_texture> textures;
         h32_flat_pool_dense_map<frame_graph_buffer> buffers;
@@ -193,6 +196,8 @@ namespace oblo::vk
         bool can_exec_time_upload(resource<buffer> handle) const;
 
         h32<frame_graph_pin_storage> allocate_dynamic_resource_pin();
+
+        VkImageLayout find_image_layout(resource<texture> handle) const;
 
     public: // Utility
         void free_pin_storage(const frame_graph_pin_storage& storage, bool isFrameAllocated);

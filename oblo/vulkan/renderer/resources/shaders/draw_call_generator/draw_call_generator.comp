@@ -3,6 +3,9 @@
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_buffer_reference : require
 #extension GL_ARB_gpu_shader_int64 : require
+#extension GL_EXT_shader_16bit_storage : require
+
+#extension GL_EXT_debug_printf : require
 
 #include <renderer/instances>
 #include <renderer/meshes>
@@ -85,6 +88,8 @@ void main()
     drawCall.firstVertex = range.vertexOffset;
     drawCall.firstInstance = 0;
 #endif
+
+    // debugPrintfEXT("id: %u #index: %u\n", drawId, range.indexCount);
 
     outDrawCalls[drawId] = drawCall;
 }

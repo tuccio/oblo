@@ -436,7 +436,8 @@ namespace oblo::vk
             m_impl->flush_uploads(commandBuffer.get(), renderer.get_staging_buffer());
         }
 
-        command_buffer_state commandBufferState;
+        auto& commandBufferState = m_impl->commandBufferState;
+        commandBufferState.clear();
 
         for (const auto [resource, poolIndex] : m_impl->transientTextures)
         {
