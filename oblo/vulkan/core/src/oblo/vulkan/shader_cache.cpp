@@ -13,7 +13,7 @@ namespace oblo::vk
 {
     namespace
     {
-        constexpr bool DisableCache{false};
+        constexpr bool DisableCache{true};
         constexpr bool OutputSource{true};
 
         template <typename T>

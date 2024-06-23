@@ -65,6 +65,11 @@ namespace oblo::vk::main_view
 
         // Connect inputs to visibility lighting
         graph.connect(viewBuffers,
+            &view_buffers_node::outCameraBuffer,
+            visibilityLighting,
+            &visibility_lighting::inCameraBuffer);
+
+        graph.connect(viewBuffers,
             &view_buffers_node::inResolution,
             visibilityLighting,
             &visibility_lighting::inResolution);
@@ -89,6 +94,11 @@ namespace oblo::vk::main_view
             &visibility_pass::outVisibilityBuffer,
             visibilityLighting,
             &visibility_lighting::inVisibilityBuffer);
+
+        graph.connect(visibilityPass,
+            &visibility_pass::outDepthBuffer,
+            visibilityLighting,
+            &visibility_lighting::inDepthBuffer);
 
         // Connect lighting to final blit
         graph.connect(visibilityLighting,

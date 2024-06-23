@@ -47,8 +47,8 @@ namespace oblo::vk
             case texture_usage::shader_read:
                 return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-            case texture_usage::compute_storage_read:
-            case texture_usage::compute_storage_write:
+            case texture_usage::storage_read:
+            case texture_usage::storage_write:
                 return VK_IMAGE_LAYOUT_GENERAL;
 
             case texture_usage::transfer_destination:

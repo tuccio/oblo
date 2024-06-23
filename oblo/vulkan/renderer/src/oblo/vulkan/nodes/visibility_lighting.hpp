@@ -22,6 +22,8 @@ namespace oblo::vk
     {
         data<vec2u> inResolution;
 
+        resource<buffer> inCameraBuffer;
+
         resource<buffer> inLightData;
         resource<buffer> inLightConfig;
 
@@ -31,6 +33,7 @@ namespace oblo::vk
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
         resource<texture> inVisibilityBuffer;
+        resource<texture> inDepthBuffer;
         resource<texture> outLitImage;
 
         h32<compute_pass> lightingPass;

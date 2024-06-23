@@ -70,6 +70,8 @@ namespace oblo::vk
             vertex_stage_input,
             uniform_buffer,
             storage_buffer,
+            sampled_image,
+            separate_image,
             storage_image,
         };
 
@@ -167,7 +169,16 @@ namespace oblo::vk
 
         bool is_image_binding(const descriptor_binding& binding)
         {
-            return binding.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            switch (binding.descriptorType)
+            {
+            case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+            case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+            case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+                return true;
+
+            default:
+                return false;
+            }
         }
     }
 
@@ -603,8 +614,16 @@ namespace oblo::vk
                 descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
                 break;
 
+            case resource_kind::separate_image:
+                descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+                break;
+
             case resource_kind::storage_image:
                 descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                break;
+
+            case resource_kind::sampled_image:
+                descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
                 break;
 
             default:
@@ -777,6 +796,28 @@ namespace oblo::vk
             });
         }
 
+        for (const auto& sampledImage : shaderResources.sampled_images)
+        {
+            const auto set = compiler.get_decoration(sampledImage.id, spv::DecorationDescriptorSet);
+
+            if (set != 0)
+            {
+                continue;
+            }
+
+            const auto name = interner->get_or_add(sampledImage.name);
+            const auto location = compiler.get_decoration(sampledImage.id, spv::DecorationLocation);
+            const auto binding = compiler.get_decoration(sampledImage.id, spv::DecorationBinding);
+
+            newPipeline.resources.push_back({
+                .name = name,
+                .location = location,
+                .binding = binding,
+                .kind = resource_kind::sampled_image,
+                .stageFlags = VkShaderStageFlags(vkStage),
+            });
+        }
+
         for (const auto& image : shaderResources.separate_images)
         {
             const auto set = compiler.get_decoration(image.id, spv::DecorationDescriptorSet);
@@ -784,8 +825,20 @@ namespace oblo::vk
             if (set == Textures2DDescriptorSet)
             {
                 newPipeline.requiresTextures2D = true;
-                break;
+                continue;
             }
+
+            const auto name = interner->get_or_add(image.name);
+            const auto location = compiler.get_decoration(image.id, spv::DecorationLocation);
+            const auto binding = compiler.get_decoration(image.id, spv::DecorationBinding);
+
+            newPipeline.resources.push_back({
+                .name = name,
+                .location = location,
+                .binding = binding,
+                .kind = resource_kind::separate_image,
+                .stageFlags = VkShaderStageFlags(vkStage),
+            });
         }
 
         for (const auto& pushConstant : shaderResources.push_constant_buffers)
@@ -873,7 +926,7 @@ namespace oblo::vk
                 &descriptorSetWrites,
                 &imagesCount,
                 &writesCount,
-                sampler = samplers[u32(sampler::nearest)]](const descriptor_binding& binding,
+                sampler = samplers[u32(sampler::linear)]](const descriptor_binding& binding,
                 const bindable_texture& texture)
         {
             OBLO_ASSERT(imagesCount < MaxWrites);

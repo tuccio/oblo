@@ -11,4 +11,9 @@ struct camera_buffer
     frustum frustum;
 };
 
+bool camera_depth_no_hit(float depth)
+{
+    return depth == 0.f;
+}
+
 #endif

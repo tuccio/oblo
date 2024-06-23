@@ -1,15 +1,17 @@
 #version 460
 
-#extension GL_GOOGLE_include_directive : require
-#extension GL_EXT_nonuniform_qualifier : require
-#extension GL_EXT_buffer_reference : require
 #extension GL_ARB_gpu_shader_int64 : require
+#extension GL_EXT_buffer_reference : require
+#extension GL_EXT_nonuniform_qualifier : require
 #extension GL_EXT_shader_16bit_storage : require
+#extension GL_EXT_samplerless_texture_functions : require
+#extension GL_GOOGLE_include_directive : require
 
 #extension GL_EXT_debug_printf : require
 
-#include <renderer/instances>
+#include <renderer/camera>
 #include <renderer/debug>
+#include <renderer/instances>
 #include <renderer/lights>
 #include <renderer/material>
 #include <renderer/meshes>
@@ -19,21 +21,26 @@
 
 layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 0) uniform b_LightConfig
+layout(binding = 0) uniform b_CameraBuffer
+{
+    camera_buffer g_Camera;
+};
+
+layout(binding = 1) uniform b_LightConfig
 {
     light_config g_LightConfig;
 };
 
-layout(std430, binding = 1) restrict readonly buffer b_LightData
+layout(std430, binding = 2) restrict readonly buffer b_LightData
 {
     light_data lights[];
 };
 
-uniform layout(binding = 2, rg32ui)
-coherent readonly uimage2D t_InVisibilityBuffer;
+layout(binding = 10) uniform texture2D t_InDepthBuffer;
 
-uniform layout(binding = 3, rgba8)
-coherent writeonly image2D t_OutLitImage;
+layout(binding = 11, rg32ui) uniform restrict readonly uimage2D t_InVisibilityBuffer;
+
+layout(binding = 12, rgba8) uniform restrict writeonly image2D t_OutLitImage;
 
 layout(push_constant) uniform c_PushConstants
 {
@@ -49,17 +56,29 @@ void main()
     }
 
     const ivec2 screenPos = ivec2(gl_GlobalInvocationID.xy);
-    const uvec4 visBufferData = imageLoad(t_InVisibilityBuffer, screenPos);
 
-    visibility_buffer_data vb;
+    const float depth = texelFetch(t_InDepthBuffer, screenPos, 0).x;
+    // debugPrintfEXT("[%d, %d] depth %f\n", screenPos.x, screenPos.y, depth);
 
-    if (!visibility_buffer_parse(visBufferData.xy, vb))
+    if (camera_depth_no_hit(depth))
     {
         imageStore(t_OutLitImage, screenPos, vec4(0));
         return;
     }
 
-    imageStore(t_OutLitImage, screenPos, vec4(debug_color_map(vb.instanceId), 1));
+    const uvec4 visBufferData = imageLoad(t_InVisibilityBuffer, screenPos);
+
+    visibility_buffer_data vb;
+
+    visibility_buffer_parse(visBufferData.xy, vb);
+
+    // if (!visibility_buffer_parse(visBufferData.xy, vb))
+    // {
+    //     imageStore(t_OutLitImage, screenPos, vec4(0));
+    //     return;
+    // }
+
+    imageStore(t_OutLitImage, screenPos, vec4(debug_color_map(vb.triangleIndex), 1));
     return;
 
     const mesh_handle mesh = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MeshHandles, vb.instanceId);

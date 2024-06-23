@@ -55,8 +55,8 @@ namespace oblo::vk
         depth_stencil_read,
         depth_stencil_write,
         shader_read,
-        compute_storage_read,
-        compute_storage_write,
+        storage_read,
+        storage_write,
         transfer_source,
         transfer_destination,
     };

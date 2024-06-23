@@ -127,8 +127,12 @@ namespace oblo::vk
                 resourcePool.add_usage(frameGraph.find_pool_index(texture), VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
                 break;
 
-            case texture_usage::compute_storage_read:
-            case texture_usage::compute_storage_write:
+            case texture_usage::shader_read:
+                resourcePool.add_usage(frameGraph.find_pool_index(texture), VK_IMAGE_USAGE_SAMPLED_BIT);
+                break;
+
+            case texture_usage::storage_read:
+            case texture_usage::storage_write:
                 resourcePool.add_usage(frameGraph.find_pool_index(texture), VK_IMAGE_USAGE_STORAGE_BIT);
                 break;
 

@@ -45,25 +45,15 @@ void main()
 
     const mat4 localToWorld = instanceTransform.localToWorld;
 
-    const mat4 viewProj = g_Camera.projection * g_Camera.view;
-
     const vec4 positionWS = localToWorld * vec4(inPosition, 1);
-    const vec4 positionNDC = viewProj * positionWS;
+    const vec4 positionNDC = g_Camera.viewProjection * positionWS;
 
     gl_Position = positionNDC;
-
-        // debugPrintfEXT("pos %u: %f %f %f\n", gl_VertexIndex, inPosition.x, inPosition.y, inPosition.z);
-    // debugPrintfEXT("pos: %f %f %f\n", gl_Position.x, gl_Position.y, gl_Position.z);
-
-    const uint64_t address = table.vertexDataAddress;
-    // debugPrintfEXT("Vertex: %u\n", gl_VertexIndex);
-    // debugPrintfEXT("Addr: %lu, Offset: %u\n", address, table.attributeOffsets[OBLO_VERTEX_ATTRIBUTE_POSITION]);
 
     visibility_buffer_data visBufferData;
     visBufferData.instanceTableId = g_Constants.instanceTableId;
     visBufferData.instanceId = preCullingId;
     visBufferData.triangleIndex = mesh_get_triangle_index(table, gl_VertexIndex);
-
 
     const uvec2 packed = visibility_buffer_pack(visBufferData);
     // debugPrintfEXT("vis: %u %u\n", packed.x, packed.y);

@@ -25,8 +25,8 @@ namespace oblo::vk
     {
         const auto resolution = ctx.access(inResolution);
 
-        // TODO: This needs to specify the stage (or maybe the pass?)
-        ctx.acquire(inVisibilityBuffer, texture_usage::compute_storage_read);
+        ctx.acquire(inDepthBuffer, texture_usage::shader_read);
+        ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
 
         ctx.create(outLitImage,
             {
@@ -38,6 +38,7 @@ namespace oblo::vk
             },
             texture_usage::render_target_write);
 
+        ctx.acquire(inCameraBuffer, pass_kind::compute, buffer_usage::uniform);
         ctx.acquire(inLightConfig, pass_kind::compute, buffer_usage::uniform);
         ctx.acquire(inLightData, pass_kind::compute, buffer_usage::storage_read);
 
@@ -67,10 +68,12 @@ namespace oblo::vk
                 {"b_LightConfig", inLightConfig},
                 {"b_InstanceTables", inInstanceTables},
                 {"b_MeshTables", inMeshDatabase},
+                {"b_CameraBuffer", inCameraBuffer},
             });
 
         ctx.bind_textures(bindingTable,
             {
+                {"t_InDepthBuffer", inDepthBuffer},
                 {"t_InVisibilityBuffer", inVisibilityBuffer},
                 {"t_OutLitImage", outLitImage},
             });
