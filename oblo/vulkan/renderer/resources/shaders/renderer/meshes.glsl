@@ -53,20 +53,20 @@ layout(buffer_reference) buffer i_MeshHandlesType
     mesh_handle values[];
 };
 
-uint get_mesh_table_index(in mesh_handle h)
+uint mesh_get_table_index(in mesh_handle h)
 {
     return h.value >> 24u;
 }
 
-uint get_mesh_index(in mesh_handle h)
+uint mesh_get_index(in mesh_handle h)
 {
     const uint mask = ~0u >> 8u;
     return (h.value & mask) - 1;
 }
 
-mesh_table get_mesh_table(in mesh_handle h)
+mesh_table mesh_table_fetch(in mesh_handle h)
 {
-    return g_MeshTables[get_mesh_table_index(h)];
+    return g_MeshTables[mesh_get_table_index(h)];
 }
 
 struct vec3_attribute
@@ -116,14 +116,14 @@ layout(buffer_reference) buffer MeshDrawRangeType
 
 // Generic vertex data fetch
 
-vec2 get_mesh_vec2_attribute(in mesh_table t, in uint attributeId, in uint vertexId)
+vec2 mesh_get_vec2_attribute(in mesh_table t, in uint attributeId, in uint vertexId)
 {
     const uint64_t address = t.vertexDataAddress + t.attributeOffsets[attributeId];
     Vec2AttributeType attributeBuffer = Vec2AttributeType(address);
     return attributeBuffer.values[vertexId];
 }
 
-vec3 get_mesh_vec3_attribute(in mesh_table t, in uint attributeId, in uint vertexId)
+vec3 mesh_get_vec3_attribute(in mesh_table t, in uint attributeId, in uint vertexId)
 {
     const uint64_t address = t.vertexDataAddress + t.attributeOffsets[attributeId];
     Vec3AttributeType attributeBuffer = Vec3AttributeType(address);
@@ -133,23 +133,23 @@ vec3 get_mesh_vec3_attribute(in mesh_table t, in uint attributeId, in uint verte
 
 // Vertex attributes fetch
 
-vec3 get_mesh_position(in mesh_table t, in uint vertexId)
+vec3 mesh_get_position(in mesh_table t, in uint vertexId)
 {
-    return get_mesh_vec3_attribute(t, OBLO_VERTEX_ATTRIBUTE_POSITION, vertexId);
+    return mesh_get_vec3_attribute(t, OBLO_VERTEX_ATTRIBUTE_POSITION, vertexId);
 }
 
-vec3 get_mesh_normal(in mesh_table t, in uint vertexId)
+vec3 mesh_get_normal(in mesh_table t, in uint vertexId)
 {
-    return get_mesh_vec3_attribute(t, OBLO_VERTEX_ATTRIBUTE_NORMAL, vertexId);
+    return mesh_get_vec3_attribute(t, OBLO_VERTEX_ATTRIBUTE_NORMAL, vertexId);
 }
 
-vec2 get_mesh_uv0(in mesh_table t, in uint vertexId)
+vec2 mesh_get_uv0(in mesh_table t, in uint vertexId)
 {
-    return get_mesh_vec2_attribute(t, OBLO_VERTEX_ATTRIBUTE_UV0, vertexId);
+    return mesh_get_vec2_attribute(t, OBLO_VERTEX_ATTRIBUTE_UV0, vertexId);
 }
 
 // Mesh data fetch
-aabb get_mesh_aabb(in mesh_table t, in uint meshId)
+aabb mesh_get_aabb(in mesh_table t, in uint meshId)
 {
     const uint64_t address = t.meshDataAddress + t.meshDataOffsets[OBLO_MESH_DATA_AABBS];
     AabbAttributeType attributeBuffer = AabbAttributeType(address);
@@ -161,24 +161,17 @@ aabb get_mesh_aabb(in mesh_table t, in uint meshId)
     return res;
 }
 
-mesh_draw_range get_mesh_draw_range(in mesh_table t, in uint meshId)
+mesh_draw_range mesh_get_draw_range(in mesh_table t, in uint meshId)
 {
     const uint64_t address = t.meshDataAddress + t.meshDataOffsets[OBLO_MESH_DATA_DRAW_RANGE];
     MeshDrawRangeType attributeBuffer = MeshDrawRangeType(address);
     return attributeBuffer.values[meshId];
 }
 
-uint mesh_table_triangle_index(in mesh_table t, in uint vertexId)
+uint mesh_get_triangle_index(in mesh_table t, in uint vertexId)
 {
-    if (t.indexType == OBLO_MESH_DATA_INDEX_TYPE_NONE)
-    {
-        return vertexId / 3;
-    }
-    else
-    {
-        // TODO
-        return 0;
-    }
+    // This only really works with t.indexType == OBLO_MESH_DATA_INDEX_TYPE_NONE
+    return vertexId / 3;
 }
 
 #endif

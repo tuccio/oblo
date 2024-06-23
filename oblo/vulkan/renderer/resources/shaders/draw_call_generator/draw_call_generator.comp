@@ -68,11 +68,11 @@ void main()
     const uint preCullingId = inInstancesInFrustum[drawId];
 
     const mesh_handle meshHandle = OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_MeshHandles, preCullingId);
-    const mesh_table table = get_mesh_table(meshHandle);
+    const mesh_table table = mesh_table_fetch(meshHandle);
 
-    const uint meshIndex = get_mesh_index(meshHandle);
+    const uint meshIndex = mesh_get_index(meshHandle);
 
-    const mesh_draw_range range = get_mesh_draw_range(table, meshIndex);
+    const mesh_draw_range range = mesh_get_draw_range(table, meshIndex);
 
 #ifdef DRAW_INDEXED
     vk_draw_indexed_indirect_command drawCall;

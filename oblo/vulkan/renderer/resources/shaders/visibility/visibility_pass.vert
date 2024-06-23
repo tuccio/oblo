@@ -36,9 +36,9 @@ void main()
     const uint preCullingId = g_preCullingIdMap[gl_DrawID];
 
     const mesh_handle meshHandle = OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_MeshHandles, preCullingId);
-    const mesh_table table = get_mesh_table(meshHandle);
+    const mesh_table table = mesh_table_fetch(meshHandle);
 
-    const vec3 inPosition = get_mesh_position(table, gl_VertexIndex);
+    const vec3 inPosition = mesh_get_position(table, gl_VertexIndex);
 
     const transform instanceTransform =
         OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_TransformBuffer, preCullingId);
@@ -62,7 +62,8 @@ void main()
     visibility_buffer_data visBufferData;
     visBufferData.instanceTableId = g_Constants.instanceTableId;
     visBufferData.instanceId = preCullingId;
-    visBufferData.triangleIndex = mesh_table_triangle_index(table, gl_VertexIndex);
+    visBufferData.triangleIndex = mesh_get_triangle_index(table, gl_VertexIndex);
+
 
     const uvec2 packed = visibility_buffer_pack(visBufferData);
     // debugPrintfEXT("vis: %u %u\n", packed.x, packed.y);

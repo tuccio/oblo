@@ -9,6 +9,7 @@
 #extension GL_EXT_debug_printf : require
 
 #include <renderer/instances>
+#include <renderer/debug>
 #include <renderer/lights>
 #include <renderer/material>
 #include <renderer/meshes>
@@ -48,26 +49,21 @@ void main()
     }
 
     const ivec2 screenPos = ivec2(gl_GlobalInvocationID.xy);
-    // const uvec4 visBufferData = imageLoad(t_InVisibilityBuffer, ivec2(500, 500));
     const uvec4 visBufferData = imageLoad(t_InVisibilityBuffer, screenPos);
 
     visibility_buffer_data vb;
 
-    // if (visBufferData.y != 0)
-    // debugPrintfEXT("[%d, %d] vb: %u %u\n", screenPos.x, screenPos.y, visBufferData.x, visBufferData.y);
-
     if (!visibility_buffer_parse(visBufferData.xy, vb))
     {
         imageStore(t_OutLitImage, screenPos, vec4(0));
-        // imageStore(t_OutLitImage, screenPos, vec4(1, 0, 0, 1));
         return;
     }
 
-    imageStore(t_OutLitImage, screenPos, vec4(1, 0, 0, 1));
+    imageStore(t_OutLitImage, screenPos, vec4(debug_color_map(vb.instanceId), 1));
     return;
 
     const mesh_handle mesh = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MeshHandles, vb.instanceId);
-    const mesh_table meshTable = get_mesh_table(mesh);
+    const mesh_table meshTable = mesh_table_fetch(mesh);
 
     vec3 vPosition[3];
     vec3 vNormal[3];
@@ -81,9 +77,9 @@ void main()
         // const uint vertexId = mesh_table_triangle_index(meshTable, vb.triangleIndex, i); // TODO
         const uint vertexId = 0;
 
-        vPosition[i] = get_mesh_position(meshTable, vertexId);
-        vNormal[i] = get_mesh_normal(meshTable, vertexId);
-        vUV0[i] = get_mesh_uv0(meshTable, vertexId);
+        vPosition[i] = mesh_get_position(meshTable, vertexId);
+        vNormal[i] = mesh_get_normal(meshTable, vertexId);
+        vUV0[i] = mesh_get_uv0(meshTable, vertexId);
     }
 
     // Interpolate with barycentric coordinates

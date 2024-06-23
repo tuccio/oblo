@@ -79,12 +79,12 @@ void main()
     // Instance id and draw id are the same since we don't support instancing currently
     const transform instanceTransform = OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_TransformBuffer, drawId);
 
-    const mesh_table table = get_mesh_table(meshHandle);
-    const uint meshIndex = get_mesh_index(meshHandle);
+    const mesh_table table = mesh_table_fetch(meshHandle);
+    const uint meshIndex = mesh_get_index(meshHandle);
 
     const mat4 localToWorld = instanceTransform.localToWorld;
 
-    const aabb msBox = get_mesh_aabb(table, meshIndex);
+    const aabb msBox = mesh_get_aabb(table, meshIndex);
     const aabb wsBox = transform_aabb(msBox, localToWorld);
 
     const bool isInView = intersects_or_contains(g_Camera.frustum, wsBox);
