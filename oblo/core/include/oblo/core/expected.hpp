@@ -93,13 +93,23 @@ namespace oblo
             return m_hasValue ? m_value : fallback;
         }
 
-        void or_panic(const char* message = "Panic!",
-            const std::source_location& src = std::source_location::current()) const
+        T assert_value_or(const T& fallback,
+            const char* message = "Unexpected failure",
+            const std::source_location& src = std::source_location::current()) const noexcept
         {
+            assert_value(message, src);
+            return m_hasValue ? m_value : fallback;
+        }
+
+        void assert_value([[maybe_unused]] const char* message = "Unexpected failure",
+            [[maybe_unused]] const std::source_location& src = std::source_location::current()) const
+        {
+#ifdef OBLO_ENABLE_ASSERT
             if (!has_value()) [[unlikely]]
             {
                 debug_assert_report(src.file_name(), src.line(), message);
             }
+#endif
         }
 
     private:
@@ -233,13 +243,24 @@ namespace oblo
             return m_hasValue ? *reinterpret_cast<T*>(m_buffer) : std::forward<U>(fallback);
         }
 
-        void or_panic(const char* message = "Unexpected failure",
-            const std::source_location& src = std::source_location::current()) const
+        template <typename U>
+        T assert_value_or(U&& fallback,
+            const char* message = "Unexpected failure",
+            const std::source_location& src = std::source_location::current()) const noexcept
         {
+            assert_value(message, src);
+            return m_hasValue ? *reinterpret_cast<T*>(m_buffer) : std::forward<U>(fallback);
+        }
+
+        void assert_value([[maybe_unused]] const char* message = "Unexpected failure",
+            [[maybe_unused]] const std::source_location& src = std::source_location::current()) const
+        {
+#ifdef OBLO_ENABLE_ASSERT
             if (!has_value()) [[unlikely]]
             {
                 debug_assert_report(src.file_name(), src.line(), message);
             }
+#endif
         }
 
     private:

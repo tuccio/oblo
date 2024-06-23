@@ -309,7 +309,7 @@ namespace oblo
 
                 frameGraph
                     .set_input(renderGraphData->subgraph, main_view::InResolution, vec2u{renderWidth, renderHeight})
-                    .or_panic();
+                    .assert_value();
 
                 frameGraph
                     .set_input(renderGraphData->subgraph,
@@ -317,7 +317,7 @@ namespace oblo
                         time_buffer{
                             .frameIndex = m_frameIndex,
                         })
-                    .or_panic();
+                    .assert_value();
 
                 frameGraph
                     .set_input(renderGraphData->subgraph,
@@ -328,7 +328,7 @@ namespace oblo
                             .finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                             .aspect = VK_IMAGE_ASPECT_COLOR_BIT,
                         })
-                    .or_panic();
+                    .assert_value();
 
                 {
                     // TODO: Deal with errors, also transposing would be enough here most likely
@@ -337,16 +337,20 @@ namespace oblo
                     const f32 ratio = f32(viewport.height) / viewport.width;
                     const mat4 proj = make_perspective_matrix(camera.fovy, ratio, camera.near, camera.far);
 
-                    const mat4 invViewProj = inverse(proj * view).value_or(mat4::identity());
+                    const mat4 viewProj = proj * view;
+                    const mat4 invViewProj = inverse(viewProj).assert_value_or(mat4::identity());
+                    const mat4 invProj = inverse(proj).assert_value_or(mat4::identity());
 
                     const camera_buffer cameraBuffer{
                         .view = view,
                         .projection = proj,
-                        .viewProjection = proj * view,
+                        .viewProjection = viewProj,
+                        .invViewProjection = invViewProj,
+                        .invProjection = invProj,
                         .frustum = make_frustum_from_inverse_view_projection(invViewProj),
                     };
 
-                    frameGraph.set_input(renderGraphData->subgraph, main_view::InCamera, cameraBuffer).or_panic();
+                    frameGraph.set_input(renderGraphData->subgraph, main_view::InCamera, cameraBuffer).assert_value();
                 }
 
                 {

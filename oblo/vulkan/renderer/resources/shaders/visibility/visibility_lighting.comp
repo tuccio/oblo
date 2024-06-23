@@ -9,6 +9,7 @@
 
 #extension GL_EXT_debug_printf : require
 
+#include <renderer/barycentric>
 #include <renderer/camera>
 #include <renderer/debug>
 #include <renderer/instances>
@@ -16,6 +17,7 @@
 #include <renderer/material>
 #include <renderer/meshes>
 #include <renderer/textures>
+#include <renderer/transform>
 #include <renderer/volumes>
 #include <visibility/visibility_buffer>
 
@@ -66,6 +68,12 @@ void main()
         return;
     }
 
+    const vec2 positionNDC = vec2(2 * screenPos) / g_Constants.resolution - 1.f;
+    // const vec4 positionVSh = g_Camera.invProjection * vec4(positionNDC.xy, depth, 1);
+    // const vec3 positionVS = vec3(positionVSh.xy, positionVSh.z / positionVSh.w);
+
+    const vec3 positionWS = camera_unproject_world_space(g_Camera, positionNDC, depth);
+
     const uvec4 visBufferData = imageLoad(t_InVisibilityBuffer, screenPos);
 
     visibility_buffer_data vb;
@@ -78,45 +86,76 @@ void main()
     //     return;
     // }
 
-    imageStore(t_OutLitImage, screenPos, vec4(debug_color_map(vb.triangleIndex), 1));
-    return;
+    // debugPrintfEXT("Z: %f\n", positionVS.z );
+
+    // imageStore(t_OutLitImage, screenPos, vec4(debug_color_map(vb.triangleIndex), 1));
+    // imageStore(t_OutLitImage, screenPos, vec4(debug_color_map(vb.triangleIndex / 100000.f), 1));
 
     const mesh_handle mesh = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MeshHandles, vb.instanceId);
+    const transform transform = OBLO_INSTANCE_DATA(vb.instanceTableId, i_TransformBuffer, vb.instanceId);
     const mesh_table meshTable = mesh_table_fetch(mesh);
 
-    vec3 vPosition[3];
-    vec3 vNormal[3];
-    vec2 vUV0[3];
+    vec3 trianglePositionWS[3];
+    vec2 triangleUV0[3];
 
-    // Alternative for position: reconstruct from depth buffer?
+    uint vertexIndices[3];
+    mesh_get_vertex_indices(meshTable, vb.triangleIndex, vertexIndices);
 
     for (uint i = 0; i < 3; ++i)
     {
-        // Can skip if no index buffer, then triangle index is vertex index
-        // const uint vertexId = mesh_table_triangle_index(meshTable, vb.triangleIndex, i); // TODO
-        const uint vertexId = 0;
+        const uint vertexId = vertexIndices[i];
 
-        vPosition[i] = mesh_get_position(meshTable, vertexId);
-        vNormal[i] = mesh_get_normal(meshTable, vertexId);
-        vUV0[i] = mesh_get_uv0(meshTable, vertexId);
+        const vec3 vertexPosition = mesh_get_position(meshTable, vertexId);
+        trianglePositionWS[i] = (transform.localToWorld * vec4(vertexPosition, 1)).xyz;
+
+        triangleUV0[i] = mesh_get_uv0(meshTable, vertexId);
     }
 
-    // Interpolate with barycentric coordinates
-    vec3 positionWS = vPosition[0]; // Actually need to transform it too?
-    vec3 normal = vNormal[0];
-    vec2 uv0 = vUV0[0];
+    barycentric_coords_deriv bc;
+    barycentric_calculate(bc, trianglePositionWS, positionWS);
+
+    const vec2 uv0 = barycentric_interpolate(bc, triangleUV0);
+
+    const vec3 debugWS = barycentric_interpolate(bc, trianglePositionWS);
+
+    // imageStore(t_OutLitImage, screenPos, vec4((debugWS.z - positionWS.z), 0, 0, 1));
+    // imageStore(t_OutLitImage, screenPos, vec4(debug_color_map(positionWS.z / 5.f), 1));
+    imageStore(t_OutLitImage, screenPos, vec4(debug_color_map(debugWS.z / 5.f), 1));
+    // imageStore(t_OutLitImage, screenPos, vec4(uv0.xy, 0, 1));
+    return;
+
+    // const mesh_handle mesh = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MeshHandles, vb.instanceId);
+    // const mesh_table meshTable = mesh_table_fetch(mesh);
+
+    // vec3 vNormal[3];
+    // vec2 vUV0[3];
+
+    // uint vertexIndices[3];
+    // mesh_get_vertex_indices(meshTable, vb.triangleIndex, vertexIndices);
+
+    // for (uint i = 0; i < 3; ++i)
+    // {
+    //     const uint vertexId = vertexIndices[i];
+
+    //     vNormal[i] = mesh_get_normal(meshTable, vertexId);
+    //     vUV0[i] = mesh_get_uv0(meshTable, vertexId);
+    // }
+
+    // // Interpolate with barycentric coordinates
+    // vec3 normalVS = vNormal[0];
+    // vec2 uv0 = vUV0[0];
 
     const gpu_material material = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MaterialBuffer, vb.instanceId);
 
-    // TODO: We need to calculate the LOD ourselves
+    // // TODO: We need to calculate the LOD ourselves
     const vec4 color = texture_sample_2d(material.albedoTexture, OBLO_SAMPLER_LINEAR, uv0);
 
-    vec3 reflected = vec3(0);
+    vec3 reflected = vec3(1);
 
-    for (uint lightIndex = 0; lightIndex < g_LightConfig.lightsCount; ++lightIndex)
-    {
-        reflected += light_contribution(lights[lightIndex], positionWS, normal);
-    }
+    // for (uint lightIndex = 0; lightIndex < g_LightConfig.lightsCount; ++lightIndex)
+    // {
+    //     reflected += light_contribution(lights[lightIndex], positionVS, normalVS);
+    // }
 
     const vec4 final = vec4(color.xyz * material.albedo * reflected, 1);
 

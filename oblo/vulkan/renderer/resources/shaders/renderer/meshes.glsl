@@ -174,4 +174,12 @@ uint mesh_get_triangle_index(in mesh_table t, in uint vertexId)
     return vertexId / 3;
 }
 
+void mesh_get_vertex_indices(in mesh_table t, in uint triangleIndex, out uint vertexIndices[3])
+{
+    // This only really works with t.indexType == OBLO_MESH_DATA_INDEX_TYPE_NONE
+    vertexIndices[0] = triangleIndex * 3;
+    vertexIndices[1] = triangleIndex * 3 + 1;
+    vertexIndices[2] = triangleIndex * 3 + 2;
+}
+
 #endif

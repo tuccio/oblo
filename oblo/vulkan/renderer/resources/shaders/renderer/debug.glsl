@@ -31,4 +31,26 @@ vec3 debug_color_map(uint value)
     return colors[index];
 }
 
+vec3 debug_color_map(float t)
+{
+    // Clamp t to the range [0, 1]
+    t = clamp(t, 0.0, 1.0);
+
+    const vec4 kRedVec4 = vec4(0.13013628, 0.01228611, -0.12644665, 0.0);
+    const vec4 kGreenVec4 = vec4(0.08473612, -0.36036449, 1.00093811, -0.00623720);
+    const vec4 kBlueVec4 = vec4(0.23704089, -0.01417262, 0.11912573, -0.00067326);
+
+    const vec4 kRedCoeffs = vec4(0.00000000, 0.50338712, 0.42356799, 0.19761808);
+    const vec4 kGreenCoeffs = vec4(0.00000000, 0.30734529, 0.22668336, 0.33016341);
+    const vec4 kBlueCoeffs = vec4(0.00000000, 0.31380194, 0.22656971, 0.27229275);
+
+    vec4 tVec4 = vec4(1.0, t, t * t, t * t * t);
+
+    float r = dot(tVec4, kRedVec4) + dot(tVec4, kRedCoeffs);
+    float g = dot(tVec4, kGreenVec4) + dot(tVec4, kGreenCoeffs);
+    float b = dot(tVec4, kBlueVec4) + dot(tVec4, kBlueCoeffs);
+
+    return vec3(r, g, b);
+}
+
 #endif

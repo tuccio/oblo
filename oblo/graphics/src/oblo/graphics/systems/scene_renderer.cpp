@@ -42,7 +42,7 @@ namespace oblo
 
     void scene_renderer::set_light_data(std::span<const vk::light_data> data)
     {
-        m_frameGraph.set_input(m_sceneDataProvider, vk::scene_data::InLightData, data).or_panic();
+        m_frameGraph.set_input(m_sceneDataProvider, vk::scene_data::InLightData, data).assert_value();
     }
 
     void scene_renderer::add_scene_view(h32<vk::frame_graph_subgraph> subgraph)
