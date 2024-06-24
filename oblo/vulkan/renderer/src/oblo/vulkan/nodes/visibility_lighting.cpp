@@ -27,6 +27,7 @@ namespace oblo::vk
 
         ctx.acquire(inDepthBuffer, texture_usage::shader_read);
         ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
+        ctx.acquire(inDebugBuffer, texture_usage::storage_read);
 
         ctx.create(outLitImage,
             {
@@ -75,6 +76,7 @@ namespace oblo::vk
             {
                 {"t_InDepthBuffer", inDepthBuffer},
                 {"t_InVisibilityBuffer", inVisibilityBuffer},
+                {"t_InDebugBuffer", inDebugBuffer},
                 {"t_OutLitImage", outLitImage},
             });
 
@@ -85,7 +87,7 @@ namespace oblo::vk
         if (const auto pass = pm.begin_compute_pass(commandBuffer, lightingPipeline))
         {
             const auto resolution = ctx.access(inResolution);
-            const auto subgroupSize = pm.get_subgroup_size();
+            // const auto subgroupSize = pm.get_subgroup_size();
 
             pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&resolution, 1}));
 
@@ -95,7 +97,7 @@ namespace oblo::vk
 
             pm.bind_descriptor_sets(*pass, bindingTables);
 
-            vkCmdDispatch(ctx.get_command_buffer(), round_up_multiple(resolution.x, subgroupSize), resolution.y, 1);
+            vkCmdDispatch(ctx.get_command_buffer(), round_up_multiple(resolution.x, 64u), resolution.y, 1);
 
             pm.end_compute_pass(*pass);
         }

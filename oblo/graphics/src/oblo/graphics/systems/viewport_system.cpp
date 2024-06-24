@@ -341,6 +341,8 @@ namespace oblo
                     const mat4 invViewProj = inverse(viewProj).assert_value_or(mat4::identity());
                     const mat4 invProj = inverse(proj).assert_value_or(mat4::identity());
 
+                    const vec4 position = transform.value.columns[3];
+
                     const camera_buffer cameraBuffer{
                         .view = view,
                         .projection = proj,
@@ -348,6 +350,7 @@ namespace oblo
                         .invViewProjection = invViewProj,
                         .invProjection = invProj,
                         .frustum = make_frustum_from_inverse_view_projection(invViewProj),
+                        .position = {position.x, position.y, position.z},
                     };
 
                     frameGraph.set_input(renderGraphData->subgraph, main_view::InCamera, cameraBuffer).assert_value();

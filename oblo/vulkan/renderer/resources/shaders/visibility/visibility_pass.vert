@@ -14,6 +14,7 @@
 #include <visibility/visibility_buffer>
 
 layout(location = 0) out uvec2 out_VisibilityBufferData;
+layout(location = 1) out vec2 out_DebugUV0;
 
 layout(binding = 0) uniform b_CameraBuffer
 {
@@ -59,4 +60,6 @@ void main()
     // debugPrintfEXT("vis: %u %u\n", packed.x, packed.y);
 
     out_VisibilityBufferData = packed;
+
+    out_DebugUV0 = mesh_get_uv0(table, gl_VertexIndex);
 }

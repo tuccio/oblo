@@ -24,6 +24,7 @@ namespace oblo::vk
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
         resource<texture> outVisibilityBuffer;
+        resource<texture> outDebugBuffer;
         resource<texture> outDepthBuffer;
 
         h32<render_pass> renderPass;

@@ -11,6 +11,7 @@ struct camera_buffer
     mat4 invViewProjection;
     mat4 invProjection;
     frustum frustum;
+    vec3 position;
 };
 
 bool camera_depth_no_hit(float depth)
@@ -21,7 +22,7 @@ bool camera_depth_no_hit(float depth)
 vec3 camera_unproject_world_space(in camera_buffer camera, in vec2 positionNDC, in float depth)
 {
     vec4 h = camera.invViewProjection * vec4(positionNDC.xy, depth, 1);
-    return vec3(h.xy, h.z / h.w);
+    return vec3(h.xyz / h.w);
 }
 
 #endif

@@ -30,9 +30,9 @@ void barycentric_calculate(out barycentric_coords_deriv coords, in vec3 triangle
 
     // const float invDet = rcp(determinant(mat2(triangle[2] - triangle[1], triang - ndc1)));
 
-    // const vec3 e0 = v[1] - v[0];
-    // const vec3 e1 = v[2] - v[1];
-    // const vec3 e2 = p - v[0];
+    // const vec3 e0 = triangle[1] - triangle[0];
+    // const vec3 e1 = triangle[2] - triangle[1];
+    // const vec3 e2 = p - triangle[0];
 
     // const float d00 = dot(e0, e0);
     // const float d01 = dot(e0, e1);
@@ -44,7 +44,7 @@ void barycentric_calculate(out barycentric_coords_deriv coords, in vec3 triangle
     // coords.lambda.y = (d11 * d20 - d01 * d21) / denom;
     // coords.lambda.z = (d00 * d21 - d01 * d20) / denom;
     // coords.lambda.x = 1.f - coords.lambda.y - coords.lambda.z;
-}
+}   
 
 float barycentric_interpolate(in barycentric_coords_deriv coords, float a, float b, float c)
 {

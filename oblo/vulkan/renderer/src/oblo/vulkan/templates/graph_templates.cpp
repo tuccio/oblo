@@ -96,6 +96,11 @@ namespace oblo::vk::main_view
             &visibility_lighting::inVisibilityBuffer);
 
         graph.connect(visibilityPass,
+            &visibility_pass::outDebugBuffer,
+            visibilityLighting,
+            &visibility_lighting::inDebugBuffer);
+
+        graph.connect(visibilityPass,
             &visibility_pass::outDepthBuffer,
             visibilityLighting,
             &visibility_lighting::inDepthBuffer);

@@ -1,5 +1,6 @@
 #include <oblo/vulkan/nodes/visibility_pass.hpp>
 
+#include <oblo/core/array_size.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/data/draw_buffer_data.hpp>
 #include <oblo/vulkan/data/picking_configuration.hpp>
@@ -52,6 +53,16 @@ namespace oblo::vk
             },
             texture_usage::render_target_write);
 
+        ctx.create(outDebugBuffer,
+            {
+                .width = resolution.x,
+                .height = resolution.y,
+                .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+                .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            },
+            texture_usage::render_target_write);
+
         ctx.create(outDepthBuffer,
             {
                 .width = resolution.x,
@@ -93,6 +104,7 @@ namespace oblo::vk
         }
 
         const auto visibilityBuffer = ctx.access(outVisibilityBuffer);
+        const auto debugBuffer = ctx.access(outDebugBuffer);
         const auto depthBuffer = ctx.access(outDepthBuffer);
 
         auto& pm = ctx.get_pass_manager();
@@ -100,7 +112,7 @@ namespace oblo::vk
         render_pipeline_initializer pipelineInitializer{
             .renderTargets =
                 {
-                    .colorAttachmentFormats = {visibilityBuffer.initializer.format},
+                    .colorAttachmentFormats = {visibilityBuffer.initializer.format, debugBuffer.initializer.format},
                     .depthFormat = VK_FORMAT_D24_UNORM_S8_UINT,
                 },
             .depthStencilState =
@@ -117,12 +129,21 @@ namespace oblo::vk
                 },
         };
 
-        const VkRenderingAttachmentInfo colorAttachment = {
-            .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-            .imageView = visibilityBuffer.view,
-            .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        const VkRenderingAttachmentInfo colorAttachments[] = {
+            {
+                .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                .imageView = visibilityBuffer.view,
+                .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            },
+            {
+                .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                .imageView = debugBuffer.view,
+                .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            },
         };
 
         const auto pipeline = pm.get_or_create_pipeline(renderPass, pipelineInitializer);
@@ -143,8 +164,8 @@ namespace oblo::vk
             .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
             .renderArea = {.extent{.width = renderWidth, .height = renderHeight}},
             .layerCount = 1,
-            .colorAttachmentCount = 1,
-            .pColorAttachments = &colorAttachment,
+            .colorAttachmentCount = array_size(colorAttachments),
+            .pColorAttachments = colorAttachments,
             .pDepthAttachment = &depthAttachment,
         };
 
