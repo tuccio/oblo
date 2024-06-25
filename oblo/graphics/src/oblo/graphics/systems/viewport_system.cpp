@@ -332,7 +332,7 @@ namespace oblo
 
                 {
                     // TODO: Deal with errors, also transposing would be enough here most likely
-                    const mat4 view = *inverse(transform.value);
+                    const mat4 view = *inverse(transform.localToWorld);
 
                     const f32 ratio = f32(viewport.height) / viewport.width;
                     const mat4 proj = make_perspective_matrix(camera.fovy, ratio, camera.near, camera.far);
@@ -341,7 +341,7 @@ namespace oblo
                     const mat4 invViewProj = inverse(viewProj).assert_value_or(mat4::identity());
                     const mat4 invProj = inverse(proj).assert_value_or(mat4::identity());
 
-                    const vec4 position = transform.value.columns[3];
+                    const vec4 position = transform.localToWorld.columns[3];
 
                     const camera_buffer cameraBuffer{
                         .view = view,

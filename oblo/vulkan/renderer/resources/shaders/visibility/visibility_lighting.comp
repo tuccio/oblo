@@ -148,7 +148,7 @@ void main()
         triangleWS.v[i] = (transform.localToWorld * vec4(vertexPosition, 1)).xyz;
 
         const vec3 vertexNormal = mesh_get_normal(meshTable, vertexId);
-        triangleNormalWS[i] = vertexNormal;
+        triangleNormalWS[i] = (mat3(transform.normalMatrix) * vertexNormal);
 
         triangleUV0[i] = mesh_get_uv0(meshTable, vertexId);
     }
@@ -160,7 +160,7 @@ void main()
     cameraRay.direction = normalize(screenPosWS - g_Camera.position);
 
     float intersectionDistance;
-    
+
     if (!distance_from_triangle_plane(cameraRay, triangleWS, intersectionDistance))
     {
         imageStore(t_OutLitImage, screenPos, vec4(0));
@@ -222,13 +222,13 @@ void main()
     {
         imageStore(t_OutLitImage, screenPos, vec4(0));
 
-            //    debugPrintfEXT("Expected [%f %f %f] got [%f %f %f]\n",
-            // actualPositionWS.x,
-            // actualPositionWS.y,
-            // actualPositionWS.z,
-            // positionWS.x,
-            // positionWS.y,
-            // positionWS.z);
+        //    debugPrintfEXT("Expected [%f %f %f] got [%f %f %f]\n",
+        // actualPositionWS.x,
+        // actualPositionWS.y,
+        // actualPositionWS.z,
+        // positionWS.x,
+        // positionWS.y,
+        // positionWS.z);
         // return;
     }
     else

@@ -6,6 +6,7 @@ namespace oblo
 {
     struct global_transform_component
     {
-        mat4 value;
+        mat4 localToWorld;
+        mat4 normalMatrix;
     };
 }
