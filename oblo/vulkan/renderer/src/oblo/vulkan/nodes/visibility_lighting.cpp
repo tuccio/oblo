@@ -25,9 +25,7 @@ namespace oblo::vk
     {
         const auto resolution = ctx.access(inResolution);
 
-        ctx.acquire(inDepthBuffer, texture_usage::shader_read);
         ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
-        ctx.acquire(inDebugBuffer, texture_usage::storage_read);
 
         ctx.create(outLitImage,
             {
@@ -74,9 +72,7 @@ namespace oblo::vk
 
         ctx.bind_textures(bindingTable,
             {
-                {"t_InDepthBuffer", inDepthBuffer},
                 {"t_InVisibilityBuffer", inVisibilityBuffer},
-                {"t_InDebugBuffer", inDebugBuffer},
                 {"t_OutLitImage", outLitImage},
             });
 

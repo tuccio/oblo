@@ -38,8 +38,6 @@ layout(std430, binding = 2) restrict readonly buffer b_LightData
     light_data lights[];
 };
 
-layout(binding = 10) uniform texture2D t_InDepthBuffer;
-
 layout(binding = 11, rg32ui) uniform restrict readonly uimage2D t_InVisibilityBuffer;
 
 layout(binding = 12, rgba8) uniform restrict writeonly image2D t_OutLitImage;

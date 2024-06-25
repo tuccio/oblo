@@ -33,8 +33,6 @@ namespace oblo::vk
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
         resource<texture> inVisibilityBuffer;
-        resource<texture> inDebugBuffer;
-        resource<texture> inDepthBuffer;
         resource<texture> outLitImage;
 
         h32<compute_pass> lightingPass;
