@@ -1,12 +1,13 @@
 #pragma once
 
 #include <oblo/core/debug.hpp>
+#include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/flags.hpp>
 #include <oblo/core/lifetime.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/math/aabb.hpp>
 
 #include <span>
-#include <vector>
 
 namespace oblo
 {
@@ -40,13 +41,15 @@ namespace oblo
         mesh(const mesh&) = delete;
         SCENE_API mesh(mesh&& other) noexcept;
         mesh& operator=(const mesh&) = delete;
-        mesh& operator=(mesh&& other) noexcept;
+        SCENE_API mesh& operator=(mesh&& other) noexcept;
         SCENE_API ~mesh();
 
         SCENE_API void allocate(
             primitive_kind primitive, u32 vertexCount, u32 indexCount, std::span<const mesh_attribute> attributes);
 
         SCENE_API void clear();
+
+        SCENE_API bool has_attribute(attribute_kind kind) const;
 
         SCENE_API std::span<std::byte> get_attribute(attribute_kind kind, data_format* outFormat = nullptr);
         SCENE_API std::span<const std::byte> get_attribute(attribute_kind kind, data_format* outFormat = nullptr) const;
@@ -97,8 +100,9 @@ namespace oblo
         primitive_kind m_primitives{primitive_kind::enum_max};
         u32 m_vertexCount{};
         u32 m_indexCount{};
-        std::vector<std::byte> m_storage;
-        std::vector<attribute_data> m_attributes;
+        flags<attribute_kind> m_attributeFlags{};
+        dynamic_array<std::byte> m_storage;
+        dynamic_array<attribute_data> m_attributes;
         aabb m_aabb{aabb::make_invalid()};
     };
 

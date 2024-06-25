@@ -2,6 +2,7 @@
 
 #include <oblo/math/frustum.hpp>
 #include <oblo/math/mat4.hpp>
+#include <oblo/math/vec3.hpp>
 
 namespace oblo::vk
 {
@@ -10,6 +11,9 @@ namespace oblo::vk
         mat4 view;
         mat4 projection;
         mat4 viewProjection;
+        mat4 invViewProjection;
+        mat4 invProjection;
         frustum frustum;
+        vec3 position;
     };
 }

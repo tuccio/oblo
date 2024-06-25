@@ -93,7 +93,7 @@ namespace oblo::ecs_utility
         registry.get<position_component>(e).value = position;
         registry.get<rotation_component>(e).value = rotation;
         registry.get<scale_component>(e).value = scale;
-        registry.get<global_transform_component>(e).value = make_transform_matrix(position, rotation, scale);
+        registry.get<global_transform_component>(e).localToWorld = make_transform_matrix(position, rotation, scale);
 
         return e;
     }

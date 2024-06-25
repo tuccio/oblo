@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/expected.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/core/types.hpp>
@@ -84,6 +85,8 @@ namespace oblo::vk
         void clear();
 
         bool has_incomplete_transitions() const;
+
+        expected<VkImageLayout> try_find(h32<texture> handle) const;
 
     private:
         struct image_transition

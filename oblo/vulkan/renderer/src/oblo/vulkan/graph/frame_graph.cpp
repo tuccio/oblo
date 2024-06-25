@@ -32,6 +32,36 @@ namespace oblo::vk
         {
             return h32<frame_graph_pin_storage>{h.value};
         }
+
+        VkImageLayout convert_layout(texture_usage usage)
+        {
+            switch (usage)
+            {
+            case texture_usage::depth_stencil_read:
+            case texture_usage::depth_stencil_write:
+                return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+            case texture_usage::render_target_write:
+                return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+            case texture_usage::shader_read:
+                return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+            case texture_usage::storage_read:
+            case texture_usage::storage_write:
+                return VK_IMAGE_LAYOUT_GENERAL;
+
+            case texture_usage::transfer_destination:
+                return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+
+            case texture_usage::transfer_source:
+                return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+
+            default:
+                OBLO_ASSERT(false);
+                return {};
+            };
+        }
     }
 
     frame_graph::frame_graph() = default;
@@ -406,7 +436,8 @@ namespace oblo::vk
             m_impl->flush_uploads(commandBuffer.get(), renderer.get_staging_buffer());
         }
 
-        command_buffer_state commandBufferState;
+        auto& commandBufferState = m_impl->commandBufferState;
+        commandBufferState.clear();
 
         for (const auto [resource, poolIndex] : m_impl->transientTextures)
         {
@@ -456,10 +487,12 @@ namespace oblo::vk
                 const auto* const texturePtr = static_cast<texture*>(m_impl->access_storage(textureTransition.texture));
                 OBLO_ASSERT(texturePtr && texturePtr->image);
 
+                const auto layout = convert_layout(textureTransition.usage);
+
                 commandBufferState.add_pipeline_barrier(*texturePtr,
                     h32<texture>{textureTransition.texture.value},
                     commandBuffer.get(),
-                    textureTransition.target);
+                    layout);
             }
 
             bufferBarriers.clear();
@@ -605,10 +638,10 @@ namespace oblo::vk
         pinStorage.at(storage).poolIndex = poolIndex;
     }
 
-    void frame_graph_impl::add_resource_transition(resource<texture> handle, VkImageLayout target)
+    void frame_graph_impl::add_resource_transition(resource<texture> handle, texture_usage usage)
     {
         const auto storage = to_storage_handle(handle);
-        textureTransitions.emplace_back(storage, target);
+        textureTransitions.emplace_back(storage, usage);
     }
 
     u32 frame_graph_impl::find_pool_index(resource<texture> handle) const

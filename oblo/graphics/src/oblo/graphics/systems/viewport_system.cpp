@@ -20,7 +20,7 @@
 #include <oblo/vulkan/data/copy_texture_info.hpp>
 #include <oblo/vulkan/data/picking_configuration.hpp>
 #include <oblo/vulkan/data/time_buffer.hpp>
-#include <oblo/vulkan/draw/buffer_binding_table.hpp>
+#include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/graph/frame_graph.hpp>
 #include <oblo/vulkan/graph/frame_graph_template.hpp>
@@ -35,7 +35,8 @@ namespace oblo
 {
     namespace
     {
-        constexpr u32 PickingResultSize{sizeof(u32)};
+        // Actually a u32, but the buffer requires alignment
+        constexpr u32 PickingResultSize{16};
     }
 
     struct viewport_system::render_graph_data
@@ -48,7 +49,7 @@ namespace oblo
         VkDescriptorSet descriptorSet{};
         VkImage image{};
 
-        vk::allocated_buffer pickingDownloadBuffer;
+        vk::allocated_buffer pickingOutputBuffer;
         u64 lastPickingSubmitIndex{};
     };
 
@@ -160,11 +161,11 @@ namespace oblo
             renderGraphData.descriptorSet = {};
         }
 
-        if (renderGraphData.pickingDownloadBuffer.buffer)
+        if (renderGraphData.pickingOutputBuffer.buffer)
         {
-            vkCtx.destroy_deferred(renderGraphData.pickingDownloadBuffer.buffer, submitIndex);
-            vkCtx.destroy_deferred(renderGraphData.pickingDownloadBuffer.allocation, submitIndex);
-            renderGraphData.pickingDownloadBuffer = {};
+            vkCtx.destroy_deferred(renderGraphData.pickingOutputBuffer.buffer, submitIndex);
+            vkCtx.destroy_deferred(renderGraphData.pickingOutputBuffer.allocation, submitIndex);
+            renderGraphData.pickingOutputBuffer = {};
         }
     }
 
@@ -172,14 +173,14 @@ namespace oblo
     {
         auto& allocator = m_renderer->get_allocator();
 
-        if (!graphData.pickingDownloadBuffer.buffer &&
+        if (!graphData.pickingOutputBuffer.buffer &&
             allocator.create_buffer(
                 {
                     .size = PickingResultSize,
                     .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                     .memoryUsage = vk::memory_usage::gpu_to_cpu,
                 },
-                &graphData.pickingDownloadBuffer) != VK_SUCCESS)
+                &graphData.pickingOutputBuffer) != VK_SUCCESS)
         {
             return false;
         }
@@ -266,7 +267,8 @@ namespace oblo
                         renderWidth,
                         renderHeight,
                         VK_FORMAT_R8G8B8A8_UNORM,
-                        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+                            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
                         VK_IMAGE_ASPECT_COLOR_BIT);
 
                     OBLO_ASSERT(result);
@@ -308,7 +310,7 @@ namespace oblo
 
                 frameGraph
                     .set_input(renderGraphData->subgraph, main_view::InResolution, vec2u{renderWidth, renderHeight})
-                    .or_panic();
+                    .assert_value();
 
                 frameGraph
                     .set_input(renderGraphData->subgraph,
@@ -316,7 +318,7 @@ namespace oblo
                         time_buffer{
                             .frameIndex = m_frameIndex,
                         })
-                    .or_panic();
+                    .assert_value();
 
                 frameGraph
                     .set_input(renderGraphData->subgraph,
@@ -324,28 +326,35 @@ namespace oblo
                         copy_texture_info{
                             .image = renderGraphData->image,
                             .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-                            .finalLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                            .finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                             .aspect = VK_IMAGE_ASPECT_COLOR_BIT,
                         })
-                    .or_panic();
+                    .assert_value();
 
                 {
                     // TODO: Deal with errors, also transposing would be enough here most likely
-                    const mat4 view = *inverse(transform.value);
+                    const mat4 view = *inverse(transform.localToWorld);
 
                     const f32 ratio = f32(viewport.height) / viewport.width;
                     const mat4 proj = make_perspective_matrix(camera.fovy, ratio, camera.near, camera.far);
 
-                    const mat4 invViewProj = inverse(proj * view).value_or(mat4::identity());
+                    const mat4 viewProj = proj * view;
+                    const mat4 invViewProj = inverse(viewProj).assert_value_or(mat4::identity());
+                    const mat4 invProj = inverse(proj).assert_value_or(mat4::identity());
+
+                    const vec4 position = transform.localToWorld.columns[3];
 
                     const camera_buffer cameraBuffer{
                         .view = view,
                         .projection = proj,
-                        .viewProjection = proj * view,
+                        .viewProjection = viewProj,
+                        .invViewProjection = invViewProj,
+                        .invProjection = invProj,
                         .frustum = make_frustum_from_inverse_view_projection(invViewProj),
+                        .position = {position.x, position.y, position.z},
                     };
 
-                    frameGraph.set_input(renderGraphData->subgraph, main_view::InCamera, cameraBuffer).or_panic();
+                    frameGraph.set_input(renderGraphData->subgraph, main_view::InCamera, cameraBuffer).assert_value();
                 }
 
                 {
@@ -359,9 +368,9 @@ namespace oblo
                             pickingConfig = {
                                 .enabled = true,
                                 .coordinates = viewport.picking.coordinates,
-                                .downloadBuffer =
+                                .outputBuffer =
                                     {
-                                        .buffer = renderGraphData->pickingDownloadBuffer.buffer,
+                                        .buffer = renderGraphData->pickingOutputBuffer.buffer,
                                         .size = PickingResultSize,
                                     },
                             };
@@ -382,12 +391,12 @@ namespace oblo
                             auto& allocator = m_renderer->get_allocator();
 
                             if (void* ptr;
-                                allocator.map(renderGraphData->pickingDownloadBuffer.allocation, &ptr) == VK_SUCCESS)
+                                allocator.map(renderGraphData->pickingOutputBuffer.allocation, &ptr) == VK_SUCCESS)
                             {
                                 std::memcpy(&viewport.picking.result, ptr, sizeof(u32));
                                 viewport.picking.state = picking_request::state::served;
 
-                                allocator.unmap(renderGraphData->pickingDownloadBuffer.allocation);
+                                allocator.unmap(renderGraphData->pickingOutputBuffer.allocation);
                             }
                             else
                             {
@@ -402,7 +411,7 @@ namespace oblo
                     }
 
                     frameGraph.set_input(renderGraphData->subgraph, main_view::InPickingConfiguration, pickingConfig)
-                        .or_panic();
+                        .assert_value();
                 }
             }
         }

@@ -216,7 +216,7 @@ namespace oblo::vk
             }
         }
 
-        if (indexBuffer)
+        if (indexBuffer && m_indexBuffer)
         {
             *indexBuffer = resourceManager.get(m_indexBuffer);
             indexBuffer->offset += m_indexByteSize * range->indexOffset;
@@ -325,6 +325,11 @@ namespace oblo::vk
     std::span<const h32<buffer>> mesh_table::mesh_buffers() const
     {
         return m_meshDataTable.buffers();
+    }
+
+    h32<buffer> mesh_table::index_buffer() const
+    {
+        return m_indexBuffer;
     }
 
     i32 mesh_table::find_vertex_attribute(h32<string> name) const

@@ -47,7 +47,7 @@ namespace oblo
                 .add_tag<ecs::component_type_tag>();
 
             reg.add_class<global_transform_component>()
-                .add_field(&global_transform_component::value, "value")
+                .add_field(&global_transform_component::localToWorld, "value")
                 .add_ranged_type_erasure()
                 .add_tag<ecs::component_type_tag>();
         }

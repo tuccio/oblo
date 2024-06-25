@@ -11,4 +11,14 @@ float saturate(in float value)
     return max(0.f, value);
 }
 
+vec2 saturate(in vec2 value)
+{
+    return max(vec2(0.f), value);
+}
+
+vec3 saturate(in vec3 value)
+{
+    return max(vec3(0.f), value);
+}
+
 #endif

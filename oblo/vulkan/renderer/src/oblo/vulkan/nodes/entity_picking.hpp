@@ -1,27 +1,34 @@
 #pragma once
 
-#include <oblo/vulkan/draw/binding_table.hpp>
+#include <oblo/math/vec2u.hpp>
+#include <oblo/vulkan/data/picking_configuration.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 #include <oblo/vulkan/nodes/instance_table_node.hpp>
 
+#include <span>
+
+namespace oblo
+{
+    struct string;
+}
+
 namespace oblo::vk
 {
-    struct draw_buffer_data;
+    struct picking_configuration;
 
-    struct draw_call_generator
+    struct entity_picking
     {
-        h32<compute_pass> drawCallGeneratorPass;
-        h32<string> drawIndexedDefine;
-
-        data<std::span<draw_buffer_data>> inDrawBufferData;
-
-        data<std::span<resource<buffer>>> outDrawCallBuffer;
+        data<picking_configuration> inPickingConfiguration;
 
         resource<buffer> inInstanceTables;
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
-        resource<buffer> inMeshDatabase;
+        resource<texture> inVisibilityBuffer;
+
+        h32<compute_pass> pickingPass;
+
+        bool skipExecution{};
 
         void init(const frame_graph_init_context& context);
 

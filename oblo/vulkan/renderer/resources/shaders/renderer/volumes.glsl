@@ -15,6 +15,7 @@ struct aabb
     vec3 max;
 };
 
+// Represent a plane equation in the form: dot(normal, v) + offset = 0
 struct plane
 {
     vec3 normal;
@@ -25,5 +26,16 @@ struct frustum
 {
     plane planes[6];
 };
+
+plane make_plane(in vec3 p1, in vec3 p2, in vec3 p3)
+{
+    const vec3 v12 = p2 - p1;
+    const vec3 v13 = p3 - p1;
+
+    plane r;
+    r.normal = normalize(cross(v12, v13));
+    r.offset = -dot(r.normal, p1);
+    return r;
+}
 
 #endif

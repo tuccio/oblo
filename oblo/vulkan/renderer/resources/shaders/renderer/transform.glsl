@@ -4,6 +4,7 @@
 struct transform
 {
     mat4 localToWorld;
+    mat4 normalMatrix;
 };
 
 layout(buffer_reference) buffer i_TransformBufferType

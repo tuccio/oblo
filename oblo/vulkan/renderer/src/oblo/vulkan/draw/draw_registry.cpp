@@ -2,6 +2,7 @@
 
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/array_size.hpp>
+#include <oblo/core/buffered_array.hpp>
 #include <oblo/core/data_format.hpp>
 #include <oblo/core/flags.hpp>
 #include <oblo/core/frame_allocator.hpp>
@@ -151,7 +152,8 @@ namespace oblo::vk
             .meshData = meshData,
             .vertexBufferUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                 VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-            .indexBufferUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+            .indexBufferUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
+                VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
             .meshBufferUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                 VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
             .tableVertexCount = MaxVerticesPerBatch,
@@ -210,6 +212,66 @@ namespace oblo::vk
         m_drawDataCount = 0;
     }
 
+    namespace
+    {
+        // A hack while support for index buffers in visibility buffer is pending
+        mesh expand_index_buffer(const mesh& src)
+        {
+            mesh dst;
+
+            const auto srcAttributesCount = src.get_attributes_count();
+            buffered_array<mesh_attribute, u32(attribute_kind::enum_max)> attributes;
+
+            data_format format{};
+
+            for (u32 i = 0; i < srcAttributesCount; ++i)
+            {
+                const auto attribute = src.get_attribute_at(i);
+
+                if (attribute.kind != attribute_kind::indices)
+                {
+                    attributes.push_back(attribute);
+                }
+                else
+                {
+                    format = attribute.format;
+                }
+            }
+
+            dst.allocate(src.get_primitive_kind(), src.get_index_count(), 0, attributes);
+
+            switch (format)
+            {
+            case data_format::u16: {
+                const auto indices = src.get_attribute<u16>(attribute_kind::indices);
+
+                u32 dstVertex{};
+
+                for (const auto srcVertex : indices)
+                {
+                    for (const auto& attribute : attributes)
+                    {
+                        const auto srcAttr = src.get_attribute(attribute.kind);
+                        const auto dstAttr = dst.get_attribute(attribute.kind);
+
+                        const auto [size, alignment] = get_size_and_alignment(attribute.format);
+                        std::memcpy(dstAttr.data() + dstVertex * size, srcAttr.data() + srcVertex * size, size);
+                    }
+
+                    ++dstVertex;
+                }
+            }
+            break;
+
+            default:
+                OBLO_ASSERT(false);
+                break;
+            }
+
+            return dst;
+        }
+    }
+
     h32<draw_mesh> draw_registry::get_or_create_mesh(oblo::resource_registry& resourceRegistry,
         const resource_ref<mesh>& resourceId)
     {
@@ -226,7 +288,17 @@ namespace oblo::vk
             return {};
         }
 
-        auto* const meshPtr = meshResource.get();
+        mesh convertedMesh;
+
+        const mesh* const resourceMeshPtr = meshResource.get();
+
+        const mesh* meshPtr = resourceMeshPtr;
+
+        if (resourceMeshPtr->has_attribute(attribute_kind::indices))
+        {
+            convertedMesh = expand_index_buffer(*resourceMeshPtr);
+            meshPtr = &convertedMesh;
+        }
 
         const u32 numAttributes = meshPtr->get_attributes_count();
 

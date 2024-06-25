@@ -50,7 +50,7 @@ namespace oblo::vk
         struct initializer;
         struct table_range;
 
-        static constexpr u32 MaxAttributes{32};
+        static constexpr u32 MaxAttributes{6};
         static constexpr u32 MaxMeshBuffers{2};
 
     public:

@@ -34,6 +34,12 @@ vec4 texture_sample_2d_lod(uint textureId, uint samplerId, vec2 uv, float lod)
     return textureLod(sampler2D(g_Textures2D[textureIndex], g_Samplers[samplerId]), uv, lod);
 }
 
+vec4 texture_sample_2d_grad(uint textureId, uint samplerId, vec2 uv, vec2 uvDDX, vec2 uvDDY)
+{
+    const uint textureIndex = texture_get_index(textureId);
+    return textureGrad(sampler2D(g_Textures2D[textureIndex], g_Samplers[samplerId]), uv, uvDDX, uvDDY);
+}
+
 int texture_query_levels(uint textureId, uint samplerId)
 {
     const uint textureIndex = texture_get_index(textureId);

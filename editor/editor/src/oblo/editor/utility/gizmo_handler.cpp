@@ -103,7 +103,7 @@ namespace oblo::editor
         const auto& camera = reg.get<camera_component>(cameraEntity);
         const auto& cameraWorld = reg.get<global_transform_component>(cameraEntity);
 
-        const mat4 view = *inverse(cameraWorld.value);
+        const mat4 view = *inverse(cameraWorld.localToWorld);
 
         const f32 ratio = f32(size.y) / size.x;
 
@@ -112,7 +112,7 @@ namespace oblo::editor
         // Flip Y to change handedness
         projection.at(1, 1) = -projection.at(1, 1);
 
-        f32* matrix = &transformComp->value.at(0, 0);
+        f32* matrix = &transformComp->localToWorld.at(0, 0);
 
         ImGuizmo::SetID(int(m_id));
 

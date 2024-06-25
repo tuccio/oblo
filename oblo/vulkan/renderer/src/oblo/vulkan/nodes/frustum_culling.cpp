@@ -105,7 +105,7 @@ namespace oblo::vk
         const auto outPreCullingIdMap = interner.get_or_add("b_PreCullingIdMap");
         const auto outDrawCountName = interner.get_or_add("b_OutDrawCount");
 
-        buffer_binding_table bindingTable;
+        binding_table bindingTable;
 
         const buffer inInstanceTablesBuffer = ctx.access(inInstanceTables);
 
@@ -129,13 +129,15 @@ namespace oblo::vk
 
                     bindingTable.clear();
 
-                    bindingTable.emplace(inInstanceTablesName, inInstanceTablesBuffer);
-                    bindingTable.emplace(outPreCullingIdMap, ctx.access(currentDraw.preCullingIdMap));
-                    bindingTable.emplace(outDrawCountName, ctx.access(currentDraw.drawCallCountBuffer));
+                    bindingTable.emplace(inInstanceTablesName, make_bindable_object(inInstanceTablesBuffer));
+                    bindingTable.emplace(outPreCullingIdMap,
+                        make_bindable_object(ctx.access(currentDraw.preCullingIdMap)));
+                    bindingTable.emplace(outDrawCountName,
+                        make_bindable_object(ctx.access(currentDraw.drawCallCountBuffer)));
 
                     const u32 count = currentDraw.sourceData.drawCommands.drawCount;
 
-                    const buffer_binding_table* bindingTables[] = {
+                    const binding_table* bindingTables[] = {
                         &ctx.access(inPerViewBindingTable),
                         &bindingTable,
                     };

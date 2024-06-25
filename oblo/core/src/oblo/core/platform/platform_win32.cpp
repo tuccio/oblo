@@ -32,6 +32,13 @@ namespace oblo::platform
         return IsDebuggerPresent() == TRUE;
     }
 
+    void wait_for_attached_debugger()
+    {
+        while (!is_debugger_attached())
+        {
+        }
+    }
+
     void open_folder(const std::filesystem::path& dir)
     {
         [[maybe_unused]] const auto res =

@@ -7,4 +7,6 @@ namespace oblo::platform
 
     void debug_output(const char* str);
     bool is_debugger_attached();
+
+    void wait_for_attached_debugger();
 }

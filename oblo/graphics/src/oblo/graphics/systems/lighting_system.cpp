@@ -50,8 +50,8 @@ namespace oblo
         {
             for (const auto& [light, transform] : zip_range(lights, transforms))
             {
-                const vec4 position = transform.value.columns[3];
-                const vec4 direction = normalize(transform.value * vec4{.z = -1.f});
+                const vec4 position = transform.localToWorld.columns[3];
+                const vec4 direction = normalize(transform.localToWorld * vec4{.z = -1.f});
 
                 const f32 cosInner = std::cos(light.spotInnerAngle.value);
                 const f32 cosOuter = std::cos(light.spotOuterAngle.value);

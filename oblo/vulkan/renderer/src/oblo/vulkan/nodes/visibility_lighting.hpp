@@ -1,27 +1,41 @@
 #pragma once
 
+#include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 #include <oblo/vulkan/nodes/instance_table_node.hpp>
 
+#include <span>
+
+namespace oblo
+{
+    struct string;
+}
+
 namespace oblo::vk
 {
     struct draw_buffer_data;
+    struct picking_configuration;
 
-    struct draw_call_generator
+    struct visibility_lighting
     {
-        h32<compute_pass> drawCallGeneratorPass;
-        h32<string> drawIndexedDefine;
+        data<vec2u> inResolution;
 
-        data<std::span<draw_buffer_data>> inDrawBufferData;
+        resource<buffer> inCameraBuffer;
 
-        data<std::span<resource<buffer>>> outDrawCallBuffer;
+        resource<buffer> inLightData;
+        resource<buffer> inLightConfig;
+
+        resource<buffer> inMeshDatabase;
 
         resource<buffer> inInstanceTables;
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
-        resource<buffer> inMeshDatabase;
+        resource<texture> inVisibilityBuffer;
+        resource<texture> outLitImage;
+
+        h32<compute_pass> lightingPass;
 
         void init(const frame_graph_init_context& context);
 

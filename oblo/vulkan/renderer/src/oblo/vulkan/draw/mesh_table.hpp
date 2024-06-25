@@ -70,6 +70,8 @@ namespace oblo::vk
 
         std::span<const h32<buffer>> mesh_buffers() const;
 
+        h32<buffer> index_buffer() const;
+
         u32 vertex_count() const;
         u32 index_count() const;
         u32 meshes_count() const;
