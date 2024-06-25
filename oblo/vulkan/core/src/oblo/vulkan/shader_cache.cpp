@@ -118,6 +118,10 @@ namespace oblo::vk
                 extension = "comp";
                 break;
 
+            case VK_SHADER_STAGE_MESH_BIT_EXT:
+                extension = "mesh";
+                break;
+
             default:
                 unreachable();
             }

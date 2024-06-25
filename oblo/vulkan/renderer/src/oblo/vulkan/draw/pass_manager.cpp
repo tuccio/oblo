@@ -47,6 +47,7 @@ namespace oblo::vk
         constexpr VkShaderStageFlagBits to_vulkan_stage_bits(pipeline_stages stage)
         {
             constexpr VkShaderStageFlagBits vkStageBits[] = {
+                VK_SHADER_STAGE_MESH_BIT_EXT,
                 VK_SHADER_STAGE_VERTEX_BIT,
                 VK_SHADER_STAGE_FRAGMENT_BIT,
             };
