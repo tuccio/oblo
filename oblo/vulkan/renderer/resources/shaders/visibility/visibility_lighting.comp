@@ -54,7 +54,7 @@ void main()
     const uvec2 localGroupId = quad_remap_lane_8x8(gl_LocalInvocationIndex);
     const ivec2 screenPos = ivec2(gl_WorkGroupID.xy * 8 + localGroupId);
 
-    if (screenPos.x >= g_Constants.resolution.x || screenPos.y >= g_Constants.resolution.y)
+    if (screenPos.x >= g_Constants.resolution.x)
     {
         return;
     }
