@@ -135,6 +135,7 @@ void main()
 
     triangle triangleWS;
     vec2 triangleUV0[3];
+    vec3 triangleNormalWS[3];
 
     uint vertexIndices[3];
     mesh_get_vertex_indices(meshTable, vb.triangleIndex, vertexIndices);
@@ -145,6 +146,9 @@ void main()
 
         const vec3 vertexPosition = mesh_get_position(meshTable, vertexId);
         triangleWS.v[i] = (transform.localToWorld * vec4(vertexPosition, 1)).xyz;
+
+        const vec3 vertexNormal = mesh_get_normal(meshTable, vertexId);
+        triangleNormalWS[i] = vertexNormal;
 
         triangleUV0[i] = mesh_get_uv0(meshTable, vertexId);
     }
@@ -209,6 +213,8 @@ void main()
     const vec2 uv0DDX = uv0 - uv0QuadX;
     const vec2 uv0DDY = uv0 - uv0QuadY;
 
+    const vec3 normalWS = barycentric_interpolate(bc, triangleNormalWS);
+
     const vec3 debugWS = barycentric_interpolate(bc, triangleWS.v);
 
     if (bcDDX.lambda.x >= 0.f && bcDDX.lambda.y >= 0.f && bcDDX.lambda.z >= 0.f ||
@@ -271,12 +277,12 @@ void main()
     // const vec4 color = texture_sample_2d_lod(material.albedoTexture, OBLO_SAMPLER_LINEAR, uv0, 0);
     const vec4 color = texture_sample_2d_grad(material.albedoTexture, OBLO_SAMPLER_LINEAR, uv0, uv0DDX, uv0DDY);
 
-    vec3 reflected = vec3(1);
+    vec3 reflected = vec3(0);
 
-    // for (uint lightIndex = 0; lightIndex < g_LightConfig.lightsCount; ++lightIndex)
-    // {
-    //     reflected += light_contribution(lights[lightIndex], positionVS, normalVS);
-    // }
+    for (uint lightIndex = 0; lightIndex < g_LightConfig.lightsCount; ++lightIndex)
+    {
+        reflected += light_contribution(lights[lightIndex], positionWS, normalWS);
+    }
 
     const vec4 final = vec4(color.xyz * material.albedo * reflected, 1);
 
