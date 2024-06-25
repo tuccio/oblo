@@ -16,6 +16,7 @@
 #include <renderer/instances>
 #include <renderer/lights>
 #include <renderer/material>
+#include <renderer/math>
 #include <renderer/meshes>
 #include <renderer/raytrace>
 #include <renderer/textures>
@@ -108,7 +109,8 @@ void main()
     // const vec4 positionVSh = g_Camera.invProjection * vec4(positionNDC.xy, depth, 1);
     // const vec3 positionVS = vec3(positionVSh.xy, positionVSh.z / positionVSh.w);
 
-    const vec3 positionWS = camera_unproject_world_space(g_Camera, positionNDC, depth);
+    vec3 actualPositionWS = camera_unproject_world_space(g_Camera, positionNDC, depth);
+    vec3 positionWS = actualPositionWS;
 
     const uvec4 visBufferData = imageLoad(t_InVisibilityBuffer, screenPos);
 
@@ -147,18 +149,57 @@ void main()
         triangleUV0[i] = mesh_get_uv0(meshTable, vertexId);
     }
 
+    const vec3 screenPosWS = camera_unproject_world_space(g_Camera, positionNDC, 0);
+
     ray cameraRay;
     cameraRay.origin = g_Camera.position;
-    // cameraRay.direction = 
+    cameraRay.direction = normalize(screenPosWS - g_Camera.position);
 
-    barycentric_coords_deriv bc;
+    float intersectionDistance;
+    
+    if (!distance_from_triangle_plane(cameraRay, triangleWS, intersectionDistance))
+    {
+        imageStore(t_OutLitImage, screenPos, vec4(0));
+        return;
+    }
+
+    ray cameraRayDDX;
+    cameraRayDDX.origin = g_Camera.position;
+    cameraRayDDX.direction = subgroupQuadSwapHorizontal(cameraRay.direction);
+
+    float intersectionDistanceDDX;
+    distance_from_triangle_plane(cameraRayDDX, triangleWS, intersectionDistanceDDX);
+
+    ray cameraRayDDY;
+    cameraRayDDY.origin = g_Camera.position;
+    cameraRayDDY.direction = subgroupQuadSwapVertical(cameraRay.direction);
+
+    float intersectionDistanceDDY;
+    distance_from_triangle_plane(cameraRayDDX, triangleWS, intersectionDistanceDDY);
+
+    positionWS = ray_point_at(cameraRay, intersectionDistance);
+    const vec3 positionDDX = ray_point_at(cameraRayDDX, intersectionDistanceDDX);
+    const vec3 positionDDY = ray_point_at(cameraRayDDY, intersectionDistanceDDY);
+
+    // if (screenPos == ivec2(800, 300))
+    // {
+    //     // debugPrintfEXT("POSX: %f %f %f\n", positionWS.x, positionWS.y, positionWS.z);
+    //     // debugPrintfEXT("POSDDX: %f %f %f\n", positionDDX.x, positionDDX.y, positionDDX.z);
+    //     // debugPrintfEXT("POSDDY: %f %f %f\n", positionDDY.x, positionDDY.y, positionDDY.z);
+    //     imageStore(t_OutLitImage, screenPos, vec4(1, 0, 0, 1));
+    //     return;
+    // }
+
+    barycentric_coords bc;
     barycentric_calculate(bc, triangleWS.v, positionWS);
 
-    barycentric_coords_deriv bcDDX;
-    bcDDX.lambda = subgroupQuadSwapHorizontal(bc.lambda);
+    barycentric_coords bcDDX;
+    barycentric_calculate(bcDDX, triangleWS.v, positionDDX);
+    // bcDDX.lambda = subgroupQuadSwapHorizontal(bc.lambda);
 
-    barycentric_coords_deriv bcDDY;
-    bcDDY.lambda = subgroupQuadSwapVertical(bc.lambda);
+    barycentric_coords bcDDY;
+    barycentric_calculate(bcDDX, triangleWS.v, positionDDY);
+    // bcDDY.lambda = subgroupQuadSwapVertical(bc.lambda);
 
     const vec2 uv0 = barycentric_interpolate(bc, triangleUV0);
 
@@ -170,12 +211,37 @@ void main()
 
     const vec3 debugWS = barycentric_interpolate(bc, triangleWS.v);
 
+    if (bcDDX.lambda.x >= 0.f && bcDDX.lambda.y >= 0.f && bcDDX.lambda.z >= 0.f ||
+        bcDDY.lambda.x >= 0.f && bcDDY.lambda.y >= 0.f && bcDDY.lambda.z >= 0.f)
+    {
+        imageStore(t_OutLitImage, screenPos, vec4(0));
+
+            //    debugPrintfEXT("Expected [%f %f %f] got [%f %f %f]\n",
+            // actualPositionWS.x,
+            // actualPositionWS.y,
+            // actualPositionWS.z,
+            // positionWS.x,
+            // positionWS.y,
+            // positionWS.z);
+        // return;
+    }
+    else
+    {
+        // debugPrintfEXT("Expected [%f %f %f] got [%f %f %f]\n",
+        //     actualPositionWS.x,
+        //     actualPositionWS.y,
+        //     actualPositionWS.z,
+        //     positionWS.x,
+        //     positionWS.y,
+        //     positionWS.z);
+    }
+
     // imageStore(t_OutLitImage, screenPos, vec4((debugWS.z - positionWS.z), 0, 0, 1));
     // imageStore(t_OutLitImage, screenPos, vec4(debug_color_map(positionWS.z / 5.f), 1));
     // imageStore(t_OutLitImage, screenPos, vec4(debug_color_map(debugWS.z / 5.f), 1));
     // imageStore(t_OutLitImage, screenPos, vec4(debug_color_map(depth), 1));
-    imageStore(t_OutLitImage, screenPos, debugRead);
-    imageStore(t_OutLitImage, screenPos, vec4(uv0.xy, 0, 1));
+    // imageStore(t_OutLitImage, screenPos, debugRead);
+    // imageStore(t_OutLitImage, screenPos, vec4(uv0.xy, 0, 1));
 
     // return;
 
@@ -202,6 +268,7 @@ void main()
 
     const gpu_material material = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MaterialBuffer, vb.instanceId);
 
+    // const vec4 color = texture_sample_2d_lod(material.albedoTexture, OBLO_SAMPLER_LINEAR, uv0, 0);
     const vec4 color = texture_sample_2d_grad(material.albedoTexture, OBLO_SAMPLER_LINEAR, uv0, uv0DDX, uv0DDY);
 
     vec3 reflected = vec3(1);

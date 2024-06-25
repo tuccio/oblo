@@ -12,7 +12,7 @@ struct ray
     vec3 direction;
 };
 
-bool intersect(in ray ray, in triangle triangle, in bool backfaceCulling, out float outDistance)
+bool distance_from_triangle_plane(in ray ray, in triangle triangle, out float outDistance)
 {
     const float Epsilon = .0000001f;
 
@@ -22,48 +22,24 @@ bool intersect(in ray ray, in triangle triangle, in bool backfaceCulling, out fl
     const vec3 h = cross(ray.direction, v0v2);
     const float det = dot(v0v1, h);
 
-    if (!backfaceCulling)
+    if (det > -Epsilon && det < Epsilon)
     {
-        if (det > -Epsilon && det < Epsilon)
-        {
-            return false;
-        }
-    }
-    else
-    {
-        if (det < Epsilon)
-        {
-            return false;
-        }
+        return false;
     }
 
     const float invDet = 1.f / det;
     const vec3 s = ray.origin - triangle.v[0];
 
-    const float u = invDet * dot(s, h);
-
-    if (u < 0.f || u > 1.f)
-    {
-        return false;
-    }
-
     const vec3 q = cross(s, v0v1);
-    const float v = invDet * dot(ray.direction, q);
 
-    if (v < 0.f || u + v > 1.f)
-    {
-        return false;
-    }
+    outDistance = invDet * dot(v0v2, q);
 
-    const float t = invDet * dot(v0v2, q);
+    return true;
+}
 
-    if (t > Epsilon)
-    {
-        outDistance = t;
-        return true;
-    }
-
-    return false;
+vec3 ray_point_at(in ray ray, in float t)
+{
+    return ray.origin + ray.direction * t;
 }
 
 #endif

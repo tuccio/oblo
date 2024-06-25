@@ -216,7 +216,7 @@ namespace oblo::vk
             }
         }
 
-        if (indexBuffer)
+        if (indexBuffer && m_indexBuffer)
         {
             *indexBuffer = resourceManager.get(m_indexBuffer);
             indexBuffer->offset += m_indexByteSize * range->indexOffset;

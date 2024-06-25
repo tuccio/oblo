@@ -44,6 +44,9 @@ namespace oblo
 
             totalSize = endIndex;
             previousAlignment = alignment;
+
+            OBLO_ASSERT(!m_attributeFlags.contains(attribute.kind));
+            m_attributeFlags |= attribute.kind;
         }
 
         if (!hasIndices)
@@ -72,6 +75,11 @@ namespace oblo
     void mesh::clear()
     {
         *this = {};
+    }
+
+    bool mesh::has_attribute(attribute_kind kind) const
+    {
+        return m_attributeFlags.contains(kind);
     }
 
     std::span<std::byte> mesh::get_attribute(attribute_kind kind, data_format* outFormat)
