@@ -5,8 +5,6 @@
 #extension GL_ARB_gpu_shader_int64 : require
 #extension GL_EXT_shader_16bit_storage : require
 
-#extension GL_EXT_debug_printf : require
-
 #include <renderer/camera>
 #include <renderer/instances>
 #include <renderer/meshes>
@@ -14,7 +12,6 @@
 #include <visibility/visibility_buffer>
 
 layout(location = 0) out uvec2 out_VisibilityBufferData;
-layout(location = 1) out vec2 out_DebugUV0;
 
 layout(binding = 0) uniform b_CameraBuffer
 {
@@ -56,10 +53,5 @@ void main()
     visBufferData.instanceId = preCullingId;
     visBufferData.triangleIndex = mesh_get_triangle_index(table, gl_VertexIndex);
 
-    const uvec2 packed = visibility_buffer_pack(visBufferData);
-    // debugPrintfEXT("vis: %u %u\n", packed.x, packed.y);
-
-    out_VisibilityBufferData = packed;
-
-    out_DebugUV0 = mesh_get_uv0(table, gl_VertexIndex);
+    out_VisibilityBufferData = visibility_buffer_pack(visBufferData);
 }

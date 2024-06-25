@@ -11,11 +11,14 @@ struct visibility_buffer_data
     uint triangleIndex;
 };
 
-void visibility_buffer_parse(in uvec2 visBuffer, out visibility_buffer_data r)
+bool visibility_buffer_parse(in uvec2 visBuffer, out visibility_buffer_data r)
 {
+    const bool valid = visBuffer.y != 0;
+
     r.instanceTableId = visBuffer.x & OBLO_VISIBILITY_BUFFER_MASK_INSTANCE_TABLE_ID;
     r.instanceId = visBuffer.x >> OBLO_VISIBILITY_BUFFER_SHIFT_INSTANCE_ID;
-    r.triangleIndex = visBuffer.y;
+    r.triangleIndex = visBuffer.y - 1;
+    return valid;
 }
 
 uvec2 visibility_buffer_pack(in visibility_buffer_data data)
@@ -25,7 +28,7 @@ uvec2 visibility_buffer_pack(in visibility_buffer_data data)
     r.x = (data.instanceTableId & OBLO_VISIBILITY_BUFFER_MASK_INSTANCE_TABLE_ID) |
         (data.instanceId << OBLO_VISIBILITY_BUFFER_SHIFT_INSTANCE_ID);
 
-    r.y = data.triangleIndex;
+    r.y = data.triangleIndex + 1;
 
     return r;
 }
