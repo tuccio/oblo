@@ -35,7 +35,8 @@ namespace oblo
 {
     namespace
     {
-        constexpr u32 PickingResultSize{sizeof(u32)};
+        // Actually a u32, but the buffer requires alignment
+        constexpr u32 PickingResultSize{16};
     }
 
     struct viewport_system::render_graph_data
@@ -48,7 +49,7 @@ namespace oblo
         VkDescriptorSet descriptorSet{};
         VkImage image{};
 
-        vk::allocated_buffer pickingDownloadBuffer;
+        vk::allocated_buffer pickingOutputBuffer;
         u64 lastPickingSubmitIndex{};
     };
 
@@ -160,11 +161,11 @@ namespace oblo
             renderGraphData.descriptorSet = {};
         }
 
-        if (renderGraphData.pickingDownloadBuffer.buffer)
+        if (renderGraphData.pickingOutputBuffer.buffer)
         {
-            vkCtx.destroy_deferred(renderGraphData.pickingDownloadBuffer.buffer, submitIndex);
-            vkCtx.destroy_deferred(renderGraphData.pickingDownloadBuffer.allocation, submitIndex);
-            renderGraphData.pickingDownloadBuffer = {};
+            vkCtx.destroy_deferred(renderGraphData.pickingOutputBuffer.buffer, submitIndex);
+            vkCtx.destroy_deferred(renderGraphData.pickingOutputBuffer.allocation, submitIndex);
+            renderGraphData.pickingOutputBuffer = {};
         }
     }
 
@@ -172,14 +173,14 @@ namespace oblo
     {
         auto& allocator = m_renderer->get_allocator();
 
-        if (!graphData.pickingDownloadBuffer.buffer &&
+        if (!graphData.pickingOutputBuffer.buffer &&
             allocator.create_buffer(
                 {
                     .size = PickingResultSize,
                     .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                     .memoryUsage = vk::memory_usage::gpu_to_cpu,
                 },
-                &graphData.pickingDownloadBuffer) != VK_SUCCESS)
+                &graphData.pickingOutputBuffer) != VK_SUCCESS)
         {
             return false;
         }
@@ -367,9 +368,9 @@ namespace oblo
                             pickingConfig = {
                                 .enabled = true,
                                 .coordinates = viewport.picking.coordinates,
-                                .downloadBuffer =
+                                .outputBuffer =
                                     {
-                                        .buffer = renderGraphData->pickingDownloadBuffer.buffer,
+                                        .buffer = renderGraphData->pickingOutputBuffer.buffer,
                                         .size = PickingResultSize,
                                     },
                             };
@@ -390,12 +391,12 @@ namespace oblo
                             auto& allocator = m_renderer->get_allocator();
 
                             if (void* ptr;
-                                allocator.map(renderGraphData->pickingDownloadBuffer.allocation, &ptr) == VK_SUCCESS)
+                                allocator.map(renderGraphData->pickingOutputBuffer.allocation, &ptr) == VK_SUCCESS)
                             {
                                 std::memcpy(&viewport.picking.result, ptr, sizeof(u32));
                                 viewport.picking.state = picking_request::state::served;
 
-                                allocator.unmap(renderGraphData->pickingDownloadBuffer.allocation);
+                                allocator.unmap(renderGraphData->pickingOutputBuffer.allocation);
                             }
                             else
                             {
@@ -409,9 +410,8 @@ namespace oblo
                         break;
                     }
 
-                    // Temporarily disabled, picking needs to be implemented differently
-                    // frameGraph.set_input(renderGraphData->subgraph, main_view::InPickingConfiguration, pickingConfig)
-                    //    .or_panic();
+                    frameGraph.set_input(renderGraphData->subgraph, main_view::InPickingConfiguration, pickingConfig)
+                        .assert_value();
                 }
             }
         }

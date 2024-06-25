@@ -26,7 +26,7 @@ namespace oblo::vk
         const auto pickingBuffer = context.access(inPickingIdBuffer);
 
         const VkBufferImageCopy copyRegion{
-            .bufferOffset = cfg.downloadBuffer.offset,
+            .bufferOffset = cfg.outputBuffer.offset,
             .bufferRowLength = pickingBuffer.initializer.extent.width,
             .bufferImageHeight = pickingBuffer.initializer.extent.height,
             .imageSubresource =
@@ -43,7 +43,7 @@ namespace oblo::vk
         vkCmdCopyImageToBuffer(context.get_command_buffer(),
             pickingBuffer.image,
             VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-            cfg.downloadBuffer.buffer,
+            cfg.outputBuffer.buffer,
             1,
             &copyRegion);
     }

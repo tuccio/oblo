@@ -3,10 +3,10 @@
 #include <oblo/vulkan/graph/frame_graph_registry.hpp>
 #include <oblo/vulkan/nodes/copy_texture_node.hpp>
 #include <oblo/vulkan/nodes/draw_call_generator.hpp>
+#include <oblo/vulkan/nodes/entity_picking.hpp>
 #include <oblo/vulkan/nodes/frustum_culling.hpp>
 #include <oblo/vulkan/nodes/instance_table_node.hpp>
 #include <oblo/vulkan/nodes/light_provider.hpp>
-#include <oblo/vulkan/nodes/picking_readback.hpp>
 #include <oblo/vulkan/nodes/view_buffers_node.hpp>
 #include <oblo/vulkan/nodes/visibility_lighting.hpp>
 #include <oblo/vulkan/nodes/visibility_pass.hpp>
@@ -159,20 +159,27 @@ namespace oblo::vk::main_view
 
         (void) cfg;
         // Picking
-        // if (cfg.withPicking)
-        //{
-        //    const auto pickingReadback = graph.add_node<picking_readback>();
+        if (cfg.withPicking)
+        {
+            const auto entityPicking = graph.add_node<entity_picking>();
 
-        //    graph.connect(visibilityPass,
-        //        &visibility_pass::outPickingIdBuffer,
-        //        pickingReadback,
-        //        &picking_readback::inPickingIdBuffer);
+            graph.connect(visibilityPass,
+                &visibility_pass::outVisibilityBuffer,
+                entityPicking,
+                &entity_picking::inVisibilityBuffer);
 
-        //    graph.connect(visibilityPass,
-        //        &visibility_pass::inPickingConfiguration,
-        //        pickingReadback,
-        //        &picking_readback::inPickingConfiguration);
-        //}
+            graph.connect(viewBuffers,
+                &view_buffers_node::inInstanceTables,
+                entityPicking,
+                &entity_picking::inInstanceTables);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::inInstanceBuffers,
+                entityPicking,
+                &entity_picking::inInstanceBuffers);
+
+            graph.make_input(entityPicking, &entity_picking::inPickingConfiguration, InPickingConfiguration);
+        }
 
         return graph;
     }
@@ -213,7 +220,7 @@ namespace oblo::vk
         registry.register_node<visibility_pass>();
         registry.register_node<visibility_lighting>();
         registry.register_node<draw_call_generator>();
-        registry.register_node<picking_readback>();
+        registry.register_node<entity_picking>();
 
         // Scene data
         registry.register_node<light_provider>();

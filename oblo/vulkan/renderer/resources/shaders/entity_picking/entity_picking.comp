@@ -1,0 +1,46 @@
+#version 460
+
+#extension GL_ARB_gpu_shader_int64 : require
+#extension GL_EXT_buffer_reference : require
+#extension GL_EXT_shader_16bit_storage : require
+#extension GL_GOOGLE_include_directive : require
+
+#include <renderer/instances>
+#include <visibility/visibility_buffer>
+
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+layout(std430, binding = 10) restrict writeonly buffer b_OutPickingId
+{
+    uint outPickingId;
+};
+
+layout(binding = 11, rg32ui) uniform restrict readonly uimage2D t_InVisibilityBuffer;
+
+layout(push_constant) uniform c_PushConstants
+{
+    ivec2 screenPos;
+}
+g_Constants;
+
+layout(buffer_reference) buffer i_EntityIdBufferType
+{
+    uint values[];
+};
+
+void main()
+{
+    const uvec4 visBufferData = imageLoad(t_InVisibilityBuffer, g_Constants.screenPos);
+
+    visibility_buffer_data vb;
+
+    if (!visibility_buffer_parse(visBufferData.xy, vb))
+    {
+        // The invalid entity has id 0
+        outPickingId = 0;
+        return;
+    }
+
+    const uint entityId = OBLO_INSTANCE_DATA(vb.instanceTableId, i_EntityIdBuffer, vb.instanceId);
+    outPickingId = entityId;
+}

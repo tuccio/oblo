@@ -11,6 +11,6 @@ namespace oblo::vk
     {
         bool enabled;
         vec2 coordinates;
-        buffer downloadBuffer;
+        buffer outputBuffer;
     };
 }

@@ -19,12 +19,12 @@ layout(binding = 0) uniform b_CameraBuffer
     camera_buffer g_Camera;
 };
 
-layout(std430, binding = 10) restrict buffer b_OutDrawCount
+layout(std430, binding = 10) restrict writeonly buffer b_OutDrawCount
 {
     uint outDrawCount;
 };
 
-layout(std430, binding = 11) restrict buffer b_PreCullingIdMap
+layout(std430, binding = 11) restrict writeonly buffer b_PreCullingIdMap
 {
     uint preCullingIdMap[];
 };

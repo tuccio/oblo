@@ -54,11 +54,6 @@ namespace oblo::vk
     {
         auto& pm = ctx.get_pass_manager();
 
-        auto& interner = ctx.get_string_interner();
-
-        const auto inInstanceTablesName = interner.get_or_add("b_InstanceTables");
-        const buffer inInstanceTablesBuffer = ctx.access(inInstanceTables);
-
         binding_table bindingTable;
 
         ctx.bind_buffers(bindingTable,
@@ -83,7 +78,6 @@ namespace oblo::vk
         if (const auto pass = pm.begin_compute_pass(commandBuffer, lightingPipeline))
         {
             const auto resolution = ctx.access(inResolution);
-            // const auto subgroupSize = pm.get_subgroup_size();
 
             pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&resolution, 1}));
 
