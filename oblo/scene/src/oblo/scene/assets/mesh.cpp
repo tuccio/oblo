@@ -82,6 +82,12 @@ namespace oblo
         *this = {};
     }
 
+    void mesh::reset_meshlets(u32 meshletCount)
+    {
+        m_meshletCount = meshletCount;
+        m_meshlets.resize(meshletCount);
+    }
+
     bool mesh::has_attribute(attribute_kind kind) const
     {
         return m_attributeFlags.contains(kind);

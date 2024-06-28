@@ -43,8 +43,10 @@ namespace oblo::editor
 
                         if (importer.is_valid() && importer.init())
                         {
+                            const data_document defaultImportSettings;
+
                             const auto timeBegin = clock::now();
-                            const auto success = importer.execute(m_current);
+                            const auto success = importer.execute(m_current, defaultImportSettings);
                             const auto timeEnd = clock::now();
                             const f32 executionTime = to_f32_seconds(timeEnd - timeBegin);
 

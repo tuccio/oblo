@@ -60,6 +60,8 @@ namespace oblo
 
         SCENE_API void clear();
 
+        SCENE_API void reset_meshlets(u32 numMeshlets);
+
         SCENE_API bool has_attribute(attribute_kind kind) const;
 
         SCENE_API std::span<std::byte> get_attribute(attribute_kind kind, data_format* outFormat = nullptr);
