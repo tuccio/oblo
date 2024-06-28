@@ -30,6 +30,7 @@ class ObloConanRecipe(ConanFile):
         self.requires("ktx/4.0.0")
         self.requires("imgui/1.89.9-docking", override=True)
         self.requires("imguizmo/cci.20231114")
+        self.requires("meshoptimizer/0.20")
         self.requires("nlohmann_json/3.11.2")
         self.requires("rapidjson/cci.20220822")
         self.requires("vulkan-headers/1.3.268.0", override=True)

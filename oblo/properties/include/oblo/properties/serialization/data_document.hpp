@@ -1,12 +1,12 @@
 #pragma once
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/expected.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/properties/serialization/data_node.hpp>
 
 #include <span>
 #include <string_view>
-#include <vector>
 
 namespace oblo
 {
@@ -23,24 +23,26 @@ namespace oblo
     public:
         data_document();
         data_document(const data_document&) = delete;
-        data_document(data_document&&) noexcept = delete;
+        data_document(data_document&&) noexcept;
 
         ~data_document();
 
         data_document& operator=(const data_document&) = delete;
-        data_document& operator=(data_document&&) noexcept = delete;
+        data_document& operator=(data_document&&) noexcept;
 
         void init(u32 firstChunkSize = 1u << 15);
 
         u32 get_root() const;
 
         u32 child_object(u32 parent, std::string_view key);
-        void child_value(u32 parent, std::string_view key, property_kind kind, std::span<const std::byte> data);
+        void child_value(u32 parent, std::string_view key, property_kind kind, std::span<const byte> data);
 
         std::span<const data_node> get_nodes() const;
 
         u32 find_child(u32 parent, std::string_view name) const;
         std::string_view get_node_name(u32 node) const;
+
+        expected<bool, error> read_bool(u32 node) const;
 
         expected<f32, error> read_f32(u32 node) const;
 
@@ -54,7 +56,7 @@ namespace oblo
         void append_new_child(data_node& parent, u32 newChild);
 
     private:
-        std::vector<data_node> m_nodes;
+        dynamic_array<data_node> m_nodes;
         data_chunk* m_firstChunk{};
         data_chunk* m_currentChunk{};
         u32 m_firstChunkSize{};
@@ -69,6 +71,11 @@ namespace oblo
 
     inline u32 data_document::find_child(u32 parent, std::string_view name) const
     {
+        if (parent == data_node::Invalid)
+        {
+            return data_node::Invalid;
+        }
+
         if (m_nodes[parent].kind != data_node_kind::object)
         {
             return data_node::Invalid;
@@ -103,4 +110,11 @@ namespace oblo
             return {data, length};
         }
     };
+
+    template <typename T>
+        requires std::is_fundamental_v<T>
+    constexpr std::span<const byte> as_bytes(const T& value)
+    {
+        return as_bytes(std::span{&value, 1});
+    }
 }

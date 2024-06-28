@@ -29,7 +29,32 @@ namespace oblo
 
     data_document::data_document() = default;
 
-    data_document::~data_document() = default;
+    data_document::data_document(data_document&& other) noexcept :
+        m_nodes{std::move(other.m_nodes)}, m_firstChunk{other.m_firstChunk}, m_currentChunk{other.m_currentChunk},
+        m_firstChunkSize{other.m_firstChunkSize}, m_chunksCount{other.m_chunksCount}
+    {
+        other.m_firstChunk = nullptr;
+        other.m_currentChunk = nullptr;
+        other.m_firstChunkSize = 0;
+        other.m_chunksCount = 0;
+    }
+
+    data_document::~data_document()
+    {
+        for (auto* chunk = m_firstChunk; chunk != nullptr;)
+        {
+            auto* const next = chunk = chunk->next;
+            delete chunk;
+            chunk = next;
+        }
+    }
+
+    data_document& data_document::operator=(data_document&& other) noexcept
+    {
+        this->~data_document();
+        new (this) data_document(std::move(other));
+        return *this;
+    }
 
     void data_document::init(u32 firstChunkSize)
     {
@@ -95,7 +120,7 @@ namespace oblo
     }
 
     void data_document::child_value(
-        u32 parentIndex, std::string_view key, property_kind kind, std::span<const std::byte> data)
+        u32 parentIndex, std::string_view key, property_kind kind, std::span<const byte> data)
     {
         u32 newChild = u32(m_nodes.size());
         auto& newValue = m_nodes.emplace_back();
@@ -199,6 +224,23 @@ namespace oblo
     std::span<const data_node> data_document::get_nodes() const
     {
         return m_nodes;
+    }
+
+    expected<bool, data_document::error> data_document::read_bool(u32 node) const
+    {
+        auto& n = m_nodes[node];
+
+        if (n.kind != data_node_kind::value)
+        {
+            return error::node_kind_mismatch;
+        }
+
+        if (n.valueKind == property_kind::boolean)
+        {
+            return *reinterpret_cast<const bool*>(n.value.data);
+        }
+
+        return error::value_kind_mismatch;
     }
 
     expected<f32, data_document::error> data_document::read_f32(u32 node) const

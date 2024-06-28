@@ -8,6 +8,7 @@
 #include <oblo/core/data_format.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_manager.hpp>
+#include <oblo/properties/property_kind.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/assets/mesh.hpp>
@@ -66,6 +67,13 @@ namespace oblo::importers
             gltfSampleModels / "Models" / "Box" / "glTF-Binary" / "Box.glb",
         };
 
+        data_document importSettings;
+        importSettings.init();
+        importSettings.child_value(importSettings.get_root(),
+            "generateMeshlets",
+            property_kind::boolean,
+            as_bytes(false));
+
         for (const auto& file : files)
         {
             auto importer = registry.create_importer(file);
@@ -75,7 +83,7 @@ namespace oblo::importers
             ASSERT_TRUE(importer.is_valid());
 
             ASSERT_TRUE(importer.init());
-            ASSERT_TRUE(importer.execute(dirName));
+            ASSERT_TRUE(importer.execute(dirName, importSettings));
 
             uuid meshId;
 

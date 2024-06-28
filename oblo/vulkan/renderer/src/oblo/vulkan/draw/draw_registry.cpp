@@ -238,7 +238,7 @@ namespace oblo::vk
                 }
             }
 
-            dst.allocate(src.get_primitive_kind(), src.get_index_count(), 0, attributes);
+            dst.allocate(src.get_primitive_kind(), src.get_index_count(), 0, 0, attributes);
 
             switch (format)
             {

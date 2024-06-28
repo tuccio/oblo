@@ -157,15 +157,37 @@ namespace oblo
         {
             using tinygltf::Value;
 
-            gltfMesh.extras = Value{Value::Object{{ExtraAbb,
-                Value{
-                    Value::Object{{"min", Value{Value::Array{Value{aabb.min.x}, Value{aabb.min.y}, Value{aabb.min.z}}}},
-                        {"max",
-                            Value{Value::Array{
-                                Value{aabb.max.x},
-                                Value{aabb.max.y},
-                                Value{aabb.max.z},
-                            }}}}}}}};
+            gltfMesh.extras = Value{
+                Value::Object{
+                    {
+                        ExtraAbb,
+                        Value{
+                            Value::Object{
+                                {
+                                    "min",
+                                    Value{
+                                        Value::Array{
+                                            Value{aabb.min.x},
+                                            Value{aabb.min.y},
+                                            Value{aabb.min.z},
+                                        },
+                                    },
+                                },
+                                {
+                                    "max",
+                                    Value{
+                                        Value::Array{
+                                            Value{aabb.max.x},
+                                            Value{aabb.max.y},
+                                            Value{aabb.max.z},
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            };
         }
 
         const u32 numAttributes = mesh.get_attributes_count();
@@ -363,7 +385,7 @@ namespace oblo
             }
         }
 
-        mesh.allocate(primitiveKind, vertexCount, indexCount, attributes);
+        mesh.allocate(primitiveKind, vertexCount, indexCount, 0, attributes);
 
         for (u32 i = 0; i < attributes.size(); ++i)
         {

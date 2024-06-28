@@ -12,8 +12,11 @@ namespace oblo
         usize endIndex;
     };
 
-    void mesh::allocate(
-        primitive_kind primitive, u32 numVertices, u32 numIndices, std::span<const mesh_attribute> attributes)
+    void mesh::allocate(primitive_kind primitive,
+        u32 numVertices,
+        u32 numIndices,
+        u32 meshletCount,
+        std::span<const mesh_attribute> attributes)
     {
         clear();
 
@@ -60,8 +63,10 @@ namespace oblo
 
         m_vertexCount = numVertices;
         m_primitives = primitive;
+        m_meshletCount = meshletCount;
 
         m_storage.resize(totalSize);
+        m_meshlets.resize(meshletCount);
     }
 
     mesh::mesh() = default;
@@ -121,10 +126,25 @@ namespace oblo
         return m_indexCount;
     }
 
+    u32 mesh::get_meshlet_count() const
+    {
+        return m_meshletCount;
+    }
+
     u32 mesh::get_elements_count(attribute_kind attribute) const
     {
         // TODO: Should check if the attribute is even there
         return attribute == attribute_kind::indices ? get_index_count() : get_vertex_count();
+    }
+
+    std::span<meshlet> mesh::get_meshlets()
+    {
+        return m_meshlets;
+    }
+
+    std::span<const meshlet> mesh::get_meshlets() const
+    {
+        return m_meshlets;
     }
 
     data_format mesh::get_attribute_format(attribute_kind kind) const
