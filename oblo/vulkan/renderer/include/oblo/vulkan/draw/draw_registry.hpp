@@ -126,6 +126,7 @@ namespace oblo::vk
 
         ecs::component_type m_instanceComponent{};
         ecs::tag_type m_indexNoneTag{};
+        ecs::tag_type m_indexU8Tag{};
         ecs::tag_type m_indexU16Tag{};
         ecs::tag_type m_indexU32Tag{};
 

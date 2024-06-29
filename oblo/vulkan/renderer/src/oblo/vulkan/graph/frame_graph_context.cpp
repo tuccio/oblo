@@ -28,6 +28,9 @@ namespace oblo::vk
             case texture_usage::shader_read:
                 return VK_IMAGE_USAGE_SAMPLED_BIT;
 
+            case texture_usage::storage_write:
+                return {};
+
             default:
                 OBLO_ASSERT(false);
                 return {};
@@ -344,6 +347,11 @@ namespace oblo::vk
     string_interner& frame_graph_execute_context::get_string_interner() const
     {
         return m_renderer.get_string_interner();
+    }
+
+    const loaded_functions& frame_graph_execute_context::get_loaded_functions() const
+    {
+        return m_renderer.get_vulkan_context().get_loaded_functions();
     }
 
     void frame_graph_execute_context::bind_buffers(binding_table& table,

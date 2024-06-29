@@ -36,10 +36,10 @@ namespace oblo
 
     struct meshlet
     {
-        u32 vertexBegin;
-        u32 vertexEnd;
-        u32 indexBegin;
-        u32 indexEnd;
+        u32 vertexOffset;
+        u32 vertexCount;
+        u32 indexOffset;
+        u32 indexCount;
     };
 
     class mesh

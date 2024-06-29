@@ -52,7 +52,7 @@ namespace oblo::vk
             currentOffset += columnSize;
         }
 
-        if (currentOffset >= buf.offset + buf.size)
+        if (currentOffset > buf.offset + buf.size)
         {
             return 0u;
         }

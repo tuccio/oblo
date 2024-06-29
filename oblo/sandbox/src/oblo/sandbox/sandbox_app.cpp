@@ -477,19 +477,6 @@ namespace oblo::vk
             .pNext = deviceFeaturesList,
             .dynamicRendering = VK_TRUE,
         };
-
-        VkPhysicalDeviceTimelineSemaphoreFeatures timelineFeature{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES,
-            .pNext = &dynamicRenderingFeature,
-            .timelineSemaphore = VK_TRUE,
-        };
-
-        VkPhysicalDeviceBufferDeviceAddressFeatures bufferDeviceAddressFeature{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES,
-            .pNext = &timelineFeature,
-            .bufferDeviceAddress = VK_TRUE,
-        };
-
         VkPhysicalDeviceFeatures2 physicalDeviceFeatures2{};
 
         if (physicalDeviceFeatures)
@@ -497,7 +484,7 @@ namespace oblo::vk
             physicalDeviceFeatures2 = *physicalDeviceFeatures;
         }
 
-        physicalDeviceFeatures2.pNext = &bufferDeviceAddressFeature;
+        physicalDeviceFeatures2.pNext = &dynamicRenderingFeature;
 
         return m_engine.init(m_instance.get(), m_surface, {}, {extensions}, &physicalDeviceFeatures2, nullptr) &&
             m_allocator.init(m_instance.get(), m_engine.get_physical_device(), m_engine.get_device()) &&

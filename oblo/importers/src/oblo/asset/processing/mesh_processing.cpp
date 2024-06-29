@@ -141,10 +141,10 @@ namespace oblo::importers::mesh_processing
             const auto& currentMeshlet = meshlets[i];
 
             outMeshlets[i] = {
-                .vertexBegin = currentMeshlet.vertex_offset,
-                .vertexEnd = currentMeshlet.vertex_offset + currentMeshlet.vertex_count,
-                .indexBegin = currentMeshlet.triangle_offset * 3,
-                .indexEnd = (currentMeshlet.triangle_offset + currentMeshlet.triangle_count) * 3,
+                .vertexOffset = currentMeshlet.vertex_offset,
+                .vertexCount = currentMeshlet.vertex_count,
+                .indexOffset = currentMeshlet.triangle_offset * 3,
+                .indexCount = currentMeshlet.triangle_count * 3,
             };
         }
 

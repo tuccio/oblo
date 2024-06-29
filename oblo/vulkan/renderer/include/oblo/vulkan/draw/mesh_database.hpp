@@ -38,6 +38,7 @@ namespace oblo::vk
     enum class mesh_index_type : u8
     {
         none,
+        u8,
         u16,
         u32,
     };
@@ -50,7 +51,7 @@ namespace oblo::vk
         struct initializer;
         struct table_range;
 
-        static constexpr u32 MaxAttributes{6};
+        static constexpr u32 MaxAttributes{8};
         static constexpr u32 MaxMeshBuffers{2};
 
     public:
@@ -67,14 +68,16 @@ namespace oblo::vk
 
         void shutdown();
 
-        mesh_handle create_mesh(u32 meshAttributesMask, mesh_index_type indexType, u32 vertexCount, u32 indexCount);
+        mesh_handle create_mesh(
+            u32 meshAttributesMask, mesh_index_type indexType, u32 vertexCount, u32 indexCount, u32 meshletsCount);
 
         bool fetch_buffers(mesh_handle mesh,
             std::span<const u32> vertexAttributes,
             std::span<buffer> vertexBuffers,
             buffer* indexBuffer,
             std::span<const h32<string>> meshBufferNames,
-            std::span<buffer> meshBuffers) const;
+            std::span<buffer> meshBuffers,
+            buffer* meshletsBuffer) const;
 
         mesh_index_type get_index_type(mesh_handle mesh) const;
 
@@ -110,6 +113,7 @@ namespace oblo::vk
         u32 m_tableVertexCount{};
         u32 m_tableIndexCount{};
         u32 m_tableMeshCount{};
+        u32 m_tableMeshletCount{};
         VkBufferUsageFlags m_indexBufferUsage{};
         VkBufferUsageFlags m_vertexBufferUsage{};
         VkBufferUsageFlags m_meshBufferUsage{};
@@ -131,6 +135,7 @@ namespace oblo::vk
         VkDeviceSize tableVertexCount;
         VkDeviceSize tableIndexCount;
         VkDeviceSize tableMeshCount;
+        VkDeviceSize tableMeshletCount;
     };
 
     struct mesh_database::table_range
@@ -139,5 +144,7 @@ namespace oblo::vk
         u32 vertexCount;
         u32 indexOffset;
         u32 indexCount;
+        u32 meshletOffset;
+        u32 meshletCount;
     };
 }

@@ -9,4 +9,6 @@ namespace oblo::platform
     bool is_debugger_attached();
 
     void wait_for_attached_debugger();
+
+    void* find_symbol(const char* name);
 }

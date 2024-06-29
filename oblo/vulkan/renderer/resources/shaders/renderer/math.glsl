@@ -21,4 +21,9 @@ vec3 saturate(in vec3 value)
     return max(vec3(0.f), value);
 }
 
+uint round_up_div(in uint numerator, in uint denominator)
+{
+    return (numerator + denominator - 1) / denominator;
+}
+
 #endif

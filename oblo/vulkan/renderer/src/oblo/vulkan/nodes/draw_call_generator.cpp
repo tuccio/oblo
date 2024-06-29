@@ -53,7 +53,9 @@ namespace oblo::vk
 
             drawCallBuffer[i] = ctx.create_dynamic_buffer(
                 {
-                    .size = u32(draw.sourceData.drawCommands.drawCommands.size()),
+                    //.size = u32(draw.sourceData.drawCommands.drawCommands.size()),
+                    .size = u32(draw.sourceData.drawCommands.drawCount * sizeof(VkDrawMeshTasksIndirectCommandEXT)),
+
                 },
                 pass_kind::compute,
                 buffer_usage::storage_write);

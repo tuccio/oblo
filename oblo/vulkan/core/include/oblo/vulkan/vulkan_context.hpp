@@ -4,6 +4,7 @@
 #include <oblo/vulkan/command_buffer_pool.hpp>
 #include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/instance.hpp>
+#include <oblo/vulkan/loaded_functions.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
 #include <oblo/vulkan/stateful_command_buffer.hpp>
@@ -82,6 +83,8 @@ namespace oblo::vk
         void begin_debug_label(VkCommandBuffer commandBuffer, const char* label) const;
         void end_debug_label(VkCommandBuffer commandBuffer) const;
 
+        const loaded_functions& get_loaded_functions() const;
+
     private:
         struct frame_info;
 
@@ -125,6 +128,8 @@ namespace oblo::vk
         std::unique_ptr<pending_disposal_queues> m_pending;
 
         std::deque<disposable_object> m_disposableObjects;
+
+        loaded_functions m_loadedFunctions{};
     };
 
     struct vulkan_context::initializer
@@ -190,5 +195,10 @@ namespace oblo::vk
             destroy_immediate(any);
             any = nullptr;
         }
+    }
+
+    inline const loaded_functions& vulkan_context::get_loaded_functions() const
+    {
+        return m_loadedFunctions;
     }
 }

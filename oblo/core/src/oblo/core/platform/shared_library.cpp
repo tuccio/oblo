@@ -37,6 +37,7 @@ namespace oblo::platform
         m_handle = LoadLibraryW(path.native().c_str());
         return m_handle != nullptr;
     }
+
     void shared_library::close()
     {
         if (m_handle)

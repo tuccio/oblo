@@ -9,8 +9,9 @@ namespace oblo::vk
 
     struct mesh_table_entry
     {
-        u32 numVertices;
-        u32 numIndices;
+        u32 vertexCount;
+        u32 indexCount;
+        u32 meshletCount;
     };
 
     using mesh_table_entry_id = h32<mesh_table_entry>;
@@ -25,6 +26,16 @@ namespace oblo::vk
             u32 indexOffset;
             u32 indexCount;
             u32 meshOffset;
+            u32 meshletOffset;
+            u32 meshletCount;
+        };
+
+        struct meshlet_range
+        {
+            u32 vertexOffset;
+            u32 vertexCount;
+            u32 indexOffset;
+            u32 indexCount;
         };
 
     public:
@@ -45,6 +56,7 @@ namespace oblo::vk
             u32 numVertices,
             u32 numIndices,
             u32 numMeshes,
+            u32 numMeshlets,
             const buffer& indexBuffer);
 
         void shutdown(gpu_allocator& allocator, resource_manager& resourceManager);
@@ -55,7 +67,8 @@ namespace oblo::vk
             std::span<buffer> vertexBuffers,
             buffer* indexBuffer,
             std::span<const h32<string>> meshDataNames,
-            std::span<buffer> meshDataBuffers) const;
+            std::span<buffer> meshDataBuffers,
+            buffer* meshletBuffer) const;
 
         void fetch_buffers(const resource_manager& resourceManager,
             std::span<const h32<string>> names,
@@ -71,6 +84,7 @@ namespace oblo::vk
         std::span<const h32<buffer>> mesh_buffers() const;
 
         h32<buffer> index_buffer() const;
+        h32<buffer> meshlet_buffer() const;
 
         u32 vertex_count() const;
         u32 index_count() const;
@@ -88,15 +102,18 @@ namespace oblo::vk
     private:
         buffer_table m_vertexTable;
         buffer_table m_meshDataTable;
+        buffer_table m_meshletsTable;
         h32_flat_pool_dense_map<mesh_table_entry, buffer_range, GenIdBits> m_ranges;
         u32 m_firstFreeVertex{0u};
         u32 m_firstFreeIndex{0u};
         u32 m_firstFreeMesh{0u};
+        u32 m_firstFreeMeshlet{0u};
         u32 m_totalIndices{0u};
         u32 m_indexByteSize{0u};
         h32<buffer> m_indexBuffer{};
         h32<buffer> m_vertexBuffer{};
         h32<buffer> m_meshDataBuffer{};
+        h32<buffer> m_meshletsBuffer{};
         VkIndexType m_indexType{VK_INDEX_TYPE_MAX_ENUM};
     };
 }

@@ -37,9 +37,23 @@ namespace oblo::editor
 {
     namespace
     {
+        VkPhysicalDeviceMeshShaderFeaturesEXT MeshShaderFeatures{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT,
+            .taskShader = true,
+            .meshShader = true,
+        };
+
         VkPhysicalDeviceVulkan12Features DeviceVulkan12Features{
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+            .pNext = &MeshShaderFeatures,
             .drawIndirectCount = true,
+            .storageBuffer8BitAccess = true,
+            .shaderInt8 = true,
+            .descriptorBindingSampledImageUpdateAfterBind = true,
+            .descriptorBindingPartiallyBound = true,
+            .descriptorBindingVariableDescriptorCount = true,
+            .runtimeDescriptorArray = true,
+            .timelineSemaphore = true,
             .bufferDeviceAddress = true,
         };
 
@@ -49,15 +63,6 @@ namespace oblo::editor
             .synchronization2 = true,
         };
 
-        VkPhysicalDeviceDescriptorIndexingFeatures IndexingFeatures{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES,
-            .pNext = &SynchronizationFeatures,
-            .descriptorBindingSampledImageUpdateAfterBind = true,
-            .descriptorBindingPartiallyBound = true,
-            .descriptorBindingVariableDescriptorCount = true,
-            .runtimeDescriptorArray = true,
-        };
-
         VkPhysicalDeviceShaderDrawParametersFeatures ShaderDrawParameters{
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES,
             .shaderDrawParameters = true,
@@ -65,11 +70,14 @@ namespace oblo::editor
 
         constexpr const char* InstanceExtensions[] = {
             VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
+            VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
         };
 
         constexpr const char* DeviceExtensions[] = {
             VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
             VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
+            VK_EXT_MESH_SHADER_EXTENSION_NAME,
+            VK_KHR_SPIRV_1_4_EXTENSION_NAME,
             VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME, // This is only needed for debug printf
         };
     }
@@ -94,7 +102,7 @@ namespace oblo::editor
 
     void* app::get_required_device_features() const
     {
-        return &IndexingFeatures;
+        return &SynchronizationFeatures;
     }
 
     std::span<const char* const> app::get_required_device_extensions() const

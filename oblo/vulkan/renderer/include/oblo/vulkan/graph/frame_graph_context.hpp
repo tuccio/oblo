@@ -30,6 +30,7 @@ namespace oblo::vk
     struct buffer;
     struct texture;
 
+    struct loaded_functions;
     struct frame_graph_impl;
     struct frame_graph_pin_storage;
     struct staging_buffer_span;
@@ -182,6 +183,8 @@ namespace oblo::vk
         draw_registry& get_draw_registry() const;
 
         string_interner& get_string_interner() const;
+
+        const loaded_functions& get_loaded_functions() const;
 
         void bind_buffers(binding_table& table, std::initializer_list<buffer_binding_desc> bindings) const;
         void bind_textures(binding_table& table, std::initializer_list<texture_binding_desc> bindings) const;
