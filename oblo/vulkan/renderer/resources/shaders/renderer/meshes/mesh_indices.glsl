@@ -7,6 +7,7 @@
 // #extension GL_EXT_shader_8bit_storage : require
 
 #include <renderer/buffer_reference/u8>
+#include <renderer/meshes/mesh_data>
 #include <renderer/meshes/mesh_table>
 
 // Index buffer fetch
@@ -16,6 +17,22 @@ uint8_t mesh_get_index_u8(in mesh_table t, in uint indexId)
     const uint64_t address = t.indexDataAddress;
     U8AttributeType attributeBuffer = U8AttributeType(address);
     return attributeBuffer.values[indexId];
+}
+
+uvec3 meshlet_get_triangle_indices(in mesh_table t, in meshlet_draw_range meshletRange, uint meshletTriangleId)
+{
+    const uint64_t address = t.indexDataAddress;
+    U8AttributeType indexBuffer = U8AttributeType(address);
+
+    const uint localIndexOffset = meshletTriangleId * 3;
+    const uint globalIndexOffset = meshletRange.indexOffset + localIndexOffset;
+
+    uvec3 triangleIndices;
+    triangleIndices[0] = uint(mesh_get_index_u8(t, globalIndexOffset));
+    triangleIndices[1] = uint(mesh_get_index_u8(t, globalIndexOffset + 1));
+    triangleIndices[2] = uint(mesh_get_index_u8(t, globalIndexOffset + 2));
+
+    return triangleIndices;
 }
 
 #endif

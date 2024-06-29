@@ -120,13 +120,7 @@ void main()
 
     for (uint meshletTriangleId = meshletTriangleBegin; meshletTriangleId < meshletTriangleEnd; ++meshletTriangleId)
     {
-        const uint localIndexOffset = meshletTriangleId * 3;
-        const uint globalIndexOffset = localIndexOffset;
-
-        uvec3 triangleIndices;
-        triangleIndices[0] = uint(mesh_get_index_u8(table, globalIndexOffset));
-        triangleIndices[1] = uint(mesh_get_index_u8(table, globalIndexOffset + 1));
-        triangleIndices[2] = uint(mesh_get_index_u8(table, globalIndexOffset + 2));
+        const uvec3 triangleIndices = meshlet_get_triangle_indices(table, meshletRange, meshletTriangleId);
 
         // debugPrintfEXT("Triangle %u (%u %u %u) [offset %u]\n",
         //     meshletTriangleId,
@@ -140,7 +134,7 @@ void main()
         visibility_buffer_data vb;
         vb.instanceTableId = g_Constants.instanceTableId;
         vb.instanceId = preCullingId;
-        vb.meshletId = meshletId;
+        vb.meshletId = globalMeshletId;
         vb.meshletTriangleId = meshletTriangleId;
 
         out_VisibilityBufferData[meshletTriangleId] = visibility_buffer_pack(vb);
