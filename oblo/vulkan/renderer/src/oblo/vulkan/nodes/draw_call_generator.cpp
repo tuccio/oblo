@@ -39,6 +39,7 @@ namespace oblo::vk
 
         if (drawCalls.empty())
         {
+            drawCallBuffer = {};
             return;
         }
 

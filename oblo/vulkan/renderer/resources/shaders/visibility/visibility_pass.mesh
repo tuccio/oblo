@@ -90,10 +90,11 @@ void main()
         OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_TransformBuffer, preCullingId);
 
     const mat4 localToWorld = instanceTransform.localToWorld;
+    const uint baseVertex = meshRange.vertexOffset + meshletRange.vertexOffset;
 
     for (uint meshletVertexId = meshletVertexBegin; meshletVertexId < meshletVertexEnd; ++meshletVertexId)
     {
-        const uint meshVertexId = meshRange.vertexOffset + meshletVertexId;
+        const uint meshVertexId = baseVertex + meshletVertexId;
         const vec3 inPosition = mesh_get_position(table, meshVertexId);
 
         const vec4 positionWS = localToWorld * vec4(inPosition, 1);
@@ -120,7 +121,7 @@ void main()
 
     for (uint meshletTriangleId = meshletTriangleBegin; meshletTriangleId < meshletTriangleEnd; ++meshletTriangleId)
     {
-        const uvec3 triangleIndices = meshlet_get_triangle_indices(table, meshletRange, meshletTriangleId);
+        const uvec3 triangleIndices = meshlet_get_triangle_microindices(table, meshletRange, meshletTriangleId);
 
         // debugPrintfEXT("Triangle %u (%u %u %u) [offset %u]\n",
         //     meshletTriangleId,

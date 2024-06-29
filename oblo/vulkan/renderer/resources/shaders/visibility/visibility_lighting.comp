@@ -17,8 +17,8 @@
 #include <renderer/material>
 #include <renderer/math>
 #include <renderer/meshes/mesh_attributes>
-#include <renderer/meshes/mesh_indices>
 #include <renderer/meshes/mesh_data>
+#include <renderer/meshes/mesh_indices>
 #include <renderer/meshes/mesh_table>
 #include <renderer/quad>
 #include <renderer/raytrace>
@@ -26,6 +26,7 @@
 #include <renderer/transform>
 #include <renderer/volumes>
 #include <visibility/visibility_buffer>
+
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
@@ -103,8 +104,8 @@ void main()
 
     const meshlet_draw_range meshletRange = mesh_get_meshlet_draw_range(meshTable, vb.meshletId);
 
-    const uvec3 vertexIndices =
-        uvec3(meshRange.vertexOffset + meshletRange.vertexOffset) + meshlet_get_triangle_indices(meshTable, meshletRange, vb.meshletId);
+    const uvec3 vertexIndices = uvec3(meshRange.vertexOffset + meshletRange.vertexOffset ) +
+        meshlet_get_triangle_microindices(meshTable, meshletRange, vb.meshletId);
 
     // Read the vertex data and transform everything in world space, we do lighting calculation in that space
     for (uint i = 0; i < 3; ++i)

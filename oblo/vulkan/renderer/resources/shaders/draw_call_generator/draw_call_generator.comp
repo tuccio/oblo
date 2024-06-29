@@ -63,11 +63,6 @@ void main()
     // Arbitrary number of threads per meshlet
     const uint threadsPerMeshlet = round_up_div(OBLO_MESHLET_MAX_PRIMITIVES, OBLO_SUBGROUP_SIZE);
 
-    if (drawId > 0)
-    {
-        debugPrintfEXT("(Draw: %u) %ux%u\n", drawId, threadsPerMeshlet, range.meshletCount);
-    }
-
     drawCall.groupCountX = threadsPerMeshlet;
     drawCall.groupCountY = range.meshletCount;
     drawCall.groupCountZ = 1;

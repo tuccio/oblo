@@ -123,7 +123,7 @@ namespace oblo::importers::mesh_processing
         // Add the micro-indices
         outAttributes.push_back({.kind = attribute_kind::indices, .format = data_format::u8});
 
-        const auto& lastMeshlet = meshlets.back();
+        const auto& lastMeshlet = meshlets[numMeshlets - 1];
 
         const auto numTotalVertices = lastMeshlet.vertex_offset + lastMeshlet.vertex_count;
         const auto numTotalIndices = 3 * (lastMeshlet.triangle_offset + lastMeshlet.triangle_count);

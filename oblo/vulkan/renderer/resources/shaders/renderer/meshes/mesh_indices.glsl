@@ -19,7 +19,7 @@ uint8_t mesh_get_index_u8(in mesh_table t, in uint indexId)
     return attributeBuffer.values[indexId];
 }
 
-uvec3 meshlet_get_triangle_indices(in mesh_table t, in meshlet_draw_range meshletRange, uint meshletTriangleId)
+uvec3 meshlet_get_triangle_microindices(in mesh_table t, in meshlet_draw_range meshletRange, uint meshletTriangleId)
 {
     const uint64_t address = t.indexDataAddress;
     U8AttributeType indexBuffer = U8AttributeType(address);
