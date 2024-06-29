@@ -12,6 +12,7 @@
 
 #include <renderer/barycentric>
 #include <renderer/camera>
+#include <renderer/debug>
 #include <renderer/instances>
 #include <renderer/lights>
 #include <renderer/material>
@@ -26,7 +27,6 @@
 #include <renderer/transform>
 #include <renderer/volumes>
 #include <visibility/visibility_buffer>
-
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
@@ -84,8 +84,6 @@ void main()
         return;
     }
 
-    // imageStore(t_OutLitImage, screenPos, vec4(1, 0, 0, 1));
-
     // Read the instance data we need
     const mesh_handle mesh = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MeshHandles, vb.instanceId);
     const transform transform = OBLO_INSTANCE_DATA(vb.instanceTableId, i_TransformBuffer, vb.instanceId);
@@ -97,15 +95,14 @@ void main()
 
     // Read the mesh data
     const mesh_table meshTable = mesh_table_fetch(mesh);
-    // mesh_get_vertex_indices(meshTable, vb.triangleIndex, vertexIndices);
 
     const uint meshIndex = mesh_handle_as_index(mesh);
     const mesh_draw_range meshRange = mesh_get_draw_range(meshTable, meshIndex);
 
     const meshlet_draw_range meshletRange = mesh_get_meshlet_draw_range(meshTable, vb.meshletId);
 
-    const uvec3 vertexIndices = uvec3(meshRange.vertexOffset + meshletRange.vertexOffset ) +
-        meshlet_get_triangle_microindices(meshTable, meshletRange, vb.meshletId);
+    const uvec3 vertexIndices = uvec3(meshRange.vertexOffset + meshletRange.vertexOffset) +
+        meshlet_get_triangle_microindices(meshTable, meshletRange, vb.meshletTriangleId);
 
     // Read the vertex data and transform everything in world space, we do lighting calculation in that space
     for (uint i = 0; i < 3; ++i)

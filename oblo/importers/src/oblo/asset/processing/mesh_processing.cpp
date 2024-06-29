@@ -143,7 +143,7 @@ namespace oblo::importers::mesh_processing
             outMeshlets[i] = {
                 .vertexOffset = currentMeshlet.vertex_offset,
                 .vertexCount = currentMeshlet.vertex_count,
-                .indexOffset = currentMeshlet.triangle_offset * 3,
+                .indexOffset = currentMeshlet.triangle_offset,
                 .indexCount = currentMeshlet.triangle_count * 3,
             };
         }

@@ -61,9 +61,9 @@ void main()
     vk_draw_mesh_tasks_indirect_command_ext drawCall;
 
     // Arbitrary number of threads per meshlet
-    const uint threadsPerMeshlet = round_up_div(OBLO_MESHLET_MAX_PRIMITIVES, OBLO_SUBGROUP_SIZE);
+    const uint groupsPerMeshlet = 1;
 
-    drawCall.groupCountX = threadsPerMeshlet;
+    drawCall.groupCountX = groupsPerMeshlet;
     drawCall.groupCountY = range.meshletCount;
     drawCall.groupCountZ = 1;
 
