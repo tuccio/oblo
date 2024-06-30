@@ -217,11 +217,13 @@ namespace oblo::vk
             it = m_tables.rbegin();
         }
 
-        const mesh_table_entry meshEntry[] = {{
-            .vertexCount = vertexCount,
-            .indexCount = indexCount,
-            .meshletCount = meshletCount,
-        }};
+        const mesh_table_entry meshEntry[] = {
+            {
+                .vertexCount = vertexCount,
+                .indexCount = indexCount,
+                .meshletCount = meshletCount,
+            },
+        };
 
         mesh_table_entry_id outHandle[1];
 

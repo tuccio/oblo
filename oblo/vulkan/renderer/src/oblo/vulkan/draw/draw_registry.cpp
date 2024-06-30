@@ -343,9 +343,7 @@ namespace oblo::vk
 
             const mesh_draw_range drawRange{
                 .vertexOffset = range.vertexOffset,
-                //.vertexCount = range.vertexCount,
                 .indexOffset = range.indexOffset,
-                //.indexCount = range.indexCount,
                 .meshletOffset = range.meshletOffset,
                 .meshletCount = range.meshletCount,
             };
