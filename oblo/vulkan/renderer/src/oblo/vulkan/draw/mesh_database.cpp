@@ -316,7 +316,7 @@ namespace oblo::vk
         return {
             .vertexOffset = range.vertexOffset,
             .vertexCount = range.vertexCount,
-            .indexOffset = table.globalIndexOffset + range.indexOffset,
+            .indexOffset = range.indexOffset,
             .indexCount = range.indexCount,
             .meshletOffset = range.meshletOffset,
             .meshletCount = range.meshletCount,

@@ -55,16 +55,15 @@ void main()
     // TODO: Could avoid some indirection by making the meshlet buffers global
     const uint globalMeshletId = meshRange.meshletOffset + meshletId;
 
-
-
-    // if (gl_GlobalInvocationID.x == 0)
-    {
-        // debugPrintfEXT("[GID %u %u] Draw %u Drawing meshlet ID %u\n",
-        //     gl_GlobalInvocationID.x,
-        //     gl_GlobalInvocationID.y,
-        //     gl_DrawID,
-        //     globalMeshletId);
-    }
+    // if (globalMeshletId == 0)
+    // {
+    //     debugPrintfEXT("[GID %u %u] Draw %u Table %u Drawing meshlet ID %u\n",
+    //         gl_GlobalInvocationID.x,
+    //         gl_GlobalInvocationID.y,
+    //         gl_DrawID,
+    //         g_Constants.instanceTableId,
+    //         globalMeshletId);
+    // }
 
     const meshlet_draw_range meshletRange = mesh_get_meshlet_draw_range(table, globalMeshletId);
 
@@ -87,9 +86,11 @@ void main()
     }
 
     // Each thread maps to 1 triangle, but needs to process a number of vertices (it will be small)
-    // debugPrintfEXT("Num workgroups: %u %u\n", gl_NumWorkGroups.y, gl_WorkGroupSize.x);
+    // debugPrintfEXT("Num workgroups: [%u %u %u] %u\n", gl_NumWorkGroups.x, gl_NumWorkGroups.y, gl_NumWorkGroups.z, gl_WorkGroupSize.x);
 
     const uint meshletThreadsCount = gl_NumWorkGroups.x * gl_WorkGroupSize.x;
+    // debugPrintfEXT("Num threads: %u\n", meshletThreadsCount);
+
 
     const uint maxVerticesPerThread = round_up_div(meshletRange.vertexCount, meshletThreadsCount);
     const uint meshletVertexBegin = gl_GlobalInvocationID.x * maxVerticesPerThread;
@@ -145,13 +146,7 @@ void main()
 
     for (uint meshletTriangleId = meshletTriangleBegin; meshletTriangleId < meshletTriangleEnd; ++meshletTriangleId)
     {
-        const uvec3 triangleIndices = meshlet_get_triangle_microindices(table, meshletRange, meshletTriangleId);
-
-        // const uint64_t address = table.indexDataAddress;
-        // U8AttributeType indexBuffer = U8AttributeType(address);
-
-        // const uint localIndexOffset = meshletTriangleId * 3;
-        // const uint globalIndexOffset = meshletRange.indexOffset + localIndexOffset;
+        const uvec3 triangleIndices = meshlet_get_triangle_microindices(table, meshRange, meshletRange, meshletTriangleId);
 
         // uvec3 triangleIndices;
         // triangleIndices[0] = uint(mesh_get_index_u8(table, globalIndexOffset));

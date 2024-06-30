@@ -19,14 +19,16 @@ uint8_t mesh_get_index_u8(in mesh_table t, in uint indexId)
     return attributeBuffer.values[indexId];
 }
 
-/// Returns the meshlet microindices (they vertices have to be translated to be used to access the data globally)
-uvec3 meshlet_get_triangle_microindices(in mesh_table t, in meshlet_draw_range meshletRange, uint meshletTriangleId)
+/// Returns the meshlet microindices.
+/// @remarks The vertices have to be translated to be used to access the data globally.
+uvec3 meshlet_get_triangle_microindices(
+    in mesh_table t, in mesh_draw_range meshRange, in meshlet_draw_range meshletRange, uint meshletTriangleId)
 {
     const uint64_t address = t.indexDataAddress;
     U8AttributeType indexBuffer = U8AttributeType(address);
 
     const uint localIndexOffset = meshletTriangleId * 3;
-    const uint globalIndexOffset = meshletRange.indexOffset + localIndexOffset;
+    const uint globalIndexOffset = meshRange.indexOffset + meshletRange.indexOffset + localIndexOffset;
 
     uvec3 triangleIndices;
     triangleIndices[0] = uint(mesh_get_index_u8(t, globalIndexOffset));

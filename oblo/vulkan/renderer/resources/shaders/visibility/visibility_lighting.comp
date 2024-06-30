@@ -102,7 +102,7 @@ void main()
     const meshlet_draw_range meshletRange = mesh_get_meshlet_draw_range(meshTable, vb.meshletId);
 
     const uvec3 vertexIndices = uvec3(meshRange.vertexOffset + meshletRange.vertexOffset) +
-        meshlet_get_triangle_microindices(meshTable, meshletRange, vb.meshletTriangleId);
+        meshlet_get_triangle_microindices(meshTable, meshRange, meshletRange, vb.meshletTriangleId);
 
     // Read the vertex data and transform everything in world space, we do lighting calculation in that space
     for (uint i = 0; i < 3; ++i)
