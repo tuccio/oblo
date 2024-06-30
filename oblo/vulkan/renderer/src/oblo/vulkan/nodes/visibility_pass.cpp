@@ -32,10 +32,6 @@ namespace oblo::vk
                         .stage = pipeline_stages::mesh,
                         .shaderSourcePath = "./vulkan/shaders/visibility/visibility_pass.mesh",
                     },
-                    //{
-                    //    .stage = pipeline_stages::vertex,
-                    //    .shaderSourcePath = "./vulkan/shaders/visibility/visibility_pass.vert",
-                    //},
                     {
                         .stage = pipeline_stages::fragment,
                         .shaderSourcePath = "./vulkan/shaders/visibility/visibility_pass.frag",
@@ -207,38 +203,6 @@ namespace oblo::vk
                     drawCallCountBuffer.offset,
                     culledDraw.sourceData.drawCommands.drawCount,
                     sizeof(VkDrawMeshTasksIndirectCommandEXT));
-
-                // if (culledDraw.sourceData.drawCommands.isIndexed)
-                //{
-                //     OBLO_ASSERT(drawCallBuffer.size ==
-                //         culledDraw.sourceData.drawCommands.drawCount * sizeof(VkDrawIndexedIndirectCommand));
-
-                //    vkCmdBindIndexBuffer(commandBuffer,
-                //        culledDraw.sourceData.drawCommands.indexBuffer,
-                //        culledDraw.sourceData.drawCommands.indexBufferOffset,
-                //        culledDraw.sourceData.drawCommands.indexType);
-
-                //    vkCmdDrawIndexedIndirectCount(commandBuffer,
-                //        drawCallBuffer.buffer,
-                //        drawCallBuffer.offset,
-                //        drawCallCountBuffer.buffer,
-                //        drawCallCountBuffer.offset,
-                //        culledDraw.sourceData.drawCommands.drawCount,
-                //        sizeof(VkDrawIndexedIndirectCommand));
-                //}
-                // else
-                //{
-                //    OBLO_ASSERT(drawCallBuffer.size ==
-                //        culledDraw.sourceData.drawCommands.drawCount * sizeof(VkDrawIndirectCommand));
-
-                //    vkCmdDrawIndirectCount(commandBuffer,
-                //        drawCallBuffer.buffer,
-                //        drawCallBuffer.offset,
-                //        drawCallCountBuffer.buffer,
-                //        drawCallCountBuffer.offset,
-                //        culledDraw.sourceData.drawCommands.drawCount,
-                //        sizeof(VkDrawIndirectCommand));
-                //}
             }
 
             pm.end_render_pass(*pass);

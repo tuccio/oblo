@@ -13,7 +13,6 @@ namespace oblo::vk
     struct frustum_culling
     {
         h32<compute_pass> cullPass;
-        h32<string> drawIndexedDefine;
 
         data<binding_table> inPerViewBindingTable;
 

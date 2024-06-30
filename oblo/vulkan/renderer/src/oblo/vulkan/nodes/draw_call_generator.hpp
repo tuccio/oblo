@@ -12,7 +12,6 @@ namespace oblo::vk
     struct draw_call_generator
     {
         h32<compute_pass> drawCallGeneratorPass;
-        h32<string> drawIndexedDefine;
 
         data<std::span<draw_buffer_data>> inDrawBufferData;
 
