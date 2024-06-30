@@ -52,7 +52,7 @@ namespace oblo::vk
 
             drawCallBuffer[i] = ctx.create_dynamic_buffer(
                 {
-                    .size = u32(draw.sourceData.drawCommands.drawCount * sizeof(VkDrawMeshTasksIndirectCommandEXT)),
+                    .size = u32(draw.sourceData.numInstances * sizeof(VkDrawMeshTasksIndirectCommandEXT)),
 
                 },
                 pass_kind::compute,
@@ -107,7 +107,7 @@ namespace oblo::vk
                 bindingTable.emplace(outDrawCallsBufferName, make_bindable_object(outDrawCallsBuffer));
                 bindingTable.emplace(inInstanceTablesName, make_bindable_object(inInstanceTablesBuffer));
 
-                const u32 count = currentDraw.sourceData.drawCommands.drawCount;
+                const u32 count = currentDraw.sourceData.numInstances;
 
                 const binding_table* bindingTables[] = {
                     &bindingTable,

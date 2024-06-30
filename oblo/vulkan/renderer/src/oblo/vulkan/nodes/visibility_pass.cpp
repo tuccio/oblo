@@ -201,7 +201,7 @@ namespace oblo::vk
                     drawCallBuffer.offset,
                     drawCallCountBuffer.buffer,
                     drawCallCountBuffer.offset,
-                    culledDraw.sourceData.drawCommands.drawCount,
+                    culledDraw.sourceData.numInstances,
                     sizeof(VkDrawMeshTasksIndirectCommandEXT));
             }
 

@@ -82,9 +82,7 @@ namespace oblo::vk
         struct mesh_draw_range
         {
             u32 vertexOffset;
-            // u32 vertexCount;
             u32 indexOffset;
-            // u32 indexCount;
             u32 meshletOffset;
             u32 meshletCount;
         };
@@ -511,123 +509,10 @@ namespace oblo::vk
 
             *currentDrawBatch = {};
 
-            std::span<const std::byte> drawCommands;
-
             const std::span componentTypes = ecs::get_component_types(archetype);
-            const bool isIndexed = !typeSets.tags.contains(m_indexNoneTag);
-
-            VkIndexType vkIndexType = VK_INDEX_TYPE_NONE_KHR;
-            buffer indexBuffer{};
-
-            if (!isIndexed)
-            {
-                const auto commands = allocate_n_span<VkDrawIndirectCommand>(allocator, numEntities);
-
-                drawCommands = std::as_bytes(commands);
-
-                auto* nextCommand = commands.data();
-
-                u32 meshHandleOffset;
-                std::byte* meshHandleBegin;
-
-                ecs::for_each_chunk(archetype,
-                    {&m_instanceComponent, 1},
-                    {&meshHandleOffset, 1},
-                    {&meshHandleBegin, 1},
-                    [&](const ecs::entity*, std::span<std::byte*> componentArrays, u32 numEntitiesInChunk)
-                    {
-                        auto* const instances =
-                            start_lifetime_as_array<draw_instance_component>(componentArrays[0], numEntitiesInChunk);
-
-                        for (const auto instance : std::span{instances, numEntitiesInChunk})
-                        {
-                            const auto range = m_meshes.get_table_range(instance.mesh);
-
-                            *nextCommand = {
-                                .vertexCount = range.vertexCount,
-                                .instanceCount = 1,
-                                .firstVertex = range.vertexOffset,
-                                .firstInstance = 0,
-                            };
-
-                            ++nextCommand;
-                        }
-                    });
-
-                OBLO_ASSERT(nextCommand == commands.data() + commands.size());
-            }
-            else
-            {
-                const auto indexedCommands = allocate_n_span<VkDrawIndexedIndirectCommand>(allocator, numEntities);
-
-                drawCommands = std::as_bytes(indexedCommands);
-
-                auto* nextCommand = indexedCommands.data();
-
-                u32 meshHandleOffset;
-                std::byte* meshHandleBegin;
-
-                ecs::for_each_chunk(archetype,
-                    {&m_instanceComponent, 1},
-                    {&meshHandleOffset, 1},
-                    {&meshHandleBegin, 1},
-                    [&](const ecs::entity*, std::span<std::byte*> componentArrays, u32 numEntitiesInChunk)
-                    {
-                        auto* const instances =
-                            start_lifetime_as_array<draw_instance_component>(componentArrays[0], numEntitiesInChunk);
-
-                        for (const auto instance : std::span{instances, numEntitiesInChunk})
-                        {
-                            const auto range = m_meshes.get_table_range(instance.mesh);
-
-                            *nextCommand = {
-                                .indexCount = range.indexCount,
-                                .instanceCount = 1,
-                                .firstIndex = range.indexOffset,
-                                .vertexOffset = i32(range.vertexOffset),
-                                .firstInstance = 0,
-                            };
-
-                            ++nextCommand;
-                        }
-                    });
-
-                OBLO_ASSERT(nextCommand == indexedCommands.data() + indexedCommands.size());
-
-                mesh_index_type indexType{mesh_index_type::none};
-
-                if (typeSets.tags.contains(m_indexU8Tag))
-                {
-                    vkIndexType = VK_INDEX_TYPE_UINT8_EXT;
-                    indexType = mesh_index_type::u8;
-                }
-                else if (typeSets.tags.contains(m_indexU16Tag))
-                {
-                    vkIndexType = VK_INDEX_TYPE_UINT16;
-                    indexType = mesh_index_type::u16;
-                }
-                else if (typeSets.tags.contains(m_indexU16Tag))
-                {
-                    vkIndexType = VK_INDEX_TYPE_UINT32;
-                    indexType = mesh_index_type::u32;
-                }
-
-                indexBuffer = m_meshes.get_index_buffer(indexType);
-
-                OBLO_ASSERT(vkIndexType != VK_INDEX_TYPE_NONE_KHR);
-            }
 
             currentDrawBatch->instanceTableId = drawBatches;
             ++drawBatches;
-
-            currentDrawBatch->drawCommands = {
-                .drawCommands = drawCommands,
-                .drawCount = numEntities,
-                .isIndexed = isIndexed,
-                .indexBuffer = indexBuffer.buffer,
-                .indexBufferOffset = indexBuffer.offset,
-                .indexType = vkIndexType,
-            };
 
             // TODO: Don't blindly update all instance buffers every frame
             // Update instance buffers
@@ -698,6 +583,7 @@ namespace oblo::vk
                 });
 
             currentDrawBatch->instanceBuffers = instanceBuffers;
+            currentDrawBatch->numInstances = numProcessedEntities;
         }
 
         m_drawData = frameDrawData;
@@ -751,8 +637,7 @@ namespace oblo::vk
             OBLO_ASSERT(outIt < std::end(stringBuffer));
         };
 
-        fmtAppend("Entities count: {}\n", drawData.drawCommands.drawCount);
-        fmtAppend("Indexed: {}\n", drawData.drawCommands.isIndexed ? 'Y' : 'N');
+        fmtAppend("Entities count: {}\n", drawData.numInstances);
 
         fmtAppend("Listing {} instance buffers: \n", drawData.instanceBuffers.count);
 

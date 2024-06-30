@@ -67,7 +67,7 @@ namespace oblo::vk
                     buffer_usage::storage_write),
                 .preCullingIdMap = ctx.create_dynamic_buffer(
                     {
-                        .size = u32(draw.drawCommands.drawCommands.size() * sizeof(u32)),
+                        .size = u32(draw.numInstances * sizeof(u32)),
                     },
                     pass_kind::compute,
                     buffer_usage::storage_write),
@@ -113,7 +113,7 @@ namespace oblo::vk
                 bindingTable.emplace(outDrawCountName,
                     make_bindable_object(ctx.access(currentDraw.drawCallCountBuffer)));
 
-                const u32 count = currentDraw.sourceData.drawCommands.drawCount;
+                const u32 count = currentDraw.sourceData.numInstances;
 
                 const binding_table* bindingTables[] = {
                     &ctx.access(inPerViewBindingTable),
@@ -122,7 +122,7 @@ namespace oblo::vk
 
                 const frustum_culling_push_constants pcData{
                     .instanceTableId = currentDraw.sourceData.instanceTableId,
-                    .numberOfDraws = currentDraw.sourceData.drawCommands.drawCount,
+                    .numberOfDraws = count,
                 };
 
                 pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&pcData, 1}));

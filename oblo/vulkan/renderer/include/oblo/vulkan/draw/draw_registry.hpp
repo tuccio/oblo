@@ -59,8 +59,8 @@ namespace oblo::vk
     struct batch_draw_data
     {
         draw_instance_buffers instanceBuffers;
-        draw_commands drawCommands;
         u32 instanceTableId;
+        u32 numInstances;
     };
 
     struct draw_mesh_component
