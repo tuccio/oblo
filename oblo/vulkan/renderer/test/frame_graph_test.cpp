@@ -136,7 +136,7 @@ namespace oblo::vk::test
 
         struct test_wrapper
         {
-            bool init(const sandbox_init_context& ctx)
+            bool startup(const sandbox_startup_context& ctx)
             {
                 frameAllocator.init(1u << 26);
 

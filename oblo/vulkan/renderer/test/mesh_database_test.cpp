@@ -28,7 +28,7 @@ namespace oblo::vk::test
 
             mesh_database meshes;
 
-            bool init(const vk::sandbox_init_context& ctx)
+            bool startup(const vk::sandbox_startup_context& ctx)
             {
                 auto& vkContext = *ctx.vkContext;
 
@@ -89,6 +89,7 @@ namespace oblo::vk::test
                 (mesh_database_test::attributes::position | mesh_database_test::attributes::normal).data(),
                 mesh_index_type::none,
                 3,
+                0,
                 0);
 
             handles[1 + 4 * i] =
@@ -97,18 +98,21 @@ namespace oblo::vk::test
                                            .data(),
                     mesh_index_type::none,
                     3,
+                    0,
                     0);
 
             handles[2 + 4 * i] = app.meshes.create_mesh(
                 (mesh_database_test::attributes::position | mesh_database_test::attributes::uv0).data(),
                 mesh_index_type::u16,
                 3,
-                3);
+                3,
+                0);
 
             handles[3 + 4 * i] = app.meshes.create_mesh(flags{mesh_database_test::attributes::position}.data(),
                 mesh_index_type::u32,
                 3,
-                3);
+                3,
+                0);
         }
 
         for (const auto h : handles)

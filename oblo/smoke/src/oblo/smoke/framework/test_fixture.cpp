@@ -27,6 +27,7 @@
 #include <oblo/smoke/framework/test_context.hpp>
 #include <oblo/smoke/framework/test_context_impl.hpp>
 #include <oblo/smoke/framework/test_task.hpp>
+#include <oblo/vulkan/required_features.hpp>
 
 #include <imgui.h>
 
@@ -36,37 +37,6 @@ namespace oblo::smoke
 {
     namespace
     {
-        // These are actually required by runtime, so they should probably be taken from there somehow
-
-        VkPhysicalDeviceSynchronization2Features SynchronizationFeatures{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES,
-            .synchronization2 = true,
-        };
-
-        VkPhysicalDeviceDescriptorIndexingFeatures IndexingFeatures{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES,
-            .pNext = &SynchronizationFeatures,
-            .descriptorBindingSampledImageUpdateAfterBind = true,
-            .descriptorBindingPartiallyBound = true,
-            .descriptorBindingVariableDescriptorCount = true,
-            .runtimeDescriptorArray = true,
-        };
-
-        VkPhysicalDeviceShaderDrawParametersFeatures ShaderDrawParameters{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES,
-            .shaderDrawParameters = true,
-        };
-
-        constexpr const char* InstanceExtensions[] = {
-            VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
-        };
-
-        constexpr const char* DeviceExtensions[] = {
-            VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
-            VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
-            VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME, // This is only needed for debug printf
-        };
-
         struct test_app
         {
             static constexpr time FixedTime = time::from_seconds(1.f / 60);
@@ -80,33 +50,25 @@ namespace oblo::smoke
 
             std::span<const char* const> get_required_instance_extensions() const
             {
-                return InstanceExtensions;
+                return runtime::get_required_vulkan_features().instanceExtensions;
             }
 
             VkPhysicalDeviceFeatures2 get_required_physical_device_features() const
             {
-                return {
-                    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
-                    .pNext = &ShaderDrawParameters,
-                    .features =
-                        {
-                            .multiDrawIndirect = true,
-                            .shaderInt64 = true,
-                        },
-                };
+                return runtime::get_required_vulkan_features().physicalDeviceFeatures;
             }
 
             void* get_required_device_features() const
             {
-                return &IndexingFeatures;
+                return runtime::get_required_vulkan_features().deviceFeaturesChain;
             }
 
             std::span<const char* const> get_required_device_extensions() const
             {
-                return DeviceExtensions;
+                return runtime::get_required_vulkan_features().deviceExtensions;
             }
 
-            bool init(const vk::sandbox_init_context& ctx)
+            bool startup(const vk::sandbox_startup_context& ctx)
             {
                 {
                     std::error_code ec;

@@ -4,7 +4,6 @@
 #include <oblo/core/handle.hpp>
 
 #include <span>
-#include <vector>
 
 #include <vulkan/vulkan_core.h>
 
@@ -53,6 +52,7 @@ namespace oblo::vk
 
         static constexpr u32 MaxAttributes{8};
         static constexpr u32 MaxMeshBuffers{2};
+        static constexpr u32 MeshIndexTypeCount{u32(mesh_index_type::u32)};
 
     public:
         mesh_database();
@@ -101,7 +101,7 @@ namespace oblo::vk
             };
 
             h32<buffer> handle{};
-            std::vector<range> freeList;
+            dynamic_array<range> freeList;
         };
 
     private:
@@ -117,8 +117,8 @@ namespace oblo::vk
         VkBufferUsageFlags m_indexBufferUsage{};
         VkBufferUsageFlags m_vertexBufferUsage{};
         VkBufferUsageFlags m_meshBufferUsage{};
-        std::vector<table> m_tables;
-        buffer_pool m_indexBuffers[2];
+        dynamic_array<table> m_tables;
+        buffer_pool m_indexBuffers[MeshIndexTypeCount];
         dynamic_array<buffer_column_description> m_attributes{};
         dynamic_array<buffer_column_description> m_meshData{};
     };

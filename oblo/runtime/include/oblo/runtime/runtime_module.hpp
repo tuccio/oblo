@@ -7,6 +7,7 @@
 namespace oblo
 {
     class runtime_registry;
+    struct vulkan_features;
 
     class runtime_module final : public module_interface
     {

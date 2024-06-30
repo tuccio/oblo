@@ -14,7 +14,7 @@
 
 namespace oblo::vk
 {
-    struct sandbox_init_context;
+    struct sandbox_startup_context;
     struct sandbox_shutdown_context;
     struct sandbox_render_context;
     struct sandbox_update_imgui_context;
@@ -33,7 +33,9 @@ namespace oblo::editor
 
         std::span<const char* const> get_required_device_extensions() const;
 
-        bool init(const vk::sandbox_init_context& context);
+        bool init();
+
+        bool startup(const vk::sandbox_startup_context& context);
 
         void shutdown(const vk::sandbox_shutdown_context& context);
 

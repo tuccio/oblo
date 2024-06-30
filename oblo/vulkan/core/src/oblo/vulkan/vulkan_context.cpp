@@ -7,6 +7,7 @@
 #include <oblo/vulkan/destroy_device_objects.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/loaded_functions.hpp>
+#include <oblo/vulkan/required_features.hpp>
 #include <oblo/vulkan/texture.hpp>
 
 #include <tuple>

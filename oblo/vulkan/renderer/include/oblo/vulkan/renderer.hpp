@@ -28,11 +28,16 @@ namespace oblo::vk
     class vulkan_context;
     struct buffer;
 
+    struct required_features;
+
     class renderer
     {
     public:
         struct initializer;
         struct update_context;
+
+    public:
+        static required_features get_required_features();
 
     public:
         renderer();

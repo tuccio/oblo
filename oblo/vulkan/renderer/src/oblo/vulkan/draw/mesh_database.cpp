@@ -3,6 +3,7 @@
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/frame_allocator.hpp>
+#include <oblo/core/iterator/reverse_iterator.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/draw/mesh_table.hpp>
@@ -169,10 +170,9 @@ namespace oblo::vk
 
         const auto tableId = make_table_id(meshAttributesMask, indexType);
 
-        auto it =
-            std::find_if(m_tables.rbegin(), m_tables.rend(), [tableId](const table& t) { return t.id == tableId; });
+        auto it = std::find_if(rbegin(m_tables), rend(m_tables), [tableId](const table& t) { return t.id == tableId; });
 
-        if (it == m_tables.rend())
+        if (it == rend(m_tables))
         {
             auto& newTable = m_tables.emplace_back();
             newTable.id = tableId;
@@ -214,7 +214,7 @@ namespace oblo::vk
                 return {};
             }
 
-            it = m_tables.rbegin();
+            it = rbegin(m_tables);
         }
 
         const mesh_table_entry meshEntry[] = {
