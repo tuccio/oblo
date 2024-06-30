@@ -102,7 +102,7 @@ namespace oblo::platform
 
     void* find_symbol(const char* name)
     {
-        return GetProcAddress(g_moduleHandle, name);
+        return reinterpret_cast<void*>(GetProcAddress(g_moduleHandle, name));
     }
 }
 
