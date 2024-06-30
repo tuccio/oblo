@@ -9,7 +9,7 @@
 #include <renderer/constants>
 #include <renderer/instances>
 #include <renderer/intersection>
-#include <renderer/meshes>
+#include <renderer/meshes/mesh_data>
 #include <renderer/transform>
 
 layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
@@ -80,7 +80,7 @@ void main()
     const transform instanceTransform = OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_TransformBuffer, drawId);
 
     const mesh_table table = mesh_table_fetch(meshHandle);
-    const uint meshIndex = mesh_get_index(meshHandle);
+    const uint meshIndex = mesh_handle_as_index(meshHandle);
 
     const mat4 localToWorld = instanceTransform.localToWorld;
 

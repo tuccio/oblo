@@ -59,8 +59,8 @@ namespace oblo::vk
     struct batch_draw_data
     {
         draw_instance_buffers instanceBuffers;
-        draw_commands drawCommands;
         u32 instanceTableId;
+        u32 numInstances;
     };
 
     struct draw_mesh_component
@@ -126,6 +126,7 @@ namespace oblo::vk
 
         ecs::component_type m_instanceComponent{};
         ecs::tag_type m_indexNoneTag{};
+        ecs::tag_type m_indexU8Tag{};
         ecs::tag_type m_indexU16Tag{};
         ecs::tag_type m_indexU32Tag{};
 

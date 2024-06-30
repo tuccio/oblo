@@ -1,5 +1,7 @@
 #pragma once
 
+#include <oblo/core/platform/compiler.hpp>
+
 #include <iterator>
 #include <tuple>
 
@@ -31,48 +33,48 @@ namespace oblo
         zip_iterator& operator=(const zip_iterator&) = default;
         zip_iterator& operator=(zip_iterator&&) noexcept = default;
 
-        bool operator==(const zip_iterator& other) const
+        OBLO_FORCEINLINE bool operator==(const zip_iterator& other) const
         {
             return std::get<0>(other.m_iterators) == std::get<0>(m_iterators);
         }
 
-        bool operator!=(const zip_iterator& other) const
+        OBLO_FORCEINLINE bool operator!=(const zip_iterator& other) const
         {
             return !(*this == other);
         }
 
-        zip_iterator& operator++()
+        OBLO_FORCEINLINE zip_iterator& operator++()
         {
             std::apply([](auto&... it) { (++it, ...); }, m_iterators);
             return *this;
         }
 
-        zip_iterator operator++(int)
+        OBLO_FORCEINLINE zip_iterator operator++(int)
         {
             const auto it = *this;
             ++*this;
             return it;
         }
 
-        zip_iterator& operator--()
+        OBLO_FORCEINLINE zip_iterator& operator--()
         {
             std::apply([](auto&... it) { (--it, ...); }, m_iterators);
             return *this;
         }
 
-        zip_iterator operator--(int)
+        OBLO_FORCEINLINE zip_iterator operator--(int)
         {
             const auto it = *this;
             --*this;
             return it;
         }
 
-        reference operator*() const
+        OBLO_FORCEINLINE reference operator*() const
         {
             return std::apply([](auto&... it) { return std::forward_as_tuple(*it...); }, m_iterators);
         }
 
-        friend void swap(zip_iterator& lhs, zip_iterator& rhs)
+        OBLO_FORCEINLINE friend void swap(zip_iterator& lhs, zip_iterator& rhs)
         {
             std::apply(
                 [&rhs](auto&... lhsIts)
@@ -88,7 +90,7 @@ namespace oblo
                 lhs.m_iterators);
         }
 
-        friend void iter_swap(const zip_iterator& lhs, const zip_iterator& rhs)
+        OBLO_FORCEINLINE friend void iter_swap(const zip_iterator& lhs, const zip_iterator& rhs)
         {
             std::apply(
                 [&rhs](auto&... lhsIts)
@@ -104,51 +106,51 @@ namespace oblo
                 lhs.m_iterators);
         }
 
-        friend bool operator<(const zip_iterator& lhs, const zip_iterator& rhs)
+        OBLO_FORCEINLINE friend bool operator<(const zip_iterator& lhs, const zip_iterator& rhs)
         {
             return std::get<0>(lhs.m_iterators) < std::get<0>(rhs.m_iterators);
         }
 
-        zip_iterator& operator+=(size_type offset)
+        OBLO_FORCEINLINE zip_iterator& operator+=(size_type offset)
         {
             std::apply([offset](auto&... it) { ((it += offset), ...); }, m_iterators);
             return *this;
         }
 
-        zip_iterator& operator-=(size_type offset)
+        OBLO_FORCEINLINE zip_iterator& operator-=(size_type offset)
         {
             std::apply([offset](auto&... it) { ((it -= offset), ...); }, m_iterators);
             return *this;
         }
 
-        friend zip_iterator operator+(zip_iterator it, size_type offset)
+        OBLO_FORCEINLINE friend zip_iterator operator+(zip_iterator it, size_type offset)
         {
             it += offset;
             return it;
         }
 
-        friend zip_iterator operator+(size_type offset, const zip_iterator& it)
+        OBLO_FORCEINLINE friend zip_iterator operator+(size_type offset, const zip_iterator& it)
         {
             return (it + offset);
         }
 
-        friend zip_iterator operator-(zip_iterator it, size_type offset)
+        OBLO_FORCEINLINE friend zip_iterator operator-(zip_iterator it, size_type offset)
         {
             it -= offset;
             return it;
         }
 
-        friend difference_type operator-(const zip_iterator& lhs, const zip_iterator& rhs)
+        OBLO_FORCEINLINE friend difference_type operator-(const zip_iterator& lhs, const zip_iterator& rhs)
         {
             return std::get<0>(lhs.m_iterators) - std::get<0>(rhs.m_iterators);
         }
 
-        reference operator[](size_type offset) const
+        OBLO_FORCEINLINE reference operator[](size_type offset) const
         {
             return *(*this + offset);
         }
 
-        const iterator_tuple& get_iterator_tuple() const
+        OBLO_FORCEINLINE const iterator_tuple& get_iterator_tuple() const
         {
             return m_iterators;
         }
@@ -164,7 +166,8 @@ namespace oblo
 namespace std
 {
     template <typename... Iterators>
-    void iter_swap(const oblo::zip_iterator<Iterators...>& lhs, const oblo::zip_iterator<Iterators...>& rhs)
+    OBLO_FORCEINLINE void iter_swap(const oblo::zip_iterator<Iterators...>& lhs,
+        const oblo::zip_iterator<Iterators...>& rhs)
     {
         iter_swap(lhs, rhs);
     }
@@ -172,7 +175,7 @@ namespace std
     // Some algorithms swap the reference type of zip_iterator, which is not an lvalue reference, so is missing a swap
     // overload
     template <typename... T>
-    void swap(std::tuple<T&...> lhs, std::tuple<T&...> rhs)
+    OBLO_FORCEINLINE void swap(std::tuple<T&...> lhs, std::tuple<T&...> rhs)
     {
         std::apply([&](auto&&... l) { return std::apply([&](auto&&... r) { (swap(l, r), ...); }, lhs); }, rhs);
     }

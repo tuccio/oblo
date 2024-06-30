@@ -18,6 +18,7 @@ namespace oblo::platform
         ~shared_library();
 
         bool open(const std::filesystem::path& path);
+
         void close();
 
         bool is_valid() const;

@@ -14,6 +14,7 @@ namespace oblo::vk
 {
     enum class pipeline_stages : u8
     {
+        mesh,
         vertex,
         fragment,
         enum_max

@@ -6,6 +6,8 @@
 #include <oblo/vulkan/command_buffer_pool.hpp>
 #include <oblo/vulkan/destroy_device_objects.hpp>
 #include <oblo/vulkan/error.hpp>
+#include <oblo/vulkan/loaded_functions.hpp>
+#include <oblo/vulkan/required_features.hpp>
 #include <oblo/vulkan/texture.hpp>
 
 #include <tuple>
@@ -110,15 +112,24 @@ namespace oblo::vk
         m_pending = std::make_unique<pending_disposal_queues>();
 
         m_debugUtilsLabel = {
-            .vkCmdBeginDebugUtilsLabelEXT = reinterpret_cast<PFN_vkCmdBeginDebugUtilsLabelEXT>(
+            .vkCmdBeginDebugUtilsLabelEXT = PFN_vkCmdBeginDebugUtilsLabelEXT(
                 vkGetDeviceProcAddr(m_engine->get_device(), "vkCmdBeginDebugUtilsLabelEXT")),
-            .vkCmdEndDebugUtilsLabelEXT = reinterpret_cast<PFN_vkCmdEndDebugUtilsLabelEXT>(
+            .vkCmdEndDebugUtilsLabelEXT = PFN_vkCmdEndDebugUtilsLabelEXT(
                 vkGetDeviceProcAddr(m_engine->get_device(), "vkCmdEndDebugUtilsLabelEXT")),
         };
 
         m_debugUtilsObject = {
-            .vkSetDebugUtilsObjectNameEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(
+            .vkSetDebugUtilsObjectNameEXT = PFN_vkSetDebugUtilsObjectNameEXT(
                 vkGetDeviceProcAddr(m_engine->get_device(), "vkSetDebugUtilsObjectNameEXT")),
+        };
+
+        m_loadedFunctions = {
+            .vkCmdDrawMeshTasksEXT =
+                PFN_vkCmdDrawMeshTasksEXT(vkGetInstanceProcAddr(m_instance, "vkCmdDrawMeshTasksEXT")),
+            .vkCmdDrawMeshTasksIndirectEXT =
+                PFN_vkCmdDrawMeshTasksIndirectEXT(vkGetInstanceProcAddr(m_instance, "vkCmdDrawMeshTasksIndirectEXT")),
+            .vkCmdDrawMeshTasksIndirectCountEXT = PFN_vkCmdDrawMeshTasksIndirectCountEXT(
+                vkGetInstanceProcAddr(m_instance, "vkCmdDrawMeshTasksIndirectCountEXT")),
         };
 
         m_allocator->set_object_debug_utils(m_debugUtilsObject);

@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/iterator/reverse_iterator.hpp>
+#include <oblo/core/iterator/reverse_range.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
 
 #include <array>
@@ -135,5 +138,40 @@ namespace oblo
 
         ASSERT_EQ(keys, expectedKeys);
         ASSERT_EQ(values, expectedValues);
+    }
+
+    TEST(reverse_iterator, dynamic_array)
+    {
+        constexpr auto N = 5;
+        dynamic_array<u32> values{get_global_allocator(), {4, 3, 2, 1, 0}};
+
+        u32 i = 0;
+
+        const auto diff = (rend(values) - rbegin(values));
+        ASSERT_EQ(diff, 5);
+
+        for (auto it = rbegin(values); it != rend(values); ++it)
+        {
+            ASSERT_EQ(i, *it);
+            ++i;
+        }
+
+        ASSERT_EQ(i, N);
+    }
+
+    TEST(reverse_range, dynamic_array)
+    {
+        constexpr auto N = 5;
+        dynamic_array<u32> values{get_global_allocator(), {4, 3, 2, 1, 0}};
+
+        u32 i = 0;
+
+        for (u32 v : reverse_range(values))
+        {
+            ASSERT_EQ(i, v);
+            ++i;
+        }
+
+        ASSERT_EQ(i, N);
     }
 }

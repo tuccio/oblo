@@ -1,8 +1,10 @@
 #pragma once
 
 #include <oblo/asset/import_preview.hpp>
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/uuid.hpp>
+#include <oblo/properties/serialization/data_document.hpp>
 
 #include <filesystem>
 #include <memory>
@@ -23,6 +25,7 @@ namespace oblo
     {
         asset_registry* registry;
         std::filesystem::path sourceFile;
+        data_document settings;
     };
 
     struct file_import_results
@@ -59,7 +62,7 @@ namespace oblo
 
         bool init();
 
-        bool execute(const std::filesystem::path& destinationDir);
+        bool execute(const std::filesystem::path& destinationDir, const data_document& importSettings);
 
         bool is_valid() const noexcept;
 
@@ -76,7 +79,7 @@ namespace oblo
         importer_config m_config;
         std::unique_ptr<file_importer> m_importer;
         import_preview m_preview;
-        std::vector<import_node_config> m_importNodesConfig;
+        dynamic_array<import_node_config> m_importNodesConfig;
         std::unordered_map<uuid, artifact_meta> m_artifacts;
         uuid m_importId{};
         type_id m_importerType{};

@@ -20,7 +20,8 @@ namespace oblo
         constexpr bool PrettyFormatGLTF{!WriteBinaryGLB};
         constexpr bool AddScene{true}; // This is useful to look at the file in other software
 
-        constexpr const char* ExtraAbb{"aabb"};
+        constexpr const char* ExtraAabb{"aabb"};
+        constexpr const char* ExtraMeshlets{"meshlets"};
 
         constexpr std::string_view get_attribute_name(attribute_kind kind)
         {
@@ -153,25 +154,43 @@ namespace oblo
 
         primitive.mode = get_primitive_mode(mesh.get_primitive_kind());
 
+        tinygltf::Value::Object extras;
+
         if (const auto aabb = mesh.get_aabb(); is_valid(aabb))
         {
             using tinygltf::Value;
 
-            gltfMesh.extras = Value{Value::Object{{ExtraAbb,
-                Value{
-                    Value::Object{{"min", Value{Value::Array{Value{aabb.min.x}, Value{aabb.min.y}, Value{aabb.min.z}}}},
-                        {"max",
-                            Value{Value::Array{
+            extras[ExtraAabb] = Value{
+                Value::Object{
+                    {
+                        "min",
+                        Value{
+                            Value::Array{
+                                Value{aabb.min.x},
+                                Value{aabb.min.y},
+                                Value{aabb.min.z},
+                            },
+                        },
+                    },
+                    {
+                        "max",
+                        Value{
+                            Value::Array{
                                 Value{aabb.max.x},
                                 Value{aabb.max.y},
                                 Value{aabb.max.z},
-                            }}}}}}}};
+                            },
+                        },
+                    },
+                },
+            };
         }
 
+        const bool hasMeshlets = mesh.get_meshlet_count() != 0;
         const u32 numAttributes = mesh.get_attributes_count();
         model.accessors.reserve(numAttributes);
-        model.buffers.reserve(numAttributes);
-        model.bufferViews.reserve(numAttributes);
+        model.buffers.reserve(numAttributes + u32{hasMeshlets});
+        model.bufferViews.reserve(numAttributes + u32{hasMeshlets});
 
         for (u32 attributeIndex = 0; attributeIndex < numAttributes; ++attributeIndex)
         {
@@ -259,6 +278,43 @@ namespace oblo
             accessor.componentType = componentType;
         }
 
+        if (hasMeshlets)
+        {
+            const auto meshlets = mesh.get_meshlets();
+            const auto meshletBytes = as_bytes(meshlets);
+
+            const auto bufferViewId = int(model.bufferViews.size());
+            const auto bufferId = int(model.buffers.size());
+
+            auto& bufferView = model.bufferViews.emplace_back();
+            bufferView.buffer = bufferId;
+            bufferView.byteLength = meshletBytes.size();
+
+            auto& buffer = model.buffers.emplace_back();
+
+            const std::span<const unsigned char> meshletDataUChar{
+                reinterpret_cast<const unsigned char*>(meshletBytes.data()),
+                meshletBytes.size()};
+
+            buffer.data.assign(meshletDataUChar.begin(), meshletDataUChar.end());
+            buffer.name = ExtraMeshlets;
+
+            using tinygltf::Value;
+
+            extras[ExtraMeshlets] = Value{
+                Value::Object{
+                    {
+                        "count",
+                        Value{i32(meshlets.size())},
+                    },
+                    {
+                        "bufferViewId",
+                        Value{bufferViewId},
+                    },
+                },
+            };
+        }
+
         if constexpr (AddScene)
         {
             auto& root = model.nodes.emplace_back();
@@ -270,6 +326,8 @@ namespace oblo
 
             scene.nodes.emplace_back(0);
         }
+
+        gltfMesh.extras = tinygltf::Value{std::move(extras)};
 
         std::ofstream ofs{destination, std::ios::binary};
 
@@ -363,7 +421,7 @@ namespace oblo
             }
         }
 
-        mesh.allocate(primitiveKind, vertexCount, indexCount, attributes);
+        mesh.allocate(primitiveKind, vertexCount, indexCount, 0, attributes);
 
         for (u32 i = 0; i < attributes.size(); ++i)
         {
@@ -490,11 +548,10 @@ namespace oblo
 
                 if (!json.is_discarded() && tinygltf::ParseJsonAsValue(&extraValue, json))
                 {
-                    auto& aabbValue = extraValue.Get(ExtraAbb);
+                    auto& aabbValue = extraValue.Get(ExtraAabb);
 
                     if (aabbValue.IsObject())
                     {
-
                         auto& minValue = aabbValue.Get("min");
                         auto& maxValue = aabbValue.Get("max");
 
@@ -502,6 +559,36 @@ namespace oblo
                         {
                             aabb.min[i] = f32(minValue.Get(i).GetNumberAsDouble());
                             aabb.max[i] = f32(maxValue.Get(i).GetNumberAsDouble());
+                        }
+                    }
+
+                    auto& meshletsValue = extraValue.Get(ExtraMeshlets);
+
+                    if (meshletsValue.IsObject())
+                    {
+                        auto& countValue = meshletsValue.Get("count");
+                        auto& bufferViewIdValue = meshletsValue.Get("bufferViewId");
+
+                        const u32 meshletCount = u32(countValue.GetNumberAsInt());
+                        const u32 bufferViewId = u32(bufferViewIdValue.GetNumberAsInt());
+
+                        mesh.reset_meshlets(meshletCount);
+
+                        if (bufferViewId < model.bufferViews.size())
+                        {
+                            const auto dstMeshlets = mesh.get_meshlets();
+
+                            auto& bufferView = model.bufferViews[bufferViewId];
+                            OBLO_ASSERT(bufferView.byteLength == dstMeshlets.size_bytes());
+
+                            if (bufferView.byteLength == dstMeshlets.size_bytes())
+                            {
+                                auto& buffer = model.buffers[bufferView.buffer];
+
+                                std::memcpy(dstMeshlets.data(),
+                                    buffer.data.data() + bufferView.byteOffset,
+                                    bufferView.byteLength);
+                            }
                         }
                     }
                 }

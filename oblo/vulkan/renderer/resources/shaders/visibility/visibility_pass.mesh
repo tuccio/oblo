@@ -1,0 +1,111 @@
+#version 460
+
+#extension GL_EXT_mesh_shader : enable
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_buffer_reference : require
+#extension GL_ARB_gpu_shader_int64 : require
+#extension GL_EXT_shader_8bit_storage : require
+
+#include <renderer/camera>
+#include <renderer/instances>
+#include <renderer/math>
+#include <renderer/meshes/mesh_attributes>
+#include <renderer/meshes/mesh_data>
+#include <renderer/meshes/mesh_indices>
+#include <renderer/meshes/mesh_table>
+#include <renderer/transform>
+#include <visibility/visibility_buffer>
+
+layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
+
+layout(triangles) out;
+layout(max_vertices = OBLO_MESHLET_MAX_VERTICES, max_primitives = OBLO_MESHLET_MAX_PRIMITIVES) out;
+
+layout(location = 0) perprimitiveEXT out uvec2 out_VisibilityBufferData[];
+
+layout(binding = 0) uniform b_CameraBuffer
+{
+    camera_buffer g_Camera;
+};
+
+layout(std430, binding = 1) restrict readonly buffer b_PreCullingIdMap
+{
+    uint inInstancesInFrustum[];
+};
+
+layout(push_constant) uniform c_PushConstants
+{
+    uint instanceTableId;
+}
+g_Constants;
+
+void main()
+{
+    const uint preCullingId = inInstancesInFrustum[gl_DrawID];
+    const uint meshletId = gl_GlobalInvocationID.y;
+
+    const mesh_handle meshHandle = OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_MeshHandles, preCullingId);
+    const mesh_table table = mesh_table_fetch(meshHandle);
+
+    const uint meshIndex = mesh_handle_as_index(meshHandle);
+    const mesh_draw_range meshRange = mesh_get_draw_range(table, meshIndex);
+
+    // TODO: Could avoid some indirection by making the meshlet buffers global
+    const uint globalMeshletId = meshRange.meshletOffset + meshletId;
+
+    const meshlet_draw_range meshletRange = mesh_get_meshlet_draw_range(table, globalMeshletId);
+
+    const uint meshletTriangleCount = meshletRange.indexCount / 3;
+
+    SetMeshOutputsEXT(meshletRange.vertexCount, meshletTriangleCount);
+
+    if (meshletRange.vertexCount == 0 || meshletRange.indexCount == 0)
+    {
+        // This should not really happen, not sure if we should check it at all
+        return;
+    }
+
+    const uint meshletThreadsCount = gl_NumWorkGroups.x * gl_WorkGroupSize.x;
+
+    const uint maxVerticesPerThread = round_up_div(meshletRange.vertexCount, meshletThreadsCount);
+    const uint meshletVertexBegin = gl_GlobalInvocationID.x * maxVerticesPerThread;
+    const uint meshletVertexEnd = min(meshletVertexBegin + maxVerticesPerThread, meshletRange.vertexCount);
+
+    const transform instanceTransform =
+        OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_TransformBuffer, preCullingId);
+
+    const mat4 localToWorld = instanceTransform.localToWorld;
+    const uint baseVertex = meshRange.vertexOffset + meshletRange.vertexOffset;
+
+    for (uint meshletVertexId = meshletVertexBegin; meshletVertexId < meshletVertexEnd; ++meshletVertexId)
+    {
+        const uint meshVertexId = baseVertex + meshletVertexId;
+        const vec3 inPosition = mesh_get_position(table, meshVertexId);
+
+        const vec4 positionWS = localToWorld * vec4(inPosition, 1);
+        const vec4 positionNDC = g_Camera.viewProjection * positionWS;
+
+        gl_MeshVerticesEXT[meshletVertexId].gl_Position = positionNDC;
+    }
+
+    const uint maxTrianglesPerThread = round_up_div(meshletTriangleCount, meshletThreadsCount);
+
+    const uint meshletTriangleBegin = gl_GlobalInvocationID.x * maxTrianglesPerThread;
+    const uint meshletTriangleEnd = min(meshletTriangleBegin + maxTrianglesPerThread, meshletTriangleCount);
+
+    for (uint meshletTriangleId = meshletTriangleBegin; meshletTriangleId < meshletTriangleEnd; ++meshletTriangleId)
+    {
+        const uvec3 triangleIndices =
+            meshlet_get_triangle_microindices(table, meshRange, meshletRange, meshletTriangleId);
+
+        gl_PrimitiveTriangleIndicesEXT[meshletTriangleId] = triangleIndices;
+
+        visibility_buffer_data vb;
+        vb.instanceTableId = g_Constants.instanceTableId;
+        vb.instanceId = preCullingId;
+        vb.meshletId = globalMeshletId;
+        vb.meshletTriangleId = meshletTriangleId;
+
+        out_VisibilityBufferData[meshletTriangleId] = visibility_buffer_pack(vb);
+    }
+}

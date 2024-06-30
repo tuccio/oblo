@@ -15,7 +15,7 @@ namespace oblo::vk
     class pass_manager;
     struct texture;
 
-    struct sandbox_init_context
+    struct sandbox_startup_context
     {
         vulkan_context* vkContext;
         const input_queue* inputQueue;

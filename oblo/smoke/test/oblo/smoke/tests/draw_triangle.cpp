@@ -23,12 +23,14 @@ namespace oblo::smoke
     namespace
     {
         template <typename T>
-        resource_ptr<T> import_as_resource(
-            asset_registry& assetRegistry, resource_registry& resourceRegistry, const std::filesystem::path& source)
+        resource_ptr<T> import_as_resource(asset_registry& assetRegistry,
+            resource_registry& resourceRegistry,
+            const std::filesystem::path& source,
+            const data_document& importSettings = {})
         {
             importer assetImporter = assetRegistry.create_importer(source);
 
-            if (!assetImporter.is_valid() || !assetImporter.init() || !assetImporter.execute("."))
+            if (!assetImporter.is_valid() || !assetImporter.init() || !assetImporter.execute(".", importSettings))
             {
                 return {};
             }

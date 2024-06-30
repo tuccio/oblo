@@ -7,12 +7,14 @@
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/import_artifact.hpp>
 #include <oblo/asset/importers/stb_image.hpp>
+#include <oblo/asset/processing/mesh_processing.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/log.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
+#include <oblo/properties/serialization/data_document.hpp>
 #include <oblo/scene/assets/material.hpp>
 #include <oblo/scene/assets/mesh.hpp>
 #include <oblo/scene/assets/model.hpp>
@@ -69,6 +71,11 @@ namespace oblo::importers
 
             return usize(textureIndex) < model.textures.size() ? model.textures[textureIndex].source : -1;
         }
+
+        struct gltf_import_config
+        {
+            bool generateMeshlets{true};
+        };
     }
 
     gltf::gltf() = default;
@@ -205,6 +212,14 @@ namespace oblo::importers
 
     bool gltf::import(const import_context& ctx)
     {
+        gltf_import_config cfg{};
+
+        if (const auto generateMeshlets = ctx.settings.find_child(ctx.settings.get_root(), "generateMeshlets");
+            generateMeshlets != data_node::Invalid)
+        {
+            cfg.generateMeshlets = ctx.settings.read_bool(generateMeshlets).value_or(true);
+        }
+
         dynamic_array<mesh_attribute> attributes;
         attributes.reserve(32);
 
@@ -231,6 +246,7 @@ namespace oblo::importers
                         .nodes = ctx.nodes.subspan(image.nodeIndex, 1),
                         .importNodesConfig = ctx.importNodesConfig.subspan(image.nodeIndex, 1),
                         .importUuid = ctx.importUuid,
+                        .settings = ctx.settings,
                     };
 
                     if (image.importer->import(imageContext))
@@ -391,16 +407,17 @@ namespace oblo::importers
 
                 const auto& primitive = m_model.meshes[mesh.mesh].primitives[mesh.primitive];
 
-                oblo::mesh meshAsset;
+                oblo::mesh srcMesh;
 
-                if (!load_mesh(meshAsset, m_model, primitive, attributes, sources, &usedBuffer))
+                if (!load_mesh(srcMesh, m_model, primitive, attributes, sources, &usedBuffer))
                 {
+                    log::error("Failed to parse mesh");
                     continue;
                 }
 
                 if (model.applyTransform)
                 {
-                    const std::span positions = meshAsset.get_attribute<vec3>(attribute_kind::position);
+                    const std::span positions = srcMesh.get_attribute<vec3>(attribute_kind::position);
 
                     for (auto& p : positions)
                     {
@@ -408,7 +425,22 @@ namespace oblo::importers
                     }
                 }
 
-                meshAsset.update_aabb();
+                oblo::mesh outMesh;
+
+                if (cfg.generateMeshlets)
+                {
+                    if (!mesh_processing::build_meshlets(srcMesh, outMesh))
+                    {
+                        log::error("Failed to build meshlets");
+                        continue;
+                    }
+                }
+                else
+                {
+                    outMesh = std::move(srcMesh);
+                }
+
+                outMesh.update_aabb();
 
                 modelAsset.meshes.emplace_back(meshNodeConfig.id);
                 modelAsset.materials.emplace_back(
@@ -416,7 +448,7 @@ namespace oblo::importers
 
                 m_artifacts.push_back({
                     .id = meshNodeConfig.id,
-                    .data = any_asset{std::move(meshAsset)},
+                    .data = any_asset{std::move(outMesh)},
                     .name = ctx.nodes[mesh.nodeIndex].name,
                 });
             }

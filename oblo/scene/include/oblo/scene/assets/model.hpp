@@ -1,8 +1,7 @@
 #pragma once
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/resource/resource_ref.hpp>
-
-#include <vector>
 
 namespace oblo
 {
@@ -11,7 +10,7 @@ namespace oblo
 
     struct model
     {
-        std::vector<resource_ref<mesh>> meshes;
-        std::vector<resource_ref<material>> materials;
+       dynamic_array<resource_ref<mesh>> meshes;
+       dynamic_array<resource_ref<material>> materials;
     };
 }

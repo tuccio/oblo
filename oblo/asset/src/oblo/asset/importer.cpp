@@ -75,7 +75,7 @@ namespace oblo
         return true;
     }
 
-    bool importer::execute(const std::filesystem::path& destinationDir)
+    bool importer::execute(const std::filesystem::path& destinationDir, const data_document& importSettings)
     {
         if (!begin_import(*m_config.registry, m_importNodesConfig))
         {
@@ -85,10 +85,11 @@ namespace oblo
         const auto importUuid = m_config.registry->generate_uuid();
 
         const import_context context{
-            .registry = m_config.registry,
+            .registry = *m_config.registry,
             .nodes = m_preview.nodes,
             .importNodesConfig = m_importNodesConfig,
             .importUuid = importUuid,
+            .settings = importSettings,
         };
 
         if (!m_importer->import(context))

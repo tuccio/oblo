@@ -34,6 +34,14 @@ namespace oblo
         data_format format;
     };
 
+    struct meshlet
+    {
+        u32 vertexOffset;
+        u32 vertexCount;
+        u32 indexOffset;
+        u32 indexCount;
+    };
+
     class mesh
     {
     public:
@@ -44,10 +52,15 @@ namespace oblo
         SCENE_API mesh& operator=(mesh&& other) noexcept;
         SCENE_API ~mesh();
 
-        SCENE_API void allocate(
-            primitive_kind primitive, u32 vertexCount, u32 indexCount, std::span<const mesh_attribute> attributes);
+        SCENE_API void allocate(primitive_kind primitive,
+            u32 vertexCount,
+            u32 indexCount,
+            u32 meshletCount,
+            std::span<const mesh_attribute> attributes);
 
         SCENE_API void clear();
+
+        SCENE_API void reset_meshlets(u32 numMeshlets);
 
         SCENE_API bool has_attribute(attribute_kind kind) const;
 
@@ -68,7 +81,11 @@ namespace oblo
         SCENE_API primitive_kind get_primitive_kind() const;
         SCENE_API u32 get_vertex_count() const;
         SCENE_API u32 get_index_count() const;
+        SCENE_API u32 get_meshlet_count() const;
         SCENE_API u32 get_elements_count(attribute_kind attribute) const;
+
+        SCENE_API std::span<meshlet> get_meshlets();
+        SCENE_API std::span<const meshlet> get_meshlets() const;
 
         SCENE_API void update_aabb();
         SCENE_API aabb get_aabb() const;
@@ -100,9 +117,11 @@ namespace oblo
         primitive_kind m_primitives{primitive_kind::enum_max};
         u32 m_vertexCount{};
         u32 m_indexCount{};
+        u32 m_meshletCount{};
         flags<attribute_kind> m_attributeFlags{};
         dynamic_array<std::byte> m_storage;
         dynamic_array<attribute_data> m_attributes;
+        dynamic_array<meshlet> m_meshlets;
         aabb m_aabb{aabb::make_invalid()};
     };
 
@@ -116,5 +135,10 @@ namespace oblo
     std::span<const T> mesh::get_attribute(attribute_kind attribute) const
     {
         return get_attribute_impl<T>(*this, attribute);
+    }
+
+    constexpr bool is_vertex_attribute(attribute_kind kind)
+    {
+        return kind >= attribute_kind::position;
     }
 }

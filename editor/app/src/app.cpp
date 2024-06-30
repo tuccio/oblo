@@ -27,82 +27,31 @@
 #include <oblo/sandbox/context.hpp>
 #include <oblo/thread/job_manager.hpp>
 #include <oblo/trace/profile.hpp>
-#include <oblo/vulkan/draw/resource_cache.hpp>
-#include <oblo/vulkan/single_queue_engine.hpp>
-#include <oblo/vulkan/stateful_command_buffer.hpp>
-#include <oblo/vulkan/texture.hpp>
-#include <oblo/vulkan/vulkan_context.hpp>
+#include <oblo/vulkan/required_features.hpp>
 
 namespace oblo::editor
 {
-    namespace
-    {
-        VkPhysicalDeviceVulkan12Features DeviceVulkan12Features{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
-            .drawIndirectCount = true,
-            .bufferDeviceAddress = true,
-        };
-
-        VkPhysicalDeviceSynchronization2Features SynchronizationFeatures{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES,
-            .pNext = &DeviceVulkan12Features,
-            .synchronization2 = true,
-        };
-
-        VkPhysicalDeviceDescriptorIndexingFeatures IndexingFeatures{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES,
-            .pNext = &SynchronizationFeatures,
-            .descriptorBindingSampledImageUpdateAfterBind = true,
-            .descriptorBindingPartiallyBound = true,
-            .descriptorBindingVariableDescriptorCount = true,
-            .runtimeDescriptorArray = true,
-        };
-
-        VkPhysicalDeviceShaderDrawParametersFeatures ShaderDrawParameters{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES,
-            .shaderDrawParameters = true,
-        };
-
-        constexpr const char* InstanceExtensions[] = {
-            VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
-        };
-
-        constexpr const char* DeviceExtensions[] = {
-            VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
-            VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
-            VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME, // This is only needed for debug printf
-        };
-    }
-
     std::span<const char* const> app::get_required_instance_extensions() const
     {
-        return InstanceExtensions;
+        return runtime::get_required_vulkan_features().instanceExtensions;
     }
 
     VkPhysicalDeviceFeatures2 app::get_required_physical_device_features() const
     {
-        return {
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
-            .pNext = &ShaderDrawParameters,
-            .features =
-                {
-                    .multiDrawIndirect = true,
-                    .shaderInt64 = true,
-                },
-        };
+        return runtime::get_required_vulkan_features().physicalDeviceFeatures;
     }
 
     void* app::get_required_device_features() const
     {
-        return &IndexingFeatures;
+        return runtime::get_required_vulkan_features().deviceFeaturesChain;
     }
 
     std::span<const char* const> app::get_required_device_extensions() const
     {
-        return DeviceExtensions;
+        return runtime::get_required_vulkan_features().deviceExtensions;
     }
 
-    bool app::init(const vk::sandbox_init_context& ctx)
+    bool app::init()
     {
         if (!platform::init())
         {
@@ -110,7 +59,11 @@ namespace oblo::editor
         }
 
         m_jobManager.init();
+        return true;
+    }
 
+    bool app::startup(const vk::sandbox_startup_context& ctx)
+    {
         init_ui_style();
 
         auto& mm = module_manager::get();

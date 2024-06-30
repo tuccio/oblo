@@ -2,6 +2,7 @@
 
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/debug.hpp>
+#include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/vulkan/data/draw_buffer_data.hpp>
 #include <oblo/vulkan/draw/compute_pass_initializer.hpp>
 #include <oblo/vulkan/graph/node_common.hpp>
@@ -32,8 +33,6 @@ namespace oblo::vk
             .shaderSourcePath = "./vulkan/shaders/frustum_culling/cull.comp",
         });
 
-        drawIndexedDefine = ctx.get_string_interner().get_or_add("DRAW_INDEXED");
-
         OBLO_ASSERT(cullPass);
     }
 
@@ -54,17 +53,11 @@ namespace oblo::vk
 
         drawBufferData = allocate_n_span<draw_buffer_data>(allocator, drawCalls.size());
 
-        usize first = 0;
-        usize last = drawCalls.size();
-
         constexpr u32 zero{};
 
-        for (const auto& draw : drawCalls)
+        for (const auto& [draw, drawBuffer] : zip_range(drawCalls, drawBufferData))
         {
-            // We effectively partition non-indexed and indexed calls here
-            const auto outIndex = draw.drawCommands.isIndexed ? --last : first++;
-
-            drawBufferData[outIndex] = {
+            drawBuffer = {
                 .drawCallCountBuffer = ctx.create_dynamic_buffer(
                     {
                         .size = sizeof(u32),
@@ -74,7 +67,7 @@ namespace oblo::vk
                     buffer_usage::storage_write),
                 .preCullingIdMap = ctx.create_dynamic_buffer(
                     {
-                        .size = u32(draw.drawCommands.drawCommands.size() * sizeof(u32)),
+                        .size = u32(draw.numInstances * sizeof(u32)),
                     },
                     pass_kind::compute,
                     buffer_usage::storage_write),
@@ -93,12 +86,6 @@ namespace oblo::vk
     {
         auto& pm = ctx.get_pass_manager();
 
-        const h32<string> defines[] = {drawIndexedDefine};
-
-        const std::span allDefines{defines};
-
-        usize nextIndex = 0;
-
         auto& interner = ctx.get_string_interner();
 
         const auto inInstanceTablesName = interner.get_or_add("b_InstanceTables");
@@ -109,52 +96,42 @@ namespace oblo::vk
 
         const buffer inInstanceTablesBuffer = ctx.access(inInstanceTables);
 
-        // Indexed and non indexed are partioned before this, in frustum_culling::build
-        for (const auto indexedPipeline : {false, true})
+        const auto pipeline = pm.get_or_create_pipeline(cullPass, {});
+
+        if (const auto pass = pm.begin_compute_pass(ctx.get_command_buffer(), pipeline))
         {
-            const auto pipeline =
-                pm.get_or_create_pipeline(cullPass, {.defines = allDefines.subspan(0, indexedPipeline ? 1 : 0)});
+            const std::span drawData = ctx.access(outDrawBufferData);
 
-            if (const auto pass = pm.begin_compute_pass(ctx.get_command_buffer(), pipeline))
+            const auto subgroupSize = pm.get_subgroup_size();
+
+            for (const auto& currentDraw : drawData)
             {
-                const std::span drawData = ctx.access(outDrawBufferData);
+                bindingTable.clear();
 
-                const auto subgroupSize = pm.get_subgroup_size();
+                bindingTable.emplace(inInstanceTablesName, make_bindable_object(inInstanceTablesBuffer));
+                bindingTable.emplace(outPreCullingIdMap, make_bindable_object(ctx.access(currentDraw.preCullingIdMap)));
+                bindingTable.emplace(outDrawCountName,
+                    make_bindable_object(ctx.access(currentDraw.drawCallCountBuffer)));
 
-                for (; nextIndex < drawData.size() &&
-                     drawData[nextIndex].sourceData.drawCommands.isIndexed == indexedPipeline;
-                     ++nextIndex)
-                {
-                    const auto& currentDraw = drawData[nextIndex];
+                const u32 count = currentDraw.sourceData.numInstances;
 
-                    bindingTable.clear();
+                const binding_table* bindingTables[] = {
+                    &ctx.access(inPerViewBindingTable),
+                    &bindingTable,
+                };
 
-                    bindingTable.emplace(inInstanceTablesName, make_bindable_object(inInstanceTablesBuffer));
-                    bindingTable.emplace(outPreCullingIdMap,
-                        make_bindable_object(ctx.access(currentDraw.preCullingIdMap)));
-                    bindingTable.emplace(outDrawCountName,
-                        make_bindable_object(ctx.access(currentDraw.drawCallCountBuffer)));
+                const frustum_culling_push_constants pcData{
+                    .instanceTableId = currentDraw.sourceData.instanceTableId,
+                    .numberOfDraws = count,
+                };
 
-                    const u32 count = currentDraw.sourceData.drawCommands.drawCount;
+                pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&pcData, 1}));
+                pm.bind_descriptor_sets(*pass, bindingTables);
 
-                    const binding_table* bindingTables[] = {
-                        &ctx.access(inPerViewBindingTable),
-                        &bindingTable,
-                    };
-
-                    const frustum_culling_push_constants pcData{
-                        .instanceTableId = currentDraw.sourceData.instanceTableId,
-                        .numberOfDraws = currentDraw.sourceData.drawCommands.drawCount,
-                    };
-
-                    pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&pcData, 1}));
-                    pm.bind_descriptor_sets(*pass, bindingTables);
-
-                    vkCmdDispatch(ctx.get_command_buffer(), round_up_multiple(count, subgroupSize), 1, 1);
-                }
-
-                pm.end_compute_pass(*pass);
+                vkCmdDispatch(ctx.get_command_buffer(), round_up_multiple(count, subgroupSize), 1, 1);
             }
+
+            pm.end_compute_pass(*pass);
         }
     }
 }

@@ -35,7 +35,7 @@ namespace oblo::vk
                 .usage = VK_IMAGE_USAGE_STORAGE_BIT,
                 .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
             },
-            texture_usage::render_target_write);
+            texture_usage::storage_write);
 
         ctx.acquire(inCameraBuffer, pass_kind::compute, buffer_usage::uniform);
         ctx.acquire(inLightConfig, pass_kind::compute, buffer_usage::uniform);

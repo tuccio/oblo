@@ -14,8 +14,15 @@
 
 namespace oblo::platform
 {
+    namespace
+    {
+        HMODULE g_moduleHandle{};
+    }
+
     bool init()
     {
+        g_moduleHandle = GetModuleHandle(nullptr);
+
         const auto res = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
         return res == S_OK || res == S_FALSE || res == RPC_E_CHANGED_MODE;
     }
@@ -91,6 +98,11 @@ namespace oblo::platform
         }
 
         return unspecified_error;
+    }
+
+    void* find_symbol(const char* name)
+    {
+        return reinterpret_cast<void*>(GetProcAddress(g_moduleHandle, name));
     }
 }
 

@@ -6,6 +6,7 @@
 #include <oblo/vulkan/data/picking_configuration.hpp>
 #include <oblo/vulkan/draw/render_pass_initializer.hpp>
 #include <oblo/vulkan/graph/node_common.hpp>
+#include <oblo/vulkan/loaded_functions.hpp>
 #include <oblo/vulkan/nodes/frustum_culling.hpp>
 #include <oblo/vulkan/utility.hpp>
 
@@ -19,17 +20,17 @@ namespace oblo::vk
         };
     }
 
-    void visibility_pass::init(const frame_graph_init_context& context)
+    void visibility_pass::init(const frame_graph_init_context& ctx)
     {
-        auto& passManager = context.get_pass_manager();
+        auto& passManager = ctx.get_pass_manager();
 
         renderPass = passManager.register_render_pass({
             .name = "Visibility Pass",
             .stages =
                 {
                     {
-                        .stage = pipeline_stages::vertex,
-                        .shaderSourcePath = "./vulkan/shaders/visibility/visibility_pass.vert",
+                        .stage = pipeline_stages::mesh,
+                        .shaderSourcePath = "./vulkan/shaders/visibility/visibility_pass.mesh",
                     },
                     {
                         .stage = pipeline_stages::fragment,
@@ -170,6 +171,8 @@ namespace oblo::vk
 
         if (const auto pass = pm.begin_render_pass(commandBuffer, pipeline, renderInfo))
         {
+            const auto drawMeshIndirectCount = ctx.get_loaded_functions().vkCmdDrawMeshTasksIndirectCountEXT;
+
             const auto drawCallBufferSpan = ctx.access(inDrawCallBuffer);
 
             for (usize drawCallIndex = 0; drawCallIndex < drawData.size(); ++drawCallIndex)
@@ -191,39 +194,15 @@ namespace oblo::vk
                 };
 
                 pm.bind_descriptor_sets(*pass, bindingTables);
-                pm.push_constants(*pass, VK_SHADER_STAGE_VERTEX_BIT, 0, as_bytes(std::span{&pushConstants, 1}));
+                pm.push_constants(*pass, VK_SHADER_STAGE_MESH_BIT_EXT, 0, as_bytes(std::span{&pushConstants, 1}));
 
-                if (culledDraw.sourceData.drawCommands.isIndexed)
-                {
-                    OBLO_ASSERT(drawCallBuffer.size ==
-                        culledDraw.sourceData.drawCommands.drawCount * sizeof(VkDrawIndexedIndirectCommand));
-
-                    vkCmdBindIndexBuffer(commandBuffer,
-                        culledDraw.sourceData.drawCommands.indexBuffer,
-                        culledDraw.sourceData.drawCommands.indexBufferOffset,
-                        culledDraw.sourceData.drawCommands.indexType);
-
-                    vkCmdDrawIndexedIndirectCount(commandBuffer,
-                        drawCallBuffer.buffer,
-                        drawCallBuffer.offset,
-                        drawCallCountBuffer.buffer,
-                        drawCallCountBuffer.offset,
-                        culledDraw.sourceData.drawCommands.drawCount,
-                        sizeof(VkDrawIndexedIndirectCommand));
-                }
-                else
-                {
-                    OBLO_ASSERT(drawCallBuffer.size ==
-                        culledDraw.sourceData.drawCommands.drawCount * sizeof(VkDrawIndirectCommand));
-
-                    vkCmdDrawIndirectCount(commandBuffer,
-                        drawCallBuffer.buffer,
-                        drawCallBuffer.offset,
-                        drawCallCountBuffer.buffer,
-                        drawCallCountBuffer.offset,
-                        culledDraw.sourceData.drawCommands.drawCount,
-                        sizeof(VkDrawIndirectCommand));
-                }
+                drawMeshIndirectCount(commandBuffer,
+                    drawCallBuffer.buffer,
+                    drawCallBuffer.offset,
+                    drawCallCountBuffer.buffer,
+                    drawCallCountBuffer.offset,
+                    culledDraw.sourceData.numInstances,
+                    sizeof(VkDrawMeshTasksIndirectCommandEXT));
             }
 
             pm.end_render_pass(*pass);

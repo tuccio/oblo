@@ -111,6 +111,13 @@ namespace oblo::vk
     };
 
     template <typename TApp>
+    concept app_has_init = requires(TApp app) {
+        {
+            app.init()
+        } -> std::convertible_to<bool>;
+    };
+
+    template <typename TApp>
     concept app_requiring_instance_extensions = requires(TApp app) {
         {
             app.get_required_instance_extensions()
@@ -147,6 +154,14 @@ namespace oblo::vk
     public:
         bool init()
         {
+            if constexpr (app_has_init<TApp>)
+            {
+                if (!TApp::init())
+                {
+                    return false;
+                }
+            }
+
             std::span<const char* const> instanceExtensions;
             std::span<const char* const> instanceLayers;
             std::span<const char* const> deviceExtensions;
@@ -175,7 +190,7 @@ namespace oblo::vk
                 pPhysicalDeviceFeatures = &physicalDeviceFeatures;
             }
 
-            const sandbox_init_context context{
+            const sandbox_startup_context context{
                 .vkContext = &m_context,
                 .inputQueue = &m_inputQueue,
                 .swapchainFormat = SwapchainFormat,
@@ -188,7 +203,7 @@ namespace oblo::vk
                        deviceExtensions,
                        deviceFeaturesList,
                        pPhysicalDeviceFeatures) &&
-                TApp::init(context);
+                TApp::startup(context);
         }
 
         void run()

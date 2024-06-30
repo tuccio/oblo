@@ -3,6 +3,7 @@
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/frame_allocator.hpp>
+#include <oblo/core/iterator/reverse_iterator.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/draw/mesh_table.hpp>
@@ -79,6 +80,8 @@ namespace oblo::vk
             {
             case mesh_index_type::none:
                 return 0;
+            case mesh_index_type::u8:
+                return 1;
             case mesh_index_type::u16:
                 return 2;
             case mesh_index_type::u32:
@@ -122,6 +125,7 @@ namespace oblo::vk
         m_tableIndexCount = narrow_cast<u32>(initializer.tableIndexCount);
         m_tableVertexCount = narrow_cast<u32>(initializer.tableVertexCount);
         m_tableMeshCount = narrow_cast<u32>(initializer.tableMeshCount);
+        m_tableMeshletCount = narrow_cast<u32>(initializer.tableMeshletCount);
 
         m_attributes = {};
 
@@ -157,19 +161,18 @@ namespace oblo::vk
     }
 
     mesh_handle mesh_database::create_mesh(
-        u32 meshAttributesMask, mesh_index_type indexType, u32 vertexCount, u32 indexCount)
+        u32 meshAttributesMask, mesh_index_type indexType, u32 vertexCount, u32 indexCount, u32 meshletCount)
     {
-        if (vertexCount > m_tableVertexCount || indexCount > m_tableIndexCount)
+        if (vertexCount > m_tableVertexCount || indexCount > m_tableIndexCount || meshletCount > m_tableMeshCount)
         {
             return {};
         }
 
         const auto tableId = make_table_id(meshAttributesMask, indexType);
 
-        auto it =
-            std::find_if(m_tables.rbegin(), m_tables.rend(), [tableId](const table& t) { return t.id == tableId; });
+        auto it = std::find_if(rbegin(m_tables), rend(m_tables), [tableId](const table& t) { return t.id == tableId; });
 
-        if (it == m_tables.rend())
+        if (it == rend(m_tables))
         {
             auto& newTable = m_tables.emplace_back();
             newTable.id = tableId;
@@ -200,6 +203,7 @@ namespace oblo::vk
                 m_tableVertexCount,
                 m_tableIndexCount,
                 m_tableMeshCount,
+                meshletCount > 0 ? m_tableMeshletCount : 0,
                 indexBuffer);
 
             if (!success)
@@ -210,10 +214,17 @@ namespace oblo::vk
                 return {};
             }
 
-            it = m_tables.rbegin();
+            it = rbegin(m_tables);
         }
 
-        const mesh_table_entry meshEntry[] = {{.numVertices = vertexCount, .numIndices = indexCount}};
+        const mesh_table_entry meshEntry[] = {
+            {
+                .vertexCount = vertexCount,
+                .indexCount = indexCount,
+                .meshletCount = meshletCount,
+            },
+        };
+
         mesh_table_entry_id outHandle[1];
 
         if (!it->meshes->allocate_meshes(meshEntry, outHandle))
@@ -230,7 +241,8 @@ namespace oblo::vk
         std::span<buffer> vertexBuffers,
         buffer* indexBuffer,
         std::span<const h32<string>> meshBufferNames,
-        std::span<buffer> meshBuffers) const
+        std::span<buffer> meshBuffers,
+        buffer* meshletsBuffer) const
     {
         const auto [tableId, meshId] = parse_mesh_handle(mesh);
 
@@ -243,17 +255,23 @@ namespace oblo::vk
             vertexBuffers,
             indexBuffer,
             meshBufferNames,
-            meshBuffers);
+            meshBuffers,
+            meshletsBuffer);
     }
 
     mesh_index_type mesh_database::get_index_type(mesh_handle mesh) const
     {
         const auto [tableId, meshId] = parse_mesh_handle(mesh);
 
-        switch (m_tables[tableId].meshes->get_index_type())
+        const auto indexType = m_tables[tableId].meshes->get_index_type();
+
+        switch (indexType)
         {
         case VK_INDEX_TYPE_NONE_KHR:
             return mesh_index_type::none;
+
+        case VK_INDEX_TYPE_UINT8_EXT:
+            return mesh_index_type::u8;
 
         case VK_INDEX_TYPE_UINT16:
             return mesh_index_type::u16;
@@ -300,8 +318,10 @@ namespace oblo::vk
         return {
             .vertexOffset = range.vertexOffset,
             .vertexCount = range.vertexCount,
-            .indexOffset = table.globalIndexOffset + range.indexOffset,
+            .indexOffset = range.indexOffset,
             .indexCount = range.indexCount,
+            .meshletOffset = range.meshletOffset,
+            .meshletCount = range.meshletCount,
         };
     }
 
@@ -317,6 +337,7 @@ namespace oblo::vk
             u64 vertexDataAddress;
             u64 indexDataAddress;
             u64 meshDataAddress;
+            u64 meshletDataAddress;
             u32 mask;
             u32 indexType;
             u32 attributeOffsets[MaxAttributes];
@@ -348,6 +369,19 @@ namespace oblo::vk
                 };
 
                 gpuTable.indexDataAddress = vkGetBufferDeviceAddress(m_allocator->get_device(), &info) + buffer.offset;
+            }
+
+            if (const auto meshlet = t.meshes->meshlet_buffer())
+            {
+                const auto buffer = m_resourceManager->get(meshlet);
+
+                const VkBufferDeviceAddressInfo info{
+                    .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+                    .buffer = buffer.buffer,
+                };
+
+                gpuTable.meshletDataAddress =
+                    vkGetBufferDeviceAddress(m_allocator->get_device(), &info) + buffer.offset;
             }
 
             if (const auto buffers = t.meshes->vertex_attribute_buffers(); !buffers.empty())

@@ -4,6 +4,7 @@
 #include <oblo/vulkan/draw/descriptor_set_pool.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/renderer_context.hpp>
+#include <oblo/vulkan/required_features.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
 #include <oblo/vulkan/texture.hpp>
@@ -129,5 +130,72 @@ namespace oblo::vk
     stateful_command_buffer& renderer::get_active_command_buffer()
     {
         return m_vkContext->get_active_command_buffer();
+    }
+
+    namespace
+    {
+
+        VkPhysicalDeviceMeshShaderFeaturesEXT g_meshShaderFeatures{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT,
+            .taskShader = true,
+            .meshShader = true,
+        };
+
+        VkPhysicalDeviceVulkan12Features g_deviceVulkan12Features{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+            .pNext = &g_meshShaderFeatures,
+            .drawIndirectCount = true,
+            .storageBuffer8BitAccess = true,
+            .shaderInt8 = true,
+            .descriptorBindingSampledImageUpdateAfterBind = true,
+            .descriptorBindingPartiallyBound = true,
+            .descriptorBindingVariableDescriptorCount = true,
+            .runtimeDescriptorArray = true,
+            .timelineSemaphore = true,
+            .bufferDeviceAddress = true,
+        };
+
+        VkPhysicalDeviceSynchronization2Features g_synchronizationFeatures{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES,
+            .pNext = &g_deviceVulkan12Features,
+            .synchronization2 = true,
+        };
+
+        VkPhysicalDeviceShaderDrawParametersFeatures g_shaderDrawParameters{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES,
+            .shaderDrawParameters = true,
+        };
+
+        constexpr const char* g_instanceExtensions[] = {
+            VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
+            VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
+        };
+
+        constexpr const char* g_deviceExtensions[] = {
+            VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
+            VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
+            VK_EXT_MESH_SHADER_EXTENSION_NAME,
+            VK_KHR_SPIRV_1_4_EXTENSION_NAME,
+            VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME, // This is only needed for debug printf
+        };
+    }
+
+    required_features renderer::get_required_features()
+    {
+        return {
+            .instanceExtensions = g_instanceExtensions,
+            .deviceExtensions = g_deviceExtensions,
+            .physicalDeviceFeatures =
+                {
+                    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+                    .pNext = &g_shaderDrawParameters,
+                    .features =
+                        {
+                            .multiDrawIndirect = true,
+                            .shaderInt64 = true,
+                        },
+                },
+            .deviceFeaturesChain = &g_synchronizationFeatures,
+        };
     }
 }
