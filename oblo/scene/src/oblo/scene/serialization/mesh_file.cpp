@@ -39,6 +39,12 @@ namespace oblo
             case attribute_kind::uv0:
                 return "TEXCOORD_0";
 
+            case attribute_kind::tangent:
+                return "TANGENT";
+
+            case attribute_kind::bitangent:
+                return "BITANGENT";
+
             default:
                 unreachable();
             }
@@ -405,6 +411,24 @@ namespace oblo
             {
                 attributes.push_back({
                     .kind = attribute_kind::normal,
+                    .format = data_format::vec3,
+                });
+
+                sources.emplace_back(accessor);
+            }
+            else if (attribute == get_attribute_name(attribute_kind::tangent))
+            {
+                attributes.push_back({
+                    .kind = attribute_kind::tangent,
+                    .format = data_format::vec3,
+                });
+
+                sources.emplace_back(accessor);
+            }
+            else if (attribute == get_attribute_name(attribute_kind::bitangent))
+            {
+                attributes.push_back({
+                    .kind = attribute_kind::bitangent,
                     .format = data_format::vec3,
                 });
 
