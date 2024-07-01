@@ -2,8 +2,8 @@
 
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/debug.hpp>
-#include <oblo/core/service_registry.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
+#include <oblo/core/service_registry.hpp>
 #include <oblo/ecs/range.hpp>
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/ecs/type_registry.hpp>
@@ -29,7 +29,13 @@ namespace oblo
         struct gpu_material
         {
             vec3 albedo;
+            f32 metalness;
+            f32 roughness;
+            f32 emissive;
             h32<vk::resident_texture> albedoTexture;
+            h32<vk::resident_texture> normalMapTexture;
+            h32<vk::resident_texture> metalnessRoughnessTexture;
+            h32<vk::resident_texture> emissiveTexture;
         };
 
         gpu_material convert(vk::resource_cache& cache, resource_ptr<material> m)
@@ -46,13 +52,58 @@ namespace oblo
                 out.albedo = albedo->as<vec3>().value_or({});
             }
 
-            if (auto* const albedo = m->get_property(pbr::AlbedoTexture))
+            if (auto* const metalness = m->get_property(pbr::Metalness))
             {
-                const auto t = albedo->as<resource_ref<texture>>().value_or({});
+                out.metalness = metalness->as<f32>().value_or({});
+            }
+
+            if (auto* const roughness = m->get_property(pbr::Roughness))
+            {
+                out.roughness = roughness->as<f32>().value_or({});
+            }
+
+            if (auto* const emissive = m->get_property(pbr::Emissive))
+            {
+                out.emissive = emissive->as<f32>().value_or({});
+            }
+
+            if (auto* const albedoTexture = m->get_property(pbr::AlbedoTexture))
+            {
+                const auto t = albedoTexture->as<resource_ref<texture>>().value_or({});
 
                 if (t)
                 {
                     out.albedoTexture = cache.get_or_add(t);
+                }
+            }
+
+            if (auto* const normalMapTexture = m->get_property(pbr::NormalMapTexture))
+            {
+                const auto t = normalMapTexture->as<resource_ref<texture>>().value_or({});
+
+                if (t)
+                {
+                    out.normalMapTexture = cache.get_or_add(t);
+                }
+            }
+
+            if (auto* const metalnessRoughnessTexture = m->get_property(pbr::MetalnessRoughnessTexture))
+            {
+                const auto t = metalnessRoughnessTexture->as<resource_ref<texture>>().value_or({});
+
+                if (t)
+                {
+                    out.metalnessRoughnessTexture = cache.get_or_add(t);
+                }
+            }
+
+            if (auto* const emissiveTexture = m->get_property(pbr::EmissiveTexture))
+            {
+                const auto t = emissiveTexture->as<resource_ref<texture>>().value_or({});
+
+                if (t)
+                {
+                    out.emissiveTexture = cache.get_or_add(t);
                 }
             }
 

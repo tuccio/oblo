@@ -4,7 +4,13 @@
 struct gpu_material
 {
     vec3 albedo;
+    float metalness;
+    float roughness;
+    float emissive;
     uint albedoTexture;
+    uint normalMapTexture;
+    uint metalnessRoughnessTexture;
+    uint emissiveTexture;
 };
 
 layout(buffer_reference) buffer i_MaterialBufferType

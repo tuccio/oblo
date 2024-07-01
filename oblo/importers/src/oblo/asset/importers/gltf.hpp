@@ -7,6 +7,11 @@
 
 #include <filesystem>
 
+namespace oblo
+{
+    class material;
+}
+
 namespace oblo::importers
 {
     class gltf final : public file_importer
@@ -28,6 +33,9 @@ namespace oblo::importers
         struct import_mesh;
         struct import_material;
         struct import_image;
+
+    private:
+        void set_texture(material& m, std::string_view propertyName, int textureIndex) const;
 
     private:
         tinygltf::Model m_model;

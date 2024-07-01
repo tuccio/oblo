@@ -76,6 +76,18 @@ namespace oblo::importers
         {
             bool generateMeshlets{true};
         };
+
+        vec3 get_vec3_or(const std::vector<double>& value, vec3 fallback)
+        {
+            if (value.size() >= 3)
+            {
+                return {f32(value[0]), f32(value[1]), f32(value[2])};
+            }
+            else
+            {
+                return fallback;
+            }
+        }
     }
 
     gltf::gltf() = default;
@@ -301,34 +313,17 @@ namespace oblo::importers
 
             auto& pbr = gltfMaterial.pbrMetallicRoughness;
 
-            vec3 albedo;
+            set_texture(materialArtifact, pbr::AlbedoTexture, pbr.baseColorTexture.index);
+            set_texture(materialArtifact, pbr::MetalnessRoughnessTexture, pbr.metallicRoughnessTexture.index);
+            set_texture(materialArtifact, pbr::NormalMapTexture, gltfMaterial.normalTexture.index);
+            set_texture(materialArtifact, pbr::EmissiveTexture, gltfMaterial.emissiveTexture.index);
 
-            if (pbr.baseColorFactor.size() >= 3)
-            {
-                albedo = {f32(pbr.baseColorFactor[0]), f32(pbr.baseColorFactor[1]), f32(pbr.baseColorFactor[2])};
-            }
-            else
-            {
-                albedo = vec3::splat(1);
-            }
-
-            materialArtifact.set_property(pbr::Albedo, albedo);
-
-            if (const auto imageIndex = find_image_from_texture(m_model, pbr.baseColorTexture.index);
-                imageIndex >= 0 && usize(imageIndex) < m_importImages.size() && !m_importImages[imageIndex].id.is_nil())
-            {
-                materialArtifact.set_property(pbr::AlbedoTexture, resource_ref<texture>(m_importImages[imageIndex].id));
-            }
+            materialArtifact.set_property(pbr::Albedo, get_vec3_or(pbr.baseColorFactor, vec3::splat(1.f)));
 
             materialArtifact.set_property(pbr::Metalness, f32(pbr.metallicFactor));
             materialArtifact.set_property(pbr::Roughness, f32(pbr.roughnessFactor));
 
-            if (const auto imageIndex = find_image_from_texture(m_model, pbr.metallicRoughnessTexture.index);
-                imageIndex >= 0 && usize(imageIndex) < m_importImages.size() && !m_importImages[imageIndex].id.is_nil())
-            {
-                materialArtifact.set_property(pbr::MetalnessRoughnessTexture,
-                    resource_ref<texture>(m_importImages[imageIndex].id));
-            }
+            materialArtifact.set_property(pbr::Emissive, get_vec3_or(gltfMaterial.emissiveFactor, vec3::splat(0.f)));
 
             const auto& name = ctx.nodes[material.nodeIndex].name;
 
@@ -495,5 +490,14 @@ namespace oblo::importers
             .sourceFiles = m_sourceFiles,
             .mainArtifactHint = m_mainArtifactHint,
         };
+    }
+
+    void gltf::set_texture(material& m, std::string_view propertyName, int textureIndex) const
+    {
+        if (const auto imageIndex = find_image_from_texture(m_model, textureIndex);
+            imageIndex >= 0 && usize(imageIndex) < m_importImages.size() && !m_importImages[imageIndex].id.is_nil())
+        {
+            m.set_property(propertyName, resource_ref<texture>(m_importImages[imageIndex].id));
+        }
     }
 }
