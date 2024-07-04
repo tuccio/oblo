@@ -5,6 +5,7 @@
 #include <oblo/core/unreachable.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/math/color.hpp>
+#include <oblo/math/float.hpp>
 #include <oblo/math/power_of_two.hpp>
 #include <oblo/scene/assets/texture.hpp>
 
@@ -21,9 +22,57 @@ namespace oblo::importers
 
     namespace
     {
+        template <typename Swizzle>
+        bool normal_map_test(
+            const u8* image, int w, int h, int channels, bool& outIsNormalLinear, bool& outIsNormalSRGB)
+        {
+            using namespace image_processing;
+
+            std::atomic<u32> linearCount{};
+            std::atomic<u32> srgbCount{};
+
+            const auto pixels = w * h;
+            const auto imageData = std::span{image, usize(pixels * channels)};
+
+            parallel_for_each_pixel(image_view<const u8, Swizzle>{as_bytes(imageData), u32(w), u32(h)},
+                [&srgbCount, &linearCount](u32, u32, auto&& source)
+                {
+                    f32 srgbSqr{};
+                    f32 linearSqr{};
+
+                    Swizzle::template for_each<component::red, component::green, component::blue>(
+                        [&linearSqr, &srgbSqr](const u8 c, u32)
+                        {
+                            const f32 linear = color_convert_linear_f32(linear_color_tag{}, c);
+                            const f32 srgb = color_convert_linear_f32(srgb_color_tag{}, c);
+                            linearSqr += linear * linear;
+                            srgbSqr += srgb * srgb;
+                        },
+                        source);
+
+                    const bool isNormalLinear = float_equal(linearSqr, 1, .1f);
+                    const bool isNormalSRGB = float_equal(srgbSqr, 1, .1f);
+
+                    linearCount.fetch_add(u32{isNormalLinear}, std::memory_order_relaxed);
+                    srgbCount.fetch_add(u32{isNormalSRGB}, std::memory_order_relaxed);
+                });
+
+            const f64 linearNormalRatio{f64(linearCount) / pixels};
+            const f64 srgbNormalRatio{f64(srgbCount) / pixels};
+
+            constexpr f64 threshold{.85};
+
+            outIsNormalLinear = linearNormalRatio > threshold;
+            outIsNormalSRGB = srgbNormalRatio > threshold;
+
+            return outIsNormalLinear || outIsNormalSRGB;
+        }
+
         bool load_to_texture(texture& out, const u8* image, int w, int h, int channels)
         {
             u32 vkFormat;
+            bool isNormalLinear{};
+            bool isNormalSRGB{};
 
             switch (channels)
             {
@@ -36,11 +85,35 @@ namespace oblo::importers
                 break;
 
             case 3:
-                vkFormat = VK_FORMAT_R8G8B8_SRGB;
+                if (normal_map_test<image_processing::swizzle::rgb>(image,
+                        w,
+                        h,
+                        channels,
+                        isNormalLinear,
+                        isNormalSRGB))
+                {
+                    vkFormat = isNormalLinear ? VK_FORMAT_R8G8B8_UNORM : VK_FORMAT_R8G8B8_SRGB;
+                }
+                else
+                {
+                    vkFormat = VK_FORMAT_R8G8B8_SRGB;
+                }
                 break;
 
             case 4:
-                vkFormat = VK_FORMAT_R8G8B8A8_SRGB;
+                if (normal_map_test<image_processing::swizzle::rgba>(image,
+                        w,
+                        h,
+                        channels,
+                        isNormalLinear,
+                        isNormalSRGB))
+                {
+                    vkFormat = isNormalLinear ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8A8_SRGB;
+                }
+                else
+                {
+                    vkFormat = VK_FORMAT_R8G8B8A8_SRGB;
+                }
                 break;
 
             default:
@@ -83,26 +156,34 @@ namespace oblo::importers
                 {
                 case VK_FORMAT_R8_SRGB:
                     parallel_for_each_pixel(image_view_r<u8>{current, mipWidth, mipHeight},
-                        box_filter_2x2{srgb_color_tag{},
-                            image_view_r<const u8>{previous, prevMipWidth, prevMipHeight}});
+                        box_filter_2x2{
+                            srgb_color_tag{},
+                            image_view_r<const u8>{previous, prevMipWidth, prevMipHeight},
+                        });
                     break;
 
                 case VK_FORMAT_R8G8_SRGB:
                     parallel_for_each_pixel(image_view_rg<u8>{current, mipWidth, mipHeight},
-                        box_filter_2x2{srgb_color_tag{},
-                            image_view_rg<const u8>{previous, prevMipWidth, prevMipHeight}});
+                        box_filter_2x2{
+                            srgb_color_tag{},
+                            image_view_rg<const u8>{previous, prevMipWidth, prevMipHeight},
+                        });
                     break;
 
                 case VK_FORMAT_R8G8B8_SRGB:
                     parallel_for_each_pixel(image_view_rgb<u8>{current, mipWidth, mipHeight},
-                        box_filter_2x2{srgb_color_tag{},
-                            image_view_rgb<const u8>{previous, prevMipWidth, prevMipHeight}});
+                        box_filter_2x2{
+                            srgb_color_tag{},
+                            image_view_rgb<const u8>{previous, prevMipWidth, prevMipHeight},
+                        });
                     break;
 
                 case VK_FORMAT_R8G8B8A8_SRGB:
                     parallel_for_each_pixel(image_view_rgba<u8>{current, mipWidth, mipHeight},
-                        box_filter_2x2{srgb_color_tag{},
-                            image_view_rgba<const u8>{previous, prevMipWidth, prevMipHeight}});
+                        box_filter_2x2{
+                            srgb_color_tag{},
+                            image_view_rgba<const u8>{previous, prevMipWidth, prevMipHeight},
+                        });
                     break;
 
                 default:
