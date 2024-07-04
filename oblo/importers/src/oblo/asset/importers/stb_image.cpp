@@ -17,103 +17,31 @@
 namespace oblo::importers
 {
     // TODO: Support for 16 bit, you kind of have to guess based on filename
-    // TODO: We assume SRGB, I don't see a way of actually checking using stbi
+    // TODO: Seems like STB converts srgb to linear
     // TODO: HDR, should be supported, but probably we need to call the float functions
 
     namespace
     {
-        template <typename Swizzle>
-        bool normal_map_test(
-            const u8* image, int w, int h, int channels, bool& outIsNormalLinear, bool& outIsNormalSRGB)
-        {
-            using namespace image_processing;
-
-            std::atomic<u32> linearCount{};
-            std::atomic<u32> srgbCount{};
-
-            const auto pixels = w * h;
-            const auto imageData = std::span{image, usize(pixels * channels)};
-
-            parallel_for_each_pixel(image_view<const u8, Swizzle>{as_bytes(imageData), u32(w), u32(h)},
-                [&srgbCount, &linearCount](u32, u32, auto&& source)
-                {
-                    f32 srgbSqr{};
-                    f32 linearSqr{};
-
-                    Swizzle::template for_each<component::red, component::green, component::blue>(
-                        [&linearSqr, &srgbSqr](const u8 c, u32)
-                        {
-                            const f32 linear = color_convert_linear_f32(linear_color_tag{}, c);
-                            const f32 srgb = color_convert_linear_f32(srgb_color_tag{}, c);
-                            linearSqr += linear * linear;
-                            srgbSqr += srgb * srgb;
-                        },
-                        source);
-
-                    const bool isNormalLinear = float_equal(linearSqr, 1, .1f);
-                    const bool isNormalSRGB = float_equal(srgbSqr, 1, .1f);
-
-                    linearCount.fetch_add(u32{isNormalLinear}, std::memory_order_relaxed);
-                    srgbCount.fetch_add(u32{isNormalSRGB}, std::memory_order_relaxed);
-                });
-
-            const f64 linearNormalRatio{f64(linearCount) / pixels};
-            const f64 srgbNormalRatio{f64(srgbCount) / pixels};
-
-            constexpr f64 threshold{.85};
-
-            outIsNormalLinear = linearNormalRatio > threshold;
-            outIsNormalSRGB = srgbNormalRatio > threshold;
-
-            return outIsNormalLinear || outIsNormalSRGB;
-        }
-
         bool load_to_texture(texture& out, const u8* image, int w, int h, int channels)
         {
             u32 vkFormat;
-            bool isNormalLinear{};
-            bool isNormalSRGB{};
 
             switch (channels)
             {
             case 1:
-                vkFormat = VK_FORMAT_R8_SRGB;
+                vkFormat = VK_FORMAT_R8_UNORM;
                 break;
 
             case 2:
-                vkFormat = VK_FORMAT_R8G8_SRGB;
+                vkFormat = VK_FORMAT_R8G8_UNORM;
                 break;
 
             case 3:
-                if (normal_map_test<image_processing::swizzle::rgb>(image,
-                        w,
-                        h,
-                        channels,
-                        isNormalLinear,
-                        isNormalSRGB))
-                {
-                    vkFormat = isNormalLinear ? VK_FORMAT_R8G8B8_UNORM : VK_FORMAT_R8G8B8_SRGB;
-                }
-                else
-                {
-                    vkFormat = VK_FORMAT_R8G8B8_SRGB;
-                }
+                vkFormat = VK_FORMAT_R8G8B8_UNORM;
                 break;
 
             case 4:
-                if (normal_map_test<image_processing::swizzle::rgba>(image,
-                        w,
-                        h,
-                        channels,
-                        isNormalLinear,
-                        isNormalSRGB))
-                {
-                    vkFormat = isNormalLinear ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8A8_SRGB;
-                }
-                else
-                {
-                    vkFormat = VK_FORMAT_R8G8B8A8_SRGB;
-                }
+                vkFormat = VK_FORMAT_R8G8B8A8_UNORM;
                 break;
 
             default:
@@ -154,34 +82,34 @@ namespace oblo::importers
 
                 switch (vkFormat)
                 {
-                case VK_FORMAT_R8_SRGB:
+                case VK_FORMAT_R8_UNORM:
                     parallel_for_each_pixel(image_view_r<u8>{current, mipWidth, mipHeight},
                         box_filter_2x2{
-                            srgb_color_tag{},
+                            linear_color_tag{},
                             image_view_r<const u8>{previous, prevMipWidth, prevMipHeight},
                         });
                     break;
 
-                case VK_FORMAT_R8G8_SRGB:
+                case VK_FORMAT_R8G8_UNORM:
                     parallel_for_each_pixel(image_view_rg<u8>{current, mipWidth, mipHeight},
                         box_filter_2x2{
-                            srgb_color_tag{},
+                            linear_color_tag{},
                             image_view_rg<const u8>{previous, prevMipWidth, prevMipHeight},
                         });
                     break;
 
-                case VK_FORMAT_R8G8B8_SRGB:
+                case VK_FORMAT_R8G8B8_UNORM:
                     parallel_for_each_pixel(image_view_rgb<u8>{current, mipWidth, mipHeight},
                         box_filter_2x2{
-                            srgb_color_tag{},
+                            linear_color_tag{},
                             image_view_rgb<const u8>{previous, prevMipWidth, prevMipHeight},
                         });
                     break;
 
-                case VK_FORMAT_R8G8B8A8_SRGB:
+                case VK_FORMAT_R8G8B8A8_UNORM:
                     parallel_for_each_pixel(image_view_rgba<u8>{current, mipWidth, mipHeight},
                         box_filter_2x2{
-                            srgb_color_tag{},
+                            linear_color_tag{},
                             image_view_rgba<const u8>{previous, prevMipWidth, prevMipHeight},
                         });
                     break;
@@ -191,13 +119,13 @@ namespace oblo::importers
                 }
             }
 
-            // Convert RGB8_SRGB to RGBA8_SRGB
-            if (vkFormat == VK_FORMAT_R8G8B8_SRGB)
+            // Convert RGB8 to RGBA8
+            if (vkFormat == VK_FORMAT_R8G8B8_UNORM)
             {
                 texture withAlpha;
 
                 withAlpha.allocate({
-                    .vkFormat = VK_FORMAT_R8G8B8A8_SRGB,
+                    .vkFormat = VK_FORMAT_R8G8B8A8_UNORM,
                     .width = u32(w),
                     .height = u32(h),
                     .depth = 1,
