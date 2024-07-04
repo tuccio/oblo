@@ -38,6 +38,16 @@ vec3 mesh_get_normal(in mesh_table t, in uint vertexId)
     return mesh_get_vec3_attribute(t, OBLO_VERTEX_ATTRIBUTE_NORMAL, vertexId);
 }
 
+vec3 mesh_get_tangent(in mesh_table t, in uint vertexId)
+{
+    return mesh_get_vec3_attribute(t, OBLO_VERTEX_ATTRIBUTE_TANGENT, vertexId);
+}
+
+vec3 mesh_get_bitangent(in mesh_table t, in uint vertexId)
+{
+    return mesh_get_vec3_attribute(t, OBLO_VERTEX_ATTRIBUTE_BITANGENT, vertexId);
+}
+
 vec2 mesh_get_uv0(in mesh_table t, in uint vertexId)
 {
     return mesh_get_vec2_attribute(t, OBLO_VERTEX_ATTRIBUTE_UV0, vertexId);

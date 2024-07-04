@@ -404,7 +404,13 @@ namespace oblo::importers
 
                 oblo::mesh srcMesh;
 
-                if (!load_mesh(srcMesh, m_model, primitive, attributes, sources, &usedBuffer))
+                if (!load_mesh(srcMesh,
+                        m_model,
+                        primitive,
+                        attributes,
+                        sources,
+                        &usedBuffer,
+                        mesh_post_process::generate_tanget_space))
                 {
                     log::error("Failed to parse mesh");
                     continue;

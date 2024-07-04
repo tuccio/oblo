@@ -36,7 +36,11 @@ namespace oblo
             h32<vk::resident_texture> normalMapTexture;
             h32<vk::resident_texture> metalnessRoughnessTexture;
             h32<vk::resident_texture> emissiveTexture;
+
+            u32 _padding[2];
         };
+
+        static_assert(sizeof(gpu_material) % 16 == 0);
 
         gpu_material convert(vk::resource_cache& cache, resource_ptr<material> m)
         {

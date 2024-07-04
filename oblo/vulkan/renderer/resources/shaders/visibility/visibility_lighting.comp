@@ -7,6 +7,9 @@
 #extension GL_EXT_samplerless_texture_functions : require
 #extension GL_GOOGLE_include_directive : require
 #extension GL_KHR_shader_subgroup_quad : require
+#extension GL_EXT_control_flow_attributes : enable
+
+#extension GL_EXT_debug_printf : require
 
 #include <renderer/barycentric>
 #include <renderer/camera>
@@ -80,8 +83,11 @@ void main()
     const gpu_material material = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MaterialBuffer, vb.instanceId);
 
     triangle triangleWS;
+    vec3 trianglePosition[3];
     vec2 triangleUV0[3];
-    vec3 triangleNormalWS[3];
+    vec3 triangleNormal[3];
+    vec3 triangleTangent[3];
+    vec3 triangleBitangent[3];
 
     // Read the mesh data
     const mesh_table meshTable = mesh_table_fetch(mesh);
@@ -95,15 +101,22 @@ void main()
         meshlet_get_triangle_microindices(meshTable, meshRange, meshletRange, vb.meshletTriangleId);
 
     // Read the vertex data and transform everything in world space, we do lighting calculation in that space
-    for (uint i = 0; i < 3; ++i)
+    [[unroll]] for (uint i = 0; i < 3; ++i)
     {
         const uint vertexId = vertexIndices[i];
 
         const vec3 vertexPosition = mesh_get_position(meshTable, vertexId);
+        trianglePosition[i] = vertexPosition;
         triangleWS.v[i] = (transform.localToWorld * vec4(vertexPosition, 1)).xyz;
 
         const vec3 vertexNormal = mesh_get_normal(meshTable, vertexId);
-        triangleNormalWS[i] = (mat3(transform.normalMatrix) * vertexNormal);
+        triangleNormal[i] = vertexNormal;
+
+        const vec3 vertexTangent = mesh_get_tangent(meshTable, vertexId);
+        triangleTangent[i] = vertexTangent;
+
+        const vec3 vertexBitangent = mesh_get_bitangent(meshTable, vertexId);
+        triangleBitangent[i] = vertexBitangent;
 
         triangleUV0[i] = mesh_get_uv0(meshTable, vertexId);
     }
@@ -155,16 +168,37 @@ void main()
     barycentric_coords bcDDY;
     barycentric_calculate(bcDDX, triangleWS.v, positionDDY);
 
-    // Interpolate attributes
-    const vec3 normalWS = barycentric_interpolate(bc, triangleNormalWS);
+    // Interpolate UV0 and calculate gradients
     const vec2 uv0 = barycentric_interpolate(bc, triangleUV0);
 
-    // Calculate the UV gradients as well
-    const vec2 uv0QuadX = barycentric_interpolate(bcDDX, triangleUV0);
-    const vec2 uv0QuadY = barycentric_interpolate(bcDDY, triangleUV0);
+    vec2 uv0DDX, uv0DDY;
+    barycentric_partial_derivatives(bcDDX, bcDDY, uv0, triangleUV0, uv0DDX, uv0DDY);
 
-    const vec2 uv0DDX = uv0 - uv0QuadX;
-    const vec2 uv0DDY = uv0 - uv0QuadY;
+    vec3 normalWS;
+
+    bool skipNM = true;
+    skipNM = false;
+
+    if (material.normalMapTexture != 0 && !skipNM)
+    {
+        const vec3 sampledNormal =
+            texture_sample_2d_grad(material.normalMapTexture, OBLO_SAMPLER_LINEAR, uv0, uv0DDX, uv0DDY).xyz;
+
+        const vec3 normalTS = 2.f * sampledNormal - 1.f;
+
+        const vec3 T = normalize(barycentric_interpolate(bc, triangleTangent));
+        const vec3 B = normalize(barycentric_interpolate(bc, triangleBitangent));
+        const vec3 N = normalize(barycentric_interpolate(bc, triangleNormal));
+
+        const mat3 TBN = mat3(T, B, N);
+
+        normalWS = normalize(mat3(transform.normalMatrix) * (TBN * normalTS));
+    }
+    else
+    {
+        const vec3 N = barycentric_interpolate(bc, triangleNormal);
+        normalWS = normalize(mat3(transform.normalMatrix) * N);
+    }
 
     // Finally sample the textures and do the lighting (WIP)
     const vec4 color = texture_sample_2d_grad(material.albedoTexture, OBLO_SAMPLER_LINEAR, uv0, uv0DDX, uv0DDY);
