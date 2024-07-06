@@ -4,12 +4,14 @@
 struct gpu_material
 {
     vec3 albedo;
+    uint albedoTexture;
     float metalness;
     float roughness;
-    float emissive;
-    uint albedoTexture;
-    uint normalMapTexture;
     uint metalnessRoughnessTexture;
+    uint normalMapTexture;
+    float ior;
+    uint _padding[3];
+    vec3 emissive;
     uint emissiveTexture;
 };
 

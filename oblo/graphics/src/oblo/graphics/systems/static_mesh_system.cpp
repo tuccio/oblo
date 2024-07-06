@@ -29,15 +29,15 @@ namespace oblo
         struct gpu_material
         {
             vec3 albedo;
+            h32<vk::resident_texture> albedoTexture;
             f32 metalness;
             f32 roughness;
-            f32 emissive;
-            h32<vk::resident_texture> albedoTexture;
-            h32<vk::resident_texture> normalMapTexture;
             h32<vk::resident_texture> metalnessRoughnessTexture;
+            h32<vk::resident_texture> normalMapTexture;
+            f32 ior;
+            u32 _padding[3];
+            vec3 emissive;
             h32<vk::resident_texture> emissiveTexture;
-
-            u32 _padding[2];
         };
 
         static_assert(sizeof(gpu_material) % 16 == 0);
@@ -68,7 +68,7 @@ namespace oblo
 
             if (auto* const emissive = m->get_property(pbr::Emissive))
             {
-                out.emissive = emissive->as<f32>().value_or({});
+                out.emissive = emissive->as<vec3>().value_or({});
             }
 
             if (auto* const albedoTexture = m->get_property(pbr::AlbedoTexture))

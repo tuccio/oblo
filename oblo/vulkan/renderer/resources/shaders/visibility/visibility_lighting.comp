@@ -23,6 +23,7 @@
 #include <renderer/meshes/mesh_table>
 #include <renderer/quad>
 #include <renderer/raytrace>
+#include <renderer/shading/pbr>
 #include <renderer/textures>
 #include <renderer/transform>
 #include <renderer/volumes>
@@ -176,10 +177,7 @@ void main()
 
     vec3 normalWS;
 
-    bool skipNM = true;
-    skipNM = false;
-
-    if (material.normalMapTexture != 0 && !skipNM)
+    if (material.normalMapTexture != 0)
     {
         const vec3 sampledNormal =
             texture_sample_2d_grad(material.normalMapTexture, OBLO_SAMPLER_LINEAR, uv0, uv0DDX, uv0DDY).xyz;
@@ -200,17 +198,54 @@ void main()
         normalWS = normalize(mat3(transform.normalMatrix) * N);
     }
 
-    // Finally sample the textures and do the lighting (WIP)
-    const vec4 color = texture_sample_2d_grad(material.albedoTexture, OBLO_SAMPLER_LINEAR, uv0, uv0DDX, uv0DDY);
+    // Extract the PBR parameters from the material
+    pbr_material pbr;
+    pbr.baseColor = material.albedo;
+    pbr.roughness = material.roughness;
+    pbr.metalness = material.metalness;
+    pbr.ior = material.ior;
+
+    if (material.albedoTexture != 0)
+    {
+        const vec3 albedo =
+            texture_sample_2d_grad(material.albedoTexture, OBLO_SAMPLER_LINEAR, uv0, uv0DDX, uv0DDY).xyz;
+
+        pbr.baseColor *= albedo;
+    }
+
+    if (material.metalnessRoughnessTexture != 0)
+    {
+        const vec2 metalnessRoughness =
+            texture_sample_2d_grad(material.metalnessRoughnessTexture, OBLO_SAMPLER_LINEAR, uv0, uv0DDX, uv0DDY).xy;
+
+        pbr.metalness *= metalnessRoughness.x;
+        pbr.roughness *= metalnessRoughness.y;
+    }
 
     vec3 reflected = vec3(0);
+    const vec3 viewWS = normalize(g_Camera.position - positionWS);
 
     for (uint lightIndex = 0; lightIndex < g_LightConfig.lightsCount; ++lightIndex)
     {
-        reflected += light_contribution(lights[lightIndex], positionWS, normalWS);
+        vec3 L;
+        const vec3 contribution = light_contribution(lights[lightIndex], positionWS, L);
+        reflected += contribution * pbr_brdf(normalWS, viewWS, L, pbr);
     }
 
-    const vec4 final = vec4(color.xyz * material.albedo * reflected, 1);
+    vec3 emitted = material.emissive;
+
+    if (material.emissiveTexture != 0)
+    {
+        const vec3 emissive =
+            texture_sample_2d_grad(material.emissiveTexture, OBLO_SAMPLER_LINEAR, uv0, uv0DDX, uv0DDY).xyz;
+
+        emitted *= emissive;
+    }
+
+    const vec3 outLight = emitted + reflected;
+
+    // The simplest color mapping for now
+    const vec4 final = vec4(outLight / (outLight + 1), 1);
 
     imageStore(t_OutLitImage, screenPos, final);
 }

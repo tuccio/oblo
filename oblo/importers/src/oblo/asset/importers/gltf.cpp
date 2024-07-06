@@ -325,6 +325,16 @@ namespace oblo::importers
 
             materialArtifact.set_property(pbr::Emissive, get_vec3_or(gltfMaterial.emissiveFactor, vec3::splat(0.f)));
 
+            f32 ior{1.5f};
+
+            if (const auto it = gltfMaterial.extensions.find("KHR_materials_ior");
+                it != gltfMaterial.extensions.end() && it->second.IsObject())
+            {
+                ior = f32(it->second.Get("ior").GetNumberAsDouble());
+            }
+
+            materialArtifact.set_property(pbr::IndexOfRefraction, ior);
+
             const auto& name = ctx.nodes[material.nodeIndex].name;
 
             m_artifacts.push_back({

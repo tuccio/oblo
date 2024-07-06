@@ -6,6 +6,12 @@ float pow2(in float x)
     return x * x;
 }
 
+float pow5(in float x)
+{
+    float x2 = x * x;
+    return x2 * x2 * x;
+}
+
 float saturate(in float value)
 {
     return max(0.f, value);

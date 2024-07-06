@@ -52,10 +52,9 @@ float light_angle_attenuation(
     return attenuation * attenuation;
 }
 
-vec3 light_contribution(in light_data light, in vec3 positionWS, in vec3 N)
+vec3 light_contribution(in light_data light, in vec3 positionWS, out vec3 L)
 {
     float attenuation = 1.f;
-    vec3 L;
 
     if (light.type == OBLO_LIGHT_TYPE_DIRECTIONAL)
     {
@@ -69,8 +68,7 @@ vec3 light_contribution(in light_data light, in vec3 positionWS, in vec3 N)
         attenuation *= light_angle_attenuation(light.direction, L, light.lightAngleScale, light.lightAngleOffset);
     }
 
-    const float NdotL = saturate(dot(N, L));
-    return NdotL * attenuation * light.intensity;
+    return attenuation * light.intensity;
 }
 
 #endif

@@ -12,4 +12,5 @@ namespace oblo::pbr
     constexpr std::string_view Emissive{"Emissive"};
     constexpr std::string_view EmissiveTexture{"Emissive Texture"};
     constexpr std::string_view NormalMapTexture{"Normal Map Texture"};
+    constexpr std::string_view IndexOfRefraction{"Index Of Refraction"};
 }
