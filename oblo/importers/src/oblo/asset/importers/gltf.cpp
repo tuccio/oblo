@@ -14,6 +14,7 @@
 #include <oblo/core/uuid.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
+#include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
 #include <oblo/scene/assets/material.hpp>
 #include <oblo/scene/assets/mesh.hpp>
@@ -58,6 +59,7 @@ namespace oblo::importers
         std::unique_ptr<file_importer> importer;
         // This is only set after importing is done
         uuid id;
+        bool isOcclusionMetalnessRoughness;
     };
 
     namespace
@@ -161,15 +163,6 @@ namespace oblo::importers
             }
         }
 
-        m_importMaterials.reserve(m_model.materials.size());
-
-        for (u32 materialIndex = 0; materialIndex < m_model.materials.size(); ++materialIndex)
-        {
-            auto& gltfMaterial = m_model.materials[materialIndex];
-            m_importMaterials.emplace_back(u32(preview.nodes.size()));
-            preview.nodes.emplace_back(get_type_id<material>(), gltfMaterial.name);
-        }
-
         import_preview imagePreview;
 
         m_importImages.reserve(m_model.images.size());
@@ -219,6 +212,22 @@ namespace oblo::importers
             importImage.importer = std::move(importer);
         }
 
+        m_importMaterials.reserve(m_model.materials.size());
+
+        for (u32 materialIndex = 0; materialIndex < m_model.materials.size(); ++materialIndex)
+        {
+            auto& gltfMaterial = m_model.materials[materialIndex];
+            m_importMaterials.emplace_back(u32(preview.nodes.size()));
+            preview.nodes.emplace_back(get_type_id<material>(), gltfMaterial.name);
+
+            const auto metallicRoughness = gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index;
+
+            if (metallicRoughness >= 0 && metallicRoughness == gltfMaterial.occlusionTexture.index)
+            {
+                m_importImages[metallicRoughness].isOcclusionMetalnessRoughness = true;
+            }
+        }
+
         return true;
     }
 
@@ -253,12 +262,25 @@ namespace oblo::importers
                         continue;
                     }
 
+                    data_document settings;
+
+                    if (image.isOcclusionMetalnessRoughness)
+                    {
+                        // When the texture is an ORM map, we drop the occlusion and swap roughness and metalness back
+                        settings.init();
+
+                        const u32 swizzle = settings.child_array(settings.get_root(), "swizzle", 2u);
+
+                        settings.make_value(settings.array_element(swizzle, 0), property_kind::u32, as_bytes(u32{2}));
+                        settings.make_value(settings.array_element(swizzle, 1), property_kind::u32, as_bytes(u32{1}));
+                    }
+
                     const auto imageContext = import_context{
                         .registry = ctx.registry,
                         .nodes = ctx.nodes.subspan(image.nodeIndex, 1),
                         .importNodesConfig = ctx.importNodesConfig.subspan(image.nodeIndex, 1),
                         .importUuid = ctx.importUuid,
-                        .settings = ctx.settings,
+                        .settings = settings,
                     };
 
                     if (image.importer->import(imageContext))

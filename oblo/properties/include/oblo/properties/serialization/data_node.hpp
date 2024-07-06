@@ -8,8 +8,10 @@ namespace oblo
 
     enum class data_node_kind : u8
     {
+        none,
         object,
         value,
+        array,
     };
 
     struct data_node
@@ -33,6 +35,12 @@ namespace oblo
             {
                 void* data;
             } value;
+
+            struct
+            {
+                u32 firstElement;
+                u32 size;
+            } array;
         };
     };
 }

@@ -164,48 +164,16 @@ namespace oblo::importers
 
             return true;
         }
-    }
 
-    bool stb_image::load_from_file(texture& out, const std::filesystem::path& path)
-    {
-        int w, h;
-        int channels;
+        using image_ptr = std::unique_ptr<u8[], decltype([](u8* ptr) { free(ptr); })>;
 
-        // TODO: Use stbi_load_from_file instead, and avoid transcoding strings
-        const auto pathStr = path.string();
-
-        auto* const image = stbi_load(pathStr.c_str(), &w, &h, &channels, STBI_default);
-
-        if (!image)
+        image_ptr load_from_file(const std::filesystem::path& path, int& w, int& h, int& channels)
         {
-            return false;
+            // TODO: Use stbi_load_from_file instead, and avoid transcoding strings
+            const auto pathStr = path.string();
+
+            return image_ptr{stbi_load(pathStr.c_str(), &w, &h, &channels, STBI_default)};
         }
-
-        const auto cleanup = finally([image] { free(image); });
-
-        return load_to_texture(out, image, w, h, channels);
-    }
-
-    bool stb_image::load_from_memory(texture& out, const std::span<const std::byte> data)
-    {
-        int w, h;
-        int channels;
-
-        auto* const image = stbi_load_from_memory(reinterpret_cast<const u8*>(data.data()),
-            int(data.size()),
-            &w,
-            &h,
-            &channels,
-            STBI_default);
-
-        if (!image)
-        {
-            return false;
-        }
-
-        const auto cleanup = finally([image] { free(image); });
-
-        return load_to_texture(out, image, w, h, channels);
     }
 
     bool stb_image::init(const importer_config& config, import_preview& preview)
@@ -227,9 +195,70 @@ namespace oblo::importers
             return true;
         }
 
+        int w, h;
+        int channels;
+
+        image_ptr image = load_from_file(m_source, w, h, channels);
+
+        if (!image)
+        {
+            return false;
+        }
+
+        if (const auto swizzle = ctx.settings.find_child(ctx.settings.get_root(), "swizzle");
+            swizzle != data_node::Invalid && ctx.settings.is_array(swizzle))
+        {
+            const auto swizzleCount = ctx.settings.array_size(swizzle);
+
+            if (swizzleCount == 0 || swizzleCount > 4)
+            {
+                return false;
+            }
+
+            u32 swizzleChannels[4];
+
+            for (u32 i = 0; i < swizzleCount; ++i)
+            {
+                const auto e = ctx.settings.array_element(swizzle, i);
+                const auto c = ctx.settings.read_u32(e);
+
+                if (!c || *c >= u32(channels))
+                {
+                    return false;
+                }
+
+                swizzleChannels[i] = *c;
+            }
+
+            const u32 inRowPitch = u32(round_up_multiple(w * channels, 4));
+            const u32 outRowPitch = round_up_multiple(w * swizzleCount, 4u);
+
+            image_ptr swizzled{static_cast<u8*>(malloc(outRowPitch * h))};
+
+            for (u32 i = 0; i < u32(h); ++i)
+            {
+                const u32 inRowOffset = inRowPitch * i;
+                const u32 outRowOffset = outRowPitch * i;
+
+                for (u32 j = 0; j < u32(w); ++j)
+                {
+                    const u32 inOffset = inRowOffset + u32(channels) * j;
+                    const u32 outOffset = outRowOffset + swizzleCount * j;
+
+                    for (u32 k = 0; k < swizzleCount; ++k)
+                    {
+                        swizzled[outOffset + k] = image[inOffset + swizzleChannels[k]];
+                    }
+                }
+            }
+
+            image = std::move(swizzled);
+            channels = int(swizzleCount);
+        }
+
         texture t;
 
-        if (!load_from_file(t, m_source))
+        if (!load_to_texture(t, image.get(), w, h, channels))
         {
             return false;
         }
