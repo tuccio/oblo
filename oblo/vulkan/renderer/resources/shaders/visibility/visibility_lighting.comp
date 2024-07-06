@@ -9,8 +9,6 @@
 #extension GL_KHR_shader_subgroup_quad : require
 #extension GL_EXT_control_flow_attributes : enable
 
-#extension GL_EXT_debug_printf : require
-
 #include <renderer/barycentric>
 #include <renderer/camera>
 #include <renderer/instances>
@@ -200,9 +198,9 @@ void main()
 
     // Extract the PBR parameters from the material
     pbr_material pbr;
-    pbr.baseColor = material.albedo;
-    pbr.roughness = material.roughness;
+    pbr.albedo = material.albedo;
     pbr.metalness = material.metalness;
+    pbr.roughness = material.roughness;
     pbr.ior = material.ior;
 
     if (material.albedoTexture != 0)
@@ -210,13 +208,13 @@ void main()
         const vec3 albedo =
             texture_sample_2d_grad(material.albedoTexture, OBLO_SAMPLER_LINEAR, uv0, uv0DDX, uv0DDY).xyz;
 
-        pbr.baseColor *= albedo;
+        pbr.albedo *= albedo;
     }
 
     if (material.metalnessRoughnessTexture != 0)
     {
-        const vec2 metalnessRoughness =
-            texture_sample_2d_grad(material.metalnessRoughnessTexture, OBLO_SAMPLER_LINEAR, uv0, uv0DDX, uv0DDY).xy;
+        const vec4 metalnessRoughness =
+            texture_sample_2d_grad(material.metalnessRoughnessTexture, OBLO_SAMPLER_LINEAR, uv0, uv0DDX, uv0DDY);
 
         pbr.metalness *= metalnessRoughness.x;
         pbr.roughness *= metalnessRoughness.y;

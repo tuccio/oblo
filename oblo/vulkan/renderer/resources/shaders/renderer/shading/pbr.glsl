@@ -7,15 +7,14 @@
 
 struct pbr_material
 {
-    vec3 baseColor;
+    vec3 albedo;
     float metalness;
     float roughness;
     float ior;
 };
 
-float pbr_distribution_ggx(in float NdotH, float alpha)
+float pbr_distribution_ggx(in float NdotH, float alpha2)
 {
-    const float alpha2 = alpha * alpha;
     const float num = NdotH * alpha2;
     const float denom = NdotH * NdotH * (alpha2 - 1) + 1;
     return num / (float_pi() * denom * denom);
@@ -41,10 +40,8 @@ float pbr_f90(in float cosTheta, in float roughness)
     return .5f + 2 * roughness * pow2(cosTheta);
 }
 
-float pbr_shadowing_schlick_smith_ggx(in float NdotV, in float NdotL, float alpha)
+float pbr_shadowing_schlick_smith_ggx(in float NdotV, in float NdotL, float alpha2)
 {
-    const float alpha2 = alpha * alpha;
-
     const float Gv = NdotV / (NdotV * (1 - alpha2) + alpha2);
     const float Gl = NdotL / (NdotL * (1 - alpha2) + alpha2);
 
@@ -57,11 +54,11 @@ vec3 pbr_brdf(in vec3 N, in vec3 V, in vec3 L, in pbr_material m)
 
     const vec3 H = normalize(V + L);
 
-    // The 1e-5 avoids some artifacts and NaNs
-    const float NdotL = max(1e-5, dot(N, L));
-    const float NdotV = max(1e-5, dot(N, V));
-    const float NdotH = max(1e-5, dot(N, H));
-    const float LdotH = max(1e-5, dot(L, H));
+    // The min non-zero value avoids some artifacts and NaNs
+    const float NdotL = max(dot(N, L), 1e-2);
+    const float NdotV = max(dot(N, V), 1e-2);
+    const float NdotH = max(dot(N, H), 0);
+    const float LdotH = max(dot(L, H), 0);
 
     // Lambert diffuse, with the Disney Fresnel term
     const float F90 = pbr_f90(LdotH, alpha);
@@ -75,7 +72,7 @@ vec3 pbr_brdf(in vec3 N, in vec3 V, in vec3 L, in pbr_material m)
 
     const float specular = (D * G * F) / (4 * NdotL * NdotV);
 
-    return m.baseColor * ((1 - m.metalness) * diffuse + specular);
+    return m.albedo * ((1 - m.metalness) * diffuse + specular);
 }
 
 #endif
