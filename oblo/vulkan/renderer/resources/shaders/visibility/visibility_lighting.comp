@@ -226,8 +226,11 @@ void main()
     for (uint lightIndex = 0; lightIndex < g_LightConfig.lightsCount; ++lightIndex)
     {
         vec3 L;
+
         const vec3 contribution = light_contribution(lights[lightIndex], positionWS, L);
-        reflected += contribution * pbr_brdf(normalWS, viewWS, L, pbr);
+        const vec3 brdf = pbr_brdf(normalWS, viewWS, L, pbr);
+
+        reflected += contribution * brdf;
     }
 
     vec3 emitted = material.emissive;

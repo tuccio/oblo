@@ -15,9 +15,13 @@ struct pbr_material
 
 float pbr_distribution_ggx(in float NdotH, float alpha2)
 {
-    const float num = alpha2;
-    const float denom = NdotH * NdotH * (alpha2 - 1) + 1;
-    return num / (float_pi() * denom * denom);
+    if (NdotH <= 0)
+    {
+        return 0;
+    }
+
+    const float f = 1 + (NdotH * alpha2 - NdotH) * NdotH;
+    return alpha2 / (float_pi() * f * f);
 }
 
 float pbr_fresnel_schlick(in float cosTheta, in float F0)
@@ -53,29 +57,31 @@ float pbr_shadowing_schlick_smith_ggx(in float NdotV, in float NdotL, float alph
 
 vec3 pbr_brdf(in vec3 N, in vec3 V, in vec3 L, in pbr_material m)
 {
-    const float alpha = m.roughness * m.roughness;
+    // The math breaks with roughness is 0, we clamp here at a reasonably low value instead
+    const float alpha2 = max(m.roughness * m.roughness, 1e-3);
 
     const vec3 H = normalize(V + L);
 
     // The min non-zero value avoids some artifacts and NaNs
     const float NdotV = max(dot(N, V), 1e-5);
-    const float NdotL = max(dot(N, L), 0);
+    const float NdotL = max(dot(N, L), 1e-5);
     const float NdotH = max(dot(N, H), 0);
     const float LdotH = max(dot(L, H), 0);
 
     // Lambert diffuse, with the Disney Fresnel term
-    const float F90 = pbr_f90(LdotH, alpha);
+    const float F90 = pbr_f90(LdotH, alpha2);
     const float Fd = pbr_fresnel_diffuse_disney(NdotL, F90) * pbr_fresnel_diffuse_disney(NdotV, F90);
 
     const float diffuse = NdotL * Fd * float_inv_pi();
 
     // Cook-Torrance for the specular part
     const float F0 = pbr_f0(m.ior);
-    const float D = pbr_distribution_ggx(NdotH, alpha);
-    const float G = pbr_shadowing_schlick_smith_ggx(NdotV, NdotL, alpha);
+    const float D = pbr_distribution_ggx(NdotH, alpha2);
+    const float G = pbr_shadowing_schlick_smith_ggx(NdotV, NdotL, alpha2);
     const float F = pbr_fresnel_schlick(NdotV, F0);
 
-    const float specular =  D * G * F / max(4 * NdotL * NdotV, 1e-5);
+    const float specular =  D * G * F / 4 * NdotL * NdotV;
+    // const float specular =  D * G * F / max(4 * NdotL * NdotV, 1e-5);
 
     return m.albedo * mix(diffuse, specular, m.metalness);
 }
