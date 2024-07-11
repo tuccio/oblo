@@ -124,6 +124,8 @@ namespace oblo
     {
         OBLO_PROFILE_SCOPE();
 
+        const auto frameAllocatorScope = m_impl->frameAllocator.make_scoped_restore();
+
         m_impl->executor.update({
             .entities = &m_impl->entities,
             .services = &m_impl->services,
