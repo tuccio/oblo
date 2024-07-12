@@ -99,6 +99,11 @@ namespace oblo::vk
             io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
         }
 
+        if (config.uiUseKeyboardNavigation)
+        {
+            io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+        }
+
         ImGui_ImplSDL2_InitForVulkan(window);
 
         ImGui_ImplVulkan_InitInfo initInfo{

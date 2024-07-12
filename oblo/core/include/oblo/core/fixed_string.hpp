@@ -1,18 +1,35 @@
 #pragma once
 
+#include <oblo/core/types.hpp>
+
 #include <compare>
 
 namespace oblo
 {
-    template <unsigned int N>
+    template <u32 N>
     struct fixed_string
     {
         constexpr fixed_string(const char (&string)[N])
         {
-            for (unsigned int i = 0; i != N; ++i)
+            for (u32 i = 0; i != N; ++i)
             {
                 this->string[i] = string[i];
             }
+        }
+
+        constexpr u32 size() const
+        {
+            return N - 1;
+        }
+
+        constexpr const char* c_str() const
+        {
+            return string;
+        }
+
+        constexpr const char* data() const
+        {
+            return string;
         }
 
         constexpr auto operator<=>(const fixed_string&) const = default;

@@ -22,6 +22,7 @@ namespace oblo::editor
     }
 
     window_handle window_manager::create_window_impl(window_entry* parent,
+        const type_id& typeId,
         service_registry* overrideCtx,
         u8* ptr,
         update_fn update,
@@ -33,12 +34,28 @@ namespace oblo::editor
             .update = update,
             .destroy = destroy,
             .services = service_context{&parent->services, overrideCtx},
+            .typeId = typeId,
             .debugName = debugName,
         };
 
         connect(parent, newEntry);
 
         return std::bit_cast<window_handle>(newEntry);
+    }
+
+    window_handle window_manager::find_child_impl(window_entry* parent, const type_id& type) const
+    {
+        auto* const firstChild = parent->firstChild;
+
+        for (auto* child = firstChild; child; child = child->firstSibling)
+        {
+            if (child->typeId == type)
+            {
+                return std::bit_cast<window_handle>(child);
+            }
+        }
+
+        return {};
     }
 
     void window_manager::destroy_window(window_handle handle)

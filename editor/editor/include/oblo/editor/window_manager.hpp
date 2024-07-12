@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/flags.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/editor/window_handle.hpp>
@@ -19,6 +20,12 @@ namespace oblo::editor
     class window_module;
     struct window_entry;
     struct window_update_context;
+
+    enum class window_flags : u8
+    {
+        unique_sibling,
+        enum_max,
+    };
 
     class window_manager
     {
@@ -41,7 +48,10 @@ namespace oblo::editor
         window_handle create_window(service_registry&& services);
 
         template <typename T>
-        window_handle create_child_window(window_handle parent);
+        window_handle create_child_window(window_handle parent, flags<window_flags> flags = {});
+
+        template <typename T>
+        bool has_child(window_handle parent) const;
 
         void destroy_window(window_handle handle);
 
@@ -58,11 +68,14 @@ namespace oblo::editor
         window_handle create_window_impl(window_entry* parent, service_registry* overrideCtx);
 
         window_handle create_window_impl(window_entry* parent,
+            const type_id& type,
             service_registry* overrideCtx,
             u8* ptr,
             update_fn update,
             destroy_fn destroy,
             std::string_view debugName);
+
+        window_handle find_child_impl(window_entry* parent, const type_id& type) const;
 
         window_entry* update_window(window_entry* entry);
 
@@ -86,10 +99,23 @@ namespace oblo::editor
     }
 
     template <typename T>
-    window_handle window_manager::create_child_window(window_handle parent)
+    window_handle window_manager::create_child_window(window_handle parent, flags<window_flags> flags)
     {
+        if (flags.contains(window_flags::unique_sibling) && has_child<T>(parent))
+        {
+            return {};
+        }
+
         auto* const parentEntry = reinterpret_cast<window_entry*>(parent.value);
         return create_window_impl<T>(parentEntry, nullptr);
+    }
+
+    template <typename T>
+    bool window_manager::has_child(window_handle parent) const
+    {
+        auto* const parentEntry = reinterpret_cast<window_entry*>(parent.value);
+        const auto h = find_child_impl(parentEntry, get_type_id<T>());
+        return bool{h};
     }
 
     template <typename T>
@@ -103,6 +129,7 @@ namespace oblo::editor
 
         const auto newHandle = create_window_impl(
             parentEntry,
+            get_type_id<T>(),
             overrideCtx,
             ptr,
             update,

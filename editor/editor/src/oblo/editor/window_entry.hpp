@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/editor/service_context.hpp>
 
@@ -30,6 +31,7 @@ namespace oblo::editor
         window_entry* firstChild;
         window_entry* prevSibling;
         window_entry* firstSibling;
+        type_id typeId;
         std::string_view debugName;
     };
 }
