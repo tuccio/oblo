@@ -3,7 +3,11 @@
 #include <oblo/core/array_size.hpp>
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/services/registered_commands.hpp>
+#include <oblo/editor/services/selected_entities.hpp>
+#include <oblo/editor/window_manager.hpp>
 #include <oblo/editor/window_update_context.hpp>
+#include <oblo/editor/windows/viewport.hpp>
+#include <oblo/scene/components/position_component.hpp>
 
 #include <format>
 
@@ -16,12 +20,21 @@ namespace oblo::editor
     namespace
     {
         const auto PalettePopupId = "command_palette_window";
+
+        viewport* find_viewport(const window_manager& wm, window_handle root)
+        {
+            const auto h = wm.find_child<viewport>(root, true);
+            return wm.try_access<viewport>(h);
+        }
     }
 
     void command_palette_window::init(const window_update_context& ctx)
     {
         m_commands = ctx.services.find<registered_commands>();
         m_filter.Clear();
+
+        m_entities = ctx.services.find<ecs::entity_registry>();
+        m_selection = ctx.services.find<selected_entities>();
     }
 
     bool command_palette_window::update(const window_update_context& ctx)
@@ -85,7 +98,22 @@ namespace oblo::editor
 
                     if (ImGui::Selectable(buffer))
                     {
-                        spawnCommands.spawn(*ctx.services.find<ecs::entity_registry>());
+                        const auto e = spawnCommands.spawn(*m_entities);
+                        auto* const p = m_entities->try_get<position_component>(e);
+
+                        if (p)
+                        {
+                            if (auto* v =
+                                    find_viewport(ctx.windowManager, ctx.windowManager.get_parent(ctx.windowHandle)))
+                            {
+                                p->value = v->get_spawn_location();
+                            }
+                        }
+
+                        m_selection->clear();
+                        m_selection->add(e);
+                        m_selection->push_refresh_event();
+
                         isOpen = false;
                     }
 

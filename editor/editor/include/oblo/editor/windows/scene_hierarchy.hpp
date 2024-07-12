@@ -1,5 +1,7 @@
 #pragma once
 
+#include <oblo/core/types.hpp>
+
 namespace oblo::ecs
 {
     class entity_registry;
@@ -19,5 +21,6 @@ namespace oblo::editor
     private:
         ecs::entity_registry* m_registry{};
         selected_entities* m_selection{};
+        u32 m_lastRefreshEvent{};
     };
 }

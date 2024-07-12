@@ -30,6 +30,8 @@ namespace oblo::editor
     namespace
     {
         u32 s_viewportInstances{};
+
+        constexpr f32 SpawnDistance{1.f};
     }
 
     viewport::~viewport()
@@ -238,6 +240,17 @@ namespace oblo::editor
         }
 
         return open;
+    }
+
+    vec3 viewport::get_spawn_location() const
+    {
+        if (!m_entity)
+        {
+            return {};
+        }
+
+        return m_entities->get<position_component>(m_entity).value +
+            m_entities->get<rotation_component>(m_entity).value * vec3{.z = -SpawnDistance};
     }
 
     void viewport::on_close()

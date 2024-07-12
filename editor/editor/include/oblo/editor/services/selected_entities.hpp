@@ -20,9 +20,14 @@ namespace oblo::editor
 
         std::span<const ecs::entity> get() const;
 
+        void push_refresh_event();
+
+        u32 get_last_refresh_event_id() const;
+
     private:
         // TODO: (#8) Should implement a flat_dense_set
         flat_dense_map<ecs::entity, ecs::entity> m_selected;
+        u32 m_eventId{};
     };
 
     inline void selected_entities::add(ecs::entity e)
@@ -56,5 +61,15 @@ namespace oblo::editor
     inline std::span<const ecs::entity> selected_entities::get() const
     {
         return m_selected.keys();
+    }
+
+    inline void selected_entities::push_refresh_event()
+    {
+        ++m_eventId;
+    }
+
+    inline u32 selected_entities::get_last_refresh_event_id() const
+    {
+        return m_eventId;
     }
 }

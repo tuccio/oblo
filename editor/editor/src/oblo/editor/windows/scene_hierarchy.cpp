@@ -31,8 +31,6 @@ namespace oblo::editor
                 ImGui::OpenPopup("##context");
             }
 
-            ecs::entity entityToSelect{};
-
             if (ImGui::BeginPopupContextItem("##context", ImGuiPopupFlags_None))
             {
                 if (ImGui::MenuItem("Create Entity"))
@@ -43,9 +41,9 @@ namespace oblo::editor
                         quaternion::identity(),
                         vec3::splat(1));
 
-                    entityToSelect = e;
                     m_selection->clear();
                     m_selection->add(e);
+                    m_selection->push_refresh_event();
                 }
 
                 const std::span selectedEntities = m_selection->get();
@@ -76,6 +74,20 @@ namespace oblo::editor
 
                     m_selection->clear();
                 }
+            }
+
+            ecs::entity entityToSelect{};
+
+            if (const auto eventId = m_selection->get_last_refresh_event_id(); m_lastRefreshEvent != eventId)
+            {
+                const auto selection = m_selection->get();
+
+                if (selection.size() == 1)
+                {
+                    entityToSelect = selection.front();
+                }
+
+                m_lastRefreshEvent = eventId;
             }
 
             for (const auto e : m_registry->entities())

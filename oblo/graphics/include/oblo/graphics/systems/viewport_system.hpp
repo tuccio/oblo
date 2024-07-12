@@ -1,14 +1,9 @@
 #pragma once
 
 #include <oblo/core/flat_dense_map.hpp>
-#include <oblo/ecs/handles.hpp>
+#include <oblo/ecs/forward.hpp>
 
 #include <vulkan/vulkan.h>
-
-namespace oblo::ecs
-{
-    struct system_update_context;
-}
 
 namespace oblo::vk
 {

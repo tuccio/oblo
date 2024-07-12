@@ -1,19 +1,15 @@
 #pragma once
 
-#include <oblo/ecs/handles.hpp>
+#include <oblo/ecs/forward.hpp>
 #include <oblo/editor/data/time_stats.hpp>
 #include <oblo/editor/utility/gizmo_handler.hpp>
 #include <oblo/input/utility/fps_camera_controller.hpp>
+#include <oblo/math/vec3.hpp>
 
 namespace oblo
 {
     class input_queue;
     class resource_registry;
-}
-
-namespace oblo::ecs
-{
-    class entity_registry;
 }
 
 namespace oblo::editor
@@ -28,6 +24,8 @@ namespace oblo::editor
 
         void init(const window_update_context& ctx);
         bool update(const window_update_context& ctx);
+
+        vec3 get_spawn_location() const;
 
     private:
         void on_close();

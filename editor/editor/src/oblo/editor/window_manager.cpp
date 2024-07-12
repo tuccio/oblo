@@ -43,7 +43,7 @@ namespace oblo::editor
         return std::bit_cast<window_handle>(newEntry);
     }
 
-    window_handle window_manager::find_child_impl(window_entry* parent, const type_id& type) const
+    window_handle window_manager::find_child_impl(window_entry* parent, const type_id& type, bool recursive) const
     {
         auto* const firstChild = parent->firstChild;
 
@@ -52,6 +52,16 @@ namespace oblo::editor
             if (child->typeId == type)
             {
                 return std::bit_cast<window_handle>(child);
+            }
+
+            if (recursive)
+            {
+                const auto descendant = find_child_impl(child, type, true);
+
+                if (descendant)
+                {
+                    return descendant;
+                }
             }
         }
 
@@ -227,5 +237,23 @@ namespace oblo::editor
     {
         return new (m_pool.allocate(sizeof(service_registry), alignof(service_registry)))
             service_registry{std::move(services)};
+    }
+
+    type_id window_manager::get_window_type(window_handle handle) const
+    {
+        auto* const entry = reinterpret_cast<window_entry*>(handle.value);
+        return entry->typeId;
+    }
+
+    u8* window_manager::get_window_pointer(window_handle handle) const
+    {
+        auto* const entry = reinterpret_cast<window_entry*>(handle.value);
+        return entry->ptr;
+    }
+
+    window_handle window_manager::get_parent(window_handle handle) const
+    {
+        auto* const entry = reinterpret_cast<window_entry*>(handle.value);
+        return std::bit_cast<window_handle>(entry->parent);
     }
 }

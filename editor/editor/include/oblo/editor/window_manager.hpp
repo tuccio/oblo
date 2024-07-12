@@ -51,11 +51,23 @@ namespace oblo::editor
         window_handle create_child_window(window_handle parent, flags<window_flags> flags = {});
 
         template <typename T>
-        bool has_child(window_handle parent) const;
+        bool has_child(window_handle parent, bool recursive) const;
+
+        template <typename T>
+        window_handle find_child(window_handle parent, bool recursive) const;
 
         void destroy_window(window_handle handle);
 
         void update();
+
+        template <typename T>
+        T* try_access(window_handle handle) const;
+
+        type_id get_window_type(window_handle handle) const;
+
+        u8* get_window_pointer(window_handle handle) const;
+
+        window_handle get_parent(window_handle handle) const;
 
     private:
         using memory_pool = std::pmr::unsynchronized_pool_resource;
@@ -75,7 +87,7 @@ namespace oblo::editor
             destroy_fn destroy,
             std::string_view debugName);
 
-        window_handle find_child_impl(window_entry* parent, const type_id& type) const;
+        window_handle find_child_impl(window_entry* parent, const type_id& type, bool recursive) const;
 
         window_entry* update_window(window_entry* entry);
 
@@ -101,7 +113,7 @@ namespace oblo::editor
     template <typename T>
     window_handle window_manager::create_child_window(window_handle parent, flags<window_flags> flags)
     {
-        if (flags.contains(window_flags::unique_sibling) && has_child<T>(parent))
+        if (flags.contains(window_flags::unique_sibling) && has_child<T>(parent, false))
         {
             return {};
         }
@@ -111,11 +123,16 @@ namespace oblo::editor
     }
 
     template <typename T>
-    bool window_manager::has_child(window_handle parent) const
+    bool window_manager::has_child(window_handle parent, bool recursive) const
+    {
+        return bool{find_child<T>(parent, recursive)};
+    }
+
+    template <typename T>
+    window_handle window_manager::find_child(window_handle parent, bool recursive) const
     {
         auto* const parentEntry = reinterpret_cast<window_entry*>(parent.value);
-        const auto h = find_child_impl(parentEntry, get_type_id<T>());
-        return bool{h};
+        return find_child_impl(parentEntry, get_type_id<T>(), recursive);
     }
 
     template <typename T>
@@ -146,5 +163,23 @@ namespace oblo::editor
         }
 
         return newHandle;
+    }
+
+    template <typename T>
+    T* window_manager::try_access(window_handle handle) const
+    {
+        if (!handle)
+        {
+            return {};
+        }
+
+        const auto type = get_window_type(handle);
+
+        if (type != get_type_id<T>())
+        {
+            return {};
+        }
+
+        return reinterpret_cast<T*>(get_window_pointer(handle));
     }
 }
