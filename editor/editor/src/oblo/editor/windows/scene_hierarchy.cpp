@@ -31,18 +31,24 @@ namespace oblo::editor
                 ImGui::OpenPopup("##context");
             }
 
+            ecs::entity entityToSelect{};
+
             if (ImGui::BeginPopupContextItem("##context", ImGuiPopupFlags_None))
             {
-                const std::span selectedEntities = m_selection->get();
-
                 if (ImGui::MenuItem("Create Entity"))
                 {
-                    ecs_utility::create_named_physical_entity(*m_registry,
+                    const auto e = ecs_utility::create_named_physical_entity(*m_registry,
                         "New Entity",
                         {},
                         quaternion::identity(),
                         vec3::splat(1));
+
+                    entityToSelect = e;
+                    m_selection->clear();
+                    m_selection->add(e);
                 }
+
+                const std::span selectedEntities = m_selection->get();
 
                 if (!selectedEntities.empty())
                 {
@@ -79,6 +85,11 @@ namespace oblo::editor
                 if (m_selection->contains(e))
                 {
                     flags |= ImGuiTreeNodeFlags_Selected;
+
+                    if (e == entityToSelect)
+                    {
+                        ImGui::SetScrollHereY();
+                    }
                 }
 
                 auto* const name = entity_utility::get_name_cstr(*m_registry, e);

@@ -2,6 +2,10 @@
 
 #include <oblo/core/data_format.hpp>
 #include <oblo/core/debug.hpp>
+#include <oblo/math/float.hpp>
+#include <oblo/math/vec2.hpp>
+#include <oblo/math/vec3.hpp>
+#include <oblo/math/vec4.hpp>
 #include <oblo/scene/assets/mesh.hpp>
 
 #define TINYGLTF_IMPLEMENTATION
@@ -11,6 +15,7 @@
 #include <tiny_gltf.h>
 
 #include <fstream>
+#include <span>
 
 namespace oblo
 {
@@ -38,6 +43,12 @@ namespace oblo
 
             case attribute_kind::uv0:
                 return "TEXCOORD_0";
+
+            case attribute_kind::tangent:
+                return "TANGENT";
+
+            case attribute_kind::bitangent:
+                return "BITANGENT";
 
             default:
                 unreachable();
@@ -141,6 +152,64 @@ namespace oblo
             }
 
             return format;
+        }
+
+        template <typename F>
+        void for_each_triangle(const mesh& m, F&& f)
+        {
+            if (m.get_primitive_kind() != primitive_kind::triangle)
+            {
+                return;
+            }
+
+            if (m.has_attribute(attribute_kind::indices))
+            {
+                switch (m.get_attribute_format(attribute_kind::indices))
+                {
+                case data_format::u8: {
+                    const std::span indices = m.get_attribute<u8>(attribute_kind::indices);
+
+                    for (u32 i = 0; i < m.get_index_count(); i += 3)
+                    {
+                        f(indices[i], indices[i + 1], indices[i + 2]);
+                    }
+
+                    break;
+                }
+
+                case data_format::u16: {
+                    const std::span indices = m.get_attribute<u16>(attribute_kind::indices);
+
+                    for (u32 i = 0; i < m.get_index_count(); i += 3)
+                    {
+                        f(indices[i], indices[i + 1], indices[i + 2]);
+                    }
+
+                    break;
+                }
+
+                case data_format::u32: {
+                    const std::span indices = m.get_attribute<u32>(attribute_kind::indices);
+
+                    for (u32 i = 0; i < m.get_index_count(); i += 3)
+                    {
+                        f(indices[i], indices[i + 1], indices[i + 2]);
+                    }
+
+                    break;
+                }
+
+                default:
+                    break;
+                }
+            }
+            else
+            {
+                for (u32 i = 0; i < m.get_vertex_count(); i += 3)
+                {
+                    f(i, i + 1, i + 2);
+                }
+            }
         }
     }
 
@@ -344,7 +413,8 @@ namespace oblo
         const tinygltf::Primitive& primitive,
         dynamic_array<mesh_attribute>& attributes,
         dynamic_array<gltf_accessor>& sources,
-        dynamic_array<bool>* usedBuffers)
+        dynamic_array<bool>* usedBuffers,
+        flags<mesh_post_process> processingFlags)
     {
         const auto primitiveKind = convert_primitive_kind(primitive.mode);
 
@@ -410,6 +480,24 @@ namespace oblo
 
                 sources.emplace_back(accessor);
             }
+            else if (attribute == get_attribute_name(attribute_kind::tangent))
+            {
+                attributes.push_back({
+                    .kind = attribute_kind::tangent,
+                    .format = data_format::vec3,
+                });
+
+                sources.emplace_back(accessor);
+            }
+            else if (attribute == get_attribute_name(attribute_kind::bitangent))
+            {
+                attributes.push_back({
+                    .kind = attribute_kind::bitangent,
+                    .format = data_format::vec3,
+                });
+
+                sources.emplace_back(accessor);
+            }
             else if (attribute == get_attribute_name(attribute_kind::uv0))
             {
                 attributes.push_back({
@@ -421,9 +509,38 @@ namespace oblo
             }
         }
 
+        const auto numAttributesFromFile = attributes.size();
+
+        flags<attribute_kind> attributesFromFile;
+
+        for (auto& attribute : attributes)
+        {
+            attributesFromFile |= attribute.kind;
+        }
+
+        bool generateTangentSpace{};
+
+        if (processingFlags.contains(mesh_post_process::generate_tanget_space) &&
+            attributesFromFile.contains(attribute_kind::uv0) && attributesFromFile.contains(attribute_kind::position))
+        {
+            if (!attributesFromFile.contains(attribute_kind::tangent))
+            {
+                attributes.push_back({.kind = attribute_kind::tangent, .format = data_format::vec3});
+                generateTangentSpace = true;
+            }
+
+            if (!attributesFromFile.contains(attribute_kind::bitangent))
+            {
+                attributes.push_back({.kind = attribute_kind::bitangent, .format = data_format::vec3});
+                generateTangentSpace = true;
+            }
+        }
+
         mesh.allocate(primitiveKind, vertexCount, indexCount, 0, attributes);
 
-        for (u32 i = 0; i < attributes.size(); ++i)
+        int vec4TangentAcessor = -1;
+
+        for (u32 i = 0; i < numAttributesFromFile; ++i)
         {
             const auto attributeKind = attributes[i].kind;
             const std::span bytes = mesh.get_attribute(attributeKind);
@@ -442,12 +559,97 @@ namespace oblo
             const auto expectedSize = tinygltf::GetComponentSizeInBytes(accessor.componentType) *
                 tinygltf::GetNumComponentsInType(accessor.type) * accessor.count;
 
-            if (expectedSize != bytes.size())
+            if (expectedSize == bytes.size())
+            {
+                std::memcpy(bytes.data(), data, bytes.size());
+            }
+            else if (attributeKind == attribute_kind::tangent &&
+                accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT && accessor.type == TINYGLTF_TYPE_VEC4)
+            {
+                vec4TangentAcessor = accessorIndex;
+                continue;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        if (vec4TangentAcessor >= 0 && mesh.has_attribute(attribute_kind::normal))
+        {
+            const auto& accessor = model.accessors[vec4TangentAcessor];
+
+            const auto& bufferView = model.bufferViews[accessor.bufferView];
+            const auto& buffer = model.buffers[bufferView.buffer];
+
+            const auto tangents = mesh.get_attribute<vec3>(attribute_kind::tangent);
+            const auto bitangents = mesh.get_attribute<vec3>(attribute_kind::bitangent);
+            const auto normals = mesh.get_attribute<vec3>(attribute_kind::normal);
+
+            if (tangents.size() != accessor.count || normals.size() != accessor.count ||
+                (bitangents.size() != accessor.count && !bitangents.empty()))
             {
                 return false;
             }
 
-            std::memcpy(bytes.data(), data, bytes.size());
+            const auto* const src =
+                start_lifetime_as_array<vec4>(buffer.data.data() + bufferView.byteOffset + accessor.byteOffset,
+                    accessor.count);
+
+            for (u32 i = 0; i < normals.size(); ++i)
+            {
+                const auto srcTangent = src[i];
+                tangents[i] = {srcTangent.x, srcTangent.y, srcTangent.z};
+
+                if (!bitangents.empty())
+                {
+                    bitangents[i] = normalize(cross(normals[i], tangents[i]) * srcTangent.w);
+                }
+            }
+        }
+        else if (generateTangentSpace)
+        {
+            const auto uv0 = mesh.get_attribute<vec2>(attribute_kind::uv0);
+            const auto positions = mesh.get_attribute<vec3>(attribute_kind::position);
+            const auto tangents = mesh.get_attribute<vec3>(attribute_kind::tangent);
+            const auto bitangents = mesh.get_attribute<vec3>(attribute_kind::bitangent);
+            const auto normals = mesh.get_attribute<vec3>(attribute_kind::normal);
+
+            for_each_triangle(mesh,
+                [positions, uv0, tangents, bitangents, normals](u32 v0, u32 v1, u32 v2)
+                {
+                    // Edges of the triangle : position delta
+                    const vec3 deltaPos1 = positions[v1] - positions[v0];
+                    const vec3 deltaPos2 = positions[v2] - positions[v0];
+
+                    // UV delta
+                    const vec2 deltaUV1 = uv0[v1] - uv0[v0];
+                    const vec2 deltaUV2 = uv0[v2] - uv0[v0];
+
+                    const f32 r = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
+                    const vec3 t = (deltaPos1 * deltaUV2.y - deltaPos2 * deltaUV1.y) * r;
+
+                    for (const auto v : {v0, v1, v2})
+                    {
+                        const vec3 normal = normals[v];
+
+                        // Gram-Schmidt orthogonalization (i.e. project onto the plane formed by the normal)
+                        const vec3 tangent = normalize(t - normal * dot(normal, t));
+                        const vec3 bitangent = normalize(cross(normal, tangent));
+                        // const vec3 bitangent = normalize(b - normal * dot(normal, b));
+
+                        // const vec3 bitangent = normalize(cross(normal, tangent));
+                        // const auto direction = dot(normal, cross(tangent, bitangent));
+
+                        tangents[v] = tangent;
+                        bitangents[v] = bitangent;
+                        // bitangents[v] = direction < 0 ? -bitangent : bitangent;
+
+                        // const auto n2 = normalize(cross(tangents[v], bitangents[v]));
+                        // const auto ndt = dot(n2, normals[v]);
+                        // OBLO_ASSERT(float_equal(ndt, 1.f, 0.01f));
+                    }
+                });
         }
 
         return true;
@@ -534,7 +736,7 @@ namespace oblo
         dynamic_array<gltf_accessor> sources;
         sources.reserve(maxAttributes);
 
-        if (load_mesh(mesh, model, primitive, attributes, sources, nullptr))
+        if (load_mesh(mesh, model, primitive, attributes, sources, nullptr, {}))
         {
             aabb aabb = aabb::make_invalid();
 

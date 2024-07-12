@@ -5,6 +5,7 @@
 #include <oblo/core/unreachable.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/math/color.hpp>
+#include <oblo/math/float.hpp>
 #include <oblo/math/power_of_two.hpp>
 #include <oblo/scene/assets/texture.hpp>
 
@@ -16,7 +17,7 @@
 namespace oblo::importers
 {
     // TODO: Support for 16 bit, you kind of have to guess based on filename
-    // TODO: We assume SRGB, I don't see a way of actually checking using stbi
+    // TODO: Seems like STB converts srgb to linear
     // TODO: HDR, should be supported, but probably we need to call the float functions
 
     namespace
@@ -28,19 +29,19 @@ namespace oblo::importers
             switch (channels)
             {
             case 1:
-                vkFormat = VK_FORMAT_R8_SRGB;
+                vkFormat = VK_FORMAT_R8_UNORM;
                 break;
 
             case 2:
-                vkFormat = VK_FORMAT_R8G8_SRGB;
+                vkFormat = VK_FORMAT_R8G8_UNORM;
                 break;
 
             case 3:
-                vkFormat = VK_FORMAT_R8G8B8_SRGB;
+                vkFormat = VK_FORMAT_R8G8B8_UNORM;
                 break;
 
             case 4:
-                vkFormat = VK_FORMAT_R8G8B8A8_SRGB;
+                vkFormat = VK_FORMAT_R8G8B8A8_UNORM;
                 break;
 
             default:
@@ -81,28 +82,36 @@ namespace oblo::importers
 
                 switch (vkFormat)
                 {
-                case VK_FORMAT_R8_SRGB:
+                case VK_FORMAT_R8_UNORM:
                     parallel_for_each_pixel(image_view_r<u8>{current, mipWidth, mipHeight},
-                        box_filter_2x2{srgb_color_tag{},
-                            image_view_r<const u8>{previous, prevMipWidth, prevMipHeight}});
+                        box_filter_2x2{
+                            linear_color_tag{},
+                            image_view_r<const u8>{previous, prevMipWidth, prevMipHeight},
+                        });
                     break;
 
-                case VK_FORMAT_R8G8_SRGB:
+                case VK_FORMAT_R8G8_UNORM:
                     parallel_for_each_pixel(image_view_rg<u8>{current, mipWidth, mipHeight},
-                        box_filter_2x2{srgb_color_tag{},
-                            image_view_rg<const u8>{previous, prevMipWidth, prevMipHeight}});
+                        box_filter_2x2{
+                            linear_color_tag{},
+                            image_view_rg<const u8>{previous, prevMipWidth, prevMipHeight},
+                        });
                     break;
 
-                case VK_FORMAT_R8G8B8_SRGB:
+                case VK_FORMAT_R8G8B8_UNORM:
                     parallel_for_each_pixel(image_view_rgb<u8>{current, mipWidth, mipHeight},
-                        box_filter_2x2{srgb_color_tag{},
-                            image_view_rgb<const u8>{previous, prevMipWidth, prevMipHeight}});
+                        box_filter_2x2{
+                            linear_color_tag{},
+                            image_view_rgb<const u8>{previous, prevMipWidth, prevMipHeight},
+                        });
                     break;
 
-                case VK_FORMAT_R8G8B8A8_SRGB:
+                case VK_FORMAT_R8G8B8A8_UNORM:
                     parallel_for_each_pixel(image_view_rgba<u8>{current, mipWidth, mipHeight},
-                        box_filter_2x2{srgb_color_tag{},
-                            image_view_rgba<const u8>{previous, prevMipWidth, prevMipHeight}});
+                        box_filter_2x2{
+                            linear_color_tag{},
+                            image_view_rgba<const u8>{previous, prevMipWidth, prevMipHeight},
+                        });
                     break;
 
                 default:
@@ -110,13 +119,13 @@ namespace oblo::importers
                 }
             }
 
-            // Convert RGB8_SRGB to RGBA8_SRGB
-            if (vkFormat == VK_FORMAT_R8G8B8_SRGB)
+            // Convert RGB8 to RGBA8
+            if (vkFormat == VK_FORMAT_R8G8B8_UNORM)
             {
                 texture withAlpha;
 
                 withAlpha.allocate({
-                    .vkFormat = VK_FORMAT_R8G8B8A8_SRGB,
+                    .vkFormat = VK_FORMAT_R8G8B8A8_UNORM,
                     .width = u32(w),
                     .height = u32(h),
                     .depth = 1,
@@ -155,48 +164,16 @@ namespace oblo::importers
 
             return true;
         }
-    }
 
-    bool stb_image::load_from_file(texture& out, const std::filesystem::path& path)
-    {
-        int w, h;
-        int channels;
+        using image_ptr = std::unique_ptr<u8[], decltype([](u8* ptr) { free(ptr); })>;
 
-        // TODO: Use stbi_load_from_file instead, and avoid transcoding strings
-        const auto pathStr = path.string();
-
-        auto* const image = stbi_load(pathStr.c_str(), &w, &h, &channels, STBI_default);
-
-        if (!image)
+        image_ptr load_from_file(const std::filesystem::path& path, int& w, int& h, int& channels)
         {
-            return false;
+            // TODO: Use stbi_load_from_file instead, and avoid transcoding strings
+            const auto pathStr = path.string();
+
+            return image_ptr{stbi_load(pathStr.c_str(), &w, &h, &channels, STBI_default)};
         }
-
-        const auto cleanup = finally([image] { free(image); });
-
-        return load_to_texture(out, image, w, h, channels);
-    }
-
-    bool stb_image::load_from_memory(texture& out, const std::span<const std::byte> data)
-    {
-        int w, h;
-        int channels;
-
-        auto* const image = stbi_load_from_memory(reinterpret_cast<const u8*>(data.data()),
-            int(data.size()),
-            &w,
-            &h,
-            &channels,
-            STBI_default);
-
-        if (!image)
-        {
-            return false;
-        }
-
-        const auto cleanup = finally([image] { free(image); });
-
-        return load_to_texture(out, image, w, h, channels);
     }
 
     bool stb_image::init(const importer_config& config, import_preview& preview)
@@ -218,9 +195,74 @@ namespace oblo::importers
             return true;
         }
 
+        int w, h;
+        int channels;
+
+        image_ptr image = load_from_file(m_source, w, h, channels);
+
+        if (!image)
+        {
+            return false;
+        }
+
+        if (const auto swizzle = ctx.settings.find_child(ctx.settings.get_root(), "swizzle");
+            swizzle != data_node::Invalid && ctx.settings.is_array(swizzle))
+        {
+            const auto swizzleCount = ctx.settings.children_count(swizzle);
+
+            if (swizzleCount == 0 || swizzleCount > 4)
+            {
+                return false;
+            }
+
+            u32 swizzleChannels[4];
+
+            u32 previousElement = data_node::Invalid;
+
+            for (u32 i = 0; i < swizzleCount; ++i)
+            {
+                previousElement = ctx.settings.child_next(swizzle, previousElement);
+
+                const auto e = previousElement;
+                const auto c = ctx.settings.read_u32(e);
+
+                if (!c || *c >= u32(channels))
+                {
+                    return false;
+                }
+
+                swizzleChannels[i] = *c;
+            }
+
+            const u32 inRowPitch = u32(round_up_multiple(w * channels, 4));
+            const u32 outRowPitch = round_up_multiple(w * swizzleCount, 4u);
+
+            image_ptr swizzled{static_cast<u8*>(malloc(outRowPitch * h))};
+
+            for (u32 i = 0; i < u32(h); ++i)
+            {
+                const u32 inRowOffset = inRowPitch * i;
+                const u32 outRowOffset = outRowPitch * i;
+
+                for (u32 j = 0; j < u32(w); ++j)
+                {
+                    const u32 inOffset = inRowOffset + u32(channels) * j;
+                    const u32 outOffset = outRowOffset + swizzleCount * j;
+
+                    for (u32 k = 0; k < swizzleCount; ++k)
+                    {
+                        swizzled[outOffset + k] = image[inOffset + swizzleChannels[k]];
+                    }
+                }
+            }
+
+            image = std::move(swizzled);
+            channels = int(swizzleCount);
+        }
+
         texture t;
 
-        if (!load_from_file(t, m_source))
+        if (!load_to_texture(t, image.get(), w, h, channels))
         {
             return false;
         }

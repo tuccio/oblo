@@ -18,6 +18,8 @@ namespace oblo
         indices,
         position,
         normal,
+        tangent,
+        bitangent,
         uv0,
         enum_max
     };

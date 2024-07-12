@@ -7,6 +7,7 @@
 	"settings": {
 		"cmake.copyCompileCommands": "${workspaceFolder}/compile_commands.json",
 		"files.associations": {
+			"*.mesh": "glsl",
 			"charconv": "cpp",
 			"algorithm": "cpp",
 			"cmath": "cpp",
@@ -101,7 +102,10 @@
 			"variant": "cpp",
 			"geometry": "cpp",
 			"complex": "cpp",
-			"eulerangles": "cpp"
+			"eulerangles": "cpp",
+			"coroutine": "cpp",
+			"expected": "cpp",
+			"source_location": "cpp"
 		}
 	}
 }

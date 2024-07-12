@@ -44,6 +44,8 @@ namespace oblo::vk
         {
             position,
             normal,
+            tangent,
+            bitangent,
             uv0,
             enum_max,
         };
@@ -64,6 +66,11 @@ namespace oblo::vk
                 return vertex_attributes::normal;
             case attribute_kind::uv0:
                 return vertex_attributes::uv0;
+            case attribute_kind::tangent:
+                return vertex_attributes::tangent;
+            case attribute_kind::bitangent:
+                return vertex_attributes::bitangent;
+
             default:
                 unreachable();
             }
@@ -111,7 +118,7 @@ namespace oblo::vk
         m_stagingBuffer = &stagingBuffer;
         m_entities = &entities;
 
-        mesh_attribute_description attributes[u32(vertex_attributes::enum_max)];
+        mesh_attribute_description attributes[u32(vertex_attributes::enum_max)]{};
 
         attributes[u32(vertex_attributes::position)] = {
             .name = interner.get_or_add("in_Position"),
@@ -123,10 +130,34 @@ namespace oblo::vk
             .elementSize = sizeof(f32) * 3,
         };
 
+        attributes[u32(vertex_attributes::tangent)] = {
+            .name = interner.get_or_add("in_Tangent"),
+            .elementSize = sizeof(f32) * 3,
+        };
+
+        attributes[u32(vertex_attributes::bitangent)] = {
+            .name = interner.get_or_add("in_Bitangent"),
+            .elementSize = sizeof(f32) * 3,
+        };
+
         attributes[u32(vertex_attributes::uv0)] = {
             .name = interner.get_or_add("in_UV0"),
             .elementSize = sizeof(f32) * 2,
         };
+
+        OBLO_ASSERT(
+            [&attributes]
+            {
+                for (auto& a : attributes)
+                {
+                    if (!a.name)
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }());
 
         const mesh_attribute_description meshData[] = {
             {

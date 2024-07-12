@@ -32,10 +32,25 @@ namespace oblo
 
         void init(u32 firstChunkSize = 1u << 15);
 
+        bool is_initialized() const;
+
+        bool is_object(u32 nodeIndex) const;
+        bool is_array(u32 nodeIndex) const;
+        bool is_value(u32 nodeIndex) const;
+
         u32 get_root() const;
 
         u32 child_object(u32 parent, std::string_view key);
         void child_value(u32 parent, std::string_view key, property_kind kind, std::span<const byte> data);
+        u32 child_next(u32 objectOrArray, u32 previous) const;
+        u32 children_count(u32 objectOrArray) const;
+
+        u32 child_array(u32 parent, std::string_view key, u32 size = 0);
+        u32 array_push_back(u32 array);
+
+        void make_array(u32 node);
+        void make_object(u32 node);
+        void make_value(u32 node, property_kind kind, std::span<const byte> data);
 
         std::span<const data_node> get_nodes() const;
 
@@ -45,6 +60,7 @@ namespace oblo
         expected<bool, error> read_bool(u32 node) const;
 
         expected<f32, error> read_f32(u32 node) const;
+        expected<u32, error> read_u32(u32 node) const;
 
     private:
         struct data_chunk;
@@ -52,6 +68,7 @@ namespace oblo
     private:
         void* allocate(usize size, usize alignment);
         data_chunk* allocate_chunk(u8 exponent);
+        const char* allocate_key(std::string_view key);
 
         void append_new_child(data_node& parent, u32 newChild);
 
@@ -68,36 +85,6 @@ namespace oblo
         node_kind_mismatch,
         value_kind_mismatch,
     };
-
-    inline u32 data_document::find_child(u32 parent, std::string_view name) const
-    {
-        if (parent == data_node::Invalid)
-        {
-            return data_node::Invalid;
-        }
-
-        if (m_nodes[parent].kind != data_node_kind::object)
-        {
-            return data_node::Invalid;
-        }
-
-        for (u32 index = m_nodes[parent].object.firstChild; index != data_node::Invalid;
-             index = m_nodes[index].nextSibling)
-        {
-            if (get_node_name(index) == name)
-            {
-                return index;
-            }
-        }
-
-        return data_node::Invalid;
-    }
-
-    inline std::string_view data_document::get_node_name(u32 node) const
-    {
-        auto& n = m_nodes[node];
-        return std::string_view{n.key, n.keyLen};
-    }
 
     // Used for string values in data_node
     struct data_string

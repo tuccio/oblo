@@ -5,6 +5,7 @@
 #include <oblo/core/file_utility.hpp>
 #include <oblo/core/log.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/core/unreachable.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
@@ -24,35 +25,57 @@ namespace oblo::json
         {
             enum class state
             {
-                expect_object_start,
-                expect_name_or_object_end,
-                expect_value,
+                object_or_array_start,
+                name_or_object_end,
+                value_or_array_end,
+                finished,
+            };
+
+            struct stack_node
+            {
+                u32 id;
+                data_node_kind kind;
             };
 
             data_document& m_doc;
-            state m_state{state::expect_object_start};
+            state m_state{state::object_or_array_start};
             std::string m_lastString;
 
-            std::vector<u32> m_stack;
+            dynamic_array<stack_node> m_stack;
 
             explicit Handler(data_document& doc) : m_doc{doc}
             {
                 m_stack.reserve(32);
-                m_stack.assign(1, m_doc.get_root());
+                m_stack.assign(1, {m_doc.get_root(), data_node_kind::object});
             }
 
             bool StartObject()
             {
                 switch (m_state)
                 {
-                case state::expect_object_start:
-                    m_state = state::expect_name_or_object_end;
+                case state::object_or_array_start:
+                    m_state = state::name_or_object_end;
                     return true;
 
-                case state::expect_value: {
-                    const u32 newNode = m_doc.child_object(m_stack.back(), m_lastString);
-                    m_stack.push_back(newNode);
-                    m_state = state::expect_name_or_object_end;
+                case state::value_or_array_end: {
+                    auto& parent = m_stack.back();
+
+                    u32 newNode;
+
+                    switch (parent.kind)
+                    {
+                    case data_node_kind::array:
+                        newNode = m_doc.array_push_back(parent.id);
+                        break;
+                    case data_node_kind::object:
+                        newNode = m_doc.child_object(parent.id, m_lastString);
+                        break;
+                    default:
+                        unreachable();
+                    }
+
+                    m_stack.push_back({newNode, data_node_kind::object});
+                    m_state = state::name_or_object_end;
                     m_lastString.clear();
                 }
                     return true;
@@ -64,7 +87,7 @@ namespace oblo::json
 
             bool EndObject(rapidjson::SizeType)
             {
-                if (m_state != state::expect_name_or_object_end)
+                if (m_state != state::name_or_object_end)
                 {
                     return false;
                 }
@@ -74,8 +97,64 @@ namespace oblo::json
                     return false;
                 }
 
-                m_state = state::expect_name_or_object_end;
                 m_stack.pop_back();
+                m_state = next_state_from_stack();
+
+                return true;
+            }
+
+            bool StartArray()
+            {
+                switch (m_state)
+                {
+                case state::object_or_array_start:
+                    m_state = state::value_or_array_end;
+                    return true;
+
+                case state::value_or_array_end: {
+                    auto& parent = m_stack.back();
+
+                    u32 newNode;
+
+                    switch (parent.kind)
+                    {
+                    case data_node_kind::array:
+                        newNode = m_doc.array_push_back(parent.id);
+                        m_doc.make_array(newNode);
+                        break;
+                    case data_node_kind::object:
+                        newNode = m_doc.child_array(parent.id, m_lastString);
+                        break;
+                    default:
+                        unreachable();
+                    }
+
+                    m_stack.push_back({newNode, data_node_kind::array});
+                    m_state = state::value_or_array_end;
+                    m_lastString.clear();
+                }
+                    return true;
+
+                default:
+                    return false;
+                }
+            }
+
+            bool EndArray(rapidjson::SizeType)
+            {
+                if (m_state != state::value_or_array_end)
+                {
+                    return false;
+                }
+
+                if (m_stack.empty())
+                {
+                    return false;
+                }
+
+                m_stack.pop_back();
+                m_state = next_state_from_stack();
+
                 return true;
             }
 
@@ -83,20 +162,20 @@ namespace oblo::json
             {
                 switch (m_state)
                 {
-                case state::expect_name_or_object_end:
+                case state::name_or_object_end:
                     m_lastString.assign(str, length);
-                    m_state = state::expect_value;
+                    m_state = state::value_or_array_end;
                     return true;
-                case state::expect_value: {
+                case state::value_or_array_end: {
                     const data_string sv{str, length};
 
-                    m_doc.child_value(m_stack.back(),
+                    m_doc.child_value(m_stack.back().id,
                         m_lastString,
                         property_kind::string,
                         std::as_bytes(std::span{&sv, 1}));
 
                     m_lastString.clear();
-                    m_state = state::expect_name_or_object_end;
+                    m_state = state::name_or_object_end;
                 }
 
                     return true;
@@ -109,14 +188,14 @@ namespace oblo::json
             {
                 switch (m_state)
                 {
-                case state::expect_value:
-                    m_doc.child_value(m_stack.back(),
+                case state::value_or_array_end:
+                    m_doc.child_value(m_stack.back().id,
                         m_lastString,
                         property_kind::boolean,
                         std::as_bytes(std::span{&value, 1}));
 
                     m_lastString.clear();
-                    m_state = state::expect_name_or_object_end;
+                    m_state = state::name_or_object_end;
                     return true;
                 default:
                     return false;
@@ -127,14 +206,14 @@ namespace oblo::json
             {
                 switch (m_state)
                 {
-                case state::expect_value:
-                    m_doc.child_value(m_stack.back(),
+                case state::value_or_array_end:
+                    m_doc.child_value(m_stack.back().id,
                         m_lastString,
                         property_kind::i32,
                         std::as_bytes(std::span{&value, 1}));
 
                     m_lastString.clear();
-                    m_state = state::expect_name_or_object_end;
+                    m_state = next_state_from_stack();
                     return true;
                 default:
                     return false;
@@ -145,14 +224,14 @@ namespace oblo::json
             {
                 switch (m_state)
                 {
-                case state::expect_value:
-                    m_doc.child_value(m_stack.back(),
+                case state::value_or_array_end:
+                    m_doc.child_value(m_stack.back().id,
                         m_lastString,
                         property_kind::u32,
                         std::as_bytes(std::span{&value, 1}));
 
                     m_lastString.clear();
-                    m_state = state::expect_name_or_object_end;
+                    m_state = next_state_from_stack();
                     return true;
                 default:
                     return false;
@@ -163,14 +242,14 @@ namespace oblo::json
             {
                 switch (m_state)
                 {
-                case state::expect_value:
-                    m_doc.child_value(m_stack.back(),
+                case state::value_or_array_end:
+                    m_doc.child_value(m_stack.back().id,
                         m_lastString,
                         property_kind::i64,
                         std::as_bytes(std::span{&value, 1}));
 
                     m_lastString.clear();
-                    m_state = state::expect_name_or_object_end;
+                    m_state = next_state_from_stack();
                     return true;
                 default:
                     return false;
@@ -181,14 +260,14 @@ namespace oblo::json
             {
                 switch (m_state)
                 {
-                case state::expect_value:
-                    m_doc.child_value(m_stack.back(),
+                case state::value_or_array_end:
+                    m_doc.child_value(m_stack.back().id,
                         m_lastString,
                         property_kind::u64,
                         std::as_bytes(std::span{&value, 1}));
 
                     m_lastString.clear();
-                    m_state = state::expect_name_or_object_end;
+                    m_state = next_state_from_stack();
                     return true;
                 default:
                     return false;
@@ -199,14 +278,14 @@ namespace oblo::json
             {
                 switch (m_state)
                 {
-                case state::expect_value:
-                    m_doc.child_value(m_stack.back(),
+                case state::value_or_array_end:
+                    m_doc.child_value(m_stack.back().id,
                         m_lastString,
                         property_kind::f64,
                         std::as_bytes(std::span{&value, 1}));
 
                     m_lastString.clear();
-                    m_state = state::expect_name_or_object_end;
+                    m_state = next_state_from_stack();
                     return true;
                 default:
                     return false;
@@ -217,6 +296,27 @@ namespace oblo::json
             {
                 OBLO_ASSERT(false);
                 return false;
+            }
+
+        private:
+            state next_state_from_stack() const
+            {
+                if (m_stack.empty())
+                {
+                    return state::finished;
+                }
+
+                auto& parent = m_stack.back();
+
+                switch (parent.kind)
+                {
+                case data_node_kind::array:
+                    return state::value_or_array_end;
+                case data_node_kind::object:
+                    return state::name_or_object_end;
+                default:
+                    unreachable();
+                }
             }
         };
     }
@@ -294,11 +394,26 @@ namespace oblo::json
 
                 if (writer.StartObject())
                 {
-                    recurse(recurse, current.object.firstChild);
+                    recurse(recurse, current.objectOrArray.firstChild);
                     writer.EndObject();
                 }
 
                 break;
+
+            case data_node_kind::array:
+                if (current.keyLen != 0)
+                {
+                    writer.String(current.key, current.keyLen);
+                }
+
+                if (writer.StartArray())
+                {
+                    recurse(recurse, current.objectOrArray.firstChild);
+                    writer.EndArray();
+                }
+
+                break;
+
             case data_node_kind::value:
                 if (current.keyLen != 0)
                 {
