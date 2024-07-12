@@ -269,10 +269,10 @@ namespace oblo::importers
                         // When the texture is an ORM map, we drop the occlusion and swap roughness and metalness back
                         settings.init();
 
-                        const u32 swizzle = settings.child_array(settings.get_root(), "swizzle", 2u);
+                        const u32 swizzle = settings.child_array(settings.get_root(), "swizzle");
 
-                        settings.make_value(settings.array_element(swizzle, 0), property_kind::u32, as_bytes(u32{2}));
-                        settings.make_value(settings.array_element(swizzle, 1), property_kind::u32, as_bytes(u32{1}));
+                        settings.child_value(swizzle, {}, property_kind::u32, as_bytes(u32{2}));
+                        settings.child_value(swizzle, {}, property_kind::u32, as_bytes(u32{1}));
                     }
 
                     const auto imageContext = import_context{

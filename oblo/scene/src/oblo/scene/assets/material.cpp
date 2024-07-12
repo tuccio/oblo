@@ -126,7 +126,8 @@ namespace oblo
         const std::span nodes = doc.get_nodes();
         const auto root = doc.get_root();
 
-        for (u32 index = nodes[root].object.firstChild; index != data_node::Invalid; index = nodes[index].nextSibling)
+        for (u32 index = nodes[root].objectOrArray.firstChild; index != data_node::Invalid;
+             index = nodes[index].nextSibling)
         {
             if (nodes[index].kind != data_node_kind::object)
             {

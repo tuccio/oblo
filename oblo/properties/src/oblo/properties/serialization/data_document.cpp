@@ -11,7 +11,7 @@ namespace oblo
 {
     namespace
     {
-        constexpr decltype(data_node::object) make_invalid_object()
+        constexpr decltype(data_node::objectOrArray) make_invalid_object_or_array()
         {
             return {
                 .firstChild = data_node::Invalid,
@@ -78,7 +78,7 @@ namespace oblo
         const data_node root{
             .kind = data_node_kind::object,
             .nextSibling = data_node::Invalid,
-            .object = make_invalid_object(),
+            .objectOrArray = make_invalid_object_or_array(),
         };
 
         m_nodes.assign(1, root);
@@ -116,22 +116,27 @@ namespace oblo
 
     u32 data_document::child_object(u32 parentIndex, std::string_view key)
     {
-        u32 newChild = u32(m_nodes.size());
+        const u32 newChild = u32(m_nodes.size());
         auto& newObject = m_nodes.emplace_back();
 
         auto& parent = m_nodes[parentIndex];
-        OBLO_ASSERT(parent.kind == data_node_kind::object);
+        OBLO_ASSERT(parent.kind == data_node_kind::object || parent.kind == data_node_kind::array);
 
-        auto* const newKey = static_cast<char*>(allocate(key.size() + 1, 1));
-        std::memcpy(newKey, key.data(), key.size());
-        newKey[key.size()] = '\0';
+        const char* newKey{};
+        u16 keyLen{};
+
+        if (parent.kind == data_node_kind::object)
+        {
+            newKey = allocate_key(key);
+            keyLen = narrow_cast<u16>(key.size());
+        }
 
         newObject = {
             .kind = data_node_kind::object,
-            .keyLen = narrow_cast<u16>(key.size()),
+            .keyLen = keyLen,
             .nextSibling = data_node::Invalid,
             .key = newKey,
-            .object = make_invalid_object(),
+            .objectOrArray = make_invalid_object_or_array(),
         };
 
         append_new_child(parent, newChild);
@@ -142,28 +147,33 @@ namespace oblo
     void data_document::child_value(
         u32 parentIndex, std::string_view key, property_kind kind, std::span<const byte> data)
     {
-        u32 newChild = u32(m_nodes.size());
+        const u32 newChild = u32(m_nodes.size());
         auto& newValue = m_nodes.emplace_back();
 
         auto& parent = m_nodes[parentIndex];
-        OBLO_ASSERT(parent.kind == data_node_kind::object);
+        OBLO_ASSERT(parent.kind == data_node_kind::object || parent.kind == data_node_kind::array);
 
         make_value(newChild, kind, data);
 
-        newValue.key = allocate_key(key);
-        newValue.keyLen = narrow_cast<u16>(key.size());
+        if (parent.kind == data_node_kind::object)
+        {
+            newValue.key = allocate_key(key);
+            newValue.keyLen = narrow_cast<u16>(key.size());
+        }
+
+        newValue.nextSibling = data_node::Invalid;
 
         append_new_child(parent, newChild);
     }
 
     u32 data_document::child_array(u32 parentIndex, std::string_view key, u32 size)
     {
-        u32 newChild = u32(m_nodes.size());
+        const u32 newArrayIndex = u32(m_nodes.size());
 
         // Create the array and all the elements (default initialized to kind none)
         m_nodes.resize(m_nodes.size() + 1 + size);
 
-        auto& newArray = m_nodes[newChild];
+        auto& newArray = m_nodes[newArrayIndex];
 
         auto& parent = m_nodes[parentIndex];
         OBLO_ASSERT(parent.kind == data_node_kind::object);
@@ -173,37 +183,81 @@ namespace oblo
             .keyLen = narrow_cast<u16>(key.size()),
             .nextSibling = data_node::Invalid,
             .key = allocate_key(key),
-            .array =
+            .objectOrArray =
                 {
-                    .firstElement = newChild + 1,
-                    .size = size,
+                    .firstChild = data_node::Invalid,
+                    .lastChild = data_node::Invalid,
+                    .childrenCount = 0,
                 },
         };
 
-        append_new_child(parent, newChild);
+        append_new_child(parent, newArrayIndex);
 
-        return newChild;
+        for (u32 i = 0; i < size; ++i)
+        {
+            append_new_child(newArray, newArrayIndex + 1 + i);
+        }
+
+        if (size > 0)
+        {
+            m_nodes.back().nextSibling = data_node::Invalid;
+        }
+
+        return newArrayIndex;
     }
 
-    u32 data_document::array_element(u32 arrayIndex, u32 index) const
+    u32 data_document::array_push_back(u32 arrayIndex)
     {
         auto& array = m_nodes[arrayIndex];
         OBLO_ASSERT(array.kind == data_node_kind::array);
 
-        if (array.kind != data_node_kind::array || index >= array.array.size)
+        const u32 newArrayElement = u32(m_nodes.size());
+        auto& e = m_nodes.emplace_back();
+        e.nextSibling = data_node::Invalid;
+
+        append_new_child(array, newArrayElement);
+
+        return newArrayElement;
+    }
+
+    u32 data_document::child_next(u32 objectOrArray, u32 previous) const
+    {
+        auto& node = m_nodes[objectOrArray];
+        OBLO_ASSERT(node.kind == data_node_kind::array || node.kind == data_node_kind::object);
+
+        if (node.kind != data_node_kind::array && node.kind != data_node_kind::object)
         {
             return data_node::Invalid;
         }
 
-        return array.array.firstElement + index;
+        if (previous == data_node::Invalid)
+        {
+            return node.objectOrArray.firstChild;
+        }
+
+        return m_nodes[previous].nextSibling;
     }
 
-    u32 data_document::array_size(u32 arrayIndex) const
+    u32 data_document::children_count(u32 objectOrArray) const
     {
-        auto& array = m_nodes[arrayIndex];
-        OBLO_ASSERT(array.kind == data_node_kind::array);
+        auto& node = m_nodes[objectOrArray];
+        OBLO_ASSERT(node.kind == data_node_kind::object || node.kind == data_node_kind::array);
 
-        return array.array.size;
+        return node.objectOrArray.childrenCount;
+    }
+
+    void data_document::make_array(u32 node)
+    {
+        auto& n = m_nodes[node];
+        n.kind = data_node_kind::array;
+        n.objectOrArray = make_invalid_object_or_array();
+    }
+
+    void data_document::make_object(u32 node)
+    {
+        auto& n = m_nodes[node];
+        n.kind = data_node_kind::object;
+        n.objectOrArray = make_invalid_object_or_array();
     }
 
     void data_document::make_value(u32 nodeIndex, property_kind kind, std::span<const byte> data)
@@ -230,15 +284,9 @@ namespace oblo
             new (newData) data_string{.data = valueStr, .length = dataString.length};
         }
 
-        newValue = {
-            .kind = data_node_kind::value,
-            .valueKind = kind,
-            .nextSibling = data_node::Invalid,
-            .value =
-                {
-                    .data = newData,
-                },
-        };
+        newValue.kind = data_node_kind::value;
+        newValue.valueKind = kind;
+        newValue.value = {.data = newData};
     }
 
     void* data_document::allocate(usize size, usize alignment)
@@ -288,17 +336,18 @@ namespace oblo
 
     void data_document::append_new_child(data_node& parent, u32 newChild)
     {
-        if (parent.object.firstChild == data_node::Invalid)
+        if (parent.objectOrArray.firstChild == data_node::Invalid)
         {
-            parent.object.firstChild = newChild;
+            parent.objectOrArray.firstChild = newChild;
         }
 
-        if (parent.object.lastChild != data_node::Invalid)
+        if (parent.objectOrArray.lastChild != data_node::Invalid)
         {
-            m_nodes[parent.object.lastChild].nextSibling = newChild;
+            m_nodes[parent.objectOrArray.lastChild].nextSibling = newChild;
         }
 
-        parent.object.lastChild = newChild;
+        parent.objectOrArray.lastChild = newChild;
+        ++parent.objectOrArray.childrenCount;
     }
 
     std::span<const data_node> data_document::get_nodes() const
@@ -318,7 +367,7 @@ namespace oblo
             return data_node::Invalid;
         }
 
-        for (u32 index = m_nodes[parent].object.firstChild; index != data_node::Invalid;
+        for (u32 index = m_nodes[parent].objectOrArray.firstChild; index != data_node::Invalid;
              index = m_nodes[index].nextSibling)
         {
             if (get_node_name(index) == name)
@@ -394,6 +443,9 @@ namespace oblo
 
         case property_kind::u32:
             return *reinterpret_cast<const u32*>(n.value.data);
+
+        default:
+            break;
         }
 
         return error::value_kind_mismatch;

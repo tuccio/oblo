@@ -208,7 +208,7 @@ namespace oblo::importers
         if (const auto swizzle = ctx.settings.find_child(ctx.settings.get_root(), "swizzle");
             swizzle != data_node::Invalid && ctx.settings.is_array(swizzle))
         {
-            const auto swizzleCount = ctx.settings.array_size(swizzle);
+            const auto swizzleCount = ctx.settings.children_count(swizzle);
 
             if (swizzleCount == 0 || swizzleCount > 4)
             {
@@ -217,9 +217,13 @@ namespace oblo::importers
 
             u32 swizzleChannels[4];
 
+            u32 previousElement = data_node::Invalid;
+
             for (u32 i = 0; i < swizzleCount; ++i)
             {
-                const auto e = ctx.settings.array_element(swizzle, i);
+                previousElement = ctx.settings.child_next(swizzle, previousElement);
+
+                const auto e = previousElement;
                 const auto c = ctx.settings.read_u32(e);
 
                 if (!c || *c >= u32(channels))

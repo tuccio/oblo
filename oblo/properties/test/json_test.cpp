@@ -17,12 +17,14 @@ namespace oblo
             bool myBool;
             u32 myU32;
             f32 myF32;
+            u32 myArray[2];
         };
 
         constexpr values expected{
             .myBool = true,
             .myU32 = 42,
             .myF32 = 16.f,
+            .myArray = {42, 666},
         };
 
         {
@@ -36,6 +38,19 @@ namespace oblo
             doc.child_value(root, "myF32", property_kind::f32, std::as_bytes(std::span{&expected.myF32, 1}));
             doc.child_value(root, "myBool", property_kind::boolean, std::as_bytes(std::span{&expected.myBool, 1}));
 
+            const auto array = doc.child_array(root, "myArray", 2);
+
+            u32 i = 0;
+
+            for (auto arrayElement = doc.child_next(array, data_node::Invalid); arrayElement != data_node::Invalid;
+                 arrayElement = doc.child_next(array, arrayElement))
+            {
+                doc.make_value(arrayElement, property_kind::u32, std::as_bytes(std::span{&expected.myArray[i], 1}));
+                ++i;
+            }
+
+            ASSERT_EQ(i, 2);
+
             ASSERT_TRUE(json::write(doc, "test/test.json"));
         }
 
@@ -46,6 +61,8 @@ namespace oblo
             u32 currentDepth{0};
             u32 maxDepth{0};
             u32 numValues{0};
+
+            i32 arrayIndex{-1};
 
             values readback{};
 
@@ -63,8 +80,33 @@ namespace oblo
                         --currentDepth;
                         return visit_result::recurse;
                     },
+                    [&](const std::string_view key, data_node_array_start)
+                    {
+                        if (key == "myArray" && arrayIndex < 0)
+                        {
+                            arrayIndex = 0;
+                        }
+
+                        return visit_result::recurse;
+                    },
+                    [&](const std::string_view key, data_node_array_finish)
+                    {
+                        if (key == "myArray" && arrayIndex == 2)
+                        {
+                            arrayIndex = -1;
+                        }
+
+                        return visit_result::recurse;
+                    },
                     [&](const std::string_view key, const void* value, property_kind kind, data_node_value)
                     {
+                        if (arrayIndex >= 0 && kind == property_kind::u32)
+                        {
+                            readback.myArray[arrayIndex] = *reinterpret_cast<const u32*>(value);
+                            ++arrayIndex;
+                            return visit_result::recurse;
+                        }
+
                         switch (kind)
                         {
                         case property_kind::boolean: {
@@ -109,6 +151,10 @@ namespace oblo
             ASSERT_EQ(expected.myBool, readback.myBool);
             ASSERT_NEAR(expected.myF32, readback.myF32, .0001f);
             ASSERT_EQ(expected.myU32, readback.myU32);
+            ASSERT_EQ(expected.myArray[0], readback.myArray[0]);
+            ASSERT_EQ(expected.myArray[1], readback.myArray[1]);
+
+            ASSERT_EQ(arrayIndex, -1);
         }
     }
 }

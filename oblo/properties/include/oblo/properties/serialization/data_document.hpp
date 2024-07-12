@@ -42,11 +42,14 @@ namespace oblo
 
         u32 child_object(u32 parent, std::string_view key);
         void child_value(u32 parent, std::string_view key, property_kind kind, std::span<const byte> data);
+        u32 child_next(u32 objectOrArray, u32 previous) const;
+        u32 children_count(u32 objectOrArray) const;
 
-        u32 child_array(u32 parent, std::string_view key, u32 size);
-        u32 array_element(u32 array, u32 index) const;
-        u32 array_size(u32 array) const;
+        u32 child_array(u32 parent, std::string_view key, u32 size = 0);
+        u32 array_push_back(u32 array);
 
+        void make_array(u32 node);
+        void make_object(u32 node);
         void make_value(u32 node, property_kind kind, std::span<const byte> data);
 
         std::span<const data_node> get_nodes() const;

@@ -587,7 +587,7 @@ namespace oblo
             const auto normals = mesh.get_attribute<vec3>(attribute_kind::normal);
 
             if (tangents.size() != accessor.count || normals.size() != accessor.count ||
-                bitangents.size() != accessor.count && !bitangents.empty())
+                (bitangents.size() != accessor.count && !bitangents.empty()))
             {
                 return false;
             }
@@ -628,7 +628,6 @@ namespace oblo
 
                     const f32 r = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
                     const vec3 t = (deltaPos1 * deltaUV2.y - deltaPos2 * deltaUV1.y) * r;
-                    const vec3 b = (deltaPos2 * deltaUV1.x - deltaPos1 * deltaUV2.x) * r;
 
                     for (const auto v : {v0, v1, v2})
                     {

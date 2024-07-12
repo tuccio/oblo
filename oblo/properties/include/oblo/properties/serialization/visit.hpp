@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/unreachable.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
 #include <oblo/properties/serialization/data_node.hpp>
 #include <oblo/properties/visit_result.hpp>
@@ -11,7 +12,16 @@ namespace oblo
     struct data_node_object_start
     {
     };
+
     struct data_node_object_finish
+    {
+    };
+
+    struct data_node_array_start
+    {
+    };
+
+    struct data_node_array_finish
     {
     };
 
@@ -31,33 +41,59 @@ namespace oblo
 
             const auto& node = nodes[index];
 
+            const auto key = std::string_view{node.key, node.keyLen};
             auto r = visit_result::recurse;
+
+            const auto doRecurse = [&v, &r, &node, &nodes]
+            {
+                if (r == visit_result::recurse)
+                {
+                    const auto firstChild = node.objectOrArray.firstChild;
+
+                    if (firstChild != data_node::Invalid)
+                    {
+                        if (!visit_node_impl(nodes, v, firstChild))
+                        {
+                            return false;
+                        }
+                    }
+                }
+
+                return true;
+            };
 
             switch (node.kind)
             {
             case data_node_kind::object:
-                r = v(std::string_view{node.key, node.keyLen}, data_node_object_start{});
+                r = v(key, data_node_object_start{});
+
+                if (!doRecurse())
+                {
+                    return false;
+                }
+
+                v(key, data_node_object_finish{});
+
+                break;
+
+            case data_node_kind::array:
+                r = v(key, data_node_array_start{});
+
+                if (!doRecurse())
+                {
+                    return false;
+                }
+
+                v(key, data_node_array_finish{});
                 break;
 
             case data_node_kind::value:
-                r = v(std::string_view{node.key, node.keyLen}, node.value.data, node.valueKind, data_node_value{});
+                r = v(key, node.value.data, node.valueKind, data_node_value{});
                 break;
+
+            case data_node_kind::none:
+                unreachable();
             }
-
-            if (r == visit_result::recurse && node.kind == data_node_kind::object)
-            {
-                const auto firstChild = node.object.firstChild;
-
-                if (firstChild != data_node::Invalid)
-                {
-                    if (!visit_node_impl(nodes, v, firstChild))
-                    {
-                        return false;
-                    }
-                }
-            }
-
-            v(std::string_view{node.key, node.keyLen}, data_node_object_finish{});
 
             if (r >= visit_result::sibling && node.nextSibling != data_node::Invalid)
             {

@@ -29,18 +29,13 @@ namespace oblo
             {
                 u32 firstChild;
                 u32 lastChild;
-            } object;
+                u32 childrenCount;
+            } objectOrArray;
 
             struct
             {
                 void* data;
             } value;
-
-            struct
-            {
-                u32 firstElement;
-                u32 size;
-            } array;
         };
     };
 }
