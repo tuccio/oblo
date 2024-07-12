@@ -12,6 +12,7 @@ namespace oblo::vk
         bool uiWindowMaximized = false;
         bool uiUseDocking = false;
         bool uiUseMultiViewport = false;
+        bool uiUseKeyboardNavigation = true;
         bool vkUseValidationLayers = false;
     };
 }

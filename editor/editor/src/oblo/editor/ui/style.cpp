@@ -94,6 +94,6 @@ namespace oblo::editor
         colors[ImGuiCol_NavHighlight] = ImVec4(0.90f, 0.67f, 0.95f, 1.00f);
         colors[ImGuiCol_NavWindowingHighlight] = ImVec4(0.90f, 0.67f, 0.95f, 1.00f);
         colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.57f, 0.35f, 0.62f, 1.00f);
-        colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.57f, 0.35f, 0.62f, 1.00f);
+        colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.f, 0.f, 0.f, 0.f);
     }
 }

@@ -7,8 +7,10 @@
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/time/clock.hpp>
 #include <oblo/core/uuid.hpp>
+#include <oblo/editor/app/commands.hpp>
 #include <oblo/editor/editor_module.hpp>
 #include <oblo/editor/services/component_factory.hpp>
+#include <oblo/editor/services/registered_commands.hpp>
 #include <oblo/editor/ui/style.hpp>
 #include <oblo/editor/windows/asset_browser.hpp>
 #include <oblo/editor/windows/inspector.hpp>
@@ -118,6 +120,9 @@ namespace oblo::editor
             globalRegistry.add<const input_queue>().externally_owned(ctx.inputQueue);
             globalRegistry.add<component_factory>().unique();
             globalRegistry.add<const time_stats>().externally_owned(&m_timeStats);
+
+            auto* const registeredCommands = globalRegistry.add<registered_commands>().unique();
+            fill_commands(*registeredCommands);
 
             service_registry sceneRegistry{};
             sceneRegistry.add<ecs::entity_registry>().externally_owned(&m_runtime.get_entity_registry());

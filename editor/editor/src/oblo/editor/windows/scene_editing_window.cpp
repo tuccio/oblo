@@ -4,6 +4,7 @@
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/window_manager.hpp>
 #include <oblo/editor/window_update_context.hpp>
+#include <oblo/editor/windows/command_palette_window.hpp>
 #include <oblo/editor/windows/demo_window.hpp>
 #include <oblo/editor/windows/style_window.hpp>
 #include <oblo/editor/windows/viewport.hpp>
@@ -116,6 +117,12 @@ namespace oblo::editor
         ImGui::DockSpace(dockspace_id, ImVec2{0.f, 0.f}, dockspaceFlags);
 
         ImGui::End();
+
+        if (auto& io = ImGui::GetIO(); !io.WantTextInput && io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_P))
+        {
+            ctx.windowManager.create_child_window<command_palette_window>(ctx.windowHandle,
+                window_flags::unique_sibling);
+        }
 
         return true;
     }

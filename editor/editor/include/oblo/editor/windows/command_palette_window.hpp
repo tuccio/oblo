@@ -1,26 +1,28 @@
 #pragma once
 
-#include <oblo/core/types.hpp>
+#include <oblo/ecs/forward.hpp>
 
-namespace oblo::ecs
-{
-    class entity_registry;
-}
+#include <imgui.h>
 
 namespace oblo::editor
 {
     class selected_entities;
+    struct registered_commands;
     struct window_update_context;
 
-    class scene_hierarchy final
+    class viewport;
+
+    class command_palette_window
     {
     public:
         void init(const window_update_context& ctx);
         bool update(const window_update_context& ctx);
 
     private:
-        ecs::entity_registry* m_registry{};
+        registered_commands* m_commands{};
+        ImGuiTextFilter m_filter{};
+
+        ecs::entity_registry* m_entities{};
         selected_entities* m_selection{};
-        u32 m_lastRefreshEvent{};
     };
 }

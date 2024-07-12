@@ -13,6 +13,7 @@ target_link_libraries(
     oblo::sandbox
     oblo::scene
     oblo::thread
+    iconfontcppheaders::iconfontcppheaders
     SDL2::SDL2
     SDL2::SDL2main
 )
