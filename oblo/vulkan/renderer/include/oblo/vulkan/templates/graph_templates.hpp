@@ -17,6 +17,9 @@ namespace oblo::vk::main_view
     constexpr std::string_view InLightData{"LightDataBuffer"};
     constexpr std::string_view InLightConfig{"LightConfig"};
 
+    constexpr std::string_view OutLitImage{"Lit Output"};
+    constexpr std::string_view OutAlbedoImage{"Albedo Output"};
+
     struct config
     {
         bool withPicking{false};

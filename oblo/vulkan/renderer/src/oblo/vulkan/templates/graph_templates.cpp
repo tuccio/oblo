@@ -11,6 +11,31 @@
 #include <oblo/vulkan/nodes/visibility_lighting.hpp>
 #include <oblo/vulkan/nodes/visibility_pass.hpp>
 
+namespace oblo::vk
+{
+    namespace
+    {
+        template <typename Source>
+        void add_copy_output(vk::frame_graph_template& graph,
+            frame_graph_template_vertex_handle rtSource,
+            frame_graph_template_vertex_handle source,
+            resource<texture>(Source::*from),
+            std::string_view outputName)
+        {
+            const auto copyFinalTarget = graph.add_node<copy_texture_node>();
+
+            graph.make_output(copyFinalTarget, &copy_texture_node::inTarget, outputName);
+
+            graph.connect(rtSource,
+                &view_buffers_node::inFinalRenderTarget,
+                copyFinalTarget,
+                &copy_texture_node::inTarget);
+
+            graph.connect(source, from, copyFinalTarget, &copy_texture_node::inSource);
+        }
+    }
+}
+
 namespace oblo::vk::main_view
 {
     frame_graph_template create(const frame_graph_registry& registry, const config& cfg)
@@ -22,7 +47,7 @@ namespace oblo::vk::main_view
         const auto viewBuffers = graph.add_node<view_buffers_node>();
         const auto visibilityPass = graph.add_node<visibility_pass>();
         const auto visibilityLighting = graph.add_node<visibility_lighting>();
-        const auto copyFinalTarget = graph.add_node<copy_texture_node>();
+        const auto visibilityAlbedo = graph.add_node<visibility_albedo>();
 
         // Hacky view buffers node
         graph.make_input(viewBuffers, &view_buffers_node::inResolution, InResolution);
@@ -30,15 +55,11 @@ namespace oblo::vk::main_view
         graph.make_input(viewBuffers, &view_buffers_node::inTimeData, InTime);
         graph.make_input(viewBuffers, &view_buffers_node::inInstanceTables, InInstanceTables);
         graph.make_input(viewBuffers, &view_buffers_node::inInstanceBuffers, InInstanceBuffers);
+        graph.make_input(viewBuffers, &view_buffers_node::inFinalRenderTarget, InFinalRenderTarget);
 
         // Forward pass inputs
-        // graph.make_input(visibilityPass, &visibility_pass::inResolution, InResolution);
-        // graph.make_input(visibilityLighting, &visibility_lighting::inPickingConfiguration, InPickingConfiguration);
         graph.make_input(visibilityLighting, &visibility_lighting::inLightConfig, InLightConfig);
         graph.make_input(visibilityLighting, &visibility_lighting::inLightData, InLightData);
-
-        // Final blit
-        graph.make_input(copyFinalTarget, &copy_texture_node::inTarget, InFinalRenderTarget);
 
         // Connect view buffers to visibility pass
         graph.connect(viewBuffers, &view_buffers_node::inResolution, visibilityPass, &visibility_pass::inResolution);
@@ -64,42 +85,25 @@ namespace oblo::vk::main_view
             &visibility_pass::inMeshDatabase);
 
         // Connect inputs to visibility lighting
-        graph.connect(viewBuffers,
-            &view_buffers_node::outCameraBuffer,
-            visibilityLighting,
-            &visibility_lighting::inCameraBuffer);
+        const auto connectVisibilityShadingPass =
+            [&]<typename T>(vk::frame_graph_template_vertex_handle shadingPass, h32<T>)
+        {
+            graph.connect(viewBuffers, &view_buffers_node::outCameraBuffer, shadingPass, &T::inCameraBuffer);
+            graph.connect(viewBuffers, &view_buffers_node::inResolution, shadingPass, &T::inResolution);
+            graph.connect(viewBuffers, &view_buffers_node::inInstanceTables, shadingPass, &T::inInstanceTables);
+            graph.connect(viewBuffers, &view_buffers_node::inInstanceBuffers, shadingPass, &T::inInstanceBuffers);
+            graph.connect(viewBuffers, &view_buffers_node::outMeshDatabase, shadingPass, &T::inMeshDatabase);
 
-        graph.connect(viewBuffers,
-            &view_buffers_node::inResolution,
-            visibilityLighting,
-            &visibility_lighting::inResolution);
+            // Connect vsibility buffer
+            graph.connect(visibilityPass, &visibility_pass::outVisibilityBuffer, shadingPass, &T::inVisibilityBuffer);
+        };
 
-        graph.connect(viewBuffers,
-            &view_buffers_node::inInstanceTables,
-            visibilityLighting,
-            &visibility_lighting::inInstanceTables);
+        connectVisibilityShadingPass(visibilityLighting, h32<visibility_lighting>{});
+        connectVisibilityShadingPass(visibilityAlbedo, h32<visibility_albedo>{});
 
-        graph.connect(viewBuffers,
-            &view_buffers_node::inInstanceBuffers,
-            visibilityLighting,
-            &visibility_lighting::inInstanceBuffers);
-
-        graph.connect(viewBuffers,
-            &view_buffers_node::outMeshDatabase,
-            visibilityLighting,
-            &visibility_lighting::inMeshDatabase);
-
-        // Connect vsibility buffer
-        graph.connect(visibilityPass,
-            &visibility_pass::outVisibilityBuffer,
-            visibilityLighting,
-            &visibility_lighting::inVisibilityBuffer);
-
-        // Connect lighting to final blit
-        graph.connect(visibilityLighting,
-            &visibility_lighting::outLitImage,
-            copyFinalTarget,
-            &copy_texture_node::inSource);
+        // Copies to the output textures
+        add_copy_output(graph, viewBuffers, visibilityLighting, &visibility_lighting::outShadedImage, OutLitImage);
+        add_copy_output(graph, viewBuffers, visibilityAlbedo, &visibility_albedo::outShadedImage, OutAlbedoImage);
 
         // Culling + draw call generation
         {
@@ -157,7 +161,6 @@ namespace oblo::vk::main_view
                 &draw_call_generator::inMeshDatabase);
         }
 
-        (void) cfg;
         // Picking
         if (cfg.withPicking)
         {
@@ -218,6 +221,7 @@ namespace oblo::vk
         registry.register_node<view_buffers_node>();
         registry.register_node<frustum_culling>();
         registry.register_node<visibility_pass>();
+        registry.register_node<visibility_albedo>();
         registry.register_node<visibility_lighting>();
         registry.register_node<draw_call_generator>();
         registry.register_node<entity_picking>();

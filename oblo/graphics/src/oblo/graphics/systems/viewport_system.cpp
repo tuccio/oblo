@@ -241,6 +241,9 @@ namespace oblo
                     const auto subgraph = frameGraph.instantiate(mainViewTemplate);
                     it->subgraph = subgraph;
 
+                    frameGraph.disable_all_outputs(subgraph);
+                    frameGraph.set_output_state(subgraph, main_view::OutLitImage, true);
+
                     m_sceneRenderer->add_scene_view(subgraph);
 
                     renderGraphData = &*it;

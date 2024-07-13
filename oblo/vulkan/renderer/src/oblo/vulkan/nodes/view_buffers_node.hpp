@@ -4,6 +4,7 @@
 #include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/data/camera_buffer.hpp>
+#include <oblo/vulkan/data/copy_texture_info.hpp>
 #include <oblo/vulkan/data/time_buffer.hpp>
 #include <oblo/vulkan/graph/frame_graph_context.hpp>
 #include <oblo/vulkan/graph/node_common.hpp>
@@ -25,6 +26,8 @@ namespace oblo::vk
 
         resource<buffer> inInstanceTables;
         data<instance_data_table_buffers_span> inInstanceBuffers;
+
+        data<copy_texture_info> inFinalRenderTarget;
 
         void build(const frame_graph_build_context& ctx)
         {

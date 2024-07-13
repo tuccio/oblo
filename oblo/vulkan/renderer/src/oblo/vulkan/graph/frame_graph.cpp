@@ -308,6 +308,32 @@ namespace oblo::vk
         }
     }
 
+    void frame_graph::disable_all_outputs(h32<frame_graph_subgraph> graph)
+    {
+        const auto& sg = m_impl->subgraphs.at(graph);
+
+        for (const auto& [name, out] : sg.outputs)
+        {
+            auto& v = m_impl->graph[out];
+            v.state = frame_graph_vertex_state::disabled;
+        }
+    }
+
+    void frame_graph::set_output_state(h32<frame_graph_subgraph> graph, std::string_view name, bool enable)
+    {
+        const auto& sg = m_impl->subgraphs.at(graph);
+
+        const auto it = sg.outputs.find(name);
+
+        OBLO_ASSERT(it != sg.outputs.end());
+
+        if (it != sg.outputs.end())
+        {
+            auto& v = m_impl->graph[it->second];
+            v.state = enable ? frame_graph_vertex_state::enabled : frame_graph_vertex_state::disabled;
+        }
+    }
+
     bool frame_graph::init(vulkan_context& ctx)
     {
         // Just arbitrary fixed size for now
@@ -353,6 +379,7 @@ namespace oblo::vk
 
         m_impl->dynamicAllocator.restore_all();
 
+        m_impl->mark_active_nodes();
         m_impl->rebuild_runtime(renderer);
 
         // Reset the buffer usages
@@ -738,6 +765,12 @@ namespace oblo::vk
                 case frame_graph_vertex_kind::node: {
                     OBLO_ASSERT(vertex.node);
 
+                    // Cull the disabled nodes (or the unvisited ones, which don't contribute to any output)
+                    if (vertex.state != frame_graph_vertex_state::enabled)
+                    {
+                        return;
+                    }
+
                     auto* node = nodes.try_find(vertex.node);
                     OBLO_ASSERT(node);
 
@@ -808,6 +841,70 @@ namespace oblo::vk
 
             auto* const nodePtr = nodes.try_find(nodeVertex.node)->ptr;
             write_u32(nodePtr, pin->pinMemberOffset, pin->referencedPin.value);
+        }
+    }
+
+    void frame_graph_impl::mark_active_nodes()
+    {
+        // First we mark all nodes as unvisited (pins should stay untouched)
+        for (const h32 node : graph.get_vertices())
+        {
+            auto& v = graph[node];
+
+            if (v.node)
+            {
+                v.state = frame_graph_vertex_state::unvisited;
+            }
+        }
+
+        dynamic_array<frame_graph_topology::vertex_handle> nodesToEnable{&dynamicAllocator};
+        nodesToEnable.reserve(graph.get_vertex_count());
+
+        for (const auto& subgraph : subgraphs.values())
+        {
+            for (const auto& [name, out] : subgraph.outputs)
+            {
+                auto& v = graph[out];
+
+                OBLO_ASSERT(v.pin && !v.node);
+                OBLO_ASSERT(
+                    v.state == frame_graph_vertex_state::enabled || v.state == frame_graph_vertex_state::disabled);
+
+                if (v.state == frame_graph_vertex_state::disabled)
+                {
+                    continue;
+                }
+
+                for (const auto& e : graph.get_in_edges(out))
+                {
+                    nodesToEnable.push_back(e.vertex);
+                }
+            }
+        }
+
+        while (!nodesToEnable.empty())
+        {
+            const h32 vId = nodesToEnable.back();
+            nodesToEnable.pop_back();
+
+            auto& v = graph[vId];
+
+            if (v.kind != frame_graph_vertex_kind::node)
+            {
+                continue;
+            }
+
+            if (v.state != frame_graph_vertex_state::unvisited)
+            {
+                continue;
+            }
+
+            v.state = frame_graph_vertex_state::enabled;
+
+            for (const auto& e : graph.get_in_edges(vId))
+            {
+                nodesToEnable.push_back(e.vertex);
+            }
         }
     }
 

@@ -66,12 +66,21 @@ namespace oblo::vk
         frame_graph_data_desc typeDesc;
     };
 
+    enum class frame_graph_vertex_state : u8
+    {
+        enabled,
+        disabled,
+        unvisited,
+    };
+
     struct frame_graph_vertex
     {
         frame_graph_vertex_kind kind;
+        frame_graph_vertex_state state;
         h32<frame_graph_node> node;
         h32<frame_graph_pin> pin;
     };
+
     struct frame_graph_texture_transition
     {
         h32<frame_graph_pin_storage> texture;
@@ -176,6 +185,7 @@ namespace oblo::vk
         frame_graph_node* currentNode{};
 
     public: // Internals for frame graph execution
+        void mark_active_nodes();
         void rebuild_runtime(renderer& renderer);
         void flush_uploads(VkCommandBuffer commandBuffer, staging_buffer& stagingBuffer);
         void finish_frame();

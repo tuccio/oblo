@@ -12,7 +12,7 @@ layout(binding = 16) uniform b_CameraBuffer
 
 layout(binding = 11, rg32ui) uniform restrict readonly uimage2D t_InVisibilityBuffer;
 
-layout(binding = 12, rgba8) uniform restrict writeonly image2D t_OutLitImage;
+layout(binding = 12, rgba8) uniform restrict writeonly image2D t_OutShadedImage;
 
 layout(push_constant) uniform c_PushConstants
 {
@@ -40,12 +40,12 @@ void main()
     if (!visibility_buffer_parse(visBufferData.xy, vb))
     {
         // This means we didn't hit anything, and have no triangle in this pixel
-        imageStore(t_OutLitImage, screenPos, vec4(0));
+        imageStore(t_OutShadedImage, screenPos, vec4(0));
         return;
     }
 
     const vec4 color = visibility_shade(screenPos, vb);
-    imageStore(t_OutLitImage, screenPos, color);
+    imageStore(t_OutShadedImage, screenPos, color);
 }
 
 bool calculate_position_and_barycentric_coords(in ivec2 screenPos,

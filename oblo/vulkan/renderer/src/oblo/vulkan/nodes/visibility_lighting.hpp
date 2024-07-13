@@ -33,9 +33,34 @@ namespace oblo::vk
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
         resource<texture> inVisibilityBuffer;
-        resource<texture> outLitImage;
+        resource<texture> outShadedImage;
 
         h32<compute_pass> lightingPass;
+
+        void init(const frame_graph_init_context& context);
+
+        void build(const frame_graph_build_context& builder);
+
+        void execute(const frame_graph_execute_context& context);
+    };
+
+    // TODO: (#56) The standard layout requirement for nodes forces some copy paste.
+
+    struct visibility_albedo
+    {
+        data<vec2u> inResolution;
+
+        resource<buffer> inCameraBuffer;
+
+        resource<buffer> inMeshDatabase;
+
+        resource<buffer> inInstanceTables;
+        data<instance_data_table_buffers_span> inInstanceBuffers;
+
+        resource<texture> inVisibilityBuffer;
+        resource<texture> outShadedImage;
+
+        h32<compute_pass> albedoPass;
 
         void init(const frame_graph_init_context& context);
 

@@ -46,6 +46,9 @@ namespace oblo::vk
         template <typename T>
         expected<> set_input(h32<frame_graph_subgraph> graph, std::string_view name, T&& value);
 
+        void disable_all_outputs(h32<frame_graph_subgraph> graph);
+        void set_output_state(h32<frame_graph_subgraph> graph, std::string_view name, bool enable);
+
         bool init(vulkan_context& ctx);
         void shutdown(vulkan_context& ctx);
 
