@@ -22,7 +22,7 @@ uint8_t mesh_get_index_u8(in mesh_table t, in uint indexId)
 /// Returns the meshlet microindices.
 /// @remarks The vertices have to be translated to be used to access the data globally.
 uvec3 meshlet_get_triangle_microindices(
-    in mesh_table t, in mesh_draw_range meshRange, in meshlet_draw_range meshletRange, uint meshletTriangleId)
+    in mesh_table t, in mesh_draw_range meshRange, in meshlet_draw_range meshletRange, in uint meshletTriangleId)
 {
     const uint64_t address = t.indexDataAddress;
     U8AttributeType indexBuffer = U8AttributeType(address);
@@ -36,6 +36,20 @@ uvec3 meshlet_get_triangle_microindices(
     triangleIndices[2] = uint(mesh_get_index_u8(t, globalIndexOffset + 2));
 
     return triangleIndices;
+}
+
+/// Returns the meshlet microindices for the meshlet.
+uvec3 mesh_get_meshlet_indices(in mesh_table t, in mesh_handle mesh, in uint meshletId, in uint meshletTriangleId)
+{
+    const uint meshIndex = mesh_handle_as_index(mesh);
+    const mesh_draw_range meshRange = mesh_get_draw_range(t, meshIndex);
+
+    const meshlet_draw_range meshletRange = mesh_get_meshlet_draw_range(t, meshletId);
+
+    const uvec3 vertexIndices = uvec3(meshRange.vertexOffset + meshletRange.vertexOffset) +
+        meshlet_get_triangle_microindices(t, meshRange, meshletRange, meshletTriangleId);
+
+    return vertexIndices;
 }
 
 #endif

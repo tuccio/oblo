@@ -9,7 +9,6 @@
 #extension GL_KHR_shader_subgroup_quad : require
 #extension GL_EXT_control_flow_attributes : enable
 
-#include <renderer/barycentric>
 #include <renderer/camera>
 #include <renderer/instances>
 #include <renderer/lights>
@@ -19,70 +18,31 @@
 #include <renderer/meshes/mesh_data>
 #include <renderer/meshes/mesh_indices>
 #include <renderer/meshes/mesh_table>
-#include <renderer/quad>
-#include <renderer/raytrace>
+#include <renderer/shading/normal_mapping>
 #include <renderer/shading/pbr>
 #include <renderer/textures>
 #include <renderer/transform>
 #include <renderer/volumes>
-#include <visibility/visibility_buffer>
+#include <visibility/visibility_shading>
 
-layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
-
-layout(binding = 0) uniform b_CameraBuffer
-{
-    camera_buffer g_Camera;
-};
-
-layout(binding = 1) uniform b_LightConfig
+layout(binding = 0) uniform b_LightConfig
 {
     light_config g_LightConfig;
 };
 
-layout(std430, binding = 2) restrict readonly buffer b_LightData
+layout(std430, binding = 1) restrict readonly buffer b_LightData
 {
     light_data lights[];
 };
 
-layout(binding = 11, rg32ui) uniform restrict readonly uimage2D t_InVisibilityBuffer;
-
-layout(binding = 12, rgba8) uniform restrict writeonly image2D t_OutLitImage;
-
-layout(push_constant) uniform c_PushConstants
+vec4 visibility_shade(in ivec2 screenPos, in visibility_buffer_data vb)
 {
-    uvec2 resolution;
-}
-g_Constants;
-
-void main()
-{
-    const uvec2 localGroupId = quad_remap_lane_8x8(gl_LocalInvocationIndex);
-    const ivec2 screenPos = ivec2(gl_WorkGroupID.xy * 8 + localGroupId);
-
-    if (screenPos.x >= g_Constants.resolution.x)
-    {
-        return;
-    }
-
-    // Parse the visibility buffer to find which triangle we are processing
-    const uvec4 visBufferData = imageLoad(t_InVisibilityBuffer, screenPos);
-
-    visibility_buffer_data vb;
-
-    if (!visibility_buffer_parse(visBufferData.xy, vb))
-    {
-        // This means we didn't hit anything, and have no triangle in this pixel
-        imageStore(t_OutLitImage, screenPos, vec4(0));
-        return;
-    }
-
     // Read the instance data we need
     const mesh_handle mesh = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MeshHandles, vb.instanceId);
     const transform transform = OBLO_INSTANCE_DATA(vb.instanceTableId, i_TransformBuffer, vb.instanceId);
     const gpu_material material = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MaterialBuffer, vb.instanceId);
 
     triangle triangleWS;
-    vec3 trianglePosition[3];
     vec2 triangleUV0[3];
     vec3 triangleNormal[3];
     vec3 triangleTangent[3];
@@ -90,14 +50,7 @@ void main()
 
     // Read the mesh data
     const mesh_table meshTable = mesh_table_fetch(mesh);
-
-    const uint meshIndex = mesh_handle_as_index(mesh);
-    const mesh_draw_range meshRange = mesh_get_draw_range(meshTable, meshIndex);
-
-    const meshlet_draw_range meshletRange = mesh_get_meshlet_draw_range(meshTable, vb.meshletId);
-
-    const uvec3 vertexIndices = uvec3(meshRange.vertexOffset + meshletRange.vertexOffset) +
-        meshlet_get_triangle_microindices(meshTable, meshRange, meshletRange, vb.meshletTriangleId);
+    const uvec3 vertexIndices = mesh_get_meshlet_indices(meshTable, mesh, vb.meshletId, vb.meshletTriangleId);
 
     // Read the vertex data and transform everything in world space, we do lighting calculation in that space
     [[unroll]] for (uint i = 0; i < 3; ++i)
@@ -105,7 +58,6 @@ void main()
         const uint vertexId = vertexIndices[i];
 
         const vec3 vertexPosition = mesh_get_position(meshTable, vertexId);
-        trianglePosition[i] = vertexPosition;
         triangleWS.v[i] = (transform.localToWorld * vec4(vertexPosition, 1)).xyz;
 
         const vec3 vertexNormal = mesh_get_normal(meshTable, vertexId);
@@ -120,52 +72,13 @@ void main()
         triangleUV0[i] = mesh_get_uv0(meshTable, vertexId);
     }
 
-    // Cast a ray from the camera to the near plane and calculate the distance of the ray hit to the plane on the
-    // triangle in world space, we use that to derive the position in world space
-    const vec2 positionNDC = vec2(2 * screenPos) / g_Constants.resolution - 1.f;
-    const vec3 screenPosWS = camera_unproject_world_space(g_Camera, positionNDC, 0);
+    barycentric_coords bc, bcDDX, bcDDY;
+    vec3 positionWS;
 
-    ray cameraRay;
-    cameraRay.origin = g_Camera.position;
-    cameraRay.direction = normalize(screenPosWS - g_Camera.position);
-
-    float intersectionDistance;
-
-    // Really the plan should be hitting here, since we already know the triangle was rendered by the rasterizer, we
-    // mostly want to calculate at what distance it does
-    if (!distance_from_triangle_plane(cameraRay, triangleWS, intersectionDistance))
+    if (!calculate_position_and_barycentric_coords(screenPos, triangleWS, positionWS, bc, bcDDX, bcDDY))
     {
-        imageStore(t_OutLitImage, screenPos, vec4(0));
-        return;
+        return vec4(0);
     }
-
-    ray cameraRayDDX;
-    cameraRayDDX.origin = g_Camera.position;
-    cameraRayDDX.direction = subgroupQuadSwapHorizontal(cameraRay.direction);
-
-    float intersectionDistanceDDX;
-    distance_from_triangle_plane(cameraRayDDX, triangleWS, intersectionDistanceDDX);
-
-    ray cameraRayDDY;
-    cameraRayDDY.origin = g_Camera.position;
-    cameraRayDDY.direction = subgroupQuadSwapVertical(cameraRay.direction);
-
-    // We do the same ray tracing with the nearby quads, so we can calculate UV gradients for our sampler
-    float intersectionDistanceDDY;
-    distance_from_triangle_plane(cameraRayDDX, triangleWS, intersectionDistanceDDY);
-
-    const vec3 positionWS = ray_point_at(cameraRay, intersectionDistance);
-    const vec3 positionDDX = ray_point_at(cameraRayDDX, intersectionDistanceDDX);
-    const vec3 positionDDY = ray_point_at(cameraRayDDY, intersectionDistanceDDY);
-
-    barycentric_coords bc;
-    barycentric_calculate(bc, triangleWS.v, positionWS);
-
-    barycentric_coords bcDDX;
-    barycentric_calculate(bcDDX, triangleWS.v, positionDDX);
-
-    barycentric_coords bcDDY;
-    barycentric_calculate(bcDDX, triangleWS.v, positionDDY);
 
     // Interpolate UV0 and calculate gradients
     const vec2 uv0 = barycentric_interpolate(bc, triangleUV0);
@@ -177,18 +90,14 @@ void main()
 
     if (material.normalMapTexture != 0)
     {
-        const vec3 sampledNormal =
-            texture_sample_2d_grad(material.normalMapTexture, OBLO_SAMPLER_LINEAR, uv0, uv0DDX, uv0DDY).xyz;
-
-        const vec3 normalTS = 2.f * sampledNormal - 1.f;
+        const vec4 sampledNormal =
+            texture_sample_2d_grad(material.normalMapTexture, OBLO_SAMPLER_LINEAR, uv0, uv0DDX, uv0DDY);
 
         const vec3 T = normalize(barycentric_interpolate(bc, triangleTangent));
         const vec3 B = normalize(barycentric_interpolate(bc, triangleBitangent));
         const vec3 N = normalize(barycentric_interpolate(bc, triangleNormal));
 
-        const mat3 TBN = mat3(T, B, N);
-
-        normalWS = normalize(mat3(transform.normalMatrix) * (TBN * normalTS));
+        normalWS = normal_mapping(sampledNormal, T, B, N, mat3(transform.normalMatrix));
     }
     else
     {
@@ -245,8 +154,6 @@ void main()
 
     const vec3 outLight = emitted + reflected;
 
-    // The simplest color mapping for now
-    const vec4 final = vec4(outLight / (outLight + 1), 1);
-
-    imageStore(t_OutLitImage, screenPos, final);
+    // A simple color mapping for now, since we have none implemented and we output to RGBA8
+    return vec4(outLight / (outLight + 1), 1);
 }
