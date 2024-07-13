@@ -13,6 +13,7 @@ namespace oblo
         fail_if_not_dag,
         pre_visit,
         post_visit,
+        reverse,
         enum_max,
     };
 
@@ -31,6 +32,18 @@ namespace oblo
 
         dynamic_array<visit_state> nodeStates{temporaryAllocator};
         nodeStates.resize(numNodes, visit_state::unvisited);
+
+        constexpr auto getEdges = [](Graph& g, Graph::vertex_handle vertex)
+        {
+            if constexpr (Flags.contains(graph_visit_flag::reverse))
+            {
+                return g.get_in_edges(vertex);
+            }
+            else
+            {
+                return g.get_out_edges(vertex);
+            }
+        };
 
         // Recursive function for now
         const auto dfs = [&g, &vertices, &nodeStates, &v](auto&& recurse, usize nodeIndex)
@@ -57,7 +70,7 @@ namespace oblo
                 v(vertex);
             }
 
-            for (const auto outEdge : g.get_out_edges(vertex))
+            for (const auto outEdge : getEdges(g, vertex))
             {
                 const auto dst = outEdge.vertex;
                 const auto dstIndex = g.get_dense_index(dst);

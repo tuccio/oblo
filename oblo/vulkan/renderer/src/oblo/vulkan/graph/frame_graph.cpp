@@ -4,7 +4,6 @@
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/graph/dfs_visit.hpp>
 #include <oblo/core/graph/dot.hpp>
-#include <oblo/core/iterator/reverse_range.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/unreachable.hpp>
@@ -450,7 +449,8 @@ namespace oblo::vk
             new (m_impl->access_storage(resource)) texture{tex};
         }
 
-        buffered_array<VkBufferMemoryBarrier2, 32> bufferBarriers;
+        dynamic_array<VkBufferMemoryBarrier2> bufferBarriers{&m_impl->dynamicAllocator};
+        bufferBarriers.reserve(128);
 
         {
             // Global memory barrier to cover all uploads we just flushed
@@ -471,7 +471,8 @@ namespace oblo::vk
             vkCmdPipelineBarrier2(commandBuffer.get(), &dependencyInfo);
         }
 
-        buffered_array<h32<frame_graph_node>, 16> incomingNodes;
+        dynamic_array<h32<frame_graph_node>> incomingNodes{&m_impl->dynamicAllocator};
+        incomingNodes.reserve(32);
 
         for (auto&& [nodeToExecute, transitions] : zip_range(m_impl->sortedNodes, m_impl->nodeTransitions))
         {
@@ -716,45 +717,45 @@ namespace oblo::vk
         sortedNodes.clear();
         sortedNodes.reserve(nodes.size());
 
-        dynamic_array<frame_graph_topology::vertex_handle> reverseSortedPins;
-        reverseSortedPins.reserve(pins.size());
+        dynamic_array<frame_graph_topology::vertex_handle> sortedPins{&dynamicAllocator};
+        sortedPins.reserve(pins.size());
 
-        [[maybe_unused]] const auto isDAG =
-            dfs_visit_template<graph_visit_flag::post_visit | graph_visit_flag::fail_if_not_dag>(
-                graph,
-                [this, &reverseSortedPins, &initCtx](frame_graph_topology::vertex_handle v)
+        [[maybe_unused]] const auto isDAG = dfs_visit_template<graph_visit_flag::post_visit |
+            graph_visit_flag::reverse | graph_visit_flag::fail_if_not_dag>(
+            graph,
+            [this, &sortedPins, &initCtx](frame_graph_topology::vertex_handle v)
+            {
+                auto& vertex = graph[v];
+
+                switch (vertex.kind)
                 {
-                    auto& vertex = graph[v];
+                case frame_graph_vertex_kind::pin: {
+                    sortedPins.push_back(v);
+                }
 
-                    switch (vertex.kind)
+                break;
+
+                case frame_graph_vertex_kind::node: {
+                    OBLO_ASSERT(vertex.node);
+
+                    auto* node = nodes.try_find(vertex.node);
+                    OBLO_ASSERT(node);
+
+                    sortedNodes.push_back({node, v});
+
+                    // If the node needs to be initialized, this is a good time
+                    if (node->init && !node->initialized)
                     {
-                    case frame_graph_vertex_kind::pin: {
-                        reverseSortedPins.push_back(v);
+                        node->init(node->ptr, initCtx);
+                        node->initialized = true;
                     }
+                }
 
-                    break;
-
-                    case frame_graph_vertex_kind::node: {
-                        OBLO_ASSERT(vertex.node);
-
-                        auto* node = nodes.try_find(vertex.node);
-                        OBLO_ASSERT(node);
-
-                        sortedNodes.push_back({node, v});
-
-                        // If the node needs to be initialized, this is a good time
-                        if (node->init && !node->initialized)
-                        {
-                            node->init(node->ptr, initCtx);
-                            node->initialized = true;
-                        }
-                    }
-
-                    break;
-                    }
-                },
-                // TODO: (#45) Make it possible to use frame_allocator for temporary allocations
-                get_global_allocator());
+                break;
+                }
+            },
+            // TODO: (#45) Make it possible to use frame_allocator for temporary allocations
+            &dynamicAllocator);
 
         OBLO_ASSERT(isDAG);
 
@@ -765,7 +766,7 @@ namespace oblo::vk
         }
 
         // Propagate pin storage from incoming pins, or allocate the owned storage if necessary
-        for (const auto v : reverse_range(reverseSortedPins))
+        for (const auto v : sortedPins)
         {
             const auto& pinVertex = graph[v];
 
@@ -808,8 +809,6 @@ namespace oblo::vk
             auto* const nodePtr = nodes.try_find(nodeVertex.node)->ptr;
             write_u32(nodePtr, pin->pinMemberOffset, pin->referencedPin.value);
         }
-
-        std::reverse(sortedNodes.begin(), sortedNodes.end());
     }
 
     void frame_graph_impl::flush_uploads(VkCommandBuffer commandBuffer, staging_buffer& stagingBuffer)
