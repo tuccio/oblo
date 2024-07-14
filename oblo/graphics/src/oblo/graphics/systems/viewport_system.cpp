@@ -440,6 +440,7 @@ namespace oblo
 
                 m_renderer->get_frame_graph().remove(renderGraphData.subgraph);
                 m_sceneRenderer->remove_scene_view(renderGraphData.subgraph);
+                destroy_graph_vulkan_objects(renderGraphData);
 
                 elementsToRemove[numRemovedElements] = entity;
                 ++numRemovedElements;
