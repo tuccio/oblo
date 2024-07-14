@@ -166,6 +166,6 @@ vec4 visibility_shade(in ivec2 screenPos, in visibility_buffer_data vb)
         emitted *= emissive;
     }
 
-    return vec4(emitted, 1);
+    return vec4(emitted / (emitted + 1), 1);
 #endif
 }
