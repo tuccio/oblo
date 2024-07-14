@@ -957,21 +957,38 @@ namespace oblo::vk
 
     void frame_graph_impl::write_dot(std::ostream& os) const
     {
+        constexpr auto N{1024};
+        char buf[N];
+
         write_graphviz_dot(os,
             graph,
-            [this](const frame_graph_topology::vertex_handle v) -> std::string_view
+            [this, &buf](const frame_graph_topology::vertex_handle v) -> std::string_view
             {
                 const auto& vertex = graph[v];
 
                 switch (vertex.kind)
                 {
-                case frame_graph_vertex_kind::node:
-                    return nodes.try_find(vertex.node)->typeId.name;
+                case frame_graph_vertex_kind::node: {
+                    const auto color = vertex.state == frame_graph_vertex_state::enabled ? "green" : "red";
+
+                    const auto [out, n] = std::format_to_n(buf,
+                        N,
+                        R"(label="{}" shape="rect" color="{}" )",
+                        nodes.at(vertex.node).typeId.name,
+                        color);
+                    return {buf, usize(n)};
+                }
 
                 case frame_graph_vertex_kind::pin: {
                     OBLO_ASSERT(vertex.pin);
                     const auto storage = pins.try_find(vertex.pin)->ownedStorage;
-                    return pinStorage.try_find(storage)->typeDesc.typeId.name;
+
+                    const auto [out, n] = std::format_to_n(buf,
+                        N,
+                        R"(label="{}" shape="diamond")",
+                        pinStorage.at(storage).typeDesc.typeId.name);
+
+                    return {buf, usize(n)};
                 }
 
                 default:

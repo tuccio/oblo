@@ -12,7 +12,7 @@ namespace oblo
         for (const auto v : g.get_vertices())
         {
             os << "  "
-               << "v" << v.value << "[ label=\"" << f(v) << "\" ]\n";
+               << "v" << v.value << "[ " << f(v) << " ]\n";
         }
 
         for (const auto e : g.get_edges())
