@@ -250,7 +250,7 @@ namespace oblo::editor
                 }
             }
 
-            ImGui::SetWindowFontScale(.9f);
+            ImGui::SetWindowFontScale(.95f);
 
             constexpr f32 viewportModeWidth = 128.f;
             constexpr f32 padding = 2.f;
@@ -260,7 +260,9 @@ namespace oblo::editor
 
             ImGui::SetNextItemWidth(viewportModeWidth);
 
-            if (ImGui::BeginCombo("##viewport_mode", m_viewportModes[usize(v.mode)].c_str()))
+            if (ImGui::BeginCombo("##viewport_mode",
+                    m_viewportModes[usize(v.mode)].c_str(),
+                    ImGuiComboFlags_HeightLarge))
             {
                 for (usize i = 0; i < m_viewportModes.size(); ++i)
                 {
