@@ -121,7 +121,7 @@ namespace oblo::vk
     {
         const auto id = m_registry->get_uuid<T>();
         auto* const desc = m_registry->find_node(id);
-        OBLO_ASSERT(desc);
+        OBLO_ASSERT(desc, "The node is not registered");
 
         vertex_handle v{};
 

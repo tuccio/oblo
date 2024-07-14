@@ -1,10 +1,13 @@
 #pragma once
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/ecs/forward.hpp>
 #include <oblo/editor/data/time_stats.hpp>
 #include <oblo/editor/utility/gizmo_handler.hpp>
 #include <oblo/input/utility/fps_camera_controller.hpp>
 #include <oblo/math/vec3.hpp>
+
+#include <string>
 
 namespace oblo
 {
@@ -40,5 +43,6 @@ namespace oblo::editor
         u32 m_viewportId{};
         gizmo_handler m_gizmoHandler{};
         const time_stats* m_timeStats{};
+        dynamic_array<std::string> m_viewportModes;
     };
 }

@@ -94,6 +94,12 @@ namespace oblo::reflection
     }
 
     template <typename T>
+    enum_handle reflection_registry::find_enum() const
+    {
+        return find_enum(get_type_id<T>());
+    }
+
+    template <typename T>
     void reflection_registry::find_by_tag(std::vector<type_handle>& types) const
     {
         find_by_tag(get_type_id<tag_type<T>>(), types);

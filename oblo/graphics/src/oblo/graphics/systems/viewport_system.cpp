@@ -5,6 +5,7 @@
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/service_registry.hpp>
+#include <oblo/core/unreachable.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/range.hpp>
 #include <oblo/ecs/systems/system_update_context.hpp>
@@ -20,6 +21,7 @@
 #include <oblo/vulkan/data/copy_texture_info.hpp>
 #include <oblo/vulkan/data/picking_configuration.hpp>
 #include <oblo/vulkan/data/time_buffer.hpp>
+#include <oblo/vulkan/data/visibiility_debug_mode.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/graph/frame_graph.hpp>
@@ -37,6 +39,9 @@ namespace oblo
     {
         // Actually a u32, but the buffer requires alignment
         constexpr u32 PickingResultSize{16};
+
+        void apply_viewport_mode(
+            vk::frame_graph& frameGraph, h32<vk::frame_graph_subgraph> subgraph, viewport_mode mode);
     }
 
     struct viewport_system::render_graph_data
@@ -331,6 +336,8 @@ namespace oblo
                         })
                     .assert_value();
 
+                apply_viewport_mode(frameGraph, renderGraphData->subgraph, viewport.mode);
+
                 {
                     // TODO: Deal with errors, also transposing would be enough here most likely
                     const mat4 view = *inverse(transform.localToWorld);
@@ -360,13 +367,14 @@ namespace oblo
                 {
                     picking_configuration pickingConfig{};
 
+                    frameGraph.set_output_state(renderGraphData->subgraph, main_view::OutPicking, false);
+
                     switch (viewport.picking.state)
                     {
                     case picking_request::state::requested:
                         if (prepare_picking_buffers(*renderGraphData))
                         {
                             pickingConfig = {
-                                .enabled = true,
                                 .coordinates = viewport.picking.coordinates,
                                 .outputBuffer =
                                     {
@@ -376,6 +384,7 @@ namespace oblo
                             };
 
                             viewport.picking.state = picking_request::state::awaiting;
+                            frameGraph.set_output_state(renderGraphData->subgraph, main_view::OutPicking, true);
                         }
                         else
                         {
@@ -431,6 +440,7 @@ namespace oblo
 
                 m_renderer->get_frame_graph().remove(renderGraphData.subgraph);
                 m_sceneRenderer->remove_scene_view(renderGraphData.subgraph);
+                destroy_graph_vulkan_objects(renderGraphData);
 
                 elementsToRemove[numRemovedElements] = entity;
                 ++numRemovedElements;
@@ -443,5 +453,81 @@ namespace oblo
         }
 
         ++m_frameIndex;
+    }
+
+    namespace
+    {
+        void apply_viewport_mode(
+            vk::frame_graph& frameGraph, h32<vk::frame_graph_subgraph> subgraph, viewport_mode mode)
+        {
+
+            frameGraph.disable_all_outputs(subgraph);
+
+            switch (mode)
+            {
+            case viewport_mode::lit:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutLitImage, true);
+                break;
+
+            case viewport_mode::albedo:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutDebugImage, true);
+                frameGraph.set_input(subgraph, vk::main_view::InDebugMode, vk::visibility_debug_mode::albedo)
+                    .assert_value();
+                break;
+
+            case viewport_mode::normal_map:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutDebugImage, true);
+                frameGraph.set_input(subgraph, vk::main_view::InDebugMode, vk::visibility_debug_mode::normal_map)
+                    .assert_value();
+                break;
+
+            case viewport_mode::normals:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutDebugImage, true);
+                frameGraph.set_input(subgraph, vk::main_view::InDebugMode, vk::visibility_debug_mode::normals)
+                    .assert_value();
+                break;
+
+            case viewport_mode::tangents:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutDebugImage, true);
+                frameGraph.set_input(subgraph, vk::main_view::InDebugMode, vk::visibility_debug_mode::tangents)
+                    .assert_value();
+                break;
+
+            case viewport_mode::bitangents:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutDebugImage, true);
+                frameGraph.set_input(subgraph, vk::main_view::InDebugMode, vk::visibility_debug_mode::bitangents)
+                    .assert_value();
+                break;
+
+            case viewport_mode::uv0:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutDebugImage, true);
+                frameGraph.set_input(subgraph, vk::main_view::InDebugMode, vk::visibility_debug_mode::uv0)
+                    .assert_value();
+                break;
+
+            case viewport_mode::metalness:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutDebugImage, true);
+                frameGraph.set_input(subgraph, vk::main_view::InDebugMode, vk::visibility_debug_mode::metalness)
+                    .assert_value();
+                break;
+
+            case viewport_mode::roughness:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutDebugImage, true);
+                frameGraph.set_input(subgraph, vk::main_view::InDebugMode, vk::visibility_debug_mode::roughness)
+                    .assert_value();
+                break;
+
+            case viewport_mode::emissive:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutDebugImage, true);
+                frameGraph.set_input(subgraph, vk::main_view::InDebugMode, vk::visibility_debug_mode::emissive)
+                    .assert_value();
+                break;
+
+            default:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutLitImage, true);
+                unreachable();
+                break;
+            }
+        }
     }
 }

@@ -11,7 +11,6 @@
 
 #include <renderer/camera>
 #include <renderer/instances>
-#include <renderer/lights>
 #include <renderer/material>
 #include <renderer/math>
 #include <renderer/meshes/mesh_attributes>
@@ -24,16 +23,6 @@
 #include <renderer/transform>
 #include <renderer/volumes>
 #include <visibility/visibility_shading>
-
-layout(binding = 0) uniform b_LightConfig
-{
-    light_config g_LightConfig;
-};
-
-layout(std430, binding = 1) restrict readonly buffer b_LightData
-{
-    light_data lights[];
-};
 
 vec4 visibility_shade(in ivec2 screenPos, in visibility_buffer_data vb)
 {
@@ -83,9 +72,14 @@ vec4 visibility_shade(in ivec2 screenPos, in visibility_buffer_data vb)
     // Interpolate UV0 and calculate gradients
     const vec2 uv0 = barycentric_interpolate(bc, triangleUV0);
 
+#if defined(OUT_UV0)
+    return vec4(uv0, 0, 1);
+#endif
+
     vec2 uv0DDX, uv0DDY;
     barycentric_partial_derivatives(bcDDX, bcDDY, uv0, triangleUV0, uv0DDX, uv0DDY);
 
+#if defined(OUT_NORMAL_MAP)
     vec3 normalWS;
 
     if (material.normalMapTexture != 0)
@@ -105,43 +99,63 @@ vec4 visibility_shade(in ivec2 screenPos, in visibility_buffer_data vb)
         normalWS = normalize(mat3(transform.normalMatrix) * N);
     }
 
-    // Extract the PBR parameters from the material
-    pbr_material pbr;
-    pbr.albedo = material.albedo;
-    pbr.metalness = material.metalness;
-    pbr.roughness = material.roughness;
-    pbr.ior = material.ior;
+    return vec4(normalWS * .5f + .5f, 1);
+#endif
+
+#if defined(OUT_NORMALS)
+    const vec3 N = barycentric_interpolate(bc, triangleNormal);
+    const vec3 normalWS = normalize(mat3(transform.normalMatrix) * N);
+    return vec4(normalWS * .5f + .5f, 1);
+#endif
+
+#if defined(OUT_TANGENTS)
+    const vec3 T = normalize(barycentric_interpolate(bc, triangleTangent));
+    const vec3 tangentWS = normalize(mat3(transform.normalMatrix) * T);
+    return vec4(tangentWS * .5f + .5f, 1);
+#endif
+
+#if defined(OUT_BITANGENTS)
+    const vec3 B = normalize(barycentric_interpolate(bc, triangleBitangent));
+    const vec3 bitangentWS = normalize(mat3(transform.normalMatrix) * B);
+    return vec4(bitangentWS * .5f + .5f, 1);
+#endif
+
+#if defined(OUT_ALBEDO)
+    vec3 outAlbedo = material.albedo;
 
     if (material.albedoTexture != 0)
     {
         const vec3 albedo =
             texture_sample_2d_grad(material.albedoTexture, OBLO_SAMPLER_LINEAR, uv0, uv0DDX, uv0DDY).xyz;
 
-        pbr.albedo *= albedo;
+        outAlbedo *= albedo;
     }
+
+    return vec4(outAlbedo, 1);
+#endif
+
+#if defined(OUT_ROUGHNESS) || defined(OUT_METALNESS)
+    float metalness = material.metalness;
+    float roughness = material.roughness;
 
     if (material.metalnessRoughnessTexture != 0)
     {
         const vec4 metalnessRoughness =
             texture_sample_2d_grad(material.metalnessRoughnessTexture, OBLO_SAMPLER_LINEAR, uv0, uv0DDX, uv0DDY);
 
-        pbr.metalness *= metalnessRoughness.x;
-        pbr.roughness *= metalnessRoughness.y;
+        metalness *= metalnessRoughness.x;
+        roughness *= metalnessRoughness.y;
     }
 
-    vec3 reflected = vec3(0);
-    const vec3 viewWS = normalize(g_Camera.position - positionWS);
+#if defined(OUT_ROUGHNESS)
+    return vec4(vec3(roughness), 1);
+#else
+    return vec4(vec3(metalness), 1);
+#endif
 
-    for (uint lightIndex = 0; lightIndex < g_LightConfig.lightsCount; ++lightIndex)
-    {
-        vec3 L;
+#endif
 
-        const vec3 contribution = light_contribution(lights[lightIndex], positionWS, L);
-        const vec3 brdf = pbr_brdf(normalWS, viewWS, L, pbr);
-
-        reflected += contribution * brdf;
-    }
-
+#if defined(OUT_EMISSIVE)
     vec3 emitted = material.emissive;
 
     if (material.emissiveTexture != 0)
@@ -152,8 +166,6 @@ vec4 visibility_shade(in ivec2 screenPos, in visibility_buffer_data vb)
         emitted *= emissive;
     }
 
-    const vec3 outLight = emitted + reflected;
-
-    // A simple color mapping for now, since we have none implemented and we output to RGBA8
-    return vec4(outLight / (outLight + 1), 1);
+    return vec4(emitted / (emitted + 1), 1);
+#endif
 }

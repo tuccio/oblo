@@ -29,6 +29,20 @@ namespace oblo
         };
     };
 
+    enum class viewport_mode : u8
+    {
+        lit,
+        albedo,
+        normal_map,
+        normals,
+        tangents,
+        bitangents,
+        uv0,
+        metalness,
+        roughness,
+        emissive,
+    };
+
     struct viewport_component
     {
         u32 width;
@@ -36,5 +50,7 @@ namespace oblo
         viewport_image_id imageId;
 
         picking_request picking;
+
+        viewport_mode mode;
     };
 }

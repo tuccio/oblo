@@ -26,9 +26,9 @@ namespace oblo::vk
 
         resource<texture> inVisibilityBuffer;
 
-        h32<compute_pass> pickingPass;
+        data<bool> outDummyOut;
 
-        bool skipExecution{};
+        h32<compute_pass> pickingPass;
 
         void init(const frame_graph_init_context& context);
 

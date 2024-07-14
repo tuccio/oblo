@@ -26,6 +26,9 @@ namespace oblo::vk
 
             const texture sourceTex = context.access(inSource);
 
+            OBLO_ASSERT(targetInfo.image);
+            OBLO_ASSERT(sourceTex.image);
+
             const VkImageCopy copy{
                 .srcSubresource =
                     {

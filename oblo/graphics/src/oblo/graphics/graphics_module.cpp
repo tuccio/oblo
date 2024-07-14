@@ -29,7 +29,10 @@ namespace oblo
                 .add_ranged_type_erasure()
                 .add_tag<oblo::ecs::component_type_tag>();
 
-            reg.add_class<viewport_component>().add_ranged_type_erasure().add_tag<oblo::ecs::component_type_tag>();
+            reg.add_class<viewport_component>()
+                .add_ranged_type_erasure()
+                .add_tag<oblo::ecs::component_type_tag>()
+                .add_field(&viewport_component::mode, "mode");
 
             reg.add_class<camera_component>()
                 .add_ranged_type_erasure()
@@ -56,6 +59,18 @@ namespace oblo
                 .add_enumerator("point", light_type::point)
                 .add_enumerator("spot", light_type::spot)
                 .add_enumerator("directional", light_type::directional);
+
+            reg.add_enum<viewport_mode>()
+                .add_enumerator("lit", viewport_mode::lit)
+                .add_enumerator("albedo", viewport_mode::albedo)
+                .add_enumerator("normal_map", viewport_mode::normal_map)
+                .add_enumerator("normals", viewport_mode::normals)
+                .add_enumerator("tangents", viewport_mode::tangents)
+                .add_enumerator("bitangents", viewport_mode::bitangents)
+                .add_enumerator("uv0", viewport_mode::uv0)
+                .add_enumerator("metalness", viewport_mode::metalness)
+                .add_enumerator("roughness", viewport_mode::roughness)
+                .add_enumerator("emissive", viewport_mode::emissive);
         }
     }
 
