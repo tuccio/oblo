@@ -21,6 +21,7 @@
 #include <oblo/vulkan/data/copy_texture_info.hpp>
 #include <oblo/vulkan/data/picking_configuration.hpp>
 #include <oblo/vulkan/data/time_buffer.hpp>
+#include <oblo/vulkan/data/visibiility_debug_mode.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/graph/frame_graph.hpp>
@@ -40,27 +41,7 @@ namespace oblo
         constexpr u32 PickingResultSize{16};
 
         void apply_viewport_mode(
-            vk::frame_graph& frameGraph, h32<vk::frame_graph_subgraph> subgraph, viewport_mode mode)
-        {
-
-            frameGraph.disable_all_outputs(subgraph);
-
-            switch (mode)
-            {
-            case viewport_mode::lit:
-                frameGraph.set_output_state(subgraph, vk::main_view::OutLitImage, true);
-                break;
-
-            case viewport_mode::albedo:
-                frameGraph.set_output_state(subgraph, vk::main_view::OutAlbedoImage, true);
-                break;
-
-            default:
-                frameGraph.set_output_state(subgraph, vk::main_view::OutLitImage, true);
-                unreachable();
-                break;
-            }
-        }
+            vk::frame_graph& frameGraph, h32<vk::frame_graph_subgraph> subgraph, viewport_mode mode);
     }
 
     struct viewport_system::render_graph_data
@@ -469,5 +450,81 @@ namespace oblo
         }
 
         ++m_frameIndex;
+    }
+
+    namespace
+    {
+        void apply_viewport_mode(
+            vk::frame_graph& frameGraph, h32<vk::frame_graph_subgraph> subgraph, viewport_mode mode)
+        {
+
+            frameGraph.disable_all_outputs(subgraph);
+
+            switch (mode)
+            {
+            case viewport_mode::lit:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutLitImage, true);
+                break;
+
+            case viewport_mode::albedo:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutDebugImage, true);
+                frameGraph.set_input(subgraph, vk::main_view::InDebugMode, vk::visibility_debug_mode::albedo)
+                    .assert_value();
+                break;
+
+            case viewport_mode::normal_map:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutDebugImage, true);
+                frameGraph.set_input(subgraph, vk::main_view::InDebugMode, vk::visibility_debug_mode::normal_map)
+                    .assert_value();
+                break;
+
+            case viewport_mode::normals:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutDebugImage, true);
+                frameGraph.set_input(subgraph, vk::main_view::InDebugMode, vk::visibility_debug_mode::normals)
+                    .assert_value();
+                break;
+
+            case viewport_mode::tangents:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutDebugImage, true);
+                frameGraph.set_input(subgraph, vk::main_view::InDebugMode, vk::visibility_debug_mode::tangents)
+                    .assert_value();
+                break;
+
+            case viewport_mode::bitangents:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutDebugImage, true);
+                frameGraph.set_input(subgraph, vk::main_view::InDebugMode, vk::visibility_debug_mode::bitangents)
+                    .assert_value();
+                break;
+
+            case viewport_mode::uv0:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutDebugImage, true);
+                frameGraph.set_input(subgraph, vk::main_view::InDebugMode, vk::visibility_debug_mode::uv0)
+                    .assert_value();
+                break;
+
+            case viewport_mode::metalness:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutDebugImage, true);
+                frameGraph.set_input(subgraph, vk::main_view::InDebugMode, vk::visibility_debug_mode::metalness)
+                    .assert_value();
+                break;
+
+            case viewport_mode::roughness:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutDebugImage, true);
+                frameGraph.set_input(subgraph, vk::main_view::InDebugMode, vk::visibility_debug_mode::roughness)
+                    .assert_value();
+                break;
+
+            case viewport_mode::emissive:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutDebugImage, true);
+                frameGraph.set_input(subgraph, vk::main_view::InDebugMode, vk::visibility_debug_mode::emissive)
+                    .assert_value();
+                break;
+
+            default:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutLitImage, true);
+                unreachable();
+                break;
+            }
+        }
     }
 }

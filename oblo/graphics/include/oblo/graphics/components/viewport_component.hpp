@@ -41,7 +41,6 @@ namespace oblo
         metalness,
         roughness,
         emissive,
-        enum_max,
     };
 
     struct viewport_component

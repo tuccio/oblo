@@ -67,17 +67,12 @@ namespace oblo::editor
         const std::span viewportModeNames = reflection->get_enumerator_names(viewportMode);
         const std::span viewportModeValues = reflection->get_enumerator_values(viewportMode);
 
-        m_viewportModes.assign(u32(viewport_mode::enum_max), {});
+        m_viewportModes.assign(viewportModeNames.size(), {});
 
         for (usize i = 0; i < viewportModeNames.size(); ++i)
         {
             std::underlying_type_t<viewport_mode> value;
             std::memcpy(&value, viewportModeValues.data() + sizeof(viewport_mode) * i, sizeof(viewport_mode));
-
-            if (value == usize(viewport_mode::enum_max))
-            {
-                continue;
-            }
 
             m_viewportModes[value] = viewportModeNames[i];
         }

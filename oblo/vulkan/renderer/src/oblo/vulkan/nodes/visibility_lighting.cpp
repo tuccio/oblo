@@ -1,5 +1,6 @@
 #include <oblo/vulkan/nodes/visibility_lighting.hpp>
 
+#include <oblo/core/unreachable.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/data/draw_buffer_data.hpp>
@@ -93,17 +94,17 @@ namespace oblo::vk
         }
     }
 
-    void visibility_albedo::init(const frame_graph_init_context& context)
+    void visibility_debug::init(const frame_graph_init_context& context)
     {
         auto& passManager = context.get_pass_manager();
 
         albedoPass = passManager.register_compute_pass({
-            .name = "Albedo Pass",
-            .shaderSourcePath = "./vulkan/shaders/visibility/visibility_albedo.comp",
+            .name = "Debug Pass",
+            .shaderSourcePath = "./vulkan/shaders/visibility/visibility_debug.comp",
         });
     }
 
-    void visibility_albedo::build(const frame_graph_build_context& ctx)
+    void visibility_debug::build(const frame_graph_build_context& ctx)
     {
         const auto resolution = ctx.access(inResolution);
 
@@ -130,7 +131,7 @@ namespace oblo::vk
             buffer_usage::storage_read);
     }
 
-    void visibility_albedo::execute(const frame_graph_execute_context& ctx)
+    void visibility_debug::execute(const frame_graph_execute_context& ctx)
     {
         auto& pm = ctx.get_pass_manager();
 
@@ -149,9 +150,44 @@ namespace oblo::vk
                 {"t_OutShadedImage", outShadedImage},
             });
 
+        h32<string> define{};
+
+        switch (ctx.access(inDebugMode))
+        {
+        case visibility_debug_mode::albedo:
+            define = ctx.get_string_interner().get_or_add("OUT_ALBEDO");
+            break;
+        case visibility_debug_mode::normal_map:
+            define = ctx.get_string_interner().get_or_add("OUT_NORMAL_MAP");
+            break;
+        case visibility_debug_mode::normals:
+            define = ctx.get_string_interner().get_or_add("OUT_NORMALS");
+            break;
+        case visibility_debug_mode::tangents:
+            define = ctx.get_string_interner().get_or_add("OUT_TANGENTS");
+            break;
+        case visibility_debug_mode::bitangents:
+            define = ctx.get_string_interner().get_or_add("OUT_BITANGENTS");
+            break;
+        case visibility_debug_mode::uv0:
+            define = ctx.get_string_interner().get_or_add("OUT_UV0");
+            break;
+        case visibility_debug_mode::metalness:
+            define = ctx.get_string_interner().get_or_add("OUT_METALNESS");
+            break;
+        case visibility_debug_mode::roughness:
+            define = ctx.get_string_interner().get_or_add("OUT_ROUGHNESS");
+            break;
+        case visibility_debug_mode::emissive:
+            define = ctx.get_string_interner().get_or_add("OUT_EMISSIVE");
+            break;
+        default:
+            unreachable();
+        }
+
         const auto commandBuffer = ctx.get_command_buffer();
 
-        const auto lightingPipeline = pm.get_or_create_pipeline(albedoPass, {});
+        const auto lightingPipeline = pm.get_or_create_pipeline(albedoPass, {.defines = {&define, 1}});
 
         if (const auto pass = pm.begin_compute_pass(commandBuffer, lightingPipeline))
         {

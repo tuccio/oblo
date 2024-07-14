@@ -47,7 +47,7 @@ namespace oblo::vk::main_view
         const auto viewBuffers = graph.add_node<view_buffers_node>();
         const auto visibilityPass = graph.add_node<visibility_pass>();
         const auto visibilityLighting = graph.add_node<visibility_lighting>();
-        const auto visibilityAlbedo = graph.add_node<visibility_albedo>();
+        const auto visibilityDebug = graph.add_node<visibility_debug>();
 
         // Hacky view buffers node
         graph.make_input(viewBuffers, &view_buffers_node::inResolution, InResolution);
@@ -57,9 +57,11 @@ namespace oblo::vk::main_view
         graph.make_input(viewBuffers, &view_buffers_node::inInstanceBuffers, InInstanceBuffers);
         graph.make_input(viewBuffers, &view_buffers_node::inFinalRenderTarget, InFinalRenderTarget);
 
-        // Forward pass inputs
+        // Visibility shading inputs
         graph.make_input(visibilityLighting, &visibility_lighting::inLightConfig, InLightConfig);
         graph.make_input(visibilityLighting, &visibility_lighting::inLightData, InLightData);
+
+        graph.make_input(visibilityDebug, &visibility_debug::inDebugMode, InDebugMode);
 
         // Connect view buffers to visibility pass
         graph.connect(viewBuffers, &view_buffers_node::inResolution, visibilityPass, &visibility_pass::inResolution);
@@ -99,11 +101,11 @@ namespace oblo::vk::main_view
         };
 
         connectVisibilityShadingPass(visibilityLighting, h32<visibility_lighting>{});
-        connectVisibilityShadingPass(visibilityAlbedo, h32<visibility_albedo>{});
+        connectVisibilityShadingPass(visibilityDebug, h32<visibility_debug>{});
 
         // Copies to the output textures
         add_copy_output(graph, viewBuffers, visibilityLighting, &visibility_lighting::outShadedImage, OutLitImage);
-        add_copy_output(graph, viewBuffers, visibilityAlbedo, &visibility_albedo::outShadedImage, OutAlbedoImage);
+        add_copy_output(graph, viewBuffers, visibilityDebug, &visibility_debug::outShadedImage, OutDebugImage);
 
         // Culling + draw call generation
         {
@@ -221,7 +223,7 @@ namespace oblo::vk
         registry.register_node<view_buffers_node>();
         registry.register_node<frustum_culling>();
         registry.register_node<visibility_pass>();
-        registry.register_node<visibility_albedo>();
+        registry.register_node<visibility_debug>();
         registry.register_node<visibility_lighting>();
         registry.register_node<draw_call_generator>();
         registry.register_node<entity_picking>();

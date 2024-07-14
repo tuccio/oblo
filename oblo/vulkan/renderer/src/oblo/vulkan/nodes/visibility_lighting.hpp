@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/math/vec2u.hpp>
+#include <oblo/vulkan/data/visibiility_debug_mode.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
@@ -46,9 +47,10 @@ namespace oblo::vk
 
     // TODO: (#56) The standard layout requirement for nodes forces some copy paste.
 
-    struct visibility_albedo
+    struct visibility_debug
     {
         data<vec2u> inResolution;
+        data<visibility_debug_mode> inDebugMode;
 
         resource<buffer> inCameraBuffer;
 
