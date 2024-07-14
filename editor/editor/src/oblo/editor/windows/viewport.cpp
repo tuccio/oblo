@@ -14,6 +14,7 @@
 #include <oblo/input/input_queue.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
+#include <oblo/reflection/reflection_registry.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/assets/model.hpp>
@@ -59,6 +60,27 @@ namespace oblo::editor
         OBLO_ASSERT(m_timeStats);
 
         m_viewportId = s_viewportInstances++;
+
+        auto* const reflection = ctx.services.find<const reflection::reflection_registry>();
+        const auto viewportMode = reflection->find_enum<viewport_mode>();
+
+        const std::span viewportModeNames = reflection->get_enumerator_names(viewportMode);
+        const std::span viewportModeValues = reflection->get_enumerator_values(viewportMode);
+
+        m_viewportModes.assign(u32(viewport_mode::enum_max), {});
+
+        for (usize i = 0; i < viewportModeNames.size(); ++i)
+        {
+            std::underlying_type_t<viewport_mode> value;
+            std::memcpy(&value, viewportModeValues.data() + sizeof(viewport_mode) * i, sizeof(viewport_mode));
+
+            if (value == usize(viewport_mode::enum_max))
+            {
+                continue;
+            }
+
+            m_viewportModes[value] = viewportModeNames[i];
+        }
     }
 
     bool viewport::update(const window_update_context& ctx)
@@ -96,6 +118,8 @@ namespace oblo::editor
 
             v.width = u32(windowSize.x);
             v.height = u32(windowSize.y);
+
+            const auto topLeft = ImGui::GetCursorPos();
 
             if (auto const imageId = v.imageId)
             {
@@ -229,6 +253,31 @@ namespace oblo::editor
                         }
                     }
                 }
+            }
+
+            ImGui::SetWindowFontScale(.9f);
+
+            constexpr f32 viewportModeWidth = 128.f;
+            constexpr f32 padding = 2.f;
+
+            ImGui::SetCursorPosX(regionMax.x - viewportModeWidth - padding);
+            ImGui::SetCursorPosY(topLeft.y + padding);
+
+            ImGui::SetNextItemWidth(viewportModeWidth);
+
+            if (ImGui::BeginCombo("##viewport_mode", m_viewportModes[usize(v.mode)].c_str()))
+            {
+                for (usize i = 0; i < m_viewportModes.size(); ++i)
+                {
+                    bool isSelected{false};
+
+                    if (ImGui::Selectable(m_viewportModes[i].c_str(), &isSelected))
+                    {
+                        v.mode = viewport_mode(i);
+                    }
+                }
+
+                ImGui::EndCombo();
             }
         }
 

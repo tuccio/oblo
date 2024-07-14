@@ -5,6 +5,7 @@
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/service_registry.hpp>
+#include <oblo/core/unreachable.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/range.hpp>
 #include <oblo/ecs/systems/system_update_context.hpp>
@@ -37,6 +38,29 @@ namespace oblo
     {
         // Actually a u32, but the buffer requires alignment
         constexpr u32 PickingResultSize{16};
+
+        void apply_viewport_mode(
+            vk::frame_graph& frameGraph, h32<vk::frame_graph_subgraph> subgraph, viewport_mode mode)
+        {
+
+            frameGraph.disable_all_outputs(subgraph);
+
+            switch (mode)
+            {
+            case viewport_mode::lit:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutLitImage, true);
+                break;
+
+            case viewport_mode::albedo:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutAlbedoImage, true);
+                break;
+
+            default:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutLitImage, true);
+                unreachable();
+                break;
+            }
+        }
     }
 
     struct viewport_system::render_graph_data
@@ -241,9 +265,6 @@ namespace oblo
                     const auto subgraph = frameGraph.instantiate(mainViewTemplate);
                     it->subgraph = subgraph;
 
-                    frameGraph.disable_all_outputs(subgraph);
-                    frameGraph.set_output_state(subgraph, main_view::OutLitImage, true);
-
                     m_sceneRenderer->add_scene_view(subgraph);
 
                     renderGraphData = &*it;
@@ -333,6 +354,8 @@ namespace oblo
                             .aspect = VK_IMAGE_ASPECT_COLOR_BIT,
                         })
                     .assert_value();
+
+                apply_viewport_mode(frameGraph, renderGraphData->subgraph, viewport.mode);
 
                 {
                     // TODO: Deal with errors, also transposing would be enough here most likely
