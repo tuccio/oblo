@@ -306,6 +306,8 @@ namespace oblo::vk
 
             m_impl->graph.remove_vertex(v);
         }
+
+        m_impl->subgraphs.erase(graph);
     }
 
     void frame_graph::disable_all_outputs(h32<frame_graph_subgraph> graph)

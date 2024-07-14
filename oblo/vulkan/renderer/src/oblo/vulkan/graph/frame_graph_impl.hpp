@@ -207,8 +207,6 @@ namespace oblo::vk
 
         h32<frame_graph_pin_storage> allocate_dynamic_resource_pin();
 
-        VkImageLayout find_image_layout(resource<texture> handle) const;
-
     public: // Utility
         void free_pin_storage(const frame_graph_pin_storage& storage, bool isFrameAllocated);
 
