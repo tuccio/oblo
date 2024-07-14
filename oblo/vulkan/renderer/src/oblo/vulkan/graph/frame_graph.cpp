@@ -849,7 +849,7 @@ namespace oblo::vk
     void frame_graph_impl::mark_active_nodes()
     {
         // First we mark all nodes as unvisited (pins should stay untouched)
-        for (const h32 node : graph.get_vertices())
+        for (const auto node : graph.get_vertices())
         {
             auto& v = graph[node];
 
@@ -886,7 +886,7 @@ namespace oblo::vk
 
         while (!nodesToEnable.empty())
         {
-            const h32 vId = nodesToEnable.back();
+            const auto vId = nodesToEnable.back();
             nodesToEnable.pop_back();
 
             auto& v = graph[vId];

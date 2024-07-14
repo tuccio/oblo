@@ -46,7 +46,7 @@ namespace oblo
         };
 
         // Recursive function for now
-        const auto dfs = [&g, &vertices, &nodeStates, &v](auto&& recurse, usize nodeIndex)
+        const auto dfs = [&g, &vertices, &nodeStates, &v, &getEdges](auto&& recurse, usize nodeIndex)
         {
             auto& nodeState = nodeStates[nodeIndex];
 
