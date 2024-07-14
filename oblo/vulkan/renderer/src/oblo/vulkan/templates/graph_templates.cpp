@@ -184,6 +184,9 @@ namespace oblo::vk::main_view
                 &entity_picking::inInstanceBuffers);
 
             graph.make_input(entityPicking, &entity_picking::inPickingConfiguration, InPickingConfiguration);
+
+            // This is quite awkward admittedly, but if no output is active the node is culled
+            graph.make_output(entityPicking, &entity_picking::outDummyOut, OutPicking);
         }
 
         return graph;

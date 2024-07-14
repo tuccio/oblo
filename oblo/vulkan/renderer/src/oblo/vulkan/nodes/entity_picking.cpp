@@ -23,15 +23,6 @@ namespace oblo::vk
 
     void entity_picking::build(const frame_graph_build_context& ctx)
     {
-        const auto& pickingConfiguration = ctx.access(inPickingConfiguration);
-
-        skipExecution = !pickingConfiguration.enabled;
-
-        if (skipExecution)
-        {
-            return;
-        }
-
         ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
 
         acquire_instance_tables(ctx,
@@ -43,11 +34,6 @@ namespace oblo::vk
 
     void entity_picking::execute(const frame_graph_execute_context& ctx)
     {
-        if (skipExecution)
-        {
-            return;
-        }
-
         auto& pm = ctx.get_pass_manager();
         const auto& pickingConfiguration = ctx.access(inPickingConfiguration);
 

@@ -367,13 +367,14 @@ namespace oblo
                 {
                     picking_configuration pickingConfig{};
 
+                    frameGraph.set_output_state(renderGraphData->subgraph, main_view::OutPicking, false);
+
                     switch (viewport.picking.state)
                     {
                     case picking_request::state::requested:
                         if (prepare_picking_buffers(*renderGraphData))
                         {
                             pickingConfig = {
-                                .enabled = true,
                                 .coordinates = viewport.picking.coordinates,
                                 .outputBuffer =
                                     {
@@ -383,6 +384,7 @@ namespace oblo
                             };
 
                             viewport.picking.state = picking_request::state::awaiting;
+                            frameGraph.set_output_state(renderGraphData->subgraph, main_view::OutPicking, true);
                         }
                         else
                         {

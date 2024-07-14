@@ -6,7 +6,7 @@
 #pragma warning(push)
 #pragma warning(disable : 4100 4127 4189 4324 4505)
 
-#if 0 // Can change this to enable logging from VMA, it's a little verbose though
+#if 1 // Can change this to enable logging from VMA, it's a little verbose though
 #define VMA_DEBUG_LOG(...)                                                                                             \
     {                                                                                                                  \
         constexpr auto bufSize = oblo::log::detail::MaxLogMessageLength;                                               \
