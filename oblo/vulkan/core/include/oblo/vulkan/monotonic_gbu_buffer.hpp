@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/types.hpp>
 
 #include <vector>
@@ -36,7 +37,7 @@ namespace oblo::vk
         struct buffer_info;
 
     private:
-        std::vector<buffer_info> m_buffers;
+        dynamic_array<buffer_info> m_buffers;
         u32 m_currentIndex{};
         u32 m_spaceInCurrentChunk{};
         VkBufferUsageFlags m_usage{};

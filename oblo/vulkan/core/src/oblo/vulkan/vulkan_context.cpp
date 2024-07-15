@@ -130,6 +130,12 @@ namespace oblo::vk
                 PFN_vkCmdDrawMeshTasksIndirectEXT(vkGetInstanceProcAddr(m_instance, "vkCmdDrawMeshTasksIndirectEXT")),
             .vkCmdDrawMeshTasksIndirectCountEXT = PFN_vkCmdDrawMeshTasksIndirectCountEXT(
                 vkGetInstanceProcAddr(m_instance, "vkCmdDrawMeshTasksIndirectCountEXT")),
+            .vkCreateAccelerationStructureKHR = PFN_vkCreateAccelerationStructureKHR(
+                vkGetInstanceProcAddr(m_instance, "vkCreateAccelerationStructureKHR")),
+            .vkGetAccelerationStructureBuildSizesKHR = PFN_vkGetAccelerationStructureBuildSizesKHR(
+                vkGetInstanceProcAddr(m_instance, "vkGetAccelerationStructureBuildSizesKHR")),
+            .vkCmdBuildAccelerationStructuresKHR = PFN_vkCmdBuildAccelerationStructuresKHR(
+                vkGetInstanceProcAddr(m_instance, "vkCmdBuildAccelerationStructuresKHR")),
         };
 
         m_allocator->set_object_debug_utils(m_debugUtilsObject);
@@ -488,6 +494,16 @@ namespace oblo::vk
     debug_utils::object vulkan_context::get_debug_utils_object() const
     {
         return m_debugUtilsObject;
+    }
+
+    VkDeviceAddress vulkan_context::get_device_address(VkBuffer buffer) const
+    {
+        const VkBufferDeviceAddressInfo info{
+            .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+            .buffer = buffer,
+        };
+
+        return vkGetBufferDeviceAddress(get_device(), &info);
     }
 
     void vulkan_context::destroy_resources(u64 maxSubmitIndex)

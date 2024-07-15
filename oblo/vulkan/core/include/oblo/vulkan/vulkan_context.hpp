@@ -85,6 +85,8 @@ namespace oblo::vk
 
         const loaded_functions& get_loaded_functions() const;
 
+        VkDeviceAddress get_device_address(VkBuffer buffer) const;
+
     private:
         struct frame_info;
 

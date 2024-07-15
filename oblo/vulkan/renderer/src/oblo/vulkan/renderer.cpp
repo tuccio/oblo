@@ -51,7 +51,11 @@ namespace oblo::vk
         const std::filesystem::path includePaths[] = {"./vulkan/shaders/"};
         m_passManager.set_system_include_paths(includePaths);
 
-        m_drawRegistry.init(*m_vkContext, m_stagingBuffer, m_stringInterner, initializer.entities);
+        m_drawRegistry.init(*m_vkContext,
+            m_stagingBuffer,
+            m_stringInterner,
+            initializer.entities,
+            initializer.resources);
 
         m_firstUpdate = true;
 
@@ -101,6 +105,7 @@ namespace oblo::vk
 
         m_drawRegistry.generate_mesh_database(frameAllocator);
         m_drawRegistry.generate_draw_calls(frameAllocator, m_stagingBuffer);
+        m_drawRegistry.generate_raytracing_structures(frameAllocator, commandBuffer.get());
 
         m_passManager.begin_frame();
 
@@ -134,7 +139,6 @@ namespace oblo::vk
 
     namespace
     {
-
         VkPhysicalDeviceMeshShaderFeaturesEXT g_meshShaderFeatures{
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT,
             .taskShader = true,
@@ -161,6 +165,18 @@ namespace oblo::vk
             .synchronization2 = true,
         };
 
+        VkPhysicalDeviceRayTracingPipelineFeaturesKHR g_rtPipelineFeatures{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR,
+            .pNext = &g_synchronizationFeatures,
+            .rayTracingPipeline = true,
+        };
+
+        VkPhysicalDeviceAccelerationStructureFeaturesKHR g_accelerationFeatures{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR,
+            .pNext = &g_rtPipelineFeatures,
+            .accelerationStructure = true,
+        };
+
         VkPhysicalDeviceShaderDrawParametersFeatures g_shaderDrawParameters{
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES,
             .shaderDrawParameters = true,
@@ -176,6 +192,9 @@ namespace oblo::vk
             VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
             VK_EXT_MESH_SHADER_EXTENSION_NAME,
             VK_KHR_SPIRV_1_4_EXTENSION_NAME,
+            VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
+            VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
+            VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
             VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME, // This is only needed for debug printf
         };
     }
@@ -195,7 +214,7 @@ namespace oblo::vk
                             .shaderInt64 = true,
                         },
                 },
-            .deviceFeaturesChain = &g_synchronizationFeatures,
+            .deviceFeaturesChain = &g_accelerationFeatures,
         };
     }
 }

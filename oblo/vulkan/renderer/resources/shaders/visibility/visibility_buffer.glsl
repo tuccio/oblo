@@ -1,8 +1,8 @@
 #ifndef OBLO_INCLUDE_VISIBILITY_VISIBILITY_BUFFER
 #define OBLO_INCLUDE_VISIBILITY_VISIBILITY_BUFFER
 
-#define OBLO_VISIBILITY_BUFFER_MASK_INSTANCE_TABLE_ID 63 // 6 bits for instance tables
-#define OBLO_VISIBILITY_BUFFER_SHIFT_INSTANCE_ID 6       // The rest are for instance id
+#define OBLO_VISIBILITY_BUFFER_MASK_INSTANCE_TABLE_ID 15 // 4 bits for instance tables
+#define OBLO_VISIBILITY_BUFFER_SHIFT_INSTANCE_ID 4       // The rest are for instance id
 
 #define OBLO_VISIBILITY_BUFFER_SHIFT_MESHLET_ID 8   // We keep 24 bits for the meshlet id
 #define OBLO_VISIBILITY_BUFFER_MASK_TRIANGLE_ID 255 // And use the remaining 8 bits for the triangle id

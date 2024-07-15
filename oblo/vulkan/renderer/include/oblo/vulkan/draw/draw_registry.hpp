@@ -68,6 +68,10 @@ namespace oblo::vk
         h32<draw_mesh> mesh;
     };
 
+    struct draw_raytraced_tag
+    {
+    };
+
     class draw_registry
     {
     public:
@@ -83,7 +87,8 @@ namespace oblo::vk
         void init(vulkan_context& ctx,
             staging_buffer& stagingBuffer,
             string_interner& interner,
-            ecs::entity_registry& entities);
+            ecs::entity_registry& entities,
+            resource_registry& resourceRegistry);
 
         void shutdown();
 
@@ -93,13 +98,14 @@ namespace oblo::vk
 
         void end_frame();
 
-        h32<draw_mesh> get_or_create_mesh(oblo::resource_registry& resourceRegistry,
-            const resource_ref<mesh>& resourceId);
+        h32<draw_mesh> get_or_create_mesh(const resource_ref<mesh>& resourceId);
 
         void flush_uploads(VkCommandBuffer commandBuffer);
 
         void generate_mesh_database(frame_allocator& allocator);
         void generate_draw_calls(frame_allocator& allocator, staging_buffer& stagingBuffer);
+        void generate_raytracing_structures(frame_allocator& allocator, VkCommandBuffer commandBuffer);
+
         std::string_view refresh_instance_data_defines(frame_allocator& allocator);
 
         std::span<const batch_draw_data> get_draw_calls() const;
@@ -109,6 +115,7 @@ namespace oblo::vk
         void debug_log(const batch_draw_data& drawData) const;
 
     private:
+        struct blas;
         struct pending_mesh_upload;
         struct instance_data_type_info;
 
@@ -120,6 +127,7 @@ namespace oblo::vk
 
         staging_buffer* m_stagingBuffer{};
         string_interner* m_interner{};
+        resource_registry* m_resourceRegistry{};
         mesh_database m_meshes;
         ecs::entity_registry* m_entities{};
         ecs::type_registry* m_typeRegistry{};
@@ -146,5 +154,8 @@ namespace oblo::vk
         std::array<h32<string>, MeshBuffersCount> m_meshDataNames{};
 
         dynamic_array<pending_mesh_upload> m_pendingMeshUploads;
+
+        h32_flat_extpool_dense_map<draw_mesh, blas> m_meshToBlas;
+        monotonic_gpu_buffer m_asScratchBuffer;
     };
 }
