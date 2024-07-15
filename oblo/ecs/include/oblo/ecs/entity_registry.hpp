@@ -106,6 +106,13 @@ namespace oblo::ecs
         struct tags_storage;
         struct entity_data;
 
+        template <typename... ComponentOrTags>
+        struct filter_components
+        {
+            using tuple = decltype(std::tuple_cat(std::
+                    conditional_t<!std::is_empty_v<ComponentOrTags>, std::tuple<ComponentOrTags*>, std::tuple<>>{}...));
+        };
+
     private:
         const archetype_storage* find_first_match(const archetype_storage* begin,
             usize increment,
@@ -246,7 +253,11 @@ namespace oblo::ecs
     {
         const auto sets = make_type_sets<ComponentsOrTags...>(*m_typeRegistry);
         add(e, sets);
-        return get<ComponentsOrTags...>(e);
+
+        const auto getComponents = [this, e]<typename... Components>(std::tuple<Components*...>)
+        { return get<Components...>(e); };
+
+        return getComponents(typename filter_components<ComponentsOrTags...>::tuple{});
     }
 
     template <typename... ComponentsOrTags>
