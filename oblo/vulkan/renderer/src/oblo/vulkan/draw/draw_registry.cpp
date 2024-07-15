@@ -284,7 +284,7 @@ namespace oblo::vk
         {
             const auto& meshAttribute = meshPtr->get_attribute_at(i);
 
-            if (const auto kind = meshAttribute.kind; kind != attribute_kind::indices)
+            if (const auto kind = meshAttribute.kind; is_vertex_attribute(kind))
             {
                 const auto a = convert_vertex_attribute(kind);
                 meshAttributes[vertexAttributesCount] = kind;
@@ -293,7 +293,7 @@ namespace oblo::vk
 
                 ++vertexAttributesCount;
             }
-            else
+            else if (kind == attribute_kind::microindices)
             {
                 switch (meshAttribute.format)
                 {
@@ -301,16 +301,8 @@ namespace oblo::vk
                     indexType = mesh_index_type::u8;
                     break;
 
-                case data_format::u16:
-                    indexType = mesh_index_type::u16;
-                    break;
-
-                case data_format::u32:
-                    indexType = mesh_index_type::u32;
-                    break;
-
                 default:
-                    OBLO_ASSERT(false, "Unhandled index format");
+                    OBLO_ASSERT(false, "Rasterization only supports u8 micro-indices");
                     break;
                 }
             }
@@ -351,7 +343,7 @@ namespace oblo::vk
 
         if (indexBuffer.buffer)
         {
-            const auto data = meshPtr->get_attribute(attribute_kind::indices);
+            const auto data = meshPtr->get_attribute(attribute_kind::microindices);
             doUpload(data, indexBuffer);
         }
 

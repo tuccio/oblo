@@ -16,6 +16,7 @@ namespace oblo
     enum class attribute_kind : u8
     {
         indices,
+        microindices,
         position,
         normal,
         tangent,

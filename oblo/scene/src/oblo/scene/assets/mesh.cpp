@@ -34,9 +34,11 @@ namespace oblo
 
         for (const auto& attribute : attributes)
         {
-            hasIndices |= attribute.kind == attribute_kind::indices;
+            const auto isIndex = !is_vertex_attribute(attribute.kind);
 
-            const auto multiplier = attribute.kind == attribute_kind::indices ? numIndices : numVertices;
+            hasIndices |= isIndex;
+
+            const auto multiplier = isIndex ? numIndices : numVertices;
             const auto [size, alignment] = get_size_and_alignment(attribute.format);
             const auto padding = computePadding(alignment);
 
@@ -139,8 +141,12 @@ namespace oblo
 
     u32 mesh::get_elements_count(attribute_kind attribute) const
     {
-        // TODO: Should check if the attribute is even there
-        return attribute == attribute_kind::indices ? get_index_count() : get_vertex_count();
+        if (!m_attributeFlags.contains(attribute))
+        {
+            return 0u;
+        }
+
+        return is_vertex_attribute(attribute) ? get_vertex_count() : get_index_count();
     }
 
     std::span<meshlet> mesh::get_meshlets()

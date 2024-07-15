@@ -3,6 +3,7 @@
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/data_format.hpp>
 #include <oblo/core/unreachable.hpp>
+#include <oblo/core/utility.hpp>
 #include <oblo/scene/assets/mesh.hpp>
 
 namespace oblo::importers::mesh_processing
@@ -120,8 +121,15 @@ namespace oblo::importers::mesh_processing
             outAttributes.push_back(inAttribute);
         }
 
-        // Add the micro-indices
-        outAttributes.push_back({.kind = attribute_kind::indices, .format = data_format::u8});
+        // We add the micro-indices for the rasterization pipeline
+        // We also add regular indices, which we will use to construct the BLAS
+        constexpr u32 numIndicesBuffers = 2;
+
+        outAttributes.push_back({.kind = attribute_kind::microindices, .format = data_format::u8});
+
+        const data_format finalIndicesFormat =
+            inputMesh.get_vertex_count() > ~u16() ? data_format::u32 : data_format::u16;
+        outAttributes.push_back({.kind = attribute_kind::indices, .format = finalIndicesFormat});
 
         const auto& lastMeshlet = meshlets[numMeshlets - 1];
 
@@ -151,7 +159,8 @@ namespace oblo::importers::mesh_processing
         // Shrink so we can use for each
         meshletVertices.resize(numTotalVertices);
 
-        for (const auto& vertexAttribute : std::span{outAttributes}.subspan(0, outAttributes.size() - 1))
+        for (const auto& vertexAttribute :
+            std::span{outAttributes}.subspan(0, outAttributes.size() - numIndicesBuffers))
         {
             OBLO_ASSERT(is_vertex_attribute(vertexAttribute.kind));
 
@@ -169,11 +178,40 @@ namespace oblo::importers::mesh_processing
             }
         }
 
-        const auto outIndices = outputMesh.get_attribute<u8>(attribute_kind::indices);
-        OBLO_ASSERT(outIndices.size() == numTotalIndices);
+        const auto outMicroIndices = outputMesh.get_attribute<u8>(attribute_kind::microindices);
+        OBLO_ASSERT(outMicroIndices.size() == numTotalIndices);
         OBLO_ASSERT(microIndices.size() >= numTotalIndices);
 
-        std::memcpy(outIndices.data(), microIndices.data(), numTotalIndices);
+        std::memcpy(outMicroIndices.data(), microIndices.data(), numTotalIndices);
+
+        const auto translateMicroIndices = [&outMeshlets, &microIndices]<typename T>(std::span<T> indices)
+        {
+            auto outIt = indices.begin();
+
+            for (const auto& meshlet : outMeshlets)
+            {
+                for (u32 i = meshlet.indexOffset; i < meshlet.indexOffset + meshlet.indexCount; ++i)
+                {
+                    const T index = narrow_cast<T>(u32(microIndices[i]) + meshlet.vertexOffset);
+                    *outIt = index;
+                    ++outIt;
+                }
+            }
+        };
+
+        switch (finalIndicesFormat)
+        {
+        case data_format::u16:
+            translateMicroIndices(outputMesh.get_attribute<u16>(attribute_kind::indices));
+            break;
+
+        case data_format::u32:
+            translateMicroIndices(outputMesh.get_attribute<u32>(attribute_kind::indices));
+            break;
+
+        default:
+            unreachable();
+        }
 
         return true;
     }

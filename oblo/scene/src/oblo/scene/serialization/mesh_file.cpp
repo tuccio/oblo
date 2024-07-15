@@ -41,6 +41,9 @@ namespace oblo
             case attribute_kind::indices:
                 return "INDICES";
 
+            case attribute_kind::microindices:
+                return "MICROINDICES";
+
             case attribute_kind::uv0:
                 return "TEXCOORD_0";
 
@@ -503,6 +506,15 @@ namespace oblo
                 attributes.push_back({
                     .kind = attribute_kind::uv0,
                     .format = data_format::vec2,
+                });
+
+                sources.emplace_back(accessor);
+            }
+            else if (attribute == get_attribute_name(attribute_kind::microindices))
+            {
+                attributes.push_back({
+                    .kind = attribute_kind::microindices,
+                    .format = data_format::u8,
                 });
 
                 sources.emplace_back(accessor);
