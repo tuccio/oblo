@@ -38,6 +38,7 @@ namespace oblo
         tangents,
         bitangents,
         uv0,
+        meshlet,
         metalness,
         roughness,
         emissive,

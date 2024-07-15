@@ -172,6 +172,9 @@ namespace oblo::vk
         case visibility_debug_mode::uv0:
             define = ctx.get_string_interner().get_or_add("OUT_UV0");
             break;
+        case visibility_debug_mode::meshlet:
+            define = ctx.get_string_interner().get_or_add("OUT_MESHLET");
+            break;
         case visibility_debug_mode::metalness:
             define = ctx.get_string_interner().get_or_add("OUT_METALNESS");
             break;
