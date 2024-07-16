@@ -2,8 +2,8 @@
 #define OBLO_INCLUDE_RENDERER_MESHES_MESH_ATTRIBUTES
 
 #include <renderer/buffer_reference/common>
+#include <renderer/geometry/volumes>
 #include <renderer/meshes/mesh_table>
-#include <renderer/volumes>
 
 // These are required to use this header
 // #extension GL_EXT_buffer_reference : require

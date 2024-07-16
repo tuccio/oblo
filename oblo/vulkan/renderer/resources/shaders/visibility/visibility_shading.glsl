@@ -1,6 +1,6 @@
-#include <renderer/barycentric>
+#include <renderer/geometry/barycentric>
+#include <renderer/geometry/ray>
 #include <renderer/quad>
-#include <renderer/ray>
 #include <visibility/visibility_buffer>
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;

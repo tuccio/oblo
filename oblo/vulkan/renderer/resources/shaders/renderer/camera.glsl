@@ -1,7 +1,7 @@
 #ifndef OBLO_INCLUDE_RENDERER_CAMERA
 #define OBLO_INCLUDE_RENDERER_CAMERA
 
-#include <renderer/volumes>
+#include <renderer/geometry/volumes>
 
 struct camera_buffer
 {

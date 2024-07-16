@@ -1,7 +1,7 @@
 #ifndef OBLO_INCLUDE_RENDERER_INTERSECTION
 #define OBLO_INCLUDE_RENDERER_INTERSECTION
 
-#include <renderer/volumes>
+#include <renderer/geometry/volumes>
 
 bool intersects_or_contains(in frustum f, in aabb box)
 {

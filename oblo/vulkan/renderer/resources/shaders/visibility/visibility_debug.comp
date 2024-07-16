@@ -22,7 +22,7 @@
 #include <renderer/shading/pbr>
 #include <renderer/textures>
 #include <renderer/transform>
-#include <renderer/volumes>
+#include <renderer/geometry/volumes>
 #include <visibility/visibility_shading>
 
 vec4 visibility_shade(in ivec2 screenPos, in visibility_buffer_data vb)
