@@ -16,8 +16,8 @@ namespace oblo::vk
     {
         m_ctx = &ctx;
         m_buffer = {};
-        m_capacity = 0;
-        m_usedBytes = 0;
+        m_capacity = {};
+        m_usedBytes = {};
         m_usage = usage;
         m_memoryPropertyFlags = memoryPropertyFlags;
     }
@@ -30,11 +30,16 @@ namespace oblo::vk
             m_ctx->destroy_immediate(m_buffer.allocation);
 
             m_buffer = {};
-            m_capacity = 0;
+            m_capacity = {};
             m_usedBytes = {};
         }
 
         m_ctx = {};
+    }
+
+    void dynamic_buffer::clear()
+    {
+        m_usedBytes = {};
     }
 
     void dynamic_buffer::clear_and_shrink()
@@ -47,18 +52,24 @@ namespace oblo::vk
             m_ctx->destroy_deferred(m_buffer.allocation, submitIndex);
 
             m_buffer = {};
-            m_capacity = 0;
+            m_capacity = {};
             m_usedBytes = {};
         }
     }
 
     void dynamic_buffer::resize(VkCommandBuffer cmd, u32 size)
     {
-        reserve(cmd, size);
+        reserve_impl(cmd, size);
         m_usedBytes = size;
     }
 
-    void dynamic_buffer::reserve(VkCommandBuffer cmd, u32 size)
+    void dynamic_buffer::resize_discard(u32 size)
+    {
+        reserve_discard(size);
+        m_usedBytes = size;
+    }
+
+    void dynamic_buffer::reserve_impl(VkCommandBuffer cmd, u32 size)
     {
         if (size <= m_capacity)
         {
@@ -79,7 +90,7 @@ namespace oblo::vk
             },
             &newBuffer));
 
-        if (m_usedBytes > 0)
+        if (cmd && m_usedBytes > 0)
         {
             const VkBufferCopy region{.size = m_usedBytes};
             vkCmdCopyBuffer(cmd, oldBuffer.buffer, newBuffer.buffer, 1, &region);
@@ -99,9 +110,19 @@ namespace oblo::vk
         m_capacity = size;
     }
 
+    void dynamic_buffer::reserve(VkCommandBuffer cmd, u32 size)
+    {
+        reserve_impl(cmd, size);
+    }
+
+    void dynamic_buffer::reserve_discard(u32 size)
+    {
+        reserve_impl(nullptr, size);
+    }
+
     buffer dynamic_buffer::get_buffer() const
     {
-        return {.buffer = m_buffer.buffer, .size = m_usedBytes};
+        return {.buffer = m_buffer.buffer, .size = m_usedBytes, .allocation = m_buffer.allocation};
     }
 
     u32 dynamic_buffer::get_capacity() const

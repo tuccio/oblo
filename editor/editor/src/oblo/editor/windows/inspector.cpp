@@ -109,6 +109,8 @@ namespace oblo::editor
                     {
                         const auto makeId = [&property] { return (int(hash_mix(property.offset, property.parent))); };
 
+                        byte* const propertyPtr = ptr + property.offset;
+
                         if (property.isEnum)
                         {
                             const auto e = refl.find_enum(property.type);
@@ -126,7 +128,7 @@ namespace oblo::editor
                                 {
                                     const auto it = values.begin() + i * size;
 
-                                    if (std::equal(it, it + size, ptr))
+                                    if (std::equal(it, it + size, propertyPtr))
                                     {
                                         preview = names[i].data();
                                         break;
@@ -144,7 +146,7 @@ namespace oblo::editor
                                         if (ImGui::Selectable(names[i].data(), &selected) && selected)
                                         {
                                             const auto it = values.begin() + i * size;
-                                            std::memcpy(ptr, &*it, size);
+                                            std::memcpy(propertyPtr, &*it, size);
                                         }
                                     }
 
@@ -162,14 +164,14 @@ namespace oblo::editor
                         case property_kind::f32:
                             ImGui::PushID(makeId());
                             ImGui::DragFloat(property.name.c_str(),
-                                reinterpret_cast<float*>(ptr + property.offset),
+                                reinterpret_cast<float*>(propertyPtr),
                                 0.1f);
                             ImGui::PopID();
                             break;
 
                         case property_kind::boolean:
                             ImGui::PushID(makeId());
-                            ImGui::Checkbox(property.name.c_str(), reinterpret_cast<bool*>(ptr + property.offset));
+                            ImGui::Checkbox(property.name.c_str(), reinterpret_cast<bool*>(propertyPtr));
                             ImGui::PopID();
                             break;
 
@@ -178,7 +180,7 @@ namespace oblo::editor
 
                             {
                                 char buf[36];
-                                const auto& v = *reinterpret_cast<uuid*>(ptr + property.offset);
+                                const auto& v = *reinterpret_cast<uuid*>(propertyPtr);
                                 v.format_to(buf);
 
                                 ImGui::TextUnformatted(buf, buf + array_size(buf));

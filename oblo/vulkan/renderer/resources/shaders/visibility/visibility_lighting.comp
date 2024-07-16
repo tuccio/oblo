@@ -22,7 +22,7 @@
 #include <renderer/shading/pbr>
 #include <renderer/textures>
 #include <renderer/transform>
-#include <renderer/volumes>
+#include <renderer/geometry/volumes>
 #include <visibility/visibility_shading>
 
 layout(binding = 0) uniform b_LightConfig

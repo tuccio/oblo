@@ -3,6 +3,7 @@
 #include <oblo/core/types.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/trace/profile.hpp>
+#include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/command_buffer_pool.hpp>
 #include <oblo/vulkan/destroy_device_objects.hpp>
 #include <oblo/vulkan/error.hpp>
@@ -130,6 +131,16 @@ namespace oblo::vk
                 PFN_vkCmdDrawMeshTasksIndirectEXT(vkGetInstanceProcAddr(m_instance, "vkCmdDrawMeshTasksIndirectEXT")),
             .vkCmdDrawMeshTasksIndirectCountEXT = PFN_vkCmdDrawMeshTasksIndirectCountEXT(
                 vkGetInstanceProcAddr(m_instance, "vkCmdDrawMeshTasksIndirectCountEXT")),
+            .vkCreateAccelerationStructureKHR = PFN_vkCreateAccelerationStructureKHR(
+                vkGetInstanceProcAddr(m_instance, "vkCreateAccelerationStructureKHR")),
+            .vkDestroyAccelerationStructureKHR = PFN_vkDestroyAccelerationStructureKHR(
+                vkGetInstanceProcAddr(m_instance, "vkDestroyAccelerationStructureKHR")),
+            .vkGetAccelerationStructureBuildSizesKHR = PFN_vkGetAccelerationStructureBuildSizesKHR(
+                vkGetInstanceProcAddr(m_instance, "vkGetAccelerationStructureBuildSizesKHR")),
+            .vkCmdBuildAccelerationStructuresKHR = PFN_vkCmdBuildAccelerationStructuresKHR(
+                vkGetInstanceProcAddr(m_instance, "vkCmdBuildAccelerationStructuresKHR")),
+            .vkGetAccelerationStructureDeviceAddressKHR = PFN_vkGetAccelerationStructureDeviceAddressKHR(
+                vkGetInstanceProcAddr(m_instance, "vkGetAccelerationStructureDeviceAddressKHR")),
         };
 
         m_allocator->set_object_debug_utils(m_debugUtilsObject);
@@ -337,6 +348,13 @@ namespace oblo::vk
         vkDestroyShaderModule(get_device(), shaderModule, get_allocator().get_allocation_callbacks());
     }
 
+    void vulkan_context::destroy_immediate(VkAccelerationStructureKHR accelerationStructure) const
+    {
+        m_loadedFunctions.vkDestroyAccelerationStructureKHR(get_device(),
+            accelerationStructure,
+            get_allocator().get_allocation_callbacks());
+    }
+
     void vulkan_context::destroy_deferred(VkBuffer buffer, u64 submitIndex)
     {
         dispose(
@@ -443,6 +461,15 @@ namespace oblo::vk
             allocation);
     }
 
+    void vulkan_context::destroy_deferred(VkAccelerationStructureKHR accelerationStructure, u64 submitIndex)
+    {
+        dispose(
+            submitIndex,
+            [](vulkan_context& ctx, VkAccelerationStructureKHR accelerationStructure)
+            { ctx.destroy_immediate(accelerationStructure); },
+            accelerationStructure);
+    }
+
     void vulkan_context::destroy_deferred(h32<texture> handle, u64 submitIndex)
     {
         dispose(
@@ -488,6 +515,21 @@ namespace oblo::vk
     debug_utils::object vulkan_context::get_debug_utils_object() const
     {
         return m_debugUtilsObject;
+    }
+
+    VkDeviceAddress vulkan_context::get_device_address(VkBuffer buffer) const
+    {
+        const VkBufferDeviceAddressInfo info{
+            .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+            .buffer = buffer,
+        };
+
+        return vkGetBufferDeviceAddress(get_device(), &info);
+    }
+
+    VkDeviceAddress vulkan_context::get_device_address(const buffer& buffer) const
+    {
+        return get_device_address(buffer.buffer) + buffer.offset;
     }
 
     void vulkan_context::destroy_resources(u64 maxSubmitIndex)

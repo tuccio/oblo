@@ -7,6 +7,7 @@
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/vulkan/draw/mesh_database.hpp>
+#include <oblo/vulkan/dynamic_buffer.hpp>
 #include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/monotonic_gbu_buffer.hpp>
 
@@ -68,6 +69,10 @@ namespace oblo::vk
         h32<draw_mesh> mesh;
     };
 
+    struct draw_raytraced_tag
+    {
+    };
+
     class draw_registry
     {
     public:
@@ -83,7 +88,8 @@ namespace oblo::vk
         void init(vulkan_context& ctx,
             staging_buffer& stagingBuffer,
             string_interner& interner,
-            ecs::entity_registry& entities);
+            ecs::entity_registry& entities,
+            resource_registry& resourceRegistry);
 
         void shutdown();
 
@@ -93,38 +99,54 @@ namespace oblo::vk
 
         void end_frame();
 
-        h32<draw_mesh> get_or_create_mesh(oblo::resource_registry& resourceRegistry,
-            const resource_ref<mesh>& resourceId);
+        h32<draw_mesh> get_or_create_mesh(const resource_ref<mesh>& resourceId);
 
         void flush_uploads(VkCommandBuffer commandBuffer);
 
         void generate_mesh_database(frame_allocator& allocator);
         void generate_draw_calls(frame_allocator& allocator, staging_buffer& stagingBuffer);
+        void generate_raytracing_structures(frame_allocator& allocator, VkCommandBuffer commandBuffer);
+
         std::string_view refresh_instance_data_defines(frame_allocator& allocator);
 
         std::span<const batch_draw_data> get_draw_calls() const;
 
         std::span<const std::byte> get_mesh_database_data() const;
 
+        VkAccelerationStructureKHR get_tlas() const;
+
         void debug_log(const batch_draw_data& drawData) const;
 
     private:
+        struct blas;
         struct pending_mesh_upload;
         struct instance_data_type_info;
 
+        struct rt_acceleration_structure
+        {
+            VkAccelerationStructureKHR accelerationStructure;
+            VkDeviceAddress deviceAddress;
+            allocated_buffer buffer;
+        };
+
     private:
         void create_instances();
+        void defer_upload(const std::span<const byte> data, const buffer& b);
+
+        void release(rt_acceleration_structure& as);
 
     private:
         vulkan_context* m_ctx{};
 
         staging_buffer* m_stagingBuffer{};
         string_interner* m_interner{};
+        resource_registry* m_resourceRegistry{};
         mesh_database m_meshes;
         ecs::entity_registry* m_entities{};
         ecs::type_registry* m_typeRegistry{};
 
         ecs::component_type m_instanceComponent{};
+        ecs::component_type m_instanceIdComponent{};
         ecs::tag_type m_indexNoneTag{};
         ecs::tag_type m_indexU8Tag{};
         ecs::tag_type m_indexU16Tag{};
@@ -146,5 +168,12 @@ namespace oblo::vk
         std::array<h32<string>, MeshBuffersCount> m_meshDataNames{};
 
         dynamic_array<pending_mesh_upload> m_pendingMeshUploads;
+
+        h32_flat_extpool_dense_map<draw_mesh, blas> m_meshToBlas;
+
+        dynamic_buffer m_rtScratchBuffer;
+        dynamic_buffer m_rtInstanceBuffer;
+
+        rt_acceleration_structure m_tlas{};
     };
 }

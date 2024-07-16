@@ -25,17 +25,23 @@ namespace oblo::vk
         void init(vulkan_context& ctx, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryPropertyFlags);
         void shutdown();
 
+        void clear();
         void clear_and_shrink();
 
         void resize(VkCommandBuffer cmd, u32 size);
+        void resize_discard(u32 size);
 
         void reserve(VkCommandBuffer cmd, u32 size);
+        void reserve_discard(u32 size);
 
         buffer get_buffer() const;
 
         u32 get_capacity() const;
 
         u32 get_used_bytes() const;
+
+    private:
+        void reserve_impl(VkCommandBuffer cmd, u32 size);
 
     private:
         vulkan_context* m_ctx{};

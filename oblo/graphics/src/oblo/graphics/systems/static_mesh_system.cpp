@@ -166,7 +166,7 @@ namespace oblo
             for (auto&& [entity, meshComponent, globalTransform] :
                 zip_range(entities, meshComponents, globalTransforms))
             {
-                const auto mesh = drawRegistry.get_or_create_mesh(*m_resourceRegistry, meshComponent.mesh);
+                const auto mesh = drawRegistry.get_or_create_mesh(meshComponent.mesh);
 
                 if (!mesh)
                 {
@@ -185,7 +185,8 @@ namespace oblo
         for (const auto& [e, mesh, materialRef] : deferred)
         {
             auto&& [gpuMaterial, pickingId, meshComponent] =
-                ctx.entities->add<gpu_material, entity_id_component, vk::draw_mesh_component>(e);
+                ctx.entities->add<gpu_material, entity_id_component, vk::draw_mesh_component, vk::draw_raytraced_tag>(
+                    e);
 
             gpuMaterial = convert(*m_resourceCache, m_resourceRegistry->get_resource(materialRef.id).as<material>());
             pickingId.entityId = e;

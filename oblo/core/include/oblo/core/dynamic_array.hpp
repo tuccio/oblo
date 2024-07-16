@@ -71,6 +71,7 @@ namespace oblo
         T* end();
 
         usize size() const;
+        usize size_bytes() const;
         usize capacity() const;
 
         T& push_back(const T& e);
@@ -360,6 +361,12 @@ namespace oblo
     usize dynamic_array<T>::size() const
     {
         return m_size;
+    }
+
+    template <typename T>
+    usize dynamic_array<T>::size_bytes() const
+    {
+        return m_size * sizeof(T);
     }
 
     template <typename T>

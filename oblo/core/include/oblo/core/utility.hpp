@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/debug.hpp>
+#include <oblo/core/platform/compiler.hpp>
 
 #include <cmath>
 #include <utility>
@@ -33,7 +34,7 @@ namespace oblo
 
     template <typename T, typename U>
         requires std::is_arithmetic_v<T>
-    constexpr T narrow_cast(U u) noexcept
+    OBLO_INTRINSIC constexpr T narrow_cast(U u) noexcept
     {
         const auto t = static_cast<T>(u);
 

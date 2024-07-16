@@ -101,6 +101,7 @@ namespace oblo
                 .vkContext = *m_impl->vulkanContext,
                 .frameAllocator = m_impl->frameAllocator,
                 .entities = m_impl->entities,
+                .resources = *initializer.resourceRegistry,
             }))
         {
             shutdown();

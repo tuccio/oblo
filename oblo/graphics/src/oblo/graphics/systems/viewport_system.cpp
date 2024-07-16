@@ -505,6 +505,12 @@ namespace oblo
                     .assert_value();
                 break;
 
+            case viewport_mode::meshlet:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutDebugImage, true);
+                frameGraph.set_input(subgraph, vk::main_view::InDebugMode, vk::visibility_debug_mode::meshlet)
+                    .assert_value();
+                break;
+
             case viewport_mode::metalness:
                 frameGraph.set_output_state(subgraph, vk::main_view::OutDebugImage, true);
                 frameGraph.set_input(subgraph, vk::main_view::InDebugMode, vk::visibility_debug_mode::metalness)
@@ -521,6 +527,10 @@ namespace oblo
                 frameGraph.set_output_state(subgraph, vk::main_view::OutDebugImage, true);
                 frameGraph.set_input(subgraph, vk::main_view::InDebugMode, vk::visibility_debug_mode::emissive)
                     .assert_value();
+                break;
+
+            case viewport_mode::raytracing_debug:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutRTDebugImage, true);
                 break;
 
             default:

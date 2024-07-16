@@ -68,9 +68,11 @@ namespace oblo
                 .add_enumerator("tangents", viewport_mode::tangents)
                 .add_enumerator("bitangents", viewport_mode::bitangents)
                 .add_enumerator("uv0", viewport_mode::uv0)
+                .add_enumerator("meslet", viewport_mode::meshlet)
                 .add_enumerator("metalness", viewport_mode::metalness)
                 .add_enumerator("roughness", viewport_mode::roughness)
-                .add_enumerator("emissive", viewport_mode::emissive);
+                .add_enumerator("emissive", viewport_mode::emissive)
+                .add_enumerator("raytracing_debug", viewport_mode::raytracing_debug);
         }
     }
 

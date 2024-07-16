@@ -21,6 +21,7 @@ namespace oblo::vk::main_view
 
     constexpr std::string_view OutLitImage{"Lit Output"};
     constexpr std::string_view OutDebugImage{"Debug Output"};
+    constexpr std::string_view OutRTDebugImage{"Debug RT Output"};
 
     constexpr std::string_view OutPicking{"OutPicking"};
 

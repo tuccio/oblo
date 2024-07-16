@@ -38,9 +38,11 @@ namespace oblo
         tangents,
         bitangents,
         uv0,
+        meshlet,
         metalness,
         roughness,
         emissive,
+        raytracing_debug,
     };
 
     struct viewport_component

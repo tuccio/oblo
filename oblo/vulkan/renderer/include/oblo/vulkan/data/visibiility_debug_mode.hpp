@@ -12,6 +12,7 @@ namespace oblo::vk
         tangents,
         bitangents,
         uv0,
+        meshlet,
         metalness,
         roughness,
         emissive,

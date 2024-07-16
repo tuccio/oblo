@@ -10,6 +10,7 @@
 #extension GL_EXT_control_flow_attributes : enable
 
 #include <renderer/camera>
+#include <renderer/debug>
 #include <renderer/instances>
 #include <renderer/material>
 #include <renderer/math>
@@ -21,11 +22,15 @@
 #include <renderer/shading/pbr>
 #include <renderer/textures>
 #include <renderer/transform>
-#include <renderer/volumes>
+#include <renderer/geometry/volumes>
 #include <visibility/visibility_shading>
 
 vec4 visibility_shade(in ivec2 screenPos, in visibility_buffer_data vb)
 {
+#ifdef OUT_MESHLET
+    return vec4(debug_color_map(vb.meshletId), 1);
+#endif
+
     // Read the instance data we need
     const mesh_handle mesh = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MeshHandles, vb.instanceId);
     const transform transform = OBLO_INSTANCE_DATA(vb.instanceTableId, i_TransformBuffer, vb.instanceId);

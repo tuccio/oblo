@@ -17,9 +17,12 @@
 #include <oblo/resource/resource_ref.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/assets/mesh.hpp>
+#include <oblo/scene/components/global_transform_component.hpp>
+#include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/data/gpu_aabb.hpp>
 #include <oblo/vulkan/draw/mesh_table.hpp>
+#include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/monotonic_gbu_buffer.hpp>
 #include <oblo/vulkan/staging_buffer.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
@@ -86,6 +89,11 @@ namespace oblo::vk
             mesh_handle mesh;
         };
 
+        struct draw_instance_id_component
+        {
+            u32 rtinstanceId : 24;
+        };
+
         struct mesh_draw_range
         {
             u32 vertexOffset;
@@ -93,7 +101,26 @@ namespace oblo::vk
             u32 meshletOffset;
             u32 meshletCount;
         };
+
+        draw_instance_id_component make_global_instance_id(u32 instanceTableId, u32 instanceIndex)
+        {
+            constexpr u32 instanceIndexBits = 20;
+            constexpr u32 mask = (1u << instanceIndexBits) - 1;
+
+            // We use 24 bits, because that is what the ray tracing pipeline allows for custom ids
+            // We reserve 4 for the instance table and 20 for the instance index
+            OBLO_ASSERT(instanceTableId < (1u << (24 - instanceIndexBits)));
+            OBLO_ASSERT(instanceIndex <= mask);
+
+            return {(instanceIndex & mask) | (instanceTableId << instanceIndexBits)};
+        }
     }
+
+    struct draw_registry::blas
+    {
+        rt_acceleration_structure as;
+        resource_ref<mesh> mesh;
+    };
 
     struct draw_registry::pending_mesh_upload
     {
@@ -111,12 +138,16 @@ namespace oblo::vk
 
     draw_registry::~draw_registry() = default;
 
-    void draw_registry::init(
-        vulkan_context& ctx, staging_buffer& stagingBuffer, string_interner& interner, ecs::entity_registry& entities)
+    void draw_registry::init(vulkan_context& ctx,
+        staging_buffer& stagingBuffer,
+        string_interner& interner,
+        ecs::entity_registry& entities,
+        resource_registry& resourceRegistry)
     {
         m_ctx = &ctx;
         m_stagingBuffer = &stagingBuffer;
         m_entities = &entities;
+        m_resourceRegistry = &resourceRegistry;
 
         mesh_attribute_description attributes[u32(vertex_attributes::enum_max)]{};
 
@@ -183,11 +214,14 @@ namespace oblo::vk
             .attributes = attributes,
             .meshData = meshData,
             .vertexBufferUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
             .indexBufferUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
-                VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
             .meshBufferUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
             .tableVertexCount = MaxVerticesPerBatch,
             .tableIndexCount = MaxIndicesPerBatch,
             .tableMeshCount = MaxMeshesPerBatch,
@@ -215,9 +249,13 @@ namespace oblo::vk
         m_typeRegistry = &entities.get_type_registry();
 
         m_typeRegistry->register_component(ecs::make_component_type_desc<draw_mesh_component>());
+        m_typeRegistry->register_tag(ecs::make_tag_type_desc<draw_raytraced_tag>());
 
         m_instanceComponent =
             m_typeRegistry->register_component(ecs::make_component_type_desc<draw_instance_component>());
+
+        m_instanceIdComponent =
+            m_typeRegistry->register_component(ecs::make_component_type_desc<draw_instance_id_component>());
 
         register_instance_data(m_instanceComponent, "i_MeshHandles");
 
@@ -225,11 +263,31 @@ namespace oblo::vk
         m_indexU8Tag = m_typeRegistry->register_tag(ecs::make_tag_type_desc<mesh_index_u8_tag>());
         m_indexU16Tag = m_typeRegistry->register_tag(ecs::make_tag_type_desc<mesh_index_u16_tag>());
         m_indexU32Tag = m_typeRegistry->register_tag(ecs::make_tag_type_desc<mesh_index_u32_tag>());
+
+        m_rtScratchBuffer.init(*m_ctx,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        m_rtInstanceBuffer.init(*m_ctx,
+            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     }
 
     void draw_registry::shutdown()
     {
         m_meshes.shutdown();
+        m_rtScratchBuffer.shutdown();
+        m_rtInstanceBuffer.shutdown();
+
+        for (auto& blas : m_meshToBlas.values())
+        {
+            release(blas.as);
+        }
+
+        m_meshToBlas.clear();
+
+        release(m_tlas);
     }
 
     void draw_registry::register_instance_data(ecs::component_type type, std::string_view name)
@@ -250,15 +308,14 @@ namespace oblo::vk
         m_drawDataCount = 0;
     }
 
-    h32<draw_mesh> draw_registry::get_or_create_mesh(oblo::resource_registry& resourceRegistry,
-        const resource_ref<mesh>& resourceId)
+    h32<draw_mesh> draw_registry::get_or_create_mesh(const resource_ref<mesh>& resourceId)
     {
         if (const auto it = m_cachedMeshes.find(resourceId.id); it != m_cachedMeshes.end())
         {
             return it->second;
         }
 
-        const auto anyResource = resourceRegistry.get_resource(resourceId.id);
+        const auto anyResource = m_resourceRegistry->get_resource(resourceId.id);
         const auto meshResource = anyResource.as<mesh>();
 
         if (!meshResource)
@@ -284,7 +341,7 @@ namespace oblo::vk
         {
             const auto& meshAttribute = meshPtr->get_attribute_at(i);
 
-            if (const auto kind = meshAttribute.kind; kind != attribute_kind::indices)
+            if (const auto kind = meshAttribute.kind; is_vertex_attribute(kind))
             {
                 const auto a = convert_vertex_attribute(kind);
                 meshAttributes[vertexAttributesCount] = kind;
@@ -293,7 +350,7 @@ namespace oblo::vk
 
                 ++vertexAttributesCount;
             }
-            else
+            else if (kind == attribute_kind::microindices)
             {
                 switch (meshAttribute.format)
                 {
@@ -301,16 +358,8 @@ namespace oblo::vk
                     indexType = mesh_index_type::u8;
                     break;
 
-                case data_format::u16:
-                    indexType = mesh_index_type::u16;
-                    break;
-
-                case data_format::u32:
-                    indexType = mesh_index_type::u32;
-                    break;
-
                 default:
-                    OBLO_ASSERT(false, "Unhandled index format");
+                    OBLO_ASSERT(false, "Rasterization only supports u8 micro-indices");
                     break;
                 }
             }
@@ -338,27 +387,16 @@ namespace oblo::vk
 
         OBLO_ASSERT(fetchedBuffers);
 
-        const auto doUpload = [this](const std::span<const std::byte> data, const buffer& b)
-        {
-            // Do we need info on pipeline barriers?
-            [[maybe_unused]] const auto result = m_stagingBuffer->stage(data);
-
-            OBLO_ASSERT(result,
-                "We need to flush uploads every now and then instead, or let staging buffer take care of it");
-
-            m_pendingMeshUploads.emplace_back(*result, b);
-        };
-
         if (indexBuffer.buffer)
         {
-            const auto data = meshPtr->get_attribute(attribute_kind::indices);
-            doUpload(data, indexBuffer);
+            const auto data = meshPtr->get_attribute(attribute_kind::microindices);
+            defer_upload(data, indexBuffer);
         }
 
         if (meshletsBuffer.buffer)
         {
             const auto data = meshPtr->get_meshlets();
-            doUpload(as_bytes(data), meshletsBuffer);
+            defer_upload(as_bytes(data), meshletsBuffer);
         }
 
         for (u32 i = 0; i < vertexAttributesCount; ++i)
@@ -366,7 +404,7 @@ namespace oblo::vk
             const auto kind = meshAttributes[i];
             const auto data = meshPtr->get_attribute(kind);
 
-            doUpload(data, vertexBuffers[i]);
+            defer_upload(data, vertexBuffers[i]);
         }
 
         {
@@ -379,17 +417,25 @@ namespace oblo::vk
                 .meshletCount = range.meshletCount,
             };
 
-            doUpload(std::as_bytes(std::span{&drawRange, 1}), meshDataBuffers[u32(mesh_data_buffers::mesh_draw_range)]);
+            defer_upload(std::as_bytes(std::span{&drawRange, 1}),
+                meshDataBuffers[u32(mesh_data_buffers::mesh_draw_range)]);
         }
 
         {
             const auto aabb = meshPtr->get_aabb();
             const gpu_aabb gpuAabb{.min = aabb.min, .max = aabb.max};
-            doUpload(std::as_bytes(std::span{&gpuAabb, 1}), meshDataBuffers[u32(mesh_data_buffers::aabb)]);
+            defer_upload(std::as_bytes(std::span{&gpuAabb, 1}), meshDataBuffers[u32(mesh_data_buffers::aabb)]);
         }
 
         const h32<draw_mesh> globalMeshId{make_mesh_id(meshHandle)};
         m_cachedMeshes.emplace(resourceId.id, globalMeshId);
+
+        // We need to cache the meshlets to build the BLAS on-demand
+
+        const auto [meshIt, ok] = m_meshToBlas.emplace(globalMeshId);
+        OBLO_ASSERT(ok);
+
+        meshIt->mesh = resourceId;
 
         return globalMeshId;
     }
@@ -443,12 +489,40 @@ namespace oblo::vk
             }
 
             sets.components.add(m_instanceComponent);
+            sets.components.add(m_instanceIdComponent);
 
             m_entities->add(entity, sets);
 
             auto& instance = m_entities->get<draw_instance_component>(entity);
             instance.mesh = mesh_handle{mesh.value};
         }
+    }
+
+    void draw_registry::defer_upload(const std::span<const byte> data, const buffer& b)
+    {
+        // Do we need info on pipeline barriers?
+        [[maybe_unused]] const auto result = m_stagingBuffer->stage(data);
+
+        OBLO_ASSERT(result,
+            "We need to flush uploads every now and then instead, or let staging buffer take care of it");
+
+        m_pendingMeshUploads.emplace_back(*result, b);
+    }
+
+    void draw_registry::release(rt_acceleration_structure& as)
+    {
+        if (as.accelerationStructure)
+        {
+            m_ctx->destroy_deferred(as.accelerationStructure, m_ctx->get_submit_index());
+        }
+
+        if (as.buffer.buffer)
+        {
+            m_ctx->destroy_deferred(as.buffer.buffer, m_ctx->get_submit_index());
+            m_ctx->destroy_deferred(as.buffer.allocation, m_ctx->get_submit_index());
+        }
+
+        as = {};
     }
 
     void draw_registry::flush_uploads(VkCommandBuffer commandBuffer)
@@ -591,7 +665,23 @@ namespace oblo::vk
                 {
                     for (usize i = 0, j = 0; i < allComponentsCount; ++i)
                     {
-                        if (!m_instanceDataTypes.contains(componentTypes[i]))
+                        if (componentTypes[i] == m_instanceIdComponent)
+                        {
+                            auto* const instanceIds =
+                                start_lifetime_as_array<draw_instance_id_component>(componentArrays[i],
+                                    numEntitiesInChunk);
+
+                            const auto instanceTableId = currentDrawBatch->instanceTableId;
+
+                            for (u32 e = 0; e < numEntitiesInChunk; ++e)
+                            {
+                                const auto instanceIndex = e + numProcessedEntities;
+                                instanceIds[e] = make_global_instance_id(instanceTableId, instanceIndex);
+                            }
+
+                            continue;
+                        }
+                        else if (!m_instanceDataTypes.contains(componentTypes[i]))
                         {
                             continue;
                         }
@@ -617,6 +707,488 @@ namespace oblo::vk
 
         m_drawData = frameDrawData;
         m_drawDataCount = drawBatches;
+    }
+
+    void draw_registry::generate_raytracing_structures(frame_allocator& allocator, VkCommandBuffer commandBuffer)
+    {
+        OBLO_PROFILE_SCOPE();
+
+        const auto vkFn = m_ctx->get_loaded_functions();
+
+        const auto entityRange =
+            m_entities->range<draw_mesh_component, draw_instance_id_component, global_transform_component>()
+                .with<draw_raytraced_tag>();
+
+        struct blas_build_info
+        {
+            std::span<VkAccelerationStructureGeometryKHR> geometry;
+            std::span<VkAccelerationStructureBuildRangeInfoKHR> ranges;
+            std::span<u32> maxPrimitives;
+            VkAccelerationStructureKHR accelerationStructure{};
+            VkAccelerationStructureBuildGeometryInfoKHR buildInfo{};
+            allocated_buffer blasBuffer{};
+            VkDeviceSize scratchSize{};
+        };
+
+        dynamic_array<VkAccelerationStructureInstanceKHR> instances;
+        instances.reserve(4096);
+
+        dynamic_array<blas_build_info> blasBuilds;
+        blasBuilds.reserve(256);
+
+        VkDeviceSize blasScratchSize{};
+
+        auto& gpuAllocator = m_ctx->get_allocator();
+
+        const auto firstBlasUpload = m_pendingMeshUploads.size();
+
+        for (auto&& [entities, meshes, drawInstanceIds, transforms] : entityRange)
+        {
+            for (const auto&& [mesh, drawInstanceId, transform] : zip_range(meshes, drawInstanceIds, transforms))
+            {
+                auto* const blas = m_meshToBlas.try_find(mesh.mesh);
+
+                if (!blas)
+                {
+                    continue;
+                }
+
+                if (!blas->as.accelerationStructure)
+                {
+                    const auto meshPtr = m_resourceRegistry->get_resource(blas->mesh.id).as<oblo::mesh>();
+
+                    if (!meshPtr)
+                    {
+                        continue;
+                    }
+
+                    const u32 positionAttribute[] = {u32(vertex_attributes::position)};
+                    buffer positionBuffer[1];
+
+                    const mesh_handle meshHandle = std::bit_cast<mesh_handle>(mesh.mesh);
+
+                    if (!m_meshes
+                             .fetch_buffers(meshHandle, positionAttribute, positionBuffer, nullptr, {}, {}, nullptr))
+                    {
+                        continue;
+                    }
+
+                    const VkDeviceAddress vertexAddress =
+                        m_ctx->get_device_address(positionBuffer[0].buffer) + positionBuffer[0].offset;
+
+                    // TODO: We need a better solution, we can't use the microindices (mostly because of no support of
+                    // building the BLAS from u8 indices)
+                    allocated_buffer allocatedIndexBuffer;
+
+                    const auto indexType = meshPtr->get_attribute_format(attribute_kind::indices);
+                    const auto indexData = meshPtr->get_attribute(attribute_kind::indices);
+
+                    VkIndexType vkIndexType;
+
+                    switch (indexType)
+                    {
+                    case data_format::u16:
+                        vkIndexType = VK_INDEX_TYPE_UINT16;
+                        break;
+                    case data_format::u32:
+                        vkIndexType = VK_INDEX_TYPE_UINT32;
+                        break;
+                    default:
+                        OBLO_ASSERT(false);
+                        continue;
+                    }
+
+                    const auto indexBufferByteSize = narrow_cast<u32>(indexData.size_bytes());
+
+                    if (gpuAllocator.create_buffer(
+                            {
+                                .size = indexBufferByteSize,
+                                .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
+                                    VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                                    VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
+                                .memoryUsage = memory_usage::gpu_only,
+                            },
+                            &allocatedIndexBuffer) != VK_SUCCESS)
+                    {
+                        continue;
+                    }
+
+                    // We need this buffer for one frame only, destroy it after
+                    const auto submitIndex = m_ctx->get_submit_index();
+
+                    m_ctx->destroy_deferred(allocatedIndexBuffer.buffer, submitIndex);
+                    m_ctx->destroy_deferred(allocatedIndexBuffer.allocation, submitIndex);
+
+                    const buffer indexBuffer{
+                        .buffer = allocatedIndexBuffer.buffer,
+                        .size = indexBufferByteSize,
+                    };
+
+                    const VkDeviceAddress indexAddress = m_ctx->get_device_address(indexBuffer.buffer);
+
+                    const auto geometry = allocate_n_span<VkAccelerationStructureGeometryKHR>(allocator, 1u);
+                    const auto ranges = allocate_n_span<VkAccelerationStructureBuildRangeInfoKHR>(allocator, 1u);
+                    const auto maxPrimitives = allocate_n_span<u32>(allocator, 1u);
+
+                    {
+                        VkAccelerationStructureGeometryKHR& g = geometry[0];
+                        VkAccelerationStructureBuildRangeInfoKHR& r = ranges[0];
+
+                        g = {
+                            .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
+                            .geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR,
+                            .geometry =
+                                {
+                                    .triangles =
+                                        {
+                                            .sType =
+                                                VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
+                                            .vertexFormat = VK_FORMAT_R32G32B32_SFLOAT,
+                                            .vertexData = {.deviceAddress = vertexAddress},
+                                            .vertexStride = sizeof(vec3),
+                                            .maxVertex = meshPtr->get_vertex_count() - 1,
+                                            .indexType = vkIndexType,
+                                            .indexData = {.deviceAddress = indexAddress},
+                                        },
+                                },
+                            .flags = VK_GEOMETRY_OPAQUE_BIT_KHR,
+                        };
+
+                        r = {
+                            .primitiveCount = meshPtr->get_index_count() / 3,
+                        };
+
+                        maxPrimitives[0] = r.primitiveCount;
+                    }
+
+                    const VkAccelerationStructureBuildGeometryInfoKHR buildInfo{
+                        .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
+                        .type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
+                        .flags = 0, // Maybe allow compaction
+                        .mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
+                        .geometryCount = u32(geometry.size()),
+                        .pGeometries = geometry.data(),
+                    };
+
+                    VkAccelerationStructureBuildSizesInfoKHR sizeInfo{
+                        .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR,
+                    };
+
+                    vkFn.vkGetAccelerationStructureBuildSizesKHR(m_ctx->get_device(),
+                        VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+                        &buildInfo,
+                        maxPrimitives.data(),
+                        &sizeInfo);
+
+                    // TODO: We should sub-allocate a buffer instead, but good enough for now
+                    allocated_buffer blasBuffer{};
+
+                    gpuAllocator.create_buffer(
+                        {
+                            .size = narrow_cast<u32>(sizeInfo.accelerationStructureSize),
+                            .usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
+                                VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                            .memoryUsage = memory_usage::gpu_only,
+                        },
+                        &blasBuffer);
+
+                    const VkAccelerationStructureCreateInfoKHR createInfo{
+                        .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
+                        .buffer = blasBuffer.buffer,
+                        .size = sizeInfo.accelerationStructureSize,
+                        .type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
+                    };
+
+                    if (vkFn.vkCreateAccelerationStructureKHR(m_ctx->get_device(),
+                            &createInfo,
+                            gpuAllocator.get_allocation_callbacks(),
+                            &blas->as.accelerationStructure) != VK_SUCCESS)
+                    {
+                        log::error("Failed to create blas for mesh {}", mesh.mesh.value);
+                        gpuAllocator.destroy(blasBuffer);
+                        continue;
+                    }
+
+                    const VkAccelerationStructureDeviceAddressInfoKHR asAddrInfo{
+                        .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
+                        .accelerationStructure = blas->as.accelerationStructure,
+                    };
+
+                    blas->as.buffer = blasBuffer;
+
+                    blas->as.deviceAddress =
+                        vkFn.vkGetAccelerationStructureDeviceAddressKHR(m_ctx->get_device(), &asAddrInfo);
+
+                    auto& blasBuild = blasBuilds.emplace_back();
+
+                    blasBuild.geometry = geometry;
+                    blasBuild.ranges = ranges;
+                    blasBuild.accelerationStructure = blas->as.accelerationStructure;
+                    blasBuild.buildInfo = buildInfo;
+                    blasBuild.blasBuffer = blasBuffer;
+                    blasBuild.scratchSize = round_up_multiple<VkDeviceSize>(sizeInfo.buildScratchSize, 256);
+
+                    blasScratchSize += blasBuild.scratchSize;
+
+                    defer_upload(indexData, indexBuffer);
+                }
+
+                VkTransformMatrixKHR vkTransform;
+
+                for (u32 i = 0; i < 3; ++i)
+                {
+                    for (u32 j = 0; j < 4; ++j)
+                    {
+                        vkTransform.matrix[i][j] = transform.localToWorld.columns[j][i];
+                    }
+                }
+
+                // Add the instance to the TLAS
+
+                instances.push_back({
+                    .transform = vkTransform,
+                    .instanceCustomIndex = drawInstanceId.rtinstanceId,
+                    .mask = 0xff,
+                    .instanceShaderBindingTableRecordOffset = 0,
+                    .flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR,
+                    .accelerationStructureReference = blas->as.deviceAddress,
+                });
+            }
+        }
+
+        // Actually build the queued BLAS
+
+        if (const usize numQueuedBuilds = blasBuilds.size())
+        {
+            if (firstBlasUpload != m_pendingMeshUploads.size())
+            {
+                const usize n = m_pendingMeshUploads.size() - firstBlasUpload;
+                // Add barriers for the index buffer upload to build the BLAS
+                const std::span barriers = allocate_n_span<VkBufferMemoryBarrier2>(allocator, n);
+
+                for (usize i = 0; i < n; ++i)
+                {
+                    auto& buf = m_pendingMeshUploads[firstBlasUpload + i].dst;
+
+                    barriers[i] = {
+                        .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+                        .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                        .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                        .dstStageMask = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                        .dstAccessMask = VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR,
+                        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                        .buffer = buf.buffer,
+                        .offset = buf.offset,
+                        .size = buf.size,
+                    };
+                }
+
+                // Flush any index buffer upload
+                flush_uploads(commandBuffer);
+
+                const VkDependencyInfo dependencyInfo{
+                    .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                    .bufferMemoryBarrierCount = u32(n),
+                    .pBufferMemoryBarriers = barriers.data(),
+                };
+
+                vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
+            }
+
+            const auto geometryInfo =
+                allocate_n_span<VkAccelerationStructureBuildGeometryInfoKHR>(allocator, numQueuedBuilds);
+
+            const auto buildRangeInfo =
+                allocate_n_span<VkAccelerationStructureBuildRangeInfoKHR*>(allocator, numQueuedBuilds);
+
+            allocated_buffer scratchBuffer{};
+
+            OBLO_VK_PANIC(gpuAllocator.create_buffer(
+                {
+                    .size = narrow_cast<u32>(blasScratchSize),
+                    .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                    .memoryUsage = memory_usage::gpu_only,
+                },
+                &scratchBuffer));
+
+            m_ctx->destroy_deferred(scratchBuffer.buffer, m_ctx->get_submit_index());
+            m_ctx->destroy_deferred(scratchBuffer.allocation, m_ctx->get_submit_index());
+
+            auto scratchAddress = m_ctx->get_device_address(scratchBuffer.buffer);
+
+            for (usize i = 0; i < numQueuedBuilds; ++i)
+            {
+                auto& blasBuild = blasBuilds[i];
+
+                geometryInfo[i] = blasBuild.buildInfo;
+                geometryInfo[i].dstAccelerationStructure = blasBuild.accelerationStructure;
+                geometryInfo[i].scratchData.deviceAddress = scratchAddress;
+                buildRangeInfo[i] = blasBuild.ranges.data();
+
+                scratchAddress += blasBuild.scratchSize;
+            }
+
+            m_ctx->begin_debug_label(commandBuffer, "Build BLAS");
+
+            vkFn.vkCmdBuildAccelerationStructuresKHR(commandBuffer,
+                u32(blasBuilds.size()),
+                geometryInfo.data(),
+                buildRangeInfo.data());
+
+            m_ctx->end_debug_label(commandBuffer);
+
+            // Add a barrier between BLAS and TLAS construction
+
+            const VkMemoryBarrier2 tlasBarrier{
+                .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+                .srcStageMask = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                .srcAccessMask = VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR,
+                .dstStageMask = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                .dstAccessMask = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR,
+            };
+
+            const VkDependencyInfo dependencyInfo{
+                .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                .memoryBarrierCount = 1u,
+                .pMemoryBarriers = &tlasBarrier,
+            };
+
+            vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
+        }
+
+        // Temporarily we just destroy the TLAS every frame and recreate it
+
+        if (m_tlas.accelerationStructure)
+        {
+            m_ctx->destroy_deferred(m_tlas.accelerationStructure, m_ctx->get_submit_index());
+            m_ctx->destroy_deferred(m_tlas.buffer.buffer, m_ctx->get_submit_index());
+            m_ctx->destroy_deferred(m_tlas.buffer.allocation, m_ctx->get_submit_index());
+
+            m_tlas = {};
+        }
+
+        // Finally build the TLAS
+        VkDeviceAddress instanceBufferDeviceAddress{};
+
+        if (!instances.empty())
+        {
+            m_rtInstanceBuffer.resize_discard(u32(instances.size_bytes()));
+            const auto instanceBuffer = m_rtInstanceBuffer.get_buffer();
+
+            void* instanceBufferPtr;
+            OBLO_VK_PANIC(gpuAllocator.map(instanceBuffer.allocation, &instanceBufferPtr));
+            std::memcpy(instanceBufferPtr, instances.data(), instances.size_bytes());
+
+            gpuAllocator.invalidate_mapped_memory_ranges({&instanceBuffer.allocation, 1});
+            gpuAllocator.unmap(instanceBuffer.allocation);
+
+            instanceBufferDeviceAddress = m_ctx->get_device_address(instanceBuffer);
+        }
+
+        const VkAccelerationStructureGeometryKHR accelerationStructureGeometry{
+            .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
+            .geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR,
+            .geometry =
+                {
+                    .instances =
+                        {
+                            .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR,
+                            .arrayOfPointers = VK_FALSE,
+                            .data = {.deviceAddress = instanceBufferDeviceAddress},
+                        },
+                },
+            .flags = VK_GEOMETRY_OPAQUE_BIT_KHR,
+        };
+
+        const VkAccelerationStructureBuildGeometryInfoKHR accelerationStructureBuildGeometryInfo{
+            .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
+            .type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
+            .flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR,
+            .geometryCount = 1u,
+            .pGeometries = &accelerationStructureGeometry,
+        };
+
+        const u32 instanceCount = u32(instances.size());
+
+        VkAccelerationStructureBuildSizesInfoKHR sizeInfo{
+            .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR,
+        };
+
+        vkFn.vkGetAccelerationStructureBuildSizesKHR(m_ctx->get_device(),
+            VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+            &accelerationStructureBuildGeometryInfo,
+            &instanceCount,
+            &sizeInfo);
+
+        gpuAllocator.create_buffer(
+            {
+                .size = narrow_cast<u32>(sizeInfo.accelerationStructureSize),
+                .usage =
+                    VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                .memoryUsage = memory_usage::gpu_only,
+            },
+            &m_tlas.buffer);
+
+        const VkAccelerationStructureCreateInfoKHR accelerationStructureCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
+            .buffer = m_tlas.buffer.buffer,
+            .size = sizeInfo.accelerationStructureSize,
+            .type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
+        };
+
+        vkFn.vkCreateAccelerationStructureKHR(m_ctx->get_device(),
+            &accelerationStructureCreateInfo,
+            gpuAllocator.get_allocation_callbacks(),
+            &m_tlas.accelerationStructure);
+
+        const VkAccelerationStructureDeviceAddressInfoKHR accelerationDeviceAddressInfo{
+            .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
+            .accelerationStructure = m_tlas.accelerationStructure,
+        };
+
+        m_tlas.deviceAddress =
+            vkFn.vkGetAccelerationStructureDeviceAddressKHR(m_ctx->get_device(), &accelerationDeviceAddressInfo);
+
+        if (!instances.empty())
+        {
+            m_rtScratchBuffer.resize_discard(narrow_cast<u32>(sizeInfo.buildScratchSize));
+            const auto tlasScratchBuffer = m_rtScratchBuffer.get_buffer();
+
+            const VkAccelerationStructureBuildGeometryInfoKHR accelerationBuildGeometryInfo{
+                .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
+                .type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
+                .flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR,
+                .mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
+                .dstAccelerationStructure = m_tlas.accelerationStructure,
+                .geometryCount = 1,
+                .pGeometries = &accelerationStructureGeometry,
+                .scratchData =
+                    {
+                        .deviceAddress = m_ctx->get_device_address(tlasScratchBuffer),
+                    },
+            };
+
+            const VkAccelerationStructureBuildRangeInfoKHR accelerationStructureBuildRangeInfo{
+                .primitiveCount = instanceCount,
+                .primitiveOffset = 0,
+                .firstVertex = 0,
+                .transformOffset = 0,
+            };
+
+            const VkAccelerationStructureBuildRangeInfoKHR* const accelerationStructureBuildRangeInfos[] = {
+                &accelerationStructureBuildRangeInfo,
+            };
+
+            m_ctx->begin_debug_label(commandBuffer, "Build TLAS");
+
+            vkFn.vkCmdBuildAccelerationStructuresKHR(commandBuffer,
+                1,
+                &accelerationBuildGeometryInfo,
+                accelerationStructureBuildRangeInfos);
+
+            m_ctx->end_debug_label(commandBuffer);
+        }
     }
 
     std::string_view draw_registry::refresh_instance_data_defines(frame_allocator& allocator)
@@ -652,6 +1224,11 @@ namespace oblo::vk
     std::span<const std::byte> draw_registry::get_mesh_database_data() const
     {
         return m_meshDatabaseData;
+    }
+
+    VkAccelerationStructureKHR draw_registry::get_tlas() const
+    {
+        return m_tlas.accelerationStructure;
     }
 
     void draw_registry::debug_log(const batch_draw_data& drawData) const

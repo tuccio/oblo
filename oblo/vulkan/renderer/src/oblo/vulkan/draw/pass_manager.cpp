@@ -74,6 +74,7 @@ namespace oblo::vk
             sampled_image,
             separate_image,
             storage_image,
+            acceleration_structure,
         };
 
         struct shader_resource
@@ -627,6 +628,10 @@ namespace oblo::vk
                 descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
                 break;
 
+            case resource_kind::acceleration_structure:
+                descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+                break;
+
             default:
                 continue;
             }
@@ -863,6 +868,21 @@ namespace oblo::vk
                 }
             }
         }
+
+        for (const auto& accelerationStructure : shaderResources.acceleration_structures)
+        {
+            const auto name = interner->get_or_add(accelerationStructure.name);
+            const auto location = compiler.get_decoration(accelerationStructure.id, spv::DecorationLocation);
+            const auto binding = compiler.get_decoration(accelerationStructure.id, spv::DecorationBinding);
+
+            newPipeline.resources.push_back({
+                .name = name,
+                .location = location,
+                .binding = binding,
+                .kind = resource_kind::acceleration_structure,
+                .stageFlags = VkShaderStageFlags(vkStage),
+            });
+        }
     }
 
     shader_compiler::options pass_manager::impl::make_compiler_options()
@@ -885,10 +905,12 @@ namespace oblo::vk
         u32 buffersCount{0};
         u32 imagesCount{0};
         u32 writesCount{0};
+        u32 accelerationStructuresCount{0};
 
         VkDescriptorBufferInfo bufferInfo[MaxWrites];
         VkDescriptorImageInfo imageInfo[MaxWrites];
         VkWriteDescriptorSet descriptorSetWrites[MaxWrites];
+        VkWriteDescriptorSetAccelerationStructureKHR asSetWrites[MaxWrites];
 
         auto writeBufferToDescriptorSet = [descriptorSet,
                                               &bufferInfo,
@@ -911,7 +933,6 @@ namespace oblo::vk
                 .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                 .dstSet = descriptorSet,
                 .dstBinding = binding.binding,
-                .dstArrayElement = 0,
                 .descriptorCount = 1,
                 .descriptorType = binding.descriptorType,
                 .pBufferInfo = bufferInfo + buffersCount,
@@ -944,13 +965,39 @@ namespace oblo::vk
                 .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                 .dstSet = descriptorSet,
                 .dstBinding = binding.binding,
-                .dstArrayElement = 0,
                 .descriptorCount = 1,
                 .descriptorType = binding.descriptorType,
                 .pImageInfo = imageInfo + imagesCount,
             };
 
             ++imagesCount;
+            ++writesCount;
+        };
+
+        auto writeAccelerationStructureToDescriptorSet =
+            [descriptorSet, &asSetWrites, &descriptorSetWrites, &accelerationStructuresCount, &writesCount](
+                const descriptor_binding& binding,
+                const bindable_acceleration_structure& as)
+        {
+            OBLO_ASSERT(accelerationStructuresCount < MaxWrites);
+            OBLO_ASSERT(writesCount < MaxWrites);
+
+            asSetWrites[accelerationStructuresCount] = {
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR,
+                .accelerationStructureCount = 1,
+                .pAccelerationStructures = &as.handle,
+            };
+
+            descriptorSetWrites[writesCount] = {
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .pNext = &asSetWrites[accelerationStructuresCount],
+                .dstSet = descriptorSet,
+                .dstBinding = binding.binding,
+                .descriptorCount = 1,
+                .descriptorType = binding.descriptorType,
+            };
+
+            ++accelerationStructuresCount;
             ++writesCount;
         };
 
@@ -987,6 +1034,20 @@ namespace oblo::vk
                         else
                         {
                             log::debug("[{}] A binding for {} was found, but it's not a texture as expected",
+                                pipeline.label,
+                                interner->str(binding.name));
+                        }
+
+                        break;
+                    case bindable_object_kind::acceleration_structure:
+                        if (binding.descriptorType == VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR)
+                        {
+                            writeAccelerationStructureToDescriptorSet(binding, bindableObject->accelerationStructure);
+                        }
+                        else
+                        {
+                            log::debug(
+                                "[{}] A binding for {} was found, but it's not an acceleration structure as expected",
                                 pipeline.label,
                                 interner->str(binding.name));
                         }

@@ -18,6 +18,7 @@ oblo_create_symlink("${CMAKE_CURRENT_SOURCE_DIR}/resources" "${CMAKE_RUNTIME_OUT
 target_link_libraries(
     oblo_test_vk_renderer
     PRIVATE
+    oblo::resource
     oblo::sandbox
 )
 
