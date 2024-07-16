@@ -18,6 +18,7 @@
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/assets/mesh.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
+#include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/data/gpu_aabb.hpp>
 #include <oblo/vulkan/draw/mesh_table.hpp>
@@ -242,10 +243,9 @@ namespace oblo::vk
         m_indexU16Tag = m_typeRegistry->register_tag(ecs::make_tag_type_desc<mesh_index_u16_tag>());
         m_indexU32Tag = m_typeRegistry->register_tag(ecs::make_tag_type_desc<mesh_index_u32_tag>());
 
-        m_asScratchBuffer.init(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-            memory_usage::gpu_only,
-            32,
-            1u << 28);
+        m_rtScratchBuffer.init(*m_ctx,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
         m_rtInstanceBuffer.init(*m_ctx,
             VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
@@ -647,6 +647,8 @@ namespace oblo::vk
 
     void draw_registry::generate_raytracing_structures(frame_allocator& allocator, VkCommandBuffer commandBuffer)
     {
+        OBLO_PROFILE_SCOPE();
+
         const auto vkFn = m_ctx->get_loaded_functions();
 
         const auto entityRange =
@@ -663,6 +665,7 @@ namespace oblo::vk
             VkAccelerationStructureKHR accelerationStructure{};
             VkAccelerationStructureBuildGeometryInfoKHR buildInfo{};
             allocated_buffer blasBuffer{};
+            VkDeviceSize scratchSize{};
         };
 
         dynamic_array<VkAccelerationStructureInstanceKHR> instances;
@@ -810,8 +813,6 @@ namespace oblo::vk
                         maxPrimitives.data(),
                         &sizeInfo);
 
-                    blasScratchSize = max(blasScratchSize, sizeInfo.buildScratchSize);
-
                     // TODO: We should sub-allocate a buffer instead, but good enough for now
                     allocated_buffer blasBuffer{};
 
@@ -858,6 +859,9 @@ namespace oblo::vk
                     blasBuild.accelerationStructure = blas->as.accelerationStructure;
                     blasBuild.buildInfo = buildInfo;
                     blasBuild.blasBuffer = blasBuffer;
+                    blasBuild.scratchSize = round_up_multiple<VkDeviceSize>(sizeInfo.buildScratchSize, 256);
+
+                    blasScratchSize += blasBuild.scratchSize;
 
                     defer_upload(indexData, indexBuffer);
                 }
@@ -931,8 +935,20 @@ namespace oblo::vk
             const auto buildRangeInfo =
                 allocate_n_span<VkAccelerationStructureBuildRangeInfoKHR*>(allocator, numQueuedBuilds);
 
-            const auto scratchBuffer = m_asScratchBuffer.allocate(*m_ctx, narrow_cast<u32>(blasScratchSize));
-            const auto scratchAddress = m_ctx->get_device_address(scratchBuffer.buffer) + scratchBuffer.offset;
+            allocated_buffer scratchBuffer{};
+
+            OBLO_VK_PANIC(gpuAllocator.create_buffer(
+                {
+                    .size = narrow_cast<u32>(blasScratchSize),
+                    .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                    .memoryUsage = memory_usage::gpu_only,
+                },
+                &scratchBuffer));
+
+            m_ctx->destroy_deferred(scratchBuffer.buffer, m_ctx->get_submit_index());
+            m_ctx->destroy_deferred(scratchBuffer.allocation, m_ctx->get_submit_index());
+
+            auto scratchAddress = m_ctx->get_device_address(scratchBuffer.buffer);
 
             for (usize i = 0; i < numQueuedBuilds; ++i)
             {
@@ -942,6 +958,8 @@ namespace oblo::vk
                 geometryInfo[i].dstAccelerationStructure = blasBuild.accelerationStructure;
                 geometryInfo[i].scratchData.deviceAddress = scratchAddress;
                 buildRangeInfo[i] = blasBuild.ranges.data();
+
+                scratchAddress += blasBuild.scratchSize;
             }
 
             vkFn.vkCmdBuildAccelerationStructuresKHR(commandBuffer,
@@ -1063,8 +1081,8 @@ namespace oblo::vk
 
         if (!instances.empty())
         {
-            const auto tlasScratchBuffer =
-                m_asScratchBuffer.allocate(*m_ctx, narrow_cast<u32>(sizeInfo.buildScratchSize));
+            m_rtScratchBuffer.resize_discard(narrow_cast<u32>(sizeInfo.buildScratchSize));
+            const auto tlasScratchBuffer = m_rtScratchBuffer.get_buffer();
 
             const VkAccelerationStructureBuildGeometryInfoKHR accelerationBuildGeometryInfo{
                 .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,

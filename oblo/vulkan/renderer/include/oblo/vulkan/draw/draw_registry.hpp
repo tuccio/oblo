@@ -167,8 +167,8 @@ namespace oblo::vk
         dynamic_array<pending_mesh_upload> m_pendingMeshUploads;
 
         h32_flat_extpool_dense_map<draw_mesh, blas> m_meshToBlas;
-        monotonic_gpu_buffer m_asScratchBuffer;
 
+        dynamic_buffer m_rtScratchBuffer;
         dynamic_buffer m_rtInstanceBuffer;
 
         rt_acceleration_structure m_tlas{};
