@@ -2,6 +2,7 @@
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/graph/dot.hpp>
 #include <oblo/core/graph/topological_sort.hpp>
+#include <oblo/resource/resource_registry.hpp>
 #include <oblo/sandbox/sandbox_app.hpp>
 #include <oblo/sandbox/sandbox_app_config.hpp>
 #include <oblo/vulkan/buffer.hpp>
@@ -146,6 +147,7 @@ namespace oblo::vk::test
                         .vkContext = *ctx.vkContext,
                         .frameAllocator = frameAllocator,
                         .entities = entities,
+                        .resources = resources,
                     }))
                 {
                     return false;
@@ -173,6 +175,7 @@ namespace oblo::vk::test
 
             ecs::type_registry typeRegistry;
             ecs::entity_registry entities;
+            resource_registry resources;
 
             std::function<void(const sandbox_render_context&)> updateCb;
         };
