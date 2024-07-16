@@ -1033,10 +1033,14 @@ namespace oblo::vk
                 scratchAddress += blasBuild.scratchSize;
             }
 
+            m_ctx->begin_debug_label(commandBuffer, "Build BLAS");
+
             vkFn.vkCmdBuildAccelerationStructuresKHR(commandBuffer,
                 u32(blasBuilds.size()),
                 geometryInfo.data(),
                 buildRangeInfo.data());
+
+            m_ctx->end_debug_label(commandBuffer);
 
             // Add a barrier between BLAS and TLAS construction
 
@@ -1180,10 +1184,14 @@ namespace oblo::vk
                 &accelerationStructureBuildRangeInfo,
             };
 
+            m_ctx->begin_debug_label(commandBuffer, "Build TLAS");
+
             vkFn.vkCmdBuildAccelerationStructuresKHR(commandBuffer,
                 1,
                 &accelerationBuildGeometryInfo,
                 accelerationStructureBuildRangeInfos);
+
+            m_ctx->end_debug_label(commandBuffer);
         }
     }
 
