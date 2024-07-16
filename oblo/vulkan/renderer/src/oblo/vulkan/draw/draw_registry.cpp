@@ -777,7 +777,7 @@ namespace oblo::vk
                                             .vertexData = {.deviceAddress = vertexAddress},
                                             .vertexStride = sizeof(vec3),
                                             .maxVertex = meshPtr->get_vertex_count() - 1,
-                                            .indexType = VK_INDEX_TYPE_UINT8_EXT,
+                                            .indexType = vkIndexType,
                                             .indexData = {.deviceAddress = indexAddress},
                                         },
                                 },
@@ -951,7 +951,7 @@ namespace oblo::vk
 
             // Add a barrier between BLAS and TLAS construction
 
-            VkMemoryBarrier2 tlasBarrier{
+            const VkMemoryBarrier2 tlasBarrier{
                 .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
                 .srcStageMask = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
                 .srcAccessMask = VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR,
@@ -1016,7 +1016,7 @@ namespace oblo::vk
             .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
             .type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
             .flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR,
-            .geometryCount = instances.empty() ? 0 : 1u,
+            .geometryCount = 1u,
             .pGeometries = &accelerationStructureGeometry,
         };
 
