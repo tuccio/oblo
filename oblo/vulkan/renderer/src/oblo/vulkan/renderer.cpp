@@ -165,9 +165,15 @@ namespace oblo::vk
             .synchronization2 = true,
         };
 
+        VkPhysicalDeviceRayQueryFeaturesKHR g_rtRayQueryFeatures{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR,
+            .pNext = &g_synchronizationFeatures,
+            .rayQuery = true,
+        };
+
         VkPhysicalDeviceRayTracingPipelineFeaturesKHR g_rtPipelineFeatures{
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR,
-            .pNext = &g_synchronizationFeatures,
+            .pNext = &g_rtRayQueryFeatures,
             .rayTracingPipeline = true,
         };
 

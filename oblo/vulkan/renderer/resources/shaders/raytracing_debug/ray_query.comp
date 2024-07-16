@@ -12,6 +12,7 @@
 
 #include <renderer/barycentric>
 #include <renderer/camera>
+#include <renderer/debug>
 #include <renderer/instances>
 #include <renderer/lights>
 #include <renderer/material>
@@ -44,6 +45,20 @@ layout(push_constant) uniform c_PushConstants
 }
 g_Constants;
 
+struct rt_instance_id
+{
+    uint instanceTableId;
+    uint instanceId;
+};
+
+rt_instance_id rt_instance_id_from_custom_index(uint customIndex)
+{
+    rt_instance_id r;
+    r.instanceTableId = customIndex >> 20;
+    r.instanceId = customIndex & ((1u << 20) - 1);
+    return r;
+}
+
 void main()
 {
     const uvec2 localGroupId = quad_remap_lane_8x8(gl_LocalInvocationIndex);
@@ -56,37 +71,31 @@ void main()
 
     vec4 color = vec4(0);
 
-#if 1
-
     // Initializes a ray query object but does not start traversal
     rayQueryEXT rayQuery;
 
     const vec3 origin = g_Camera.position;
     const vec3 direction = camera_ray_direction(g_Camera, g_Constants.resolution, screenPos);
 
-    const float tMin = .01f;
-    const float tMax = 10000.f;
+    const float tMin = 1e-2f;
+    const float tMax = 1e6f;
 
-    rayQueryInitializeEXT(rayQuery,
-        as_SceneTLAS,
-        gl_RayFlagsTerminateOnFirstHitEXT,
-        0xff,
-        origin,
-        tMin,
-        direction,
-        tMax);
+    rayQueryInitializeEXT(rayQuery, as_SceneTLAS, gl_RayFlagsNoneEXT, 0xff, origin, tMin, direction, tMax);
 
     // Start traversal: return false if traversal is complete
     while (rayQueryProceedEXT(rayQuery))
     {
+        if (rayQueryGetIntersectionTypeEXT(rayQuery, false) == gl_RayQueryCandidateIntersectionTriangleEXT)
+        {
+            rayQueryConfirmIntersectionEXT(rayQuery);
+        }
     }
-
 
     if (rayQueryGetIntersectionTypeEXT(rayQuery, true) != gl_RayQueryCommittedIntersectionNoneEXT)
     {
-        color = vec4(1, 0, 0, 1);
+        const uint customIndex = rayQueryGetIntersectionInstanceCustomIndexEXT(rayQuery, true);
+        color = vec4(debug_color_map(customIndex), 1);
     }
-#endif
 
     imageStore(t_OutShadedImage, screenPos, color);
 }

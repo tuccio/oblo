@@ -89,6 +89,11 @@ namespace oblo::vk
             mesh_handle mesh;
         };
 
+        struct draw_instance_id_component
+        {
+            u32 rtinstanceId : 24;
+        };
+
         struct mesh_draw_range
         {
             u32 vertexOffset;
@@ -96,6 +101,19 @@ namespace oblo::vk
             u32 meshletOffset;
             u32 meshletCount;
         };
+
+        draw_instance_id_component make_global_instance_id(u32 instanceTableId, u32 instanceIndex)
+        {
+            constexpr u32 instanceIndexBits = 20;
+            constexpr u32 mask = (1u << instanceIndexBits) - 1;
+
+            // We use 24 bits, because that is what the ray tracing pipeline allows for custom ids
+            // We reserve 4 for the instance table and 20 for the instance index
+            OBLO_ASSERT(instanceTableId < (1u << (24 - instanceIndexBits)));
+            OBLO_ASSERT(instanceIndex <= mask);
+
+            return {(instanceIndex & mask) | (instanceTableId << instanceIndexBits)};
+        }
     }
 
     struct draw_registry::blas
@@ -235,6 +253,9 @@ namespace oblo::vk
 
         m_instanceComponent =
             m_typeRegistry->register_component(ecs::make_component_type_desc<draw_instance_component>());
+
+        m_instanceIdComponent =
+            m_typeRegistry->register_component(ecs::make_component_type_desc<draw_instance_id_component>());
 
         register_instance_data(m_instanceComponent, "i_MeshHandles");
 
@@ -458,6 +479,7 @@ namespace oblo::vk
             }
 
             sets.components.add(m_instanceComponent);
+            sets.components.add(m_instanceIdComponent);
 
             m_entities->add(entity, sets);
 
@@ -617,7 +639,23 @@ namespace oblo::vk
                 {
                     for (usize i = 0, j = 0; i < allComponentsCount; ++i)
                     {
-                        if (!m_instanceDataTypes.contains(componentTypes[i]))
+                        if (componentTypes[i] == m_instanceIdComponent)
+                        {
+                            auto* const instanceIds =
+                                start_lifetime_as_array<draw_instance_id_component>(componentArrays[i],
+                                    numEntitiesInChunk);
+
+                            const auto instanceTableId = currentDrawBatch->instanceTableId;
+
+                            for (u32 e = 0; e < numEntitiesInChunk; ++e)
+                            {
+                                const auto instanceIndex = e + numProcessedEntities;
+                                instanceIds[e] = make_global_instance_id(instanceTableId, instanceIndex);
+                            }
+
+                            continue;
+                        }
+                        else if (!m_instanceDataTypes.contains(componentTypes[i]))
                         {
                             continue;
                         }
@@ -652,7 +690,8 @@ namespace oblo::vk
         const auto vkFn = m_ctx->get_loaded_functions();
 
         const auto entityRange =
-            m_entities->range<draw_mesh_component, global_transform_component>().with<draw_raytraced_tag>();
+            m_entities->range<draw_mesh_component, draw_instance_id_component, global_transform_component>()
+                .with<draw_raytraced_tag>();
 
         VkAccelerationStructureBuildRangeInfoKHR offset;
         offset.primitiveOffset;
@@ -680,9 +719,9 @@ namespace oblo::vk
 
         const auto firstBlasUpload = m_pendingMeshUploads.size();
 
-        for (auto&& [entities, meshes, transforms] : entityRange)
+        for (auto&& [entities, meshes, drawInstanceIds, transforms] : entityRange)
         {
-            for (const auto&& [mesh, transform] : zip_range(meshes, transforms))
+            for (const auto&& [mesh, drawInstanceId, transform] : zip_range(meshes, drawInstanceIds, transforms))
             {
                 auto* const blas = m_meshToBlas.try_find(mesh.mesh);
 
@@ -736,9 +775,11 @@ namespace oblo::vk
                         continue;
                     }
 
+                    const auto indexBufferByteSize = narrow_cast<u32>(indexData.size_bytes());
+
                     if (gpuAllocator.create_buffer(
                             {
-                                .size = narrow_cast<u32>(indexData.size_bytes()),
+                                .size = indexBufferByteSize,
                                 .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
                                     VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
                                     VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
@@ -755,7 +796,10 @@ namespace oblo::vk
                     m_ctx->destroy_deferred(allocatedIndexBuffer.buffer, submitIndex);
                     m_ctx->destroy_deferred(allocatedIndexBuffer.allocation, submitIndex);
 
-                    const buffer indexBuffer{.buffer = allocatedIndexBuffer.buffer};
+                    const buffer indexBuffer{
+                        .buffer = allocatedIndexBuffer.buffer,
+                        .size = indexBufferByteSize,
+                    };
 
                     const VkDeviceAddress indexAddress = m_ctx->get_device_address(indexBuffer.buffer);
 
@@ -880,7 +924,7 @@ namespace oblo::vk
 
                 instances.push_back({
                     .transform = vkTransform,
-                    .instanceCustomIndex = 0u, // TODO: Set the instance id here
+                    .instanceCustomIndex = drawInstanceId.rtinstanceId,
                     .mask = 0xff,
                     .instanceShaderBindingTableRecordOffset = 0,
                     .flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR,

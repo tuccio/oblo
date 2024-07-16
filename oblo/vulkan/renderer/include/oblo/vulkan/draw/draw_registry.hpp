@@ -144,6 +144,7 @@ namespace oblo::vk
         ecs::type_registry* m_typeRegistry{};
 
         ecs::component_type m_instanceComponent{};
+        ecs::component_type m_instanceIdComponent{};
         ecs::tag_type m_indexNoneTag{};
         ecs::tag_type m_indexU8Tag{};
         ecs::tag_type m_indexU16Tag{};
