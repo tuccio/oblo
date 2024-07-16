@@ -16,11 +16,17 @@ namespace oblo::vk
     {
         buffer,
         texture,
+        acceleration_structure,
     };
 
     struct bindable_texture
     {
         VkImageView view;
+    };
+
+    struct bindable_acceleration_structure
+    {
+        VkAccelerationStructureKHR handle;
     };
 
     struct bindable_object
@@ -30,6 +36,7 @@ namespace oblo::vk
         union {
             buffer buffer;
             bindable_texture texture;
+            bindable_acceleration_structure accelerationStructure;
         };
     };
 
@@ -41,6 +48,11 @@ namespace oblo::vk
     constexpr bindable_object make_bindable_object(VkImageView view)
     {
         return {.kind = bindable_object_kind::texture, .texture = {view}};
+    }
+
+    constexpr bindable_object make_bindable_object(VkAccelerationStructureKHR accelerationStructure)
+    {
+        return {.kind = bindable_object_kind::acceleration_structure, .accelerationStructure = {accelerationStructure}};
     }
 
     using binding_table = flat_dense_map<h32<string>, bindable_object>;

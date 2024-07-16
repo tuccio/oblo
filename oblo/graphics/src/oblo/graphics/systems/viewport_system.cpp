@@ -529,6 +529,10 @@ namespace oblo
                     .assert_value();
                 break;
 
+            case viewport_mode::raytracing_debug:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutRTDebugImage, true);
+                break;
+
             default:
                 frameGraph.set_output_state(subgraph, vk::main_view::OutLitImage, true);
                 unreachable();

@@ -891,8 +891,8 @@ namespace oblo::vk
         {
             if (firstBlasUpload != m_pendingMeshUploads.size())
             {
-                // Add barriers for the index buffer upload to build the BLAS
                 const auto n = m_pendingMeshUploads.size() - firstBlasUpload;
+                // Add barriers for the index buffer upload to build the BLAS
                 const auto barriers = allocate_n_span<VkBufferMemoryBarrier2>(allocator, n);
 
                 for (auto i = 0; i < n; ++i)
@@ -948,6 +948,24 @@ namespace oblo::vk
                 u32(blasBuilds.size()),
                 geometryInfo.data(),
                 buildRangeInfo.data());
+
+            // Add a barrier between BLAS and TLAS construction
+
+            VkMemoryBarrier2 tlasBarrier{
+                .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+                .srcStageMask = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                .srcAccessMask = VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR,
+                .dstStageMask = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                .dstAccessMask = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR,
+            };
+
+            const VkDependencyInfo dependencyInfo{
+                .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                .memoryBarrierCount = 1u,
+                .pMemoryBarriers = &tlasBarrier,
+            };
+
+            vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
         }
 
         // Temporarily we just destroy the TLAS every frame and recreate it
@@ -1113,6 +1131,11 @@ namespace oblo::vk
     std::span<const std::byte> draw_registry::get_mesh_database_data() const
     {
         return m_meshDatabaseData;
+    }
+
+    const VkAccelerationStructureKHR draw_registry::get_tlas() const
+    {
+        return m_tlas.accelerationStructure;
     }
 
     void draw_registry::debug_log(const batch_draw_data& drawData) const

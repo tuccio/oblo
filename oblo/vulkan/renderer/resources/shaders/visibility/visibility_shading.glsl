@@ -57,12 +57,9 @@ bool calculate_position_and_barycentric_coords(in ivec2 screenPos,
 {
     // Cast a ray from the camera to the near plane and calculate the distance of the ray hit to the plane on the
     // triangle in world space, we use that to derive the position in world space
-    const vec2 positionNDC = vec2(2 * screenPos) / g_Constants.resolution - 1.f;
-    const vec3 screenPosWS = camera_unproject_world_space(g_Camera, positionNDC, 0);
-
     ray cameraRay;
     cameraRay.origin = g_Camera.position;
-    cameraRay.direction = normalize(screenPosWS - g_Camera.position);
+    cameraRay.direction = camera_ray_direction(g_Camera, g_Constants.resolution, screenPos);
 
     float intersectionDistance;
 

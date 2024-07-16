@@ -42,6 +42,7 @@ namespace oblo
         metalness,
         roughness,
         emissive,
+        raytracing_debug,
     };
 
     struct viewport_component

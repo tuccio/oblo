@@ -71,7 +71,8 @@ namespace oblo
                 .add_enumerator("meslet", viewport_mode::meshlet)
                 .add_enumerator("metalness", viewport_mode::metalness)
                 .add_enumerator("roughness", viewport_mode::roughness)
-                .add_enumerator("emissive", viewport_mode::emissive);
+                .add_enumerator("emissive", viewport_mode::emissive)
+                .add_enumerator("raytracing_debug", viewport_mode::raytracing_debug);
         }
     }
 
