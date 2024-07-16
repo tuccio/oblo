@@ -435,7 +435,6 @@ namespace oblo::vk
         const auto [meshIt, ok] = m_meshToBlas.emplace(globalMeshId);
         OBLO_ASSERT(ok);
 
-        const auto srcMeshlets = meshPtr->get_meshlets();
         meshIt->mesh = resourceId;
 
         return globalMeshId;
@@ -720,9 +719,6 @@ namespace oblo::vk
             m_entities->range<draw_mesh_component, draw_instance_id_component, global_transform_component>()
                 .with<draw_raytraced_tag>();
 
-        VkAccelerationStructureBuildRangeInfoKHR offset;
-        offset.primitiveOffset;
-
         struct blas_build_info
         {
             std::span<VkAccelerationStructureGeometryKHR> geometry;
@@ -966,11 +962,11 @@ namespace oblo::vk
         {
             if (firstBlasUpload != m_pendingMeshUploads.size())
             {
-                const auto n = m_pendingMeshUploads.size() - firstBlasUpload;
+                const usize n = m_pendingMeshUploads.size() - firstBlasUpload;
                 // Add barriers for the index buffer upload to build the BLAS
-                const auto barriers = allocate_n_span<VkBufferMemoryBarrier2>(allocator, n);
+                const std::span barriers = allocate_n_span<VkBufferMemoryBarrier2>(allocator, n);
 
-                for (auto i = 0; i < n; ++i)
+                for (usize i = 0; i < n; ++i)
                 {
                     auto& buf = m_pendingMeshUploads[firstBlasUpload + i].dst;
 
@@ -1230,7 +1226,7 @@ namespace oblo::vk
         return m_meshDatabaseData;
     }
 
-    const VkAccelerationStructureKHR draw_registry::get_tlas() const
+    VkAccelerationStructureKHR draw_registry::get_tlas() const
     {
         return m_tlas.accelerationStructure;
     }

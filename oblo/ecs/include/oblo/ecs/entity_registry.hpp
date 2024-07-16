@@ -255,7 +255,7 @@ namespace oblo::ecs
         add(e, sets);
 
         const auto getComponents = [this, e]<typename... Components>(std::tuple<Components*...>)
-        { return get<Components...>(e); };
+        { return this->get<Components...>(e); };
 
         return getComponents(typename filter_components<ComponentsOrTags...>::tuple{});
     }

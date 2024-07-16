@@ -113,7 +113,7 @@ namespace oblo::vk
 
         std::span<const std::byte> get_mesh_database_data() const;
 
-        const VkAccelerationStructureKHR get_tlas() const;
+        VkAccelerationStructureKHR get_tlas() const;
 
         void debug_log(const batch_draw_data& drawData) const;
 
