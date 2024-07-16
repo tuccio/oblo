@@ -59,6 +59,7 @@ namespace oblo::vk
         void destroy_immediate(VkPipelineLayout pipelineLayout) const;
         void destroy_immediate(VkSemaphore semaphore) const;
         void destroy_immediate(VkShaderModule shaderModule) const;
+        void destroy_immediate(VkAccelerationStructureKHR accelerationStructure) const;
 
         template <typename T>
         void reset_immediate(T& any) const;
@@ -75,6 +76,7 @@ namespace oblo::vk
         void destroy_deferred(VkSemaphore semaphore, u64 submitIndex);
         void destroy_deferred(VkShaderModule shaderModule, u64 submitIndex);
         void destroy_deferred(VmaAllocation allocation, u64 submitIndex);
+        void destroy_deferred(VkAccelerationStructureKHR accelerationStructure, u64 submitIndex);
         void destroy_deferred(h32<texture> texture, u64 submitIndex);
 
         debug_utils::label get_debug_utils_label() const;
@@ -86,6 +88,7 @@ namespace oblo::vk
         const loaded_functions& get_loaded_functions() const;
 
         VkDeviceAddress get_device_address(VkBuffer buffer) const;
+        VkDeviceAddress get_device_address(const buffer& buffer) const;
 
     private:
         struct frame_info;

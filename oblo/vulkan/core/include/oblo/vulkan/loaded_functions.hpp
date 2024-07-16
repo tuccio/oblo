@@ -11,7 +11,9 @@ namespace oblo::vk
         PFN_vkCmdDrawMeshTasksIndirectCountEXT vkCmdDrawMeshTasksIndirectCountEXT;
 
         PFN_vkCreateAccelerationStructureKHR vkCreateAccelerationStructureKHR;
+        PFN_vkDestroyAccelerationStructureKHR vkDestroyAccelerationStructureKHR;
         PFN_vkGetAccelerationStructureBuildSizesKHR vkGetAccelerationStructureBuildSizesKHR;
         PFN_vkCmdBuildAccelerationStructuresKHR vkCmdBuildAccelerationStructuresKHR;
+        PFN_vkGetAccelerationStructureDeviceAddressKHR vkGetAccelerationStructureDeviceAddressKHR;
     };
 }

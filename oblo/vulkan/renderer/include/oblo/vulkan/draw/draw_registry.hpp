@@ -7,6 +7,7 @@
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/vulkan/draw/mesh_database.hpp>
+#include <oblo/vulkan/dynamic_buffer.hpp>
 #include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/monotonic_gbu_buffer.hpp>
 
@@ -119,8 +120,16 @@ namespace oblo::vk
         struct pending_mesh_upload;
         struct instance_data_type_info;
 
+        struct rt_acceleration_structure
+        {
+            VkAccelerationStructureKHR accelerationStructure;
+            VkDeviceAddress deviceAddress;
+            allocated_buffer buffer;
+        };
+
     private:
         void create_instances();
+        void defer_upload(const std::span<const byte> data, const buffer& b);
 
     private:
         vulkan_context* m_ctx{};
@@ -157,5 +166,9 @@ namespace oblo::vk
 
         h32_flat_extpool_dense_map<draw_mesh, blas> m_meshToBlas;
         monotonic_gpu_buffer m_asScratchBuffer;
+
+        dynamic_buffer m_rtInstanceBuffer;
+
+        rt_acceleration_structure m_tlas{};
     };
 }
