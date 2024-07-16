@@ -133,6 +133,8 @@ namespace oblo::vk
         void create_instances();
         void defer_upload(const std::span<const byte> data, const buffer& b);
 
+        void release(rt_acceleration_structure& as);
+
     private:
         vulkan_context* m_ctx{};
 

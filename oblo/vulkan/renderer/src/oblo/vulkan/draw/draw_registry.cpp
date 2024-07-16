@@ -277,6 +277,17 @@ namespace oblo::vk
     void draw_registry::shutdown()
     {
         m_meshes.shutdown();
+        m_rtScratchBuffer.shutdown();
+        m_rtInstanceBuffer.shutdown();
+
+        for (auto& blas : m_meshToBlas.values())
+        {
+            release(blas.as);
+        }
+
+        m_meshToBlas.clear();
+
+        release(m_tlas);
     }
 
     void draw_registry::register_instance_data(ecs::component_type type, std::string_view name)
@@ -497,6 +508,22 @@ namespace oblo::vk
             "We need to flush uploads every now and then instead, or let staging buffer take care of it");
 
         m_pendingMeshUploads.emplace_back(*result, b);
+    }
+
+    void draw_registry::release(rt_acceleration_structure& as)
+    {
+        if (as.accelerationStructure)
+        {
+            m_ctx->destroy_deferred(as.accelerationStructure, m_ctx->get_submit_index());
+        }
+
+        if (as.buffer.buffer)
+        {
+            m_ctx->destroy_deferred(as.buffer.buffer, m_ctx->get_submit_index());
+            m_ctx->destroy_deferred(as.buffer.allocation, m_ctx->get_submit_index());
+        }
+
+        as = {};
     }
 
     void draw_registry::flush_uploads(VkCommandBuffer commandBuffer)
