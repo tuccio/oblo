@@ -2175,7 +2175,7 @@ namespace oblo::vk
                 &newPipeline.hit,
                 hitCount,
             },
-            {&newPipeline.callable},
+            {&newPipeline.callable, 0},
         };
 
         u32 nextHandleIndex = 0;
