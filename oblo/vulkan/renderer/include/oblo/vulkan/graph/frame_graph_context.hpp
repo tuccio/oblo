@@ -78,6 +78,7 @@ namespace oblo::vk
         none,
         graphics,
         compute,
+        raytracing,
         transfer,
     };
 

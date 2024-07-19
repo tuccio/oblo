@@ -20,7 +20,7 @@ layout(push_constant) uniform c_PushConstants
 }
 g_Constants;
 
-vec4 visibility_shade(in ivec2 screenPos, in visibility_buffer_data vb);
+vec4 visibility_shade(in uvec2 screenPos, in visibility_buffer_data vb);
 
 void main()
 {
@@ -44,11 +44,11 @@ void main()
         return;
     }
 
-    const vec4 color = visibility_shade(screenPos, vb);
+    const vec4 color = visibility_shade(uvec2(screenPos), vb);
     imageStore(t_OutShadedImage, screenPos, color);
 }
 
-bool calculate_position_and_barycentric_coords(in ivec2 screenPos,
+bool calculate_position_and_barycentric_coords(in uvec2 screenPos,
     in triangle triangleWS,
     out vec3 positionWS,
     out barycentric_coords bc,
@@ -59,7 +59,8 @@ bool calculate_position_and_barycentric_coords(in ivec2 screenPos,
     // triangle in world space, we use that to derive the position in world space
     ray cameraRay;
     cameraRay.origin = g_Camera.position;
-    cameraRay.direction = camera_ray_direction(g_Camera, g_Constants.resolution, screenPos);
+    const vec2 positionNDC = screen_to_ndc(screenPos, g_Constants.resolution);
+    cameraRay.direction = camera_ray_direction(g_Camera, positionNDC);
 
     float intersectionDistance;
 

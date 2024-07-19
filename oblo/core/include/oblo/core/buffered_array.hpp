@@ -25,10 +25,25 @@ namespace oblo
             m_array = initializer;
         }
 
-        buffered_array(const buffered_array&) = delete;
-        buffered_array(buffered_array&&) = delete;
-        buffered_array& operator=(const buffered_array&) = delete;
-        buffered_array& operator=(buffered_array&&) = delete;
+        buffered_array(const buffered_array& other)
+        {
+            m_array = other.m_array;
+        }
+
+        buffered_array(buffered_array&& other) noexcept
+        {
+            m_array = std::move(other.m_array);
+        }
+
+        buffered_array& operator=(const buffered_array& other)
+        {
+            m_array = other.m_array;
+        }
+
+        buffered_array& operator=(buffered_array&& other) noexcept
+        {
+            m_array = std::move(other.m_array);
+        }
 
         decltype(auto) begin()
         {

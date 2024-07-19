@@ -157,6 +157,10 @@ namespace oblo::vk
                 };
 
                 dst.node = h32<frame_graph_node>{nodeKey};
+
+#ifdef OBLO_DEBUG
+                dst.debugTypeId = src.nodeDesc.typeDesc.typeId;
+#endif
             }
             break;
 
@@ -188,6 +192,10 @@ namespace oblo::vk
 
             const auto [pinIt, pinKey] = m_impl->pins.emplace();
             dst.pin = h32<frame_graph_pin>{pinKey};
+
+#ifdef OBLO_DEBUG
+            dst.debugTypeId = src.pinDesc.typeId;
+#endif
 
             // TODO: Check if it's an input or output pin?
             // We don't allocate storage yet, this will happen when building, only if necessary

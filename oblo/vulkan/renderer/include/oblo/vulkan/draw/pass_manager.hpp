@@ -36,6 +36,10 @@ namespace oblo::vk
     struct compute_pass_initializer;
     struct compute_pipeline;
     struct compute_pipeline_initializer;
+    struct raytracing_pass;
+    struct raytracing_pass_initializer;
+    struct raytracing_pipeline;
+    struct raytracing_pipeline_initializer;
     struct render_pass;
     struct render_pass_initializer;
     struct render_pipeline;
@@ -47,6 +51,7 @@ namespace oblo::vk
 
     struct compute_pass_context;
     struct render_pass_context;
+    struct raytracing_pass_context;
 
     class pass_manager
     {
@@ -69,10 +74,13 @@ namespace oblo::vk
 
         h32<render_pass> register_render_pass(const render_pass_initializer& desc);
         h32<compute_pass> register_compute_pass(const compute_pass_initializer& desc);
+        h32<raytracing_pass> register_raytracing_pass(const raytracing_pass_initializer& desc);
 
         h32<render_pipeline> get_or_create_pipeline(h32<render_pass> handle, const render_pipeline_initializer& desc);
         h32<compute_pipeline> get_or_create_pipeline(h32<compute_pass> handle,
             const compute_pipeline_initializer& desc);
+        h32<raytracing_pipeline> get_or_create_pipeline(h32<raytracing_pass> handle,
+            const raytracing_pipeline_initializer& desc);
 
         void begin_frame();
         void end_frame();
@@ -89,6 +97,11 @@ namespace oblo::vk
 
         void end_compute_pass(const compute_pass_context& context);
 
+        expected<raytracing_pass_context> begin_raytracing_pass(VkCommandBuffer commandBuffer,
+            h32<raytracing_pipeline> pipeline) const;
+
+        void end_raytracing_pass(const raytracing_pass_context& context);
+
         u32 get_subgroup_size() const;
 
         void push_constants(
@@ -102,6 +115,11 @@ namespace oblo::vk
 
         void bind_descriptor_sets(const compute_pass_context& ctx,
             std::span<const binding_table* const> bindingTables) const;
+
+        void bind_descriptor_sets(const raytracing_pass_context& ctx,
+            std::span<const binding_table* const> bindingTables) const;
+
+        void trace_rays(const raytracing_pass_context& ctx, u32 width, u32 height, u32 depth) const;
 
     private:
         struct impl;
@@ -120,5 +138,11 @@ namespace oblo::vk
     {
         VkCommandBuffer commandBuffer;
         const compute_pipeline* internalPipeline;
+    };
+
+    struct raytracing_pass_context
+    {
+        VkCommandBuffer commandBuffer;
+        const raytracing_pipeline* internalPipeline;
     };
 }

@@ -122,6 +122,30 @@ namespace oblo::vk
                 extension = "mesh";
                 break;
 
+            case VK_SHADER_STAGE_RAYGEN_BIT_KHR:
+                extension = "rgen";
+                break;
+
+            case VK_SHADER_STAGE_INTERSECTION_BIT_KHR:
+                extension = "rint";
+                break;
+
+            case VK_SHADER_STAGE_ANY_HIT_BIT_KHR:
+                extension = "rahit";
+                break;
+
+            case VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR:
+                extension = "rchit";
+                break;
+
+            case VK_SHADER_STAGE_MISS_BIT_KHR:
+                extension = "rmiss";
+                break;
+
+            case VK_SHADER_STAGE_CALLABLE_BIT_KHR:
+                extension = "rcall";
+                break;
+
             default:
                 unreachable();
             }

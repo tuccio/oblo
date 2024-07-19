@@ -1,0 +1,51 @@
+#version 460
+
+#extension GL_EXT_ray_tracing : require
+#extension GL_GOOGLE_include_directive : require
+
+#include <renderer/camera>
+
+layout(binding = 16) uniform b_CameraBuffer
+{
+    camera_buffer g_Camera;
+};
+
+layout(binding = 11) uniform accelerationStructureEXT u_SceneTLAS;
+
+layout(binding = 12, rgba8) uniform restrict writeonly image2D t_OutShadedImage;
+
+layout(push_constant) uniform c_PushConstants
+{
+    uvec2 resolution;
+}
+g_Constants;
+
+layout(location = 0) rayPayloadEXT vec3 r_HitColor;
+
+void main()
+{
+    const vec2 positionNDC = screen_to_ndc(gl_LaunchIDEXT.xy, gl_LaunchSizeEXT.xy);
+
+    const vec3 origin = g_Camera.position;
+    const vec3 direction = camera_ray_direction(g_Camera, positionNDC);
+
+    const float tMin = 1e-2f;
+    const float tMax = 1e6f;
+
+    r_HitColor = vec3(.015);
+
+    traceRayEXT(u_SceneTLAS,
+        gl_RayFlagsNoneEXT,
+        0xff, // cull mask
+        0,    // STB record offset
+        0,    // STB record stride
+        0,    // Miss index
+        origin,
+        tMin,
+        direction,
+        tMax,
+        0 // payload location
+    );
+
+    imageStore(t_OutShadedImage, ivec2(gl_LaunchIDEXT.xy), vec4(r_HitColor, 1));
+}

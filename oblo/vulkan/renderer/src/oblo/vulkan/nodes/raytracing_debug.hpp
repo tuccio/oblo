@@ -15,7 +15,7 @@ namespace oblo::vk
 
         resource<texture> outShadedImage;
 
-        h32<compute_pass> rtDebugPass;
+        h32<raytracing_pass> rtDebugPass;
 
         resource<buffer> inMeshDatabase;
 

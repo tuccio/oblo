@@ -5,6 +5,8 @@
 #include <oblo/core/file_utility.hpp>
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/handle_flat_pool_map.hpp>
+#include <oblo/core/iterator/enum_range.hpp>
+#include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/log.hpp>
 #include <oblo/core/string_interner.hpp>
 #include <oblo/core/unreachable.hpp>
@@ -14,6 +16,7 @@
 #include <oblo/vulkan/draw/descriptor_set_pool.hpp>
 #include <oblo/vulkan/draw/draw_registry.hpp>
 #include <oblo/vulkan/draw/mesh_table.hpp>
+#include <oblo/vulkan/draw/raytracing_pass_initializer.hpp>
 #include <oblo/vulkan/draw/render_pass_initializer.hpp>
 #include <oblo/vulkan/draw/texture_registry.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
@@ -54,6 +57,44 @@ namespace oblo::vk
             return vkStageBits[u8(stage)];
         }
 
+        enum class raytracing_stage : u8
+        {
+            generation,
+            intersection,
+            any_hit,
+            closest_hit,
+            miss,
+            callable,
+            enum_max,
+        };
+
+        constexpr VkShaderStageFlagBits to_vulkan_stage_bits(raytracing_stage stage)
+        {
+            switch (stage)
+            {
+            case raytracing_stage::generation:
+                return VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+
+            case raytracing_stage::intersection:
+                return VK_SHADER_STAGE_INTERSECTION_BIT_KHR;
+
+            case raytracing_stage::any_hit:
+                return VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
+
+            case raytracing_stage::closest_hit:
+                return VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+
+            case raytracing_stage::miss:
+                return VK_SHADER_STAGE_MISS_BIT_KHR;
+
+            case raytracing_stage::callable:
+                return VK_SHADER_STAGE_CALLABLE_BIT_KHR;
+
+            default:
+                unreachable();
+            }
+        }
+
         struct render_pass_variant
         {
             u64 hash;
@@ -64,6 +105,12 @@ namespace oblo::vk
         {
             u64 hash;
             h32<compute_pipeline> pipeline;
+        };
+
+        struct raytracing_pass_variant
+        {
+            u64 hash;
+            h32<raytracing_pipeline> pipeline;
         };
 
         enum resource_kind : u8
@@ -208,6 +255,37 @@ namespace oblo::vk
         bool shouldRecompile{};
     };
 
+    struct raytracing_shader
+    {
+        u32 shaderIndex = VK_SHADER_UNUSED_KHR;
+    };
+
+    struct raytracing_hit_group
+    {
+        raytracing_hit_type type;
+        dynamic_array<raytracing_shader> shaders;
+    };
+
+    struct raytracing_pass
+    {
+        h32<string> name;
+
+        u32 generation = VK_SHADER_UNUSED_KHR;
+        u32 miss = VK_SHADER_UNUSED_KHR;
+
+        dynamic_array<raytracing_hit_group> hitGroups;
+
+        dynamic_array<raytracing_pass_variant> variants;
+
+        dynamic_array<std::filesystem::path> shaderSourcePaths;
+        dynamic_array<raytracing_stage> shaderStages;
+
+        u32 shadersCount{};
+        u32 groupsCount{};
+
+        bool shouldRecompile{};
+    };
+
     struct base_pipeline
     {
         VkPipelineLayout pipelineLayout;
@@ -238,6 +316,17 @@ namespace oblo::vk
     struct compute_pipeline : base_pipeline
     {
         VkShaderModule shaderModule;
+    };
+
+    struct raytracing_pipeline : base_pipeline
+    {
+        dynamic_array<VkShaderModule> shaderModules;
+        allocated_buffer shaderBindingTable{};
+
+        VkStridedDeviceAddressRegionKHR rayGen{};
+        VkStridedDeviceAddressRegionKHR hit{};
+        VkStridedDeviceAddressRegionKHR miss{};
+        VkStridedDeviceAddressRegionKHR callable{};
     };
 
     namespace
@@ -282,6 +371,32 @@ namespace oblo::vk
             if (const auto shaderModule = variant.shaderModule)
             {
                 ctx.destroy_deferred(shaderModule, submitIndex);
+            }
+        }
+
+        void destroy_pipeline(vulkan_context& ctx, const raytracing_pipeline& variant)
+        {
+            const auto submitIndex = ctx.get_submit_index();
+
+            if (const auto pipeline = variant.pipeline)
+            {
+                ctx.destroy_deferred(pipeline, submitIndex);
+            }
+
+            if (const auto pipelineLayout = variant.pipelineLayout)
+            {
+                ctx.destroy_deferred(pipelineLayout, submitIndex);
+            }
+
+            for (const auto shaderModule : variant.shaderModules)
+            {
+                ctx.destroy_deferred(shaderModule, submitIndex);
+            }
+
+            if (variant.shaderBindingTable.buffer)
+            {
+                ctx.destroy_deferred(variant.shaderBindingTable.buffer, submitIndex);
+                ctx.destroy_deferred(variant.shaderBindingTable.allocation, submitIndex);
             }
         }
 
@@ -385,6 +500,7 @@ namespace oblo::vk
             // Could be sets
             h32_flat_extpool_dense_map<compute_pass, bool> computePasses;
             h32_flat_extpool_dense_map<render_pass, bool> renderPasses;
+            h32_flat_extpool_dense_map<raytracing_pass, bool> raytracingPasses;
         };
     }
 
@@ -398,8 +514,10 @@ namespace oblo::vk
         VkDevice device{};
         h32_flat_pool_dense_map<compute_pass> computePasses;
         h32_flat_pool_dense_map<render_pass> renderPasses;
+        h32_flat_pool_dense_map<raytracing_pass> raytracingPasses;
         h32_flat_pool_dense_map<render_pipeline> renderPipelines;
         h32_flat_pool_dense_map<compute_pipeline> computePipelines;
+        h32_flat_pool_dense_map<raytracing_pipeline> raytracingPipelines;
         string_interner* interner{};
         descriptor_set_pool descriptorSetPool;
         descriptor_set_pool texturesDescriptorSetPool;
@@ -422,8 +540,11 @@ namespace oblo::vk
 
         std::unordered_map<std::filesystem::path, watching_passes> fileToPassList;
 
+        VkPhysicalDeviceRayTracingPipelinePropertiesKHR rtPipelineProperties{};
+
         void add_watch(const std::filesystem::path& file, h32<compute_pass> pass);
         void add_watch(const std::filesystem::path& file, h32<render_pass> pass);
+        void add_watch(const std::filesystem::path& file, h32<raytracing_pass> pass);
 
         VkShaderModule create_shader_module(VkShaderStageFlagBits vkStage,
             const std::filesystem::path& filePath,
@@ -461,6 +582,15 @@ namespace oblo::vk
 
         auto& watches = fileToPassList[abs];
         watches.renderPasses.emplace(pass);
+        fileWatcher->addWatch(abs.parent_path().string(), &watchListener);
+    }
+
+    void pass_manager::impl::add_watch(const std::filesystem::path& file, h32<raytracing_pass> pass)
+    {
+        const auto abs = std::filesystem::absolute(file);
+
+        auto& watches = fileToPassList[abs];
+        watches.raytracingPasses.emplace(pass);
         fileWatcher->addWatch(abs.parent_path().string(), &watchListener);
     }
 
@@ -1243,6 +1373,15 @@ namespace oblo::vk
 
         const auto subgroupProperties = vkContext.get_physical_device_subgroup_properties();
         m_impl->subgroupSize = subgroupProperties.subgroupSize;
+
+        m_impl->rtPipelineProperties = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR};
+
+        VkPhysicalDeviceProperties2 physicalProp2{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+            .pNext = &m_impl->rtPipelineProperties,
+        };
+
+        vkGetPhysicalDeviceProperties2(m_impl->vkCtx->get_physical_device(), &physicalProp2);
     }
 
     void pass_manager::shutdown(vulkan_context& vkContext)
@@ -1262,6 +1401,11 @@ namespace oblo::vk
             for (const auto& computePipeline : m_impl->computePipelines.values())
             {
                 destroy_pipeline(*m_impl->vkCtx, computePipeline);
+            }
+
+            for (const auto& raytracingPipeline : m_impl->raytracingPipelines.values())
+            {
+                destroy_pipeline(*m_impl->vkCtx, raytracingPipeline);
             }
 
             shader_compiler::shutdown();
@@ -1324,6 +1468,99 @@ namespace oblo::vk
         computePass.shaderSourcePath = desc.shaderSourcePath;
 
         m_impl->add_watch(desc.shaderSourcePath, handle);
+
+        return handle;
+    }
+
+    namespace
+    {
+        raytracing_stage deduce_rt_shader_stage(const std::filesystem::path& p)
+        {
+            auto&& ext = p.extension();
+
+            if (ext == ".rgen")
+            {
+                return raytracing_stage::generation;
+            }
+
+            if (ext == ".rint")
+            {
+                return raytracing_stage::intersection;
+            }
+
+            if (ext == ".rahit")
+            {
+                return raytracing_stage::any_hit;
+            }
+
+            if (ext == ".rchit")
+            {
+                return raytracing_stage::closest_hit;
+            }
+
+            if (ext == ".rmiss")
+            {
+                return raytracing_stage::miss;
+            }
+
+            if (ext == ".rcall")
+            {
+                return raytracing_stage::callable;
+            }
+
+            unreachable();
+        }
+    }
+
+    h32<raytracing_pass> pass_manager::register_raytracing_pass(const raytracing_pass_initializer& desc)
+    {
+        const auto [it, handle] = m_impl->raytracingPasses.emplace();
+        OBLO_ASSERT(handle);
+
+        auto& renderPass = *it;
+
+        renderPass.name = m_impl->interner->get_or_add(desc.name);
+
+        const auto appendShader = [&](const std::filesystem::path& source)
+        {
+            if (!source.empty())
+            {
+                const auto size = renderPass.shaderSourcePaths.size();
+                renderPass.shaderSourcePaths.push_back(source);
+                renderPass.shaderStages.push_back(deduce_rt_shader_stage(source));
+
+                m_impl->add_watch(source, handle);
+
+                return u32(size);
+            }
+
+            return ~u32{};
+        };
+
+        renderPass.generation = appendShader(desc.generation);
+        renderPass.miss = appendShader(desc.miss);
+
+        renderPass.hitGroups.reserve(desc.hitGroups.size());
+
+        for (const auto& hg : desc.hitGroups)
+        {
+            auto& group = renderPass.hitGroups.push_back({.type = hg.type});
+
+            group.shaders.reserve(hg.shaders.size());
+
+            for (const auto& shader : hg.shaders)
+            {
+                const u32 shaderIndex = appendShader(shader);
+
+                group.shaders.emplace_back() = {
+                    .shaderIndex = shaderIndex,
+                };
+            }
+        }
+
+        renderPass.shadersCount = narrow_cast<u32>(renderPass.shaderSourcePaths.size());
+        renderPass.groupsCount = u32{renderPass.generation != VK_SHADER_UNUSED_KHR} +
+            u32{renderPass.miss != VK_SHADER_UNUSED_KHR} + u32(desc.hitGroups.size());
 
         return handle;
     }
@@ -1651,14 +1888,323 @@ namespace oblo::vk
             .layout = newPipeline.pipelineLayout,
         };
 
-        if (vkCreateComputePipelines(m_impl->device, nullptr, 1, &pipelineInfo, nullptr, &newPipeline.pipeline) ==
-            VK_SUCCESS)
+        if (vkCreateComputePipelines(m_impl->device,
+                nullptr,
+                1,
+                &pipelineInfo,
+                m_impl->vkCtx->get_allocator().get_allocation_callbacks(),
+                &newPipeline.pipeline) == VK_SUCCESS)
         {
             computePass->variants.push_back({.hash = expectedHash, .pipeline = pipelineHandle});
             return pipelineHandle;
         }
 
         return failure();
+    }
+
+    h32<raytracing_pipeline> pass_manager::get_or_create_pipeline(h32<raytracing_pass> raytracingPassHandle,
+        const raytracing_pipeline_initializer& desc)
+    {
+        auto* const raytracingPass = m_impl->raytracingPasses.try_find(raytracingPassHandle);
+
+        if (!raytracingPass)
+        {
+            return {};
+        }
+
+        auto* const vkCtx = m_impl->vkCtx;
+
+        poll_hot_reloading(*m_impl->interner, *vkCtx, *raytracingPass, m_impl->raytracingPipelines);
+
+        // TODO: Do we want defines per shader?
+        constexpr u64 definesHash = 0u;
+
+        // The whole initializer should be considered, but we only look at defines for now
+        const u64 expectedHash = hash_mix(hash_all<std::hash>(raytracingPassHandle.value), definesHash);
+
+        if (const auto variantIt = std::find_if(raytracingPass->variants.begin(),
+                raytracingPass->variants.end(),
+                [expectedHash](const raytracing_pass_variant& variant) { return variant.hash == expectedHash; });
+            variantIt != raytracingPass->variants.end())
+        {
+            return variantIt->pipeline;
+        }
+
+        const auto restore = m_impl->frameAllocator.make_scoped_restore();
+
+        const auto [pipelineIt, pipelineHandle] = m_impl->raytracingPipelines.emplace();
+        OBLO_ASSERT(pipelineHandle);
+        auto& newPipeline = *pipelineIt;
+
+        newPipeline.label = m_impl->interner->c_str(raytracingPass->name);
+
+        const auto failure = [this, &newPipeline, pipelineHandle, raytracingPass, expectedHash]
+        {
+            destroy_pipeline(*m_impl->vkCtx, newPipeline);
+            m_impl->raytracingPipelines.erase(pipelineHandle);
+            // We push an invalid variant so we avoid trying to rebuild a failed pipeline every frame
+            raytracingPass->variants.emplace_back().hash = expectedHash;
+            return h32<raytracing_pipeline>{};
+        };
+
+        dynamic_array<unsigned> spirv;
+        spirv.reserve(1u << 16);
+
+        vertex_inputs_reflection vertexInputReflection{};
+
+        const shader_compiler::options compilerOptions{m_impl->make_compiler_options()};
+
+        dynamic_array<VkPipelineShaderStageCreateInfo> stages{&m_impl->frameAllocator};
+        stages.reserve(raytracingPass->shadersCount);
+
+        for (u32 currentShaderIndex = 0; currentShaderIndex < raytracingPass->shaderSourcePaths.size();
+             ++currentShaderIndex)
+        {
+            const auto& filePath = raytracingPass->shaderSourcePaths[currentShaderIndex];
+            const auto rtStage = raytracingPass->shaderStages[currentShaderIndex];
+
+            const auto vkStage = to_vulkan_stage_bits(rtStage);
+
+            const auto shaderModule = m_impl->create_shader_module(vkStage,
+                filePath,
+                {}, // desc.defines,
+                make_debug_name(*m_impl->interner, raytracingPass->name, filePath),
+                compilerOptions,
+                spirv);
+
+            if (!shaderModule)
+            {
+                return failure();
+            }
+
+            for (const auto& include : m_impl->includer.resolvedIncludes)
+            {
+                m_impl->add_watch(include, raytracingPassHandle);
+            }
+
+            newPipeline.shaderModules.push_back(shaderModule);
+
+            m_impl->create_reflection(newPipeline, vkStage, spirv, vertexInputReflection);
+
+            stages.push_back({
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                .stage = vkStage,
+                .module = shaderModule,
+                .pName = "main",
+            });
+        }
+
+        dynamic_array<VkRayTracingShaderGroupCreateInfoKHR> groups{&m_impl->frameAllocator};
+        groups.reserve(raytracingPass->groupsCount);
+
+        groups.push_back({
+            .sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR,
+            .type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR,
+            .generalShader = raytracingPass->generation,
+            .closestHitShader = VK_SHADER_UNUSED_KHR,
+            .anyHitShader = VK_SHADER_UNUSED_KHR,
+            .intersectionShader = VK_SHADER_UNUSED_KHR,
+        });
+
+        groups.push_back({
+            .sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR,
+            .type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR,
+            .generalShader = raytracingPass->miss,
+            .closestHitShader = VK_SHADER_UNUSED_KHR,
+            .anyHitShader = VK_SHADER_UNUSED_KHR,
+            .intersectionShader = VK_SHADER_UNUSED_KHR,
+        });
+
+        for (const auto& hg : raytracingPass->hitGroups)
+        {
+            const auto type = hg.type == raytracing_hit_type::triangle
+                ? VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR
+                : VK_RAY_TRACING_SHADER_GROUP_TYPE_PROCEDURAL_HIT_GROUP_KHR;
+
+            groups.push_back({
+                .sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR,
+                .type = type,
+                .generalShader = VK_SHADER_UNUSED_KHR,
+                .closestHitShader = VK_SHADER_UNUSED_KHR,
+                .anyHitShader = VK_SHADER_UNUSED_KHR,
+                .intersectionShader = VK_SHADER_UNUSED_KHR,
+            });
+
+            for (const auto& shader : hg.shaders)
+            {
+                switch (raytracingPass->shaderStages[shader.shaderIndex])
+                {
+                case raytracing_stage::intersection:
+                    groups.back().intersectionShader = shader.shaderIndex;
+                    break;
+                case raytracing_stage::any_hit:
+                    groups.back().anyHitShader = shader.shaderIndex;
+                    break;
+                case raytracing_stage::closest_hit:
+                    groups.back().closestHitShader = shader.shaderIndex;
+                    break;
+                default:
+                    OBLO_ASSERT(false);
+                    break;
+                }
+            }
+        }
+
+        if (!m_impl->create_pipeline_layout(newPipeline))
+        {
+            return failure();
+        }
+
+        const VkRayTracingPipelineCreateInfoKHR pipelineInfo{
+            .sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR,
+            .flags = 0,
+            .stageCount = u32(stages.size()),
+            .pStages = stages.data(),
+            .groupCount = u32(groups.size()),
+            .pGroups = groups.data(),
+            .maxPipelineRayRecursionDepth = desc.maxPipelineRayRecursionDepth,
+            .layout = newPipeline.pipelineLayout,
+        };
+
+        const auto& vkFn = vkCtx->get_loaded_functions();
+
+        if (vkFn.vkCreateRayTracingPipelinesKHR(m_impl->device,
+                nullptr,
+                nullptr,
+                1u,
+                &pipelineInfo,
+                vkCtx->get_allocator().get_allocation_callbacks(),
+                &newPipeline.pipeline) != VK_SUCCESS)
+        {
+            return failure();
+        }
+
+        // Create the shader buffer table
+
+        const u32 handleSize = m_impl->rtPipelineProperties.shaderGroupHandleSize;
+        const u32 handleSizeAligned =
+            round_up_multiple(handleSize, m_impl->rtPipelineProperties.shaderGroupHandleAlignment);
+
+        newPipeline.rayGen = {
+            .stride = round_up_multiple(handleSizeAligned, m_impl->rtPipelineProperties.shaderGroupBaseAlignment),
+        };
+
+        // Ray-generation is a special case, size has to match the stride
+        newPipeline.rayGen.size = newPipeline.rayGen.stride;
+
+        const u32 missCount = u32{raytracingPass->miss != VK_SHADER_UNUSED_KHR};
+
+        if (missCount > 0)
+        {
+            newPipeline.miss = {
+                .stride = handleSizeAligned,
+                .size = round_up_multiple(missCount * handleSizeAligned,
+                    m_impl->rtPipelineProperties.shaderGroupBaseAlignment),
+            };
+        }
+
+        u32 hitCount = 0;
+
+        for (auto& hg : raytracingPass->hitGroups)
+        {
+            hitCount += u32(hg.shaders.size());
+        }
+
+        newPipeline.hit = {
+            .stride = handleSizeAligned,
+            .size =
+                round_up_multiple(hitCount * handleSizeAligned, m_impl->rtPipelineProperties.shaderGroupBaseAlignment),
+        };
+
+        const auto sbtBufferSize =
+            u32(newPipeline.rayGen.size + newPipeline.miss.size + newPipeline.hit.size + newPipeline.callable.size);
+
+        auto& allocator = vkCtx->get_allocator();
+
+        if (allocator.create_buffer(
+                {
+                    .size = narrow_cast<u32>(sbtBufferSize),
+                    .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                        VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR,
+                    .requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                    .debugLabel = "Shader Binding Table",
+                },
+                &newPipeline.shaderBindingTable) != VK_SUCCESS)
+        {
+            return failure();
+        }
+
+        void* sbtPtr;
+
+        if (allocator.map(newPipeline.shaderBindingTable.allocation, &sbtPtr) != VK_SUCCESS)
+        {
+            return failure();
+        }
+
+        const u32 handleCount = raytracingPass->groupsCount;
+        const u32 handleDataSize = handleCount * handleSize;
+        dynamic_array<u8> handles{handleDataSize, &m_impl->frameAllocator};
+
+        if (vkFn.vkGetRayTracingShaderGroupHandlesKHR(vkCtx->get_device(),
+                newPipeline.pipeline,
+                0,
+                handleCount,
+                handleDataSize,
+                handles.data()) != VK_SUCCESS)
+        {
+            return failure();
+        }
+
+        const auto sbtAddress = vkCtx->get_device_address(newPipeline.shaderBindingTable.buffer);
+
+        newPipeline.rayGen.deviceAddress = sbtAddress;
+        newPipeline.miss.deviceAddress = newPipeline.rayGen.deviceAddress + newPipeline.rayGen.size;
+        newPipeline.hit.deviceAddress = newPipeline.miss.deviceAddress + newPipeline.miss.size;
+        newPipeline.callable.deviceAddress = newPipeline.hit.deviceAddress + newPipeline.hit.size;
+
+        struct group_desc
+        {
+            VkStridedDeviceAddressRegionKHR* group;
+            u32 groupHandles;
+        };
+
+        const group_desc groupsWithCount[] = {
+            {&newPipeline.rayGen, 1},
+            {&newPipeline.miss, missCount},
+            {
+                &newPipeline.hit,
+                hitCount,
+            },
+            {&newPipeline.callable, 0},
+        };
+
+        u32 nextHandleIndex = 0;
+
+        for (auto const [group, numHandles] : groupsWithCount)
+        {
+            if (group->size == 0)
+            {
+                continue;
+            }
+
+            const auto offset = group->deviceAddress - sbtAddress;
+
+            for (u32 i = 0; i < numHandles; ++i)
+            {
+                const auto dstOffset = offset + i * handleSizeAligned;
+                const auto srcOffset = nextHandleIndex * handleSize;
+
+                std::memcpy(static_cast<u8*>(sbtPtr) + dstOffset, handles.data() + srcOffset, handleSize);
+
+                ++nextHandleIndex;
+            }
+        }
+
+        allocator.unmap(newPipeline.shaderBindingTable.allocation);
+        allocator.invalidate_mapped_memory_ranges({&newPipeline.shaderBindingTable.allocation, 1});
+
+        raytracingPass->variants.push_back({.hash = expectedHash, .pipeline = pipelineHandle});
+        return pipelineHandle;
     }
 
     void pass_manager::begin_frame()
@@ -1710,15 +2256,6 @@ namespace oblo::vk
                 .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
                 .pImageInfo = textures2DInfo.data(),
             },
-            //{
-            //    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            //    .dstSet = samplerDescriptorSet,
-            //    .dstBinding = TexturesSamplerBinding,
-            //    .dstArrayElement = 0,
-            //    .descriptorCount = numSamplers,
-            //    .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
-            //    .pImageInfo = samplers,
-            //},
         };
 
         vkUpdateDescriptorSets(m_impl->device, array_size(descriptorSetWrites), descriptorSetWrites, 0, nullptr);
@@ -1746,6 +2283,11 @@ namespace oblo::vk
                 for (const auto& c : it->second.computePasses.keys())
                 {
                     m_impl->computePasses.at(c).shouldRecompile = true;
+                }
+
+                for (const auto& c : it->second.raytracingPasses.keys())
+                {
+                    m_impl->raytracingPasses.at(c).shouldRecompile = true;
                 }
             }
 
@@ -1880,6 +2422,57 @@ namespace oblo::vk
         m_impl->vkCtx->end_debug_label(context.commandBuffer);
     }
 
+    expected<raytracing_pass_context> pass_manager::begin_raytracing_pass(VkCommandBuffer commandBuffer,
+        h32<raytracing_pipeline> pipelineHandle) const
+    {
+        const auto* pipeline = m_impl->raytracingPipelines.try_find(pipelineHandle);
+
+        if (!pipeline)
+        {
+            return unspecified_error;
+        }
+
+        const raytracing_pass_context rtPipelineContext{
+            .commandBuffer = commandBuffer,
+            .internalPipeline = pipeline,
+        };
+
+        m_impl->vkCtx->begin_debug_label(commandBuffer, pipeline->label);
+
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline->pipeline);
+
+        if (pipeline->requiresTextures2D && m_impl->currentSamplersDescriptor)
+        {
+            vkCmdBindDescriptorSets(commandBuffer,
+                VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
+                pipeline->pipelineLayout,
+                TextureSamplerDescriptorSet,
+                1,
+                &m_impl->currentSamplersDescriptor,
+                0,
+                nullptr);
+        }
+
+        if (pipeline->requiresTextures2D && m_impl->currentTextures2DDescriptor)
+        {
+            vkCmdBindDescriptorSets(commandBuffer,
+                VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
+                pipeline->pipelineLayout,
+                Textures2DDescriptorSet,
+                1,
+                &m_impl->currentTextures2DDescriptor,
+                0,
+                nullptr);
+        }
+
+        return rtPipelineContext;
+    }
+
+    void pass_manager::end_raytracing_pass(const raytracing_pass_context& context)
+    {
+        m_impl->vkCtx->end_debug_label(context.commandBuffer);
+    }
+
     u32 pass_manager::get_subgroup_size() const
     {
         return m_impl->subgroupSize;
@@ -1947,5 +2540,42 @@ namespace oblo::vk
                 0,
                 nullptr);
         }
+    }
+
+    void pass_manager::bind_descriptor_sets(const raytracing_pass_context& ctx,
+        std::span<const binding_table* const> bindingTables) const
+    {
+        auto* const pipeline = ctx.internalPipeline;
+
+        if (const auto descriptorSetLayout = pipeline->descriptorSetLayout)
+        {
+            const VkDescriptorSet descriptorSet =
+                m_impl->create_descriptor_set(descriptorSetLayout, *pipeline, bindingTables);
+
+            vkCmdBindDescriptorSets(ctx.commandBuffer,
+                VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
+                pipeline->pipelineLayout,
+                0,
+                1,
+                &descriptorSet,
+                0,
+                nullptr);
+        }
+    }
+
+    void pass_manager::trace_rays(const raytracing_pass_context& ctx, u32 width, u32 height, u32 depth) const
+    {
+        const auto& vkFn = m_impl->vkCtx->get_loaded_functions();
+
+        const auto& pipeline = *ctx.internalPipeline;
+
+        vkFn.vkCmdTraceRaysKHR(ctx.commandBuffer,
+            &pipeline.rayGen,
+            &pipeline.miss,
+            &pipeline.hit,
+            &pipeline.callable,
+            width,
+            height,
+            depth);
     }
 }

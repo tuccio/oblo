@@ -25,11 +25,14 @@ vec3 camera_unproject_world_space(in camera_buffer camera, in vec2 positionNDC, 
     return vec3(h.xyz / h.w);
 }
 
-vec3 camera_ray_direction(in camera_buffer camera, in uvec2 resolution, in ivec2 screenPos)
+vec2 screen_to_ndc(in uvec2 screenPos, in uvec2 resolution)
 {
-    const vec2 positionNDC = vec2(2 * screenPos) / resolution - 1.f;
-    const vec3 screenPosWS = camera_unproject_world_space(camera, positionNDC, 0);
+    return vec2(2 * screenPos + .5f) / resolution - 1.f;
+}
 
+vec3 camera_ray_direction(in camera_buffer camera, in vec2 positionNDC)
+{
+    const vec3 screenPosWS = camera_unproject_world_space(camera, positionNDC, 0);
     return normalize(screenPosWS - camera.position);
 }
 

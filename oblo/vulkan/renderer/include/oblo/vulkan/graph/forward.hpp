@@ -12,6 +12,7 @@ namespace oblo::vk
 
     struct compute_pass;
     struct render_pass;
+    struct raytracing_pass;
 
     struct buffer;
     struct texture;

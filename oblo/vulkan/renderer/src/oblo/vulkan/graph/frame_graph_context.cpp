@@ -85,6 +85,10 @@ namespace oblo::vk
                 pipelineStage = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
                 break;
 
+            case pass_kind::raytracing:
+                pipelineStage = VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR;
+                break;
+
             case pass_kind::transfer:
                 pipelineStage = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
                 break;
