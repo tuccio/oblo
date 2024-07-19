@@ -59,7 +59,8 @@ bool calculate_position_and_barycentric_coords(in ivec2 screenPos,
     // triangle in world space, we use that to derive the position in world space
     ray cameraRay;
     cameraRay.origin = g_Camera.position;
-    cameraRay.direction = camera_ray_direction(g_Camera, g_Constants.resolution, screenPos);
+    const vec2 positionNDC = screen_to_ndc(g_Constants.resolution, screenPos);
+    cameraRay.direction = camera_ray_direction(g_Camera, positionNDC);
 
     float intersectionDistance;
 

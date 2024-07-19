@@ -124,24 +124,23 @@ namespace oblo::vk
                 vkGetDeviceProcAddr(m_engine->get_device(), "vkSetDebugUtilsObjectNameEXT")),
         };
 
+#define OBLO_VK_LOAD_FN(name) .name = PFN_##name(vkGetInstanceProcAddr(m_instance, #name))
+
         m_loadedFunctions = {
-            .vkCmdDrawMeshTasksEXT =
-                PFN_vkCmdDrawMeshTasksEXT(vkGetInstanceProcAddr(m_instance, "vkCmdDrawMeshTasksEXT")),
-            .vkCmdDrawMeshTasksIndirectEXT =
-                PFN_vkCmdDrawMeshTasksIndirectEXT(vkGetInstanceProcAddr(m_instance, "vkCmdDrawMeshTasksIndirectEXT")),
-            .vkCmdDrawMeshTasksIndirectCountEXT = PFN_vkCmdDrawMeshTasksIndirectCountEXT(
-                vkGetInstanceProcAddr(m_instance, "vkCmdDrawMeshTasksIndirectCountEXT")),
-            .vkCreateAccelerationStructureKHR = PFN_vkCreateAccelerationStructureKHR(
-                vkGetInstanceProcAddr(m_instance, "vkCreateAccelerationStructureKHR")),
-            .vkDestroyAccelerationStructureKHR = PFN_vkDestroyAccelerationStructureKHR(
-                vkGetInstanceProcAddr(m_instance, "vkDestroyAccelerationStructureKHR")),
-            .vkGetAccelerationStructureBuildSizesKHR = PFN_vkGetAccelerationStructureBuildSizesKHR(
-                vkGetInstanceProcAddr(m_instance, "vkGetAccelerationStructureBuildSizesKHR")),
-            .vkCmdBuildAccelerationStructuresKHR = PFN_vkCmdBuildAccelerationStructuresKHR(
-                vkGetInstanceProcAddr(m_instance, "vkCmdBuildAccelerationStructuresKHR")),
-            .vkGetAccelerationStructureDeviceAddressKHR = PFN_vkGetAccelerationStructureDeviceAddressKHR(
-                vkGetInstanceProcAddr(m_instance, "vkGetAccelerationStructureDeviceAddressKHR")),
+            OBLO_VK_LOAD_FN(vkCmdDrawMeshTasksEXT),
+            OBLO_VK_LOAD_FN(vkCmdDrawMeshTasksIndirectEXT),
+            OBLO_VK_LOAD_FN(vkCmdDrawMeshTasksIndirectCountEXT),
+            OBLO_VK_LOAD_FN(vkCreateAccelerationStructureKHR),
+            OBLO_VK_LOAD_FN(vkDestroyAccelerationStructureKHR),
+            OBLO_VK_LOAD_FN(vkGetAccelerationStructureBuildSizesKHR),
+            OBLO_VK_LOAD_FN(vkCmdBuildAccelerationStructuresKHR),
+            OBLO_VK_LOAD_FN(vkGetAccelerationStructureDeviceAddressKHR),
+            OBLO_VK_LOAD_FN(vkCreateRayTracingPipelinesKHR),
+            OBLO_VK_LOAD_FN(vkGetRayTracingShaderGroupHandlesKHR),
+            OBLO_VK_LOAD_FN(vkCmdTraceRaysKHR),
         };
+
+#undef OBLO_VK_LOAD_FN
 
         m_allocator->set_object_debug_utils(m_debugUtilsObject);
 
