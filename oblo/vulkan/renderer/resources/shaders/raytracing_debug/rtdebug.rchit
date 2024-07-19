@@ -3,7 +3,6 @@
 #extension GL_GOOGLE_include_directive : enable
 #extension GL_EXT_ray_tracing : require
 
-#include <raytracing_debug/common>
 #include <renderer/debug>
 
 layout(location = 0) rayPayloadInEXT vec3 r_HitColor;

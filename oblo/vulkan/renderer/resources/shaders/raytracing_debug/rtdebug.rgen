@@ -1,20 +1,9 @@
 #version 460
 
-#extension GL_ARB_gpu_shader_int64 : require
 #extension GL_EXT_ray_tracing : require
-#extension GL_EXT_buffer_reference : require
-#extension GL_EXT_nonuniform_qualifier : require
-#extension GL_EXT_shader_8bit_storage : require
-#extension GL_EXT_samplerless_texture_functions : require
 #extension GL_GOOGLE_include_directive : require
 
-#extension GL_EXT_debug_printf : enable
-
-#include <raytracing_debug/common>
 #include <renderer/camera>
-#include <renderer/math>
-#include <renderer/meshes/mesh_table>
-#include <renderer/quad>
 
 layout(binding = 16) uniform b_CameraBuffer
 {
@@ -30,20 +19,6 @@ layout(push_constant) uniform c_PushConstants
     uvec2 resolution;
 }
 g_Constants;
-
-struct rt_instance_id
-{
-    uint instanceTableId;
-    uint instanceId;
-};
-
-rt_instance_id rt_instance_id_from_custom_index(uint customIndex)
-{
-    rt_instance_id r;
-    r.instanceTableId = customIndex >> 20;
-    r.instanceId = customIndex & ((1u << 20) - 1);
-    return r;
-}
 
 layout(location = 0) rayPayloadEXT vec3 r_HitColor;
 
@@ -71,17 +46,6 @@ void main()
         tMax,
         0 // payload location
     );
-
-    if (gl_LaunchIDEXT.xy == gl_LaunchSizeEXT.xy / 2)
-    {
-        r_HitColor = vec3(1, 0, 0);
-
-        // debugPrintfEXT("screen: [%u, %u]\n", gl_LaunchIDEXT.x, gl_LaunchIDEXT.y);
-        // debugPrintfEXT("res: [%u, %u]\n", gl_LaunchSizeEXT.x, gl_LaunchSizeEXT.y);
-        // debugPrintfEXT("ndc: [%f, %f]\n", positionNDC.x, positionNDC.y);
-        // debugPrintfEXT("origin: [%f, %f, %f]\n", origin.x, origin.y, origin.z);
-        // debugPrintfEXT("direction: [%f, %f, %f]\n", direction.x, direction.y, direction.z);
-    }
 
     imageStore(t_OutShadedImage, ivec2(gl_LaunchIDEXT.xy), vec4(r_HitColor, 1));
 }
