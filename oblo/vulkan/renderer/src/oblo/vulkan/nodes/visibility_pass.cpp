@@ -89,11 +89,6 @@ namespace oblo::vk
     {
         const std::span drawData = ctx.access(inDrawData);
 
-        if (drawData.empty())
-        {
-            return;
-        }
-
         const auto visibilityBuffer = ctx.access(outVisibilityBuffer);
         const auto depthBuffer = ctx.access(outDepthBuffer);
 

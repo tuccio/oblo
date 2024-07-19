@@ -79,6 +79,10 @@ namespace oblo::vk
         frame_graph_vertex_state state;
         h32<frame_graph_node> node;
         h32<frame_graph_pin> pin;
+
+#ifdef OBLO_DEBUG
+        type_id debugTypeId;
+#endif
     };
 
     struct frame_graph_texture_transition
