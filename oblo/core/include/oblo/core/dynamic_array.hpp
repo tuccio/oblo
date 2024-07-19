@@ -205,10 +205,8 @@ namespace oblo
         reserve(other.m_size);
 
         std::uninitialized_copy(other.begin(), other.end(), m_data);
-        std::destroy(other.begin(), other.end());
 
         m_size = other.m_size;
-        other.m_size = 0;
 
         return *this;
     }
