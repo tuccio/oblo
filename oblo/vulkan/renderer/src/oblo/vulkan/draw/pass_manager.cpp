@@ -1403,6 +1403,11 @@ namespace oblo::vk
                 destroy_pipeline(*m_impl->vkCtx, computePipeline);
             }
 
+            for (const auto& raytracingPipeline : m_impl->raytracingPipelines.values())
+            {
+                destroy_pipeline(*m_impl->vkCtx, raytracingPipeline);
+            }
+
             shader_compiler::shutdown();
         }
 
