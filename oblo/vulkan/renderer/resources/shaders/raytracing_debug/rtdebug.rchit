@@ -4,10 +4,11 @@
 #extension GL_EXT_ray_tracing : require
 
 #include <raytracing_debug/common>
+#include <renderer/debug>
 
-layout(location = 0) rayPayloadEXT hit_payload r_HitPayload;
+layout(location = 0) rayPayloadInEXT vec3 r_HitColor;
 
 void main()
 {
-    r_HitPayload.customIndex = gl_InstanceCustomIndexEXT;
+    r_HitColor = debug_color_map(uint(gl_InstanceCustomIndexEXT));
 }

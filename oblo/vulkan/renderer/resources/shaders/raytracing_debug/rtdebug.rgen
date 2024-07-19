@@ -7,11 +7,11 @@
 #extension GL_EXT_shader_8bit_storage : require
 #extension GL_EXT_samplerless_texture_functions : require
 #extension GL_GOOGLE_include_directive : require
-#extension GL_EXT_control_flow_attributes : enable
+
+#extension GL_EXT_debug_printf : enable
 
 #include <raytracing_debug/common>
 #include <renderer/camera>
-#include <renderer/debug>
 #include <renderer/math>
 #include <renderer/meshes/mesh_table>
 #include <renderer/quad>
@@ -45,11 +45,11 @@ rt_instance_id rt_instance_id_from_custom_index(uint customIndex)
     return r;
 }
 
-layout(location = 0) rayPayloadEXT hit_payload r_HitPayload;
+layout(location = 0) rayPayloadEXT vec3 r_HitColor;
 
 void main()
 {
-    const vec2 positionNDC = screen_to_ndc(gl_LaunchSizeEXT.xy, gl_LaunchIDEXT.xy);
+    const vec2 positionNDC = screen_to_ndc(gl_LaunchIDEXT.xy, gl_LaunchSizeEXT.xy);
 
     const vec3 origin = g_Camera.position;
     const vec3 direction = camera_ray_direction(g_Camera, positionNDC);
@@ -57,8 +57,10 @@ void main()
     const float tMin = 1e-2f;
     const float tMax = 1e6f;
 
+    r_HitColor = vec3(.015);
+
     traceRayEXT(u_SceneTLAS,
-        gl_RayFlagsOpaqueEXT,
+        gl_RayFlagsNoneEXT,
         0xff, // cull mask
         0,    // STB record offset
         0,    // STB record stride
@@ -70,7 +72,16 @@ void main()
         0 // payload location
     );
 
-    const vec3 color = debug_color_map(r_HitPayload.customIndex);
+    if (gl_LaunchIDEXT.xy == gl_LaunchSizeEXT.xy / 2)
+    {
+        r_HitColor = vec3(1, 0, 0);
 
-    imageStore(t_OutShadedImage, ivec2(gl_LaunchIDEXT.xy), vec4(color, 1.0));
+        // debugPrintfEXT("screen: [%u, %u]\n", gl_LaunchIDEXT.x, gl_LaunchIDEXT.y);
+        // debugPrintfEXT("res: [%u, %u]\n", gl_LaunchSizeEXT.x, gl_LaunchSizeEXT.y);
+        // debugPrintfEXT("ndc: [%f, %f]\n", positionNDC.x, positionNDC.y);
+        // debugPrintfEXT("origin: [%f, %f, %f]\n", origin.x, origin.y, origin.z);
+        // debugPrintfEXT("direction: [%f, %f, %f]\n", direction.x, direction.y, direction.z);
+    }
+
+    imageStore(t_OutShadedImage, ivec2(gl_LaunchIDEXT.xy), vec4(r_HitColor, 1));
 }

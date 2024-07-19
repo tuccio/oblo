@@ -25,7 +25,7 @@
 #include <renderer/geometry/volumes>
 #include <visibility/visibility_shading>
 
-vec4 visibility_shade(in ivec2 screenPos, in visibility_buffer_data vb)
+vec4 visibility_shade(in uvec2 screenPos, in visibility_buffer_data vb)
 {
 #ifdef OUT_MESHLET
     return vec4(debug_color_map(vb.meshletId), 1);

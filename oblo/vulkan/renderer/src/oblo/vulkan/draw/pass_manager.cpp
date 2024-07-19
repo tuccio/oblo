@@ -1516,13 +1516,16 @@ namespace oblo::vk
 
         renderPass.name = m_impl->interner->get_or_add(desc.name);
 
-        const auto appendShader = [&renderPass](const std::filesystem::path& source)
+        const auto appendShader = [&](const std::filesystem::path& source)
         {
             if (!source.empty())
             {
                 const auto size = renderPass.shaderSourcePaths.size();
                 renderPass.shaderSourcePaths.push_back(source);
                 renderPass.shaderStages.push_back(deduce_rt_shader_stage(source));
+
+                m_impl->add_watch(source, handle);
+
                 return u32(size);
             }
 
@@ -2095,15 +2098,18 @@ namespace oblo::vk
             };
         }
 
-        newPipeline.hit = {
-            .stride = handleSizeAligned,
-        };
+        u32 hitCount = 0;
 
         for (auto& hg : raytracingPass->hitGroups)
         {
-            newPipeline.hit.size += round_up_multiple(u32(hg.shaders.size() * handleSizeAligned),
-                m_impl->rtPipelineProperties.shaderGroupBaseAlignment);
+            hitCount += u32(hg.shaders.size());
         }
+
+        newPipeline.hit = {
+            .stride = handleSizeAligned,
+            .size =
+                round_up_multiple(hitCount * handleSizeAligned, m_impl->rtPipelineProperties.shaderGroupBaseAlignment),
+        };
 
         const auto sbtBufferSize =
             u32(newPipeline.rayGen.size + newPipeline.miss.size + newPipeline.hit.size + newPipeline.callable.size);
@@ -2157,16 +2163,19 @@ namespace oblo::vk
             u32 groupHandles;
         };
 
+        const group_desc groupsWithCount[] = {
+            {&newPipeline.rayGen, 1},
+            {&newPipeline.miss, missCount},
+            {
+                &newPipeline.hit,
+                hitCount,
+            },
+            {&newPipeline.callable},
+        };
+
         u32 nextHandleIndex = 0;
 
-        for (auto const [group, numHandles] : {
-                 group_desc{&newPipeline.rayGen, 1},
-                 group_desc{&newPipeline.miss, missCount},
-                 group_desc{
-                     &newPipeline.hit,
-                 },
-                 group_desc{&newPipeline.callable},
-             })
+        for (auto const [group, numHandles] : groupsWithCount)
         {
             if (group->size == 0)
             {
@@ -2177,9 +2186,10 @@ namespace oblo::vk
 
             for (u32 i = 0; i < numHandles; ++i)
             {
-                std::memcpy(static_cast<u8*>(sbtPtr) + offset + i * handleSizeAligned,
-                    handles.data() + nextHandleIndex * handleSize,
-                    handleSize);
+                const auto dstOffset = offset + i * handleSizeAligned;
+                const auto srcOffset = nextHandleIndex * handleSize;
+
+                std::memcpy(static_cast<u8*>(sbtPtr) + dstOffset, handles.data() + srcOffset, handleSize);
 
                 ++nextHandleIndex;
             }

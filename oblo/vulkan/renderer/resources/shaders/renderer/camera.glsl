@@ -25,12 +25,7 @@ vec3 camera_unproject_world_space(in camera_buffer camera, in vec2 positionNDC, 
     return vec3(h.xyz / h.w);
 }
 
-vec2 screen_to_ndc(in uvec2 resolution, in uvec2 screenPos)
-{
-    return vec2(2 * screenPos + .5f) / resolution - 1.f;
-}
-
-vec2 screen_to_ndc(in uvec2 resolution, in ivec2 screenPos)
+vec2 screen_to_ndc(in uvec2 screenPos, in uvec2 resolution)
 {
     return vec2(2 * screenPos + .5f) / resolution - 1.f;
 }

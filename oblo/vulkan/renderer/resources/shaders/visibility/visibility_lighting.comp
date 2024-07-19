@@ -35,7 +35,7 @@ layout(std430, binding = 1) restrict readonly buffer b_LightData
     light_data lights[];
 };
 
-vec4 visibility_shade(in ivec2 screenPos, in visibility_buffer_data vb)
+vec4 visibility_shade(in uvec2 screenPos, in visibility_buffer_data vb)
 {
     // Read the instance data we need
     const mesh_handle mesh = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MeshHandles, vb.instanceId);
