@@ -48,6 +48,8 @@ namespace oblo
 
         bool is_scene_view(h32<vk::frame_graph_subgraph> graph) const;
 
+        h32<vk::frame_graph_subgraph> get_scene_data_provider() const;
+
     private:
         struct shadow_graph;
 

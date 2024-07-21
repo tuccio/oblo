@@ -1,0 +1,62 @@
+#version 460
+
+#extension GL_EXT_ray_tracing : require
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_samplerless_texture_functions : require
+
+#include <renderer/camera>
+#include <renderer/lights>
+
+layout(binding = 11) uniform accelerationStructureEXT u_SceneTLAS;
+
+layout(binding = 12, r8) uniform restrict writeonly image2D t_OutShadow;
+layout(binding = 13) uniform texture2D t_InDepthBuffer;
+
+layout(std430, binding = 15) restrict readonly buffer b_LightData
+{
+    light_data g_Lights[];
+};
+
+layout(binding = 16) uniform b_CameraBuffer
+{
+    camera_buffer g_Camera;
+};
+
+layout(push_constant) uniform c_PushConstants
+{
+    uint lightIndex;
+}
+g_Constants;
+
+layout(location = 0) rayPayloadEXT float r_HitVisibility;
+
+void main()
+{
+    // Parse the visibility buffer to find which triangle we are processing
+    const float depth = texelFetch(t_InDepthBuffer, ivec2(gl_LaunchIDEXT.xy), 0).r;
+
+    const vec2 positionNDC = screen_to_ndc(gl_LaunchIDEXT.xy, gl_LaunchSizeEXT.xy);
+    const vec3 positionWS = camera_unproject_world_space(g_Camera, positionNDC, depth);
+
+    const vec3 direction = -g_Lights[g_Constants.lightIndex].direction;
+    const vec3 origin = positionWS + direction * .001f;
+
+    const float tMin = 1e-2f;
+    const float tMax = 1e6f;
+
+    traceRayEXT(u_SceneTLAS,
+        gl_RayFlagsNoneEXT,
+        0xff, // cull mask
+        0,    // STB record offset
+        0,    // STB record stride
+        0,    // Miss index
+        origin,
+        tMin,
+        direction,
+        tMax,
+        0 // payload location
+    );
+
+
+    imageStore(t_OutShadow, ivec2(gl_LaunchIDEXT.xy), vec4(r_HitVisibility, 0, 0, 1));
+}

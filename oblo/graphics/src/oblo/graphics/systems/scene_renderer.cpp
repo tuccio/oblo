@@ -82,4 +82,9 @@ namespace oblo
     {
         return m_sceneViews.try_find(graph) != nullptr;
     }
+
+    h32<vk::frame_graph_subgraph> scene_renderer::get_scene_data_provider() const
+    {
+        return m_sceneDataProvider;
+    }
 }

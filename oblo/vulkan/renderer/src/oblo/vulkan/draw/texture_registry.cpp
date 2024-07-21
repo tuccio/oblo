@@ -190,6 +190,8 @@ namespace oblo::vk
         t.image = {};
 
         m_imageInfo[index] = m_imageInfo[0];
+
+        m_handlePool.release(texture.value);
     }
 
     std::span<const VkDescriptorImageInfo> texture_registry::get_textures2d_info() const

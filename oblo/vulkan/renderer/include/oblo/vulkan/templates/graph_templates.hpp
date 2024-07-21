@@ -23,6 +23,7 @@ namespace oblo::vk::main_view
 
     constexpr std::string_view OutResolution{"Resolution"};
     constexpr std::string_view OutCameraBuffer{"Camera Buffer"};
+    constexpr std::string_view OutDepthBuffer{"Depth Buffer"};
     constexpr std::string_view OutVisibilityBuffer{"Visibility Buffer"};
     constexpr std::string_view OutLitImage{"Lit Output"};
     constexpr std::string_view OutDebugImage{"Debug Output"};
@@ -53,9 +54,10 @@ namespace oblo::vk::scene_data
 namespace oblo::vk::raytraced_shadow_view
 {
     constexpr std::string_view InCameraBuffer{"CameraBuffer"};
+    constexpr std::string_view InLightBuffer{"LightBuffer"};
     constexpr std::string_view InResolution{"Resolution"};
     constexpr std::string_view InConfig{"Config"};
-    constexpr std::string_view InVisibilityBuffer{"VisibilityBuffer"};
+    constexpr std::string_view InDepthBuffer{"DepthBuffer"};
     constexpr std::string_view OutShadow{"Shadow"};
     constexpr std::string_view OutShadowSink{"ShadowSink"};
 

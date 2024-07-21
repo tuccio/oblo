@@ -154,6 +154,11 @@ namespace oblo
                     {
                         const auto shadowMappingGraph = frameGraph.instantiate(m_rtShadows);
 
+                        frameGraph.connect(m_sceneRenderer->get_scene_data_provider(),
+                            vk::scene_data::OutLightBuffer,
+                            shadowMappingGraph,
+                            vk::raytraced_shadow_view::InLightBuffer);
+
                         frameGraph.connect(sceneView,
                             vk::main_view::OutCameraBuffer,
                             shadowMappingGraph,
@@ -165,9 +170,9 @@ namespace oblo
                             vk::raytraced_shadow_view::InResolution);
 
                         frameGraph.connect(sceneView,
-                            vk::main_view::OutVisibilityBuffer,
+                            vk::main_view::OutDepthBuffer,
                             shadowMappingGraph,
-                            vk::raytraced_shadow_view::InVisibilityBuffer);
+                            vk::raytraced_shadow_view::InDepthBuffer);
 
                         // frameGraph.barrier(shadowMappingGraph,
                         //     vk::raytraced_shadow_view::get_main_view_barrier_source(),

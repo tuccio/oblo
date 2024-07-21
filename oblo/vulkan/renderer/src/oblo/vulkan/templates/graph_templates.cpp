@@ -65,6 +65,7 @@ namespace oblo::vk::main_view
 
         // Visibility pass outputs, useful for other graphs (e.g shadows)
         graph.make_output(visibilityPass, &visibility_pass::outVisibilityBuffer, OutVisibilityBuffer);
+        graph.make_output(visibilityPass, &visibility_pass::outDepthBuffer, OutDepthBuffer);
 
         // Visibility shading inputs
         graph.make_input(visibilityLighting, &visibility_lighting::inLights, InLights);
@@ -245,9 +246,10 @@ namespace oblo::vk::raytraced_shadow_view
         const auto shadows = graph.add_node<raytraced_shadows>();
 
         graph.make_input(shadows, &raytraced_shadows::inResolution, InResolution);
+        graph.make_input(shadows, &raytraced_shadows::inLightBuffer, InLightBuffer);
         graph.make_input(shadows, &raytraced_shadows::inCameraBuffer, InCameraBuffer);
         graph.make_input(shadows, &raytraced_shadows::inConfig, InConfig);
-        graph.make_input(shadows, &raytraced_shadows::inVisibilityBuffer, InVisibilityBuffer);
+        graph.make_input(shadows, &raytraced_shadows::inDepthBuffer, InDepthBuffer);
         graph.make_output(shadows, &raytraced_shadows::outShadow, OutShadow);
         graph.make_output(shadows, &raytraced_shadows::outShadowSink, OutShadowSink);
 

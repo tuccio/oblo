@@ -2500,6 +2500,17 @@ namespace oblo::vk
             data.data());
     }
 
+    void pass_manager::push_constants(
+        const raytracing_pass_context& ctx, VkShaderStageFlags stages, u32 offset, std::span<const byte> data) const
+    {
+        vkCmdPushConstants(ctx.commandBuffer,
+            ctx.internalPipeline->pipelineLayout,
+            stages,
+            offset,
+            u32(data.size()),
+            data.data());
+    }
+
     void pass_manager::bind_descriptor_sets(const render_pass_context& ctx,
         std::span<const binding_table* const> bindingTables) const
     {

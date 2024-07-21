@@ -48,6 +48,7 @@ namespace oblo::vk
             texture_usage::storage_write);
 
         ctx.acquire(inCameraBuffer, pass_kind::raytracing, buffer_usage::uniform);
+        ctx.acquire(inLightBuffer, pass_kind::raytracing, buffer_usage::storage_read);
 
         ctx.push(outShadowSink, {outShadow, config.lightIndex});
     }
@@ -61,11 +62,12 @@ namespace oblo::vk
         ctx.bind_buffers(bindingTable,
             {
                 {"b_CameraBuffer", inCameraBuffer},
+                {"b_LightData", inLightBuffer},
             });
 
         ctx.bind_textures(bindingTable,
             {
-                {"t_InVisibilityBuffer", inVisibilityBuffer},
+                {"t_InDepthBuffer", inDepthBuffer},
                 {"t_OutShadow", outShadow},
             });
 
@@ -84,7 +86,19 @@ namespace oblo::vk
                 &bindingTable,
             };
 
+            struct push_constants
+            {
+                u32 lightIndex;
+            };
+
+            const auto& cfg = ctx.access(inConfig);
+            const push_constants constants{
+                .lightIndex = cfg.lightIndex,
+            };
+
             pm.bind_descriptor_sets(*pass, bindingTables);
+
+            pm.push_constants(*pass, VK_SHADER_STAGE_RAYGEN_BIT_KHR, 0, as_bytes(std::span{&constants, 1}));
 
             pm.trace_rays(*pass, resolution.x, resolution.y, 1);
 

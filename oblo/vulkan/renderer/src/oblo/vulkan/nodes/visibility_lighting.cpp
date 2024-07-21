@@ -85,6 +85,7 @@ namespace oblo::vk
                 {"b_InstanceTables", inInstanceTables},
                 {"b_MeshTables", inMeshDatabase},
                 {"b_CameraBuffer", inCameraBuffer},
+                {"b_ShadowMaps", outShadowMaps},
             });
 
         ctx.bind_textures(bindingTable,

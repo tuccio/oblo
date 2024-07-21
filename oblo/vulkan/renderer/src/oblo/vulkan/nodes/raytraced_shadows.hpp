@@ -16,8 +16,9 @@ namespace oblo::vk
         data_sink<light_visibility_event> outShadowSink;
 
         resource<buffer> inCameraBuffer;
+        resource<buffer> inLightBuffer;
 
-        resource<texture> inVisibilityBuffer;
+        resource<texture> inDepthBuffer;
         resource<texture> outShadow;
 
         h32<raytracing_pass> shadowPass;
