@@ -120,6 +120,8 @@ namespace oblo::vk
 
         void acquire(resource<texture> texture, texture_usage usage) const;
 
+        h32<resident_texture> acquire_bindless(resource<texture> texture, texture_usage usage) const;
+
         void acquire(resource<buffer> buffer, pass_kind passKind, buffer_usage usage) const;
 
         [[nodiscard]] resource<buffer> create_dynamic_buffer(

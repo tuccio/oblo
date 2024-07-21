@@ -57,12 +57,10 @@ namespace oblo::vk
         auto shadowMaps = allocate_n_span<h32<resident_texture>>(ctx.get_frame_allocator(), lights.size());
         std::uninitialized_value_construct_n(shadowMaps.data(), shadowMaps.size());
 
-        // TODO: For each event, add resident texture
-
+        // We register all shadow maps
         for (const auto& e : ctx.access(inShadowSink))
         {
-            // TODO
-            shadowMaps[e.lightIndex] = h32<resident_texture>{};
+            shadowMaps[e.lightIndex] = ctx.acquire_bindless(e.resource, texture_usage::shader_read);
         }
 
         ctx.create(outShadowMaps,

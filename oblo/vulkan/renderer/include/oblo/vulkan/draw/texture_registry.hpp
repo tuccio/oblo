@@ -38,6 +38,9 @@ namespace oblo::vk
 
         void on_first_frame();
 
+        h32<resident_texture> acquire();
+        void set_texture(h32<resident_texture> h, VkImageView imageView, VkImageLayout layout);
+
         h32<resident_texture> add(const texture_resource& texture, const debug_label& debugName);
         void remove(h32<resident_texture> texture);
 
@@ -52,6 +55,7 @@ namespace oblo::vk
 
     private:
         bool create(const texture_resource& texture, resident_texture& out, const debug_label& debugName);
+        void set_texture(h32<resident_texture> h, const resident_texture& residentTexture, VkImageLayout layout);
 
     private:
         vulkan_context* m_vkCtx{};

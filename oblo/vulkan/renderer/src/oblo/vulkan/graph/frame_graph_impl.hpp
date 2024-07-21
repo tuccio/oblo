@@ -149,6 +149,13 @@ namespace oblo::vk
         name_to_vertex_map outputs;
     };
 
+    struct frame_graph_bindless_texture
+    {
+        h32<resident_texture> resident;
+        resource<texture> texture;
+        texture_usage usage;
+    };
+
     struct frame_graph_node_to_execute
     {
         frame_graph_node* node;
@@ -184,6 +191,7 @@ namespace oblo::vk
         dynamic_array<frame_graph_pending_upload> pendingUploads;
 
         dynamic_array<h32<frame_graph_pin_storage>> dynamicPins;
+        dynamic_array<frame_graph_bindless_texture> bindlessTextures;
 
         resource_pool resourcePool;
 

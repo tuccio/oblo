@@ -497,6 +497,18 @@ namespace oblo::vk
 
         m_impl->resourcePool.end_graph();
         m_impl->resourcePool.end_build(renderer.get_vulkan_context());
+
+        auto& textureRegistry = renderer.get_texture_registry();
+
+        for (auto& texture : m_impl->bindlessTextures)
+        {
+            const auto storage = to_storage_handle(texture.texture);
+            const auto poolIndex = m_impl->pinStorage.at(storage).poolIndex;
+
+            const auto& t = m_impl->resourcePool.get_texture(poolIndex);
+
+            textureRegistry.set_texture(texture.resident, t.view, convert_layout(texture.usage));
+        }
     }
 
     void frame_graph::execute(renderer& renderer)
@@ -673,6 +685,15 @@ namespace oblo::vk
         }
 
         m_impl->currentNode = {};
+
+        auto& textureRegistry = renderer.get_texture_registry();
+
+        for (const auto& texture : m_impl->bindlessTextures)
+        {
+            textureRegistry.remove(texture.resident);
+        }
+
+        m_impl->bindlessTextures.clear();
 
         m_impl->finish_frame();
     }

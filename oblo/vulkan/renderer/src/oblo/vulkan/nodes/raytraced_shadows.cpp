@@ -41,7 +41,7 @@ namespace oblo::vk
             {
                 .width = resolution.x,
                 .height = resolution.y,
-                .format = VK_FORMAT_R8G8B8A8_UNORM,
+                .format = VK_FORMAT_R8_UNORM,
                 .usage = VK_IMAGE_USAGE_STORAGE_BIT,
                 .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
             },
