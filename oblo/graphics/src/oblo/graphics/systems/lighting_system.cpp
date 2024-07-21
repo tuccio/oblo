@@ -169,10 +169,15 @@ namespace oblo
                             shadowMappingGraph,
                             vk::raytraced_shadow_view::InVisibilityBuffer);
 
-                        frameGraph.barrier(shadowMappingGraph,
-                            vk::raytraced_shadow_view::get_main_view_barrier_source(),
+                        // frameGraph.barrier(shadowMappingGraph,
+                        //     vk::raytraced_shadow_view::get_main_view_barrier_source(),
+                        //     sceneView,
+                        //     vk::raytraced_shadow_view::get_main_view_barrier_target());
+
+                        frameGraph.connect(shadowMappingGraph,
+                            vk::raytraced_shadow_view::OutShadowSink,
                             sceneView,
-                            vk::raytraced_shadow_view::get_main_view_barrier_target());
+                            vk::main_view::InShadowSink);
 
                         const auto [it, ok] = shadow.shadowGraphs.emplace(sceneView, shadowMappingGraph);
 

@@ -70,6 +70,7 @@ namespace oblo::vk::main_view
         graph.make_input(visibilityLighting, &visibility_lighting::inLights, InLights);
         graph.make_input(visibilityLighting, &visibility_lighting::inLightConfig, InLightConfig);
         graph.make_input(visibilityLighting, &visibility_lighting::inLightBuffer, InLightBuffer);
+        graph.make_input(visibilityLighting, &visibility_lighting::inShadowSink, InShadowSink);
 
         graph.make_input(visibilityDebug, &visibility_debug::inDebugMode, InDebugMode);
 
@@ -248,6 +249,7 @@ namespace oblo::vk::raytraced_shadow_view
         graph.make_input(shadows, &raytraced_shadows::inConfig, InConfig);
         graph.make_input(shadows, &raytraced_shadows::inVisibilityBuffer, InVisibilityBuffer);
         graph.make_output(shadows, &raytraced_shadows::outShadow, OutShadow);
+        graph.make_output(shadows, &raytraced_shadows::outShadowSink, OutShadowSink);
 
         return graph;
     }

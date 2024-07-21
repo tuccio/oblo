@@ -49,7 +49,7 @@ namespace oblo::vk
 
         ctx.acquire(inCameraBuffer, pass_kind::raytracing, buffer_usage::uniform);
 
-         //ctx.push_event(outShadow, light_visibility_event{config});
+        ctx.push(outShadowSink, {outShadow, config.lightIndex});
     }
 
     void raytraced_shadows::execute(const frame_graph_execute_context& ctx)

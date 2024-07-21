@@ -17,6 +17,7 @@ namespace oblo::vk::main_view
     constexpr std::string_view InLights{"LightData"};
     constexpr std::string_view InLightBuffer{"LightDataBuffer"};
     constexpr std::string_view InLightConfig{"LightConfig"};
+    constexpr std::string_view InShadowSink{"ShadowSink"};
 
     constexpr std::string_view InDebugMode{"Debug Mode"};
 
@@ -54,8 +55,9 @@ namespace oblo::vk::raytraced_shadow_view
     constexpr std::string_view InCameraBuffer{"CameraBuffer"};
     constexpr std::string_view InResolution{"Resolution"};
     constexpr std::string_view InConfig{"Config"};
-    constexpr std::string_view InVisibilityBuffer{"InVisibilityBuffer"};
-    constexpr std::string_view OutShadow{"OutShadow"};
+    constexpr std::string_view InVisibilityBuffer{"VisibilityBuffer"};
+    constexpr std::string_view OutShadow{"Shadow"};
+    constexpr std::string_view OutShadowSink{"ShadowSink"};
 
     frame_graph_template create(const frame_graph_registry& registry);
 

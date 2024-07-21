@@ -59,10 +59,11 @@ namespace oblo::vk
 
         // TODO: For each event, add resident texture
 
-        // for (const auto& e : ctx.find_events<light_visibility_event>())
-        //{
-        //     //
-        // }
+        for (const auto& e : ctx.access(inShadowSink))
+        {
+            // TODO
+            shadowMaps[e.lightIndex] = h32<resident_texture>{};
+        }
 
         ctx.create(outShadowMaps,
             {

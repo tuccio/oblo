@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/flat_dense_forward.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/types.hpp>
@@ -131,6 +132,19 @@ namespace oblo::vk
         T& access(data<T> data) const
         {
             return *static_cast<T*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
+        }
+
+        template <typename T>
+        std::span<const T> access(data_sink<T> data) const
+        {
+            return *static_cast<data_sink_container<T>*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
+        }
+
+        template <typename T>
+        void push(data_sink<T> data, T&& value) const
+        {
+            auto* a = static_cast<data_sink_container<T>*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
+            a->push_back(std::move(value));
         }
 
         frame_allocator& get_frame_allocator() const;

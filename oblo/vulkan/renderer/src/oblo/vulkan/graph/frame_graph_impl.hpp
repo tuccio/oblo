@@ -56,6 +56,7 @@ namespace oblo::vk
         h32<frame_graph_pin_storage> referencedPin;
         frame_graph_topology::vertex_handle nodeHandle;
         u32 pinMemberOffset;
+        frame_graph_clear_fn clearDataSink;
     };
 
     struct frame_graph_pin_storage

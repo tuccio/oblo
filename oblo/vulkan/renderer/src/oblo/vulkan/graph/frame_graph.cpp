@@ -261,6 +261,7 @@ namespace oblo::vk
                 .ownedStorage = h32<frame_graph_pin_storage>{pinStorageKey},
                 .nodeHandle = *it->templateToInstanceMap.try_find(src.nodeHandle),
                 .pinMemberOffset = src.pinMemberOffset,
+                .clearDataSink = src.clearDataSink,
             };
 
             *pinStorageIt = {
@@ -898,6 +899,12 @@ namespace oblo::vk
                 }
 
                 pin->referencedPin = pin->ownedStorage;
+
+                // For data_sink we clear here
+                if (pin->clearDataSink)
+                {
+                    pin->clearDataSink(storage->data);
+                }
             }
 
             // Assign the handle to the node pin as well

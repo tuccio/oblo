@@ -17,6 +17,7 @@ namespace oblo::vk
 
     using frame_graph_construct_fn = void (*)(void*);
     using frame_graph_destruct_fn = void (*)(void*);
+    using frame_graph_clear_fn = void (*)(void*);
     using frame_graph_init_fn = void (*)(void*, const frame_graph_init_context&);
     using frame_graph_build_fn = void (*)(void*, const frame_graph_build_context&);
     using frame_graph_execute_fn = void (*)(void*, const frame_graph_execute_context&);
@@ -46,6 +47,7 @@ namespace oblo::vk
     {
         u32 offset;
         frame_graph_data_desc typeDesc;
+        frame_graph_clear_fn clearSink;
     };
 
     struct frame_graph_node_desc
@@ -97,6 +99,20 @@ namespace oblo::vk
             nodeDesc->pins.push_back({
                 .offset = offset,
                 .typeDesc = frame_graph_data_desc::make<T>(),
+            });
+        }
+
+        template <typename T>
+        void register_pin(frame_graph_node_desc* nodeDesc, const u8* nodePtr, const data_sink<T>* pin)
+        {
+            const u8* const bMemberPtr = reinterpret_cast<const u8*>(pin);
+
+            const u32 offset = u32(bMemberPtr - nodePtr);
+
+            nodeDesc->pins.push_back({
+                .offset = offset,
+                .typeDesc = frame_graph_data_desc::make<data_sink_container<T>>(),
+                .clearSink = [](void* ptr) { static_cast<data_sink_container<T>*>(ptr)->clear(); },
             });
         }
 
