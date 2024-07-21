@@ -33,6 +33,7 @@ namespace oblo::vk
     struct loaded_functions;
     struct frame_graph_impl;
     struct frame_graph_pin_storage;
+    struct resident_texture;
     struct staging_buffer_span;
 
     using binding_table = flat_dense_map<h32<string>, bindable_object>;

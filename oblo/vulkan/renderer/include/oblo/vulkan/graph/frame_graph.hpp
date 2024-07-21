@@ -43,6 +43,9 @@ namespace oblo::vk
             h32<frame_graph_subgraph> dstGraph,
             std::string_view dstName);
 
+        bool barrier(
+            h32<frame_graph_subgraph> srcGraph, type_id srcNode, h32<frame_graph_subgraph> dstGraph, type_id dstNode);
+
         template <typename T>
         expected<> set_input(h32<frame_graph_subgraph> graph, std::string_view name, T&& value);
 

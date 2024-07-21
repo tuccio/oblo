@@ -115,6 +115,61 @@ namespace oblo::vk
         return true;
     }
 
+    namespace
+    {
+        frame_graph_topology::vertex_handle find_node_by_type(frame_graph_topology& g,
+            std::span<const frame_graph_topology::vertex_handle> vertices,
+            const h32_flat_pool_dense_map<frame_graph_node>& nodes,
+            const type_id& target)
+        {
+            const auto it = std::find_if(vertices.begin(),
+                vertices.end(),
+                [&g, &target, &nodes](frame_graph_topology::vertex_handle h)
+                {
+                    auto& v = g[h];
+
+                    if (!v.node)
+                    {
+                        return false;
+                    }
+
+                    return nodes.at(v.node).typeId == target;
+                });
+
+            return it == vertices.end() ? frame_graph_topology::vertex_handle{} : *it;
+        }
+    }
+
+    bool frame_graph::barrier(
+        h32<frame_graph_subgraph> srcGraph, type_id srcNode, h32<frame_graph_subgraph> dstGraph, type_id dstNode)
+    {
+        auto* const srcGraphPtr = m_impl->subgraphs.try_find(srcGraph);
+        auto* const dstGraphPtr = m_impl->subgraphs.try_find(dstGraph);
+
+        if (!srcGraphPtr || !dstGraphPtr)
+        {
+            return false;
+        }
+
+        const auto sourceNodes = srcGraphPtr->templateToInstanceMap.values();
+        const auto destinationNodes = dstGraphPtr->templateToInstanceMap.values();
+
+        const auto src = find_node_by_type(m_impl->graph, sourceNodes, m_impl->nodes, srcNode);
+        const auto dst = find_node_by_type(m_impl->graph, destinationNodes, m_impl->nodes, dstNode);
+
+        if (!src || !dst)
+        {
+            return false;
+        }
+
+        if (!m_impl->graph.has_edge(src, dst))
+        {
+            m_impl->graph.add_edge(src, dst);
+        }
+
+        return true;
+    }
+
     h32<frame_graph_subgraph> frame_graph::instantiate(const frame_graph_template& graphTemplate)
     {
         const auto [it, key] = m_impl->subgraphs.emplace();

@@ -11,7 +11,8 @@ namespace oblo
             vk::frame_graph& g, h32<vk::frame_graph_subgraph> sceneDataProvider, h32<vk::frame_graph_subgraph> mainView)
         {
             g.connect(sceneDataProvider, vk::scene_data::OutLightConfig, mainView, vk::main_view::InLightConfig);
-            g.connect(sceneDataProvider, vk::scene_data::OutLightData, mainView, vk::main_view::InLightData);
+            g.connect(sceneDataProvider, vk::scene_data::OutLightBuffer, mainView, vk::main_view::InLightBuffer);
+            g.connect(sceneDataProvider, vk::scene_data::OutLights, mainView, vk::main_view::InLights);
 
             g.connect(sceneDataProvider, vk::scene_data::OutInstanceTables, mainView, vk::main_view::InInstanceTables);
             g.connect(sceneDataProvider,
@@ -54,7 +55,7 @@ namespace oblo
 
     void scene_renderer::setup_lights(const scene_lights& lights)
     {
-        m_frameGraph.set_input(m_sceneDataProvider, vk::scene_data::InLightData, lights.data).assert_value();
+        m_frameGraph.set_input(m_sceneDataProvider, vk::scene_data::InLights, lights.data).assert_value();
     }
 
     void scene_renderer::add_scene_view(h32<vk::frame_graph_subgraph> subgraph)

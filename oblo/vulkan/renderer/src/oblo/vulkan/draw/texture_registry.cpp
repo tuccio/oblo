@@ -130,6 +130,9 @@ namespace oblo::vk
         {
             const auto newSize = index + 1;
 
+            m_imageInfo.reserve_exponential(newSize);
+            m_textures.reserve_exponential(newSize);
+
             m_imageInfo.resize(newSize);
             m_textures.resize(newSize);
 

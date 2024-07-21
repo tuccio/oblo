@@ -14,7 +14,9 @@
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
 #include <oblo/vulkan/data/light_data.hpp>
+#include <oblo/vulkan/data/raytraced_shadow_config.hpp>
 #include <oblo/vulkan/graph/frame_graph.hpp>
+#include <oblo/vulkan/templates/graph_templates.hpp>
 
 namespace oblo
 {
@@ -22,7 +24,7 @@ namespace oblo
     {
         // Maps main view to shadow map graph
         h32_flat_extpool_dense_map<vk::frame_graph_subgraph, h32<vk::frame_graph_subgraph>> shadowGraphs;
-        bool isUsed;
+        i32 lightIndex;
     };
 
     lighting_system::lighting_system() = default;
@@ -50,6 +52,8 @@ namespace oblo
             .isShadowCaster = true,
         };
 
+        m_rtShadows = vk::raytraced_shadow_view::create(m_sceneRenderer->get_frame_graph_registry());
+
         update(ctx);
     }
 
@@ -64,7 +68,7 @@ namespace oblo
 
         for (auto& shadow : m_directionalShadows.values())
         {
-            shadow.isUsed = false;
+            shadow.lightIndex = -1;
         }
 
         for (const auto [entities, lights, transforms] : lightsRange)
@@ -86,6 +90,15 @@ namespace oblo
                     angleOffset = -cosOuter * angleScale;
                 }
 
+                if (light.isShadowCaster)
+                {
+                    if (light.type == light_type::directional)
+                    {
+                        const auto [it, inserted] = m_directionalShadows.emplace(e);
+                        it->lightIndex = narrow_cast<i32>(lightData.size());
+                    }
+                }
+
                 lightData.push_back({
                     .position = {position.x, position.y, position.z},
                     .invSqrRadius = 1.f / (light.radius * light.radius),
@@ -95,15 +108,6 @@ namespace oblo
                     .lightAngleScale = angleScale,
                     .lightAngleOffset = angleOffset,
                 });
-
-                if (light.isShadowCaster)
-                {
-                    if (light.type == light_type::directional)
-                    {
-                        const auto [it, inserted] = m_directionalShadows.emplace(e);
-                        it->isUsed = true;
-                    }
-                }
             }
         }
 
@@ -119,7 +123,7 @@ namespace oblo
 
         for (const auto& [e, shadow] : zip_range(m_directionalShadows.keys(), m_directionalShadows.values()))
         {
-            if (!shadow.isUsed)
+            if (shadow.lightIndex < 0)
             {
                 for (const auto shadowGraph : shadow.shadowGraphs.values())
                 {
@@ -144,14 +148,43 @@ namespace oblo
 
                 for (auto sceneView : m_sceneRenderer->get_scene_views())
                 {
-                    auto* const v = shadow.shadowGraphs.try_find(sceneView);
+                    auto* v = shadow.shadowGraphs.try_find(sceneView);
 
                     if (!v)
                     {
-                        // TODO: Instantiate shadow mapping subgraph and connect it
-                        h32<vk::frame_graph_subgraph> shadowMappingGraph{};
-                        shadow.shadowGraphs.emplace(sceneView, shadowMappingGraph);
+                        const auto shadowMappingGraph = frameGraph.instantiate(m_rtShadows);
+
+                        frameGraph.connect(sceneView,
+                            vk::main_view::OutCameraBuffer,
+                            shadowMappingGraph,
+                            vk::raytraced_shadow_view::InCameraBuffer);
+
+                        frameGraph.connect(sceneView,
+                            vk::main_view::OutResolution,
+                            shadowMappingGraph,
+                            vk::raytraced_shadow_view::InResolution);
+
+                        frameGraph.connect(sceneView,
+                            vk::main_view::OutVisibilityBuffer,
+                            shadowMappingGraph,
+                            vk::raytraced_shadow_view::InVisibilityBuffer);
+
+                        frameGraph.barrier(shadowMappingGraph,
+                            vk::raytraced_shadow_view::get_main_view_barrier_source(),
+                            sceneView,
+                            vk::raytraced_shadow_view::get_main_view_barrier_target());
+
+                        const auto [it, ok] = shadow.shadowGraphs.emplace(sceneView, shadowMappingGraph);
+
+                        v = &*it;
                     }
+
+                    const vk::raytraced_shadow_config cfg{
+                        .samples = 1,
+                        .lightIndex = u32(shadow.lightIndex),
+                    };
+
+                    frameGraph.set_input(*v, vk::raytraced_shadow_view::InConfig, cfg).assert_value();
                 }
             }
         }

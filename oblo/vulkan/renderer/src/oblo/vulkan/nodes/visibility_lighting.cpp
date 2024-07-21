@@ -1,9 +1,11 @@
 #include <oblo/vulkan/nodes/visibility_lighting.hpp>
 
+#include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/data/draw_buffer_data.hpp>
+#include <oblo/vulkan/data/light_visibility_event.hpp>
 #include <oblo/vulkan/data/picking_configuration.hpp>
 #include <oblo/vulkan/draw/compute_pass_initializer.hpp>
 #include <oblo/vulkan/graph/node_common.hpp>
@@ -40,7 +42,7 @@ namespace oblo::vk
 
         ctx.acquire(inCameraBuffer, pass_kind::compute, buffer_usage::uniform);
         ctx.acquire(inLightConfig, pass_kind::compute, buffer_usage::uniform);
-        ctx.acquire(inLightData, pass_kind::compute, buffer_usage::storage_read);
+        ctx.acquire(inLightBuffer, pass_kind::compute, buffer_usage::storage_read);
 
         ctx.acquire(inMeshDatabase, pass_kind::compute, buffer_usage::storage_read);
 
@@ -49,6 +51,26 @@ namespace oblo::vk
             inInstanceBuffers,
             pass_kind::compute,
             buffer_usage::storage_read);
+
+        const auto lights = ctx.access(inLights);
+
+        auto shadowMaps = allocate_n_span<h32<resident_texture>>(ctx.get_frame_allocator(), lights.size());
+        std::uninitialized_value_construct_n(shadowMaps.data(), shadowMaps.size());
+
+        // TODO: For each event, add resident texture
+
+        // for (const auto& e : ctx.find_events<light_visibility_event>())
+        //{
+        //     //
+        // }
+
+        ctx.create(outShadowMaps,
+            {
+                .size = narrow_cast<u32>(shadowMaps.size_bytes()),
+                .data = as_bytes(shadowMaps),
+            },
+            pass_kind::compute,
+            buffer_usage::uniform);
     }
 
     void visibility_lighting::execute(const frame_graph_execute_context& ctx)
@@ -59,7 +81,7 @@ namespace oblo::vk
 
         ctx.bind_buffers(bindingTable,
             {
-                {"b_LightData", inLightData},
+                {"b_LightData", inLightBuffer},
                 {"b_LightConfig", inLightConfig},
                 {"b_InstanceTables", inInstanceTables},
                 {"b_MeshTables", inMeshDatabase},
