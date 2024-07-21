@@ -15,8 +15,6 @@ namespace oblo::vk
 
     struct light_data;
 
-    using light_id = h32<light_data>;
-
     struct light_data
     {
         vec3 position;

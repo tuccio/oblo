@@ -1,5 +1,6 @@
 #include <oblo/graphics/systems/lighting_system.hpp>
 
+#include <oblo/core/buffered_array.hpp>
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/service_registry.hpp>
@@ -13,9 +14,21 @@
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
 #include <oblo/vulkan/data/light_data.hpp>
+#include <oblo/vulkan/graph/frame_graph.hpp>
 
 namespace oblo
 {
+    struct lighting_system::shadow_directional
+    {
+        // Maps main view to shadow map graph
+        h32_flat_extpool_dense_map<vk::frame_graph_subgraph, h32<vk::frame_graph_subgraph>> shadowGraphs;
+        bool isUsed;
+    };
+
+    lighting_system::lighting_system() = default;
+
+    lighting_system::~lighting_system() = default;
+
     void lighting_system::first_update(const ecs::system_update_context& ctx)
     {
         m_sceneRenderer = ctx.services->find<scene_renderer>();
@@ -49,11 +62,10 @@ namespace oblo
         dynamic_array<vk::light_data> lightData{ctx.frameAllocator};
         lightData.reserve(lightsCount);
 
-        dynamic_array<vk::light_id> lightIds{ctx.frameAllocator};
-        lightData.reserve(lightsCount);
-
-        dynamic_array<u32> shadowCasters{ctx.frameAllocator};
-        lightData.reserve(lightsCount);
+        for (auto& shadow : m_directionalShadows.values())
+        {
+            shadow.isUsed = false;
+        }
 
         for (const auto [entities, lights, transforms] : lightsRange)
         {
@@ -74,13 +86,6 @@ namespace oblo
                     angleOffset = -cosOuter * angleScale;
                 }
 
-                if (light.isShadowCaster)
-                {
-                    shadowCasters.emplace_back(u32(lightIds.size()));
-                }
-
-                lightIds.emplace_back(e.value);
-
                 lightData.push_back({
                     .position = {position.x, position.y, position.z},
                     .invSqrRadius = 1.f / (light.radius * light.radius),
@@ -90,13 +95,70 @@ namespace oblo
                     .lightAngleScale = angleScale,
                     .lightAngleOffset = angleOffset,
                 });
+
+                if (light.isShadowCaster)
+                {
+                    if (light.type == light_type::directional)
+                    {
+                        const auto [it, inserted] = m_directionalShadows.emplace(e);
+                        it->isUsed = true;
+                    }
+                }
             }
         }
 
         m_sceneRenderer->setup_lights({
             .data = lightData,
-            .ids = lightIds,
-            .shadowCasterIndices = shadowCasters,
         });
+
+        // TODO: (#57) We defer removal because we don't have a way to iterate and delete
+        buffered_array<ecs::entity, 8> removedShadows{ctx.frameAllocator};
+        buffered_array<h32<vk::frame_graph_subgraph>, 4> lastFrameViews{ctx.frameAllocator};
+
+        auto& frameGraph = m_sceneRenderer->get_frame_graph();
+
+        for (const auto& [e, shadow] : zip_range(m_directionalShadows.keys(), m_directionalShadows.values()))
+        {
+            if (!shadow.isUsed)
+            {
+                for (const auto shadowGraph : shadow.shadowGraphs.values())
+                {
+                    frameGraph.remove(shadowGraph);
+                }
+
+                removedShadows.push_back(e);
+                shadow.shadowGraphs.clear();
+            }
+            else
+            {
+                const auto shadowViews = shadow.shadowGraphs.keys();
+                lastFrameViews.assign(shadowViews.begin(), shadowViews.end());
+
+                for (const auto scene : shadowViews)
+                {
+                    if (!m_sceneRenderer->is_scene_view(scene))
+                    {
+                        shadow.shadowGraphs.erase(scene);
+                    }
+                }
+
+                for (auto sceneView : m_sceneRenderer->get_scene_views())
+                {
+                    auto* const v = shadow.shadowGraphs.try_find(sceneView);
+
+                    if (!v)
+                    {
+                        // TODO: Instantiate shadow mapping subgraph and connect it
+                        h32<vk::frame_graph_subgraph> shadowMappingGraph{};
+                        shadow.shadowGraphs.emplace(sceneView, shadowMappingGraph);
+                    }
+                }
+            }
+        }
+
+        for (auto e : removedShadows)
+        {
+            m_directionalShadows.erase(e);
+        }
     }
 }

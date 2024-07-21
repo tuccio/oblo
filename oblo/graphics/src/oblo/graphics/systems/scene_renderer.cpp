@@ -33,6 +33,11 @@ namespace oblo
 
     scene_renderer::~scene_renderer() = default;
 
+    vk::frame_graph& scene_renderer::get_frame_graph() const
+    {
+        return m_frameGraph;
+    }
+
     const vk::frame_graph_registry& scene_renderer::get_frame_graph_registry() const
     {
         return m_nodeRegistry;
@@ -65,5 +70,15 @@ namespace oblo
     void scene_renderer::remove_scene_view(h32<vk::frame_graph_subgraph> subgraph)
     {
         m_sceneViews.erase(subgraph);
+    }
+
+    std::span<const h32<vk::frame_graph_subgraph>> scene_renderer::get_scene_views() const
+    {
+        return m_sceneViews.keys();
+    }
+
+    bool scene_renderer::is_scene_view(h32<vk::frame_graph_subgraph> graph) const
+    {
+        return m_sceneViews.try_find(graph) != nullptr;
     }
 }

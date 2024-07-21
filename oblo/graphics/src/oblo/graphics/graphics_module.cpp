@@ -98,6 +98,7 @@ namespace oblo
             {
                 builder.add_system<lighting_system>()
                     .after<barriers::renderer_extract>()
+                    .after<viewport_system>() // This way we can connect the shadow map graphs to the views
                     .before<barriers::renderer_update>();
 
                 builder.add_system<viewport_system>()
