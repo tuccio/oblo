@@ -21,10 +21,17 @@ namespace oblo
         }
     }
 
+    struct scene_renderer::shadow_graph
+    {
+        h32<vk::frame_graph_subgraph> sg;
+    };
+
     scene_renderer::scene_renderer(vk::frame_graph& frameGraph) : m_frameGraph{frameGraph}
     {
         m_nodeRegistry = vk::create_frame_graph_registry();
     }
+
+    scene_renderer::~scene_renderer() = default;
 
     const vk::frame_graph_registry& scene_renderer::get_frame_graph_registry() const
     {
@@ -40,9 +47,9 @@ namespace oblo
         }
     }
 
-    void scene_renderer::set_light_data(std::span<const vk::light_data> data)
+    void scene_renderer::setup_lights(const scene_lights& lights)
     {
-        m_frameGraph.set_input(m_sceneDataProvider, vk::scene_data::InLightData, data).assert_value();
+        m_frameGraph.set_input(m_sceneDataProvider, vk::scene_data::InLightData, lights.data).assert_value();
     }
 
     void scene_renderer::add_scene_view(h32<vk::frame_graph_subgraph> subgraph)

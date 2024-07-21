@@ -17,5 +17,6 @@ namespace oblo
         f32 radius;
         radians spotInnerAngle;
         radians spotOuterAngle;
+        bool isShadowCaster;
     };
 }

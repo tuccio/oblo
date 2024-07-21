@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/type_id.hpp>
 #include <string_view>
 
 namespace oblo::ecs
@@ -13,6 +14,7 @@ namespace oblo::ecs
     struct system_descriptor
     {
         std::string_view name;
+        type_id typeId;
         system_create_fn create;
         system_destroy_fn destroy;
         system_update_fn firstUpdate;

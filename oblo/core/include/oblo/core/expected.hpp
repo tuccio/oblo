@@ -249,7 +249,7 @@ namespace oblo
             const std::source_location& src = std::source_location::current()) const noexcept
         {
             assert_value(message, src);
-            return m_hasValue ? *reinterpret_cast<T*>(m_buffer) : std::forward<U>(fallback);
+            return m_hasValue ? *reinterpret_cast<const T*>(m_buffer) : std::forward<U>(fallback);
         }
 
         void assert_value([[maybe_unused]] const char* message = "Unexpected failure",

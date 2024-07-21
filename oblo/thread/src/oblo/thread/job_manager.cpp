@@ -76,12 +76,12 @@ namespace oblo
 
         struct worker_thread_context
         {
-            job_manager* manager{};
-            job_queue* queue{};
-            u32 id{~0u};
+            job_manager* manager;
+            job_queue* queue;
+            u32 id;
         };
 
-        static thread_local worker_thread_context s_tlsWorkerCtx;
+        static thread_local constinit worker_thread_context s_tlsWorkerCtx{};
 
         bool is_worker_thread()
         {

@@ -11,11 +11,20 @@ namespace oblo::vk
 {
     struct light_config;
     struct light_data;
+
+    using light_id = h32<light_data>;
 }
 
 namespace oblo
 {
     class service_registry;
+
+    struct scene_lights
+    {
+        std::span<const vk::light_data> data;
+        std::span<const vk::light_id> ids;
+        std::span<const u32> shadowCasterIndices;
+    };
 
     class scene_renderer
     {
@@ -24,7 +33,7 @@ namespace oblo
         scene_renderer(const scene_renderer&) = delete;
         scene_renderer(scene_renderer&&) noexcept = delete;
 
-        ~scene_renderer() = default;
+        ~scene_renderer();
 
         scene_renderer& operator=(const scene_renderer&) = delete;
         scene_renderer& operator=(scene_renderer&&) noexcept = delete;
@@ -33,10 +42,13 @@ namespace oblo
 
         void ensure_setup();
 
-        void set_light_data(std::span<const vk::light_data> data);
+        void setup_lights(const scene_lights& lights);
 
         void add_scene_view(h32<vk::frame_graph_subgraph> subgraph);
         void remove_scene_view(h32<vk::frame_graph_subgraph> subgraph);
+
+    private:
+        struct shadow_graph;
 
     private:
         vk::frame_graph& m_frameGraph;
@@ -44,5 +56,6 @@ namespace oblo
         h32<vk::frame_graph_subgraph> m_sceneDataProvider{};
         // TODO: (#8) This could be a set
         h32_flat_extpool_dense_map<vk::frame_graph_subgraph, bool> m_sceneViews;
+        h32_flat_extpool_dense_map<vk::light_data, shadow_graph> m_shadowCastingGraphs;
     };
 }

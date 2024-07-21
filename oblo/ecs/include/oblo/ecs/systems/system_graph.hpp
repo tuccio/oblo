@@ -1,5 +1,7 @@
 #pragma once
 
+#include <oblo/core/expected.hpp>
+#include <oblo/core/graph/directed_graph.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/ecs/systems/system_descriptor.hpp>
@@ -31,18 +33,18 @@ namespace oblo::ecs
 
         void add_edge(h32<system> from, h32<system> to);
 
-        system_seq_executor instantiate() const;
+        expected<system_seq_executor> instantiate() const;
 
     private:
-        struct system_data;
-        std::vector<system_data> m_systems;
+        directed_graph<system> m_systems;
     };
 
     template <typename T>
-    h32<system> system_graph::add_system()
+    system_descriptor make_system_descriptor()
     {
         system_descriptor desc{
             .name = get_type_id<T>().name,
+            .typeId = get_type_id<T>(),
             .create = []() -> void* { return new T{}; },
             .destroy = [](void* ptr) { delete static_cast<T*>(ptr); },
         };
@@ -59,6 +61,12 @@ namespace oblo::ecs
             desc.firstUpdate = desc.update;
         }
 
-        return add_system(desc);
+        return desc;
+    }
+
+    template <typename T>
+    h32<system> system_graph::add_system()
+    {
+        return add_system(make_system_descriptor<T>());
     }
 }

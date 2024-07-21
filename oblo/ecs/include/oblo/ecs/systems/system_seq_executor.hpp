@@ -1,8 +1,7 @@
 #pragma once
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/types.hpp>
-
-#include <vector>
 
 namespace oblo::ecs
 {
@@ -32,7 +31,7 @@ namespace oblo::ecs
 
     private:
         struct system_info;
-        std::vector<system_info> m_systems;
+        dynamic_array<system_info> m_systems;
         bool m_firstUpdate{true};
     };
 }

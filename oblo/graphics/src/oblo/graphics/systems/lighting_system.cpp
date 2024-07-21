@@ -34,6 +34,7 @@ namespace oblo
             .type = light_type::directional,
             .color = vec3::splat(1.f),
             .intensity = 3.f,
+            .isShadowCaster = true,
         };
 
         update(ctx);
@@ -43,12 +44,20 @@ namespace oblo
     {
         const auto lightsRange = ctx.entities->range<light_component, global_transform_component>();
 
+        const u32 lightsCount = lightsRange.count();
+
         dynamic_array<vk::light_data> lightData{ctx.frameAllocator};
-        lightData.reserve(lightsRange.count());
+        lightData.reserve(lightsCount);
+
+        dynamic_array<vk::light_id> lightIds{ctx.frameAllocator};
+        lightData.reserve(lightsCount);
+
+        dynamic_array<u32> shadowCasters{ctx.frameAllocator};
+        lightData.reserve(lightsCount);
 
         for (const auto [entities, lights, transforms] : lightsRange)
         {
-            for (const auto& [light, transform] : zip_range(lights, transforms))
+            for (const auto& [e, light, transform] : zip_range(entities, lights, transforms))
             {
                 const vec4 position = transform.localToWorld.columns[3];
                 const vec4 direction = normalize(transform.localToWorld * vec4{.z = -1.f});
@@ -65,6 +74,13 @@ namespace oblo
                     angleOffset = -cosOuter * angleScale;
                 }
 
+                if (light.isShadowCaster)
+                {
+                    shadowCasters.emplace_back(u32(lightIds.size()));
+                }
+
+                lightIds.emplace_back(e.value);
+
                 lightData.push_back({
                     .position = {position.x, position.y, position.z},
                     .invSqrRadius = 1.f / (light.radius * light.radius),
@@ -77,6 +93,10 @@ namespace oblo
             }
         }
 
-        m_sceneRenderer->set_light_data(lightData);
+        m_sceneRenderer->setup_lights({
+            .data = lightData,
+            .ids = lightIds,
+            .shadowCasterIndices = shadowCasters,
+        });
     }
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/handle.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/math/vec3.hpp>
 
@@ -11,6 +12,10 @@ namespace oblo::vk
         spot,
         directional,
     };
+
+    struct light_data;
+
+    using light_id = h32<light_data>;
 
     struct light_data
     {
