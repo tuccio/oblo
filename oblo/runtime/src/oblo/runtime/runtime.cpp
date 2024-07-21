@@ -4,7 +4,7 @@
 #include <oblo/core/service_registry.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/entity_registry.hpp>
-#include <oblo/ecs/services/service_registrant.hpp>
+#include <oblo/ecs/services/world_builder.hpp>
 #include <oblo/ecs/systems/system_graph.hpp>
 #include <oblo/ecs/systems/system_graph_builder.hpp>
 #include <oblo/ecs/systems/system_seq_executor.hpp>
@@ -33,9 +33,14 @@ namespace oblo
         {
             ecs::system_graph_builder builder;
 
-            for (const auto& wb : worldBuilders)
+            for (const auto& worldBuilder : worldBuilders)
             {
-                (*wb)(builder);
+                if (!worldBuilder->systems)
+                {
+                    continue;
+                }
+
+                (worldBuilder->systems)(builder);
             }
 
             auto g = builder.build();
@@ -95,9 +100,14 @@ namespace oblo
         m_impl->services.add<vk::renderer>().externally_owned(&m_impl->renderer);
         m_impl->services.add<resource_registry>().externally_owned(initializer.resourceRegistry);
 
-        for (const auto* serviceRegistrant : initializer.serviceRegistrants)
+        for (const auto* worldBuilder : initializer.worldBuilders)
         {
-            serviceRegistrant->registerServices(m_impl->services);
+            if (!worldBuilder->services)
+            {
+                continue;
+            }
+
+            (worldBuilder->services)(m_impl->services);
         }
 
         auto* const resourceCache = m_impl->services.add<vk::resource_cache>().unique();

@@ -1,7 +1,7 @@
 #include <oblo/graphics/graphics_module.hpp>
 
 #include <oblo/core/service_registry.hpp>
-#include <oblo/ecs/services/service_registrant.hpp>
+#include <oblo/ecs/services/world_builder.hpp>
 #include <oblo/ecs/systems/system_graph_builder.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/light_component.hpp>
@@ -86,15 +86,15 @@ namespace oblo
     {
         reflection::load_module_and_register(register_reflection);
 
-        initializer.services->add<ecs::service_registrant>().unique(
-            [](service_registry& registry)
+        initializer.services->add<ecs::world_builder>().unique({
+            .services =
+                [](service_registry& registry)
             {
                 auto* const renderer = registry.find<vk::renderer>();
                 registry.add<scene_renderer>().unique(renderer->get_frame_graph());
-            });
-
-        initializer.services->add<ecs::world_builder>().unique(
-            [](ecs::system_graph_builder& builder)
+            },
+            .systems =
+                [](ecs::system_graph_builder& builder)
             {
                 builder.add_system<lighting_system>()
                     .after<barriers::renderer_extract>()
@@ -107,7 +107,8 @@ namespace oblo
                 builder.add_system<static_mesh_system>()
                     .after<barriers::renderer_extract>()
                     .before<barriers::renderer_update>();
-            });
+            },
+        });
 
         return true;
     }
