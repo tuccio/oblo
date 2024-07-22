@@ -3,9 +3,18 @@
 #extension GL_EXT_ray_tracing : require
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_samplerless_texture_functions : require
+#extension GL_EXT_control_flow_attributes : enable
+
+#extension GL_EXT_debug_printf : enable
 
 #include <renderer/camera>
 #include <renderer/lights>
+#include <renderer/random/random>
+#include <renderer/random/sampling>
+
+#ifndef SHADOW_SAMPLES
+#define SHADOW_SAMPLES 8
+#endif
 
 layout(binding = 11) uniform accelerationStructureEXT u_SceneTLAS;
 
@@ -24,39 +33,75 @@ layout(binding = 16) uniform b_CameraBuffer
 
 layout(push_constant) uniform c_PushConstants
 {
+    uint randomSeed;
     uint lightIndex;
 }
 g_Constants;
 
 layout(location = 0) rayPayloadEXT float r_HitVisibility;
 
+uint linearize_launch_id()
+{
+    return gl_LaunchIDEXT.y * gl_LaunchSizeEXT.x + gl_LaunchIDEXT.x;
+}
+
 void main()
 {
-    // Parse the visibility buffer to find which triangle we are processing
+    uint seed = random_seed(linearize_launch_id(), g_Constants.randomSeed);
+
     const float depth = texelFetch(t_InDepthBuffer, ivec2(gl_LaunchIDEXT.xy), 0).r;
 
     const vec2 positionNDC = screen_to_ndc(gl_LaunchIDEXT.xy, gl_LaunchSizeEXT.xy);
     const vec3 positionWS = camera_unproject_world_space(g_Camera, positionNDC, depth);
 
-    const vec3 direction = -g_Lights[g_Constants.lightIndex].direction;
-    const vec3 origin = positionWS + direction * .001f;
+    const float farAway = 10000.f;
 
-    const float tMin = 1e-2f;
+    const float tMin = 1e-1f;
     const float tMax = 1e6f;
 
-    traceRayEXT(u_SceneTLAS,
-        gl_RayFlagsNoneEXT,
-        0xff, // cull mask
-        0,    // STB record offset
-        0,    // STB record stride
-        0,    // Miss index
-        origin,
-        tMin,
-        direction,
-        tMax,
-        0 // payload location
-    );
+    float visibility = 0.f;
 
+    const bool isMiddle = gl_LaunchIDEXT.xy == gl_LaunchSizeEXT.xy / 2;
 
-    imageStore(t_OutShadow, ivec2(gl_LaunchIDEXT.xy), vec4(r_HitVisibility, 0, 0, 1));
+    [[unroll]] for (uint i = 0; i < SHADOW_SAMPLES; ++i)
+    {
+        const vec3 L = -g_Lights[g_Constants.lightIndex].direction;
+
+        const vec2 rand = random_uniform_2d(seed);
+        const vec3 target  = random_sample_uniform_disk(farAway, L, rand) + L * farAway;
+
+        const vec3 origin = positionWS;
+
+#if 0
+        const vec3 direction = L;
+#else
+        const vec3 direction = normalize(target - origin);
+#endif
+
+        traceRayEXT(u_SceneTLAS,
+            gl_RayFlagsNoneEXT,
+            0xff, // cull mask
+            0,    // STB record offset
+            0,    // STB record stride
+            0,    // Miss index
+            origin,
+            tMin,
+            direction,
+            tMax,
+            0 // payload location
+        );
+
+        visibility += r_HitVisibility;
+    }
+
+#if SHADOW_SAMPLES > 1
+    visibility /= SHADOW_SAMPLES;
+#endif
+
+    if (isMiddle)
+    {
+        visibility = 100;
+    }
+
+    imageStore(t_OutShadow, ivec2(gl_LaunchIDEXT.xy), vec4(visibility, 0, 0, 1));
 }

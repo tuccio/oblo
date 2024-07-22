@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/math/vec2.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/data/light_visibility_event.hpp>
 #include <oblo/vulkan/data/raytraced_shadow_config.hpp>
@@ -22,6 +23,8 @@ namespace oblo::vk
         resource<texture> outShadow;
 
         h32<raytracing_pass> shadowPass;
+
+        u32 randomSeed;
 
         void init(const frame_graph_init_context& context);
 

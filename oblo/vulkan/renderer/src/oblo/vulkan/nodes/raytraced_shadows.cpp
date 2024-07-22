@@ -1,5 +1,6 @@
 #include <oblo/vulkan/nodes/raytraced_shadows.hpp>
 
+#include <oblo/core/random_generator.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/math/vec2u.hpp>
@@ -51,6 +52,8 @@ namespace oblo::vk
         ctx.acquire(inLightBuffer, pass_kind::raytracing, buffer_usage::storage_read);
 
         ctx.push(outShadowSink, {outShadow, config.lightIndex});
+
+        randomSeed = ctx.get_random_generator().generate();
     }
 
     void raytraced_shadows::execute(const frame_graph_execute_context& ctx)
@@ -88,11 +91,14 @@ namespace oblo::vk
 
             struct push_constants
             {
+                u32 randomSeed;
                 u32 lightIndex;
             };
 
             const auto& cfg = ctx.access(inConfig);
+
             const push_constants constants{
+                .randomSeed = randomSeed,
                 .lightIndex = cfg.lightIndex,
             };
 

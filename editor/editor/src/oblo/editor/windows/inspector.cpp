@@ -163,9 +163,7 @@ namespace oblo::editor
                         {
                         case property_kind::f32:
                             ImGui::PushID(makeId());
-                            ImGui::DragFloat(property.name.c_str(),
-                                reinterpret_cast<float*>(propertyPtr),
-                                0.1f);
+                            ImGui::DragFloat(property.name.c_str(), reinterpret_cast<float*>(propertyPtr), 0.1f);
                             ImGui::PopID();
                             break;
 
@@ -280,6 +278,17 @@ namespace oblo::editor
 
                         if (ImGui::BeginPopupContextItem(nullptr, ImGuiPopupFlags_MouseButtonLeft))
                         {
+                            if (ImGui::MenuItem("Reset"))
+                            {
+                                auto& typeDesc = m_registry->get_type_registry().get_component_type_desc(type);
+
+                                byte* ptr;
+                                m_registry->get(e, {&type, 1}, {&ptr, 1});
+
+                                typeDesc.destroy(ptr, 1);
+                                typeDesc.create(ptr, 1);
+                            }
+
                             if (ImGui::MenuItem("Delete"))
                             {
                                 ecs::component_and_tag_sets types{};
