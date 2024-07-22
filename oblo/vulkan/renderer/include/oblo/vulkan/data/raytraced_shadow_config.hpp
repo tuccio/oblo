@@ -6,7 +6,7 @@ namespace oblo::vk
 {
     struct raytraced_shadow_config
     {
-        u32 samples;
+        u32 shadowSamples;
         u32 lightIndex;
     };
 }

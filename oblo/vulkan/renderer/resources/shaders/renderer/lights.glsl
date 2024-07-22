@@ -17,6 +17,7 @@ struct light_data
     vec3 intensity;
     float lightAngleScale;
     float lightAngleOffset;
+    float shadowBias;
 };
 
 struct light_config

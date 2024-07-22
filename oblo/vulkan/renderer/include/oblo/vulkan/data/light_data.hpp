@@ -24,7 +24,8 @@ namespace oblo::vk
         vec3 intensity;
         f32 lightAngleScale;
         f32 lightAngleOffset;
-        f32 _padding[3];
+        f32 shadowBias;
+        f32 _padding[2];
     };
 
     struct light_config

@@ -25,6 +25,7 @@ namespace oblo
         // Maps main view to shadow map graph
         h32_flat_extpool_dense_map<vk::frame_graph_subgraph, h32<vk::frame_graph_subgraph>> shadowGraphs;
         i32 lightIndex;
+        u32 shadowSamples;
     };
 
     lighting_system::lighting_system() = default;
@@ -50,6 +51,8 @@ namespace oblo
             .color = vec3::splat(1.f),
             .intensity = 10.f,
             .isShadowCaster = true,
+            .shadowSamples = 4,
+            .shadowBias = .01f,
         };
 
         m_rtShadows = vk::raytraced_shadow_view::create(m_sceneRenderer->get_frame_graph_registry());
@@ -96,6 +99,7 @@ namespace oblo
                     {
                         const auto [it, inserted] = m_directionalShadows.emplace(e);
                         it->lightIndex = narrow_cast<i32>(lightData.size());
+                        it->shadowSamples = light.shadowSamples;
                     }
                 }
 
@@ -107,6 +111,7 @@ namespace oblo
                     .intensity = light.color * light.intensity,
                     .lightAngleScale = angleScale,
                     .lightAngleOffset = angleOffset,
+                    .shadowBias = light.shadowBias,
                 });
             }
         }
@@ -190,7 +195,7 @@ namespace oblo
                     }
 
                     const vk::raytraced_shadow_config cfg{
-                        .samples = 1,
+                        .shadowSamples = max(1u, shadow.shadowSamples),
                         .lightIndex = u32(shadow.lightIndex),
                     };
 

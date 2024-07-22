@@ -54,6 +54,9 @@ namespace oblo::editor
                 light.color = vec3::splat(1.f);
                 light.radius = 20.f;
                 light.intensity = 5.f;
+                light.shadowBias = .01f;
+                light.shadowSamples = 2;
+                light.isShadowCaster = false;
             }
         );
 
@@ -66,6 +69,9 @@ namespace oblo::editor
                 light.intensity = 5.f;
                 light.spotInnerAngle = 30_deg;
                 light.spotOuterAngle = 60_deg;
+                light.shadowBias = .01f;
+                light.shadowSamples = 2;
+                light.isShadowCaster = false;
             }
         );
 
@@ -76,6 +82,9 @@ namespace oblo::editor
                 light.color = vec3::splat(1.f);
                 light.radius = 20.f;
                 light.intensity = 20.f;
+                light.shadowBias = .01f;
+                light.shadowSamples = 4;
+                light.isShadowCaster = true;
             }
         );
 

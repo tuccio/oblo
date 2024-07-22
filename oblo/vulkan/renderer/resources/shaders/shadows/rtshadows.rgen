@@ -1,5 +1,9 @@
 #version 460
 
+#ifndef SHADOW_HARD
+#define SHADOW_HARD 0
+#endif
+
 #extension GL_EXT_ray_tracing : require
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_samplerless_texture_functions : require
@@ -11,10 +15,6 @@
 #include <renderer/lights>
 #include <renderer/random/random>
 #include <renderer/random/sampling>
-
-#ifndef SHADOW_SAMPLES
-#define SHADOW_SAMPLES 8
-#endif
 
 layout(binding = 11) uniform accelerationStructureEXT u_SceneTLAS;
 
@@ -35,6 +35,7 @@ layout(push_constant) uniform c_PushConstants
 {
     uint randomSeed;
     uint lightIndex;
+    uint samples;
 }
 g_Constants;
 
@@ -56,23 +57,23 @@ void main()
 
     const float farAway = 10000.f;
 
-    const float tMin = 1e-1f;
+    const light_data light = g_Lights[g_Constants.lightIndex];
+
+    const float tMin = light.shadowBias;
     const float tMax = 1e6f;
 
     float visibility = 0.f;
 
-    const bool isMiddle = gl_LaunchIDEXT.xy == gl_LaunchSizeEXT.xy / 2;
-
-    [[unroll]] for (uint i = 0; i < SHADOW_SAMPLES; ++i)
+    for (uint i = 0; i < g_Constants.samples; ++i)
     {
-        const vec3 L = -g_Lights[g_Constants.lightIndex].direction;
+        const vec3 L = -light.direction;
 
         const vec2 rand = random_uniform_2d(seed);
-        const vec3 target  = random_sample_uniform_disk(farAway, L, rand) + L * farAway;
+        const vec3 target = random_sample_uniform_disk(farAway, L, rand) + L * farAway;
 
         const vec3 origin = positionWS;
 
-#if 0
+#if SHADOW_HARD
         const vec3 direction = L;
 #else
         const vec3 direction = normalize(target - origin);
@@ -94,14 +95,7 @@ void main()
         visibility += r_HitVisibility;
     }
 
-#if SHADOW_SAMPLES > 1
-    visibility /= SHADOW_SAMPLES;
-#endif
-
-    if (isMiddle)
-    {
-        visibility = 100;
-    }
+    visibility /= g_Constants.samples;
 
     imageStore(t_OutShadow, ivec2(gl_LaunchIDEXT.xy), vec4(visibility, 0, 0, 1));
 }

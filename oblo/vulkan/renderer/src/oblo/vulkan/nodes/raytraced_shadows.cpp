@@ -93,6 +93,7 @@ namespace oblo::vk
             {
                 u32 randomSeed;
                 u32 lightIndex;
+                u32 samples;
             };
 
             const auto& cfg = ctx.access(inConfig);
@@ -100,6 +101,7 @@ namespace oblo::vk
             const push_constants constants{
                 .randomSeed = randomSeed,
                 .lightIndex = cfg.lightIndex,
+                .samples = cfg.shadowSamples,
             };
 
             pm.bind_descriptor_sets(*pass, bindingTables);

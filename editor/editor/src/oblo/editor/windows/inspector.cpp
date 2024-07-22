@@ -167,6 +167,12 @@ namespace oblo::editor
                             ImGui::PopID();
                             break;
 
+                        case property_kind::u32:
+                            ImGui::PushID(makeId());
+                            ImGui::DragScalar(property.name.c_str(), ImGuiDataType_U32, propertyPtr);
+                            ImGui::PopID();
+                            break;
+
                         case property_kind::boolean:
                             ImGui::PushID(makeId());
                             ImGui::Checkbox(property.name.c_str(), reinterpret_cast<bool*>(propertyPtr));

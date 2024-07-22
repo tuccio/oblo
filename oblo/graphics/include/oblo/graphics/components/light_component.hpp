@@ -18,5 +18,7 @@ namespace oblo
         radians spotInnerAngle;
         radians spotOuterAngle;
         bool isShadowCaster;
+        u32 shadowSamples;
+        f32 shadowBias;
     };
 }
