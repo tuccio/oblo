@@ -42,13 +42,13 @@ namespace oblo
         const auto e = ecs_utility::create_named_physical_entity<light_component>(*ctx.entities,
             "Sun",
             {},
-            quaternion::from_euler_xyz_intrinsic(degrees_tag{}, vec3{.x = -53.f, .y = -8.f, .z = -32.f}),
+            quaternion::from_euler_xyz_intrinsic(degrees_tag{}, vec3{.x = 117.f, .y = -80.f, .z = 177.f}),
             vec3::splat(1.f));
 
         ctx.entities->get<light_component>(e) = {
             .type = light_type::directional,
             .color = vec3::splat(1.f),
-            .intensity = 3.f,
+            .intensity = 10.f,
             .isShadowCaster = true,
         };
 

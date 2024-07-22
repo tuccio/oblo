@@ -289,6 +289,12 @@ namespace oblo::vk
     {
         return m_renderer.get_draw_registry();
     }
+
+    random_generator& frame_graph_build_context::get_random_generator() const
+    {
+        return m_frameGraph.rng;
+    }
+
     frame_graph_build_context::frame_graph_build_context(
         frame_graph_impl& frameGraph, renderer& renderer, resource_pool& resourcePool) :
         m_frameGraph{frameGraph},

@@ -5,6 +5,7 @@
 #include <oblo/core/graph/directed_graph.hpp>
 #include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/core/hash.hpp>
+#include <oblo/core/random_generator.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/graph/frame_graph_node_desc.hpp>
 #include <oblo/vulkan/graph/frame_graph_template.hpp>
@@ -196,6 +197,8 @@ namespace oblo::vk
         resource_pool resourcePool;
 
         frame_graph_node* currentNode{};
+
+        random_generator rng;
 
     public: // Internals for frame graph execution
         void mark_active_nodes();

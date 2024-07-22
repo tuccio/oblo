@@ -14,6 +14,7 @@
 namespace oblo
 {
     class frame_allocator;
+    class random_generator;
     class string_interner;
 
     struct string;
@@ -152,6 +153,8 @@ namespace oblo::vk
         frame_allocator& get_frame_allocator() const;
 
         const draw_registry& get_draw_registry() const;
+
+        random_generator& get_random_generator() const;
 
     private:
         void* access_storage(h32<frame_graph_pin_storage> handle) const;

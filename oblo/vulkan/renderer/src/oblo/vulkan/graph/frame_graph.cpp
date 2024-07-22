@@ -406,6 +406,7 @@ namespace oblo::vk
         constexpr u32 maxAllocationSize{64u << 20};
 
         m_impl = std::make_unique<frame_graph_impl>();
+        m_impl->rng.seed(42);
 
         return m_impl->dynamicAllocator.init(maxAllocationSize) && m_impl->resourcePool.init(ctx);
     }
