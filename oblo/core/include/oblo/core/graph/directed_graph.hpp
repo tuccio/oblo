@@ -110,7 +110,7 @@ namespace oblo
             {
                 for (auto it = dst->inEdges.begin(); it != dst->inEdges.end(); ++it)
                 {
-                    if (it->vertex == to)
+                    if (it->vertex == from)
                     {
                         edge = it->handle;
                         dst->inEdges.erase_unordered(it);
