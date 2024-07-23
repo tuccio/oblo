@@ -59,7 +59,8 @@ namespace oblo
                 .add_field(&light_component::isShadowCaster, "isShadowCaster")
                 .add_field(&light_component::hardShadows, "hardShadows")
                 .add_field(&light_component::shadowBias, "shadowBias")
-                .add_field(&light_component::shadowSamples, "shadowSamples");
+                .add_field(&light_component::shadowSamples, "shadowSamples")
+                .add_field(&light_component::shadowPunctualRadius, "shadowPunctualRadius");
 
             reg.add_class<resource_ref<mesh>>().add_field(&resource_ref<mesh>::id, "id");
             reg.add_class<resource_ref<material>>().add_field(&resource_ref<material>::id, "id");

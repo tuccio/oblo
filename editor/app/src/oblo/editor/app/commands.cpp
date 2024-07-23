@@ -55,7 +55,7 @@ namespace oblo::editor
             light.isShadowCaster = false;
             light.hardShadows = false;
             light.shadowBias = .01f;
-            light.shadowPunctualRadius = .25f;
+            light.shadowPunctualRadius = .15f;
             light.shadowSamples = 1;
 
             light.spotInnerAngle = 30_deg;
