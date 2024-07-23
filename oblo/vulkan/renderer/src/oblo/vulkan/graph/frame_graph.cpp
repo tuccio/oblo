@@ -4,6 +4,7 @@
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/graph/dfs_visit.hpp>
 #include <oblo/core/graph/dot.hpp>
+#include <oblo/core/iterator/reverse_range.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/unreachable.hpp>
@@ -832,55 +833,73 @@ namespace oblo::vk
         }
 
         // Propagate pin storage from incoming pins, or allocate the owned storage if necessary
-        for (const auto v : sortedPins)
+        const auto propagatePins = [this](auto&& pinsRange, bool processSinks)
         {
-            const auto& pinVertex = graph[v];
-
-            OBLO_ASSERT(pinVertex.pin);
-
-            auto* pin = pins.try_find(pinVertex.pin);
-            OBLO_ASSERT(pin);
-
-            for (const auto in : graph.get_in_edges(v))
+            for (const auto v : pinsRange)
             {
-                const auto& inVertex = graph[in.vertex];
+                const auto& pinVertex = graph[v];
 
-                if (inVertex.kind == frame_graph_vertex_kind::pin && inVertex.pin)
+                OBLO_ASSERT(pinVertex.pin);
+
+                auto* pin = pins.try_find(pinVertex.pin);
+                OBLO_ASSERT(pin);
+
+                if (pin->clearDataSink && !processSinks || !pin->clearDataSink && processSinks)
                 {
-                    auto* const inPin = pins.try_find(inVertex.pin);
-                    pin->referencedPin = inPin->referencedPin;
-                    break;
+                    continue;
                 }
+
+                const auto& edges = processSinks ? graph.get_out_edges(v) : graph.get_in_edges(v);
+
+                for (const auto in : edges)
+                {
+                    const auto& inVertex = graph[in.vertex];
+
+                    if (inVertex.kind == frame_graph_vertex_kind::pin && inVertex.pin)
+                    {
+                        auto* const inPin = pins.try_find(inVertex.pin);
+                        pin->referencedPin = inPin->referencedPin;
+                        break;
+                    }
+                }
+
+                const bool hasIncomingReference = bool{pin->referencedPin};
+
+                if (!hasIncomingReference)
+                {
+                    OBLO_ASSERT(pin->ownedStorage);
+
+                    auto* const storage = pinStorage.try_find(pin->ownedStorage);
+
+                    if (!storage->data)
+                    {
+                        storage->data = memoryPool.allocate(storage->typeDesc.size, storage->typeDesc.alignment);
+                        storage->typeDesc.construct(storage->data);
+                    }
+
+                    pin->referencedPin = pin->ownedStorage;
+
+                    // For data_sink we clear here
+                    if (pin->clearDataSink)
+                    {
+                        pin->clearDataSink(storage->data);
+                    }
+                }
+
+                // Assign the handle to the node pin as well
+                auto& nodeVertex = graph[pin->nodeHandle];
+                OBLO_ASSERT(nodeVertex.node);
+
+                auto* const nodePtr = nodes.try_find(nodeVertex.node)->ptr;
+                write_u32(nodePtr, pin->pinMemberOffset, pin->referencedPin.value);
             }
+        };
 
-            if (!pin->referencedPin)
-            {
-                OBLO_ASSERT(pin->ownedStorage);
+        // We propagate regular pins in node execution order
+        propagatePins(sortedPins, false);
 
-                auto* const storage = pinStorage.try_find(pin->ownedStorage);
-
-                if (!storage->data)
-                {
-                    storage->data = memoryPool.allocate(storage->typeDesc.size, storage->typeDesc.alignment);
-                    storage->typeDesc.construct(storage->data);
-                }
-
-                pin->referencedPin = pin->ownedStorage;
-
-                // For data_sink we clear here
-                if (pin->clearDataSink)
-                {
-                    pin->clearDataSink(storage->data);
-                }
-            }
-
-            // Assign the handle to the node pin as well
-            auto& nodeVertex = graph[pin->nodeHandle];
-            OBLO_ASSERT(nodeVertex.node);
-
-            auto* const nodePtr = nodes.try_find(nodeVertex.node)->ptr;
-            write_u32(nodePtr, pin->pinMemberOffset, pin->referencedPin.value);
-        }
+        // But sinks are propagated in reverse order
+        propagatePins(reverse_range(sortedPins), true);
     }
 
     void frame_graph_impl::mark_active_nodes()
