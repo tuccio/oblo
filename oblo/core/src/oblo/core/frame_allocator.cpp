@@ -163,7 +163,7 @@ namespace oblo
 
 #ifdef WIN32
 
-#include <Windows.h>
+    #include <Windows.h>
 
 namespace oblo
 {

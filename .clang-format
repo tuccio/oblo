@@ -17,6 +17,7 @@ BreakInheritanceList: AfterColon
 CompactNamespaces: false
 Cpp11BracedListStyle: true
 IncludeBlocks: Preserve
+IndentPPDirectives: BeforeHash
 Language: Cpp
 SortIncludes: true
 SpaceAfterCStyleCast: true

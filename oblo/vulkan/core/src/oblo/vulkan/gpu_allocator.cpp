@@ -7,17 +7,17 @@
 #pragma warning(disable : 4100 4127 4189 4324 4505)
 
 #if 0 // Can change this to enable logging from VMA, it's a little verbose though
-#define VMA_DEBUG_LOG(...)                                                                                             \
-    {                                                                                                                  \
-        constexpr auto bufSize = oblo::log::detail::MaxLogMessageLength;                                               \
-        char buf[bufSize];                                                                                             \
-        sprintf_s(buf, bufSize, __VA_ARGS__);                                                                          \
-        oblo::log::debug("[VMA] {}", buf);                                                                             \
-    }
+    #define VMA_DEBUG_LOG(...)                                                                                         \
+        {                                                                                                              \
+            constexpr auto bufSize = oblo::log::detail::MaxLogMessageLength;                                           \
+            char buf[bufSize];                                                                                         \
+            sprintf_s(buf, bufSize, __VA_ARGS__);                                                                      \
+            oblo::log::debug("[VMA] {}", buf);                                                                         \
+        }
 #endif
 
 #ifndef NDEBUG
-#define VMA_ASSERT(...) OBLO_ASSERT(__VA_ARGS__)
+    #define VMA_ASSERT(...) OBLO_ASSERT(__VA_ARGS__)
 #endif
 
 #define VMA_IMPLEMENTATION

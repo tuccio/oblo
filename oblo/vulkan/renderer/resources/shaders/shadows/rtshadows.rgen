@@ -80,25 +80,25 @@ void main()
 
 #if SHADOW_TYPE == OBLO_LIGHT_TYPE_DIRECTIONAL
 
-#if SHADOW_HARD
+    #if SHADOW_HARD
         const vec3 direction = L;
-#else
+    #else
         const vec2 rand = random_uniform_2d(seed);
 
         const vec3 target = random_sample_uniform_disk(farAway, L, rand) + offset;
         const vec3 direction = normalize(target - origin);
-#endif
+    #endif
 
 #endif
 
 #if SHADOW_TYPE == OBLO_LIGHT_TYPE_POINT || SHADOW_TYPE == OBLO_LIGHT_TYPE_SPOT
         const vec2 rand = random_uniform_2d(seed);
 
-#if SHADOW_HARD
+    #if SHADOW_HARD
         const vec3 target = light.position;
-#else
+    #else
         const vec3 target = random_sample_uniform_disk(g_Constants.punctualLightRadius, L, rand) + light.position;
-#endif
+    #endif
 
         const vec3 weightedDir = target - origin;
 

@@ -1,16 +1,16 @@
 #ifdef _WIN32
 
-#include <oblo/core/debug.hpp>
-#include <oblo/core/platform/core.hpp>
-#include <oblo/core/platform/shell.hpp>
+    #include <oblo/core/debug.hpp>
+    #include <oblo/core/platform/core.hpp>
+    #include <oblo/core/platform/shell.hpp>
 
-#if defined(WIN32)
-#define NOMINMAX
-#include <Windows.h>
+    #if defined(WIN32)
+        #define NOMINMAX
+        #include <Windows.h>
 
-#include <ShlObj.h>
-#include <ShlObj_core.h>
-#endif
+        #include <ShlObj.h>
+        #include <ShlObj_core.h>
+    #endif
 
 namespace oblo::platform
 {
