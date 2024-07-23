@@ -1,7 +1,7 @@
 #include <oblo/acceleration/aabb_container.hpp>
 
-#include <oblo/core/utility.hpp>
 #include <oblo/core/iterator/zip_iterator.hpp>
+#include <oblo/core/utility.hpp>
 #include <oblo/math/aabb.hpp>
 #include <oblo/math/ray_intersection.hpp>
 #include <oblo/math/vec3.hpp>

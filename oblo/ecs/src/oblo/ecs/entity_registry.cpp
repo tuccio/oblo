@@ -1,8 +1,8 @@
 #include <oblo/ecs/entity_registry.hpp>
 
 #include <oblo/core/debug.hpp>
-#include <oblo/core/memory_pool.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
+#include <oblo/core/memory_pool.hpp>
 #include <oblo/ecs/archetype_impl.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/range.hpp>
