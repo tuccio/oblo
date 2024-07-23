@@ -28,7 +28,7 @@ namespace oblo::vk
 
             // Still create a dummy table, just not to upset anyone down the line
             ctx.create(outInstanceTables,
-                transient_buffer_initializer{.size = sizeof(instance_data_table)},
+                buffer_resource_initializer{.size = sizeof(instance_data_table)},
                 pass_kind::transfer,
                 buffer_usage::storage_upload);
 
@@ -58,7 +58,7 @@ namespace oblo::vk
         }
 
         ctx.create(outInstanceTables,
-            transient_buffer_initializer{.size = u32(numTables * sizeof(instance_data_table))},
+            buffer_resource_initializer{.size = u32(numTables * sizeof(instance_data_table))},
             pass_kind::transfer,
             buffer_usage::storage_upload);
 

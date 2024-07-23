@@ -1,11 +1,10 @@
 #pragma once
 
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/handle.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/texture.hpp>
-
-#include <vector>
 
 namespace oblo::vk
 {
@@ -13,9 +12,21 @@ namespace oblo::vk
 
     struct lifetime_range
     {
-        u16 begin;
-        u16 end;
+        u32 begin;
+        u32 end;
+
+        constexpr bool operator==(const lifetime_range&) const = default;
+
+        static constexpr lifetime_range infinite();
     };
+
+    struct transient_texture_resource;
+    struct transient_buffer_resource;
+
+    constexpr lifetime_range lifetime_range::infinite()
+    {
+        return {~u32{}, ~u32{}};
+    }
 
     class resource_pool
     {
@@ -37,15 +48,16 @@ namespace oblo::vk
         void begin_graph();
         void end_graph();
 
-        u32 add(const image_initializer& initializer, lifetime_range range);
+        h32<transient_texture_resource> add_transient_texture(const image_initializer& initializer,
+            lifetime_range range);
 
-        u32 add_buffer(u32 size, VkBufferUsageFlags usage);
+        h32<transient_buffer_resource> add_transient_buffer(u32 size, VkBufferUsageFlags usage);
 
-        void add_usage(u32 poolIndex, VkImageUsageFlags usage);
-        void add_buffer_usage(u32 poolIndex, VkBufferUsageFlags usage);
+        void add_transient_texture_usage(h32<transient_texture_resource> poolIndex, VkImageUsageFlags usage);
+        void add_transient_buffer_usage(h32<transient_buffer_resource> poolIndex, VkBufferUsageFlags usage);
 
-        texture get_texture(u32 id) const;
-        buffer get_buffer(u32 id) const;
+        texture get_transient_texture(h32<transient_texture_resource> id) const;
+        buffer get_transient_buffer(h32<transient_buffer_resource> id) const;
 
     private:
         struct buffer_resource;
@@ -61,8 +73,8 @@ namespace oblo::vk
 
     private:
         u32 m_graphBegin{0};
-        std::vector<texture_resource> m_textureResources;
-        std::vector<texture_resource> m_lastFrameTextureResources;
+        dynamic_array<texture_resource> m_transientTextures;
+        dynamic_array<texture_resource> m_lastFrameTransientTextures;
 
         dynamic_array<buffer_resource> m_bufferResources;
 

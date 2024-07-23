@@ -85,16 +85,17 @@ namespace oblo::vk
         transfer,
     };
 
-    struct transient_texture_initializer
+    struct texture_resource_initializer
     {
         u32 width;
         u32 height;
         VkFormat format;
         VkImageUsageFlags usage;
         VkImageAspectFlags aspectMask;
+        bool isStable;
     };
 
-    struct transient_buffer_initializer
+    struct buffer_resource_initializer
     {
         u32 size;
         std::span<const byte> data;
@@ -107,10 +108,10 @@ namespace oblo::vk
             frame_graph_impl& frameGraph, renderer& renderer, resource_pool& resourcePool);
 
         void create(
-            resource<texture> texture, const transient_texture_initializer& initializer, texture_usage usage) const;
+            resource<texture> texture, const texture_resource_initializer& initializer, texture_usage usage) const;
 
         void create(resource<buffer> buffer,
-            const transient_buffer_initializer& initializer,
+            const buffer_resource_initializer& initializer,
             pass_kind passKind,
             buffer_usage usage) const;
 
@@ -126,7 +127,7 @@ namespace oblo::vk
         void acquire(resource<buffer> buffer, pass_kind passKind, buffer_usage usage) const;
 
         [[nodiscard]] resource<buffer> create_dynamic_buffer(
-            const transient_buffer_initializer& initializer, pass_kind passKind, buffer_usage usage) const;
+            const buffer_resource_initializer& initializer, pass_kind passKind, buffer_usage usage) const;
 
         [[nodiscard]] resource<buffer> create_dynamic_buffer(
             const staging_buffer_span& stagedData, pass_kind passKind, buffer_usage usage) const;

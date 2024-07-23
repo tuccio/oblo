@@ -111,7 +111,7 @@ namespace oblo::vk
     void resource_pool::shutdown(vulkan_context& ctx)
     {
         m_lastFrameAllocation = m_allocation;
-        std::swap(m_lastFrameTextureResources, m_textureResources);
+        std::swap(m_lastFrameTransientTextures, m_transientTextures);
         free_last_frame_resources(ctx);
 
         for (auto& pool : m_bufferPools)
@@ -124,8 +124,8 @@ namespace oblo::vk
     {
         m_graphBegin = 0;
 
-        std::swap(m_lastFrameTextureResources, m_textureResources);
-        m_textureResources.clear();
+        std::swap(m_lastFrameTransientTextures, m_transientTextures);
+        m_transientTextures.clear();
 
         m_lastFrameAllocation = m_allocation;
         m_allocation = nullptr;
@@ -150,19 +150,20 @@ namespace oblo::vk
 
     void resource_pool::begin_graph()
     {
-        m_graphBegin = u32(m_textureResources.size());
+        m_graphBegin = u32(m_transientTextures.size());
     }
 
     void resource_pool::end_graph() {}
 
-    u32 resource_pool::add(const image_initializer& initializer, lifetime_range range)
+    h32<transient_texture_resource> resource_pool::add_transient_texture(const image_initializer& initializer,
+        lifetime_range range)
     {
-        const auto id = u32(m_textureResources.size());
-        m_textureResources.emplace_back(initializer, range);
-        return id;
+        const auto id = u32(m_transientTextures.size());
+        m_transientTextures.emplace_back(initializer, range);
+        return h32<transient_texture_resource>{id + 1};
     }
 
-    u32 resource_pool::add_buffer(u32 size, VkBufferUsageFlags usage)
+    h32<transient_buffer_resource> resource_pool::add_transient_buffer(u32 size, VkBufferUsageFlags usage)
     {
         const auto id = u32(m_bufferResources.size());
 
@@ -171,22 +172,22 @@ namespace oblo::vk
             .usage = usage,
         });
 
-        return id;
+        return h32<transient_buffer_resource>{id + 1};
     }
 
-    void resource_pool::add_usage(u32 poolIndex, VkImageUsageFlags usage)
+    void resource_pool::add_transient_texture_usage(h32<transient_texture_resource> poolIndex, VkImageUsageFlags usage)
     {
-        m_textureResources[poolIndex].initializer.usage |= usage;
+        m_transientTextures[poolIndex.value - 1].initializer.usage |= usage;
     }
 
-    void resource_pool::add_buffer_usage(u32 poolIndex, VkBufferUsageFlags usage)
+    void resource_pool::add_transient_buffer_usage(h32<transient_buffer_resource> poolIndex, VkBufferUsageFlags usage)
     {
-        m_bufferResources[poolIndex].usage |= usage;
+        m_bufferResources[poolIndex.value - 1].usage |= usage;
     }
 
-    texture resource_pool::get_texture(u32 id) const
+    texture resource_pool::get_transient_texture(h32<transient_texture_resource> id) const
     {
-        auto& resource = m_textureResources[id];
+        auto& resource = m_transientTextures[id.value - 1];
 
         return {
             .image = resource.image,
@@ -195,9 +196,9 @@ namespace oblo::vk
         };
     }
 
-    buffer resource_pool::get_buffer(u32 id) const
+    buffer resource_pool::get_transient_buffer(h32<transient_buffer_resource> id) const
     {
-        auto& resource = m_bufferResources[id];
+        auto& resource = m_bufferResources[id.value - 1];
 
         return {
             .buffer = resource.buffer,
@@ -210,7 +211,7 @@ namespace oblo::vk
     {
         const auto submitIndex = ctx.get_submit_index() - 1;
 
-        for (const auto& resource : m_lastFrameTextureResources)
+        for (const auto& resource : m_lastFrameTransientTextures)
         {
             ctx.destroy_deferred(resource.image, submitIndex);
             ctx.destroy_deferred(resource.imageView, submitIndex);
@@ -232,7 +233,7 @@ namespace oblo::vk
         VkMemoryRequirements newRequirements{.memoryTypeBits = ~u32{}};
 
         // For now we just allocate all textures
-        for (auto& textureResource : m_textureResources)
+        for (auto& textureResource : m_transientTextures)
         {
             const auto& initializer = textureResource.initializer;
             OBLO_ASSERT(initializer.memoryUsage == memory_usage::gpu_only);
@@ -274,12 +275,12 @@ namespace oblo::vk
         }
 
         // Add space for alignment
-        newRequirements.size += (newRequirements.alignment - 1) * m_textureResources.size();
+        newRequirements.size += (newRequirements.alignment - 1) * m_transientTextures.size();
 
         m_allocation = allocator.create_memory(newRequirements, memory_usage::gpu_only);
 
         VkDeviceSize offset{0};
-        for (auto& textureResource : m_textureResources)
+        for (auto& textureResource : m_transientTextures)
         {
             OBLO_VK_PANIC(allocator.bind_image_memory(textureResource.image, m_allocation, offset));
             offset += textureResource.size + textureResource.size % newRequirements.alignment;
