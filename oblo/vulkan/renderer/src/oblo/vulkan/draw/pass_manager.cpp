@@ -8,6 +8,7 @@
 #include <oblo/core/iterator/enum_range.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/log.hpp>
+#include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/string_interner.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/vulkan/buffer.hpp>
@@ -57,6 +58,21 @@ namespace oblo::vk
             return vkStageBits[u8(stage)];
         }
 
+        std::string_view get_define_from_stage(pipeline_stages stage)
+        {
+            switch (stage)
+            {
+            case pipeline_stages::mesh:
+                return "OBLO_STAGE_MESH";
+            case pipeline_stages::vertex:
+                return "OBLO_STAGE_VERTEX";
+            case pipeline_stages::fragment:
+                return "OBLO_STAGE_FRAGMENT";
+            default:
+                unreachable();
+            }
+        }
+
         enum class raytracing_stage : u8
         {
             generation,
@@ -68,7 +84,7 @@ namespace oblo::vk
             enum_max,
         };
 
-        constexpr VkShaderStageFlagBits to_vulkan_stage_bits(raytracing_stage stage)
+        VkShaderStageFlagBits to_vulkan_stage_bits(raytracing_stage stage)
         {
             switch (stage)
             {
@@ -89,6 +105,33 @@ namespace oblo::vk
 
             case raytracing_stage::callable:
                 return VK_SHADER_STAGE_CALLABLE_BIT_KHR;
+
+            default:
+                unreachable();
+            }
+        }
+
+        std::string_view get_define_from_stage(raytracing_stage stage)
+        {
+            switch (stage)
+            {
+            case raytracing_stage::generation:
+                return "OBLO_STAGE_RAYGEN";
+
+            case raytracing_stage::intersection:
+                return "OBLO_STAGE_INTERSECTION";
+
+            case raytracing_stage::any_hit:
+                return "OBLO_STAGE_ANY_HIT";
+
+            case raytracing_stage::closest_hit:
+                return "OBLO_STAGE_CLOSEST_HIT";
+
+            case raytracing_stage::miss:
+                return "OBLO_STAGE_MISS_HIT";
+
+            case raytracing_stage::callable:
+                return "OBLO_STAGE_CALLABLE";
 
             default:
                 unreachable();
@@ -548,6 +591,7 @@ namespace oblo::vk
 
         VkShaderModule create_shader_module(VkShaderStageFlagBits vkStage,
             const std::filesystem::path& filePath,
+            std::span<const std::string_view> builtInDefines,
             std::span<const h32<string>> defines,
             std::string_view debugName,
             const shader_compiler::options& compilerOptions,
@@ -596,7 +640,8 @@ namespace oblo::vk
 
     VkShaderModule pass_manager::impl::create_shader_module(VkShaderStageFlagBits vkStage,
         const std::filesystem::path& filePath,
-        std::span<const h32<string>> defines,
+        std::span<const std::string_view> builtInDefines,
+        std::span<const h32<string>> userDefines,
         std::string_view debugName,
         const shader_compiler::options& compilerOptions,
         dynamic_array<u32>& spirv)
@@ -613,18 +658,18 @@ namespace oblo::vk
 
         u32 requiredDefinesLength{0};
 
-        char builtInDefinesBuffer[64];
+        string_builder sb{&frameAllocator};
 
-        auto* const builtInEnd = std::format_to(builtInDefinesBuffer,
-            R"(#define OBLO_SUBGROUP_SIZE {}
-)",
-            subgroupSize);
+        sb.append_format("#define OBLO_SUBGROUP_SIZE {}\n", subgroupSize);
 
-        const u64 builtInDefinesLength = u64(builtInEnd - builtInDefinesBuffer);
+        for (const auto& define : builtInDefines)
+        {
+            sb.append_format("#define {}\n", define);
+        }
 
-        OBLO_ASSERT(builtInEnd - builtInDefinesBuffer <= array_size(builtInDefinesBuffer));
+        const u64 builtInDefinesLength = sb.size();
 
-        for (const auto define : defines)
+        for (const auto define : userDefines)
         {
             constexpr auto fixedSize = std::string_view{"#define \n"}.size();
             requiredDefinesLength += u32(fixedSize + interner->str(define).size());
@@ -647,10 +692,12 @@ namespace oblo::vk
         *it = '\n';
         ++it;
 
-        it = std::copy(builtInDefinesBuffer, builtInEnd, it);
+        const auto builtInDefinesStr = std::string_view{sb};
+
+        it = std::copy(builtInDefinesStr.data(), builtInDefinesStr.data() + builtInDefinesStr.size(), it);
         it = std::copy(instanceDataDefines.begin(), instanceDataDefines.end(), it);
 
-        for (const auto define : defines)
+        for (const auto define : userDefines)
         {
             constexpr std::string_view directive{"#define "};
             it = std::copy(directive.begin(), directive.end(), it);
@@ -1618,6 +1665,8 @@ namespace oblo::vk
 
         const shader_compiler::options compilerOptions{m_impl->make_compiler_options()};
 
+        std::string_view builtInDefines[2]{"OBLO_PIPELINE_RENDER"};
+
         for (u8 stageIndex = 0; stageIndex < renderPass->stagesCount; ++stageIndex)
         {
             const auto pipelineStage = renderPass->stages[stageIndex];
@@ -1625,8 +1674,11 @@ namespace oblo::vk
 
             const auto& filePath = renderPass->shaderSourcePath[stageIndex];
 
+            builtInDefines[1] = get_define_from_stage(pipelineStage);
+
             const auto shaderModule = m_impl->create_shader_module(vkStage,
                 filePath,
+                builtInDefines,
                 desc.defines,
                 make_debug_name(*m_impl->interner, renderPass->name, filePath),
                 compilerOptions,
@@ -1844,12 +1896,15 @@ namespace oblo::vk
         const shader_compiler::options compilerOptions{m_impl->make_compiler_options()};
 
         {
+            constexpr std::string_view builtInDefines[] = {"OBLO_PIPELINE_COMPUTE", "OBLO_STAGE_COMPUTE"};
+
             constexpr auto vkStage = VK_SHADER_STAGE_COMPUTE_BIT;
 
             const auto& filePath = computePass->shaderSourcePath;
 
             const auto shaderModule = m_impl->create_shader_module(vkStage,
                 filePath,
+                builtInDefines,
                 desc.defines,
                 make_debug_name(*m_impl->interner, computePass->name, filePath),
                 compilerOptions,
@@ -1916,11 +1971,16 @@ namespace oblo::vk
 
         poll_hot_reloading(*m_impl->interner, *vkCtx, *raytracingPass, m_impl->raytracingPipelines);
 
-        // TODO: Do we want defines per shader?
-        constexpr u64 definesHash = 0u;
+        usize definesHash = 0;
+
+        for (auto& define : desc.defines)
+        {
+            definesHash = hash_mix(definesHash, std::hash<std::string_view>{}(define));
+        }
 
         // The whole initializer should be considered, but we only look at defines for now
-        const u64 expectedHash = hash_mix(hash_all<std::hash>(raytracingPassHandle.value), definesHash);
+        const u64 expectedHash =
+            hash_mix(hash_all<std::hash>(raytracingPassHandle.value, desc.maxPipelineRayRecursionDepth), definesHash);
 
         if (const auto variantIt = std::find_if(raytracingPass->variants.begin(),
                 raytracingPass->variants.end(),
@@ -1957,6 +2017,16 @@ namespace oblo::vk
         dynamic_array<VkPipelineShaderStageCreateInfo> stages{&m_impl->frameAllocator};
         stages.reserve(raytracingPass->shadersCount);
 
+        // TODO: Get rid of the interner
+        buffered_array<h32<string>, 8> defines;
+
+        for (const auto& define : desc.defines)
+        {
+            defines.emplace_back(m_impl->interner->get_or_add(define));
+        }
+
+        std::string_view builtInDefines[2] = {"OBLO_PIPELINE_RAYTRACING"};
+
         for (u32 currentShaderIndex = 0; currentShaderIndex < raytracingPass->shaderSourcePaths.size();
              ++currentShaderIndex)
         {
@@ -1965,9 +2035,12 @@ namespace oblo::vk
 
             const auto vkStage = to_vulkan_stage_bits(rtStage);
 
+            builtInDefines[1] = get_define_from_stage(rtStage);
+
             const auto shaderModule = m_impl->create_shader_module(vkStage,
                 filePath,
-                {}, // desc.defines,
+                builtInDefines,
+                defines,
                 make_debug_name(*m_impl->interner, raytracingPass->name, filePath),
                 compilerOptions,
                 spirv);

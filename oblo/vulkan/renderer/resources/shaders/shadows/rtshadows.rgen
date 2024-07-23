@@ -1,9 +1,5 @@
 #version 460
 
-#ifndef SHADOW_HARD
-#define SHADOW_HARD 0
-#endif
-
 #extension GL_EXT_ray_tracing : require
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_samplerless_texture_functions : require
@@ -13,6 +9,7 @@
 
 #include <renderer/camera>
 #include <renderer/lights>
+#include <renderer/math>
 #include <renderer/random/random>
 #include <renderer/random/sampling>
 
@@ -55,29 +52,57 @@ void main()
     const vec2 positionNDC = screen_to_ndc(gl_LaunchIDEXT.xy, gl_LaunchSizeEXT.xy);
     const vec3 positionWS = camera_unproject_world_space(g_Camera, positionNDC, depth);
 
-    const float farAway = 10000.f;
-
     const light_data light = g_Lights[g_Constants.lightIndex];
 
     const float tMin = light.shadowBias;
-    const float tMax = 1e6f;
 
     float visibility = 0.f;
 
+#if SHADOW_TYPE == OBLO_LIGHT_TYPE_DIRECTIONAL
+    const float farAway = 10000.f;
+    const vec3 L = -light.direction;
+    const vec3 offset = L * farAway;
+
+    const float tMax = 1e6f;
+#endif
+
+#if SHADOW_TYPE == OBLO_LIGHT_TYPE_POINT
+    const float pointLightRadius = 0.25f;
+    const vec3 Lw = light.position - positionWS;
+    // const vec3 Lw = light.position - positionWS;
+    const float lightDistance = length(Lw);
+    const vec3 L = normalize(Lw);
+    const vec3 offset = Lw;
+
+    const float tMax = lightDistance;
+
+
+    // if (gl_LaunchIDEXT.xy == gl_LaunchSizeEXT.xy / 2)
+    // {
+    //     debugPrintfEXT("positionWS %f %f %f\n", positionWS.x, positionWS.y, positionWS.z);
+    //     debugPrintfEXT("L %f %f %f\n", L.x, L.y, L.z);
+    //     debugPrintfEXT("light.position %f %f %f\n", light.position.x, light.position.y, light.position.z);
+
+    //     imageStore(t_OutShadow, ivec2(gl_LaunchIDEXT.xy), vec4(1000, 0, 0, 1));
+    //     return;
+    // }
+#endif
+
     for (uint i = 0; i < g_Constants.samples; ++i)
     {
-        const vec3 L = -light.direction;
 
+#if SHADOW_TYPE == OBLO_LIGHT_TYPE_DIRECTIONAL
         const vec2 rand = random_uniform_2d(seed);
-        const vec3 target = random_sample_uniform_disk(farAway, L, rand) + L * farAway;
+        const vec3 target = random_sample_uniform_disk(farAway, L, rand) + offset;
+#endif
+
+#if SHADOW_TYPE == OBLO_LIGHT_TYPE_POINT
+        const vec2 rand = random_uniform_2d(seed);
+        const vec3 target = random_sample_uniform_disk(pointLightRadius, L, rand) + offset;
+#endif
 
         const vec3 origin = positionWS;
-
-#if SHADOW_HARD
-        const vec3 direction = L;
-#else
         const vec3 direction = normalize(target - origin);
-#endif
 
         traceRayEXT(u_SceneTLAS,
             gl_RayFlagsNoneEXT,

@@ -1,6 +1,7 @@
 #include <oblo/vulkan/nodes/raytraced_shadows.hpp>
 
 #include <oblo/core/random_generator.hpp>
+#include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/math/vec2u.hpp>
@@ -78,8 +79,14 @@ namespace oblo::vk
             make_bindable_object(ctx.get_draw_registry().get_tlas()));
 
         const auto commandBuffer = ctx.get_command_buffer();
+        const auto& cfg = ctx.access(inConfig);
 
-        const auto pipeline = pm.get_or_create_pipeline(shadowPass, {});
+        string_builder sb;
+        sb.append_format("SHADOW_TYPE {}", u32(cfg.type));
+
+        const std::string_view defines[] = {std::string_view{sb}};
+
+        const auto pipeline = pm.get_or_create_pipeline(shadowPass, {.defines = defines});
 
         if (const auto pass = pm.begin_raytracing_pass(commandBuffer, pipeline))
         {
@@ -95,8 +102,6 @@ namespace oblo::vk
                 u32 lightIndex;
                 u32 samples;
             };
-
-            const auto& cfg = ctx.access(inConfig);
 
             const push_constants constants{
                 .randomSeed = randomSeed,

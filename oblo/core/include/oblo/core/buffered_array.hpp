@@ -9,6 +9,21 @@ namespace oblo
     class buffered_array
     {
     public:
+        using value_type = T;
+
+        using pointer = T*;
+        using const_pointer = const T*;
+
+        using reference = T&;
+        using const_reference = const T&;
+
+        using size_type = usize;
+        using difference_type = ptrdiff;
+
+        using iterator = T*;
+        using const_iterator = const T*;
+
+    public:
         buffered_array()
         {
             m_array.reserve(N);

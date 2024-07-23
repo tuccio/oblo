@@ -24,8 +24,9 @@ namespace oblo
     {
         // Maps main view to shadow map graph
         h32_flat_extpool_dense_map<vk::frame_graph_subgraph, h32<vk::frame_graph_subgraph>> shadowGraphs;
-        i32 lightIndex;
         u32 shadowSamples;
+        i32 lightIndex;
+        light_type type;
     };
 
     lighting_system::lighting_system() = default;
@@ -95,12 +96,10 @@ namespace oblo
 
                 if (light.isShadowCaster)
                 {
-                    if (light.type == light_type::directional)
-                    {
-                        const auto [it, inserted] = m_directionalShadows.emplace(e);
-                        it->lightIndex = narrow_cast<i32>(lightData.size());
-                        it->shadowSamples = light.shadowSamples;
-                    }
+                    const auto [it, inserted] = m_directionalShadows.emplace(e);
+                    it->lightIndex = narrow_cast<i32>(lightData.size());
+                    it->shadowSamples = light.shadowSamples;
+                    it->type = light.type;
                 }
 
                 lightData.push_back({
@@ -179,11 +178,6 @@ namespace oblo
                             shadowMappingGraph,
                             vk::raytraced_shadow_view::InDepthBuffer);
 
-                        // frameGraph.barrier(shadowMappingGraph,
-                        //     vk::raytraced_shadow_view::get_main_view_barrier_source(),
-                        //     sceneView,
-                        //     vk::raytraced_shadow_view::get_main_view_barrier_target());
-
                         frameGraph.connect(shadowMappingGraph,
                             vk::raytraced_shadow_view::OutShadowSink,
                             sceneView,
@@ -197,6 +191,7 @@ namespace oblo
                     const vk::raytraced_shadow_config cfg{
                         .shadowSamples = max(1u, shadow.shadowSamples),
                         .lightIndex = u32(shadow.lightIndex),
+                        .type = shadow.type,
                     };
 
                     frameGraph.set_input(*v, vk::raytraced_shadow_view::InConfig, cfg).assert_value();
