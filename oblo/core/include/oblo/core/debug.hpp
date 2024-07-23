@@ -6,7 +6,7 @@
         {                                                                                                              \
             if (!(Condition))                                                                                          \
                 oblo::debug_assert_report(__FILE__, __LINE__, Message);                                                \
-        };
+        }
 
     #define OBLO_ASSERT_1(Condition) OBLO_ASSERT_2((Condition), #Condition)
     #define OBLO_ASSERT_OVERLOAD(_1, _2, NAME, ...) NAME
