@@ -124,5 +124,6 @@ namespace oblo
     {
         m_buffer.assign(str.begin(), str.end());
         ensure_null_termination();
+        return *this;
     }
 }
