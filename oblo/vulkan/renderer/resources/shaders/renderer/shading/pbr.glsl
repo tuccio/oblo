@@ -80,8 +80,7 @@ vec3 pbr_brdf(in vec3 N, in vec3 V, in vec3 L, in pbr_material m)
     const float G = pbr_shadowing_schlick_smith_ggx(NdotV, NdotL, alpha2);
     const float F = pbr_fresnel_schlick(NdotV, F0);
 
-    const float specular =  D * G * F / 4 * NdotL * NdotV;
-    // const float specular =  D * G * F / max(4 * NdotL * NdotV, 1e-5);
+    const float specular = D * G * F / 4 * NdotL * NdotV;
 
     return m.albedo * mix(diffuse, specular, m.metalness);
 }

@@ -10,7 +10,7 @@ namespace oblo
 
     struct model
     {
-       dynamic_array<resource_ref<mesh>> meshes;
-       dynamic_array<resource_ref<material>> materials;
+        dynamic_array<resource_ref<mesh>> meshes;
+        dynamic_array<resource_ref<material>> materials;
     };
 }

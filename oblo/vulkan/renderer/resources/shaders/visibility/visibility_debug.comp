@@ -11,6 +11,7 @@
 
 #include <renderer/camera>
 #include <renderer/debug>
+#include <renderer/geometry/volumes>
 #include <renderer/instances>
 #include <renderer/material>
 #include <renderer/math>
@@ -22,7 +23,6 @@
 #include <renderer/shading/pbr>
 #include <renderer/textures>
 #include <renderer/transform>
-#include <renderer/geometry/volumes>
 #include <visibility/visibility_shading>
 
 vec4 visibility_shade(in uvec2 screenPos, in visibility_buffer_data vb)
@@ -152,11 +152,11 @@ vec4 visibility_shade(in uvec2 screenPos, in visibility_buffer_data vb)
         roughness *= metalnessRoughness.y;
     }
 
-#if defined(OUT_ROUGHNESS)
+    #if defined(OUT_ROUGHNESS)
     return vec4(vec3(roughness), 1);
-#else
+    #else
     return vec4(vec3(metalness), 1);
-#endif
+    #endif
 
 #endif
 

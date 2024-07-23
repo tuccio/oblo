@@ -7,8 +7,8 @@
 
 #include <renderer/camera>
 #include <renderer/constants>
-#include <renderer/instances>
 #include <renderer/geometry/intersection>
+#include <renderer/instances>
 #include <renderer/meshes/mesh_data>
 #include <renderer/transform>
 

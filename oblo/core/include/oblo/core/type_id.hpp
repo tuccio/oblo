@@ -30,7 +30,7 @@ namespace oblo
 
                 return str.substr(offset, str.find_last_of('>') - offset);
 #else
-#error "Unsupported compiler"
+    #error "Unsupported compiler"
 #endif
             }
         };

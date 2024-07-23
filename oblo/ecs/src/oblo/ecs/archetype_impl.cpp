@@ -1,8 +1,8 @@
 #include <oblo/ecs/archetype_impl.hpp>
 
 #include <oblo/core/array_size.hpp>
-#include <oblo/core/memory_pool.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
+#include <oblo/core/memory_pool.hpp>
 #include <oblo/ecs/archetype_storage.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/math/power_of_two.hpp>

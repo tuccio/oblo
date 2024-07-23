@@ -156,7 +156,6 @@ vec4 visibility_shade(in uvec2 screenPos, in visibility_buffer_data vb)
         const vec3 brdf = pbr_brdf(normalWS, viewWS, L, pbr);
 
         reflected += visibility * contribution * brdf;
-
     }
 
     vec3 emitted = material.emissive;

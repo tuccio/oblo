@@ -2,10 +2,10 @@
 
 #ifdef TRACY_ENABLE
 
-#include <source_location>
-#include <string_view>
+    #include <source_location>
+    #include <string_view>
 
-#include <tracy/Tracy.hpp>
+    #include <tracy/Tracy.hpp>
 
 namespace oblo::trace
 {
@@ -20,21 +20,21 @@ namespace oblo::trace
     }
 }
 
-#define OBLO_PROFILE_FRAME_BEGIN()
-#define OBLO_PROFILE_FRAME_END() FrameMark
-#define OBLO_PROFILE_SCOPE(...) ZoneScopedN(oblo::trace::make_scope_name(__VA_ARGS__))
+    #define OBLO_PROFILE_FRAME_BEGIN()
+    #define OBLO_PROFILE_FRAME_END() FrameMark
+    #define OBLO_PROFILE_SCOPE(...) ZoneScopedN(oblo::trace::make_scope_name(__VA_ARGS__))
 
-#define OBLO_PROFILE_TAG(Text)                                                                                         \
-    {                                                                                                                  \
-        const std::string_view _trace_tag{Text};                                                                       \
-        ZoneText(_trace_tag.data(), _trace_tag.size());                                                                \
-    }
+    #define OBLO_PROFILE_TAG(Text)                                                                                     \
+        {                                                                                                              \
+            const std::string_view _trace_tag{Text};                                                                   \
+            ZoneText(_trace_tag.data(), _trace_tag.size());                                                            \
+        }
 
 #else
 
-#define OBLO_PROFILE_FRAME_BEGIN()
-#define OBLO_PROFILE_FRAME_END()
-#define OBLO_PROFILE_SCOPE(...)
-#define OBLO_PROFILE_TAG(Text)
+    #define OBLO_PROFILE_FRAME_BEGIN()
+    #define OBLO_PROFILE_FRAME_END()
+    #define OBLO_PROFILE_SCOPE(...)
+    #define OBLO_PROFILE_TAG(Text)
 
 #endif

@@ -1,8 +1,8 @@
 #include <oblo/core/platform/shared_library.hpp>
 
 #if defined(WIN32)
-#define NOMINMAX
-#include <Windows.h>
+    #define NOMINMAX
+    #include <Windows.h>
 #endif
 
 namespace oblo::platform

@@ -8,8 +8,8 @@
 #include <memory>
 
 #ifdef __clang__
-// TODO: Check warnings coming from assimp includes
-#pragma clang diagnostic ignored "-Wpragma-pack"
+    // TODO: Check warnings coming from assimp includes
+    #pragma clang diagnostic ignored "-Wpragma-pack"
 #endif
 
 #include <assimp/cimport.h>
