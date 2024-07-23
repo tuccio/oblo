@@ -110,6 +110,11 @@ namespace oblo::vk
         void push_constants(
             const compute_pass_context& ctx, VkShaderStageFlags stages, u32 offset, std::span<const byte> data) const;
 
+        void push_constants(const raytracing_pass_context& ctx,
+            VkShaderStageFlags stages,
+            u32 offset,
+            std::span<const byte> data) const;
+
         void bind_descriptor_sets(const render_pass_context& ctx,
             std::span<const binding_table* const> bindingTables) const;
 

@@ -1,5 +1,9 @@
 #pragma once
 
+#include <oblo/core/handle_flat_pool_map.hpp>
+#include <oblo/ecs/forward.hpp>
+#include <oblo/vulkan/graph/frame_graph_template.hpp>
+
 namespace oblo::ecs
 {
     struct system_update_context;
@@ -17,11 +21,11 @@ namespace oblo
     class lighting_system
     {
     public:
-        lighting_system() = default;
+        lighting_system();
         lighting_system(const lighting_system&) = delete;
         lighting_system(lighting_system&&) noexcept = delete;
 
-        ~lighting_system() = default;
+        ~lighting_system();
 
         lighting_system& operator=(const lighting_system&) = delete;
         lighting_system& operator=(lighting_system&&) noexcept = delete;
@@ -30,6 +34,11 @@ namespace oblo
         void update(const ecs::system_update_context& ctx);
 
     private:
+        struct shadow_directional;
+
+    private:
         scene_renderer* m_sceneRenderer{};
+        vk::frame_graph_template m_rtShadows;
+        h32_flat_extpool_dense_map<ecs::entity_handle, shadow_directional> m_directionalShadows;
     };
 };

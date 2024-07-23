@@ -111,6 +111,49 @@ namespace oblo::vk
         m_textures.assign(1, residentTexture);
     }
 
+    h32<resident_texture> texture_registry::acquire()
+    {
+        h32<resident_texture> res{};
+        res = h32<resident_texture>{m_handlePool.acquire()};
+        OBLO_ASSERT(res.value != 0);
+
+        // Initialize to dummy texture to make it easier to debug
+        set_texture(res, m_textures[0], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        return res;
+    }
+
+    void texture_registry::set_texture(h32<resident_texture> h, VkImageView imageView, VkImageLayout layout)
+    {
+        set_texture(h, resident_texture{.imageView = imageView}, layout);
+    }
+
+    void texture_registry::set_texture(
+        h32<resident_texture> h, const resident_texture& residentTexture, VkImageLayout layout)
+    {
+        OBLO_ASSERT(h.value != 0);
+
+        const auto index = m_handlePool.get_index(h.value);
+
+        if (index >= m_imageInfo.size())
+        {
+            const auto newSize = index + 1;
+
+            m_imageInfo.reserve_exponential(newSize);
+            m_textures.reserve_exponential(newSize);
+
+            m_imageInfo.resize(newSize);
+            m_textures.resize(newSize);
+        }
+
+        m_imageInfo[index] = {
+            .imageView = residentTexture.imageView,
+            .imageLayout = layout,
+        };
+
+        m_textures[index] = residentTexture;
+    }
+
     h32<resident_texture> texture_registry::add(const texture_resource& texture, const debug_label& debugName)
     {
         resident_texture residentTexture;
@@ -120,28 +163,9 @@ namespace oblo::vk
             return {};
         }
 
-        h32<resident_texture> res{};
-        res = h32<resident_texture>{m_handlePool.acquire()};
-        OBLO_ASSERT(res.value != 0);
-
-        const auto index = m_handlePool.get_index(res.value);
-
-        if (index >= m_imageInfo.size())
-        {
-            const auto newSize = index + 1;
-
-            m_imageInfo.resize(newSize);
-            m_textures.resize(newSize);
-
-            m_imageInfo[index] = {
-                .imageView = residentTexture.imageView,
-                .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            };
-
-            m_textures[index] = residentTexture;
-        }
-
-        return res;
+        const auto h = acquire();
+        set_texture(h, residentTexture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        return h;
     }
 
     void texture_registry::remove(h32<resident_texture> texture)
@@ -166,6 +190,8 @@ namespace oblo::vk
         t.image = {};
 
         m_imageInfo[index] = m_imageInfo[0];
+
+        m_handlePool.release(texture.value);
     }
 
     std::span<const VkDescriptorImageInfo> texture_registry::get_textures2d_info() const

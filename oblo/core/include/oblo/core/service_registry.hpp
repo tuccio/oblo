@@ -4,6 +4,7 @@
 #include <oblo/core/type_id.hpp>
 
 #include <unordered_map>
+#include <utility>
 
 namespace oblo
 {
@@ -57,6 +58,15 @@ namespace oblo
         T* unique(Args&&... args) &&
         {
             T* const ptr = new T{std::forward<Args>(args)...};
+            m_registry->m_services.emplace_back(ptr, [](void* p) { delete static_cast<T*>(p); });
+
+            (m_registry->m_map.emplace(get_type_id<Bases>(), static_cast<Bases*>(ptr)), ...);
+            return ptr;
+        }
+
+        T* unique(T&& s) &&
+        {
+            T* const ptr = new T{std::move(s)};
             m_registry->m_services.emplace_back(ptr, [](void* p) { delete static_cast<T*>(p); });
 
             (m_registry->m_map.emplace(get_type_id<Bases>(), static_cast<Bases*>(ptr)), ...);

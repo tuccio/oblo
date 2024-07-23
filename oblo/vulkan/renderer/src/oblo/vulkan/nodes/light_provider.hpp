@@ -10,13 +10,13 @@ namespace oblo::vk
 {
     struct light_provider
     {
-        data<std::span<const light_data>> inLights;
+        data<std::span<const light_data>> inOutLights;
         resource<buffer> outLightData;
         resource<buffer> outLightConfig;
 
         void build(const frame_graph_build_context& builder)
         {
-            const std::span lights = builder.access(inLights);
+            const std::span lights = builder.access(inOutLights);
             const u32 lightsCount = u32(lights.size());
 
             builder.create(outLightData,

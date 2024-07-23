@@ -1,15 +1,20 @@
 #include <oblo/graphics/graphics_module.hpp>
 
 #include <oblo/core/service_registry.hpp>
-#include <oblo/ecs/services/service_registrant.hpp>
+#include <oblo/ecs/services/world_builder.hpp>
+#include <oblo/ecs/systems/system_graph_builder.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/light_component.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
+#include <oblo/graphics/systems/lighting_system.hpp>
 #include <oblo/graphics/systems/scene_renderer.hpp>
+#include <oblo/graphics/systems/static_mesh_system.hpp>
+#include <oblo/graphics/systems/viewport_system.hpp>
 #include <oblo/math/color.hpp>
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/reflection/registration/module_registration.hpp>
+#include <oblo/scene/systems/barriers.hpp>
 #include <oblo/vulkan/renderer.hpp>
 
 namespace oblo::ecs
@@ -50,7 +55,12 @@ namespace oblo
                 .add_field(&light_component::radius, "radius")
                 .add_field(&light_component::type, "type")
                 .add_field(&light_component::spotInnerAngle, "spotInnerAngle")
-                .add_field(&light_component::spotOuterAngle, "spotOuterAngle");
+                .add_field(&light_component::spotOuterAngle, "spotOuterAngle")
+                .add_field(&light_component::isShadowCaster, "isShadowCaster")
+                .add_field(&light_component::hardShadows, "hardShadows")
+                .add_field(&light_component::shadowBias, "shadowBias")
+                .add_field(&light_component::shadowSamples, "shadowSamples")
+                .add_field(&light_component::shadowPunctualRadius, "shadowPunctualRadius");
 
             reg.add_class<resource_ref<mesh>>().add_field(&resource_ref<mesh>::id, "id");
             reg.add_class<resource_ref<material>>().add_field(&resource_ref<material>::id, "id");
@@ -80,12 +90,30 @@ namespace oblo
     {
         reflection::load_module_and_register(register_reflection);
 
-        initializer.services->add<ecs::service_registrant>().unique(
-            [](service_registry& registry)
+        initializer.services->add<ecs::world_builder>().unique({
+            .services =
+                [](service_registry& registry)
             {
                 auto* const renderer = registry.find<vk::renderer>();
                 registry.add<scene_renderer>().unique(renderer->get_frame_graph());
-            });
+            },
+            .systems =
+                [](ecs::system_graph_builder& builder)
+            {
+                builder.add_system<lighting_system>()
+                    .after<barriers::renderer_extract>()
+                    .after<viewport_system>() // This way we can connect the shadow map graphs to the views
+                    .before<barriers::renderer_update>();
+
+                builder.add_system<viewport_system>()
+                    .after<barriers::renderer_extract>()
+                    .before<barriers::renderer_update>();
+
+                builder.add_system<static_mesh_system>()
+                    .after<barriers::renderer_extract>()
+                    .before<barriers::renderer_update>();
+            },
+        });
 
         return true;
     }

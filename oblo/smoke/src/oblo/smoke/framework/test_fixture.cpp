@@ -103,7 +103,7 @@ namespace oblo::smoke
                         .propertyRegistry = &propertyRegistry,
                         .resourceRegistry = &resourceRegistry,
                         .vulkanContext = ctx.vkContext,
-                        .serviceRegistrants = mm.find_services<ecs::service_registrant>(),
+                        .worldBuilders = mm.find_services<ecs::world_builder>(),
                     }))
                 {
                     return false;

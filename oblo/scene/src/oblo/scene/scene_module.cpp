@@ -2,6 +2,8 @@
 
 #include <oblo/core/debug.hpp>
 #include <oblo/core/service_registry.hpp>
+#include <oblo/ecs/services/world_builder.hpp>
+#include <oblo/ecs/systems/system_graph_builder.hpp>
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/reflection/reflection_module.hpp>
@@ -14,6 +16,8 @@
 #include <oblo/scene/components/position_component.hpp>
 #include <oblo/scene/components/rotation_component.hpp>
 #include <oblo/scene/components/scale_component.hpp>
+#include <oblo/scene/systems/barriers.hpp>
+#include <oblo/scene/systems/transform_system.hpp>
 
 namespace oblo::ecs
 {
@@ -69,6 +73,16 @@ namespace oblo
         register_reflection(reflection->get_registrant());
 
         initializer.services->add<scene_resources_provider>().as<resource_types_provider>().unique();
+
+        initializer.services->add<ecs::world_builder>().unique({
+            .systems =
+                [](ecs::system_graph_builder& b)
+            {
+                b.add_system<transform_system>().as<barriers::transform_update>();
+                b.add_barrier<barriers::renderer_extract>().after<barriers::transform_update>();
+                b.add_barrier<barriers::renderer_update>().after<barriers::renderer_extract>();
+            },
+        });
 
         return true;
     }

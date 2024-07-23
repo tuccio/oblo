@@ -13,6 +13,11 @@ namespace oblo
         {
             return x * rhs.x + y * rhs.y;
         }
+
+        static constexpr vec2 splat(f32 xy)
+        {
+            return {.x = xy, .y = xy};
+        }
     };
 
     constexpr vec2 operator-(const vec2& lhs) noexcept

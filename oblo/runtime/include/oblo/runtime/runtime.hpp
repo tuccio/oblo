@@ -2,6 +2,7 @@
 
 #include <oblo/core/time/time.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/ecs/forward.hpp>
 
 #include <memory>
 #include <span>
@@ -9,12 +10,6 @@
 namespace oblo::reflection
 {
     class reflection_registry;
-}
-
-namespace oblo::ecs
-{
-    class entity_registry;
-    struct service_registrant;
 }
 
 namespace oblo::vk
@@ -37,7 +32,7 @@ namespace oblo
         property_registry* propertyRegistry;
         resource_registry* resourceRegistry;
         vk::vulkan_context* vulkanContext;
-        std::span<ecs::service_registrant* const> serviceRegistrants;
+        std::span<ecs::world_builder* const> worldBuilders;
         usize frameAllocatorMaxSize{1u << 28};
     };
 

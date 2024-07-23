@@ -4,19 +4,16 @@
 #include <oblo/core/service_registry.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/entity_registry.hpp>
-#include <oblo/ecs/services/service_registrant.hpp>
+#include <oblo/ecs/services/world_builder.hpp>
 #include <oblo/ecs/systems/system_graph.hpp>
+#include <oblo/ecs/systems/system_graph_builder.hpp>
 #include <oblo/ecs/systems/system_seq_executor.hpp>
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/ecs/utility/registration.hpp>
 #include <oblo/graphics/graphics_module.hpp>
-#include <oblo/graphics/systems/lighting_system.hpp>
-#include <oblo/graphics/systems/static_mesh_system.hpp>
-#include <oblo/graphics/systems/viewport_system.hpp>
 #include <oblo/scene/components/name_component.hpp>
 #include <oblo/scene/scene_module.hpp>
-#include <oblo/scene/systems/transform_system.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
 #include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/draw/resource_cache.hpp>
@@ -32,16 +29,28 @@ namespace oblo
 {
     namespace
     {
-        ecs::system_seq_executor create_system_executor()
+        expected<ecs::system_seq_executor> create_system_executor(std::span<ecs::world_builder* const> worldBuilders)
         {
-            ecs::system_graph g;
+            ecs::system_graph_builder builder;
 
-            g.add_system<transform_system>();
-            g.add_system<static_mesh_system>();
-            g.add_system<lighting_system>();
-            g.add_system<viewport_system>();
+            for (const auto& worldBuilder : worldBuilders)
+            {
+                if (!worldBuilder->systems)
+                {
+                    continue;
+                }
 
-            return g.instantiate();
+                (worldBuilder->systems)(builder);
+            }
+
+            auto g = builder.build();
+
+            if (!g)
+            {
+                return unspecified_error;
+            }
+
+            return g->instantiate();
         }
     }
 
@@ -66,6 +75,13 @@ namespace oblo
 
     bool runtime::init(const runtime_initializer& initializer)
     {
+        auto executor = create_system_executor(initializer.worldBuilders);
+
+        if (!executor)
+        {
+            return false;
+        }
+
         m_impl = std::make_unique<impl>();
 
         if (!m_impl->frameAllocator.init(initializer.frameAllocatorMaxSize))
@@ -84,16 +100,21 @@ namespace oblo
         m_impl->services.add<vk::renderer>().externally_owned(&m_impl->renderer);
         m_impl->services.add<resource_registry>().externally_owned(initializer.resourceRegistry);
 
-        for (const auto* serviceRegistrant : initializer.serviceRegistrants)
+        for (const auto* worldBuilder : initializer.worldBuilders)
         {
-            serviceRegistrant->registerServices(m_impl->services);
+            if (!worldBuilder->services)
+            {
+                continue;
+            }
+
+            (worldBuilder->services)(m_impl->services);
         }
 
         auto* const resourceCache = m_impl->services.add<vk::resource_cache>().unique();
 
         resourceCache->init(*initializer.resourceRegistry, m_impl->renderer.get_texture_registry());
 
-        m_impl->executor = create_system_executor();
+        m_impl->executor = std::move(*executor);
 
         m_impl->vulkanContext = initializer.vulkanContext;
 

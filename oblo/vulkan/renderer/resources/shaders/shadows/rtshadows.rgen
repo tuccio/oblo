@@ -1,0 +1,130 @@
+#version 460
+
+#extension GL_EXT_ray_tracing : require
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_samplerless_texture_functions : require
+#extension GL_EXT_control_flow_attributes : enable
+
+#include <renderer/camera>
+#include <renderer/lights>
+#include <renderer/math>
+#include <renderer/random/random>
+#include <renderer/random/sampling>
+
+layout(binding = 11) uniform accelerationStructureEXT u_SceneTLAS;
+
+layout(binding = 12, r8) uniform restrict writeonly image2D t_OutShadow;
+layout(binding = 13) uniform texture2D t_InDepthBuffer;
+
+layout(std430, binding = 15) restrict readonly buffer b_LightData
+{
+    light_data g_Lights[];
+};
+
+layout(binding = 16) uniform b_CameraBuffer
+{
+    camera_buffer g_Camera;
+};
+
+layout(push_constant) uniform c_PushConstants
+{
+    uint randomSeed;
+    uint lightIndex;
+    uint samples;
+    float punctualLightRadius;
+}
+g_Constants;
+
+layout(location = 0) rayPayloadEXT float r_HitVisibility;
+
+uint linearize_launch_id()
+{
+    return gl_LaunchIDEXT.y * gl_LaunchSizeEXT.x + gl_LaunchIDEXT.x;
+}
+
+void main()
+{
+    uint seed = random_seed(linearize_launch_id(), g_Constants.randomSeed);
+
+    const float depth = texelFetch(t_InDepthBuffer, ivec2(gl_LaunchIDEXT.xy), 0).r;
+
+    const vec2 positionNDC = screen_to_ndc(gl_LaunchIDEXT.xy, gl_LaunchSizeEXT.xy);
+    const vec3 positionWS = camera_unproject_world_space(g_Camera, positionNDC, depth);
+
+    const light_data light = g_Lights[g_Constants.lightIndex];
+
+    const float tMin = light.shadowBias;
+
+    float visibility = 0.f;
+
+#if SHADOW_TYPE == OBLO_LIGHT_TYPE_DIRECTIONAL
+    const float farAway = 10000.f;
+    const vec3 L = -light.direction;
+    const vec3 offset = L * farAway;
+
+    const float tMax = 1e6f;
+#endif
+
+#if SHADOW_TYPE == OBLO_LIGHT_TYPE_POINT || SHADOW_TYPE == OBLO_LIGHT_TYPE_SPOT
+    const vec3 L = normalize(light.position - positionWS);
+
+#endif
+
+    const vec3 origin = positionWS;
+
+#if !SHADOW_HARD
+    for (uint i = 0; i < g_Constants.samples; ++i)
+#endif
+
+    {
+
+#if SHADOW_TYPE == OBLO_LIGHT_TYPE_DIRECTIONAL
+
+#if SHADOW_HARD
+        const vec3 direction = L;
+#else
+        const vec2 rand = random_uniform_2d(seed);
+
+        const vec3 target = random_sample_uniform_disk(farAway, L, rand) + offset;
+        const vec3 direction = normalize(target - origin);
+#endif
+
+#endif
+
+#if SHADOW_TYPE == OBLO_LIGHT_TYPE_POINT || SHADOW_TYPE == OBLO_LIGHT_TYPE_SPOT
+        const vec2 rand = random_uniform_2d(seed);
+
+#if SHADOW_HARD
+        const vec3 target = light.position;
+#else
+        const vec3 target = random_sample_uniform_disk(g_Constants.punctualLightRadius, L, rand) + light.position;
+#endif
+
+        const vec3 weightedDir = target - origin;
+
+        const vec3 direction = normalize(weightedDir);
+        const float tMax = length(weightedDir);
+#endif
+
+        traceRayEXT(u_SceneTLAS,
+            gl_RayFlagsNoneEXT,
+            0xff, // cull mask
+            0,    // STB record offset
+            0,    // STB record stride
+            0,    // Miss index
+            origin,
+            tMin,
+            direction,
+            tMax,
+            0 // payload location
+        );
+
+        visibility += r_HitVisibility;
+    }
+
+#if !SHADOW_HARD
+    visibility /= g_Constants.samples;
+#endif
+
+    imageStore(t_OutShadow, ivec2(gl_LaunchIDEXT.xy), vec4(visibility, 0, 0, 1));
+}

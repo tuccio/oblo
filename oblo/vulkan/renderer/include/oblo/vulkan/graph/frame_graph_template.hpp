@@ -43,6 +43,9 @@ namespace oblo::vk
 
         /// Data desc, only for pins.
         frame_graph_data_desc pinDesc;
+
+        /// For data sink pins, a function to clear them that should be called every frame.
+        frame_graph_clear_fn clearDataSink;
     };
 
     class frame_graph_template

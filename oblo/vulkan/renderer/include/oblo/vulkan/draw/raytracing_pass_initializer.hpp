@@ -3,7 +3,9 @@
 #include <oblo/core/buffered_array.hpp>
 
 #include <filesystem>
+#include <span>
 #include <string>
+#include <string_view>
 
 namespace oblo::vk
 {
@@ -30,5 +32,6 @@ namespace oblo::vk
     struct raytracing_pipeline_initializer
     {
         u32 maxPipelineRayRecursionDepth{1};
+        std::span<const std::string_view> defines;
     };
 }

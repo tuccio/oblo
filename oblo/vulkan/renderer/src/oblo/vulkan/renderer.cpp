@@ -107,9 +107,11 @@ namespace oblo::vk
         m_drawRegistry.generate_draw_calls(frameAllocator, m_stagingBuffer);
         m_drawRegistry.generate_raytracing_structures(frameAllocator, commandBuffer.get());
 
+        m_frameGraph.build(*this);
+
+        // Frame graph building might update the texture descriptors, so we begin the pass manager frame after that
         m_passManager.begin_frame();
 
-        m_frameGraph.build(*this);
         m_frameGraph.execute(*this);
 
         m_passManager.end_frame();

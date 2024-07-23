@@ -46,6 +46,7 @@ namespace oblo::vk
                 .nodeId = id,
                 .nodeHandle = v,
                 .pinDesc = pin.typeDesc,
+                .clearDataSink = pin.clearSink,
             };
 
             m_graph.add_edge(v, p);

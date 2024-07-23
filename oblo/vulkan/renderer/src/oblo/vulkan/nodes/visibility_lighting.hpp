@@ -1,6 +1,8 @@
 #pragma once
 
 #include <oblo/math/vec2u.hpp>
+#include <oblo/vulkan/data/light_data.hpp>
+#include <oblo/vulkan/data/light_visibility_event.hpp>
 #include <oblo/vulkan/data/visibiility_debug_mode.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
@@ -22,10 +24,13 @@ namespace oblo::vk
     struct visibility_lighting
     {
         data<vec2u> inResolution;
+        data<std::span<const light_data>> inLights;
+
+        data_sink<light_visibility_event> inShadowSink;
 
         resource<buffer> inCameraBuffer;
 
-        resource<buffer> inLightData;
+        resource<buffer> inLightBuffer;
         resource<buffer> inLightConfig;
 
         resource<buffer> inMeshDatabase;
@@ -35,6 +40,8 @@ namespace oblo::vk
 
         resource<texture> inVisibilityBuffer;
         resource<texture> outShadedImage;
+
+        resource<buffer> outShadowMaps;
 
         h32<compute_pass> lightingPass;
 

@@ -5,6 +5,7 @@
 #include <oblo/core/graph/directed_graph.hpp>
 #include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/core/hash.hpp>
+#include <oblo/core/random_generator.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/graph/frame_graph_node_desc.hpp>
 #include <oblo/vulkan/graph/frame_graph_template.hpp>
@@ -56,6 +57,7 @@ namespace oblo::vk
         h32<frame_graph_pin_storage> referencedPin;
         frame_graph_topology::vertex_handle nodeHandle;
         u32 pinMemberOffset;
+        frame_graph_clear_fn clearDataSink;
     };
 
     struct frame_graph_pin_storage
@@ -148,6 +150,13 @@ namespace oblo::vk
         name_to_vertex_map outputs;
     };
 
+    struct frame_graph_bindless_texture
+    {
+        h32<resident_texture> resident;
+        resource<texture> texture;
+        texture_usage usage;
+    };
+
     struct frame_graph_node_to_execute
     {
         frame_graph_node* node;
@@ -183,10 +192,13 @@ namespace oblo::vk
         dynamic_array<frame_graph_pending_upload> pendingUploads;
 
         dynamic_array<h32<frame_graph_pin_storage>> dynamicPins;
+        dynamic_array<frame_graph_bindless_texture> bindlessTextures;
 
         resource_pool resourcePool;
 
         frame_graph_node* currentNode{};
+
+        random_generator rng;
 
     public: // Internals for frame graph execution
         void mark_active_nodes();

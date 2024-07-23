@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/flat_dense_forward.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/types.hpp>
@@ -13,6 +14,7 @@
 namespace oblo
 {
     class frame_allocator;
+    class random_generator;
     class string_interner;
 
     struct string;
@@ -33,6 +35,7 @@ namespace oblo::vk
     struct loaded_functions;
     struct frame_graph_impl;
     struct frame_graph_pin_storage;
+    struct resident_texture;
     struct staging_buffer_span;
 
     using binding_table = flat_dense_map<h32<string>, bindable_object>;
@@ -118,6 +121,8 @@ namespace oblo::vk
 
         void acquire(resource<texture> texture, texture_usage usage) const;
 
+        h32<resident_texture> acquire_bindless(resource<texture> texture, texture_usage usage) const;
+
         void acquire(resource<buffer> buffer, pass_kind passKind, buffer_usage usage) const;
 
         [[nodiscard]] resource<buffer> create_dynamic_buffer(
@@ -132,9 +137,24 @@ namespace oblo::vk
             return *static_cast<T*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
         }
 
+        template <typename T>
+        std::span<const T> access(data_sink<T> data) const
+        {
+            return *static_cast<data_sink_container<T>*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
+        }
+
+        template <typename T>
+        void push(data_sink<T> data, T&& value) const
+        {
+            auto* a = static_cast<data_sink_container<T>*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
+            a->push_back(std::move(value));
+        }
+
         frame_allocator& get_frame_allocator() const;
 
         const draw_registry& get_draw_registry() const;
+
+        random_generator& get_random_generator() const;
 
     private:
         void* access_storage(h32<frame_graph_pin_storage> handle) const;

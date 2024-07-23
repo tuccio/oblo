@@ -5,7 +5,9 @@
 namespace oblo::ecs
 {
     class entity_registry;
+    class system_graph_builder;
     class type_registry;
 
     struct system_update_context;
+    struct world_builder;
 }

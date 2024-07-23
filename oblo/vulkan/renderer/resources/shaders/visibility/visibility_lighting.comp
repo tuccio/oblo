@@ -10,6 +10,7 @@
 #extension GL_EXT_control_flow_attributes : enable
 
 #include <renderer/camera>
+#include <renderer/geometry/volumes>
 #include <renderer/instances>
 #include <renderer/lights>
 #include <renderer/material>
@@ -22,7 +23,6 @@
 #include <renderer/shading/pbr>
 #include <renderer/textures>
 #include <renderer/transform>
-#include <renderer/geometry/volumes>
 #include <visibility/visibility_shading>
 
 layout(binding = 0) uniform b_LightConfig
@@ -32,7 +32,12 @@ layout(binding = 0) uniform b_LightConfig
 
 layout(std430, binding = 1) restrict readonly buffer b_LightData
 {
-    light_data lights[];
+    light_data g_Lights[];
+};
+
+layout(std430, binding = 2) restrict readonly buffer b_ShadowMaps
+{
+    uint g_ShadowMaps[];
 };
 
 vec4 visibility_shade(in uvec2 screenPos, in visibility_buffer_data vb)
@@ -134,12 +139,24 @@ vec4 visibility_shade(in uvec2 screenPos, in visibility_buffer_data vb)
 
     for (uint lightIndex = 0; lightIndex < g_LightConfig.lightsCount; ++lightIndex)
     {
+        float visibility = 1.f;
+
+        const uint visibilityMap = g_ShadowMaps[lightIndex];
+
+        if (visibilityMap != 0)
+        {
+            visibility =
+                texture_sample_2d(visibilityMap, OBLO_SAMPLER_NEAREST, (vec2(screenPos) + .5f) / g_Constants.resolution)
+                    .r;
+        }
+
         vec3 L;
 
-        const vec3 contribution = light_contribution(lights[lightIndex], positionWS, L);
+        const vec3 contribution = light_contribution(g_Lights[lightIndex], positionWS, L);
         const vec3 brdf = pbr_brdf(normalWS, viewWS, L, pbr);
 
-        reflected += contribution * brdf;
+        reflected += visibility * contribution * brdf;
+
     }
 
     vec3 emitted = material.emissive;

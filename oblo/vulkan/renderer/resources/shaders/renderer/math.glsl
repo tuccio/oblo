@@ -31,4 +31,10 @@ uint round_up_div(in uint numerator, in uint denominator)
     return (numerator + denominator - 1) / denominator;
 }
 
+vec3 pick_orthogonal(in vec3 N)
+{
+    const vec3 v = N.z > -.99f && N.z < .99f ? vec3(0, 0, 1) : vec3(1, 0, 0);
+    return cross(N, v);
+}
+
 #endif

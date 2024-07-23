@@ -4,6 +4,7 @@
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/graph/dfs_visit.hpp>
 #include <oblo/core/graph/dot.hpp>
+#include <oblo/core/iterator/reverse_range.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/unreachable.hpp>
@@ -206,6 +207,7 @@ namespace oblo::vk
                 .ownedStorage = h32<frame_graph_pin_storage>{pinStorageKey},
                 .nodeHandle = *it->templateToInstanceMap.try_find(src.nodeHandle),
                 .pinMemberOffset = src.pinMemberOffset,
+                .clearDataSink = src.clearDataSink,
             };
 
             *pinStorageIt = {
@@ -350,6 +352,7 @@ namespace oblo::vk
         constexpr u32 maxAllocationSize{64u << 20};
 
         m_impl = std::make_unique<frame_graph_impl>();
+        m_impl->rng.seed(42);
 
         return m_impl->dynamicAllocator.init(maxAllocationSize) && m_impl->resourcePool.init(ctx);
     }
@@ -441,6 +444,18 @@ namespace oblo::vk
 
         m_impl->resourcePool.end_graph();
         m_impl->resourcePool.end_build(renderer.get_vulkan_context());
+
+        auto& textureRegistry = renderer.get_texture_registry();
+
+        for (auto& texture : m_impl->bindlessTextures)
+        {
+            const auto storage = to_storage_handle(texture.texture);
+            const auto poolIndex = m_impl->pinStorage.at(storage).poolIndex;
+
+            const auto& t = m_impl->resourcePool.get_texture(poolIndex);
+
+            textureRegistry.set_texture(texture.resident, t.view, convert_layout(texture.usage));
+        }
     }
 
     void frame_graph::execute(renderer& renderer)
@@ -617,6 +632,15 @@ namespace oblo::vk
         }
 
         m_impl->currentNode = {};
+
+        auto& textureRegistry = renderer.get_texture_registry();
+
+        for (const auto& texture : m_impl->bindlessTextures)
+        {
+            textureRegistry.remove(texture.resident);
+        }
+
+        m_impl->bindlessTextures.clear();
 
         m_impl->finish_frame();
     }
@@ -809,49 +833,73 @@ namespace oblo::vk
         }
 
         // Propagate pin storage from incoming pins, or allocate the owned storage if necessary
-        for (const auto v : sortedPins)
+        const auto propagatePins = [this](auto&& pinsRange, bool processSinks)
         {
-            const auto& pinVertex = graph[v];
-
-            OBLO_ASSERT(pinVertex.pin);
-
-            auto* pin = pins.try_find(pinVertex.pin);
-            OBLO_ASSERT(pin);
-
-            for (const auto in : graph.get_in_edges(v))
+            for (const auto v : pinsRange)
             {
-                const auto& inVertex = graph[in.vertex];
+                const auto& pinVertex = graph[v];
 
-                if (inVertex.kind == frame_graph_vertex_kind::pin && inVertex.pin)
+                OBLO_ASSERT(pinVertex.pin);
+
+                auto* pin = pins.try_find(pinVertex.pin);
+                OBLO_ASSERT(pin);
+
+                if ((pin->clearDataSink && !processSinks) || (!pin->clearDataSink && processSinks))
                 {
-                    auto* const inPin = pins.try_find(inVertex.pin);
-                    pin->referencedPin = inPin->referencedPin;
-                    break;
-                }
-            }
-
-            if (!pin->referencedPin)
-            {
-                OBLO_ASSERT(pin->ownedStorage);
-
-                auto* const storage = pinStorage.try_find(pin->ownedStorage);
-
-                if (!storage->data)
-                {
-                    storage->data = memoryPool.allocate(storage->typeDesc.size, storage->typeDesc.alignment);
-                    storage->typeDesc.construct(storage->data);
+                    continue;
                 }
 
-                pin->referencedPin = pin->ownedStorage;
+                const auto& edges = processSinks ? graph.get_out_edges(v) : graph.get_in_edges(v);
+
+                for (const auto in : edges)
+                {
+                    const auto& inVertex = graph[in.vertex];
+
+                    if (inVertex.kind == frame_graph_vertex_kind::pin && inVertex.pin)
+                    {
+                        auto* const inPin = pins.try_find(inVertex.pin);
+                        pin->referencedPin = inPin->referencedPin;
+                        break;
+                    }
+                }
+
+                const bool hasIncomingReference = bool{pin->referencedPin};
+
+                if (!hasIncomingReference)
+                {
+                    OBLO_ASSERT(pin->ownedStorage);
+
+                    auto* const storage = pinStorage.try_find(pin->ownedStorage);
+
+                    if (!storage->data)
+                    {
+                        storage->data = memoryPool.allocate(storage->typeDesc.size, storage->typeDesc.alignment);
+                        storage->typeDesc.construct(storage->data);
+                    }
+
+                    pin->referencedPin = pin->ownedStorage;
+
+                    // For data_sink we clear here
+                    if (pin->clearDataSink)
+                    {
+                        pin->clearDataSink(storage->data);
+                    }
+                }
+
+                // Assign the handle to the node pin as well
+                auto& nodeVertex = graph[pin->nodeHandle];
+                OBLO_ASSERT(nodeVertex.node);
+
+                auto* const nodePtr = nodes.try_find(nodeVertex.node)->ptr;
+                write_u32(nodePtr, pin->pinMemberOffset, pin->referencedPin.value);
             }
+        };
 
-            // Assign the handle to the node pin as well
-            auto& nodeVertex = graph[pin->nodeHandle];
-            OBLO_ASSERT(nodeVertex.node);
+        // We propagate regular pins in node execution order
+        propagatePins(sortedPins, false);
 
-            auto* const nodePtr = nodes.try_find(nodeVertex.node)->ptr;
-            write_u32(nodePtr, pin->pinMemberOffset, pin->referencedPin.value);
-        }
+        // But sinks are propagated in reverse order
+        propagatePins(reverse_range(sortedPins), true);
     }
 
     void frame_graph_impl::mark_active_nodes()

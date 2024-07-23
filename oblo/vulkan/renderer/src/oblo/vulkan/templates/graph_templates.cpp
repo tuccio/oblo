@@ -7,6 +7,7 @@
 #include <oblo/vulkan/nodes/frustum_culling.hpp>
 #include <oblo/vulkan/nodes/instance_table_node.hpp>
 #include <oblo/vulkan/nodes/light_provider.hpp>
+#include <oblo/vulkan/nodes/raytraced_shadows.hpp>
 #include <oblo/vulkan/nodes/raytracing_debug.hpp>
 #include <oblo/vulkan/nodes/view_buffers_node.hpp>
 #include <oblo/vulkan/nodes/visibility_lighting.hpp>
@@ -59,9 +60,18 @@ namespace oblo::vk::main_view
         graph.make_input(viewBuffers, &view_buffers_node::inInstanceBuffers, InInstanceBuffers);
         graph.make_input(viewBuffers, &view_buffers_node::inFinalRenderTarget, InFinalRenderTarget);
 
+        graph.make_output(viewBuffers, &view_buffers_node::inResolution, OutResolution);
+        graph.make_output(viewBuffers, &view_buffers_node::outCameraBuffer, OutCameraBuffer);
+
+        // Visibility pass outputs, useful for other graphs (e.g shadows)
+        graph.make_output(visibilityPass, &visibility_pass::outVisibilityBuffer, OutVisibilityBuffer);
+        graph.make_output(visibilityPass, &visibility_pass::outDepthBuffer, OutDepthBuffer);
+
         // Visibility shading inputs
+        graph.make_input(visibilityLighting, &visibility_lighting::inLights, InLights);
         graph.make_input(visibilityLighting, &visibility_lighting::inLightConfig, InLightConfig);
-        graph.make_input(visibilityLighting, &visibility_lighting::inLightData, InLightData);
+        graph.make_input(visibilityLighting, &visibility_lighting::inLightBuffer, InLightBuffer);
+        graph.make_input(visibilityLighting, &visibility_lighting::inShadowSink, InShadowSink);
 
         graph.make_input(visibilityDebug, &visibility_debug::inDebugMode, InDebugMode);
 
@@ -212,15 +222,48 @@ namespace oblo::vk::scene_data
 
         const auto lightProvider = graph.add_node<light_provider>();
 
-        graph.make_input(lightProvider, &light_provider::inLights, InLightData);
+        graph.make_input(lightProvider, &light_provider::inOutLights, InLights);
         graph.make_output(lightProvider, &light_provider::outLightConfig, OutLightConfig);
-        graph.make_output(lightProvider, &light_provider::outLightData, OutLightData);
+        graph.make_output(lightProvider, &light_provider::outLightData, OutLightBuffer);
+        graph.make_output(lightProvider, &light_provider::inOutLights, OutLights);
 
         const auto instanceTableNode = graph.add_node<instance_table_node>();
         graph.make_output(instanceTableNode, &instance_table_node::outInstanceTables, OutInstanceTables);
         graph.make_output(instanceTableNode, &instance_table_node::outInstanceBuffers, OutInstanceBuffers);
 
         return graph;
+    }
+}
+
+namespace oblo::vk::raytraced_shadow_view
+{
+    frame_graph_template create(const frame_graph_registry& registry)
+    {
+        vk::frame_graph_template graph;
+
+        graph.init(registry);
+
+        const auto shadows = graph.add_node<raytraced_shadows>();
+
+        graph.make_input(shadows, &raytraced_shadows::inResolution, InResolution);
+        graph.make_input(shadows, &raytraced_shadows::inLightBuffer, InLightBuffer);
+        graph.make_input(shadows, &raytraced_shadows::inCameraBuffer, InCameraBuffer);
+        graph.make_input(shadows, &raytraced_shadows::inConfig, InConfig);
+        graph.make_input(shadows, &raytraced_shadows::inDepthBuffer, InDepthBuffer);
+        graph.make_output(shadows, &raytraced_shadows::outShadow, OutShadow);
+        graph.make_output(shadows, &raytraced_shadows::outShadowSink, OutShadowSink);
+
+        return graph;
+    }
+
+    type_id get_main_view_barrier_source()
+    {
+        return get_type_id<raytraced_shadows>();
+    }
+
+    type_id get_main_view_barrier_target()
+    {
+        return get_type_id<visibility_lighting>();
     }
 }
 
@@ -244,6 +287,9 @@ namespace oblo::vk
         // Scene data
         registry.register_node<light_provider>();
         registry.register_node<instance_table_node>();
+
+        // Ray-traced shadows
+        registry.register_node<raytraced_shadows>();
 
         return registry;
     }

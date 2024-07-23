@@ -238,6 +238,18 @@ namespace oblo::vk
         add_texture_usages(m_resourcePool, m_frameGraph, texture, usage);
     }
 
+    h32<resident_texture> frame_graph_build_context::acquire_bindless(resource<texture> texture,
+        texture_usage usage) const
+    {
+        m_frameGraph.add_resource_transition(texture, usage);
+        add_texture_usages(m_resourcePool, m_frameGraph, texture, usage);
+
+        const auto bindlessHandle = m_renderer.get_texture_registry().acquire();
+        m_frameGraph.bindlessTextures.emplace_back(bindlessHandle, texture, usage);
+
+        return bindlessHandle;
+    }
+
     void frame_graph_build_context::acquire(resource<buffer> buffer, pass_kind passKind, buffer_usage usage) const
     {
         const auto poolIndex = m_frameGraph.find_pool_index(buffer);
@@ -277,6 +289,12 @@ namespace oblo::vk
     {
         return m_renderer.get_draw_registry();
     }
+
+    random_generator& frame_graph_build_context::get_random_generator() const
+    {
+        return m_frameGraph.rng;
+    }
+
     frame_graph_build_context::frame_graph_build_context(
         frame_graph_impl& frameGraph, renderer& renderer, resource_pool& resourcePool) :
         m_frameGraph{frameGraph},
