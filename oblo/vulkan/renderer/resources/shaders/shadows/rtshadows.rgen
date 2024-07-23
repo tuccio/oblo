@@ -72,7 +72,7 @@ void main()
     const float tMax = 1e6f;
 #endif
 
-#if SHADOW_TYPE == OBLO_LIGHT_TYPE_POINT
+#if SHADOW_TYPE == OBLO_LIGHT_TYPE_POINT || SHADOW_TYPE == OBLO_LIGHT_TYPE_SPOT
     const vec3 L = normalize(light.position - positionWS);
 
 #endif
@@ -98,7 +98,7 @@ void main()
 
 #endif
 
-#if SHADOW_TYPE == OBLO_LIGHT_TYPE_POINT
+#if SHADOW_TYPE == OBLO_LIGHT_TYPE_POINT || SHADOW_TYPE == OBLO_LIGHT_TYPE_SPOT
         const vec2 rand = random_uniform_2d(seed);
 
 #if SHADOW_HARD
