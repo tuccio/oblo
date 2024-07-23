@@ -5,14 +5,7 @@
 #extension GL_EXT_samplerless_texture_functions : require
 #extension GL_EXT_control_flow_attributes : enable
 
-#define OBLO_DEBUG_PRINTF 1
-
-#if OBLO_DEBUG_PRINTF
-#extension GL_EXT_debug_printf : enable
-#endif
-
 #include <renderer/camera>
-#include <renderer/debug/printf>
 #include <renderer/lights>
 #include <renderer/math>
 #include <renderer/random/random>

@@ -66,7 +66,7 @@ namespace oblo
     void string_builder::append(std::format_string<Args...> fmt, Args&&... args)
     {
         m_buffer.pop_back();
-        const auto outIt = std::format_to(std::back_inserter(m_buffer), fmt, std::forward<Args>(args)...);
+        std::format_to(std::back_inserter(m_buffer), fmt, std::forward<Args>(args)...);
         ensure_null_termination();
     }
 
@@ -80,7 +80,7 @@ namespace oblo
     void string_builder::set(std::format_string<Args...> fmt, Args&&... args)
     {
         m_buffer.clear();
-        const auto outIt = std::format_to(std::back_inserter(m_buffer), fmt, std::forward<Args>(args)...);
+        std::format_to(std::back_inserter(m_buffer), fmt, std::forward<Args>(args)...);
         ensure_null_termination();
     }
 

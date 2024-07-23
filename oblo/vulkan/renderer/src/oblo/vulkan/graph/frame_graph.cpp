@@ -844,7 +844,7 @@ namespace oblo::vk
                 auto* pin = pins.try_find(pinVertex.pin);
                 OBLO_ASSERT(pin);
 
-                if (pin->clearDataSink && !processSinks || !pin->clearDataSink && processSinks)
+                if ((pin->clearDataSink && !processSinks) || (!pin->clearDataSink && processSinks))
                 {
                     continue;
                 }
