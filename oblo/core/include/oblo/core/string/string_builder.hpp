@@ -20,17 +20,19 @@ namespace oblo
         void append(std::string_view str);
 
         template <typename... Args>
-        void append_format(std::format_string<Args...>, Args&&... args);
+        void append(std::format_string<Args...>, Args&&... args);
 
-        void assign(std::string_view str);
+        void set(std::string_view str);
 
         template <typename... Args>
-        void assign_format(std::format_string<Args...>, Args&&... args);
+        void set(std::format_string<Args...>, Args&&... args);
 
         void clear();
 
         const char* data() const;
         usize size() const;
+
+        std::string_view view() const;
 
         explicit operator std::string_view() const;
 
@@ -61,21 +63,21 @@ namespace oblo
     }
 
     template <typename... Args>
-    void string_builder::append_format(std::format_string<Args...> fmt, Args&&... args)
+    void string_builder::append(std::format_string<Args...> fmt, Args&&... args)
     {
         m_buffer.pop_back();
         const auto outIt = std::format_to(std::back_inserter(m_buffer), fmt, std::forward<Args>(args)...);
         ensure_null_termination();
     }
 
-    inline void string_builder::assign(std::string_view str)
+    inline void string_builder::set(std::string_view str)
     {
         m_buffer.assign(str.begin(), str.end());
         ensure_null_termination();
     }
 
     template <typename... Args>
-    void string_builder::assign_format(std::format_string<Args...> fmt, Args&&... args)
+    void string_builder::set(std::format_string<Args...> fmt, Args&&... args)
     {
         m_buffer.clear();
         const auto outIt = std::format_to(std::back_inserter(m_buffer), fmt, std::forward<Args>(args)...);
@@ -85,11 +87,6 @@ namespace oblo
     inline void string_builder::clear()
     {
         m_buffer.assign(1u, '\0');
-    }
-
-    inline string_builder::operator std::string_view() const
-    {
-        return std::string_view{m_buffer.data(), size()};
     }
 
     inline const char* string_builder::data() const
@@ -111,5 +108,21 @@ namespace oblo
         {
             m_buffer.emplace_back('\0');
         }
+    }
+
+    inline std::string_view string_builder::view() const
+    {
+        return std::string_view{m_buffer.data(), size()};
+    }
+
+    inline string_builder::operator std::string_view() const
+    {
+        return std::string_view{m_buffer.data(), size()};
+    }
+
+    inline string_builder& string_builder::operator=(std::string_view str)
+    {
+        m_buffer.assign(str.begin(), str.end());
+        ensure_null_termination();
     }
 }

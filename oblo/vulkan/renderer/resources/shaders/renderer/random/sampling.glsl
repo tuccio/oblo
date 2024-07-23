@@ -26,26 +26,11 @@ vec3 random_sample_uniform_disk(in float radius, in vec3 N, in vec2 u)
 {
     const vec2 disk = random_sample_uniform_disk(radius, u);
 
-    vec3 T = cross(N, new_orthogonal(N));
+    vec3 T = cross(N, pick_orthogonal(N));
     const vec3 B = cross(T, N);
     T = cross(B, N);
 
     return T * disk.x + B * disk.y;
-}
-
-/// Samples a uniform direction in a cone oriented towards +Z.
-vec3 random_sample_uniform_cone(in float cosThetaMax, in vec2 u)
-{
-    const float cosTheta = (1 - u[0]) + u[0] * cosThetaMax;
-    const float sinTheta = sqrt(1 - cosTheta * cosTheta);
-    const float phi = u[1] * 2 * float_pi();
-
-    vec3 r;
-    r.x = cos(phi) * sinTheta;
-    r.y = sin(phi) * sinTheta;
-    r.z = cosTheta;
-
-    return r;
 }
 
 #endif

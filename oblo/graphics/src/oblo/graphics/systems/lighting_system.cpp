@@ -26,7 +26,9 @@ namespace oblo
         h32_flat_extpool_dense_map<vk::frame_graph_subgraph, h32<vk::frame_graph_subgraph>> shadowGraphs;
         u32 shadowSamples;
         i32 lightIndex;
-        light_type type;
+        f32 punctualLightRadius;
+        vk::light_type type;
+        bool hardShadows;
     };
 
     lighting_system::lighting_system() = default;
@@ -99,14 +101,16 @@ namespace oblo
                     const auto [it, inserted] = m_directionalShadows.emplace(e);
                     it->lightIndex = narrow_cast<i32>(lightData.size());
                     it->shadowSamples = light.shadowSamples;
-                    it->type = light.type;
+                    it->type = vk::light_type(u32(light.type));
+                    it->hardShadows = light.hardShadows;
+                    it->punctualLightRadius = light.shadowPunctualRadius;
                 }
 
                 lightData.push_back({
                     .position = {position.x, position.y, position.z},
                     .invSqrRadius = 1.f / (light.radius * light.radius),
                     .direction = {direction.x, direction.y, direction.z},
-                    .type = light.type,
+                    .type = vk::light_type(u32(light.type)),
                     .intensity = light.color * light.intensity,
                     .lightAngleScale = angleScale,
                     .lightAngleOffset = angleOffset,
@@ -192,6 +196,8 @@ namespace oblo
                         .shadowSamples = max(1u, shadow.shadowSamples),
                         .lightIndex = u32(shadow.lightIndex),
                         .type = shadow.type,
+                        .shadowPunctualRadius = shadow.punctualLightRadius,
+                        .hardShadows = shadow.hardShadows,
                     };
 
                     frameGraph.set_input(*v, vk::raytraced_shadow_view::InConfig, cfg).assert_value();

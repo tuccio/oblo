@@ -43,46 +43,49 @@ namespace oblo::editor
                 &spawn_entity<T, Init, Name>,
             };
         }
+
+        light_component& init_light_common(ecs::entity_registry& reg, ecs::entity e)
+        {
+            auto& light = reg.get<light_component>(e);
+
+            light.color = vec3::splat(1.f);
+            light.radius = 20.f;
+            light.intensity = 5.f;
+
+            light.isShadowCaster = false;
+            light.hardShadows = false;
+            light.shadowBias = .01f;
+            light.shadowPunctualRadius = .25f;
+            light.shadowSamples = 1;
+
+            light.spotInnerAngle = 30_deg;
+            light.spotOuterAngle = 60_deg;
+
+            return light;
+        };
     }
 
     void fill_commands(registered_commands& commands)
     {
         using PointLightInit = decltype(
             [](ecs::entity_registry& reg, ecs::entity e) {
-                auto& light = reg.get<light_component>(e);
+                auto& light = init_light_common(reg, e);
                 light.type = light_type::point;
-                light.color = vec3::splat(1.f);
-                light.radius = 20.f;
-                light.intensity = 5.f;
-                light.shadowBias = .01f;
-                light.shadowSamples = 2;
-                light.isShadowCaster = false;
             }
         );
 
         using SpotLightInit = decltype(
             [](ecs::entity_registry& reg, ecs::entity e) {
-                auto& light = reg.get<light_component>(e);
+                auto& light = init_light_common(reg, e);
                 light.type = light_type::spot;
-                light.color = vec3::splat(1.f);
-                light.radius = 20.f;
-                light.intensity = 5.f;
-                light.spotInnerAngle = 30_deg;
-                light.spotOuterAngle = 60_deg;
-                light.shadowBias = .01f;
-                light.shadowSamples = 2;
-                light.isShadowCaster = false;
             }
         );
 
         using DirectionalLightInit = decltype(
             [](ecs::entity_registry& reg, ecs::entity e) {
-                auto& light = reg.get<light_component>(e);
-                light.type = light_type::spot;
-                light.color = vec3::splat(1.f);
-                light.radius = 20.f;
+                auto& light = init_light_common(reg, e);
+                light.type = light_type::directional;
                 light.intensity = 20.f;
-                light.shadowBias = .01f;
                 light.shadowSamples = 4;
                 light.isShadowCaster = true;
             }
@@ -92,7 +95,7 @@ namespace oblo::editor
             make_spawn_command<light_component, PointLightInit, "Point Light">(ICON_FA_LIGHTBULB));
 
         commands.spawnEntityCommands.push_back(
-            make_spawn_command<light_component, SpotLightInit, "Spot Light">(ICON_FA_LIGHTBULB));
+            make_spawn_command<light_component, SpotLightInit, "Spot Light">(ICON_FA_VOLUME_OFF));
 
         commands.spawnEntityCommands.push_back(
             make_spawn_command<light_component, DirectionalLightInit, "Directional Light">(ICON_FA_SUN));

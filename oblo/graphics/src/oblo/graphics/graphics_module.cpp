@@ -57,6 +57,7 @@ namespace oblo
                 .add_field(&light_component::spotInnerAngle, "spotInnerAngle")
                 .add_field(&light_component::spotOuterAngle, "spotOuterAngle")
                 .add_field(&light_component::isShadowCaster, "isShadowCaster")
+                .add_field(&light_component::hardShadows, "hardShadows")
                 .add_field(&light_component::shadowBias, "shadowBias")
                 .add_field(&light_component::shadowSamples, "shadowSamples");
 

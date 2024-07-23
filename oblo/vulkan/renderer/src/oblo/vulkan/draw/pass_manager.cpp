@@ -660,11 +660,11 @@ namespace oblo::vk
 
         string_builder sb{&frameAllocator};
 
-        sb.append_format("#define OBLO_SUBGROUP_SIZE {}\n", subgroupSize);
+        sb.append("#define OBLO_SUBGROUP_SIZE {}\n", subgroupSize);
 
         for (const auto& define : builtInDefines)
         {
-            sb.append_format("#define {}\n", define);
+            sb.append("#define {}\n", define);
         }
 
         const u64 builtInDefinesLength = sb.size();

@@ -81,10 +81,13 @@ namespace oblo::vk
         const auto commandBuffer = ctx.get_command_buffer();
         const auto& cfg = ctx.access(inConfig);
 
-        string_builder sb;
-        sb.append_format("SHADOW_TYPE {}", u32(cfg.type));
+        string_builder shadowType;
+        shadowType.set("SHADOW_TYPE {}", u32(cfg.type));
 
-        const std::string_view defines[] = {std::string_view{sb}};
+        string_builder shadowHard;
+        shadowHard.set("SHADOW_HARD {}", u32{cfg.hardShadows});
+
+        const std::string_view defines[] = {shadowType.view(), shadowHard.view()};
 
         const auto pipeline = pm.get_or_create_pipeline(shadowPass, {.defines = defines});
 
@@ -101,12 +104,14 @@ namespace oblo::vk
                 u32 randomSeed;
                 u32 lightIndex;
                 u32 samples;
+                f32 punctualLightRadius;
             };
 
             const push_constants constants{
                 .randomSeed = randomSeed,
                 .lightIndex = cfg.lightIndex,
                 .samples = cfg.shadowSamples,
+                .punctualLightRadius = cfg.shadowPunctualRadius,
             };
 
             pm.bind_descriptor_sets(*pass, bindingTables);
