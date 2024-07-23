@@ -4,6 +4,7 @@
 #include <oblo/core/flat_dense_forward.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/vulkan/graph/frame_graph_resources.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 
 #include <vulkan/vulkan_core.h>
@@ -83,22 +84,6 @@ namespace oblo::vk
         compute,
         raytracing,
         transfer,
-    };
-
-    struct texture_resource_initializer
-    {
-        u32 width;
-        u32 height;
-        VkFormat format;
-        VkImageUsageFlags usage;
-        VkImageAspectFlags aspectMask;
-        bool isStable;
-    };
-
-    struct buffer_resource_initializer
-    {
-        u32 size;
-        std::span<const byte> data;
     };
 
     class frame_graph_build_context

@@ -1,10 +1,31 @@
 #include <oblo/vulkan/graph/resource_pool.hpp>
 
 #include <oblo/core/array_size.hpp>
+#include <oblo/core/reflection/struct_compare.hpp>
+#include <oblo/core/reflection/struct_hash.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/monotonic_gbu_buffer.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
+
+// For the sake of pooling textures, we ignore the debug labels
+template <>
+struct std::equal_to<oblo::debug_label>
+{
+    bool operator()(const oblo::debug_label&, const oblo::debug_label&) const
+    {
+        return true;
+    }
+};
+
+template <>
+struct std::hash<oblo::debug_label>
+{
+    size_t operator()(const oblo::debug_label&) const
+    {
+        return 0;
+    }
+};
 
 namespace oblo::vk
 {
@@ -33,6 +54,30 @@ namespace oblo::vk
                 return VK_IMAGE_ASPECT_COLOR_BIT;
             }
         }
+
+        VkImageView create_image_view_2d(
+            VkDevice device, VkImage image, VkFormat format, const VkAllocationCallbacks* allocationCbs)
+        {
+            VkImageView imageView;
+
+            const VkImageViewCreateInfo imageViewInit{
+                .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                .image = image,
+                .viewType = VK_IMAGE_VIEW_TYPE_2D,
+                .format = format,
+                .subresourceRange =
+                    {
+                        .aspectMask = deduce_aspect_mask(format),
+                        .baseMipLevel = 0,
+                        .levelCount = 1,
+                        .baseArrayLayer = 0,
+                        .layerCount = 1,
+                    },
+            };
+
+            OBLO_VK_PANIC(vkCreateImageView(device, &imageViewInit, allocationCbs, &imageView));
+            return imageView;
+        }
     }
 
     struct resource_pool::texture_resource
@@ -42,6 +87,7 @@ namespace oblo::vk
         VkImage image;
         VkImageView imageView;
         VkDeviceSize size;
+        h32<stable_texture_resource> stableId;
     };
 
     struct resource_pool::buffer_resource
@@ -111,8 +157,9 @@ namespace oblo::vk
     void resource_pool::shutdown(vulkan_context& ctx)
     {
         m_lastFrameAllocation = m_allocation;
-        std::swap(m_lastFrameTransientTextures, m_transientTextures);
+        std::swap(m_lastFrameTransientTextures, m_textureResources);
         free_last_frame_resources(ctx);
+        free_stable_textures(ctx, true);
 
         for (auto& pool : m_bufferPools)
         {
@@ -122,10 +169,8 @@ namespace oblo::vk
 
     void resource_pool::begin_build()
     {
-        m_graphBegin = 0;
-
-        std::swap(m_lastFrameTransientTextures, m_transientTextures);
-        m_transientTextures.clear();
+        std::swap(m_lastFrameTransientTextures, m_textureResources);
+        m_textureResources.clear();
 
         m_lastFrameAllocation = m_allocation;
         m_allocation = nullptr;
@@ -143,23 +188,23 @@ namespace oblo::vk
         // TODO: Here we should check if we can reuse the allocation from last frame, instead for now we
         // simply free the objects from last frame
         free_last_frame_resources(ctx);
+        free_stable_textures(ctx, false);
 
         create_textures(ctx);
         create_buffers(ctx);
     }
 
-    void resource_pool::begin_graph()
+    h32<transient_texture_resource> resource_pool::add_transient_texture(
+        const image_initializer& initializer, lifetime_range range, h32<stable_texture_resource> stableId)
     {
-        m_graphBegin = u32(m_transientTextures.size());
-    }
+        const auto id = u32(m_textureResources.size());
 
-    void resource_pool::end_graph() {}
+        m_textureResources.push_back({
+            .initializer = initializer,
+            .range = range,
+            .stableId = stableId,
+        });
 
-    h32<transient_texture_resource> resource_pool::add_transient_texture(const image_initializer& initializer,
-        lifetime_range range)
-    {
-        const auto id = u32(m_transientTextures.size());
-        m_transientTextures.emplace_back(initializer, range);
         return h32<transient_texture_resource>{id + 1};
     }
 
@@ -175,19 +220,21 @@ namespace oblo::vk
         return h32<transient_buffer_resource>{id + 1};
     }
 
-    void resource_pool::add_transient_texture_usage(h32<transient_texture_resource> poolIndex, VkImageUsageFlags usage)
+    void resource_pool::add_transient_texture_usage(h32<transient_texture_resource> transientTexture,
+        VkImageUsageFlags usage)
     {
-        m_transientTextures[poolIndex.value - 1].initializer.usage |= usage;
+        m_textureResources[transientTexture.value - 1].initializer.usage |= usage;
     }
 
-    void resource_pool::add_transient_buffer_usage(h32<transient_buffer_resource> poolIndex, VkBufferUsageFlags usage)
+    void resource_pool::add_transient_buffer_usage(h32<transient_buffer_resource> transientBuffer,
+        VkBufferUsageFlags usage)
     {
-        m_bufferResources[poolIndex.value - 1].usage |= usage;
+        m_bufferResources[transientBuffer.value - 1].usage |= usage;
     }
 
     texture resource_pool::get_transient_texture(h32<transient_texture_resource> id) const
     {
-        auto& resource = m_transientTextures[id.value - 1];
+        auto& resource = m_textureResources[id.value - 1];
 
         return {
             .image = resource.image,
@@ -213,6 +260,11 @@ namespace oblo::vk
 
         for (const auto& resource : m_lastFrameTransientTextures)
         {
+            if (resource.stableId)
+            {
+                continue;
+            }
+
             ctx.destroy_deferred(resource.image, submitIndex);
             ctx.destroy_deferred(resource.imageView, submitIndex);
         }
@@ -233,8 +285,14 @@ namespace oblo::vk
         VkMemoryRequirements newRequirements{.memoryTypeBits = ~u32{}};
 
         // For now we just allocate all textures
-        for (auto& textureResource : m_transientTextures)
+        for (auto& textureResource : m_textureResources)
         {
+            if (textureResource.stableId)
+            {
+                acquire_from_pool(ctx, textureResource);
+                continue;
+            }
+
             const auto& initializer = textureResource.initializer;
             OBLO_ASSERT(initializer.memoryUsage == memory_usage::gpu_only);
 
@@ -275,13 +333,18 @@ namespace oblo::vk
         }
 
         // Add space for alignment
-        newRequirements.size += (newRequirements.alignment - 1) * m_transientTextures.size();
+        newRequirements.size += (newRequirements.alignment - 1) * m_textureResources.size();
 
         m_allocation = allocator.create_memory(newRequirements, memory_usage::gpu_only);
 
         VkDeviceSize offset{0};
-        for (auto& textureResource : m_transientTextures)
+        for (auto& textureResource : m_textureResources)
         {
+            if (textureResource.stableId)
+            {
+                continue;
+            }
+
             OBLO_VK_PANIC(allocator.bind_image_memory(textureResource.image, m_allocation, offset));
             offset += textureResource.size + textureResource.size % newRequirements.alignment;
 
@@ -302,7 +365,7 @@ namespace oblo::vk
                     },
             };
 
-            OBLO_VK_PANIC(vkCreateImageView(device, &imageViewInit, allocationCbs, &textureResource.imageView));
+            textureResource.imageView = create_image_view_2d(device, textureResource.image, format, allocationCbs);
         }
     }
 
@@ -330,4 +393,67 @@ namespace oblo::vk
             buffer.size = r.size;
         }
     }
+
+    struct resource_pool::stable_texture
+    {
+        allocated_image allocatedImage;
+        VkImageView imageView;
+        bool inUse;
+    };
+
+    bool resource_pool::stable_texture_key::operator==(const stable_texture_key& rhs) const
+    {
+        return stableId == rhs.stableId && struct_compare<std::equal_to>(initializer, rhs.initializer);
+    }
+
+    usize resource_pool::stable_texture_key_hash::operator()(const stable_texture_key& key) const
+    {
+        return struct_hash<std::hash>(key);
+    }
+
+    void resource_pool::acquire_from_pool(vulkan_context& ctx, texture_resource& resource)
+    {
+        OBLO_ASSERT(resource.stableId);
+        const auto [it, isNew] =
+            m_stableTextures.try_emplace(stable_texture_key{resource.stableId, resource.initializer});
+
+        if (isNew)
+        {
+            auto& allocator = ctx.get_allocator();
+            OBLO_VK_PANIC(allocator.create_image(resource.initializer, &it->second.allocatedImage));
+
+            it->second.imageView = create_image_view_2d(ctx.get_device(),
+                it->second.allocatedImage.image,
+                resource.initializer.format,
+                allocator.get_allocation_callbacks());
+        }
+
+        resource.image = it->second.allocatedImage.image;
+        resource.imageView = it->second.imageView;
+
+        it->second.inUse = true;
+    }
+
+    void resource_pool::free_stable_textures(vulkan_context& ctx, bool force)
+    {
+        for (auto it = m_stableTextures.begin(); it != m_stableTextures.end();)
+        {
+            if (!force && it->second.inUse)
+            {
+                it->second.inUse = false;
+                ++it;
+            }
+            else
+            {
+                const auto submitIndex = ctx.get_submit_index();
+
+                ctx.destroy_deferred(it->second.imageView, submitIndex);
+                ctx.destroy_deferred(it->second.allocatedImage.image, submitIndex);
+                ctx.destroy_deferred(it->second.allocatedImage.allocation, submitIndex);
+
+                it = m_stableTextures.erase(it);
+            }
+        }
+    }
+
 }

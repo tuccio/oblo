@@ -171,7 +171,16 @@ namespace oblo::vk
 
         // TODO: (#29) Reuse and alias texture memory
         constexpr lifetime_range range{0, 0};
-        const auto poolIndex = m_resourcePool.add_transient_texture(imageInitializer, range);
+
+        h32<stable_texture_resource> stableId{};
+
+        if (initializer.isStable)
+        {
+            // We use the resource handle as id, since it's unique and stable as long as graph topology doesn't change
+            stableId = std::bit_cast<h32<stable_texture_resource>>(texture);
+        }
+
+        const auto poolIndex = m_resourcePool.add_transient_texture(imageInitializer, range, stableId);
 
         m_frameGraph.add_transient_resource(texture, poolIndex);
         m_frameGraph.add_resource_transition(texture, usage);

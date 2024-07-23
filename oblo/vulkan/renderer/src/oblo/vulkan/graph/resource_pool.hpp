@@ -6,6 +6,8 @@
 #include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/texture.hpp>
 
+#include <unordered_map>
+
 namespace oblo::vk
 {
     class vulkan_context;
@@ -14,19 +16,12 @@ namespace oblo::vk
     {
         u32 begin;
         u32 end;
-
-        constexpr bool operator==(const lifetime_range&) const = default;
-
-        static constexpr lifetime_range infinite();
     };
 
     struct transient_texture_resource;
     struct transient_buffer_resource;
 
-    constexpr lifetime_range lifetime_range::infinite()
-    {
-        return {~u32{}, ~u32{}};
-    }
+    struct stable_texture_resource;
 
     class resource_pool
     {
@@ -45,16 +40,13 @@ namespace oblo::vk
         void begin_build();
         void end_build(vulkan_context& ctx);
 
-        void begin_graph();
-        void end_graph();
-
-        h32<transient_texture_resource> add_transient_texture(const image_initializer& initializer,
-            lifetime_range range);
+        h32<transient_texture_resource> add_transient_texture(
+            const image_initializer& initializer, lifetime_range range, h32<stable_texture_resource> stableId);
 
         h32<transient_buffer_resource> add_transient_buffer(u32 size, VkBufferUsageFlags usage);
 
-        void add_transient_texture_usage(h32<transient_texture_resource> poolIndex, VkImageUsageFlags usage);
-        void add_transient_buffer_usage(h32<transient_buffer_resource> poolIndex, VkBufferUsageFlags usage);
+        void add_transient_texture_usage(h32<transient_texture_resource> transientTexture, VkImageUsageFlags usage);
+        void add_transient_buffer_usage(h32<transient_buffer_resource> transientBuffer, VkBufferUsageFlags usage);
 
         texture get_transient_texture(h32<transient_texture_resource> id) const;
         buffer get_transient_buffer(h32<transient_buffer_resource> id) const;
@@ -71,10 +63,33 @@ namespace oblo::vk
         void create_textures(vulkan_context& ctx);
         void create_buffers(vulkan_context& ctx);
 
+        void acquire_from_pool(vulkan_context& ctx, texture_resource& resource);
+
+        void free_stable_textures(vulkan_context& ctx, bool force);
+
     private:
-        u32 m_graphBegin{0};
-        dynamic_array<texture_resource> m_transientTextures;
+        struct stable_texture_key
+        {
+            h32<stable_texture_resource> stableId;
+            image_initializer initializer;
+
+            bool operator==(const stable_texture_key& rhs) const;
+        };
+
+        struct stable_texture_key_hash
+        {
+            usize operator()(const stable_texture_key& key) const;
+        };
+
+        struct stable_texture;
+
+        using stable_textures_map = std::unordered_map<stable_texture_key, stable_texture, stable_texture_key_hash>;
+
+    private:
+        dynamic_array<texture_resource> m_textureResources;
         dynamic_array<texture_resource> m_lastFrameTransientTextures;
+
+        stable_textures_map m_stableTextures;
 
         dynamic_array<buffer_resource> m_bufferResources;
 

@@ -416,7 +416,6 @@ namespace oblo::vk
         // The two calls are from a time where we managed multiple small graphs sharing the resource pool, rather than 1
         // big graph owning it.
         m_impl->resourcePool.begin_build();
-        m_impl->resourcePool.begin_graph();
 
         u32 nodeIndex{};
 
@@ -444,7 +443,6 @@ namespace oblo::vk
 
         m_impl->currentNode = {};
 
-        m_impl->resourcePool.end_graph();
         m_impl->resourcePool.end_build(renderer.get_vulkan_context());
 
         auto& textureRegistry = renderer.get_texture_registry();
@@ -767,6 +765,20 @@ namespace oblo::vk
 
         return handle;
     }
+
+    //h32<stable_texture_resource> frame_graph_impl::get_or_add_stable_texture(resource<texture> handle,
+    //    const texture_resource_initializer& initializer)
+    //{
+    //    const auto [it, inserted] = stableTextures.emplace(frame_graph_stable_texture_key{handle, initializer});
+
+    //    if (inserted)
+    //    {
+    //        // TODO
+    //        resourcePool.add_stable_texture();
+    //    }
+
+    //    return it->second;
+    //}
 
     void* frame_graph_impl::access_storage(h32<frame_graph_pin_storage> handle) const
     {

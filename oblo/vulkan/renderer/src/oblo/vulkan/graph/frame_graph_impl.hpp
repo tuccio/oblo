@@ -64,11 +64,9 @@ namespace oblo::vk
     {
         void* data;
 
-        // Only valid during a frame for transient resources
-        union {
-            h32<transient_buffer_resource> transientBuffer;
-            h32<transient_texture_resource> transientTexture;
-        };
+        // These handles are only valid during a frame for transient resources
+        h32<transient_buffer_resource> transientBuffer;
+        h32<transient_texture_resource> transientTexture;
 
         frame_graph_data_desc typeDesc;
     };
