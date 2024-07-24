@@ -17,17 +17,17 @@ namespace oblo
         string_builder& operator=(const string_builder&) = delete;
         string_builder& operator=(string_builder&&) noexcept = delete;
 
-        void append(std::string_view str);
+        string_builder& append(std::string_view str);
 
         template <typename... Args>
-        void append(std::format_string<Args...>, Args&&... args);
+        string_builder& append(std::format_string<Args...>, Args&&... args);
 
-        void set(std::string_view str);
+        string_builder& set(std::string_view str);
 
         template <typename... Args>
-        void set(std::format_string<Args...>, Args&&... args);
+        string_builder& set(std::format_string<Args...>, Args&&... args);
 
-        void clear();
+        string_builder& clear();
 
         const char* data() const;
         usize size() const;
@@ -55,38 +55,43 @@ namespace oblo
         m_buffer.emplace_back('\0');
     }
 
-    inline void string_builder::append(std::string_view str)
+    inline string_builder& string_builder::append(std::string_view str)
     {
         m_buffer.pop_back();
         m_buffer.insert(m_buffer.end(), str.begin(), str.end());
         ensure_null_termination();
+        return *this;
     }
 
     template <typename... Args>
-    void string_builder::append(std::format_string<Args...> fmt, Args&&... args)
+    string_builder& string_builder::append(std::format_string<Args...> fmt, Args&&... args)
     {
         m_buffer.pop_back();
         std::format_to(std::back_inserter(m_buffer), fmt, std::forward<Args>(args)...);
         ensure_null_termination();
+        return *this;
     }
 
-    inline void string_builder::set(std::string_view str)
+    inline string_builder& string_builder::set(std::string_view str)
     {
         m_buffer.assign(str.begin(), str.end());
         ensure_null_termination();
+        return *this;
     }
 
     template <typename... Args>
-    void string_builder::set(std::format_string<Args...> fmt, Args&&... args)
+    string_builder& string_builder::set(std::format_string<Args...> fmt, Args&&... args)
     {
         m_buffer.clear();
         std::format_to(std::back_inserter(m_buffer), fmt, std::forward<Args>(args)...);
         ensure_null_termination();
+        return *this;
     }
 
-    inline void string_builder::clear()
+    inline string_builder& string_builder::clear()
     {
         m_buffer.assign(1u, '\0');
+        return *this;
     }
 
     inline const char* string_builder::data() const
