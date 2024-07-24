@@ -1,13 +1,15 @@
 #ifndef OBLO_INCLUDE_RENDERER_DEBUG_PRINTF
 #define OBLO_INCLUDE_RENDERER_DEBUG_PRINTF
 
-// To enable the header, this can be included in the shader:
+#if 0 // To enable the header, this can be included in the shader:
 
-// #define OBLO_DEBUG_PRINTF 1
+    #define OBLO_DEBUG_PRINTF 1
 
-// #if OBLO_DEBUG_PRINTF
-// #extension GL_EXT_debug_printf : enable
-// #endif
+    #if OBLO_DEBUG_PRINTF
+        #extension GL_EXT_debug_printf : enable
+    #endif
+
+#endif
 
 #if GL_EXT_debug_printf == 1 && OBLO_DEBUG_PRINTF == 1
 

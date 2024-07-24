@@ -78,6 +78,8 @@ namespace oblo::vk
             OBLO_VK_PANIC(vkCreateImageView(device, &imageViewInit, allocationCbs, &imageView));
             return imageView;
         }
+
+        constexpr u32 FramesBeforeDeletingStableTextures{1};
     }
 
     struct resource_pool::texture_resource
@@ -88,6 +90,7 @@ namespace oblo::vk
         VkImageView imageView;
         VkDeviceSize size;
         h32<stable_texture_resource> stableId;
+        u32 framesAlive;
     };
 
     struct resource_pool::buffer_resource
@@ -159,7 +162,7 @@ namespace oblo::vk
         m_lastFrameAllocation = m_allocation;
         std::swap(m_lastFrameTransientTextures, m_textureResources);
         free_last_frame_resources(ctx);
-        free_stable_textures(ctx, true);
+        free_stable_textures(ctx, 0);
 
         for (auto& pool : m_bufferPools)
         {
@@ -169,6 +172,8 @@ namespace oblo::vk
 
     void resource_pool::begin_build()
     {
+        ++m_frame;
+
         std::swap(m_lastFrameTransientTextures, m_textureResources);
         m_textureResources.clear();
 
@@ -188,10 +193,11 @@ namespace oblo::vk
         // TODO: Here we should check if we can reuse the allocation from last frame, instead for now we
         // simply free the objects from last frame
         free_last_frame_resources(ctx);
-        free_stable_textures(ctx, false);
 
         create_textures(ctx);
         create_buffers(ctx);
+
+        free_stable_textures(ctx, FramesBeforeDeletingStableTextures);
     }
 
     h32<transient_texture_resource> resource_pool::add_transient_texture(
@@ -252,6 +258,12 @@ namespace oblo::vk
             .offset = resource.offset,
             .size = resource.size,
         };
+    }
+
+    u32 resource_pool::get_frames_alive_count(h32<transient_texture_resource> id) const
+    {
+        auto& resource = m_textureResources[id.value - 1];
+        return resource.framesAlive;
     }
 
     void resource_pool::free_last_frame_resources(vulkan_context& ctx)
@@ -398,7 +410,8 @@ namespace oblo::vk
     {
         allocated_image allocatedImage;
         VkImageView imageView;
-        bool inUse;
+        u32 creationTime;
+        u32 lastUsedTime;
     };
 
     bool resource_pool::stable_texture_key::operator==(const stable_texture_key& rhs) const
@@ -426,21 +439,25 @@ namespace oblo::vk
                 it->second.allocatedImage.image,
                 resource.initializer.format,
                 allocator.get_allocation_callbacks());
+
+            it->second.creationTime = m_frame;
         }
 
         resource.image = it->second.allocatedImage.image;
         resource.imageView = it->second.imageView;
+        resource.framesAlive = m_frame - it->second.creationTime;
 
-        it->second.inUse = true;
+        it->second.lastUsedTime = m_frame;
     }
 
-    void resource_pool::free_stable_textures(vulkan_context& ctx, bool force)
+    void resource_pool::free_stable_textures(vulkan_context& ctx, u32 unusedFor)
     {
         for (auto it = m_stableTextures.begin(); it != m_stableTextures.end();)
         {
-            if (!force && it->second.inUse)
+            const auto dt = m_frame - it->second.lastUsedTime;
+
+            if (dt < unusedFor)
             {
-                it->second.inUse = false;
                 ++it;
             }
             else

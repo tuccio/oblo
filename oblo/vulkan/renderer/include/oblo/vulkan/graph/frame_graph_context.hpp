@@ -179,6 +179,12 @@ namespace oblo::vk
 
         buffer access(resource<buffer> h) const;
 
+        /// @brief Queries the number of frames a stable texture has been alive for.
+        /// On the first frame of usage the function will return 0.
+        /// For transient textures it will always return 0.
+        /// @param texture A valid texture resource.
+        u32 get_frames_alive_count(resource<texture> texture) const;
+
         void upload(resource<buffer> h, std::span<const byte> data, u32 bufferOffset = 0) const;
 
         VkCommandBuffer get_command_buffer() const;

@@ -13,7 +13,7 @@
 
 layout(binding = 11) uniform accelerationStructureEXT u_SceneTLAS;
 
-layout(binding = 12, r8) uniform restrict writeonly image2D t_OutShadow;
+layout(binding = 12, r8) uniform restrict image2D t_OutShadow;
 layout(binding = 13) uniform texture2D t_InDepthBuffer;
 
 layout(std430, binding = 15) restrict readonly buffer b_LightData
@@ -32,6 +32,7 @@ layout(push_constant) uniform c_PushConstants
     uint lightIndex;
     uint samples;
     float punctualLightRadius;
+    float historyAlpha;
 }
 g_Constants;
 
@@ -126,5 +127,8 @@ void main()
     visibility /= g_Constants.samples;
 #endif
 
-    imageStore(t_OutShadow, ivec2(gl_LaunchIDEXT.xy), vec4(visibility, 0, 0, 1));
+    const float oldValue = imageLoad(t_OutShadow, ivec2(gl_LaunchIDEXT.xy)).x;
+    const float mixed = mix(visibility, oldValue, g_Constants.historyAlpha);
+
+    imageStore(t_OutShadow, ivec2(gl_LaunchIDEXT.xy), vec4(mixed, 0, 0, 1));
 }

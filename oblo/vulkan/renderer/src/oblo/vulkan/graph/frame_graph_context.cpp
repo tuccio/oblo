@@ -342,6 +342,12 @@ namespace oblo::vk
         return *static_cast<buffer*>(m_frameGraph.access_storage(storage));
     }
 
+    u32 frame_graph_execute_context::get_frames_alive_count(resource<texture> texture) const
+    {
+        const auto h = m_frameGraph.find_pool_index(texture);
+        return m_frameGraph.resourcePool.get_frames_alive_count(h);
+    }
+
     void frame_graph_execute_context::upload(resource<buffer> h, std::span<const byte> data, u32 bufferOffset) const
     {
         OBLO_ASSERT(m_frameGraph.can_exec_time_upload(h));

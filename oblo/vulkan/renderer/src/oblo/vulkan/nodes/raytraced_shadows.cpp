@@ -46,6 +46,7 @@ namespace oblo::vk
                 .format = VK_FORMAT_R8_UNORM,
                 .usage = VK_IMAGE_USAGE_STORAGE_BIT,
                 .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .isStable = true,
             },
             texture_usage::storage_write);
 
@@ -93,6 +94,8 @@ namespace oblo::vk
 
         if (const auto pass = pm.begin_raytracing_pass(commandBuffer, pipeline))
         {
+            const auto accumulationFrames = ctx.get_frames_alive_count(outShadow);
+
             const auto resolution = ctx.access(inResolution);
 
             const binding_table* bindingTables[] = {
@@ -105,13 +108,17 @@ namespace oblo::vk
                 u32 lightIndex;
                 u32 samples;
                 f32 punctualLightRadius;
+                f32 historyAlpha;
             };
+
+            constexpr f32 ShadowHistoryAlpha = .3f;
 
             const push_constants constants{
                 .randomSeed = randomSeed,
                 .lightIndex = cfg.lightIndex,
                 .samples = cfg.shadowSamples,
                 .punctualLightRadius = cfg.shadowPunctualRadius,
+                .historyAlpha = accumulationFrames == 0 ? 0.f : ShadowHistoryAlpha,
             };
 
             pm.bind_descriptor_sets(*pass, bindingTables);

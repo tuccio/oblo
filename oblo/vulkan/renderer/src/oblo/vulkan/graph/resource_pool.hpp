@@ -51,6 +51,8 @@ namespace oblo::vk
         texture get_transient_texture(h32<transient_texture_resource> id) const;
         buffer get_transient_buffer(h32<transient_buffer_resource> id) const;
 
+        u32 get_frames_alive_count(h32<transient_texture_resource> id) const;
+
     private:
         struct buffer_resource;
         struct texture_resource;
@@ -65,7 +67,7 @@ namespace oblo::vk
 
         void acquire_from_pool(vulkan_context& ctx, texture_resource& resource);
 
-        void free_stable_textures(vulkan_context& ctx, bool force);
+        void free_stable_textures(vulkan_context& ctx, u32 unusedFor);
 
     private:
         struct stable_texture_key
@@ -98,5 +100,7 @@ namespace oblo::vk
         VmaAllocation m_allocation{};
         VmaAllocation m_lastFrameAllocation{};
         VkMemoryRequirements m_requirements{};
+
+        u32 m_frame{};
     };
 }
