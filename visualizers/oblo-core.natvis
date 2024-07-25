@@ -63,4 +63,12 @@
     </Expand>
 </Type>
 
+<Type Name="oblo::string_view">
+    <DisplayString>{{ {m_begin,[m_size]} }}</DisplayString>
+    <Expand>
+        <Item Name="[string]" ExcludeView="simple">m_begin,[m_size]</Item>
+        <Item Name="[size]" ExcludeView="simple">m_size</Item>
+    </Expand>
+</Type>
+
 </AutoVisualizer>
