@@ -42,10 +42,6 @@
             Op;                                                                                                        \
         }
 
-    #ifdef OBLO_PIPELINE_RAYTRACING
-        #define debug_is_center() gl_LaunchIDEXT.xy == (gl_LaunchSizeEXT.xy / 2)
-    #endif
-
 #else
 
     #define printf_block_begin(Condition)
@@ -57,8 +53,14 @@
     #define printf_vec4(Label, Vector)
 
     #define debug_if(Condition, Op)
-    #define debug_is_center()
 
 #endif
+
+bool debug_is_center()
+{
+#ifdef OBLO_PIPELINE_RAYTRACING
+    return gl_LaunchIDEXT.xy == (gl_LaunchSizeEXT.xy / 2);
+#endif
+}
 
 #endif

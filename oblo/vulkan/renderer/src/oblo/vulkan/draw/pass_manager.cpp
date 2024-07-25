@@ -1101,13 +1101,13 @@ namespace oblo::vk
         {
             for (auto& pass : passes.values())
             {
-                bool skip = false;
+                bool skip = true;
 
                 for (const auto& variant : pass.variants)
                 {
-                    if (!f(pipelines.at(variant.pipeline)))
+                    if (f(pipelines.at(variant.pipeline)))
                     {
-                        skip = true;
+                        skip = false;
                         break;
                     }
                 }
@@ -1749,7 +1749,7 @@ namespace oblo::vk
                 m_impl->add_watch(include, renderPassHandle);
             }
 
-            newPipeline.hasPrintfInclude = m_impl->includer.hasPrintfInclude;
+            newPipeline.hasPrintfInclude |= m_impl->includer.hasPrintfInclude;
             newPipeline.shaderModules[stageIndex] = shaderModule;
 
             stageCreateInfo[actualStagesCount] = {
@@ -1976,7 +1976,7 @@ namespace oblo::vk
                 m_impl->add_watch(include, computePassHandle);
             }
 
-            newPipeline.hasPrintfInclude = m_impl->includer.hasPrintfInclude;
+            newPipeline.hasPrintfInclude |= m_impl->includer.hasPrintfInclude;
             newPipeline.shaderModule = shaderModule;
 
             m_impl->create_reflection(newPipeline, vkStage, spirv, vertexInputReflection);
@@ -2112,7 +2112,7 @@ namespace oblo::vk
                 m_impl->add_watch(include, raytracingPassHandle);
             }
 
-            newPipeline.hasPrintfInclude = m_impl->includer.hasPrintfInclude;
+            newPipeline.hasPrintfInclude |= m_impl->includer.hasPrintfInclude;
             newPipeline.shaderModules.push_back(shaderModule);
 
             m_impl->create_reflection(newPipeline, vkStage, spirv, vertexInputReflection);
