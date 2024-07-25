@@ -1,11 +1,12 @@
 #pragma once
 
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/handle.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/texture.hpp>
 
-#include <vector>
+#include <unordered_map>
 
 namespace oblo::vk
 {
@@ -13,9 +14,14 @@ namespace oblo::vk
 
     struct lifetime_range
     {
-        u16 begin;
-        u16 end;
+        u32 begin;
+        u32 end;
     };
+
+    struct transient_texture_resource;
+    struct transient_buffer_resource;
+
+    struct stable_texture_resource;
 
     class resource_pool
     {
@@ -34,18 +40,20 @@ namespace oblo::vk
         void begin_build();
         void end_build(vulkan_context& ctx);
 
-        void begin_graph();
-        void end_graph();
+        h32<transient_texture_resource> add_transient_texture(
+            const image_initializer& initializer, lifetime_range range, h32<stable_texture_resource> stableId);
 
-        u32 add(const image_initializer& initializer, lifetime_range range);
+        h32<transient_buffer_resource> add_transient_buffer(u32 size, VkBufferUsageFlags usage);
 
-        u32 add_buffer(u32 size, VkBufferUsageFlags usage);
+        void add_transient_texture_usage(h32<transient_texture_resource> transientTexture, VkImageUsageFlags usage);
+        void add_transient_buffer_usage(h32<transient_buffer_resource> transientBuffer, VkBufferUsageFlags usage);
 
-        void add_usage(u32 poolIndex, VkImageUsageFlags usage);
-        void add_buffer_usage(u32 poolIndex, VkBufferUsageFlags usage);
+        texture get_transient_texture(h32<transient_texture_resource> id) const;
+        buffer get_transient_buffer(h32<transient_buffer_resource> id) const;
 
-        texture get_texture(u32 id) const;
-        buffer get_buffer(u32 id) const;
+        u32 get_frames_alive_count(h32<transient_texture_resource> id) const;
+
+        const image_initializer& get_initializer(h32<transient_texture_resource> id) const;
 
     private:
         struct buffer_resource;
@@ -59,10 +67,33 @@ namespace oblo::vk
         void create_textures(vulkan_context& ctx);
         void create_buffers(vulkan_context& ctx);
 
+        void acquire_from_pool(vulkan_context& ctx, texture_resource& resource);
+
+        void free_stable_textures(vulkan_context& ctx, u32 unusedFor);
+
     private:
-        u32 m_graphBegin{0};
-        std::vector<texture_resource> m_textureResources;
-        std::vector<texture_resource> m_lastFrameTextureResources;
+        struct stable_texture_key
+        {
+            h32<stable_texture_resource> stableId;
+            image_initializer initializer;
+
+            bool operator==(const stable_texture_key& rhs) const;
+        };
+
+        struct stable_texture_key_hash
+        {
+            usize operator()(const stable_texture_key& key) const;
+        };
+
+        struct stable_texture;
+
+        using stable_textures_map = std::unordered_map<stable_texture_key, stable_texture, stable_texture_key_hash>;
+
+    private:
+        dynamic_array<texture_resource> m_textureResources;
+        dynamic_array<texture_resource> m_lastFrameTransientTextures;
+
+        stable_textures_map m_stableTextures;
 
         dynamic_array<buffer_resource> m_bufferResources;
 
@@ -71,5 +102,7 @@ namespace oblo::vk
         VmaAllocation m_allocation{};
         VmaAllocation m_lastFrameAllocation{};
         VkMemoryRequirements m_requirements{};
+
+        u32 m_frame{};
     };
 }

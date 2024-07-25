@@ -9,7 +9,6 @@
 #include <oblo/vulkan/data/picking_configuration.hpp>
 #include <oblo/vulkan/draw/compute_pass_initializer.hpp>
 #include <oblo/vulkan/graph/node_common.hpp>
-#include <oblo/vulkan/nodes/frustum_culling.hpp>
 #include <oblo/vulkan/utility.hpp>
 
 namespace oblo::vk
@@ -36,7 +35,6 @@ namespace oblo::vk
                 .height = resolution.y,
                 .format = VK_FORMAT_R8G8B8A8_UNORM,
                 .usage = VK_IMAGE_USAGE_STORAGE_BIT,
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
             },
             texture_usage::storage_write);
 
@@ -138,7 +136,6 @@ namespace oblo::vk
                 .height = resolution.y,
                 .format = VK_FORMAT_R8G8B8A8_UNORM,
                 .usage = VK_IMAGE_USAGE_STORAGE_BIT,
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
             },
             texture_usage::storage_write);
 

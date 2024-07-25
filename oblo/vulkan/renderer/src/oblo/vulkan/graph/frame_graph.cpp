@@ -405,16 +405,18 @@ namespace oblo::vk
 
         const frame_graph_build_context buildCtx{*m_impl, renderer, m_impl->resourcePool};
 
-        // This is not really necessary, we might just do it in debug
+        // Clearing these is required for certain operation that query created textures during the build process (e.g.
+        // get_texture_initializer).
+        // An alternative would be using a few bits as generation id for the handles.
         for (auto& ps : m_impl->pinStorage.values())
         {
-            ps.poolIndex = ~u32{};
+            ps.transientBuffer = {};
+            ps.transientTexture = {};
         }
 
         // The two calls are from a time where we managed multiple small graphs sharing the resource pool, rather than 1
         // big graph owning it.
         m_impl->resourcePool.begin_build();
-        m_impl->resourcePool.begin_graph();
 
         u32 nodeIndex{};
 
@@ -442,7 +444,6 @@ namespace oblo::vk
 
         m_impl->currentNode = {};
 
-        m_impl->resourcePool.end_graph();
         m_impl->resourcePool.end_build(renderer.get_vulkan_context());
 
         auto& textureRegistry = renderer.get_texture_registry();
@@ -450,9 +451,9 @@ namespace oblo::vk
         for (auto& texture : m_impl->bindlessTextures)
         {
             const auto storage = to_storage_handle(texture.texture);
-            const auto poolIndex = m_impl->pinStorage.at(storage).poolIndex;
+            const auto transientTexture = m_impl->pinStorage.at(storage).transientTexture;
 
-            const auto& t = m_impl->resourcePool.get_texture(poolIndex);
+            const auto& t = m_impl->resourcePool.get_transient_texture(transientTexture);
 
             textureRegistry.set_texture(texture.resident, t.view, convert_layout(texture.usage));
         }
@@ -469,7 +470,7 @@ namespace oblo::vk
 
         for (const auto [storage, poolIndex] : m_impl->transientBuffers)
         {
-            const buffer buf = resourcePool.get_buffer(poolIndex);
+            const buffer buf = resourcePool.get_transient_buffer(poolIndex);
 
             auto& data = m_impl->pinStorage.at(storage);
 
@@ -494,7 +495,7 @@ namespace oblo::vk
         {
             constexpr VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-            const auto tex = resourcePool.get_texture(poolIndex);
+            const auto tex = resourcePool.get_transient_texture(poolIndex);
 
             commandBufferState.set_starting_layout(h32<texture>{resource.value}, initialLayout);
 
@@ -693,11 +694,12 @@ namespace oblo::vk
         return storage.data;
     }
 
-    void frame_graph_impl::add_transient_resource(resource<texture> handle, u32 poolIndex)
+    void frame_graph_impl::add_transient_resource(resource<texture> handle,
+        h32<transient_texture_resource> transientTexture)
     {
         const auto storage = to_storage_handle(handle);
-        transientTextures.emplace_back(storage, poolIndex);
-        pinStorage.at(storage).poolIndex = poolIndex;
+        transientTextures.emplace_back(storage, transientTexture);
+        pinStorage.at(storage).transientTexture = transientTexture;
     }
 
     void frame_graph_impl::add_resource_transition(resource<texture> handle, texture_usage usage)
@@ -706,24 +708,24 @@ namespace oblo::vk
         textureTransitions.emplace_back(storage, usage);
     }
 
-    u32 frame_graph_impl::find_pool_index(resource<texture> handle) const
+    h32<transient_texture_resource> frame_graph_impl::find_pool_index(resource<texture> handle) const
     {
         const auto storage = to_storage_handle(handle);
-        return pinStorage.at(storage).poolIndex;
+        return pinStorage.at(storage).transientTexture;
     }
 
-    u32 frame_graph_impl::find_pool_index(resource<buffer> handle) const
+    h32<transient_buffer_resource> frame_graph_impl::find_pool_index(resource<buffer> handle) const
     {
         const auto storage = to_storage_handle(handle);
-        return pinStorage.at(storage).poolIndex;
+        return pinStorage.at(storage).transientBuffer;
     }
 
     void frame_graph_impl::add_transient_buffer(
-        resource<buffer> handle, u32 poolIndex, const staging_buffer_span* upload)
+        resource<buffer> handle, h32<transient_buffer_resource> transientBuffer, const staging_buffer_span* upload)
     {
         const auto storage = to_storage_handle(handle);
-        transientBuffers.emplace_back(storage, poolIndex);
-        pinStorage.at(storage).poolIndex = poolIndex;
+        transientBuffers.emplace_back(storage, transientBuffer);
+        pinStorage.at(storage).transientBuffer = transientBuffer;
 
         if (upload)
         {

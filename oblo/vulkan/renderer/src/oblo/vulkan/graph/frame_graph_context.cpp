@@ -127,20 +127,24 @@ namespace oblo::vk
             switch (usage)
             {
             case texture_usage::transfer_destination:
-                resourcePool.add_usage(frameGraph.find_pool_index(texture), VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+                resourcePool.add_transient_texture_usage(frameGraph.find_pool_index(texture),
+                    VK_IMAGE_USAGE_TRANSFER_DST_BIT);
                 break;
 
             case texture_usage::transfer_source:
-                resourcePool.add_usage(frameGraph.find_pool_index(texture), VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+                resourcePool.add_transient_texture_usage(frameGraph.find_pool_index(texture),
+                    VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
                 break;
 
             case texture_usage::shader_read:
-                resourcePool.add_usage(frameGraph.find_pool_index(texture), VK_IMAGE_USAGE_SAMPLED_BIT);
+                resourcePool.add_transient_texture_usage(frameGraph.find_pool_index(texture),
+                    VK_IMAGE_USAGE_SAMPLED_BIT);
                 break;
 
             case texture_usage::storage_read:
             case texture_usage::storage_write:
-                resourcePool.add_usage(frameGraph.find_pool_index(texture), VK_IMAGE_USAGE_STORAGE_BIT);
+                resourcePool.add_transient_texture_usage(frameGraph.find_pool_index(texture),
+                    VK_IMAGE_USAGE_STORAGE_BIT);
                 break;
 
             default:
@@ -150,7 +154,7 @@ namespace oblo::vk
     }
 
     void frame_graph_build_context::create(
-        resource<texture> texture, const transient_texture_initializer& initializer, texture_usage usage) const
+        resource<texture> texture, const texture_resource_initializer& initializer, texture_usage usage) const
     {
         const image_initializer imageInitializer{
             .imageType = VK_IMAGE_TYPE_2D,
@@ -168,7 +172,16 @@ namespace oblo::vk
         // TODO: (#29) Reuse and alias texture memory
         constexpr lifetime_range range{0, 0};
 
-        const auto poolIndex = m_resourcePool.add(imageInitializer, range);
+        h32<stable_texture_resource> stableId{};
+
+        if (initializer.isStable)
+        {
+            // We use the resource handle as id, since it's unique and stable as long as graph topology doesn't change
+            stableId = std::bit_cast<h32<stable_texture_resource>>(texture);
+        }
+
+        const auto poolIndex = m_resourcePool.add_transient_texture(imageInitializer, range, stableId);
+
         m_frameGraph.add_transient_resource(texture, poolIndex);
         m_frameGraph.add_resource_transition(texture, usage);
 
@@ -176,7 +189,7 @@ namespace oblo::vk
     }
 
     void frame_graph_build_context::create(resource<buffer> buffer,
-        const transient_buffer_initializer& initializer,
+        const buffer_resource_initializer& initializer,
         pass_kind passKind,
         buffer_usage usage) const
     {
@@ -187,7 +200,7 @@ namespace oblo::vk
             vkUsage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         }
 
-        const auto poolIndex = m_resourcePool.add_buffer(initializer.size, vkUsage);
+        const auto poolIndex = m_resourcePool.add_transient_buffer(initializer.size, vkUsage);
 
         staging_buffer_span stagedData{};
         staging_buffer_span* stagedDataPtr{};
@@ -222,7 +235,7 @@ namespace oblo::vk
             vkUsage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         }
 
-        const auto poolIndex = m_resourcePool.add_buffer(stagedDataSize, vkUsage);
+        const auto poolIndex = m_resourcePool.add_transient_buffer(stagedDataSize, vkUsage);
 
         // We rely on a global memory barrier in frame graph to synchronize all uploads before submitting any command
 
@@ -253,13 +266,13 @@ namespace oblo::vk
     void frame_graph_build_context::acquire(resource<buffer> buffer, pass_kind passKind, buffer_usage usage) const
     {
         const auto poolIndex = m_frameGraph.find_pool_index(buffer);
-        m_resourcePool.add_buffer_usage(poolIndex, convert_buffer_usage(usage));
+        m_resourcePool.add_transient_buffer_usage(poolIndex, convert_buffer_usage(usage));
         const auto [pipelineStage, access] = convert_for_sync2(passKind, usage);
         m_frameGraph.set_buffer_access(buffer, pipelineStage, access);
     }
 
     resource<buffer> frame_graph_build_context::create_dynamic_buffer(
-        const transient_buffer_initializer& initializer, pass_kind passKind, buffer_usage usage) const
+        const buffer_resource_initializer& initializer, pass_kind passKind, buffer_usage usage) const
     {
         const auto pinHandle = m_frameGraph.allocate_dynamic_resource_pin();
 
@@ -278,6 +291,18 @@ namespace oblo::vk
         create(resource, stagedData, passKind, usage);
 
         return resource;
+    }
+
+    expected<image_initializer> frame_graph_build_context::get_current_initializer(resource<texture> texture) const
+    {
+        const auto h = m_frameGraph.find_pool_index(texture);
+
+        if (!h)
+        {
+            return unspecified_error;
+        }
+
+        return m_resourcePool.get_initializer(h);
     }
 
     frame_allocator& frame_graph_build_context::get_frame_allocator() const
@@ -327,6 +352,12 @@ namespace oblo::vk
     {
         const auto storage = h32<frame_graph_pin_storage>{h.value};
         return *static_cast<buffer*>(m_frameGraph.access_storage(storage));
+    }
+
+    u32 frame_graph_execute_context::get_frames_alive_count(resource<texture> texture) const
+    {
+        const auto h = m_frameGraph.find_pool_index(texture);
+        return m_frameGraph.resourcePool.get_frames_alive_count(h);
     }
 
     void frame_graph_execute_context::upload(resource<buffer> h, std::span<const byte> data, u32 bufferOffset) const

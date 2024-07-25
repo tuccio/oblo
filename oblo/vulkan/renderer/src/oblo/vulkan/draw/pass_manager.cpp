@@ -342,6 +342,7 @@ namespace oblo::vk
         VkDescriptorSetLayout descriptorSetLayout{};
 
         bool requiresTextures2D{};
+        bool hasPrintfInclude{};
 
         const char* label{};
 
@@ -456,6 +457,8 @@ namespace oblo::vk
             {
                 for (auto& path : systemIncludePaths)
                 {
+                    hasPrintfInclude |= header == "renderer/debug/printf";
+
                     outPath = path;
                     outPath /= header;
                     outPath.concat(".glsl");
@@ -470,9 +473,16 @@ namespace oblo::vk
                 return false;
             }
 
+            void reset()
+            {
+                resolvedIncludes.clear();
+                hasPrintfInclude = false;
+            }
+
             frame_allocator& allocator;
             dynamic_array<std::filesystem::path> systemIncludePaths;
             dynamic_array<std::filesystem::path> resolvedIncludes;
+            bool hasPrintfInclude{};
         };
 
         template <typename Pass, typename Pipelines>
@@ -581,6 +591,9 @@ namespace oblo::vk
         watch_listener watchListener;
         std::optional<efsw::FileWatcher> fileWatcher;
 
+        bool globallyEnablePrintf{false};
+        u32 globallyEnablePrintfFrames{~0u};
+
         std::unordered_map<std::filesystem::path, watching_passes> fileToPassList;
 
         VkPhysicalDeviceRayTracingPipelinePropertiesKHR rtPipelineProperties{};
@@ -609,6 +622,9 @@ namespace oblo::vk
             std::span<const binding_table* const> bindingTables);
 
         shader_compiler::options make_compiler_options();
+
+        template <typename Filter = decltype([](auto&&) { return true; })>
+        void invalidate_all_passes(Filter&& f = {});
     };
 
     void pass_manager::impl::add_watch(const std::filesystem::path& file, h32<compute_pass> pass)
@@ -659,12 +675,19 @@ namespace oblo::vk
         u32 requiredDefinesLength{0};
 
         string_builder sb{&frameAllocator};
+        sb.reserve(1u << 16);
 
-        sb.append("#define OBLO_SUBGROUP_SIZE {}\n", subgroupSize);
+        if (globallyEnablePrintf)
+        {
+            sb.format("#define OBLO_DEBUG_PRINTF 1\n");
+            sb.format("#extension GL_EXT_debug_printf : enable\n");
+        }
+
+        sb.format("#define OBLO_SUBGROUP_SIZE {}\n", subgroupSize);
 
         for (const auto& define : builtInDefines)
         {
-            sb.append("#define {}\n", define);
+            sb.format("#define {}\n", define);
         }
 
         const u64 builtInDefinesLength = sb.size();
@@ -715,7 +738,7 @@ namespace oblo::vk
         const auto processedSourceCode = sourceWithDefines.subspan(0, end - sourceWithDefines.begin());
 
         // Clear the resolved includes, we keep track of them for adding watches
-        includer.resolvedIncludes.clear();
+        includer.reset();
 
         std::span<u32> spirvData;
 
@@ -1069,6 +1092,38 @@ namespace oblo::vk
             .codeOptimization = WithShaderCodeOptimizations,
             .generateDebugInfo = WithShaderDebugInfo,
         };
+    }
+
+    template <typename Filter>
+    void pass_manager::impl::invalidate_all_passes(Filter&& f)
+    {
+        const auto processPasses = [&f](auto& passes, auto& pipelines)
+        {
+            for (auto& pass : passes.values())
+            {
+                bool skip = true;
+
+                for (const auto& variant : pass.variants)
+                {
+                    if (f(pipelines.at(variant.pipeline)))
+                    {
+                        skip = false;
+                        break;
+                    }
+                }
+
+                if (skip)
+                {
+                    continue;
+                }
+
+                pass.shouldRecompile = true;
+            }
+        };
+
+        processPasses(renderPasses, renderPipelines);
+        processPasses(computePasses, computePipelines);
+        processPasses(raytracingPasses, raytracingPipelines);
     }
 
     VkDescriptorSet pass_manager::impl::create_descriptor_set(VkDescriptorSetLayout descriptorSetLayout,
@@ -1694,6 +1749,7 @@ namespace oblo::vk
                 m_impl->add_watch(include, renderPassHandle);
             }
 
+            newPipeline.hasPrintfInclude |= m_impl->includer.hasPrintfInclude;
             newPipeline.shaderModules[stageIndex] = shaderModule;
 
             stageCreateInfo[actualStagesCount] = {
@@ -1920,6 +1976,7 @@ namespace oblo::vk
                 m_impl->add_watch(include, computePassHandle);
             }
 
+            newPipeline.hasPrintfInclude |= m_impl->includer.hasPrintfInclude;
             newPipeline.shaderModule = shaderModule;
 
             m_impl->create_reflection(newPipeline, vkStage, spirv, vertexInputReflection);
@@ -2055,6 +2112,7 @@ namespace oblo::vk
                 m_impl->add_watch(include, raytracingPassHandle);
             }
 
+            newPipeline.hasPrintfInclude |= m_impl->includer.hasPrintfInclude;
             newPipeline.shaderModules.push_back(shaderModule);
 
             m_impl->create_reflection(newPipeline, vkStage, spirv, vertexInputReflection);
@@ -2282,6 +2340,11 @@ namespace oblo::vk
 
     void pass_manager::begin_frame()
     {
+        if (m_impl->globallyEnablePrintf && m_impl->globallyEnablePrintfFrames-- == 0)
+        {
+            toggle_printf();
+        }
+
         m_impl->descriptorSetPool.begin_frame();
         m_impl->texturesDescriptorSetPool.begin_frame();
 
@@ -2379,14 +2442,23 @@ namespace oblo::vk
         m_impl->instanceDataDefines = defines;
 
         // Invalidate all passes as well, to trigger recompilation of shaders
-        for (auto& pass : m_impl->renderPasses.values())
-        {
-            pass.shouldRecompile = true;
-        }
+        m_impl->invalidate_all_passes();
+    }
 
-        for (auto& pass : m_impl->computePasses.values())
+    void pass_manager::toggle_printf()
+    {
+        m_impl->globallyEnablePrintf = !m_impl->globallyEnablePrintf;
+        m_impl->globallyEnablePrintfFrames = ~0u;
+
+        m_impl->invalidate_all_passes([](const base_pipeline& p) { return p.hasPrintfInclude; });
+    }
+
+    void pass_manager::enable_printf(u32 frames)
+    {
+        if (!m_impl->globallyEnablePrintf)
         {
-            pass.shouldRecompile = true;
+            toggle_printf();
+            m_impl->globallyEnablePrintfFrames = frames;
         }
     }
 

@@ -50,7 +50,6 @@ namespace oblo::vk
                 .height = resolution.y,
                 .format = VK_FORMAT_R32G32_UINT,
                 .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
             },
             texture_usage::render_target_write);
 
@@ -60,7 +59,6 @@ namespace oblo::vk
                 .height = resolution.y,
                 .format = VK_FORMAT_D24_UNORM_S8_UINT,
                 .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
             },
             texture_usage::depth_stencil_write);
 

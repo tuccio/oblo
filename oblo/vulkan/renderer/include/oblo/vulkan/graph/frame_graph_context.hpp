@@ -1,9 +1,11 @@
 #pragma once
 
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/expected.hpp>
 #include <oblo/core/flat_dense_forward.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/vulkan/graph/frame_graph_resources.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 
 #include <vulkan/vulkan_core.h>
@@ -31,6 +33,7 @@ namespace oblo::vk
     struct bindable_object;
     struct buffer;
     struct texture;
+    struct image_initializer;
 
     struct loaded_functions;
     struct frame_graph_impl;
@@ -85,21 +88,6 @@ namespace oblo::vk
         transfer,
     };
 
-    struct transient_texture_initializer
-    {
-        u32 width;
-        u32 height;
-        VkFormat format;
-        VkImageUsageFlags usage;
-        VkImageAspectFlags aspectMask;
-    };
-
-    struct transient_buffer_initializer
-    {
-        u32 size;
-        std::span<const byte> data;
-    };
-
     class frame_graph_build_context
     {
     public:
@@ -107,10 +95,10 @@ namespace oblo::vk
             frame_graph_impl& frameGraph, renderer& renderer, resource_pool& resourcePool);
 
         void create(
-            resource<texture> texture, const transient_texture_initializer& initializer, texture_usage usage) const;
+            resource<texture> texture, const texture_resource_initializer& initializer, texture_usage usage) const;
 
         void create(resource<buffer> buffer,
-            const transient_buffer_initializer& initializer,
+            const buffer_resource_initializer& initializer,
             pass_kind passKind,
             buffer_usage usage) const;
 
@@ -126,7 +114,7 @@ namespace oblo::vk
         void acquire(resource<buffer> buffer, pass_kind passKind, buffer_usage usage) const;
 
         [[nodiscard]] resource<buffer> create_dynamic_buffer(
-            const transient_buffer_initializer& initializer, pass_kind passKind, buffer_usage usage) const;
+            const buffer_resource_initializer& initializer, pass_kind passKind, buffer_usage usage) const;
 
         [[nodiscard]] resource<buffer> create_dynamic_buffer(
             const staging_buffer_span& stagedData, pass_kind passKind, buffer_usage usage) const;
@@ -149,6 +137,8 @@ namespace oblo::vk
             auto* a = static_cast<data_sink_container<T>*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
             a->push_back(std::move(value));
         }
+
+        expected<image_initializer> get_current_initializer(resource<texture> texture) const;
 
         frame_allocator& get_frame_allocator() const;
 
@@ -192,6 +182,12 @@ namespace oblo::vk
         texture access(resource<texture> h) const;
 
         buffer access(resource<buffer> h) const;
+
+        /// @brief Queries the number of frames a stable texture has been alive for.
+        /// On the first frame of usage the function will return 0.
+        /// For transient textures it will always return 0.
+        /// @param texture A valid texture resource.
+        u32 get_frames_alive_count(resource<texture> texture) const;
 
         void upload(resource<buffer> h, std::span<const byte> data, u32 bufferOffset = 0) const;
 

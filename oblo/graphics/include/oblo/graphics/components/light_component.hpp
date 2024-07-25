@@ -26,5 +26,10 @@ namespace oblo
         u32 shadowSamples;
         f32 shadowBias;
         f32 shadowPunctualRadius;
+
+        // These should rather be global settings
+        f32 shadowTemporalAccumulationFactor;
+        u32 shadowBlurKernel;
+        f32 shadowBlurSigma;
     };
 }

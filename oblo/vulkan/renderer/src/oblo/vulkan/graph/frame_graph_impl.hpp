@@ -63,8 +63,11 @@ namespace oblo::vk
     struct frame_graph_pin_storage
     {
         void* data;
-        // Only valid during a frame for transient resources
-        u32 poolIndex;
+
+        // These handles are only valid during a frame for transient resources
+        h32<transient_buffer_resource> transientBuffer;
+        h32<transient_texture_resource> transientTexture;
+
         frame_graph_data_desc typeDesc;
     };
 
@@ -104,13 +107,13 @@ namespace oblo::vk
     struct frame_graph_texture
     {
         h32<frame_graph_pin_storage> texture;
-        u32 poolIndex;
+        h32<transient_texture_resource> poolIndex;
     };
 
     struct frame_graph_buffer
     {
         h32<frame_graph_pin_storage> buffer;
-        u32 poolIndex;
+        h32<transient_buffer_resource> poolIndex;
     };
 
     struct frame_graph_node_transitions
@@ -209,13 +212,14 @@ namespace oblo::vk
     public: // API for contexts
         void* access_storage(h32<frame_graph_pin_storage> handle) const;
 
-        void add_transient_resource(resource<texture> handle, u32 poolIndex);
+        void add_transient_resource(resource<texture> handle, h32<transient_texture_resource> transientTexture);
         void add_resource_transition(resource<texture> handle, texture_usage usage);
 
-        u32 find_pool_index(resource<texture> handle) const;
-        u32 find_pool_index(resource<buffer> handle) const;
+        h32<transient_texture_resource> find_pool_index(resource<texture> handle) const;
+        h32<transient_buffer_resource> find_pool_index(resource<buffer> handle) const;
 
-        void add_transient_buffer(resource<buffer> handle, u32 poolIndex, const staging_buffer_span* upload);
+        void add_transient_buffer(
+            resource<buffer> handle, h32<transient_buffer_resource> transientBuffer, const staging_buffer_span* upload);
         void set_buffer_access(resource<buffer> handle, VkPipelineStageFlags2 pipelineStage, VkAccessFlags2 access);
 
         // This is called in assert by executors, to check that we declared the upload when building
