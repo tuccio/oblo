@@ -60,6 +60,8 @@ bool debug_is_center()
 {
 #ifdef OBLO_PIPELINE_RAYTRACING
     return gl_LaunchIDEXT.xy == (gl_LaunchSizeEXT.xy / 2);
+#else
+    return false;
 #endif
 }
 

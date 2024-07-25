@@ -27,6 +27,9 @@ namespace oblo::editor
     {
         constexpr ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_None;
 
+        auto& style = ImGui::GetStyle();
+        const auto windowPadding = style.WindowPadding;
+
         // We are using the ImGuiWindowFlags_NoDocking flag to make the parent window not dockable into,
         // because it would be confusing to have two docking targets within each others.
         ImGuiWindowFlags windowFlags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
@@ -63,6 +66,8 @@ namespace oblo::editor
 
         if (ImGui::BeginMenuBar())
         {
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, windowPadding);
+
             if (ImGui::BeginMenu("Windows"))
             {
                 if (ImGui::MenuItem("Viewport"))
@@ -85,16 +90,16 @@ namespace oblo::editor
                     ctx.windowManager.create_child_window<style_window>(ctx.windowHandle);
                 }
 
-                if (ImGui::MenuItem("Toggle shader printf"))
-                {
-                    auto& passManager = ctx.services.find<vk::renderer>()->get_pass_manager();
-                    passManager.toggle_printf();
-                }
-
                 if (ImGui::MenuItem("Single frame shader printf"))
                 {
                     auto& passManager = ctx.services.find<vk::renderer>()->get_pass_manager();
                     passManager.enable_printf(1);
+                }
+
+                if (ImGui::MenuItem("Toggle shader printf"))
+                {
+                    auto& passManager = ctx.services.find<vk::renderer>()->get_pass_manager();
+                    passManager.toggle_printf();
                 }
 
                 if (ImGui::MenuItem("Copy frame graph to clipboard"))
@@ -109,6 +114,8 @@ namespace oblo::editor
 
                 ImGui::EndMenu();
             }
+
+            ImGui::PopStyleVar();
 
             ImGui::EndMenuBar();
         }
