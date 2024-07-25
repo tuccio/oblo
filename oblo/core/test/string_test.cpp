@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string_view.hpp>
 
 namespace oblo
@@ -71,4 +72,72 @@ namespace oblo
         EXPECT_EQ(sv.front(), 't');
         EXPECT_EQ(sv.back(), 't');
     }
+
+    TEST(cstring_view_test, default_constructor)
+    {
+        cstring_view sv{};
+        EXPECT_NE(sv.data(), nullptr);
+        EXPECT_EQ(sv.size(), 0);
+        EXPECT_TRUE(sv.empty());
+        EXPECT_EQ(strcmp(sv.c_str(), ""), 0);
+    }
+
+    TEST(cstring_view_test, from_c_string)
+    {
+        const char* cstr = "hello";
+        cstring_view sv{cstr};
+        EXPECT_EQ(sv.size(), 5);
+        EXPECT_EQ(sv, "hello");
+    }
+
+    TEST(cstring_view_test, from_c_string_with_null_char)
+    {
+        const char* cstr = "hello\0world";
+        cstring_view sv{cstr};
+        EXPECT_EQ(sv.size(), 5); // Only counts until the first null character
+        EXPECT_EQ(sv, "hello");
+    }
+
+    TEST(cstring_view_test, comparison)
+    {
+        cstring_view sv1{"apple"};
+        cstring_view sv2{"apple"};
+        cstring_view sv3{"banana"};
+
+        EXPECT_EQ(sv1.compare(sv2), 0);
+        EXPECT_LT(sv1.compare(sv3), 0);
+        EXPECT_GT(sv3.compare(sv1), 0);
+    }
+
+    TEST(cstring_view_test, find)
+    {
+        cstring_view sv{"hello world"};
+        EXPECT_EQ(sv.find("world"), 6);
+        EXPECT_EQ(sv.find('o'), 4);
+        EXPECT_EQ(sv.find("not there"), cstring_view::npos);
+    }
+
+    TEST(cstring_view_test, front_back)
+    {
+        cstring_view sv{"test"};
+        EXPECT_EQ(sv.front(), 't');
+        EXPECT_EQ(sv.back(), 't');
+    }
+
+    TEST(cstring_view_test, modifying_original_string)
+    {
+        char str[] = "original";
+        cstring_view sv{str};
+        str[0] = 'O';              // Modify the original string
+        EXPECT_EQ(sv, "Original"); // cstring_view reflects this change
+    }
+
+    TEST(cstring_view_test, c_str)
+    {
+        const char* cstr = "cstring_view test";
+        cstring_view sv{cstr};
+        EXPECT_EQ(sv.c_str(), cstr);            // c_str() should return the original pointer
+        EXPECT_EQ(strcmp(sv.c_str(), cstr), 0); // Compare using C-style string comparison
+    }
+
 }
