@@ -19,10 +19,22 @@
     #define printf_block_end() }
 
     #define printf_text(Message) debugPrintfEXT(Message);
-    #define printf_float(Value) debugPrintfEXT("[ %f ]\n", Value);
-    #define printf_vec2(Vector) debugPrintfEXT("[ %f, %f ]\n", Vector.x, Vector.y);
-    #define printf_vec3(Vector) debugPrintfEXT("[ %f, %f, %f ]\n", Vector.x, Vector.y, Vector.z);
-    #define printf_vec4(Vector) debugPrintfEXT("[ %f, %f, %f, %f ]\n", Vector.x, Vector.y, Vector.z, Vector.w);
+
+    #define printf_float(Label, Value)                                                                                 \
+        printf_text(Label);                                                                                            \
+        debugPrintfEXT("[ %f ]\n", Value);
+
+    #define printf_vec2(Label, Vector)                                                                                 \
+        printf_text(Label);                                                                                            \
+        debugPrintfEXT("[ %f, %f ]\n", Vector.x, Vector.y);
+
+    #define printf_vec3(Label, Vector)                                                                                 \
+        printf_text(Label);                                                                                            \
+        debugPrintfEXT("[ %f, %f, %f ]\n", Vector.x, Vector.y, Vector.z);
+
+    #define printf_vec4(Label, Vector)                                                                                 \
+        printf_text(Label);                                                                                            \
+        debugPrintfEXT("[ %f, %f, %f, %f ]\n", Vector.x, Vector.y, Vector.z, Vector.w);
 
     #define debug_if(Condition, Op)                                                                                    \
         if (Condition)                                                                                                 \
@@ -39,10 +51,10 @@
     #define printf_block_begin(Condition)
     #define printf_block_end()
     #define printf_text(Message)
-    #define printf_float(Value)
-    #define printf_vec2(Vector)
-    #define printf_vec3(Vector)
-    #define printf_vec4(Vector)
+    #define printf_float(Label, Value)
+    #define printf_vec2(Label, Vector)
+    #define printf_vec3(Label, Vector)
+    #define printf_vec4(Label, Vector)
 
     #define debug_if(Condition, Op)
     #define debug_is_center()

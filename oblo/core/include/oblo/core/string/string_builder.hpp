@@ -39,6 +39,8 @@ namespace oblo
 
         string_builder& operator=(std::string_view str);
 
+        void reserve(usize size);
+
     private:
         void ensure_null_termination();
 
@@ -137,6 +139,11 @@ namespace oblo
         m_buffer.assign(str.begin(), str.end());
         ensure_null_termination();
         return *this;
+    }
+
+    inline void string_builder::reserve(usize size)
+    {
+        m_buffer.reserve(size);
     }
 }
 

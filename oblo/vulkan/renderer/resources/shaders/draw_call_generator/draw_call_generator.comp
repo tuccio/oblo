@@ -4,8 +4,6 @@
 #extension GL_EXT_buffer_reference : require
 #extension GL_ARB_gpu_shader_int64 : require
 
-#extension GL_EXT_debug_printf : require
-
 #include <renderer/instances>
 #include <renderer/math>
 #include <renderer/meshes/mesh_data>

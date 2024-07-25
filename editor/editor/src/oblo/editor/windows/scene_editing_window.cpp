@@ -85,6 +85,18 @@ namespace oblo::editor
                     ctx.windowManager.create_child_window<style_window>(ctx.windowHandle);
                 }
 
+                if (ImGui::MenuItem("Toggle shader printf"))
+                {
+                    auto& passManager = ctx.services.find<vk::renderer>()->get_pass_manager();
+                    passManager.toggle_printf();
+                }
+
+                if (ImGui::MenuItem("Single frame shader printf"))
+                {
+                    auto& passManager = ctx.services.find<vk::renderer>()->get_pass_manager();
+                    passManager.enable_printf(1);
+                }
+
                 if (ImGui::MenuItem("Copy frame graph to clipboard"))
                 {
                     const auto& frameGraph = ctx.services.find<vk::renderer>()->get_frame_graph();
