@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include <oblo/core/string_interner.hpp>
+#include <oblo/core/string/string_interner.hpp>
 
 #include <random>
 #include <unordered_map>

@@ -1,4 +1,4 @@
-#include <oblo/core/string_interner.hpp>
+#include <oblo/core/string/string_interner.hpp>
 
 #include <oblo/core/debug.hpp>
 #include <oblo/core/dynamic_array.hpp>

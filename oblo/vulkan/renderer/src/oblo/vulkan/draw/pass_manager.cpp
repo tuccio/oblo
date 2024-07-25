@@ -9,7 +9,7 @@
 #include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/log.hpp>
 #include <oblo/core/string/string_builder.hpp>
-#include <oblo/core/string_interner.hpp>
+#include <oblo/core/string/string_interner.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
