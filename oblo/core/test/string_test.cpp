@@ -79,7 +79,7 @@ namespace oblo
         EXPECT_NE(sv.data(), nullptr);
         EXPECT_EQ(sv.size(), 0);
         EXPECT_TRUE(sv.empty());
-        EXPECT_EQ(strcmp(sv.c_str(), ""), 0);
+        EXPECT_EQ(std::strcmp(sv.c_str(), ""), 0);
     }
 
     TEST(cstring_view_test, from_c_string)

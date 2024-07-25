@@ -13,4 +13,16 @@ namespace oblo
     {
         return XXH64(p, size, seed);
     }
+
+    usize hash_xxhz(const void* p, u64 size, usize seed)
+    {
+        if constexpr (sizeof(usize) == sizeof(u64))
+        {
+            return usize{XXH64(p, size, u64(seed))};
+        }
+        else if constexpr (sizeof(usize) == sizeof(u32))
+        {
+            return usize{XXH32(p, size, u32(seed))};
+        }
+    }
 }

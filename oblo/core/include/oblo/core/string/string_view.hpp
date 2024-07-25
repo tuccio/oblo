@@ -2,8 +2,10 @@
 
 #include <bit>
 
+#include <oblo/core/concepts/sequential_container.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/iterator/reverse_iterator.hpp>
+#include <oblo/core/platform/compiler.hpp>
 #include <oblo/core/types.hpp>
 
 namespace oblo
@@ -30,20 +32,25 @@ namespace oblo
         constexpr string_view(const string_view&) = default;
         constexpr string_view(string_view&&) noexcept = default;
 
-        constexpr string_view(const char8_t* str, size_type count) :
+        OBLO_FORCEINLINE constexpr string_view(const char8_t* str, size_type count) :
             string_view{std::bit_cast<const_pointer>(str), count}
         {
         }
 
-        constexpr string_view(const char* str, size_type count) : m_begin{str}, m_size{count} {}
+        template <sequential_container_of<char> C>
+        string_view(const C& c) : m_begin{c.data()}, m_size{c.size()}
+        {
+        }
 
-        constexpr string_view(const char* str) : m_begin{str}, m_size{cstring_length(str)} {}
+        OBLO_FORCEINLINE constexpr string_view(const char* str, size_type count) : m_begin{str}, m_size{count} {}
+
+        OBLO_FORCEINLINE constexpr string_view(const char* str) : m_begin{str}, m_size{cstring_length(str)} {}
         constexpr string_view(const char8_t* str) : string_view{std::bit_cast<const_pointer>(str)} {}
-
+        OBLO_FORCEINLINE
         constexpr string_view& operator=(const string_view&) = default;
         constexpr string_view& operator=(string_view&&) noexcept = default;
 
-        constexpr const_pointer data() const noexcept
+        OBLO_FORCEINLINE constexpr const_pointer data() const noexcept
         {
             return m_begin;
         }
@@ -66,12 +73,12 @@ namespace oblo
             return m_begin[m_size - 1];
         }
 
-        constexpr usize size() const noexcept
+        OBLO_FORCEINLINE constexpr usize size() const noexcept
         {
             return m_size;
         }
 
-        constexpr bool empty() const noexcept
+        OBLO_FORCEINLINE constexpr bool empty() const noexcept
         {
             return m_size == 0;
         }
@@ -143,7 +150,7 @@ namespace oblo
             }
         }
 
-        constexpr bool operator==(string_view str) const noexcept
+        OBLO_FORCEINLINE constexpr bool operator==(string_view str) const noexcept
         {
             if (m_size != str.m_size)
             {
@@ -194,44 +201,50 @@ namespace oblo
             return npos;
         }
 
-        constexpr const_iterator begin() const
+        OBLO_FORCEINLINE constexpr const_iterator begin() const
         {
             return m_begin;
         }
 
-        constexpr const_iterator end() const
+        OBLO_FORCEINLINE constexpr const_iterator end() const
         {
             return m_begin + m_size;
         }
 
-        constexpr const_iterator cbegin() const
+        OBLO_FORCEINLINE constexpr const_iterator cbegin() const
         {
             return m_begin;
         }
 
-        constexpr const_iterator cend() const
+        OBLO_FORCEINLINE constexpr const_iterator cend() const
         {
             return m_begin + m_size;
         }
 
-        constexpr const_reverse_iterator rbegin() const
+        OBLO_FORCEINLINE constexpr const_reverse_iterator rbegin() const
         {
             return const_reverse_iterator{m_begin};
         }
 
-        constexpr const_reverse_iterator rend() const
+        OBLO_FORCEINLINE constexpr const_reverse_iterator rend() const
         {
             return const_reverse_iterator{m_begin + m_size};
         }
 
-        constexpr const_reverse_iterator crbegin() const
+        OBLO_FORCEINLINE constexpr const_reverse_iterator crbegin() const
         {
             return const_reverse_iterator{m_begin};
         }
 
-        constexpr const_reverse_iterator crend() const
+        OBLO_FORCEINLINE constexpr const_reverse_iterator crend() const
         {
             return const_reverse_iterator{m_begin + m_size};
+        }
+
+        template <typename T>
+        T as() const noexcept
+        {
+            return T{m_begin, m_size};
         }
 
     private:
@@ -258,7 +271,7 @@ namespace oblo
         size_type m_size{};
     };
 
-    inline namespace literals
+    inline namespace string_literals
     {
         constexpr string_view operator""_sv(const char* str, usize length)
         {

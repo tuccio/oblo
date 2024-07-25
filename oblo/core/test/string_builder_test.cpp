@@ -55,7 +55,7 @@ namespace oblo
     {
         string_builder sb;
         sb.append("String view test");
-        std::string_view view = sb.view();
+        string_view view = sb.view();
         EXPECT_EQ(view.size(), 16);
         EXPECT_EQ(view, "String view test");
     }
@@ -64,7 +64,7 @@ namespace oblo
     {
         string_builder sb;
         sb.append("Conversion test");
-        std::string_view view = static_cast<std::string_view>(sb);
+        string_view view = static_cast<string_view>(sb);
         EXPECT_EQ(view.size(), 15);
         EXPECT_EQ(view, "Conversion test");
     }

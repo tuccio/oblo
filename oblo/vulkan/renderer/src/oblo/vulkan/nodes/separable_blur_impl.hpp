@@ -20,11 +20,11 @@ namespace oblo::vk
         shaderPath.append("./vulkan/shaders/postprocess/").append(shaderName).append(".comp");
 
         string_builder passName;
-        passName.format("Blur {} {}", shaderPath, std::string_view(PassIndex == 0 ? "Horizontal" : "Vertical"));
+        passName.format("Blur {} {}", shaderPath, string_view(PassIndex == 0 ? "Horizontal" : "Vertical"));
 
         blurPass = pm.register_compute_pass({
-            .name = std::string{passName.view()},
-            .shaderSourcePath = std::filesystem::path{shaderPath.view()},
+            .name = passName.view().as<std::string>(),
+            .shaderSourcePath = shaderPath.view().as<std::string_view>(),
         });
     }
 

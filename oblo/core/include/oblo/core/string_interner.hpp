@@ -1,8 +1,8 @@
 #pragma once
 
 #include <oblo/core/handle.hpp>
-
-#include <string_view>
+#include <oblo/core/string/cstring_view.hpp>
+#include <oblo/core/string/string_view.hpp>
 
 namespace oblo
 {
@@ -24,10 +24,10 @@ namespace oblo
         void init(u32 estimatedStringsCount);
         void shutdown();
 
-        h32<string> get_or_add(std::string_view str);
-        h32<string> get(std::string_view str) const;
+        h32<string> get_or_add(string_view str);
+        h32<string> get(string_view str) const;
 
-        std::string_view str(h32<string> handle) const;
+        cstring_view str(h32<string> handle) const;
         const char* c_str(h32<string> handle) const;
 
     private:

@@ -715,7 +715,7 @@ namespace oblo::vk
         *it = '\n';
         ++it;
 
-        const auto builtInDefinesStr = std::string_view{sb};
+        const auto builtInDefinesStr = sb.view();
 
         it = std::copy(builtInDefinesStr.data(), builtInDefinesStr.data() + builtInDefinesStr.size(), it);
         it = std::copy(instanceDataDefines.begin(), instanceDataDefines.end(), it);
@@ -2032,7 +2032,7 @@ namespace oblo::vk
 
         for (auto& define : desc.defines)
         {
-            definesHash = hash_mix(definesHash, std::hash<std::string_view>{}(define));
+            definesHash = hash_mix(definesHash, hash<string_view>{}(define));
         }
 
         // The whole initializer should be considered, but we only look at defines for now

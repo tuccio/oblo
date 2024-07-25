@@ -29,6 +29,16 @@ namespace oblo
         constexpr cstring_view(const char* str) : string_view{str} {}
         constexpr cstring_view(const char8_t* str) : string_view{str} {}
 
+        constexpr cstring_view(const char* str, usize length) : string_view{str, length}
+        {
+            OBLO_ASSERT(str[length] == '\0');
+        }
+
+        constexpr cstring_view(const char8_t* str, usize length) : string_view{str, length}
+        {
+            OBLO_ASSERT(str[length] == '\0');
+        }
+
         constexpr cstring_view& operator=(const cstring_view&) = default;
         constexpr cstring_view& operator=(cstring_view&&) noexcept = default;
 
@@ -77,11 +87,24 @@ namespace oblo
 
         using string_view::find;
 
+        using string_view::as;
+
         constexpr operator string_view() const noexcept
         {
-            return *this;
+            return {data(), size()};
+        }
+    };
+
+    inline namespace string_literals
+    {
+        constexpr string_view operator""_csv(const char* str, usize length)
+        {
+            return {str, length};
         }
 
-    private:
-    };
+        constexpr string_view operator""_csv(const char8_t* str, usize length)
+        {
+            return {str, length};
+        }
+    }
 }

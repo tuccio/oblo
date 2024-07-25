@@ -1,6 +1,9 @@
 #pragma once
 
 #include <oblo/core/buffered_array.hpp>
+#include <oblo/core/string/cstring_view.hpp>
+#include <oblo/core/string/format.hpp>
+#include <oblo/core/string/string_view.hpp>
 
 #include <format>
 
@@ -17,7 +20,7 @@ namespace oblo
         string_builder& operator=(const string_builder&) = delete;
         string_builder& operator=(string_builder&&) noexcept = delete;
 
-        string_builder& append(std::string_view str);
+        string_builder& append(string_view str);
 
         template <typename... Args>
         string_builder& format(std::format_string<Args...> fmt, Args&&... args);
@@ -25,7 +28,7 @@ namespace oblo
         template <typename Iterator>
         string_builder& join(Iterator&& begin,
             Iterator&& end,
-            std::string_view separator,
+            string_view separator,
             std::format_string<decltype(*std::declval<Iterator>())> fmt = "{}");
 
         string_builder& clear();
@@ -33,11 +36,12 @@ namespace oblo
         const char* data() const;
         usize size() const;
 
-        std::string_view view() const;
+        cstring_view view() const;
 
-        explicit operator std::string_view() const;
+        explicit operator string_view() const;
+        explicit operator cstring_view() const;
 
-        string_builder& operator=(std::string_view str);
+        string_builder& operator=(string_view str);
 
         void reserve(usize size);
 
@@ -58,7 +62,7 @@ namespace oblo
         m_buffer.emplace_back('\0');
     }
 
-    inline string_builder& string_builder::append(std::string_view str)
+    inline string_builder& string_builder::append(string_view str)
     {
         m_buffer.pop_back();
         m_buffer.insert(m_buffer.end(), str.begin(), str.end());
@@ -78,7 +82,7 @@ namespace oblo
     template <typename Iterator>
     string_builder& string_builder::join(Iterator&& begin,
         Iterator&& end,
-        std::string_view separator,
+        string_view separator,
         std::format_string<decltype(*std::declval<Iterator>())> fmt)
     {
         if (begin == end)
@@ -124,17 +128,22 @@ namespace oblo
         }
     }
 
-    inline std::string_view string_builder::view() const
+    inline cstring_view string_builder::view() const
     {
-        return std::string_view{m_buffer.data(), size()};
+        return cstring_view{m_buffer.data(), size()};
     }
 
-    inline string_builder::operator std::string_view() const
+    inline string_builder::operator string_view() const
     {
-        return std::string_view{m_buffer.data(), size()};
+        return string_view{m_buffer.data(), size()};
     }
 
-    inline string_builder& string_builder::operator=(std::string_view str)
+    inline string_builder::operator cstring_view() const
+    {
+        return cstring_view{m_buffer.data()};
+    }
+
+    inline string_builder& string_builder::operator=(string_view str)
     {
         m_buffer.assign(str.begin(), str.end());
         ensure_null_termination();
@@ -152,6 +161,7 @@ struct std::formatter<oblo::string_builder> : std::formatter<std::string_view>
 {
     auto format(const oblo::string_builder& builder, std::format_context& ctx) const
     {
-        return std::formatter<std::string_view>::format(builder.view(), ctx);
+        const std::string_view sv{builder.data(), builder.size()};
+        return std::formatter<std::string_view>::format(sv, ctx);
     }
 };

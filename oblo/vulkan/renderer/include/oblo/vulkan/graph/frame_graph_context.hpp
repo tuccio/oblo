@@ -4,6 +4,7 @@
 #include <oblo/core/expected.hpp>
 #include <oblo/core/flat_dense_forward.hpp>
 #include <oblo/core/handle.hpp>
+#include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/graph/frame_graph_resources.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
@@ -11,7 +12,6 @@
 #include <vulkan/vulkan_core.h>
 
 #include <span>
-#include <string_view>
 
 namespace oblo
 {
@@ -157,13 +157,13 @@ namespace oblo::vk
 
     struct buffer_binding_desc
     {
-        std::string_view name;
+        string_view name;
         resource<buffer> resource;
     };
 
     struct texture_binding_desc
     {
-        std::string_view name;
+        string_view name;
         resource<texture> resource;
     };
 
