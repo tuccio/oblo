@@ -13,6 +13,7 @@
 #include <oblo/math/quaternion.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
+#include <oblo/vulkan/data/blur_configs.hpp>
 #include <oblo/vulkan/data/light_data.hpp>
 #include <oblo/vulkan/data/raytraced_shadow_config.hpp>
 #include <oblo/vulkan/graph/frame_graph.hpp>
@@ -24,11 +25,8 @@ namespace oblo
     {
         // Maps main view to shadow map graph
         h32_flat_extpool_dense_map<vk::frame_graph_subgraph, h32<vk::frame_graph_subgraph>> shadowGraphs;
-        u32 shadowSamples;
         i32 lightIndex;
-        f32 punctualLightRadius;
-        vk::light_type type;
-        bool hardShadows;
+        const light_component* light;
     };
 
     lighting_system::lighting_system() = default;
@@ -56,6 +54,9 @@ namespace oblo
             .isShadowCaster = true,
             .shadowSamples = 4,
             .shadowBias = .01f,
+            .shadowTemporalAccumulationFactor = .3f,
+            .shadowBlurKernel = 5,
+            .shadowBlurSigma = 1.15f,
         };
 
         m_rtShadows = vk::raytraced_shadow_view::create(m_sceneRenderer->get_frame_graph_registry());
@@ -72,7 +73,7 @@ namespace oblo
         dynamic_array<vk::light_data> lightData{ctx.frameAllocator};
         lightData.reserve(lightsCount);
 
-        for (auto& shadow : m_directionalShadows.values())
+        for (auto& shadow : m_shadows.values())
         {
             shadow.lightIndex = -1;
         }
@@ -98,12 +99,9 @@ namespace oblo
 
                 if (light.isShadowCaster)
                 {
-                    const auto [it, inserted] = m_directionalShadows.emplace(e);
+                    const auto [it, inserted] = m_shadows.emplace(e);
                     it->lightIndex = narrow_cast<i32>(lightData.size());
-                    it->shadowSamples = light.shadowSamples;
-                    it->type = vk::light_type(u32(light.type));
-                    it->hardShadows = light.hardShadows;
-                    it->punctualLightRadius = light.shadowPunctualRadius;
+                    it->light = &light;
                 }
 
                 lightData.push_back({
@@ -129,7 +127,7 @@ namespace oblo
 
         auto& frameGraph = m_sceneRenderer->get_frame_graph();
 
-        for (const auto& [e, shadow] : zip_range(m_directionalShadows.keys(), m_directionalShadows.values()))
+        for (const auto& [e, shadow] : zip_range(m_shadows.keys(), m_shadows.values()))
         {
             if (shadow.lightIndex < 0)
             {
@@ -193,21 +191,29 @@ namespace oblo
                     }
 
                     const vk::raytraced_shadow_config cfg{
-                        .shadowSamples = max(1u, shadow.shadowSamples),
+                        .shadowSamples = max(1u, shadow.light->shadowSamples),
                         .lightIndex = u32(shadow.lightIndex),
-                        .type = shadow.type,
-                        .shadowPunctualRadius = shadow.punctualLightRadius,
-                        .hardShadows = shadow.hardShadows,
+                        .type = vk::light_type(shadow.light->type),
+                        .shadowPunctualRadius = shadow.light->shadowPunctualRadius,
+                        .temporalAccumulationFactor = shadow.light->shadowTemporalAccumulationFactor,
+                        .hardShadows = shadow.light->hardShadows,
                     };
 
                     frameGraph.set_input(*v, vk::raytraced_shadow_view::InConfig, cfg).assert_value();
+
+                    const vk::gaussian_blur_config blurCfg{
+                        .kernelSize = shadow.light->shadowBlurKernel,
+                        .sigma = shadow.light->shadowBlurSigma,
+                    };
+
+                    frameGraph.set_input(*v, vk::raytraced_shadow_view::InBlurConfig, blurCfg).assert_value();
                 }
             }
         }
 
         for (auto e : removedShadows)
         {
-            m_directionalShadows.erase(e);
+            m_shadows.erase(e);
         }
     }
 }

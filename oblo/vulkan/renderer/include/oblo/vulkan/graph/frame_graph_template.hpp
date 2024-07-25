@@ -81,6 +81,9 @@ namespace oblo::vk
         template <typename T, typename NodeFrom, typename NodeTo>
         bool connect(vertex_handle src, data<T>(NodeFrom::*from), vertex_handle dst, data<T>(NodeTo::*to));
 
+        template <typename T, typename NodeFrom, typename NodeTo>
+        bool connect(vertex_handle src, data_sink<T>(NodeFrom::*from), vertex_handle dst, data_sink<T>(NodeTo::*to));
+
         const topology& get_graph() const;
 
         std::span<const vertex_handle> get_inputs() const;
@@ -149,6 +152,15 @@ namespace oblo::vk
     template <typename T, typename NodeFrom, typename NodeTo>
     bool frame_graph_template::connect(
         vertex_handle src, data<T>(NodeFrom::*from), vertex_handle dst, data<T>(NodeTo::*to))
+    {
+        const auto srcPin = find_pin(src, calculate_offset(from));
+        const auto dstPin = find_pin(dst, calculate_offset(to));
+        return connect(srcPin, dstPin);
+    }
+
+    template <typename T, typename NodeFrom, typename NodeTo>
+    bool frame_graph_template::connect(
+        vertex_handle src, data_sink<T>(NodeFrom::*from), vertex_handle dst, data_sink<T>(NodeTo::*to))
     {
         const auto srcPin = find_pin(src, calculate_offset(from));
         const auto dstPin = find_pin(dst, calculate_offset(to));

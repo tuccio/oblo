@@ -58,6 +58,7 @@ namespace oblo::vk::raytraced_shadow_view
     constexpr std::string_view InResolution{"Resolution"};
     constexpr std::string_view InConfig{"Config"};
     constexpr std::string_view InDepthBuffer{"DepthBuffer"};
+    constexpr std::string_view InBlurConfig{"BlurConfig"};
     constexpr std::string_view OutShadow{"Shadow"};
     constexpr std::string_view OutShadowSink{"ShadowSink"};
 

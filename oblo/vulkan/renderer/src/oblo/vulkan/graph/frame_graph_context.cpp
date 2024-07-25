@@ -293,6 +293,18 @@ namespace oblo::vk
         return resource;
     }
 
+    expected<image_initializer> frame_graph_build_context::get_current_initializer(resource<texture> texture) const
+    {
+        const auto h = m_frameGraph.find_pool_index(texture);
+
+        if (!h)
+        {
+            return unspecified_error;
+        }
+
+        return m_resourcePool.get_initializer(h);
+    }
+
     frame_allocator& frame_graph_build_context::get_frame_allocator() const
     {
         return m_frameGraph.dynamicAllocator;

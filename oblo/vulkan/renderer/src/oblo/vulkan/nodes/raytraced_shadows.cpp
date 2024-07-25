@@ -7,7 +7,6 @@
 #include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/data/draw_buffer_data.hpp>
 #include <oblo/vulkan/data/picking_configuration.hpp>
-#include <oblo/vulkan/draw/compute_pass_initializer.hpp>
 #include <oblo/vulkan/draw/raytracing_pass_initializer.hpp>
 #include <oblo/vulkan/graph/node_common.hpp>
 #include <oblo/vulkan/loaded_functions.hpp>
@@ -45,7 +44,6 @@ namespace oblo::vk
                 .height = resolution.y,
                 .format = VK_FORMAT_R8_UNORM,
                 .usage = VK_IMAGE_USAGE_STORAGE_BIT,
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                 .isStable = true,
             },
             texture_usage::storage_write);
@@ -83,10 +81,10 @@ namespace oblo::vk
         const auto& cfg = ctx.access(inConfig);
 
         string_builder shadowType;
-        shadowType.set("SHADOW_TYPE {}", u32(cfg.type));
+        shadowType.format("SHADOW_TYPE {}", u32(cfg.type));
 
         string_builder shadowHard;
-        shadowHard.set("SHADOW_HARD {}", u32{cfg.hardShadows});
+        shadowHard.format("SHADOW_HARD {}", u32{cfg.hardShadows});
 
         const std::string_view defines[] = {shadowType.view(), shadowHard.view()};
 
@@ -111,14 +109,12 @@ namespace oblo::vk
                 f32 historyAlpha;
             };
 
-            constexpr f32 ShadowHistoryAlpha = .3f;
-
             const push_constants constants{
                 .randomSeed = randomSeed,
                 .lightIndex = cfg.lightIndex,
                 .samples = cfg.shadowSamples,
                 .punctualLightRadius = cfg.shadowPunctualRadius,
-                .historyAlpha = accumulationFrames == 0 ? 0.f : ShadowHistoryAlpha,
+                .historyAlpha = accumulationFrames == 0 ? 0.f : cfg.temporalAccumulationFactor,
             };
 
             pm.bind_descriptor_sets(*pass, bindingTables);

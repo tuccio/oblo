@@ -14,7 +14,6 @@ namespace oblo::vk
         u32 height;
         VkFormat format;
         VkImageUsageFlags usage;
-        VkImageAspectFlags aspectMask;
         bool isStable;
     };
 

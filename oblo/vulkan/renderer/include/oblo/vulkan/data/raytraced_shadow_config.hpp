@@ -12,6 +12,7 @@ namespace oblo::vk
         u32 lightIndex;
         light_type type;
         f32 shadowPunctualRadius;
+        f32 temporalAccumulationFactor;
         bool hardShadows;
     };
 }

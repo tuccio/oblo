@@ -53,6 +53,8 @@ namespace oblo::vk
 
         u32 get_frames_alive_count(h32<transient_texture_resource> id) const;
 
+        const image_initializer& get_initializer(h32<transient_texture_resource> id) const;
+
     private:
         struct buffer_resource;
         struct texture_resource;

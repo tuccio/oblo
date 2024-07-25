@@ -1,0 +1,20 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_control_flow_attributes : enable
+
+#include <postprocess/separable_blur>
+
+vec4 blur_pixel(in uvec2 pixel)
+{
+    vec4 v = vec4(0);
+
+    [[unroll]] for (int i = BLUR_KERNEL_BEGIN; i <= BLUR_KERNEL_END; ++i)
+    {
+        const float gaussian = blur_get_kernel(abs(i));
+        const vec4 value = blur_image_load_offset(pixel, i);
+        v += gaussian * value;
+    }
+
+    return v;
+}

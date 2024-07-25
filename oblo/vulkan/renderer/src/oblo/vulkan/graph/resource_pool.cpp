@@ -46,7 +46,7 @@ namespace oblo::vk
             case VK_FORMAT_D16_UNORM_S8_UINT:
             case VK_FORMAT_D24_UNORM_S8_UINT:
             case VK_FORMAT_D32_SFLOAT_S8_UINT:
-                // These have the tencil bit as well, but we cannot create a view for both
+                // These have the stencil bit as well, but we cannot create a view for both
                 // see VUID-VkDescriptorImageInfo-imageView-01976
                 return VK_IMAGE_ASPECT_DEPTH_BIT;
 
@@ -264,6 +264,12 @@ namespace oblo::vk
     {
         auto& resource = m_textureResources[id.value - 1];
         return resource.framesAlive;
+    }
+
+    const image_initializer& resource_pool::get_initializer(h32<transient_texture_resource> id) const
+    {
+        auto& resource = m_textureResources[id.value - 1];
+        return resource.initializer;
     }
 
     void resource_pool::free_last_frame_resources(vulkan_context& ctx)

@@ -58,6 +58,10 @@ namespace oblo::editor
             light.shadowPunctualRadius = .15f;
             light.shadowSamples = 1;
 
+            light.shadowTemporalAccumulationFactor = .3f;
+            light.shadowBlurKernel = 3;
+            light.shadowBlurSigma = 1.15f;
+
             light.spotInnerAngle = 30_deg;
             light.spotOuterAngle = 60_deg;
 

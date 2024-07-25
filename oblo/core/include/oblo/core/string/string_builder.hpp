@@ -20,12 +20,13 @@ namespace oblo
         string_builder& append(std::string_view str);
 
         template <typename... Args>
-        string_builder& append(std::format_string<Args...>, Args&&... args);
+        string_builder& format(std::format_string<Args...> fmt, Args&&... args);
 
-        string_builder& set(std::string_view str);
-
-        template <typename... Args>
-        string_builder& set(std::format_string<Args...>, Args&&... args);
+        template <typename Iterator>
+        string_builder& join(Iterator&& begin,
+            Iterator&& end,
+            std::string_view separator,
+            std::format_string<decltype(*std::declval<Iterator>())> fmt = "{}");
 
         string_builder& clear();
 
@@ -64,7 +65,7 @@ namespace oblo
     }
 
     template <typename... Args>
-    string_builder& string_builder::append(std::format_string<Args...> fmt, Args&&... args)
+    string_builder& string_builder::format(std::format_string<Args...> fmt, Args&&... args)
     {
         m_buffer.pop_back();
         std::format_to(std::back_inserter(m_buffer), fmt, std::forward<Args>(args)...);
@@ -72,19 +73,25 @@ namespace oblo
         return *this;
     }
 
-    inline string_builder& string_builder::set(std::string_view str)
+    template <typename Iterator>
+    string_builder& string_builder::join(Iterator&& begin,
+        Iterator&& end,
+        std::string_view separator,
+        std::format_string<decltype(*std::declval<Iterator>())> fmt)
     {
-        m_buffer.assign(str.begin(), str.end());
-        ensure_null_termination();
-        return *this;
-    }
+        if (begin == end)
+        {
+            return *this;
+        }
 
-    template <typename... Args>
-    string_builder& string_builder::set(std::format_string<Args...> fmt, Args&&... args)
-    {
-        m_buffer.clear();
-        std::format_to(std::back_inserter(m_buffer), fmt, std::forward<Args>(args)...);
-        ensure_null_termination();
+        format(fmt, *begin);
+
+        for (auto it = std::next(begin); it != end; ++it)
+        {
+            append(separator);
+            format(fmt, *it);
+        }
+
         return *this;
     }
 
@@ -132,3 +139,12 @@ namespace oblo
         return *this;
     }
 }
+
+template <>
+struct std::formatter<oblo::string_builder> : std::formatter<std::string_view>
+{
+    auto format(const oblo::string_builder& builder, std::format_context& ctx) const
+    {
+        return std::formatter<std::string_view>::format(builder.view(), ctx);
+    }
+};

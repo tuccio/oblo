@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/expected.hpp>
 #include <oblo/core/flat_dense_forward.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/types.hpp>
@@ -32,6 +33,7 @@ namespace oblo::vk
     struct bindable_object;
     struct buffer;
     struct texture;
+    struct image_initializer;
 
     struct loaded_functions;
     struct frame_graph_impl;
@@ -135,6 +137,8 @@ namespace oblo::vk
             auto* a = static_cast<data_sink_container<T>*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
             a->push_back(std::move(value));
         }
+
+        expected<image_initializer> get_current_initializer(resource<texture> texture) const;
 
         frame_allocator& get_frame_allocator() const;
 

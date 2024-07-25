@@ -39,6 +39,6 @@ namespace oblo
     private:
         scene_renderer* m_sceneRenderer{};
         vk::frame_graph_template m_rtShadows;
-        h32_flat_extpool_dense_map<ecs::entity_handle, shadow_directional> m_directionalShadows;
+        h32_flat_extpool_dense_map<ecs::entity_handle, shadow_directional> m_shadows;
     };
 };

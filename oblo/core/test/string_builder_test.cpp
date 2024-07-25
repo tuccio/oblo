@@ -23,26 +23,21 @@ namespace oblo
     TEST(string_builder, append_format_string)
     {
         string_builder sb;
-        sb.append("The number is: {}", 42);
+        sb.format("The number is: {}", 42);
 
         const char* expected = "The number is: 42";
         EXPECT_EQ(sb.size(), strlen(expected));
         EXPECT_STREQ(sb.data(), expected);
     }
 
-    TEST(string_builder, set_string_view)
+    TEST(string_builder, join_format_string)
     {
-        string_builder sb;
-        sb.set("New content");
-        EXPECT_EQ(sb.size(), 11);
-        EXPECT_STREQ(sb.data(), "New content");
-    }
+        int values[] = {1, 2, 3, 4};
 
-    TEST(string_builder, set_format_string)
-    {
         string_builder sb;
-        sb.set("Set with number: {}", 100);
-        const char* expected = "Set with number: 100";
+        sb.join(std::begin(values), std::end(values), ", ");
+
+        const char* expected = "1, 2, 3, 4";
         EXPECT_EQ(sb.size(), strlen(expected));
         EXPECT_STREQ(sb.data(), expected);
     }

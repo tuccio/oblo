@@ -20,18 +20,18 @@
 
     #define printf_text(Message) debugPrintfEXT(Message);
     #define printf_float(Value) debugPrintfEXT("[ %f ]\n", Value);
+    #define printf_vec2(Vector) debugPrintfEXT("[ %f, %f ]\n", Vector.x, Vector.y);
     #define printf_vec3(Vector) debugPrintfEXT("[ %f, %f, %f ]\n", Vector.x, Vector.y, Vector.z);
+    #define printf_vec4(Vector) debugPrintfEXT("[ %f, %f, %f, %f ]\n", Vector.x, Vector.y, Vector.z, Vector.w);
+
+    #define debug_if(Condition, Op)                                                                                    \
+        if (Condition)                                                                                                 \
+        {                                                                                                              \
+            Op;                                                                                                        \
+        }
 
     #ifdef OBLO_PIPELINE_RAYTRACING
-
-        #define debug_if(Condition, Op)                                                                                \
-            if (Condition)                                                                                             \
-            {                                                                                                          \
-                Op;                                                                                                    \
-            }
-
         #define debug_is_center() gl_LaunchIDEXT.xy == (gl_LaunchSizeEXT.xy / 2)
-
     #endif
 
 #else
@@ -40,7 +40,9 @@
     #define printf_block_end()
     #define printf_text(Message)
     #define printf_float(Value)
+    #define printf_vec2(Vector)
     #define printf_vec3(Vector)
+    #define printf_vec4(Vector)
 
     #define debug_if(Condition, Op)
     #define debug_is_center()
