@@ -1097,7 +1097,7 @@ namespace oblo::vk
     template <typename Filter>
     void pass_manager::impl::invalidate_all_passes(Filter&& f)
     {
-        const auto processPasses = [this, &f](auto& passes, auto& pipelines)
+        const auto processPasses = [&f](auto& passes, auto& pipelines)
         {
             for (auto& pass : passes.values())
             {

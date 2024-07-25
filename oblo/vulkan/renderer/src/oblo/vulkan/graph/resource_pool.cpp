@@ -10,7 +10,7 @@
 
 // For the sake of pooling textures, we ignore the debug labels
 template <>
-struct std::equal_to<oblo::debug_label>
+struct oblo::equal_to<oblo::debug_label>
 {
     bool operator()(const oblo::debug_label&, const oblo::debug_label&) const
     {
@@ -366,24 +366,8 @@ namespace oblo::vk
             OBLO_VK_PANIC(allocator.bind_image_memory(textureResource.image, m_allocation, offset));
             offset += textureResource.size + textureResource.size % newRequirements.alignment;
 
-            const VkFormat format{textureResource.initializer.format};
-
-            const VkImageViewCreateInfo imageViewInit{
-                .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-                .image = textureResource.image,
-                .viewType = VK_IMAGE_VIEW_TYPE_2D,
-                .format = format,
-                .subresourceRange =
-                    {
-                        .aspectMask = deduce_aspect_mask(format),
-                        .baseMipLevel = 0,
-                        .levelCount = 1,
-                        .baseArrayLayer = 0,
-                        .layerCount = 1,
-                    },
-            };
-
-            textureResource.imageView = create_image_view_2d(device, textureResource.image, format, allocationCbs);
+            textureResource.imageView =
+                create_image_view_2d(device, textureResource.image, textureResource.initializer.format, allocationCbs);
         }
     }
 
@@ -422,7 +406,7 @@ namespace oblo::vk
 
     bool resource_pool::stable_texture_key::operator==(const stable_texture_key& rhs) const
     {
-        return stableId == rhs.stableId && struct_compare<std::equal_to>(initializer, rhs.initializer);
+        return stableId == rhs.stableId && struct_compare<equal_to>(initializer, rhs.initializer);
     }
 
     usize resource_pool::stable_texture_key_hash::operator()(const stable_texture_key& key) const
