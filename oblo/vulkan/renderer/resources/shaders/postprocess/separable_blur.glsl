@@ -1,6 +1,6 @@
-#include <renderer/debug/printf>
 #include <renderer/quad>
 
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
 #define BLUR_KERNEL_END (BLUR_KERNEL_SIZE >> 1)
 #define BLUR_KERNEL_BEGIN (-BLUR_KERNEL_END)
@@ -16,10 +16,13 @@ g_Constants;
 
 ivec2 blur_pixel_offset_clamp(in uvec2 pixel, in int offset)
 {
+    // Casts to int here make sure that the int overload of clamp is used, otherwise negative offsets might cause
+    // unsigned underflow at the borders
+
 #ifdef BLUR_HORIZONTAL
-    return ivec2(clamp(pixel.x + offset, 0, g_Constants.resolution.x), pixel.y);
+    return ivec2(clamp(int(pixel.x) + offset, 0, int(g_Constants.resolution.x)), pixel.y);
 #else
-    return ivec2(pixel.x, clamp(pixel.y + offset, 0, g_Constants.resolution.y));
+    return ivec2(pixel.x, clamp(int(pixel.y) + offset, 0, int(g_Constants.resolution.y)));
 #endif
 }
 
@@ -44,10 +47,8 @@ vec4 blur_pixel(in uvec2 pixel);
 
 void main()
 {
-    // const uvec2 localGroupId = quad_remap_lane_8x8(gl_LocalInvocationIndex);
-    // const uvec2 screenPos = gl_WorkGroupID.xy * 8 + localGroupId;
-
-    const uvec2 screenPos = gl_GlobalInvocationID.xy;
+    const uvec2 localGroupId = quad_remap_lane_8x8(gl_LocalInvocationIndex);
+    const uvec2 screenPos = gl_WorkGroupID.xy * 8 + localGroupId;
 
     if (screenPos.x >= g_Constants.resolution.x)
     {
