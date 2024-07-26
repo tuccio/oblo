@@ -3,7 +3,6 @@
 #include <oblo/asset/import_artifact.hpp>
 #include <oblo/asset/importer.hpp>
 
-
 #include <span>
 
 namespace oblo

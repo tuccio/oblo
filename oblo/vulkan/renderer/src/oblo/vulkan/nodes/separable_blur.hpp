@@ -1,8 +1,8 @@
 #pragma once
 
 #include <oblo/core/dynamic_array.hpp>
-#include <oblo/core/types.hpp>
 #include <oblo/core/string/string_view.hpp>
+#include <oblo/core/types.hpp>
 
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>

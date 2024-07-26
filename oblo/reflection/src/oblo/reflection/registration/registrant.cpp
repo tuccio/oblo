@@ -66,8 +66,7 @@ namespace oblo::reflection
         return e;
     }
 
-    u32 reflection_registry::registrant::add_field(
-        u32 entityIndex, const type_id& type, string_view name, u32 offset)
+    u32 reflection_registry::registrant::add_field(u32 entityIndex, const type_id& type, string_view name, u32 offset)
     {
         const ecs::entity e{entityIndex};
 
@@ -136,8 +135,7 @@ namespace oblo::reflection
         rte.moveAssign(dst, src, 1u);
     }
 
-    void reflection_registry::registrant::add_enumerator(
-        u32 entityIndex, string_view name, std::span<const byte> value)
+    void reflection_registry::registrant::add_enumerator(u32 entityIndex, string_view name, std::span<const byte> value)
     {
         const ecs::entity e{entityIndex};
 
