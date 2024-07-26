@@ -19,6 +19,8 @@ namespace oblo::filesystem
 
     expected<bool> is_directory(cstring_view path);
 
+    bool is_relative(string_view path);
+
     string_view extension(string_view path);
 
     string_view stem(string_view path);

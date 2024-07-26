@@ -36,14 +36,14 @@ namespace oblo::filesystem
         template <typename Allocator>
         expected<std::span<char>> load_impl(Allocator& allocator, cstring_view path, const char* mode, usize alignment)
         {
-            FILE* file;
+            const file_ptr f{open_file(path, mode)};
 
-            if (const auto ret = fopen_s(&file, path.c_str(), mode); ret != 0)
+            if (!f)
             {
                 return unspecified_error;
             }
 
-            const auto closeFile = finally([file] { fclose(file); });
+            FILE* const file = f.get();
 
             if (fseek(file, 0, SEEK_END) != 0)
             {
@@ -72,7 +72,7 @@ namespace oblo::filesystem
     expected<std::span<byte>> load_binary_file_into_memory(
         frame_allocator& allocator, cstring_view path, usize alignment)
     {
-        const auto e = load_impl(allocator, path, "rb, ccs=UTF-8", alignment);
+        const auto e = load_impl(allocator, path, "rb", alignment);
         expected<std::span<byte>> res{unspecified_error};
 
         if (e)
@@ -85,12 +85,12 @@ namespace oblo::filesystem
 
     expected<std::span<char>> load_text_file_into_memory(frame_allocator& allocator, cstring_view path, usize alignment)
     {
-        return load_impl(allocator, path, "r, ccs=UTF-8", alignment);
+        return load_impl(allocator, path, "r", alignment);
     }
 
     expected<std::span<byte>> load_binary_file_into_memory(dynamic_array<byte>& out, cstring_view path, usize alignment)
     {
-        const auto e = load_impl(out, path, "rb, ccs=UTF-8", alignment);
+        const auto e = load_impl(out, path, "rb", alignment);
         expected<std::span<byte>> res{unspecified_error};
 
         if (e)
@@ -103,7 +103,7 @@ namespace oblo::filesystem
 
     expected<std::span<char>> load_text_file_into_memory(string_builder& out, cstring_view path, usize alignment)
     {
-        return load_impl(out, path, "r, ccs=UTF-8", alignment);
+        return load_impl(out, path, "r", alignment);
     }
 
     FILE* open_file(cstring_view path, const char* mode)
@@ -228,16 +228,10 @@ namespace oblo::filesystem
         return r;
     }
 
-    namespace
+    bool is_relative(string_view path)
     {
-        constexpr bool is_path_separator(u32 c)
-        {
-#if _WIN32
-            return c == '/' || c == '\\';
-#else
-            return c == '/';
-#endif
-        }
+        std::filesystem::path p{std::u8string_view{path.u8data(), path.size()}};
+        return p.is_relative();
     }
 
     string_view extension(string_view path)

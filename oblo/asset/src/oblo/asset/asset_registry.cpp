@@ -282,6 +282,18 @@ namespace oblo
         string_builder assetsDir;
         string_builder artifactsDir;
         string_builder sourceFilesDir;
+
+        string_builder& make_asset_path(string_builder& out, string_view directory)
+        {
+            if (filesystem::is_relative(directory))
+            {
+                out.append(assetsDir);
+                out.append_path_separator();
+            }
+
+            out.append(directory);
+            return out;
+        }
     };
 
     asset_registry::asset_registry() = default;
@@ -330,7 +342,9 @@ namespace oblo
     bool asset_registry::create_directories(string_view directory)
     {
         string_builder sb;
-        return ensure_directories(sb.append(m_impl->assetsDir).append_path(directory));
+        m_impl->make_asset_path(sb, directory);
+
+        return ensure_directories(sb);
     }
 
     void asset_registry::register_file_importer(const file_importer_desc& desc)
@@ -434,7 +448,7 @@ namespace oblo
         }
 
         string_builder fullPath;
-        fullPath.append(m_impl->assetsDir).append_path(destination).append_path(assetName).append(AssetMetaExtension);
+        m_impl->make_asset_path(fullPath, destination).append_path(assetName).append(AssetMetaExtension);
 
         if (policy == write_policy::no_overwrite && filesystem::exists(fullPath).value_or(true))
         {
@@ -476,7 +490,7 @@ namespace oblo
     bool asset_registry::find_asset_by_path(cstring_view path, uuid& id, asset_meta& assetMeta) const
     {
         string_builder fullPath;
-        fullPath.append(m_impl->assetsDir).append_path(path).append(AssetMetaExtension);
+        m_impl->make_asset_path(fullPath, path).append(AssetMetaExtension);
 
         return find_asset_by_meta_path(fullPath, id, assetMeta);
     }
