@@ -92,11 +92,11 @@ namespace oblo::vk
             break;
         }
 
-        const h32<string> defines[] = {
-            ctx.get_string_interner().get_or_add(kernelData.view()),
-            ctx.get_string_interner().get_or_add(kernelSize.view()),
-            ctx.get_string_interner().get_or_add(imageFormat.view()),
-            ctx.get_string_interner().get_or_add(PassIndex == 0 ? "BLUR_HORIZONTAL" : "BLUR_VERTICAL"),
+        const hashed_string_view defines[] = {
+            kernelData.as<hashed_string_view>(),
+            kernelSize.as<hashed_string_view>(),
+            imageFormat.as<hashed_string_view>(),
+            PassIndex == 0 ? "BLUR_HORIZONTAL"_hsv : "BLUR_VERTICAL"_hsv,
         };
 
         const auto lightingPipeline = pm.get_or_create_pipeline(blurPass, {.defines = defines});

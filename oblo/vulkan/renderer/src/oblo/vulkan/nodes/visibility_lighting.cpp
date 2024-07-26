@@ -169,39 +169,39 @@ namespace oblo::vk
                 {"t_OutShadedImage", outShadedImage},
             });
 
-        h32<string> define{};
+        hashed_string_view define{};
 
         switch (ctx.access(inDebugMode))
         {
         case visibility_debug_mode::albedo:
-            define = ctx.get_string_interner().get_or_add("OUT_ALBEDO");
+            define = "OUT_ALBEDO"_hsv;
             break;
         case visibility_debug_mode::normal_map:
-            define = ctx.get_string_interner().get_or_add("OUT_NORMAL_MAP");
+            define = "OUT_NORMAL_MAP"_hsv;
             break;
         case visibility_debug_mode::normals:
-            define = ctx.get_string_interner().get_or_add("OUT_NORMALS");
+            define = "OUT_NORMALS"_hsv;
             break;
         case visibility_debug_mode::tangents:
-            define = ctx.get_string_interner().get_or_add("OUT_TANGENTS");
+            define = "OUT_TANGENTS"_hsv;
             break;
         case visibility_debug_mode::bitangents:
-            define = ctx.get_string_interner().get_or_add("OUT_BITANGENTS");
+            define = "OUT_BITANGENTS"_hsv;
             break;
         case visibility_debug_mode::uv0:
-            define = ctx.get_string_interner().get_or_add("OUT_UV0");
+            define = "OUT_UV0"_hsv;
             break;
         case visibility_debug_mode::meshlet:
-            define = ctx.get_string_interner().get_or_add("OUT_MESHLET");
+            define = "OUT_MESHLET"_hsv;
             break;
         case visibility_debug_mode::metalness:
-            define = ctx.get_string_interner().get_or_add("OUT_METALNESS");
+            define = "OUT_METALNESS"_hsv;
             break;
         case visibility_debug_mode::roughness:
-            define = ctx.get_string_interner().get_or_add("OUT_ROUGHNESS");
+            define = "OUT_ROUGHNESS"_hsv;
             break;
         case visibility_debug_mode::emissive:
-            define = ctx.get_string_interner().get_or_add("OUT_EMISSIVE");
+            define = "OUT_EMISSIVE"_hsv;
             break;
         default:
             unreachable();

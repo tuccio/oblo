@@ -1,7 +1,7 @@
 #pragma once
 
-#include <oblo/core/string/string.hpp>
-#include <oblo/core/string/string_interner.hpp>
+#include <oblo/core/string/hashed_string_view.hpp>
+#include <oblo/core/string/string_view.hpp>
 
 #include <span>
 
@@ -9,12 +9,12 @@ namespace oblo::vk
 {
     struct compute_pass_initializer
     {
-        string name;
-        string shaderSourcePath;
+        string_view name;
+        string_view shaderSourcePath;
     };
 
     struct compute_pipeline_initializer
     {
-        std::span<const h32<string>> defines;
+        std::span<const hashed_string_view> defines;
     };
 }

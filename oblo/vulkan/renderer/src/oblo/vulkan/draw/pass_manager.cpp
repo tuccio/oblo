@@ -510,14 +510,14 @@ namespace oblo::vk
             }
         }
 
-        u64 hash_defines(std::span<const h32<string>> defines)
+        u64 hash_defines(std::span<const hashed_string_view> defines)
         {
             u64 hash{0};
 
             // Consider defines at least for now, but order matters here, which is undesirable
             for (const auto define : defines)
             {
-                hash = hash_mix(hash, hash_all<std::hash>(define.value));
+                hash = hash_mix(hash, define.hash());
             }
 
             return hash;
@@ -587,7 +587,7 @@ namespace oblo::vk
         VkShaderModule create_shader_module(VkShaderStageFlagBits vkStage,
             cstring_view filePath,
             std::span<const string_view> builtInDefines,
-            std::span<const h32<string>> defines,
+            std::span<const hashed_string_view> defines,
             string_view debugName,
             const shader_compiler::options& compilerOptions,
             dynamic_array<u32>& spirv);
@@ -642,7 +642,7 @@ namespace oblo::vk
     VkShaderModule pass_manager::impl::create_shader_module(VkShaderStageFlagBits vkStage,
         cstring_view filePath,
         std::span<const string_view> builtInDefines,
-        std::span<const h32<string>> userDefines,
+        std::span<const hashed_string_view> userDefines,
         string_view debugName,
         const shader_compiler::options& compilerOptions,
         dynamic_array<u32>& spirv)
@@ -680,7 +680,7 @@ namespace oblo::vk
         for (const auto define : userDefines)
         {
             constexpr auto fixedSize = string_view{"#define \n"}.size();
-            requiredDefinesLength += u32(fixedSize + interner->str(define).size());
+            requiredDefinesLength += u32(fixedSize + define.size());
         }
 
         requiredDefinesLength += u32(instanceDataDefines.size());
@@ -710,8 +710,7 @@ namespace oblo::vk
             constexpr string_view directive{"#define "};
             it = std::copy(directive.begin(), directive.end(), it);
 
-            const auto str = interner->str(define);
-            it = std::copy(str.begin(), str.end(), it);
+            it = std::copy(define.begin(), define.end(), it);
 
             *it = '\n';
             ++it;
@@ -2021,7 +2020,7 @@ namespace oblo::vk
 
         for (auto& define : desc.defines)
         {
-            definesHash = hash_mix(definesHash, hash<string_view>{}(define));
+            definesHash = hash_mix(definesHash, define.hash());
         }
 
         // The whole initializer should be considered, but we only look at defines for now
@@ -2063,14 +2062,6 @@ namespace oblo::vk
         dynamic_array<VkPipelineShaderStageCreateInfo> stages{&m_impl->frameAllocator};
         stages.reserve(raytracingPass->shadersCount);
 
-        // TODO: Get rid of the interner
-        buffered_array<h32<string>, 8> defines;
-
-        for (const auto& define : desc.defines)
-        {
-            defines.emplace_back(m_impl->interner->get_or_add(define));
-        }
-
         string_view builtInDefines[2] = {"OBLO_PIPELINE_RAYTRACING"};
 
         string_builder builder;
@@ -2088,7 +2079,7 @@ namespace oblo::vk
             const auto shaderModule = m_impl->create_shader_module(vkStage,
                 filePath,
                 builtInDefines,
-                defines,
+                desc.defines,
                 make_debug_name(builder, *m_impl->interner, raytracingPass->name, filePath),
                 compilerOptions,
                 spirv);
