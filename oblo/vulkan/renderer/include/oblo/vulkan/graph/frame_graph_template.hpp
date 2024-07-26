@@ -134,7 +134,7 @@ namespace oblo::vk
         if (desc)
         {
             v = add_node(id, *desc);
-            m_graph[v].name = get_type_id<T>().name;
+            m_graph[v].name = get_type_id<T>().name.template as<std::string>();
         }
 
         return v;

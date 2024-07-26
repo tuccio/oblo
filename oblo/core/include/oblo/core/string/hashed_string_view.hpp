@@ -3,19 +3,8 @@
 #include <oblo/core/hash.hpp>
 #include <oblo/core/string/string_view.hpp>
 
-#include <xxhashct/xxh32.hpp>
-#include <xxhashct/xxh64.hpp>
-
 namespace oblo
 {
-    OBLO_FORCEINLINE constexpr hash_type hash_xxhz_compile_time(string_view str)
-    {
-        if constexpr (sizeof(hash_type) == 8)
-        {
-            return xxh64{}.hash(str.data(), str.size(), 0);
-        }
-    }
-
     class hashed_string_view : string_view
     {
     public:
@@ -38,7 +27,7 @@ namespace oblo
 
         constexpr hashed_string_view(string_view str, hash_type hash) : string_view{str}, m_hash{hash}
         {
-            OBLO_ASSERT(hash_xxhz_compile_time(str) == hash);
+            OBLO_ASSERT(hash_xxhz_compile_time(str.data(), str.size()) == hash);
         }
 
         constexpr hashed_string_view(const hashed_string_view&) = default;
@@ -48,15 +37,12 @@ namespace oblo
 
         OBLO_FORCEINLINE constexpr hashed_string_view(const char8_t* str) : string_view{str} {}
 
-        OBLO_FORCEINLINE constexpr hashed_string_view(string_view str) : string_view{str} {}
+        OBLO_FORCEINLINE constexpr hashed_string_view(const char* str, usize length) : string_view{str, length} {}
 
-        OBLO_FORCEINLINE constexpr hashed_string_view(const char* str, usize length) :
-            hashed_string_view{string_view{str, length}}
-        {
-        }
+        OBLO_FORCEINLINE constexpr hashed_string_view(const char8_t* str, usize length) : string_view{str, length} {}
 
-        OBLO_FORCEINLINE constexpr hashed_string_view(const char8_t* str, usize length) :
-            hashed_string_view{string_view{str, length}}
+        template <sequential_container_of<char> C>
+        OBLO_FORCEINLINE constexpr explicit hashed_string_view(const C& c) : string_view{c.data(), c.size()}
         {
         }
 
@@ -66,11 +52,6 @@ namespace oblo
         OBLO_FORCEINLINE constexpr bool operator==(hashed_string_view str) const noexcept
         {
             return m_hash == str.m_hash && string_view{*this} == string_view{str};
-        }
-
-        OBLO_FORCEINLINE constexpr bool operator==(string_view str) const noexcept
-        {
-            return string_view{*this} == string_view{str};
         }
 
         int compare(hashed_string_view str) const noexcept
@@ -123,7 +104,7 @@ namespace oblo
         using string_view::as;
 
     private:
-        hash_type m_hash{hash_xxhz_compile_time(*this)};
+        hash_type m_hash{hash_xxhz_compile_time(data(), size())};
     };
 
     inline namespace string_literals

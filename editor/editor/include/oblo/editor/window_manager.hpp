@@ -8,7 +8,6 @@
 #include <oblo/editor/window_update_context.hpp>
 
 #include <memory_resource>
-#include <vector>
 
 namespace oblo
 {
@@ -85,7 +84,7 @@ namespace oblo::editor
             u8* ptr,
             update_fn update,
             destroy_fn destroy,
-            std::string_view debugName);
+            string_view debugName);
 
         window_handle find_child_impl(window_entry* parent, const type_id& type, bool recursive) const;
 

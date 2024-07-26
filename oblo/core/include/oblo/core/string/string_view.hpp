@@ -201,6 +201,44 @@ namespace oblo
             return npos;
         }
 
+        constexpr size_type find_first_of(string_view set, size_type pos = 0) const noexcept
+        {
+            for (size_type i = pos; i < m_size; ++i)
+            {
+                if (set.find(at(i)) != npos)
+                {
+                    return i;
+                }
+            }
+
+            return npos;
+        }
+
+        constexpr size_type find_first_of(value_type c, size_type pos = 0) const noexcept
+        {
+            return find_first_of(string_view{&c, 1}, pos);
+        }
+
+        constexpr size_type find_last_of(string_view set, size_type pos = 0) const noexcept
+        {
+            for (size_type i = pos; i < m_size; ++i)
+            {
+                const auto index = m_size - i - 1;
+
+                if (set.find(at(index)) != npos)
+                {
+                    return index;
+                }
+            }
+
+            return npos;
+        }
+
+        constexpr size_type find_last_of(value_type c, size_type pos = 0) const noexcept
+        {
+            return find_last_of(string_view{&c, 1}, pos);
+        }
+
         OBLO_FORCEINLINE constexpr const_iterator begin() const
         {
             return m_begin;

@@ -25,7 +25,7 @@ namespace oblo::ecs_utility
         ecs::type_registry* typeRegistry,
         property_registry* propertyRegistry)
     {
-        std::vector<reflection::type_handle> componentTypes;
+        dynamic_array<reflection::type_handle> componentTypes;
         reflection.find_by_tag<ecs::component_type_tag>(componentTypes);
 
         if (typeRegistry)

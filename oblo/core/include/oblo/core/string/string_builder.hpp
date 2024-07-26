@@ -33,6 +33,7 @@ namespace oblo
 
         string_builder& clear();
 
+        const char* c_str() const;
         const char* data() const;
         usize size() const;
 
@@ -105,6 +106,11 @@ namespace oblo
     {
         m_buffer.assign(1u, '\0');
         return *this;
+    }
+
+    inline const char* string_builder::c_str() const
+    {
+        return m_buffer.data();
     }
 
     inline const char* string_builder::data() const

@@ -3,6 +3,7 @@
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/hash.hpp>
 #include <oblo/core/overload.hpp>
+#include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
@@ -215,7 +216,7 @@ namespace oblo::editor
 
     bool inspector::update(const window_update_context&)
     {
-        char buffer[1024];
+        string_builder builder;
 
         bool open{true};
 
@@ -235,10 +236,9 @@ namespace oblo::editor
                 {
                     ++type.value;
 
-                    auto [end, len] = std::format_to_n(buffer, array_size(buffer) - 1, "{}", component.type.name);
-                    *end = '\0';
+                    builder.clear().append(component.type.name);
 
-                    if (ImGui::Selectable(buffer))
+                    if (ImGui::Selectable(builder.c_str()))
                     {
                         for (const auto e : selectedEntities)
                         {
@@ -263,14 +263,11 @@ namespace oblo::editor
                     {
                         const auto& desc = typeRegistry.get_component_type_desc(type);
 
-                        const auto length = min<usize>(array_size(buffer) - 1, desc.type.name.size());
-                        std::memcpy(buffer, desc.type.name.data(), length);
-
-                        buffer[length] = '\0';
+                        builder.clear().append(desc.type.name);
 
                         ImGui::PushID(static_cast<int>(type.value));
 
-                        const auto isComponentExpanded = ImGui::CollapsingHeader(buffer,
+                        const auto isComponentExpanded = ImGui::CollapsingHeader(builder.c_str(),
                             ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_DefaultOpen);
 
                         const auto headerY = ImGui::GetItemRectMin().y;

@@ -2,8 +2,9 @@
 
 #ifdef TRACY_ENABLE
 
+    #include <oblo/core/string/string_view.hpp>
+
     #include <source_location>
-    #include <string_view>
 
     #include <tracy/Tracy.hpp>
 
@@ -26,7 +27,7 @@ namespace oblo::trace
 
     #define OBLO_PROFILE_TAG(Text)                                                                                     \
         {                                                                                                              \
-            const std::string_view _trace_tag{Text};                                                                   \
+            const string_view _trace_tag{Text};                                                                        \
             ZoneText(_trace_tag.data(), _trace_tag.size());                                                            \
         }
 

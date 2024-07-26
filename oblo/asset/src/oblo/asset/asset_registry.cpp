@@ -65,7 +65,7 @@ namespace oblo
                 return false;
             }
 
-            const std::string_view type = json["typeHint"].get<std::string_view>();
+            const hashed_string_view type{json["typeHint"].get<std::string_view>()};
 
             const auto typeIt = assetTypes.find(type_id{type});
 
@@ -117,7 +117,7 @@ namespace oblo
 
             json["id"] = meta.id.format_to(uuidBuffer);
             json["mainArtifactHint"] = meta.mainArtifactHint.format_to(uuidBuffer);
-            json["typeHint"] = meta.typeHint.name;
+            json["typeHint"] = meta.typeHint.name.as<std::string_view>();
             json["isImported"] = meta.isImported;
 
             auto&& artifactsJson = json["artifacts"];
@@ -172,7 +172,7 @@ namespace oblo
             nlohmann::json json;
 
             json["id"] = artifact.id.format_to(uuidBuffer);
-            json["type"] = artifact.type.name;
+            json["type"] = artifact.type.name.as<std::string_view>();
 
             if (!artifact.importId.is_nil())
             {
@@ -221,7 +221,7 @@ namespace oblo
 
             if (const auto it = json.find("type"); it != json.end())
             {
-                const auto type = it->get<std::string_view>();
+                const auto type = hashed_string_view{it->get<std::string_view>()};
 
                 if (const auto typeIt = assetTypes.find(type_id{type}); typeIt == assetTypes.end())
                 {

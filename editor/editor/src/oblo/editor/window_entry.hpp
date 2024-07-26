@@ -1,11 +1,11 @@
 #pragma once
 
+#include <oblo/core/string/string_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/editor/service_context.hpp>
 
 #include <memory_resource>
-#include <string_view>
 
 namespace oblo
 {
@@ -32,6 +32,6 @@ namespace oblo::editor
         window_entry* prevSibling;
         window_entry* firstSibling;
         type_id typeId;
-        std::string_view debugName;
+        string_view debugName;
     };
 }

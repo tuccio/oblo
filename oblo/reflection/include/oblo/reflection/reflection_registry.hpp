@@ -1,14 +1,14 @@
 #pragma once
 
+#include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/string/string_view.hpp>
+#include <oblo/core/type_id.hpp>
 #include <oblo/reflection/handles.hpp>
 #include <oblo/reflection/reflection_data.hpp>
-
-#include <oblo/core/type_id.hpp>
 
 #include <memory>
 #include <optional>
 #include <span>
-#include <vector>
 
 namespace oblo::reflection
 {
@@ -58,12 +58,12 @@ namespace oblo::reflection
 
         std::span<const field_data> get_fields(class_handle classId) const;
 
-        std::span<const std::string_view> get_enumerator_names(enum_handle enumId) const;
+        std::span<const string_view> get_enumerator_names(enum_handle enumId) const;
         std::span<const byte> get_enumerator_values(enum_handle enumId) const;
         type_id get_underlying_type(enum_handle enumId) const;
 
         template <typename T>
-        void find_by_tag(std::vector<type_handle>& types) const;
+        void find_by_tag(dynamic_array<type_handle>& types) const;
 
         template <typename T>
         std::optional<T> find_concept(type_handle typeId) const;
@@ -71,7 +71,7 @@ namespace oblo::reflection
         bool is_fundamental(type_handle typeId) const;
 
     private:
-        void find_by_tag(const type_id& tag, std::vector<type_handle>& types) const;
+        void find_by_tag(const type_id& tag, dynamic_array<type_handle>& types) const;
         const void* find_concept(type_handle typeId, const type_id& type) const;
 
     private:
@@ -100,7 +100,7 @@ namespace oblo::reflection
     }
 
     template <typename T>
-    void reflection_registry::find_by_tag(std::vector<type_handle>& types) const
+    void reflection_registry::find_by_tag(dynamic_array<type_handle>& types) const
     {
         find_by_tag(get_type_id<tag_type<T>>(), types);
     }

@@ -2,7 +2,16 @@
 
 #include <oblo/core/concepts/hashable.hpp>
 #include <oblo/core/concepts/sequential_container.hpp>
+#include <oblo/core/platform/compiler.hpp>
 #include <oblo/core/types.hpp>
+
+#if UINTPTR_MAX == 0xFFFFFFFFFFFFFFFFu
+    #include <xxhashct/xxh64.hpp>
+    #define OBLO_XXHASHZ xxh64
+#elif UINTPTR_MAX == 0xFFFFFFFF
+    #include <xxhashct/xxh32.hpp>
+    #define OBLO_XXHASHZ xxh32
+#endif
 
 namespace oblo
 {
@@ -31,6 +40,11 @@ namespace oblo
     u64 hash_xxh64(const void* p, u64 size, u64 seed = 0);
 
     usize hash_xxhz(const void* p, u64 size, usize seed = 0);
+
+    OBLO_FORCEINLINE constexpr usize hash_xxhz_compile_time(const char* p, u64 size, usize seed = 0)
+    {
+        return OBLO_XXHASHZ{}.hash(p, size, seed);
+    }
 
     using hash_type = usize;
 

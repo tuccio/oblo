@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/hash.hpp>
+#include <oblo/core/string/string_view.hpp>
 #include <oblo/core/uuid.hpp>
 
 #include <random>
@@ -44,14 +45,14 @@ namespace oblo
         uuid_namespace_generator(const uuid_namespace_generator&) = default;
         uuid_namespace_generator& operator=(const uuid_namespace_generator&) = default;
 
-        uuid generate(std::span<const std::byte> data) const
+        uuid generate(std::span<const byte> data) const
         {
-            return generate(std::string_view{reinterpret_cast<const char*>(data.data()), data.size()});
+            return generate(string_view{reinterpret_cast<const char*>(data.data()), data.size()});
         }
 
-        uuid generate(std::string_view data) const
+        uuid generate(string_view data) const
         {
-            constexpr auto hasher = std::hash<std::string_view>{};
+            constexpr auto hasher = hash<string_view>{};
             const usize hash = hasher(data);
 
             usize res[N];

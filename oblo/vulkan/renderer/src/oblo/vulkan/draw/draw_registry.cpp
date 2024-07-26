@@ -933,7 +933,7 @@ namespace oblo::vk
                     defer_upload(indexData, indexBuffer);
                 }
 
-                VkTransformMatrixKHR vkTransform;
+                VkTransformMatrixKHR vkTransform{};
 
                 for (u32 i = 0; i < 3; ++i)
                 {
