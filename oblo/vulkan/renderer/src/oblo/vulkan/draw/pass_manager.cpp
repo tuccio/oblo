@@ -2,14 +2,16 @@
 
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/array_size.hpp>
-#include <oblo/core/file_utility.hpp>
+#include <oblo/core/filesystem/file.hpp>
+#include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/handle_flat_pool_map.hpp>
+#include <oblo/core/hash.hpp>
 #include <oblo/core/iterator/enum_range.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/log.hpp>
 #include <oblo/core/string/string_builder.hpp>
-#include <oblo/core/string_interner.hpp>
+#include <oblo/core/string/string_interner.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
@@ -58,7 +60,7 @@ namespace oblo::vk
             return vkStageBits[u8(stage)];
         }
 
-        std::string_view get_define_from_stage(pipeline_stages stage)
+        string_view get_define_from_stage(pipeline_stages stage)
         {
             switch (stage)
             {
@@ -111,7 +113,7 @@ namespace oblo::vk
             }
         }
 
-        std::string_view get_define_from_stage(raytracing_stage stage)
+        string_view get_define_from_stage(raytracing_stage stage)
         {
             switch (stage)
             {
@@ -232,11 +234,13 @@ namespace oblo::vk
                 efsw::WatchID, const std::string& dir, const std::string& filename, efsw::Action, std::string)
             {
                 std::lock_guard lock{mutex};
-                touchedFiles.insert(std::filesystem::path{dir} / filename);
+                builder.clear().append(dir).append_path(filename);
+                touchedFiles.insert(builder.as<string>());
             }
 
             std::mutex mutex;
-            std::unordered_set<std::filesystem::path> touchedFiles;
+            string_builder builder;
+            std::unordered_set<string, hash<string>> touchedFiles;
         };
 
         struct vertex_inputs_reflection
@@ -279,7 +283,7 @@ namespace oblo::vk
         h32<string> name;
         u8 stagesCount{0};
 
-        std::filesystem::path shaderSourcePath[MaxPipelineStages];
+        string shaderSourcePath[MaxPipelineStages];
         pipeline_stages stages[MaxPipelineStages];
 
         dynamic_array<render_pass_variant> variants;
@@ -291,7 +295,7 @@ namespace oblo::vk
     {
         h32<string> name;
 
-        std::filesystem::path shaderSourcePath;
+        string shaderSourcePath;
 
         dynamic_array<compute_pass_variant> variants;
 
@@ -320,7 +324,7 @@ namespace oblo::vk
 
         dynamic_array<raytracing_pass_variant> variants;
 
-        dynamic_array<std::filesystem::path> shaderSourcePaths;
+        dynamic_array<string> shaderSourcePaths;
         dynamic_array<raytracing_stage> shaderStages;
 
         u32 shadersCount{};
@@ -453,19 +457,17 @@ namespace oblo::vk
                 return allocator;
             }
 
-            bool resolve(std::string_view header, std::filesystem::path& outPath) override
+            bool resolve(string_view header, string_builder& outPath) override
             {
                 for (auto& path : systemIncludePaths)
                 {
                     hasPrintfInclude |= header == "renderer/debug/printf";
 
-                    outPath = path;
-                    outPath /= header;
-                    outPath.concat(".glsl");
+                    outPath.clear().append(path).append_path(header).append(".glsl");
 
-                    if (std::error_code ec; std::filesystem::exists(outPath, ec))
+                    if (filesystem::exists(outPath).value_or(false))
                     {
-                        resolvedIncludes.emplace_back(outPath);
+                        resolvedIncludes.emplace_back(outPath.as<string>());
                         return true;
                     }
                 }
@@ -480,8 +482,8 @@ namespace oblo::vk
             }
 
             frame_allocator& allocator;
-            dynamic_array<std::filesystem::path> systemIncludePaths;
-            dynamic_array<std::filesystem::path> resolvedIncludes;
+            dynamic_array<string> systemIncludePaths;
+            dynamic_array<string> resolvedIncludes;
             bool hasPrintfInclude{};
         };
 
@@ -508,44 +510,24 @@ namespace oblo::vk
             }
         }
 
-        u64 hash_defines(std::span<const h32<string>> defines)
+        u64 hash_defines(std::span<const hashed_string_view> defines)
         {
             u64 hash{0};
 
             // Consider defines at least for now, but order matters here, which is undesirable
             for (const auto define : defines)
             {
-                hash = hash_mix(hash, hash_all<std::hash>(define.value));
+                hash = hash_mix(hash, define.hash());
             }
 
             return hash;
         }
 
-        struct fixed_string_buffer
+        cstring_view make_debug_name(
+            string_builder& builder, const string_interner& interner, h32<string> name, string_view filePath)
         {
-            char buffer[2048];
-            u32 length;
-
-            operator std::string_view() const noexcept
-            {
-                return {buffer, length};
-            }
-        };
-
-        fixed_string_buffer make_debug_name(
-            const string_interner& interner, h32<string> name, const std::filesystem::path& filePath)
-        {
-            fixed_string_buffer debugName;
-
-            auto const [end, size] = std::format_to_n(debugName.buffer,
-                array_size(debugName.buffer),
-                "[{}] {}",
-                interner.str(name),
-                filePath.filename().string());
-
-            debugName.length = narrow_cast<u32>(size);
-
-            return debugName;
+            builder.clear().format("[{}] {}", interner.str(name), filesystem::filename(filePath));
+            return builder.view();
         };
 
         struct watching_passes
@@ -594,19 +576,19 @@ namespace oblo::vk
         bool globallyEnablePrintf{false};
         u32 globallyEnablePrintfFrames{~0u};
 
-        std::unordered_map<std::filesystem::path, watching_passes> fileToPassList;
+        std::unordered_map<string, watching_passes, hash<string>> fileToPassList;
 
         VkPhysicalDeviceRayTracingPipelinePropertiesKHR rtPipelineProperties{};
 
-        void add_watch(const std::filesystem::path& file, h32<compute_pass> pass);
-        void add_watch(const std::filesystem::path& file, h32<render_pass> pass);
-        void add_watch(const std::filesystem::path& file, h32<raytracing_pass> pass);
+        void add_watch(string_view file, h32<compute_pass> pass);
+        void add_watch(string_view file, h32<render_pass> pass);
+        void add_watch(string_view file, h32<raytracing_pass> pass);
 
         VkShaderModule create_shader_module(VkShaderStageFlagBits vkStage,
-            const std::filesystem::path& filePath,
-            std::span<const std::string_view> builtInDefines,
-            std::span<const h32<string>> defines,
-            std::string_view debugName,
+            cstring_view filePath,
+            std::span<const string_view> builtInDefines,
+            std::span<const hashed_string_view> defines,
+            string_view debugName,
             const shader_compiler::options& compilerOptions,
             dynamic_array<u32>& spirv);
 
@@ -627,46 +609,49 @@ namespace oblo::vk
         void invalidate_all_passes(Filter&& f = {});
     };
 
-    void pass_manager::impl::add_watch(const std::filesystem::path& file, h32<compute_pass> pass)
+    void pass_manager::impl::add_watch(string_view file, h32<compute_pass> pass)
     {
-        const auto abs = std::filesystem::absolute(file);
+        string_builder abs;
+        abs.append(file).make_absolute_path();
 
-        auto& watches = fileToPassList[abs];
+        auto& watches = fileToPassList[abs.as<string>()];
         watches.computePasses.emplace(pass);
-        fileWatcher->addWatch(abs.parent_path().string(), &watchListener);
+        fileWatcher->addWatch(filesystem::parent_path(abs.view()).as<std::string>(), &watchListener);
     }
 
-    void pass_manager::impl::add_watch(const std::filesystem::path& file, h32<render_pass> pass)
+    void pass_manager::impl::add_watch(string_view file, h32<render_pass> pass)
     {
-        const auto abs = std::filesystem::absolute(file);
+        string_builder abs;
+        abs.append(file).make_absolute_path();
 
-        auto& watches = fileToPassList[abs];
+        auto& watches = fileToPassList[abs.as<string>()];
         watches.renderPasses.emplace(pass);
-        fileWatcher->addWatch(abs.parent_path().string(), &watchListener);
+        fileWatcher->addWatch(filesystem::parent_path(abs.view()).as<std::string>(), &watchListener);
     }
 
-    void pass_manager::impl::add_watch(const std::filesystem::path& file, h32<raytracing_pass> pass)
+    void pass_manager::impl::add_watch(string_view file, h32<raytracing_pass> pass)
     {
-        const auto abs = std::filesystem::absolute(file);
+        string_builder abs;
+        abs.append(file).make_absolute_path();
 
-        auto& watches = fileToPassList[abs];
+        auto& watches = fileToPassList[abs.as<string>()];
         watches.raytracingPasses.emplace(pass);
-        fileWatcher->addWatch(abs.parent_path().string(), &watchListener);
+        fileWatcher->addWatch(filesystem::parent_path(abs.view()).as<std::string>(), &watchListener);
     }
 
     VkShaderModule pass_manager::impl::create_shader_module(VkShaderStageFlagBits vkStage,
-        const std::filesystem::path& filePath,
-        std::span<const std::string_view> builtInDefines,
-        std::span<const h32<string>> userDefines,
-        std::string_view debugName,
+        cstring_view filePath,
+        std::span<const string_view> builtInDefines,
+        std::span<const hashed_string_view> userDefines,
+        string_view debugName,
         const shader_compiler::options& compilerOptions,
         dynamic_array<u32>& spirv)
     {
-        const auto sourceCodeRes = load_text_file_into_memory(frameAllocator, filePath);
+        const auto sourceCodeRes = filesystem::load_text_file_into_memory(frameAllocator, filePath);
 
         if (!sourceCodeRes)
         {
-            log::debug("Failed to read file {}", filePath.string());
+            log::debug("Failed to read file {}", filePath);
             return nullptr;
         }
 
@@ -694,13 +679,13 @@ namespace oblo::vk
 
         for (const auto define : userDefines)
         {
-            constexpr auto fixedSize = std::string_view{"#define \n"}.size();
-            requiredDefinesLength += u32(fixedSize + interner->str(define).size());
+            constexpr auto fixedSize = string_view{"#define \n"}.size();
+            requiredDefinesLength += u32(fixedSize + define.size());
         }
 
         requiredDefinesLength += u32(instanceDataDefines.size());
 
-        constexpr std::string_view lineDirective{"#line 0\n"};
+        constexpr string_view lineDirective{"#line 0\n"};
 
         const auto firstLineEnd = std::find(sourceCode.begin(), sourceCode.end(), '\n');
         const auto firstLineLen = 1 + (firstLineEnd - sourceCode.begin());
@@ -715,18 +700,17 @@ namespace oblo::vk
         *it = '\n';
         ++it;
 
-        const auto builtInDefinesStr = std::string_view{sb};
+        const auto builtInDefinesStr = sb.view();
 
         it = std::copy(builtInDefinesStr.data(), builtInDefinesStr.data() + builtInDefinesStr.size(), it);
         it = std::copy(instanceDataDefines.begin(), instanceDataDefines.end(), it);
 
         for (const auto define : userDefines)
         {
-            constexpr std::string_view directive{"#define "};
+            constexpr string_view directive{"#define "};
             it = std::copy(directive.begin(), directive.end(), it);
 
-            const auto str = interner->str(define);
-            it = std::copy(str.begin(), str.end(), it);
+            it = std::copy(define.begin(), define.end(), it);
 
             *it = '\n';
             ++it;
@@ -1189,8 +1173,8 @@ namespace oblo::vk
             imageInfo[imagesCount] = {
                 .sampler = sampler,
                 .imageView = texture.view,
-                .imageLayout = VK_IMAGE_LAYOUT_GENERAL, // The only 2 allowed layouts for storage images are general and
-                                                        // VK_IMAGE_LAYOUT_SHARED_PRESENT_KHR
+                .imageLayout = VK_IMAGE_LAYOUT_GENERAL, // The only 2 allowed layouts for storage images are general
+                                                        // and VK_IMAGE_LAYOUT_SHARED_PRESENT_KHR
             };
 
             descriptorSetWrites[writesCount] = {
@@ -1278,8 +1262,8 @@ namespace oblo::vk
                         }
                         else
                         {
-                            log::debug(
-                                "[{}] A binding for {} was found, but it's not an acceleration structure as expected",
+                            log::debug("[{}] A binding for {} was found, but it's not an acceleration structure as "
+                                       "expected",
                                 pipeline.label,
                                 interner->str(binding.name));
                         }
@@ -1530,7 +1514,7 @@ namespace oblo::vk
         m_impl.reset();
     }
 
-    void pass_manager::set_system_include_paths(std::span<const std::filesystem::path> paths)
+    void pass_manager::set_system_include_paths(std::span<const string> paths)
     {
         m_impl->includer.systemIncludePaths.assign(paths.begin(), paths.end());
     }
@@ -1576,9 +1560,9 @@ namespace oblo::vk
 
     namespace
     {
-        raytracing_stage deduce_rt_shader_stage(const std::filesystem::path& p)
+        raytracing_stage deduce_rt_shader_stage(string_view p)
         {
-            auto&& ext = p.extension();
+            auto&& ext = filesystem::extension(p);
 
             if (ext == ".rgen")
             {
@@ -1623,12 +1607,12 @@ namespace oblo::vk
 
         renderPass.name = m_impl->interner->get_or_add(desc.name);
 
-        const auto appendShader = [&](const std::filesystem::path& source)
+        const auto appendShader = [&](string_view source)
         {
             if (!source.empty())
             {
                 const auto size = renderPass.shaderSourcePaths.size();
-                renderPass.shaderSourcePaths.push_back(source);
+                renderPass.shaderSourcePaths.push_back(source.as<string>());
                 renderPass.shaderStages.push_back(deduce_rt_shader_stage(source));
 
                 m_impl->add_watch(source, handle);
@@ -1720,7 +1704,9 @@ namespace oblo::vk
 
         const shader_compiler::options compilerOptions{m_impl->make_compiler_options()};
 
-        std::string_view builtInDefines[2]{"OBLO_PIPELINE_RENDER"};
+        string_view builtInDefines[2]{"OBLO_PIPELINE_RENDER"};
+
+        string_builder builder;
 
         for (u8 stageIndex = 0; stageIndex < renderPass->stagesCount; ++stageIndex)
         {
@@ -1735,7 +1721,7 @@ namespace oblo::vk
                 filePath,
                 builtInDefines,
                 desc.defines,
-                make_debug_name(*m_impl->interner, renderPass->name, filePath),
+                make_debug_name(builder, *m_impl->interner, renderPass->name, filePath),
                 compilerOptions,
                 spirv);
 
@@ -1952,17 +1938,19 @@ namespace oblo::vk
         const shader_compiler::options compilerOptions{m_impl->make_compiler_options()};
 
         {
-            constexpr std::string_view builtInDefines[] = {"OBLO_PIPELINE_COMPUTE", "OBLO_STAGE_COMPUTE"};
+            constexpr string_view builtInDefines[] = {"OBLO_PIPELINE_COMPUTE", "OBLO_STAGE_COMPUTE"};
 
             constexpr auto vkStage = VK_SHADER_STAGE_COMPUTE_BIT;
 
             const auto& filePath = computePass->shaderSourcePath;
 
+            string_builder builder;
+
             const auto shaderModule = m_impl->create_shader_module(vkStage,
                 filePath,
                 builtInDefines,
                 desc.defines,
-                make_debug_name(*m_impl->interner, computePass->name, filePath),
+                make_debug_name(builder, *m_impl->interner, computePass->name, filePath),
                 compilerOptions,
                 spirv);
 
@@ -2032,7 +2020,7 @@ namespace oblo::vk
 
         for (auto& define : desc.defines)
         {
-            definesHash = hash_mix(definesHash, std::hash<std::string_view>{}(define));
+            definesHash = hash_mix(definesHash, define.hash());
         }
 
         // The whole initializer should be considered, but we only look at defines for now
@@ -2074,15 +2062,9 @@ namespace oblo::vk
         dynamic_array<VkPipelineShaderStageCreateInfo> stages{&m_impl->frameAllocator};
         stages.reserve(raytracingPass->shadersCount);
 
-        // TODO: Get rid of the interner
-        buffered_array<h32<string>, 8> defines;
+        string_view builtInDefines[2] = {"OBLO_PIPELINE_RAYTRACING"};
 
-        for (const auto& define : desc.defines)
-        {
-            defines.emplace_back(m_impl->interner->get_or_add(define));
-        }
-
-        std::string_view builtInDefines[2] = {"OBLO_PIPELINE_RAYTRACING"};
+        string_builder builder;
 
         for (u32 currentShaderIndex = 0; currentShaderIndex < raytracingPass->shaderSourcePaths.size();
              ++currentShaderIndex)
@@ -2097,8 +2079,8 @@ namespace oblo::vk
             const auto shaderModule = m_impl->create_shader_module(vkStage,
                 filePath,
                 builtInDefines,
-                defines,
-                make_debug_name(*m_impl->interner, raytracingPass->name, filePath),
+                desc.defines,
+                make_debug_name(builder, *m_impl->interner, raytracingPass->name, filePath),
                 compilerOptions,
                 spirv);
 
@@ -2437,9 +2419,9 @@ namespace oblo::vk
         m_impl->texturesDescriptorSetPool.end_frame();
     }
 
-    void pass_manager::update_instance_data_defines(std::string_view defines)
+    void pass_manager::update_instance_data_defines(string_view defines)
     {
-        m_impl->instanceDataDefines = defines;
+        m_impl->instanceDataDefines = defines.as<std::string>();
 
         // Invalidate all passes as well, to trigger recompilation of shaders
         m_impl->invalidate_all_passes();

@@ -1,16 +1,15 @@
 #pragma once
 
+#include <oblo/core/string/string_view.hpp>
 #include <oblo/core/type_id.hpp>
-#include <oblo/reflection/reflection_data.hpp>
-
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/type_registry.hpp>
+#include <oblo/reflection/reflection_data.hpp>
 
 #include <deque>
 #include <functional>
 #include <memory_resource>
 #include <unordered_map>
-#include <vector>
 
 namespace oblo::reflection
 {
@@ -64,15 +63,15 @@ namespace oblo::reflection
     struct class_data
     {
         type_id type;
-        std::vector<field_data> fields;
+        dynamic_array<field_data> fields;
         std::deque<any_attribute> attributeStorage;
     };
 
     struct enum_data
     {
         type_id type;
-        dynamic_array<std::string_view> names;
-        dynamic_array<std::byte> values;
+        dynamic_array<string_view> names;
+        dynamic_array<byte> values;
         type_id underlyingType;
     };
 

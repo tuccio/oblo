@@ -2,6 +2,8 @@
 
 #include <oblo/core/data_format.hpp>
 #include <oblo/core/debug.hpp>
+#include <oblo/core/filesystem/filesystem.hpp>
+#include <oblo/core/string/cstring_view.hpp>
 #include <oblo/math/float.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec3.hpp>
@@ -216,7 +218,7 @@ namespace oblo
         }
     }
 
-    bool save_mesh(const mesh& mesh, const std::filesystem::path& destination)
+    bool save_mesh(const mesh& mesh, cstring_view destination)
     {
         tinygltf::Model model;
         tinygltf::TinyGLTF loader;
@@ -401,7 +403,7 @@ namespace oblo
 
         gltfMesh.extras = tinygltf::Value{std::move(extras)};
 
-        std::ofstream ofs{destination, std::ios::binary};
+        std::ofstream ofs{destination.as<std::string>(), std::ios::binary};
 
         if (!ofs)
         {
@@ -667,9 +669,9 @@ namespace oblo
         return true;
     }
 
-    bool load_mesh(mesh& mesh, const std::filesystem::path& source)
+    bool load_mesh(mesh& mesh, cstring_view source)
     {
-        std::ifstream ifs{source, std::ios::ate | std::ios::binary};
+        std::ifstream ifs{source.as<std::string>(), std::ios::ate | std::ios::binary};
 
         if (!ifs)
         {
@@ -707,7 +709,7 @@ namespace oblo
 
         tinygltf::Model model;
 
-        const auto parentPath = source.parent_path().string();
+        const auto parentPath = filesystem::parent_path(source).as<std::string>();
 
         std::string err, warn;
 

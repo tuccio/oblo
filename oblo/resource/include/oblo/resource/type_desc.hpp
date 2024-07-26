@@ -2,14 +2,14 @@
 
 #include <oblo/core/type_id.hpp>
 
-#include <filesystem>
-
 namespace oblo
 {
+    class cstring_view;
+
     using create_resource_fn = void* (*) ();
     using destroy_resource_fn = void (*)(void*);
-    using load_resource_fn = bool (*)(void* resource, const std::filesystem::path& source);
-    using save_resource_fn = bool (*)(const void* resource, const std::filesystem::path& destination);
+    using load_resource_fn = bool (*)(void* resource, cstring_view source);
+    using save_resource_fn = bool (*)(const void* resource, cstring_view destination);
 
     struct resource_type_desc
     {

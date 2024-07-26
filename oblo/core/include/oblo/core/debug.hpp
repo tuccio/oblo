@@ -5,7 +5,15 @@
     #define OBLO_ASSERT_2(Condition, Message)                                                                          \
         {                                                                                                              \
             if (!(Condition))                                                                                          \
-                oblo::debug_assert_report(__FILE__, __LINE__, Message);                                                \
+            {                                                                                                          \
+                try                                                                                                    \
+                {                                                                                                      \
+                    throw oblo::debug_assert(__FILE__, __LINE__, Message);                                             \
+                }                                                                                                      \
+                catch (const oblo::debug_assert&)                                                                      \
+                {                                                                                                      \
+                }                                                                                                      \
+            }                                                                                                          \
         }
 
     #define OBLO_ASSERT_1(Condition) OBLO_ASSERT_2((Condition), #Condition)
@@ -21,6 +29,16 @@
 namespace oblo
 {
     void debug_assert_report(const char* filename, int lineNumber, const char* message);
+
+    // Used to throw in OBLO_ASSERT, to make the assertion compatible with constexpr
+    // Ideally exception would be replaced with if consteval eventually
+    struct debug_assert
+    {
+        debug_assert(const char* filename, int lineNumber, const char* message)
+        {
+            debug_assert_report(filename, lineNumber, message);
+        }
+    };
 }
 
 #if defined(_MSC_VER)

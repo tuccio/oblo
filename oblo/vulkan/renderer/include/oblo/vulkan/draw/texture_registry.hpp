@@ -1,9 +1,9 @@
 #pragma once
 
-#include <oblo/core/debug_label.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/handle_pool.hpp>
+#include <oblo/core/string/debug_label.hpp>
 
 #include <span>
 

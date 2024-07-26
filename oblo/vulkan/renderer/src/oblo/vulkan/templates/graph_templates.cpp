@@ -25,7 +25,7 @@ namespace oblo::vk
             frame_graph_template_vertex_handle rtSource,
             frame_graph_template_vertex_handle source,
             resource<texture>(Source::*from),
-            std::string_view outputName)
+            string_view outputName)
         {
             const auto copyFinalTarget = graph.add_node<copy_texture_node>();
 

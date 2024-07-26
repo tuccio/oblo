@@ -1,10 +1,8 @@
 #pragma once
 
+#include <oblo/core/string/string.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/uuid.hpp>
-
-#include <filesystem>
-#include <vector>
 
 namespace oblo
 {
@@ -13,7 +11,7 @@ namespace oblo
         uuid id;
         type_id type;
         uuid importId;
-        std::string importName;
+        string importName;
     };
 
     struct asset_meta

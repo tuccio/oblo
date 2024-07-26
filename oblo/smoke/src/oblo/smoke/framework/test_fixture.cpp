@@ -2,6 +2,7 @@
 
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/registration.hpp>
+#include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/log.hpp>
 #include <oblo/core/platform/shared_library.hpp>
 #include <oblo/core/platform/shell.hpp>
@@ -70,10 +71,7 @@ namespace oblo::smoke
 
             bool startup(const vk::sandbox_startup_context& ctx)
             {
-                {
-                    std::error_code ec;
-                    std::filesystem::remove_all("./test/smoke/", ec);
-                }
+                filesystem::remove_all("./test/smoke/").assert_value();
 
                 if (!assetRegistry.initialize("./test/smoke/assets", "./test/smoke/artifacts", "./test/smoke/sources"))
                 {

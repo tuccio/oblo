@@ -1,13 +1,14 @@
 #pragma once
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/expected.hpp>
+#include <oblo/core/string/cstring_view.hpp>
+#include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/types.hpp>
 
-#include <filesystem>
 #include <span>
-#include <string_view>
+#include <string>
 #include <unordered_map>
-#include <vector>
 
 namespace oblo
 {
@@ -42,7 +43,7 @@ namespace oblo
 
     struct material_property
     {
-        std::string_view name;
+        hashed_string_view name;
         material_property_type type;
         material_data_storage storage;
 
@@ -67,42 +68,62 @@ namespace oblo
         ~material() = default;
 
         SCENE_API void set_property(
-            std::string_view name, material_property_type type, const material_data_storage& value);
+            hashed_string_view name, material_property_type type, const material_data_storage& value);
 
-        SCENE_API const material_property* get_property(const std::string_view name) const;
+        SCENE_API const material_property* get_property(hashed_string_view name) const;
 
         SCENE_API std::span<const material_property> get_properties() const;
 
         template <typename T>
-        void set_property(std::string_view name, const T& value)
+        void set_property(hashed_string_view name, const T& value)
         {
             material_data_storage storage;
             new (storage.buffer) T{value};
-            set_property(std::move(name), get_material_property_type<T>(), storage);
+            set_property(name, get_material_property_type<T>(), storage);
         }
 
-        SCENE_API bool save(const std::filesystem::path& destination) const;
-        SCENE_API bool load(const std::filesystem::path& source);
+        SCENE_API bool save(cstring_view destination) const;
+        SCENE_API bool load(cstring_view source);
 
     private:
         struct string_hash
         {
             using is_transparent = void;
 
-            usize operator()(std::string_view txt) const
+            usize operator()(hashed_string_view txt) const
             {
-                return std::hash<std::string_view>{}(txt);
+                return txt.hash();
             }
 
             usize operator()(const std::string& txt) const
             {
-                return std::hash<std::string>{}(txt);
+                return hashed_string_view{txt}.hash();
+            }
+        };
+
+        struct string_equal
+        {
+            using is_transparent = void;
+
+            bool operator()(const std::string& lhs, const hashed_string_view& rhs) const
+            {
+                return string_view{lhs} == rhs;
+            }
+
+            bool operator()(const hashed_string_view& lhs, const std::string& rhs) const
+            {
+                return this->operator()(rhs, lhs);
+            }
+
+            bool operator()(const std::string& lhs, const std::string& rhs) const
+            {
+                return lhs == rhs;
             }
         };
 
     private:
-        std::unordered_map<std::string, usize, string_hash, std::equal_to<>> m_map;
-        std::vector<material_property> m_properties;
+        std::unordered_map<std::string, usize, string_hash, string_equal> m_map;
+        dynamic_array<material_property> m_properties;
     };
 
     template <typename T>

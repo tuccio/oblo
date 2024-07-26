@@ -1,6 +1,6 @@
 #include <oblo/editor/app/commands.hpp>
 
-#include <oblo/core/fixed_string.hpp>
+#include <oblo/core/string/fixed_string.hpp>
 #include <oblo/editor/services/registered_commands.hpp>
 #include <oblo/graphics/components/light_component.hpp>
 #include <oblo/math/quaternion.hpp>

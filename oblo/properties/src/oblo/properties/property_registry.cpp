@@ -152,7 +152,7 @@ namespace oblo
 
                 tree.nodes.push_back({
                     .type = field.type,
-                    .name = std::string{field.name},
+                    .name = field.name.as<std::string>(),
                     .offset = field.offset,
                     .parent = currentNodeIndex,
                     .firstAttribute = firstAttribute,
@@ -200,7 +200,7 @@ namespace oblo
 
             tree.properties.push_back({
                 .type = field.type,
-                .name = std::string{field.name},
+                .name = field.name.as<std::string>(),
                 .kind = it->second,
                 .isEnum = isEnum,
                 .offset = field.offset,

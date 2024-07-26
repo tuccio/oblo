@@ -1,9 +1,10 @@
-#include <oblo/core/string_interner.hpp>
+#include <oblo/core/string/string_interner.hpp>
 
 #include <oblo/core/debug.hpp>
+#include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/hash.hpp>
 
 #include <unordered_map>
-#include <vector>
 
 namespace oblo
 {
@@ -19,8 +20,8 @@ namespace oblo
 
     struct string_interner::impl
     {
-        std::unordered_map<std::string_view, u32> sparse;
-        std::vector<std::string_view> strings;
+        std::unordered_map<string_view, u32, hash<string_view>> sparse;
+        dynamic_array<cstring_view> strings;
         string_chunk* chunks;
         u16 firstFree{string_chunk::Size};
     };
@@ -72,7 +73,7 @@ namespace oblo
         }
     }
 
-    h32<string> string_interner::get_or_add(std::string_view str)
+    h32<string> string_interner::get_or_add(string_view str)
     {
         OBLO_ASSERT(str.size() <= MaxStringLength);
         auto& sparse = m_impl->sparse;
@@ -109,7 +110,7 @@ namespace oblo
             newStringPtr[stringLength] = '\0';
 
             strings.emplace_back(newStringPtr, stringLength);
-            m_impl->sparse.emplace(std::string_view{newStringPtr, stringLength}, stringIndex);
+            m_impl->sparse.emplace(string_view{newStringPtr, stringLength}, stringIndex);
 
             return {stringIndex};
         }
@@ -119,14 +120,14 @@ namespace oblo
         }
     }
 
-    h32<string> string_interner::get(std::string_view str) const
+    h32<string> string_interner::get(string_view str) const
     {
         auto& sparse = m_impl->sparse;
         const auto it = sparse.find(str);
         return {it == sparse.end() ? 0u : it->second};
     }
 
-    std::string_view string_interner::str(h32<string> handle) const
+    cstring_view string_interner::str(h32<string> handle) const
     {
         OBLO_ASSERT(handle && handle.value < m_impl->strings.size());
         return m_impl->strings[handle.value];

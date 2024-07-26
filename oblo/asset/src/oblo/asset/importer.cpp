@@ -4,8 +4,10 @@
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/import_artifact.hpp>
 #include <oblo/core/array_size.hpp>
+#include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/formatters/uuid_formatter.hpp>
 #include <oblo/core/log.hpp>
+#include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/core/uuid_generator.hpp>
 
@@ -17,10 +19,9 @@ namespace oblo
 {
     namespace
     {
-        constexpr std::string_view ImportConfigFilename{"import.json"};
+        constexpr string_view ImportConfigFilename{"import.json"};
 
-        bool write_import_config(
-            const importer_config& config, const type_id& importer, const std::filesystem::path& destination)
+        bool write_import_config(const importer_config& config, const type_id& importer, cstring_view destination)
         {
             nlohmann::ordered_json json;
 
@@ -29,10 +30,10 @@ namespace oblo
                 json["importer"] = importer.name;
             }
 
-            json["filename"] = config.sourceFile.filename();
-            json["source"] = config.sourceFile;
+            json["filename"] = filesystem::filename(config.sourceFile).as<std::string_view>();
+            json["source"] = config.sourceFile.as<std::string_view>();
 
-            std::ofstream ofs{destination};
+            std::ofstream ofs{destination.as<std::string>()};
 
             if (!ofs)
             {
@@ -75,7 +76,7 @@ namespace oblo
         return true;
     }
 
-    bool importer::execute(const std::filesystem::path& destinationDir, const data_document& importSettings)
+    bool importer::execute(string_view destinationDir, const data_document& importSettings)
     {
         if (!begin_import(*m_config.registry, m_importNodesConfig))
         {
@@ -125,7 +126,7 @@ namespace oblo
 
             // TODO: Ensure that names are unique
             auto& config = importNodesConfig[i];
-            const auto h = hash_all<std::hash>(node.name, node.type, i);
+            const auto h = hash_all<hash>(node.name, node.type, i);
             config.id = uuidGenerator.generate(std::as_bytes(std::span{&h, sizeof(h)}));
 
             const auto [artifactIt, artifactInserted] = m_artifacts.emplace(config.id,
@@ -142,7 +143,7 @@ namespace oblo
         return true;
     }
 
-    bool importer::finalize_import(asset_registry& registry, const std::filesystem::path& destination)
+    bool importer::finalize_import(asset_registry& registry, string_view destination)
     {
         if (!registry.create_directories(destination))
         {
@@ -220,7 +221,7 @@ namespace oblo
             }
         }
 
-        const auto assetFileName = m_config.sourceFile.filename().stem();
+        const auto assetFileName = filesystem::stem(m_config.sourceFile);
 
         allSucceeded &= registry.save_asset(destination, assetFileName, std::move(assetMeta), importedArtifacts);
         allSucceeded &= write_source_files(results.sourceFiles);
@@ -243,24 +244,27 @@ namespace oblo
         return m_importId;
     }
 
-    bool importer::write_source_files(std::span<const std::filesystem::path> sourceFiles)
+    bool importer::write_source_files(std::span<const string> sourceFiles)
     {
-        const auto importDir = m_config.registry->create_source_files_dir(m_importId);
+        string_builder importDir;
 
-        if (importDir.empty())
+        if (!m_config.registry->create_source_files_dir(importDir, m_importId))
         {
             return false;
         }
 
         bool allSucceeded = true;
 
+        string_builder pathBuilder = importDir;
+
         for (const auto& sourceFile : sourceFiles)
         {
-            std::error_code ec;
-            allSucceeded &= std::filesystem::copy_file(sourceFile, importDir / sourceFile.filename(), ec) && !ec;
+            pathBuilder.clear().append(importDir).append(filesystem::filename(sourceFile));
+            allSucceeded &= filesystem::copy_file(sourceFile, pathBuilder).value_or(false);
         }
 
-        allSucceeded &= write_import_config(m_config, m_importerType, importDir / ImportConfigFilename);
+        pathBuilder.clear().append(importDir).append(ImportConfigFilename);
+        allSucceeded &= write_import_config(m_config, m_importerType, pathBuilder);
 
         return allSucceeded;
     }

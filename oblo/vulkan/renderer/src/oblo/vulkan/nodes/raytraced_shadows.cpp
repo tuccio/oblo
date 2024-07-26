@@ -86,7 +86,7 @@ namespace oblo::vk
         string_builder shadowHard;
         shadowHard.format("SHADOW_HARD {}", u32{cfg.hardShadows});
 
-        const std::string_view defines[] = {shadowType.view(), shadowHard.view()};
+        const hashed_string_view defines[] = {shadowType.as<hashed_string_view>(), shadowHard.as<hashed_string_view>()};
 
         const auto pipeline = pm.get_or_create_pipeline(shadowPass, {.defines = defines});
 

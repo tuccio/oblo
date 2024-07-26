@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <oblo/asset/importers/importers_module.hpp>
+#include <oblo/core/string/string_view.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/scene/scene_module.hpp>
 #include <oblo/smoke/framework.hpp>
@@ -14,7 +15,7 @@ int main(int argc, char** argv)
 
     for (int i = 0; i < argc; ++i)
     {
-        if (std::string_view{argv[i]} == "--interactive")
+        if (oblo::string_view{argv[i]} == "--interactive")
         {
             oblo::smoke::g_interactiveMode = true;
             break;

@@ -3,16 +3,16 @@
 #include <oblo/core/expected.hpp>
 #include <oblo/core/flat_dense_forward.hpp>
 #include <oblo/core/handle.hpp>
+#include <oblo/core/string/string_view.hpp>
 
 #include <vulkan/vulkan.h>
 
-#include <filesystem>
 #include <memory>
 #include <span>
 
 namespace oblo
 {
-    struct string;
+    class string;
     class string_interner;
 
     template <typename T>
@@ -70,7 +70,7 @@ namespace oblo::vk
 
         void shutdown(vulkan_context& vkContext);
 
-        void set_system_include_paths(std::span<const std::filesystem::path> paths);
+        void set_system_include_paths(std::span<const string> paths);
 
         h32<render_pass> register_render_pass(const render_pass_initializer& desc);
         h32<compute_pass> register_compute_pass(const compute_pass_initializer& desc);
@@ -85,7 +85,7 @@ namespace oblo::vk
         void begin_frame();
         void end_frame();
 
-        void update_instance_data_defines(std::string_view defines);
+        void update_instance_data_defines(string_view defines);
 
         void toggle_printf();
         void enable_printf(u32 frames);

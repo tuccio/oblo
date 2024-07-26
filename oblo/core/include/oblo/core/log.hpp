@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/string/format.hpp>
 #include <oblo/core/types.hpp>
 
 #include <format>

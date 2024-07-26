@@ -6,7 +6,7 @@
 
 namespace oblo::detail
 {
-    resource* resource_create(void* data, type_id type, uuid id, std::string name, destroy_resource_fn destroy)
+    resource* resource_create(void* data, type_id type, uuid id, string name, destroy_resource_fn destroy)
     {
         return new resource{
             .data = data,
@@ -42,9 +42,9 @@ namespace oblo::detail
         return resource->type;
     }
 
-    std::string_view resource_name(resource* resource)
+    string_view resource_name(resource* resource)
     {
-        return resource->name;
+        return string_view{resource->name};
     }
 
     uuid resource_uuid(resource* resource)

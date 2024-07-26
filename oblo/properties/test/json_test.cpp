@@ -67,20 +67,20 @@ namespace oblo
             values readback{};
 
             visit(doc,
-                overload{[&](const std::string_view, data_node_object_start)
+                overload{[&](const string_view, data_node_object_start)
                     {
                         // We only have the root object
                         ++currentDepth;
                         maxDepth = max(currentDepth, maxDepth);
                         return visit_result::recurse;
                     },
-                    [&](const std::string_view, data_node_object_finish)
+                    [&](const string_view, data_node_object_finish)
                     {
                         // We only have the root object
                         --currentDepth;
                         return visit_result::recurse;
                     },
-                    [&](const std::string_view key, data_node_array_start)
+                    [&](const string_view key, data_node_array_start)
                     {
                         if (key == "myArray" && arrayIndex < 0)
                         {
@@ -89,7 +89,7 @@ namespace oblo
 
                         return visit_result::recurse;
                     },
-                    [&](const std::string_view key, data_node_array_finish)
+                    [&](const string_view key, data_node_array_finish)
                     {
                         if (key == "myArray" && arrayIndex == 2)
                         {
@@ -98,7 +98,7 @@ namespace oblo
 
                         return visit_result::recurse;
                     },
-                    [&](const std::string_view key, const void* value, property_kind kind, data_node_value)
+                    [&](const string_view key, const void* value, property_kind kind, data_node_value)
                     {
                         if (arrayIndex >= 0 && kind == property_kind::u32)
                         {

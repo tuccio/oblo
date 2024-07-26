@@ -6,6 +6,7 @@
 #include <oblo/core/graph/dot.hpp>
 #include <oblo/core/iterator/reverse_range.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
+#include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/trace/profile.hpp>
@@ -73,9 +74,9 @@ namespace oblo::vk
     frame_graph::~frame_graph() = default;
 
     bool frame_graph::connect(h32<frame_graph_subgraph> srcGraph,
-        std::string_view srcName,
+        string_view srcName,
         h32<frame_graph_subgraph> dstGraph,
-        std::string_view dstName)
+        string_view dstName)
     {
         auto* const srcGraphPtr = m_impl->subgraphs.try_find(srcGraph);
         auto* const dstGraphPtr = m_impl->subgraphs.try_find(dstGraph);
@@ -331,7 +332,7 @@ namespace oblo::vk
         }
     }
 
-    void frame_graph::set_output_state(h32<frame_graph_subgraph> graph, std::string_view name, bool enable)
+    void frame_graph::set_output_state(h32<frame_graph_subgraph> graph, string_view name, bool enable)
     {
         const auto& sg = m_impl->subgraphs.at(graph);
 
@@ -651,7 +652,7 @@ namespace oblo::vk
         m_impl->write_dot(os);
     }
 
-    void* frame_graph::try_get_input(h32<frame_graph_subgraph> graph, std::string_view name, const type_id& typeId)
+    void* frame_graph::try_get_input(h32<frame_graph_subgraph> graph, string_view name, const type_id& typeId)
     {
         auto* const graphPtr = m_impl->subgraphs.try_find(graph);
 
@@ -1015,12 +1016,11 @@ namespace oblo::vk
 
     void frame_graph_impl::write_dot(std::ostream& os) const
     {
-        constexpr auto N{1024};
-        char buf[N];
+        string_builder builder;
 
         write_graphviz_dot(os,
             graph,
-            [this, &buf](const frame_graph_topology::vertex_handle v) -> std::string_view
+            [this, &builder](const frame_graph_topology::vertex_handle v) -> const char*
             {
                 const auto& vertex = graph[v];
 
@@ -1029,24 +1029,21 @@ namespace oblo::vk
                 case frame_graph_vertex_kind::node: {
                     const auto color = vertex.state == frame_graph_vertex_state::enabled ? "green" : "red";
 
-                    const auto [out, n] = std::format_to_n(buf,
-                        N,
-                        R"(label="{}" shape="rect" color="{}" )",
+                    builder.clear().format(R"(label="{}" shape="rect" color="{}" )",
                         nodes.at(vertex.node).typeId.name,
                         color);
-                    return {buf, usize(n)};
+
+                    return builder.c_str();
                 }
 
                 case frame_graph_vertex_kind::pin: {
                     OBLO_ASSERT(vertex.pin);
                     const auto storage = pins.try_find(vertex.pin)->ownedStorage;
 
-                    const auto [out, n] = std::format_to_n(buf,
-                        N,
-                        R"(label="{}" shape="diamond")",
+                    builder.clear().format(R"(label="{}" shape="diamond")",
                         pinStorage.at(storage).typeDesc.typeId.name);
 
-                    return {buf, usize(n)};
+                    return builder.c_str();
                 }
 
                 default:

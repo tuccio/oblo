@@ -1,9 +1,9 @@
 #pragma once
 
+#include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/string/string.hpp>
+#include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/uuid.hpp>
-
-#include <filesystem>
-#include <vector>
 
 namespace oblo
 {
@@ -25,9 +25,9 @@ namespace oblo::editor
 
     private:
         asset_registry* m_registry{};
-        std::filesystem::path m_path;
-        std::filesystem::path m_current;
+        string_builder m_path;
+        string_builder m_current;
         uuid m_expandedAsset{};
-        std::vector<std::filesystem::path> m_breadcrumbs;
+        dynamic_array<string> m_breadcrumbs;
     };
 }

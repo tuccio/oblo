@@ -1,11 +1,11 @@
 #pragma once
 
-#include <string>
+#include <oblo/core/string/string.hpp>
 
 namespace oblo
 {
     struct name_component
     {
-        std::string value;
+        string value;
     };
 }

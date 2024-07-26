@@ -1,15 +1,17 @@
 #pragma once
 
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/type_id.hpp>
 
-#include <filesystem>
 #include <memory>
 #include <span>
 
 namespace oblo
 {
     struct uuid;
+    class string;
+    class string_builder;
 }
 
 namespace oblo
@@ -33,9 +35,7 @@ namespace oblo
         asset_registry& operator=(asset_registry&&) noexcept = delete;
         ~asset_registry();
 
-        [[nodiscard]] bool initialize(const std::filesystem::path& assetsDir,
-            const std::filesystem::path& artifactsDir,
-            const std::filesystem::path& sourceFilesDir);
+        [[nodiscard]] bool initialize(cstring_view assetsDir, cstring_view artifactsDir, cstring_view sourceFilesDir);
 
         void shutdown();
 
@@ -48,26 +48,23 @@ namespace oblo
         void register_file_importer(const file_importer_desc& desc);
         void unregister_file_importer(type_id type);
 
-        bool create_directories(const std::filesystem::path& directory);
+        bool create_directories(string_view directory);
 
-        [[nodiscard]] importer create_importer(const std::filesystem::path& sourceFile);
+        [[nodiscard]] importer create_importer(cstring_view sourceFile);
 
         bool find_asset_by_id(const uuid& id, asset_meta& assetMeta) const;
-        bool find_asset_by_path(const std::filesystem::path& path, uuid& id, asset_meta& assetMeta) const;
-        bool find_asset_by_meta_path(const std::filesystem::path& path, uuid& id, asset_meta& assetMeta) const;
+        bool find_asset_by_path(cstring_view path, uuid& id, asset_meta& assetMeta) const;
+        bool find_asset_by_meta_path(cstring_view path, uuid& id, asset_meta& assetMeta) const;
 
         bool find_asset_artifacts(const uuid& id, dynamic_array<uuid>& artifacts) const;
 
         bool load_artifact_meta(const uuid& artifactId, artifact_meta& artifact) const;
 
-        const std::filesystem::path& get_asset_directory() const;
+        cstring_view get_asset_directory() const;
 
     public:
-        static bool find_artifact_resource(const uuid& id,
-            type_id& outType,
-            std::string& outName,
-            std::filesystem::path& outPath,
-            const void* userdata);
+        static bool find_artifact_resource(
+            const uuid& id, type_id& outType, string& outName, string& outPath, const void* userdata);
 
     private:
         struct impl;
@@ -88,17 +85,17 @@ namespace oblo
             const artifact_meta& meta,
             write_policy policy = write_policy::no_overwrite);
 
-        bool save_asset(const std::filesystem::path& destination,
-            const std::filesystem::path& fileName,
+        bool save_asset(string_view destination,
+            string_view fileName,
             const asset_meta& meta,
             std::span<const uuid> artifacts,
             write_policy policy = write_policy::no_overwrite);
 
-        std::filesystem::path create_source_files_dir(uuid importId);
+        bool create_source_files_dir(string_builder& dir, uuid importId);
 
     private:
         std::unique_ptr<impl> m_impl;
     };
 
-    inline const std::filesystem::path::string_type AssetMetaExtension{L".oasset"};
+    inline const cstring_view AssetMetaExtension{".oasset"};
 }

@@ -1,7 +1,8 @@
 #pragma once
 
+#include <oblo/core/string/string_view.hpp>
+
 #include <source_location>
-#include <string_view>
 
 namespace oblo
 {
@@ -23,7 +24,7 @@ namespace oblo
             m_label[i] = '\0';
         }
 
-        debug_label(std::string_view str);
+        debug_label(string_view str);
         debug_label(std::source_location loc);
 
         constexpr debug_label(const debug_label&) = default;

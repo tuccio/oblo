@@ -8,9 +8,10 @@ namespace oblo
     {
         m_api = nullptr;
 
-        if (auto path = platform::search_program_files("./RenderDoc/renderdoc.dll"))
+        string_builder path;
+        if (platform::search_program_files(path, "./RenderDoc/renderdoc.dll"))
         {
-            m_library.open(*path);
+            m_library.open(path);
 
             const auto RENDERDOC_GetAPI = reinterpret_cast<pRENDERDOC_GetAPI>(m_library.symbol("RENDERDOC_GetAPI"));
             const auto ret = RENDERDOC_GetAPI(eRENDERDOC_API_Version_1_1_2, reinterpret_cast<void**>(&m_api));

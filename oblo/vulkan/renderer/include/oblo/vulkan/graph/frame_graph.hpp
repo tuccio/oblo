@@ -2,12 +2,12 @@
 
 #include <oblo/core/expected.hpp>
 #include <oblo/core/handle.hpp>
+#include <oblo/core/string/string_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
 
 #include <iosfwd>
 #include <memory>
-#include <string_view>
 #include <utility>
 
 namespace oblo
@@ -39,15 +39,15 @@ namespace oblo::vk
         void remove(h32<frame_graph_subgraph> graph);
 
         bool connect(h32<frame_graph_subgraph> srcGraph,
-            std::string_view srcName,
+            string_view srcName,
             h32<frame_graph_subgraph> dstGraph,
-            std::string_view dstName);
+            string_view dstName);
 
         template <typename T>
-        expected<> set_input(h32<frame_graph_subgraph> graph, std::string_view name, T&& value);
+        expected<> set_input(h32<frame_graph_subgraph> graph, string_view name, T&& value);
 
         void disable_all_outputs(h32<frame_graph_subgraph> graph);
-        void set_output_state(h32<frame_graph_subgraph> graph, std::string_view name, bool enable);
+        void set_output_state(h32<frame_graph_subgraph> graph, string_view name, bool enable);
 
         bool init(vulkan_context& ctx);
         void shutdown(vulkan_context& ctx);
@@ -59,14 +59,14 @@ namespace oblo::vk
         void write_dot(std::ostream& os) const;
 
     private:
-        void* try_get_input(h32<frame_graph_subgraph> graph, std::string_view name, const type_id& typeId);
+        void* try_get_input(h32<frame_graph_subgraph> graph, string_view name, const type_id& typeId);
 
     private:
         std::unique_ptr<frame_graph_impl> m_impl;
     };
 
     template <typename T>
-    expected<> frame_graph::set_input(h32<frame_graph_subgraph> graph, std::string_view name, T&& value)
+    expected<> frame_graph::set_input(h32<frame_graph_subgraph> graph, string_view name, T&& value)
     {
         using type = std::decay_t<T>;
 

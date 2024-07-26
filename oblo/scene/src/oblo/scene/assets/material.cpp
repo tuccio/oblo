@@ -14,14 +14,15 @@
 
 namespace oblo
 {
-    void material::set_property(std::string_view name, material_property_type type, const material_data_storage& value)
+    void material::set_property(
+        hashed_string_view name, material_property_type type, const material_data_storage& value)
     {
         const auto mapIt = m_map.find(name);
 
         if (mapIt == m_map.end())
         {
-            const auto [it, ok] = m_map.emplace(std::string{name}, m_properties.size());
-            m_properties.emplace_back(it->first, type, value);
+            const auto [it, ok] = m_map.emplace(name.as<std::string>(), m_properties.size());
+            m_properties.emplace_back(hashed_string_view{it->first}, type, value);
             return;
         }
 
@@ -30,7 +31,7 @@ namespace oblo
         p.storage = value;
     }
 
-    const material_property* material::get_property(const std::string_view name) const
+    const material_property* material::get_property(const hashed_string_view name) const
     {
         const auto it = m_map.find(name);
 
@@ -47,7 +48,7 @@ namespace oblo
         return m_properties;
     }
 
-    bool material::save(const std::filesystem::path& destination) const
+    bool material::save(cstring_view destination) const
     {
         data_document doc;
 
@@ -61,7 +62,7 @@ namespace oblo
 
             doc.child_value(propertyNode, "type", property_kind::u8, std::as_bytes(std::span{&property.type, 1}));
 
-            constexpr std::string_view valueLabel{"value"};
+            constexpr hashed_string_view valueLabel{"value"};
 
             switch (property.type)
             {
@@ -111,7 +112,7 @@ namespace oblo
         return json::write(doc, destination);
     }
 
-    bool material::load(const std::filesystem::path& source)
+    bool material::load(cstring_view source)
     {
         m_map.clear();
         m_properties.clear();
@@ -153,7 +154,7 @@ namespace oblo
             switch (type)
             {
             case material_property_type::f32:
-                set_property(std::string{key}, doc.read_f32(valueIndex).value_or(0.f));
+                set_property(key, doc.read_f32(valueIndex).value_or(0.f));
                 break;
 
             case material_property_type::vec2: {
@@ -170,7 +171,7 @@ namespace oblo
                     doc.read_f32(y).value_or(0.f),
                 };
 
-                set_property(std::string{key}, v);
+                set_property(key, v);
             }
             break;
 
@@ -190,7 +191,7 @@ namespace oblo
                     doc.read_f32(z).value_or(0.f),
                 };
 
-                set_property(std::string{key}, v);
+                set_property(key, v);
             }
             break;
 
@@ -212,7 +213,7 @@ namespace oblo
                     doc.read_f32(w).value_or(0.f),
                 };
 
-                set_property(std::string{key}, v);
+                set_property(key, v);
             }
             break;
 
@@ -223,7 +224,7 @@ namespace oblo
 
                 if (texture.id.parse_from(dataStr->str()))
                 {
-                    set_property(std::string{key}, texture);
+                    set_property(key, texture);
                 }
             }
             break;

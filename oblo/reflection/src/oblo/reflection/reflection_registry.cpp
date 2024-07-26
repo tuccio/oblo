@@ -103,7 +103,7 @@ namespace oblo::reflection
         return m_impl->registry.get<class_data>(e).fields;
     }
 
-    std::span<const std::string_view> reflection_registry::get_enumerator_names(enum_handle enumId) const
+    std::span<const string_view> reflection_registry::get_enumerator_names(enum_handle enumId) const
     {
         const auto e = ecs::entity{enumId.value};
         return m_impl->registry.get<enum_data>(e).names;
@@ -121,7 +121,7 @@ namespace oblo::reflection
         return m_impl->registry.get<enum_data>(e).underlyingType;
     }
 
-    void reflection_registry::find_by_tag(const type_id& tag, std::vector<type_handle>& types) const
+    void reflection_registry::find_by_tag(const type_id& tag, dynamic_array<type_handle>& types) const
     {
         const auto tagType = m_impl->typesRegistry.find_tag(tag);
 

@@ -9,7 +9,7 @@ namespace oblo::importers
     namespace
     {
         template <typename T>
-        file_importer_desc make_file_importer_desc(std::span<const std::string_view> extensions)
+        file_importer_desc make_file_importer_desc(std::span<const string_view> extensions)
         {
             return file_importer_desc{
                 .type = get_type_id<T>(),
@@ -18,8 +18,8 @@ namespace oblo::importers
             };
         }
 
-        constexpr std::string_view g_gltfExtensions[] = {".gltf", ".glb"};
-        constexpr std::string_view g_stbExtensions[] = {".jpg", ".jpeg", ".png", ".tga", ".bmp"};
+        constexpr string_view g_gltfExtensions[] = {".gltf", ".glb"};
+        constexpr string_view g_stbExtensions[] = {".jpg", ".jpeg", ".png", ".tga", ".bmp"};
     }
 
     void register_gltf_importer(asset_registry& registry)

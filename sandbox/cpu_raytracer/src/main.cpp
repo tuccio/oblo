@@ -73,7 +73,7 @@ int main(int argc, char* argv[])
     constexpr auto configFile = "config.json";
 
     cxxopts::Options options{"oblo sandbox"};
-    options.add_options()("import", "Import scene", cxxopts::value<std::filesystem::path>());
+    options.add_options()("import", "Import scene", cxxopts::value<std::string>());
 
     const auto result = options.parse(argc, argv);
 

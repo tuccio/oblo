@@ -9,7 +9,9 @@
 #include <oblo/asset/importers/stb_image.hpp>
 #include <oblo/asset/processing/mesh_processing.hpp>
 #include <oblo/core/debug.hpp>
+#include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/log.hpp>
+#include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/math/quaternion.hpp>
@@ -99,12 +101,12 @@ namespace oblo::importers
     bool gltf::init(const importer_config& config, import_preview& preview)
     {
         // Seems like TinyGLTF wants std::string
-        const auto sourceFileStr = config.sourceFile.string();
+        const auto sourceFileStr = config.sourceFile.as<std::string>();
 
         m_sourceFiles.reserve(1 + m_model.buffers.size() + m_model.images.size());
         m_sourceFiles.emplace_back(config.sourceFile);
 
-        m_sourceFileDir = m_sourceFiles[0].parent_path();
+        m_sourceFileDir = filesystem::parent_path(m_sourceFiles[0]).as<string>();
 
         std::string errors;
         std::string warnings;
@@ -131,14 +133,13 @@ namespace oblo::importers
             return false;
         }
 
-        std::string name;
+        string_builder name;
 
         for (u32 meshIndex = 0; meshIndex < m_model.meshes.size(); ++meshIndex)
         {
             const auto& gltfMesh = m_model.meshes[meshIndex];
 
-            name.assign(gltfMesh.name);
-            const auto prefixLen = name.size();
+            name.clear().append(gltfMesh.name);
 
             m_importModels.push_back({
                 .mesh = meshIndex,
@@ -146,12 +147,11 @@ namespace oblo::importers
                 .primitiveBegin = u32(m_importMeshes.size()),
             });
 
-            preview.nodes.emplace_back(get_type_id<model>(), name);
+            preview.nodes.emplace_back(get_type_id<model>(), name.as<string>());
 
             for (u32 primitiveIndex = 0; primitiveIndex < gltfMesh.primitives.size(); ++primitiveIndex)
             {
-                name.resize(prefixLen);
-                std::format_to(std::back_insert_iterator(name), "#{}", meshIndex);
+                name.clear().append(gltfMesh.name).format("#{}", meshIndex);
 
                 m_importMeshes.push_back({
                     .mesh = meshIndex,
@@ -159,13 +159,15 @@ namespace oblo::importers
                     .nodeIndex = u32(preview.nodes.size()),
                 });
 
-                preview.nodes.emplace_back(get_type_id<mesh>(), name);
+                preview.nodes.emplace_back(get_type_id<mesh>(), name.as<string>());
             }
         }
 
         import_preview imagePreview;
 
         m_importImages.reserve(m_model.images.size());
+
+        std::string stdStringBuf;
 
         for (u32 imageIndex = 0; imageIndex < m_model.images.size(); ++imageIndex)
         {
@@ -181,14 +183,16 @@ namespace oblo::importers
                 continue;
             }
 
-            if (!tinygltf::URIDecode(gltfImage.uri, &name, nullptr))
+            if (!tinygltf::URIDecode(gltfImage.uri, &stdStringBuf, nullptr))
             {
                 log::error("Failed to decode URI {}", gltfImage.uri);
                 continue;
             }
 
+            name.clear().append(stdStringBuf.c_str());
+
             const u32 nodeIndex = u32(preview.nodes.size());
-            preview.nodes.emplace_back(get_type_id<texture>(), name);
+            preview.nodes.emplace_back(get_type_id<texture>(), name.as<string>());
 
             // TODO: Look for the best registered image importer instead
             auto importer = std::make_unique<stb_image>();
@@ -198,7 +202,7 @@ namespace oblo::importers
             const bool ok = importer->init(
                 {
                     .registry = config.registry,
-                    .sourceFile = m_sourceFileDir / name,
+                    .sourceFile = string_builder{}.append(m_sourceFileDir).append_path(name).as<string>(),
                 },
                 imagePreview);
 
@@ -218,7 +222,7 @@ namespace oblo::importers
         {
             auto& gltfMaterial = m_model.materials[materialIndex];
             m_importMaterials.emplace_back(u32(preview.nodes.size()));
-            preview.nodes.emplace_back(get_type_id<material>(), gltfMaterial.name);
+            preview.nodes.emplace_back(get_type_id<material>(), string{gltfMaterial.name.c_str()});
 
             const auto metallicRoughness = gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index;
 
@@ -359,10 +363,17 @@ namespace oblo::importers
 
             const auto& name = ctx.nodes[material.nodeIndex].name;
 
+            string_builder nameBuffer;
+
+            if (name.empty())
+            {
+                nameBuffer.format("Material#{}", materialIndex);
+            }
+
             m_artifacts.push_back({
                 .id = nodeConfig.id,
                 .data = any_asset{std::move(materialArtifact)},
-                .name = name.empty() ? std::format("Material#{}", materialIndex) : name,
+                .name = name.empty() ? nameBuffer.as<string>() : name,
             });
 
             material.id = nodeConfig.id;
@@ -498,6 +509,8 @@ namespace oblo::importers
             }
         }
 
+        string_builder bufferPathBuilder;
+
         for (usize i = 0; i < usedBuffer.size(); ++i)
         {
             if (usedBuffer[i])
@@ -509,11 +522,11 @@ namespace oblo::importers
                     continue;
                 }
 
-                const auto bufferPath = m_sourceFileDir / buffer.uri;
+                bufferPathBuilder.clear().append(m_sourceFileDir).append_path(buffer.uri);
 
-                if (std::error_code ec; std::filesystem::exists(bufferPath, ec) && !ec)
+                if (filesystem::exists(bufferPathBuilder).value_or(false))
                 {
-                    m_sourceFiles.emplace_back(bufferPath);
+                    m_sourceFiles.emplace_back(bufferPathBuilder.as<string>());
                 }
             }
         }
@@ -530,7 +543,7 @@ namespace oblo::importers
         };
     }
 
-    void gltf::set_texture(material& m, std::string_view propertyName, int textureIndex) const
+    void gltf::set_texture(material& m, hashed_string_view propertyName, int textureIndex) const
     {
         if (const auto imageIndex = find_image_from_texture(m_model, textureIndex);
             imageIndex >= 0 && usize(imageIndex) < m_importImages.size() && !m_importImages[imageIndex].id.is_nil())

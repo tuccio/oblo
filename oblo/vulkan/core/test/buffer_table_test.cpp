@@ -3,7 +3,7 @@
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/finally.hpp>
 #include <oblo/core/frame_allocator.hpp>
-#include <oblo/core/string_interner.hpp>
+#include <oblo/core/string/string_interner.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/vulkan/buffer.hpp>

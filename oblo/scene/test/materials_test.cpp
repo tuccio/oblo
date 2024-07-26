@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <oblo/core/filesystem/filesystem.hpp>
+#include <oblo/core/string/string_builder.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/resource/resource_ref.hpp>
 #include <oblo/scene/assets/material.hpp>
@@ -9,20 +11,18 @@ namespace oblo
 {
     namespace
     {
-        void clear_directory(const std::filesystem::path& path)
+        void clear_directory(cstring_view path)
         {
-            std::error_code ec;
-            std::filesystem::remove_all(path, ec);
-            ASSERT_FALSE(ec);
+            filesystem::remove_all(path).assert_value();
         }
     }
 
     TEST(materials, serialization)
     {
-        const std::filesystem::path testDir{"./test/materials_serialization/"};
+        constexpr cstring_view testDir{"./test/materials_serialization/"};
         clear_directory(testDir);
 
-        std::filesystem::create_directories(testDir);
+        filesystem::create_directories(testDir).assert_value();
 
         constexpr vec3 albedo{.25f, .5f, .1f};
         constexpr f32 roughness{.7f};
@@ -46,13 +46,13 @@ namespace oblo
             m.set_property(pbr::AlbedoTexture, albedoTexture);
             m.set_property(pbr::MetalnessRoughnessTexture, mrTexture);
 
-            m.save(testDir / "material.json");
+            m.save(string_builder{}.append(testDir).append_path("material.json"));
         }
 
         {
             material m;
 
-            ASSERT_TRUE(m.load(testDir / "material.json"));
+            ASSERT_TRUE(m.load(string_builder{}.append(testDir).append_path("material.json")));
             auto* const albedoProperty = m.get_property(pbr::Albedo);
             ASSERT_TRUE(albedoProperty);
 

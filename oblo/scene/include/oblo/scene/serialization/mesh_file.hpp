@@ -3,8 +3,6 @@
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/flags.hpp>
 
-#include <filesystem>
-
 namespace tinygltf
 {
     class Model;
@@ -13,6 +11,7 @@ namespace tinygltf
 
 namespace oblo
 {
+    class cstring_view;
     class mesh;
     struct mesh_attribute;
 
@@ -24,7 +23,7 @@ namespace oblo
         enum_max,
     };
 
-    SCENE_API bool save_mesh(const mesh& mesh, const std::filesystem::path& destination);
+    SCENE_API bool save_mesh(const mesh& mesh, cstring_view destination);
 
     SCENE_API bool load_mesh(mesh& mesh,
         const tinygltf::Model& model,
@@ -34,5 +33,5 @@ namespace oblo
         dynamic_array<bool>* usedBuffers,
         flags<mesh_post_process> processingFlags);
 
-    SCENE_API bool load_mesh(mesh& mesh, const std::filesystem::path& source);
+    SCENE_API bool load_mesh(mesh& mesh, cstring_view source);
 }

@@ -7,22 +7,22 @@ namespace oblo::vk
         m_registry = &registry;
     }
 
-    void frame_graph_template::make_input(vertex_handle pin, std::string_view name)
+    void frame_graph_template::make_input(vertex_handle pin, string_view name)
     {
         auto& v = m_graph[pin];
         OBLO_ASSERT(v.kind == frame_graph_vertex_kind::pin);
 
         m_inputs.emplace_back(pin);
-        v.name = name;
+        v.name = name.as<std::string>();
     }
 
-    void frame_graph_template::make_output(vertex_handle pin, std::string_view name)
+    void frame_graph_template::make_output(vertex_handle pin, string_view name)
     {
         auto& v = m_graph[pin];
         OBLO_ASSERT(v.kind == frame_graph_vertex_kind::pin);
 
         m_outputs.emplace_back(pin);
-        v.name = name;
+        v.name = name.as<std::string>();
     }
 
     frame_graph_template::vertex_handle frame_graph_template::add_node(const uuid& id,
@@ -89,7 +89,7 @@ namespace oblo::vk
         return m_outputs;
     }
 
-    std::string_view frame_graph_template::get_name(vertex_handle inputOrOutput) const
+    string_view frame_graph_template::get_name(vertex_handle inputOrOutput) const
     {
         return m_graph[inputOrOutput].name;
     }

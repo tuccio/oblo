@@ -1,7 +1,7 @@
 #include <oblo/scene/assets/texture.hpp>
 
 #include <oblo/core/debug.hpp>
-#include <oblo/core/file_utility.hpp>
+#include <oblo/core/filesystem/file.hpp>
 #include <oblo/math/vec2u.hpp>
 
 #include <vulkan/vulkan_core.h>
@@ -165,9 +165,9 @@ namespace oblo
         return u32(offset);
     }
 
-    bool texture::save(const std::filesystem::path& path) const
+    bool texture::save(cstring_view path) const
     {
-        const file_ptr f{open_file(path, "wb")};
+        const filesystem::file_ptr f{filesystem::open_file(path, "wb")};
 
         if (!f)
         {
@@ -177,13 +177,13 @@ namespace oblo
         return KTX_SUCCESS == ktxTexture_WriteToStdioStream(to_ktx(m_impl), f.get());
     }
 
-    bool texture::load(const std::filesystem::path& path)
+    bool texture::load(cstring_view path)
     {
         deallocate();
 
         ktxTexture* newKtx{};
 
-        const file_ptr f{open_file(path, "rb")};
+        const filesystem::file_ptr f{filesystem::open_file(path, "rb")};
 
         if (!f)
         {

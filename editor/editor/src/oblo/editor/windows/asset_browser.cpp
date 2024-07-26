@@ -14,6 +14,8 @@
 
 #include <imgui.h>
 
+#include <filesystem>
+
 namespace oblo::editor
 {
     void asset_browser::init(const window_update_context& ctx)
@@ -21,7 +23,9 @@ namespace oblo::editor
         m_registry = ctx.services.find<asset_registry>();
         OBLO_ASSERT(m_registry);
 
-        m_path = std::filesystem::canonical(m_registry->get_asset_directory());
+        m_path = m_registry->get_asset_directory();
+        m_path.make_canonical_path();
+
         m_current = m_path;
     }
 
@@ -35,7 +39,7 @@ namespace oblo::editor
             {
                 if (ImGui::MenuItem("Import"))
                 {
-                    std::filesystem::path file;
+                    string_builder file;
 
                     if (platform::open_file_dialog(file))
                     {
@@ -46,12 +50,12 @@ namespace oblo::editor
                             const data_document defaultImportSettings;
 
                             const auto timeBegin = clock::now();
-                            const auto success = importer.execute(m_current, defaultImportSettings);
+                            const auto success = importer.execute(m_current.view(), defaultImportSettings);
                             const auto timeEnd = clock::now();
                             const f32 executionTime = to_f32_seconds(timeEnd - timeBegin);
 
                             log::info("Import of '{}' {}. Execution time: {:.2f}s",
-                                file.string(),
+                                file,
                                 success ? "succeeded" : "failed",
                                 executionTime);
                         }
@@ -60,7 +64,7 @@ namespace oblo::editor
 
                 if (ImGui::MenuItem("Open in Explorer"))
                 {
-                    platform::open_folder(m_current);
+                    platform::open_folder(m_current.view());
                 }
 
                 ImGui::EndPopup();
@@ -71,7 +75,7 @@ namespace oblo::editor
                 if (ImGui::Button(".."))
                 {
                     std::error_code ec;
-                    m_current = std::filesystem::canonical(m_current / "..", ec);
+                    m_current.append_path("..").make_canonical_path();
                     m_breadcrumbs.pop_back();
 
                     if (ec)
@@ -83,21 +87,23 @@ namespace oblo::editor
 
             std::error_code ec;
 
-            for (auto&& entry : std::filesystem::directory_iterator{m_current, ec})
+            string_builder directoryName;
+
+            for (auto&& entry : std::filesystem::directory_iterator{m_current.as<std::string>(), ec})
             {
                 const auto& p = entry.path();
                 if (std::filesystem::is_directory(p))
                 {
                     auto dir = p.filename();
-                    const auto& str = dir.u8string();
+                    directoryName.clear().append(dir.native().c_str());
 
-                    if (ImGui::Button(reinterpret_cast<const char*>(str.c_str())))
+                    if (ImGui::Button(directoryName.c_str()))
                     {
-                        m_current = std::filesystem::canonical(p, ec);
-                        m_breadcrumbs.emplace_back(std::move(dir));
+                        m_current.clear().append(p.native().c_str()).make_canonical_path();
+                        m_breadcrumbs.emplace_back(directoryName.as<string>());
                     }
                 }
-                else if (p.native().ends_with(AssetMetaExtension))
+                else if (p.extension() == AssetMetaExtension.c_str())
                 {
                     const auto file = p.filename();
                     const auto& str = file.u8string();
@@ -105,7 +111,10 @@ namespace oblo::editor
                     uuid uuid;
                     asset_meta meta;
 
-                    if (m_registry->find_asset_by_meta_path(p, uuid, meta))
+                    string_builder assetPath;
+                    assetPath.append(p.native().c_str());
+
+                    if (m_registry->find_asset_by_meta_path(assetPath, uuid, meta))
                     {
                         ImGui::PushID(int(hash_all<std::hash>(uuid)));
 

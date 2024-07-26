@@ -25,7 +25,7 @@ namespace oblo::ecs_utility
         ecs::type_registry* typeRegistry,
         property_registry* propertyRegistry)
     {
-        std::vector<reflection::type_handle> componentTypes;
+        dynamic_array<reflection::type_handle> componentTypes;
         reflection.find_by_tag<ecs::component_type_tag>(componentTypes);
 
         if (typeRegistry)
@@ -73,7 +73,7 @@ namespace oblo::ecs_utility
 
     ecs::entity create_named_physical_entity(ecs::entity_registry& registry,
         const ecs::component_and_tag_sets& extraComponentsOrTags,
-        std::string_view name,
+        string_view name,
         const vec3& position,
         const quaternion& rotation,
         const vec3& scale)

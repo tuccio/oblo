@@ -2,10 +2,10 @@
 
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/flags.hpp>
-#include <oblo/core/string_interner.hpp>
+#include <oblo/core/string/hashed_string_view.hpp>
+#include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
 
-#include <filesystem>
 #include <span>
 
 #include <vulkan/vulkan.h>
@@ -23,12 +23,12 @@ namespace oblo::vk
     struct render_pass_stage
     {
         pipeline_stages stage;
-        std::filesystem::path shaderSourcePath;
+        string_view shaderSourcePath;
     };
 
     struct render_pass_initializer
     {
-        std::string name;
+        string_view name;
         buffered_array<render_pass_stage, u8(pipeline_stages::enum_max)> stages;
     };
 
@@ -73,6 +73,6 @@ namespace oblo::vk
         render_pass_targets renderTargets;
         depth_stencil_state depthStencilState;
         rasterization_state rasterizationState;
-        std::span<const h32<string>> defines;
+        std::span<const hashed_string_view> defines;
     };
 }

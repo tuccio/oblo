@@ -1,6 +1,6 @@
 #pragma once
 
-#include <oblo/core/string_interner.hpp>
+#include <oblo/core/string/string_interner.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/data/camera_buffer.hpp>

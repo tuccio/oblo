@@ -25,7 +25,7 @@ namespace oblo::reflection
             wchar_t wharField;
         };
 
-        auto find_field_by_name(std::span<const field_data> fields, const std::string_view name)
+        auto find_field_by_name(std::span<const field_data> fields, const string_view name)
         {
             return find_if(fields.begin(),
                 fields.end(),

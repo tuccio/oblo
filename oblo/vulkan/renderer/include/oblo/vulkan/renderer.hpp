@@ -1,7 +1,7 @@
 #pragma once
 
 #include <oblo/core/handle.hpp>
-#include <oblo/core/string_interner.hpp>
+#include <oblo/core/string/string_interner.hpp>
 #include <oblo/vulkan/draw/draw_registry.hpp>
 #include <oblo/vulkan/draw/pass_manager.hpp>
 #include <oblo/vulkan/draw/texture_registry.hpp>

@@ -1,11 +1,10 @@
 #pragma once
 
+#include <oblo/core/string/string_view.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
 #include <oblo/properties/serialization/data_node.hpp>
 #include <oblo/properties/visit_result.hpp>
-
-#include <string_view>
 
 namespace oblo
 {
@@ -41,7 +40,7 @@ namespace oblo
 
             const auto& node = nodes[index];
 
-            const auto key = std::string_view{node.key, node.keyLen};
+            const auto key = string_view{node.key, node.keyLen};
             auto r = visit_result::recurse;
 
             const auto doRecurse = [&v, &r, &node, &nodes]

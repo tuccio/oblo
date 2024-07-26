@@ -2,7 +2,7 @@
 
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle.hpp>
-#include <oblo/core/string_interner.hpp>
+#include <oblo/core/string/string_interner.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/type_registry.hpp>
@@ -45,7 +45,7 @@ namespace oblo::vk
 
     struct draw_buffer
     {
-        std::string_view name;
+        string_view name;
         u32 elementSize;
         u32 elementAlignment;
     };
@@ -93,7 +93,7 @@ namespace oblo::vk
 
         void shutdown();
 
-        void register_instance_data(ecs::component_type type, std::string_view instanceName);
+        void register_instance_data(ecs::component_type type, string_view instanceName);
 
         bool needs_reloading_instance_data_types() const;
 
@@ -107,7 +107,7 @@ namespace oblo::vk
         void generate_draw_calls(frame_allocator& allocator, staging_buffer& stagingBuffer);
         void generate_raytracing_structures(frame_allocator& allocator, VkCommandBuffer commandBuffer);
 
-        std::string_view refresh_instance_data_defines(frame_allocator& allocator);
+        string_view refresh_instance_data_defines(frame_allocator& allocator);
 
         std::span<const batch_draw_data> get_draw_calls() const;
 

@@ -1,15 +1,14 @@
 #include <oblo/core/graph/directed_graph.hpp>
 #include <oblo/core/graph/topological_sort.hpp>
+#include <oblo/core/string/string_view.hpp>
 
 #include <gtest/gtest.h>
-
-#include <string_view>
 
 namespace oblo
 {
     TEST(directed_graph, directed_graph_basic)
     {
-        directed_graph<u32, std::string_view> graph;
+        directed_graph<u32, string_view> graph;
 
         const auto v0 = graph.add_vertex(666u);
         const auto v1 = graph.add_vertex(1337u);

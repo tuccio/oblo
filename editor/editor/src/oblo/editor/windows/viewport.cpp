@@ -74,7 +74,7 @@ namespace oblo::editor
             std::underlying_type_t<viewport_mode> value;
             std::memcpy(&value, viewportModeValues.data() + sizeof(viewport_mode) * i, sizeof(viewport_mode));
 
-            m_viewportModes[value] = viewportModeNames[i];
+            m_viewportModes[value] = viewportModeNames[i].as<std::string>();
         }
     }
 

@@ -8,7 +8,9 @@
 #include <oblo/asset/importer.hpp>
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/debug.hpp>
+#include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/log.hpp>
+#include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/core/uuid_generator.hpp>
 
@@ -30,7 +32,7 @@ namespace oblo
         struct file_importer_info
         {
             create_file_importer_fn create;
-            std::vector<std::string> extensions;
+            dynamic_array<string> extensions;
         };
 
         using asset_types_map = std::unordered_map<type_id, asset_type_info>;
@@ -38,9 +40,9 @@ namespace oblo
         bool load_asset_meta(asset_meta& meta,
             std::vector<uuid>& artifacts,
             const asset_types_map& assetTypes,
-            const std::filesystem::path& source)
+            const std::filesystem::path& path)
         {
-            std::ifstream in{source};
+            std::ifstream in{path};
 
             if (!in)
             {
@@ -65,7 +67,7 @@ namespace oblo
                 return false;
             }
 
-            const std::string_view type = json["typeHint"].get<std::string_view>();
+            const hashed_string_view type{json["typeHint"].get<std::string_view>()};
 
             const auto typeIt = assetTypes.find(type_id{type});
 
@@ -108,26 +110,25 @@ namespace oblo
             return true;
         }
 
-        bool save_asset_meta(
-            const asset_meta& meta, std::span<const uuid> artifacts, const std::filesystem::path& destination)
+        bool save_asset_meta(const asset_meta& meta, std::span<const uuid> artifacts, cstring_view destination)
         {
             char uuidBuffer[36];
 
             nlohmann::ordered_json json;
 
-            json["id"] = meta.id.format_to(uuidBuffer);
-            json["mainArtifactHint"] = meta.mainArtifactHint.format_to(uuidBuffer);
-            json["typeHint"] = meta.typeHint.name;
+            json["id"] = meta.id.format_to(uuidBuffer).as<std::string_view>();
+            json["mainArtifactHint"] = meta.mainArtifactHint.format_to(uuidBuffer).as<std::string_view>();
+            json["typeHint"] = meta.typeHint.name.as<std::string_view>();
             json["isImported"] = meta.isImported;
 
             auto&& artifactsJson = json["artifacts"];
 
             for (const auto& uuid : artifacts)
             {
-                artifactsJson.push_back(uuid.format_to(uuidBuffer));
+                artifactsJson.push_back(uuid.format_to(uuidBuffer).as<std::string_view>());
             }
 
-            std::ofstream ofs{destination};
+            std::ofstream ofs{destination.as<std::string>()};
 
             if (!ofs)
             {
@@ -139,9 +140,9 @@ namespace oblo
         }
 
         // TODO: Need to read the full meta instead
-        bool load_asset_id_from_meta(const std::filesystem::path& path, uuid& id)
+        bool load_asset_id_from_meta(string_view path, uuid& id)
         {
-            std::ifstream in{path};
+            std::ifstream in{path.as<std::string>()};
 
             if (!in)
             {
@@ -165,26 +166,26 @@ namespace oblo
             return id.parse_from(it->get<std::string_view>());
         }
 
-        bool save_artifact_meta(const artifact_meta& artifact, const std::filesystem::path& destination)
+        bool save_artifact_meta(const artifact_meta& artifact, cstring_view destination)
         {
             char uuidBuffer[36];
 
             nlohmann::json json;
 
-            json["id"] = artifact.id.format_to(uuidBuffer);
-            json["type"] = artifact.type.name;
+            json["id"] = artifact.id.format_to(uuidBuffer).as<std::string_view>();
+            json["type"] = artifact.type.name.as<std::string_view>();
 
             if (!artifact.importId.is_nil())
             {
-                json["importId"] = artifact.importId.format_to(uuidBuffer);
+                json["importId"] = artifact.importId.format_to(uuidBuffer).as<std::string_view>();
             }
 
             if (!artifact.importName.empty())
             {
-                json["name"] = artifact.importName;
+                json["name"] = artifact.importName.as<std::string>();
             }
 
-            std::ofstream ofs{destination};
+            std::ofstream ofs{destination.as<std::string>()};
 
             if (!ofs)
             {
@@ -195,11 +196,11 @@ namespace oblo
             return !ofs.bad();
         }
 
-        bool load_artifact_meta(const std::filesystem::path& source,
+        bool load_artifact_meta(cstring_view source,
             const std::unordered_map<type_id, asset_type_info>& assetTypes,
             artifact_meta& artifact)
         {
-            std::ifstream ifs{source};
+            std::ifstream ifs{source.as<std::string>()};
 
             if (!ifs)
             {
@@ -221,7 +222,7 @@ namespace oblo
 
             if (const auto it = json.find("type"); it != json.end())
             {
-                const auto type = it->get<std::string_view>();
+                const auto type = hashed_string_view{it->get<std::string_view>()};
 
                 if (const auto typeIt = assetTypes.find(type_id{type}); typeIt == assetTypes.end())
                 {
@@ -247,11 +248,14 @@ namespace oblo
             return true;
         }
 
-        bool ensure_directories(const std::filesystem::path& directory)
+        bool ensure_directories(cstring_view directory)
         {
-            std::error_code ec;
-            std::filesystem::create_directories(directory, ec);
-            return std::filesystem::is_directory(directory, ec);
+            if (!filesystem::create_directories(directory))
+            {
+                return false;
+            }
+
+            return filesystem::is_directory(directory).value_or(false);
         }
 
         struct asset_entry
@@ -269,9 +273,21 @@ namespace oblo
         std::unordered_map<type_id, asset_type_info> assetTypes;
         std::unordered_map<type_id, file_importer_info> importers;
         std::unordered_map<uuid, asset_entry> assets;
-        std::filesystem::path assetsDir;
-        std::filesystem::path artifactsDir;
-        std::filesystem::path sourceFilesDir;
+        string_builder assetsDir;
+        string_builder artifactsDir;
+        string_builder sourceFilesDir;
+
+        string_builder& make_asset_path(string_builder& out, string_view directory)
+        {
+            if (filesystem::is_relative(directory))
+            {
+                out.append(assetsDir);
+                out.append_path_separator();
+            }
+
+            out.append(directory);
+            return out;
+        }
     };
 
     asset_registry::asset_registry() = default;
@@ -281,33 +297,18 @@ namespace oblo
         shutdown();
     }
 
-    bool asset_registry::initialize(const std::filesystem::path& assetsDir,
-        const std::filesystem::path& artifactsDir,
-        const std::filesystem::path& sourceFilesDir)
+    bool asset_registry::initialize(cstring_view assetsDir, cstring_view artifactsDir, cstring_view sourceFilesDir)
     {
         if (!ensure_directories(assetsDir) || !ensure_directories(artifactsDir) || !ensure_directories(sourceFilesDir))
         {
             return false;
         }
 
-        std::error_code ec;
-
         m_impl = std::make_unique<impl>();
 
-        if (m_impl->assetsDir = std::filesystem::absolute(assetsDir, ec); ec)
-        {
-            return false;
-        }
-
-        if (m_impl->artifactsDir = std::filesystem::absolute(artifactsDir, ec); ec)
-        {
-            return false;
-        }
-
-        if (m_impl->sourceFilesDir = std::filesystem::absolute(sourceFilesDir, ec); ec)
-        {
-            return false;
-        }
+        m_impl->assetsDir.append(assetsDir).make_absolute_path();
+        m_impl->artifactsDir.append(artifactsDir).make_absolute_path();
+        m_impl->sourceFilesDir.append(sourceFilesDir).make_absolute_path();
 
         return true;
     }
@@ -332,9 +333,12 @@ namespace oblo
         return m_impl->assetTypes.contains(type);
     }
 
-    bool asset_registry::create_directories(const std::filesystem::path& directory)
+    bool asset_registry::create_directories(string_view directory)
     {
-        return ensure_directories(m_impl->assetsDir / directory);
+        string_builder sb;
+        m_impl->make_asset_path(sb, directory);
+
+        return ensure_directories(sb);
     }
 
     void asset_registry::register_file_importer(const file_importer_desc& desc)
@@ -347,9 +351,9 @@ namespace oblo
             info.create = desc.create;
             info.extensions.reserve(desc.extensions.size());
 
-            for (const std::string_view ext : desc.extensions)
+            for (const string_view ext : desc.extensions)
             {
-                info.extensions.emplace_back(ext);
+                info.extensions.emplace_back(ext.as<string>());
             }
         }
     }
@@ -359,9 +363,9 @@ namespace oblo
         m_impl->importers.erase(type);
     }
 
-    importer asset_registry::create_importer(const std::filesystem::path& sourceFile)
+    importer asset_registry::create_importer(cstring_view sourceFile)
     {
-        const auto ext = sourceFile.extension();
+        const auto ext = filesystem::extension(sourceFile);
 
         for (auto& [type, assetImporter] : m_impl->importers)
         {
@@ -372,7 +376,7 @@ namespace oblo
                     return importer{
                         importer_config{
                             .registry = this,
-                            .sourceFile = sourceFile,
+                            .sourceFile = sourceFile.as<string>(),
                         },
                         type,
                         assetImporter.create(),
@@ -407,24 +411,24 @@ namespace oblo
         auto artifactPath = m_impl->artifactsDir;
         ensure_directories(artifactPath);
 
-        artifactPath /= artifactId.format_to(uuidBuffer);
+        artifactPath.append_path(artifactId.format_to(uuidBuffer));
 
         std::error_code ec;
 
-        if (policy == write_policy::no_overwrite && (std::filesystem::exists(artifactPath, ec) || ec))
+        if (policy == write_policy::no_overwrite && filesystem::exists(artifactPath).value_or(true))
         {
             return false;
         }
 
         auto artifactMetaPath = artifactPath;
-        artifactMetaPath.concat(ArtifactMetaExtension);
+        artifactMetaPath.append(ArtifactMetaExtension);
 
         const auto saveFunction = typeIt->second.save;
         return saveFunction(dataPtr, artifactPath) && save_artifact_meta(meta, artifactMetaPath);
     }
 
-    bool asset_registry::save_asset(const std::filesystem::path& destination,
-        const std::filesystem::path& fileName,
+    bool asset_registry::save_asset(string_view destination,
+        string_view assetName,
         const asset_meta& meta,
         std::span<const uuid> artifacts,
         write_policy policy)
@@ -437,12 +441,10 @@ namespace oblo
             return false;
         }
 
-        auto fullPath = m_impl->assetsDir / destination / fileName;
-        fullPath.concat(AssetMetaExtension);
+        string_builder fullPath;
+        m_impl->make_asset_path(fullPath, destination).append_path(assetName).append(AssetMetaExtension);
 
-        std::error_code ec;
-
-        if (policy == write_policy::no_overwrite && (std::filesystem::exists(fullPath, ec) || ec))
+        if (policy == write_policy::no_overwrite && filesystem::exists(fullPath).value_or(true))
         {
             return false;
         }
@@ -450,17 +452,20 @@ namespace oblo
         return save_asset_meta(assetIt->second.meta, artifacts, fullPath);
     }
 
-    std::filesystem::path asset_registry::create_source_files_dir(uuid importId)
+    bool asset_registry::create_source_files_dir(string_builder& importDir, uuid importId)
     {
         char uuidBuffer[36];
-        auto importDir = m_impl->sourceFilesDir / importId.format_to(uuidBuffer);
+
+        importDir.clear()
+            .append(m_impl->sourceFilesDir)
+            .append_path(importId.format_to(uuidBuffer).as<std::string_view>());
 
         if (!ensure_directories(importDir))
         {
-            return {};
+            return false;
         }
 
-        return importDir;
+        return true;
     }
 
     bool asset_registry::find_asset_by_id(const uuid& id, asset_meta& assetMeta) const
@@ -476,16 +481,15 @@ namespace oblo
         return true;
     }
 
-    bool asset_registry::find_asset_by_path(const std::filesystem::path& path, uuid& id, asset_meta& assetMeta) const
+    bool asset_registry::find_asset_by_path(cstring_view path, uuid& id, asset_meta& assetMeta) const
     {
-        auto fullPath = m_impl->assetsDir / path;
-        fullPath.concat(AssetMetaExtension);
+        string_builder fullPath;
+        m_impl->make_asset_path(fullPath, path).append(AssetMetaExtension);
 
         return find_asset_by_meta_path(fullPath, id, assetMeta);
     }
 
-    bool asset_registry::find_asset_by_meta_path(
-        const std::filesystem::path& path, uuid& id, asset_meta& assetMeta) const
+    bool asset_registry::find_asset_by_meta_path(cstring_view path, uuid& id, asset_meta& assetMeta) const
     {
         if (!load_asset_id_from_meta(path, id))
         {
@@ -514,41 +518,43 @@ namespace oblo
 
         const auto& artifactsDir = m_impl->artifactsDir;
 
-        auto resourceFile = artifactsDir / id.format_to(uuidBuffer);
+        string_builder resourceFile;
+        resourceFile.append(artifactsDir).append_path(id.format_to(uuidBuffer));
 
-        if (std::error_code ec; !std::filesystem::exists(resourceFile, ec))
+        if (filesystem::exists(resourceFile).value_or(false))
         {
             return false;
         }
 
         auto resourceMeta = resourceFile;
-        resourceMeta.concat(ArtifactMetaExtension);
+        resourceMeta.append(ArtifactMetaExtension);
 
         return oblo::load_artifact_meta(resourceMeta, m_impl->assetTypes, artifact);
     }
 
-    const std::filesystem::path& asset_registry::get_asset_directory() const
+    cstring_view asset_registry::get_asset_directory() const
     {
         return m_impl->assetsDir;
     }
 
     bool asset_registry::find_artifact_resource(
-        const uuid& id, type_id& outType, std::string& outName, std::filesystem::path& outPath, const void* userdata)
+        const uuid& id, type_id& outType, string& outName, string& outPath, const void* userdata)
     {
         char uuidBuffer[36];
 
         auto* const self = static_cast<const asset_registry*>(userdata);
         const auto& artifactsDir = self->m_impl->artifactsDir;
 
-        auto resourceFile = artifactsDir / id.format_to(uuidBuffer);
+        string_builder resourceFile;
+        resourceFile.append(artifactsDir).append_path(id.format_to(uuidBuffer));
 
-        if (std::error_code ec; !std::filesystem::exists(resourceFile, ec))
+        if (!filesystem::exists(resourceFile).value_or(false))
         {
             return false;
         }
 
         auto resourceMeta = resourceFile;
-        resourceMeta.concat(ArtifactMetaExtension);
+        resourceMeta.append(ArtifactMetaExtension);
 
         artifact_meta meta;
 
@@ -558,7 +564,7 @@ namespace oblo
         }
 
         outType = meta.type;
-        outPath = std::move(resourceFile);
+        outPath = resourceFile.as<string>();
         outName = std::move(meta.importName);
 
         return true;
@@ -568,7 +574,8 @@ namespace oblo
     {
         std::error_code ec;
 
-        for (auto&& entry : std::filesystem::recursive_directory_iterator{m_impl->assetsDir, ec})
+        for (auto&& entry :
+            std::filesystem::recursive_directory_iterator{m_impl->assetsDir.view().as<std::string>(), ec})
         {
             const auto& p = entry.path();
 

@@ -27,7 +27,7 @@ namespace oblo::editor
         u8* ptr,
         update_fn update,
         destroy_fn destroy,
-        std::string_view debugName)
+        string_view debugName)
     {
         auto* const newEntry = new (m_pool.allocate(sizeof(window_entry), alignof(window_entry))) window_entry{
             .ptr = ptr,

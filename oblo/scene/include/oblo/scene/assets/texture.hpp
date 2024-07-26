@@ -1,8 +1,8 @@
 #pragma once
 
+#include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/types.hpp>
 
-#include <filesystem>
 #include <span>
 
 namespace oblo
@@ -49,8 +49,8 @@ namespace oblo
         u32 get_row_pitch(u32 level) const;
         u32 get_offset(u32 level, u32 face, u32 layer) const;
 
-        bool save(const std::filesystem::path& path) const;
-        bool load(const std::filesystem::path& path);
+        bool save(cstring_view path) const;
+        bool load(cstring_view path);
 
         texture_desc get_description() const;
 

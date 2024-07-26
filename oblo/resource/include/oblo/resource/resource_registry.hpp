@@ -1,15 +1,15 @@
 #pragma once
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/uuid.hpp>
 
-#include <filesystem>
 #include <unordered_map>
-#include <vector>
 
 namespace oblo
 {
+    class string;
     struct type_id;
 }
 
@@ -22,7 +22,7 @@ namespace oblo
     struct resource_type_desc;
 
     using find_resource_fn = bool (*)(
-        const uuid& id, type_id& outType, std::string& outName, std::filesystem::path& outPath, const void* userdata);
+        const uuid& id, type_id& outType, string& outName, string& outPath, const void* userdata);
 
     class resource_registry
     {
@@ -50,6 +50,6 @@ namespace oblo
     private:
         std::unordered_map<type_id, resource_type_desc> m_resourceTypes;
         std::unordered_map<uuid, resource_storage> m_resources;
-        std::vector<provider_storage> m_providers;
+        dynamic_array<provider_storage> m_providers;
     };
 }

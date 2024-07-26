@@ -25,7 +25,7 @@ namespace oblo::smoke
         template <typename T>
         resource_ptr<T> import_as_resource(asset_registry& assetRegistry,
             resource_registry& resourceRegistry,
-            const std::filesystem::path& source,
+            cstring_view source,
             const data_document& importSettings = {})
         {
             importer assetImporter = assetRegistry.create_importer(source);

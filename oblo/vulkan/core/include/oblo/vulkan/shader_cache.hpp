@@ -1,10 +1,11 @@
 #pragma once
 
+#include <oblo/core/string/string_builder.hpp>
+#include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
 
 #include <vulkan/vulkan.h>
 
-#include <filesystem>
 #include <span>
 
 namespace oblo
@@ -22,16 +23,16 @@ namespace oblo::vk
     class shader_cache
     {
     public:
-        bool init(const std::filesystem::path& dir);
+        bool init(string_view dir);
 
         bool find_or_add(std::span<unsigned>& outSpirv,
             frame_allocator& allocator,
-            std::string_view debugName,
-            std::string_view sourceCode,
+            string_view debugName,
+            string_view sourceCode,
             VkShaderStageFlagBits stage,
             const shader_compiler::options& options);
 
     private:
-        std::filesystem::path m_path;
+        string_builder m_path;
     };
 }

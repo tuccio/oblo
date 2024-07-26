@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include <oblo/core/string_interner.hpp>
+#include <oblo/core/string/string_interner.hpp>
 
 #include <random>
 #include <unordered_map>
@@ -36,9 +36,9 @@ namespace oblo
         ASSERT_EQ(interner.str(b), "B");
         ASSERT_EQ(interner.str(c), "C");
 
-        ASSERT_EQ(interner.c_str(a), std::string_view{"A"});
-        ASSERT_EQ(interner.c_str(b), std::string_view{"B"});
-        ASSERT_EQ(interner.c_str(c), std::string_view{"C"});
+        ASSERT_EQ(interner.c_str(a), string_view{"A"});
+        ASSERT_EQ(interner.c_str(b), string_view{"B"});
+        ASSERT_EQ(interner.c_str(c), string_view{"C"});
     }
 
     TEST(string_interner, random)
