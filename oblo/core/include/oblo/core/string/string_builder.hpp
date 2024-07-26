@@ -9,18 +9,31 @@
 
 namespace oblo
 {
+    class string;
+
     class string_builder
     {
     public:
         string_builder();
         explicit string_builder(allocator* allocator);
-        string_builder(const string_builder&) = delete;
-        string_builder(string_builder&&) noexcept = delete;
+        string_builder(const string_builder&) = default;
+        string_builder(string_builder&&) noexcept = default;
 
-        string_builder& operator=(const string_builder&) = delete;
-        string_builder& operator=(string_builder&&) noexcept = delete;
+        string_builder& operator=(const string_builder&) = default;
+        string_builder& operator=(string_builder&&) noexcept = default;
 
+        string_builder& append(char c);
+        string_builder& append(const string& str);
+        string_builder& append(cstring_view str);
         string_builder& append(string_view str);
+
+        string_builder& append(const char* str, const char* end = nullptr);
+        string_builder& append(const wchar_t* str, const wchar_t* end = nullptr);
+        string_builder& append(const char8_t* str, const char8_t* end = nullptr);
+        string_builder& append(const char16_t* str, const char16_t* end = nullptr);
+
+        string_builder& append_path_separator();
+        string_builder& append_path(string_view str);
 
         template <typename... Args>
         string_builder& format(std::format_string<Args...> fmt, Args&&... args);
@@ -31,20 +44,29 @@ namespace oblo
             string_view separator,
             std::format_string<decltype(*std::declval<Iterator>())> fmt = "{}");
 
+        string_builder& make_absolute_path();
+        string_builder& make_canonical_path();
+
         string_builder& clear();
 
         const char* c_str() const;
         const char* data() const;
+        char* mutable_data();
         usize size() const;
 
         cstring_view view() const;
 
         explicit operator string_view() const;
-        explicit operator cstring_view() const;
+        operator cstring_view() const;
 
         string_builder& operator=(string_view str);
 
         void reserve(usize size);
+
+        template <typename T>
+        T as() const noexcept;
+
+        bool operator==(const string_builder& other) const noexcept;
 
     private:
         void ensure_null_termination();
@@ -61,6 +83,19 @@ namespace oblo
     inline string_builder::string_builder(allocator* allocator) : m_buffer{allocator}
     {
         m_buffer.emplace_back('\0');
+    }
+
+    inline string_builder& string_builder::append(char c)
+    {
+        m_buffer.pop_back();
+        m_buffer.push_back(c);
+        ensure_null_termination();
+        return *this;
+    }
+
+    inline string_builder& string_builder::append(cstring_view str)
+    {
+        return append(string_view{str});
     }
 
     inline string_builder& string_builder::append(string_view str)
@@ -102,6 +137,12 @@ namespace oblo
         return *this;
     }
 
+    template <typename T>
+    inline T string_builder::as() const noexcept
+    {
+        return T{data(), size()};
+    }
+
     inline string_builder& string_builder::clear()
     {
         m_buffer.assign(1u, '\0');
@@ -118,6 +159,11 @@ namespace oblo
         return m_buffer.data();
     }
 
+    inline char* string_builder::mutable_data()
+    {
+        return m_buffer.data();
+    }
+
     inline usize string_builder::size() const
     {
         OBLO_ASSERT(!m_buffer.empty());
@@ -126,9 +172,7 @@ namespace oblo
 
     inline void string_builder::ensure_null_termination()
     {
-        OBLO_ASSERT(!m_buffer.empty());
-
-        if (m_buffer.back() != '\0')
+        if (m_buffer.empty() || m_buffer.back() != '\0')
         {
             m_buffer.emplace_back('\0');
         }
@@ -146,7 +190,7 @@ namespace oblo
 
     inline string_builder::operator cstring_view() const
     {
-        return cstring_view{m_buffer.data()};
+        return cstring_view{m_buffer.data(), size()};
     }
 
     inline string_builder& string_builder::operator=(string_view str)

@@ -6,7 +6,7 @@
 
 namespace oblo
 {
-    struct string;
+    class string;
 
     class string_interner
     {

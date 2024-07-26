@@ -1,10 +1,13 @@
 oblo_add_library(core)
 
+find_package(utf8cpp  REQUIRED)
+
 target_link_libraries(
     oblo_core
     PUBLIC
     xxhashct::xxhashct
     PRIVATE
+    utf8cpp
     xxHash::xxhash
 )
 

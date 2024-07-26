@@ -6,6 +6,8 @@
 #include <oblo/asset/importer.hpp>
 #include <oblo/asset/importers/registration.hpp>
 #include <oblo/core/data_format.hpp>
+#include <oblo/core/filesystem/filesystem.hpp>
+#include <oblo/core/string/string_builder.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/properties/property_kind.hpp>
@@ -20,11 +22,20 @@ namespace oblo::importers
 {
     namespace
     {
-        void clear_directory(const std::filesystem::path& path)
+        void clear_directory(cstring_view path)
         {
-            std::error_code ec;
-            std::filesystem::remove_all(path, ec);
-            ASSERT_FALSE(ec);
+            filesystem::remove_all(path).assert_value();
+        }
+
+        template <typename... T>
+        string child_path(string_view parent, T&&... children)
+        {
+            string_builder sb;
+            sb.append(parent);
+
+            (sb.append_path(children), ...);
+
+            return sb.as<string>();
         }
     }
 
@@ -37,10 +48,10 @@ namespace oblo::importers
 
         asset_registry registry;
 
-        const std::filesystem::path testDir{"./test/gltf_importer_suzanne/"};
-        const std::filesystem::path assetsDir{testDir / "assets"};
-        const std::filesystem::path artifactsDir{testDir / "artifacts"};
-        const std::filesystem::path sourceFilesDir{testDir / "sourcefiles"};
+        const string testDir{"./test/gltf_importer_suzanne/"};
+        const string assetsDir{child_path(testDir, "assets")};
+        const string artifactsDir{child_path(testDir, "artifacts")};
+        const string sourceFilesDir{child_path(testDir, "sourcefiles")};
 
         clear_directory(testDir);
 
@@ -59,12 +70,12 @@ namespace oblo::importers
 
         resources.register_provider(&asset_registry::find_artifact_resource, &registry);
 
-        const std::filesystem::path gltfSampleModels{OBLO_GLTF_SAMPLE_MODELS};
+        const string gltfSampleModels{OBLO_GLTF_SAMPLE_MODELS};
 
-        const std::filesystem::path files[] = {
-            gltfSampleModels / "Models" / "Box" / "glTF-Embedded" / "Box.gltf",
-            gltfSampleModels / "Models" / "Box" / "glTF" / "Box.gltf",
-            gltfSampleModels / "Models" / "Box" / "glTF-Binary" / "Box.glb",
+        const string files[] = {
+            child_path(gltfSampleModels, "Models", "Box", "glTF-Embedded", "Box.gltf"),
+            child_path(gltfSampleModels, "Models", "Box", "glTF", "Box.gltf"),
+            child_path(gltfSampleModels, "Models", "Box", "glTF-Binary", "Box.glb"),
         };
 
         data_document importSettings;
@@ -78,7 +89,7 @@ namespace oblo::importers
         {
             auto importer = registry.create_importer(file);
 
-            const auto dirName = file.parent_path().filename();
+            const auto dirName = filesystem::filename(filesystem::parent_path(file));
 
             ASSERT_TRUE(importer.is_valid());
 
@@ -89,7 +100,11 @@ namespace oblo::importers
 
             asset_meta modelMeta;
 
-            ASSERT_TRUE(registry.find_asset_by_path(dirName / "Box", meshId, modelMeta));
+            string_builder assetPath;
+            assetPath.append(dirName);
+            assetPath.append_path("Box");
+
+            ASSERT_TRUE(registry.find_asset_by_path(assetPath, meshId, modelMeta));
 
             ASSERT_NE(modelMeta.mainArtifactHint, uuid{});
             ASSERT_EQ(modelMeta.typeHint, get_type_id<model>());

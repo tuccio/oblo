@@ -1,4 +1,6 @@
-#include <filesystem>
+#pragma once
+
+#include <oblo/core/string/cstring_view.hpp>
 
 namespace oblo
 {
@@ -7,7 +9,7 @@ namespace oblo
 
 namespace oblo::json
 {
-    bool read(data_document& doc, const std::filesystem::path& source);
+    bool read(data_document& doc, cstring_view source);
 
-    bool write(const data_document& doc, const std::filesystem::path& destination);
+    bool write(const data_document& doc, cstring_view destination);
 }

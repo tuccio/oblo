@@ -13,6 +13,8 @@
 
 #include <imgui.h>
 
+#include <sstream>
+
 namespace oblo::editor
 {
     void scene_editing_window::init(const window_update_context& ctx)

@@ -1,6 +1,7 @@
 #include <oblo/asset/importers/stb_image.hpp>
 
 #include <oblo/asset/importers/image_processing.hpp>
+#include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/finally.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/core/utility.hpp>
@@ -167,12 +168,9 @@ namespace oblo::importers
 
         using image_ptr = std::unique_ptr<u8[], decltype([](u8* ptr) { free(ptr); })>;
 
-        image_ptr load_from_file(const std::filesystem::path& path, int& w, int& h, int& channels)
+        image_ptr load_from_file(cstring_view path, int& w, int& h, int& channels)
         {
-            // TODO: Use stbi_load_from_file instead, and avoid transcoding strings
-            const auto pathStr = path.string();
-
-            return image_ptr{stbi_load(pathStr.c_str(), &w, &h, &channels, STBI_default)};
+            return image_ptr{stbi_load(path.c_str(), &w, &h, &channels, STBI_default)};
         }
     }
 
@@ -180,7 +178,7 @@ namespace oblo::importers
     {
         m_source = config.sourceFile;
         auto& node = preview.nodes.emplace_back();
-        node.name = m_source.filename().stem().string();
+        node.name = filesystem::stem(config.sourceFile).as<string>();
         node.type = get_type_id<texture>();
 
         return true;

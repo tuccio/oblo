@@ -1,14 +1,13 @@
 #pragma once
 
-#include <oblo/core/expected.hpp>
-
-#include <filesystem>
+#include <oblo/core/string/string_builder.hpp>
+#include <oblo/core/string/string_view.hpp>
 
 namespace oblo::platform
 {
-    void open_folder(const std::filesystem::path& dir);
+    void open_folder(string_view dir);
 
-    bool open_file_dialog(std::filesystem::path& pick);
+    bool open_file_dialog(string_builder& file);
 
-    expected<std::filesystem::path> search_program_files(const std::filesystem::path& relativePath);
+    bool search_program_files(string_builder& out, string_view relativePath);
 }

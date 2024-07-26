@@ -23,8 +23,8 @@ namespace oblo::vk
         passName.format("Blur {} {}", shaderPath, string_view(PassIndex == 0 ? "Horizontal" : "Vertical"));
 
         blurPass = pm.register_compute_pass({
-            .name = passName.view().as<std::string>(),
-            .shaderSourcePath = shaderPath.view().as<std::string_view>(),
+            .name = passName.as<string>(),
+            .shaderSourcePath = shaderPath.as<string>(),
         });
     }
 

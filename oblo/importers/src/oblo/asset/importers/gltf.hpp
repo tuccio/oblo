@@ -3,10 +3,9 @@
 #include <oblo/asset/importer.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/string/hashed_string_view.hpp>
+#include <oblo/core/string/string.hpp>
 
 #include <tiny_gltf.h>
-
-#include <filesystem>
 
 namespace oblo
 {
@@ -47,8 +46,8 @@ namespace oblo::importers
         dynamic_array<import_image> m_importImages;
 
         dynamic_array<import_artifact> m_artifacts;
-        dynamic_array<std::filesystem::path> m_sourceFiles;
-        std::filesystem::path m_sourceFileDir;
+        dynamic_array<string> m_sourceFiles;
+        string m_sourceFileDir;
         uuid m_mainArtifactHint{};
     };
 }

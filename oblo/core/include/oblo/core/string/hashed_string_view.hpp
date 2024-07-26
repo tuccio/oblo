@@ -80,6 +80,7 @@ namespace oblo
         using string_view::data;
         using string_view::empty;
         using string_view::size;
+        using string_view::u8data;
 
         using string_view::swap;
 

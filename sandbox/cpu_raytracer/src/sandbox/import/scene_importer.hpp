@@ -1,6 +1,6 @@
 #pragma once
 
-#include <filesystem>
+
 
 namespace oblo
 {
@@ -9,6 +9,6 @@ namespace oblo
     class scene_importer
     {
     public:
-        bool import(sandbox_state& state, const std::filesystem::path& filename);
+        bool import(sandbox_state& state, string_view filename);
     };
 }

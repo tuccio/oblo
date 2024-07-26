@@ -1,7 +1,8 @@
 #include <oblo/vulkan/shader_cache.hpp>
 
 #include <oblo/core/allocation_helpers.hpp>
-#include <oblo/core/file_utility.hpp>
+#include <oblo/core/filesystem/file.hpp>
+#include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/hash.hpp>
 #include <oblo/core/lifetime.hpp>
@@ -17,32 +18,37 @@ namespace oblo::vk
         constexpr bool DisableCache{true};
         constexpr bool OutputSource{true};
 
-        void write_file(const std::filesystem::path& path, std::span<const byte> data)
+        void write_file(cstring_view path, std::span<const byte> data)
         {
-            file_ptr f{open_file(path, "wb")};
+            filesystem::file_ptr f{filesystem::open_file(path, "wb")};
 
             if (f && fwrite(data.data(), sizeof(data[0]), data.size(), f.get()) != data.size())
             {
                 f.reset();
 
-                std::error_code ec;
-                std::filesystem::remove(path, ec);
+                filesystem::remove(path).assert_value();
             }
         }
     }
 
-    bool shader_cache::init(const std::filesystem::path& dir)
+    bool shader_cache::init(string_view dir)
     {
-        std::error_code ec;
+        m_path.clear().append(dir);
 
-        std::filesystem::create_directories(dir, ec);
+        const auto cstr = m_path.view();
 
-        if (!std::filesystem::exists(dir, ec) || !std::filesystem::is_directory(dir, ec))
+        if (!filesystem::create_directories(cstr))
         {
             return false;
         }
 
-        m_path = std::filesystem::absolute(dir, ec);
+        if (filesystem::exists(cstr).value_or(false) || !filesystem::is_directory(cstr).value_or(false))
+        {
+            return false;
+        }
+
+        m_path.make_absolute_path();
+
         return true;
     }
 
@@ -62,15 +68,12 @@ namespace oblo::vk
         id = hash_xxh64(&options.codeOptimization, sizeof(options.codeOptimization), id);
         id = hash_xxh64(&options.generateDebugInfo, sizeof(options.generateDebugInfo), id);
 
-        char buf[64];
-        const auto endIt = std::format_to(buf, "{}.spirv", id);
-        *endIt = '\0';
-
-        auto spvPath = m_path / buf;
+        string_builder spvPath;
+        spvPath.append(m_path).append_path_separator().format("{}.spirv", id);
 
         if constexpr (!DisableCache)
         {
-            const auto diskSpv = load_binary_file_into_memory(allocator, spvPath, alignof(u32));
+            const auto diskSpv = filesystem::load_binary_file_into_memory(allocator, spvPath, alignof(u32));
 
             if (diskSpv && !diskSpv->empty())
             {
@@ -145,7 +148,7 @@ namespace oblo::vk
                 unreachable();
             }
 
-            spvPath.replace_extension(extension);
+            spvPath.append(extension);
             write_file(spvPath, as_bytes(std::span{sourceCode.data(), sourceCode.size()}));
         }
 

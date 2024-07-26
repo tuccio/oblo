@@ -1,11 +1,10 @@
 #pragma once
 
 #include <oblo/core/unreachable.hpp>
+#include <oblo/core/string/string_view.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
 #include <oblo/properties/serialization/data_node.hpp>
 #include <oblo/properties/visit_result.hpp>
-
-#include <string_view>
 
 namespace oblo
 {

@@ -62,6 +62,13 @@ namespace oblo
             string_view::swap(other);
         }
 
+        cstring_view substr(size_type offset) const
+        {
+            auto cp = *this;
+            cp.remove_prefix(offset);
+            return cp;
+        }
+
         using string_view::at;
         using string_view::back;
         using string_view::front;
@@ -69,12 +76,13 @@ namespace oblo
         using string_view::data;
         using string_view::empty;
         using string_view::size;
+        using string_view::u8data;
+
+        using string_view::remove_prefix;
 
         using string_view::copy;
         using string_view::ends_with;
         using string_view::starts_with;
-
-        using string_view::remove_prefix;
 
         using string_view::begin;
         using string_view::end;

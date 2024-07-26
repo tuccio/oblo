@@ -2,10 +2,10 @@
 
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/flags.hpp>
+#include <oblo/core/string/string.hpp>
 #include <oblo/core/string/string_interner.hpp>
 #include <oblo/core/types.hpp>
 
-#include <filesystem>
 #include <span>
 
 #include <vulkan/vulkan.h>
@@ -23,12 +23,12 @@ namespace oblo::vk
     struct render_pass_stage
     {
         pipeline_stages stage;
-        std::filesystem::path shaderSourcePath;
+        string shaderSourcePath;
     };
 
     struct render_pass_initializer
     {
-        std::string name;
+        string name;
         buffered_array<render_pass_stage, u8(pipeline_stages::enum_max)> stages;
     };
 

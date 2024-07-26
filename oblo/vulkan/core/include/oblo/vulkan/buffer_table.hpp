@@ -9,7 +9,7 @@
 
 namespace oblo
 {
-    struct string;
+    class string;
 }
 
 namespace oblo::vk

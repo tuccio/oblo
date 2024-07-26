@@ -89,7 +89,7 @@ namespace oblo::ecs_utility
 
         const auto e = registry.create(typeSets);
 
-        registry.get<name_component>(e).value = name.as<std::string>();
+        registry.get<name_component>(e).value = name;
         registry.get<position_component>(e).value = position;
         registry.get<rotation_component>(e).value = rotation;
         registry.get<scale_component>(e).value = scale;

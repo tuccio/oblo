@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+﻿#include <gtest/gtest.h>
 
 #include <oblo/core/string/string_builder.hpp>
 
@@ -75,5 +75,16 @@ namespace oblo
         sb = "Assigned string";
         EXPECT_EQ(sb.size(), 15);
         EXPECT_STREQ(sb.data(), "Assigned string");
+    }
+
+    TEST(string_builder, utf16_to_utf8)
+    {
+        constexpr const char16_t* utf16 = u"🚀🌟✨";
+        constexpr const char8_t* utf8 = u8"🚀🌟✨";
+
+        string_builder sb;
+        sb.append(utf16);
+
+        EXPECT_EQ(sb.view(), string_view{utf8});
     }
 }

@@ -1,12 +1,12 @@
 #pragma once
 
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/string/string.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/uuid.hpp>
 
 #include <span>
-#include <string>
 
 namespace oblo
 {
@@ -16,7 +16,7 @@ namespace oblo
     struct import_node
     {
         type_id type;
-        std::string name;
+        string name;
     };
 
     struct import_node_config

@@ -10,7 +10,7 @@
 namespace oblo
 {
     class frame_allocator;
-    struct string;
+    class string;
 }
 
 namespace oblo::vk

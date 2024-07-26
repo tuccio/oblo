@@ -43,7 +43,7 @@ namespace oblo
         }
     }
 
-    bool scene_importer::import(sandbox_state& state, const std::filesystem::path& filename)
+    bool scene_importer::import(sandbox_state& state, string_view filename)
     {
         auto scene = std::unique_ptr<const aiScene, decltype(&aiReleaseImport)>{
             aiImportFile(filename.string().c_str(),

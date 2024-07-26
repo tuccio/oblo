@@ -48,7 +48,7 @@ namespace oblo
         return m_properties;
     }
 
-    bool material::save(const std::filesystem::path& destination) const
+    bool material::save(cstring_view destination) const
     {
         data_document doc;
 
@@ -112,7 +112,7 @@ namespace oblo
         return json::write(doc, destination);
     }
 
-    bool material::load(const std::filesystem::path& source)
+    bool material::load(cstring_view source)
     {
         m_map.clear();
         m_properties.clear();

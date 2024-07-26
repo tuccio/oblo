@@ -2,10 +2,10 @@
 
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/expected.hpp>
+#include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/types.hpp>
 
-#include <filesystem>
 #include <span>
 #include <string>
 #include <unordered_map>
@@ -82,8 +82,8 @@ namespace oblo
             set_property(name, get_material_property_type<T>(), storage);
         }
 
-        SCENE_API bool save(const std::filesystem::path& destination) const;
-        SCENE_API bool load(const std::filesystem::path& source);
+        SCENE_API bool save(cstring_view destination) const;
+        SCENE_API bool load(cstring_view source);
 
     private:
         struct string_hash

@@ -1,11 +1,10 @@
 #pragma once
 
 #include <oblo/core/buffered_array.hpp>
+#include <oblo/core/string/string.hpp>
 #include <oblo/core/string/string_view.hpp>
 
-#include <filesystem>
 #include <span>
-#include <string>
 
 namespace oblo::vk
 {
@@ -18,14 +17,14 @@ namespace oblo::vk
     struct raytracing_hit_group_initializer
     {
         raytracing_hit_type type;
-        buffered_array<std::filesystem::path, 2> shaders;
+        buffered_array<string, 2> shaders;
     };
 
     struct raytracing_pass_initializer
     {
-        std::string name;
-        std::filesystem::path generation;
-        std::filesystem::path miss;
+        string name;
+        string generation;
+        string miss;
         buffered_array<raytracing_hit_group_initializer, 2> hitGroups;
     };
 

@@ -67,6 +67,11 @@ namespace oblo
             return m_begin;
         }
 
+        OBLO_FORCEINLINE const char8_t* u8data() const noexcept
+        {
+            return reinterpret_cast<const char8_t*>(m_begin);
+        }
+
         constexpr const_reference at(usize i) const noexcept
         {
             OBLO_ASSERT(i < m_size);

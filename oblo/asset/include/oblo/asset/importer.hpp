@@ -2,12 +2,12 @@
 
 #include <oblo/asset/import_preview.hpp>
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/string/string.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
 
-#include <filesystem>
 #include <memory>
 #include <span>
 #include <unordered_map>
@@ -24,14 +24,14 @@ namespace oblo
     struct importer_config
     {
         asset_registry* registry;
-        std::filesystem::path sourceFile;
+        string sourceFile;
         data_document settings;
     };
 
     struct file_import_results
     {
         std::span<import_artifact> artifacts;
-        std::span<const std::filesystem::path> sourceFiles;
+        std::span<const string> sourceFiles;
         uuid mainArtifactHint;
     };
 
@@ -62,7 +62,7 @@ namespace oblo
 
         bool init();
 
-        bool execute(const std::filesystem::path& destinationDir, const data_document& importSettings);
+        bool execute(string_view destinationDir, const data_document& importSettings);
 
         bool is_valid() const noexcept;
 
@@ -72,8 +72,8 @@ namespace oblo
 
     private:
         bool begin_import(asset_registry& registry, std::span<import_node_config> importNodesConfig);
-        bool finalize_import(asset_registry& registry, const std::filesystem::path& destinationDir);
-        bool write_source_files(std::span<const std::filesystem::path> sourceFiles);
+        bool finalize_import(asset_registry& registry, string_view destinationDir);
+        bool write_source_files(std::span<const string> sourceFiles);
 
     private:
         importer_config m_config;

@@ -1,7 +1,7 @@
 #include <oblo/vulkan/shader_compiler.hpp>
 
 #include <oblo/core/debug.hpp>
-#include <oblo/core/file_utility.hpp>
+#include <oblo/core/filesystem/file.hpp>
 #include <oblo/core/finally.hpp>
 #include <oblo/core/log.hpp>
 
@@ -9,6 +9,7 @@
 
 #include <deque>
 #include <mutex>
+#include <optional>
 
 namespace oblo::vk::shader_compiler
 {
@@ -188,15 +189,17 @@ namespace oblo::vk::shader_compiler
                     return nullptr;
                 }
 
-                const auto data = load_text_file_into_memory(m_allocator, m_pathBuffer);
+                const auto data = filesystem::load_text_file_into_memory(m_allocator, m_pathBuffer);
 
                 if (!data)
                 {
                     return nullptr;
                 }
 
-                auto& result =
-                    m_includeResults.emplace_back(m_pathBuffer.string(), data->data(), data->size(), nullptr);
+                auto& result = m_includeResults.emplace_back(m_pathBuffer.view().as<std::string>(),
+                    data->data(),
+                    data->size(),
+                    nullptr);
 
                 return &result;
             }
@@ -214,7 +217,7 @@ namespace oblo::vk::shader_compiler
             include_handler& m_handler;
             frame_allocator& m_allocator{m_handler.get_allocator()};
             std::deque<IncludeResult> m_includeResults;
-            std::filesystem::path m_pathBuffer;
+            string_builder m_pathBuffer;
         };
 
         std::mutex s_initMutex;
@@ -323,12 +326,12 @@ namespace oblo::vk::shader_compiler
     VkShaderModule create_shader_module_from_glsl_file(frame_allocator& allocator,
         VkDevice device,
         VkShaderStageFlagBits stage,
-        string_view filePath,
+        cstring_view filePath,
         const VkAllocationCallbacks* allocationCbs,
         const options& options)
     {
         std::vector<unsigned> spirv;
-        const auto sourceSpan = load_text_file_into_memory(allocator, filePath.as<std::string_view>());
+        const auto sourceSpan = filesystem::load_text_file_into_memory(allocator, filePath);
 
         if (!sourceSpan)
         {

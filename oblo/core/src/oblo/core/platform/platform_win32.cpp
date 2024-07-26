@@ -1,8 +1,12 @@
 #ifdef _WIN32
 
     #include <oblo/core/debug.hpp>
+    #include <oblo/core/filesystem/filesystem.hpp>
     #include <oblo/core/platform/core.hpp>
+    #include <oblo/core/platform/platform_win32.hpp>
     #include <oblo/core/platform/shell.hpp>
+
+    #include <utf8cpp/utf8.h>
 
     #if defined(WIN32)
         #define NOMINMAX
@@ -46,14 +50,16 @@ namespace oblo::platform
         }
     }
 
-    void open_folder(const std::filesystem::path& dir)
+    void open_folder(string_view dir)
     {
-        [[maybe_unused]] const auto res =
-            ShellExecuteW(nullptr, L"explore", dir.native().c_str(), nullptr, nullptr, SW_SHOWDEFAULT);
+        wchar_t buffer[MAX_PATH];
+        win32::convert_path(dir, buffer);
+
+        [[maybe_unused]] const auto res = ShellExecuteW(nullptr, L"explore", buffer, nullptr, nullptr, SW_SHOWDEFAULT);
         OBLO_ASSERT(res != 0);
     }
 
-    bool open_file_dialog(std::filesystem::path& file)
+    bool open_file_dialog(string_builder& file)
     {
         constexpr auto N{260};
         wchar_t szFile[N]{};
@@ -74,30 +80,28 @@ namespace oblo::platform
 
         if (GetOpenFileNameW(&ofn) == TRUE)
         {
-            file = szFile;
+            file.clear().append(reinterpret_cast<const char16_t*>(szFile));
             return true;
         }
 
         return false;
     }
 
-    expected<std::filesystem::path> search_program_files(const std::filesystem::path& relativePath)
+    bool search_program_files(string_builder& out, string_view relativePath)
     {
-        std::filesystem::path result;
-
         wchar_t path[MAX_PATH];
 
         if (SHGetSpecialFolderPathW(0, path, CSIDL_PROGRAM_FILES, FALSE) == TRUE)
         {
-            result = path / relativePath;
+            out.clear().append(reinterpret_cast<const char16_t*>(path)).append_path(relativePath);
 
-            if (std::error_code ec; std::filesystem::exists(result, ec))
+            if (filesystem::exists(out))
             {
-                return std::move(result);
+                return true;
             }
         }
 
-        return unspecified_error;
+        return false;
     }
 
     void* find_symbol(const char* name)

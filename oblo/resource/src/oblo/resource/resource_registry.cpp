@@ -1,5 +1,6 @@
 #include <oblo/resource/resource_registry.hpp>
 
+#include <oblo/core/string/string.hpp>
 #include <oblo/resource/resource.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/type_desc.hpp>
@@ -59,8 +60,8 @@ namespace oblo
         if (it == m_resources.end())
         {
             type_id type;
-            std::filesystem::path path;
-            std::string name;
+            string path;
+            string name;
             bool anyFound{false};
 
             for (const auto [find, userdata] : m_providers)

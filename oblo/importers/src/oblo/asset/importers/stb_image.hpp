@@ -3,7 +3,7 @@
 #include <oblo/asset/import_artifact.hpp>
 #include <oblo/asset/importer.hpp>
 
-#include <filesystem>
+
 #include <span>
 
 namespace oblo
@@ -21,7 +21,7 @@ namespace oblo::importers
         file_import_results get_results();
 
     private:
-        std::filesystem::path m_source;
+        string m_source;
         import_artifact m_result{};
     };
 }

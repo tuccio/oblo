@@ -1,17 +1,16 @@
 #pragma once
 
+#include <oblo/core/string/string.hpp>
 #include <oblo/core/string/string_interner.hpp>
 
-#include <filesystem>
 #include <span>
-#include <string>
 
 namespace oblo::vk
 {
     struct compute_pass_initializer
     {
-        std::string name;
-        std::filesystem::path shaderSourcePath;
+        string name;
+        string shaderSourcePath;
     };
 
     struct compute_pipeline_initializer

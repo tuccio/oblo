@@ -1,5 +1,6 @@
 #include <oblo/vulkan/renderer.hpp>
 
+#include <oblo/core/string/string.hpp>
 #include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/draw/descriptor_set_pool.hpp>
 #include <oblo/vulkan/error.hpp>
@@ -48,7 +49,7 @@ namespace oblo::vk
         m_stringInterner.init(64);
         m_passManager.init(*m_vkContext, m_stringInterner, resourceManager.get(m_dummy), m_textureRegistry);
 
-        const std::filesystem::path includePaths[] = {"./vulkan/shaders/"};
+        const string includePaths[] = {"./vulkan/shaders/"};
         m_passManager.set_system_include_paths(includePaths);
 
         m_drawRegistry.init(*m_vkContext,

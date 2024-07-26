@@ -19,7 +19,7 @@ namespace oblo
     class random_generator;
     class string_interner;
 
-    struct string;
+    class string;
 }
 
 namespace oblo::vk

@@ -2,7 +2,7 @@
 
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/debug.hpp>
-#include <oblo/core/file_utility.hpp>
+#include <oblo/core/filesystem/file.hpp>
 #include <oblo/core/log.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/unreachable.hpp>
@@ -321,9 +321,9 @@ namespace oblo::json
         };
     }
 
-    bool read(data_document& doc, const std::filesystem::path& source)
+    bool read(data_document& doc, cstring_view source)
     {
-        const auto file = file_ptr{open_file(source, "r")};
+        const auto file = filesystem::file_ptr{filesystem::open_file(source, "r")};
 
         constexpr auto bufferSize{1024};
         char buffer[bufferSize];
@@ -346,7 +346,7 @@ namespace oblo::json
                 {
                     log::debug("JSON Parse error {} at {}:{}",
                         i32(reader.GetParseErrorCode()),
-                        source.string(),
+                        source,
                         reader.GetErrorOffset());
                 }
 
@@ -357,7 +357,7 @@ namespace oblo::json
         return !reader.HasParseError();
     }
 
-    bool write(const data_document& doc, const std::filesystem::path& destination)
+    bool write(const data_document& doc, cstring_view destination)
     {
         const u32 root = doc.get_root();
 
@@ -366,7 +366,7 @@ namespace oblo::json
             return false;
         }
 
-        const auto file = file_ptr{open_file(destination, "w")};
+        const auto file = filesystem::file_ptr{filesystem::open_file(destination, "w")};
 
         constexpr auto bufferSize{1024};
         char buffer[bufferSize];

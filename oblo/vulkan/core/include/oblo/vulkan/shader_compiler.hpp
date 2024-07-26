@@ -1,8 +1,8 @@
 #pragma once
 
+#include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string_view.hpp>
 
-#include <filesystem>
 #include <span>
 #include <vector>
 
@@ -11,6 +11,7 @@
 namespace oblo
 {
     class frame_allocator;
+    class string_builder;
 }
 
 namespace oblo::vk::shader_compiler
@@ -40,7 +41,7 @@ namespace oblo::vk::shader_compiler
     VkShaderModule create_shader_module_from_glsl_file(frame_allocator& allocator,
         VkDevice device,
         VkShaderStageFlagBits stage,
-        string_view filePath,
+        cstring_view filePath,
         const VkAllocationCallbacks* allocationCbs,
         const options& options = {});
 
@@ -71,6 +72,6 @@ namespace oblo::vk::shader_compiler
 
         virtual frame_allocator& get_allocator() = 0;
 
-        virtual bool resolve(string_view header, std::filesystem::path& path) = 0;
+        virtual bool resolve(string_view header, string_builder& path) = 0;
     };
 }
