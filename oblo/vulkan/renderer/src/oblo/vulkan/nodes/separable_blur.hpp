@@ -2,12 +2,12 @@
 
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/core/string/string_view.hpp>
 
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 
 #include <span>
-#include <string_view>
 
 namespace oblo::vk
 {
@@ -17,7 +17,7 @@ namespace oblo::vk
             make_separable_blur_kernel(cfg, a)
         };
         {
-            std::string_view{T::get_shader_name()}
+            string_view{T::get_shader_name()}
         };
     };
 

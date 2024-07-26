@@ -17,7 +17,7 @@ namespace oblo
 {
     namespace
     {
-        constexpr std::string_view ImportConfigFilename{"import.json"};
+        constexpr string_view ImportConfigFilename{"import.json"};
 
         bool write_import_config(
             const importer_config& config, const type_id& importer, const std::filesystem::path& destination)
@@ -260,7 +260,8 @@ namespace oblo
             allSucceeded &= std::filesystem::copy_file(sourceFile, importDir / sourceFile.filename(), ec) && !ec;
         }
 
-        allSucceeded &= write_import_config(m_config, m_importerType, importDir / ImportConfigFilename);
+        allSucceeded &=
+            write_import_config(m_config, m_importerType, importDir / ImportConfigFilename.as<std::string_view>());
 
         return allSucceeded;
     }

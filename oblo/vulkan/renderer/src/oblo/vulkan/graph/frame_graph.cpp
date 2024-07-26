@@ -74,9 +74,9 @@ namespace oblo::vk
     frame_graph::~frame_graph() = default;
 
     bool frame_graph::connect(h32<frame_graph_subgraph> srcGraph,
-        std::string_view srcName,
+        string_view srcName,
         h32<frame_graph_subgraph> dstGraph,
-        std::string_view dstName)
+        string_view dstName)
     {
         auto* const srcGraphPtr = m_impl->subgraphs.try_find(srcGraph);
         auto* const dstGraphPtr = m_impl->subgraphs.try_find(dstGraph);
@@ -332,7 +332,7 @@ namespace oblo::vk
         }
     }
 
-    void frame_graph::set_output_state(h32<frame_graph_subgraph> graph, std::string_view name, bool enable)
+    void frame_graph::set_output_state(h32<frame_graph_subgraph> graph, string_view name, bool enable)
     {
         const auto& sg = m_impl->subgraphs.at(graph);
 
@@ -652,7 +652,7 @@ namespace oblo::vk
         m_impl->write_dot(os);
     }
 
-    void* frame_graph::try_get_input(h32<frame_graph_subgraph> graph, std::string_view name, const type_id& typeId)
+    void* frame_graph::try_get_input(h32<frame_graph_subgraph> graph, string_view name, const type_id& typeId)
     {
         auto* const graphPtr = m_impl->subgraphs.try_find(graph);
 

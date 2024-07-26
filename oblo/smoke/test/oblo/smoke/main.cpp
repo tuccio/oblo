@@ -14,7 +14,7 @@ int main(int argc, char** argv)
 
     for (int i = 0; i < argc; ++i)
     {
-        if (std::string_view{argv[i]} == "--interactive")
+        if (string_view{argv[i]} == "--interactive")
         {
             oblo::smoke::g_interactiveMode = true;
             break;

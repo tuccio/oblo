@@ -41,7 +41,7 @@ namespace oblo
 
             const auto& node = nodes[index];
 
-            const auto key = std::string_view{node.key, node.keyLen};
+            const auto key = string_view{node.key, node.keyLen};
             auto r = visit_result::recurse;
 
             const auto doRecurse = [&v, &r, &node, &nodes]

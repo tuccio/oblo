@@ -132,14 +132,14 @@ namespace oblo::vk
     {
         using is_transparent = void;
 
-        usize operator()(std::string_view str) const
+        usize operator()(string_view str) const
         {
-            return std::hash<std::string_view>{}(str);
+            return hash<string_view>{}(str);
         }
 
         usize operator()(const std::string& str) const
         {
-            return std::hash<std::string>{}(str);
+            return hash<std::string>{}(str);
         }
     };
 

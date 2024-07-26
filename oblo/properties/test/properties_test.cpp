@@ -56,7 +56,7 @@ namespace oblo
             both d;
         };
 
-        const property* find_property(const property_tree& tree, std::initializer_list<const std::string_view> chain)
+        const property* find_property(const property_tree& tree, std::initializer_list<const string_view> chain)
         {
             const property* res{};
 

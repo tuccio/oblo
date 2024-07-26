@@ -1,13 +1,13 @@
 #pragma once
 
 #include <oblo/core/graph/directed_graph.hpp>
+#include <oblo/core/string/string_view.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/vulkan/graph/frame_graph_registry.hpp>
 #include <oblo/vulkan/graph/frame_graph_vertex_kind.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 
 #include <string>
-#include <string_view>
 
 namespace oblo::vk
 {
@@ -58,15 +58,15 @@ namespace oblo::vk
     public:
         void init(const frame_graph_registry& registry);
 
-        void make_input(vertex_handle pin, std::string_view name);
+        void make_input(vertex_handle pin, string_view name);
 
         template <typename R, typename Node>
-        void make_input(vertex_handle node, R(Node::*pin), std::string_view name);
+        void make_input(vertex_handle node, R(Node::*pin), string_view name);
 
-        void make_output(vertex_handle pin, std::string_view name);
+        void make_output(vertex_handle pin, string_view name);
 
         template <typename R, typename Node>
-        void make_output(vertex_handle node, R(Node::*pin), std::string_view name);
+        void make_output(vertex_handle node, R(Node::*pin), string_view name);
 
         vertex_handle add_node(const uuid& id, const frame_graph_node_desc& desc);
 
@@ -89,7 +89,7 @@ namespace oblo::vk
         std::span<const vertex_handle> get_inputs() const;
         std::span<const vertex_handle> get_outputs() const;
 
-        std::string_view get_name(vertex_handle inputOrOutput) const;
+        string_view get_name(vertex_handle inputOrOutput) const;
 
     private:
         vertex_handle find_pin(vertex_handle node, u32 offset) const;
@@ -107,7 +107,7 @@ namespace oblo::vk
     };
 
     template <typename R, typename Node>
-    void frame_graph_template::make_input(vertex_handle node, R(Node::*pin), std::string_view name)
+    void frame_graph_template::make_input(vertex_handle node, R(Node::*pin), string_view name)
     {
         // TODO: Could maybe somehow check that the template types match
         const auto pinVertex = find_pin(node, calculate_offset(pin));
@@ -115,7 +115,7 @@ namespace oblo::vk
     }
 
     template <typename R, typename Node>
-    void frame_graph_template::make_output(vertex_handle node, R(Node::*pin), std::string_view name)
+    void frame_graph_template::make_output(vertex_handle node, R(Node::*pin), string_view name)
     {
         // TODO: Could maybe somehow check that the template types match
         const auto pinVertex = find_pin(node, calculate_offset(pin));

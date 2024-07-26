@@ -18,13 +18,13 @@ namespace oblo
     void to_json(Json& json, const resource_ref<T>& value)
     {
         char uuidBuffer[36];
-        json = value.id.format_to(uuidBuffer).as<std::string_view>();
+        json = value.id.format_to(uuidBuffer).as<string_view>();
     }
 
     template <typename Json, typename T>
     void from_json(const Json& json, resource_ref<T>& value)
     {
-        const auto res = uuid::parse(json.template get<std::string_view>());
+        const auto res = uuid::parse(json.template get<string_view>());
         value.id = res ? *res : uuid{};
     }
 }

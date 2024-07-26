@@ -2,6 +2,7 @@
 
 #include <oblo/asset/import_preview.hpp>
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/string/string_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
@@ -9,7 +10,6 @@
 #include <filesystem>
 #include <memory>
 #include <span>
-#include <string_view>
 #include <unordered_map>
 
 namespace oblo
@@ -91,6 +91,6 @@ namespace oblo
     {
         type_id type;
         create_file_importer_fn create;
-        std::span<const std::string_view> extensions;
+        std::span<const string_view> extensions;
     };
 }

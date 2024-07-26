@@ -347,9 +347,9 @@ namespace oblo
             info.create = desc.create;
             info.extensions.reserve(desc.extensions.size());
 
-            for (const std::string_view ext : desc.extensions)
+            for (const string_view ext : desc.extensions)
             {
-                info.extensions.emplace_back(ext);
+                info.extensions.emplace_back(ext.as<std::string>());
             }
         }
     }

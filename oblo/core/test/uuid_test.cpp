@@ -11,7 +11,7 @@ namespace oblo
         constexpr uuid nil{};
 
         char buffer[36];
-        const std::string_view uuidStr{buffer, 36};
+        const string_view uuidStr{buffer, 36};
 
         std::fill(std::begin(buffer), std::end(buffer), 'Z');
         nil.format_to(buffer);
