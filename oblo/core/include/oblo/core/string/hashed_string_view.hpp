@@ -122,11 +122,6 @@ namespace oblo
 
         using string_view::as;
 
-        OBLO_FORCEINLINE constexpr operator string_view() const noexcept
-        {
-            return {data(), size()};
-        }
-
     private:
         hash_type m_hash{hash_xxhz_compile_time(*this)};
     };

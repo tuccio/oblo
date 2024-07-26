@@ -136,11 +136,11 @@ namespace oblo
             const auto rlen = m_size < str.m_size ? m_size : str.m_size;
             const auto r = std::memcmp(m_begin, str.m_begin, rlen);
 
-            if (r < 0 || (r == 0 && m_size < m_size))
+            if (r < 0 || (r == 0 && m_size < str.m_size))
             {
                 return -1;
             }
-            else if (r > 0 || (r == 0 && m_size > m_size))
+            else if (r > 0 || (r == 0 && m_size > str.m_size))
             {
                 return 1;
             }

@@ -91,11 +91,6 @@ namespace oblo
         using string_view::find;
 
         using string_view::as;
-
-        OBLO_FORCEINLINE constexpr operator string_view() const noexcept
-        {
-            return {data(), size()};
-        }
     };
 
     inline namespace string_literals
