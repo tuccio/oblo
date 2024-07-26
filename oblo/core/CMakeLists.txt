@@ -2,6 +2,8 @@ oblo_add_library(core)
 
 target_link_libraries(
     oblo_core
+    PUBLIC
+    xxhashct::xxhashct
     PRIVATE
     xxHash::xxhash
 )

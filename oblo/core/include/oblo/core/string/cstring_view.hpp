@@ -57,6 +57,11 @@ namespace oblo
             return string_view::compare(string_view{str});
         }
 
+        void swap(cstring_view& other)
+        {
+            string_view::swap(other);
+        }
+
         using string_view::at;
         using string_view::back;
         using string_view::front;
@@ -64,8 +69,6 @@ namespace oblo
         using string_view::data;
         using string_view::empty;
         using string_view::size;
-
-        using string_view::swap;
 
         using string_view::copy;
         using string_view::ends_with;
@@ -89,7 +92,7 @@ namespace oblo
 
         using string_view::as;
 
-        constexpr operator string_view() const noexcept
+        OBLO_FORCEINLINE constexpr operator string_view() const noexcept
         {
             return {data(), size()};
         }
@@ -97,12 +100,12 @@ namespace oblo
 
     inline namespace string_literals
     {
-        constexpr string_view operator""_csv(const char* str, usize length)
+        consteval string_view operator""_csv(const char* str, usize length)
         {
             return {str, length};
         }
 
-        constexpr string_view operator""_csv(const char8_t* str, usize length)
+        consteval string_view operator""_csv(const char8_t* str, usize length)
         {
             return {str, length};
         }

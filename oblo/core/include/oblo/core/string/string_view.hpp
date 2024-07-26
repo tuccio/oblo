@@ -38,7 +38,7 @@ namespace oblo
         }
 
         template <sequential_container_of<char> C>
-        string_view(const C& c) : m_begin{c.data()}, m_size{c.size()}
+        OBLO_FORCEINLINE constexpr string_view(const C& c) : m_begin{c.data()}, m_size{c.size()}
         {
         }
 
@@ -106,12 +106,12 @@ namespace oblo
             other = tmp;
         }
 
-        constexpr bool starts_with(string_view str) const
+        OBLO_FORCEINLINE constexpr bool starts_with(string_view str) const
         {
             return substr(0, str.size()) == *this;
         }
 
-        constexpr bool ends_with(string_view str) const
+        OBLO_FORCEINLINE constexpr bool ends_with(string_view str) const
         {
             return substr(0, str.size()) == *this;
         }
@@ -273,12 +273,12 @@ namespace oblo
 
     inline namespace string_literals
     {
-        constexpr string_view operator""_sv(const char* str, usize length)
+        consteval string_view operator""_sv(const char* str, usize length)
         {
             return {str, length};
         }
 
-        constexpr string_view operator""_sv(const char8_t* str, usize length)
+        consteval string_view operator""_sv(const char8_t* str, usize length)
         {
             return {str, length};
         }
