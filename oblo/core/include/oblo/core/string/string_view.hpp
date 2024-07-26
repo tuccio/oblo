@@ -32,20 +32,32 @@ namespace oblo
         constexpr string_view(const string_view&) = default;
         constexpr string_view(string_view&&) noexcept = default;
 
+        OBLO_FORCEINLINE constexpr string_view(const char* str, size_type count) : m_begin{str}, m_size{count} {}
+
         OBLO_FORCEINLINE constexpr string_view(const char8_t* str, size_type count) :
-            string_view{std::bit_cast<const_pointer>(str), count}
+            m_begin{std::bit_cast<const_pointer>(str)}, m_size{count}
         {
         }
+
+        OBLO_FORCEINLINE constexpr string_view(const char* b, const char* e) : m_begin{b}, m_size{usize(e - b)}
+        {
+            OBLO_ASSERT(b <= e);
+        }
+
+        OBLO_FORCEINLINE constexpr string_view(const char8_t* b, const char8_t* e) :
+            m_begin{std::bit_cast<const_pointer>(b)}, m_size{usize(e - b)}
+        {
+            OBLO_ASSERT(b <= e);
+        }
+
+        OBLO_FORCEINLINE constexpr string_view(const char* str) : m_begin{str}, m_size{cstring_length(str)} {}
+        OBLO_FORCEINLINE constexpr string_view(const char8_t* str) : string_view{std::bit_cast<const_pointer>(str)} {}
 
         template <sequential_container_of<char> C>
         OBLO_FORCEINLINE constexpr string_view(const C& c) : m_begin{c.data()}, m_size{c.size()}
         {
         }
 
-        OBLO_FORCEINLINE constexpr string_view(const char* str, size_type count) : m_begin{str}, m_size{count} {}
-
-        OBLO_FORCEINLINE constexpr string_view(const char* str) : m_begin{str}, m_size{cstring_length(str)} {}
-        constexpr string_view(const char8_t* str) : string_view{std::bit_cast<const_pointer>(str)} {}
         OBLO_FORCEINLINE
         constexpr string_view& operator=(const string_view&) = default;
         constexpr string_view& operator=(string_view&&) noexcept = default;

@@ -68,7 +68,7 @@ namespace oblo::json
                         newNode = m_doc.array_push_back(parent.id);
                         break;
                     case data_node_kind::object:
-                        newNode = m_doc.child_object(parent.id, m_lastString);
+                        newNode = m_doc.child_object(parent.id, hashed_string_view{m_lastString});
                         break;
                     default:
                         unreachable();
@@ -123,7 +123,7 @@ namespace oblo::json
                         m_doc.make_array(newNode);
                         break;
                     case data_node_kind::object:
-                        newNode = m_doc.child_array(parent.id, m_lastString);
+                        newNode = m_doc.child_array(parent.id, hashed_string_view{m_lastString});
                         break;
                     default:
                         unreachable();
@@ -170,7 +170,7 @@ namespace oblo::json
                     const data_string sv{str, length};
 
                     m_doc.child_value(m_stack.back().id,
-                        m_lastString,
+                        hashed_string_view{m_lastString},
                         property_kind::string,
                         std::as_bytes(std::span{&sv, 1}));
 
@@ -190,7 +190,7 @@ namespace oblo::json
                 {
                 case state::value_or_array_end:
                     m_doc.child_value(m_stack.back().id,
-                        m_lastString,
+                        hashed_string_view{m_lastString},
                         property_kind::boolean,
                         std::as_bytes(std::span{&value, 1}));
 
@@ -208,7 +208,7 @@ namespace oblo::json
                 {
                 case state::value_or_array_end:
                     m_doc.child_value(m_stack.back().id,
-                        m_lastString,
+                        hashed_string_view{m_lastString},
                         property_kind::i32,
                         std::as_bytes(std::span{&value, 1}));
 
@@ -226,7 +226,7 @@ namespace oblo::json
                 {
                 case state::value_or_array_end:
                     m_doc.child_value(m_stack.back().id,
-                        m_lastString,
+                        hashed_string_view{m_lastString},
                         property_kind::u32,
                         std::as_bytes(std::span{&value, 1}));
 
@@ -244,7 +244,7 @@ namespace oblo::json
                 {
                 case state::value_or_array_end:
                     m_doc.child_value(m_stack.back().id,
-                        m_lastString,
+                        hashed_string_view{m_lastString},
                         property_kind::i64,
                         std::as_bytes(std::span{&value, 1}));
 
@@ -262,7 +262,7 @@ namespace oblo::json
                 {
                 case state::value_or_array_end:
                     m_doc.child_value(m_stack.back().id,
-                        m_lastString,
+                        hashed_string_view{m_lastString},
                         property_kind::u64,
                         std::as_bytes(std::span{&value, 1}));
 
@@ -280,7 +280,7 @@ namespace oblo::json
                 {
                 case state::value_or_array_end:
                     m_doc.child_value(m_stack.back().id,
-                        m_lastString,
+                        hashed_string_view{m_lastString},
                         property_kind::f64,
                         std::as_bytes(std::span{&value, 1}));
 

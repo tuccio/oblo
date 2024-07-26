@@ -3,6 +3,7 @@
 #include <oblo/core/expected.hpp>
 #include <oblo/core/flat_dense_forward.hpp>
 #include <oblo/core/handle.hpp>
+#include <oblo/core/string/string_view.hpp>
 
 #include <vulkan/vulkan.h>
 
@@ -85,7 +86,7 @@ namespace oblo::vk
         void begin_frame();
         void end_frame();
 
-        void update_instance_data_defines(std::string_view defines);
+        void update_instance_data_defines(string_view defines);
 
         void toggle_printf();
         void enable_printf(u32 frames);

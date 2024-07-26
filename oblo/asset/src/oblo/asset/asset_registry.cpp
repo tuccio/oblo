@@ -115,8 +115,8 @@ namespace oblo
 
             nlohmann::ordered_json json;
 
-            json["id"] = meta.id.format_to(uuidBuffer);
-            json["mainArtifactHint"] = meta.mainArtifactHint.format_to(uuidBuffer);
+            json["id"] = meta.id.format_to(uuidBuffer).as<std::string_view>();
+            json["mainArtifactHint"] = meta.mainArtifactHint.format_to(uuidBuffer).as<std::string_view>();
             json["typeHint"] = meta.typeHint.name.as<std::string_view>();
             json["isImported"] = meta.isImported;
 
@@ -171,12 +171,12 @@ namespace oblo
 
             nlohmann::json json;
 
-            json["id"] = artifact.id.format_to(uuidBuffer);
+            json["id"] = artifact.id.format_to(uuidBuffer).as<std::string_view>();
             json["type"] = artifact.type.name.as<std::string_view>();
 
             if (!artifact.importId.is_nil())
             {
-                json["importId"] = artifact.importId.format_to(uuidBuffer);
+                json["importId"] = artifact.importId.format_to(uuidBuffer).as<std::string_view>();
             }
 
             if (!artifact.importName.empty())
@@ -407,7 +407,7 @@ namespace oblo
         auto artifactPath = m_impl->artifactsDir;
         ensure_directories(artifactPath);
 
-        artifactPath /= artifactId.format_to(uuidBuffer);
+        artifactPath /= artifactId.format_to(uuidBuffer).as<std::string_view>();
 
         std::error_code ec;
 
@@ -453,7 +453,7 @@ namespace oblo
     std::filesystem::path asset_registry::create_source_files_dir(uuid importId)
     {
         char uuidBuffer[36];
-        auto importDir = m_impl->sourceFilesDir / importId.format_to(uuidBuffer);
+        auto importDir = m_impl->sourceFilesDir / importId.format_to(uuidBuffer).as<std::string_view>();
 
         if (!ensure_directories(importDir))
         {
@@ -514,7 +514,7 @@ namespace oblo
 
         const auto& artifactsDir = m_impl->artifactsDir;
 
-        auto resourceFile = artifactsDir / id.format_to(uuidBuffer);
+        auto resourceFile = artifactsDir / id.format_to(uuidBuffer).as<std::string_view>();
 
         if (std::error_code ec; !std::filesystem::exists(resourceFile, ec))
         {
@@ -540,7 +540,7 @@ namespace oblo
         auto* const self = static_cast<const asset_registry*>(userdata);
         const auto& artifactsDir = self->m_impl->artifactsDir;
 
-        auto resourceFile = artifactsDir / id.format_to(uuidBuffer);
+        auto resourceFile = artifactsDir / id.format_to(uuidBuffer).as<std::string_view>();
 
         if (std::error_code ec; !std::filesystem::exists(resourceFile, ec))
         {

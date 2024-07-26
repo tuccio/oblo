@@ -73,7 +73,7 @@ namespace oblo::ecs_utility
 
     ecs::entity create_named_physical_entity(ecs::entity_registry& registry,
         const ecs::component_and_tag_sets& extraComponentsOrTags,
-        std::string_view name,
+        string_view name,
         const vec3& position,
         const quaternion& rotation,
         const vec3& scale)
@@ -89,7 +89,7 @@ namespace oblo::ecs_utility
 
         const auto e = registry.create(typeSets);
 
-        registry.get<name_component>(e).value = name;
+        registry.get<name_component>(e).value = name.as<std::string>();
         registry.get<position_component>(e).value = position;
         registry.get<rotation_component>(e).value = rotation;
         registry.get<scale_component>(e).value = scale;

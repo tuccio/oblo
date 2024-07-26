@@ -9,7 +9,6 @@
 
 #include <deque>
 #include <mutex>
-#include <string_view>
 
 namespace oblo::vk::shader_compiler
 {
@@ -242,8 +241,8 @@ namespace oblo::vk::shader_compiler
         }
     }
 
-    bool compile_glsl_to_spirv(std::string_view debugName,
-        std::string_view sourceCode,
+    bool compile_glsl_to_spirv(string_view debugName,
+        string_view sourceCode,
         VkShaderStageFlagBits stage,
         std::vector<unsigned>& outSpirv,
         const options& options)
@@ -324,12 +323,12 @@ namespace oblo::vk::shader_compiler
     VkShaderModule create_shader_module_from_glsl_file(frame_allocator& allocator,
         VkDevice device,
         VkShaderStageFlagBits stage,
-        std::string_view filePath,
+        string_view filePath,
         const VkAllocationCallbacks* allocationCbs,
         const options& options)
     {
         std::vector<unsigned> spirv;
-        const auto sourceSpan = load_text_file_into_memory(allocator, filePath);
+        const auto sourceSpan = load_text_file_into_memory(allocator, filePath.as<std::string_view>());
 
         if (!sourceSpan)
         {

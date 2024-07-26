@@ -18,7 +18,7 @@ namespace oblo
     void to_json(Json& json, const resource_ref<T>& value)
     {
         char uuidBuffer[36];
-        json = value.id.format_to(uuidBuffer);
+        json = value.id.format_to(uuidBuffer).as<std::string_view>();
     }
 
     template <typename Json, typename T>

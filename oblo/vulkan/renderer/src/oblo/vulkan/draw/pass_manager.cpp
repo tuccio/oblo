@@ -58,7 +58,7 @@ namespace oblo::vk
             return vkStageBits[u8(stage)];
         }
 
-        std::string_view get_define_from_stage(pipeline_stages stage)
+        string_view get_define_from_stage(pipeline_stages stage)
         {
             switch (stage)
             {
@@ -111,7 +111,7 @@ namespace oblo::vk
             }
         }
 
-        std::string_view get_define_from_stage(raytracing_stage stage)
+        string_view get_define_from_stage(raytracing_stage stage)
         {
             switch (stage)
             {
@@ -453,14 +453,14 @@ namespace oblo::vk
                 return allocator;
             }
 
-            bool resolve(std::string_view header, std::filesystem::path& outPath) override
+            bool resolve(string_view header, std::filesystem::path& outPath) override
             {
                 for (auto& path : systemIncludePaths)
                 {
                     hasPrintfInclude |= header == "renderer/debug/printf";
 
                     outPath = path;
-                    outPath /= header;
+                    outPath /= header.as<std::string_view>();
                     outPath.concat(".glsl");
 
                     if (std::error_code ec; std::filesystem::exists(outPath, ec))
@@ -526,7 +526,7 @@ namespace oblo::vk
             char buffer[2048];
             u32 length;
 
-            operator std::string_view() const noexcept
+            operator string_view() const noexcept
             {
                 return {buffer, length};
             }
@@ -604,9 +604,9 @@ namespace oblo::vk
 
         VkShaderModule create_shader_module(VkShaderStageFlagBits vkStage,
             const std::filesystem::path& filePath,
-            std::span<const std::string_view> builtInDefines,
+            std::span<const string_view> builtInDefines,
             std::span<const h32<string>> defines,
-            std::string_view debugName,
+            string_view debugName,
             const shader_compiler::options& compilerOptions,
             dynamic_array<u32>& spirv);
 
@@ -656,9 +656,9 @@ namespace oblo::vk
 
     VkShaderModule pass_manager::impl::create_shader_module(VkShaderStageFlagBits vkStage,
         const std::filesystem::path& filePath,
-        std::span<const std::string_view> builtInDefines,
+        std::span<const string_view> builtInDefines,
         std::span<const h32<string>> userDefines,
-        std::string_view debugName,
+        string_view debugName,
         const shader_compiler::options& compilerOptions,
         dynamic_array<u32>& spirv)
     {
@@ -694,13 +694,13 @@ namespace oblo::vk
 
         for (const auto define : userDefines)
         {
-            constexpr auto fixedSize = std::string_view{"#define \n"}.size();
+            constexpr auto fixedSize = string_view{"#define \n"}.size();
             requiredDefinesLength += u32(fixedSize + interner->str(define).size());
         }
 
         requiredDefinesLength += u32(instanceDataDefines.size());
 
-        constexpr std::string_view lineDirective{"#line 0\n"};
+        constexpr string_view lineDirective{"#line 0\n"};
 
         const auto firstLineEnd = std::find(sourceCode.begin(), sourceCode.end(), '\n');
         const auto firstLineLen = 1 + (firstLineEnd - sourceCode.begin());
@@ -722,7 +722,7 @@ namespace oblo::vk
 
         for (const auto define : userDefines)
         {
-            constexpr std::string_view directive{"#define "};
+            constexpr string_view directive{"#define "};
             it = std::copy(directive.begin(), directive.end(), it);
 
             const auto str = interner->str(define);
@@ -1720,7 +1720,7 @@ namespace oblo::vk
 
         const shader_compiler::options compilerOptions{m_impl->make_compiler_options()};
 
-        std::string_view builtInDefines[2]{"OBLO_PIPELINE_RENDER"};
+        string_view builtInDefines[2]{"OBLO_PIPELINE_RENDER"};
 
         for (u8 stageIndex = 0; stageIndex < renderPass->stagesCount; ++stageIndex)
         {
@@ -1952,7 +1952,7 @@ namespace oblo::vk
         const shader_compiler::options compilerOptions{m_impl->make_compiler_options()};
 
         {
-            constexpr std::string_view builtInDefines[] = {"OBLO_PIPELINE_COMPUTE", "OBLO_STAGE_COMPUTE"};
+            constexpr string_view builtInDefines[] = {"OBLO_PIPELINE_COMPUTE", "OBLO_STAGE_COMPUTE"};
 
             constexpr auto vkStage = VK_SHADER_STAGE_COMPUTE_BIT;
 
@@ -2082,7 +2082,7 @@ namespace oblo::vk
             defines.emplace_back(m_impl->interner->get_or_add(define));
         }
 
-        std::string_view builtInDefines[2] = {"OBLO_PIPELINE_RAYTRACING"};
+        string_view builtInDefines[2] = {"OBLO_PIPELINE_RAYTRACING"};
 
         for (u32 currentShaderIndex = 0; currentShaderIndex < raytracingPass->shaderSourcePaths.size();
              ++currentShaderIndex)
@@ -2437,9 +2437,9 @@ namespace oblo::vk
         m_impl->texturesDescriptorSetPool.end_frame();
     }
 
-    void pass_manager::update_instance_data_defines(std::string_view defines)
+    void pass_manager::update_instance_data_defines(string_view defines)
     {
-        m_impl->instanceDataDefines = defines;
+        m_impl->instanceDataDefines = defines.as<std::string>();
 
         // Invalidate all passes as well, to trigger recompilation of shaders
         m_impl->invalidate_all_passes();

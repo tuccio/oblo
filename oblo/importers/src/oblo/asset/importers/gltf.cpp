@@ -530,7 +530,7 @@ namespace oblo::importers
         };
     }
 
-    void gltf::set_texture(material& m, std::string_view propertyName, int textureIndex) const
+    void gltf::set_texture(material& m, hashed_string_view propertyName, int textureIndex) const
     {
         if (const auto imageIndex = find_image_from_texture(m_model, textureIndex);
             imageIndex >= 0 && usize(imageIndex) < m_importImages.size() && !m_importImages[imageIndex].id.is_nil())

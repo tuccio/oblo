@@ -6,7 +6,7 @@
 
 namespace oblo
 {
-    debug_label::debug_label(std::string_view str)
+    debug_label::debug_label(string_view str)
     {
         const auto len = min<std::size_t>(str.size(), MaxLength);
 

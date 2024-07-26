@@ -42,9 +42,9 @@ namespace oblo::detail
         return resource->type;
     }
 
-    std::string_view resource_name(resource* resource)
+    string_view resource_name(resource* resource)
     {
-        return resource->name;
+        return string_view{resource->name};
     }
 
     uuid resource_uuid(resource* resource)

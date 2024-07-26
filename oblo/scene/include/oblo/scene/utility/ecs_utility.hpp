@@ -1,10 +1,9 @@
 #pragma once
 
+#include <oblo/core/string/string_view.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/handles.hpp>
 #include <oblo/ecs/type_set.hpp>
-
-#include <string_view>
 
 namespace oblo
 {
@@ -34,14 +33,14 @@ namespace oblo::ecs_utility
 
     SCENE_API ecs::entity create_named_physical_entity(ecs::entity_registry& registry,
         const ecs::component_and_tag_sets& extraComponentsOrTags,
-        std::string_view name,
+        string_view name,
         const vec3& position,
         const quaternion& rotation,
         const vec3& scale);
 
     template <typename... ComponentsOrTags>
     ecs::entity create_named_physical_entity(ecs::entity_registry& registry,
-        std::string_view name,
+        string_view name,
         const vec3& position,
         const quaternion& rotation,
         const vec3& scale)

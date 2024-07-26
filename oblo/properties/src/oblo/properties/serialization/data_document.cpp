@@ -114,7 +114,7 @@ namespace oblo
         return 0u;
     }
 
-    u32 data_document::child_object(u32 parentIndex, std::string_view key)
+    u32 data_document::child_object(u32 parentIndex, hashed_string_view key)
     {
         const u32 newChild = u32(m_nodes.size());
         auto& newObject = m_nodes.emplace_back();
@@ -136,6 +136,7 @@ namespace oblo
             .keyLen = keyLen,
             .nextSibling = data_node::Invalid,
             .key = newKey,
+            .keyHash = key.hash(),
             .objectOrArray = make_invalid_object_or_array(),
         };
 
@@ -145,7 +146,7 @@ namespace oblo
     }
 
     void data_document::child_value(
-        u32 parentIndex, std::string_view key, property_kind kind, std::span<const byte> data)
+        u32 parentIndex, hashed_string_view key, property_kind kind, std::span<const byte> data)
     {
         const u32 newChild = u32(m_nodes.size());
         auto& newValue = m_nodes.emplace_back();
@@ -159,6 +160,7 @@ namespace oblo
         {
             newValue.key = allocate_key(key);
             newValue.keyLen = narrow_cast<u16>(key.size());
+            newValue.keyHash = key.hash();
         }
 
         newValue.nextSibling = data_node::Invalid;
@@ -166,7 +168,7 @@ namespace oblo
         append_new_child(parent, newChild);
     }
 
-    u32 data_document::child_array(u32 parentIndex, std::string_view key, u32 size)
+    u32 data_document::child_array(u32 parentIndex, hashed_string_view key, u32 size)
     {
         const u32 newArrayIndex = u32(m_nodes.size());
 
@@ -183,6 +185,7 @@ namespace oblo
             .keyLen = narrow_cast<u16>(key.size()),
             .nextSibling = data_node::Invalid,
             .key = allocate_key(key),
+            .keyHash = key.hash(),
             .objectOrArray =
                 {
                     .firstChild = data_node::Invalid,
@@ -326,7 +329,7 @@ namespace oblo
         };
     }
 
-    const char* data_document::allocate_key(std::string_view key)
+    const char* data_document::allocate_key(string_view key)
     {
         auto* const newKey = static_cast<char*>(allocate(key.size() + 1, 1));
         std::memcpy(newKey, key.data(), key.size());
@@ -355,7 +358,7 @@ namespace oblo
         return m_nodes;
     }
 
-    u32 data_document::find_child(u32 parent, std::string_view name) const
+    u32 data_document::find_child(u32 parent, hashed_string_view name) const
     {
         if (parent == data_node::Invalid)
         {
@@ -379,10 +382,10 @@ namespace oblo
         return data_node::Invalid;
     }
 
-    std::string_view data_document::get_node_name(u32 node) const
+    hashed_string_view data_document::get_node_name(u32 node) const
     {
         auto& n = m_nodes[node];
-        return std::string_view{n.key, n.keyLen};
+        return hashed_string_view{string_view{n.key, n.keyLen}, n.keyHash};
     }
 
     expected<bool, data_document::error> data_document::read_bool(u32 node) const

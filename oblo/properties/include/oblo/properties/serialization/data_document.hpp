@@ -2,11 +2,12 @@
 
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/expected.hpp>
+#include <oblo/core/string/hashed_string_view.hpp>
+#include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/properties/serialization/data_node.hpp>
 
 #include <span>
-#include <string_view>
 
 namespace oblo
 {
@@ -40,12 +41,12 @@ namespace oblo
 
         u32 get_root() const;
 
-        u32 child_object(u32 parent, std::string_view key);
-        void child_value(u32 parent, std::string_view key, property_kind kind, std::span<const byte> data);
+        u32 child_object(u32 parent, hashed_string_view key);
+        void child_value(u32 parent, hashed_string_view key, property_kind kind, std::span<const byte> data);
         u32 child_next(u32 objectOrArray, u32 previous) const;
         u32 children_count(u32 objectOrArray) const;
 
-        u32 child_array(u32 parent, std::string_view key, u32 size = 0);
+        u32 child_array(u32 parent, hashed_string_view key, u32 size = 0);
         u32 array_push_back(u32 array);
 
         void make_array(u32 node);
@@ -54,8 +55,8 @@ namespace oblo
 
         std::span<const data_node> get_nodes() const;
 
-        u32 find_child(u32 parent, std::string_view name) const;
-        std::string_view get_node_name(u32 node) const;
+        u32 find_child(u32 parent, hashed_string_view name) const;
+        hashed_string_view get_node_name(u32 node) const;
 
         expected<bool, error> read_bool(u32 node) const;
 
@@ -68,7 +69,7 @@ namespace oblo
     private:
         void* allocate(usize size, usize alignment);
         data_chunk* allocate_chunk(u8 exponent);
-        const char* allocate_key(std::string_view key);
+        const char* allocate_key(string_view key);
 
         void append_new_child(data_node& parent, u32 newChild);
 
@@ -92,7 +93,7 @@ namespace oblo
         const char* data;
         usize length;
 
-        std::string_view str() const
+        string_view str() const
         {
             return {data, length};
         }

@@ -1,16 +1,16 @@
 #pragma once
 
-#include <string_view>
+#include <oblo/core/string/hashed_string_view.hpp>
 
 namespace oblo::pbr
 {
-    constexpr std::string_view Albedo{"Albedo"};
-    constexpr std::string_view AlbedoTexture{"Albedo Texture"};
-    constexpr std::string_view Roughness{"Roughness"};
-    constexpr std::string_view Metalness{"Metalness"};
-    constexpr std::string_view MetalnessRoughnessTexture{"Metalness/Roughness Texture"};
-    constexpr std::string_view Emissive{"Emissive"};
-    constexpr std::string_view EmissiveTexture{"Emissive Texture"};
-    constexpr std::string_view NormalMapTexture{"Normal Map Texture"};
-    constexpr std::string_view IndexOfRefraction{"Index Of Refraction"};
+    constexpr auto Albedo{"Albedo"_hsv};
+    constexpr auto AlbedoTexture{"Albedo Texture"_hsv};
+    constexpr auto Roughness{"Roughness"_hsv};
+    constexpr auto Metalness{"Metalness"_hsv};
+    constexpr auto MetalnessRoughnessTexture{"Metalness/Roughness Texture"_hsv};
+    constexpr auto Emissive{"Emissive"_hsv};
+    constexpr auto EmissiveTexture{"Emissive Texture"_hsv};
+    constexpr auto NormalMapTexture{"Normal Map Texture"_hsv};
+    constexpr auto IndexOfRefraction{"Index Of Refraction"_hsv};
 }

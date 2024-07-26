@@ -1,8 +1,9 @@
 #pragma once
 
+#include <oblo/core/string/string_view.hpp>
+
 #include <filesystem>
 #include <span>
-#include <string_view>
 #include <vector>
 
 #include <vulkan/vulkan.h>
@@ -27,8 +28,8 @@ namespace oblo::vk::shader_compiler
     void init();
     void shutdown();
 
-    bool compile_glsl_to_spirv(std::string_view debugName,
-        std::string_view sourceCode,
+    bool compile_glsl_to_spirv(string_view debugName,
+        string_view sourceCode,
         VkShaderStageFlagBits stage,
         std::vector<unsigned>& outSpirv,
         const options& options = {});
@@ -39,7 +40,7 @@ namespace oblo::vk::shader_compiler
     VkShaderModule create_shader_module_from_glsl_file(frame_allocator& allocator,
         VkDevice device,
         VkShaderStageFlagBits stage,
-        std::string_view filePath,
+        string_view filePath,
         const VkAllocationCallbacks* allocationCbs,
         const options& options = {});
 
@@ -70,6 +71,6 @@ namespace oblo::vk::shader_compiler
 
         virtual frame_allocator& get_allocator() = 0;
 
-        virtual bool resolve(std::string_view header, std::filesystem::path& path) = 0;
+        virtual bool resolve(string_view header, std::filesystem::path& path) = 0;
     };
 }

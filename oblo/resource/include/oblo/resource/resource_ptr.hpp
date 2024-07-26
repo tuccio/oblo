@@ -15,7 +15,7 @@ namespace oblo
         void resource_acquire(resource* resource);
         void* resource_data(resource* resource);
         type_id resource_type(resource* resource);
-        std::string_view resource_name(resource* resource);
+        string_view resource_name(resource* resource);
         uuid resource_uuid(resource* resource);
     }
 
@@ -102,7 +102,7 @@ namespace oblo
             return detail::resource_type(m_resource);
         }
 
-        std::string_view get_name() const noexcept
+        string_view get_name() const noexcept
         {
             return detail::resource_name(m_resource);
         }

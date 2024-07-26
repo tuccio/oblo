@@ -23,6 +23,7 @@ namespace oblo
         u16 keyLen;
         u32 nextSibling;
         const char* key;
+        usize keyHash;
 
         union {
             struct

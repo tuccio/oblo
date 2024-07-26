@@ -2,12 +2,12 @@
 
 #include <oblo/core/expected.hpp>
 #include <oblo/core/hash.hpp>
+#include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
 
 #include <bit>
 #include <compare>
 #include <span>
-#include <string_view>
 
 namespace oblo
 {
@@ -28,13 +28,13 @@ namespace oblo
             buffer_too_small,
         };
 
-        constexpr std::string_view format_to(std::span<char, 36> buffer) const;
+        constexpr string_view format_to(std::span<char, 36> buffer) const;
 
         static constexpr auto parse(std::span<const char, 36> buffer);
-        static constexpr auto parse(std::string_view buffer);
+        static constexpr auto parse(string_view buffer);
 
         constexpr bool parse_from(std::span<const char, 36> buffer);
-        constexpr bool parse_from(std::string_view buffer);
+        constexpr bool parse_from(string_view buffer);
     };
 
     namespace detail::uuid_detail
@@ -52,7 +52,7 @@ namespace oblo
         };
     }
 
-    constexpr std::string_view uuid::format_to(std::span<char, 36> buffer) const
+    constexpr string_view uuid::format_to(std::span<char, 36> buffer) const
     {
         using detail::uuid_detail::push_chars;
 
@@ -86,7 +86,7 @@ namespace oblo
         push_chars(data[14], it);
         push_chars(data[15], it);
 
-        return std::string_view{buffer.data(), buffer.size()};
+        return string_view{buffer.data(), buffer.size()};
     }
 
     constexpr auto uuid::parse(std::span<const char, 36> buffer)
@@ -183,7 +183,7 @@ namespace oblo
         return result_type{result};
     }
 
-    constexpr auto uuid::parse(std::string_view buffer)
+    constexpr auto uuid::parse(string_view buffer)
     {
         using result_type = expected<uuid, uuid::format_error>;
 
@@ -208,7 +208,7 @@ namespace oblo
         return false;
     }
 
-    constexpr bool uuid::parse_from(std::string_view buffer)
+    constexpr bool uuid::parse_from(string_view buffer)
     {
         const auto result = uuid::parse(buffer);
 
@@ -223,7 +223,7 @@ namespace oblo
 
     consteval uuid operator""_uuid(const char* str, size_t len)
     {
-        const auto expected = uuid::parse(std::string_view{str, len});
+        const auto expected = uuid::parse(string_view{str, len});
 
         if (!expected)
         {
@@ -232,10 +232,7 @@ namespace oblo
 
         return *expected;
     }
-}
 
-namespace std
-{
     template <>
     struct hash<oblo::uuid>
     {
@@ -254,5 +251,13 @@ namespace std
 
             return hash_mix(hash64(hi), hash64(lo));
         }
+    };
+}
+
+namespace std
+{
+    template <>
+    struct hash<oblo::uuid> : oblo::hash<oblo::uuid>
+    {
     };
 }

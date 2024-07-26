@@ -2,6 +2,7 @@
 
 #include <oblo/asset/importer.hpp>
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/string/hashed_string_view.hpp>
 
 #include <tiny_gltf.h>
 
@@ -35,7 +36,7 @@ namespace oblo::importers
         struct import_image;
 
     private:
-        void set_texture(material& m, std::string_view propertyName, int textureIndex) const;
+        void set_texture(material& m, hashed_string_view propertyName, int textureIndex) const;
 
     private:
         tinygltf::Model m_model;

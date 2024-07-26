@@ -290,9 +290,9 @@ namespace oblo::vk
         release(m_tlas);
     }
 
-    void draw_registry::register_instance_data(ecs::component_type type, std::string_view name)
+    void draw_registry::register_instance_data(ecs::component_type type, string_view name)
     {
-        m_instanceDataTypeNames.emplace(type, std::string{name});
+        m_instanceDataTypeNames.emplace(type, name.as<std::string>());
         m_instanceDataTypes.add(type);
         m_isInstanceTypeInfoDirty = true;
     }
@@ -1191,7 +1191,7 @@ namespace oblo::vk
         }
     }
 
-    std::string_view draw_registry::refresh_instance_data_defines(frame_allocator& allocator)
+    string_view draw_registry::refresh_instance_data_defines(frame_allocator& allocator)
     {
         if (m_instanceDataTypeNames.empty())
         {

@@ -5,6 +5,7 @@
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/hash.hpp>
 #include <oblo/core/lifetime.hpp>
+#include <oblo/core/reflection/fields.hpp>
 #include <oblo/core/struct_apply.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/vulkan/shader_compiler.hpp>
@@ -15,12 +16,6 @@ namespace oblo::vk
     {
         constexpr bool DisableCache{true};
         constexpr bool OutputSource{true};
-
-        template <typename T>
-        consteval usize count_fields()
-        {
-            return struct_apply([]([[maybe_unused]] auto&&... m) { return sizeof...(m); }, T{});
-        }
 
         void write_file(const std::filesystem::path& path, std::span<const byte> data)
         {
@@ -53,8 +48,8 @@ namespace oblo::vk
 
     bool shader_cache::find_or_add(std::span<unsigned>& outSpirv,
         frame_allocator& allocator,
-        std::string_view debugName,
-        std::string_view sourceCode,
+        string_view debugName,
+        string_view sourceCode,
         VkShaderStageFlagBits stage,
         const shader_compiler::options& options)
     {
