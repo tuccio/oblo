@@ -110,12 +110,6 @@ namespace oblo
             return true;
         }
 
-        bool load_asset_meta(
-            asset_meta& meta, std::vector<uuid>& artifacts, const asset_types_map& assetTypes, cstring_view source)
-        {
-            return load_asset_meta(meta, artifacts, assetTypes, source.as<std::string_view>());
-        }
-
         bool save_asset_meta(const asset_meta& meta, std::span<const uuid> artifacts, cstring_view destination)
         {
             char uuidBuffer[36];
