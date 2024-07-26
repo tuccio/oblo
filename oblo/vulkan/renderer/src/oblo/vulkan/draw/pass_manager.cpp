@@ -521,31 +521,13 @@ namespace oblo::vk
             return hash;
         }
 
-        struct fixed_string_buffer
+        cstring_view make_debug_name(string_builder& builder,
+            const string_interner& interner,
+            h32<string> name,
+            const std::filesystem::path& filePath)
         {
-            char buffer[2048];
-            u32 length;
-
-            operator string_view() const noexcept
-            {
-                return {buffer, length};
-            }
-        };
-
-        fixed_string_buffer make_debug_name(
-            const string_interner& interner, h32<string> name, const std::filesystem::path& filePath)
-        {
-            fixed_string_buffer debugName;
-
-            auto const [end, size] = std::format_to_n(debugName.buffer,
-                array_size(debugName.buffer),
-                "[{}] {}",
-                interner.str(name),
-                filePath.filename().string());
-
-            debugName.length = narrow_cast<u32>(size);
-
-            return debugName;
+            builder.clear().format("[{}] {}", interner.str(name), filePath.filename().string());
+            return builder.view();
         };
 
         struct watching_passes
@@ -1722,6 +1704,8 @@ namespace oblo::vk
 
         string_view builtInDefines[2]{"OBLO_PIPELINE_RENDER"};
 
+        string_builder builder;
+
         for (u8 stageIndex = 0; stageIndex < renderPass->stagesCount; ++stageIndex)
         {
             const auto pipelineStage = renderPass->stages[stageIndex];
@@ -1735,7 +1719,7 @@ namespace oblo::vk
                 filePath,
                 builtInDefines,
                 desc.defines,
-                make_debug_name(*m_impl->interner, renderPass->name, filePath),
+                make_debug_name(builder, *m_impl->interner, renderPass->name, filePath),
                 compilerOptions,
                 spirv);
 
@@ -1958,11 +1942,13 @@ namespace oblo::vk
 
             const auto& filePath = computePass->shaderSourcePath;
 
+            string_builder builder;
+
             const auto shaderModule = m_impl->create_shader_module(vkStage,
                 filePath,
                 builtInDefines,
                 desc.defines,
-                make_debug_name(*m_impl->interner, computePass->name, filePath),
+                make_debug_name(builder, *m_impl->interner, computePass->name, filePath),
                 compilerOptions,
                 spirv);
 
@@ -2084,6 +2070,8 @@ namespace oblo::vk
 
         string_view builtInDefines[2] = {"OBLO_PIPELINE_RAYTRACING"};
 
+        string_builder builder;
+
         for (u32 currentShaderIndex = 0; currentShaderIndex < raytracingPass->shaderSourcePaths.size();
              ++currentShaderIndex)
         {
@@ -2098,7 +2086,7 @@ namespace oblo::vk
                 filePath,
                 builtInDefines,
                 defines,
-                make_debug_name(*m_impl->interner, raytracingPass->name, filePath),
+                make_debug_name(builder, *m_impl->interner, raytracingPass->name, filePath),
                 compilerOptions,
                 spirv);
 

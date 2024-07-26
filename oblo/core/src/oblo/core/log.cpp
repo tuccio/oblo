@@ -1,9 +1,10 @@
 #include <oblo/core/log.hpp>
+
 #include <oblo/core/platform/core.hpp>
+#include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/utility.hpp>
 
 #include <cstdio>
-#include <string_view>
 
 namespace oblo::log::detail
 {
@@ -11,7 +12,7 @@ namespace oblo::log::detail
     {
         constexpr bool logToStderr{true};
 
-        constexpr std::string_view severityStrings[]{
+        constexpr cstring_view severityStrings[]{
             "[DEBUG] ",
             "[INFO] ",
             "[WARN] ",
@@ -28,7 +29,7 @@ namespace oblo::log::detail
         const auto last = min(detail::MaxLogMessageLength, n);
         str[last] = '\0';
 
-        platform::debug_output(severityString.data());
+        platform::debug_output(severityString.c_str());
         platform::debug_output(str);
         platform::debug_output("\n");
 #endif

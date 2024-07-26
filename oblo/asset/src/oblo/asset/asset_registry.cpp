@@ -124,7 +124,7 @@ namespace oblo
 
             for (const auto& uuid : artifacts)
             {
-                artifactsJson.push_back(uuid.format_to(uuidBuffer));
+                artifactsJson.push_back(uuid.format_to(uuidBuffer).as<std::string_view>());
             }
 
             std::ofstream ofs{destination};

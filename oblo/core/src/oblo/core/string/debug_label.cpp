@@ -1,5 +1,6 @@
-#include <oblo/core/debug_label.hpp>
+#include <oblo/core/string/debug_label.hpp>
 
+#include <oblo/core/string/format.hpp>
 #include <oblo/core/utility.hpp>
 
 #include <format>
@@ -16,12 +17,12 @@ namespace oblo
 
     debug_label::debug_label(std::source_location loc)
     {
-        const std::string_view path{loc.file_name()};
+        const string_view path{loc.file_name()};
         const auto offset = path.find_last_of("\\/");
 
-        std::string_view file;
+        string_view file;
 
-        if (offset != std::string_view::npos)
+        if (offset != string_view::npos)
         {
             file = path.substr(offset + 1);
         }

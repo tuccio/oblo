@@ -1,6 +1,6 @@
 #pragma once
 
-#include <oblo/core/debug_label.hpp>
+#include <oblo/core/string/debug_label.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/utility/debug_utils.hpp>
 #include <vulkan/vulkan.h>
