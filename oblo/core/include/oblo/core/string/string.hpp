@@ -29,7 +29,9 @@ namespace oblo
 
         static constexpr size_type npos = ~size_type{};
 
-        OBLO_FORCEINLINE string()
+        OBLO_FORCEINLINE string() : string{get_global_allocator()} {}
+
+        OBLO_FORCEINLINE string(allocator* allocator) : m_string{allocator}
         {
             m_string.push_back('\0');
         }
@@ -111,42 +113,42 @@ namespace oblo
 
         OBLO_FORCEINLINE const_iterator begin() const
         {
-            return m_string.begin();
+            return m_string.cbegin();
         }
 
         OBLO_FORCEINLINE const_iterator end() const
         {
-            return m_string.begin() + size();
+            return m_string.cbegin() + size();
         }
 
         OBLO_FORCEINLINE const_iterator cbegin() const
         {
-            return m_string.begin();
+            return m_string.cbegin();
         }
 
         OBLO_FORCEINLINE const_iterator cend() const
         {
-            return m_string.begin() + size();
+            return m_string.cbegin() + size();
         }
 
         OBLO_FORCEINLINE const_reverse_iterator rbegin() const
         {
-            return const_reverse_iterator{m_string.begin()};
+            return const_reverse_iterator{m_string.cbegin()};
         }
 
         OBLO_FORCEINLINE const_reverse_iterator rend() const
         {
-            return const_reverse_iterator{m_string.begin() + size()};
+            return const_reverse_iterator{m_string.cbegin() + size()};
         }
 
         OBLO_FORCEINLINE const_reverse_iterator crbegin() const
         {
-            return const_reverse_iterator{m_string.begin()};
+            return const_reverse_iterator{m_string.cbegin()};
         }
 
         OBLO_FORCEINLINE const_reverse_iterator crend() const
         {
-            return const_reverse_iterator{m_string.begin() + size()};
+            return const_reverse_iterator{m_string.cbegin() + size()};
         }
 
         bool operator==(const string& other) const noexcept
