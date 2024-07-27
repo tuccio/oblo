@@ -72,6 +72,12 @@ namespace oblo::vk
 
         for (const auto& t : m_textures)
         {
+            if (!t.image.allocation)
+            {
+                // The dummy will be present multiple times here, but only one occurrence is owning the allocation
+                continue;
+            }
+
             m_vkCtx->destroy_deferred(t.image.image, submitIndex);
             m_vkCtx->destroy_deferred(t.image.allocation, submitIndex);
             m_vkCtx->destroy_deferred(t.imageView, submitIndex);
