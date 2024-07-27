@@ -1,6 +1,7 @@
 #include <oblo/editor/windows/viewport.hpp>
 
 #include <oblo/core/iterator/zip_range.hpp>
+#include <oblo/core/utility.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/ecs/type_set.hpp>
@@ -111,8 +112,8 @@ namespace oblo::editor
 
             auto& v = m_entities->get<viewport_component>(m_entity);
 
-            v.width = u32(windowSize.x);
-            v.height = u32(windowSize.y);
+            v.width = u32(max(0.f, windowSize.x));
+            v.height = u32(max(0.f, windowSize.y));
 
             const auto topLeft = ImGui::GetCursorPos();
 
