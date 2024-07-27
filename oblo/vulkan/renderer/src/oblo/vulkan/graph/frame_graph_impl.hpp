@@ -17,7 +17,6 @@
 
 #include <iosfwd>
 #include <memory_resource>
-#include <string>
 #include <unordered_map>
 
 #include <vulkan/vulkan_core.h>
@@ -137,14 +136,14 @@ namespace oblo::vk
             return hash<string_view>{}(str);
         }
 
-        usize operator()(const std::string& str) const
+        usize operator()(const string& str) const
         {
-            return hash<std::string>{}(str);
+            return hash<string>{}(str);
         }
     };
 
     using name_to_vertex_map =
-        std::unordered_map<std::string, frame_graph_topology::vertex_handle, transparent_string_hash, std::equal_to<>>;
+        std::unordered_map<string, frame_graph_topology::vertex_handle, transparent_string_hash, std::equal_to<>>;
 
     struct frame_graph_subgraph
     {

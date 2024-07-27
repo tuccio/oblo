@@ -4,10 +4,10 @@
 #include <oblo/core/expected.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/hashed_string_view.hpp>
+#include <oblo/core/string/string.hpp>
 #include <oblo/core/types.hpp>
 
 #include <span>
-#include <string>
 #include <unordered_map>
 
 namespace oblo
@@ -95,7 +95,7 @@ namespace oblo
                 return txt.hash();
             }
 
-            usize operator()(const std::string& txt) const
+            usize operator()(const string& txt) const
             {
                 return hashed_string_view{txt}.hash();
             }
@@ -105,24 +105,24 @@ namespace oblo
         {
             using is_transparent = void;
 
-            bool operator()(const std::string& lhs, const hashed_string_view& rhs) const
+            bool operator()(const string& lhs, const hashed_string_view& rhs) const
             {
                 return string_view{lhs} == rhs;
             }
 
-            bool operator()(const hashed_string_view& lhs, const std::string& rhs) const
+            bool operator()(const hashed_string_view& lhs, const string& rhs) const
             {
                 return this->operator()(rhs, lhs);
             }
 
-            bool operator()(const std::string& lhs, const std::string& rhs) const
+            bool operator()(const string& lhs, const string& rhs) const
             {
                 return lhs == rhs;
             }
         };
 
     private:
-        std::unordered_map<std::string, usize, string_hash, string_equal> m_map;
+        std::unordered_map<string, usize, string_hash, string_equal> m_map;
         dynamic_array<material_property> m_properties;
     };
 

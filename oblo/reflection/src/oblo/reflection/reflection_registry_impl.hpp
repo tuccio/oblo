@@ -70,7 +70,7 @@ namespace oblo::reflection
     struct enum_data
     {
         type_id type;
-        dynamic_array<string_view> names;
+        dynamic_array<cstring_view> names;
         dynamic_array<byte> values;
         type_id underlyingType;
     };
