@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/command_buffer_pool.hpp>
 #include <oblo/vulkan/gpu_allocator.hpp>
@@ -12,7 +13,6 @@
 
 #include <deque>
 #include <memory>
-#include <vector>
 
 namespace oblo::vk
 {
@@ -116,7 +116,7 @@ namespace oblo::vk
         debug_utils::label m_debugUtilsLabel{};
         debug_utils::object m_debugUtilsObject{};
 
-        std::vector<frame_info> m_frameInfo;
+        dynamic_array<frame_info> m_frameInfo;
 
         VkSemaphore m_timelineSemaphore{};
 

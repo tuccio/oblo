@@ -31,6 +31,8 @@
 #include <efsw/efsw.hpp>
 #include <spirv_cross/spirv_cross.hpp>
 
+#include <tracy/TracyVulkan.hpp>
+
 #include <optional>
 
 namespace oblo::vk
@@ -351,6 +353,20 @@ namespace oblo::vk
         const char* label{};
 
         u32 lastRecompilationChangeId{};
+
+#ifdef TRACY_ENABLE
+        std::unique_ptr<tracy::SourceLocationData> tracyLocation;
+#endif
+
+        void init(const char* name)
+        {
+            label = name;
+
+#ifdef TRACY_ENABLE
+            tracyLocation = std::make_unique<tracy::SourceLocationData>();
+            tracyLocation->name = name;
+#endif
+        }
     };
 
     struct render_pipeline : base_pipeline
@@ -568,7 +584,7 @@ namespace oblo::vk
 
         u32 subgroupSize;
 
-        std::string instanceDataDefines;
+        string_builder instanceDataDefines;
 
         watch_listener watchListener;
         std::optional<efsw::FileWatcher> fileWatcher;
@@ -579,6 +595,10 @@ namespace oblo::vk
         std::unordered_map<string, watching_passes, hash<string>> fileToPassList;
 
         VkPhysicalDeviceRayTracingPipelinePropertiesKHR rtPipelineProperties{};
+
+#ifdef TRACY_ENABLE
+        TracyVkCtx tracyCtx{};
+#endif
 
         void add_watch(string_view file, h32<compute_pass> pass);
         void add_watch(string_view file, h32<render_pass> pass);
@@ -607,6 +627,28 @@ namespace oblo::vk
 
         template <typename Filter = decltype([](auto&&) { return true; })>
         void invalidate_all_passes(Filter&& f = {});
+
+        [[nodiscard]] void* begin_pass(VkCommandBuffer commandBuffer, const base_pipeline& pipeline)
+        {
+            void* scope{};
+
+#ifdef TRACY_ENABLE
+            scope = frameAllocator.allocate(sizeof(tracy::VkCtxScope), alignof(tracy::VkCtxScope));
+            new (scope) tracy::VkCtxScope{tracyCtx, pipeline.tracyLocation.get(), commandBuffer, true};
+#endif
+
+            vkCtx->begin_debug_label(commandBuffer, pipeline.label);
+            return scope;
+        }
+
+        void end_pass(VkCommandBuffer commandBuffer, void* ctx)
+        {
+            vkCtx->end_debug_label(commandBuffer);
+
+#ifdef TRACY_ENABLE
+            std::destroy_at(static_cast<tracy::VkCtxScope*>(ctx));
+#endif
+        }
     };
 
     void pass_manager::impl::add_watch(string_view file, h32<compute_pass> pass)
@@ -702,8 +744,10 @@ namespace oblo::vk
 
         const auto builtInDefinesStr = sb.view();
 
+        const auto instanceDataDefinesSv = instanceDataDefines.view();
+
         it = std::copy(builtInDefinesStr.data(), builtInDefinesStr.data() + builtInDefinesStr.size(), it);
-        it = std::copy(instanceDataDefines.begin(), instanceDataDefines.end(), it);
+        it = std::copy(instanceDataDefinesSv.begin(), instanceDataDefinesSv.end(), it);
 
         for (const auto define : userDefines)
         {
@@ -1465,6 +1509,16 @@ namespace oblo::vk
         };
 
         vkGetPhysicalDeviceProperties2(m_impl->vkCtx->get_physical_device(), &physicalProp2);
+
+#ifdef TRACY_ENABLE
+        m_impl->tracyCtx = tracy::CreateVkContext(m_impl->vkCtx->get_physical_device(),
+            m_impl->vkCtx->get_device(),
+            PFN_vkResetQueryPoolEXT(vkGetInstanceProcAddr(m_impl->vkCtx->get_instance(), "vkResetQueryPoolEXT")),
+            PFN_vkGetPhysicalDeviceCalibrateableTimeDomainsEXT(
+                vkGetInstanceProcAddr(m_impl->vkCtx->get_instance(), "vkGetPhysicalDeviceCalibrateableTimeDomainsEXT")),
+            PFN_vkGetCalibratedTimestampsEXT(
+                vkGetInstanceProcAddr(m_impl->vkCtx->get_instance(), "vkGetCalibratedTimestampsEXT")));
+#endif
     }
 
     void pass_manager::shutdown(vulkan_context& vkContext)
@@ -1473,6 +1527,14 @@ namespace oblo::vk
         {
             return;
         }
+
+#ifdef TRACY_ENABLE
+        if (m_impl->tracyCtx)
+        {
+            tracy::DestroyVkContext(m_impl->tracyCtx);
+            m_impl->tracyCtx = {};
+        }
+#endif
 
         if (const auto device = m_impl->device)
         {
@@ -1679,7 +1741,7 @@ namespace oblo::vk
         OBLO_ASSERT(pipelineHandle);
         auto& newPipeline = *pipelineIt;
 
-        newPipeline.label = m_impl->interner->c_str(renderPass->name);
+        newPipeline.init(m_impl->interner->c_str(renderPass->name));
 
         const auto failure = [this, &newPipeline, pipelineHandle, renderPass, expectedHash]
         {
@@ -1916,7 +1978,7 @@ namespace oblo::vk
         OBLO_ASSERT(pipelineHandle);
         auto& newPipeline = *pipelineIt;
 
-        newPipeline.label = m_impl->interner->c_str(computePass->name);
+        newPipeline.init(m_impl->interner->c_str(computePass->name));
 
         const auto failure = [this, &newPipeline, pipelineHandle, computePass, expectedHash]
         {
@@ -2038,7 +2100,7 @@ namespace oblo::vk
         OBLO_ASSERT(pipelineHandle);
         auto& newPipeline = *pipelineIt;
 
-        newPipeline.label = m_impl->interner->c_str(raytracingPass->name);
+        newPipeline.init(m_impl->interner->c_str(raytracingPass->name));
 
         const auto failure = [this, &newPipeline, pipelineHandle, raytracingPass, expectedHash]
         {
@@ -2317,8 +2379,10 @@ namespace oblo::vk
         return pipelineHandle;
     }
 
-    void pass_manager::begin_frame()
+    void pass_manager::begin_frame([[maybe_unused]] VkCommandBuffer commandBuffer)
     {
+        m_impl->frameAllocator.restore_all();
+
         if (m_impl->globallyEnablePrintf && m_impl->globallyEnablePrintfFrames-- == 0)
         {
             toggle_printf();
@@ -2408,6 +2472,10 @@ namespace oblo::vk
 
             m_impl->watchListener.touchedFiles.clear();
         }
+
+#ifdef TRACY_ENABLE
+        TracyVkCollect(m_impl->tracyCtx, commandBuffer);
+#endif
     }
 
     void pass_manager::end_frame()
@@ -2418,7 +2486,7 @@ namespace oblo::vk
 
     void pass_manager::update_instance_data_defines(string_view defines)
     {
-        m_impl->instanceDataDefines = defines.as<std::string>();
+        m_impl->instanceDataDefines = defines;
 
         // Invalidate all passes as well, to trigger recompilation of shaders
         m_impl->invalidate_all_passes();
@@ -2453,10 +2521,9 @@ namespace oblo::vk
 
         const render_pass_context renderPassContext{
             .commandBuffer = commandBuffer,
+            .internalCtx = m_impl->begin_pass(commandBuffer, *pipeline),
             .internalPipeline = pipeline,
         };
-
-        m_impl->vkCtx->begin_debug_label(commandBuffer, pipeline->label);
 
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline);
         vkCmdBeginRendering(commandBuffer, &renderingInfo);
@@ -2491,8 +2558,7 @@ namespace oblo::vk
     void pass_manager::end_render_pass(const render_pass_context& context)
     {
         vkCmdEndRendering(context.commandBuffer);
-        m_impl->vkCtx->end_debug_label(context.commandBuffer);
-        m_impl->frameAllocator.restore_all();
+        m_impl->end_pass(context.commandBuffer, context.internalCtx);
     }
 
     expected<compute_pass_context> pass_manager::begin_compute_pass(VkCommandBuffer commandBuffer,
@@ -2507,6 +2573,7 @@ namespace oblo::vk
 
         const compute_pass_context computePassContext{
             .commandBuffer = commandBuffer,
+            .internalCtx = m_impl->begin_pass(commandBuffer, *pipeline),
             .internalPipeline = pipeline,
         };
 
@@ -2543,7 +2610,7 @@ namespace oblo::vk
 
     void pass_manager::end_compute_pass(const compute_pass_context& context)
     {
-        m_impl->vkCtx->end_debug_label(context.commandBuffer);
+        m_impl->end_pass(context.commandBuffer, context.internalCtx);
     }
 
     expected<raytracing_pass_context> pass_manager::begin_raytracing_pass(VkCommandBuffer commandBuffer,
@@ -2558,10 +2625,9 @@ namespace oblo::vk
 
         const raytracing_pass_context rtPipelineContext{
             .commandBuffer = commandBuffer,
+            .internalCtx = m_impl->begin_pass(commandBuffer, *pipeline),
             .internalPipeline = pipeline,
         };
-
-        m_impl->vkCtx->begin_debug_label(commandBuffer, pipeline->label);
 
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline->pipeline);
 
@@ -2594,7 +2660,7 @@ namespace oblo::vk
 
     void pass_manager::end_raytracing_pass(const raytracing_pass_context& context)
     {
-        m_impl->vkCtx->end_debug_label(context.commandBuffer);
+        m_impl->end_pass(context.commandBuffer, context.internalCtx);
     }
 
     u32 pass_manager::get_subgroup_size() const
