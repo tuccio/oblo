@@ -158,6 +158,7 @@ namespace oblo::vk
             .descriptorBindingPartiallyBound = true,
             .descriptorBindingVariableDescriptorCount = true,
             .runtimeDescriptorArray = true,
+            .hostQueryReset = true,
             .timelineSemaphore = true,
             .bufferDeviceAddress = true,
         };
