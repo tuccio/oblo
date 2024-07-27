@@ -290,7 +290,10 @@ namespace oblo::vk
         if (m_lastFrameAllocation)
         {
             ctx.destroy_deferred(m_lastFrameAllocation, submitIndex);
+            m_lastFrameAllocation = {};
         }
+
+        m_lastFrameTransientTextures.clear();
     }
 
     void resource_pool::create_textures(vulkan_context& ctx)
@@ -452,7 +455,7 @@ namespace oblo::vk
             }
             else
             {
-                const auto submitIndex = ctx.get_submit_index() + 1;
+                const auto submitIndex = ctx.get_submit_index();
 
                 ctx.destroy_deferred(it->second.imageView, submitIndex);
                 ctx.destroy_deferred(it->second.allocatedImage.image, submitIndex);
