@@ -3,6 +3,7 @@
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/log.hpp>
+#include <oblo/core/string/string_builder.hpp>
 #include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/destroy_device_objects.hpp>
 #include <oblo/vulkan/error.hpp>
@@ -53,8 +54,15 @@ namespace oblo::vk
         {
             m_imgui.shutdown(m_engine.get_device());
 
-            m_context.reset_immediate(m_acquiredImage);
-            m_context.reset_immediate(m_frameCompleted);
+            for (auto acquiredImage : m_acquiredImages)
+            {
+                m_context.reset_immediate(acquiredImage);
+            }
+
+            for (auto frameCompleted : m_frameCompleted)
+            {
+                m_context.reset_immediate(frameCompleted);
+            }
 
             m_swapchain.destroy(m_context);
         }
@@ -258,19 +266,19 @@ namespace oblo::vk
 
     void sandbox_base::begin_frame(u32* outImageIndex)
     {
-        m_context.frame_begin(m_acquiredImage, m_frameCompleted);
+        m_context.frame_begin(m_acquiredImages[m_semaphoreIndex], m_frameCompleted[m_semaphoreIndex]);
 
         u32 imageIndex;
         VkResult acquireImageResult;
 
-        OBLO_PROFILE_SCOPE("Acquire swapchain image");
-
         do
         {
+            OBLO_PROFILE_SCOPE("Acquire swapchain image");
+
             acquireImageResult = vkAcquireNextImageKHR(m_engine.get_device(),
                 m_swapchain.get(),
                 UINT64_MAX,
-                m_acquiredImage,
+                m_acquiredImages[m_semaphoreIndex],
                 VK_NULL_HANDLE,
                 &imageIndex);
 
@@ -316,7 +324,7 @@ namespace oblo::vk
         const VkPresentInfoKHR presentInfo{
             .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
             .waitSemaphoreCount = 1,
-            .pWaitSemaphores = &m_frameCompleted,
+            .pWaitSemaphores = &m_frameCompleted[m_semaphoreIndex],
             .swapchainCount = 1,
             .pSwapchains = &swapchain,
             .pImageIndices = &imageIndex,
@@ -324,6 +332,8 @@ namespace oblo::vk
         };
 
         OBLO_VK_PANIC_EXCEPT(vkQueuePresentKHR(m_engine.get_queue(), &presentInfo), VK_ERROR_OUT_OF_DATE_KHR);
+
+        m_semaphoreIndex = (m_semaphoreIndex + 1) % SwapchainImages;
     }
 
     bool sandbox_base::run_frame_impl(void* instance, update_fn update, update_imgui_fn updateImgui)
@@ -538,31 +548,36 @@ namespace oblo::vk
 
     bool sandbox_base::create_synchronization_objects()
     {
-        const VkSemaphoreCreateInfo semaphoreInfo{
+        constexpr VkSemaphoreCreateInfo semaphoreInfo{
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
         };
 
-        if (vkCreateSemaphore(m_engine.get_device(),
-                &semaphoreInfo,
-                m_allocator.get_allocation_callbacks(),
-                &m_acquiredImage) != VK_SUCCESS ||
-            vkCreateSemaphore(m_engine.get_device(),
-                &semaphoreInfo,
-                m_allocator.get_allocation_callbacks(),
-                &m_frameCompleted) != VK_SUCCESS)
-        {
-            return false;
-        }
+        string_builder nameBuilder;
 
         const auto debugUtilsObject = m_allocator.get_object_debug_utils();
 
-        debugUtilsObject.set_object_name(m_engine.get_device(),
-            m_acquiredImage,
-            OBLO_STRINGIZE(sandbox_base::m_acquiredImage));
+        for (u32 i = 0; i < SwapchainImages; ++i)
+        {
+            if (vkCreateSemaphore(m_engine.get_device(),
+                    &semaphoreInfo,
+                    m_allocator.get_allocation_callbacks(),
+                    &m_acquiredImages[i]) != VK_SUCCESS ||
+                vkCreateSemaphore(m_engine.get_device(),
+                    &semaphoreInfo,
+                    m_allocator.get_allocation_callbacks(),
+                    &m_frameCompleted[i]) != VK_SUCCESS)
+            {
+                return false;
+            }
 
-        debugUtilsObject.set_object_name(m_engine.get_device(),
-            m_frameCompleted,
-            OBLO_STRINGIZE(sandbox_base::m_frameCompleted));
+            debugUtilsObject.set_object_name(m_engine.get_device(),
+                m_acquiredImages[i],
+                nameBuilder.clear().format("{}[{}]", OBLO_STRINGIZE(sandbox_base::m_acquiredImages), i).c_str());
+
+            debugUtilsObject.set_object_name(m_engine.get_device(),
+                m_frameCompleted[i],
+                nameBuilder.clear().format("{}[{}]", OBLO_STRINGIZE(sandbox_base::m_frameCompleted), i).c_str());
+        }
 
         return true;
     }
