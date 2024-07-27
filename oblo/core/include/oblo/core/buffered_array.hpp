@@ -7,187 +7,84 @@
 namespace oblo
 {
     template <typename T, usize N>
-    class buffered_array
+    class buffered_array : public dynamic_array<T>
     {
     public:
-        using value_type = T;
-
-        using pointer = T*;
-        using const_pointer = const T*;
-
-        using reference = T&;
-        using const_reference = const T&;
-
-        using size_type = usize;
-        using difference_type = ptrdiff;
-
-        using iterator = T*;
-        using const_iterator = const T*;
+        using base = dynamic_array<T>;
 
     public:
-        OBLO_FORCEINLINE buffered_array()
+        OBLO_FORCEINLINE buffered_array() : buffered_array{select_global_allocator<alignof(T)>()} {}
+
+        OBLO_FORCEINLINE explicit buffered_array(allocator* fallback) : base{&m_allocator}, m_allocator{fallback}
         {
-            m_array.reserve(N);
+            base::reserve(N);
         }
 
-        OBLO_FORCEINLINE explicit buffered_array(allocator* fallback) : m_allocator{fallback}
+        OBLO_FORCEINLINE buffered_array(const std::initializer_list<T> initializer) : buffered_array{}
         {
-            m_array.reserve(N);
+            static_cast<base&>(*this) = initializer;
         }
 
-        OBLO_FORCEINLINE buffered_array(const std::initializer_list<T> initializer)
+        OBLO_FORCEINLINE buffered_array(const buffered_array& other) : buffered_array{}
         {
-            m_array.reserve(N);
-            m_array = initializer;
+            *this = other;
         }
 
-        OBLO_FORCEINLINE buffered_array(const buffered_array& other)
+        OBLO_FORCEINLINE buffered_array(const base& other) : buffered_array{}
         {
-            m_array = other.m_array;
+            *this = other;
         }
 
-        OBLO_FORCEINLINE buffered_array(buffered_array&& other) noexcept
+        OBLO_FORCEINLINE buffered_array(buffered_array&& other) noexcept : buffered_array{}
         {
-            m_array = std::move(other.m_array);
+            *this = std::move(other);
+        }
+
+        OBLO_FORCEINLINE buffered_array(base&& other) noexcept : buffered_array{}
+        {
+            *this = std::move(other);
+        }
+
+        OBLO_FORCEINLINE ~buffered_array()
+        {
+            // Make sure to reset the base when destroying, because of order of destruction we don't want references to
+            // the derived
+            *static_cast<base*>(this) = {};
+        }
+
+        OBLO_FORCEINLINE buffered_array& operator=(const base& other)
+        {
+            base::operator=(other);
+            return *this;
         }
 
         OBLO_FORCEINLINE buffered_array& operator=(const buffered_array& other)
         {
-            m_array = other.m_array;
+            base::operator=(other);
+            return *this;
+        }
+
+        OBLO_FORCEINLINE buffered_array& operator=(base&& other) noexcept
+        {
+            base::operator=(std::move(other));
             return *this;
         }
 
         OBLO_FORCEINLINE buffered_array& operator=(buffered_array&& other) noexcept
         {
-            m_array = std::move(other.m_array);
+            base::operator=(std::move(other));
             return *this;
         }
 
-        OBLO_FORCEINLINE decltype(auto) begin()
+        void shrink_to_fit()
         {
-            return m_array.begin();
-        }
-
-        OBLO_FORCEINLINE decltype(auto) end()
-        {
-            return m_array.end();
-        }
-
-        OBLO_FORCEINLINE decltype(auto) begin() const
-        {
-            return m_array.begin();
-        }
-
-        OBLO_FORCEINLINE decltype(auto) end() const
-        {
-            return m_array.end();
-        }
-
-        OBLO_FORCEINLINE void reserve(usize n)
-        {
-            m_array.reserve(n);
-        }
-
-        OBLO_FORCEINLINE void resize(usize n)
-        {
-            m_array.resize(n);
-        }
-
-        OBLO_FORCEINLINE void resize(usize n, const T& value)
-        {
-            m_array.resize(n, value);
-        }
-
-        OBLO_FORCEINLINE T* data()
-        {
-            return m_array.data();
-        }
-
-        OBLO_FORCEINLINE const T* data() const
-        {
-            return m_array.data();
-        }
-
-        OBLO_FORCEINLINE bool empty() const
-        {
-            return m_array.empty();
-        }
-
-        OBLO_FORCEINLINE usize size() const
-        {
-            return m_array.size();
-        }
-
-        template <typename... TArgs>
-        OBLO_FORCEINLINE T& emplace_back(TArgs&&... args)
-        {
-            return m_array.emplace_back(std::forward<TArgs>(args)...);
-        }
-
-        OBLO_FORCEINLINE auto push_back(const T& value)
-        {
-            return m_array.push_back(value);
-        }
-
-        OBLO_FORCEINLINE auto push_back(T&& value)
-        {
-            return m_array.push_back(std::move(value));
-        }
-
-        OBLO_FORCEINLINE void pop_back()
-        {
-            return m_array.pop_back();
-        }
-
-        OBLO_FORCEINLINE T& front()
-        {
-            return m_array.front();
-        }
-
-        OBLO_FORCEINLINE T& back()
-        {
-            return m_array.back();
-        }
-
-        OBLO_FORCEINLINE const T& front() const
-        {
-            return m_array.front();
-        }
-
-        OBLO_FORCEINLINE const T& back() const
-        {
-            return m_array.back();
-        }
-
-        OBLO_FORCEINLINE const T& operator[](usize index) const
-        {
-            return m_array[index];
-        }
-
-        OBLO_FORCEINLINE T& operator[](usize index)
-        {
-            return m_array[index];
-        }
-
-        template <typename... TArgs>
-        OBLO_FORCEINLINE auto insert(TArgs&&... args)
-        {
-            return m_array.insert(std::forward<TArgs>(args)...);
-        }
-
-        template <typename... TArgs>
-        OBLO_FORCEINLINE auto assign(TArgs&&... args)
-        {
-            return m_array.assign(std::forward<TArgs>(args)...);
-        }
-
-        OBLO_FORCEINLINE void clear()
-        {
-            m_array.clear();
+            if (!m_allocator.is_stack_allocated(base::data_bytes()))
+            {
+                base::shrink_to_fit();
+            }
         }
 
     private:
         stack_fallback_allocator<(sizeof(T) * N), alignof(T)> m_allocator;
-        dynamic_array<T> m_array{&m_allocator};
     };
 }

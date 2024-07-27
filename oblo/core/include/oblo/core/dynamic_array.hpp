@@ -2,6 +2,7 @@
 
 #include <oblo/core/allocator.hpp>
 #include <oblo/core/debug.hpp>
+#include <oblo/core/platform/compiler.hpp>
 #include <oblo/core/rotate.hpp>
 #include <oblo/math/power_of_two.hpp>
 
@@ -102,6 +103,9 @@ namespace oblo
         T* data();
         const T* data() const;
 
+        byte* data_bytes();
+        const byte* data_bytes() const;
+
         bool empty() const;
 
         iterator insert(const_iterator pos, const T& value);
@@ -127,6 +131,7 @@ namespace oblo
         bool operator==(const dynamic_array& other) const noexcept;
 
         template <typename Other>
+            requires(!std::convertible_to<const Other&, const dynamic_array<T>&>)
         bool operator==(const Other& other) const noexcept;
 
     private:
@@ -320,55 +325,55 @@ namespace oblo
     }
 
     template <typename T>
-    const T* dynamic_array<T>::cbegin() const
+    OBLO_FORCEINLINE const T* dynamic_array<T>::cbegin() const
     {
         return m_data;
     }
 
     template <typename T>
-    const T* dynamic_array<T>::cend() const
+    OBLO_FORCEINLINE const T* dynamic_array<T>::cend() const
     {
         return m_data + m_size;
     }
 
     template <typename T>
-    const T* dynamic_array<T>::begin() const
+    OBLO_FORCEINLINE const T* dynamic_array<T>::begin() const
     {
         return m_data;
     }
 
     template <typename T>
-    const T* dynamic_array<T>::end() const
+    OBLO_FORCEINLINE const T* dynamic_array<T>::end() const
     {
         return m_data + m_size;
     }
 
     template <typename T>
-    T* dynamic_array<T>::begin()
+    OBLO_FORCEINLINE T* dynamic_array<T>::begin()
     {
         return m_data;
     }
 
     template <typename T>
-    T* dynamic_array<T>::end()
+    OBLO_FORCEINLINE T* dynamic_array<T>::end()
     {
         return m_data + m_size;
     }
 
     template <typename T>
-    usize dynamic_array<T>::size() const
+    OBLO_FORCEINLINE usize dynamic_array<T>::size() const
     {
         return m_size;
     }
 
     template <typename T>
-    usize dynamic_array<T>::size_bytes() const
+    OBLO_FORCEINLINE usize dynamic_array<T>::size_bytes() const
     {
         return m_size * sizeof(T);
     }
 
     template <typename T>
-    usize dynamic_array<T>::capacity() const
+    OBLO_FORCEINLINE usize dynamic_array<T>::capacity() const
     {
         return m_capacity;
     }
@@ -663,19 +668,31 @@ namespace oblo
     }
 
     template <typename T>
-    T* dynamic_array<T>::data()
+    OBLO_FORCEINLINE T* dynamic_array<T>::data()
     {
         return m_data;
     }
 
     template <typename T>
-    const T* dynamic_array<T>::data() const
+    OBLO_FORCEINLINE const T* dynamic_array<T>::data() const
     {
         return m_data;
     }
 
     template <typename T>
-    bool dynamic_array<T>::empty() const
+    OBLO_FORCEINLINE byte* dynamic_array<T>::data_bytes()
+    {
+        return reinterpret_cast<byte*>(m_data);
+    }
+
+    template <typename T>
+    OBLO_FORCEINLINE const byte* dynamic_array<T>::data_bytes() const
+    {
+        return reinterpret_cast<const byte*>(m_data);
+    }
+
+    template <typename T>
+    OBLO_FORCEINLINE bool dynamic_array<T>::empty() const
     {
         return m_size == 0;
     }
@@ -734,6 +751,7 @@ namespace oblo
 
     template <typename T>
     template <typename Other>
+        requires(!std::convertible_to<const Other&, const dynamic_array<T>&>)
     bool dynamic_array<T>::operator==(const Other& other) const noexcept
     {
         return std::equal(begin(), end(), std::begin(other), std::end(other));

@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <oblo/core/buffered_array.hpp>
 #include <oblo/core/dynamic_array.hpp>
 
 #include <span>
@@ -340,5 +341,70 @@ namespace oblo
         {
             ASSERT_EQ(array[i], i + 1);
         }
+    }
+
+    TEST(buffered_array, buffered_array_trivial)
+    {
+        checked_allocator allocator;
+
+        {
+            constexpr auto N = 16;
+            constexpr auto M = 1024;
+
+            buffered_array<i32, N> array{&allocator};
+            std::vector<i32> expected;
+
+            ASSERT_EQ(array.size(), 0);
+            ASSERT_EQ(array.capacity(), N);
+
+            for (i32 i = 0; i < M; ++i)
+            {
+                array.emplace_back(i);
+                expected.emplace_back(i);
+
+                if (i % 32 == 0)
+                {
+                    array.shrink_to_fit();
+                }
+
+                ASSERT_EQ(array.size(), i + 1);
+                ASSERT_GE(array.capacity(), i + 1);
+
+                ASSERT_EQ(array.size(), expected.size());
+
+                ASSERT_TRUE(std::equal(array.begin(), array.end(), expected.begin()));
+
+                if (i < N)
+                {
+                    ASSERT_EQ(allocator.allocations.size(), 0);
+                }
+                else
+                {
+                    ASSERT_EQ(allocator.allocations.size(), 1);
+                }
+            }
+
+            {
+                dynamic_array<i32> copy{array};
+                ASSERT_EQ(allocator.allocations.size(), 2);
+
+                ASSERT_EQ(array, copy);
+
+                dynamic_array<i32> move{std::move(copy)};
+                ASSERT_EQ(allocator.allocations.size(), 2);
+            }
+
+            {
+                buffered_array<i32, M> copy{array};
+                ASSERT_EQ(allocator.allocations.size(), 1);
+
+                ASSERT_EQ(array, copy);
+
+                buffered_array<i32, M> move{std::move(copy)};
+                ASSERT_EQ(allocator.allocations.size(), 1);
+            }
+        }
+
+        ASSERT_EQ(allocator.allocations.size(), 0);
     }
 }
