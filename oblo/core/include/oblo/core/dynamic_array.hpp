@@ -41,7 +41,7 @@ namespace oblo
         dynamic_array();
         explicit dynamic_array(allocator* allocator);
         explicit dynamic_array(allocator* allocator, std::initializer_list<T> init);
-        explicit dynamic_array(usize count, allocator* allocator);
+        explicit dynamic_array(allocator* allocator, usize count);
 
         dynamic_array(const dynamic_array& other);
         dynamic_array(dynamic_array&& other) noexcept;
@@ -164,7 +164,7 @@ namespace oblo
     }
 
     template <typename T>
-    dynamic_array<T>::dynamic_array(usize count, allocator* allocator) : m_allocator{allocator}
+    dynamic_array<T>::dynamic_array(allocator* allocator, usize count) : m_allocator{allocator}
     {
         if (count != 0)
         {

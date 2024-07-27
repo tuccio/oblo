@@ -72,10 +72,10 @@
 </Type>
 
 <Type Name="oblo::string">
-    <DisplayString>{{ {m_string.m_array.m_data} }}</DisplayString>
+    <DisplayString>{{ {m_string.m_data} }}</DisplayString>
     <Expand>
-        <Item Name="[string]" ExcludeView="simple">m_string.m_array.m_data</Item>
-        <Item Name="[size]" ExcludeView="simple">m_string.m_array.m_size - 1</Item>
+        <Item Name="[string]" ExcludeView="simple">m_string.m_data</Item>
+        <Item Name="[size]" ExcludeView="simple">m_string.m_size - 1</Item>
     </Expand>
 </Type>
 
