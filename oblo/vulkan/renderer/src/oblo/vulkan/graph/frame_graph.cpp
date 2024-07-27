@@ -498,6 +498,8 @@ namespace oblo::vk
 
             const auto tex = resourcePool.get_transient_texture(poolIndex);
 
+            // We use the pin storage id as texture id because it's unique per texture
+            // The frame graph context also assumes this is the case when reading the layout
             commandBufferState.set_starting_layout(h32<texture>{resource.value}, initialLayout);
 
             new (m_impl->access_storage(resource)) texture{tex};

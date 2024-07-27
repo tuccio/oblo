@@ -48,6 +48,8 @@ namespace oblo::vk
             },
             texture_usage::storage_write);
 
+        ctx.acquire(inDepthBuffer, texture_usage::shader_read);
+
         ctx.acquire(inCameraBuffer, pass_kind::raytracing, buffer_usage::uniform);
         ctx.acquire(inLightBuffer, pass_kind::raytracing, buffer_usage::storage_read);
 

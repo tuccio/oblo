@@ -426,7 +426,15 @@ namespace oblo::vk
         for (const auto& b : bindings)
         {
             const auto& texture = access(b.resource);
-            table.emplace(interner.get_or_add(b.name), make_bindable_object(texture.view));
+
+            // The frame graph converts the pin storage handle to texture handle to use when keeping track of textures
+            const auto storage = h32<vk::texture>{b.resource.value};
+
+            const auto layout = m_frameGraph.commandBufferState.try_find(storage);
+            layout.assert_value();
+
+            table.emplace(interner.get_or_add(b.name),
+                make_bindable_object(texture.view, layout.value_or(VK_IMAGE_LAYOUT_UNDEFINED)));
         }
     }
 

@@ -1116,6 +1116,10 @@ namespace oblo::vk
     {
         const VkDescriptorSet descriptorSet = descriptorSetPool.acquire(descriptorSetLayout);
 
+        vkCtx->get_debug_utils_object().set_object_name(device,
+            descriptorSet,
+            string_builder{}.format("{} / pass_manager", pipeline.label).c_str());
+
         constexpr u32 MaxWrites{64};
 
         u32 buffersCount{0};
@@ -1173,8 +1177,7 @@ namespace oblo::vk
             imageInfo[imagesCount] = {
                 .sampler = sampler,
                 .imageView = texture.view,
-                .imageLayout = VK_IMAGE_LAYOUT_GENERAL, // The only 2 allowed layouts for storage images are general
-                                                        // and VK_IMAGE_LAYOUT_SHARED_PRESENT_KHR
+                .imageLayout = texture.layout,
             };
 
             descriptorSetWrites[writesCount] = {
@@ -1290,12 +1293,6 @@ namespace oblo::vk
         {
             vkUpdateDescriptorSets(device, writesCount, descriptorSetWrites, 0, nullptr);
         }
-
-        char nameBuffer[1024];
-        auto [last, n] = std::format_to_n(nameBuffer, 1023, "{} / pass_manager DescriptorSet", pipeline.label);
-        *last = '\0';
-
-        vkCtx->get_debug_utils_object().set_object_name(device, descriptorSet, nameBuffer);
 
         return descriptorSet;
     }

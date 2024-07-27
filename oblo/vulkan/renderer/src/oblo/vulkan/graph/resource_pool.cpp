@@ -452,7 +452,7 @@ namespace oblo::vk
             }
             else
             {
-                const auto submitIndex = ctx.get_submit_index();
+                const auto submitIndex = ctx.get_submit_index() + 1;
 
                 ctx.destroy_deferred(it->second.imageView, submitIndex);
                 ctx.destroy_deferred(it->second.allocatedImage.image, submitIndex);

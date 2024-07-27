@@ -67,7 +67,7 @@ namespace oblo::vk
                 .data = as_bytes(shadowMaps),
             },
             pass_kind::compute,
-            buffer_usage::uniform);
+            buffer_usage::storage_read);
     }
 
     void visibility_lighting::execute(const frame_graph_execute_context& ctx)
