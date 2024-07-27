@@ -104,6 +104,12 @@ namespace oblo::editor
                     passManager.toggle_printf();
                 }
 
+                if (ImGui::MenuItem("Toggle GPU profiling"))
+                {
+                    auto& passManager = ctx.services.find<vk::renderer>()->get_pass_manager();
+                    passManager.set_profiling_enabled(!passManager.is_profiling_enabled());
+                }
+
                 if (ImGui::MenuItem("Copy frame graph to clipboard"))
                 {
                     const auto& frameGraph = ctx.services.find<vk::renderer>()->get_frame_graph();

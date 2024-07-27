@@ -589,6 +589,7 @@ namespace oblo::vk
         watch_listener watchListener;
         std::optional<efsw::FileWatcher> fileWatcher;
 
+        bool enableProfiling{false};
         bool globallyEnablePrintf{false};
         u32 globallyEnablePrintfFrames{~0u};
 
@@ -633,8 +634,11 @@ namespace oblo::vk
             void* scope{};
 
 #ifdef TRACY_ENABLE
-            scope = frameAllocator.allocate(sizeof(tracy::VkCtxScope), alignof(tracy::VkCtxScope));
-            new (scope) tracy::VkCtxScope{tracyCtx, pipeline.tracyLocation.get(), commandBuffer, true};
+            if (enableProfiling)
+            {
+                scope = frameAllocator.allocate(sizeof(tracy::VkCtxScope), alignof(tracy::VkCtxScope));
+                new (scope) tracy::VkCtxScope{tracyCtx, pipeline.tracyLocation.get(), commandBuffer, true};
+            }
 #endif
 
             vkCtx->begin_debug_label(commandBuffer, pipeline.label);
@@ -646,7 +650,10 @@ namespace oblo::vk
             vkCtx->end_debug_label(commandBuffer);
 
 #ifdef TRACY_ENABLE
-            std::destroy_at(static_cast<tracy::VkCtxScope*>(ctx));
+            if (enableProfiling)
+            {
+                std::destroy_at(static_cast<tracy::VkCtxScope*>(ctx));
+            }
 #endif
         }
     };
@@ -2474,7 +2481,10 @@ namespace oblo::vk
         }
 
 #ifdef TRACY_ENABLE
-        TracyVkCollect(m_impl->tracyCtx, commandBuffer);
+        if (m_impl->enableProfiling)
+        {
+            TracyVkCollect(m_impl->tracyCtx, commandBuffer);
+        }
 #endif
     }
 
@@ -2507,6 +2517,16 @@ namespace oblo::vk
             toggle_printf();
             m_impl->globallyEnablePrintfFrames = frames;
         }
+    }
+
+    bool pass_manager::is_profiling_enabled() const
+    {
+        return m_impl->enableProfiling;
+    }
+
+    void pass_manager::set_profiling_enabled(bool enable)
+    {
+        m_impl->enableProfiling = enable;
     }
 
     expected<render_pass_context> pass_manager::begin_render_pass(

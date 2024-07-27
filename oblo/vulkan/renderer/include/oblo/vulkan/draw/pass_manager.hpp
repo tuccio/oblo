@@ -90,6 +90,9 @@ namespace oblo::vk
         void toggle_printf();
         void enable_printf(u32 frames);
 
+        bool is_profiling_enabled() const;
+        void set_profiling_enabled(bool enabled);
+
         [[nodiscard]] expected<render_pass_context> begin_render_pass(
             VkCommandBuffer commandBuffer, h32<render_pipeline> pipeline, const VkRenderingInfo& renderingInfo) const;
 
