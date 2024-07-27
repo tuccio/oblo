@@ -1,7 +1,7 @@
 #pragma once
 
 #include <oblo/core/lifetime.hpp>
-#include <oblo/core/string/string_view.hpp>
+#include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/reflection/concepts/ranged_type_erasure.hpp>
@@ -55,13 +55,13 @@ namespace oblo::reflection
             return add_type(get_type_id<T>(), sizeof(T), alignof(T), kind);
         }
 
-        u32 add_field(u32 entityIndex, const type_id& type, string_view name, u32 offset);
+        u32 add_field(u32 entityIndex, const type_id& type, cstring_view name, u32 offset);
         void* add_field_attribute(
             u32 entityIndex, u32 fieldIndex, const type_id& type, u32 size, u32 alignment, void (*destroy)(void*));
         void add_tag(u32 entityIndex, const type_id& type);
         void add_concept(
             u32 entityIndex, const type_id& type, u32 size, u32 alignment, const ranged_type_erasure& rte, void* src);
-        void add_enumerator(u32 entityIndex, string_view name, std::span<const byte> value);
+        void add_enumerator(u32 entityIndex, cstring_view name, std::span<const byte> value);
 
         template <typename T, typename U>
         static u32 get_member_offset(U(T::*m))
@@ -84,7 +84,7 @@ namespace oblo::reflection
     {
     public:
         template <typename U>
-        field_builder<T> add_field(U(T::*member), string_view name);
+        field_builder<T> add_field(U(T::*member), cstring_view name);
 
         template <typename U>
         class_builder& add_tag()
@@ -134,7 +134,7 @@ namespace oblo::reflection
             return *this;
         }
 
-        enum_builder& add_enumerator(string_view name, T value)
+        enum_builder& add_enumerator(cstring_view name, T value)
         {
             m_registrant.add_enumerator(m_entityIndex, name, std::as_bytes(std::span{&value, 1}));
             return *this;
@@ -210,7 +210,7 @@ namespace oblo::reflection
         requires std::is_class_v<T>
     template <typename U>
     inline reflection_registry::registrant::field_builder<T> reflection_registry::registrant::class_builder<
-        T>::add_field(U(T::*member), string_view name)
+        T>::add_field(U(T::*member), cstring_view name)
     {
         const u32 offset = get_member_offset<T>(member);
         const u32 fieldIndex = m_registrant.add_field(m_entityIndex, get_type_id<U>(), name, offset);

@@ -2256,7 +2256,7 @@ namespace oblo::vk
 
         const u32 handleCount = raytracingPass->groupsCount;
         const u32 handleDataSize = handleCount * handleSize;
-        dynamic_array<u8> handles{handleDataSize, &m_impl->frameAllocator};
+        dynamic_array<u8> handles{&m_impl->frameAllocator, handleDataSize};
 
         if (vkFn.vkGetRayTracingShaderGroupHandlesKHR(vkCtx->get_device(),
                 newPipeline.pipeline,

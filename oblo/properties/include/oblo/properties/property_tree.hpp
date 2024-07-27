@@ -1,10 +1,9 @@
 #pragma once
 
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
-
-#include <string>
 
 namespace oblo
 {
@@ -13,7 +12,7 @@ namespace oblo
     struct property_node
     {
         type_id type;
-        std::string name;
+        cstring_view name;
         u32 offset;
         u32 parent;
         u32 firstChild;
@@ -27,7 +26,7 @@ namespace oblo
     struct property
     {
         type_id type;
-        std::string name;
+        cstring_view name;
         property_kind kind;
         bool isEnum;
         u32 offset;

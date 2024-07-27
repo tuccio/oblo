@@ -112,6 +112,11 @@ namespace oblo
             }
         }
 
+        bool is_stack_allocated(const byte* ptr) const noexcept
+        {
+            return m_stack.contains(ptr);
+        }
+
     private:
         stack_only_allocator<Size, Alignment, false> m_stack;
         allocator* m_fallback{};

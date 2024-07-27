@@ -198,7 +198,7 @@ namespace oblo
 
     struct job_manager::impl
     {
-        explicit impl(u32 numThreads) : threads{numThreads, get_global_allocator()} {}
+        explicit impl(u32 numThreads) : threads{get_global_allocator(), numThreads} {}
 
         dynamic_array<worker_thread> threads;
         std::pmr::synchronized_pool_resource userdataPool;

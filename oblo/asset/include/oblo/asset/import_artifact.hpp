@@ -4,8 +4,6 @@
 #include <oblo/core/string/string.hpp>
 #include <oblo/core/uuid.hpp>
 
-#include <string>
-
 namespace oblo
 {
     struct import_artifact

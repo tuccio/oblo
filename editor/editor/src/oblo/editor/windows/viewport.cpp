@@ -1,6 +1,8 @@
 #include <oblo/editor/windows/viewport.hpp>
 
 #include <oblo/core/iterator/zip_range.hpp>
+#include <oblo/core/string/string_builder.hpp>
+#include <oblo/core/utility.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/ecs/type_set.hpp>
@@ -23,8 +25,6 @@
 #include <oblo/scene/utility/ecs_utility.hpp>
 
 #include <imgui.h>
-
-#include <format>
 
 namespace oblo::editor
 {
@@ -74,7 +74,7 @@ namespace oblo::editor
             std::underlying_type_t<viewport_mode> value;
             std::memcpy(&value, viewportModeValues.data() + sizeof(viewport_mode) * i, sizeof(viewport_mode));
 
-            m_viewportModes[value] = viewportModeNames[i].as<std::string>();
+            m_viewportModes[value] = viewportModeNames[i];
         }
     }
 
@@ -82,10 +82,9 @@ namespace oblo::editor
     {
         bool open{true};
 
-        char buffer[64];
-        *std::format_to(buffer, "Viewport##{}", m_viewportId) = '\0';
+        string_builder buffer;
 
-        if (ImGui::Begin(buffer, &open))
+        if (ImGui::Begin(buffer.format("Viewport##{}", m_viewportId).c_str(), &open))
         {
             const auto regionMin = ImGui::GetWindowContentRegionMin();
             const auto regionMax = ImGui::GetWindowContentRegionMax();
@@ -95,10 +94,8 @@ namespace oblo::editor
 
             if (!m_entity)
             {
-                *std::format_to(buffer, "Viewport Camera #{}", m_viewportId) = '\0';
-
                 m_entity = ecs_utility::create_named_physical_entity<camera_component, viewport_component>(*m_entities,
-                    buffer,
+                    buffer.format("Viewport Camera #{}", m_viewportId).view(),
                     m_cameraController.get_position(),
                     m_cameraController.get_orientation(),
                     vec3::splat(1));
@@ -111,8 +108,8 @@ namespace oblo::editor
 
             auto& v = m_entities->get<viewport_component>(m_entity);
 
-            v.width = u32(windowSize.x);
-            v.height = u32(windowSize.y);
+            v.width = u32(max(0.f, windowSize.x));
+            v.height = u32(max(0.f, windowSize.y));
 
             const auto topLeft = ImGui::GetCursorPos();
 

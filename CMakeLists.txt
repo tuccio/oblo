@@ -13,7 +13,7 @@ include(oblo)
 
 enable_testing()
 
-oblo_setup_build_configurations()
+oblo_init()
 
 find_package(assimp REQUIRED)
 find_package(cxxopts REQUIRED)

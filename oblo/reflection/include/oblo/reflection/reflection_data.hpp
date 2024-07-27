@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
 
@@ -30,7 +31,7 @@ namespace oblo::reflection
     struct field_data
     {
         type_id type;
-        string_view name;
+        cstring_view name;
         u32 offset;
         dynamic_array<attribute_data> attributes;
     };

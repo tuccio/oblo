@@ -1,6 +1,5 @@
 #pragma once
 
-#include <oblo/core/string/string_interner.hpp>
 #include <oblo/core/type_id.hpp>
 
 #include <unordered_map>

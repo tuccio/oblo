@@ -21,7 +21,7 @@ namespace oblo
 
         if (mapIt == m_map.end())
         {
-            const auto [it, ok] = m_map.emplace(name.as<std::string>(), m_properties.size());
+            const auto [it, ok] = m_map.emplace(name.as<string>(), m_properties.size());
             m_properties.emplace_back(hashed_string_view{it->first}, type, value);
             return;
         }

@@ -6,10 +6,12 @@ option(OBLO_DEBUG "Activates code useful for debugging" OFF)
 
 define_property(GLOBAL PROPERTY oblo_3rdparty_targets BRIEF_DOCS "3rd party targets" FULL_DOCS "List of 3rd party targets")
 
+set(OBLO_FOLDER_BUILD "0 - Build")
 set(OBLO_FOLDER_APPLICATIONS "1 - Applications")
 set(OBLO_FOLDER_LIBRARIES "2 - Libraries")
 set(OBLO_FOLDER_TESTS "3 - Tests")
 set(OBLO_FOLDER_THIRDPARTY "4 - Third-party")
+set(OBLO_FOLDER_CMAKE "5 - CMake")
 
 macro(oblo_remove_cxx_flag _option_regex)
     string(TOUPPER ${CMAKE_BUILD_TYPE} _build_type)
@@ -250,3 +252,16 @@ function(oblo_create_symlink source target)
         execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${source} ${target})
     endif()
 endfunction(oblo_create_symlink)
+
+function(oblo_init)
+    set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER ${OBLO_FOLDER_CMAKE})
+    oblo_setup_build_configurations()
+
+    add_custom_target(cmake_configure COMMAND ${CMAKE_COMMAND} ${CMAKE_BINARY_DIR})
+
+    set_target_properties(
+        cmake_configure PROPERTIES
+        FOLDER ${OBLO_FOLDER_BUILD}
+        PROJECT_LABEL configure
+    )
+endfunction(oblo_init)

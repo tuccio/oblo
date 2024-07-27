@@ -1,7 +1,7 @@
 #pragma once
 
 #include <oblo/core/dynamic_array.hpp>
-#include <oblo/core/string/string_view.hpp>
+#include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/reflection/handles.hpp>
 #include <oblo/reflection/reflection_data.hpp>
@@ -58,7 +58,7 @@ namespace oblo::reflection
 
         std::span<const field_data> get_fields(class_handle classId) const;
 
-        std::span<const string_view> get_enumerator_names(enum_handle enumId) const;
+        std::span<const cstring_view> get_enumerator_names(enum_handle enumId) const;
         std::span<const byte> get_enumerator_values(enum_handle enumId) const;
         type_id get_underlying_type(enum_handle enumId) const;
 

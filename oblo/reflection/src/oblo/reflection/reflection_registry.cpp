@@ -103,7 +103,7 @@ namespace oblo::reflection
         return m_impl->registry.get<class_data>(e).fields;
     }
 
-    std::span<const string_view> reflection_registry::get_enumerator_names(enum_handle enumId) const
+    std::span<const cstring_view> reflection_registry::get_enumerator_names(enum_handle enumId) const
     {
         const auto e = ecs::entity{enumId.value};
         return m_impl->registry.get<enum_data>(e).names;

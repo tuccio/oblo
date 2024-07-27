@@ -1,13 +1,12 @@
 #pragma once
 
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/string/string.hpp>
 #include <oblo/core/struct_apply.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 #include <oblo/vulkan/texture.hpp>
-
-#include <string>
 
 namespace oblo::vk
 {
@@ -52,7 +51,7 @@ namespace oblo::vk
 
     struct frame_graph_node_desc
     {
-        std::string name;
+        string name;
 
         frame_graph_data_desc typeDesc;
 
