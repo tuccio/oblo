@@ -269,9 +269,9 @@ namespace oblo::vk
             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
         m_rtInstanceBuffer.init(*m_ctx,
-            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
                 VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
 
     void draw_registry::shutdown()
@@ -1065,21 +1065,66 @@ namespace oblo::vk
         // Finally build the TLAS
         VkDeviceAddress instanceBufferDeviceAddress{};
 
-        // TODO: Don't recreate the buffer every frame, rather stage the upload (which requires sorting out
-        // barriers)
-        m_rtInstanceBuffer.clear_and_shrink();
         m_rtInstanceBuffer.resize_discard(max(1u << 14, u32(instances.size_bytes())));
 
         const auto instanceBuffer = m_rtInstanceBuffer.get_buffer();
-
-        void* instanceBufferPtr;
-        OBLO_VK_PANIC(gpuAllocator.map(instanceBuffer.allocation, &instanceBufferPtr));
-        std::memcpy(instanceBufferPtr, instances.data(), instances.size_bytes());
-
-        gpuAllocator.invalidate_mapped_memory_ranges({&instanceBuffer.allocation, 1});
-        gpuAllocator.unmap(instanceBuffer.allocation);
-
         instanceBufferDeviceAddress = m_ctx->get_device_address(instanceBuffer);
+
+        if (!instances.empty())
+        {
+            // Upload data using the staging buffer
+            const auto staged = m_stagingBuffer->stage({instances.data_bytes(), instances.size_bytes()});
+            staged.assert_value();
+
+            if (staged)
+            {
+                const VkBufferMemoryBarrier2 before{
+                    .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+                    .srcStageMask = VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR |
+                        VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                    .srcAccessMask = VK_ACCESS_2_MEMORY_READ_BIT,
+                    .dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                    .dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .buffer = instanceBuffer.buffer,
+                    .offset = instanceBuffer.offset,
+                    .size = instanceBuffer.size,
+                };
+
+                const VkDependencyInfo beforeInfo{
+                    .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                    .bufferMemoryBarrierCount = 1u,
+                    .pBufferMemoryBarriers = &before,
+                };
+
+                vkCmdPipelineBarrier2(commandBuffer, &beforeInfo);
+
+                m_stagingBuffer->upload(commandBuffer, *staged, instanceBuffer.buffer, instanceBuffer.offset);
+
+                const VkBufferMemoryBarrier2 after{
+                    .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+                    .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                    .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                    .dstStageMask = VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR |
+                        VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                    .dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT,
+                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .buffer = instanceBuffer.buffer,
+                    .offset = instanceBuffer.offset,
+                    .size = instanceBuffer.size,
+                };
+
+                const VkDependencyInfo afterInfo{
+                    .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                    .bufferMemoryBarrierCount = 1u,
+                    .pBufferMemoryBarriers = &after,
+                };
+
+                vkCmdPipelineBarrier2(commandBuffer, &afterInfo);
+            }
+        }
 
         const VkAccelerationStructureGeometryKHR accelerationStructureGeometry{
             .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
