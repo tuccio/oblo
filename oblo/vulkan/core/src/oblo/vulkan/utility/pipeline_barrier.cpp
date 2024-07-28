@@ -118,6 +118,7 @@ namespace oblo::vk
         }
 
         case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL: {
+            barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
             destinationStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
             break;
         }
