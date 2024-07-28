@@ -46,6 +46,7 @@ namespace oblo::vk
         u32 alignment;
         bool initialized;
         bool markedForRemoval;
+        pass_kind passKind;
 
         h32_flat_extpool_dense_map<frame_graph_pin_storage, frame_graph_buffer_usage> bufferUsages;
     };

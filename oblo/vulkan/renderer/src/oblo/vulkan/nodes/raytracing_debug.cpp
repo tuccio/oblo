@@ -14,9 +14,9 @@
 
 namespace oblo::vk
 {
-    void raytracing_debug::init(const frame_graph_init_context& context)
+    void raytracing_debug::init(const frame_graph_init_context& ctx)
     {
-        auto& passManager = context.get_pass_manager();
+        auto& passManager = ctx.get_pass_manager();
 
         rtDebugPass = passManager.register_raytracing_pass({
             .name = "Ray-Tracing Debug Pass",
@@ -30,6 +30,8 @@ namespace oblo::vk
                     },
                 },
         });
+
+        ctx.set_pass_kind(pass_kind::raytracing);
     }
 
     void raytracing_debug::build(const frame_graph_build_context& ctx)
@@ -45,15 +47,11 @@ namespace oblo::vk
             },
             texture_usage::storage_write);
 
-        ctx.acquire(inCameraBuffer, pass_kind::raytracing, buffer_usage::uniform);
+        ctx.acquire(inCameraBuffer, buffer_usage::uniform);
 
-        ctx.acquire(inMeshDatabase, pass_kind::raytracing, buffer_usage::storage_read);
+        ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
 
-        acquire_instance_tables(ctx,
-            inInstanceTables,
-            inInstanceBuffers,
-            pass_kind::raytracing,
-            buffer_usage::storage_read);
+        acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
     }
 
     void raytracing_debug::execute(const frame_graph_execute_context& ctx)

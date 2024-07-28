@@ -34,6 +34,8 @@ namespace oblo::vk
         });
 
         OBLO_ASSERT(cullPass);
+
+        ctx.set_pass_kind(pass_kind::compute);
     }
 
     void frustum_culling::build(const frame_graph_build_context& ctx)
@@ -63,23 +65,17 @@ namespace oblo::vk
                         .size = sizeof(u32),
                         .data = {as_bytes(std::span{&zero, 1})},
                     },
-                    pass_kind::compute,
                     buffer_usage::storage_write),
                 .preCullingIdMap = ctx.create_dynamic_buffer(
                     {
                         .size = u32(draw.numInstances * sizeof(u32)),
                     },
-                    pass_kind::compute,
                     buffer_usage::storage_write),
                 .sourceData = draw,
             };
         }
 
-        acquire_instance_tables(ctx,
-            inInstanceTables,
-            inInstanceBuffers,
-            pass_kind::compute,
-            buffer_usage::storage_read);
+        acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
     }
 
     void frustum_culling::execute(const frame_graph_execute_context& ctx)

@@ -778,7 +778,7 @@ namespace oblo::vk
 
     void frame_graph_impl::rebuild_runtime(renderer& renderer)
     {
-        const frame_graph_init_context initCtx{renderer};
+        const frame_graph_init_context initCtx{*this, renderer};
 
         sortedNodes.clear();
         sortedNodes.reserve(nodes.size());
@@ -818,8 +818,10 @@ namespace oblo::vk
                     // If the node needs to be initialized, this is a good time
                     if (node->init && !node->initialized)
                     {
+                        currentNode = node;
                         node->init(node->ptr, initCtx);
                         node->initialized = true;
+                        currentNode = {};
                     }
                 }
 

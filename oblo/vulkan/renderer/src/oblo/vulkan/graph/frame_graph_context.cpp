@@ -189,10 +189,8 @@ namespace oblo::vk
         add_texture_usages(m_resourcePool, m_frameGraph, texture, usage);
     }
 
-    void frame_graph_build_context::create(resource<buffer> buffer,
-        const buffer_resource_initializer& initializer,
-        pass_kind passKind,
-        buffer_usage usage) const
+    void frame_graph_build_context::create(
+        resource<buffer> buffer, const buffer_resource_initializer& initializer, buffer_usage usage) const
     {
         auto vkUsage = convert_buffer_usage(usage);
 
@@ -220,12 +218,12 @@ namespace oblo::vk
 
         m_frameGraph.add_transient_buffer(buffer, poolIndex, stagedDataPtr);
 
-        const auto [pipelineStage, access] = convert_for_sync2(passKind, usage);
+        const auto [pipelineStage, access] = convert_for_sync2(m_frameGraph.currentNode->passKind, usage);
         m_frameGraph.set_buffer_access(buffer, pipelineStage, access);
     }
 
     void frame_graph_build_context::create(
-        resource<buffer> buffer, const staging_buffer_span& stagedData, pass_kind passKind, buffer_usage usage) const
+        resource<buffer> buffer, const staging_buffer_span& stagedData, buffer_usage usage) const
     {
         auto vkUsage = convert_buffer_usage(usage);
 
@@ -242,7 +240,7 @@ namespace oblo::vk
 
         m_frameGraph.add_transient_buffer(buffer, poolIndex, &stagedData);
 
-        const auto [pipelineStage, access] = convert_for_sync2(passKind, usage);
+        const auto [pipelineStage, access] = convert_for_sync2(m_frameGraph.currentNode->passKind, usage);
         m_frameGraph.set_buffer_access(buffer, pipelineStage, access);
     }
 
@@ -264,32 +262,32 @@ namespace oblo::vk
         return bindlessHandle;
     }
 
-    void frame_graph_build_context::acquire(resource<buffer> buffer, pass_kind passKind, buffer_usage usage) const
+    void frame_graph_build_context::acquire(resource<buffer> buffer, buffer_usage usage) const
     {
         const auto poolIndex = m_frameGraph.find_pool_index(buffer);
         m_resourcePool.add_transient_buffer_usage(poolIndex, convert_buffer_usage(usage));
-        const auto [pipelineStage, access] = convert_for_sync2(passKind, usage);
+        const auto [pipelineStage, access] = convert_for_sync2(m_frameGraph.currentNode->passKind, usage);
         m_frameGraph.set_buffer_access(buffer, pipelineStage, access);
     }
 
-    resource<buffer> frame_graph_build_context::create_dynamic_buffer(
-        const buffer_resource_initializer& initializer, pass_kind passKind, buffer_usage usage) const
+    resource<buffer> frame_graph_build_context::create_dynamic_buffer(const buffer_resource_initializer& initializer,
+        buffer_usage usage) const
     {
         const auto pinHandle = m_frameGraph.allocate_dynamic_resource_pin();
 
         const resource<buffer> resource{pinHandle.value};
-        create(resource, initializer, passKind, usage);
+        create(resource, initializer, usage);
 
         return resource;
     }
 
-    resource<buffer> frame_graph_build_context::create_dynamic_buffer(
-        const staging_buffer_span& stagedData, pass_kind passKind, buffer_usage usage) const
+    resource<buffer> frame_graph_build_context::create_dynamic_buffer(const staging_buffer_span& stagedData,
+        buffer_usage usage) const
     {
         const auto pinHandle = m_frameGraph.allocate_dynamic_resource_pin();
 
         const resource<buffer> resource{pinHandle.value};
-        create(resource, stagedData, passKind, usage);
+        create(resource, stagedData, usage);
 
         return resource;
     }
@@ -444,7 +442,10 @@ namespace oblo::vk
         return m_frameGraph.access_storage(handle);
     }
 
-    frame_graph_init_context::frame_graph_init_context(renderer& renderer) : m_renderer{renderer} {}
+    frame_graph_init_context::frame_graph_init_context(frame_graph_impl& frameGraph, renderer& renderer) :
+        m_frameGraph{frameGraph}, m_renderer{renderer}
+    {
+    }
 
     pass_manager& frame_graph_init_context::get_pass_manager() const
     {
@@ -454,5 +455,10 @@ namespace oblo::vk
     string_interner& frame_graph_init_context::get_string_interner() const
     {
         return m_renderer.get_string_interner();
+    }
+
+    void frame_graph_init_context::set_pass_kind(pass_kind passKind) const
+    {
+        m_frameGraph.currentNode->passKind = passKind;
     }
 }

@@ -13,14 +13,16 @@
 
 namespace oblo::vk
 {
-    void visibility_lighting::init(const frame_graph_init_context& context)
+    void visibility_lighting::init(const frame_graph_init_context& ctx)
     {
-        auto& passManager = context.get_pass_manager();
+        auto& passManager = ctx.get_pass_manager();
 
         lightingPass = passManager.register_compute_pass({
             .name = "Lighting Pass",
             .shaderSourcePath = "./vulkan/shaders/visibility/visibility_lighting.comp",
         });
+
+        ctx.set_pass_kind(pass_kind::compute);
     }
 
     void visibility_lighting::build(const frame_graph_build_context& ctx)
@@ -38,17 +40,13 @@ namespace oblo::vk
             },
             texture_usage::storage_write);
 
-        ctx.acquire(inCameraBuffer, pass_kind::compute, buffer_usage::uniform);
-        ctx.acquire(inLightConfig, pass_kind::compute, buffer_usage::uniform);
-        ctx.acquire(inLightBuffer, pass_kind::compute, buffer_usage::storage_read);
+        ctx.acquire(inCameraBuffer, buffer_usage::uniform);
+        ctx.acquire(inLightConfig, buffer_usage::uniform);
+        ctx.acquire(inLightBuffer, buffer_usage::storage_read);
 
-        ctx.acquire(inMeshDatabase, pass_kind::compute, buffer_usage::storage_read);
+        ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
 
-        acquire_instance_tables(ctx,
-            inInstanceTables,
-            inInstanceBuffers,
-            pass_kind::compute,
-            buffer_usage::storage_read);
+        acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
 
         const auto lights = ctx.access(inLights);
 
@@ -66,7 +64,6 @@ namespace oblo::vk
                 .size = narrow_cast<u32>(shadowMaps.size_bytes()),
                 .data = as_bytes(shadowMaps),
             },
-            pass_kind::compute,
             buffer_usage::storage_read);
     }
 
@@ -114,14 +111,16 @@ namespace oblo::vk
         }
     }
 
-    void visibility_debug::init(const frame_graph_init_context& context)
+    void visibility_debug::init(const frame_graph_init_context& ctx)
     {
-        auto& passManager = context.get_pass_manager();
+        auto& passManager = ctx.get_pass_manager();
 
         albedoPass = passManager.register_compute_pass({
             .name = "Debug Pass",
             .shaderSourcePath = "./vulkan/shaders/visibility/visibility_debug.comp",
         });
+
+        ctx.set_pass_kind(pass_kind::compute);
     }
 
     void visibility_debug::build(const frame_graph_build_context& ctx)
@@ -139,15 +138,11 @@ namespace oblo::vk
             },
             texture_usage::storage_write);
 
-        ctx.acquire(inCameraBuffer, pass_kind::compute, buffer_usage::uniform);
+        ctx.acquire(inCameraBuffer, buffer_usage::uniform);
 
-        ctx.acquire(inMeshDatabase, pass_kind::compute, buffer_usage::storage_read);
+        ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
 
-        acquire_instance_tables(ctx,
-            inInstanceTables,
-            inInstanceBuffers,
-            pass_kind::compute,
-            buffer_usage::storage_read);
+        acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
     }
 
     void visibility_debug::execute(const frame_graph_execute_context& ctx)

@@ -38,6 +38,8 @@ namespace oblo::vk
                     },
                 },
         });
+
+        ctx.set_pass_kind(pass_kind::graphics);
     }
 
     void visibility_pass::build(const frame_graph_build_context& ctx)
@@ -64,23 +66,19 @@ namespace oblo::vk
 
         for (const auto& drawData : ctx.access(inDrawData))
         {
-            ctx.acquire(drawData.drawCallCountBuffer, pass_kind::graphics, buffer_usage::indirect);
-            ctx.acquire(drawData.preCullingIdMap, pass_kind::graphics, buffer_usage::storage_read);
+            ctx.acquire(drawData.drawCallCountBuffer, buffer_usage::indirect);
+            ctx.acquire(drawData.preCullingIdMap, buffer_usage::storage_read);
         }
 
         for (const auto& drawCallBuffer : ctx.access(inDrawCallBuffer))
         {
-            ctx.acquire(drawCallBuffer, pass_kind::graphics, buffer_usage::indirect);
+            ctx.acquire(drawCallBuffer, buffer_usage::indirect);
         }
 
-        ctx.acquire(inCameraBuffer, pass_kind::graphics, buffer_usage::uniform);
-        ctx.acquire(inMeshDatabase, pass_kind::graphics, buffer_usage::storage_read);
+        ctx.acquire(inCameraBuffer, buffer_usage::uniform);
+        ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
 
-        acquire_instance_tables(ctx,
-            inInstanceTables,
-            inInstanceBuffers,
-            pass_kind::graphics,
-            buffer_usage::storage_read);
+        acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
     }
 
     void visibility_pass::execute(const frame_graph_execute_context& ctx)

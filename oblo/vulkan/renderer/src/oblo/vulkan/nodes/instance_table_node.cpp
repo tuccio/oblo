@@ -13,6 +13,11 @@ namespace oblo::vk
         u64 bufferAddress[MaxInstanceBuffers];
     };
 
+    void instance_table_node::init(const frame_graph_init_context& ctx)
+    {
+        ctx.set_pass_kind(pass_kind::transfer);
+    }
+
     void instance_table_node::build(const frame_graph_build_context& ctx)
     {
         const auto& drawRegistry = ctx.get_draw_registry();
@@ -29,7 +34,6 @@ namespace oblo::vk
             // Still create a dummy table, just not to upset anyone down the line
             ctx.create(outInstanceTables,
                 buffer_resource_initializer{.size = sizeof(instance_data_table)},
-                pass_kind::transfer,
                 buffer_usage::storage_upload);
 
             return;
@@ -46,9 +50,8 @@ namespace oblo::vk
 
             for (u32 i = 0; i < srcInstanceBuffer.count; ++i)
             {
-                bufferResources[i] = ctx.create_dynamic_buffer(srcInstanceBuffer.buffersData[i],
-                    pass_kind::none, // Not actually used in this node, so this should not matter
-                    buffer_usage::storage_upload);
+                bufferResources[i] =
+                    ctx.create_dynamic_buffer(srcInstanceBuffer.buffersData[i], buffer_usage::storage_upload);
             }
 
             instanceBuffers[drawIndex] = {
@@ -59,7 +62,6 @@ namespace oblo::vk
 
         ctx.create(outInstanceTables,
             buffer_resource_initializer{.size = u32(numTables * sizeof(instance_data_table))},
-            pass_kind::transfer,
             buffer_usage::storage_upload);
 
         instanceTableArray = allocate_n_span<instance_data_table>(frameAllocator, numTables);
@@ -98,16 +100,15 @@ namespace oblo::vk
     void acquire_instance_tables(const frame_graph_build_context& ctx,
         resource<buffer> instanceTables,
         data<instance_data_table_buffers_span> instanceBuffers,
-        pass_kind pass,
         buffer_usage usage)
     {
-        ctx.acquire(instanceTables, pass, usage);
+        ctx.acquire(instanceTables, usage);
 
         for (const auto& instanceBuffer : ctx.access(instanceBuffers))
         {
             for (const auto& r : instanceBuffer.bufferResources)
             {
-                ctx.acquire(r, pass, usage);
+                ctx.acquire(r, usage);
             }
         }
     }
