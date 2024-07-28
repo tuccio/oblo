@@ -167,6 +167,7 @@ namespace oblo::vk
             .usage = convert_usage(usage) | VK_IMAGE_USAGE_SAMPLED_BIT | initializer.usage,
             .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
             .memoryUsage = memory_usage::gpu_only,
+            .debugLabel = initializer.debugLabel,
         };
 
         // TODO: (#29) Reuse and alias texture memory
