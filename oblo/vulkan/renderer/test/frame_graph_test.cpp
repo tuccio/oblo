@@ -12,6 +12,7 @@
 #include <oblo/vulkan/graph/frame_graph_template.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 #include <oblo/vulkan/renderer.hpp>
+#include <oblo/vulkan/required_features.hpp>
 #include <oblo/vulkan/texture.hpp>
 
 #include <gtest/gtest.h>
@@ -137,6 +138,26 @@ namespace oblo::vk::test
 
         struct test_wrapper
         {
+            std::span<const char* const> get_required_instance_extensions() const
+            {
+                return renderer::get_required_features().instanceExtensions;
+            }
+
+            VkPhysicalDeviceFeatures2 get_required_physical_device_features() const
+            {
+                return renderer::get_required_features().physicalDeviceFeatures;
+            }
+
+            void* get_required_device_features() const
+            {
+                return renderer::get_required_features().deviceFeaturesChain;
+            }
+
+            std::span<const char* const> get_required_device_extensions() const
+            {
+                return renderer::get_required_features().deviceExtensions;
+            }
+
             bool startup(const sandbox_startup_context& ctx)
             {
                 frameAllocator.init(1u << 26);
