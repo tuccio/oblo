@@ -111,7 +111,7 @@ namespace oblo::vk
         m_frameGraph.build(*this);
 
         // Frame graph building might update the texture descriptors, so we begin the pass manager frame after that
-        m_passManager.begin_frame();
+        m_passManager.begin_frame(commandBuffer.get());
 
         m_frameGraph.execute(*this);
 
@@ -158,6 +158,7 @@ namespace oblo::vk
             .descriptorBindingPartiallyBound = true,
             .descriptorBindingVariableDescriptorCount = true,
             .runtimeDescriptorArray = true,
+            .hostQueryReset = true,
             .timelineSemaphore = true,
             .bufferDeviceAddress = true,
         };
@@ -206,6 +207,8 @@ namespace oblo::vk
             VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
             VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
             VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME, // This is only needed for debug printf
+            VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME,    // We need this for profiling with Tracy
+            VK_EXT_HOST_QUERY_RESET_EXTENSION_NAME,         // We need this for profiling with Tracy
         };
     }
 

@@ -93,13 +93,13 @@ namespace oblo::vk
         swapchain<SwapchainImages> m_swapchain;
         h32<texture> m_swapchainTextures[SwapchainImages]{};
 
-        u32 m_renderWidth;
-        u32 m_renderHeight;
+        u32 m_renderWidth{};
+        u32 m_renderHeight{};
 
-        VkSemaphore m_acquiredImage{nullptr};
-        VkSemaphore m_frameCompleted{nullptr};
+        u32 m_semaphoreIndex{};
 
-        u64 m_currentSemaphoreValue{0};
+        VkSemaphore m_acquiredImages[SwapchainImages]{};
+        VkSemaphore m_frameCompleted[SwapchainImages]{};
 
         imgui m_imgui;
 

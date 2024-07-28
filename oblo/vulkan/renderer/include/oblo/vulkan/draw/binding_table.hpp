@@ -22,6 +22,7 @@ namespace oblo::vk
     struct bindable_texture
     {
         VkImageView view;
+        VkImageLayout layout;
     };
 
     struct bindable_acceleration_structure
@@ -45,9 +46,9 @@ namespace oblo::vk
         return {.kind = bindable_object_kind::buffer, .buffer = b};
     }
 
-    constexpr bindable_object make_bindable_object(VkImageView view)
+    constexpr bindable_object make_bindable_object(VkImageView view, VkImageLayout layout)
     {
-        return {.kind = bindable_object_kind::texture, .texture = {view}};
+        return {.kind = bindable_object_kind::texture, .texture = {view, layout}};
     }
 
     constexpr bindable_object make_bindable_object(VkAccelerationStructureKHR accelerationStructure)

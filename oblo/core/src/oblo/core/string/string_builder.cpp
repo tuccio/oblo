@@ -63,6 +63,18 @@ namespace oblo
         return *this;
     }
 
+    namespace
+    {
+        constexpr bool is_path_separator(char c)
+        {
+#ifdef _WIN32
+            return c == '\\' || c == '/';
+#else
+            return c == '/';
+#endif
+        }
+    }
+
     string_builder& string_builder::append_path_separator()
     {
 #ifdef _WIN32
@@ -70,6 +82,11 @@ namespace oblo
 #else
         constexpr char separator = '/';
 #endif
+
+        if (const auto len = size(); len > 0 && is_path_separator(m_buffer[len - 1]))
+        {
+            return *this;
+        }
 
         return append(separator);
     }

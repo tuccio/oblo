@@ -290,7 +290,10 @@ namespace oblo::vk
         if (m_lastFrameAllocation)
         {
             ctx.destroy_deferred(m_lastFrameAllocation, submitIndex);
+            m_lastFrameAllocation = {};
         }
+
+        m_lastFrameTransientTextures.clear();
     }
 
     void resource_pool::create_textures(vulkan_context& ctx)
@@ -355,6 +358,8 @@ namespace oblo::vk
 
         m_allocation = allocator.create_memory(newRequirements, memory_usage::gpu_only);
 
+        const auto debugUtils = ctx.get_debug_utils_object();
+
         VkDeviceSize offset{0};
         for (auto& textureResource : m_textureResources)
         {
@@ -368,6 +373,13 @@ namespace oblo::vk
 
             textureResource.imageView =
                 create_image_view_2d(device, textureResource.image, textureResource.initializer.format, allocationCbs);
+
+            if (!textureResource.initializer.debugLabel.empty())
+            {
+                debugUtils.set_object_name(device,
+                    textureResource.imageView,
+                    textureResource.initializer.debugLabel.get());
+            }
         }
     }
 
@@ -425,12 +437,20 @@ namespace oblo::vk
             auto& allocator = ctx.get_allocator();
             OBLO_VK_PANIC(allocator.create_image(resource.initializer, &it->second.allocatedImage));
 
-            it->second.imageView = create_image_view_2d(ctx.get_device(),
+            auto device = ctx.get_device();
+
+            const auto imageView = create_image_view_2d(device,
                 it->second.allocatedImage.image,
                 resource.initializer.format,
                 allocator.get_allocation_callbacks());
 
+            it->second.imageView = imageView;
             it->second.creationTime = m_frame;
+
+            if (!resource.initializer.debugLabel.empty())
+            {
+                ctx.get_debug_utils_object().set_object_name(device, imageView, resource.initializer.debugLabel.get());
+            }
         }
 
         resource.image = it->second.allocatedImage.image;

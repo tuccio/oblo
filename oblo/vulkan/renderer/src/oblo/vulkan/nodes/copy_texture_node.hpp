@@ -15,16 +15,21 @@ namespace oblo::vk
 
         resource<texture> inSource;
 
-        void build(const frame_graph_build_context& context)
+        void init(const frame_graph_init_context& ctx)
         {
-            context.acquire(inSource, texture_usage::transfer_source);
+            ctx.set_pass_kind(pass_kind::transfer);
         }
 
-        void execute(const frame_graph_execute_context& context)
+        void build(const frame_graph_build_context& ctx)
         {
-            const auto targetInfo = context.access(inTarget);
+            ctx.acquire(inSource, texture_usage::transfer_source);
+        }
 
-            const texture sourceTex = context.access(inSource);
+        void execute(const frame_graph_execute_context& ctx)
+        {
+            const auto targetInfo = ctx.access(inTarget);
+
+            const texture sourceTex = ctx.access(inSource);
 
             OBLO_ASSERT(targetInfo.image);
             OBLO_ASSERT(sourceTex.image);
@@ -43,7 +48,7 @@ namespace oblo::vk
                 .extent = sourceTex.initializer.extent,
             };
 
-            const auto commandBuffer = context.get_command_buffer();
+            const auto commandBuffer = ctx.get_command_buffer();
 
             add_pipeline_barrier_cmd(commandBuffer,
                 targetInfo.initialLayout,

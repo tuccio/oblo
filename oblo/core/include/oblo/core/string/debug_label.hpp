@@ -35,6 +35,8 @@ namespace oblo
 
         constexpr const char* get() const;
 
+        constexpr bool empty() const;
+
     private:
         static constexpr auto MaxLength{63u};
         static constexpr auto Size{MaxLength + 1u};
@@ -44,5 +46,10 @@ namespace oblo
     constexpr const char* oblo::debug_label::get() const
     {
         return m_label;
+    }
+
+    inline constexpr bool debug_label::empty() const
+    {
+        return m_label[0] == '\0';
     }
 }

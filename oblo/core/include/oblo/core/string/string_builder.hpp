@@ -54,6 +54,10 @@ namespace oblo
         char* mutable_data();
         usize size() const;
 
+        const char* begin() const;
+
+        const char* end() const;
+
         cstring_view view() const;
 
         explicit operator string_view() const;
@@ -75,17 +79,17 @@ namespace oblo
         buffered_array<char, 256> m_buffer;
     };
 
-    inline string_builder::string_builder()
+    OBLO_FORCEINLINE string_builder::string_builder()
     {
         m_buffer.emplace_back('\0');
     }
 
-    inline string_builder::string_builder(allocator* allocator) : m_buffer{allocator}
+    OBLO_FORCEINLINE string_builder::string_builder(allocator* allocator) : m_buffer{allocator}
     {
         m_buffer.emplace_back('\0');
     }
 
-    inline string_builder& string_builder::append(char c)
+    OBLO_FORCEINLINE string_builder& string_builder::append(char c)
     {
         m_buffer.pop_back();
         m_buffer.push_back(c);
@@ -93,12 +97,12 @@ namespace oblo
         return *this;
     }
 
-    inline string_builder& string_builder::append(cstring_view str)
+    OBLO_FORCEINLINE string_builder& string_builder::append(cstring_view str)
     {
         return append(string_view{str});
     }
 
-    inline string_builder& string_builder::append(string_view str)
+    OBLO_FORCEINLINE string_builder& string_builder::append(string_view str)
     {
         m_buffer.pop_back();
         m_buffer.insert(m_buffer.end(), str.begin(), str.end());
@@ -138,39 +142,49 @@ namespace oblo
     }
 
     template <typename T>
-    inline T string_builder::as() const noexcept
+    OBLO_FORCEINLINE T string_builder::as() const noexcept
     {
         return T{data(), size()};
     }
 
-    inline string_builder& string_builder::clear()
+    OBLO_FORCEINLINE string_builder& string_builder::clear()
     {
         m_buffer.assign(1u, '\0');
         return *this;
     }
 
-    inline const char* string_builder::c_str() const
+    OBLO_FORCEINLINE const char* string_builder::c_str() const
     {
         return m_buffer.data();
     }
 
-    inline const char* string_builder::data() const
+    OBLO_FORCEINLINE const char* string_builder::data() const
     {
         return m_buffer.data();
     }
 
-    inline char* string_builder::mutable_data()
+    OBLO_FORCEINLINE char* string_builder::mutable_data()
     {
         return m_buffer.data();
     }
 
-    inline usize string_builder::size() const
+    OBLO_FORCEINLINE usize string_builder::size() const
     {
         OBLO_ASSERT(!m_buffer.empty());
         return m_buffer.size() - 1;
     }
 
-    inline void string_builder::ensure_null_termination()
+    OBLO_FORCEINLINE const char* string_builder::begin() const
+    {
+        return data();
+    }
+
+    OBLO_FORCEINLINE const char* string_builder::end() const
+    {
+        return data() + size();
+    }
+
+    OBLO_FORCEINLINE void string_builder::ensure_null_termination()
     {
         if (m_buffer.empty() || m_buffer.back() != '\0')
         {
@@ -178,29 +192,29 @@ namespace oblo
         }
     }
 
-    inline cstring_view string_builder::view() const
+    OBLO_FORCEINLINE cstring_view string_builder::view() const
     {
         return cstring_view{m_buffer.data(), size()};
     }
 
-    inline string_builder::operator string_view() const
+    OBLO_FORCEINLINE string_builder::operator string_view() const
     {
         return string_view{m_buffer.data(), size()};
     }
 
-    inline string_builder::operator cstring_view() const
+    OBLO_FORCEINLINE string_builder::operator cstring_view() const
     {
         return cstring_view{m_buffer.data(), size()};
     }
 
-    inline string_builder& string_builder::operator=(string_view str)
+    OBLO_FORCEINLINE string_builder& string_builder::operator=(string_view str)
     {
         m_buffer.assign(str.begin(), str.end());
         ensure_null_termination();
         return *this;
     }
 
-    inline void string_builder::reserve(usize size)
+    OBLO_FORCEINLINE void string_builder::reserve(usize size)
     {
         m_buffer.reserve(size);
     }

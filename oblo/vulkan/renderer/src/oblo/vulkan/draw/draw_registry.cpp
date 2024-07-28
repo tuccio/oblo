@@ -269,9 +269,9 @@ namespace oblo::vk
             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
         m_rtInstanceBuffer.init(*m_ctx,
-            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
                 VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
 
     void draw_registry::shutdown()
@@ -531,8 +531,9 @@ namespace oblo::vk
         {
             const VkMemoryBarrier2 before{
                 .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
-                .srcStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                .srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT,
+                .srcStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT |
+                    VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                .srcAccessMask = VK_ACCESS_2_MEMORY_READ_BIT,
                 .dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
                 .dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
             };
@@ -554,8 +555,9 @@ namespace oblo::vk
                 .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
                 .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
                 .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                .dstStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                .dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT,
+                .dstStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT |
+                    VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                .dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT,
             };
 
             const VkDependencyInfo afterDependencyInfo{
@@ -1058,32 +1060,70 @@ namespace oblo::vk
         }
 
         // Temporarily we just destroy the TLAS every frame and recreate it
-
-        if (m_tlas.accelerationStructure)
-        {
-            m_ctx->destroy_deferred(m_tlas.accelerationStructure, m_ctx->get_submit_index());
-            m_ctx->destroy_deferred(m_tlas.buffer.buffer, m_ctx->get_submit_index());
-            m_ctx->destroy_deferred(m_tlas.buffer.allocation, m_ctx->get_submit_index());
-
-            m_tlas = {};
-        }
+        release(m_tlas);
 
         // Finally build the TLAS
         VkDeviceAddress instanceBufferDeviceAddress{};
 
+        m_rtInstanceBuffer.resize_discard(max(1u << 14, u32(instances.size_bytes())));
+
+        const auto instanceBuffer = m_rtInstanceBuffer.get_buffer();
+        instanceBufferDeviceAddress = m_ctx->get_device_address(instanceBuffer);
+
         if (!instances.empty())
         {
-            m_rtInstanceBuffer.resize_discard(u32(instances.size_bytes()));
-            const auto instanceBuffer = m_rtInstanceBuffer.get_buffer();
+            // Upload data using the staging buffer
+            const auto staged = m_stagingBuffer->stage({instances.data_bytes(), instances.size_bytes()});
+            staged.assert_value();
 
-            void* instanceBufferPtr;
-            OBLO_VK_PANIC(gpuAllocator.map(instanceBuffer.allocation, &instanceBufferPtr));
-            std::memcpy(instanceBufferPtr, instances.data(), instances.size_bytes());
+            if (staged)
+            {
+                const VkBufferMemoryBarrier2 before{
+                    .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+                    .srcStageMask = VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR |
+                        VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                    .srcAccessMask = VK_ACCESS_2_MEMORY_READ_BIT,
+                    .dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                    .dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .buffer = instanceBuffer.buffer,
+                    .offset = instanceBuffer.offset,
+                    .size = instanceBuffer.size,
+                };
 
-            gpuAllocator.invalidate_mapped_memory_ranges({&instanceBuffer.allocation, 1});
-            gpuAllocator.unmap(instanceBuffer.allocation);
+                const VkDependencyInfo beforeInfo{
+                    .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                    .bufferMemoryBarrierCount = 1u,
+                    .pBufferMemoryBarriers = &before,
+                };
 
-            instanceBufferDeviceAddress = m_ctx->get_device_address(instanceBuffer);
+                vkCmdPipelineBarrier2(commandBuffer, &beforeInfo);
+
+                m_stagingBuffer->upload(commandBuffer, *staged, instanceBuffer.buffer, instanceBuffer.offset);
+
+                const VkBufferMemoryBarrier2 after{
+                    .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+                    .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                    .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                    .dstStageMask = VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR |
+                        VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                    .dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT,
+                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .buffer = instanceBuffer.buffer,
+                    .offset = instanceBuffer.offset,
+                    .size = instanceBuffer.size,
+                };
+
+                const VkDependencyInfo afterInfo{
+                    .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                    .bufferMemoryBarrierCount = 1u,
+                    .pBufferMemoryBarriers = &after,
+                };
+
+                vkCmdPipelineBarrier2(commandBuffer, &afterInfo);
+            }
         }
 
         const VkAccelerationStructureGeometryKHR accelerationStructureGeometry{
@@ -1150,44 +1190,61 @@ namespace oblo::vk
         m_tlas.deviceAddress =
             vkFn.vkGetAccelerationStructureDeviceAddressKHR(m_ctx->get_device(), &accelerationDeviceAddressInfo);
 
-        if (!instances.empty())
+        m_rtScratchBuffer.resize_discard(narrow_cast<u32>(sizeInfo.buildScratchSize));
+        const auto tlasScratchBuffer = m_rtScratchBuffer.get_buffer();
+
+        const VkAccelerationStructureBuildGeometryInfoKHR accelerationBuildGeometryInfo{
+            .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
+            .type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
+            .flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR,
+            .mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
+            .dstAccelerationStructure = m_tlas.accelerationStructure,
+            .geometryCount = 1,
+            .pGeometries = &accelerationStructureGeometry,
+            .scratchData =
+                {
+                    .deviceAddress = m_ctx->get_device_address(tlasScratchBuffer),
+                },
+        };
+
+        const VkAccelerationStructureBuildRangeInfoKHR accelerationStructureBuildRangeInfo{
+            .primitiveCount = instanceCount,
+            .primitiveOffset = 0,
+            .firstVertex = 0,
+            .transformOffset = 0,
+        };
+
+        const VkAccelerationStructureBuildRangeInfoKHR* const accelerationStructureBuildRangeInfos[] = {
+            &accelerationStructureBuildRangeInfo,
+        };
+
+        m_ctx->begin_debug_label(commandBuffer, "Build TLAS");
+
+        vkFn.vkCmdBuildAccelerationStructuresKHR(commandBuffer,
+            1,
+            &accelerationBuildGeometryInfo,
+            accelerationStructureBuildRangeInfos);
+
+        m_ctx->end_debug_label(commandBuffer);
+
         {
-            m_rtScratchBuffer.resize_discard(narrow_cast<u32>(sizeInfo.buildScratchSize));
-            const auto tlasScratchBuffer = m_rtScratchBuffer.get_buffer();
+            // Finally add a barrier for using the TLAS in ray tracing pipelines
 
-            const VkAccelerationStructureBuildGeometryInfoKHR accelerationBuildGeometryInfo{
-                .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
-                .type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
-                .flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR,
-                .mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
-                .dstAccelerationStructure = m_tlas.accelerationStructure,
-                .geometryCount = 1,
-                .pGeometries = &accelerationStructureGeometry,
-                .scratchData =
-                    {
-                        .deviceAddress = m_ctx->get_device_address(tlasScratchBuffer),
-                    },
+            const VkMemoryBarrier2 tlasBarrier{
+                .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+                .srcStageMask = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                .srcAccessMask = VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR,
+                .dstStageMask = VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR,
+                .dstAccessMask = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR,
             };
 
-            const VkAccelerationStructureBuildRangeInfoKHR accelerationStructureBuildRangeInfo{
-                .primitiveCount = instanceCount,
-                .primitiveOffset = 0,
-                .firstVertex = 0,
-                .transformOffset = 0,
+            const VkDependencyInfo dependencyInfo{
+                .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                .memoryBarrierCount = 1u,
+                .pMemoryBarriers = &tlasBarrier,
             };
 
-            const VkAccelerationStructureBuildRangeInfoKHR* const accelerationStructureBuildRangeInfos[] = {
-                &accelerationStructureBuildRangeInfo,
-            };
-
-            m_ctx->begin_debug_label(commandBuffer, "Build TLAS");
-
-            vkFn.vkCmdBuildAccelerationStructuresKHR(commandBuffer,
-                1,
-                &accelerationBuildGeometryInfo,
-                accelerationStructureBuildRangeInfos);
-
-            m_ctx->end_debug_label(commandBuffer);
+            vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
         }
     }
 

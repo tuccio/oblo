@@ -10,6 +10,7 @@
 #include <oblo/vulkan/graph/frame_graph_node_desc.hpp>
 #include <oblo/vulkan/graph/frame_graph_template.hpp>
 #include <oblo/vulkan/graph/frame_graph_vertex_kind.hpp>
+#include <oblo/vulkan/graph/image_layout_tracker.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 #include <oblo/vulkan/graph/resource_pool.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
@@ -32,6 +33,7 @@ namespace oblo::vk
     {
         VkPipelineStageFlags2 stages;
         VkAccessFlags2 access;
+        bool uploadedTo;
     };
 
     struct frame_graph_node
@@ -46,6 +48,7 @@ namespace oblo::vk
         u32 alignment;
         bool initialized;
         bool markedForRemoval;
+        pass_kind passKind;
 
         h32_flat_extpool_dense_map<frame_graph_pin_storage, frame_graph_buffer_usage> bufferUsages;
     };
@@ -181,7 +184,7 @@ namespace oblo::vk
         frame_allocator dynamicAllocator;
         resource_manager* resourceManager{};
 
-        command_buffer_state commandBufferState;
+        image_layout_tracker imageLayoutTracker;
 
         dynamic_array<frame_graph_node_to_execute> sortedNodes;
         h32_flat_pool_dense_map<frame_graph_texture> textures;
@@ -219,7 +222,8 @@ namespace oblo::vk
 
         void add_transient_buffer(
             resource<buffer> handle, h32<transient_buffer_resource> transientBuffer, const staging_buffer_span* upload);
-        void set_buffer_access(resource<buffer> handle, VkPipelineStageFlags2 pipelineStage, VkAccessFlags2 access);
+        void set_buffer_access(
+            resource<buffer> handle, VkPipelineStageFlags2 pipelineStage, VkAccessFlags2 access, bool uploadedTo);
 
         // This is called in assert by executors, to check that we declared the upload when building
         bool can_exec_time_upload(resource<buffer> handle) const;

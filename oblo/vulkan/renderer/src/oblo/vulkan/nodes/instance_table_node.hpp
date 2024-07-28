@@ -24,6 +24,7 @@ namespace oblo::vk
 
         std::span<instance_data_table> instanceTableArray;
 
+        void init(const frame_graph_init_context& ctx);
         void build(const frame_graph_build_context& ctx);
         void execute(const frame_graph_execute_context& ctx);
     };
@@ -31,6 +32,5 @@ namespace oblo::vk
     void acquire_instance_tables(const frame_graph_build_context& ctx,
         resource<buffer> instanceTables,
         data<instance_data_table_buffers_span> instanceBuffers,
-        pass_kind pass,
         buffer_usage usage);
 }

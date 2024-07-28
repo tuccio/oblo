@@ -82,13 +82,16 @@ namespace oblo::vk
         h32<raytracing_pipeline> get_or_create_pipeline(h32<raytracing_pass> handle,
             const raytracing_pipeline_initializer& desc);
 
-        void begin_frame();
+        void begin_frame(VkCommandBuffer commandBuffer);
         void end_frame();
 
         void update_instance_data_defines(string_view defines);
 
         void toggle_printf();
         void enable_printf(u32 frames);
+
+        bool is_profiling_enabled() const;
+        void set_profiling_enabled(bool enabled);
 
         [[nodiscard]] expected<render_pass_context> begin_render_pass(
             VkCommandBuffer commandBuffer, h32<render_pipeline> pipeline, const VkRenderingInfo& renderingInfo) const;
@@ -139,18 +142,21 @@ namespace oblo::vk
     struct render_pass_context
     {
         VkCommandBuffer commandBuffer;
+        void* internalCtx;
         const render_pipeline* internalPipeline;
     };
 
     struct compute_pass_context
     {
         VkCommandBuffer commandBuffer;
+        void* internalCtx;
         const compute_pipeline* internalPipeline;
     };
 
     struct raytracing_pass_context
     {
         VkCommandBuffer commandBuffer;
+        void* internalCtx;
         const raytracing_pipeline* internalPipeline;
     };
 }

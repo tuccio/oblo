@@ -15,9 +15,9 @@
 
 namespace oblo::vk
 {
-    void raytraced_shadows::init(const frame_graph_init_context& context)
+    void raytraced_shadows::init(const frame_graph_init_context& ctx)
     {
-        auto& passManager = context.get_pass_manager();
+        auto& passManager = ctx.get_pass_manager();
 
         shadowPass = passManager.register_raytracing_pass({
             .name = "Ray-Traced Shadows",
@@ -31,6 +31,8 @@ namespace oblo::vk
                     },
                 },
         });
+
+        ctx.set_pass_kind(pass_kind::raytracing);
     }
 
     void raytraced_shadows::build(const frame_graph_build_context& ctx)
@@ -48,8 +50,10 @@ namespace oblo::vk
             },
             texture_usage::storage_write);
 
-        ctx.acquire(inCameraBuffer, pass_kind::raytracing, buffer_usage::uniform);
-        ctx.acquire(inLightBuffer, pass_kind::raytracing, buffer_usage::storage_read);
+        ctx.acquire(inDepthBuffer, texture_usage::shader_read);
+
+        ctx.acquire(inCameraBuffer, buffer_usage::uniform);
+        ctx.acquire(inLightBuffer, buffer_usage::storage_read);
 
         ctx.push(outShadowSink, {outShadow, config.lightIndex});
 

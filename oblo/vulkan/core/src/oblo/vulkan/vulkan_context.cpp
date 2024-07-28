@@ -144,6 +144,11 @@ namespace oblo::vk
 
         m_allocator->set_object_debug_utils(m_debugUtilsObject);
 
+        m_debugUtilsObject.set_object_name(m_engine->get_device(),
+            VK_OBJECT_TYPE_QUEUE,
+            std::bit_cast<u64>(m_engine->get_queue()),
+            OBLO_STRINGIZE(single_queue_engine::m_queue));
+
         return true;
     }
 

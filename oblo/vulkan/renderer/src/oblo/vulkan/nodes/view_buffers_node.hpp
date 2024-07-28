@@ -42,7 +42,6 @@ namespace oblo::vk
                     .size = sizeof(camera_buffer),
                     .data = std::as_bytes(std::span{&cameraBuffer, 1}),
                 },
-                pass_kind::none,
                 buffer_usage::uniform);
 
             ctx.create(outTimeBuffer,
@@ -50,7 +49,6 @@ namespace oblo::vk
                     .size = sizeof(time_buffer),
                     .data = std::as_bytes(std::span{&timeBuffer, 1}),
                 },
-                pass_kind::none,
                 buffer_usage::uniform);
 
             ctx.create(outMeshDatabase,
@@ -58,14 +56,9 @@ namespace oblo::vk
                     .size = u32(meshDatabaseData.size()),
                     .data = meshDatabaseData,
                 },
-                pass_kind::none,
                 buffer_usage::storage_read);
 
-            acquire_instance_tables(ctx,
-                inInstanceTables,
-                inInstanceBuffers,
-                pass_kind::none,
-                buffer_usage::storage_read);
+            acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
         }
 
         void execute(const frame_graph_execute_context& ctx)

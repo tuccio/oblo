@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/string/debug_label.hpp>
 #include <oblo/core/types.hpp>
 
 #include <span>
@@ -15,6 +16,7 @@ namespace oblo::vk
         VkFormat format;
         VkImageUsageFlags usage;
         bool isStable;
+        debug_label debugLabel{std::source_location::current()};
     };
 
     struct buffer_resource_initializer

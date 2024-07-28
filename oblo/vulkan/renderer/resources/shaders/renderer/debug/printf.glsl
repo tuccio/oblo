@@ -42,6 +42,12 @@
             Op;                                                                                                        \
         }
 
+    #define debug_assert(Condition)                                                                                    \
+        if (!(Condition))                                                                                              \
+        {                                                                                                              \
+            debugPrintfEXT("Failed assertion at line %d\n", __LINE__);                                                 \
+        }
+
 #else
 
     #define printf_block_begin(Condition)
@@ -53,6 +59,7 @@
     #define printf_vec4(Label, Vector)
 
     #define debug_if(Condition, Op)
+    #define debug_assert(Condition)
 
 #endif
 

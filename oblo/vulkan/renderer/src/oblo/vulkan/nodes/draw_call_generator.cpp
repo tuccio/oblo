@@ -25,6 +25,8 @@ namespace oblo::vk
         });
 
         OBLO_ASSERT(drawCallGeneratorPass);
+
+        ctx.set_pass_kind(pass_kind::compute);
     }
 
     void draw_call_generator::build(const frame_graph_build_context& ctx)
@@ -47,23 +49,19 @@ namespace oblo::vk
         {
             auto& draw = drawBufferData[i];
 
-            ctx.acquire(draw.preCullingIdMap, pass_kind::compute, buffer_usage::storage_read);
-            ctx.acquire(draw.drawCallCountBuffer, pass_kind::compute, buffer_usage::storage_read);
+            ctx.acquire(draw.preCullingIdMap, buffer_usage::storage_read);
+            ctx.acquire(draw.drawCallCountBuffer, buffer_usage::storage_read);
 
             drawCallBuffer[i] = ctx.create_dynamic_buffer(
                 {
                     .size = u32(draw.sourceData.numInstances * sizeof(VkDrawMeshTasksIndirectCommandEXT)),
 
                 },
-                pass_kind::compute,
+
                 buffer_usage::storage_write);
         }
 
-        acquire_instance_tables(ctx,
-            inInstanceTables,
-            inInstanceBuffers,
-            pass_kind::compute,
-            buffer_usage::storage_read);
+        acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
     }
 
     void draw_call_generator::execute(const frame_graph_execute_context& ctx)

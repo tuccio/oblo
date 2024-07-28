@@ -86,6 +86,8 @@ namespace oblo::editor
 
         if (ImGui::Begin(buffer.format("Viewport##{}", m_viewportId).c_str(), &open))
         {
+            buffer.clear();
+
             const auto regionMin = ImGui::GetWindowContentRegionMin();
             const auto regionMax = ImGui::GetWindowContentRegionMax();
 

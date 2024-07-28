@@ -20,12 +20,14 @@ namespace oblo::vk
         shaderPath.append("./vulkan/shaders/postprocess/").append(shaderName).append(".comp");
 
         string_builder passName;
-        passName.format("Blur {} {}", shaderPath, string_view(PassIndex == 0 ? "Horizontal" : "Vertical"));
+        passName.format("Blur {} {}", shaderName, string_view(PassIndex == 0 ? "Horizontal" : "Vertical"));
 
         blurPass = pm.register_compute_pass({
             .name = passName.as<string>(),
             .shaderSourcePath = shaderPath.as<string>(),
         });
+
+        ctx.set_pass_kind(pass_kind::compute);
     }
 
     template <separable_blur_config Config, u8 PassIndex>
@@ -77,25 +79,24 @@ namespace oblo::vk
         string_builder kernelSize;
         kernelSize.format("BLUR_KERNEL_SIZE {}", kernel.size());
 
-        string_builder imageFormat;
-        imageFormat.append("BLUR_IMAGE_FORMAT ");
+        hashed_string_view imageFormat;
 
         switch (sourceTexture.initializer.format)
         {
         case VK_FORMAT_R8_UNORM:
-            imageFormat.append("r8");
+            imageFormat = "BLUR_IMAGE_FORMAT r8"_hsv;
             break;
 
         default:
             OBLO_ASSERT(false);
-            imageFormat.append("rgba8");
+            imageFormat = "BLUR_IMAGE_FORMAT rgba8"_hsv;
             break;
         }
 
         const hashed_string_view defines[] = {
             kernelData.as<hashed_string_view>(),
             kernelSize.as<hashed_string_view>(),
-            imageFormat.as<hashed_string_view>(),
+            imageFormat,
             PassIndex == 0 ? "BLUR_HORIZONTAL"_hsv : "BLUR_VERTICAL"_hsv,
         };
 

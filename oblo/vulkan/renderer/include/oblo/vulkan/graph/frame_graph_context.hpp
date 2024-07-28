@@ -43,17 +43,13 @@ namespace oblo::vk
 
     using binding_table = flat_dense_map<h32<string>, bindable_object>;
 
-    class frame_graph_init_context
+    enum class pass_kind : u8
     {
-    public:
-        explicit frame_graph_init_context(renderer& renderer);
-
-        pass_manager& get_pass_manager() const;
-
-        string_interner& get_string_interner() const;
-
-    private:
-        renderer& m_renderer;
+        none,
+        graphics,
+        compute,
+        raytracing,
+        transfer,
     };
 
     enum class texture_usage : u8
@@ -79,13 +75,20 @@ namespace oblo::vk
         enum_max,
     };
 
-    enum class pass_kind : u8
+    class frame_graph_init_context
     {
-        none,
-        graphics,
-        compute,
-        raytracing,
-        transfer,
+    public:
+        explicit frame_graph_init_context(frame_graph_impl& frameGraph, renderer& renderer);
+
+        pass_manager& get_pass_manager() const;
+
+        string_interner& get_string_interner() const;
+
+        void set_pass_kind(pass_kind passKind) const;
+
+    private:
+        frame_graph_impl& m_frameGraph;
+        renderer& m_renderer;
     };
 
     class frame_graph_build_context
@@ -97,27 +100,21 @@ namespace oblo::vk
         void create(
             resource<texture> texture, const texture_resource_initializer& initializer, texture_usage usage) const;
 
-        void create(resource<buffer> buffer,
-            const buffer_resource_initializer& initializer,
-            pass_kind passKind,
-            buffer_usage usage) const;
+        void create(resource<buffer> buffer, const buffer_resource_initializer& initializer, buffer_usage usage) const;
 
-        void create(resource<buffer> buffer,
-            const staging_buffer_span& stagedData,
-            pass_kind passKind,
-            buffer_usage usage) const;
+        void create(resource<buffer> buffer, const staging_buffer_span& stagedData, buffer_usage usage) const;
 
         void acquire(resource<texture> texture, texture_usage usage) const;
 
         h32<resident_texture> acquire_bindless(resource<texture> texture, texture_usage usage) const;
 
-        void acquire(resource<buffer> buffer, pass_kind passKind, buffer_usage usage) const;
+        void acquire(resource<buffer> buffer, buffer_usage usage) const;
 
-        [[nodiscard]] resource<buffer> create_dynamic_buffer(
-            const buffer_resource_initializer& initializer, pass_kind passKind, buffer_usage usage) const;
+        [[nodiscard]] resource<buffer> create_dynamic_buffer(const buffer_resource_initializer& initializer,
+            buffer_usage usage) const;
 
-        [[nodiscard]] resource<buffer> create_dynamic_buffer(
-            const staging_buffer_span& stagedData, pass_kind passKind, buffer_usage usage) const;
+        [[nodiscard]] resource<buffer> create_dynamic_buffer(const staging_buffer_span& stagedData,
+            buffer_usage usage) const;
 
         template <typename T>
         T& access(data<T> data) const

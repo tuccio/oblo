@@ -11,25 +11,23 @@
 
 namespace oblo::vk
 {
-    void entity_picking::init(const frame_graph_init_context& context)
+    void entity_picking::init(const frame_graph_init_context& ctx)
     {
-        auto& passManager = context.get_pass_manager();
+        auto& passManager = ctx.get_pass_manager();
 
         pickingPass = passManager.register_compute_pass({
             .name = "Entity Picking Pass",
             .shaderSourcePath = "./vulkan/shaders/entity_picking/entity_picking.comp",
         });
+
+        ctx.set_pass_kind(pass_kind::compute);
     }
 
     void entity_picking::build(const frame_graph_build_context& ctx)
     {
         ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
 
-        acquire_instance_tables(ctx,
-            inInstanceTables,
-            inInstanceBuffers,
-            pass_kind::compute,
-            buffer_usage::storage_read);
+        acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
     }
 
     void entity_picking::execute(const frame_graph_execute_context& ctx)
