@@ -378,6 +378,8 @@ namespace oblo::vk
 
             updateImgui(instance, imguiContext);
 
+            cb.add_pipeline_barrier(m_resourceManager, swapchainTexture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
             m_imgui.end_frame(cb.get(), m_swapchain.get_image_view(imageIndex), m_renderWidth, m_renderHeight);
         }
 

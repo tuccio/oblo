@@ -102,8 +102,9 @@ namespace oblo::vk
             case buffer_usage::storage_read:
                 access = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
                 break;
-            case buffer_usage::storage_write:
-                access = VK_ACCESS_2_SHADER_WRITE_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
+            case buffer_usage::storage_write: // We interpret write as RW (e.g. we may read uploaded data)
+                access = VK_ACCESS_2_SHADER_WRITE_BIT | VK_ACCESS_2_SHADER_READ_BIT |
+                    VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
                 break;
             case buffer_usage::storage_upload:
                 access = VK_ACCESS_2_TRANSFER_WRITE_BIT;
@@ -204,7 +205,9 @@ namespace oblo::vk
         staging_buffer_span stagedData{};
         staging_buffer_span* stagedDataPtr{};
 
-        if (!initializer.data.empty())
+        const bool upload = !initializer.data.empty();
+
+        if (upload)
         {
             [[maybe_unused]] const auto res = m_renderer.get_staging_buffer().stage(initializer.data);
             OBLO_ASSERT(res, "Out of space on the staging buffer, we should flush instead");
@@ -219,7 +222,7 @@ namespace oblo::vk
         m_frameGraph.add_transient_buffer(buffer, poolIndex, stagedDataPtr);
 
         const auto [pipelineStage, access] = convert_for_sync2(m_frameGraph.currentNode->passKind, usage);
-        m_frameGraph.set_buffer_access(buffer, pipelineStage, access);
+        m_frameGraph.set_buffer_access(buffer, pipelineStage, access, upload);
     }
 
     void frame_graph_build_context::create(
@@ -241,7 +244,7 @@ namespace oblo::vk
         m_frameGraph.add_transient_buffer(buffer, poolIndex, &stagedData);
 
         const auto [pipelineStage, access] = convert_for_sync2(m_frameGraph.currentNode->passKind, usage);
-        m_frameGraph.set_buffer_access(buffer, pipelineStage, access);
+        m_frameGraph.set_buffer_access(buffer, pipelineStage, access, stagedDataSize != 0);
     }
 
     void frame_graph_build_context::acquire(resource<texture> texture, texture_usage usage) const
@@ -267,7 +270,7 @@ namespace oblo::vk
         const auto poolIndex = m_frameGraph.find_pool_index(buffer);
         m_resourcePool.add_transient_buffer_usage(poolIndex, convert_buffer_usage(usage));
         const auto [pipelineStage, access] = convert_for_sync2(m_frameGraph.currentNode->passKind, usage);
-        m_frameGraph.set_buffer_access(buffer, pipelineStage, access);
+        m_frameGraph.set_buffer_access(buffer, pipelineStage, access, false);
     }
 
     resource<buffer> frame_graph_build_context::create_dynamic_buffer(const buffer_resource_initializer& initializer,

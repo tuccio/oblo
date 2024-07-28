@@ -474,10 +474,10 @@ namespace oblo::vk
         }
 
         dynamic_array<VkBufferMemoryBarrier2> bufferBarriers{&m_impl->dynamicAllocator};
-        bufferBarriers.reserve(128);
+        bufferBarriers.reserve(64);
 
         dynamic_array<VkImageMemoryBarrier2> imageBarriers{&m_impl->dynamicAllocator};
-        imageBarriers.reserve(128);
+        imageBarriers.reserve(64);
 
         {
             // Global memory barrier to cover all uploads we just flushed
@@ -544,6 +544,12 @@ namespace oblo::vk
                 VkPipelineStageFlags2 srcStages{};
                 VkAccessFlags2 srcAccess{};
 
+                if (usages.uploadedTo)
+                {
+                    srcStages |= VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+                    srcAccess |= VK_ACCESS_2_TRANSFER_WRITE_BIT;
+                }
+
                 for (const auto incomingNode : incomingNodes)
                 {
                     const auto& inNodeValue = m_impl->nodes.at(incomingNode);
@@ -552,6 +558,12 @@ namespace oblo::vk
                     {
                         srcStages |= usage->stages;
                         srcAccess |= usage->access;
+
+                        if (usage->uploadedTo)
+                        {
+                            srcStages |= VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+                            srcAccess |= VK_ACCESS_2_TRANSFER_WRITE_BIT;
+                        }
                     }
                 }
 
@@ -709,7 +721,7 @@ namespace oblo::vk
     }
 
     void frame_graph_impl::set_buffer_access(
-        resource<buffer> handle, VkPipelineStageFlags2 pipelineStage, VkAccessFlags2 access)
+        resource<buffer> handle, VkPipelineStageFlags2 pipelineStage, VkAccessFlags2 access, bool uploadedTo)
     {
         const auto storage = to_storage_handle(handle);
 
@@ -720,6 +732,7 @@ namespace oblo::vk
             frame_graph_buffer_usage{
                 .stages = pipelineStage,
                 .access = access,
+                .uploadedTo = uploadedTo,
             });
 
         OBLO_ASSERT(ok);
@@ -949,6 +962,22 @@ namespace oblo::vk
     {
         OBLO_ASSERT(!pendingUploads.empty());
 
+        const VkMemoryBarrier2 before{
+            .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+            .srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+            .srcAccessMask = VK_ACCESS_2_MEMORY_READ_BIT,
+            .dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+            .dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+        };
+
+        const VkDependencyInfo beforeDependencyInfo{
+            .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+            .memoryBarrierCount = 1u,
+            .pMemoryBarriers = &before,
+        };
+
+        vkCmdPipelineBarrier2(commandBuffer, &beforeDependencyInfo);
+
         for (const auto& upload : pendingUploads)
         {
             const auto& storage = pinStorage.at(upload.buffer);
@@ -957,6 +986,22 @@ namespace oblo::vk
         }
 
         pendingUploads.clear();
+
+        const VkMemoryBarrier2 after{
+            .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+            .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+            .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+            .dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+            .dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT,
+        };
+
+        const VkDependencyInfo afterDependencyInfo{
+            .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+            .memoryBarrierCount = 1u,
+            .pMemoryBarriers = &after,
+        };
+
+        vkCmdPipelineBarrier2(commandBuffer, &afterDependencyInfo);
     }
 
     void frame_graph_impl::finish_frame()

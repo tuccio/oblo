@@ -531,8 +531,9 @@ namespace oblo::vk
         {
             const VkMemoryBarrier2 before{
                 .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
-                .srcStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                .srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT,
+                .srcStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT |
+                    VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                .srcAccessMask = VK_ACCESS_2_MEMORY_READ_BIT,
                 .dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
                 .dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
             };
@@ -554,8 +555,9 @@ namespace oblo::vk
                 .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
                 .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
                 .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                .dstStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                .dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT,
+                .dstStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT |
+                    VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                .dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT,
             };
 
             const VkDependencyInfo afterDependencyInfo{
@@ -1073,7 +1075,11 @@ namespace oblo::vk
 
         if (!instances.empty())
         {
+            // TODO: Don't recreate the buffer every frame, rather stage the upload (which requires sorting out
+            // barriers)
+            m_rtInstanceBuffer.clear_and_shrink();
             m_rtInstanceBuffer.resize_discard(u32(instances.size_bytes()));
+
             const auto instanceBuffer = m_rtInstanceBuffer.get_buffer();
 
             void* instanceBufferPtr;

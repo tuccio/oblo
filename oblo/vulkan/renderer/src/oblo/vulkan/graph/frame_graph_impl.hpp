@@ -33,6 +33,7 @@ namespace oblo::vk
     {
         VkPipelineStageFlags2 stages;
         VkAccessFlags2 access;
+        bool uploadedTo;
     };
 
     struct frame_graph_node
@@ -221,7 +222,8 @@ namespace oblo::vk
 
         void add_transient_buffer(
             resource<buffer> handle, h32<transient_buffer_resource> transientBuffer, const staging_buffer_span* upload);
-        void set_buffer_access(resource<buffer> handle, VkPipelineStageFlags2 pipelineStage, VkAccessFlags2 access);
+        void set_buffer_access(
+            resource<buffer> handle, VkPipelineStageFlags2 pipelineStage, VkAccessFlags2 access, bool uploadedTo);
 
         // This is called in assert by executors, to check that we declared the upload when building
         bool can_exec_time_upload(resource<buffer> handle) const;

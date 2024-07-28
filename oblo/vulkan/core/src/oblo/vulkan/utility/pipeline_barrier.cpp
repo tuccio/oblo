@@ -63,7 +63,7 @@ namespace oblo::vk
         {
         case VK_IMAGE_LAYOUT_UNDEFINED: {
             barrier.srcAccessMask = 0;
-            sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            sourceStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
             break;
         }
 
