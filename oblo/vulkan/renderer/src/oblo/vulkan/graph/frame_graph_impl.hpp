@@ -10,6 +10,7 @@
 #include <oblo/vulkan/graph/frame_graph_node_desc.hpp>
 #include <oblo/vulkan/graph/frame_graph_template.hpp>
 #include <oblo/vulkan/graph/frame_graph_vertex_kind.hpp>
+#include <oblo/vulkan/graph/image_layout_tracker.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 #include <oblo/vulkan/graph/resource_pool.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
@@ -182,7 +183,7 @@ namespace oblo::vk
         frame_allocator dynamicAllocator;
         resource_manager* resourceManager{};
 
-        command_buffer_state commandBufferState;
+        image_layout_tracker imageLayoutTracker;
 
         dynamic_array<frame_graph_node_to_execute> sortedNodes;
         h32_flat_pool_dense_map<frame_graph_texture> textures;

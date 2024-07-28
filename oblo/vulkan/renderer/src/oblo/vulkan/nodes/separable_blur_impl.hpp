@@ -26,6 +26,8 @@ namespace oblo::vk
             .name = passName.as<string>(),
             .shaderSourcePath = shaderPath.as<string>(),
         });
+
+        ctx.set_pass_kind(pass_kind::compute);
     }
 
     template <separable_blur_config Config, u8 PassIndex>

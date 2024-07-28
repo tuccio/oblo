@@ -427,9 +427,9 @@ namespace oblo::vk
             const auto& texture = access(b.resource);
 
             // The frame graph converts the pin storage handle to texture handle to use when keeping track of textures
-            const auto storage = h32<vk::texture>{b.resource.value};
+            const auto storage = h32<frame_graph_pin_storage>{b.resource.value};
 
-            const auto layout = m_frameGraph.commandBufferState.try_find(storage);
+            const auto layout = m_frameGraph.imageLayoutTracker.try_get_layout(storage);
             layout.assert_value();
 
             table.emplace(interner.get_or_add(b.name),
