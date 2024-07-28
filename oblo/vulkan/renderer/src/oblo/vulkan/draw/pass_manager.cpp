@@ -1140,6 +1140,12 @@ namespace oblo::vk
 
                 for (const auto& variant : pass.variants)
                 {
+                    if (!variant.pipeline)
+                    {
+                        // This happens when a pipeline failed to compile
+                        break;
+                    }
+
                     if (f(pipelines.at(variant.pipeline)))
                     {
                         skip = false;
@@ -2506,6 +2512,8 @@ namespace oblo::vk
     {
         m_impl->globallyEnablePrintf = !m_impl->globallyEnablePrintf;
         m_impl->globallyEnablePrintfFrames = ~0u;
+
+        log::debug("Shared printf: {}", m_impl->globallyEnablePrintf ? "enabled" : "disabled");
 
         m_impl->invalidate_all_passes([](const base_pipeline& p) { return p.hasPrintfInclude; });
     }

@@ -56,10 +56,10 @@
 </Type>
 
 <Type Name="oblo::string_builder">
-    <DisplayString>{{ {m_buffer.m_array.m_data} }}</DisplayString>
+    <DisplayString>{{ {m_buffer.m_data} }}</DisplayString>
     <Expand>
-        <Item Name="[string]" ExcludeView="simple">m_buffer.m_array.m_data</Item>
-        <Item Name="[array]" ExcludeView="simple">m_buffer.m_array</Item>
+        <Item Name="[string]" ExcludeView="simple">m_buffer.m_data</Item>
+        <Item Name="[array]" ExcludeView="simple">m_buffer</Item>
     </Expand>
 </Type>
 
