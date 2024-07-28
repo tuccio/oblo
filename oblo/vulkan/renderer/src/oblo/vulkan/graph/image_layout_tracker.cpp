@@ -1,5 +1,3 @@
-#pragma once
-
 #include <oblo/core/unreachable.hpp>
 #include <oblo/vulkan/graph/frame_graph_context.hpp>
 #include <oblo/vulkan/graph/image_layout_tracker.hpp>
