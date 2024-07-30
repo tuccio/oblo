@@ -40,12 +40,12 @@ layout(std430, binding = 2) restrict readonly buffer b_ShadowMaps
     uint g_ShadowMaps[];
 };
 
-vec4 visibility_shade(in uvec2 screenPos, in visibility_buffer_data vb)
+vec4 visibility_shade(in visibility_shade_context ctx)
 {
     // Read the instance data we need
-    const mesh_handle mesh = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MeshHandles, vb.instanceId);
-    const transform transform = OBLO_INSTANCE_DATA(vb.instanceTableId, i_TransformBuffer, vb.instanceId);
-    const gpu_material material = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MaterialBuffer, vb.instanceId);
+    const mesh_handle mesh = OBLO_INSTANCE_DATA(ctx.vb.instanceTableId, i_MeshHandles, ctx.vb.instanceId);
+    const transform transform = OBLO_INSTANCE_DATA(ctx.vb.instanceTableId, i_TransformBuffer, ctx.vb.instanceId);
+    const gpu_material material = OBLO_INSTANCE_DATA(ctx.vb.instanceTableId, i_MaterialBuffer, ctx.vb.instanceId);
 
     triangle triangleWS;
     vec2 triangleUV0[3];
@@ -55,7 +55,7 @@ vec4 visibility_shade(in uvec2 screenPos, in visibility_buffer_data vb)
 
     // Read the mesh data
     const mesh_table meshTable = mesh_table_fetch(mesh);
-    const uvec3 vertexIndices = mesh_get_meshlet_indices(meshTable, mesh, vb.meshletId, vb.meshletTriangleId);
+    const uvec3 vertexIndices = mesh_get_meshlet_indices(meshTable, mesh, ctx.vb.meshletId, ctx.vb.meshletTriangleId);
 
     // Read the vertex data and transform everything in world space, we do lighting calculation in that space
     [[unroll]] for (uint i = 0; i < 3; ++i)
@@ -80,7 +80,13 @@ vec4 visibility_shade(in uvec2 screenPos, in visibility_buffer_data vb)
     barycentric_coords bc, bcDDX, bcDDY;
     vec3 positionWS;
 
-    if (!calculate_position_and_barycentric_coords(screenPos, triangleWS, positionWS, bc, bcDDX, bcDDY))
+    if (!calculate_position_and_barycentric_coords(ctx.screenPos,
+            ctx.resolution,
+            triangleWS,
+            positionWS,
+            bc,
+            bcDDX,
+            bcDDY))
     {
         return vec4(0);
     }
@@ -146,8 +152,7 @@ vec4 visibility_shade(in uvec2 screenPos, in visibility_buffer_data vb)
         if (visibilityMap != 0)
         {
             visibility =
-                texture_sample_2d(visibilityMap, OBLO_SAMPLER_NEAREST, (vec2(screenPos) + .5f) / g_Constants.resolution)
-                    .r;
+                texture_sample_2d(visibilityMap, OBLO_SAMPLER_NEAREST, (vec2(ctx.screenPos) + .5f) / ctx.resolution).r;
         }
 
         vec3 L;
