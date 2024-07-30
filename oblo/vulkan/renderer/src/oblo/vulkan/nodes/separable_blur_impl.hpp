@@ -111,9 +111,9 @@ namespace oblo::vk
             Pass == separable_blur_pass::horizontal ? "BLUR_HORIZONTAL"_hsv : "BLUR_VERTICAL"_hsv,
         };
 
-        const auto lightingPipeline = pm.get_or_create_pipeline(blurPass, {.defines = defines});
+        const auto pipeline = pm.get_or_create_pipeline(blurPass, {.defines = defines});
 
-        if (const auto pass = pm.begin_compute_pass(commandBuffer, lightingPipeline))
+        if (const auto pass = pm.begin_compute_pass(commandBuffer, pipeline))
         {
             const vec2u resolution{sourceTexture.initializer.extent.width, sourceTexture.initializer.extent.height};
 

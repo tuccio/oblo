@@ -200,16 +200,6 @@ namespace oblo
                     };
 
                     frameGraph.set_input(*v, vk::raytraced_shadow_view::InConfig, cfg).assert_value();
-
-                    // Sanitize kernel sizes
-                    const u32 kernelSize = max(3u, (shadow.light->shadowBlurKernel / 2) * 2 + 1);
-
-                    const vk::gaussian_blur_config blurCfg{
-                        .kernelSize = kernelSize,
-                        .sigma = shadow.light->shadowBlurSigma,
-                    };
-
-                    frameGraph.set_input(*v, vk::raytraced_shadow_view::InBlurConfig, blurCfg).assert_value();
                 }
             }
         }

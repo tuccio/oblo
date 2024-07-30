@@ -55,8 +55,6 @@ namespace oblo::vk
         ctx.acquire(inCameraBuffer, buffer_usage::uniform);
         ctx.acquire(inLightBuffer, buffer_usage::storage_read);
 
-        ctx.push(outShadowSink, {outShadow, config.lightIndex});
-
         randomSeed = ctx.get_random_generator().generate();
     }
 

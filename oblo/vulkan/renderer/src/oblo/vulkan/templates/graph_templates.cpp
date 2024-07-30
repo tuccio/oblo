@@ -2,7 +2,6 @@
 
 #include <oblo/vulkan/data/blur_configs.hpp>
 #include <oblo/vulkan/graph/frame_graph_registry.hpp>
-#include <oblo/vulkan/nodes/blur_nodes.hpp>
 #include <oblo/vulkan/nodes/copy_texture_node.hpp>
 #include <oblo/vulkan/nodes/draw_call_generator.hpp>
 #include <oblo/vulkan/nodes/entity_picking.hpp>
@@ -11,6 +10,7 @@
 #include <oblo/vulkan/nodes/light_provider.hpp>
 #include <oblo/vulkan/nodes/raytraced_shadows.hpp>
 #include <oblo/vulkan/nodes/raytracing_debug.hpp>
+#include <oblo/vulkan/nodes/shadow_filter.hpp>
 #include <oblo/vulkan/nodes/shadow_output.hpp>
 #include <oblo/vulkan/nodes/view_buffers_node.hpp>
 #include <oblo/vulkan/nodes/visibility_lighting.hpp>
@@ -38,9 +38,6 @@ namespace oblo::vk
 
             graph.connect(source, from, copyFinalTarget, &copy_texture_node::inSource);
         }
-
-        using gaussian_blur_h = separable_blur<gaussian_blur_config, separable_blur_pass::horizontal>;
-        using gaussian_blur_v = separable_blur<gaussian_blur_config, separable_blur_pass::vertical>;
     }
 }
 
@@ -250,9 +247,14 @@ namespace oblo::vk::raytraced_shadow_view
         graph.init(registry);
 
         const auto shadows = graph.add_node<raytraced_shadows>();
-        const auto blurH = graph.add_node<gaussian_blur_h>();
-        const auto blurV = graph.add_node<gaussian_blur_v>();
+        const auto filter0 = graph.add_node<shadow_filter>();
+        const auto filter1 = graph.add_node<shadow_filter>();
+        const auto filter2 = graph.add_node<shadow_filter>();
         const auto output = graph.add_node<shadow_output>();
+
+        graph.bind(filter0, &shadow_filter::passIndex, 0u);
+        graph.bind(filter1, &shadow_filter::passIndex, 1u);
+        graph.bind(filter2, &shadow_filter::passIndex, 2u);
 
         graph.make_input(shadows, &raytraced_shadows::inResolution, InResolution);
         graph.make_input(shadows, &raytraced_shadows::inLightBuffer, InLightBuffer);
@@ -260,18 +262,13 @@ namespace oblo::vk::raytraced_shadow_view
         graph.make_input(shadows, &raytraced_shadows::inConfig, InConfig);
         graph.make_input(shadows, &raytraced_shadows::inDepthBuffer, InDepthBuffer);
 
-        graph.connect(shadows, &raytraced_shadows::outShadow, blurH, &gaussian_blur_h::inSource);
-        graph.connect(blurH, &gaussian_blur_h::outBlurred, blurV, &gaussian_blur_v::inSource);
-        graph.connect(shadows, &raytraced_shadows::outShadow, blurV, &gaussian_blur_v::outBlurred);
-
-        graph.connect(blurH, &gaussian_blur_h::inConfig, blurV, &gaussian_blur_v::inConfig);
-        graph.make_input(blurH, &gaussian_blur_h::inConfig, InBlurConfig);
-
-        graph.connect(blurV, &gaussian_blur_v::outBlurred, output, &shadow_output::outShadow);
-        graph.connect(shadows, &raytraced_shadows::outShadowSink, output, &shadow_output::inOutShadowSink);
+        graph.connect(shadows, &raytraced_shadows::outShadow, filter0, &shadow_filter::inSource);
+        graph.connect(filter0, &shadow_filter::outFiltered, filter1, &shadow_filter::inSource);
+        graph.connect(filter1, &shadow_filter::outFiltered, filter2, &shadow_filter::inSource);
+        graph.connect(filter2, &shadow_filter::outFiltered, output, &shadow_output::outShadow);
 
         graph.make_output(output, &shadow_output::outShadow, OutShadow);
-        graph.make_output(output, &shadow_output::inOutShadowSink, OutShadowSink);
+        graph.make_output(output, &shadow_output::outShadowSink, OutShadowSink);
 
         return graph;
     }
@@ -311,10 +308,7 @@ namespace oblo::vk
         // Ray-traced shadows
         registry.register_node<raytraced_shadows>();
         registry.register_node<shadow_output>();
-
-        // Blurs
-        registry.register_node<gaussian_blur_h>();
-        registry.register_node<gaussian_blur_v>();
+        registry.register_node<shadow_filter>();
 
         return registry;
     }

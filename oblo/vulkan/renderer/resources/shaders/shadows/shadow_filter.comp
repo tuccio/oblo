@@ -1,0 +1,27 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_control_flow_attributes : enable
+
+layout(binding = 0, rgba8) uniform restrict readonly image2D t_InSource;
+layout(binding = 1, rgba8) uniform restrict writeonly image2D t_OutFiltered;
+
+const uint g_PassIndex = SHADOW_FILTER_PASS_INDEX;
+const uint g_Stride = 1u << g_PassIndex;
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+
+void main()
+{
+    const uvec2 resolution = imageSize(t_InSource);
+
+    const uvec2 screenPos = gl_GlobalInvocationID.xy;
+
+    if (screenPos.x >= resolution.x || screenPos.y >= resolution.y)
+    {
+        return;
+    }
+
+    const vec4 source = imageLoad(t_InSource, ivec2(screenPos));
+    imageStore(t_OutFiltered, ivec2(screenPos), source);
+}
