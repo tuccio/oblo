@@ -9,8 +9,8 @@
 
 namespace oblo::vk
 {
-    template <separable_blur_config Config, u8 PassIndex>
-    void separable_blur<Config, PassIndex>::init(const frame_graph_init_context& ctx)
+    template <separable_blur_config Config, separable_blur_pass Pass>
+    void separable_blur<Config, Pass>::init(const frame_graph_init_context& ctx)
     {
         auto& pm = ctx.get_pass_manager();
 
@@ -20,7 +20,9 @@ namespace oblo::vk
         shaderPath.append("./vulkan/shaders/postprocess/").append(shaderName).append(".comp");
 
         string_builder passName;
-        passName.format("Blur {} {}", shaderName, string_view(PassIndex == 0 ? "Horizontal" : "Vertical"));
+        passName.format("Blur {} {}",
+            shaderName,
+            string_view(Pass == separable_blur_pass::horizontal ? "Horizontal" : "Vertical"));
 
         blurPass = pm.register_compute_pass({
             .name = passName.as<string>(),
@@ -30,10 +32,10 @@ namespace oblo::vk
         ctx.set_pass_kind(pass_kind::compute);
     }
 
-    template <separable_blur_config Config, u8 PassIndex>
-    void separable_blur<Config, PassIndex>::build(const frame_graph_build_context& ctx)
+    template <separable_blur_config Config, separable_blur_pass Pass>
+    void separable_blur<Config, Pass>::build(const frame_graph_build_context& ctx)
     {
-        if constexpr (PassIndex == 0)
+        if constexpr (Pass == separable_blur_pass::horizontal)
         {
             ctx.acquire(inSource, texture_usage::storage_read);
 
@@ -64,27 +66,34 @@ namespace oblo::vk
         kernel = kernelArray;
     }
 
-    template <separable_blur_config Config, u8 PassIndex>
-    void separable_blur<Config, PassIndex>::execute(const frame_graph_execute_context& ctx)
+    template <separable_blur_config Config, separable_blur_pass Pass>
+    void separable_blur<Config, Pass>::execute(const frame_graph_execute_context& ctx)
     {
+        constexpr u32 groupSize = 64;
+
         auto& pm = ctx.get_pass_manager();
 
         const auto commandBuffer = ctx.get_command_buffer();
 
         const auto& sourceTexture = ctx.access(inSource);
 
+        string_builder groupSizeDef;
+        groupSizeDef.format("BLUR_GROUP_SIZE {}", groupSize);
+
         string_builder kernelData;
         kernelData.append("BLUR_KERNEL_DATA ").join(kernel.begin(), kernel.end(), ", ", "{:.10f}f");
 
         string_builder kernelSize;
-        kernelSize.format("BLUR_KERNEL_SIZE {}", kernel.size());
+        kernelSize.format("BLUR_KERNEL_DATA_SIZE {}", kernel.size());
 
+        string_builder imageChannels;
         hashed_string_view imageFormat;
 
         switch (sourceTexture.initializer.format)
         {
         case VK_FORMAT_R8_UNORM:
             imageFormat = "BLUR_IMAGE_FORMAT r8"_hsv;
+            imageChannels.format("BLUR_IMAGE_CHANNELS 1");
             break;
 
         default:
@@ -94,17 +103,18 @@ namespace oblo::vk
         }
 
         const hashed_string_view defines[] = {
+            groupSizeDef.as<hashed_string_view>(),
             kernelData.as<hashed_string_view>(),
             kernelSize.as<hashed_string_view>(),
+            imageChannels.as<hashed_string_view>(),
             imageFormat,
-            PassIndex == 0 ? "BLUR_HORIZONTAL"_hsv : "BLUR_VERTICAL"_hsv,
+            Pass == separable_blur_pass::horizontal ? "BLUR_HORIZONTAL"_hsv : "BLUR_VERTICAL"_hsv,
         };
 
         const auto lightingPipeline = pm.get_or_create_pipeline(blurPass, {.defines = defines});
 
         if (const auto pass = pm.begin_compute_pass(commandBuffer, lightingPipeline))
         {
-
             const vec2u resolution{sourceTexture.initializer.extent.width, sourceTexture.initializer.extent.height};
 
             binding_table bindingTable;
@@ -115,15 +125,20 @@ namespace oblo::vk
                     {"t_OutBlurred", outBlurred},
                 });
 
-            pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&resolution, 1}));
-
             const binding_table* bindingTables[] = {
                 &bindingTable,
             };
 
             pm.bind_descriptor_sets(*pass, bindingTables);
 
-            vkCmdDispatch(ctx.get_command_buffer(), round_up_multiple(resolution.x, 64u), resolution.y, 1);
+            if constexpr (Pass == separable_blur_pass::horizontal)
+            {
+                vkCmdDispatch(ctx.get_command_buffer(), round_up_div(resolution.x, groupSize), resolution.y, 1);
+            }
+            else
+            {
+                vkCmdDispatch(ctx.get_command_buffer(), resolution.x, round_up_div(resolution.y, groupSize), 1);
+            }
 
             pm.end_compute_pass(*pass);
         }

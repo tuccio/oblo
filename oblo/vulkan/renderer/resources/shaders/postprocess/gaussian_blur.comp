@@ -5,16 +5,29 @@
 
 #include <postprocess/separable_blur>
 
-vec4 blur_pixel(in uvec2 pixel)
+blur_pixel_t guassian_blur_evaluate(in blur_context ctx, uint kernelIndex, int pixelOffset)
 {
-    vec4 v = vec4(0);
+    const float gaussian = blur_get_kernel(kernelIndex);
+    const blur_pixel_t pixel = blur_read_pixel_at_offset(ctx, pixelOffset);
+    return gaussian * pixel;
+}
 
-    [[unroll]] for (int i = BLUR_KERNEL_BEGIN; i <= BLUR_KERNEL_END; ++i)
+blur_pixel_t blur_execute(in blur_context ctx)
+{
+    // Start with the pixel at the center
+    blur_pixel_t value = guassian_blur_evaluate(ctx, 0, 0);
+
+    // Pixels to the left/top (negative offset)
+    [[unroll]] for (uint i = 1; i < g_KernelDataSize; ++i)
     {
-        const float gaussian = blur_get_kernel(abs(i));
-        const vec4 value = blur_image_load_offset(pixel, i);
-        v += gaussian * value;
+        value += guassian_blur_evaluate(ctx, i, -int(i));
     }
 
-    return v;
+    // Pixels to the right/bottom (positive offset)
+    [[unroll]] for (uint i = 1; i < g_KernelDataSize; ++i)
+    {
+        value += guassian_blur_evaluate(ctx, i, int(i));
+    }
+
+    return value;
 }

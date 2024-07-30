@@ -4,6 +4,6 @@
 
 namespace oblo::vk
 {
-    template struct separable_blur<gaussian_blur_config, 0>;
-    template struct separable_blur<gaussian_blur_config, 1>;
+    template struct separable_blur<gaussian_blur_config, separable_blur_pass::horizontal>;
+    template struct separable_blur<gaussian_blur_config, separable_blur_pass::vertical>;
 }
