@@ -94,7 +94,7 @@ namespace oblo::vk
         void set_profiling_enabled(bool enabled);
 
         bool is_shader_optimization_enabled() const;
-        void set_shader_optimization(bool enabled);
+        void set_shader_optimization_enabled(bool enabled);
 
         [[nodiscard]] expected<render_pass_context> begin_render_pass(
             VkCommandBuffer commandBuffer, h32<render_pipeline> pipeline, const VkRenderingInfo& renderingInfo) const;

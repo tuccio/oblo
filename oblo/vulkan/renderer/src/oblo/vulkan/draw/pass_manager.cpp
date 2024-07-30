@@ -2545,7 +2545,7 @@ namespace oblo::vk
         return m_impl->enableShaderOptimizations;
     }
 
-    void pass_manager::set_shader_optimization(bool enable)
+    void pass_manager::set_shader_optimization_enabled(bool enable)
     {
         m_impl->enableShaderOptimizations = enable;
         m_impl->invalidate_all_passes();

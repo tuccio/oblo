@@ -114,7 +114,7 @@ namespace oblo::editor
                 if (bool isEnabled = passManager.is_shader_optimization_enabled();
                     ImGui::MenuItem("Shader optimizations", nullptr, &isEnabled))
                 {
-                    passManager.set_shader_optimization(isEnabled);
+                    passManager.set_shader_optimization_enabled(isEnabled);
                 }
 
                 if (ImGui::MenuItem("Copy frame graph to clipboard"))
