@@ -92,22 +92,28 @@ namespace oblo::editor
                     ctx.windowManager.create_child_window<style_window>(ctx.windowHandle);
                 }
 
+                auto& passManager = ctx.services.find<vk::renderer>()->get_pass_manager();
+
                 if (ImGui::MenuItem("Single frame shader printf"))
                 {
-                    auto& passManager = ctx.services.find<vk::renderer>()->get_pass_manager();
                     passManager.enable_printf(1);
                 }
 
                 if (ImGui::MenuItem("Toggle shader printf"))
                 {
-                    auto& passManager = ctx.services.find<vk::renderer>()->get_pass_manager();
                     passManager.toggle_printf();
                 }
 
-                if (ImGui::MenuItem("Toggle GPU profiling"))
+                if (bool isEnabled = passManager.is_profiling_enabled();
+                    ImGui::MenuItem("GPU profiling", nullptr, &isEnabled))
                 {
-                    auto& passManager = ctx.services.find<vk::renderer>()->get_pass_manager();
-                    passManager.set_profiling_enabled(!passManager.is_profiling_enabled());
+                    passManager.set_profiling_enabled(isEnabled);
+                }
+
+                if (bool isEnabled = passManager.is_shader_optimization_enabled();
+                    ImGui::MenuItem("Shader optimizations", nullptr, &isEnabled))
+                {
+                    passManager.set_shader_optimization(isEnabled);
                 }
 
                 if (ImGui::MenuItem("Copy frame graph to clipboard"))

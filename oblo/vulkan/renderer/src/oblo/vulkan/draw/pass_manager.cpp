@@ -44,7 +44,7 @@ namespace oblo::vk
         constexpr u32 TexturesSamplerBinding{32};
         constexpr u32 Textures2DBinding{33};
 
-        constexpr bool WithShaderCodeOptimizations{false};
+        constexpr bool DefaultWithShaderCodeOptimizations{false};
         constexpr bool WithShaderDebugInfo{true};
 
         // Push constants with this names are detected through reflection to be set at each draw
@@ -589,6 +589,7 @@ namespace oblo::vk
         watch_listener watchListener;
         std::optional<efsw::FileWatcher> fileWatcher;
 
+        bool enableShaderOptimizations{DefaultWithShaderCodeOptimizations};
         bool enableProfiling{false};
         bool globallyEnablePrintf{false};
         u32 globallyEnablePrintfFrames{~0u};
@@ -1124,7 +1125,7 @@ namespace oblo::vk
     {
         return {
             .includeHandler = &includer,
-            .codeOptimization = WithShaderCodeOptimizations,
+            .codeOptimization = enableShaderOptimizations,
             .generateDebugInfo = WithShaderDebugInfo,
         };
     }
@@ -2535,6 +2536,17 @@ namespace oblo::vk
     void pass_manager::set_profiling_enabled(bool enable)
     {
         m_impl->enableProfiling = enable;
+    }
+
+    bool pass_manager::is_shader_optimization_enabled() const
+    {
+        return m_impl->enableShaderOptimizations;
+    }
+
+    void pass_manager::set_shader_optimization(bool enable)
+    {
+        m_impl->enableShaderOptimizations = enable;
+        m_impl->invalidate_all_passes();
     }
 
     expected<render_pass_context> pass_manager::begin_render_pass(

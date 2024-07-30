@@ -93,6 +93,9 @@ namespace oblo::vk
         bool is_profiling_enabled() const;
         void set_profiling_enabled(bool enabled);
 
+        bool is_shader_optimization_enabled() const;
+        void set_shader_optimization(bool enabled);
+
         [[nodiscard]] expected<render_pass_context> begin_render_pass(
             VkCommandBuffer commandBuffer, h32<render_pipeline> pipeline, const VkRenderingInfo& renderingInfo) const;
 
