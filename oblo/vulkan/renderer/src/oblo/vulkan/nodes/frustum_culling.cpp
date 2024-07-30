@@ -124,7 +124,7 @@ namespace oblo::vk
                 pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&pcData, 1}));
                 pm.bind_descriptor_sets(*pass, bindingTables);
 
-                vkCmdDispatch(ctx.get_command_buffer(), round_up_multiple(count, subgroupSize), 1, 1);
+                vkCmdDispatch(ctx.get_command_buffer(), round_up_div(count, subgroupSize), 1, 1);
             }
 
             pm.end_compute_pass(*pass);

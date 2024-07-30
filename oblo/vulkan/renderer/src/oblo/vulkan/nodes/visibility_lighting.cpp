@@ -218,7 +218,7 @@ namespace oblo::vk
 
             pm.bind_descriptor_sets(*pass, bindingTables);
 
-            vkCmdDispatch(ctx.get_command_buffer(), round_up_multiple(resolution.x, 64u), resolution.y, 1);
+            vkCmdDispatch(ctx.get_command_buffer(), round_up_div(resolution.x, 8u), round_up_div(resolution.y, 8u), 1);
 
             pm.end_compute_pass(*pass);
         }

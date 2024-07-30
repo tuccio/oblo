@@ -119,7 +119,7 @@ namespace oblo::vk
 
                 // We could also use the draw count to dispatch indirect here, it may be more efficient when many
                 // objects are culled
-                vkCmdDispatch(ctx.get_command_buffer(), round_up_multiple(count, subgroupSize), 1, 1);
+                vkCmdDispatch(ctx.get_command_buffer(), round_up_div(count, subgroupSize), 1, 1);
             }
 
             pm.end_compute_pass(*pass);
