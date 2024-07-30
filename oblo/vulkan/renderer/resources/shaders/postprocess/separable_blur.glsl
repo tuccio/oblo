@@ -1,4 +1,3 @@
-#include <renderer/debug/printf>
 #include <renderer/quad>
 
 #if BLUR_IMAGE_CHANNELS == 1

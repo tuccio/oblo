@@ -96,12 +96,13 @@ namespace oblo::editor
 
                 if (ImGui::MenuItem("Single frame shader printf"))
                 {
-                    passManager.enable_printf(1);
+                    passManager.set_printf_enabled(true, 1);
                 }
 
-                if (ImGui::MenuItem("Toggle shader printf"))
+                if (bool isEnabled = passManager.is_printf_enabled();
+                    ImGui::MenuItem("Shader printf", nullptr, &isEnabled))
                 {
-                    passManager.toggle_printf();
+                    passManager.set_printf_enabled(isEnabled);
                 }
 
                 if (bool isEnabled = passManager.is_profiling_enabled();

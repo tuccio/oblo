@@ -87,8 +87,8 @@ namespace oblo::vk
 
         void update_instance_data_defines(string_view defines);
 
-        void toggle_printf();
-        void enable_printf(u32 frames);
+        bool is_printf_enabled() const;
+        void set_printf_enabled(bool enabled, u32 frames = ~0u);
 
         bool is_profiling_enabled() const;
         void set_profiling_enabled(bool enabled);

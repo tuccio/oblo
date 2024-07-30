@@ -31,7 +31,9 @@
 #include <efsw/efsw.hpp>
 #include <spirv_cross/spirv_cross.hpp>
 
-#include <tracy/TracyVulkan.hpp>
+#ifdef TRACY_ENABLE
+    #include <tracy/TracyVulkan.hpp>
+#endif
 
 #include <optional>
 
@@ -590,7 +592,8 @@ namespace oblo::vk
         std::optional<efsw::FileWatcher> fileWatcher;
 
         bool enableShaderOptimizations{DefaultWithShaderCodeOptimizations};
-        bool enableProfiling{false};
+        bool enableProfiling{true};
+        bool enableProfilingThisFrame{false};
         bool globallyEnablePrintf{false};
         u32 globallyEnablePrintfFrames{~0u};
 
@@ -635,7 +638,7 @@ namespace oblo::vk
             void* scope{};
 
 #ifdef TRACY_ENABLE
-            if (enableProfiling)
+            if (enableProfilingThisFrame)
             {
                 scope = frameAllocator.allocate(sizeof(tracy::VkCtxScope), alignof(tracy::VkCtxScope));
                 new (scope) tracy::VkCtxScope{tracyCtx, pipeline.tracyLocation.get(), commandBuffer, true};
@@ -651,7 +654,7 @@ namespace oblo::vk
             vkCtx->end_debug_label(commandBuffer);
 
 #ifdef TRACY_ENABLE
-            if (enableProfiling)
+            if (enableProfilingThisFrame)
             {
                 std::destroy_at(static_cast<tracy::VkCtxScope*>(ctx));
             }
@@ -2399,7 +2402,7 @@ namespace oblo::vk
 
         if (m_impl->globallyEnablePrintf && m_impl->globallyEnablePrintfFrames-- == 0)
         {
-            toggle_printf();
+            set_printf_enabled(false);
         }
 
         m_impl->descriptorSetPool.begin_frame();
@@ -2488,10 +2491,12 @@ namespace oblo::vk
         }
 
 #ifdef TRACY_ENABLE
-        if (m_impl->enableProfiling)
+        if (m_impl->enableProfilingThisFrame)
         {
             TracyVkCollect(m_impl->tracyCtx, commandBuffer);
         }
+
+        m_impl->enableProfilingThisFrame = m_impl->enableProfiling && tracy::GetProfiler().IsConnected();
 #endif
     }
 
@@ -2509,22 +2514,19 @@ namespace oblo::vk
         m_impl->invalidate_all_passes();
     }
 
-    void pass_manager::toggle_printf()
+    bool pass_manager::is_printf_enabled() const
     {
-        m_impl->globallyEnablePrintf = !m_impl->globallyEnablePrintf;
-        m_impl->globallyEnablePrintfFrames = ~0u;
-
-        log::debug("Shared printf: {}", m_impl->globallyEnablePrintf ? "enabled" : "disabled");
-
-        m_impl->invalidate_all_passes([](const base_pipeline& p) { return p.hasPrintfInclude; });
+        return m_impl->globallyEnablePrintf;
     }
 
-    void pass_manager::enable_printf(u32 frames)
+    void pass_manager::set_printf_enabled(bool enabled, u32 frames)
     {
-        if (!m_impl->globallyEnablePrintf)
+        m_impl->globallyEnablePrintfFrames = frames;
+
+        if (m_impl->globallyEnablePrintf != enabled)
         {
-            toggle_printf();
-            m_impl->globallyEnablePrintfFrames = frames;
+            m_impl->globallyEnablePrintf = enabled;
+            m_impl->invalidate_all_passes();
         }
     }
 
