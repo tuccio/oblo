@@ -21,7 +21,13 @@ namespace oblo::vk
         };
     };
 
-    template <separable_blur_config Config, u8 PassIndex>
+    enum class separable_blur_pass
+    {
+        horizontal,
+        vertical
+    };
+
+    template <separable_blur_config Config, separable_blur_pass Pass>
     struct separable_blur
     {
         resource<texture> inSource;

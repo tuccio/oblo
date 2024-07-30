@@ -3,7 +3,7 @@
 #include <renderer/quad>
 #include <visibility/visibility_buffer>
 
-layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 
 layout(binding = 16) uniform b_CameraBuffer
 {
@@ -14,20 +14,22 @@ layout(binding = 11, rg32ui) uniform restrict readonly uimage2D t_InVisibilityBu
 
 layout(binding = 12, rgba8) uniform restrict writeonly image2D t_OutShadedImage;
 
-layout(push_constant) uniform c_PushConstants
+struct visibility_shade_context
 {
+    uvec2 screenPos;
     uvec2 resolution;
-}
-g_Constants;
+    visibility_buffer_data vb;
+};
 
-vec4 visibility_shade(in uvec2 screenPos, in visibility_buffer_data vb);
+vec4 visibility_shade(in visibility_shade_context ctx);
 
 void main()
 {
     const uvec2 localGroupId = quad_remap_lane_8x8(gl_LocalInvocationIndex);
     const ivec2 screenPos = ivec2(gl_WorkGroupID.xy * 8 + localGroupId);
+    const uvec2 resolution = imageSize(t_InVisibilityBuffer);
 
-    if (screenPos.x >= g_Constants.resolution.x)
+    if (screenPos.x >= resolution.x || screenPos.y >= resolution.y)
     {
         return;
     }
@@ -35,20 +37,24 @@ void main()
     // Parse the visibility buffer to find which triangle we are processing
     const uvec4 visBufferData = imageLoad(t_InVisibilityBuffer, screenPos);
 
-    visibility_buffer_data vb;
+    visibility_shade_context ctx;
 
-    if (!visibility_buffer_parse(visBufferData.xy, vb))
+    if (!visibility_buffer_parse(visBufferData.xy, ctx.vb))
     {
         // This means we didn't hit anything, and have no triangle in this pixel
         imageStore(t_OutShadedImage, screenPos, vec4(0));
         return;
     }
 
-    const vec4 color = visibility_shade(uvec2(screenPos), vb);
+    ctx.screenPos = uvec2(screenPos);
+    ctx.resolution = resolution;
+
+    const vec4 color = visibility_shade(ctx);
     imageStore(t_OutShadedImage, screenPos, color);
 }
 
 bool calculate_position_and_barycentric_coords(in uvec2 screenPos,
+    in uvec2 resolution,
     in triangle triangleWS,
     out vec3 positionWS,
     out barycentric_coords bc,
@@ -59,7 +65,7 @@ bool calculate_position_and_barycentric_coords(in uvec2 screenPos,
     // triangle in world space, we use that to derive the position in world space
     ray cameraRay;
     cameraRay.origin = g_Camera.position;
-    const vec2 positionNDC = screen_to_ndc(screenPos, g_Constants.resolution);
+    const vec2 positionNDC = screen_to_ndc(screenPos, resolution);
     cameraRay.direction = camera_ray_direction(g_Camera, positionNDC);
 
     float intersectionDistance;

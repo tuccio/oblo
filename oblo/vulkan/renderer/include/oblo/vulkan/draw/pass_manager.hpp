@@ -87,11 +87,14 @@ namespace oblo::vk
 
         void update_instance_data_defines(string_view defines);
 
-        void toggle_printf();
-        void enable_printf(u32 frames);
+        bool is_printf_enabled() const;
+        void set_printf_enabled(bool enabled, u32 frames = ~0u);
 
         bool is_profiling_enabled() const;
         void set_profiling_enabled(bool enabled);
+
+        bool is_shader_optimization_enabled() const;
+        void set_shader_optimization_enabled(bool enabled);
 
         [[nodiscard]] expected<render_pass_context> begin_render_pass(
             VkCommandBuffer commandBuffer, h32<render_pipeline> pipeline, const VkRenderingInfo& renderingInfo) const;
