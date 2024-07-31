@@ -30,9 +30,7 @@ layout(push_constant) uniform c_PushConstants
 {
     uint randomSeed;
     uint lightIndex;
-    uint samples;
     float punctualLightRadius;
-    float historyAlpha;
 }
 g_Constants;
 
@@ -73,62 +71,50 @@ void main()
 
     const vec3 origin = positionWS;
 
-#if !SHADOW_HARD
-    for (uint i = 0; i < g_Constants.samples; ++i)
-#endif
-
-    {
-
 #if SHADOW_TYPE == OBLO_LIGHT_TYPE_DIRECTIONAL
 
     #if SHADOW_HARD
-        const vec3 direction = L;
+    const vec3 direction = L;
     #else
-        const vec2 rand = random_uniform_2d(seed);
+    const vec2 rand = random_uniform_2d(seed);
 
-        const vec3 target = random_sample_uniform_disk(farAway, L, rand) + offset;
-        const vec3 direction = normalize(target - origin);
+    const vec3 target = random_sample_uniform_disk(farAway, L, rand) + offset;
+    const vec3 direction = normalize(target - origin);
     #endif
 
 #endif
 
 #if SHADOW_TYPE == OBLO_LIGHT_TYPE_POINT || SHADOW_TYPE == OBLO_LIGHT_TYPE_SPOT
-        const vec2 rand = random_uniform_2d(seed);
+    const vec2 rand = random_uniform_2d(seed);
 
     #if SHADOW_HARD
-        const vec3 target = light.position;
+    const vec3 target = light.position;
     #else
-        const vec3 target = random_sample_uniform_disk(g_Constants.punctualLightRadius, L, rand) + light.position;
+    const vec3 target = random_sample_uniform_disk(g_Constants.punctualLightRadius, L, rand) + light.position;
     #endif
 
-        const vec3 weightedDir = target - origin;
+    const vec3 weightedDir = target - origin;
 
-        const vec3 direction = normalize(weightedDir);
-        const float tMax = length(weightedDir);
+    const vec3 direction = normalize(weightedDir);
+    const float tMax = length(weightedDir);
 #endif
 
-        traceRayEXT(u_SceneTLAS,
-            gl_RayFlagsNoneEXT,
-            0xff, // cull mask
-            0,    // STB record offset
-            0,    // STB record stride
-            0,    // Miss index
-            origin,
-            tMin,
-            direction,
-            tMax,
-            0 // payload location
-        );
+    traceRayEXT(u_SceneTLAS,
+        gl_RayFlagsNoneEXT,
+        0xff, // cull mask
+        0,    // STB record offset
+        0,    // STB record stride
+        0,    // Miss index
+        origin,
+        tMin,
+        direction,
+        tMax,
+        0 // payload location
+    );
 
-        visibility += r_HitVisibility;
-    }
-
-#if !SHADOW_HARD
-    visibility /= g_Constants.samples;
-#endif
+    visibility = r_HitVisibility;
 
     const float oldValue = imageLoad(t_OutShadow, ivec2(gl_LaunchIDEXT.xy)).x;
-    const float mixed = mix(visibility, oldValue, g_Constants.historyAlpha);
 
-    imageStore(t_OutShadow, ivec2(gl_LaunchIDEXT.xy), vec4(mixed, 0, 0, 1));
+    imageStore(t_OutShadow, ivec2(gl_LaunchIDEXT.xy), vec4(visibility, 0, 0, 1));
 }
