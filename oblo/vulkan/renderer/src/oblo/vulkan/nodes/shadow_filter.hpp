@@ -9,6 +9,7 @@ namespace oblo::vk
     struct shadow_filter
     {
         resource<texture> inSource;
+        resource<texture> inMoments;
 
         resource<texture> outFiltered;
 

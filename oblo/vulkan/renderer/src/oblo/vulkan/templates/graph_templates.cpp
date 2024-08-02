@@ -2,6 +2,7 @@
 
 #include <oblo/vulkan/data/blur_configs.hpp>
 #include <oblo/vulkan/graph/frame_graph_registry.hpp>
+#include <oblo/vulkan/nodes/blur_nodes.hpp>
 #include <oblo/vulkan/nodes/copy_texture_node.hpp>
 #include <oblo/vulkan/nodes/draw_call_generator.hpp>
 #include <oblo/vulkan/nodes/entity_picking.hpp>
@@ -247,10 +248,17 @@ namespace oblo::vk::raytraced_shadow_view
         graph.init(registry);
 
         const auto shadows = graph.add_node<raytraced_shadows>();
+        const auto tileFilterH = graph.add_node<box_blur_h>();
+        const auto tileFilterV = graph.add_node<box_blur_v>();
         const auto filter0 = graph.add_node<shadow_filter>();
         const auto filter1 = graph.add_node<shadow_filter>();
         const auto filter2 = graph.add_node<shadow_filter>();
         const auto output = graph.add_node<shadow_output>();
+
+        constexpr box_blur_config defaultBoxConfig{.kernelSize = 17};
+
+        graph.bind(tileFilterH, &box_blur_h::inConfig, defaultBoxConfig);
+        graph.bind(tileFilterV, &box_blur_v::inConfig, defaultBoxConfig);
 
         graph.bind(filter0, &shadow_filter::passIndex, 0u);
         graph.bind(filter1, &shadow_filter::passIndex, 1u);
@@ -262,9 +270,21 @@ namespace oblo::vk::raytraced_shadow_view
         graph.make_input(shadows, &raytraced_shadows::inConfig, InConfig);
         graph.make_input(shadows, &raytraced_shadows::inDepthBuffer, InDepthBuffer);
 
+        graph.connect(shadows, &raytraced_shadows::outMoments, tileFilterH, &box_blur_h::inSource);
+        graph.connect(shadows, &raytraced_shadows::outMoments, tileFilterV, &box_blur_v::outBlurred);
+
+        graph.connect(tileFilterV, &box_blur_v::outBlurred, filter0, &shadow_filter::inMoments);
+        graph.connect(tileFilterV, &box_blur_v::outBlurred, filter1, &shadow_filter::inMoments);
+        graph.connect(tileFilterV, &box_blur_v::outBlurred, filter2, &shadow_filter::inMoments);
+
+        graph.connect(tileFilterH, &box_blur_h::outBlurred, tileFilterV, &box_blur_v::inSource);
+
         graph.connect(shadows, &raytraced_shadows::outShadow, filter0, &shadow_filter::inSource);
         graph.connect(filter0, &shadow_filter::outFiltered, filter1, &shadow_filter::inSource);
         graph.connect(filter1, &shadow_filter::outFiltered, filter2, &shadow_filter::inSource);
+
+        graph.connect(shadows, &raytraced_shadows::inConfig, output, &shadow_output::inConfig);
+
         graph.connect(filter2, &shadow_filter::outFiltered, output, &shadow_output::outShadow);
 
         graph.make_output(output, &shadow_output::outShadow, OutShadow);
@@ -309,6 +329,12 @@ namespace oblo::vk
         registry.register_node<raytraced_shadows>();
         registry.register_node<shadow_output>();
         registry.register_node<shadow_filter>();
+
+        // Blurs
+        registry.register_node<gaussian_blur_h>();
+        registry.register_node<gaussian_blur_v>();
+        registry.register_node<box_blur_h>();
+        registry.register_node<box_blur_v>();
 
         return registry;
     }

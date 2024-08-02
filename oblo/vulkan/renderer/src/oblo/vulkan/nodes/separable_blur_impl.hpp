@@ -28,6 +28,7 @@ namespace oblo::vk
             .name = passName.as<string>(),
             .shaderSourcePath = shaderPath.as<string>(),
         });
+        ;
 
         ctx.set_pass_kind(pass_kind::compute);
     }
@@ -96,9 +97,13 @@ namespace oblo::vk
             imageChannels.format("BLUR_IMAGE_CHANNELS 1");
             break;
 
+        case VK_FORMAT_R8G8_UNORM:
+            imageFormat = "BLUR_IMAGE_FORMAT rg8"_hsv;
+            imageChannels.format("BLUR_IMAGE_CHANNELS 2");
+            break;
+
         default:
             OBLO_ASSERT(false);
-            imageFormat = "BLUR_IMAGE_FORMAT rgba8"_hsv;
             break;
         }
 

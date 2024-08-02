@@ -95,8 +95,11 @@ namespace oblo::vk
 
         string_view get_name(vertex_handle inputOrOutput) const;
 
-        template <typename R, typename Node>
-        void bind(vertex_handle node, R(Node::*pin), R&& value);
+        template <typename R, typename Node, std::convertible_to<R> U>
+        void bind(vertex_handle node, R(Node::*pin), U&& value);
+
+        template <typename R, typename Node, std::convertible_to<R> U>
+        void bind(vertex_handle node, data<R>(Node::*pin), U&& value);
 
     private:
         vertex_handle find_pin(vertex_handle node, u32 offset) const;
@@ -187,11 +190,22 @@ namespace oblo::vk
         return u32(member - base);
     }
 
-    template <typename R, typename Node>
-    inline void frame_graph_template::bind(vertex_handle node, R(Node::*pin), R&& value)
+    template <typename R, typename Node, std::convertible_to<R> U>
+    inline void frame_graph_template::bind(vertex_handle node, R(Node::*pin), U&& value)
     {
         OBLO_ASSERT(m_graph[node].kind == frame_graph_vertex_kind::node);
         m_graph[node].bindings.emplace_back(
-            [v = std::forward<R>(value), pin](void* node) { static_cast<Node*>(node)->*pin = v; });
+            [v = std::forward<U>(value), pin](void* node) { static_cast<Node*>(node)->*pin = v; });
+    }
+
+    template <typename R, typename Node, std::convertible_to<R> U>
+    inline void frame_graph_template::bind(vertex_handle node, data<R>(Node::*pin), U&& value)
+    {
+        OBLO_ASSERT(m_graph[node].kind == frame_graph_vertex_kind::node);
+        const auto srcPin = find_pin(node, calculate_offset(pin));
+        OBLO_ASSERT(srcPin);
+
+        m_graph[srcPin].bindings.emplace_back(
+            [v = std::forward<U>(value), pin](void* storage) { *static_cast<R*>(storage) = v; });
     }
 }

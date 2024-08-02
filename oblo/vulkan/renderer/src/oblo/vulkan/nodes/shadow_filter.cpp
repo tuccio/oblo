@@ -61,6 +61,7 @@ namespace oblo::vk
             ctx.bind_textures(bindingTable,
                 {
                     {"t_InSource", inSource},
+                    {"t_InMoments", inMoments},
                     {"t_OutFiltered", outFiltered},
                 });
 

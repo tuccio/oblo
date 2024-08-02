@@ -189,6 +189,18 @@ namespace oblo::vk
             *pinStorageIt = {
                 .typeDesc = src.pinDesc,
             };
+
+            if (!src.bindings.empty())
+            {
+                void* const dataPtr = m_impl->memoryPool.allocate(src.pinDesc.size, src.pinDesc.alignment);
+                pinStorageIt->typeDesc.construct(dataPtr);
+                pinStorageIt->data = dataPtr;
+
+                for (auto& binding : src.bindings)
+                {
+                    binding(dataPtr);
+                }
+            }
         }
 
         for (const auto e : templateGraph.get_edges())
