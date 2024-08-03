@@ -248,17 +248,20 @@ namespace oblo::vk::raytraced_shadow_view
         graph.init(registry);
 
         const auto shadows = graph.add_node<raytraced_shadows>();
-        const auto tileFilterH = graph.add_node<box_blur_h>();
-        const auto tileFilterV = graph.add_node<box_blur_v>();
+        const auto momentFilterH = graph.add_node<box_blur_h>();
+        const auto momentFilterV = graph.add_node<box_blur_v>();
         const auto filter0 = graph.add_node<shadow_filter>();
         const auto filter1 = graph.add_node<shadow_filter>();
         const auto filter2 = graph.add_node<shadow_filter>();
         const auto output = graph.add_node<shadow_output>();
 
-        constexpr box_blur_config defaultBoxConfig{.kernelSize = 17};
+        constexpr box_blur_config momentFilter{.kernelSize = 17};
 
-        graph.bind(tileFilterH, &box_blur_h::inConfig, defaultBoxConfig);
-        graph.bind(tileFilterV, &box_blur_v::inConfig, defaultBoxConfig);
+        graph.bind(momentFilterH, &box_blur_h::inConfig, momentFilter);
+        graph.bind(momentFilterV, &box_blur_v::inConfig, momentFilter);
+
+        graph.bind(momentFilterH, &box_blur_h::outputInPlace, false);
+        graph.bind(momentFilterV, &box_blur_v::outputInPlace, false);
 
         graph.bind(filter0, &shadow_filter::passIndex, 0u);
         graph.bind(filter1, &shadow_filter::passIndex, 1u);
@@ -270,18 +273,21 @@ namespace oblo::vk::raytraced_shadow_view
         graph.make_input(shadows, &raytraced_shadows::inConfig, InConfig);
         graph.make_input(shadows, &raytraced_shadows::inDepthBuffer, InDepthBuffer);
 
-        graph.connect(shadows, &raytraced_shadows::outMoments, tileFilterH, &box_blur_h::inSource);
-        graph.connect(shadows, &raytraced_shadows::outMoments, tileFilterV, &box_blur_v::outBlurred);
+        graph.connect(shadows, &raytraced_shadows::outShadow, momentFilterH, &box_blur_h::inSource);
+        graph.connect(momentFilterH, &box_blur_h::outBlurred, momentFilterV, &box_blur_v::inSource);
 
-        graph.connect(tileFilterV, &box_blur_v::outBlurred, filter0, &shadow_filter::inMoments);
-        graph.connect(tileFilterV, &box_blur_v::outBlurred, filter1, &shadow_filter::inMoments);
-        graph.connect(tileFilterV, &box_blur_v::outBlurred, filter2, &shadow_filter::inMoments);
-
-        graph.connect(tileFilterH, &box_blur_h::outBlurred, tileFilterV, &box_blur_v::inSource);
+        graph.connect(momentFilterV, &box_blur_v::outBlurred, filter0, &shadow_filter::inMoments);
+        graph.connect(momentFilterV, &box_blur_v::outBlurred, filter1, &shadow_filter::inMoments);
+        graph.connect(momentFilterV, &box_blur_v::outBlurred, filter2, &shadow_filter::inMoments);
 
         graph.connect(shadows, &raytraced_shadows::outShadow, filter0, &shadow_filter::inSource);
         graph.connect(filter0, &shadow_filter::outFiltered, filter1, &shadow_filter::inSource);
         graph.connect(filter1, &shadow_filter::outFiltered, filter2, &shadow_filter::inSource);
+
+        // Filter #0 outputs the stable history for next frame, but first copies the old history to the transient
+        // history. The other passes will use the transient history buffer instead.
+        graph.connect(filter0, &shadow_filter::transientHistory, filter1, &shadow_filter::transientHistory);
+        graph.connect(filter1, &shadow_filter::transientHistory, filter2, &shadow_filter::transientHistory);
 
         graph.connect(shadows, &raytraced_shadows::inConfig, output, &shadow_output::inConfig);
 

@@ -15,7 +15,6 @@ layout(binding = 11) uniform accelerationStructureEXT u_SceneTLAS;
 
 layout(binding = 12) uniform texture2D t_InDepthBuffer;
 layout(binding = 13, r8) uniform restrict image2D t_OutShadow;
-layout(binding = 14, rg8) uniform restrict image2D t_OutMoments;
 
 layout(std430, binding = 15) restrict readonly buffer b_LightData
 {
@@ -118,5 +117,4 @@ void main()
     const float oldValue = imageLoad(t_OutShadow, ivec2(gl_LaunchIDEXT.xy)).x;
 
     imageStore(t_OutShadow, ivec2(gl_LaunchIDEXT.xy), vec4(visibility, 0, 0, 1));
-    imageStore(t_OutMoments, ivec2(gl_LaunchIDEXT.xy), vec4(visibility, visibility, 0, 1));
 }

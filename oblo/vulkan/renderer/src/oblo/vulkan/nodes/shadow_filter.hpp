@@ -13,6 +13,9 @@ namespace oblo::vk
 
         resource<texture> outFiltered;
 
+        resource<texture> stableHistory;
+        resource<texture> transientHistory;
+
         h32<compute_pass> filterPass;
 
         u32 passIndex;

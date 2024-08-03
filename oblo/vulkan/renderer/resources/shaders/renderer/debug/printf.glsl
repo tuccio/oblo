@@ -63,10 +63,15 @@
 
 #endif
 
+bool debug_is_center(in uvec2 position, in uvec2 resolution)
+{
+    return position.xy == (resolution.xy / 2);
+}
+
 bool debug_is_center()
 {
 #ifdef OBLO_PIPELINE_RAYTRACING
-    return gl_LaunchIDEXT.xy == (gl_LaunchSizeEXT.xy / 2);
+    return debug_is_center(gl_LaunchIDEXT.xy, gl_LaunchSizeEXT.xy);
 #else
     return false;
 #endif

@@ -2619,8 +2619,6 @@ namespace oblo::vk
             .internalPipeline = pipeline,
         };
 
-        m_impl->vkCtx->begin_debug_label(commandBuffer, pipeline->label);
-
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->pipeline);
 
         if (pipeline->requiresTextures2D && m_impl->currentSamplersDescriptor)

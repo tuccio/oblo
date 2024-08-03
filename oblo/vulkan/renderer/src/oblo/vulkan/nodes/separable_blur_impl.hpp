@@ -36,7 +36,7 @@ namespace oblo::vk
     template <separable_blur_config Config, separable_blur_pass Pass>
     void separable_blur<Config, Pass>::build(const frame_graph_build_context& ctx)
     {
-        if constexpr (Pass == separable_blur_pass::horizontal)
+        if (!outputInPlace || Pass == separable_blur_pass::horizontal)
         {
             ctx.acquire(inSource, texture_usage::storage_read);
 

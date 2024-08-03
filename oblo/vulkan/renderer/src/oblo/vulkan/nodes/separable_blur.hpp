@@ -40,6 +40,8 @@ namespace oblo::vk
 
         std::span<const f32> kernel;
 
+        bool outputInPlace{true};
+
         void init(const frame_graph_init_context& ctx);
 
         void build(const frame_graph_build_context& ctx);

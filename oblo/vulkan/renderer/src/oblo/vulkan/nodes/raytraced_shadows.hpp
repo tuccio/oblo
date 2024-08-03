@@ -18,7 +18,6 @@ namespace oblo::vk
 
         resource<texture> inDepthBuffer;
         resource<texture> outShadow;
-        resource<texture> outMoments;
 
         h32<raytracing_pass> shadowPass;
 

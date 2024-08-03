@@ -49,15 +49,6 @@ namespace oblo::vk
             },
             texture_usage::storage_write);
 
-        ctx.create(outMoments,
-            {
-                .width = resolution.x,
-                .height = resolution.y,
-                .format = VK_FORMAT_R8G8_UNORM,
-                .usage = VK_IMAGE_USAGE_STORAGE_BIT,
-            },
-            texture_usage::storage_write);
-
         ctx.acquire(inDepthBuffer, texture_usage::shader_read);
 
         ctx.acquire(inCameraBuffer, buffer_usage::uniform);
@@ -82,7 +73,6 @@ namespace oblo::vk
             {
                 {"t_InDepthBuffer", inDepthBuffer},
                 {"t_OutShadow", outShadow},
-                {"t_OutMoments", outMoments},
             });
 
         bindingTable.emplace(ctx.get_string_interner().get_or_add("u_SceneTLAS"),
