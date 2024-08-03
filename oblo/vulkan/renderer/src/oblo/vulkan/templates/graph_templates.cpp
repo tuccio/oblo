@@ -289,6 +289,9 @@ namespace oblo::vk::raytraced_shadow_view
         graph.connect(filter0, &shadow_filter::transientHistory, filter1, &shadow_filter::transientHistory);
         graph.connect(filter1, &shadow_filter::transientHistory, filter2, &shadow_filter::transientHistory);
 
+        graph.connect(filter0, &shadow_filter::historySamples, filter1, &shadow_filter::historySamples);
+        graph.connect(filter1, &shadow_filter::historySamples, filter2, &shadow_filter::historySamples);
+
         graph.connect(shadows, &raytraced_shadows::inConfig, output, &shadow_output::inConfig);
 
         graph.connect(filter2, &shadow_filter::outFiltered, output, &shadow_output::outShadow);

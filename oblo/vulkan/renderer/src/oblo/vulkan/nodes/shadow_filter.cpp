@@ -58,10 +58,20 @@ namespace oblo::vk
                     .usage = imageInitializer->usage,
                 },
                 texture_usage::storage_write);
+
+            ctx.create(historySamples,
+                {
+                    .width = imageInitializer->extent.width,
+                    .height = imageInitializer->extent.height,
+                    .format = VK_FORMAT_R8_UINT,
+                    .usage = imageInitializer->usage,
+                },
+                texture_usage::storage_write);
         }
         else
         {
             ctx.acquire(transientHistory, texture_usage::storage_read);
+            ctx.acquire(historySamples, texture_usage::storage_read);
         }
     }
 
@@ -91,6 +101,7 @@ namespace oblo::vk
                     {"t_InMoments", inMoments},
                     {"t_OutFiltered", outFiltered},
                     {"t_TransientHistory", transientHistory},
+                    {"t_HistorySamples", historySamples},
                 });
 
             if (passIndex == 0)
