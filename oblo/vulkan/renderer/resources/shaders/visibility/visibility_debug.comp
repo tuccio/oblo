@@ -191,15 +191,12 @@ vec4 visibility_shade(in visibility_shade_context ctx)
 #endif
 
 #if defined(OUT_MOTION_VECTORS)
-    const ray cameraRay = visibility_calculate_camera_ray(g_Camera, ctx.screenPos, ctx.resolution);
-
-    // TODO: Use barycentric coords to calculate new position
-    const vec3 prevPositionWS = barycentric_interpolate(bc, prevTriangleWS.v);
-
-    const vec4 prevPositionCS = g_Camera.lastFrameViewProjection * vec4(prevPositionWS, 1);
     const vec2 ndc = screen_to_ndc(ctx.screenPos, ctx.resolution);
+    const ray cameraRay = visibility_calculate_camera_ray(g_Camera, ndc);
 
-    const vec2 prevNDC = prevPositionCS.xy / prevPositionCS.w;
+    const vec2 prevNDC =
+        visibility_calculate_last_frame_position_ndc_2d(ndc, g_Camera.lastFrameViewProjection, bc, prevTriangleWS);
+
     const vec2 diff = ndc - prevNDC;
 
     return vec4(diff, 0, 1);
