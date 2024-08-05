@@ -34,7 +34,7 @@ const uint g_ShadowCacheSize = g_ThreadLocalSize + 2 * g_TapRadius * g_Stride;
 const uint g_ShadowLoadsPerThread = (g_ShadowCacheSize + g_ThreadLocalSize - 1) / g_ThreadLocalSize;
 
 shared float g_ShadowCache[g_ShadowCacheSize][g_ShadowCacheSize];
-shared float g_HistoryCache2[g_ShadowCacheSize][g_ShadowCacheSize];
+shared float g_HistoryCache[g_ShadowCacheSize][g_ShadowCacheSize];
 shared float g_MomentsCache[g_ShadowCacheSize][g_ShadowCacheSize];
 
 ivec2 apply_offset_clamp(in ivec2 pixel, in uvec2 offset, in uvec2 resolution)
@@ -89,7 +89,7 @@ void main()
             const uvec2 coords = center + uvec2(x, y) * g_Stride;
 
             const float shadow = g_ShadowCache[coords.y][coords.x];
-            const float history = g_HistoryCache2[coords.y][coords.x];
+            const float history = g_HistoryCache[coords.y][coords.x];
 
 #if 1
             const float mean = g_MomentsCache[coords.y][coords.x];
@@ -116,7 +116,7 @@ void main()
     imageStore(t_OutFiltered, ivec2(screenPos), vec4(result, 0, 0, 1));
 
 #if SHADOW_FILTER_PASS_INDEX == 0
-    const float history = g_HistoryCache2[center.y][center.x];
+    const float history = g_HistoryCache[center.y][center.x];
 
     imageStore(t_TransientHistory, ivec2(screenPos), vec4(history, 0, 0, 1));
     imageStore(t_StableHistory, ivec2(screenPos), vec4(result, 0, 0, 1));
@@ -170,7 +170,7 @@ void load_history_cache(in uvec2 resolution)
                 const ivec2 coords = apply_offset_clamp(firstPixelToLoad, offset, resolution);
                 const vec4 pixel = imageLoad(SHADOW_HISTORY_TEXTURE, coords);
 
-                g_HistoryCache2[offset.y][offset.x] = pixel.x;
+                g_HistoryCache[offset.y][offset.x] = pixel.x;
             }
         }
     }

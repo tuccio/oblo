@@ -42,6 +42,7 @@ namespace oblo
         metalness,
         roughness,
         emissive,
+        motion_vectors,
         raytracing_debug,
     };
 

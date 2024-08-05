@@ -2,6 +2,7 @@
 #include <renderer/geometry/ray>
 #include <renderer/quad>
 #include <visibility/visibility_buffer>
+#include <visibility/visibility_utils>
 
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 

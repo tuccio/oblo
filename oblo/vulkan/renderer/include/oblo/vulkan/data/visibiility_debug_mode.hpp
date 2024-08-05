@@ -16,5 +16,6 @@ namespace oblo::vk
         metalness,
         roughness,
         emissive,
+        motion_vectors,
     };
 }

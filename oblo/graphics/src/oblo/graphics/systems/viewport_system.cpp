@@ -54,6 +54,8 @@ namespace oblo
         VkDescriptorSet descriptorSet{};
         VkImage image{};
 
+        mat4 lastFrameViewProj;
+
         vk::allocated_buffer pickingOutputBuffer;
         u64 lastPickingSubmitIndex{};
     };
@@ -231,6 +233,8 @@ namespace oblo
             {
                 auto* renderGraphData = m_renderGraphs.try_find(entity);
 
+                bool isFirstFrame = false;
+
                 if (!renderGraphData)
                 {
                     const auto [it, ok] = m_renderGraphs.emplace(entity);
@@ -249,6 +253,8 @@ namespace oblo
                     m_sceneRenderer->add_scene_view(subgraph);
 
                     renderGraphData = &*it;
+
+                    isFirstFrame = true;
                 }
                 else
                 {
@@ -357,11 +363,14 @@ namespace oblo
                         .viewProjection = viewProj,
                         .invViewProjection = invViewProj,
                         .invProjection = invProj,
+                        .lastFrameViewProjection = isFirstFrame ? viewProj : renderGraphData->lastFrameViewProj,
                         .frustum = make_frustum_from_inverse_view_projection(invViewProj),
                         .position = {position.x, position.y, position.z},
                     };
 
                     frameGraph.set_input(renderGraphData->subgraph, main_view::InCamera, cameraBuffer).assert_value();
+
+                    renderGraphData->lastFrameViewProj = viewProj;
                 }
 
                 {
@@ -526,6 +535,12 @@ namespace oblo
             case viewport_mode::emissive:
                 frameGraph.set_output_state(subgraph, vk::main_view::OutDebugImage, true);
                 frameGraph.set_input(subgraph, vk::main_view::InDebugMode, vk::visibility_debug_mode::emissive)
+                    .assert_value();
+                break;
+
+            case viewport_mode::motion_vectors:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutDebugImage, true);
+                frameGraph.set_input(subgraph, vk::main_view::InDebugMode, vk::visibility_debug_mode::motion_vectors)
                     .assert_value();
                 break;
 

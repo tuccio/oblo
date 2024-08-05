@@ -117,7 +117,7 @@ namespace oblo::vk::main_view
         {
             connectShadingPass(shadingPass, h);
 
-            // Connect vsibility buffer
+            // Connect visibility buffer
             graph.connect(visibilityPass, &visibility_pass::outVisibilityBuffer, shadingPass, &T::inVisibilityBuffer);
         };
 

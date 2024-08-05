@@ -4,6 +4,7 @@
 struct transform
 {
     mat4 localToWorld;
+    mat4 lastFrameLocalToWorld;
     mat4 normalMatrix;
 };
 

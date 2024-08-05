@@ -196,6 +196,9 @@ namespace oblo::vk
         case visibility_debug_mode::emissive:
             define = "OUT_EMISSIVE"_hsv;
             break;
+        case visibility_debug_mode::motion_vectors:
+            define = "OUT_MOTION_VECTORS"_hsv;
+            break;
         default:
             unreachable();
         }
