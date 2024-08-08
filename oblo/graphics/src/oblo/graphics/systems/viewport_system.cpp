@@ -21,7 +21,7 @@
 #include <oblo/vulkan/data/copy_texture_info.hpp>
 #include <oblo/vulkan/data/picking_configuration.hpp>
 #include <oblo/vulkan/data/time_buffer.hpp>
-#include <oblo/vulkan/data/visibiility_debug_mode.hpp>
+#include <oblo/vulkan/data/visibility_debug_mode.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/graph/frame_graph.hpp>

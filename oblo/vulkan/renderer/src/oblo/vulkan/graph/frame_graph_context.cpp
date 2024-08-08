@@ -268,6 +268,7 @@ namespace oblo::vk
     void frame_graph_build_context::acquire(resource<buffer> buffer, buffer_usage usage) const
     {
         const auto poolIndex = m_frameGraph.find_pool_index(buffer);
+        OBLO_ASSERT(poolIndex);
         m_resourcePool.add_transient_buffer_usage(poolIndex, convert_buffer_usage(usage));
         const auto [pipelineStage, access] = convert_for_sync2(m_frameGraph.currentNode->passKind, usage);
         m_frameGraph.set_buffer_access(buffer, pipelineStage, access, false);
@@ -359,6 +360,7 @@ namespace oblo::vk
     u32 frame_graph_execute_context::get_frames_alive_count(resource<texture> texture) const
     {
         const auto h = m_frameGraph.find_pool_index(texture);
+        OBLO_ASSERT(h);
         return m_frameGraph.resourcePool.get_frames_alive_count(h);
     }
 

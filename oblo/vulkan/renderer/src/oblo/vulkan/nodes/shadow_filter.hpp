@@ -3,6 +3,7 @@
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
+#include <oblo/vulkan/nodes/instance_table_node.hpp>
 
 namespace oblo::vk
 {
@@ -10,6 +11,15 @@ namespace oblo::vk
     {
         resource<texture> inSource;
         resource<texture> inMoments;
+
+        resource<buffer> inCameraBuffer;
+
+        resource<buffer> inMeshDatabase;
+
+        resource<buffer> inInstanceTables;
+        data<instance_data_table_buffers_span> inInstanceBuffers;
+
+        resource<texture> inVisibilityBuffer;
 
         resource<texture> outFiltered;
 

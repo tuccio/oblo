@@ -9,6 +9,7 @@ namespace oblo::vk::main_view
     constexpr string_view InResolution{"Resolution"};
     constexpr string_view InCamera{"Camera"};
     constexpr string_view InTime{"Time"};
+    constexpr string_view InMeshDatabase{"MeshDatabase"};
     constexpr string_view InInstanceTables{"InstanceTables"};
     constexpr string_view InInstanceBuffers{"InstanceBuffers"};
     constexpr string_view InFinalRenderTarget{"FinalRenderTarget"};
@@ -22,7 +23,6 @@ namespace oblo::vk::main_view
 
     constexpr string_view OutResolution{"Resolution"};
     constexpr string_view OutCameraBuffer{"CameraBuffer"};
-    constexpr string_view OutLastFrameCameraBuffer{"LastFrameCameraBuffer"};
     constexpr string_view OutDepthBuffer{"DepthBuffer"};
     constexpr string_view OutVisibilityBuffer{"VisibilityBuffer"};
     constexpr string_view OutLitImage{"LitOutput"};
@@ -45,6 +45,7 @@ namespace oblo::vk::scene_data
     constexpr string_view OutLights{"LightData"};
     constexpr string_view OutLightBuffer{"LightDataBuffer"};
     constexpr string_view OutLightConfig{"LightConfig"};
+    constexpr string_view OutMeshDatabase{"MeshDatabase"};
     constexpr string_view OutInstanceTables{"InstanceTables"};
     constexpr string_view OutInstanceBuffers{"InstanceBuffers"};
 
@@ -58,6 +59,10 @@ namespace oblo::vk::raytraced_shadow_view
     constexpr string_view InResolution{"Resolution"};
     constexpr string_view InConfig{"Config"};
     constexpr string_view InDepthBuffer{"DepthBuffer"};
+    constexpr string_view InVisibilityBuffer{"VisibilityBuffer"};
+    constexpr string_view InMeshDatabase{"MeshDatabase"};
+    constexpr string_view InInstanceTables{"InstanceTables"};
+    constexpr string_view InInstanceBuffers{"InstanceBuffers"};
     constexpr string_view OutShadow{"Shadow"};
     constexpr string_view OutShadowSink{"ShadowSink"};
 

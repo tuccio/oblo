@@ -229,17 +229,20 @@ namespace oblo::vk
     void resource_pool::add_transient_texture_usage(h32<transient_texture_resource> transientTexture,
         VkImageUsageFlags usage)
     {
+        OBLO_ASSERT(transientTexture);
         m_textureResources[transientTexture.value - 1].initializer.usage |= usage;
     }
 
     void resource_pool::add_transient_buffer_usage(h32<transient_buffer_resource> transientBuffer,
         VkBufferUsageFlags usage)
     {
+        OBLO_ASSERT(transientBuffer);
         m_bufferResources[transientBuffer.value - 1].usage |= usage;
     }
 
     texture resource_pool::get_transient_texture(h32<transient_texture_resource> id) const
     {
+        OBLO_ASSERT(id);
         auto& resource = m_textureResources[id.value - 1];
 
         return {
@@ -251,6 +254,7 @@ namespace oblo::vk
 
     buffer resource_pool::get_transient_buffer(h32<transient_buffer_resource> id) const
     {
+        OBLO_ASSERT(id);
         auto& resource = m_bufferResources[id.value - 1];
 
         return {
@@ -262,12 +266,14 @@ namespace oblo::vk
 
     u32 resource_pool::get_frames_alive_count(h32<transient_texture_resource> id) const
     {
+        OBLO_ASSERT(id);
         auto& resource = m_textureResources[id.value - 1];
         return resource.framesAlive;
     }
 
     const image_initializer& resource_pool::get_initializer(h32<transient_texture_resource> id) const
     {
+        OBLO_ASSERT(id);
         auto& resource = m_textureResources[id.value - 1];
         return resource.initializer;
     }

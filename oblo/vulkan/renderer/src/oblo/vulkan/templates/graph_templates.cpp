@@ -63,6 +63,7 @@ namespace oblo::vk::main_view
         graph.make_input(viewBuffers, &view_buffers_node::inInstanceTables, InInstanceTables);
         graph.make_input(viewBuffers, &view_buffers_node::inInstanceBuffers, InInstanceBuffers);
         graph.make_input(viewBuffers, &view_buffers_node::inFinalRenderTarget, InFinalRenderTarget);
+        graph.make_input(viewBuffers, &view_buffers_node::inMeshDatabase, InMeshDatabase);
 
         graph.make_output(viewBuffers, &view_buffers_node::inResolution, OutResolution);
         graph.make_output(viewBuffers, &view_buffers_node::outCameraBuffer, OutCameraBuffer);
@@ -98,7 +99,7 @@ namespace oblo::vk::main_view
             &visibility_pass::inInstanceBuffers);
 
         graph.connect(viewBuffers,
-            &view_buffers_node::outMeshDatabase,
+            &view_buffers_node::inMeshDatabase,
             visibilityPass,
             &visibility_pass::inMeshDatabase);
 
@@ -109,7 +110,7 @@ namespace oblo::vk::main_view
             graph.connect(viewBuffers, &view_buffers_node::inResolution, shadingPass, &T::inResolution);
             graph.connect(viewBuffers, &view_buffers_node::inInstanceTables, shadingPass, &T::inInstanceTables);
             graph.connect(viewBuffers, &view_buffers_node::inInstanceBuffers, shadingPass, &T::inInstanceBuffers);
-            graph.connect(viewBuffers, &view_buffers_node::outMeshDatabase, shadingPass, &T::inMeshDatabase);
+            graph.connect(viewBuffers, &view_buffers_node::inMeshDatabase, shadingPass, &T::inMeshDatabase);
         };
 
         const auto connectVisibilityShadingPass =
@@ -135,9 +136,14 @@ namespace oblo::vk::main_view
             const auto frustumCulling = graph.add_node<frustum_culling>();
 
             graph.connect(viewBuffers,
-                &view_buffers_node::outPerViewBindingTable,
+                &view_buffers_node::outCameraBuffer,
                 frustumCulling,
-                &frustum_culling::inPerViewBindingTable);
+                &frustum_culling::inCameraBuffer);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::inMeshDatabase,
+                frustumCulling,
+                &frustum_culling::inMeshDatabase);
 
             graph.connect(viewBuffers,
                 &view_buffers_node::inInstanceTables,
@@ -181,7 +187,7 @@ namespace oblo::vk::main_view
                 &visibility_pass::inDrawCallBuffer);
 
             graph.connect(viewBuffers,
-                &view_buffers_node::outMeshDatabase,
+                &view_buffers_node::inMeshDatabase,
                 drawCallGenerator,
                 &draw_call_generator::inMeshDatabase);
         }
@@ -234,6 +240,7 @@ namespace oblo::vk::scene_data
         const auto instanceTableNode = graph.add_node<instance_table_node>();
         graph.make_output(instanceTableNode, &instance_table_node::outInstanceTables, OutInstanceTables);
         graph.make_output(instanceTableNode, &instance_table_node::outInstanceBuffers, OutInstanceBuffers);
+        graph.make_output(instanceTableNode, &instance_table_node::outMeshDatabase, OutMeshDatabase);
 
         return graph;
     }
@@ -272,6 +279,10 @@ namespace oblo::vk::raytraced_shadow_view
         graph.make_input(shadows, &raytraced_shadows::inCameraBuffer, InCameraBuffer);
         graph.make_input(shadows, &raytraced_shadows::inConfig, InConfig);
         graph.make_input(shadows, &raytraced_shadows::inDepthBuffer, InDepthBuffer);
+        graph.make_input(filter0, &shadow_filter::inVisibilityBuffer, InVisibilityBuffer);
+        graph.make_input(filter0, &shadow_filter::inMeshDatabase, InMeshDatabase);
+        graph.make_input(filter0, &shadow_filter::inInstanceBuffers, InInstanceBuffers);
+        graph.make_input(filter0, &shadow_filter::inInstanceTables, InInstanceTables);
 
         graph.connect(shadows, &raytraced_shadows::outShadow, momentFilterH, &box_blur_h::inSource);
         graph.connect(momentFilterH, &box_blur_h::outBlurred, momentFilterV, &box_blur_v::inSource);
@@ -280,17 +291,37 @@ namespace oblo::vk::raytraced_shadow_view
         graph.connect(momentFilterV, &box_blur_v::outBlurred, filter1, &shadow_filter::inMoments);
         graph.connect(momentFilterV, &box_blur_v::outBlurred, filter2, &shadow_filter::inMoments);
 
+        graph.connect(shadows, &raytraced_shadows::inCameraBuffer, filter0, &shadow_filter::inCameraBuffer);
+        graph.connect(shadows, &raytraced_shadows::inCameraBuffer, filter1, &shadow_filter::inCameraBuffer);
+        graph.connect(shadows, &raytraced_shadows::inCameraBuffer, filter2, &shadow_filter::inCameraBuffer);
+
         graph.connect(shadows, &raytraced_shadows::outShadow, filter0, &shadow_filter::inSource);
         graph.connect(filter0, &shadow_filter::outFiltered, filter1, &shadow_filter::inSource);
         graph.connect(filter1, &shadow_filter::outFiltered, filter2, &shadow_filter::inSource);
 
+        const auto propagateFromFilter0 = [&]<typename T>(T(shadow_filter::*m))
+        {
+            graph.connect(filter0, m, filter1, m);
+            graph.connect(filter1, m, filter2, m);
+        };
+
+        propagateFromFilter0(&shadow_filter::inVisibilityBuffer);
+        propagateFromFilter0(&shadow_filter::inMeshDatabase);
+        propagateFromFilter0(&shadow_filter::inInstanceBuffers);
+        propagateFromFilter0(&shadow_filter::inInstanceTables);
+        propagateFromFilter0(&shadow_filter::transientHistory);
+        propagateFromFilter0(&shadow_filter::historySamples);
+
+        /*graph.connect(filter0, &shadow_filter::inVisibilityBuffer, filter1, &shadow_filter::inVisibilityBuffer);
+        graph.connect(filter1, &shadow_filter::inVisibilityBuffer, filter2, &shadow_filter::inVisibilityBuffer);*/
+
         // Filter #0 outputs the stable history for next frame, but first copies the old history to the transient
         // history. The other passes will use the transient history buffer instead.
-        graph.connect(filter0, &shadow_filter::transientHistory, filter1, &shadow_filter::transientHistory);
-        graph.connect(filter1, &shadow_filter::transientHistory, filter2, &shadow_filter::transientHistory);
+        // graph.connect(filter0, &shadow_filter::transientHistory, filter1, &shadow_filter::transientHistory);
+        // graph.connect(filter1, &shadow_filter::transientHistory, filter2, &shadow_filter::transientHistory);
 
-        graph.connect(filter0, &shadow_filter::historySamples, filter1, &shadow_filter::historySamples);
-        graph.connect(filter1, &shadow_filter::historySamples, filter2, &shadow_filter::historySamples);
+        // graph.connect(filter0, &shadow_filter::historySamples, filter1, &shadow_filter::historySamples);
+        // graph.connect(filter1, &shadow_filter::historySamples, filter2, &shadow_filter::historySamples);
 
         graph.connect(shadows, &raytraced_shadows::inConfig, output, &shadow_output::inConfig);
 

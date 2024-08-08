@@ -26,6 +26,13 @@ namespace oblo::vk
         ctx.acquire(inSource, texture_usage::storage_read);
         ctx.acquire(inMoments, texture_usage::storage_read);
 
+        ctx.acquire(inCameraBuffer, buffer_usage::uniform);
+        ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
+
+        ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
+
+        acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
+
         const auto imageInitializer = ctx.get_current_initializer(inSource);
         imageInitializer.assert_value();
 
@@ -95,10 +102,18 @@ namespace oblo::vk
 
             binding_table bindingTable;
 
+            ctx.bind_buffers(bindingTable,
+                {
+                    {"b_InstanceTables", inInstanceTables},
+                    {"b_MeshTables", inMeshDatabase},
+                    {"b_CameraBuffer", inCameraBuffer},
+                });
+
             ctx.bind_textures(bindingTable,
                 {
                     {"t_InSource", inSource},
                     {"t_InMoments", inMoments},
+                    {"t_InVisibilityBuffer", inVisibilityBuffer},
                     {"t_OutFiltered", outFiltered},
                     {"t_TransientHistory", transientHistory},
                     {"t_HistorySamples", historySamples},

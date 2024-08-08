@@ -19,6 +19,8 @@ namespace oblo
                 vk::scene_data::OutInstanceBuffers,
                 mainView,
                 vk::main_view::InInstanceBuffers);
+
+            g.connect(sceneDataProvider, vk::scene_data::OutMeshDatabase, mainView, vk::main_view::InMeshDatabase);
         }
     }
 

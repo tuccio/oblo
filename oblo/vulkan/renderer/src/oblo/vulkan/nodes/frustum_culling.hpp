@@ -14,10 +14,10 @@ namespace oblo::vk
     {
         h32<compute_pass> cullPass;
 
-        data<binding_table> inPerViewBindingTable;
-
         data<std::span<draw_buffer_data>> outDrawBufferData;
 
+        resource<buffer> inMeshDatabase;
+        resource<buffer> inCameraBuffer;
         resource<buffer> inInstanceTables;
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
