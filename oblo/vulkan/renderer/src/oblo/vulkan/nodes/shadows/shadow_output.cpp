@@ -1,7 +1,7 @@
 #pragma once
 
 #include <oblo/vulkan/graph/node_common.hpp>
-#include <oblo/vulkan/nodes/shadow_output.hpp>
+#include <oblo/vulkan/nodes/shadows/shadow_output.hpp>
 
 namespace oblo::vk
 {

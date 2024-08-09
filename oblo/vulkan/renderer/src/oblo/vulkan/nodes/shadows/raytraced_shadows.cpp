@@ -1,4 +1,4 @@
-#include <oblo/vulkan/nodes/raytraced_shadows.hpp>
+#include <oblo/vulkan/nodes/shadows/raytraced_shadows.hpp>
 
 #include <oblo/core/random_generator.hpp>
 #include <oblo/core/string/string_builder.hpp>

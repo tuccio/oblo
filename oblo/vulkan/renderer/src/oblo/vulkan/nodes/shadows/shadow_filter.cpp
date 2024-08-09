@@ -1,4 +1,4 @@
-#include <oblo/vulkan/nodes/shadow_filter.hpp>
+#include <oblo/vulkan/nodes/shadows/shadow_filter.hpp>
 
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/string/string_builder.hpp>

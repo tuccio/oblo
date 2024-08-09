@@ -9,10 +9,10 @@
 #include <oblo/vulkan/nodes/frustum_culling.hpp>
 #include <oblo/vulkan/nodes/instance_table_node.hpp>
 #include <oblo/vulkan/nodes/light_provider.hpp>
-#include <oblo/vulkan/nodes/raytraced_shadows.hpp>
 #include <oblo/vulkan/nodes/raytracing_debug.hpp>
-#include <oblo/vulkan/nodes/shadow_filter.hpp>
-#include <oblo/vulkan/nodes/shadow_output.hpp>
+#include <oblo/vulkan/nodes/shadows/raytraced_shadows.hpp>
+#include <oblo/vulkan/nodes/shadows/shadow_filter.hpp>
+#include <oblo/vulkan/nodes/shadows/shadow_output.hpp>
 #include <oblo/vulkan/nodes/view_buffers_node.hpp>
 #include <oblo/vulkan/nodes/visibility_lighting.hpp>
 #include <oblo/vulkan/nodes/visibility_pass.hpp>
