@@ -54,7 +54,7 @@ const uint g_ShadowLoadsPerThread = (g_ShadowCacheSize + g_ThreadLocalSize - 1) 
 shared float g_ShadowCache[g_ShadowCacheSize][g_ShadowCacheSize];
 shared float g_HistoryCache[g_ShadowCacheSize][g_ShadowCacheSize];
 shared float g_MomentsCache[g_ShadowCacheSize][g_ShadowCacheSize];
-shared vec2 g_MotionVectors[g_ShadowCacheSize][g_ShadowCacheSize];
+shared ivec2 g_TemporalReprojectionOffset[g_ShadowCacheSize][g_ShadowCacheSize];
 
 ivec2 apply_offset_clamp(in ivec2 pixel, in uvec2 offset, in uvec2 resolution)
 {
@@ -64,6 +64,7 @@ ivec2 apply_offset_clamp(in ivec2 pixel, in uvec2 offset, in uvec2 resolution)
 void load_shadow_cache(in uvec2 resolution);
 void load_history_cache(in uvec2 resolution);
 void load_moments_cache(in uvec2 resolution);
+void load_visibility_buffer(in uvec2 resolution);
 
 layout(local_size_x = g_ThreadLocalSize, local_size_y = g_ThreadLocalSize, local_size_z = 1) in;
 
@@ -72,8 +73,16 @@ void main()
     const uvec2 resolution = imageSize(t_InSource);
 
     load_shadow_cache(resolution);
-    load_history_cache(resolution);
     load_moments_cache(resolution);
+
+    load_visibility_buffer(resolution);
+
+    // Loading the history cache will try to reproject old samples, so a barrier is needed
+    // This barrier might be needed only for pass #0
+    memoryBarrierShared();
+    barrier();
+
+    load_history_cache(resolution);
 
     memoryBarrierShared();
     barrier();
@@ -92,8 +101,6 @@ void main()
 
     const uint historySamples = imageLoad(t_HistorySamples, ivec2(screenPos)).x;
 
-    float historyWeight = .99f;
-
     float result = 0.f;
 
     const int k = int(g_TapRadius);
@@ -108,7 +115,20 @@ void main()
             const uvec2 coords = center + uvec2(x, y) * g_Stride;
 
             const float shadow = g_ShadowCache[coords.y][coords.x];
+
+            float current = shadow;
+
             const float history = g_HistoryCache[coords.y][coords.x];
+
+            float historyWeight = history < 0 ? 0.f : .95f;
+
+            // High variance could boost thte history weight
+            // Should probably check for disocclusion
+
+            if (debug_is_center(uvec2(screenPos), resolution) && history < 0)
+            {
+                printf_text("Rejected!\n");
+            }
 
 #if 1
             const float mean = g_MomentsCache[coords.y][coords.x];
@@ -124,7 +144,13 @@ void main()
 #else
             const float clampedHistory = history;
 #endif
-            const float current = mix(shadow, clampedHistory, historyWeight);
+
+            current = mix(shadow, clampedHistory, historyWeight);
+
+            if (debug_is_center(coords, resolution))
+            {
+                printf_text("OKK!\n");
+            }
 
             result += current;
         }
@@ -167,12 +193,6 @@ void load_shadow_cache(in uvec2 resolution)
     }
 }
 
-#if SHADOW_FILTER_PASS_INDEX == 0
-    #define SHADOW_HISTORY_TEXTURE t_StableHistory
-#else
-    #define SHADOW_HISTORY_TEXTURE t_TransientHistory
-#endif
-
 void load_history_cache(in uvec2 resolution)
 {
     const uvec2 firstGroupPixel = gl_WorkGroupID.xy * gl_WorkGroupSize.xy;
@@ -187,9 +207,53 @@ void load_history_cache(in uvec2 resolution)
             if (offset.x < g_ShadowCacheSize && offset.y < g_ShadowCacheSize)
             {
                 const ivec2 coords = apply_offset_clamp(firstPixelToLoad, offset, resolution);
-                const vec4 pixel = imageLoad(SHADOW_HISTORY_TEXTURE, coords);
+
+                // The first pass reads the stable history and reprojects it temporally, writing to the transient
+                // history buffer the other passes will read. Since reprojection already happened for all pixels, it's
+                // not necessary for other passes to reproject. #if SHADOW_FILTER_PASS_INDEX == 0
+                //                 const ivec2 historyCoords = ivec2(coords) +
+                //                 g_TemporalReprojectionOffset[offset.y][offset.x];
+
+                //                 // We use negative values to signify rejection of the history
+                //                 float history = -1.f;
+
+                //                 // if (debug_is_center(coords, resolution))
+                //                 // {
+                //                 //     printf_vec2("Offset: ",
+                //                 vec2(g_TemporalReprojectionOffset[offset.y][offset.x]));
+                //                 //     printf_vec2("Read coords: ", vec2(historyCoords));
+                //                 // }
+
+                //                 if (historyCoords.x >= 0 && historyCoords.x < resolution.x && historyCoords.y >= 0 &&
+                //                     historyCoords.y < resolution.y)
+                //                 {
+                //                     const vec4 pixel = imageLoad(t_StableHistory, historyCoords);
+                //                     history = pixel.x;
+
+                //                     if (debug_is_center(coords, resolution))
+                //                     {
+                //                         // printf_vec2("Read coords: ", vec2(historyCoords));
+                //                     }
+                //                 }
+
+                //                 g_HistoryCache[offset.y][offset.x] = history;
+                // #else
+
+#if SHADOW_FILTER_PASS_INDEX == 0
+                const vec4 pixel = imageLoad(t_StableHistory, coords);
+#else
+                const vec4 pixel = imageLoad(t_TransientHistory, coords);
+#endif
 
                 g_HistoryCache[offset.y][offset.x] = pixel.x;
+
+                if (pixel.x < 0)
+                {
+                    // printf_vec2("Rejected: ", vec2(coords));
+                    // printf_float("Rejected! ", pixel.x);
+                }
+
+                // #endif
             }
         }
     }
@@ -228,67 +292,85 @@ void load_visibility_buffer(in uvec2 resolution)
         {
             const uvec2 offset = gl_WorkGroupSize.xy * uvec2(loadX, loadY) + gl_LocalInvocationID.xy;
 
-            if (offset.x < g_ShadowCacheSize && offset.y < g_ShadowCacheSize)
+            if (offset.x >= g_ShadowCacheSize || offset.y >= g_ShadowCacheSize)
             {
-                const ivec2 coords = apply_offset_clamp(firstPixelToLoad, offset, resolution);
-                const uvec4 pixel = imageLoad(t_InVisibilityBuffer, coords);
+                continue;
+            }
 
-                visibility_buffer_data vb;
+            const ivec2 coords = apply_offset_clamp(firstPixelToLoad, offset, resolution);
+            const uvec4 pixel = imageLoad(t_InVisibilityBuffer, coords);
 
-                // If nothing is in the VB of a whole tile we could probably skip the whole filtering
-                visibility_buffer_parse(pixel.xy, vb);
+            visibility_buffer_data vb;
 
-                const mesh_handle mesh = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MeshHandles, vb.instanceId);
-                const transform transform = OBLO_INSTANCE_DATA(vb.instanceTableId, i_TransformBuffer, vb.instanceId);
+            // If nothing is in the VB of a whole tile we could probably skip the whole filtering
+            if (!visibility_buffer_parse(pixel.xy, vb))
+            {
+                g_TemporalReprojectionOffset[offset.y][offset.x] = ivec2(0);
 
-                // Read the mesh data
-                const mesh_table meshTable = mesh_table_fetch(mesh);
-
-                const uvec3 vertexIndices =
-                    mesh_get_meshlet_indices(meshTable, mesh, vb.meshletId, vb.meshletTriangleId);
-
-                triangle triangleWS;
-                triangle prevTriangleWS;
-
-                // Read the vertex data and transform everything in world space, we do lighting calculation in that
-                // space
-                [[unroll]] for (uint i = 0; i < 3; ++i)
+                if (debug_is_center(uvec2(coords), resolution))
                 {
-                    const uint vertexId = vertexIndices[i];
-
-                    const vec3 vertexPosition = mesh_get_position(meshTable, vertexId);
-                    triangleWS.v[i] = (transform.localToWorld * vec4(vertexPosition, 1)).xyz;
-
-                    prevTriangleWS.v[i] = (transform.lastFrameLocalToWorld * vec4(vertexPosition, 1)).xyz;
-
-                    // This could be for the normal stop function for the à trous filter
-                    // const vec3 vertexNormal = mesh_get_normal(meshTable, vertexId);
-                    // triangleNormal[i] = mat3(transform.normalMatrix) * vertexNormal;
+                    printf_text("Not passed!\n");
                 }
 
-                const vec2 ndc = screen_to_ndc(uvec2(coords), resolution);
-
-                const ray cameraRay = visibility_calculate_camera_ray(g_Camera, ndc);
-
-                // We could use this for the depth stop function for the à trous filter
-                float intersectionDistance;
-
-                distance_from_triangle_plane(cameraRay, triangleWS, intersectionDistance);
-
-                const vec3 positionWS = ray_point_at(cameraRay, intersectionDistance);
-
-                barycentric_coords bc;
-                barycentric_calculate(bc, triangleWS.v, positionWS);
-
-                const vec2 prevNDC = visibility_calculate_last_frame_position_ndc_2d(ndc,
-                    g_Camera.lastFrameViewProjection,
-                    bc,
-                    prevTriangleWS);
-
-                const vec2 diff = ndc - prevNDC;
-
-                g_MotionVectors[offset.y][offset.x] = diff;
+                continue;
             }
+
+            const mesh_handle mesh = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MeshHandles, vb.instanceId);
+            const transform transform = OBLO_INSTANCE_DATA(vb.instanceTableId, i_TransformBuffer, vb.instanceId);
+
+            // Read the mesh data
+            const mesh_table meshTable = mesh_table_fetch(mesh);
+
+            const uvec3 vertexIndices = mesh_get_meshlet_indices(meshTable, mesh, vb.meshletId, vb.meshletTriangleId);
+
+            triangle triangleWS;
+            triangle prevTriangleWS;
+
+            // Read the vertex data and transform everything in world space, we do lighting calculation in that
+            // space
+            [[unroll]] for (uint i = 0; i < 3; ++i)
+            {
+                const uint vertexId = vertexIndices[i];
+
+                const vec3 vertexPosition = mesh_get_position(meshTable, vertexId);
+                triangleWS.v[i] = (transform.localToWorld * vec4(vertexPosition, 1)).xyz;
+
+                prevTriangleWS.v[i] = (transform.lastFrameLocalToWorld * vec4(vertexPosition, 1)).xyz;
+
+                // This could be for the normal stop function for the à trous filter
+                // const vec3 vertexNormal = mesh_get_normal(meshTable, vertexId);
+                // triangleNormal[i] = mat3(transform.normalMatrix) * vertexNormal;
+            }
+
+            const vec2 ndc = screen_to_ndc(uvec2(coords), resolution);
+
+            const ray cameraRay = visibility_calculate_camera_ray(g_Camera, ndc);
+
+            // We could use this for the depth stop function for the à trous filter
+            float intersectionDistance;
+
+            distance_from_triangle_plane(cameraRay, triangleWS, intersectionDistance);
+
+            const vec3 positionWS = ray_point_at(cameraRay, intersectionDistance);
+
+            barycentric_coords bc;
+            barycentric_calculate(bc, triangleWS.v, positionWS);
+
+            const vec2 prevNDC = visibility_calculate_last_frame_position_ndc_2d(ndc,
+                g_Camera.lastFrameViewProjection,
+                bc,
+                prevTriangleWS);
+
+            const ivec2 pixelOffset = ivec2(resolution * (prevNDC - ndc));
+
+#if SHADOW_FILTER_PASS_INDEX == 0
+            if (debug_is_center(uvec2(coords), resolution) && pixelOffset != ivec2(0))
+            {
+                printf_vec2("Offset: ", vec2(pixelOffset));
+            }
+#endif
+
+            g_TemporalReprojectionOffset[offset.y][offset.x] = ivec2(pixelOffset.x, pixelOffset.y);
         }
     }
 }
