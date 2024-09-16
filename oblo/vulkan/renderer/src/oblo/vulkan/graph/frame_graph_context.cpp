@@ -28,6 +28,7 @@ namespace oblo::vk
             case texture_usage::shader_read:
                 return VK_IMAGE_USAGE_SAMPLED_BIT;
 
+            case texture_usage::storage_read:
             case texture_usage::storage_write:
                 return {};
 

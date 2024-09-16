@@ -13,6 +13,7 @@
 #include <oblo/vulkan/nodes/shadows/raytraced_shadows.hpp>
 #include <oblo/vulkan/nodes/shadows/shadow_filter.hpp>
 #include <oblo/vulkan/nodes/shadows/shadow_output.hpp>
+#include <oblo/vulkan/nodes/shadows/shadow_temporal.hpp>
 #include <oblo/vulkan/nodes/view_buffers_node.hpp>
 #include <oblo/vulkan/nodes/visibility_lighting.hpp>
 #include <oblo/vulkan/nodes/visibility_pass.hpp>
@@ -257,6 +258,7 @@ namespace oblo::vk::raytraced_shadow_view
         const auto shadows = graph.add_node<raytraced_shadows>();
         const auto momentFilterH = graph.add_node<box_blur_h>();
         const auto momentFilterV = graph.add_node<box_blur_v>();
+        const auto temporal = graph.add_node<shadow_temporal>();
         const auto filter0 = graph.add_node<shadow_filter>();
         const auto filter1 = graph.add_node<shadow_filter>();
         const auto filter2 = graph.add_node<shadow_filter>();
@@ -279,38 +281,47 @@ namespace oblo::vk::raytraced_shadow_view
         graph.make_input(shadows, &raytraced_shadows::inCameraBuffer, InCameraBuffer);
         graph.make_input(shadows, &raytraced_shadows::inConfig, InConfig);
         graph.make_input(shadows, &raytraced_shadows::inDepthBuffer, InDepthBuffer);
-        graph.make_input(filter0, &shadow_filter::inVisibilityBuffer, InVisibilityBuffer);
-        graph.make_input(filter0, &shadow_filter::inMeshDatabase, InMeshDatabase);
-        graph.make_input(filter0, &shadow_filter::inInstanceBuffers, InInstanceBuffers);
-        graph.make_input(filter0, &shadow_filter::inInstanceTables, InInstanceTables);
+
+        // graph.make_input(filter0, &shadow_filter::inVisibilityBuffer, InVisibilityBuffer);
+        // graph.make_input(filter0, &shadow_filter::inMeshDatabase, InMeshDatabase);
+        // graph.make_input(filter0, &shadow_filter::inInstanceBuffers, InInstanceBuffers);
+        // graph.make_input(filter0, &shadow_filter::inInstanceTables, InInstanceTables);
 
         graph.connect(shadows, &raytraced_shadows::outShadow, momentFilterH, &box_blur_h::inSource);
         graph.connect(momentFilterH, &box_blur_h::outBlurred, momentFilterV, &box_blur_v::inSource);
 
-        graph.connect(momentFilterV, &box_blur_v::outBlurred, filter0, &shadow_filter::inMoments);
-        graph.connect(momentFilterV, &box_blur_v::outBlurred, filter1, &shadow_filter::inMoments);
-        graph.connect(momentFilterV, &box_blur_v::outBlurred, filter2, &shadow_filter::inMoments);
+        graph.connect(shadows, &raytraced_shadows::outShadow, temporal, &shadow_temporal::inShadow);
+        graph.connect(momentFilterV, &box_blur_v::outBlurred, temporal, &shadow_temporal::inMoments);
 
+        // graph.connect(momentFilterV, &box_blur_v::outBlurred, filter0, &shadow_filter::inMoments);
+        // graph.connect(momentFilterV, &box_blur_v::outBlurred, filter1, &shadow_filter::inMoments);
+        // graph.connect(momentFilterV, &box_blur_v::outBlurred, filter2, &shadow_filter::inMoments);
+
+        // graph.connect(shadows, &raytraced_shadows::inCameraBuffer, temporal, &shadow_temporal::inCameraBuffer);
         graph.connect(shadows, &raytraced_shadows::inCameraBuffer, filter0, &shadow_filter::inCameraBuffer);
         graph.connect(shadows, &raytraced_shadows::inCameraBuffer, filter1, &shadow_filter::inCameraBuffer);
         graph.connect(shadows, &raytraced_shadows::inCameraBuffer, filter2, &shadow_filter::inCameraBuffer);
 
-        graph.connect(shadows, &raytraced_shadows::outShadow, filter0, &shadow_filter::inSource);
+        graph.connect(temporal, &shadow_temporal::outFiltered, filter0, &shadow_filter::inSource);
         graph.connect(filter0, &shadow_filter::outFiltered, filter1, &shadow_filter::inSource);
         graph.connect(filter1, &shadow_filter::outFiltered, filter2, &shadow_filter::inSource);
 
-        const auto propagateFromFilter0 = [&]<typename T>(T(shadow_filter::*m))
-        {
-            graph.connect(filter0, m, filter1, m);
-            graph.connect(filter1, m, filter2, m);
-        };
+        // A little unintuitive, we use the result of the first filter as history for next frame
+        // The first filter pass will create the stable texture
+        graph.connect(temporal, &shadow_temporal::inHistory, filter0, &shadow_filter::outFiltered);
 
-        propagateFromFilter0(&shadow_filter::inVisibilityBuffer);
-        propagateFromFilter0(&shadow_filter::inMeshDatabase);
-        propagateFromFilter0(&shadow_filter::inInstanceBuffers);
-        propagateFromFilter0(&shadow_filter::inInstanceTables);
-        propagateFromFilter0(&shadow_filter::transientHistory);
-        propagateFromFilter0(&shadow_filter::historySamples);
+        // const auto propagateFromFilter0 = [&]<typename T>(T(shadow_filter::*m))
+        //{
+        //     graph.connect(filter0, m, filter1, m);
+        //     graph.connect(filter1, m, filter2, m);
+        // };
+
+        // propagateFromFilter0(&shadow_filter::inVisibilityBuffer);
+        // propagateFromFilter0(&shadow_filter::inMeshDatabase);
+        // propagateFromFilter0(&shadow_filter::inInstanceBuffers);
+        // propagateFromFilter0(&shadow_filter::inInstanceTables);
+        // propagateFromFilter0(&shadow_filter::transientHistory);
+        // propagateFromFilter0(&shadow_filter::historySamples);
 
         /*graph.connect(filter0, &shadow_filter::inVisibilityBuffer, filter1, &shadow_filter::inVisibilityBuffer);
         graph.connect(filter1, &shadow_filter::inVisibilityBuffer, filter2, &shadow_filter::inVisibilityBuffer);*/
@@ -369,6 +380,7 @@ namespace oblo::vk
         registry.register_node<raytraced_shadows>();
         registry.register_node<shadow_output>();
         registry.register_node<shadow_filter>();
+        registry.register_node<shadow_temporal>();
 
         // Blurs
         registry.register_node<gaussian_blur_h>();

@@ -10,22 +10,21 @@ namespace oblo::vk
     struct shadow_filter
     {
         resource<texture> inSource;
-        resource<texture> inMoments;
 
         resource<buffer> inCameraBuffer;
 
-        resource<buffer> inMeshDatabase;
+        //resource<buffer> inMeshDatabase;
 
-        resource<buffer> inInstanceTables;
-        data<instance_data_table_buffers_span> inInstanceBuffers;
+        //resource<buffer> inInstanceTables;
+        //data<instance_data_table_buffers_span> inInstanceBuffers;
 
-        resource<texture> inVisibilityBuffer;
+        //resource<texture> inVisibilityBuffer;
 
         resource<texture> outFiltered;
 
-        resource<texture> stableHistory;
-        resource<texture> transientHistory;
-        resource<texture> historySamples;
+        //resource<texture> stableHistory;
+        //resource<texture> transientHistory;
+        //resource<texture> historySamples;
 
         h32<compute_pass> filterPass;
 

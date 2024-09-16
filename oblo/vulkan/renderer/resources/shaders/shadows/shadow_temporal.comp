@@ -1,0 +1,118 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_control_flow_attributes : enable
+#extension GL_EXT_buffer_reference : require
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_ARB_gpu_shader_int64 : require
+
+#include <renderer/camera>
+#include <renderer/debug/printf>
+// #include <renderer/instances>
+#include <renderer/math>
+// #include <renderer/meshes/mesh_attributes>
+// #include <renderer/meshes/mesh_data>
+// #include <renderer/meshes/mesh_indices>
+// #include <renderer/meshes/mesh_table>
+// #include <renderer/transform>
+// #include <visibility/visibility_buffer>
+// #include <visibility/visibility_utils>
+
+layout(binding = 0, r8) uniform restrict readonly image2D t_InShadow;
+layout(binding = 1, r8) uniform restrict readonly image2D t_InMoments;
+layout(binding = 2, r8) uniform restrict readonly image2D t_InHistory;
+
+layout(binding = 5, r8ui) uniform restrict uimage2D t_InOutHistorySamplesCount;
+
+layout(binding = 8, r8) uniform restrict writeonly image2D t_OutFiltered;
+
+// layout(binding = 16) uniform b_CameraBuffer
+// {
+//     camera_buffer g_Camera;
+// };
+
+// We run 8x8 groups
+const uint g_ThreadLocalSize = 8;
+
+const uint g_ShadowCacheSize = g_ThreadLocalSize;
+const uint g_ShadowLoadsPerThread = (g_ShadowCacheSize + g_ThreadLocalSize - 1) / g_ThreadLocalSize;
+
+// shared float g_ShadowCache[g_ShadowCacheSize][g_ShadowCacheSize];
+// shared float g_HistoryCache[g_ShadowCacheSize][g_ShadowCacheSize];
+// shared float g_MomentsCache[g_ShadowCacheSize][g_ShadowCacheSize];
+// shared ivec2 g_TemporalReprojectionOffset[g_ShadowCacheSize][g_ShadowCacheSize];
+
+ivec2 apply_offset_clamp(in ivec2 pixel, in uvec2 offset, in uvec2 resolution)
+{
+    return ivec2(min(int(resolution.x), int(pixel.x + offset.x)), min(int(resolution.y), int(pixel.y + offset.y)));
+}
+
+void load_shadow_cache(in uvec2 resolution);
+void load_history_cache(in uvec2 resolution);
+void load_moments_cache(in uvec2 resolution);
+void load_visibility_buffer(in uvec2 resolution);
+
+layout(local_size_x = g_ThreadLocalSize, local_size_y = g_ThreadLocalSize, local_size_z = 1) in;
+
+void main()
+{
+    const uvec2 resolution = imageSize(t_InShadow);
+
+    const uvec2 screenPos = gl_GlobalInvocationID.xy;
+
+    if (screenPos.x >= resolution.x || screenPos.y >= resolution.y)
+    {
+        return;
+    }
+
+    // Load shadows
+    // Load moments
+    // Load history
+
+    // TODO
+
+    // Reproject history
+    // Blend with current
+    // Clamp to std deviation
+
+    const float shadow = imageLoad(t_InShadow, ivec2(screenPos)).x;
+    const float mean = imageLoad(t_InMoments, ivec2(screenPos)).x;
+    const float history = imageLoad(t_InHistory, ivec2(screenPos)).x;
+    const uint historySamplesCount = imageLoad(t_InOutHistorySamplesCount, ivec2(screenPos)).x;
+
+    // TODO: If the mean is 0 or 1, we might skip this loop
+    // TODO: We should implement edge-stopping (see EAW à trous)
+
+    float historyWeight = .35f;
+
+    // High variance could boost the history weight
+    // Should probably check for disocclusion
+
+    // if (debug_is_center(uvec2(screenPos), resolution) && history < 0)
+    // {
+    //     printf_text("Rejected!\n");
+    // }
+
+    const float variance = saturate(mean - mean * mean);
+
+    if (variance > .02f)
+    {
+        historyWeight = .92f;
+    }
+
+    const float deviation = sqrt(variance);
+    const float hDeviation = .5f * deviation;
+
+    const float nmin = mean - hDeviation;
+    const float nmax = mean + hDeviation;
+
+    const float clampedHistory = clamp(history, nmin, nmax);
+
+    const float result = mix(shadow, clampedHistory, historyWeight);
+
+    imageStore(t_OutFiltered, ivec2(screenPos), vec4(result, 0, 0, 1));
+
+    const bool acceptSample = true;
+    const uint newSamples = max(uint(acceptSample) * historySamplesCount + 1, 255);
+    imageStore(t_InOutHistorySamplesCount, ivec2(screenPos), uvec4(newSamples, 0, 0, 0));
+}
