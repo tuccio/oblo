@@ -87,8 +87,6 @@ namespace oblo::vk
 
         binding_table bindingTable;
 
-        const buffer inInstanceTablesBuffer = ctx.access(inInstanceTables);
-
         const auto pipeline = pm.get_or_create_pipeline(cullPass, {});
 
         if (const auto pass = pm.begin_compute_pass(ctx.get_command_buffer(), pipeline))

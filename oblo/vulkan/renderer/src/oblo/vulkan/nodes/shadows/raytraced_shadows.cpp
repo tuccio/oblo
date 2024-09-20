@@ -37,7 +37,6 @@ namespace oblo::vk
 
     void raytraced_shadows::build(const frame_graph_build_context& ctx)
     {
-        const auto config = ctx.access(inConfig);
         const auto resolution = ctx.access(inResolution);
 
         ctx.create(outShadow,

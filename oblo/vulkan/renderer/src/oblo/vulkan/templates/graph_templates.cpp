@@ -293,10 +293,6 @@ namespace oblo::vk::raytraced_shadow_view
         graph.connect(shadows, &raytraced_shadows::outShadow, temporal, &shadow_temporal::inShadow);
         graph.connect(momentFilterV, &box_blur_v::outBlurred, temporal, &shadow_temporal::inMoments);
 
-        // graph.connect(momentFilterV, &box_blur_v::outBlurred, filter0, &shadow_filter::inMoments);
-        // graph.connect(momentFilterV, &box_blur_v::outBlurred, filter1, &shadow_filter::inMoments);
-        // graph.connect(momentFilterV, &box_blur_v::outBlurred, filter2, &shadow_filter::inMoments);
-
         graph.connect(shadows, &raytraced_shadows::inCameraBuffer, temporal, &shadow_temporal::inCameraBuffer);
         graph.connect(shadows, &raytraced_shadows::inCameraBuffer, filter0, &shadow_filter::inCameraBuffer);
         graph.connect(shadows, &raytraced_shadows::inCameraBuffer, filter1, &shadow_filter::inCameraBuffer);
@@ -309,30 +305,6 @@ namespace oblo::vk::raytraced_shadow_view
         // A little unintuitive, we use the result of the first filter as history for next frame
         // The first filter pass will create the stable texture
         graph.connect(temporal, &shadow_temporal::inHistory, filter0, &shadow_filter::outFiltered);
-
-        // const auto propagateFromFilter0 = [&]<typename T>(T(shadow_filter::*m))
-        //{
-        //     graph.connect(filter0, m, filter1, m);
-        //     graph.connect(filter1, m, filter2, m);
-        // };
-
-        // propagateFromFilter0(&shadow_filter::inVisibilityBuffer);
-        // propagateFromFilter0(&shadow_filter::inMeshDatabase);
-        // propagateFromFilter0(&shadow_filter::inInstanceBuffers);
-        // propagateFromFilter0(&shadow_filter::inInstanceTables);
-        // propagateFromFilter0(&shadow_filter::transientHistory);
-        // propagateFromFilter0(&shadow_filter::historySamples);
-
-        /*graph.connect(filter0, &shadow_filter::inVisibilityBuffer, filter1, &shadow_filter::inVisibilityBuffer);
-        graph.connect(filter1, &shadow_filter::inVisibilityBuffer, filter2, &shadow_filter::inVisibilityBuffer);*/
-
-        // Filter #0 outputs the stable history for next frame, but first copies the old history to the transient
-        // history. The other passes will use the transient history buffer instead.
-        // graph.connect(filter0, &shadow_filter::transientHistory, filter1, &shadow_filter::transientHistory);
-        // graph.connect(filter1, &shadow_filter::transientHistory, filter2, &shadow_filter::transientHistory);
-
-        // graph.connect(filter0, &shadow_filter::historySamples, filter1, &shadow_filter::historySamples);
-        // graph.connect(filter1, &shadow_filter::historySamples, filter2, &shadow_filter::historySamples);
 
         graph.connect(shadows, &raytraced_shadows::inConfig, output, &shadow_output::inConfig);
 
