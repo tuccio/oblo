@@ -57,12 +57,12 @@ namespace oblo::vk
             },
             texture_usage::storage_write);
 
-        // ctx.acquire(inCameraBuffer, buffer_usage::uniform);
-        // ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
+        ctx.acquire(inCameraBuffer, buffer_usage::uniform);
+        ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
 
-        // ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
+        ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
 
-        // acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
+        acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
     }
 
     void shadow_temporal::execute(const frame_graph_execute_context& ctx)
@@ -80,12 +80,12 @@ namespace oblo::vk
 
             binding_table bindingTable;
 
-            // ctx.bind_buffers(bindingTable,
-            //     {
-            //         {"b_InstanceTables", inInstanceTables},
-            //         {"b_MeshTables", inMeshDatabase},
-            //         {"b_CameraBuffer", inCameraBuffer},
-            //     });
+            ctx.bind_buffers(bindingTable,
+                {
+                    {"b_InstanceTables", inInstanceTables},
+                    {"b_MeshTables", inMeshDatabase},
+                    {"b_CameraBuffer", inCameraBuffer},
+                });
 
             ctx.bind_textures(bindingTable,
                 {
@@ -94,7 +94,7 @@ namespace oblo::vk
                     {"t_InHistory", inHistory},
                     {"t_OutFiltered", outFiltered},
                     {"t_InOutHistorySamplesCount", inOutHistorySamplesCount},
-                    //{"t_InVisibilityBuffer", inVisibilityBuffer},
+                    {"t_InVisibilityBuffer", inVisibilityBuffer},
                 });
 
             const binding_table* bindingTables[] = {

@@ -8,20 +8,13 @@
 
 #include <renderer/camera>
 #include <renderer/debug/printf>
-// #include <renderer/instances>
 #include <renderer/math>
-// #include <renderer/meshes/mesh_attributes>
-// #include <renderer/meshes/mesh_data>
-// #include <renderer/meshes/mesh_indices>
-// #include <renderer/meshes/mesh_table>
 #include <renderer/transform>
 #include <visibility/visibility_buffer>
 #include <visibility/visibility_utils>
 
 layout(binding = 0, r8) uniform restrict readonly image2D t_InSource;
 layout(binding = 1, r8) uniform restrict writeonly image2D t_OutFiltered;
-
-// layout(binding = 6, rg32ui) uniform restrict readonly uimage2D t_InVisibilityBuffer;
 
 layout(binding = 16) uniform b_CameraBuffer
 {

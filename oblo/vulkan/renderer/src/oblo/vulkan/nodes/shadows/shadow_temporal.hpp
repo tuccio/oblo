@@ -14,14 +14,14 @@ namespace oblo::vk
         resource<texture> inHistory;
         resource<texture> inOutHistorySamplesCount;
 
-        // resource<buffer> inCameraBuffer;
+        resource<buffer> inCameraBuffer;
 
-        // resource<buffer> inMeshDatabase;
+        resource<buffer> inMeshDatabase;
 
-        // resource<buffer> inInstanceTables;
-        // data<instance_data_table_buffers_span> inInstanceBuffers;
+        resource<buffer> inInstanceTables;
+        data<instance_data_table_buffers_span> inInstanceBuffers;
 
-        // resource<texture> inVisibilityBuffer;
+        resource<texture> inVisibilityBuffer;
 
         resource<texture> outFiltered;
 

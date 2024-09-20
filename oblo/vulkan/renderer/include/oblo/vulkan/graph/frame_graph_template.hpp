@@ -206,6 +206,6 @@ namespace oblo::vk
         OBLO_ASSERT(srcPin);
 
         m_graph[srcPin].bindings.emplace_back(
-            [v = std::forward<U>(value), pin](void* storage) { *static_cast<R*>(storage) = v; });
+            [v = std::forward<U>(value)](void* storage) { *static_cast<R*>(storage) = v; });
     }
 }

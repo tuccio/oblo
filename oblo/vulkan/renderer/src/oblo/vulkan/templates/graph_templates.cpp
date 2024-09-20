@@ -282,10 +282,10 @@ namespace oblo::vk::raytraced_shadow_view
         graph.make_input(shadows, &raytraced_shadows::inConfig, InConfig);
         graph.make_input(shadows, &raytraced_shadows::inDepthBuffer, InDepthBuffer);
 
-        // graph.make_input(filter0, &shadow_filter::inVisibilityBuffer, InVisibilityBuffer);
-        // graph.make_input(filter0, &shadow_filter::inMeshDatabase, InMeshDatabase);
-        // graph.make_input(filter0, &shadow_filter::inInstanceBuffers, InInstanceBuffers);
-        // graph.make_input(filter0, &shadow_filter::inInstanceTables, InInstanceTables);
+        graph.make_input(temporal, &shadow_temporal::inVisibilityBuffer, InVisibilityBuffer);
+        graph.make_input(temporal, &shadow_temporal::inMeshDatabase, InMeshDatabase);
+        graph.make_input(temporal, &shadow_temporal::inInstanceBuffers, InInstanceBuffers);
+        graph.make_input(temporal, &shadow_temporal::inInstanceTables, InInstanceTables);
 
         graph.connect(shadows, &raytraced_shadows::outShadow, momentFilterH, &box_blur_h::inSource);
         graph.connect(momentFilterH, &box_blur_h::outBlurred, momentFilterV, &box_blur_v::inSource);
@@ -297,7 +297,7 @@ namespace oblo::vk::raytraced_shadow_view
         // graph.connect(momentFilterV, &box_blur_v::outBlurred, filter1, &shadow_filter::inMoments);
         // graph.connect(momentFilterV, &box_blur_v::outBlurred, filter2, &shadow_filter::inMoments);
 
-        // graph.connect(shadows, &raytraced_shadows::inCameraBuffer, temporal, &shadow_temporal::inCameraBuffer);
+        graph.connect(shadows, &raytraced_shadows::inCameraBuffer, temporal, &shadow_temporal::inCameraBuffer);
         graph.connect(shadows, &raytraced_shadows::inCameraBuffer, filter0, &shadow_filter::inCameraBuffer);
         graph.connect(shadows, &raytraced_shadows::inCameraBuffer, filter1, &shadow_filter::inCameraBuffer);
         graph.connect(shadows, &raytraced_shadows::inCameraBuffer, filter2, &shadow_filter::inCameraBuffer);

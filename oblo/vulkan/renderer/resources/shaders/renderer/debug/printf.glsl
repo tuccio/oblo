@@ -36,6 +36,10 @@
         printf_text(Label);                                                                                            \
         debugPrintfEXT("[ %f, %f, %f, %f ]\n", Vector.x, Vector.y, Vector.z, Vector.w);
 
+    #define printf_uint(Label, Value)                                                                                  \
+        printf_text(Label);                                                                                            \
+        debugPrintfEXT("[ %u ]\n", Value);
+
     #define debug_if(Condition, Op)                                                                                    \
         if (Condition)                                                                                                 \
         {                                                                                                              \
@@ -57,6 +61,7 @@
     #define printf_vec2(Label, Vector)
     #define printf_vec3(Label, Vector)
     #define printf_vec4(Label, Vector)
+    #define printf_uint(Label, Value)
 
     #define debug_if(Condition, Op)
     #define debug_assert(Condition)
@@ -68,13 +73,11 @@ bool debug_is_center(in uvec2 position, in uvec2 resolution)
     return position.xy == (resolution.xy / 2);
 }
 
+#ifdef OBLO_PIPELINE_RAYTRACING
 bool debug_is_center()
 {
-#ifdef OBLO_PIPELINE_RAYTRACING
     return debug_is_center(gl_LaunchIDEXT.xy, gl_LaunchSizeEXT.xy);
-#else
-    return false;
-#endif
 }
+#endif
 
 #endif
