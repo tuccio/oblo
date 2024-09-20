@@ -20,4 +20,10 @@ namespace oblo::vk
             outKernel[i] = G * std::exp(k * (i * i));
         }
     }
+
+    void make_separable_blur_kernel(const box_blur_config& cfg, dynamic_array<f32>& outKernel)
+    {
+        const u32 kernelDataSize = 1 + cfg.kernelSize / 2;
+        outKernel.assign(kernelDataSize, f32{1.f} / f32(cfg.kernelSize));
+    }
 }

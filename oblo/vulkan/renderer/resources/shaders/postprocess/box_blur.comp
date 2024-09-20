@@ -5,28 +5,28 @@
 
 #include <postprocess/separable_blur>
 
-blur_pixel_t gaussian_blur_evaluate(in blur_context ctx, uint kernelIndex, int pixelOffset)
+blur_pixel_t box_blur_evaluate(in blur_context ctx, uint kernelIndex, int pixelOffset)
 {
-    const float gaussian = blur_get_kernel(kernelIndex);
+    const float w = blur_get_kernel(kernelIndex);
     const blur_pixel_t pixel = blur_read_pixel_at_offset(ctx, pixelOffset);
-    return gaussian * pixel;
+    return w * pixel;
 }
 
 blur_pixel_t blur_execute(in blur_context ctx)
 {
     // Start with the pixel at the center
-    blur_pixel_t value = gaussian_blur_evaluate(ctx, 0, 0);
+    blur_pixel_t value = box_blur_evaluate(ctx, 0, 0);
 
     // Pixels to the left/top (negative offset)
     [[unroll]] for (uint i = 1; i < g_KernelDataSize; ++i)
     {
-        value += gaussian_blur_evaluate(ctx, i, -int(i));
+        value += box_blur_evaluate(ctx, i, -int(i));
     }
 
     // Pixels to the right/bottom (positive offset)
     [[unroll]] for (uint i = 1; i < g_KernelDataSize; ++i)
     {
-        value += gaussian_blur_evaluate(ctx, i, int(i));
+        value += box_blur_evaluate(ctx, i, int(i));
     }
 
     return value;

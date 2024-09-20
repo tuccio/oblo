@@ -2,7 +2,6 @@
 
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec2u.hpp>
-#include <oblo/vulkan/data/light_visibility_event.hpp>
 #include <oblo/vulkan/data/raytraced_shadow_config.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
@@ -13,8 +12,6 @@ namespace oblo::vk
     {
         data<vec2u> inResolution;
         data<raytraced_shadow_config> inConfig;
-
-        data_sink<light_visibility_event> outShadowSink;
 
         resource<buffer> inCameraBuffer;
         resource<buffer> inLightBuffer;

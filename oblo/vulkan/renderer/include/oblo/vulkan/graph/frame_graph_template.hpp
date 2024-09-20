@@ -8,6 +8,8 @@
 #include <oblo/vulkan/graph/frame_graph_vertex_kind.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 
+#include <functional>
+
 namespace oblo::vk
 {
     struct frame_graph_node_desc;
@@ -45,6 +47,9 @@ namespace oblo::vk
 
         /// For data sink pins, a function to clear them that should be called every frame.
         frame_graph_clear_fn clearDataSink;
+
+        /// Applies data that was bound to a node.
+        dynamic_array<std::function<void(void*)>> bindings;
     };
 
     class frame_graph_template
@@ -89,6 +94,12 @@ namespace oblo::vk
         std::span<const vertex_handle> get_outputs() const;
 
         string_view get_name(vertex_handle inputOrOutput) const;
+
+        template <typename R, typename Node, std::convertible_to<R> U>
+        void bind(vertex_handle node, R(Node::*pin), U&& value);
+
+        template <typename R, typename Node, std::convertible_to<R> U>
+        void bind(vertex_handle node, data<R>(Node::*pin), U&& value);
 
     private:
         vertex_handle find_pin(vertex_handle node, u32 offset) const;
@@ -177,5 +188,24 @@ namespace oblo::vk
     inline u32 frame_graph_template::calculate_offset(const u8* base, const u8* member)
     {
         return u32(member - base);
+    }
+
+    template <typename R, typename Node, std::convertible_to<R> U>
+    inline void frame_graph_template::bind(vertex_handle node, R(Node::*pin), U&& value)
+    {
+        OBLO_ASSERT(m_graph[node].kind == frame_graph_vertex_kind::node);
+        m_graph[node].bindings.emplace_back(
+            [v = std::forward<U>(value), pin](void* node) { static_cast<Node*>(node)->*pin = v; });
+    }
+
+    template <typename R, typename Node, std::convertible_to<R> U>
+    inline void frame_graph_template::bind(vertex_handle node, data<R>(Node::*pin), U&& value)
+    {
+        OBLO_ASSERT(m_graph[node].kind == frame_graph_vertex_kind::node);
+        const auto srcPin = find_pin(node, calculate_offset(pin));
+        OBLO_ASSERT(srcPin);
+
+        m_graph[srcPin].bindings.emplace_back(
+            [v = std::forward<U>(value)](void* storage) { *static_cast<R*>(storage) = v; });
     }
 }

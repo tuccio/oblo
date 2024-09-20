@@ -1,4 +1,4 @@
-#include <oblo/vulkan/nodes/raytraced_shadows.hpp>
+#include <oblo/vulkan/nodes/shadows/raytraced_shadows.hpp>
 
 #include <oblo/core/random_generator.hpp>
 #include <oblo/core/string/string_builder.hpp>
@@ -37,7 +37,6 @@ namespace oblo::vk
 
     void raytraced_shadows::build(const frame_graph_build_context& ctx)
     {
-        const auto config = ctx.access(inConfig);
         const auto resolution = ctx.access(inResolution);
 
         ctx.create(outShadow,
@@ -46,7 +45,6 @@ namespace oblo::vk
                 .height = resolution.y,
                 .format = VK_FORMAT_R8_UNORM,
                 .usage = VK_IMAGE_USAGE_STORAGE_BIT,
-                .isStable = true,
             },
             texture_usage::storage_write);
 
@@ -54,8 +52,6 @@ namespace oblo::vk
 
         ctx.acquire(inCameraBuffer, buffer_usage::uniform);
         ctx.acquire(inLightBuffer, buffer_usage::storage_read);
-
-        ctx.push(outShadowSink, {outShadow, config.lightIndex});
 
         randomSeed = ctx.get_random_generator().generate();
     }
@@ -96,8 +92,6 @@ namespace oblo::vk
 
         if (const auto pass = pm.begin_raytracing_pass(commandBuffer, pipeline))
         {
-            const auto accumulationFrames = ctx.get_frames_alive_count(outShadow);
-
             const auto resolution = ctx.access(inResolution);
 
             const binding_table* bindingTables[] = {
@@ -108,17 +102,13 @@ namespace oblo::vk
             {
                 u32 randomSeed;
                 u32 lightIndex;
-                u32 samples;
                 f32 punctualLightRadius;
-                f32 historyAlpha;
             };
 
             const push_constants constants{
                 .randomSeed = randomSeed,
                 .lightIndex = cfg.lightIndex,
-                .samples = cfg.shadowSamples,
                 .punctualLightRadius = cfg.shadowPunctualRadius,
-                .historyAlpha = accumulationFrames == 0 ? 0.f : cfg.temporalAccumulationFactor,
             };
 
             pm.bind_descriptor_sets(*pass, bindingTables);

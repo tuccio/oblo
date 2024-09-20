@@ -76,21 +76,16 @@ namespace oblo::vk
         }
 
         acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
+
+        ctx.acquire(inCameraBuffer, buffer_usage::uniform);
+        ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
     }
 
     void frustum_culling::execute(const frame_graph_execute_context& ctx)
     {
         auto& pm = ctx.get_pass_manager();
 
-        auto& interner = ctx.get_string_interner();
-
-        const auto inInstanceTablesName = interner.get_or_add("b_InstanceTables");
-        const auto outPreCullingIdMap = interner.get_or_add("b_PreCullingIdMap");
-        const auto outDrawCountName = interner.get_or_add("b_OutDrawCount");
-
         binding_table bindingTable;
-
-        const buffer inInstanceTablesBuffer = ctx.access(inInstanceTables);
 
         const auto pipeline = pm.get_or_create_pipeline(cullPass, {});
 
@@ -104,15 +99,18 @@ namespace oblo::vk
             {
                 bindingTable.clear();
 
-                bindingTable.emplace(inInstanceTablesName, make_bindable_object(inInstanceTablesBuffer));
-                bindingTable.emplace(outPreCullingIdMap, make_bindable_object(ctx.access(currentDraw.preCullingIdMap)));
-                bindingTable.emplace(outDrawCountName,
-                    make_bindable_object(ctx.access(currentDraw.drawCallCountBuffer)));
+                ctx.bind_buffers(bindingTable,
+                    {
+                        {"b_CameraBuffer", inCameraBuffer},
+                        {"b_MeshTables", inMeshDatabase},
+                        {"b_InstanceTables", inInstanceTables},
+                        {"b_PreCullingIdMap", currentDraw.preCullingIdMap},
+                        {"b_OutDrawCount", currentDraw.drawCallCountBuffer},
+                    });
 
                 const u32 count = currentDraw.sourceData.numInstances;
 
                 const binding_table* bindingTables[] = {
-                    &ctx.access(inPerViewBindingTable),
                     &bindingTable,
                 };
 

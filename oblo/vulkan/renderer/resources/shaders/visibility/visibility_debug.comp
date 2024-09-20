@@ -10,6 +10,7 @@
 #extension GL_EXT_control_flow_attributes : enable
 
 #include <renderer/camera>
+#include <renderer/debug/printf>
 #include <renderer/debug>
 #include <renderer/geometry/volumes>
 #include <renderer/instances>
@@ -24,6 +25,7 @@
 #include <renderer/textures>
 #include <renderer/transform>
 #include <visibility/visibility_shading>
+#include <visibility/visibility_utils>
 
 vec4 visibility_shade(in visibility_shade_context ctx)
 {
@@ -41,6 +43,10 @@ vec4 visibility_shade(in visibility_shade_context ctx)
     vec3 triangleNormal[3];
     vec3 triangleTangent[3];
     vec3 triangleBitangent[3];
+
+#ifdef OUT_MOTION_VECTORS
+    triangle prevTriangleWS;
+#endif
 
     // Read the mesh data
     const mesh_table meshTable = mesh_table_fetch(mesh);
@@ -64,6 +70,10 @@ vec4 visibility_shade(in visibility_shade_context ctx)
         triangleBitangent[i] = vertexBitangent;
 
         triangleUV0[i] = mesh_get_uv0(meshTable, vertexId);
+
+#ifdef OUT_MOTION_VECTORS
+        prevTriangleWS.v[i] = (transform.lastFrameLocalToWorld * vec4(vertexPosition, 1)).xyz;
+#endif
     }
 
     barycentric_coords bc, bcDDX, bcDDY;
@@ -178,5 +188,17 @@ vec4 visibility_shade(in visibility_shade_context ctx)
     }
 
     return vec4(emitted / (emitted + 1), 1);
+#endif
+
+#if defined(OUT_MOTION_VECTORS)
+    const vec2 ndc = screen_to_ndc(ctx.screenPos, ctx.resolution);
+    const ray cameraRay = visibility_calculate_camera_ray(g_Camera, ndc);
+
+    const vec2 prevNDC =
+        visibility_calculate_last_frame_position_ndc_2d(ndc, g_Camera.lastFrameViewProjection, bc, prevTriangleWS);
+
+    const vec2 diff = ndc - prevNDC;
+
+    return vec4(diff, 0, 1);
 #endif
 }

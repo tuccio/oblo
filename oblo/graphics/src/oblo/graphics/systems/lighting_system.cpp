@@ -180,10 +180,31 @@ namespace oblo
                             shadowMappingGraph,
                             vk::raytraced_shadow_view::InDepthBuffer);
 
+                        frameGraph.connect(sceneView,
+                            vk::main_view::OutVisibilityBuffer,
+                            shadowMappingGraph,
+                            vk::raytraced_shadow_view::InVisibilityBuffer);
+
                         frameGraph.connect(shadowMappingGraph,
                             vk::raytraced_shadow_view::OutShadowSink,
                             sceneView,
                             vk::main_view::InShadowSink);
+
+                        const auto sceneDataProvider = m_sceneRenderer->get_scene_data_provider();
+
+                        frameGraph.connect(sceneDataProvider,
+                            vk::scene_data::OutInstanceTables,
+                            shadowMappingGraph,
+                            vk::raytraced_shadow_view::InInstanceTables);
+                        frameGraph.connect(sceneDataProvider,
+                            vk::scene_data::OutInstanceBuffers,
+                            shadowMappingGraph,
+                            vk::raytraced_shadow_view::InInstanceBuffers);
+
+                        frameGraph.connect(sceneDataProvider,
+                            vk::scene_data::OutMeshDatabase,
+                            shadowMappingGraph,
+                            vk::raytraced_shadow_view::InMeshDatabase);
 
                         const auto [it, ok] = shadow.shadowGraphs.emplace(sceneView, shadowMappingGraph);
 
@@ -200,16 +221,6 @@ namespace oblo
                     };
 
                     frameGraph.set_input(*v, vk::raytraced_shadow_view::InConfig, cfg).assert_value();
-
-                    // Sanitize kernel sizes
-                    const u32 kernelSize = max(3u, (shadow.light->shadowBlurKernel / 2) * 2 + 1);
-
-                    const vk::gaussian_blur_config blurCfg{
-                        .kernelSize = kernelSize,
-                        .sigma = shadow.light->shadowBlurSigma,
-                    };
-
-                    frameGraph.set_input(*v, vk::raytraced_shadow_view::InBlurConfig, blurCfg).assert_value();
                 }
             }
         }

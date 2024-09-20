@@ -37,4 +37,14 @@ vec3 pick_orthogonal(in vec3 N)
     return cross(N, v);
 }
 
+bool float_equal(float lhs, float rhs, float tolerance)
+{
+    return lhs >= rhs - tolerance && lhs <= rhs + tolerance;
+}
+
+bool float_equal(float lhs, float rhs)
+{
+    return float_equal(lhs, rhs, 1e-5);
+}
+
 #endif

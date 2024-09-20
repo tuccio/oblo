@@ -28,6 +28,7 @@ namespace oblo::vk
             .name = passName.as<string>(),
             .shaderSourcePath = shaderPath.as<string>(),
         });
+        ;
 
         ctx.set_pass_kind(pass_kind::compute);
     }
@@ -35,7 +36,7 @@ namespace oblo::vk
     template <separable_blur_config Config, separable_blur_pass Pass>
     void separable_blur<Config, Pass>::build(const frame_graph_build_context& ctx)
     {
-        if constexpr (Pass == separable_blur_pass::horizontal)
+        if (!outputInPlace || Pass == separable_blur_pass::horizontal)
         {
             ctx.acquire(inSource, texture_usage::storage_read);
 
@@ -96,9 +97,13 @@ namespace oblo::vk
             imageChannels.format("BLUR_IMAGE_CHANNELS 1");
             break;
 
+        case VK_FORMAT_R8G8_UNORM:
+            imageFormat = "BLUR_IMAGE_FORMAT rg8"_hsv;
+            imageChannels.format("BLUR_IMAGE_CHANNELS 2");
+            break;
+
         default:
             OBLO_ASSERT(false);
-            imageFormat = "BLUR_IMAGE_FORMAT rgba8"_hsv;
             break;
         }
 
@@ -111,9 +116,9 @@ namespace oblo::vk
             Pass == separable_blur_pass::horizontal ? "BLUR_HORIZONTAL"_hsv : "BLUR_VERTICAL"_hsv,
         };
 
-        const auto lightingPipeline = pm.get_or_create_pipeline(blurPass, {.defines = defines});
+        const auto pipeline = pm.get_or_create_pipeline(blurPass, {.defines = defines});
 
-        if (const auto pass = pm.begin_compute_pass(commandBuffer, lightingPipeline))
+        if (const auto pass = pm.begin_compute_pass(commandBuffer, pipeline))
         {
             const vec2u resolution{sourceTexture.initializer.extent.width, sourceTexture.initializer.extent.height};
 

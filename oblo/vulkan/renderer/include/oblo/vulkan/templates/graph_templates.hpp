@@ -9,9 +9,10 @@ namespace oblo::vk::main_view
     constexpr string_view InResolution{"Resolution"};
     constexpr string_view InCamera{"Camera"};
     constexpr string_view InTime{"Time"};
+    constexpr string_view InMeshDatabase{"MeshDatabase"};
     constexpr string_view InInstanceTables{"InstanceTables"};
     constexpr string_view InInstanceBuffers{"InstanceBuffers"};
-    constexpr string_view InFinalRenderTarget{"Final Render Target"};
+    constexpr string_view InFinalRenderTarget{"FinalRenderTarget"};
 
     constexpr string_view InLights{"LightData"};
     constexpr string_view InLightBuffer{"LightDataBuffer"};
@@ -21,12 +22,12 @@ namespace oblo::vk::main_view
     constexpr string_view InDebugMode{"Debug Mode"};
 
     constexpr string_view OutResolution{"Resolution"};
-    constexpr string_view OutCameraBuffer{"Camera Buffer"};
-    constexpr string_view OutDepthBuffer{"Depth Buffer"};
-    constexpr string_view OutVisibilityBuffer{"Visibility Buffer"};
-    constexpr string_view OutLitImage{"Lit Output"};
-    constexpr string_view OutDebugImage{"Debug Output"};
-    constexpr string_view OutRTDebugImage{"Debug RT Output"};
+    constexpr string_view OutCameraBuffer{"CameraBuffer"};
+    constexpr string_view OutDepthBuffer{"DepthBuffer"};
+    constexpr string_view OutVisibilityBuffer{"VisibilityBuffer"};
+    constexpr string_view OutLitImage{"LitOutput"};
+    constexpr string_view OutDebugImage{"DebugOutput"};
+    constexpr string_view OutRTDebugImage{"DebugRTOutput"};
 
     constexpr string_view OutPicking{"OutPicking"};
 
@@ -44,6 +45,7 @@ namespace oblo::vk::scene_data
     constexpr string_view OutLights{"LightData"};
     constexpr string_view OutLightBuffer{"LightDataBuffer"};
     constexpr string_view OutLightConfig{"LightConfig"};
+    constexpr string_view OutMeshDatabase{"MeshDatabase"};
     constexpr string_view OutInstanceTables{"InstanceTables"};
     constexpr string_view OutInstanceBuffers{"InstanceBuffers"};
 
@@ -57,7 +59,10 @@ namespace oblo::vk::raytraced_shadow_view
     constexpr string_view InResolution{"Resolution"};
     constexpr string_view InConfig{"Config"};
     constexpr string_view InDepthBuffer{"DepthBuffer"};
-    constexpr string_view InBlurConfig{"BlurConfig"};
+    constexpr string_view InVisibilityBuffer{"VisibilityBuffer"};
+    constexpr string_view InMeshDatabase{"MeshDatabase"};
+    constexpr string_view InInstanceTables{"InstanceTables"};
+    constexpr string_view InInstanceBuffers{"InstanceBuffers"};
     constexpr string_view OutShadow{"Shadow"};
     constexpr string_view OutShadowSink{"ShadowSink"};
 

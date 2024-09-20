@@ -1,17 +1,11 @@
 #include <renderer/quad>
+#include <renderer/debug/printf>
 
 #if BLUR_IMAGE_CHANNELS == 1
     #define blur_pixel_t float
 
-blur_pixel_t blur_make_pixel(in vec4 v)
-{
-    return v.x;
-}
-
-vec4 blur_make_vec4(in blur_pixel_t v)
-{
-    return vec4(v, 0, 0, 1);
-}
+#elif BLUR_IMAGE_CHANNELS == 2
+    #define blur_pixel_t vec2
 #else
     #error "Unsupported channels count"
 #endif
@@ -43,6 +37,9 @@ struct blur_context
 
 /// @brief This function has to be implemented by the user.
 blur_pixel_t blur_execute(in blur_context ctx);
+
+blur_pixel_t blur_make_pixel(in vec4 v);
+vec4 blur_make_vec4(in blur_pixel_t v);
 
 float blur_get_kernel(in uint offset)
 {
@@ -108,3 +105,29 @@ void main()
 
     imageStore(t_OutBlurred, ivec2(screenPos), blur_make_vec4(v));
 }
+
+#if BLUR_IMAGE_CHANNELS == 1
+blur_pixel_t blur_make_pixel(in vec4 v)
+{
+    return v.x;
+}
+
+vec4 blur_make_vec4(in blur_pixel_t v)
+{
+    return vec4(v, 0, 0, 1);
+}
+#elif BLUR_IMAGE_CHANNELS == 2
+    #define blur_pixel_t vec2
+
+blur_pixel_t blur_make_pixel(in vec4 v)
+{
+    return v.xy;
+}
+
+vec4 blur_make_vec4(in blur_pixel_t v)
+{
+    return vec4(v.x, v.y, 0, 1);
+}
+#else
+    #error "Unsupported channels count"
+#endif

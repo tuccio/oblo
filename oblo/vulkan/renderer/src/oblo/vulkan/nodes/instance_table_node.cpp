@@ -22,6 +22,15 @@ namespace oblo::vk
     {
         const auto& drawRegistry = ctx.get_draw_registry();
 
+        const std::span meshDatabaseData = drawRegistry.get_mesh_database_data();
+
+        ctx.create(outMeshDatabase,
+            {
+                .size = u32(meshDatabaseData.size()),
+                .data = meshDatabaseData,
+            },
+            buffer_usage::storage_upload);
+
         const std::span drawCalls = drawRegistry.get_draw_calls();
         const auto numTables = drawCalls.size();
 

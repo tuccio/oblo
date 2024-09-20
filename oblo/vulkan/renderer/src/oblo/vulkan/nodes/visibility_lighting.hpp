@@ -3,7 +3,7 @@
 #include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/data/light_data.hpp>
 #include <oblo/vulkan/data/light_visibility_event.hpp>
-#include <oblo/vulkan/data/visibiility_debug_mode.hpp>
+#include <oblo/vulkan/data/visibility_debug_mode.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>

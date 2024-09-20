@@ -13,6 +13,7 @@ namespace oblo::vk
         mat4 viewProjection;
         mat4 invViewProjection;
         mat4 invProjection;
+        mat4 lastFrameViewProjection;
         frustum frustum;
         vec3 position;
     };

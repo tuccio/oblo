@@ -7,6 +7,7 @@ namespace oblo
     struct global_transform_component
     {
         mat4 localToWorld;
+        mat4 lastFrameLocalToWorld;
         mat4 normalMatrix;
     };
 }

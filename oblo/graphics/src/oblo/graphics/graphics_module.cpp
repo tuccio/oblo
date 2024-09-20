@@ -85,6 +85,7 @@ namespace oblo
                 .add_enumerator("metalness", viewport_mode::metalness)
                 .add_enumerator("roughness", viewport_mode::roughness)
                 .add_enumerator("emissive", viewport_mode::emissive)
+                .add_enumerator("motion_vectors", viewport_mode::motion_vectors)
                 .add_enumerator("raytracing_debug", viewport_mode::raytracing_debug);
         }
     }

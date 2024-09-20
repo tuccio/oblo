@@ -19,6 +19,7 @@ namespace oblo::vk
 
     struct instance_table_node
     {
+        resource<buffer> outMeshDatabase;
         resource<buffer> outInstanceTables;
         data<instance_data_table_buffers_span> outInstanceBuffers;
 

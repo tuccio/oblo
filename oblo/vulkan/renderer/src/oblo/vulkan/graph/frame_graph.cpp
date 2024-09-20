@@ -117,6 +117,11 @@ namespace oblo::vk
                 void* const nodePtr = m_impl->memoryPool.allocate(nodeDesc.typeDesc.size, nodeDesc.typeDesc.alignment);
                 nodeDesc.typeDesc.construct(nodePtr);
 
+                for (const auto& binding : src.bindings)
+                {
+                    binding(nodePtr);
+                }
+
                 *nodeIt = {
                     .ptr = nodePtr,
                     .build = nodeDesc.build,
@@ -184,6 +189,18 @@ namespace oblo::vk
             *pinStorageIt = {
                 .typeDesc = src.pinDesc,
             };
+
+            if (!src.bindings.empty())
+            {
+                void* const dataPtr = m_impl->memoryPool.allocate(src.pinDesc.size, src.pinDesc.alignment);
+                pinStorageIt->typeDesc.construct(dataPtr);
+                pinStorageIt->data = dataPtr;
+
+                for (auto& binding : src.bindings)
+                {
+                    binding(dataPtr);
+                }
+            }
         }
 
         for (const auto e : templateGraph.get_edges())
