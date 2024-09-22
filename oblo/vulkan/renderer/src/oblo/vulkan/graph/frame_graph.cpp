@@ -188,6 +188,7 @@ namespace oblo::vk
 
             *pinStorageIt = {
                 .typeDesc = src.pinDesc,
+                .owner = dst.pin,
             };
 
             if (!src.bindings.empty())
@@ -770,6 +771,15 @@ namespace oblo::vk
         dynamicPins.emplace_back(handle);
 
         return handle;
+    }
+
+    const frame_graph_node* frame_graph_impl::get_owner_node(resource<buffer> buffer) const
+    {
+        const auto storage = to_storage_handle(buffer);
+        const auto owner = pinStorage.at(storage).owner;
+        const auto vertexHandle = pins.at(owner).nodeHandle;
+        const auto nodeHandle = graph.get(vertexHandle).node;
+        return &nodes.at(nodeHandle);
     }
 
     void* frame_graph_impl::access_storage(h32<frame_graph_pin_storage> handle) const

@@ -1,6 +1,7 @@
 #include <oblo/vulkan/nodes/visibility_lighting.hpp>
 
 #include <oblo/core/allocation_helpers.hpp>
+#include <oblo/core/buffered_array.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/math/vec2u.hpp>
@@ -46,6 +47,11 @@ namespace oblo::vk
 
         ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
 
+        if (ctx.has_source(inSurfelsGrid))
+        {
+            ctx.acquire(inSurfelsGrid, buffer_usage::storage_read);
+        }
+
         acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
 
         const auto lights = ctx.access(inLights);
@@ -89,9 +95,21 @@ namespace oblo::vk
                 {"t_OutShadedImage", outShadedImage},
             });
 
+        buffered_array<hashed_string_view, 1> defines;
+
+        if (ctx.has_source(inSurfelsGrid))
+        {
+            ctx.bind_buffers(bindingTable,
+                {
+                    {"b_SurfelsGrid", inSurfelsGrid},
+                });
+
+            defines.emplace_back("SURFELS_GI");
+        }
+
         const auto commandBuffer = ctx.get_command_buffer();
 
-        const auto lightingPipeline = pm.get_or_create_pipeline(lightingPass, {});
+        const auto lightingPipeline = pm.get_or_create_pipeline(lightingPass, {.defines = defines});
 
         if (const auto pass = pm.begin_compute_pass(commandBuffer, lightingPipeline))
         {

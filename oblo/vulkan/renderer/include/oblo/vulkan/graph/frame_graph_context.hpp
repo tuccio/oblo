@@ -110,6 +110,9 @@ namespace oblo::vk
 
         void acquire(resource<buffer> buffer, buffer_usage usage) const;
 
+        /// @brief Determines whether the pin has an incoming edge.
+        bool has_source(resource<buffer> buffer) const;
+
         [[nodiscard]] resource<buffer> create_dynamic_buffer(const buffer_resource_initializer& initializer,
             buffer_usage usage) const;
 
@@ -180,11 +183,20 @@ namespace oblo::vk
 
         buffer access(resource<buffer> h) const;
 
+        /// @brief Determines whether the pin has an incoming edge.
+        bool has_source(resource<buffer> buffer) const;
+
         /// @brief Queries the number of frames a stable texture has been alive for.
         /// On the first frame of usage the function will return 0.
         /// For transient textures it will always return 0.
         /// @param texture A valid texture resource.
         u32 get_frames_alive_count(resource<texture> texture) const;
+
+        /// @brief Queries the number of frames a stable buffer has been alive for.
+        /// On the first frame of usage the function will return 0.
+        /// For transient buffers it will always return 0.
+        /// @param buffer A valid buffer resource.
+        u32 get_frames_alive_count(resource<buffer> buffer) const;
 
         void upload(resource<buffer> h, std::span<const byte> data, u32 bufferOffset = 0) const;
 

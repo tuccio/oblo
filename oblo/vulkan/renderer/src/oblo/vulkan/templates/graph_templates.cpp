@@ -14,6 +14,7 @@
 #include <oblo/vulkan/nodes/shadows/shadow_filter.hpp>
 #include <oblo/vulkan/nodes/shadows/shadow_output.hpp>
 #include <oblo/vulkan/nodes/shadows/shadow_temporal.hpp>
+#include <oblo/vulkan/nodes/surfels/surfel_management.hpp>
 #include <oblo/vulkan/nodes/view_buffers_node.hpp>
 #include <oblo/vulkan/nodes/visibility_lighting.hpp>
 #include <oblo/vulkan/nodes/visibility_pass.hpp>
@@ -77,6 +78,7 @@ namespace oblo::vk::main_view
         graph.make_input(visibilityLighting, &visibility_lighting::inLights, InLights);
         graph.make_input(visibilityLighting, &visibility_lighting::inLightConfig, InLightConfig);
         graph.make_input(visibilityLighting, &visibility_lighting::inLightBuffer, InLightBuffer);
+        graph.make_input(visibilityLighting, &visibility_lighting::inSurfelsGrid, InSurfelsGIGrid);
         graph.make_input(visibilityLighting, &visibility_lighting::inShadowSink, InShadowSink);
 
         graph.make_input(visibilityDebug, &visibility_debug::inDebugMode, InDebugMode);
@@ -327,6 +329,41 @@ namespace oblo::vk::raytraced_shadow_view
     }
 }
 
+namespace oblo::vk::surfels_gi
+{
+    frame_graph_template create_global(const frame_graph_registry& registry)
+    {
+        vk::frame_graph_template graph;
+
+        graph.init(registry);
+
+        const auto initializer = graph.add_node<surfel_initializer>();
+        const auto spawner = graph.add_node<surfel_spawner>();
+
+        graph.make_input(initializer, &surfel_initializer::inGridBounds, InGridBounds);
+        graph.make_input(initializer, &surfel_initializer::inGridCellSize, InGridCellSize);
+        graph.make_input(initializer, &surfel_initializer::inMaxSurfels, InMaxSurfels);
+
+        graph.make_output(spawner, &surfel_spawner::inOutSurfelsGrid, OutGrid);
+
+        graph.connect(initializer, &surfel_initializer::outSurfelsGrid, spawner, &surfel_spawner::inOutSurfelsGrid);
+
+        graph.bind(initializer,
+            &surfel_initializer::inGridBounds,
+            aabb{
+                .min = {.x = -256, .y = -32.f, .z = -256},
+                .max = {.x = 256, .y = 128.f, .z = 256},
+            });
+
+        graph.bind(initializer, &surfel_initializer::inGridCellSize, vec3::splat(2.f));
+        graph.bind(initializer, &surfel_initializer::inMaxSurfels, 1u << 14);
+
+        return graph;
+    }
+
+    frame_graph_template create_view(const frame_graph_registry& registry);
+}
+
 namespace oblo::vk
 {
     vk::frame_graph_registry create_frame_graph_registry()
@@ -359,6 +396,10 @@ namespace oblo::vk
         registry.register_node<gaussian_blur_v>();
         registry.register_node<box_blur_h>();
         registry.register_node<box_blur_v>();
+
+        // Surfels GI
+        registry.register_node<surfel_initializer>();
+        registry.register_node<surfel_spawner>();
 
         return registry;
     }

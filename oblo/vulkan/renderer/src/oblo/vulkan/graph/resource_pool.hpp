@@ -22,6 +22,7 @@ namespace oblo::vk
     struct transient_buffer_resource;
 
     struct stable_texture_resource;
+    struct stable_buffer_resource;
 
     class resource_pool
     {
@@ -43,7 +44,8 @@ namespace oblo::vk
         h32<transient_texture_resource> add_transient_texture(
             const image_initializer& initializer, lifetime_range range, h32<stable_texture_resource> stableId);
 
-        h32<transient_buffer_resource> add_transient_buffer(u32 size, VkBufferUsageFlags usage);
+        h32<transient_buffer_resource> add_transient_buffer(
+            u32 size, VkBufferUsageFlags usage, h32<stable_buffer_resource> stableId);
 
         void add_transient_texture_usage(h32<transient_texture_resource> transientTexture, VkImageUsageFlags usage);
         void add_transient_buffer_usage(h32<transient_buffer_resource> transientBuffer, VkBufferUsageFlags usage);
@@ -52,6 +54,7 @@ namespace oblo::vk
         buffer get_transient_buffer(h32<transient_buffer_resource> id) const;
 
         u32 get_frames_alive_count(h32<transient_texture_resource> id) const;
+        u32 get_frames_alive_count(h32<transient_buffer_resource> id) const;
 
         const image_initializer& get_initializer(h32<transient_texture_resource> id) const;
 
@@ -68,8 +71,10 @@ namespace oblo::vk
         void create_buffers(vulkan_context& ctx);
 
         void acquire_from_pool(vulkan_context& ctx, texture_resource& resource);
+        void acquire_from_pool(vulkan_context& ctx, buffer_resource& resource);
 
         void free_stable_textures(vulkan_context& ctx, u32 unusedFor);
+        void free_stable_buffers(vulkan_context& ctx, u32 unusedFor);
 
     private:
         struct stable_texture_key
@@ -85,15 +90,32 @@ namespace oblo::vk
             usize operator()(const stable_texture_key& key) const;
         };
 
+        struct stable_buffer_key
+        {
+            h32<stable_buffer_resource> stableId;
+            VkBufferUsageFlags usage;
+            u32 size;
+
+            bool operator==(const stable_buffer_key& rhs) const = default;
+        };
+
+        struct stable_buffer_key_hash
+        {
+            usize operator()(const stable_buffer_key& key) const;
+        };
+
         struct stable_texture;
+        struct stable_buffer;
 
         using stable_textures_map = std::unordered_map<stable_texture_key, stable_texture, stable_texture_key_hash>;
+        using stable_buffers_map = std::unordered_map<stable_buffer_key, stable_buffer, stable_buffer_key_hash>;
 
     private:
         dynamic_array<texture_resource> m_textureResources;
         dynamic_array<texture_resource> m_lastFrameTransientTextures;
 
         stable_textures_map m_stableTextures;
+        stable_buffers_map m_stableBuffers;
 
         dynamic_array<buffer_resource> m_bufferResources;
 
