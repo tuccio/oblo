@@ -22,6 +22,12 @@ namespace oblo
 
             g.connect(sceneDataProvider, vk::scene_data::OutMeshDatabase, mainView, vk::main_view::InMeshDatabase);
         }
+
+        void connect_surfels_gi_to_scene_view(
+            vk::frame_graph& g, h32<vk::frame_graph_subgraph> surfelsGIGlobal, h32<vk::frame_graph_subgraph> mainView)
+        {
+            g.connect(surfelsGIGlobal, vk::surfels_gi::OutGrid, mainView, vk::main_view::InSurfelsGIGrid);
+        }
     }
 
     struct scene_renderer::shadow_graph
@@ -53,6 +59,12 @@ namespace oblo
             const auto provider = vk::scene_data::create(m_nodeRegistry);
             m_sceneDataProvider = m_frameGraph.instantiate(provider);
         }
+
+        if (!m_surfelsGI)
+        {
+            const auto gi = vk::surfels_gi::create_global(m_nodeRegistry);
+            m_surfelsGI = m_frameGraph.instantiate(gi);
+        }
     }
 
     void scene_renderer::setup_lights(const scene_lights& lights)
@@ -67,6 +79,11 @@ namespace oblo
         if (m_sceneDataProvider)
         {
             connect_scene_data_provider_to_scene_view(m_frameGraph, m_sceneDataProvider, subgraph);
+        }
+
+        if (m_surfelsGI)
+        {
+            connect_surfels_gi_to_scene_view(m_frameGraph, m_surfelsGI, subgraph);
         }
     }
 

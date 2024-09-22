@@ -33,6 +33,8 @@ namespace oblo::vk
         resource<buffer> inLightBuffer;
         resource<buffer> inLightConfig;
 
+        resource<buffer> inSurfelsGrid;
+
         resource<buffer> inMeshDatabase;
 
         resource<buffer> inInstanceTables;

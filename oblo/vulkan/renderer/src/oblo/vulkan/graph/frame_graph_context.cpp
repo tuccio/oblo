@@ -201,7 +201,18 @@ namespace oblo::vk
             vkUsage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         }
 
-        const auto poolIndex = m_resourcePool.add_transient_buffer(initializer.size, vkUsage);
+        h32<stable_buffer_resource> stableId{};
+
+        if (initializer.isStable)
+        {
+            // We use the resource handle as id, since it's unique and stable as long as graph topology doesn't change
+            stableId = std::bit_cast<h32<stable_buffer_resource>>(buffer);
+
+            OBLO_ASSERT(initializer.data.empty(),
+                "Uploading at initialization time on stable buffers is currently not supported");
+        }
+
+        const auto poolIndex = m_resourcePool.add_transient_buffer(initializer.size, vkUsage, stableId);
 
         staging_buffer_span stagedData{};
         staging_buffer_span* stagedDataPtr{};
@@ -238,7 +249,9 @@ namespace oblo::vk
             vkUsage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         }
 
-        const auto poolIndex = m_resourcePool.add_transient_buffer(stagedDataSize, vkUsage);
+        constexpr h32<stable_buffer_resource> notStable{};
+
+        const auto poolIndex = m_resourcePool.add_transient_buffer(stagedDataSize, vkUsage, notStable);
 
         // We rely on a global memory barrier in frame graph to synchronize all uploads before submitting any command
 
@@ -273,6 +286,12 @@ namespace oblo::vk
         m_resourcePool.add_transient_buffer_usage(poolIndex, convert_buffer_usage(usage));
         const auto [pipelineStage, access] = convert_for_sync2(m_frameGraph.currentNode->passKind, usage);
         m_frameGraph.set_buffer_access(buffer, pipelineStage, access, false);
+    }
+
+    bool frame_graph_build_context::has_source(resource<buffer> buffer) const
+    {
+        auto* const owner = m_frameGraph.get_owner_node(buffer);
+        return m_frameGraph.currentNode != owner;
     }
 
     resource<buffer> frame_graph_build_context::create_dynamic_buffer(const buffer_resource_initializer& initializer,
@@ -358,9 +377,22 @@ namespace oblo::vk
         return *static_cast<buffer*>(m_frameGraph.access_storage(storage));
     }
 
+    bool frame_graph_execute_context::has_source(resource<buffer> buffer) const
+    {
+        auto* const owner = m_frameGraph.get_owner_node(buffer);
+        return m_frameGraph.currentNode != owner;
+    }
+
     u32 frame_graph_execute_context::get_frames_alive_count(resource<texture> texture) const
     {
         const auto h = m_frameGraph.find_pool_index(texture);
+        OBLO_ASSERT(h);
+        return m_frameGraph.resourcePool.get_frames_alive_count(h);
+    }
+
+    u32 frame_graph_execute_context::get_frames_alive_count(resource<buffer> buffer) const
+    {
+        const auto h = m_frameGraph.find_pool_index(buffer);
         OBLO_ASSERT(h);
         return m_frameGraph.resourcePool.get_frames_alive_count(h);
     }

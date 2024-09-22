@@ -71,6 +71,9 @@ namespace oblo::vk
         h32<transient_texture_resource> transientTexture;
 
         frame_graph_data_desc typeDesc;
+
+        // The handle of the pin that owns the storage
+        h32<frame_graph_pin> owner;
     };
 
     enum class frame_graph_vertex_state : u8
@@ -229,6 +232,8 @@ namespace oblo::vk
         bool can_exec_time_upload(resource<buffer> handle) const;
 
         h32<frame_graph_pin_storage> allocate_dynamic_resource_pin();
+
+        const frame_graph_node* get_owner_node(resource<buffer> buffer) const;
 
     public: // Utility
         void free_pin_storage(const frame_graph_pin_storage& storage, bool isFrameAllocated);

@@ -17,6 +17,7 @@ namespace oblo::vk::main_view
     constexpr string_view InLights{"LightData"};
     constexpr string_view InLightBuffer{"LightDataBuffer"};
     constexpr string_view InLightConfig{"LightConfig"};
+    constexpr string_view InSurfelsGIGrid{"SurfelsGIGrid"};
     constexpr string_view InShadowSink{"ShadowSink"};
 
     constexpr string_view InDebugMode{"Debug Mode"};
@@ -70,6 +71,18 @@ namespace oblo::vk::raytraced_shadow_view
 
     type_id get_main_view_barrier_source();
     type_id get_main_view_barrier_target();
+}
+
+namespace oblo::vk::surfels_gi
+{
+    constexpr string_view InCameraBuffer{"CameraBuffer"};
+    constexpr string_view InGridBounds{"GridBounds"};
+    constexpr string_view InGridCellSize{"GridCellSize"};
+    constexpr string_view InMaxSurfels{"MaxSurfels"};
+    constexpr string_view OutGrid{"Grid"};
+
+    frame_graph_template create_global(const frame_graph_registry& registry);
+    frame_graph_template create_view(const frame_graph_registry& registry);
 }
 
 namespace oblo::vk

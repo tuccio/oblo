@@ -57,6 +57,7 @@ namespace oblo
         vk::frame_graph& m_frameGraph;
         vk::frame_graph_registry m_nodeRegistry;
         h32<vk::frame_graph_subgraph> m_sceneDataProvider{};
+        h32<vk::frame_graph_subgraph> m_surfelsGI{};
         // TODO: (#8) This could be a set
         h32_flat_extpool_dense_map<vk::frame_graph_subgraph, bool> m_sceneViews;
         h32_flat_extpool_dense_map<vk::light_data, shadow_graph> m_shadowCastingGraphs;
