@@ -78,7 +78,6 @@ namespace oblo::vk::main_view
         graph.make_input(visibilityLighting, &visibility_lighting::inLights, InLights);
         graph.make_input(visibilityLighting, &visibility_lighting::inLightConfig, InLightConfig);
         graph.make_input(visibilityLighting, &visibility_lighting::inLightBuffer, InLightBuffer);
-        graph.make_input(visibilityLighting, &visibility_lighting::inSurfelsGrid, InSurfelsGIGrid);
         graph.make_input(visibilityLighting, &visibility_lighting::inShadowSink, InShadowSink);
 
         graph.make_input(visibilityDebug, &visibility_debug::inDebugMode, InDebugMode);
@@ -221,6 +220,45 @@ namespace oblo::vk::main_view
             graph.make_output(entityPicking, &entity_picking::outDummyOut, OutPicking);
         }
 
+        // Surfels GI
+        if (cfg.withSurfelsGI)
+        {
+            const auto surfelsTiling = graph.add_node<surfel_tiling>();
+
+            graph.make_input(surfelsTiling, &surfel_tiling::inSurfelsGrid, InSurfelsGIGrid);
+            graph.make_output(surfelsTiling, &surfel_tiling::outTileCoverage, OutSurfelsGITiles);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::outCameraBuffer,
+                surfelsTiling,
+                &surfel_tiling::inCameraBuffer);
+
+            graph.connect(visibilityPass,
+                &visibility_pass::outVisibilityBuffer,
+                surfelsTiling,
+                &surfel_tiling::inVisibilityBuffer);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::inInstanceTables,
+                surfelsTiling,
+                &surfel_tiling::inInstanceTables);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::inInstanceBuffers,
+                surfelsTiling,
+                &surfel_tiling::inInstanceBuffers);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::inMeshDatabase,
+                surfelsTiling,
+                &surfel_tiling::inMeshDatabase);
+
+            graph.connect(surfelsTiling,
+                &surfel_tiling::inSurfelsGrid,
+                visibilityLighting,
+                &visibility_lighting::inSurfelsGrid);
+        }
+
         return graph;
     }
 }
@@ -331,7 +369,7 @@ namespace oblo::vk::raytraced_shadow_view
 
 namespace oblo::vk::surfels_gi
 {
-    frame_graph_template create_global(const frame_graph_registry& registry)
+    frame_graph_template create(const frame_graph_registry& registry)
     {
         vk::frame_graph_template graph;
 
@@ -360,8 +398,6 @@ namespace oblo::vk::surfels_gi
 
         return graph;
     }
-
-    frame_graph_template create_view(const frame_graph_registry& registry);
 }
 
 namespace oblo::vk
@@ -399,6 +435,7 @@ namespace oblo::vk
 
         // Surfels GI
         registry.register_node<surfel_initializer>();
+        registry.register_node<surfel_tiling>();
         registry.register_node<surfel_spawner>();
 
         return registry;

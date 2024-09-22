@@ -62,7 +62,7 @@ namespace oblo
 
         if (!m_surfelsGI)
         {
-            const auto gi = vk::surfels_gi::create_global(m_nodeRegistry);
+            const auto gi = vk::surfels_gi::create(m_nodeRegistry);
             m_surfelsGI = m_frameGraph.instantiate(gi);
         }
     }

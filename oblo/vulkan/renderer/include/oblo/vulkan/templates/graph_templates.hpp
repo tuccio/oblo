@@ -29,12 +29,14 @@ namespace oblo::vk::main_view
     constexpr string_view OutLitImage{"LitOutput"};
     constexpr string_view OutDebugImage{"DebugOutput"};
     constexpr string_view OutRTDebugImage{"DebugRTOutput"};
+    constexpr string_view OutSurfelsGITiles{"SurfelsGITileOutput"};
 
     constexpr string_view OutPicking{"OutPicking"};
 
     struct config
     {
         bool withPicking{false};
+        bool withSurfelsGI{false};
     };
 
     frame_graph_template create(const frame_graph_registry& registry, const config& cfg = {});
@@ -81,8 +83,7 @@ namespace oblo::vk::surfels_gi
     constexpr string_view InMaxSurfels{"MaxSurfels"};
     constexpr string_view OutGrid{"Grid"};
 
-    frame_graph_template create_global(const frame_graph_registry& registry);
-    frame_graph_template create_view(const frame_graph_registry& registry);
+    frame_graph_template create(const frame_graph_registry& registry);
 }
 
 namespace oblo::vk

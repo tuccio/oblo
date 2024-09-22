@@ -9,6 +9,8 @@ namespace oblo::vk
 {
     namespace
     {
+        constexpr u32 g_surfelTileSize{16};
+
         struct surfel_data
         {
             u32 nextInCell;
@@ -32,6 +34,14 @@ namespace oblo::vk
         struct surfel_stack_header
         {
             u32 available;
+        };
+
+        struct surfel_tile_data
+        {
+            vec3 position;
+            f32 _padding;
+            vec3 normal;
+            f32 coverage;
         };
     }
 
@@ -188,6 +198,88 @@ namespace oblo::vk
         }
 
         structuresInitialized = gridInitialized && stackInitialized;
+    }
+
+    void surfel_tiling::init(const frame_graph_init_context& ctx)
+    {
+        auto& pm = ctx.get_pass_manager();
+
+        tilingPass = pm.register_compute_pass({
+            .name = "Initialize Surfels Pool",
+            .shaderSourcePath = "./vulkan/shaders/surfels/tiling.comp",
+        });
+
+        OBLO_ASSERT(tilingPass);
+
+        ctx.set_pass_kind(pass_kind::compute);
+    }
+
+    void surfel_tiling::build(const frame_graph_build_context& ctx)
+    {
+        const auto resolution = ctx.access(inResolution);
+
+        const u32 tilesX = round_up_div(resolution.x, g_surfelTileSize);
+        const u32 tilesY = round_up_div(resolution.y, g_surfelTileSize);
+
+        ctx.create(outTileCoverage,
+            buffer_resource_initializer{
+                .size = u32(tilesX * tilesY * sizeof(surfel_tile_data)),
+            },
+            buffer_usage::storage_write);
+
+        ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
+
+        ctx.acquire(inCameraBuffer, buffer_usage::uniform);
+        ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
+
+        acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
+
+        if (ctx.has_source(inSurfelsGrid))
+        {
+            ctx.acquire(inSurfelsGrid, buffer_usage::storage_read);
+        }
+    }
+
+    void surfel_tiling::execute(const frame_graph_execute_context& ctx)
+    {
+        auto& pm = ctx.get_pass_manager();
+
+        binding_table bindingTable;
+
+        ctx.bind_buffers(bindingTable,
+            {
+                {"b_InstanceTables", inInstanceTables},
+                {"b_MeshTables", inMeshDatabase},
+                {"b_CameraBuffer", inCameraBuffer},
+                {"b_SurfelsGrid", inSurfelsGrid},
+            });
+
+        ctx.bind_textures(bindingTable,
+            {
+                {"t_InVisibilityBuffer", inVisibilityBuffer},
+            });
+
+        const auto commandBuffer = ctx.get_command_buffer();
+
+        const auto pipeline = pm.get_or_create_pipeline(tilingPass, {});
+
+        if (const auto pass = pm.begin_compute_pass(commandBuffer, pipeline))
+        {
+            const auto resolution = ctx.access(inResolution);
+
+            const binding_table* bindingTables[] = {
+                &bindingTable,
+            };
+
+            const u32 tilesX = round_up_div(resolution.x, g_surfelTileSize);
+            const u32 tilesY = round_up_div(resolution.y, g_surfelTileSize);
+
+            pm.bind_descriptor_sets(*pass, bindingTables);
+
+            vkCmdDispatch(ctx.get_command_buffer(), tilesX, tilesY, 1);
+
+            pm.end_compute_pass(*pass);
+        }
     }
 
     void surfel_spawner::init(const frame_graph_init_context& ctx)

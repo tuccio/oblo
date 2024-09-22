@@ -1,0 +1,51 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+
+#define SURFEL_GRID_BINDING 32
+#define SURFEL_GRID_QUALIFIER readonly
+
+#include <renderer/debug/printf>
+#include <surfels/surfel_grid>
+#include <visibility/visibility_buffer>
+#include <visibility/visibility_utils>
+
+const uint g_TileSize = 16;
+
+layout(binding = 10, rg32ui) uniform restrict readonly uimage2D t_InVisibilityBuffer;
+
+layout(local_size_x = g_TileSize, local_size_y = g_TileSize, local_size_z = 1) in;
+
+void main()
+{
+    const ivec2 screenPos = ivec2(gl_WorkGroupID.xy * g_TileSize + gl_LocalInvocationIndex);
+    const uvec2 resolution = imageSize(t_InVisibilityBuffer);
+
+    if (screenPos.x >= resolution.x || screenPos.y >= resolution.y)
+    {
+        return;
+    }
+
+    // Parse the visibility buffer to find which triangle we are processing
+    const uvec4 visBufferData = imageLoad(t_InVisibilityBuffer, screenPos);
+
+    // When nothing is in the visibility buffer, we will fall back to the skybox. These pixels should not really matter
+    // for the coverage, for now we assign an arbitrary coverage though.
+    float coverage;
+    vec3 position;
+    vec3 normal;
+
+    visibility_buffer_data vb;
+
+    if (visibility_buffer_parse(visBufferData.xy, vb))
+    {
+        // Calculate the coverage of this pixel
+
+        // Find world position
+        // Find cell
+        // Search neighboring cells and accumulate overlapping surfels
+    }
+
+    // TODO: Find worst coverage within the subgroup
+    // TODO: Find worst coverage within the tile
+}
