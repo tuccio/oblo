@@ -25,12 +25,19 @@ struct surfel_grid_cell
 
 struct surfel_stack_header
 {
-    uint available;
+    int available;
 };
 
 struct surfel_stack_entry
 {
     uint surfelId;
+};
+
+struct surfel_tile_coverage
+{
+    vec3 position;
+    vec3 normal;
+    float coverage;
 };
 
 uvec3 surfel_grid_cells_count(in surfel_grid_header h)

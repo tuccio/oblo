@@ -2,6 +2,7 @@
 
 #include <oblo/core/types.hpp>
 #include <oblo/math/aabb.hpp>
+#include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 #include <oblo/vulkan/nodes/instance_table_node.hpp>
@@ -15,8 +16,6 @@ namespace oblo::vk
         resource<buffer> outSurfelsPool;
 
         resource<buffer> outSurfelsGrid;
-
-        resource<texture> inVisibilityBuffer;
 
         data<u32> inMaxSurfels;
         data<aabb> inGridBounds;
@@ -38,11 +37,19 @@ namespace oblo::vk
     /// tile to spawn a surfel on.
     struct surfel_tiling
     {
+        data<vec2u> inResolution;
+
         resource<buffer> outTileCoverage;
 
         resource<buffer> inSurfelsGrid;
 
         resource<buffer> inCameraBuffer;
+        resource<texture> inVisibilityBuffer;
+
+        resource<buffer> inInstanceTables;
+        data<instance_data_table_buffers_span> inInstanceBuffers;
+
+        resource<buffer> inMeshDatabase;
 
         h32<compute_pass> tilingPass;
 
@@ -58,8 +65,8 @@ namespace oblo::vk
     {
         resource<buffer> inTileCoverage;
 
-        resource<buffer> inSurfelsStack;
-        resource<buffer> inSurfelsPool;
+        resource<buffer> inOutSurfelsStack;
+        resource<buffer> inOutSurfelsPool;
 
         resource<buffer> inOutSurfelsGrid;
 

@@ -245,6 +245,7 @@ namespace oblo
                     const auto mainViewTemplate = vk::main_view::create(registry,
                         {
                             .withPicking = true,
+                            .withSurfelsGI = true,
                         });
 
                     const auto subgraph = frameGraph.instantiate(mainViewTemplate);

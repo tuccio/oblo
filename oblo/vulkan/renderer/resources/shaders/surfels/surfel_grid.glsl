@@ -3,11 +3,11 @@
 
 #include <surfels/surfel_data>
 
-#ifndef SURFEL_GRID_BINDING
-    #error "Needs to define the binding before including this header"
+#if !defined(SURFEL_GRID_BINDING) || !defined(SURFEL_GRID_QUALIFIER)
+    #error "Binding and memory qualified must be defined before including this header"
 #endif
 
-layout(std430, binding = SURFEL_GRID_BINDING) restrict writeonly buffer b_SurfelsGrid
+layout(std430, binding = SURFEL_GRID_BINDING) restrict SURFEL_GRID_QUALIFIER buffer b_SurfelsGrid
 {
     surfel_grid_header g_SurfelGridHeader;
     surfel_grid_cell g_SurfelGridCells[];

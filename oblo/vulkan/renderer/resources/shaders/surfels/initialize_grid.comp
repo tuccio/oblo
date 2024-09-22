@@ -1,6 +1,7 @@
 #version 460
 
 #define SURFEL_GRID_BINDING 1
+#define SURFEL_GRID_QUALIFIER writeonly
 
 #extension GL_GOOGLE_include_directive : require
 
@@ -31,6 +32,4 @@ void main()
     }
 
     g_SurfelGridCells[id].firstSurfel = SURFEL_INVALID;
-
-    // TODO: Initialize cell
 }
