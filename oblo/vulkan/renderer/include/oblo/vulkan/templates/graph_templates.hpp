@@ -17,7 +17,8 @@ namespace oblo::vk::main_view
     constexpr string_view InLights{"LightData"};
     constexpr string_view InLightBuffer{"LightDataBuffer"};
     constexpr string_view InLightConfig{"LightConfig"};
-    constexpr string_view InSurfelsGIGrid{"SurfelsGIGrid"};
+    constexpr string_view InLastFrameSurfelsGrid{"LastFrameSurfelsGrid"};
+    constexpr string_view InLastFrameSurfelsPool{"LastFrameSurfelsPool"};
     constexpr string_view InShadowSink{"ShadowSink"};
 
     constexpr string_view InDebugMode{"Debug Mode"};
@@ -81,7 +82,8 @@ namespace oblo::vk::surfels_gi
     constexpr string_view InGridBounds{"GridBounds"};
     constexpr string_view InGridCellSize{"GridCellSize"};
     constexpr string_view InMaxSurfels{"MaxSurfels"};
-    constexpr string_view OutGrid{"Grid"};
+    constexpr string_view OutLastFrameGrid{"Grid"};
+    constexpr string_view OutLastFramePool{"Pool"};
 
     frame_graph_template create(const frame_graph_registry& registry);
 }

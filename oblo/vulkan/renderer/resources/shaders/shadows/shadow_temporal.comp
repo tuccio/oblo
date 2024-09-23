@@ -51,26 +51,10 @@ ivec2 reproject_coords(in visibility_buffer_data vb, in ivec2 coords, in uvec2 r
     const mesh_handle mesh = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MeshHandles, vb.instanceId);
     const transform transform = OBLO_INSTANCE_DATA(vb.instanceTableId, i_TransformBuffer, vb.instanceId);
 
-    if (debug_is_center(coords, resolution))
-    {
-        // printf_uint("mesh", mesh.value);
-    }
-
     // Read the mesh data
     const mesh_table meshTable = mesh_table_fetch(mesh);
 
     const uvec3 vertexIndices = mesh_get_meshlet_indices(meshTable, mesh, vb.meshletId, vb.meshletTriangleId);
-
-    if (debug_is_center(coords, resolution))
-    {
-        printf_uint("instanceTableId", vb.instanceTableId);
-        printf_uint("instanceId", vb.instanceId);
-        printf_uint("meshletId", vb.meshletId);
-        printf_uint("meshletTriangleId", vb.meshletTriangleId);
-
-        printf_vec4("transform[0]", transform.localToWorld[0]);
-        // printf_vec3("vertices", vertexIndices);
-    }
 
     triangle triangleWS;
     triangle prevTriangleWS;
@@ -118,16 +102,6 @@ void main()
     {
         return;
     }
-
-    // Load shadows
-    // Load moments
-    // Load history
-
-    // TODO
-
-    // Reproject history
-    // Blend with current
-    // Clamp to std deviation
 
     const uvec4 vbPixel = imageLoad(t_InVisibilityBuffer, ivec2(screenPos));
 

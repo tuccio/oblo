@@ -18,8 +18,8 @@ g_Constants;
 
 void main()
 {
-    const uvec3 gridCellsCount = surfel_grid_cells_count(g_Constants.gridHeader);
-    const uint id = surfel_grid_cell_index(g_Constants.gridHeader, gl_GlobalInvocationID);
+    const ivec3 gridCellsCount = surfel_grid_cells_count(g_Constants.gridHeader);
+    const uint id = surfel_grid_cell_index(g_Constants.gridHeader, ivec3(gl_GlobalInvocationID));
 
     if (id == 0)
     {
