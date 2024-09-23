@@ -826,8 +826,11 @@ namespace oblo::vk
             [](const shader_resource& lhs, const shader_resource& rhs)
             { return shader_resource_sorting::from(lhs) < shader_resource_sorting::from(rhs); });
 
-        for (u32 current = 0, next = 1; next < newPipeline.resources.size(); ++current)
+        // Merge the same resources that belong to different stages together, but we need to keep the order intact
+        for (u32 current = 0; current + 1 < newPipeline.resources.size();)
         {
+            const u32 next = current + 1;
+
             if (shader_resource_sorting::from(newPipeline.resources[current]) ==
                 shader_resource_sorting::from(newPipeline.resources[next]))
             {
@@ -838,7 +841,7 @@ namespace oblo::vk
             }
             else
             {
-                ++next;
+                ++current;
             }
         }
 
