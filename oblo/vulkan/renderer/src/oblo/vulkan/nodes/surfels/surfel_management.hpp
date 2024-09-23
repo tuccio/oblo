@@ -37,11 +37,10 @@ namespace oblo::vk
     /// tile to spawn a surfel on.
     struct surfel_tiling
     {
-        data<vec2u> inResolution;
-
         resource<buffer> outTileCoverage;
 
         resource<buffer> inSurfelsGrid;
+        resource<buffer> inSurfelsPool;
 
         resource<buffer> inCameraBuffer;
         resource<texture> inVisibilityBuffer;

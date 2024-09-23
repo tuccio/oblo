@@ -225,7 +225,8 @@ namespace oblo::vk::main_view
         {
             const auto surfelsTiling = graph.add_node<surfel_tiling>();
 
-            graph.make_input(surfelsTiling, &surfel_tiling::inSurfelsGrid, InSurfelsGIGrid);
+            graph.make_input(surfelsTiling, &surfel_tiling::inSurfelsGrid, InLastFrameSurfelsGrid);
+            graph.make_input(surfelsTiling, &surfel_tiling::inSurfelsPool, InLastFrameSurfelsPool);
             graph.make_output(surfelsTiling, &surfel_tiling::outTileCoverage, OutSurfelsGITiles);
 
             graph.connect(viewBuffers,
@@ -382,7 +383,8 @@ namespace oblo::vk::surfels_gi
         graph.make_input(initializer, &surfel_initializer::inGridCellSize, InGridCellSize);
         graph.make_input(initializer, &surfel_initializer::inMaxSurfels, InMaxSurfels);
 
-        graph.make_output(spawner, &surfel_spawner::inOutSurfelsGrid, OutGrid);
+        graph.make_output(initializer, &surfel_initializer::outSurfelsGrid, OutLastFrameGrid);
+        graph.make_output(initializer, &surfel_initializer::outSurfelsPool, OutLastFramePool);
 
         graph.connect(initializer, &surfel_initializer::outSurfelsGrid, spawner, &surfel_spawner::inOutSurfelsGrid);
 

@@ -5,17 +5,19 @@ const uint SURFEL_INVALID = 0xFFFFFFFF;
 
 struct surfel_data
 {
+    vec3 position;
+    vec3 normal;
     uint nextInCell;
 };
 
 struct surfel_grid_header
 {
     vec3 boundsMin;
-    uint cellsCountX;
+    int cellsCountX;
     vec3 boundsMax;
-    uint cellsCountY;
+    int cellsCountY;
     vec3 cellSize;
-    uint cellsCountZ;
+    int cellsCountZ;
 };
 
 struct surfel_grid_cell
@@ -40,14 +42,24 @@ struct surfel_tile_coverage
     float coverage;
 };
 
-uvec3 surfel_grid_cells_count(in surfel_grid_header h)
+ivec3 surfel_grid_cells_count(in surfel_grid_header h)
 {
-    return uvec3(h.cellsCountX, h.cellsCountY, h.cellsCountZ);
+    return ivec3(h.cellsCountX, h.cellsCountY, h.cellsCountZ);
 }
 
-uint surfel_grid_cell_index(in surfel_grid_header h, in uvec3 cell)
+uint surfel_grid_cell_index(in surfel_grid_header h, in ivec3 cell)
 {
     return cell.x + cell.y * h.cellsCountX + cell.z * h.cellsCountX * h.cellsCountY;
+}
+
+vec3 surfel_data_world_position(in surfel_data surfel)
+{
+    return surfel.position;
+}
+
+vec3 surfel_data_world_normal(in surfel_data surfel)
+{
+    return surfel.normal;
 }
 
 #endif

@@ -1,12 +1,27 @@
 #version 460
 
 #extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_buffer_reference : require
+#extension GL_ARB_gpu_shader_int64 : require
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_control_flow_attributes : require
 
 #define SURFEL_GRID_BINDING 32
 #define SURFEL_GRID_QUALIFIER readonly
 
+#define SURFEL_POOL_BINDING 33
+#define SURFEL_POOL_QUALIFIER readonly
+
 #include <renderer/debug/printf>
+#include <renderer/instances>
+#include <renderer/meshes/mesh_attributes>
+#include <renderer/meshes/mesh_data>
+#include <renderer/meshes/mesh_indices>
+#include <renderer/meshes/mesh_table>
+#include <renderer/transform>
+#include <surfels/surfel>
 #include <surfels/surfel_grid>
+#include <surfels/surfel_pool>
 #include <visibility/visibility_buffer>
 #include <visibility/visibility_utils>
 
@@ -14,11 +29,18 @@ const uint g_TileSize = 16;
 
 layout(binding = 10, rg32ui) uniform restrict readonly uimage2D t_InVisibilityBuffer;
 
+layout(binding = 16) uniform b_CameraBuffer
+{
+    camera_buffer g_Camera;
+};
+
 layout(local_size_x = g_TileSize, local_size_y = g_TileSize, local_size_z = 1) in;
+
+bool read_geometry(in ivec2 screenPos, in uvec2 resolution, out vec3 positionWS, out vec3 normalWS);
 
 void main()
 {
-    const ivec2 screenPos = ivec2(gl_WorkGroupID.xy * g_TileSize + gl_LocalInvocationIndex);
+    const ivec2 screenPos = ivec2(gl_WorkGroupID.xy * gl_WorkGroupSize.xy + gl_LocalInvocationID.xy);
     const uvec2 resolution = imageSize(t_InVisibilityBuffer);
 
     if (screenPos.x >= resolution.x || screenPos.y >= resolution.y)
@@ -26,26 +48,126 @@ void main()
         return;
     }
 
-    // Parse the visibility buffer to find which triangle we are processing
-    const uvec4 visBufferData = imageLoad(t_InVisibilityBuffer, screenPos);
-
     // When nothing is in the visibility buffer, we will fall back to the skybox. These pixels should not really matter
     // for the coverage, for now we assign an arbitrary coverage though.
     float coverage;
-    vec3 position;
-    vec3 normal;
+    vec3 positionWS;
+    vec3 normalWS;
 
-    visibility_buffer_data vb;
-
-    if (visibility_buffer_parse(visBufferData.xy, vb))
+    if (read_geometry(screenPos, resolution, positionWS, normalWS))
     {
-        // Calculate the coverage of this pixel
+        const ivec3 cell = surfel_grid_find_cell(positionWS);
 
-        // Find world position
-        // Find cell
         // Search neighboring cells and accumulate overlapping surfels
+
+        uint overlappingSurfels = 0;
+
+        [[unroll]] for (int x = -1; x <= 1; ++x)
+        {
+            [[unroll]] for (int y = -1; y <= 1; ++y)
+            {
+                [[unroll]] for (int z = -1; z <= 1; ++z)
+                {
+                    const ivec3 current = cell + ivec3(x, y, z);
+
+                    if (surfel_grid_has_cell(current))
+                    {
+                        // TODO: Get all surfels and accumulate
+                        const uint index = surfel_grid_cell_index(current);
+                        const uint firstSurfel = g_SurfelGridCells[index].firstSurfel;
+
+                        // if (debug_is_center(screenPos, resolution))
+                        // {
+                        //     printf_vec3("Cell: ", vec3(current));
+                        //     printf_uint("Cell Index: ", index);
+                        //     printf_uint("FIRST ID: ", firstSurfel);
+                        // }
+
+                        for (uint surfelId = firstSurfel; surfelId != SURFEL_INVALID;)
+                        {
+                            if (debug_is_center(screenPos, resolution))
+                            {
+                                printf_uint("ID: ", surfelId);
+                            }
+
+                            const surfel_data surfel = g_SurfelData[surfelId];
+                            overlappingSurfels += uint(surfel_affects(surfel, positionWS));
+                            surfelId = surfel.nextInCell;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (debug_is_center(screenPos, resolution))
+        {
+            printf_uint("Affecting surfels: ", overlappingSurfels);
+        }
+
+        // Calculate the coverage of this pixel
     }
 
     // TODO: Find worst coverage within the subgroup
     // TODO: Find worst coverage within the tile
+}
+
+bool read_geometry(in ivec2 screenPos, in uvec2 resolution, out vec3 positionWS, out vec3 normalWS)
+{
+    // Parse the visibility buffer to find which triangle we are processing
+    const uvec4 visBufferData = imageLoad(t_InVisibilityBuffer, screenPos);
+
+    visibility_buffer_data vb;
+
+    if (!visibility_buffer_parse(visBufferData.xy, vb))
+    {
+        return false;
+    }
+
+    // Read the instance data we need
+    const mesh_handle mesh = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MeshHandles, vb.instanceId);
+    const transform transform = OBLO_INSTANCE_DATA(vb.instanceTableId, i_TransformBuffer, vb.instanceId);
+
+    triangle triangleWS;
+    vec3 triangleNormal[3];
+
+    // Read the mesh data
+    const mesh_table meshTable = mesh_table_fetch(mesh);
+    const uvec3 vertexIndices = mesh_get_meshlet_indices(meshTable, mesh, vb.meshletId, vb.meshletTriangleId);
+
+    // Read the vertex data and transform everything in world space, we do lighting calculation in that space
+    [[unroll]] for (uint i = 0; i < 3; ++i)
+    {
+        const uint vertexId = vertexIndices[i];
+
+        const vec3 vertexPosition = mesh_get_position(meshTable, vertexId);
+        triangleWS.v[i] = (transform.localToWorld * vec4(vertexPosition, 1)).xyz;
+
+        const vec3 vertexNormal = mesh_get_normal(meshTable, vertexId);
+        triangleNormal[i] = vertexNormal;
+    }
+
+    barycentric_coords bc;
+
+    // Cast a ray from the camera to the near plane and calculate the distance of the ray hit to the plane on the
+    // triangle in world space, we use that to derive the position in world space
+    const vec2 ndc = screen_to_ndc(screenPos, resolution);
+    const ray cameraRay = visibility_calculate_camera_ray(g_Camera, ndc);
+
+    float intersectionDistance;
+
+    // Really the plan should be hitting here, since we already know the triangle was rendered by the rasterizer, we
+    // mostly want to calculate at what distance it does
+    if (!distance_from_triangle_plane(cameraRay, triangleWS, intersectionDistance))
+    {
+        return false;
+    }
+
+    positionWS = ray_point_at(cameraRay, intersectionDistance);
+
+    barycentric_calculate(bc, triangleWS.v, positionWS);
+
+    const vec3 normal = barycentric_interpolate(bc, triangleNormal);
+    normalWS = (transform.normalMatrix * vec4(normal, 1)).xyz;
+
+    return true;
 }

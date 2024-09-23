@@ -13,6 +13,9 @@ namespace oblo::vk
 
         struct surfel_data
         {
+            vec3 position;
+            f32 _padding0;
+            vec3 normal;
             u32 nextInCell;
         };
 
@@ -205,7 +208,7 @@ namespace oblo::vk
         auto& pm = ctx.get_pass_manager();
 
         tilingPass = pm.register_compute_pass({
-            .name = "Initialize Surfels Pool",
+            .name = "Surfel Tiling",
             .shaderSourcePath = "./vulkan/shaders/surfels/tiling.comp",
         });
 
@@ -216,10 +219,11 @@ namespace oblo::vk
 
     void surfel_tiling::build(const frame_graph_build_context& ctx)
     {
-        const auto resolution = ctx.access(inResolution);
+        const auto resolution =
+            ctx.get_current_initializer(inVisibilityBuffer).assert_value_or(image_initializer{}).extent;
 
-        const u32 tilesX = round_up_div(resolution.x, g_surfelTileSize);
-        const u32 tilesY = round_up_div(resolution.y, g_surfelTileSize);
+        const u32 tilesX = round_up_div(resolution.width, g_surfelTileSize);
+        const u32 tilesY = round_up_div(resolution.height, g_surfelTileSize);
 
         ctx.create(outTileCoverage,
             buffer_resource_initializer{
@@ -237,6 +241,7 @@ namespace oblo::vk
         if (ctx.has_source(inSurfelsGrid))
         {
             ctx.acquire(inSurfelsGrid, buffer_usage::storage_read);
+            ctx.acquire(inSurfelsPool, buffer_usage::storage_read);
         }
     }
 
@@ -252,6 +257,7 @@ namespace oblo::vk
                 {"b_MeshTables", inMeshDatabase},
                 {"b_CameraBuffer", inCameraBuffer},
                 {"b_SurfelsGrid", inSurfelsGrid},
+                {"b_SurfelsPool", inSurfelsPool},
             });
 
         ctx.bind_textures(bindingTable,
@@ -265,14 +271,14 @@ namespace oblo::vk
 
         if (const auto pass = pm.begin_compute_pass(commandBuffer, pipeline))
         {
-            const auto resolution = ctx.access(inResolution);
+            const auto resolution = ctx.access(inVisibilityBuffer).initializer.extent;
 
             const binding_table* bindingTables[] = {
                 &bindingTable,
             };
 
-            const u32 tilesX = round_up_div(resolution.x, g_surfelTileSize);
-            const u32 tilesY = round_up_div(resolution.y, g_surfelTileSize);
+            const u32 tilesX = round_up_div(resolution.width, g_surfelTileSize);
+            const u32 tilesY = round_up_div(resolution.height, g_surfelTileSize);
 
             pm.bind_descriptor_sets(*pass, bindingTables);
 

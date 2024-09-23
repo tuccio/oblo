@@ -26,7 +26,15 @@ namespace oblo
         void connect_surfels_gi_to_scene_view(
             vk::frame_graph& g, h32<vk::frame_graph_subgraph> surfelsGIGlobal, h32<vk::frame_graph_subgraph> mainView)
         {
-            g.connect(surfelsGIGlobal, vk::surfels_gi::OutGrid, mainView, vk::main_view::InSurfelsGIGrid);
+            g.connect(surfelsGIGlobal,
+                vk::surfels_gi::OutLastFrameGrid,
+                mainView,
+                vk::main_view::InLastFrameSurfelsGrid);
+
+            g.connect(surfelsGIGlobal,
+                vk::surfels_gi::OutLastFramePool,
+                mainView,
+                vk::main_view::InLastFrameSurfelsPool);
         }
     }
 
