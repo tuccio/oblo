@@ -182,7 +182,9 @@ namespace oblo::vk
 
         hashed_string_view define{};
 
-        switch (ctx.access(inDebugMode))
+        const auto debugMode = ctx.access(inDebugMode);
+
+        switch (debugMode)
         {
         case visibility_debug_mode::albedo:
             define = "OUT_ALBEDO"_hsv;
@@ -220,6 +222,8 @@ namespace oblo::vk
         default:
             unreachable();
         }
+
+        OBLO_ASSERT(!define.empty());
 
         const auto commandBuffer = ctx.get_command_buffer();
 

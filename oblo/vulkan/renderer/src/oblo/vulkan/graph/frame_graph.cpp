@@ -394,7 +394,7 @@ namespace oblo::vk
 
         const frame_graph_build_context buildCtx{*m_impl, renderer, m_impl->resourcePool};
 
-        // Clearing these is required for certain operation that query created textures during the build process (e.g.
+        // Clearing these is required for certain operations that query created textures during the build process (e.g.
         // get_texture_initializer).
         // An alternative would be using a few bits as generation id for the handles.
         for (auto& ps : m_impl->pinStorage.values())

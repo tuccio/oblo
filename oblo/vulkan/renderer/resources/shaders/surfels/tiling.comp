@@ -27,6 +27,11 @@
 
 const uint g_TileSize = 16;
 
+layout(std430, binding = 0) restrict writeonly buffer b_OutTileCoverage
+{
+    surfel_tile_data g_TileData[];
+};
+
 layout(binding = 10, rg32ui) uniform restrict readonly uimage2D t_InVisibilityBuffer;
 
 layout(binding = 16) uniform b_CameraBuffer
@@ -35,6 +40,8 @@ layout(binding = 16) uniform b_CameraBuffer
 };
 
 layout(local_size_x = g_TileSize, local_size_y = g_TileSize, local_size_z = 1) in;
+
+shared float g_PixelCoverage[16][16];
 
 bool read_geometry(in ivec2 screenPos, in uvec2 resolution, out vec3 positionWS, out vec3 normalWS);
 
@@ -50,7 +57,7 @@ void main()
 
     // When nothing is in the visibility buffer, we will fall back to the skybox. These pixels should not really matter
     // for the coverage, for now we assign an arbitrary coverage though.
-    float coverage;
+    float coverage = 0.f;
     vec3 positionWS;
     vec3 normalWS;
 
@@ -91,24 +98,66 @@ void main()
                             }
 
                             const surfel_data surfel = g_SurfelData[surfelId];
+
+                            // We should instead probably weigh by distance, but for now we just add 1 if it's in range
                             overlappingSurfels += uint(surfel_affects(surfel, positionWS));
+
                             surfelId = surfel.nextInCell;
                         }
                     }
                 }
             }
+
+            coverage = float(overlappingSurfels);
         }
 
-        if (debug_is_center(screenPos, resolution))
-        {
-            printf_uint("Affecting surfels: ", overlappingSurfels);
-        }
-
-        // Calculate the coverage of this pixel
+        // if (debug_is_center(screenPos, resolution))
+        // {
+        //     printf_uint("Affecting surfels: ", overlappingSurfels);
+        // }
     }
 
-    // TODO: Find worst coverage within the subgroup
-    // TODO: Find worst coverage within the tile
+    g_PixelCoverage[gl_LocalInvocationID.y][gl_LocalInvocationID.x] = coverage;
+
+    memoryBarrierShared();
+    barrier();
+
+    uvec2 worstCoverageID = uvec2(0, 0);
+
+    // We could make better use of threads, but for now just let the first thread do the max
+    if (gl_LocalInvocationIndex == 0)
+    {
+        float worstCoverage = g_PixelCoverage[0][0];
+
+        for (uint i = 0; i < g_TileSize; ++i)
+        {
+            for (uint j = 0; j < g_TileSize; ++j)
+            {
+                const float pixelCoverage = g_PixelCoverage[i][j];
+
+                if (pixelCoverage < worstCoverage)
+                {
+                    worstCoverage = pixelCoverage;
+                    worstCoverageID = uvec2(i, j);
+                }
+            }
+        }
+    }
+
+    if (gl_LocalInvocationID.xy == worstCoverageID)
+    {
+        // TODO: Write output
+        const uint globalIndex = gl_LocalInvocationID.x * gl_WorkGroupSize.x +
+            gl_LocalInvocationID.y * gl_WorkGroupSize.y + gl_LocalInvocationIndex;
+
+        surfel_tile_data tileData;
+        tileData.position = positionWS;
+        tileData.normal = normalWS;
+        // Maybe we should instead write the average tile coverage here
+        tileData.coverage = coverage;
+
+        g_TileData[globalIndex] = tileData;
+    }
 }
 
 bool read_geometry(in ivec2 screenPos, in uvec2 resolution, out vec3 positionWS, out vec3 normalWS)

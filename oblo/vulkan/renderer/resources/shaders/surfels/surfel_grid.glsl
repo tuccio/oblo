@@ -16,7 +16,7 @@ layout(std430, binding = SURFEL_GRID_BINDING) restrict SURFEL_GRID_QUALIFIER buf
 #define writeonly 1
 #define readonly 2
 
-#if SURFEL_GRID_BINDING != writeonly
+#if SURFEL_GRID_QUALIFIER != writeonly
 
 uint surfel_grid_cell_index(in ivec3 cell)
 {

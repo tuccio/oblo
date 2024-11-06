@@ -149,6 +149,11 @@ namespace oblo::vk
                     VK_IMAGE_USAGE_STORAGE_BIT);
                 break;
 
+            case texture_usage::render_target_write:
+                resourcePool.add_transient_texture_usage(frameGraph.find_pool_index(texture),
+                    VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+                break;
+
             default:
                 break;
             }
