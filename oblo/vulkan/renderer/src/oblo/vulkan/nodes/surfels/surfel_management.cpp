@@ -258,6 +258,7 @@ namespace oblo::vk
                 {"b_CameraBuffer", inCameraBuffer},
                 {"b_SurfelsGrid", inSurfelsGrid},
                 {"b_SurfelsPool", inSurfelsPool},
+                {"b_OutTileCoverage", outTileCoverage},
             });
 
         ctx.bind_textures(bindingTable,

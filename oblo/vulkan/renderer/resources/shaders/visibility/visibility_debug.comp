@@ -27,6 +27,19 @@
 #include <visibility/visibility_shading>
 #include <visibility/visibility_utils>
 
+#if defined(OUT_GI_SURFELS)
+    #define SURFEL_GRID_QUALIFIER readonly
+    #define SURFEL_GRID_BINDING 40
+
+    #define SURFEL_POOL_QUALIFIER readonly
+    #define SURFEL_POOL_BINDING 41
+
+    #include <surfels/surfel_grid>
+    #include <surfels/surfel_pool>
+
+    #define OUT_ALBEDO
+#endif
+
 vec4 visibility_shade(in visibility_shade_context ctx)
 {
 #ifdef OUT_MESHLET

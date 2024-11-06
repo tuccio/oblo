@@ -35,7 +35,7 @@ struct surfel_stack_entry
     uint surfelId;
 };
 
-struct surfel_tile_coverage
+struct surfel_tile_data
 {
     vec3 position;
     vec3 normal;

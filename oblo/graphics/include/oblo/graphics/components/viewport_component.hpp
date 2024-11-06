@@ -44,6 +44,7 @@ namespace oblo
         emissive,
         motion_vectors,
         raytracing_debug,
+        gi_surfels,
     };
 
     struct viewport_component

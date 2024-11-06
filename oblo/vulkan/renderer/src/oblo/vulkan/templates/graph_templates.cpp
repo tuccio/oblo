@@ -14,6 +14,7 @@
 #include <oblo/vulkan/nodes/shadows/shadow_filter.hpp>
 #include <oblo/vulkan/nodes/shadows/shadow_output.hpp>
 #include <oblo/vulkan/nodes/shadows/shadow_temporal.hpp>
+#include <oblo/vulkan/nodes/surfels/surfel_debug.hpp>
 #include <oblo/vulkan/nodes/surfels/surfel_management.hpp>
 #include <oblo/vulkan/nodes/view_buffers_node.hpp>
 #include <oblo/vulkan/nodes/visibility_lighting.hpp>
@@ -258,6 +259,24 @@ namespace oblo::vk::main_view
                 &surfel_tiling::inSurfelsGrid,
                 visibilityLighting,
                 &visibility_lighting::inSurfelsGrid);
+
+            const auto surfelsDebug = graph.add_node<surfel_debug>();
+
+            graph.connect(surfelsTiling, &surfel_tiling::inSurfelsGrid, surfelsDebug, &surfel_debug::inSurfelsGrid);
+            graph.connect(surfelsTiling, &surfel_tiling::inSurfelsPool, surfelsDebug, &surfel_debug::inSurfelsPool);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::outCameraBuffer,
+                surfelsDebug,
+                &surfel_debug::inCameraBuffer);
+
+            graph.connect(visibilityPass, &visibility_pass::outDepthBuffer, surfelsDebug, &surfel_debug::inDepthBuffer);
+            graph.connect(visibilityLighting,
+                &visibility_lighting::outShadedImage,
+                surfelsDebug,
+                &surfel_debug::inOutImage);
+
+            add_copy_output(graph, viewBuffers, surfelsDebug, &surfel_debug::inOutImage, OutGIDebugImage);
         }
 
         return graph;
@@ -383,11 +402,6 @@ namespace oblo::vk::surfels_gi
         graph.make_input(initializer, &surfel_initializer::inGridCellSize, InGridCellSize);
         graph.make_input(initializer, &surfel_initializer::inMaxSurfels, InMaxSurfels);
 
-        graph.make_output(initializer, &surfel_initializer::outSurfelsGrid, OutLastFrameGrid);
-        graph.make_output(initializer, &surfel_initializer::outSurfelsPool, OutLastFramePool);
-
-        graph.connect(initializer, &surfel_initializer::outSurfelsGrid, spawner, &surfel_spawner::inOutSurfelsGrid);
-
         graph.bind(initializer,
             &surfel_initializer::inGridBounds,
             aabb{
@@ -395,8 +409,15 @@ namespace oblo::vk::surfels_gi
                 .max = {.x = 256, .y = 128.f, .z = 256},
             });
 
+        // We output the surfels from last frame, then each view will contribute potentially spawning surfels
+        graph.make_output(initializer, &surfel_initializer::outSurfelsGrid, OutLastFrameGrid);
+        graph.make_output(initializer, &surfel_initializer::outSurfelsPool, OutLastFramePool);
+
         graph.bind(initializer, &surfel_initializer::inGridCellSize, vec3::splat(2.f));
         graph.bind(initializer, &surfel_initializer::inMaxSurfels, 1u << 14);
+
+        graph.connect(initializer, &surfel_initializer::outSurfelsGrid, spawner, &surfel_spawner::inOutSurfelsGrid);
+        graph.connect(initializer, &surfel_initializer::outSurfelsPool, spawner, &surfel_spawner::inOutSurfelsPool);
 
         return graph;
     }
@@ -439,6 +460,7 @@ namespace oblo::vk
         registry.register_node<surfel_initializer>();
         registry.register_node<surfel_tiling>();
         registry.register_node<surfel_spawner>();
+        registry.register_node<surfel_debug>();
 
         return registry;
     }
