@@ -235,7 +235,7 @@ namespace oblo::vk
         ctx.push(outTileCoverageSink,
             {
                 .buffer = outTileCoverage,
-                .resolution = {.x = resolution.width, .y = resolution.height},
+                .tilesCount = {.x = tilesX, .y = tilesY},
             });
 
         ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
@@ -355,7 +355,7 @@ namespace oblo::vk
 
             for (const auto& tileCoverage : tileCoverageSpan)
             {
-                const auto resolution = tileCoverage.resolution;
+                const auto tilesCount = tileCoverage.tilesCount;
 
                 perDispatchBindingTable.clear();
 
@@ -370,10 +370,10 @@ namespace oblo::vk
                 };
 
                 pm.bind_descriptor_sets(*pass, bindingTables);
-                pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&resolution, 1}));
+                pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&tilesCount, 1}));
 
-                const u32 groupsX = round_up_div(resolution.x, subgroupSize);
-                const u32 groupsY = resolution.y;
+                const u32 groupsX = round_up_div(tilesCount.x, subgroupSize);
+                const u32 groupsY = tilesCount.y;
 
                 vkCmdDispatch(ctx.get_command_buffer(), groupsX, groupsY, 1);
             }

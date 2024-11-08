@@ -155,7 +155,7 @@ void main()
         const float NO_SURFELS_NEEDED = 100000.f;
 
         // TODO: Write output
-        const uint globalIndex = gl_WorkGroupID.y * gl_WorkGroupSize.x + gl_WorkGroupID.x;
+        const uint globalIndex = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
 
         // debugPrintfEXT("%u, %u -> %u\n", gl_WorkGroupID.x, gl_WorkGroupID.y, globalIndex);
 
@@ -165,6 +165,14 @@ void main()
 
         // We don't need to spawn surfels if the tile only has skybox
         tileData.coverage = pixelsWithFragments == 0 ? NO_SURFELS_NEEDED : float(coverageSum) / pixelsWithFragments;
+
+        if (gl_WorkGroupID.xy == uvec2(60, 31))
+        {
+            // printf_text("OK");
+            // printf_uint("Index: ", globalIndex);
+            // printf_uint("Index: ", globalIndex);
+            // printf_uvec2("WKS: ", gl_WorkGroupSize);
+        }
 
         g_TileData[globalIndex] = tileData;
     }
