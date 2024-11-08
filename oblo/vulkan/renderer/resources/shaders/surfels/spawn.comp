@@ -20,7 +20,7 @@ layout(std430, binding = 0) restrict readonly buffer b_TileCoverage
 
 layout(push_constant) uniform c_PushConstants
 {
-    uvec2 resolution;
+    uvec2 tilesCount;
 }
 g_Constants;
 
@@ -28,18 +28,34 @@ layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in
 
 void main()
 {
-    const uvec2 resolution = g_Constants.resolution;
+    const uvec2 resolution = g_Constants.tilesCount;
     const uvec2 screenPos = gl_GlobalInvocationID.xy;
+
+    // if (screenPos == uvec2(1, 1))
+    // {
+    //     //     printf_float("Coverage: ", tile.coverage);
+    //         printf_uvec2("Screen Pos: ", screenPos);
+    //     printf_uvec2("Resolution: ", resolution);
+    // }
 
     if (screenPos.x >= resolution.x || screenPos.y >= resolution.y)
     {
         return;
     }
 
-    const surfel_tile_data tile = g_TileData[resolution.x * screenPos.y + screenPos.x];
+    const uint tileIndex = resolution.x * screenPos.y + screenPos.x;
+    const surfel_tile_data tile = g_TileData[tileIndex];
 
-    if (gl_GlobalInvocationID.xy == uvec2(0, 0))
+    const float SURFEL_SPAWN_THRESHOLD = 5.f;
+
+    if (tile.coverage < SURFEL_SPAWN_THRESHOLD)
     {
-        printf_float("Coverage: ", tile.coverage);
+        if (debug_is_center(screenPos, resolution))
+        {
+        //     printf_uint("Tile index:", tileIndex);
+            printf_float("Coverage: ", tile.coverage);
+        //     printf_uvec2("Tile coord: ", screenPos);
+            printf_vec3("Spawn at: ", tile.position);
+        }
     }
 }
