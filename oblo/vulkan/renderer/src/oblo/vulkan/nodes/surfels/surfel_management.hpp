@@ -33,11 +33,18 @@ namespace oblo::vk
         void execute(const frame_graph_execute_context& ctx);
     };
 
+    struct surfel_tiling_data
+    {
+        resource<buffer> buffer;
+        vec2u resolution;
+    };
+
     /// @brief Screen-space pass that calculates coverage of each 16x16 tile and the best candidate pixel within the
     /// tile to spawn a surfel on.
     struct surfel_tiling
     {
         resource<buffer> outTileCoverage;
+        data_sink<surfel_tiling_data> outTileCoverageSink;
 
         resource<buffer> inSurfelsGrid;
         resource<buffer> inSurfelsPool;
@@ -62,7 +69,7 @@ namespace oblo::vk
     /// @brief Goes over the tile coverage, determines whether or not to spawn a surfel in each tile.
     struct surfel_spawner
     {
-        resource<buffer> inTileCoverage;
+        data_sink<surfel_tiling_data> inTileCoverageSink;
 
         resource<buffer> inOutSurfelsStack;
         resource<buffer> inOutSurfelsPool;

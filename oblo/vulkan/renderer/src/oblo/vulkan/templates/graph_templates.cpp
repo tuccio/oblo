@@ -228,7 +228,10 @@ namespace oblo::vk::main_view
 
             graph.make_input(surfelsTiling, &surfel_tiling::inSurfelsGrid, InLastFrameSurfelsGrid);
             graph.make_input(surfelsTiling, &surfel_tiling::inSurfelsPool, InLastFrameSurfelsPool);
-            graph.make_output(surfelsTiling, &surfel_tiling::outTileCoverage, OutSurfelsGITiles);
+            graph.make_output(surfelsTiling, &surfel_tiling::outTileCoverageSink, OutSurfelsTileCoverageSink);
+
+            graph.make_input(visibilityLighting, &visibility_lighting::inSurfelsGrid, InUpdatedSurfelsGrid);
+            graph.make_input(visibilityLighting, &visibility_lighting::inSurfelsPool, InUpdatedSurfelsPool);
 
             graph.connect(viewBuffers,
                 &view_buffers_node::outCameraBuffer,
@@ -402,6 +405,8 @@ namespace oblo::vk::surfels_gi
         graph.make_input(initializer, &surfel_initializer::inGridCellSize, InGridCellSize);
         graph.make_input(initializer, &surfel_initializer::inMaxSurfels, InMaxSurfels);
 
+        graph.make_input(spawner, &surfel_spawner::inTileCoverageSink, InTileCoverageSink);
+
         graph.bind(initializer,
             &surfel_initializer::inGridBounds,
             aabb{
@@ -418,6 +423,9 @@ namespace oblo::vk::surfels_gi
 
         graph.connect(initializer, &surfel_initializer::outSurfelsGrid, spawner, &surfel_spawner::inOutSurfelsGrid);
         graph.connect(initializer, &surfel_initializer::outSurfelsPool, spawner, &surfel_spawner::inOutSurfelsPool);
+
+        graph.make_output(spawner, &surfel_spawner::inOutSurfelsGrid, OutUpdatedFrameGrid);
+        graph.make_output(spawner, &surfel_spawner::inOutSurfelsPool, OutUpdatedFramePool);
 
         return graph;
     }

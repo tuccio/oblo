@@ -179,6 +179,12 @@ namespace oblo::vk
             return *static_cast<T*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
         }
 
+        template <typename T>
+        std::span<const T> access(data_sink<T> data) const
+        {
+            return *static_cast<data_sink_container<T>*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
+        }
+
         texture access(resource<texture> h) const;
 
         buffer access(resource<buffer> h) const;

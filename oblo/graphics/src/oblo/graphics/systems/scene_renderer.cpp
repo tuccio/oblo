@@ -35,6 +35,11 @@ namespace oblo
                 vk::surfels_gi::OutLastFramePool,
                 mainView,
                 vk::main_view::InLastFrameSurfelsPool);
+
+            g.connect(mainView,
+                vk::main_view::OutSurfelsTileCoverageSink,
+                surfelsGIGlobal,
+                vk::surfels_gi::InTileCoverageSink);
         }
     }
 

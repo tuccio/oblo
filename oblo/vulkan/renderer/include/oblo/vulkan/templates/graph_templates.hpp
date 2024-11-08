@@ -19,6 +19,8 @@ namespace oblo::vk::main_view
     constexpr string_view InLightConfig{"LightConfig"};
     constexpr string_view InLastFrameSurfelsGrid{"LastFrameSurfelsGrid"};
     constexpr string_view InLastFrameSurfelsPool{"LastFrameSurfelsPool"};
+    constexpr string_view InUpdatedSurfelsGrid{"UpdatedSurfelsGrid"};
+    constexpr string_view InUpdatedSurfelsPool{"UpdatedSurfelsPool"};
     constexpr string_view InShadowSink{"ShadowSink"};
 
     constexpr string_view InDebugMode{"Debug Mode"};
@@ -31,7 +33,7 @@ namespace oblo::vk::main_view
     constexpr string_view OutDebugImage{"DebugOutput"};
     constexpr string_view OutGIDebugImage{"DebugGIOutput"};
     constexpr string_view OutRTDebugImage{"DebugRTOutput"};
-    constexpr string_view OutSurfelsGITiles{"SurfelsGITileOutput"};
+    constexpr string_view OutSurfelsTileCoverageSink{"SurfelsGITileOutput"};
 
     constexpr string_view OutPicking{"OutPicking"};
 
@@ -83,8 +85,11 @@ namespace oblo::vk::surfels_gi
     constexpr string_view InGridBounds{"GridBounds"};
     constexpr string_view InGridCellSize{"GridCellSize"};
     constexpr string_view InMaxSurfels{"MaxSurfels"};
-    constexpr string_view OutLastFrameGrid{"Grid"};
-    constexpr string_view OutLastFramePool{"Pool"};
+    constexpr string_view InTileCoverageSink{"TileCoverageSink"};
+    constexpr string_view OutLastFrameGrid{"LastGrid"};
+    constexpr string_view OutLastFramePool{"LastPool"};
+    constexpr string_view OutUpdatedFrameGrid{"UpdatedGrid"};
+    constexpr string_view OutUpdatedFramePool{"UpdatedPool"};
 
     frame_graph_template create(const frame_graph_registry& registry);
 }

@@ -14,6 +14,7 @@
 
 #include <renderer/debug/printf>
 #include <renderer/instances>
+#include <renderer/math>
 #include <renderer/meshes/mesh_attributes>
 #include <renderer/meshes/mesh_data>
 #include <renderer/meshes/mesh_indices>
@@ -58,10 +59,14 @@ void main()
     // When nothing is in the visibility buffer, we will fall back to the skybox. These pixels should not really matter
     // for the coverage, for now we assign an arbitrary coverage though.
     float coverage = 0.f;
+    uint coverageSum = 0;
+    uint pixelsWithFragments = 0;
     vec3 positionWS;
     vec3 normalWS;
 
-    if (read_geometry(screenPos, resolution, positionWS, normalWS))
+    const bool hasGeometry = read_geometry(screenPos, resolution, positionWS, normalWS);
+
+    if (hasGeometry)
     {
         const ivec3 cell = surfel_grid_find_cell(positionWS);
 
@@ -109,6 +114,9 @@ void main()
             }
 
             coverage = float(overlappingSurfels);
+
+            coverageSum += overlappingSurfels;
+            ++pixelsWithFragments;
         }
 
         // if (debug_is_center(screenPos, resolution))
@@ -125,36 +133,38 @@ void main()
     uvec2 worstCoverageID = uvec2(0, 0);
 
     // We could make better use of threads, but for now just let the first thread do the max
-    if (gl_LocalInvocationIndex == 0)
+
+    float worstCoverage = g_PixelCoverage[0][0];
+
+    for (uint i = 0; i < g_TileSize; ++i)
     {
-        float worstCoverage = g_PixelCoverage[0][0];
-
-        for (uint i = 0; i < g_TileSize; ++i)
+        for (uint j = 0; j < g_TileSize; ++j)
         {
-            for (uint j = 0; j < g_TileSize; ++j)
-            {
-                const float pixelCoverage = g_PixelCoverage[i][j];
+            const float pixelCoverage = g_PixelCoverage[i][j];
 
-                if (pixelCoverage < worstCoverage)
-                {
-                    worstCoverage = pixelCoverage;
-                    worstCoverageID = uvec2(i, j);
-                }
+            if (pixelCoverage < worstCoverage)
+            {
+                worstCoverage = pixelCoverage;
+                worstCoverageID = uvec2(i, j);
             }
         }
     }
 
     if (gl_LocalInvocationID.xy == worstCoverageID)
     {
+        const float NO_SURFELS_NEEDED = 100000.f;
+
         // TODO: Write output
-        const uint globalIndex = gl_LocalInvocationID.x * gl_WorkGroupSize.x +
-            gl_LocalInvocationID.y * gl_WorkGroupSize.y + gl_LocalInvocationIndex;
+        const uint globalIndex = gl_WorkGroupID.y * gl_WorkGroupSize.x + gl_WorkGroupID.x;
+
+        // debugPrintfEXT("%u, %u -> %u\n", gl_WorkGroupID.x, gl_WorkGroupID.y, globalIndex);
 
         surfel_tile_data tileData;
         tileData.position = positionWS;
         tileData.normal = normalWS;
-        // Maybe we should instead write the average tile coverage here
-        tileData.coverage = coverage;
+
+        // We don't need to spawn surfels if the tile only has skybox
+        tileData.coverage = pixelsWithFragments == 0 ? NO_SURFELS_NEEDED : float(coverageSum) / pixelsWithFragments;
 
         g_TileData[globalIndex] = tileData;
     }
