@@ -45,8 +45,6 @@ namespace oblo::vk
         const auto image = ctx.access(inOutImage);
         const auto depth = ctx.access(inDepthBuffer);
 
-        binding_table bindingTable;
-
         const render_pipeline_initializer pipelineInitializer{
             .renderTargets =
                 {
@@ -65,6 +63,7 @@ namespace oblo::vk
                     .cullMode = VK_CULL_MODE_NONE,
                     .lineWidth = 1.f,
                 },
+            .primitiveTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN,
         };
 
         const VkRenderingAttachmentInfo colorAttachments[] = {
@@ -111,7 +110,20 @@ namespace oblo::vk
 
         if (const auto pass = pm.begin_render_pass(commandBuffer, pipeline, renderInfo))
         {
-            vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+            binding_table bindingTable;
+
+            ctx.bind_buffers(bindingTable,
+                {
+                    {"b_CameraBuffer", inCameraBuffer},
+                });
+
+            const binding_table* bindingTables[] = {
+                &bindingTable,
+            };
+
+            pm.bind_descriptor_sets(*pass, bindingTables);
+
+            vkCmdDraw(commandBuffer, 4, 1, 0, 0);
 
             pm.end_render_pass(*pass);
         }

@@ -1,5 +1,6 @@
 #include <oblo/vulkan/nodes/surfels/surfel_management.hpp>
 
+#include <oblo/core/allocation_helpers.hpp>
 #include <oblo/math/vec4.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/compute_pass_initializer.hpp>
@@ -225,11 +226,17 @@ namespace oblo::vk
         const u32 tilesX = round_up_div(resolution.width, g_surfelTileSize);
         const u32 tilesY = round_up_div(resolution.height, g_surfelTileSize);
 
-        ctx.create(outTileCoverage,
+        outTileCoverage = ctx.create_dynamic_buffer(
             buffer_resource_initializer{
                 .size = u32(tilesX * tilesY * sizeof(surfel_tile_data)),
             },
             buffer_usage::storage_write);
+
+        ctx.push(outTileCoverageSink,
+            {
+                .buffer = outTileCoverage,
+                .resolution = {.x = resolution.width, .y = resolution.height},
+            });
 
         ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
 
@@ -291,16 +298,87 @@ namespace oblo::vk
 
     void surfel_spawner::init(const frame_graph_init_context& ctx)
     {
-        (void) ctx;
+        auto& pm = ctx.get_pass_manager();
+
+        spawnPass = pm.register_compute_pass({
+            .name = "Surfel Spawn",
+            .shaderSourcePath = "./vulkan/shaders/surfels/spawn.comp",
+        });
+
+        OBLO_ASSERT(spawnPass);
+
+        ctx.set_pass_kind(pass_kind::compute);
     }
 
     void surfel_spawner::build(const frame_graph_build_context& ctx)
     {
-        (void) ctx;
+        const auto tileCoverageSpan = ctx.access(inTileCoverageSink);
+
+        if (tileCoverageSpan.empty())
+        {
+            return;
+        }
+
+        for (const auto& tileCoverage : tileCoverageSpan)
+        {
+            ctx.acquire(tileCoverage.buffer, buffer_usage::storage_read);
+        }
     }
 
     void surfel_spawner::execute(const frame_graph_execute_context& ctx)
     {
-        (void) ctx;
+        const auto tileCoverageSpan = ctx.access(inTileCoverageSink);
+
+        if (tileCoverageSpan.empty())
+        {
+            return;
+        }
+
+        auto& pm = ctx.get_pass_manager();
+
+        binding_table bindingTable;
+        binding_table perDispatchBindingTable;
+
+        ctx.bind_buffers(bindingTable,
+            {
+                {"b_SurfelsGrid", inOutSurfelsGrid},
+                {"b_SurfelsPool", inOutSurfelsPool},
+            });
+
+        const auto commandBuffer = ctx.get_command_buffer();
+
+        const auto pipeline = pm.get_or_create_pipeline(spawnPass, {});
+
+        if (const auto pass = pm.begin_compute_pass(commandBuffer, pipeline))
+        {
+            const auto subgroupSize = pm.get_subgroup_size();
+
+            for (const auto& tileCoverage : tileCoverageSpan)
+            {
+                const auto resolution = tileCoverage.resolution;
+
+                perDispatchBindingTable.clear();
+
+                ctx.bind_buffers(perDispatchBindingTable,
+                    {
+                        {"b_TileCoverage", tileCoverage.buffer},
+                    });
+
+                const binding_table* bindingTables[] = {
+                    &bindingTable,
+                    &perDispatchBindingTable,
+                };
+
+                pm.bind_descriptor_sets(*pass, bindingTables);
+                pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&resolution, 1}));
+
+                const u32 groupsX = round_up_div(resolution.x, subgroupSize);
+                const u32 groupsY = resolution.y;
+
+                vkCmdDispatch(ctx.get_command_buffer(), groupsX, groupsY, 1);
+            }
+
+            pm.end_compute_pass(*pass);
+        }
     }
 }

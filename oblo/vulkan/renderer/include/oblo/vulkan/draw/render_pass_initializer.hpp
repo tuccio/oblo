@@ -73,6 +73,7 @@ namespace oblo::vk
         render_pass_targets renderTargets;
         depth_stencil_state depthStencilState;
         rasterization_state rasterizationState;
+        VkPrimitiveTopology primitiveTopology{VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST};
         std::span<const hashed_string_view> defines;
     };
 }
