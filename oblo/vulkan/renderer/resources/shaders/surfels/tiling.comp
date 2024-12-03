@@ -18,7 +18,7 @@
 #include <renderer/meshes/mesh_table>
 #include <renderer/transform>
 #include <surfels/surfel>
-#include <surfels/surfel_grid_r>
+#include <surfels/buffers/surfel_grid_r>
 #include <surfels/surfel_pool>
 #include <visibility/visibility_buffer>
 #include <visibility/visibility_utils>
