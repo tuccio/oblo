@@ -2,15 +2,12 @@
 
 #extension GL_GOOGLE_include_directive : require
 
-#define SURFEL_GRID_BINDING 32
-#define SURFEL_GRID_QUALIFIER readonly
-
 #define SURFEL_POOL_BINDING 33
 #define SURFEL_POOL_QUALIFIER readonly
 
 #include <renderer/debug/printf>
 #include <surfels/surfel>
-#include <surfels/surfel_grid>
+#include <surfels/surfel_grid_r>
 #include <surfels/surfel_pool>
 
 layout(std430, binding = 0) restrict readonly buffer b_TileCoverage
@@ -52,9 +49,9 @@ void main()
     {
         if (debug_is_center(screenPos, resolution))
         {
-        //     printf_uint("Tile index:", tileIndex);
+            //     printf_uint("Tile index:", tileIndex);
             printf_float("Coverage: ", tile.coverage);
-        //     printf_uvec2("Tile coord: ", screenPos);
+            //     printf_uvec2("Tile coord: ", screenPos);
             printf_vec3("Spawn at: ", tile.position);
         }
     }

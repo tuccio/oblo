@@ -1,13 +1,13 @@
 #ifndef OBLO_INCLUDE_SURFELS_SURFEL_DATA
 #define OBLO_INCLUDE_SURFELS_SURFEL_DATA
 
-const uint SURFEL_INVALID = 0xFFFFFFFF;
+const uint SURFEL_MAX_PER_CELL = 31;
 
 struct surfel_data
 {
     vec3 position;
+    uint alive;
     vec3 normal;
-    uint nextInCell;
 };
 
 struct surfel_grid_header
@@ -22,7 +22,8 @@ struct surfel_grid_header
 
 struct surfel_grid_cell
 {
-    uint firstSurfel;
+    uint surfelsCount;
+    uint surfels[SURFEL_MAX_PER_CELL];
 };
 
 struct surfel_stack_header
@@ -52,6 +53,19 @@ uint surfel_grid_cell_index(in surfel_grid_header h, in ivec3 cell)
     return cell.x + cell.y * h.cellsCountX + cell.z * h.cellsCountX * h.cellsCountY;
 }
 
+ivec3 surfel_grid_find_cell(in surfel_grid_header h, in vec3 positionWS)
+{
+    const vec3 offset = positionWS - h.boundsMin;
+    const vec3 fCell = offset / h.cellSize;
+    return ivec3(fCell);
+}
+
+bool surfel_grid_has_cell(in surfel_grid_header h, in ivec3 cell)
+{
+    const ivec3 cellsCount = ivec3(h.cellsCountX, h.cellsCountY, h.cellsCountZ);
+    return all(greaterThanEqual(cell, ivec3(0))) && all(lessThan(cell, cellsCount));
+}
+
 vec3 surfel_data_world_position(in surfel_data surfel)
 {
     return surfel.position;
@@ -60,6 +74,11 @@ vec3 surfel_data_world_position(in surfel_data surfel)
 vec3 surfel_data_world_normal(in surfel_data surfel)
 {
     return surfel.normal;
+}
+
+bool surfel_data_is_alive(in surfel_data surfel)
+{
+    return surfel.alive != 0;
 }
 
 #endif
