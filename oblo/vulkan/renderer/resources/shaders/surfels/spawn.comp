@@ -2,13 +2,10 @@
 
 #extension GL_GOOGLE_include_directive : require
 
-#define SURFEL_POOL_BINDING 33
-#define SURFEL_POOL_QUALIFIER readonly
-
 #include <renderer/debug/printf>
 #include <surfels/surfel>
-#include <surfels/surfel_grid_r>
-#include <surfels/surfel_pool>
+#include <surfels/buffers/surfel_grid_r>
+#include <surfels/buffers/surfel_pool_r>
 
 layout(std430, binding = 0) restrict readonly buffer b_TileCoverage
 {

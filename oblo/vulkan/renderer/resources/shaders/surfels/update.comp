@@ -1,17 +1,12 @@
 #version 460
 
-#define SURFEL_GRID_BINDING 32
-
-#define SURFEL_POOL_BINDING 33
-#define SURFEL_POOL_QUALIFIER readonly
-
 #extension GL_GOOGLE_include_directive : require
 
 #include <renderer/debug/printf>
 #include <surfels/surfel>
 #include <surfels/surfel_data>
-#include <surfels/surfel_grid_rw>
-#include <surfels/surfel_pool>
+#include <surfels/buffers/surfel_grid_rw>
+#include <surfels/buffers/surfel_pool_r>
 
 layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 

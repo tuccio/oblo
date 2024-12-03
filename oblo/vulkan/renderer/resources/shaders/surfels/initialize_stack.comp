@@ -1,12 +1,9 @@
 #version 460
 
-#define SURFEL_STACK_BINDING 1
-#define SURFEL_STACK_QUALIFIER writeonly
-
 #extension GL_GOOGLE_include_directive : require
 
 #include <surfels/surfel_data>
-#include <surfels/surfel_stack>
+#include <surfels/buffers/surfel_stack_w>
 
 #include <renderer/debug/printf>
 
