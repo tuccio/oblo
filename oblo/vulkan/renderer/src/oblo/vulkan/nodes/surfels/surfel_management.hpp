@@ -24,7 +24,7 @@ namespace oblo::vk
         h32<compute_pass> initStackPass;
         h32<compute_pass> initGridPass;
 
-        bool structuresInitialized;
+        bool stackInitialized;
 
         void init(const frame_graph_init_context& ctx);
 
@@ -79,6 +79,23 @@ namespace oblo::vk
         h32<compute_pass> spawnPass;
 
         u32 randomSeed;
+
+        void init(const frame_graph_init_context& ctx);
+
+        void build(const frame_graph_build_context& ctx);
+
+        void execute(const frame_graph_execute_context& ctx);
+    };
+
+    /// @brief Fills the grid from the currently alive surfels.
+    struct surfel_update
+    {
+        resource<buffer> inOutSurfelsPool;
+        resource<buffer> inOutSurfelsGrid;
+
+        data<u32> inMaxSurfels;
+
+        h32<compute_pass> updatePass;
 
         void init(const frame_graph_init_context& ctx);
 

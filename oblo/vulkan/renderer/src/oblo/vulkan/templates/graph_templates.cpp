@@ -400,6 +400,7 @@ namespace oblo::vk::surfels_gi
 
         const auto initializer = graph.add_node<surfel_initializer>();
         const auto spawner = graph.add_node<surfel_spawner>();
+        const auto fill = graph.add_node<surfel_update>();
 
         graph.make_input(initializer, &surfel_initializer::inGridBounds, InGridBounds);
         graph.make_input(initializer, &surfel_initializer::inGridCellSize, InGridCellSize);
@@ -423,9 +424,14 @@ namespace oblo::vk::surfels_gi
 
         graph.connect(initializer, &surfel_initializer::outSurfelsGrid, spawner, &surfel_spawner::inOutSurfelsGrid);
         graph.connect(initializer, &surfel_initializer::outSurfelsPool, spawner, &surfel_spawner::inOutSurfelsPool);
+        graph.connect(initializer, &surfel_initializer::outSurfelsStack, spawner, &surfel_spawner::inOutSurfelsStack);
 
-        graph.make_output(spawner, &surfel_spawner::inOutSurfelsGrid, OutUpdatedFrameGrid);
-        graph.make_output(spawner, &surfel_spawner::inOutSurfelsPool, OutUpdatedFramePool);
+        graph.connect(spawner, &surfel_spawner::inOutSurfelsGrid, fill, &surfel_update::inOutSurfelsGrid);
+        graph.connect(spawner, &surfel_spawner::inOutSurfelsPool, fill, &surfel_update::inOutSurfelsPool);
+
+        graph.connect(initializer, &surfel_initializer::inMaxSurfels, fill, &surfel_update::inMaxSurfels);
+        graph.make_output(fill, &surfel_update::inOutSurfelsGrid, OutUpdatedFrameGrid);
+        graph.make_output(fill, &surfel_update::inOutSurfelsPool, OutUpdatedFramePool);
 
         return graph;
     }
@@ -468,6 +474,7 @@ namespace oblo::vk
         registry.register_node<surfel_initializer>();
         registry.register_node<surfel_tiling>();
         registry.register_node<surfel_spawner>();
+        registry.register_node<surfel_update>();
         registry.register_node<surfel_debug>();
 
         return registry;

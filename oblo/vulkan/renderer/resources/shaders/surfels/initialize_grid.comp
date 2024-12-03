@@ -1,12 +1,9 @@
 #version 460
 
-#define SURFEL_GRID_BINDING 1
-#define SURFEL_GRID_QUALIFIER writeonly
-
 #extension GL_GOOGLE_include_directive : require
 
 #include <surfels/surfel_data>
-#include <surfels/surfel_grid>
+#include <surfels/surfel_grid_w>
 
 layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
@@ -31,5 +28,5 @@ void main()
         return;
     }
 
-    g_SurfelGridCells[id].firstSurfel = SURFEL_INVALID;
+    g_SurfelGridCells[id].surfelsCount = 0;
 }
