@@ -8,6 +8,7 @@ struct surfel_data
     vec3 position;
     bool alive;
     vec3 normal;
+    float radius;
 };
 
 struct surfel_grid_header
