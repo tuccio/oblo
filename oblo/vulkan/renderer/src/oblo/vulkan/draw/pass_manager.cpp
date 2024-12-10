@@ -163,6 +163,54 @@ namespace oblo::vk
             h32<raytracing_pipeline> pipeline;
         };
 
+        class binding_collision_checker
+        {
+        public:
+            bool has_binding(u32 id) const
+            {
+                OBLO_ASSERT(id < array_size(m_bindings));
+                return m_bindings[id] != nullptr;
+            }
+
+            const char* get_binding(u32 id) const
+            {
+                OBLO_ASSERT(id < array_size(m_bindings));
+                return m_bindings[id];
+            }
+
+            bool add_binding(u32 id, const char* name)
+            {
+                OBLO_ASSERT(id < array_size(m_bindings));
+
+                if (m_bindings[id])
+                {
+                    return false;
+                }
+
+                m_bindings[id] = name;
+                return true;
+            }
+
+            void check(u32 id, const char* name, const char* label)
+            {
+                if (!add_binding(id, name))
+                {
+                    log::error(
+                        "Shader binding collision detected while compiling {}. Attempted to override {} at binding "
+                        "location {} with {}.",
+                        label,
+                        get_binding(id),
+                        id,
+                        name);
+
+                    OBLO_ASSERT(false);
+                }
+            }
+
+        private:
+            const char* m_bindings[256]{};
+        };
+
         enum resource_kind : u8
         {
             vertex_stage_input,
@@ -979,6 +1027,7 @@ namespace oblo::vk
                 ++vertexAttributeIndex;
             }
         }
+        binding_collision_checker collisionChecker;
 
         for (const auto& storageBuffer : shaderResources.storage_buffers)
         {
@@ -1001,6 +1050,8 @@ namespace oblo::vk
                 .kind = resource_kind::storage_buffer,
                 .stageFlags = VkShaderStageFlags(vkStage),
             });
+
+            collisionChecker.check(binding, storageBuffer.name.c_str(), newPipeline.label);
         }
 
         for (const auto& uniformBuffer : shaderResources.uniform_buffers)
@@ -1023,6 +1074,8 @@ namespace oblo::vk
                 .kind = resource_kind::uniform_buffer,
                 .stageFlags = VkShaderStageFlags(vkStage),
             });
+
+            collisionChecker.check(binding, uniformBuffer.name.c_str(), newPipeline.label);
         }
 
         for (const auto& storageImage : shaderResources.storage_images)
@@ -1045,6 +1098,8 @@ namespace oblo::vk
                 .kind = resource_kind::storage_image,
                 .stageFlags = VkShaderStageFlags(vkStage),
             });
+
+            collisionChecker.check(binding, storageImage.name.c_str(), newPipeline.label);
         }
 
         for (const auto& sampledImage : shaderResources.sampled_images)
@@ -1067,6 +1122,8 @@ namespace oblo::vk
                 .kind = resource_kind::sampled_image,
                 .stageFlags = VkShaderStageFlags(vkStage),
             });
+
+            collisionChecker.check(binding, sampledImage.name.c_str(), newPipeline.label);
         }
 
         for (const auto& image : shaderResources.separate_images)
@@ -1090,6 +1147,8 @@ namespace oblo::vk
                 .kind = resource_kind::separate_image,
                 .stageFlags = VkShaderStageFlags(vkStage),
             });
+
+            collisionChecker.check(binding, image.name.c_str(), newPipeline.label);
         }
 
         for (const auto& pushConstant : shaderResources.push_constant_buffers)
@@ -1127,6 +1186,8 @@ namespace oblo::vk
                 .kind = resource_kind::acceleration_structure,
                 .stageFlags = VkShaderStageFlags(vkStage),
             });
+
+            collisionChecker.check(binding, accelerationStructure.name.c_str(), newPipeline.label);
         }
     }
 

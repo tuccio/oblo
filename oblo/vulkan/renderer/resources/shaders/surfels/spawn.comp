@@ -3,9 +3,10 @@
 #extension GL_GOOGLE_include_directive : require
 
 #include <renderer/debug/printf>
-#include <surfels/surfel>
 #include <surfels/buffers/surfel_grid_r>
-#include <surfels/buffers/surfel_pool_r>
+#include <surfels/buffers/surfel_pool_rw>
+#include <surfels/buffers/surfel_stack_rw>
+#include <surfels/surfel>
 
 layout(std430, binding = 0) restrict readonly buffer b_TileCoverage
 {
@@ -37,6 +38,12 @@ void main()
         return;
     }
 
+    // TODO: DEBUG
+    if (!debug_is_center(screenPos, resolution))
+    {
+        return;
+    }
+
     const uint tileIndex = resolution.x * screenPos.y + screenPos.x;
     const surfel_tile_data tile = g_TileData[tileIndex];
 
@@ -44,12 +51,35 @@ void main()
 
     if (tile.coverage < SURFEL_SPAWN_THRESHOLD)
     {
-        if (debug_is_center(screenPos, resolution))
+        uint newSurfelId;
+        const bool allocated = surfel_stack_allocate(newSurfelId);
+
+        // if (debug_is_center(screenPos, resolution))
         {
+            printf_int("[SPAWN] Allocated, available: ", g_SurfelStackHeader.available);
             //     printf_uint("Tile index:", tileIndex);
-            printf_float("Coverage: ", tile.coverage);
+            printf_float("[SPAWN] Coverage: ", tile.coverage);
             //     printf_uvec2("Tile coord: ", screenPos);
-            printf_vec3("Spawn at: ", tile.position);
+            printf_vec3("[SPAWN] Spawn at: ", tile.position);
+
+            if (allocated)
+            {
+                printf_int("[SPAWN] Spawn id: ", newSurfelId);
+            }
+            else
+            {
+                printf_int("[SPAWN] Failed to allocate, available: ", g_SurfelStackHeader.available);
+            }
+        }
+
+        if (allocated)
+        {
+            surfel_data newSurfel;
+            newSurfel.alive = true;
+            newSurfel.position = tile.position;
+            newSurfel.normal = tile.normal;
+
+            g_SurfelData[newSurfelId] = newSurfel;
         }
     }
 }

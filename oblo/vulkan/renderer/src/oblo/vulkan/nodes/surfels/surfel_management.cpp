@@ -61,14 +61,6 @@ namespace oblo::vk
         });
 
         OBLO_ASSERT(initStackPass);
-
-        initGridPass = pm.register_compute_pass({
-            .name = "Initialize Grid Pool",
-            .shaderSourcePath = "./vulkan/shaders/surfels/initialize_grid.comp",
-        });
-
-        OBLO_ASSERT(initGridPass);
-
         ctx.set_pass_kind(pass_kind::compute);
 
         stackInitialized = false;
@@ -120,52 +112,7 @@ namespace oblo::vk
         // Initialize the grid every frame, we fill it after updating/spawning
         auto& pm = ctx.get_pass_manager();
 
-        const auto initGridPipeline = pm.get_or_create_pipeline(initGridPass, {});
-
-        if (const auto pass = pm.begin_compute_pass(ctx.get_command_buffer(), initGridPipeline))
-        {
-            binding_table bindings;
-
-            ctx.bind_buffers(bindings,
-                {
-                    {"b_SurfelsGrid", outSurfelsGrid},
-                });
-
-            const binding_table* bindingTables[] = {
-                &bindings,
-            };
-
-            pm.bind_descriptor_sets(*pass, bindingTables);
-
-            const auto gridBounds = ctx.access(inGridBounds);
-            const auto gridCellSize = ctx.access(inGridCellSize);
-
-            const auto cellsCount = (gridBounds.max - gridBounds.min) / gridCellSize;
-
-            const surfel_grid_header header{
-                .boundsMin = gridBounds.min,
-                .cellsCountX = u32(std::ceil(cellsCount.x)),
-                .boundsMax = gridBounds.max,
-                .cellsCountY = u32(std::ceil(cellsCount.y)),
-                .cellSize = gridCellSize,
-                .cellsCountZ = u32(std::ceil(cellsCount.z)),
-            };
-
-            const auto subgroupSize = pm.get_subgroup_size();
-
-            const auto groupsX = round_up_div(header.cellsCountX, subgroupSize);
-            const auto groupsY = header.cellsCountY;
-            const auto groupsZ = header.cellsCountZ;
-
-            pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span(&header, 1)));
-
-            vkCmdDispatch(ctx.get_command_buffer(), groupsX, groupsY, groupsZ);
-
-            pm.end_compute_pass(*pass);
-        }
-
-        // We only need to initialize the stack once
-
+        // We only need to initialize the stack once, but we could also run this code to reset surfels
         if (stackInitialized)
         {
             return;
@@ -180,6 +127,7 @@ namespace oblo::vk
             ctx.bind_buffers(bindings,
                 {
                     {"b_SurfelsStack", outSurfelsStack},
+                    {"b_SurfelsPool", outSurfelsPool},
                 });
 
             const binding_table* bindingTables[] = {
@@ -346,6 +294,7 @@ namespace oblo::vk
             {
                 {"b_SurfelsGrid", inOutSurfelsGrid},
                 {"b_SurfelsPool", inOutSurfelsPool},
+                {"b_SurfelsStack", inOutSurfelsStack},
             });
 
         const auto commandBuffer = ctx.get_command_buffer();
@@ -380,6 +329,73 @@ namespace oblo::vk
 
                 vkCmdDispatch(ctx.get_command_buffer(), groupsX, groupsY, 1);
             }
+
+            pm.end_compute_pass(*pass);
+        }
+    }
+
+    void surfel_grid_clear::init(const frame_graph_init_context& ctx)
+    {
+        auto& pm = ctx.get_pass_manager();
+
+        initGridPass = pm.register_compute_pass({
+            .name = "Clear Surfels Grid",
+            .shaderSourcePath = "./vulkan/shaders/surfels/initialize_grid.comp",
+        });
+
+        OBLO_ASSERT(initGridPass);
+
+        ctx.set_pass_kind(pass_kind::compute);
+    }
+
+    void surfel_grid_clear::build(const frame_graph_build_context& ctx)
+    {
+        ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_write);
+    }
+
+    void surfel_grid_clear::execute(const frame_graph_execute_context& ctx)
+    {
+        auto& pm = ctx.get_pass_manager();
+        const auto initGridPipeline = pm.get_or_create_pipeline(initGridPass, {});
+
+        if (const auto pass = pm.begin_compute_pass(ctx.get_command_buffer(), initGridPipeline))
+        {
+            binding_table bindings;
+
+            ctx.bind_buffers(bindings,
+                {
+                    {"b_SurfelsGrid", inOutSurfelsGrid},
+                });
+
+            const binding_table* bindingTables[] = {
+                &bindings,
+            };
+
+            pm.bind_descriptor_sets(*pass, bindingTables);
+
+            const auto gridBounds = ctx.access(inGridBounds);
+            const auto gridCellSize = ctx.access(inGridCellSize);
+
+            const auto cellsCount = (gridBounds.max - gridBounds.min) / gridCellSize;
+
+            const surfel_grid_header header{
+                .boundsMin = gridBounds.min,
+                .cellsCountX = u32(std::ceil(cellsCount.x)),
+                .boundsMax = gridBounds.max,
+                .cellsCountY = u32(std::ceil(cellsCount.y)),
+                .cellSize = gridCellSize,
+                .cellsCountZ = u32(std::ceil(cellsCount.z)),
+            };
+
+            const auto subgroupSize = pm.get_subgroup_size();
+
+            const auto groupsX = round_up_div(header.cellsCountX, subgroupSize);
+            const auto groupsY = header.cellsCountY;
+            const auto groupsZ = header.cellsCountZ;
+
+            pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span(&header, 1)));
+
+            vkCmdDispatch(ctx.get_command_buffer(), groupsX, groupsY, groupsZ);
 
             pm.end_compute_pass(*pass);
         }

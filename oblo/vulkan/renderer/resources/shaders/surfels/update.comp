@@ -3,10 +3,10 @@
 #extension GL_GOOGLE_include_directive : require
 
 #include <renderer/debug/printf>
-#include <surfels/surfel>
-#include <surfels/surfel_data>
 #include <surfels/buffers/surfel_grid_rw>
 #include <surfels/buffers/surfel_pool_r>
+#include <surfels/surfel>
+#include <surfels/surfel_data>
 
 layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
@@ -32,6 +32,8 @@ void main()
         return;
     }
 
+    // debugPrintfEXT("[UPDATE] Surfel alive: %u", surfelId);
+
     const vec3 wsPos = surfel_data_world_position(surfel);
 
     const surfel_grid_header gridHeader = g_SurfelGridHeader;
@@ -47,8 +49,18 @@ void main()
 
     const uint newIndex = atomicAdd(g_SurfelGridCells[cellIndex].surfelsCount, 1);
 
-    if (newIndex < SURFEL_MAX_PER_CELL)
+    if (newIndex >= SURFEL_MAX_PER_CELL)
     {
-        g_SurfelGridCells[cellIndex].surfels[newIndex] = surfelId;
+        // We already have the maximum amount of surfels per grid
+        printf_uvec3("[UPDATE] Overflowing cell: ", cell);
+        return;
     }
+
+    // debugPrintfEXT("[UPDATE] Surfel %u alive: %u\n", surfelId, uint(surfel.alive));
+    // debugPrintfEXT("[UPDATE] Fill cell: %u\n", cell);
+    // debugPrintfEXT("[UPDATE] Current surfels in cell: %u\n", newIndex);
+
+    // debugPrintfEXT("Fill cell: [ %d %d %d ] (%u) with %u\n", cell.x, cell.y, cell.z, cellIndex, surfelId);
+
+    g_SurfelGridCells[cellIndex].surfels[newIndex] = surfelId;
 }
