@@ -36,6 +36,10 @@
         printf_text(Label);                                                                                            \
         debugPrintfEXT("[ %f, %f, %f, %f ]\n", Vector.x, Vector.y, Vector.z, Vector.w);
 
+    #define printf_int(Label, Value)                                                                                   \
+        printf_text(Label);                                                                                            \
+        debugPrintfEXT("[ %d ]\n", Value);
+
     #define printf_uint(Label, Value)                                                                                  \
         printf_text(Label);                                                                                            \
         debugPrintfEXT("[ %u ]\n", Value);
@@ -73,6 +77,7 @@
     #define printf_vec2(Label, Vector)
     #define printf_vec3(Label, Vector)
     #define printf_vec4(Label, Vector)
+    #define printf_int(Label, Value)
     #define printf_uint(Label, Value)
     #define printf_uvec2(Label, Vector)
     #define printf_uvec3(Label, Vector)

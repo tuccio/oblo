@@ -6,7 +6,7 @@ const uint SURFEL_MAX_PER_CELL = 31;
 struct surfel_data
 {
     vec3 position;
-    uint alive;
+    bool alive;
     vec3 normal;
 };
 
@@ -78,7 +78,7 @@ vec3 surfel_data_world_normal(in surfel_data surfel)
 
 bool surfel_data_is_alive(in surfel_data surfel)
 {
-    return surfel.alive != 0;
+    return surfel.alive;
 }
 
 #endif

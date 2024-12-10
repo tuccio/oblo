@@ -22,7 +22,6 @@ namespace oblo::vk
         data<vec3> inGridCellSize;
 
         h32<compute_pass> initStackPass;
-        h32<compute_pass> initGridPass;
 
         bool stackInitialized;
 
@@ -79,6 +78,23 @@ namespace oblo::vk
         h32<compute_pass> spawnPass;
 
         u32 randomSeed;
+
+        void init(const frame_graph_init_context& ctx);
+
+        void build(const frame_graph_build_context& ctx);
+
+        void execute(const frame_graph_execute_context& ctx);
+    };
+
+    /// @brief Once a frame, clear the grid before refilling it.
+    struct surfel_grid_clear
+    {
+        resource<buffer> inOutSurfelsGrid;
+
+        data<aabb> inGridBounds;
+        data<vec3> inGridCellSize;
+
+        h32<compute_pass> initGridPass;
 
         void init(const frame_graph_init_context& ctx);
 

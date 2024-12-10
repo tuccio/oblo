@@ -2,8 +2,9 @@
 
 #extension GL_GOOGLE_include_directive : require
 
-#include <surfels/surfel_data>
+#include <surfels/buffers/surfel_pool_w>
 #include <surfels/buffers/surfel_stack_w>
+#include <surfels/surfel_data>
 
 #include <renderer/debug/printf>
 
@@ -30,4 +31,5 @@ void main()
     }
 
     g_SurfelStackEntries[id].surfelId = id;
+    g_SurfelData[id].alive = false;
 }

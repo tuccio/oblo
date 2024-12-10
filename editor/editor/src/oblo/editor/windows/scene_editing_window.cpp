@@ -92,7 +92,9 @@ namespace oblo::editor
                     ctx.windowManager.create_child_window<style_window>(ctx.windowHandle);
                 }
 
-                auto& passManager = ctx.services.find<vk::renderer>()->get_pass_manager();
+                auto* const renderer = ctx.services.find<vk::renderer>();
+
+                auto& passManager = renderer->get_pass_manager();
 
                 if (ImGui::MenuItem("Single frame shader printf"))
                 {
@@ -119,7 +121,7 @@ namespace oblo::editor
 
                 if (ImGui::MenuItem("Copy frame graph to clipboard"))
                 {
-                    const auto& frameGraph = ctx.services.find<vk::renderer>()->get_frame_graph();
+                    const auto& frameGraph = renderer->get_frame_graph();
 
                     std::stringstream ss;
                     frameGraph.write_dot(ss);

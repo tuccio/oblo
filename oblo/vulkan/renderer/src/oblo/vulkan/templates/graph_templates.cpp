@@ -400,6 +400,7 @@ namespace oblo::vk::surfels_gi
 
         const auto initializer = graph.add_node<surfel_initializer>();
         const auto spawner = graph.add_node<surfel_spawner>();
+        const auto clearGrid = graph.add_node<surfel_grid_clear>();
         const auto fill = graph.add_node<surfel_update>();
 
         graph.make_input(initializer, &surfel_initializer::inGridBounds, InGridBounds);
@@ -411,8 +412,8 @@ namespace oblo::vk::surfels_gi
         graph.bind(initializer,
             &surfel_initializer::inGridBounds,
             aabb{
-                .min = {.x = -256, .y = -32.f, .z = -256},
-                .max = {.x = 256, .y = 128.f, .z = 256},
+                .min = {.x = -16.f, .y = -16.f, .z = -16.f},
+                .max = {.x = 16.f, .y = 16.f, .z = 16.f},
             });
 
         // We output the surfels from last frame, then each view will contribute potentially spawning surfels
@@ -426,8 +427,12 @@ namespace oblo::vk::surfels_gi
         graph.connect(initializer, &surfel_initializer::outSurfelsPool, spawner, &surfel_spawner::inOutSurfelsPool);
         graph.connect(initializer, &surfel_initializer::outSurfelsStack, spawner, &surfel_spawner::inOutSurfelsStack);
 
-        graph.connect(spawner, &surfel_spawner::inOutSurfelsGrid, fill, &surfel_update::inOutSurfelsGrid);
+        graph.connect(initializer, &surfel_initializer::inGridBounds, clearGrid, &surfel_grid_clear::inGridBounds);
+        graph.connect(initializer, &surfel_initializer::inGridCellSize, clearGrid, &surfel_grid_clear::inGridCellSize);
+        graph.connect(spawner, &surfel_spawner::inOutSurfelsGrid, clearGrid, &surfel_grid_clear::inOutSurfelsGrid);
+
         graph.connect(spawner, &surfel_spawner::inOutSurfelsPool, fill, &surfel_update::inOutSurfelsPool);
+        graph.connect(clearGrid, &surfel_grid_clear::inOutSurfelsGrid, fill, &surfel_update::inOutSurfelsGrid);
 
         graph.connect(initializer, &surfel_initializer::inMaxSurfels, fill, &surfel_update::inMaxSurfels);
         graph.make_output(fill, &surfel_update::inOutSurfelsGrid, OutUpdatedFrameGrid);
@@ -474,6 +479,7 @@ namespace oblo::vk
         registry.register_node<surfel_initializer>();
         registry.register_node<surfel_tiling>();
         registry.register_node<surfel_spawner>();
+        registry.register_node<surfel_grid_clear>();
         registry.register_node<surfel_update>();
         registry.register_node<surfel_debug>();
 

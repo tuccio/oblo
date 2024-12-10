@@ -6,9 +6,6 @@
 #extension GL_EXT_shader_8bit_storage : require
 #extension GL_EXT_control_flow_attributes : require
 
-#define SURFEL_POOL_BINDING 33
-#define SURFEL_POOL_QUALIFIER readonly
-
 #include <renderer/debug/printf>
 #include <renderer/instances>
 #include <renderer/math>
@@ -17,9 +14,9 @@
 #include <renderer/meshes/mesh_indices>
 #include <renderer/meshes/mesh_table>
 #include <renderer/transform>
-#include <surfels/surfel>
 #include <surfels/buffers/surfel_grid_r>
-#include <surfels/surfel_pool>
+#include <surfels/buffers/surfel_pool_r>
+#include <surfels/surfel>
 #include <visibility/visibility_buffer>
 #include <visibility/visibility_utils>
 
@@ -73,6 +70,12 @@ void main()
 
         uint overlappingSurfels = 0;
 
+        // if (debug_is_center(screenPos, resolution))
+        // {
+        //     const uint cellIndex = surfel_grid_cell_index(gridHeader, cell);
+        //     // debugPrintfEXT("Tiling cell: [ %d %d %d ] (%u)\n", cell.x, cell.y, cell.z, cellIndex);
+        // }
+
         [[unroll]] for (int x = -1; x <= 1; ++x)
         {
             [[unroll]] for (int y = -1; y <= 1; ++y)
@@ -83,29 +86,36 @@ void main()
 
                     if (surfel_grid_has_cell(gridHeader, current))
                     {
-                        const uint index = surfel_grid_cell_index(gridHeader, current);
-                        const surfel_grid_cell cellData = g_SurfelGridCells[index];
+
+                        const uint cellIndex = surfel_grid_cell_index(gridHeader, current);
+                        const surfel_grid_cell cellData = g_SurfelGridCells[cellIndex];
 
                         // TODO: Get all surfels and accumulate
-                        const uint surfelsCount = cellData.surfelsCount;
+                        const uint surfelsCount = min(cellData.surfelsCount, SURFEL_MAX_PER_CELL);
 
-                        // if (debug_is_center(screenPos, resolution))
-                        // {
-                        //     printf_vec3("Cell: ", vec3(current));
-                        //     printf_uint("Cell Index: ", index);
-                        //     printf_uint("FIRST ID: ", firstSurfel);
-                        // }
+                        if (debug_is_center(screenPos, resolution))
+                        {
+                            printf_vec3("[TILING] Position WS: ", positionWS);
+                            printf_vec3("[TILING] Bounds Min: ", vec3(g_SurfelGridHeader.boundsMin));
+                            printf_vec3("[TILING] Cell: ", vec3(current));
+                            printf_uint("[TILING] Surfels count: ", surfelsCount);
+                        }
 
                         for (uint cellSurfelIndex = 0; cellSurfelIndex < surfelsCount; ++cellSurfelIndex)
                         {
                             const uint surfelId = cellData.surfels[cellSurfelIndex];
 
+                            const surfel_data surfel = g_SurfelData[surfelId];
+
+                            // debug_assert(surfel.alive);
+
                             if (debug_is_center(screenPos, resolution))
                             {
-                                printf_uint("ID: ", surfelId);
+                                printf_uint("[TILING] Surfel ID: ", surfelId);
+                                printf_uint("[TILING] Surfel alive: ", uint(surfel.alive));
+                                printf_vec3("[TILING] Pixel WS position: ", positionWS);
+                                printf_vec3("[TILING] Surfel position: ", surfel.position);
                             }
-
-                            const surfel_data surfel = g_SurfelData[surfelId];
 
                             // We should instead probably weigh by distance, but for now we just add 1 if it's in range
                             overlappingSurfels += uint(surfel_affects(surfel, positionWS));
@@ -120,10 +130,10 @@ void main()
             ++pixelsWithFragments;
         }
 
-        // if (debug_is_center(screenPos, resolution))
-        // {
-        //     printf_uint("Affecting surfels: ", overlappingSurfels);
-        // }
+        if (debug_is_center(screenPos, resolution))
+        {
+            printf_uint("[TILING] Affecting surfels: ", overlappingSurfels);
+        }
     }
 
     g_PixelCoverage[gl_LocalInvocationID.y][gl_LocalInvocationID.x] = coverage;
@@ -166,14 +176,6 @@ void main()
 
         // We don't need to spawn surfels if the tile only has skybox
         tileData.coverage = pixelsWithFragments == 0 ? NO_SURFELS_NEEDED : float(coverageSum) / pixelsWithFragments;
-
-        if (gl_WorkGroupID.xy == uvec2(60, 31))
-        {
-            // printf_text("OK");
-            // printf_uint("Index: ", globalIndex);
-            // printf_uint("Index: ", globalIndex);
-            // printf_uvec2("WKS: ", gl_WorkGroupSize);
-        }
 
         g_TileData[globalIndex] = tileData;
     }
