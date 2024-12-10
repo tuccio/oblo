@@ -1,5 +1,8 @@
 #version 460
 
+#undef OBLO_DEBUG_PRINTF
+#define OBLO_DEBUG_PRINTF 0
+
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_buffer_reference : require
 #extension GL_ARB_gpu_shader_int64 : require
@@ -95,10 +98,13 @@ void main()
 
                         if (debug_is_center(screenPos, resolution))
                         {
-                            printf_vec3("[TILING] Position WS: ", positionWS);
-                            printf_vec3("[TILING] Bounds Min: ", vec3(g_SurfelGridHeader.boundsMin));
-                            printf_vec3("[TILING] Cell: ", vec3(current));
-                            printf_uint("[TILING] Surfels count: ", surfelsCount);
+                            if (surfelsCount != 0)
+                            {
+                                printf_vec3("[TILING] Position WS: ", positionWS);
+                                printf_vec3("[TILING] Bounds Min: ", vec3(g_SurfelGridHeader.boundsMin));
+                                printf_vec3("[TILING] Cell: ", vec3(current));
+                                printf_uint("[TILING] Surfels count: ", surfelsCount);
+                            }
                         }
 
                         for (uint cellSurfelIndex = 0; cellSurfelIndex < surfelsCount; ++cellSurfelIndex)

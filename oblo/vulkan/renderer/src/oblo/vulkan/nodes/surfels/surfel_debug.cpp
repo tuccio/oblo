@@ -36,6 +36,8 @@ namespace oblo::vk
 
         ctx.acquire(inOutImage, texture_usage::render_target_write);
         ctx.acquire(inDepthBuffer, texture_usage::depth_stencil_read);
+
+        ctx.acquire(inSurfelsPool, buffer_usage::storage_read);
     }
 
     void surfel_debug::execute(const frame_graph_execute_context& ctx)
@@ -115,6 +117,7 @@ namespace oblo::vk
             ctx.bind_buffers(bindingTable,
                 {
                     {"b_CameraBuffer", inCameraBuffer},
+                    {"b_SurfelsPool", inSurfelsPool},
                 });
 
             const binding_table* bindingTables[] = {
@@ -123,7 +126,7 @@ namespace oblo::vk
 
             pm.bind_descriptor_sets(*pass, bindingTables);
 
-            vkCmdDraw(commandBuffer, 4, 1, 0, 0);
+            vkCmdDraw(commandBuffer, 4, 1 << 16u, 0, 0);
 
             pm.end_render_pass(*pass);
         }
