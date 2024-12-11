@@ -699,6 +699,16 @@ namespace oblo::vk
         return storage.data;
     }
 
+    void frame_graph::push_empty_event_impl(const type_id& type)
+    {
+        m_impl->emptyEvents.emplace(type);
+    }
+
+    bool frame_graph::has_event_impl(const type_id& type) const
+    {
+        return m_impl->emptyEvents.contains(type);
+    }
+
     void frame_graph_impl::add_transient_resource(resource<texture> handle,
         h32<transient_texture_resource> transientTexture)
     {
@@ -1044,6 +1054,7 @@ namespace oblo::vk
         transientTextures.clear();
         transientBuffers.clear();
         dynamicPins.clear();
+        emptyEvents.clear();
     }
 
     void frame_graph_impl::free_pin_storage(const frame_graph_pin_storage& storage, bool isFrameAllocated)

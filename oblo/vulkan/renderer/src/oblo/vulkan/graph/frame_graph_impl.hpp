@@ -19,6 +19,7 @@
 #include <iosfwd>
 #include <memory_resource>
 #include <unordered_map>
+#include <unordered_set>
 
 #include <vulkan/vulkan_core.h>
 
@@ -207,6 +208,8 @@ namespace oblo::vk
         frame_graph_node* currentNode{};
 
         random_generator rng;
+
+        std::unordered_set<type_id> emptyEvents;
 
     public: // Internals for frame graph execution
         void mark_active_nodes();

@@ -8,6 +8,7 @@
 #include <oblo/editor/windows/demo_window.hpp>
 #include <oblo/editor/windows/style_window.hpp>
 #include <oblo/editor/windows/viewport.hpp>
+#include <oblo/vulkan/events/gi_reset_event.hpp>
 #include <oblo/vulkan/graph/frame_graph.hpp>
 #include <oblo/vulkan/renderer.hpp>
 
@@ -117,6 +118,11 @@ namespace oblo::editor
                     ImGui::MenuItem("Shader optimizations", nullptr, &isEnabled))
                 {
                     passManager.set_shader_optimization_enabled(isEnabled);
+                }
+
+                if (ImGui::MenuItem("Reset GI"))
+                {
+                    renderer->get_frame_graph().push_event(vk::gi_reset_event{});
                 }
 
                 if (ImGui::MenuItem("Copy frame graph to clipboard"))
