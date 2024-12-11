@@ -360,6 +360,11 @@ namespace oblo::vk
         return m_frameGraph.access_storage(handle);
     }
 
+    bool frame_graph_build_context::has_event_impl(const type_id& type) const
+    {
+        return m_frameGraph.emptyEvents.contains(type);
+    }
+
     frame_graph_execute_context::frame_graph_execute_context(
         frame_graph_impl& frameGraph, renderer& renderer, VkCommandBuffer commandBuffer) :
         m_frameGraph{frameGraph},

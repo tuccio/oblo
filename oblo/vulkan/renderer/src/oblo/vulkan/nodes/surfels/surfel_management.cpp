@@ -4,6 +4,7 @@
 #include <oblo/math/vec4.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/compute_pass_initializer.hpp>
+#include <oblo/vulkan/events/gi_reset_event.hpp>
 #include <oblo/vulkan/graph/node_common.hpp>
 
 namespace oblo::vk
@@ -102,6 +103,8 @@ namespace oblo::vk
                 .isStable = true,
             },
             buffer_usage::storage_write);
+
+        stackInitialized = stackInitialized && !ctx.has_event<gi_reset_event>();
     }
 
     void surfel_initializer::execute(const frame_graph_execute_context& ctx)
