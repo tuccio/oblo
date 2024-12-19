@@ -43,6 +43,7 @@ namespace oblo::vk
     struct surfel_tiling
     {
         resource<buffer> outTileCoverage;
+
         data_sink<surfel_tiling_data> outTileCoverageSink;
 
         resource<buffer> inSurfelsGrid;
@@ -63,6 +64,23 @@ namespace oblo::vk
         void build(const frame_graph_build_context& ctx);
 
         void execute(const frame_graph_execute_context& ctx);
+    };
+
+    /// @brief Min-reduction on tile coverage to determine the tile with worst coverage.
+    struct surfel_min_coverage
+    {
+        resource<buffer> inTileCoverage;
+        resource<buffer> outMinTileCoverage;
+
+        data<vec2u> inResolution;
+
+        h32<compute_pass> reductionPass;
+
+        void init(const frame_graph_init_context& ctx);
+
+        void pre_build(const frame_graph_build_context& ctx);
+
+        void build(const frame_graph_build_context& ctx);
     };
 
     /// @brief Goes over the tile coverage, determines whether or not to spawn a surfel in each tile.

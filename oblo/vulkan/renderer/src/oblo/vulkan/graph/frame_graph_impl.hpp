@@ -168,7 +168,6 @@ namespace oblo::vk
 
     struct frame_graph_node_to_execute
     {
-        frame_graph_node* node;
         frame_graph_topology::vertex_handle handle;
     };
 
@@ -237,6 +236,9 @@ namespace oblo::vk
         h32<frame_graph_pin_storage> allocate_dynamic_resource_pin();
 
         const frame_graph_node* get_owner_node(resource<buffer> buffer) const;
+
+        frame_graph_vertex add_transient_node(const type_id& nodeType);
+        void connect(frame_graph_vertex srcNode, u32 srcOffset, frame_graph_vertex dstNode, u32 dstOffset);
 
     public: // Utility
         void free_pin_storage(const frame_graph_pin_storage& storage, bool isFrameAllocated);
