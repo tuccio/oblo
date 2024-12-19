@@ -52,7 +52,7 @@ void main()
     if (newIndex >= SURFEL_MAX_PER_CELL)
     {
         // We already have the maximum amount of surfels per grid
-        printf_uvec3("[UPDATE] Overflowing cell: ", cell);
+        // printf_uvec3("[UPDATE] Overflowing cell: ", cell);
         return;
     }
 

@@ -5,6 +5,7 @@
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/compute_pass_initializer.hpp>
 #include <oblo/vulkan/events/gi_reset_event.hpp>
+#include <oblo/vulkan/graph/frame_graph_template.hpp>
 #include <oblo/vulkan/graph/node_common.hpp>
 
 namespace oblo::vk
@@ -167,6 +168,197 @@ namespace oblo::vk
 
         ctx.set_pass_kind(pass_kind::compute);
     }
+
+    namespace
+    {
+        struct reduction_config
+        {
+            u32 inElements;
+            u32 outElements;
+            bool isFirstPass;
+        };
+
+        struct surfel_min_coverage_pass
+        {
+            resource<buffer> inTileCoverage;
+            resource<buffer> inOutMinCoverageBuffer;
+
+            // Only used in the last pass
+            resource<buffer> outTileCoverage;
+
+            data<reduction_config> inConfig;
+
+            data<h32<compute_pass>> reductionPass;
+
+            void init(const frame_graph_init_context& ctx)
+            {
+                ctx.set_pass_kind(pass_kind::compute);
+            }
+
+            void build(const frame_graph_build_context& ctx)
+            {
+                const auto& config = ctx.access(inConfig);
+
+                if (config.isFirstPass)
+                {
+                    // In the first pass we allocate the buffer
+                    ctx.create(inOutMinCoverageBuffer,
+                        buffer_resource_initializer{
+                            .size = narrow_cast<u32>(sizeof(u32) * config.outElements),
+                        },
+                        buffer_usage::storage_write);
+                }
+                else
+                {
+                    ctx.acquire(inOutMinCoverageBuffer, buffer_usage::storage_write);
+                }
+
+                // In the last pass we also copy to the output
+                if (config.outElements == 1)
+                {
+                    ctx.create(outTileCoverage,
+                        buffer_resource_initializer{
+                            .size = sizeof(surfel_tile_data),
+                        },
+                        buffer_usage::storage_write);
+                }
+            }
+        };
+    }
+
+    void surfel_min_coverage::init(const frame_graph_init_context& ctx)
+    {
+        auto& pm = ctx.get_pass_manager();
+
+        reductionPass = pm.register_compute_pass({
+            .name = "Surfel Tiling Reduction",
+            .shaderSourcePath = "./vulkan/shaders/surfels/tile_reduction.comp",
+        });
+
+        OBLO_ASSERT(reductionPass);
+
+        ctx.set_pass_kind(pass_kind::compute);
+    }
+
+#if 0
+    void surfel_min_coverage::pre_build(const frame_graph_build_context& ctx)
+    {
+        // One option: add graph template from prebuild
+        // Easier to implement, but cannot access data you can access in build (e.g. inputs?)
+        //
+        // TODO: Calculate
+
+        // TODO
+        const u32 subgroupSize = 32;
+        const vec2u resolution = ctx.access(inResolution);
+        const u32 pixelsCount = resolution.x * resolution.y;
+
+        // With subgroup size N, we run groups of size NxN, each group doing a reduction on the subgroup and then
+        // writing the result on shader manager, then finally one group doing the final reduction
+        const u32 passCount = log2_round_down_power_of_two(round_up_power_of_two(pixelsCount)) /
+            log2_round_down_power_of_two(subgroupSize);
+
+        if (passCount == 0)
+        {
+            OBLO_ASSERT(false);
+            return;
+        }
+
+        frame_graph_template reduction;
+
+        dynamic_array<frame_graph_template::vertex_handle> passes{&ctx.get_frame_allocator()};
+        passes.reserve(passCount);
+
+        for (usize i = 0; i < passCount; ++i)
+        {
+            const auto node = reduction.add_node<surfel_min_coverage_pass>();
+            passes.emplace_back(node);
+
+            const reduction_config cfg{
+                .isFirstPass = i == 0,
+            };
+
+            reduction.bind(node, &surfel_min_coverage_pass::reductionPass, reductionPass);
+            reduction.bind(node, &surfel_min_coverage_pass::inConfig, cfg);
+        }
+
+        for (usize i = 1; i < passes.size(); ++i)
+        {
+            reduction.connect(passes[i - 1],
+                &surfel_min_coverage_pass::inOutMinCoverageBuffer,
+                passes[i],
+                &surfel_min_coverage_pass::inOutMinCoverageBuffer);
+
+            reduction.connect(passes[i - 1],
+                &surfel_min_coverage_pass::inTileCoverage,
+                passes[i],
+                &surfel_min_coverage_pass::inTileCoverage);
+        }
+
+        reduction.make_input(passes.front(), &surfel_min_coverage_pass::inTileCoverage, "InSource");
+        reduction.make_output(passes.back(), &surfel_min_coverage_pass::outTileCoverage, "OutTarget");
+
+        const auto subgraph = ctx.add_dynamic_graph(reduction);
+
+        // TODO: Actually inTileCoverage when moving it out
+        ctx.connect(&surfel_min_coverage::inTileCoverage, subgraph, "InSource");
+        ctx.connect(subgraph, "OutTarget", &surfel_min_coverage::outMinTileCoverage);
+
+        /* reduction.connect(currentNode, &surfel_tiling::outTileCoverage, passes.front(), &surfel_tile_min::inSource);
+
+         reduction.connect(passes.back(),
+             &surfel_tile_min::outTarget,
+             ctx.get_current_node(),
+             &surfel_tiling::outTileCoverage);*/
+    }
+
+    void surfel_min_coverage::build(const frame_graph_build_context& ctx)
+    {
+        // I think the problem with this is that we cannot allocate/propagate pins
+        // TODO
+        // constexpr u32 passCount = 10;
+
+        // dynamic_array<frame_graph_template::vertex_handle> passes{&ctx.get_frame_allocator()};
+        // passes.reserve(passCount);
+
+        // for (usize i = 0; i < passCount; ++i)
+        //{
+        //     const reduction_config cfg{
+        //         .isFirstPass = i == 0,
+        //     };
+
+        //    const auto newPass = ctx.add_dynamic_node(surfel_min_coverage_pass{.config = cfg});
+        //    passes.emplace_back(passes);
+        //}
+
+        // for (usize i = 1; i < passes.size(); ++i)
+        //{
+        //     ctx.connect(passes[i - 1],
+        //         &surfel_min_coverage_pass::inOutMinCoverageBuffer,
+        //         passes[i],
+        //         &surfel_min_coverage_pass::inOutMinCoverageBuffer);
+
+        //    ctx.connect(passes[i - 1],
+        //        &surfel_min_coverage_pass::inTileCoverage,
+        //        passes[i],
+        //        &surfel_min_coverage_pass::inTileCoverage);
+        //}
+
+        // const auto subgraph = ctx.add_subgraph(reduction);
+
+        //// TODO: Actually inTileCoverage when moving it out
+        // ctx.connect(&surfel_min_coverage::inTileCoverage, passes.front(), );
+        // ctx.connect(subgraph, "OutTarget", &surfel_min_coverage::outMinTileCoverage);
+        const auto node = ctx.create_dynamic_node<surfel_min_coverage_pass>();
+
+        ctx.connect(ctx.get_current_node(),
+            &surfel_min_coverage::inTileCoverage,
+            node,
+            surfel_min_coverage::inTileCoverage);
+        
+        // TODO: Others
+    }
+#endif // #if 0
 
     void surfel_tiling::build(const frame_graph_build_context& ctx)
     {

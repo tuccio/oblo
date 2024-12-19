@@ -41,14 +41,14 @@ void main()
     const uint tileIndex = resolution.x * screenPos.y + screenPos.x;
     const surfel_tile_data tile = g_TileData[tileIndex];
 
-    const float SURFEL_SPAWN_THRESHOLD = 5.f;
+    const float SURFEL_SPAWN_THRESHOLD = .5f;
 
     if (tile.coverage < SURFEL_SPAWN_THRESHOLD)
     {
         uint newSurfelId;
         const bool allocated = surfel_stack_allocate(newSurfelId);
 
-        // if (debug_is_center(screenPos, resolution))
+        if (debug_is_center(screenPos, resolution))
         {
             printf_int("[SPAWN] Allocated, available: ", g_SurfelStackHeader.available);
             //     printf_uint("Tile index:", tileIndex);

@@ -409,8 +409,11 @@ namespace oblo::vk
 
         u32 nodeIndex{};
 
-        for (const auto& [node, handle] : m_impl->sortedNodes)
+        for (const auto [vertexHandle] : m_impl->sortedNodes)
         {
+            const auto nodeHandle = m_impl->graph.get(vertexHandle).node;
+            auto* const node = m_impl->nodes.try_find(nodeHandle);
+
             m_impl->currentNode = node;
 
             auto* const ptr = node->ptr;
@@ -426,6 +429,10 @@ namespace oblo::vk
                 node->build(ptr, buildCtx);
 
                 nodeTransitions.lastTextureTransition = u32(m_impl->textureTransitions.size());
+
+                // TODO: If we added dynamic nodes, we can build them here
+                // m_impl->currentNode = newNode;
+                // auto& newNodeTransition = m_impl->nodeTransitions.emplace_back();
             }
 
             ++nodeIndex;
@@ -521,10 +528,12 @@ namespace oblo::vk
 
         for (auto&& [nodeToExecute, transitions] : zip_range(m_impl->sortedNodes, m_impl->nodeTransitions))
         {
-            m_impl->currentNode = nodeToExecute.node;
+            const auto nodeHandle = m_impl->graph.get(nodeToExecute.handle).node;
+            auto* const node = m_impl->nodes.try_find(nodeHandle);
 
-            const auto& node = *nodeToExecute.node;
-            auto* const ptr = node.ptr;
+            m_impl->currentNode = node;
+
+            auto* const ptr = node->ptr;
 
             imageBarriers.clear();
 
@@ -534,7 +543,7 @@ namespace oblo::vk
 
                 if (!imageLayoutTracker.add_transition(imageBarriers.push_back_default(),
                         textureTransition.texture,
-                        node.passKind,
+                        node->passKind,
                         textureTransition.usage))
                 {
                     imageBarriers.pop_back();
@@ -556,8 +565,7 @@ namespace oblo::vk
                 incomingNodes.push_back(v.node);
             }
 
-            for (const auto [storage, usages] :
-                zip_range(nodeToExecute.node->bufferUsages.keys(), nodeToExecute.node->bufferUsages.values()))
+            for (const auto [storage, usages] : zip_range(node->bufferUsages.keys(), node->bufferUsages.values()))
             {
                 VkPipelineStageFlags2 srcStages{};
                 VkAccessFlags2 srcAccess{};
@@ -589,7 +597,7 @@ namespace oblo::vk
 
                 if (shouldForwardAccess)
                 {
-                    const auto [it, ok] = nodeToExecute.node->bufferUsages.emplace(storage);
+                    const auto [it, ok] = node->bufferUsages.emplace(storage);
 
                     *it = {
                         .stages = srcStages,
@@ -629,11 +637,11 @@ namespace oblo::vk
                 vkCmdPipelineBarrier2(commandBuffer.get(), &dependencyInfo);
             }
 
-            if (node.execute)
+            if (node->execute)
             {
                 OBLO_PROFILE_SCOPE("Execute Node");
-                OBLO_PROFILE_TAG(node.typeId.name);
-                node.execute(ptr, executeCtx);
+                OBLO_PROFILE_TAG(node->typeId.name);
+                node->execute(ptr, executeCtx);
             }
         }
 
@@ -835,7 +843,7 @@ namespace oblo::vk
                     auto* node = nodes.try_find(vertex.node);
                     OBLO_ASSERT(node);
 
-                    sortedNodes.push_back({node, v});
+                    sortedNodes.push_back({v});
 
                     // If the node needs to be initialized, this is a good time
                     if (node->init && !node->initialized)
