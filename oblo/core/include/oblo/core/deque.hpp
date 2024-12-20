@@ -43,6 +43,7 @@ namespace oblo
         explicit deque(allocator* allocator);
         explicit deque(allocator* allocator, std::initializer_list<T> init);
         explicit deque(allocator* allocator, usize count);
+        explicit deque(allocator* allocator, deque_config cfg);
         explicit deque(allocator* allocator, deque_config cfg, usize count);
 
         deque(const deque& other);
@@ -136,6 +137,8 @@ namespace oblo
     private:
         template <typename F>
         void resize_internal(usize size, F&& init);
+
+        void shrink_internal(usize size);
 
         void free_empty(usize firstFreeChunk = 0);
 
@@ -253,6 +256,12 @@ namespace oblo
     }
 
     template <typename T>
+    deque<T>::deque(allocator* allocator, deque_config cfg) :
+        m_chunks{allocator}, m_elementsPerChunk{cfg.elementsPerChunk}
+    {
+    }
+
+    template <typename T>
     deque<T>::deque(allocator* allocator, deque_config cfg, usize count) :
         m_chunks{allocator}, m_elementsPerChunk{cfg.elementsPerChunk}
     {
@@ -304,43 +313,50 @@ namespace oblo
         other.m_size = 0;
     }
 
-    // template <typename T>
-    // deque<T>& deque<T>::operator=(const deque& other)
-    //{
-    //     clear();
+    template <typename T>
+    deque<T>& deque<T>::operator=(const deque& other)
+    {
+        clear();
 
-    //    reserve(other.m_size);
+        resize_internal(other.m_size,
+            [it = other.begin()](T* b, T* e) mutable
+            {
+                for (T* d = b; d != e; ++it, ++d)
+                {
+                    new (d) T{*it};
+                }
+            });
 
-    //    std::uninitialized_copy(other.begin(), other.end(), m_data);
+        return *this;
+    }
 
-    //    m_size = other.m_size;
+    template <typename T>
+    deque<T>& deque<T>::operator=(deque&& other) noexcept
+    {
+        clear();
 
-    //    return *this;
-    //}
+        if (get_allocator() == other.get_allocator())
+        {
+            swap(other);
+        }
+        else
+        {
+            clear();
 
-    // template <typename T>
-    // deque<T>& deque<T>::operator=(deque&& other) noexcept
-    //{
-    //     clear();
+            resize_internal(other.m_size,
+                [it = other.begin()](T* b, T* e) mutable
+                {
+                    for (T* d = b; d != e; ++it, ++d)
+                    {
+                        new (d) T{std::move(*it)};
+                    }
+                });
 
-    //    if (m_allocator == other.m_allocator)
-    //    {
-    //        swap(other);
-    //    }
-    //    else
-    //    {
-    //        // TODO: Move properly
-    //        reserve(other.m_size);
+            return *this;
+        }
 
-    //        std::uninitialized_move(other.begin(), other.end(), m_data);
-    //        std::destroy(other.begin(), other.end());
-
-    //        m_size = other.m_size;
-    //        other.m_size = 0;
-    //    }
-
-    //    return *this;
-    //}
+        return *this;
+    }
 
     template <typename T>
     inline deque<T>& deque<T>::operator=(std::initializer_list<T> values) noexcept
@@ -435,32 +451,9 @@ namespace oblo
                 init(chunk, chunk + elements);
             }
         }
-        else if constexpr (!std::is_trivially_destructible_v<T>)
+        else
         {
-            const usize firstElement = newSize + 1;
-            const usize firstChunk = firstElement / m_elementsPerChunk;
-
-            // Deal with the first chunk, where we might need to apply an offset
-            {
-                T* const chunk = m_chunks[firstChunk];
-
-                const usize elementsInFirstChunk = m_size & (m_elementsPerChunk - 1);
-                const auto elements = min(m_size - newSize, m_elementsPerChunk - elementsInFirstChunk);
-
-                T* const begin = chunk + elementsInFirstChunk;
-                init(begin, begin + elements);
-
-                m_size -= elements;
-            }
-
-            for (usize chunkIndex = firstChunk + 1; newSize < m_size; ++chunkIndex)
-            {
-                T* const chunk = m_chunks[chunkIndex];
-                const auto elements = min(m_size - newSize, m_elementsPerChunk);
-                m_size -= elements;
-
-                init(chunk, chunk + elements);
-            }
+            shrink_internal(newSize);
         }
     }
 
@@ -776,7 +769,7 @@ namespace oblo
 
         if (requiredChunks != m_chunks.size())
         {
-            resize(m_size);
+            shrink_internal(m_size);
             free_empty(requiredChunks + 1);
             m_chunks.resize(requiredChunks);
             m_chunks.shrink_to_fit();
@@ -822,6 +815,42 @@ namespace oblo
     {
         const auto isSizeEqual = m_size == other.m_size;
         return isSizeEqual && std::equal(begin(), end(), other.begin());
+    }
+
+    template <typename T>
+    void deque<T>::shrink_internal(usize newSize)
+    {
+        if constexpr (std::is_trivially_destructible_v<T>)
+        {
+            m_size = newSize;
+        }
+        else
+        {
+            const usize firstElement = newSize + 1;
+            const usize firstChunk = firstElement / m_elementsPerChunk;
+
+            // Deal with the first chunk, where we might need to apply an offset
+            {
+                T* const chunk = m_chunks[firstChunk];
+
+                const usize elementsInFirstChunk = m_size & (m_elementsPerChunk - 1);
+                const auto elements = min(m_size - newSize, m_elementsPerChunk - elementsInFirstChunk);
+
+                T* const begin = chunk + elementsInFirstChunk;
+                std::destroy(begin, begin + elements);
+
+                m_size -= elements;
+            }
+
+            for (usize chunkIndex = firstChunk + 1; newSize < m_size; ++chunkIndex)
+            {
+                T* const chunk = m_chunks[chunkIndex];
+                const auto elements = min(m_size - newSize, m_elementsPerChunk);
+                m_size -= elements;
+
+                std::destroy(chunk, chunk + elements);
+            }
+        }
     }
 
     template <typename T>
