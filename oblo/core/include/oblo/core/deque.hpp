@@ -680,24 +680,23 @@ namespace oblo
         return begin() + first;
     }
 
-    // template <typename T>
-    // template <typename Iterator>
-    //     requires std::contiguous_iterator<Iterator>
-    // void deque<T>::assign(Iterator first, Iterator last) noexcept
-    //{
-    //     clear();
+    template <typename T>
+    template <typename Iterator>
+    void deque<T>::assign(Iterator first, Iterator last) noexcept
+    {
+        clear();
 
-    //    const auto count = last - first;
+        const auto count = last - first;
 
-    //    reserve(count);
-
-    //    for (T* it = m_data; it != m_data + count; ++it, ++first)
-    //    {
-    //        new (it) T(*first);
-    //    }
-
-    //    m_size = count;
-    //}
+        resize_internal(count,
+            [it = first, &last](T* b, T* e) mutable
+            {
+                for (T* d = b; d != e; ++d, ++it)
+                {
+                    new (d) T{*it};
+                }
+            });
+    }
 
     template <typename T>
     inline void deque<T>::assign(usize count, const T& value) noexcept

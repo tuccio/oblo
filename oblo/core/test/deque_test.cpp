@@ -171,29 +171,25 @@ namespace oblo
         ASSERT_EQ(allocator.allocations.size(), 0);
     }
 
-    // struct aligned32_value
-    //{
-    //     alignas(32) u32 values[16];
-    // };
+    struct aligned32_value
+    {
+        alignas(32) u32 values[16];
+    };
 
-    // TEST(deque, deque_alignment)
-    //{
-    //     deque<aligned32_value> array;
-    //     ASSERT_EQ(array.data(), nullptr);
+    TEST(deque, deque_alignment)
+    {
+        deque<aligned32_value> deque;
 
-    //    array = {aligned32_value{{1}}, aligned32_value{{2}}, aligned32_value{{3}}};
+        deque = {aligned32_value{{1}}, aligned32_value{{2}}, aligned32_value{{3}}};
 
-    //    ASSERT_NE(array.data(), nullptr);
-    //    ASSERT_EQ(uintptr(array.data()) % 32, 0);
+        ASSERT_EQ(uintptr(&deque[0]) % 32, 0);
 
-    //    ASSERT_EQ(array.size(), 3);
+        ASSERT_EQ(deque.size(), 3);
 
-    //    ASSERT_EQ(array.data(), &array[0]);
-
-    //    ASSERT_EQ(array[0].values[0], 1);
-    //    ASSERT_EQ(array[1].values[0], 2);
-    //    ASSERT_EQ(array[2].values[0], 3);
-    //}
+        ASSERT_EQ(deque[0].values[0], 1);
+        ASSERT_EQ(deque[1].values[0], 2);
+        ASSERT_EQ(deque[2].values[0], 3);
+    }
 
     // TEST(deque, deque_insert_range)
     //{
