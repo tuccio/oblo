@@ -178,42 +178,42 @@ namespace oblo
 
     TEST(deque, deque_alignment)
     {
-        deque<aligned32_value> deque;
+        deque<aligned32_value> queue;
 
-        deque = {aligned32_value{{1}}, aligned32_value{{2}}, aligned32_value{{3}}};
+        queue = {aligned32_value{{1}}, aligned32_value{{2}}, aligned32_value{{3}}};
 
-        ASSERT_EQ(uintptr(&deque[0]) % 32, 0);
+        ASSERT_EQ(uintptr(&queue[0]) % 32, 0);
 
-        ASSERT_EQ(deque.size(), 3);
+        ASSERT_EQ(queue.size(), 3);
 
-        ASSERT_EQ(deque[0].values[0], 1);
-        ASSERT_EQ(deque[1].values[0], 2);
-        ASSERT_EQ(deque[2].values[0], 3);
+        ASSERT_EQ(queue[0].values[0], 1);
+        ASSERT_EQ(queue[1].values[0], 2);
+        ASSERT_EQ(queue[2].values[0], 3);
     }
 
-    // TEST(deque, deque_insert_range)
-    //{
-    //     deque<i32> array;
+    TEST(deque, deque_insert_range)
+    {
+        deque<i32> queue;
 
-    //    array = {1, 2, 3, 7, 8, 9, 10};
+        queue = {1, 2, 3, 7, 8, 9, 10};
 
-    //    constexpr i32 elements[] = {4, 5, 6};
+        constexpr i32 elements[] = {4, 5, 6};
 
-    //    ASSERT_EQ(array.size(), 7);
+        ASSERT_EQ(queue.size(), 7);
 
-    //    const auto it = array.begin() + 3;
-    //    ASSERT_EQ(*it, 7);
+        const auto it = queue.begin() + 3;
+        ASSERT_EQ(*it, 7);
 
-    //    const auto newIt = array.insert(it, std::begin(elements), std::end(elements));
-    //    ASSERT_EQ(*newIt, 4);
+        const auto newIt = queue.insert(it, std::begin(elements), std::end(elements));
+        ASSERT_EQ(*newIt, 4);
 
-    //    ASSERT_EQ(array.size(), 10);
+        ASSERT_EQ(queue.size(), 10);
 
-    //    for (i32 i = 0; i < 10; ++i)
-    //    {
-    //        ASSERT_EQ(array[i], i + 1);
-    //    }
-    //}
+        for (i32 i = 0; i < 10; ++i)
+        {
+            ASSERT_EQ(queue[i], i + 1);
+        }
+    }
 
     // TEST(deque, deque_insert_single_elements)
     //{

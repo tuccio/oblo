@@ -2,11 +2,13 @@
 
 #include <oblo/core/allocator.hpp>
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/rotate.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/utility.hpp>
 
 #include <compare>
 #include <initializer_list>
+#include <iterator>
 #include <type_traits>
 
 namespace oblo
@@ -164,9 +166,18 @@ namespace oblo
         using size_type = usize;
         using difference_type = ptrdiff;
 
+        // using iterator_category = std::forward_iterator_tag;
+
     public:
         deque_iterator() = default;
         deque_iterator(const deque_iterator&) = default;
+
+        template <typename U>
+            requires std::is_same_v<T, const U>
+        deque_iterator(const deque_iterator<U>& o) :
+            m_chunks{o.m_chunks}, m_elementsPerChunk{o.m_elementsPerChunk}, m_index{o.m_index}
+        {
+        }
 
         deque_iterator(T* const* chunks, usize elementsPerChunk, usize index) :
             m_chunks{chunks}, m_elementsPerChunk{elementsPerChunk}, m_index{index}
@@ -175,12 +186,12 @@ namespace oblo
 
         deque_iterator& operator=(const deque_iterator&) = default;
 
-        OBLO_FORCEINLINE constexpr decltype(auto) operator*() const
+        OBLO_FORCEINLINE constexpr T& operator*() const
         {
             return m_chunks[m_index / m_elementsPerChunk][m_index & (m_elementsPerChunk - 1)];
         }
 
-        OBLO_FORCEINLINE constexpr decltype(auto) operator->() const
+        OBLO_FORCEINLINE constexpr T* operator->() const
         {
             return &m_chunks[m_index / m_elementsPerChunk][m_index & (m_elementsPerChunk - 1)];
         }
@@ -198,6 +209,22 @@ namespace oblo
             return tmp;
         }
 
+        OBLO_FORCEINLINE constexpr deque_iterator operator+(size_type offset) const
+        {
+            auto tmp = *this;
+            tmp.m_index += offset;
+            return tmp;
+        }
+
+        OBLO_FORCEINLINE constexpr deque_iterator operator-(size_type offset) const
+        {
+            OBLO_ASSERT(m_index >= offset);
+
+            auto tmp = *this;
+            tmp.m_index -= offset;
+            return tmp;
+        }
+
         OBLO_FORCEINLINE constexpr deque_iterator& operator--()
         {
             OBLO_ASSERT(m_index > 0);
@@ -212,20 +239,32 @@ namespace oblo
             return tmp;
         }
 
-        OBLO_FORCEINLINE auto operator-(const deque_iterator& other)
+        OBLO_FORCEINLINE difference_type operator-(const deque_iterator& other) const
         {
-            return other.m_index - m_index;
+            return m_index - other.m_index;
         }
 
         OBLO_FORCEINLINE constexpr auto operator<=>(const deque_iterator& other) const
         {
+            OBLO_ASSERT(m_chunks == other.m_chunks);
             return m_index <=> other.m_index;
+        }
+
+        OBLO_FORCEINLINE constexpr auto operator==(const deque_iterator& other) const
+        {
+            OBLO_ASSERT(m_chunks == other.m_chunks);
+            return m_index == other.m_index;
         }
 
         OBLO_FORCEINLINE constexpr auto operator!=(const deque_iterator& other) const
         {
+            OBLO_ASSERT(m_chunks == other.m_chunks);
             return m_index != other.m_index;
         }
+
+    private:
+        template <typename U>
+        friend class deque_iterator;
 
     private:
         T* const* m_chunks{};
@@ -642,42 +681,44 @@ namespace oblo
     //    return it;
     //}
 
-    // template <typename T>
-    // template <typename OtherIt>
-    // inline deque<T>::iterator deque<T>::insert(const_iterator pos, OtherIt it, OtherIt end)
-    //{
-    //     const auto i = pos - m_data;
-    //     OBLO_ASSERT(pos <= m_data + m_size);
+    template <typename T>
+    template <typename OtherIt>
+    inline deque<T>::iterator deque<T>::insert(const_iterator pos, OtherIt it, OtherIt last)
+    {
+        const auto i = pos - begin();
+        OBLO_ASSERT(pos <= end());
 
-    //    // If we insert at the end, it's just an append, otherwise it needs a rotate
-    //    const auto inTheMiddle = pos != m_data + m_size;
+        // If we insert at the end, it's just an append, otherwise it needs a rotate
+        const auto inTheMiddle = pos != end();
 
-    //    const auto appendedIt = append(it, end);
-    //    const auto insertedIt = m_data + i;
+        const auto appendedIt = append(it, last);
+        const auto insertedIt = begin() + i;
 
-    //    if (inTheMiddle)
-    //    {
-    //        rotate(insertedIt, appendedIt, m_data + m_size);
-    //    }
+        if (inTheMiddle)
+        {
+            rotate(insertedIt, appendedIt, end());
+        }
 
-    //    return insertedIt;
-    //}
+        return insertedIt;
+    }
 
     template <typename T>
     template <typename OtherIt>
-    inline deque<T>::iterator deque<T>::append(OtherIt it, OtherIt end)
+    inline deque<T>::iterator deque<T>::append(OtherIt first, OtherIt last)
     {
-        const auto count = end - it;
+        const auto count = last - first;
+        const auto oldSize = m_size;
 
-        const auto first = m_size;
-        reserve_exponential(m_size + count);
+        resize_internal(oldSize + count,
+            [it = first, &last](T* b, T* e) mutable
+            {
+                for (T* d = b; d != e; ++d, ++it)
+                {
+                    new (d) T{*it};
+                }
+            });
 
-        for (; it != end; ++it)
-        {
-            emplace_back(*it);
-        }
-
-        return begin() + first;
+        return begin() + oldSize;
     }
 
     template <typename T>
