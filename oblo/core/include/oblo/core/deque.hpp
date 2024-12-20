@@ -279,7 +279,9 @@ namespace oblo
     }
 
     template <typename T>
-    deque<T>::deque() : m_elementsPerChunk{get_default_elements_per_chunk()}
+    deque<T>::deque() :
+        m_chunks{select_global_allocator<max(alignof(T), alignof(chunk))>()},
+        m_elementsPerChunk{get_default_elements_per_chunk()}
     {
     }
 
