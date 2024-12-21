@@ -1,13 +1,14 @@
 #include <oblo/vulkan/shader_compiler.hpp>
 
 #include <oblo/core/debug.hpp>
+#include <oblo/core/deque.hpp>
 #include <oblo/core/filesystem/file.hpp>
 #include <oblo/core/finally.hpp>
+#include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/log.hpp>
 
 #include <glslang/SPIRV/GlslangToSpv.h>
 
-#include <deque>
 #include <mutex>
 #include <optional>
 
@@ -216,7 +217,7 @@ namespace oblo::vk::shader_compiler
         private:
             include_handler& m_handler;
             frame_allocator& m_allocator{m_handler.get_allocator()};
-            std::deque<IncludeResult> m_includeResults;
+            deque<IncludeResult> m_includeResults{&m_handler.get_allocator()};
             string_builder m_pathBuffer;
         };
 

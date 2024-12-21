@@ -1,12 +1,12 @@
 #pragma once
 
 #include <oblo/core/string/string_view.hpp>
+#include <oblo/core/deque.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/reflection/reflection_data.hpp>
 
-#include <deque>
 #include <functional>
 #include <memory_resource>
 #include <unordered_map>
@@ -64,7 +64,7 @@ namespace oblo::reflection
     {
         type_id type;
         dynamic_array<field_data> fields;
-        std::deque<any_attribute> attributeStorage;
+        deque<any_attribute> attributeStorage;
     };
 
     struct enum_data

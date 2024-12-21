@@ -1,11 +1,11 @@
 #pragma once
 
+#include <oblo/core/deque.hpp>
 #include <oblo/core/expected.hpp>
 #include <oblo/core/ring_buffer_tracker.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/gpu_allocator.hpp>
 
-#include <deque>
 #include <span>
 
 namespace oblo::vk
@@ -73,7 +73,7 @@ namespace oblo::vk
             VkBuffer buffer;
             VmaAllocation allocation;
             std::byte* memoryMap;
-            std::deque<submitted_upload> submittedUploads;
+            deque<submitted_upload> submittedUploads;
             u64 nextTimelineId;
         };
 

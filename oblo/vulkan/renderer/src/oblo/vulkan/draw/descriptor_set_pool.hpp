@@ -1,9 +1,10 @@
 #pragma once
 
+#include <oblo/core/deque.hpp>
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/types.hpp>
 
-#include <deque>
 #include <span>
 #include <unordered_map>
 
@@ -60,8 +61,8 @@ namespace oblo::vk
         u64 m_submitIndex{};
         u32 m_maxSetsPerPool{};
         VkDescriptorPoolCreateFlags m_poolCreateFlags{};
-        std::deque<used_pool> m_used;
+        deque<used_pool> m_used;
         std::unordered_map<usize, VkDescriptorSetLayout> m_pool;
-        std::vector<VkDescriptorPoolSize> m_poolSizes;
+        dynamic_array<VkDescriptorPoolSize> m_poolSizes;
     };
 }
