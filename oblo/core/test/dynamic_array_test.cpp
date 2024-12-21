@@ -82,6 +82,8 @@ namespace oblo
 
             dynamic_array<i32> move{std::move(copy)};
             ASSERT_EQ(allocator.allocations.size(), 2);
+
+            ASSERT_EQ(array, move);
         }
 
         ASSERT_EQ(allocator.allocations.size(), 0);

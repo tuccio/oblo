@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/deque.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/command_buffer_pool.hpp>
@@ -11,7 +12,6 @@
 #include <oblo/vulkan/stateful_command_buffer.hpp>
 #include <oblo/vulkan/utility/debug_utils.hpp>
 
-#include <deque>
 #include <memory>
 
 namespace oblo::vk
@@ -132,7 +132,7 @@ namespace oblo::vk
         struct pending_disposal_queues;
         std::unique_ptr<pending_disposal_queues> m_pending;
 
-        std::deque<disposable_object> m_disposableObjects;
+        deque<disposable_object> m_disposableObjects;
 
         loaded_functions m_loadedFunctions{};
     };

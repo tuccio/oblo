@@ -14,6 +14,19 @@
     </Expand>
 </Type>
 
+<Type Name="oblo::deque&lt;*&gt;">
+    <DisplayString>{{ size={m_size} }}</DisplayString>
+    <Expand>
+        <Item Name="[size]" ExcludeView="simple">m_size</Item>
+        <Item Name="[capacity]" ExcludeView="simple">m_elementsPerChunk * m_chunks.m_size</Item>
+        <Item Name="[allocator]" ExcludeView="simple">m_chunks.m_allocator</Item>
+        <IndexListItems>
+            <Size>m_size</Size>
+            <ValueNode>*(*(m_chunks.m_data + (m_start + $i) / m_elementsPerChunk) + (m_start + $i) % m_elementsPerChunk)</ValueNode>
+        </IndexListItems>
+    </Expand>
+</Type>
+
 <Type Name="oblo::ring_buffer&lt;*&gt;">
     <DisplayString>{{ used={m_usedCount}, capacity={m_capacity} }}</DisplayString>
     <Expand>

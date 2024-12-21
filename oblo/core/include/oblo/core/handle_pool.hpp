@@ -1,8 +1,7 @@
 #pragma once
 
+#include <oblo/core/deque.hpp>
 #include <oblo/core/types.hpp>
-
-#include <deque>
 
 namespace oblo
 {
@@ -10,6 +9,14 @@ namespace oblo
     class handle_pool
     {
     public:
+        handle_pool() = default;
+        handle_pool(const handle_pool&) = default;
+        handle_pool(handle_pool&&) noexcept = default;
+        explicit handle_pool(allocator* allocator) : m_handles{allocator} {}
+
+        handle_pool& operator=(const handle_pool&) = default;
+        handle_pool& operator=(handle_pool&&) noexcept = default;
+
         T acquire();
         void release(T value);
 
@@ -35,7 +42,7 @@ namespace oblo
         static constexpr T GenMask{get_gen_mask()};
 
     private:
-        std::deque<T> m_handles;
+        deque<T> m_handles;
         T m_lastHandle{};
     };
 

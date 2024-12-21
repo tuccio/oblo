@@ -134,6 +134,8 @@ namespace oblo
             requires(!std::convertible_to<const Other&, const dynamic_array<T>&>)
         bool operator==(const Other& other) const noexcept;
 
+        OBLO_FORCEINLINE allocator* get_allocator() const noexcept;
+
     private:
         void maybe_grow_capacity(usize newCapacity, bool exact);
         void do_grow_capacity(usize newCapacity) noexcept;
@@ -755,5 +757,11 @@ namespace oblo
     bool dynamic_array<T>::operator==(const Other& other) const noexcept
     {
         return std::equal(begin(), end(), std::begin(other), std::end(other));
+    }
+
+    template <typename T>
+    OBLO_FORCEINLINE allocator* dynamic_array<T>::get_allocator() const noexcept
+    {
+        return m_allocator;
     }
 }
