@@ -264,7 +264,17 @@ namespace oblo
 
     private:
         template <typename U>
+        friend class deque;
+
+        template <typename U>
         friend class deque_iterator;
+
+    private:
+        auto remove_const() const
+        {
+            using U = std::remove_const_t<T>;
+            return deque_iterator<U>{const_cast<U* const*>(m_chunks), m_elementsPerChunk, m_index};
+        }
 
     private:
         T* const* m_chunks{};
@@ -643,45 +653,45 @@ namespace oblo
         return it;
     }
 
-    // template <typename T>
-    // inline deque<T>::iterator deque<T>::erase(const_iterator pos)
-    //{
-    //     return erase(pos, pos + 1);
-    // }
+    template <typename T>
+    deque<T>::iterator deque<T>::erase(const_iterator pos)
+    {
+        return erase(pos, pos + 1);
+    }
 
-    // template <typename T>
-    // inline deque<T>::iterator deque<T>::erase(const_iterator begin, const_iterator end)
-    //{
-    //     OBLO_ASSERT(begin < m_data + m_size);
+    template <typename T>
+    deque<T>::iterator deque<T>::erase(const_iterator begin, const_iterator end)
+    {
+        OBLO_ASSERT(begin < this->end());
 
-    //    const auto beginIt = const_cast<iterator>(begin);
-    //    const auto endIt = const_cast<iterator>(end);
+        const auto erasedCount = end - begin;
+        const auto beginOffset = begin.m_index;
 
-    //    rotate(beginIt, endIt, m_data + m_size);
+        rotate(begin.remove_const(), end.remove_const(), this->end());
 
-    //    const auto newSize = m_size - (end - begin);
-    //    resize(newSize);
+        const auto newSize = m_size - erasedCount;
+        shrink_internal(newSize);
 
-    //    return beginIt;
-    //}
+        return this->begin() + beginOffset;
+    }
 
-    // template <typename T>
-    // inline deque<T>::iterator deque<T>::erase_unordered(const_iterator pos)
-    //{
-    //     OBLO_ASSERT(pos < m_data + m_size);
+    template <typename T>
+    deque<T>::iterator deque<T>::erase_unordered(const_iterator pos)
+    {
+        OBLO_ASSERT(pos < end());
 
-    //    const auto it = const_cast<iterator>(pos);
-    //    const auto backIt = m_data + m_size - 1;
+        const auto it = pos.remove_const();
+        const auto backIt = end() - 1;
 
-    //    if (it != backIt)
-    //    {
-    //        std::swap(*it, *backIt);
-    //    }
+        if (it != backIt)
+        {
+            std::swap(*it, *backIt);
+        }
 
-    //    pop_back();
+        pop_back();
 
-    //    return it;
-    //}
+        return it;
+    }
 
     template <typename T>
     template <typename OtherIt>
@@ -755,16 +765,16 @@ namespace oblo
         resize_default(count);
     }
 
-    // template <typename T>
-    // void deque<T>::pop_back()
-    //{
-    //     if constexpr (!std::is_trivially_destructible_v<T>)
-    //     {
-    //         back().~T();
-    //     }
+    template <typename T>
+    void deque<T>::pop_back()
+    {
+        if constexpr (!std::is_trivially_destructible_v<T>)
+        {
+            back().~T();
+        }
 
-    //    --m_size;
-    //}
+        --m_size;
+    }
 
     template <typename T>
     T& deque<T>::front()

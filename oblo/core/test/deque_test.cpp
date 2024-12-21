@@ -251,173 +251,108 @@ namespace oblo
         }
     }
 
-    // TEST(deque, deque_erase_range)
-    //{
-    //     deque<i32> array;
+    TEST(deque, deque_erase_range)
+    {
+        deque<i32> queue;
 
-    //    array = {1, 2, 0, 0, 3, 4, 5, 42, 42};
+        queue = {1, 2, 0, 0, 3, 4, 5, 42, 42};
 
-    //    ASSERT_EQ(array.size(), 9);
+        ASSERT_EQ(queue.size(), 9);
 
-    //    const auto it = array.begin() + 3;
-    //    ASSERT_EQ(*it, 0);
+        const auto it = queue.begin() + 3;
+        ASSERT_EQ(*it, 0);
 
-    //    const auto newIt = array.erase(array.begin() + 2, array.begin() + 4);
-    //    ASSERT_EQ(*newIt, 3);
+        const auto newIt = queue.erase(queue.begin() + 2, queue.begin() + 4);
+        ASSERT_EQ(*newIt, 3);
 
-    //    ASSERT_EQ(array.size(), 7);
+        ASSERT_EQ(queue.size(), 7);
 
-    //    for (i32 i = 0; i < 5; ++i)
-    //    {
-    //        ASSERT_EQ(array[i], i + 1);
-    //    }
+        for (i32 i = 0; i < 5; ++i)
+        {
+            ASSERT_EQ(queue[i], i + 1);
+        }
 
-    //    for (i32 i = 6; i < 7; ++i)
-    //    {
-    //        ASSERT_EQ(array[i], 42);
-    //    }
+        for (i32 i = 6; i < 7; ++i)
+        {
+            ASSERT_EQ(queue[i], 42);
+        }
 
-    //    const auto endIt = array.erase(array.begin() + 5, array.end());
-    //    ASSERT_EQ(endIt, array.end());
+        const auto endIt = queue.erase(queue.begin() + 5, queue.end());
+        ASSERT_EQ(endIt, queue.end());
 
-    //    ASSERT_EQ(array.size(), 5);
+        ASSERT_EQ(queue.size(), 5);
 
-    //    for (i32 i = 0; i < 5; ++i)
-    //    {
-    //        ASSERT_EQ(array[i], i + 1);
-    //    }
-    //}
+        for (i32 i = 0; i < 5; ++i)
+        {
+            ASSERT_EQ(queue[i], i + 1);
+        }
+    }
 
-    // TEST(deque, deque_erase_single_element)
-    //{
-    //     deque<i32> array;
+    TEST(deque, deque_erase_single_element)
+    {
+        deque<i32> queue;
 
-    //    array = {1, 2, -1, -1, 3, 4, 5, -1, -1};
+        queue = {1, 2, -1, -1, 3, 4, 5, -1, -1};
 
-    //    ASSERT_EQ(array.size(), 9);
+        ASSERT_EQ(queue.size(), 9);
 
-    //    u32 iterations{0};
+        u32 iterations{0};
 
-    //    for (auto it = array.begin(); it != array.end();)
-    //    {
-    //        ++iterations;
+        for (auto it = queue.begin(); it != queue.end();)
+        {
+            ++iterations;
 
-    //        if (*it < 0)
-    //        {
-    //            it = array.erase(it);
-    //        }
-    //        else
-    //        {
-    //            ++it;
-    //        }
-    //    }
+            if (*it < 0)
+            {
+                it = queue.erase(it);
+            }
+            else
+            {
+                ++it;
+            }
+        }
 
-    //    ASSERT_EQ(array.size(), 5);
-    //    ASSERT_EQ(iterations, 9);
+        ASSERT_EQ(queue.size(), 5);
+        ASSERT_EQ(iterations, 9);
 
-    //    for (i32 i = 0; i < 5; ++i)
-    //    {
-    //        ASSERT_EQ(array[i], i + 1);
-    //    }
-    //}
+        for (i32 i = 0; i < 5; ++i)
+        {
+            ASSERT_EQ(queue[i], i + 1);
+        }
+    }
 
-    // TEST(deque, deque_erase_unordered)
-    //{
-    //     deque<i32> array;
+    TEST(deque, deque_erase_unordered)
+    {
+        deque<i32> queue;
 
-    //    array = {1, 2, -1, -1, 3, 4, 5, -1, -1};
+        queue = {1, 2, -1, -1, 3, 4, 5, -1, -1};
 
-    //    ASSERT_EQ(array.size(), 9);
+        ASSERT_EQ(queue.size(), 9);
 
-    //    u32 iterations{0};
+        u32 iterations{0};
 
-    //    for (auto it = array.begin(); it != array.end();)
-    //    {
-    //        ++iterations;
+        for (auto it = queue.begin(); it != queue.end();)
+        {
+            ++iterations;
 
-    //        if (*it < 0)
-    //        {
-    //            it = array.erase_unordered(it);
-    //        }
-    //        else
-    //        {
-    //            ++it;
-    //        }
-    //    }
+            if (*it < 0)
+            {
+                it = queue.erase_unordered(it);
+            }
+            else
+            {
+                ++it;
+            }
+        }
 
-    //    ASSERT_EQ(array.size(), 5);
-    //    ASSERT_EQ(iterations, 9);
+        ASSERT_EQ(queue.size(), 5);
+        ASSERT_EQ(iterations, 9);
 
-    //    std::sort(array.begin(), array.end());
+        std::sort(queue.begin(), queue.end());
 
-    //    for (i32 i = 0; i < 5; ++i)
-    //    {
-    //        ASSERT_EQ(array[i], i + 1);
-    //    }
-    //}
-
-    // TEST(buffered_array, buffered_array_trivial)
-    //{
-    //     checked_allocator allocator;
-
-    //    {
-    //        constexpr auto N = 16;
-    //        constexpr auto M = 1024;
-
-    //        buffered_array<i32, N> array{&allocator};
-    //        std::vector<i32> expected;
-
-    //        ASSERT_EQ(array.size(), 0);
-    //        ASSERT_EQ(array.capacity(), N);
-
-    //        for (i32 i = 0; i < M; ++i)
-    //        {
-    //            array.emplace_back(i);
-    //            expected.emplace_back(i);
-
-    //            if (i % 32 == 0)
-    //            {
-    //                array.shrink_to_fit();
-    //            }
-
-    //            ASSERT_EQ(array.size(), i + 1);
-    //            ASSERT_GE(array.capacity(), i + 1);
-
-    //            ASSERT_EQ(array.size(), expected.size());
-
-    //            ASSERT_TRUE(std::equal(array.begin(), array.end(), expected.begin()));
-
-    //            if (i < N)
-    //            {
-    //                ASSERT_EQ(allocator.allocations.size(), 0);
-    //            }
-    //            else
-    //            {
-    //                ASSERT_EQ(allocator.allocations.size(), 1);
-    //            }
-    //        }
-
-    //        {
-    //            deque<i32> copy{array};
-    //            ASSERT_EQ(allocator.allocations.size(), 2);
-
-    //            ASSERT_EQ(array, copy);
-
-    //            deque<i32> move{std::move(copy)};
-    //            ASSERT_EQ(allocator.allocations.size(), 2);
-    //        }
-
-    //        {
-    //            buffered_array<i32, M> copy{array};
-    //            ASSERT_EQ(allocator.allocations.size(), 1);
-
-    //            ASSERT_EQ(array, copy);
-
-    //            buffered_array<i32, M> move{std::move(copy)};
-    //            ASSERT_EQ(allocator.allocations.size(), 1);
-    //        }
-    //    }
-
-    //    ASSERT_EQ(allocator.allocations.size(), 0);
-    //}
+        for (i32 i = 0; i < 5; ++i)
+        {
+            ASSERT_EQ(queue[i], i + 1);
+        }
+    }
 }
