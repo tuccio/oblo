@@ -83,6 +83,9 @@ namespace oblo
         T& push_front(T&& e);
         T& push_front_default();
 
+        template <typename... Args>
+        T& emplace_front(Args&&... args);
+
         T& push_back(const T& e);
         T& push_back(T&& e);
         T& push_back_default();
@@ -343,7 +346,8 @@ namespace oblo
     //}
 
     template <typename T>
-    deque<T>::deque(const deque& other) : m_chunks{other.get_allocator()}, m_elementsPerChunk{other.m_elementsPerChunk}
+    deque<T>::deque(const deque& other) :
+        m_chunks{other.get_allocator()}, m_elementsPerChunk{other.m_elementsPerChunk}, m_start{other.m_start}
     {
         reserve(other.m_size);
 
@@ -366,8 +370,10 @@ namespace oblo
 
     template <typename T>
     deque<T>::deque(deque&& other) noexcept :
-        m_chunks{std::move(other.m_chunks)}, m_elementsPerChunk{other.m_elementsPerChunk}, m_size{other.m_size}
+        m_chunks{std::move(other.m_chunks)}, m_elementsPerChunk{other.m_elementsPerChunk}, m_start{other.m_start},
+        m_size{other.m_size}
     {
+        other.m_start = 0;
         other.m_size = 0;
     }
 
@@ -433,26 +439,12 @@ namespace oblo
     template <typename T>
     void deque<T>::clear()
     {
-        if constexpr (!std::is_trivially_destructible_v<T>)
+        if (m_size > 0)
         {
-            usize chunkIndex = 0;
-
-            while (m_size > 0)
-            {
-                T* const chunk = m_chunks[chunkIndex];
-                ++chunkIndex;
-
-                const auto elements = min(m_size, m_elementsPerChunk);
-
-                std::destroy(chunk, chunk + elements);
-
-                m_size -= elements;
-            }
+            shrink_internal(0);
         }
-        else
-        {
-            m_size = 0;
-        }
+
+        m_start = 0;
     }
 
     template <typename T>
@@ -632,6 +624,23 @@ namespace oblo
 
         T* const ptr = &at_unsafe(0);
         new (ptr) T;
+        ++m_size;
+        return *ptr;
+    }
+
+    template <typename T>
+    template <typename... Args>
+    T& deque<T>::emplace_front(Args&&... args)
+    {
+        if (m_start == 0)
+        {
+            grow_front(1);
+        }
+
+        --m_start;
+
+        T* const ptr = &at_unsafe(0);
+        new (ptr) T(std::forward<Args>(args)...);
         ++m_size;
         return *ptr;
     }

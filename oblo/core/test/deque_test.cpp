@@ -124,7 +124,7 @@ namespace oblo
 
         {
             deque<move_only_int> queue{&allocator, deque_config{.elementsPerChunk = 32}};
-            std::vector<move_only_int> expected;
+            std::deque<move_only_int> expected;
 
             ASSERT_EQ(queue.size(), 0);
             ASSERT_EQ(queue.capacity(), 0);
@@ -132,8 +132,16 @@ namespace oblo
 
             for (i32 i = 0; i < 1024; ++i)
             {
-                queue.emplace_back(i);
-                expected.emplace_back(i);
+                if (i % 3)
+                {
+                    queue.emplace_front(i);
+                    expected.emplace_front(i);
+                }
+                else
+                {
+                    queue.emplace_back(i);
+                    expected.emplace_back(i);
+                }
 
                 if (i % 32 == 0)
                 {
