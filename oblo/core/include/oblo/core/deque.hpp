@@ -15,7 +15,7 @@ namespace oblo
 {
     struct deque_config
     {
-        /// @brief The number of elements per deque chunk, it must be a positive power of two.
+        /// @brief The number of elements per deque chunk, it must be a positive number.
         usize elementsPerChunk;
     };
 
@@ -43,10 +43,10 @@ namespace oblo
     public:
         deque();
         explicit deque(allocator* allocator);
-        explicit deque(allocator* allocator, std::initializer_list<T> init);
-        explicit deque(allocator* allocator, usize count);
-        explicit deque(allocator* allocator, deque_config cfg);
-        explicit deque(allocator* allocator, deque_config cfg, usize count);
+        deque(allocator* allocator, std::initializer_list<T> init);
+        deque(allocator* allocator, usize count);
+        deque(allocator* allocator, deque_config cfg);
+        deque(allocator* allocator, deque_config cfg, usize count);
 
         deque(const deque& other);
         deque(deque&& other) noexcept;
@@ -177,8 +177,6 @@ namespace oblo
         using size_type = usize;
         using difference_type = ptrdiff;
 
-        // using iterator_category = std::forward_iterator_tag;
-
     public:
         deque_iterator() = default;
         deque_iterator(const deque_iterator&) = default;
@@ -199,12 +197,12 @@ namespace oblo
 
         OBLO_FORCEINLINE constexpr T& operator*() const
         {
-            return m_chunks[m_index / m_elementsPerChunk][m_index & (m_elementsPerChunk - 1)];
+            return m_chunks[m_index / m_elementsPerChunk][m_index % m_elementsPerChunk];
         }
 
         OBLO_FORCEINLINE constexpr T* operator->() const
         {
-            return &m_chunks[m_index / m_elementsPerChunk][m_index & (m_elementsPerChunk - 1)];
+            return &m_chunks[m_index / m_elementsPerChunk][m_index % m_elementsPerChunk];
         }
 
         OBLO_FORCEINLINE constexpr deque_iterator& operator++()
@@ -350,7 +348,7 @@ namespace oblo
         }
 
         {
-            const usize elementsInChunk = other.m_size & (m_elementsPerChunk - 1);
+            const usize elementsInChunk = other.m_size % m_elementsPerChunk;
             const T* const src = other.m_chunks.back();
             T* const dst = m_chunks.back();
             std::uninitialized_copy(src, src + elementsInChunk, dst);
@@ -475,7 +473,7 @@ namespace oblo
             {
                 T* const chunk = m_chunks[firstChunk];
 
-                const usize elementsInFirstChunk = lastOldElement & (m_elementsPerChunk - 1);
+                const usize elementsInFirstChunk = lastOldElement % m_elementsPerChunk;
                 const auto elements = min(newSize - m_size, m_elementsPerChunk - elementsInFirstChunk);
 
                 T* const begin = chunk + elementsInFirstChunk;
@@ -977,10 +975,10 @@ namespace oblo
             {
                 T* const chunk = m_chunks[firstChunk];
 
-                const usize elementsInFirstChunk = (m_start + m_size) & (m_elementsPerChunk - 1);
-                const auto elements = min(m_size - newSize, m_elementsPerChunk - elementsInFirstChunk);
+                const usize offsetFirstChunk = m_start % m_elementsPerChunk;
+                const auto elements = min(m_size - newSize, m_elementsPerChunk - offsetFirstChunk);
 
-                T* const begin = chunk + elementsInFirstChunk;
+                T* const begin = chunk + offsetFirstChunk;
                 std::destroy(begin, begin + elements);
 
                 m_size -= elements;
@@ -1034,8 +1032,10 @@ namespace oblo
     OBLO_FORCEINLINE T& deque<T>::at_unsafe(usize index)
     {
         const auto offset = m_start + index;
+        const auto chunkIndex = offset % m_elementsPerChunk;
+
         T* const chunk = m_chunks[offset / m_elementsPerChunk];
-        return chunk[offset & (m_elementsPerChunk - 1)];
+        return chunk[chunkIndex];
     }
 
     template <typename T>
@@ -1043,7 +1043,7 @@ namespace oblo
     {
         const auto offset = m_start + index;
         const T* const chunk = m_chunks[offset / m_elementsPerChunk];
-        return chunk[offset & (m_elementsPerChunk - 1)];
+        return chunk[offset % m_elementsPerChunk];
     }
 
     template <typename T>
