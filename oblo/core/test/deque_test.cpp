@@ -3,6 +3,7 @@
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/deque.hpp>
 
+#include <deque>
 #include <span>
 #include <unordered_map>
 #include <vector>
@@ -249,6 +250,59 @@ namespace oblo
         {
             ASSERT_EQ(queue[i], i + 1);
         }
+    }
+
+    TEST(deque, deque_push_front)
+    {
+        checked_allocator allocator;
+
+        {
+            deque<i32> queue{&allocator, deque_config{.elementsPerChunk = 4}};
+            std::deque<i32> expected;
+
+            queue = {2, 3, 4};
+            expected = {2, 3, 4};
+
+            ASSERT_EQ(queue.size(), 3);
+
+            queue.push_front(1);
+            expected.push_front(1);
+            ASSERT_TRUE(std::equal(queue.begin(), queue.end(), expected.begin()));
+
+            queue.push_front(0);
+            expected.push_front(0);
+            ASSERT_TRUE(std::equal(queue.begin(), queue.end(), expected.begin()));
+
+            queue.push_back(5);
+            queue.push_back(6);
+            expected.push_back(5);
+            expected.push_back(6);
+            ASSERT_TRUE(std::equal(queue.begin(), queue.end(), expected.begin()));
+
+            queue.push_front(-1);
+            queue.push_front(-2);
+            queue.push_front(-3);
+            queue.push_front(-4);
+            expected.push_front(-1);
+            expected.push_front(-2);
+            expected.push_front(-3);
+            expected.push_front(-4);
+            ASSERT_TRUE(std::equal(queue.begin(), queue.end(), expected.begin()));
+
+            ASSERT_EQ(allocator.allocations.size(), 5);
+
+            queue.pop_back();
+            queue.pop_back();
+            expected.pop_back();
+            expected.pop_back();
+            ASSERT_TRUE(std::equal(queue.begin(), queue.end(), expected.begin()));
+
+            queue.shrink_to_fit();
+            ASSERT_TRUE(std::equal(queue.begin(), queue.end(), expected.begin()));
+            ASSERT_EQ(allocator.allocations.size(), 4);
+        }
+
+        ASSERT_EQ(allocator.allocations.size(), 0);
     }
 
     TEST(deque, deque_erase_range)

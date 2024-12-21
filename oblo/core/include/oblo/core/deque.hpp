@@ -79,6 +79,10 @@ namespace oblo
         usize capacity() const;
         usize elements_per_chunk() const;
 
+        T& push_front(const T& e);
+        T& push_front(T&& e);
+        T& push_front_default();
+
         T& push_back(const T& e);
         T& push_back(T&& e);
         T& push_back_default();
@@ -144,6 +148,8 @@ namespace oblo
 
         void free_empty(usize firstFreeChunk = 0);
 
+        void grow_front(usize chunks);
+
         OBLO_FORCEINLINE T& at_unsafe(usize index);
         OBLO_FORCEINLINE const T& at_unsafe(usize index) const;
 
@@ -151,6 +157,7 @@ namespace oblo
 
     private:
         dynamic_array<chunk> m_chunks;
+        usize m_start{};
         usize m_size{};
         usize m_elementsPerChunk{};
     };
@@ -451,7 +458,7 @@ namespace oblo
     template <typename T>
     void deque<T>::reserve(usize capacity)
     {
-        const auto chunksCount = round_up_div(capacity, m_elementsPerChunk);
+        const auto chunksCount = round_up_div(m_start + capacity, m_elementsPerChunk);
         const auto oldSize = m_chunks.size();
 
         if (chunksCount > oldSize)
@@ -477,14 +484,15 @@ namespace oblo
         {
             reserve(newSize);
 
-            const usize firstElement = m_size + 1;
-            const usize firstChunk = firstElement / m_elementsPerChunk;
+            const usize lastOldElement = m_start + m_size;
+            const usize firstNewElement = lastOldElement + 1;
+            const usize firstChunk = firstNewElement / m_elementsPerChunk;
 
             // Deal with the first chunk, where we might need to apply an offset
             {
                 T* const chunk = m_chunks[firstChunk];
 
-                const usize elementsInFirstChunk = m_size & (m_elementsPerChunk - 1);
+                const usize elementsInFirstChunk = lastOldElement & (m_elementsPerChunk - 1);
                 const auto elements = min(newSize - m_size, m_elementsPerChunk - elementsInFirstChunk);
 
                 T* const begin = chunk + elementsInFirstChunk;
@@ -529,37 +537,37 @@ namespace oblo
     template <typename T>
     OBLO_FORCEINLINE deque<T>::const_iterator deque<T>::cbegin() const
     {
-        return const_iterator{m_chunks.data(), m_elementsPerChunk, 0};
+        return const_iterator{m_chunks.data(), m_elementsPerChunk, m_start};
     }
 
     template <typename T>
     OBLO_FORCEINLINE deque<T>::const_iterator deque<T>::cend() const
     {
-        return const_iterator{m_chunks.data(), m_elementsPerChunk, m_size};
+        return const_iterator{m_chunks.data(), m_elementsPerChunk, m_start + m_size};
     }
 
     template <typename T>
     OBLO_FORCEINLINE deque<T>::const_iterator deque<T>::begin() const
     {
-        return const_iterator{m_chunks.data(), m_elementsPerChunk, 0};
+        return const_iterator{m_chunks.data(), m_elementsPerChunk, m_start};
     }
 
     template <typename T>
     OBLO_FORCEINLINE deque<T>::const_iterator deque<T>::end() const
     {
-        return const_iterator{m_chunks.data(), m_elementsPerChunk, m_size};
+        return const_iterator{m_chunks.data(), m_elementsPerChunk, m_start + m_size};
     }
 
     template <typename T>
     OBLO_FORCEINLINE deque<T>::iterator deque<T>::begin()
     {
-        return iterator{m_chunks.data(), m_elementsPerChunk, 0};
+        return iterator{m_chunks.data(), m_elementsPerChunk, m_start};
     }
 
     template <typename T>
     OBLO_FORCEINLINE deque<T>::iterator deque<T>::end()
     {
-        return iterator{m_chunks.data(), m_elementsPerChunk, m_size};
+        return iterator{m_chunks.data(), m_elementsPerChunk, m_start + m_size};
     }
 
     template <typename T>
@@ -578,6 +586,54 @@ namespace oblo
     OBLO_FORCEINLINE usize deque<T>::elements_per_chunk() const
     {
         return m_elementsPerChunk;
+    }
+
+    template <typename T>
+    T& deque<T>::push_front(const T& e)
+    {
+        if (m_start == 0)
+        {
+            grow_front(1);
+        }
+
+        --m_start;
+
+        T* const ptr = &at_unsafe(0);
+        new (ptr) T(e);
+        ++m_size;
+        return *ptr;
+    }
+
+    template <typename T>
+    T& deque<T>::push_front(T&& e)
+    {
+        if (m_start == 0)
+        {
+            grow_front(1);
+        }
+
+        --m_start;
+
+        T* const ptr = &at_unsafe(0);
+        new (ptr) T(std::move(e));
+        ++m_size;
+        return *ptr;
+    }
+
+    template <typename T>
+    T& deque<T>::push_front_default()
+    {
+        if (m_start == 0)
+        {
+            grow_front(1);
+        }
+
+        --m_start;
+
+        T* const ptr = &at_unsafe(0);
+        new (ptr) T;
+        ++m_size;
+        return *ptr;
     }
 
     template <typename T>
@@ -649,7 +705,7 @@ namespace oblo
 
         const auto it = b + i;
 
-        rotate(it, b + (m_size - 1), b + m_size);
+        rotate(it, b + (m_start + m_size - 1), end());
         return it;
     }
 
@@ -780,14 +836,14 @@ namespace oblo
     T& deque<T>::front()
     {
         OBLO_ASSERT(m_size > 0);
-        return m_chunks[0][0];
+        return at_unsafe(0);
     }
 
     template <typename T>
     const T& deque<T>::front() const
     {
         OBLO_ASSERT(m_size > 0);
-        return m_chunks[0][0];
+        return at_unsafe(0);
     }
 
     template <typename T>
@@ -810,6 +866,7 @@ namespace oblo
         OBLO_ASSERT(get_allocator() == other.get_allocator(), "Swapping is only possible if the allocator is the same");
 
         std::swap(m_chunks, other.m_chunks);
+        std::swap(m_start, other.m_start);
         std::swap(m_size, other.m_size);
         std::swap(m_elementsPerChunk, other.m_elementsPerChunk);
     }
@@ -817,12 +874,13 @@ namespace oblo
     template <typename T>
     void deque<T>::shrink_to_fit() noexcept
     {
-        const usize requiredChunks = round_up_div(m_size, m_elementsPerChunk);
+        // TODO: This does not get rid of the starting offset
+        const usize requiredChunks = round_up_div(m_start + m_size, m_elementsPerChunk);
 
         if (requiredChunks != m_chunks.size())
         {
             shrink_internal(m_size);
-            free_empty(requiredChunks + 1);
+            free_empty(requiredChunks);
             m_chunks.resize(requiredChunks);
             m_chunks.shrink_to_fit();
         }
@@ -878,14 +936,14 @@ namespace oblo
         }
         else
         {
-            const usize firstElement = newSize + 1;
-            const usize firstChunk = firstElement / m_elementsPerChunk;
+            const usize firstDestroyedElement = m_start + newSize + 1;
+            const usize firstChunk = firstDestroyedElement / m_elementsPerChunk;
 
             // Deal with the first chunk, where we might need to apply an offset
             {
                 T* const chunk = m_chunks[firstChunk];
 
-                const usize elementsInFirstChunk = m_size & (m_elementsPerChunk - 1);
+                const usize elementsInFirstChunk = (m_start + m_size) & (m_elementsPerChunk - 1);
                 const auto elements = min(m_size - newSize, m_elementsPerChunk - elementsInFirstChunk);
 
                 T* const begin = chunk + elementsInFirstChunk;
@@ -921,17 +979,37 @@ namespace oblo
     }
 
     template <typename T>
+    void deque<T>::grow_front(usize chunks)
+    {
+        const auto oldSize = m_chunks.size();
+        m_chunks.resize_default(chunks + oldSize);
+        rotate(m_chunks.begin(), m_chunks.begin() + oldSize, m_chunks.end());
+
+        allocator* const a = get_allocator();
+
+        for (usize i = 0; i < chunks; ++i)
+        {
+            chunk const c = reinterpret_cast<chunk>(a->allocate(sizeof(T) * m_elementsPerChunk, alignof(T)));
+            m_chunks[i] = c;
+        }
+
+        m_start += chunks * m_elementsPerChunk;
+    }
+
+    template <typename T>
     OBLO_FORCEINLINE T& deque<T>::at_unsafe(usize index)
     {
-        T* const chunk = m_chunks[index / m_elementsPerChunk];
-        return chunk[index & (m_elementsPerChunk - 1)];
+        const auto offset = m_start + index;
+        T* const chunk = m_chunks[offset / m_elementsPerChunk];
+        return chunk[offset & (m_elementsPerChunk - 1)];
     }
 
     template <typename T>
     OBLO_FORCEINLINE const T& deque<T>::at_unsafe(usize index) const
     {
-        const T* const chunk = m_chunks[index / m_elementsPerChunk];
-        return chunk[index & (m_elementsPerChunk - 1)];
+        const auto offset = m_start + index;
+        const T* const chunk = m_chunks[offset / m_elementsPerChunk];
+        return chunk[offset & (m_elementsPerChunk - 1)];
     }
 
     template <typename T>
