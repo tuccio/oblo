@@ -329,21 +329,11 @@ namespace oblo
         resize(count);
     }
 
-    // template <typename T>
-    // deque<T>::deque(allocator* allocator, usize count) : deque{allocator}
-    //{
-    //     if (count != 0)
-    //     {
-    //         // TODO
-    //         // byte* const newData = m_allocator->allocate(count * sizeof(T), alignof(T));
-
-    //        m_data = reinterpret_cast<T*>(newData);
-    //        m_capacity = count;
-    //        m_size = count;
-
-    //        std::uninitialized_value_construct(m_data, m_data + count);
-    //    }
-    //}
+    template <typename T>
+    deque<T>::deque(allocator* allocator, usize count) : deque{allocator}
+    {
+        resize(count);
+    }
 
     template <typename T>
     deque<T>::deque(const deque& other) :
