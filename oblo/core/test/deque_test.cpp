@@ -299,6 +299,20 @@ namespace oblo
 
             ASSERT_EQ(allocator.allocations.size(), 5);
 
+            for (u32 i = 0; i < 32; ++i)
+            {
+                queue.push_front(42);
+                expected.push_front(42);
+            }
+
+            ASSERT_TRUE(std::equal(queue.begin(), queue.end(), expected.begin()));
+
+            for (u32 i = 0; i < 32; ++i)
+            {
+                queue.pop_front();
+                expected.pop_front();
+            }
+
             queue.pop_back();
             queue.pop_back();
             expected.pop_back();

@@ -93,6 +93,7 @@ namespace oblo
         template <typename... Args>
         T& emplace_back(Args&&... args);
 
+        void pop_front();
         void pop_back();
 
         T& front();
@@ -821,8 +822,24 @@ namespace oblo
     }
 
     template <typename T>
+    void deque<T>::pop_front()
+    {
+        OBLO_ASSERT(m_size > 0);
+
+        if constexpr (!std::is_trivially_destructible_v<T>)
+        {
+            front().~T();
+        }
+
+        ++m_start;
+        --m_size;
+    }
+
+    template <typename T>
     void deque<T>::pop_back()
     {
+        OBLO_ASSERT(m_size > 0);
+
         if constexpr (!std::is_trivially_destructible_v<T>)
         {
             back().~T();
@@ -873,15 +890,33 @@ namespace oblo
     template <typename T>
     void deque<T>::shrink_to_fit() noexcept
     {
-        // TODO: This does not get rid of the starting offset
-        const usize requiredChunks = round_up_div(m_start + m_size, m_elementsPerChunk);
+        const usize requiredChunks = round_up_div(m_size, m_elementsPerChunk);
 
-        if (requiredChunks != m_chunks.size())
+        if (requiredChunks != m_chunks.capacity())
         {
-            shrink_internal(m_size);
-            free_empty(requiredChunks);
-            m_chunks.resize(requiredChunks);
-            m_chunks.shrink_to_fit();
+            const usize firstUsedChunk = m_start / m_elementsPerChunk;
+            dynamic_array<chunk> newChunks{get_allocator()};
+
+            const auto firstUsedIt = m_chunks.begin() + firstUsedChunk;
+            const auto lastUsedIt = firstUsedIt + requiredChunks;
+
+            newChunks.assign(firstUsedIt, lastUsedIt);
+
+            auto* const allocator = get_allocator();
+
+            for (auto it = m_chunks.begin(); it != firstUsedIt; ++it)
+            {
+                allocator->deallocate(reinterpret_cast<byte*>(*it), sizeof(T) * m_elementsPerChunk, alignof(T));
+            }
+
+            for (auto it = lastUsedIt; it != m_chunks.end(); ++it)
+            {
+                allocator->deallocate(reinterpret_cast<byte*>(*it), sizeof(T) * m_elementsPerChunk, alignof(T));
+            }
+
+            m_chunks.swap(newChunks);
+
+            m_start = m_start % m_elementsPerChunk;
         }
     }
 
