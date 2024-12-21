@@ -336,7 +336,7 @@ namespace oblo
 
     template <typename T>
     deque<T>::deque(const deque& other) :
-        m_chunks{other.get_allocator()}, m_elementsPerChunk{other.m_elementsPerChunk}, m_start{other.m_start}
+        m_chunks{other.get_allocator()}, m_start{other.m_start}, m_elementsPerChunk{other.m_elementsPerChunk}
     {
         reserve(other.m_size);
 
@@ -359,8 +359,8 @@ namespace oblo
 
     template <typename T>
     deque<T>::deque(deque&& other) noexcept :
-        m_chunks{std::move(other.m_chunks)}, m_elementsPerChunk{other.m_elementsPerChunk}, m_start{other.m_start},
-        m_size{other.m_size}
+        m_chunks{std::move(other.m_chunks)}, m_start{other.m_start}, m_size{other.m_size},
+        m_elementsPerChunk{other.m_elementsPerChunk}
     {
         other.m_start = 0;
         other.m_size = 0;
@@ -776,7 +776,7 @@ namespace oblo
         const auto oldSize = m_size;
 
         resize_internal(oldSize + count,
-            [it = first, &last](T* b, T* e) mutable
+            [it = first](T* b, T* e) mutable
             {
                 for (T* d = b; d != e; ++d, ++it)
                 {
@@ -796,7 +796,7 @@ namespace oblo
         const auto count = last - first;
 
         resize_internal(count,
-            [it = first, &last](T* b, T* e) mutable
+            [it = first](T* b, T* e) mutable
             {
                 for (T* d = b; d != e; ++d, ++it)
                 {
