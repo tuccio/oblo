@@ -253,9 +253,11 @@ namespace oblo::ecs
         return storage.archetype->chunks[chunkIndex]->header.numEntities;
     }
 
-    bool fetch_component_offsets(
+    void fetch_component_offsets(
         const archetype_storage& storage, std::span<const component_type> componentTypes, std::span<u32> offsets)
     {
+        OBLO_ASSERT(offsets.size() == componentTypes.size());
+
         const auto& archetype = *storage.archetype;
         const auto* archetypeTypeIt = archetype.components;
 
@@ -283,8 +285,6 @@ namespace oblo::ecs
             ++it;
             ++outIt;
         }
-
-        return true;
     }
 
     u32 fetch_chunk_data(const archetype_storage& storage,

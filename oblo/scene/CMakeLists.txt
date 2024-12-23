@@ -14,3 +14,9 @@ target_link_libraries(
     TinyGLTF::TinyGLTF
     Vulkan::Headers
 )
+
+target_link_libraries(
+    oblo_test_scene
+    PRIVATE
+    oblo::properties
+)
