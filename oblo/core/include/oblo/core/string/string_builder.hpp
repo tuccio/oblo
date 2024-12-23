@@ -6,6 +6,7 @@
 #include <oblo/core/string/string_view.hpp>
 
 #include <format>
+#include <span>
 
 namespace oblo
 {
@@ -51,7 +52,7 @@ namespace oblo
 
         const char* c_str() const;
         const char* data() const;
-        char* mutable_data();
+        std::span<char> mutable_data();
         usize size() const;
 
         const char* begin() const;
@@ -66,6 +67,7 @@ namespace oblo
         string_builder& operator=(string_view str);
 
         void reserve(usize size);
+        void resize(usize size);
 
         template <typename T>
         T as() const noexcept;
@@ -163,9 +165,9 @@ namespace oblo
         return m_buffer.data();
     }
 
-    OBLO_FORCEINLINE char* string_builder::mutable_data()
+    OBLO_FORCEINLINE std::span<char> string_builder::mutable_data()
     {
-        return m_buffer.data();
+        return m_buffer;
     }
 
     OBLO_FORCEINLINE usize string_builder::size() const
@@ -217,6 +219,13 @@ namespace oblo
     OBLO_FORCEINLINE void string_builder::reserve(usize size)
     {
         m_buffer.reserve(size);
+    }
+
+    OBLO_FORCEINLINE void string_builder::resize(usize size)
+    {
+        m_buffer.reserve(size + 1);
+        m_buffer.resize_default(size);
+        ensure_null_termination();
     }
 }
 

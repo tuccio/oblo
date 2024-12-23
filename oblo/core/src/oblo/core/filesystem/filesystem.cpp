@@ -22,15 +22,31 @@ namespace oblo::filesystem
 
         char* allocate_impl(string_builder& allocator, usize size, usize)
         {
-            allocator.clear().reserve(size + 1);
-            auto* m = allocator.mutable_data();
-            m[size] = '\0';
+            allocator.clear().resize(size);
+            auto* const m = allocator.mutable_data().data();
             return m;
         }
 
         void* allocate_impl(frame_allocator& allocator, usize size, usize alignment)
         {
             return allocator.allocate(size, alignment);
+        }
+
+        char* finalize_impl(string_builder& allocator, usize size, usize)
+        {
+            allocator.clear().resize(size);
+            auto* const m = allocator.mutable_data().data();
+            return m;
+        }
+
+        template <typename T>
+        void finalize_impl(const T&, usize)
+        {
+        }
+
+        void finalize_impl(string_builder& allocator, usize readBytes)
+        {
+            allocator.resize(readBytes);
         }
 
         template <typename Allocator>
@@ -64,6 +80,8 @@ namespace oblo::filesystem
             {
                 return unspecified_error;
             }
+
+            finalize_impl(allocator, readBytes);
 
             return std::span{static_cast<char*>(buffer), readBytes};
         }
