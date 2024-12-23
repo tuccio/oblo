@@ -353,7 +353,7 @@ namespace oblo
         ++parent.objectOrArray.childrenCount;
     }
 
-    std::span<const data_node> data_document::get_nodes() const
+    const deque<data_node>& data_document::get_nodes() const
     {
         return m_nodes;
     }

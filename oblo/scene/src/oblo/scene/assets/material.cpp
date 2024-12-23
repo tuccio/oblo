@@ -124,7 +124,7 @@ namespace oblo
             return false;
         }
 
-        const std::span nodes = doc.get_nodes();
+        const auto& nodes = doc.get_nodes();
         const auto root = doc.get_root();
 
         for (u32 index = nodes[root].objectOrArray.firstChild; index != data_node::Invalid;

@@ -374,7 +374,7 @@ namespace oblo::json
         rapidjson::FileWriteStream ws{file.get(), buffer, bufferSize};
         rapidjson::PrettyWriter<rapidjson::FileWriteStream> writer{ws};
 
-        const std::span nodes = doc.get_nodes();
+        const auto& nodes = doc.get_nodes();
 
         const auto visit = [&](auto&& recurse, u32 node) -> void
         {

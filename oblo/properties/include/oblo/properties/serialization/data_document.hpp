@@ -1,6 +1,6 @@
 #pragma once
 
-#include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/deque.hpp>
 #include <oblo/core/expected.hpp>
 #include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/string/string_view.hpp>
@@ -53,7 +53,7 @@ namespace oblo
         void make_object(u32 node);
         void make_value(u32 node, property_kind kind, std::span<const byte> data);
 
-        std::span<const data_node> get_nodes() const;
+        const deque<data_node>& get_nodes() const;
 
         u32 find_child(u32 parent, hashed_string_view name) const;
         hashed_string_view get_node_name(u32 node) const;
@@ -74,7 +74,7 @@ namespace oblo
         void append_new_child(data_node& parent, u32 newChild);
 
     private:
-        dynamic_array<data_node> m_nodes;
+        deque<data_node> m_nodes;
         data_chunk* m_firstChunk{};
         data_chunk* m_currentChunk{};
         u32 m_firstChunkSize{};
@@ -102,6 +102,11 @@ namespace oblo
     template <typename T>
         requires std::is_fundamental_v<T>
     constexpr std::span<const byte> as_bytes(const T& value)
+    {
+        return as_bytes(std::span{&value, 1});
+    }
+
+    inline std::span<const byte> as_bytes(const data_string& value)
     {
         return as_bytes(std::span{&value, 1});
     }
