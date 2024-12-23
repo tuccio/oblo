@@ -1,5 +1,6 @@
 #include <oblo/properties/property_registry.hpp>
 
+#include <oblo/core/string/string.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/property_tree.hpp>
@@ -36,6 +37,7 @@ namespace oblo
         m_kindLookups.emplace(get_type_id<i64>(), property_kind::u64);
 
         m_kindLookups.emplace(get_type_id<uuid>(), property_kind::uuid);
+        m_kindLookups.emplace(get_type_id<string>(), property_kind::string);
     }
 
     property_kind property_registry::find_property_kind(const type_id& type) const

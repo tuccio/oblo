@@ -252,7 +252,7 @@ namespace oblo::reflection
                 if constexpr (oblo::random_access_container<T>)
                 {
                     class_builder<T>{*this, typeId}.add_concept(make_random_access_container<T>());
-                    auto_register<T::value_type>();
+                    auto_register<typename T::value_type>();
                 }
             }
             else if constexpr (std::is_bounded_array_v<T>)

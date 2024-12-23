@@ -156,6 +156,18 @@ namespace oblo
             return as<string_view>() == other.as<string_view>();
         }
 
+        OBLO_FORCEINLINE const char& operator[](usize i) const
+        {
+            OBLO_ASSERT(i < size());
+            return m_string[i];
+        }
+
+        OBLO_FORCEINLINE char& operator[](usize i)
+        {
+            OBLO_ASSERT(i < size());
+            return m_string[i];
+        }
+
     private:
         OBLO_FORCEINLINE void ensure_null_termination()
         {

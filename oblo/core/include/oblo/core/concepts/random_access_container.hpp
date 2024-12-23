@@ -7,7 +7,7 @@ namespace oblo
     template <typename T, typename V>
     concept random_access_container_of = requires(const T& v, const V* p, T::size_type s) {
         {
-            p = v[s]
+            p = &v[s]
         };
         {
             s = v.size()

@@ -16,9 +16,6 @@ namespace oblo::reflection
         type_id valueType;
         random_access_container_size_fn size;
         random_access_container_at_fn at;
-
-        /// @brief Only set for contiguous containers.
-        random_access_container_at_fn optData;
     };
 
     template <oblo::random_access_container T>
@@ -35,11 +32,6 @@ namespace oblo::reflection
         {
             rac.valueType = get_type_id<typename T::value_type>();
             rac.size = [](void* dst) -> usize { return static_cast<T*>(dst)->size(); };
-
-            if constexpr (requires(T& c) { c.data(); })
-            {
-                rac.optData = [](void* dst, usize index) -> void* { return static_cast<T*>(dst)->data(index); };
-            }
         }
 
         rac.at = [](void* dst, usize index) -> void* { return &(*static_cast<T*>(dst))[index]; };

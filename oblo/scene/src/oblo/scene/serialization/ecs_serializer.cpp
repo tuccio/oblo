@@ -1,6 +1,7 @@
 #include <oblo/scene/serialization/ecs_serializer.hpp>
 
 #include <oblo/core/overload.hpp>
+#include <oblo/core/string/string.hpp>
 #include <oblo/ecs/archetype_storage.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/entity_registry.hpp>
@@ -65,8 +66,7 @@ namespace oblo::ecs_serializer
                                 continue;
                             }
 
-                            // TODO
-                            byte* const componentPtr = componentArrays[j];
+                            byte* const componentPtr = componentArrays[j] + i * componentTypeDesc.size;
 
                             nodeStack.assign(1, componentNode);
                             ptrStack.assign(1, componentPtr);
@@ -123,7 +123,16 @@ namespace oblo::ecs_serializer
 
                                     if (property.kind == property_kind::string)
                                     {
-                                        // TODO
+                                        const auto parent = nodeStack.back();
+
+                                        auto* const str = reinterpret_cast<const string*>(propertyPtr);
+
+                                        OBLO_ASSERT(property.type == get_type_id<string>());
+
+                                        doc.child_value(parent,
+                                            hashed_string_view{property.name},
+                                            property_kind::string,
+                                            as_bytes(data_string{.data = str->data(), .length = str->size()}));
                                     }
                                     else
                                     {
