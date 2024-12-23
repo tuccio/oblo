@@ -2,7 +2,7 @@
 
 #include <bit>
 
-#include <oblo/core/concepts/sequential_container.hpp>
+#include <oblo/core/concepts/contiguous_container.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/iterator/reverse_iterator.hpp>
 #include <oblo/core/platform/compiler.hpp>
@@ -53,7 +53,7 @@ namespace oblo
         OBLO_FORCEINLINE constexpr string_view(const char* str) : m_begin{str}, m_size{cstring_length(str)} {}
         OBLO_FORCEINLINE constexpr string_view(const char8_t* str) : string_view{std::bit_cast<const_pointer>(str)} {}
 
-        template <sequential_container_of<char> C>
+        template <contiguous_container_of<char> C>
         OBLO_FORCEINLINE constexpr string_view(const C& c) : m_begin{c.data()}, m_size{c.size()}
         {
         }

@@ -3,6 +3,7 @@
 #include <oblo/core/utility.hpp>
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/property_tree.hpp>
+#include <oblo/reflection/concepts/random_access_container.hpp>
 #include <oblo/reflection/reflection_registry.hpp>
 
 #include <algorithm>
@@ -159,7 +160,42 @@ namespace oblo
                     .lastAttribute = lastAttribute,
                 });
 
-                build_recursive(tree, newNodeIndex, fieldType);
+                const auto rac = m_reflection->find_concept<reflection::random_access_container>(fieldType);
+
+                if (rac)
+                {
+                    auto& n = tree.nodes.back();
+                    n.isArray = true;
+                    n.arrayId = u32(tree.arrays.size());
+
+                    tree.arrays.push_back({
+                        .size = rac->size,
+                        .at = rac->at,
+                    });
+
+                    const auto valueType = m_reflection->find_type(rac->valueType);
+
+                    // If the valie type is an enum or a property we can do this, otherwise add another node
+                    auto parentNode = newNodeIndex;
+
+                    if (!m_kindLookups.contains(rac->valueType) && !m_reflection->try_get_enum(valueType))
+                    {
+                        parentNode = u32(tree.nodes.size());
+
+                        tree.nodes.back().firstChild = parentNode;
+
+                        tree.nodes.push_back({
+                            .type = rac->valueType,
+                            .parent = newNodeIndex,
+                        });
+                    }
+
+                    build_recursive(tree, parentNode, valueType);
+                }
+                else
+                {
+                    build_recursive(tree, newNodeIndex, fieldType);
+                }
 
                 if (prevSibling != 0)
                 {

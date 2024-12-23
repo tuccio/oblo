@@ -49,6 +49,7 @@ namespace oblo::ecs_serializer
                         doc.make_object(entityNode);
 
                         deque<u32> nodeStack;
+                        deque<byte*> ptrStack;
 
                         for (u32 j = 0; j < componentTypes.size(); ++j)
                         {
@@ -67,48 +68,79 @@ namespace oblo::ecs_serializer
                             // TODO
                             byte* const componentPtr = componentArrays[j];
 
-                            byte* ptr = componentPtr;
-
                             nodeStack.assign(1, componentNode);
+                            ptrStack.assign(1, componentPtr);
 
-                            visit(*propertyTree,
-                                overload{
-                                    [&ptr, &doc, &nodeStack](const property_node& node, const property_node_start)
+                            auto visitor = overload{
+                                [&doc, &propertyTree, &nodeStack, &ptrStack](const property_node& node,
+                                    const property_node_start)
+                                {
+                                    byte* const ptr = ptrStack.back() + node.offset;
+
+                                    ptrStack.push_back(ptr);
+
+                                    const auto newNode = node.isArray
+                                        ? doc.child_array(nodeStack.back(), hashed_string_view{node.name})
+                                        : doc.child_object(nodeStack.back(), hashed_string_view{node.name});
+
+                                    nodeStack.push_back(newNode);
+
+                                    return node.isArray ? visit_result::array_elements : visit_result::recurse;
+                                },
+                                [&nodeStack, &ptrStack](const property_node&, const property_node_finish)
+                                {
+                                    nodeStack.pop_back();
+                                    ptrStack.pop_back();
+                                },
+                                [&doc, &nodeStack, &ptrStack](const property_array& array,
+                                    usize index,
+                                    const property_array_element_start)
+                                {
+                                    byte* const ptr = ptrStack.back();
+
+                                    if (index >= array.size(ptr))
                                     {
-                                        ptr += node.offset;
-                                        const auto newNode =
-                                            doc.child_object(nodeStack.back(), hashed_string_view{node.name});
-                                        nodeStack.push_back(newNode);
-                                        return visit_result::recurse;
-                                    },
-                                    [&ptr, &nodeStack](const property_node& node, const property_node_finish)
+                                        return visit_result::terminate;
+                                    }
+
+                                    byte* const e = static_cast<byte*>(array.at(ptr, index));
+
+                                    ptrStack.push_back(e);
+
+                                    return visit_result::recurse;
+                                },
+                                [&nodeStack,
+                                    &ptrStack](const property_array&, usize, const property_array_element_finish)
+                                {
+                                    ptrStack.pop_back();
+                                    return visit_result::recurse;
+                                },
+                                [&doc, &nodeStack, &ptrStack](const property& property)
+                                {
+                                    byte* const propertyPtr = ptrStack.back() + property.offset;
+
+                                    std::span<const byte> propertyData;
+
+                                    if (property.kind == property_kind::string)
                                     {
-                                        ptr -= node.offset;
-                                        nodeStack.pop_back();
-                                    },
-                                    [&ptr, &doc, &nodeStack](const property& property)
+                                        // TODO
+                                    }
+                                    else
                                     {
-                                        byte* const propertyPtr = ptr + property.offset;
+                                        const auto parent = nodeStack.back();
+                                        const auto [size, alignment] = get_size_and_alignment(property.kind);
 
-                                        std::span<const byte> propertyData;
+                                        doc.child_value(parent,
+                                            hashed_string_view{property.name},
+                                            property.kind,
+                                            {propertyPtr, size});
+                                    }
 
-                                        if (property.kind == property_kind::string)
-                                        {
-                                            // TODO
-                                        }
-                                        else
-                                        {
-                                            const auto [size, alignment] = get_size_and_alignment(property.kind);
+                                    return visit_result::recurse;
+                                },
+                            };
 
-                                            doc.child_value(nodeStack.back(),
-                                                hashed_string_view{property.name},
-                                                property.kind,
-                                                {propertyPtr, size});
-                                        }
-
-                                        return visit_result::recurse;
-                                    },
-                                });
+                            visit(*propertyTree, visitor);
                         }
                     }
                 });

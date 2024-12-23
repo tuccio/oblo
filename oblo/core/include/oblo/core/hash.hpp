@@ -1,7 +1,7 @@
 #pragma once
 
+#include <oblo/core/concepts/contiguous_container.hpp>
 #include <oblo/core/concepts/hashable.hpp>
-#include <oblo/core/concepts/sequential_container.hpp>
 #include <oblo/core/platform/compiler.hpp>
 #include <oblo/core/types.hpp>
 
@@ -62,7 +62,7 @@ namespace oblo
     };
 
     template <typename T>
-        requires sequential_container<T> && hashable<typename T::value_type>
+        requires contiguous_container<T> && hashable<typename T::value_type>
     struct hash<T>
     {
         hash_type operator()(const T& v) const noexcept

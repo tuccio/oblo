@@ -254,7 +254,7 @@ namespace oblo::ecs
         const auto sets = make_type_sets<ComponentsOrTags...>(*m_typeRegistry);
         add(e, sets);
 
-        const auto getComponents = [this, e]<typename... Components>(std::tuple<Components*...>)
+        const auto getComponents = [this, e]<typename... Components>(std::tuple<Components*...>) -> decltype(auto)
         { return this->get<Components...>(e); };
 
         return getComponents(typename filter_components<ComponentsOrTags...>::tuple{});

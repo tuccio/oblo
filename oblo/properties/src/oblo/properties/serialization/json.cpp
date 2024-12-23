@@ -66,6 +66,7 @@ namespace oblo::json
                     {
                     case data_node_kind::array:
                         newNode = m_doc.array_push_back(parent.id);
+                        m_doc.make_object(newNode);
                         break;
                     case data_node_kind::object:
                         newNode = m_doc.child_object(parent.id, hashed_string_view{m_lastString});

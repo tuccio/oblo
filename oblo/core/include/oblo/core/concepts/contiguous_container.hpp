@@ -5,7 +5,7 @@
 namespace oblo
 {
     template <typename T, typename V>
-    concept sequential_container_of = requires(const T& v, const V* p, T::size_type s) {
+    concept contiguous_container_of = requires(const T& v, const V* p, T::size_type s) {
         {
             p = v.data()
         };
@@ -15,5 +15,5 @@ namespace oblo
     };
 
     template <typename T>
-    concept sequential_container = sequential_container_of<T, typename T::value_type>;
+    concept contiguous_container = contiguous_container_of<T, typename T::value_type>;
 }

@@ -79,6 +79,7 @@ namespace oblo::editor
 
             visit(tree,
                 overload{
+                    [](auto&&...) { return visit_result::recurse; },
                     [&ptr, &tree](const property_node& node, const property_node_start)
                     {
                         ptr += node.offset;

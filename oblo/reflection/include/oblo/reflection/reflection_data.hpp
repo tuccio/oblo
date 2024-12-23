@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/buffered_array.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/type_id.hpp>
@@ -12,6 +13,7 @@ namespace oblo::reflection
         fundamental_kind,
         class_kind,
         enum_kind,
+        array_kind,
     };
 
     struct type_data
@@ -34,5 +36,10 @@ namespace oblo::reflection
         cstring_view name;
         u32 offset;
         dynamic_array<attribute_data> attributes;
+    };
+
+    struct array_data
+    {
+        buffered_array<usize, 2> extents;
     };
 }

@@ -8,7 +8,16 @@ namespace oblo
     struct property_node_start
     {
     };
+
     struct property_node_finish
+    {
+    };
+
+    struct property_array_element_start
+    {
+    };
+
+    struct property_array_element_finish
     {
     };
 
@@ -45,6 +54,40 @@ namespace oblo
                     {
                         return false;
                     }
+                }
+            }
+            else if (r == visit_result::array_elements)
+            {
+                OBLO_ASSERT(node.isArray);
+
+                const property_array& a = tree.arrays[node.arrayId];
+
+                for (usize i = 0;; ++i)
+                {
+                    if (v(a, i, property_array_element_start{}) == visit_result::terminate)
+                    {
+                        break;
+                    }
+
+                    if (node.firstChild != 0)
+                    {
+                        if (!visit_node_impl(tree, v, node.firstChild))
+                        {
+                            return false;
+                        }
+                    }
+
+                    for (u32 propertyIndex = node.firstProperty; propertyIndex != node.lastProperty; ++propertyIndex)
+                    {
+                        const auto& property = tree.properties[propertyIndex];
+
+                        if (v(property) == visit_result::terminate)
+                        {
+                            return false;
+                        }
+                    }
+
+                    v(a, i, property_array_element_finish{});
                 }
             }
 
