@@ -36,21 +36,25 @@ namespace oblo::ecs_serializer
             componentOffsets.assign_default(componentTypes.size());
             componentArrays.assign_default(componentTypes.size());
 
+            deque<u32> nodeStack;
+            deque<byte*> ptrStack;
+
             ecs::for_each_chunk(archetype,
                 componentTypes,
                 componentOffsets,
                 componentArrays,
-                [&doc, entitiesArray, &componentTypes, &typeRegistry, &propertyRegistry](const ecs::entity*,
+                [&doc, entitiesArray, &componentTypes, &typeRegistry, &propertyRegistry, &nodeStack, &ptrStack](
+                    const ecs::entity*,
                     std::span<std::byte*> componentArrays,
                     u32 numEntitiesInChunk)
                 {
+                    nodeStack.clear();
+                    ptrStack.clear();
+
                     for (u32 i = 0; i < numEntitiesInChunk; ++i)
                     {
                         const u32 entityNode = doc.array_push_back(entitiesArray);
                         doc.make_object(entityNode);
-
-                        deque<u32> nodeStack;
-                        deque<byte*> ptrStack;
 
                         for (u32 j = 0; j < componentTypes.size(); ++j)
                         {

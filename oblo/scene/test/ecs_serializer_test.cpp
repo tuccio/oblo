@@ -19,30 +19,36 @@ namespace oblo
 {
     namespace
     {
-        void clear_directory(cstring_view path)
+        class ecs_serialization_test : public testing::Test
         {
-            filesystem::remove_all(path).assert_value();
-        }
+        protected:
+            ecs_serialization_test() : reflectionRegistry{mm.load<reflection::reflection_module>()->get_registry()}
+            {
+                mm.load<scene_module>();
+
+                filesystem::remove_all(testDir).assert_value();
+                filesystem::create_directories(testDir).assert_value();
+
+                propertyRegistry.init(reflectionRegistry);
+            }
+
+            void register_reflected_component_types()
+            {
+                ecs_utility::register_reflected_component_types(reflectionRegistry, &typeRegistry, &propertyRegistry);
+            }
+
+            static constexpr cstring_view testDir{"./test/ecs_serializer/"};
+
+            module_manager mm;
+            const reflection::reflection_registry& reflectionRegistry;
+            ecs::type_registry typeRegistry;
+            property_registry propertyRegistry;
+        };
     }
 
-    TEST(ecs_serializer, json_serialization)
+    TEST_F(ecs_serialization_test, json_serialization)
     {
-        module_manager mm;
-        mm.load<scene_module>();
-
-        constexpr cstring_view testDir{"./test/ecs_serializer/"};
-        clear_directory(testDir);
-
-        filesystem::create_directories(testDir).assert_value();
-
-        const auto& reflectionRegistry = mm.get().load<reflection::reflection_module>()->get_registry();
-
-        property_registry propertyRegistry;
-        propertyRegistry.init(reflectionRegistry);
-
-        ecs::type_registry typeRegistry;
-
-        ecs_utility::register_reflected_component_types(reflectionRegistry, &typeRegistry, &propertyRegistry);
+        register_reflected_component_types();
 
         const auto jsonPath = string_builder{}.append(testDir).append_path("json_serialization.json");
 
