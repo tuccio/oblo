@@ -13,14 +13,6 @@ namespace oblo
     {
     };
 
-    struct property_array_element_start
-    {
-    };
-
-    struct property_array_element_finish
-    {
-    };
-
     namespace detail
     {
         template <typename V>
@@ -39,23 +31,27 @@ namespace oblo
             {
                 const property_array& a = tree.arrays[node.arrayId];
 
-                const auto visitElement = [&]
+                const auto numProperties = node.lastProperty - node.firstProperty;
+                const bool isPropertyElement = numProperties == 2;
+
+                const auto visitPropertyElement = [&]
                 {
-                    const auto numProperties = node.lastProperty - node.firstProperty;
+                    const auto elementProperty = node.lastProperty - 1;
 
-                    if (numProperties == 2)
+                    const auto& property = tree.properties[elementProperty];
+                    OBLO_ASSERT(property.name == notable_properties::array_element);
+
+                    if (v(property) == visit_result::terminate)
                     {
-                        const auto elementProperty = node.lastProperty - 1;
-
-                        const auto& property = tree.properties[elementProperty];
-                        OBLO_ASSERT(property.name == notable_properties::array_element);
-
-                        if (v(property) == visit_result::terminate)
-                        {
-                            return false;
-                        }
+                        return false;
                     }
-                    else if (node.firstChild != 0)
+
+                    return true;
+                };
+
+                const auto visitObjectElement = [&]
+                {
+                    if (node.firstChild != 0)
                     {
                         if (!visit_node_impl(tree, v, node.firstChild))
                         {
@@ -66,7 +62,7 @@ namespace oblo
                     return true;
                 };
 
-                r = v(node, a, visitElement);
+                r = isPropertyElement ? v(node, a, visitPropertyElement) : v(node, a, visitObjectElement);
             }
             else
             {
@@ -98,41 +94,6 @@ namespace oblo
 
                 v(node, property_node_finish{});
             }
-
-            /* else if (r == visit_result::array_elements)
-             {
-                 OBLO_ASSERT(node.isArray);
-
-                 const property_array& a = tree.arrays[node.arrayId];
-
-                 for (usize i = 0;; ++i)
-                 {
-                     if (v(a, i, property_array_element_start{}) == visit_result::terminate)
-                     {
-                         break;
-                     }
-
-                     if (node.firstChild != 0)
-                     {
-                         if (!visit_node_impl(tree, v, node.firstChild))
-                         {
-                             return false;
-                         }
-                     }
-
-                     for (u32 propertyIndex = node.firstProperty; propertyIndex != node.lastProperty; ++propertyIndex)
-                     {
-                         const auto& property = tree.properties[propertyIndex];
-
-                         if (v(property) == visit_result::terminate)
-                         {
-                             return false;
-                         }
-                     }
-
-                     v(a, i, property_array_element_finish{});
-                 }
-             }*/
 
             if (r >= visit_result::sibling && node.firstSibling != 0)
             {

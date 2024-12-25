@@ -8,7 +8,6 @@ namespace oblo
     {
         terminate,
         sibling,
-        array_elements,
         recurse,
     };
 }

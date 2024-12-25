@@ -83,13 +83,12 @@ namespace oblo::ecs_serializer
 
                                     ptrStack.push_back(ptr);
 
-                                    const auto newNode = node.isArray
-                                        ? doc.child_array(nodeStack.back(), hashed_string_view{node.name})
-                                        : doc.child_object(nodeStack.back(), hashed_string_view{node.name});
+                                    const auto newNode =
+                                        doc.child_object(nodeStack.back(), hashed_string_view{node.name});
 
                                     nodeStack.push_back(newNode);
 
-                                    return node.isArray ? visit_result::array_elements : visit_result::recurse;
+                                    return visit_result::recurse;
                                 },
                                 [&nodeStack, &ptrStack](const property_node&, const property_node_finish)
                                 {
@@ -121,29 +120,6 @@ namespace oblo::ecs_serializer
                                     nodeStack.pop_back();
 
                                     return visit_result::sibling;
-                                },
-                                [&doc, &nodeStack, &ptrStack](const property_array& array,
-                                    usize index,
-                                    const property_array_element_start)
-                                {
-                                    byte* const ptr = ptrStack.back();
-
-                                    if (index >= array.size(ptr))
-                                    {
-                                        return visit_result::terminate;
-                                    }
-
-                                    byte* const e = static_cast<byte*>(array.at(ptr, index));
-
-                                    ptrStack.push_back(e);
-
-                                    return visit_result::recurse;
-                                },
-                                [&nodeStack,
-                                    &ptrStack](const property_array&, usize, const property_array_element_finish)
-                                {
-                                    ptrStack.pop_back();
-                                    return visit_result::recurse;
                                 },
                                 [&doc, &nodeStack, &ptrStack](const property& property)
                                 {
