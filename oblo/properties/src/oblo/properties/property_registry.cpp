@@ -13,6 +13,58 @@ namespace oblo
 {
     struct uuid;
 
+    namespace
+    {
+        property* try_add_property_impl(const reflection::reflection_registry* reflection,
+            std::unordered_map<type_id, property_kind> kindLookups,
+            property_tree& tree,
+            u32 currentNodeIndex,
+            const type_id& type,
+            cstring_view name,
+            u32 offset)
+        {
+            type_id lookupType = type;
+            bool isEnum = false;
+
+            if (const auto e = reflection->find_enum(type))
+            {
+                lookupType = reflection->get_underlying_type(e);
+                isEnum = true;
+            }
+
+            if (const auto it = kindLookups.find(lookupType); it != kindLookups.end())
+            {
+                auto& p = tree.properties.push_back({
+                    .type = type,
+                    .name = name,
+                    .kind = it->second,
+                    .isEnum = isEnum,
+                    .offset = offset,
+                    .parent = currentNodeIndex,
+                });
+
+                return &p;
+            }
+
+            return nullptr;
+        }
+
+        void add_attributes(property_tree& tree, property& prop, std::span<const reflection::attribute_data> attributes)
+        {
+            const u32 firstAttribute = u32(tree.attributes.size());
+
+            for (const auto& attribute : attributes)
+            {
+                tree.attributes.emplace_back(attribute.type, attribute.ptr);
+            }
+
+            const u32 lastAttribute = u32(tree.attributes.size());
+
+            prop.firstAttribute = firstAttribute;
+            prop.lastAttribute = lastAttribute;
+        }
+    }
+
     property_registry::property_registry() = default;
 
     property_registry::~property_registry() = default;
@@ -166,6 +218,14 @@ namespace oblo
 
                 if (rac)
                 {
+                    try_add_property_impl(m_reflection,
+                        m_kindLookups,
+                        tree,
+                        newNodeIndex,
+                        get_type_id<usize>(),
+                        notable_properties::array_size,
+                        0);
+
                     auto& n = tree.nodes.back();
                     n.isArray = true;
                     n.arrayId = u32(tree.arrays.size());
@@ -177,7 +237,8 @@ namespace oblo
 
                     const auto valueType = m_reflection->find_type(rac->valueType);
 
-                    // If the valie type is an enum or a property we can do this, otherwise add another node
+                    // If the value type is an enum or a property we can add the $element property, otherwise add
+                    // another child and visit that
                     auto parentNode = newNodeIndex;
 
                     if (!m_kindLookups.contains(rac->valueType) && !m_reflection->try_get_enum(valueType))
@@ -190,9 +251,19 @@ namespace oblo
                             .type = rac->valueType,
                             .parent = newNodeIndex,
                         });
-                    }
 
-                    build_recursive(tree, parentNode, valueType);
+                        build_recursive(tree, parentNode, valueType);
+                    }
+                    else
+                    {
+                        try_add_property_impl(m_reflection,
+                            m_kindLookups,
+                            tree,
+                            newNodeIndex,
+                            rac->valueType,
+                            notable_properties::array_element,
+                            0);
+                    }
                 }
                 else
                 {
@@ -216,40 +287,19 @@ namespace oblo
     bool property_registry::try_add_property(
         property_tree& tree, u32 currentNodeIndex, const reflection::field_data& field)
     {
-        type_id lookupType = field.type;
-        bool isEnum = false;
+        auto* p = try_add_property_impl(m_reflection,
+            m_kindLookups,
+            tree,
+            currentNodeIndex,
+            field.type,
+            field.name,
+            field.offset);
 
-        if (const auto e = m_reflection->find_enum(field.type))
+        if (p)
         {
-            lookupType = m_reflection->get_underlying_type(e);
-            isEnum = true;
+            add_attributes(tree, *p, field.attributes);
         }
 
-        if (const auto it = m_kindLookups.find(lookupType); it != m_kindLookups.end())
-        {
-            const u32 firstAttribute = u32(tree.attributes.size());
-
-            for (const auto& attribute : field.attributes)
-            {
-                tree.attributes.emplace_back(attribute.type, attribute.ptr);
-            }
-
-            const u32 lastAttribute = u32(tree.attributes.size());
-
-            tree.properties.push_back({
-                .type = field.type,
-                .name = field.name,
-                .kind = it->second,
-                .isEnum = isEnum,
-                .offset = field.offset,
-                .parent = currentNodeIndex,
-                .firstAttribute = firstAttribute,
-                .lastAttribute = lastAttribute,
-            });
-
-            return true;
-        }
-
-        return false;
+        return p != nullptr;
     }
 }

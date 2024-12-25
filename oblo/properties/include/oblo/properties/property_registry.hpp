@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/type_id.hpp>
 
 #include <unordered_map>
@@ -15,6 +16,12 @@ namespace oblo
 {
     enum class property_kind : u8;
     struct property_tree;
+
+    namespace notable_properties
+    {
+        constexpr cstring_view array_size = "$size";
+        constexpr cstring_view array_element = "$element";
+    }
 
     class property_registry
     {

@@ -178,7 +178,7 @@ namespace oblo
         auto& newArray = m_nodes[newArrayIndex];
 
         auto& parent = m_nodes[parentIndex];
-        OBLO_ASSERT(parent.kind == data_node_kind::object);
+        OBLO_ASSERT(parent.kind == data_node_kind::object || parent.kind == data_node_kind::array);
 
         newArray = {
             .kind = data_node_kind::array,

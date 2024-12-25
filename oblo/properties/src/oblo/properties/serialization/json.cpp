@@ -11,6 +11,8 @@
 #include <oblo/properties/serialization/data_document.hpp>
 #include <oblo/properties/serialization/data_node.hpp>
 
+#define RAPIDJSON_ASSERT(x) OBLO_ASSERT(x)
+
 #include <rapidjson/document.h>
 #include <rapidjson/filereadstream.h>
 #include <rapidjson/filewritestream.h>

@@ -11,9 +11,15 @@
 #include <oblo/properties/serialization/json.hpp>
 #include <oblo/reflection/reflection_module.hpp>
 #include <oblo/reflection/reflection_registry.hpp>
+#include <oblo/reflection/registration/registrant.hpp>
 #include <oblo/scene/scene_module.hpp>
 #include <oblo/scene/serialization/ecs_serializer.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
+
+namespace oblo::ecs
+{
+    struct component_type_tag;
+}
 
 namespace oblo
 {
@@ -37,6 +43,12 @@ namespace oblo
                 ecs_utility::register_reflected_component_types(reflectionRegistry, &typeRegistry, &propertyRegistry);
             }
 
+            reflection::reflection_registry::registrant get_reflection_registrant()
+            {
+                auto* const reflection = mm.load<reflection::reflection_module>();
+                return reflection->get_registrant();
+            }
+
             static constexpr cstring_view testDir{"./test/ecs_serializer/"};
 
             module_manager mm;
@@ -46,22 +58,105 @@ namespace oblo
         };
     }
 
-    TEST_F(ecs_serialization_test, json_serialization)
+    // TEST_F(ecs_serialization_test, json_serialization)
+    //{
+    //     register_reflected_component_types();
+
+    //    const auto jsonPath = string_builder{}.append(testDir).append_path("json_serialization.json");
+
+    //    {
+    //        ecs::entity_registry reg;
+    //        reg.init(&typeRegistry);
+
+    //        ecs_utility::create_named_physical_entity(reg, "A", vec3{}, quaternion::identity(), vec3::splat(1.f));
+    //        ecs_utility::create_named_physical_entity(reg,
+    //            "B",
+    //            vec3::splat(1.f),
+    //            quaternion::identity(),
+    //            vec3::splat(3.f));
+
+    //        data_document doc;
+    //        doc.init();
+
+    //        ASSERT_TRUE(ecs_serializer::write(doc, doc.get_root(), reg, propertyRegistry));
+    //        ASSERT_TRUE(json::write(doc, jsonPath));
+    //    }
+
+    //    {
+    //        data_document doc;
+
+    //        ASSERT_TRUE(json::read(doc, jsonPath));
+    //    }
+    //}
+
+    namespace
     {
+        struct array_test_struct
+        {
+            u32 u32Val;
+            dynamic_array<bool> dBool;
+        };
+
+        struct array_test_component
+        {
+            u32 u4[4];
+            array_test_struct s3[3];
+
+            dynamic_array<u32> dU32;
+            dynamic_array<dynamic_array<array_test_struct>> ds;
+
+            dynamic_array<dynamic_array<u32>> ddU32;
+        };
+    }
+
+    TEST_F(ecs_serialization_test, json_arrays)
+    {
+        {
+            auto&& r = get_reflection_registrant();
+
+            r.add_class<array_test_struct>()
+                .add_field(&array_test_struct::u32Val, "u32Val")
+                .add_field(&array_test_struct::dBool, "dBool");
+
+            r.add_class<array_test_component>()
+                .add_field(&array_test_component::u4, "u4")
+                .add_field(&array_test_component::s3, "s3")
+                .add_field(&array_test_component::dU32, "dU32")
+                .add_field(&array_test_component::ds, "ds")
+                .add_field(&array_test_component::ddU32, "ddU32")
+                .add_tag<ecs::component_type_tag>()
+                .add_ranged_type_erasure();
+        }
+
         register_reflected_component_types();
 
-        const auto jsonPath = string_builder{}.append(testDir).append_path("json_serialization.json");
+        const auto jsonPath = string_builder{}.append(testDir).append_path("json_arrays.json");
+
+        array_test_component expected;
+
+        {
+            expected.u4[0] = 0;
+            expected.u4[1] = 1;
+            expected.u4[2] = 2;
+            expected.u4[3] = 3;
+
+            expected.s3[0].u32Val = 3;
+            expected.s3[1].u32Val = 2;
+            expected.s3[1].dBool = {true, true, false};
+            expected.s3[2].u32Val = 1;
+
+            expected.dU32 = {10, 11};
+        }
 
         {
             ecs::entity_registry reg;
             reg.init(&typeRegistry);
 
-            ecs_utility::create_named_physical_entity(reg, "A", vec3{}, quaternion::identity(), vec3::splat(1.f));
-            ecs_utility::create_named_physical_entity(reg,
-                "B",
-                vec3::splat(1.f),
-                quaternion::identity(),
-                vec3::splat(3.f));
+            const auto e =
+                ecs_utility::create_named_physical_entity(reg, "e", vec3{}, quaternion::identity(), vec3::splat(1.f));
+
+            auto& a = reg.add<array_test_component>(e);
+            a = expected;
 
             data_document doc;
             doc.init();

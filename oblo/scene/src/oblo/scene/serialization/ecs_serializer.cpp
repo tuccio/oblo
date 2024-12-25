@@ -96,6 +96,32 @@ namespace oblo::ecs_serializer
                                     nodeStack.pop_back();
                                     ptrStack.pop_back();
                                 },
+                                [&doc, &nodeStack, &ptrStack](const property_node& node,
+                                    const property_array& array,
+                                    auto&& visitElement)
+                                {
+                                    byte* const arrayPtr = ptrStack.back() + node.offset;
+                                    const usize arraySize = array.size(arrayPtr);
+
+                                    const auto newNode =
+                                        doc.child_array(nodeStack.back(), hashed_string_view{node.name});
+
+                                    nodeStack.push_back(newNode);
+
+                                    for (usize i = 0; i < arraySize; ++i)
+                                    {
+                                        byte* const e = static_cast<byte*>(array.at(arrayPtr, i));
+                                        ptrStack.push_back(e);
+
+                                        visitElement();
+
+                                        ptrStack.pop_back();
+                                    }
+
+                                    nodeStack.pop_back();
+
+                                    return visit_result::sibling;
+                                },
                                 [&doc, &nodeStack, &ptrStack](const property_array& array,
                                     usize index,
                                     const property_array_element_start)
