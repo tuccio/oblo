@@ -12,6 +12,11 @@
 #include <oblo/reflection/reflection_module.hpp>
 #include <oblo/reflection/reflection_registry.hpp>
 #include <oblo/reflection/registration/registrant.hpp>
+#include <oblo/scene/components/global_transform_component.hpp>
+#include <oblo/scene/components/name_component.hpp>
+#include <oblo/scene/components/position_component.hpp>
+#include <oblo/scene/components/rotation_component.hpp>
+#include <oblo/scene/components/scale_component.hpp>
 #include <oblo/scene/scene_module.hpp>
 #include <oblo/scene/serialization/ecs_serializer.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
@@ -28,12 +33,15 @@ namespace oblo
         class ecs_serialization_test : public testing::Test
         {
         protected:
+            static void SetUpTestSuite()
+            {
+                filesystem::remove_all(testDir).assert_value();
+                filesystem::create_directories(testDir).assert_value();
+            }
+
             ecs_serialization_test() : reflectionRegistry{mm.load<reflection::reflection_module>()->get_registry()}
             {
                 mm.load<scene_module>();
-
-                filesystem::remove_all(testDir).assert_value();
-                filesystem::create_directories(testDir).assert_value();
 
                 propertyRegistry.init(reflectionRegistry);
             }
@@ -58,36 +66,66 @@ namespace oblo
         };
     }
 
-    // TEST_F(ecs_serialization_test, json_serialization)
-    //{
-    //     register_reflected_component_types();
+    TEST_F(ecs_serialization_test, json_serialization)
+    {
+        register_reflected_component_types();
 
-    //    const auto jsonPath = string_builder{}.append(testDir).append_path("json_serialization.json");
+        const auto jsonPath = string_builder{}.append(testDir).append_path("json_serialization.json");
 
-    //    {
-    //        ecs::entity_registry reg;
-    //        reg.init(&typeRegistry);
+        {
+            ecs::entity_registry reg;
+            reg.init(&typeRegistry);
 
-    //        ecs_utility::create_named_physical_entity(reg, "A", vec3{}, quaternion::identity(), vec3::splat(1.f));
-    //        ecs_utility::create_named_physical_entity(reg,
-    //            "B",
-    //            vec3::splat(1.f),
-    //            quaternion::identity(),
-    //            vec3::splat(3.f));
+            ecs_utility::create_named_physical_entity(reg, "A", vec3{}, quaternion::identity(), vec3::splat(1.f));
+            ecs_utility::create_named_physical_entity(reg,
+                "B",
+                vec3::splat(1.f),
+                quaternion::identity(),
+                vec3::splat(3.f));
 
-    //        data_document doc;
-    //        doc.init();
+            data_document doc;
+            doc.init();
 
-    //        ASSERT_TRUE(ecs_serializer::write(doc, doc.get_root(), reg, propertyRegistry));
-    //        ASSERT_TRUE(json::write(doc, jsonPath));
-    //    }
+            ASSERT_TRUE(ecs_serializer::write(doc, doc.get_root(), reg, propertyRegistry));
+            ASSERT_TRUE(json::write(doc, jsonPath));
+        }
 
-    //    {
-    //        data_document doc;
+        {
+            data_document doc;
 
-    //        ASSERT_TRUE(json::read(doc, jsonPath));
-    //    }
-    //}
+            ASSERT_TRUE(json::read(doc, jsonPath));
+
+            ecs::entity_registry reg;
+            reg.init(&typeRegistry);
+
+            ASSERT_TRUE(ecs_serializer::read(reg, doc, doc.get_root(), propertyRegistry));
+
+            for (const auto e : reg.entities())
+            {
+                const auto& name = reg.get<name_component>(e);
+                const auto& position = reg.get<position_component>(e);
+                const auto& scale = reg.get<scale_component>(e);
+                const auto& rotation = reg.get<rotation_component>(e);
+
+                if (name.value == "A")
+                {
+                    ASSERT_EQ(position.value, vec3::splat(0.f));
+                    ASSERT_EQ(scale.value, vec3::splat(1.f));
+                    ASSERT_EQ(rotation.value, quaternion::identity());
+                }
+                else if (name.value == "B")
+                {
+                    ASSERT_EQ(position.value, vec3::splat(1.f));
+                    ASSERT_EQ(scale.value, vec3::splat(3.f));
+                    ASSERT_EQ(rotation.value, quaternion::identity());
+                }
+                else
+                {
+                    ASSERT_TRUE(false);
+                }
+            }
+        }
+    }
 
     namespace
     {

@@ -10,12 +10,14 @@ namespace oblo::reflection
 {
     using random_access_container_size_fn = usize (*)(void* dst);
     using random_access_container_at_fn = void* (*) (void* dst, usize index);
+    using random_access_container_resize_fn = void (*) (void* dst, usize size);
 
     struct random_access_container
     {
         type_id valueType;
         random_access_container_size_fn size;
         random_access_container_at_fn at;
+        random_access_container_resize_fn optResize;
     };
 
     template <oblo::random_access_container T>
@@ -35,6 +37,11 @@ namespace oblo::reflection
         }
 
         rac.at = [](void* dst, usize index) -> void* { return &(*static_cast<T*>(dst))[index]; };
+
+        if constexpr (requires(T c, usize s) { c.resize(s); })
+        {
+            rac.optResize = [](void* dst, usize size) { return static_cast<T*>(dst)->resize(size); };
+        }
 
         return rac;
     }

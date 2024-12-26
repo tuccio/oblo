@@ -17,6 +17,7 @@ namespace oblo
 
     namespace notable_properties
     {
+        constexpr cstring_view prefix = "$";
         constexpr cstring_view array_size = "$size";
         constexpr cstring_view array_element = "$element";
     }

@@ -125,12 +125,12 @@ namespace oblo
 
         OBLO_FORCEINLINE constexpr bool starts_with(string_view str) const
         {
-            return substr(0, str.size()) == *this;
+            return substr(0, str.size()) == str;
         }
 
         OBLO_FORCEINLINE constexpr bool ends_with(string_view str) const
         {
-            return substr(0, str.size()) == *this;
+            return str.empty() || substr(str.size() - 1, str.size()) == str;
         }
 
         constexpr size_type copy(pointer dst, size_type count, size_type pos = 0) const noexcept

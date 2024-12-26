@@ -237,6 +237,7 @@ namespace oblo
                 tree.arrays.push_back({
                     .size = rac->size,
                     .at = rac->at,
+                    .optResize = rac->optResize,
                 });
 
                 const auto valueType = reflection->find_type(rac->valueType);
@@ -253,6 +254,7 @@ namespace oblo
 
                     tree.nodes.push_back({
                         .type = rac->valueType,
+                        .name = notable_properties::array_element,
                         .parent = newNodeIndex,
                     });
 

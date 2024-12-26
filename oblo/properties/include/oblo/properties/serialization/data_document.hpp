@@ -15,6 +15,7 @@ namespace oblo
     enum class property_kind : u8;
 
     struct data_node;
+    struct data_string;
 
     class data_document
     {
@@ -58,6 +59,7 @@ namespace oblo
         u32 find_child(u32 parent, hashed_string_view name) const;
         hashed_string_view get_node_name(u32 node) const;
 
+        expected<data_string, error> read_string(u32 node) const;
         expected<bool, error> read_bool(u32 node) const;
 
         expected<f32, error> read_f32(u32 node) const;

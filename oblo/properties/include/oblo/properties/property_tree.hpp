@@ -47,9 +47,11 @@ namespace oblo
     {
         using size_fn = usize (*)(void*);
         using at_fn = void* (*) (void*, usize);
+        using resize_fn = void (*)(void*, usize);
 
         size_fn size;
         at_fn at;
+        resize_fn optResize;
     };
 
     struct property_tree

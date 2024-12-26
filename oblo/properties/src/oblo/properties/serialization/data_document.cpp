@@ -388,6 +388,23 @@ namespace oblo
         return hashed_string_view{string_view{n.key, n.keyLen}, n.keyHash};
     }
 
+    expected<data_string, data_document::error> data_document::read_string(u32 node) const
+    {
+        auto& n = m_nodes[node];
+
+        if (n.kind != data_node_kind::value)
+        {
+            return error::node_kind_mismatch;
+        }
+
+        if (n.valueKind == property_kind::string)
+        {
+            return *reinterpret_cast<const data_string*>(n.value.data);
+        }
+
+        return error::value_kind_mismatch;
+    }
+
     expected<bool, data_document::error> data_document::read_bool(u32 node) const
     {
         auto& n = m_nodes[node];

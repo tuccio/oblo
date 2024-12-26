@@ -24,6 +24,9 @@ namespace oblo
             const property_registry& propertyRegistry,
             const write_config& cfg = {});
 
-        SCENE_API expected<> read(ecs::entity_registry& reg, const data_document& doc);
+        SCENE_API expected<> read(ecs::entity_registry& reg,
+            const data_document& doc,
+            u32 docRoot,
+            const property_registry& propertyRegistry);
     }
 }
