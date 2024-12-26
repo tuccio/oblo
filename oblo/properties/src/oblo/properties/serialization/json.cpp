@@ -84,7 +84,7 @@ namespace oblo::json
                     return true;
 
                 default:
-                    return false;
+                    return failure();
                 }
             }
 
@@ -92,12 +92,12 @@ namespace oblo::json
             {
                 if (m_state != state::name_or_object_end)
                 {
-                    return false;
+                    return failure();
                 }
 
                 if (m_stack.empty())
                 {
-                    return false;
+                    return failure();
                 }
 
                 m_stack.pop_back();
@@ -139,7 +139,7 @@ namespace oblo::json
                     return true;
 
                 default:
-                    return false;
+                    return failure();
                 }
             }
 
@@ -147,12 +147,12 @@ namespace oblo::json
             {
                 if (m_state != state::value_or_array_end)
                 {
-                    return false;
+                    return failure();
                 }
 
                 if (m_stack.empty())
                 {
-                    return false;
+                    return failure();
                 }
 
                 m_stack.pop_back();
@@ -183,7 +183,7 @@ namespace oblo::json
 
                     return true;
                 default:
-                    return false;
+                    return failure();
                 }
             }
 
@@ -198,10 +198,10 @@ namespace oblo::json
                         std::as_bytes(std::span{&value, 1}));
 
                     m_lastString.clear();
-                    m_state = state::name_or_object_end;
+                    m_state = next_state_from_stack();
                     return true;
                 default:
-                    return false;
+                    return failure();
                 }
             }
 
@@ -219,7 +219,7 @@ namespace oblo::json
                     m_state = next_state_from_stack();
                     return true;
                 default:
-                    return false;
+                    return failure();
                 }
             }
 
@@ -237,7 +237,7 @@ namespace oblo::json
                     m_state = next_state_from_stack();
                     return true;
                 default:
-                    return false;
+                    return failure();
                 }
             }
 
@@ -255,7 +255,7 @@ namespace oblo::json
                     m_state = next_state_from_stack();
                     return true;
                 default:
-                    return false;
+                    return failure();
                 }
             }
 
@@ -273,7 +273,7 @@ namespace oblo::json
                     m_state = next_state_from_stack();
                     return true;
                 default:
-                    return false;
+                    return failure();
                 }
             }
 
@@ -291,11 +291,17 @@ namespace oblo::json
                     m_state = next_state_from_stack();
                     return true;
                 default:
-                    return false;
+                    return failure();
                 }
             }
 
             bool Default()
+            {
+                OBLO_ASSERT(false);
+                return false;
+            }
+
+            bool failure()
             {
                 OBLO_ASSERT(false);
                 return false;
