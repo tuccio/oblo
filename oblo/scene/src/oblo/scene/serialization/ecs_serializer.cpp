@@ -276,7 +276,10 @@ namespace oblo::ecs_serializer
                                 const property_array& array,
                                 auto&& visitElement)
                             {
-                                const auto newNode = doc.find_child(nodeStack.back(), sanitize_name(node.name));
+                                const auto newNode = node.name.starts_with(notable_properties::prefix)
+                                    ? nodeStack.back()
+                                    : doc.find_child(nodeStack.back(), hashed_string_view{node.name});
+
                                 OBLO_ASSERT(doc.is_array(newNode));
 
                                 byte* const arrayPtr = ptrStack.back() + node.offset;
@@ -319,11 +322,16 @@ namespace oblo::ecs_serializer
 
                                 std::span<const byte> propertyData;
 
-                                const auto valueNode =
-                                    doc.find_child(nodeStack.back(), hashed_string_view{property.name});
+                                const auto parent = nodeStack.back();
+
+                                const auto valueNode = property.name.starts_with(notable_properties::prefix)
+                                    ? parent
+                                    : doc.find_child(parent, hashed_string_view{property.name});
 
                                 if (valueNode != data_node::Invalid)
                                 {
+                                    OBLO_ASSERT(doc.is_value(valueNode));
+
                                     switch (property.kind)
                                     {
                                     case property_kind::string:

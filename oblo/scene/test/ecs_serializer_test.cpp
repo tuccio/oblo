@@ -133,6 +133,8 @@ namespace oblo
         {
             u32 u32Val;
             dynamic_array<bool> dBool;
+
+            bool operator==(const array_test_struct&) const = default;
         };
 
         struct array_test_component
@@ -144,6 +146,8 @@ namespace oblo
             dynamic_array<dynamic_array<array_test_struct>> dds;
 
             dynamic_array<dynamic_array<u32>> ddU32;
+
+            bool operator==(const array_test_component&) const = default;
         };
     }
 
@@ -215,9 +219,22 @@ namespace oblo
         }
 
         {
+
             data_document doc;
 
             ASSERT_TRUE(json::read(doc, jsonPath));
+
+            ecs::entity_registry reg;
+            reg.init(&typeRegistry);
+
+            ASSERT_TRUE(ecs_serializer::read(reg, doc, doc.get_root(), propertyRegistry));
+
+            ASSERT_EQ(reg.entities().size(), 1);
+
+            const auto e = reg.entities().front();
+            const auto& a = reg.get<array_test_component>(e);
+
+            ASSERT_EQ(a, expected);
         }
     }
 }
