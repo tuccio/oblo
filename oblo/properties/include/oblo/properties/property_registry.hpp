@@ -3,13 +3,11 @@
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/type_id.hpp>
 
-#include <unordered_map>
+#include <memory>
 
 namespace oblo::reflection
 {
     class reflection_registry;
-    struct field_data;
-    struct type_handle;
 }
 
 namespace oblo
@@ -44,13 +42,7 @@ namespace oblo
         const property_tree* try_get(const type_id& type) const;
 
     private:
-        void build_recursive(property_tree& tree, u32 currentNodeIndex, reflection::type_handle type);
-
-        bool try_add_property(property_tree& tree, u32 currentNodeIndex, const reflection::field_data& field);
-
-    private:
-        const reflection::reflection_registry* m_reflection{};
-        std::unordered_map<type_id, property_tree> m_propertyTrees;
-        std::unordered_map<type_id, property_kind> m_kindLookups;
+        struct impl;
+        std::unique_ptr<impl> m_impl;
     };
 }
