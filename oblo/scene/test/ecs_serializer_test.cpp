@@ -103,7 +103,7 @@ namespace oblo
             array_test_struct s3[3];
 
             dynamic_array<u32> dU32;
-            dynamic_array<dynamic_array<array_test_struct>> ds;
+            dynamic_array<dynamic_array<array_test_struct>> dds;
 
             dynamic_array<dynamic_array<u32>> ddU32;
         };
@@ -122,7 +122,7 @@ namespace oblo
                 .add_field(&array_test_component::u4, "u4")
                 .add_field(&array_test_component::s3, "s3")
                 .add_field(&array_test_component::dU32, "dU32")
-                .add_field(&array_test_component::ds, "ds")
+                .add_field(&array_test_component::dds, "dds")
                 .add_field(&array_test_component::ddU32, "ddU32")
                 .add_tag<ecs::component_type_tag>()
                 .add_ranged_type_erasure();
@@ -146,6 +146,17 @@ namespace oblo
             expected.s3[2].u32Val = 1;
 
             expected.dU32 = {10, 11};
+
+            {
+                auto& ddsE = expected.dds.emplace_back().emplace_back();
+                ddsE.u32Val = 42;
+            }
+
+            {
+                expected.ddU32.emplace_back() = {0, 1, 2};
+                expected.ddU32.emplace_back() = {42};
+                expected.ddU32.emplace_back() = {9, 8, 7};
+            }
         }
 
         {

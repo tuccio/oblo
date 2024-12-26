@@ -194,49 +194,7 @@ namespace oblo
                         .lastAttribute = lastAttribute,
                     });
 
-                    const auto rac = reflection->find_concept<reflection::random_access_container>(fieldType);
-
-                    if (rac)
-                    {
-                        try_add_property(tree, newNodeIndex, get_type_id<usize>(), notable_properties::array_size, 0);
-
-                        auto& n = tree.nodes.back();
-                        n.isArray = true;
-                        n.arrayId = u32(tree.arrays.size());
-
-                        tree.arrays.push_back({
-                            .size = rac->size,
-                            .at = rac->at,
-                        });
-
-                        const auto valueType = reflection->find_type(rac->valueType);
-
-                        // If the value type is an enum or a property we can add the $element property, otherwise add
-                        // another child and visit that
-                        auto parentNode = newNodeIndex;
-
-                        if (!kindLookups.contains(rac->valueType) && !reflection->try_get_enum(valueType))
-                        {
-                            parentNode = u32(tree.nodes.size());
-
-                            tree.nodes.back().firstChild = parentNode;
-
-                            tree.nodes.push_back({
-                                .type = rac->valueType,
-                                .parent = newNodeIndex,
-                            });
-
-                            build_recursive(tree, parentNode, valueType);
-                        }
-                        else
-                        {
-                            try_add_property(tree, newNodeIndex, rac->valueType, notable_properties::array_element, 0);
-                        }
-                    }
-                    else
-                    {
-                        build_recursive(tree, newNodeIndex, fieldType);
-                    }
+                    try_add_object_or_array(tree, newNodeIndex, fieldType);
 
                     if (prevSibling != 0)
                     {
@@ -262,6 +220,55 @@ namespace oblo
             }
 
             return p != nullptr;
+        }
+
+        bool try_add_object_or_array(property_tree& tree, u32 newNodeIndex, const reflection::type_handle fieldType)
+        {
+            const auto rac = reflection->find_concept<reflection::random_access_container>(fieldType);
+
+            if (rac)
+            {
+                try_add_property(tree, newNodeIndex, get_type_id<usize>(), notable_properties::array_size, 0);
+
+                auto& n = tree.nodes.back();
+                n.isArray = true;
+                n.arrayId = u32(tree.arrays.size());
+
+                tree.arrays.push_back({
+                    .size = rac->size,
+                    .at = rac->at,
+                });
+
+                const auto valueType = reflection->find_type(rac->valueType);
+
+                // If the value type is an enum or a property we can add the $element property, otherwise add
+                // another child and visit that
+                auto parentNode = newNodeIndex;
+
+                if (!kindLookups.contains(rac->valueType) && !reflection->try_get_enum(valueType))
+                {
+                    parentNode = u32(tree.nodes.size());
+
+                    tree.nodes.back().firstChild = parentNode;
+
+                    tree.nodes.push_back({
+                        .type = rac->valueType,
+                        .parent = newNodeIndex,
+                    });
+
+                    try_add_object_or_array(tree, parentNode, valueType);
+                }
+                else
+                {
+                    try_add_property(tree, newNodeIndex, rac->valueType, notable_properties::array_element, 0);
+                }
+            }
+            else
+            {
+                build_recursive(tree, newNodeIndex, fieldType);
+            }
+
+            return bool{rac};
         }
     };
 
