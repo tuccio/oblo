@@ -1,5 +1,6 @@
 #include <oblo/editor/windows/console_window.hpp>
 
+#include <oblo/core/string/string_builder.hpp>
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/services/log_queue.hpp>
 #include <oblo/editor/window_update_context.hpp>
@@ -54,7 +55,9 @@ namespace oblo::editor
                 // PushID(i);
                 // value_changed |= DragFloat("##v", &v[i], vSpeed, vMin, vMax, displayFormat, flags);
                 // SameLine(0, g.Style.ItemInnerSpacing.x);
+
                 TextUnformatted(msg.data(), FindRenderedTextEnd(msg.begin(), msg.end()));
+                // draw_selectable_text(msg);
 
                 const ImVec2 min = GetItemRectMin();
                 const ImVec2 max = GetItemRectMax();
@@ -125,6 +128,8 @@ namespace oblo::editor
 
                 const auto& messages = m_logQueue->get_messages();
 
+                string_builder buf;
+
                 for (usize i = 0; i < messages.size(); ++i)
                 {
                     const auto& message = messages[i];
@@ -143,6 +148,30 @@ namespace oblo::editor
 
                     draw_message(message.severity, message.content);
                     // ImGui::TextUnformatted(message.content.begin(), message.content.end());
+
+                    const auto selectableHeight = ImGui::GetItemRectSize().y;
+
+                    ImGui::SameLine();
+
+                    if (ImGui::Selectable(buf.format("##item{}", i).c_str(),
+                            m_selected == i,
+                            ImGuiSelectableFlags_SpanAllColumns,
+                            {0, selectableHeight}))
+                    {
+                        m_selected = i;
+                    }
+
+                    if (ImGui::BeginPopupContextItem(buf.format("##ctx{}", i).c_str()))
+                    {
+                        if (ImGui::MenuItem("Copy"))
+                        {
+                            ImGui::LogToClipboard();
+                            ImGui::LogText("%s", message.content.c_str());
+                            ImGui::LogFinish();
+                        }
+
+                        ImGui::EndPopup();
+                    }
                 }
 
                 if (autoScroll)

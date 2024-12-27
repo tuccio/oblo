@@ -1,5 +1,7 @@
 #pragma once
 
+#include <oblo/core/types.hpp>
+
 namespace oblo::editor
 {
     class log_queue;
@@ -13,5 +15,6 @@ namespace oblo::editor
 
     private:
         const log_queue* m_logQueue{};
+        usize m_selected{~usize{}};
     };
 }

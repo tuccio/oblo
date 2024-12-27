@@ -64,7 +64,7 @@ namespace oblo::editor
         colors[ImGuiCol_Button] = ImVec4(0.12f, 0.13f, 0.15f, 1.00f);
         colors[ImGuiCol_ButtonHovered] = ImVec4(0.16f, 0.17f, 0.19f, 1.00f);
         colors[ImGuiCol_ButtonActive] = ImVec4(0.16f, 0.17f, 0.19f, 1.00f);
-        colors[ImGuiCol_Header] = ImVec4(0.12f, 0.13f, 0.15f, 1.00f);
+        colors[ImGuiCol_Header] = ImVec4(0.16f, 0.17f, 0.19f, 1.00f);
         colors[ImGuiCol_HeaderHovered] = ImVec4(0.16f, 0.17f, 0.19f, 1.00f);
         colors[ImGuiCol_HeaderActive] = ImVec4(0.16f, 0.17f, 0.19f, 1.00f);
         colors[ImGuiCol_Separator] = ImVec4(0.16f, 0.18f, 0.25f, 1.00f);
