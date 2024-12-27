@@ -16,12 +16,14 @@
 #include <oblo/scene/components/position_component.hpp>
 #include <oblo/scene/components/rotation_component.hpp>
 #include <oblo/scene/components/scale_component.hpp>
+#include <oblo/scene/components/tags.hpp>
 #include <oblo/scene/systems/barriers.hpp>
 #include <oblo/scene/systems/transform_system.hpp>
 
 namespace oblo::ecs
 {
     struct component_type_tag;
+    struct tag_type_tag;
 }
 
 namespace oblo
@@ -54,6 +56,8 @@ namespace oblo
                 .add_field(&global_transform_component::localToWorld, "value")
                 .add_ranged_type_erasure()
                 .add_tag<ecs::component_type_tag>();
+
+            reg.add_class<transient_tag>().add_ranged_type_erasure().add_tag<ecs::tag_type_tag>();
         }
 
         class scene_resources_provider final : public resource_types_provider

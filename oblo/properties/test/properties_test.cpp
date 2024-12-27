@@ -64,6 +64,7 @@ namespace oblo
 
             visit(tree,
                 overload{
+                    [](auto&&...) { return visit_result::recurse; },
                     [&it](const property_node& node, const property_node_start)
                     {
                         if (node.name == *it)

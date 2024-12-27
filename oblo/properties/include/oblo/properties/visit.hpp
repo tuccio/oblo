@@ -8,6 +8,7 @@ namespace oblo
     struct property_node_start
     {
     };
+
     struct property_node_finish
     {
     };
@@ -24,31 +25,75 @@ namespace oblo
 
             const auto& node = tree.nodes[index];
 
-            // We skip the visit of the root, it's kind of pointless
-            const auto r = index != 0 ? v(node, property_node_start{}) : visit_result::recurse;
+            auto r = visit_result::recurse;
 
-            if (r == visit_result::recurse)
+            if (node.isArray)
             {
-                if (node.firstChild != 0)
-                {
-                    if (!visit_node_impl(tree, v, node.firstChild))
-                    {
-                        return false;
-                    }
-                }
+                const property_array& a = tree.arrays[node.arrayId];
 
-                for (u32 propertyIndex = node.firstProperty; propertyIndex != node.lastProperty; ++propertyIndex)
+                const auto numProperties = node.lastProperty - node.firstProperty;
+                const bool isPropertyElement = numProperties == 2;
+
+                const auto visitPropertyElement = [&]
                 {
-                    const auto& property = tree.properties[propertyIndex];
+                    const auto elementProperty = node.lastProperty - 1;
+
+                    const auto& property = tree.properties[elementProperty];
+                    OBLO_ASSERT(property.name == notable_properties::array_element);
 
                     if (v(property) == visit_result::terminate)
                     {
                         return false;
                     }
-                }
-            }
 
-            v(node, property_node_finish{});
+                    return true;
+                };
+
+                const auto visitObjectElement = [&]
+                {
+                    if (node.firstChild != 0)
+                    {
+                        if (!visit_node_impl(tree, v, node.firstChild))
+                        {
+                            return false;
+                        }
+                    }
+
+                    return true;
+                };
+
+                r = isPropertyElement ? v(node, a, visitPropertyElement) : v(node, a, visitObjectElement);
+            }
+            else
+            {
+                if (index != 0)
+                {
+                    r = v(node, property_node_start{});
+                }
+
+                if (r == visit_result::recurse)
+                {
+                    if (node.firstChild != 0)
+                    {
+                        if (!visit_node_impl(tree, v, node.firstChild))
+                        {
+                            return false;
+                        }
+                    }
+
+                    for (u32 propertyIndex = node.firstProperty; propertyIndex != node.lastProperty; ++propertyIndex)
+                    {
+                        const auto& property = tree.properties[propertyIndex];
+
+                        if (v(property) == visit_result::terminate)
+                        {
+                            return false;
+                        }
+                    }
+                }
+
+                v(node, property_node_finish{});
+            }
 
             if (r >= visit_result::sibling && node.firstSibling != 0)
             {

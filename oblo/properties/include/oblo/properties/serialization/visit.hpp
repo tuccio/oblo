@@ -31,7 +31,7 @@ namespace oblo
     namespace detail
     {
         template <typename V>
-        bool visit_node_impl(const std::span<const data_node> nodes, V& v, u32 index)
+        bool visit_node_impl(const deque<data_node> nodes, V& v, u32 index)
         {
             if (index >= nodes.size())
             {

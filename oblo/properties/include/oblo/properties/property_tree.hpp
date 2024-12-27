@@ -21,6 +21,8 @@ namespace oblo
         u32 lastProperty;
         u32 firstAttribute;
         u32 lastAttribute;
+        u32 arrayId;
+        bool isArray;
     };
 
     struct property
@@ -41,10 +43,22 @@ namespace oblo
         const void* ptr;
     };
 
+    struct property_array
+    {
+        using size_fn = usize (*)(void*);
+        using at_fn = void* (*) (void*, usize);
+        using resize_fn = void (*)(void*, usize);
+
+        size_fn size;
+        at_fn at;
+        resize_fn optResize;
+    };
+
     struct property_tree
     {
         dynamic_array<property_node> nodes;
         dynamic_array<property> properties;
         dynamic_array<property_attribute> attributes;
+        dynamic_array<property_array> arrays;
     };
 }

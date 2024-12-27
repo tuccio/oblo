@@ -109,7 +109,7 @@ namespace oblo
             }
         }
 
-        return json::write(doc, destination);
+        return json::write(doc, destination).has_value();
     }
 
     bool material::load(cstring_view source)
@@ -124,7 +124,7 @@ namespace oblo
             return false;
         }
 
-        const std::span nodes = doc.get_nodes();
+        const auto& nodes = doc.get_nodes();
         const auto root = doc.get_root();
 
         for (u32 index = nodes[root].objectOrArray.firstChild; index != data_node::Invalid;

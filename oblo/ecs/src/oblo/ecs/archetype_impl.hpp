@@ -85,6 +85,7 @@ namespace oblo::ecs
     {
         component_and_tag_sets types;
         component_type* components;
+        tag_type* tags;
         u32* offsets;
         u32* sizes;
         u32* alignments;
@@ -95,6 +96,7 @@ namespace oblo::ecs
         u32 numCurrentEntities;
         u32 entityTagsOffset;
         u8 numComponents;
+        u8 numTags;
 #if OBLO_DEBUG
         type_id* typeIds;
 #endif
@@ -105,14 +107,10 @@ namespace oblo::ecs
         type_set types;
     };
 
-    archetype_impl* create_archetype_impl(memory_pool& pool,
-        const type_registry& typeRegistry,
-        const component_and_tag_sets& types,
-        std::span<const component_type> components);
+    archetype_impl* create_archetype_impl(
+        memory_pool& pool, const type_registry& typeRegistry, const component_and_tag_sets& types);
 
     void destroy_archetype_impl(memory_pool& pool, archetype_impl* storage);
-
-    std::span<component_type> make_type_span(std::span<component_type, MaxComponentTypes> inOut, type_set current);
 
     inline entity* get_entity_pointer(std::byte* chunk, u32 offset)
     {

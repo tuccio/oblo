@@ -11,6 +11,8 @@
 #include <oblo/properties/serialization/data_document.hpp>
 #include <oblo/properties/serialization/data_node.hpp>
 
+#define RAPIDJSON_ASSERT(x) OBLO_ASSERT(x)
+
 #include <rapidjson/document.h>
 #include <rapidjson/filereadstream.h>
 #include <rapidjson/filewritestream.h>
@@ -66,6 +68,7 @@ namespace oblo::json
                     {
                     case data_node_kind::array:
                         newNode = m_doc.array_push_back(parent.id);
+                        m_doc.make_object(newNode);
                         break;
                     case data_node_kind::object:
                         newNode = m_doc.child_object(parent.id, hashed_string_view{m_lastString});
@@ -81,7 +84,7 @@ namespace oblo::json
                     return true;
 
                 default:
-                    return false;
+                    return failure();
                 }
             }
 
@@ -89,12 +92,12 @@ namespace oblo::json
             {
                 if (m_state != state::name_or_object_end)
                 {
-                    return false;
+                    return failure();
                 }
 
                 if (m_stack.empty())
                 {
-                    return false;
+                    return failure();
                 }
 
                 m_stack.pop_back();
@@ -136,7 +139,7 @@ namespace oblo::json
                     return true;
 
                 default:
-                    return false;
+                    return failure();
                 }
             }
 
@@ -144,12 +147,12 @@ namespace oblo::json
             {
                 if (m_state != state::value_or_array_end)
                 {
-                    return false;
+                    return failure();
                 }
 
                 if (m_stack.empty())
                 {
-                    return false;
+                    return failure();
                 }
 
                 m_stack.pop_back();
@@ -180,7 +183,7 @@ namespace oblo::json
 
                     return true;
                 default:
-                    return false;
+                    return failure();
                 }
             }
 
@@ -195,10 +198,10 @@ namespace oblo::json
                         std::as_bytes(std::span{&value, 1}));
 
                     m_lastString.clear();
-                    m_state = state::name_or_object_end;
+                    m_state = next_state_from_stack();
                     return true;
                 default:
-                    return false;
+                    return failure();
                 }
             }
 
@@ -216,7 +219,7 @@ namespace oblo::json
                     m_state = next_state_from_stack();
                     return true;
                 default:
-                    return false;
+                    return failure();
                 }
             }
 
@@ -234,7 +237,7 @@ namespace oblo::json
                     m_state = next_state_from_stack();
                     return true;
                 default:
-                    return false;
+                    return failure();
                 }
             }
 
@@ -252,7 +255,7 @@ namespace oblo::json
                     m_state = next_state_from_stack();
                     return true;
                 default:
-                    return false;
+                    return failure();
                 }
             }
 
@@ -270,7 +273,7 @@ namespace oblo::json
                     m_state = next_state_from_stack();
                     return true;
                 default:
-                    return false;
+                    return failure();
                 }
             }
 
@@ -288,11 +291,17 @@ namespace oblo::json
                     m_state = next_state_from_stack();
                     return true;
                 default:
-                    return false;
+                    return failure();
                 }
             }
 
             bool Default()
+            {
+                OBLO_ASSERT(false);
+                return false;
+            }
+
+            bool failure()
             {
                 OBLO_ASSERT(false);
                 return false;
@@ -321,7 +330,7 @@ namespace oblo::json
         };
     }
 
-    bool read(data_document& doc, cstring_view source)
+    expected<> read(data_document& doc, cstring_view source)
     {
         const auto file = filesystem::file_ptr{filesystem::open_file(source, "r")};
 
@@ -350,20 +359,25 @@ namespace oblo::json
                         reader.GetErrorOffset());
                 }
 
-                return false;
+                return unspecified_error_tag{};
             }
         }
 
-        return !reader.HasParseError();
+        if (reader.HasParseError())
+        {
+            return unspecified_error_tag{};
+        }
+
+        return success_tag{};
     }
 
-    bool write(const data_document& doc, cstring_view destination)
+    expected<> write(const data_document& doc, cstring_view destination)
     {
         const u32 root = doc.get_root();
 
         if (root == data_node::Invalid)
         {
-            return false;
+            return unspecified_error_tag{};
         }
 
         const auto file = filesystem::file_ptr{filesystem::open_file(destination, "w")};
@@ -374,7 +388,7 @@ namespace oblo::json
         rapidjson::FileWriteStream ws{file.get(), buffer, bufferSize};
         rapidjson::PrettyWriter<rapidjson::FileWriteStream> writer{ws};
 
-        const std::span nodes = doc.get_nodes();
+        const auto& nodes = doc.get_nodes();
 
         const auto visit = [&](auto&& recurse, u32 node) -> void
         {
@@ -495,6 +509,6 @@ namespace oblo::json
 
         visit(visit, root);
 
-        return true;
+        return success_tag{};
     }
 }

@@ -27,7 +27,7 @@ namespace oblo::reflection
 
 namespace oblo::ecs_utility
 {
-    SCENE_API void register_reflected_component_types(const reflection::reflection_registry& reflection,
+    SCENE_API void register_reflected_component_and_tag_types(const reflection::reflection_registry& reflection,
         ecs::type_registry* typeRegistry,
         property_registry* propertyRegistry);
 

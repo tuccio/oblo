@@ -67,7 +67,8 @@ namespace oblo
             values readback{};
 
             visit(doc,
-                overload{[&](const string_view, data_node_object_start)
+                overload{
+                    [&](const string_view, data_node_object_start)
                     {
                         // We only have the root object
                         ++currentDepth;
@@ -144,7 +145,8 @@ namespace oblo
                         }
 
                         return visit_result::recurse;
-                    }});
+                    },
+                });
 
             ASSERT_EQ(numValues, 3);
 

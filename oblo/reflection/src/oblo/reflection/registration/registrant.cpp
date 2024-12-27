@@ -9,14 +9,44 @@
 
 namespace oblo::reflection
 {
-    u32 reflection_registry::registrant::add_type(const type_id& type, u32 size, u32 alignment, type_kind kind)
+    u32 reflection_registry::registrant::add_type(
+        const type_id& type, u32 size, u32 alignment, type_kind kind, bool* isNew)
     {
-        const auto [it, ok] = m_impl.typesMap.emplace(type, ecs::entity{});
-        OBLO_ASSERT(ok);
+        const auto [it, inserted] = m_impl.typesMap.emplace(type, ecs::entity{});
 
-        if (!ok)
+        if (isNew)
         {
-            return 0;
+            *isNew = inserted;
+        }
+
+        if (!inserted)
+        {
+            const ecs::entity e = it->second;
+            OBLO_ASSERT(e);
+
+            switch (kind)
+            {
+            case type_kind::fundamental_kind:
+                OBLO_ASSERT((m_impl.registry.has<type_data, fundamental_tag>(e)));
+                break;
+
+            case type_kind::class_kind:
+                OBLO_ASSERT((m_impl.registry.has<type_data, class_data>(e)));
+                break;
+
+            case type_kind::enum_kind:
+                OBLO_ASSERT((m_impl.registry.has<type_data, enum_data>(e)));
+                break;
+
+            case type_kind::array_kind:
+                OBLO_ASSERT((m_impl.registry.has<type_data, array_data>(e)));
+                break;
+
+            default:
+                unreachable();
+            }
+
+            return e.value;
         }
 
         ecs::entity e{};
@@ -35,9 +65,14 @@ namespace oblo::reflection
             e = m_impl.registry.create<type_data, enum_data>();
             break;
 
+        case type_kind::array_kind:
+            e = m_impl.registry.create<type_data, array_data>();
+            break;
+
         default:
             unreachable();
         }
+
         it->second = e;
 
         auto& typeData = m_impl.registry.get<type_data>(e);
@@ -53,9 +88,9 @@ namespace oblo::reflection
     }
 
     u32 reflection_registry::registrant::add_enum_type(
-        const type_id& type, u32 size, u32 alignment, const type_id& underlying)
+        const type_id& type, u32 size, u32 alignment, const type_id& underlying, bool* isNew)
     {
-        const auto e = add_type(type, size, alignment, type_kind::enum_kind);
+        const auto e = add_type(type, size, alignment, type_kind::enum_kind, isNew);
 
         if (e != 0)
         {
@@ -145,5 +180,12 @@ namespace oblo::reflection
 
         enumData.names.push_back(name);
         enumData.values.append(value.begin(), value.end());
+    }
+
+    void reflection_registry::registrant::make_array_type(u32 entityIndex, std::span<const usize> extents)
+    {
+        const ecs::entity e{entityIndex};
+        auto& arrayData = m_impl.registry.get<array_data>(e);
+        arrayData.extents.assign(extents.begin(), extents.end());
     }
 }

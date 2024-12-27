@@ -41,7 +41,7 @@ namespace oblo
 
         OBLO_FORCEINLINE constexpr hashed_string_view(const char8_t* str, usize length) : string_view{str, length} {}
 
-        template <sequential_container_of<char> C>
+        template <contiguous_container_of<char> C>
         OBLO_FORCEINLINE constexpr explicit hashed_string_view(const C& c) : string_view{c.data(), c.size()}
         {
         }

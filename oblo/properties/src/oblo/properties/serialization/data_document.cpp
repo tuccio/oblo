@@ -178,7 +178,7 @@ namespace oblo
         auto& newArray = m_nodes[newArrayIndex];
 
         auto& parent = m_nodes[parentIndex];
-        OBLO_ASSERT(parent.kind == data_node_kind::object);
+        OBLO_ASSERT(parent.kind == data_node_kind::object || parent.kind == data_node_kind::array);
 
         newArray = {
             .kind = data_node_kind::array,
@@ -353,7 +353,7 @@ namespace oblo
         ++parent.objectOrArray.childrenCount;
     }
 
-    std::span<const data_node> data_document::get_nodes() const
+    const deque<data_node>& data_document::get_nodes() const
     {
         return m_nodes;
     }
@@ -386,6 +386,23 @@ namespace oblo
     {
         auto& n = m_nodes[node];
         return hashed_string_view{string_view{n.key, n.keyLen}, n.keyHash};
+    }
+
+    expected<data_string, data_document::error> data_document::read_string(u32 node) const
+    {
+        auto& n = m_nodes[node];
+
+        if (n.kind != data_node_kind::value)
+        {
+            return error::node_kind_mismatch;
+        }
+
+        if (n.valueKind == property_kind::string)
+        {
+            return *reinterpret_cast<const data_string*>(n.value.data);
+        }
+
+        return error::value_kind_mismatch;
     }
 
     expected<bool, data_document::error> data_document::read_bool(u32 node) const

@@ -12,7 +12,8 @@ namespace oblo::reflection
         m_impl->typesRegistry.register_component(ecs::make_component_type_desc<type_data>());
         m_impl->typesRegistry.register_component(ecs::make_component_type_desc<class_data>());
         m_impl->typesRegistry.register_component(ecs::make_component_type_desc<enum_data>());
-        m_impl->typesRegistry.register_component(ecs::make_component_type_desc<fundamental_tag>());
+        m_impl->typesRegistry.register_component(ecs::make_component_type_desc<array_data>());
+        m_impl->typesRegistry.register_tag(ecs::make_tag_type_desc<fundamental_tag>());
     }
 
     reflection_registry::reflection_registry(reflection_registry&&) noexcept = default;

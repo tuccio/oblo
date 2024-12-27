@@ -106,6 +106,7 @@ namespace oblo::editor
                         return visit_result::recurse;
                     },
                     [&ptr](const property_node& node, const property_node_finish) { ptr -= node.offset; },
+                    [](const property_node&, const property_array&, auto&&) { return visit_result::sibling; },
                     [&ptr, &refl](const property& property)
                     {
                         const auto makeId = [&property] { return (int(hash_mix(property.offset, property.parent))); };
