@@ -10,9 +10,11 @@
 #include <oblo/editor/app/commands.hpp>
 #include <oblo/editor/editor_module.hpp>
 #include <oblo/editor/services/component_factory.hpp>
+#include <oblo/editor/services/log_queue.hpp>
 #include <oblo/editor/services/registered_commands.hpp>
 #include <oblo/editor/ui/style.hpp>
 #include <oblo/editor/windows/asset_browser.hpp>
+#include <oblo/editor/windows/console_window.hpp>
 #include <oblo/editor/windows/inspector.hpp>
 #include <oblo/editor/windows/scene_editing_window.hpp>
 #include <oblo/editor/windows/scene_hierarchy.hpp>
@@ -38,7 +40,24 @@ namespace oblo::editor
 {
     namespace
     {
-        void init_log()
+        class editor_log_sink final : public log::log_sink
+        {
+        public:
+            void sink(log::severity severity, cstring_view message) override
+            {
+                m_logQueue.push(severity, message);
+            }
+
+            log_queue& get_log_queue()
+            {
+                return m_logQueue;
+            }
+
+        private:
+            log_queue m_logQueue;
+        };
+
+        const log_queue* init_log()
         {
             auto& mm = module_manager::get();
 
@@ -48,6 +67,12 @@ namespace oblo::editor
 #ifdef WIN32
             logModule->add_sink(std::make_unique<log::win32_debug_sink>());
 #endif
+
+            auto logSink = std::make_unique<editor_log_sink>();
+            auto& queue = logSink->get_log_queue();
+            logModule->add_sink(std::move(logSink));
+
+            return &queue;
         }
     }
 
@@ -78,7 +103,7 @@ namespace oblo::editor
             return false;
         }
 
-        init_log();
+        m_logQueue = init_log();
 
         m_jobManager.init();
         return true;
@@ -141,6 +166,7 @@ namespace oblo::editor
             globalRegistry.add<const input_queue>().externally_owned(ctx.inputQueue);
             globalRegistry.add<component_factory>().unique();
             globalRegistry.add<const time_stats>().externally_owned(&m_timeStats);
+            globalRegistry.add<const log_queue>().externally_owned(m_logQueue);
 
             auto* const registeredCommands = globalRegistry.add<registered_commands>().unique();
             fill_commands(*registeredCommands);
@@ -155,6 +181,7 @@ namespace oblo::editor
             m_windowManager.create_child_window<inspector>(sceneEditingWindow);
             m_windowManager.create_child_window<scene_hierarchy>(sceneEditingWindow);
             m_windowManager.create_child_window<viewport>(sceneEditingWindow);
+            m_windowManager.create_child_window<console_window>(sceneEditingWindow);
         }
 
         m_lastFrameTime = clock::now();
