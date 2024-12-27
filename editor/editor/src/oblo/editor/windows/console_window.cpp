@@ -16,9 +16,6 @@
 
 #include <algorithm>
 
-// TODO: Remove
-#include <oblo/log/log.hpp>
-
 namespace oblo::editor
 {
     namespace
@@ -41,9 +38,7 @@ namespace oblo::editor
 
         void draw_message(log::severity severity, cstring_view msg)
         {
-            using namespace ImGui;
-
-            ImGuiWindow* window = GetCurrentWindow();
+            ImGuiWindow* window = ImGui::GetCurrentWindow();
 
             if (window->SkipItems)
             {
@@ -51,38 +46,21 @@ namespace oblo::editor
             }
 
             ImGuiContext& g = *GImGui;
-            BeginGroup();
-            // PushID(label);
-            // PushMultiItemsWidths(components, CalcItemWidth());
+            ImGui::BeginGroup();
 
-            auto table = GetCurrentTable();
+            auto table = ImGui::GetCurrentTable();
 
             {
-                /*              const ImVec2 min1 = GetItemRectMin();
-                              const ImVec2 max1 = GetItemRectMax();*/
+                ImGui::TextUnformatted(msg.begin(), msg.end());
 
-                // PushID(i);
-                // value_changed |= DragFloat("##v", &v[i], vSpeed, vMin, vMax, displayFormat, flags);
-                // SameLine(0, g.Style.ItemInnerSpacing.x);
-
-                TextUnformatted(msg.begin(), msg.end());
-                // draw_selectable_text(msg);
-
-                const ImVec2 min = GetItemRectMin();
-                const ImVec2 max = GetItemRectMax();
+                const ImVec2 min = ImGui::GetItemRectMin();
+                const ImVec2 max = ImGui::GetItemRectMax();
 
                 const auto color = g_severityColors[u32(severity)];
 
                 constexpr f32 thickness = 4.f;
-                // constexpr f32 spacing = 2 * thickness;
 
-                const auto& clipRect = TableGetCellBgRect(table, 0);
-                // const auto& clipRect = table->Columns[0].ClipRect;
-
-                /*      window->DrawList->AddLine({clipRect.Min.x, clipRect.Min.y},
-                          {clipRect.Min.x, clipRect.Max.y},
-                          color,
-                          thickness);*/
+                const auto& clipRect = ImGui::TableGetCellBgRect(table, 0);
 
                 const f32 x = clipRect.Min.x + .5f * thickness;
 
@@ -90,19 +68,10 @@ namespace oblo::editor
                     {x, max.y + g.Style.CellPadding.y},
                     color,
                     thickness);
-
-                // window->DrawList->AddLine({clipRect.Min.x, min.y}, {clipRect.Min.x, max.y}, color, thickness);
-
-                // SameLine(0, g.Style.ItemInnerSpacing.x);
-                //  PopID();
-                //  PopItemWidth();
             }
 
-            // PopID();
-
-            EndGroup();
+            ImGui::EndGroup();
         }
-
     }
 
     class console_window::filter
@@ -253,18 +222,6 @@ namespace oblo::editor
     bool console_window::update(const window_update_context&)
     {
         bool open{true};
-
-        // TODO: Remove
-        {
-            static u32 i = 0;
-            constexpr u32 N = 30;
-
-            if (i++ % N == 0)
-            {
-                log::severity s{(i / N) % (u32(log::severity::error) + 1)};
-                log::generic(s, "Test {}\nA\n\rB\nC", i);
-            }
-        }
 
         if (ImGui::Begin("Console", &open, ImGuiWindowFlags_NoScrollbar))
         {
