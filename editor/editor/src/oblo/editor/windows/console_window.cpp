@@ -112,7 +112,8 @@ namespace oblo::editor
         {
             bool needsRebuild = false;
 
-            if (ImGui::IsWindowFocused() && ImGui::IsKeyPressed(ImGuiKey_F) && ImGui::IsKeyDown(ImGuiMod_Ctrl))
+            if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows) && ImGui::IsKeyPressed(ImGuiKey_F) &&
+                ImGui::IsKeyDown(ImGuiMod_Ctrl))
             {
                 ImGui::SetKeyboardFocusHere();
             }
@@ -273,13 +274,18 @@ namespace oblo::editor
 
             ImGui::SameLine();
 
-            ui::toggle_button(ICON_FA_ARROWS_DOWN_TO_LINE, &m_autoScroll);
+            const bool autoScrollSetByUser = ui::toggle_button(ICON_FA_ARROWS_DOWN_TO_LINE, &m_autoScroll);
             ImGui::SetItemTooltip("Toggle auto-scroll");
 
             if (ImGui::BeginTable("#logs",
                     1,
                     ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_ScrollY))
             {
+                if (!autoScrollSetByUser && ImGui::GetScrollY() < ImGui::GetScrollMaxY())
+                {
+                    m_autoScroll = false;
+                }
+
                 ImGui::TableSetupColumn("Message", ImGuiTableColumnFlags_None);
 
                 string_builder buf;

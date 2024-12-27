@@ -13,5 +13,5 @@ namespace oblo::editor::ui
         const char* displayFormat = "%.3f",
         ImGuiSliderFlags flags = 0);
 
-    void toggle_button(const char* label, bool* enabled, const ImVec2& size = ImVec2(0, 0));
+    bool toggle_button(const char* label, bool* enabled, const ImVec2& size = ImVec2(0, 0));
 }

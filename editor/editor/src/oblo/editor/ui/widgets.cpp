@@ -73,9 +73,11 @@ namespace oblo::editor::ui
         return value_changed;
     }
 
-    void toggle_button(const char* label, bool* enabled, const ImVec2& size)
+    bool toggle_button(const char* label, bool* enabled, const ImVec2& size)
     {
         const bool isEnabled = *enabled;
+
+        bool wasPressed;
 
         if (isEnabled)
         {
@@ -85,7 +87,9 @@ namespace oblo::editor::ui
             ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.f);
         }
 
-        if (ImGui::Button(label, size))
+        wasPressed = ImGui::Button(label, size);
+
+        if (wasPressed)
         {
             *enabled = !*enabled;
         }
@@ -95,5 +99,7 @@ namespace oblo::editor::ui
             ImGui::PopStyleColor(2);
             ImGui::PopStyleVar();
         }
+
+        return wasPressed;
     }
 }
