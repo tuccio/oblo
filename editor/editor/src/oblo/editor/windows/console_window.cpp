@@ -1,6 +1,7 @@
 #include <oblo/editor/windows/console_window.hpp>
 
 #include <oblo/core/array_size.hpp>
+#include <oblo/core/flags.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/services/log_queue.hpp>
@@ -21,14 +22,16 @@ namespace oblo::editor
 {
     namespace
     {
-        constexpr cstring_view g_severityStrings[]{
+        constexpr u32 g_severityCount = 4;
+
+        constexpr cstring_view g_severityStrings[g_severityCount]{
             "Debug",
             "Info",
             "Warn",
             "Error",
         };
 
-        static constexpr ImU32 g_severityColors[] = {
+        static constexpr ImU32 g_severityColors[g_severityCount] = {
             colors::blue,
             colors::green,
             colors::yellow,
@@ -105,12 +108,65 @@ namespace oblo::editor
     public:
         void update(const deque<log_queue::message>& messages)
         {
+            bool needsRebuild = false;
+
             if (ImGui::InputTextWithHint("##search",
-                    "Search ... " ICON_FA_MAGNIFYING_GLASS,
+                    "Filter ... " ICON_FA_MAGNIFYING_GLASS,
                     m_impl.InputBuf,
                     array_size(m_impl.InputBuf)))
             {
                 m_impl.Build();
+                needsRebuild = true;
+            }
+
+            ImGui::SameLine();
+
+            if (ImGui::Button(ICON_FA_XMARK))
+            {
+                m_impl.Clear();
+                needsRebuild = true;
+            }
+
+            ImGui::SameLine();
+
+            ImGui::Button(ICON_FA_FILTER);
+
+            if (ImGui::BeginPopupContextItem(nullptr, ImGuiPopupFlags_MouseButtonLeft))
+            {
+                bool selectAll = m_disabledSeverities.is_empty();
+
+                if (ImGui::Checkbox("Select all", &selectAll))
+                {
+                    if (selectAll)
+                    {
+                        m_disabledSeverities = {};
+                    }
+                    else
+                    {
+                        m_disabledSeverities = {};
+                        m_disabledSeverities = ~m_disabledSeverities;
+                    }
+
+                    needsRebuild = true;
+                }
+
+                for (u32 i = 0; i < g_severityCount; ++i)
+                {
+                    const auto severity = log::severity(i);
+
+                    bool isEnabled = !m_disabledSeverities.contains(severity);
+                    if (ImGui::Checkbox(g_severityStrings[i].c_str(), &isEnabled))
+                    {
+                        m_disabledSeverities.assign(severity, !isEnabled);
+                        needsRebuild = true;
+                    }
+                }
+
+                ImGui::EndPopup();
+            }
+
+            if (needsRebuild)
+            {
                 rebuild(messages);
             }
             else
@@ -121,7 +177,7 @@ namespace oblo::editor
 
         bool is_active() const
         {
-            return m_impl.IsActive();
+            return m_isActive;
         }
 
         usize get_filtered_count() const
@@ -139,6 +195,7 @@ namespace oblo::editor
         {
             m_lastProcessedMessage = 0;
             m_filteredIndices.clear();
+            m_isActive = m_impl.IsActive() || !m_disabledSeverities.is_empty();
             incremental_filter(messages);
         }
 
@@ -153,7 +210,8 @@ namespace oblo::editor
             {
                 const auto& msg = messages[m_lastProcessedMessage];
 
-                if (m_impl.PassFilter(msg.content.begin(), msg.content.end()))
+                if (!m_disabledSeverities.contains(msg.severity) &&
+                    m_impl.PassFilter(msg.content.begin(), msg.content.end()))
                 {
                     m_filteredIndices.emplace_back(m_lastProcessedMessage);
                 }
@@ -164,6 +222,8 @@ namespace oblo::editor
         ImGuiTextFilter m_impl{};
         usize m_lastProcessedMessage{};
         deque<usize> m_filteredIndices;
+        flags<log::severity, g_severityCount> m_disabledSeverities{};
+        bool m_isActive{};
     };
 
     console_window::console_window() = default;
