@@ -110,8 +110,7 @@ namespace oblo::ecs_serializer
                             ptrStack.assign(1, componentPtr);
 
                             auto visitor = overload{
-                                [&doc, &propertyTree, &nodeStack, &ptrStack](const property_node& node,
-                                    const property_node_start)
+                                [&doc, &nodeStack, &ptrStack](const property_node& node, const property_node_start)
                                 {
                                     byte* const ptr = ptrStack.back() + node.offset;
 
@@ -156,8 +155,6 @@ namespace oblo::ecs_serializer
                                 [&doc, &nodeStack, &ptrStack](const property& property)
                                 {
                                     byte* const propertyPtr = ptrStack.back() + property.offset;
-
-                                    std::span<const byte> propertyData;
 
                                     if (property.kind == property_kind::string)
                                     {
@@ -282,8 +279,7 @@ namespace oblo::ecs_serializer
                         ptrStack.assign(1, componentPtr);
 
                         auto visitor = overload{
-                            [&doc, &propertyTree, &nodeStack, &ptrStack](const property_node& node,
-                                const property_node_start)
+                            [&doc, &nodeStack, &ptrStack](const property_node& node, const property_node_start)
                             {
                                 if (node.name == notable_properties::array_element)
                                 {
@@ -356,8 +352,6 @@ namespace oblo::ecs_serializer
                             [&doc, &nodeStack, &ptrStack](const property& property)
                             {
                                 byte* const propertyPtr = ptrStack.back() + property.offset;
-
-                                std::span<const byte> propertyData;
 
                                 const auto parent = nodeStack.back();
 

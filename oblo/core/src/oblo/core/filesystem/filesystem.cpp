@@ -32,13 +32,6 @@ namespace oblo::filesystem
             return allocator.allocate(size, alignment);
         }
 
-        char* finalize_impl(string_builder& allocator, usize size, usize)
-        {
-            allocator.clear().resize(size);
-            auto* const m = allocator.mutable_data().data();
-            return m;
-        }
-
         template <typename T>
         void finalize_impl(const T&, usize)
         {

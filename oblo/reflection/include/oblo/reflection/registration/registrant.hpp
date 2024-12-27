@@ -221,8 +221,6 @@ namespace oblo::reflection
     template <typename T>
     void reflection_registry::registrant::auto_register()
     {
-        const auto type = get_type_id<T>();
-
         type_kind kind{};
 
         if constexpr (std::is_class_v<T>)

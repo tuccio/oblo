@@ -102,6 +102,10 @@ namespace oblo
                 cfg.skipTypes.components.add(typeRegistry.find_component<global_transform_component>());
                 jsonPath.append(testDir).append_path("json_serialization_skip_global_transform.json");
                 break;
+
+            default:
+                OBLO_ASSERT(false);
+                break;
             }
 
             {
