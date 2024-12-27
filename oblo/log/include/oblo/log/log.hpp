@@ -18,7 +18,7 @@ namespace oblo::log
     namespace detail
     {
         static constexpr usize MaxLogMessageLength{1023u};
-        void sink_it(severity severity, char* str, usize n);
+        LOG_API void sink_it(severity severity, char* str, usize n);
     }
 
     template <typename... Args>

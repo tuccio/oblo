@@ -19,6 +19,9 @@
 #include <oblo/editor/windows/style_window.hpp>
 #include <oblo/editor/windows/viewport.hpp>
 #include <oblo/input/input_queue.hpp>
+#include <oblo/log/log_module.hpp>
+#include <oblo/log/sinks/file_sink.hpp>
+#include <oblo/log/sinks/win32_debug_sink.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_manager.hpp>
@@ -33,6 +36,21 @@
 
 namespace oblo::editor
 {
+    namespace
+    {
+        void init_log()
+        {
+            auto& mm = module_manager::get();
+
+            auto* const logModule = mm.load<oblo::log::log_module>();
+            logModule->add_sink(std::make_unique<log::file_sink>(stderr));
+
+#ifdef WIN32
+            logModule->add_sink(std::make_unique<log::win32_debug_sink>());
+#endif
+        }
+    }
+
     std::span<const char* const> app::get_required_instance_extensions() const
     {
         return runtime::get_required_vulkan_features().instanceExtensions;
@@ -60,6 +78,8 @@ namespace oblo::editor
             return false;
         }
 
+        init_log();
+
         m_jobManager.init();
         return true;
     }
@@ -69,6 +89,7 @@ namespace oblo::editor
         init_ui_style();
 
         auto& mm = module_manager::get();
+
         auto* const runtime = mm.load<oblo::runtime_module>();
         auto* const reflection = mm.load<oblo::reflection::reflection_module>();
         mm.load<importers::importers_module>();

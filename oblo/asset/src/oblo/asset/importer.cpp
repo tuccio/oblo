@@ -6,7 +6,7 @@
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/formatters/uuid_formatter.hpp>
-#include <oblo/core/log.hpp>
+#include <oblo/log/log.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/core/uuid_generator.hpp>

@@ -9,10 +9,10 @@
 #include <oblo/core/hash.hpp>
 #include <oblo/core/iterator/enum_range.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
-#include <oblo/core/log.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/string/string_interner.hpp>
 #include <oblo/core/unreachable.hpp>
+#include <oblo/log/log.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/compute_pass_initializer.hpp>

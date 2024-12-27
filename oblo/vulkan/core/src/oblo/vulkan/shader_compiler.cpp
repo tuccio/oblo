@@ -5,7 +5,7 @@
 #include <oblo/core/filesystem/file.hpp>
 #include <oblo/core/finally.hpp>
 #include <oblo/core/frame_allocator.hpp>
-#include <oblo/core/log.hpp>
+#include <oblo/log/log.hpp>
 
 #include <glslang/SPIRV/GlslangToSpv.h>
 

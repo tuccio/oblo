@@ -10,10 +10,10 @@
 #include <oblo/asset/processing/mesh_processing.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
-#include <oblo/core/log.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/uuid.hpp>
+#include <oblo/log/log.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/properties/property_kind.hpp>

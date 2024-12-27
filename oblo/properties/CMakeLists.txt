@@ -6,5 +6,6 @@ target_link_libraries(
     oblo::core
     oblo::reflection
     PRIVATE
+    oblo::log
     rapidjson
 )

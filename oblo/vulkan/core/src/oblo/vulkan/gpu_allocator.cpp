@@ -1,7 +1,7 @@
 #include <oblo/vulkan/gpu_allocator.hpp>
 
 #include <oblo/core/debug.hpp>
-#include <oblo/core/log.hpp>
+#include <oblo/log/log.hpp>
 
 #pragma warning(push)
 #pragma warning(disable : 4100 4127 4189 4324 4505)

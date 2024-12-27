@@ -6,6 +6,7 @@ target_link_libraries(
     oblo::core
     Vulkan::Headers
     PRIVATE
+    oblo::log
     Vulkan::Vulkan
     vulkan-memory-allocator::vulkan-memory-allocator
     glslang::glslang

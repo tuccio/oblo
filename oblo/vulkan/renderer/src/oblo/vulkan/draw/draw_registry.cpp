@@ -7,12 +7,12 @@
 #include <oblo/core/flags.hpp>
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
-#include <oblo/core/log.hpp>
 #include <oblo/ecs/archetype_storage.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/range.hpp>
 #include <oblo/ecs/type_set.hpp>
 #include <oblo/ecs/utility/registration.hpp>
+#include <oblo/log/log.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_ref.hpp>
 #include <oblo/resource/resource_registry.hpp>

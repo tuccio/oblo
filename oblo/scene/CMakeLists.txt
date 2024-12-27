@@ -8,6 +8,7 @@ target_link_libraries(
     oblo::modules
     oblo::resource
     PRIVATE
+    oblo::log
     oblo::properties
     KTX::ktx
     nlohmann_json::nlohmann_json

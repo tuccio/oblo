@@ -9,6 +9,7 @@ target_link_libraries(
     oblo::modules
     oblo::scene
     PRIVATE
+    oblo::log
     oblo::runtime
     oblo::thread
     meshoptimizer::meshoptimizer

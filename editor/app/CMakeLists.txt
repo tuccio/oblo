@@ -9,6 +9,7 @@ target_link_libraries(
     oblo::ecs
     oblo::graphics
     oblo::importers
+    oblo::log
     oblo::modules
     oblo::sandbox
     oblo::scene

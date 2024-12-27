@@ -2,8 +2,8 @@
 
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/buffered_array.hpp>
-#include <oblo/core/log.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/log/log.hpp>
 #include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/destroy_device_objects.hpp>
 #include <oblo/vulkan/error.hpp>

@@ -4,13 +4,13 @@
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/importer.hpp>
 #include <oblo/core/debug.hpp>
-#include <oblo/core/log.hpp>
 #include <oblo/core/platform/shell.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/time/clock.hpp>
 #include <oblo/editor/data/drag_and_drop_payload.hpp>
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/window_update_context.hpp>
+#include <oblo/log/log.hpp>
 
 #include <imgui.h>
 
