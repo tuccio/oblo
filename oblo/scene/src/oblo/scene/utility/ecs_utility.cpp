@@ -3,6 +3,7 @@
 #include <oblo/core/log.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/entity_registry.hpp>
+#include <oblo/ecs/tag_type_desc.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/math/transform.hpp>
 #include <oblo/properties/property_registry.hpp>
@@ -17,58 +18,104 @@
 namespace oblo::ecs
 {
     struct component_type_tag;
+    struct tag_type_tag;
 }
 
 namespace oblo::ecs_utility
 {
-    void register_reflected_component_types(const reflection::reflection_registry& reflection,
-        ecs::type_registry* typeRegistry,
-        property_registry* propertyRegistry)
+    namespace
     {
-        dynamic_array<reflection::type_handle> componentTypes;
-        reflection.find_by_tag<ecs::component_type_tag>(componentTypes);
-
-        if (typeRegistry)
+        void register_reflected_component_types(const reflection::reflection_registry& reflection,
+            ecs::type_registry* typeRegistry,
+            property_registry* propertyRegistry,
+            dynamic_array<reflection::type_handle>& componentTypes)
         {
-            for (const auto typeHandle : componentTypes)
+            componentTypes.clear();
+            reflection.find_by_tag<ecs::component_type_tag>(componentTypes);
+
+            if (typeRegistry)
             {
-                const auto typeData = reflection.get_type_data(typeHandle);
-
-                if (typeRegistry->find_component(typeData.type))
+                for (const auto typeHandle : componentTypes)
                 {
-                    continue;
+                    const auto typeData = reflection.get_type_data(typeHandle);
+
+                    if (typeRegistry->find_component(typeData.type))
+                    {
+                        continue;
+                    }
+
+                    const auto rte = reflection.find_concept<reflection::ranged_type_erasure>(typeHandle);
+
+                    if (rte)
+                    {
+                        const ecs::component_type_desc desc{
+                            .type = typeData.type,
+                            .size = typeData.size,
+                            .alignment = typeData.alignment,
+                            .create = rte->create,
+                            .destroy = rte->destroy,
+                            .move = rte->move,
+                            .moveAssign = rte->moveAssign,
+                        };
+
+                        if (!typeRegistry->register_component(desc))
+                        {
+                            log::error("Failed to register component {}", typeData.type.name);
+                        }
+                    }
                 }
+            }
 
-                const auto rte = reflection.find_concept<reflection::ranged_type_erasure>(typeHandle);
-
-                if (rte)
+            if (propertyRegistry)
+            {
+                for (const auto typeHandle : componentTypes)
                 {
-                    const ecs::component_type_desc desc{
+                    const auto typeData = reflection.get_type_data(typeHandle);
+                    propertyRegistry->build_from_reflection(typeData.type);
+                }
+            }
+        }
+
+        void register_reflected_tag_types(const reflection::reflection_registry& reflection,
+            ecs::type_registry* typeRegistry,
+            dynamic_array<reflection::type_handle>& tagTypes)
+        {
+            tagTypes.clear();
+            reflection.find_by_tag<ecs::tag_type_tag>(tagTypes);
+
+            if (typeRegistry)
+            {
+                for (const auto typeHandle : tagTypes)
+                {
+                    const auto typeData = reflection.get_type_data(typeHandle);
+
+                    if (typeRegistry->find_tag(typeData.type))
+                    {
+                        continue;
+                    }
+
+                    const ecs::tag_type_desc desc{
                         .type = typeData.type,
-                        .size = typeData.size,
-                        .alignment = typeData.alignment,
-                        .create = rte->create,
-                        .destroy = rte->destroy,
-                        .move = rte->move,
-                        .moveAssign = rte->moveAssign,
                     };
 
-                    if (!typeRegistry->register_component(desc))
+                    if (!typeRegistry->register_tag(desc))
                     {
-                        log::error("Failed to register component {}", typeData.type.name);
+                        log::error("Failed to register tag {}", typeData.type.name);
                     }
                 }
             }
         }
+    }
 
-        if (propertyRegistry)
-        {
-            for (const auto typeHandle : componentTypes)
-            {
-                const auto typeData = reflection.get_type_data(typeHandle);
-                propertyRegistry->build_from_reflection(typeData.type);
-            }
-        }
+    void register_reflected_component_and_tag_types(const reflection::reflection_registry& reflection,
+        ecs::type_registry* typeRegistry,
+        property_registry* propertyRegistry)
+    {
+        dynamic_array<reflection::type_handle> types;
+        types.reserve(128);
+
+        register_reflected_component_types(reflection, typeRegistry, propertyRegistry, types);
+        register_reflected_tag_types(reflection, typeRegistry, types);
     }
 
     ecs::entity create_named_physical_entity(ecs::entity_registry& registry,

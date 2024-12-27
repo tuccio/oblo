@@ -330,7 +330,7 @@ namespace oblo::json
         };
     }
 
-    bool read(data_document& doc, cstring_view source)
+    expected<> read(data_document& doc, cstring_view source)
     {
         const auto file = filesystem::file_ptr{filesystem::open_file(source, "r")};
 
@@ -359,20 +359,25 @@ namespace oblo::json
                         reader.GetErrorOffset());
                 }
 
-                return false;
+                return unspecified_error_tag{};
             }
         }
 
-        return !reader.HasParseError();
+        if (reader.HasParseError())
+        {
+            return unspecified_error_tag{};
+        }
+
+        return success_tag{};
     }
 
-    bool write(const data_document& doc, cstring_view destination)
+    expected<> write(const data_document& doc, cstring_view destination)
     {
         const u32 root = doc.get_root();
 
         if (root == data_node::Invalid)
         {
-            return false;
+            return unspecified_error_tag{};
         }
 
         const auto file = filesystem::file_ptr{filesystem::open_file(destination, "w")};
@@ -504,6 +509,6 @@ namespace oblo::json
 
         visit(visit, root);
 
-        return true;
+        return success_tag{};
     }
 }

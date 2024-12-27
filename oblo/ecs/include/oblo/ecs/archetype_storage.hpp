@@ -21,6 +21,7 @@ namespace oblo::ecs
     component_and_tag_sets get_component_and_tag_sets(const archetype_storage& storage);
 
     std::span<const component_type> get_component_types(const archetype_storage& storage);
+    std::span<const tag_type> get_tag_types(const archetype_storage& storage);
 
     u32 get_used_chunks_count(const archetype_storage& storage);
 

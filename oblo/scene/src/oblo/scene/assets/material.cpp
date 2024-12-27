@@ -109,7 +109,7 @@ namespace oblo
             }
         }
 
-        return json::write(doc, destination);
+        return json::write(doc, destination).has_value();
     }
 
     bool material::load(cstring_view source)

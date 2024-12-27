@@ -90,7 +90,7 @@ namespace oblo
             return false;
         }
 
-        ecs_utility::register_reflected_component_types(*initializer.reflectionRegistry,
+        ecs_utility::register_reflected_component_and_tag_types(*initializer.reflectionRegistry,
             &m_impl->typeRegistry,
             initializer.propertyRegistry);
 

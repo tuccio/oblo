@@ -103,6 +103,7 @@ namespace oblo::ecs
             if constexpr (is_tag_v<T>)
             {
                 const auto tag = typeRegistry.find_tag<T>();
+                OBLO_ASSERT(tag);
 
                 if (tag)
                 {
@@ -112,6 +113,7 @@ namespace oblo::ecs
             else
             {
                 const auto component = typeRegistry.find_component<T>();
+                OBLO_ASSERT(component);
 
                 if (component)
                 {

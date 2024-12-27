@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/expected.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 
 namespace oblo
@@ -9,7 +10,7 @@ namespace oblo
 
 namespace oblo::json
 {
-    bool read(data_document& doc, cstring_view source);
+    expected<> read(data_document& doc, cstring_view source);
 
-    bool write(const data_document& doc, cstring_view destination);
+    expected<> write(const data_document& doc, cstring_view destination);
 }

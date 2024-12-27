@@ -12,6 +12,7 @@
 #include <oblo/graphics/systems/scene_renderer.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
+#include <oblo/scene/components/tags.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
 #include <oblo/vulkan/data/blur_configs.hpp>
 #include <oblo/vulkan/data/light_data.hpp>
@@ -41,7 +42,7 @@ namespace oblo
         m_sceneRenderer->ensure_setup();
 
         // Hacky setup for directional light
-        const auto e = ecs_utility::create_named_physical_entity<light_component>(*ctx.entities,
+        const auto e = ecs_utility::create_named_physical_entity<light_component, transient_tag>(*ctx.entities,
             "Sun",
             {},
             quaternion::from_euler_xyz_intrinsic(degrees_tag{}, vec3{.x = -53.f, .y = -8.f, .z = -32.f}),

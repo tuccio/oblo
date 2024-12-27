@@ -420,11 +420,7 @@ namespace oblo::ecs
 
         auto& newStorage = m_componentsStorage.emplace_back();
 
-        component_type typeHandlesArray[MaxComponentTypes];
-
-        const std::span typeHandles = make_type_span(typeHandlesArray, types.components);
-
-        newStorage.archetype = create_archetype_impl(*m_pool, *m_typeRegistry, types, typeHandles);
+        newStorage.archetype = create_archetype_impl(*m_pool, *m_typeRegistry, types);
 
         return newStorage;
     }

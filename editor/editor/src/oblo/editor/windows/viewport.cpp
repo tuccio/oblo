@@ -22,6 +22,7 @@
 #include <oblo/scene/assets/model.hpp>
 #include <oblo/scene/components/position_component.hpp>
 #include <oblo/scene/components/rotation_component.hpp>
+#include <oblo/scene/components/tags.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
 
 #include <imgui.h>
@@ -96,11 +97,13 @@ namespace oblo::editor
 
             if (!m_entity)
             {
-                m_entity = ecs_utility::create_named_physical_entity<camera_component, viewport_component>(*m_entities,
-                    buffer.format("Viewport Camera #{}", m_viewportId).view(),
-                    m_cameraController.get_position(),
-                    m_cameraController.get_orientation(),
-                    vec3::splat(1));
+                m_entity =
+                    ecs_utility::create_named_physical_entity<camera_component, viewport_component, transient_tag>(
+                        *m_entities,
+                        buffer.format("Viewport Camera #{}", m_viewportId).view(),
+                        m_cameraController.get_position(),
+                        m_cameraController.get_orientation(),
+                        vec3::splat(1));
 
                 auto& camera = m_entities->get<camera_component>(m_entity);
                 camera.near = 0.01f;

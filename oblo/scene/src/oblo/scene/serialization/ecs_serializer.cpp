@@ -5,6 +5,7 @@
 #include <oblo/ecs/archetype_storage.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/entity_registry.hpp>
+#include <oblo/ecs/tag_type_desc.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/property_registry.hpp>
@@ -30,7 +31,7 @@ namespace oblo::ecs_serializer
         u32 docRoot,
         const ecs::entity_registry& reg,
         const property_registry& propertyRegistry,
-        const write_config&)
+        const write_config& cfg)
     {
         const u32 entitiesArray = doc.child_array(docRoot, json_strings::entitiesArray);
 
@@ -48,18 +49,33 @@ namespace oblo::ecs_serializer
 
         for (const auto& archetype : archetypes)
         {
+            const auto componentsAndTags = get_component_and_tag_sets(archetype);
+
+            if (!componentsAndTags.components.intersection(cfg.skipEntities.components).is_empty() ||
+                !componentsAndTags.tags.intersection(cfg.skipEntities.tags).is_empty())
+            {
+                continue;
+            }
+
             const std::span componentTypes = ecs::get_component_types(archetype);
             componentOffsets.assign_default(componentTypes.size());
             componentArrays.assign_default(componentTypes.size());
+
+            const std::span tagTypes = ecs::get_tag_types(archetype);
 
             ecs::for_each_chunk(archetype,
                 componentTypes,
                 componentOffsets,
                 componentArrays,
-                [&doc, entitiesArray, &componentTypes, &typeRegistry, &propertyRegistry, &nodeStack, &ptrStack](
-                    const ecs::entity*,
-                    std::span<std::byte*> componentArrays,
-                    u32 numEntitiesInChunk)
+                [&cfg,
+                    &doc,
+                    entitiesArray,
+                    &componentTypes,
+                    &tagTypes,
+                    &typeRegistry,
+                    &propertyRegistry,
+                    &nodeStack,
+                    &ptrStack](const ecs::entity*, std::span<std::byte*> componentArrays, u32 numEntitiesInChunk)
                 {
                     nodeStack.clear();
                     ptrStack.clear();
@@ -71,6 +87,11 @@ namespace oblo::ecs_serializer
 
                         for (u32 j = 0; j < componentTypes.size(); ++j)
                         {
+                            if (cfg.skipTypes.components.contains(componentTypes[j]))
+                            {
+                                continue;
+                            }
+
                             const auto& componentTypeDesc = typeRegistry.get_component_type_desc(componentTypes[j]);
 
                             const auto componentNode = doc.child_object(entityNode, componentTypeDesc.type.name);
@@ -168,6 +189,16 @@ namespace oblo::ecs_serializer
 
                             visit(*propertyTree, visitor);
                         }
+
+                        for (u32 j = 0; j < tagTypes.size(); ++j)
+                        {
+                            const auto tagType = tagTypes[j];
+
+                            if (!cfg.skipTypes.tags.contains(tagType))
+                            {
+                                doc.child_object(entityNode, typeRegistry.get_tag_type_desc(tagType).type.name);
+                            }
+                        }
                     }
                 });
         }
@@ -210,11 +241,17 @@ namespace oblo::ecs_serializer
                  component = doc.child_next(child, component))
             {
                 const auto componentType = doc.get_node_name(component);
-                const auto componentTypeId = typeRegistry.find_component(type_id{.name = componentType});
+                const auto type = type_id{.name = componentType};
+
+                const auto componentTypeId = typeRegistry.find_component(type);
 
                 if (componentTypeId)
                 {
                     types.components.add(componentTypeId);
+                }
+                else if (const auto tagTypeId = typeRegistry.find_tag(type))
+                {
+                    types.tags.add(tagTypeId);
                 }
 
                 componentTypes.push_back(componentTypeId);

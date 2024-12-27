@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <oblo/core/filesystem/filesystem.hpp>
+#include <oblo/core/iterator/enum_range.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/math/quaternion.hpp>
@@ -17,6 +18,7 @@
 #include <oblo/scene/components/position_component.hpp>
 #include <oblo/scene/components/rotation_component.hpp>
 #include <oblo/scene/components/scale_component.hpp>
+#include <oblo/scene/components/tags.hpp>
 #include <oblo/scene/scene_module.hpp>
 #include <oblo/scene/serialization/ecs_serializer.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
@@ -46,9 +48,11 @@ namespace oblo
                 propertyRegistry.init(reflectionRegistry);
             }
 
-            void register_reflected_component_types()
+            void register_from_reflection()
             {
-                ecs_utility::register_reflected_component_types(reflectionRegistry, &typeRegistry, &propertyRegistry);
+                ecs_utility::register_reflected_component_and_tag_types(reflectionRegistry,
+                    &typeRegistry,
+                    &propertyRegistry);
             }
 
             reflection::reflection_registry::registrant get_reflection_registrant()
@@ -68,60 +72,117 @@ namespace oblo
 
     TEST_F(ecs_serialization_test, json_serialization)
     {
-        register_reflected_component_types();
+        register_from_reflection();
 
-        const auto jsonPath = string_builder{}.append(testDir).append_path("json_serialization.json");
-
+        enum class test_mode
         {
-            ecs::entity_registry reg;
-            reg.init(&typeRegistry);
+            no_flags,
+            skip_transitive,
+            skip_global_transform,
+            enum_max,
+        };
 
-            ecs_utility::create_named_physical_entity(reg, "A", vec3{}, quaternion::identity(), vec3::splat(1.f));
-            ecs_utility::create_named_physical_entity(reg,
-                "B",
-                vec3::splat(1.f),
-                quaternion::identity(),
-                vec3::splat(3.f));
-
-            data_document doc;
-            doc.init();
-
-            ASSERT_TRUE(ecs_serializer::write(doc, doc.get_root(), reg, propertyRegistry));
-            ASSERT_TRUE(json::write(doc, jsonPath));
-        }
-
+        for (auto mode : enum_range<test_mode>())
         {
-            data_document doc;
+            ecs_serializer::write_config cfg;
+            string_builder jsonPath;
 
-            ASSERT_TRUE(json::read(doc, jsonPath));
-
-            ecs::entity_registry reg;
-            reg.init(&typeRegistry);
-
-            ASSERT_TRUE(ecs_serializer::read(reg, doc, doc.get_root(), propertyRegistry));
-
-            for (const auto e : reg.entities())
+            switch (mode)
             {
-                const auto& name = reg.get<name_component>(e);
-                const auto& position = reg.get<position_component>(e);
-                const auto& scale = reg.get<scale_component>(e);
-                const auto& rotation = reg.get<rotation_component>(e);
+            case test_mode::no_flags:
+                jsonPath.append(testDir).append_path("json_serialization_no_flags.json");
+                break;
 
-                if (name.value == "A")
+            case test_mode::skip_transitive:
+                cfg.skipEntities.tags.add(typeRegistry.find_tag<transient_tag>());
+                jsonPath.append(testDir).append_path("json_serialization_skip_transitive.json");
+                break;
+
+            case test_mode::skip_global_transform:
+                cfg.skipTypes.components.add(typeRegistry.find_component<global_transform_component>());
+                jsonPath.append(testDir).append_path("json_serialization_skip_global_transform.json");
+                break;
+            }
+
+            {
+                ecs::entity_registry reg;
+                reg.init(&typeRegistry);
+
+                ecs_utility::create_named_physical_entity(reg, "A", vec3{}, quaternion::identity(), vec3::splat(1.f));
+                ecs_utility::create_named_physical_entity(reg,
+                    "B",
+                    vec3::splat(1.f),
+                    quaternion::identity(),
+                    vec3::splat(3.f));
+
+                ecs_utility::create_named_physical_entity<transient_tag>(reg, "C", {}, quaternion::identity(), {});
+
+                data_document doc;
+                doc.init();
+
+                ASSERT_TRUE(ecs_serializer::write(doc, doc.get_root(), reg, propertyRegistry, cfg));
+                ASSERT_TRUE(json::write(doc, jsonPath));
+            }
+
+            {
+                data_document doc;
+
+                ASSERT_TRUE(json::read(doc, jsonPath));
+
+                ecs::entity_registry reg;
+                reg.init(&typeRegistry);
+
+                ASSERT_TRUE(ecs_serializer::read(reg, doc, doc.get_root(), propertyRegistry));
+
+                auto&& entities = reg.entities();
+
+                ASSERT_EQ(entities.size(), mode == test_mode::skip_transitive ? 2 : 3);
+
+                for (const auto e : entities)
                 {
-                    ASSERT_EQ(position.value, vec3::splat(0.f));
-                    ASSERT_EQ(scale.value, vec3::splat(1.f));
-                    ASSERT_EQ(rotation.value, quaternion::identity());
-                }
-                else if (name.value == "B")
-                {
-                    ASSERT_EQ(position.value, vec3::splat(1.f));
-                    ASSERT_EQ(scale.value, vec3::splat(3.f));
-                    ASSERT_EQ(rotation.value, quaternion::identity());
-                }
-                else
-                {
-                    ASSERT_TRUE(false);
+                    const auto& name = reg.get<name_component>(e);
+                    const auto& position = reg.get<position_component>(e);
+                    const auto& scale = reg.get<scale_component>(e);
+                    const auto& rotation = reg.get<rotation_component>(e);
+                    const auto* const transform = reg.try_get<global_transform_component>(e);
+
+                    if (name.value == "A")
+                    {
+                        ASSERT_EQ(position.value, vec3::splat(0.f));
+                        ASSERT_EQ(scale.value, vec3::splat(1.f));
+                        ASSERT_EQ(rotation.value, quaternion::identity());
+
+                        ASSERT_FALSE(reg.has<transient_tag>(e));
+                    }
+                    else if (name.value == "B")
+                    {
+                        ASSERT_EQ(position.value, vec3::splat(1.f));
+                        ASSERT_EQ(scale.value, vec3::splat(3.f));
+                        ASSERT_EQ(rotation.value, quaternion::identity());
+
+                        ASSERT_FALSE(reg.has<transient_tag>(e));
+                    }
+                    else if (name.value == "C")
+                    {
+                        ASSERT_EQ(position.value, vec3::splat(0.f));
+                        ASSERT_EQ(scale.value, vec3::splat(0.f));
+                        ASSERT_EQ(rotation.value, quaternion::identity());
+
+                        ASSERT_TRUE(reg.has<transient_tag>(e));
+                    }
+                    else
+                    {
+                        ASSERT_TRUE(false);
+                    }
+
+                    if (mode == test_mode::skip_global_transform)
+                    {
+                        ASSERT_FALSE(transform);
+                    }
+                    else
+                    {
+                        ASSERT_TRUE(transform);
+                    }
                 }
             }
         }
@@ -170,7 +231,7 @@ namespace oblo
                 .add_ranged_type_erasure();
         }
 
-        register_reflected_component_types();
+        register_from_reflection();
 
         const auto jsonPath = string_builder{}.append(testDir).append_path("json_arrays.json");
 

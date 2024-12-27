@@ -14,20 +14,63 @@ namespace oblo::ecs
     static_assert(sizeof(chunk) == ChunkWithHeaderSize);
     static_assert(MaxComponentTypes <= std::numeric_limits<decltype(archetype_impl::numComponents)>::max());
 
-    archetype_impl* create_archetype_impl(memory_pool& pool,
-        const type_registry& typeRegistry,
-        const component_and_tag_sets& types,
-        std::span<const component_type> components)
+    namespace
     {
+        template <typename T, usize N>
+        std::span<T> make_type_span(std::span<T, N> inOut, type_set current)
+        {
+            u32 count{0};
+
+            for (usize i = 0; i < array_size(current.bitset); ++i)
+            {
+                const u64 v = current.bitset[i];
+
+                if (v == 0)
+                {
+                    continue;
+                }
+
+                u32 nextId = u32(i * 32);
+
+                // TODO: Could use bitscan reverse instead
+                for (u64 mask = 1; mask != 0; mask <<= 1)
+                {
+                    if (v & mask)
+                    {
+                        inOut[count] = T{nextId};
+                        ++count;
+                    }
+
+                    ++nextId;
+                }
+            }
+
+            return inOut.subspan(0, count);
+        }
+    }
+
+    archetype_impl* create_archetype_impl(
+        memory_pool& pool, const type_registry& typeRegistry, const component_and_tag_sets& types)
+    {
+
+        component_type componentTypeHandlesArray[MaxComponentTypes];
+        tag_type tagTypeHandlesArray[MaxTagTypes];
+
+        const std::span components = make_type_span(std::span{componentTypeHandlesArray}, types.components);
+        const std::span tags = make_type_span(std::span{tagTypeHandlesArray}, types.tags);
+
         OBLO_ASSERT(std::is_sorted(components.begin(), components.end()));
         const u8 numComponents = u8(components.size());
+        const u8 numTags = u8(tags.size());
 
         archetype_impl* storage = new (pool.allocate<archetype_impl>()) archetype_impl{
             .types = types,
             .numComponents = numComponents,
+            .numTags = numTags,
         };
 
         pool.create_array_uninitialized(storage->components, numComponents);
+        pool.create_array_uninitialized(storage->tags, numTags);
         pool.create_array_uninitialized(storage->offsets, numComponents);
         pool.create_array_uninitialized(storage->sizes, numComponents);
         pool.create_array_uninitialized(storage->alignments, numComponents);
@@ -38,6 +81,7 @@ namespace oblo::ecs
 #endif
 
         std::memcpy(storage->components, components.data(), components.size_bytes());
+        std::memcpy(storage->tags, tags.data(), tags.size_bytes());
 
         usize columnsSizeSum = sizeof(entity) + sizeof(entity_tags);
 
@@ -151,6 +195,7 @@ namespace oblo::ecs
         if (numComponents != 0)
         {
             pool.deallocate_array(storage->components, numComponents);
+            pool.deallocate_array(storage->tags, storage->numTags);
             pool.deallocate_array(storage->offsets, numComponents);
             pool.deallocate_array(storage->sizes, numComponents);
             pool.deallocate_array(storage->alignments, numComponents);
@@ -162,37 +207,6 @@ namespace oblo::ecs
         }
 
         pool.deallocate(storage);
-    }
-
-    std::span<component_type> make_type_span(std::span<component_type, MaxComponentTypes> inOut, type_set current)
-    {
-        u32 count{0};
-
-        for (usize i = 0; i < array_size(current.bitset); ++i)
-        {
-            const u64 v = current.bitset[i];
-
-            if (v == 0)
-            {
-                continue;
-            }
-
-            u32 nextId = u32(i * 32);
-
-            // TODO: Could use bitscan reverse instead
-            for (u64 mask = 1; mask != 0; mask <<= 1)
-            {
-                if (v & mask)
-                {
-                    inOut[count] = component_type{nextId};
-                    ++count;
-                }
-
-                ++nextId;
-            }
-        }
-
-        return inOut.subspan(0, count);
     }
 
     void reserve_chunks(memory_pool& pool, archetype_impl& archetype, u32 newCount)
@@ -236,6 +250,11 @@ namespace oblo::ecs
     std::span<const component_type> get_component_types(const archetype_storage& storage)
     {
         return {storage.archetype->components, storage.archetype->numComponents};
+    }
+
+    std::span<const tag_type> get_tag_types(const archetype_storage& storage)
+    {
+        return {storage.archetype->tags, storage.archetype->numTags};
     }
 
     u32 get_used_chunks_count(const archetype_storage& storage)

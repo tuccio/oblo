@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/expected.hpp>
+#include <oblo/ecs/type_set.hpp>
 
 namespace oblo
 {
@@ -16,6 +17,8 @@ namespace oblo
     {
         struct write_config
         {
+            ecs::component_and_tag_sets skipEntities{};
+            ecs::component_and_tag_sets skipTypes{};
         };
 
         SCENE_API expected<> write(data_document& doc,
