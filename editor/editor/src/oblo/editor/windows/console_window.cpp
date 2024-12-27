@@ -6,6 +6,7 @@
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/services/log_queue.hpp>
 #include <oblo/editor/ui/constants.hpp>
+#include <oblo/editor/ui/widgets.hpp>
 #include <oblo/editor/window_update_context.hpp>
 
 #include <imgui.h>
@@ -101,6 +102,7 @@ namespace oblo::editor
 
             EndGroup();
         }
+
     }
 
     class console_window::filter
@@ -109,6 +111,11 @@ namespace oblo::editor
         void update(const deque<log_queue::message>& messages)
         {
             bool needsRebuild = false;
+
+            if (ImGui::IsWindowFocused() && ImGui::IsKeyPressed(ImGuiKey_F) && ImGui::IsKeyDown(ImGuiMod_Ctrl))
+            {
+                ImGui::SetKeyboardFocusHere();
+            }
 
             if (ImGui::InputTextWithHint("##search",
                     "Filter ... " ICON_FA_MAGNIFYING_GLASS,
@@ -127,9 +134,13 @@ namespace oblo::editor
                 needsRebuild = true;
             }
 
+            ImGui::SetItemTooltip("Clear filter");
+
             ImGui::SameLine();
 
             ImGui::Button(ICON_FA_FILTER);
+
+            ImGui::SetItemTooltip("Filter");
 
             if (ImGui::BeginPopupContextItem(nullptr, ImGuiPopupFlags_MouseButtonLeft))
             {
@@ -245,7 +256,7 @@ namespace oblo::editor
         // TODO: Remove
         {
             static u32 i = 0;
-            constexpr u32 N = 60;
+            constexpr u32 N = 30;
 
             if (i++ % N == 0)
             {
@@ -254,19 +265,21 @@ namespace oblo::editor
             }
         }
 
-        if (ImGui::Begin("Console", &open))
+        if (ImGui::Begin("Console", &open, ImGuiWindowFlags_NoScrollbar))
         {
             const auto& messages = m_logQueue->get_messages();
 
             m_filter->update(messages);
 
-            if (ImGui::BeginTable("#logs", 1, ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders))
-            {
-                // m_autoScroll = true;
-                m_autoScroll = false;
-                // m_autoScroll = ImGui::GetScrollY() >= ImGui::GetScrollMaxY();
+            ImGui::SameLine();
 
-                // ImGui::TableSetupColumn("Severity", ImGuiTableColumnFlags_WidthFixed, .0001f);
+            ui::toggle_button(ICON_FA_ARROWS_DOWN_TO_LINE, &m_autoScroll);
+            ImGui::SetItemTooltip("Toggle auto-scroll");
+
+            if (ImGui::BeginTable("#logs",
+                    1,
+                    ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_ScrollY))
+            {
                 ImGui::TableSetupColumn("Message", ImGuiTableColumnFlags_None);
 
                 string_builder buf;
@@ -276,7 +289,6 @@ namespace oblo::editor
 
                 ImGuiListClipper clipper;
                 clipper.Begin(maxMessages);
-                // clipper.Begin(narrow_cast<int>(messages.size()), ImGui::GetTextLineHeight());
 
                 if (m_autoScroll && !messages.empty())
                 {
@@ -300,14 +312,6 @@ namespace oblo::editor
                         ImGui::TableNextRow();
 
                         ImGui::TableSetColumnIndex(0);
-
-                        const auto severity = g_severityStrings[u32(message.severity)];
-                        (void) severity;
-
-                        // const auto color = g_severityColors[u32(message.severity)];
-                        // ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, color);
-
-                        // ImGui::TableSetColumnIndex(1);
 
                         cstring_view msg = message.content;
 
@@ -338,18 +342,21 @@ namespace oblo::editor
                         draw_message(message.severity, msg);
                         ImGui::SetItemTooltip("%s", message.content.c_str());
 
-                        // ImGui::TextUnformatted(message.content.begin(), message.content.end());
-
                         const auto selectableHeight = ImGui::GetItemRectSize().y;
 
                         ImGui::SameLine();
 
                         if (ImGui::Selectable(buf.clear().format("##item{}", i).c_str(),
                                 m_selected == i,
-                                ImGuiSelectableFlags_SpanAllColumns,
+                                ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowDoubleClick,
                                 {0, selectableHeight}))
                         {
                             m_selected = i;
+
+                            if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                            {
+                                m_autoScroll = false;
+                            }
                         }
 
                         if (ImGui::BeginPopupContextItem(buf.clear().format("##ctx{}", i).c_str()))
@@ -370,9 +377,9 @@ namespace oblo::editor
                 {
                     ImGui::SetScrollHereY(1.f);
                 }
-            }
 
-            ImGui::EndTable();
+                ImGui::EndTable();
+            }
         }
 
         ImGui::End();

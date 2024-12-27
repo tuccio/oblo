@@ -72,4 +72,28 @@ namespace oblo::editor::ui
 
         return value_changed;
     }
+
+    void toggle_button(const char* label, bool* enabled, const ImVec2& size)
+    {
+        const bool isEnabled = *enabled;
+
+        if (isEnabled)
+        {
+            const auto color = ImGui::GetStyleColorVec4(ImGuiCol_CheckMark);
+            ImGui::PushStyleColor(ImGuiCol_Text, color);
+            ImGui::PushStyleColor(ImGuiCol_Border, color);
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.f);
+        }
+
+        if (ImGui::Button(label, size))
+        {
+            *enabled = !*enabled;
+        }
+
+        if (isEnabled)
+        {
+            ImGui::PopStyleColor(2);
+            ImGui::PopStyleVar();
+        }
+    }
 }

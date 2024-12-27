@@ -12,4 +12,6 @@ namespace oblo::editor::ui
         float vMax = 0.f,
         const char* displayFormat = "%.3f",
         ImGuiSliderFlags flags = 0);
+
+    void toggle_button(const char* label, bool* enabled, const ImVec2& size = ImVec2(0, 0));
 }
