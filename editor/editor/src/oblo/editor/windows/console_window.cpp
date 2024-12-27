@@ -1,12 +1,18 @@
 #include <oblo/editor/windows/console_window.hpp>
 
+#include <oblo/core/array_size.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/services/log_queue.hpp>
+#include <oblo/editor/ui/constants.hpp>
 #include <oblo/editor/window_update_context.hpp>
 
 #include <imgui.h>
 #include <imgui_internal.h>
+
+#include <IconsFontAwesome6.h>
+
+#include <algorithm>
 
 // TODO: Remove
 #include <oblo/log/log.hpp>
@@ -23,11 +29,10 @@ namespace oblo::editor
         };
 
         static constexpr ImU32 g_severityColors[] = {
-            0xFF9E8A5A, // blue
-            0xFF6DA06D, // green
-            0xFF7CC9E6, // orange
-            // 0xFFEEDE66, // orange
-            0xFF5757B8, // red
+            colors::blue,
+            colors::green,
+            colors::yellow,
+            colors::red,
         };
 
         void draw_message(log::severity severity, cstring_view msg)
@@ -56,7 +61,7 @@ namespace oblo::editor
                 // value_changed |= DragFloat("##v", &v[i], vSpeed, vMin, vMax, displayFormat, flags);
                 // SameLine(0, g.Style.ItemInnerSpacing.x);
 
-                TextUnformatted(msg.data(), FindRenderedTextEnd(msg.begin(), msg.end()));
+                TextUnformatted(msg.begin(), msg.end());
                 // draw_selectable_text(msg);
 
                 const ImVec2 min = GetItemRectMin();
@@ -95,10 +100,82 @@ namespace oblo::editor
         }
     }
 
+    class console_window::filter
+    {
+    public:
+        void update(const deque<log_queue::message>& messages)
+        {
+            if (ImGui::InputTextWithHint("##search",
+                    "Search ... " ICON_FA_MAGNIFYING_GLASS,
+                    m_impl.InputBuf,
+                    array_size(m_impl.InputBuf)))
+            {
+                m_impl.Build();
+                rebuild(messages);
+            }
+            else
+            {
+                incremental_filter(messages);
+            }
+        }
+
+        bool is_active() const
+        {
+            return m_impl.IsActive();
+        }
+
+        usize get_filtered_count() const
+        {
+            return m_filteredIndices.size();
+        }
+
+        usize get_filtered_index(usize i) const
+        {
+            return m_filteredIndices[i];
+        }
+
+    private:
+        void rebuild(const deque<log_queue::message>& messages)
+        {
+            m_lastProcessedMessage = 0;
+            m_filteredIndices.clear();
+            incremental_filter(messages);
+        }
+
+        void incremental_filter(const deque<log_queue::message>& messages)
+        {
+            if (!is_active())
+            {
+                return;
+            }
+
+            for (; m_lastProcessedMessage < messages.size(); ++m_lastProcessedMessage)
+            {
+                const auto& msg = messages[m_lastProcessedMessage];
+
+                if (m_impl.PassFilter(msg.content.begin(), msg.content.end()))
+                {
+                    m_filteredIndices.emplace_back(m_lastProcessedMessage);
+                }
+            }
+        }
+
+    private:
+        ImGuiTextFilter m_impl{};
+        usize m_lastProcessedMessage{};
+        deque<usize> m_filteredIndices;
+    };
+
+    console_window::console_window() = default;
+
+    console_window::~console_window() = default;
+
     void console_window::init(const window_update_context& ctx)
     {
         m_logQueue = ctx.services.find<const log_queue>();
         OBLO_ASSERT(m_logQueue);
+
+        m_filter = std::make_unique<filter>();
     }
 
     bool console_window::update(const window_update_context&)
@@ -113,70 +190,125 @@ namespace oblo::editor
             if (i++ % N == 0)
             {
                 log::severity s{(i / N) % (u32(log::severity::error) + 1)};
-                log::generic(s, "Test");
+                log::generic(s, "Test {}\nA\n\rB\nC", i);
             }
         }
 
         if (ImGui::Begin("Console", &open))
         {
+            const auto& messages = m_logQueue->get_messages();
+
+            m_filter->update(messages);
+
             if (ImGui::BeginTable("#logs", 1, ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders))
             {
-                const bool autoScroll = ImGui::GetScrollY() >= ImGui::GetScrollMaxY();
+                // m_autoScroll = true;
+                m_autoScroll = false;
+                // m_autoScroll = ImGui::GetScrollY() >= ImGui::GetScrollMaxY();
 
                 // ImGui::TableSetupColumn("Severity", ImGuiTableColumnFlags_WidthFixed, .0001f);
                 ImGui::TableSetupColumn("Message", ImGuiTableColumnFlags_None);
 
-                const auto& messages = m_logQueue->get_messages();
-
                 string_builder buf;
 
-                for (usize i = 0; i < messages.size(); ++i)
+                const auto maxMessages =
+                    narrow_cast<int>(m_filter->is_active() ? m_filter->get_filtered_count() : messages.size());
+
+                ImGuiListClipper clipper;
+                clipper.Begin(maxMessages);
+                // clipper.Begin(narrow_cast<int>(messages.size()), ImGui::GetTextLineHeight());
+
+                if (m_autoScroll && !messages.empty())
                 {
-                    const auto& message = messages[i];
+                    clipper.IncludeItemByIndex(clipper.ItemsCount - 1);
+                }
 
-                    ImGui::TableNextRow();
-
-                    ImGui::TableSetColumnIndex(0);
-
-                    const auto severity = g_severityStrings[u32(message.severity)];
-                    (void) severity;
-
-                    // const auto color = g_severityColors[u32(message.severity)];
-                    // ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, color);
-
-                    // ImGui::TableSetColumnIndex(1);
-
-                    draw_message(message.severity, message.content);
-                    // ImGui::TextUnformatted(message.content.begin(), message.content.end());
-
-                    const auto selectableHeight = ImGui::GetItemRectSize().y;
-
-                    ImGui::SameLine();
-
-                    if (ImGui::Selectable(buf.format("##item{}", i).c_str(),
-                            m_selected == i,
-                            ImGuiSelectableFlags_SpanAllColumns,
-                            {0, selectableHeight}))
+                while (clipper.Step())
+                {
+                    for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
                     {
-                        m_selected = i;
-                    }
+                        int messageIndex = i;
 
-                    if (ImGui::BeginPopupContextItem(buf.format("##ctx{}", i).c_str()))
-                    {
-                        if (ImGui::MenuItem("Copy"))
+                        if (m_filter->is_active())
                         {
-                            ImGui::LogToClipboard();
-                            ImGui::LogText("%s", message.content.c_str());
-                            ImGui::LogFinish();
+                            messageIndex = narrow_cast<int>(m_filter->get_filtered_index(usize(i)));
+                            OBLO_ASSERT(messageIndex < messages.size() && messageIndex >= 0);
                         }
 
-                        ImGui::EndPopup();
+                        const auto& message = messages[usize(messageIndex)];
+
+                        ImGui::TableNextRow();
+
+                        ImGui::TableSetColumnIndex(0);
+
+                        const auto severity = g_severityStrings[u32(message.severity)];
+                        (void) severity;
+
+                        // const auto color = g_severityColors[u32(message.severity)];
+                        // ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, color);
+
+                        // ImGui::TableSetColumnIndex(1);
+
+                        cstring_view msg = message.content;
+
+                        if (auto it = std::find(message.content.begin(), message.content.end(), '\n');
+                            it != message.content.end())
+                        {
+                            buf.clear();
+
+                            auto prev = message.content.begin();
+
+                            do
+                            {
+                                buf.append(prev, it);
+                                buf.append(" " ICON_FA_ANGLE_DOWN " ");
+
+                                for (++it; it != message.content.end() && (*it == '\n' || *it == '\r'); ++it)
+                                {
+                                }
+
+                                prev = it;
+                                it = std::find(prev, message.content.end(), '\n');
+                            } while (it != message.content.end());
+
+                            buf.append(prev, it);
+                            msg = buf;
+                        }
+
+                        draw_message(message.severity, msg);
+                        ImGui::SetItemTooltip("%s", message.content.c_str());
+
+                        // ImGui::TextUnformatted(message.content.begin(), message.content.end());
+
+                        const auto selectableHeight = ImGui::GetItemRectSize().y;
+
+                        ImGui::SameLine();
+
+                        if (ImGui::Selectable(buf.clear().format("##item{}", i).c_str(),
+                                m_selected == i,
+                                ImGuiSelectableFlags_SpanAllColumns,
+                                {0, selectableHeight}))
+                        {
+                            m_selected = i;
+                        }
+
+                        if (ImGui::BeginPopupContextItem(buf.clear().format("##ctx{}", i).c_str()))
+                        {
+                            m_autoScroll = false;
+
+                            if (ImGui::MenuItem("Copy to clipboard"))
+                            {
+                                ImGui::SetClipboardText(message.content.c_str());
+                            }
+
+                            ImGui::EndPopup();
+                        }
                     }
                 }
 
-                if (autoScroll)
+                if (m_autoScroll)
                 {
-                    ImGui::SetScrollHereY();
+                    ImGui::SetScrollHereY(1.f);
                 }
             }
 

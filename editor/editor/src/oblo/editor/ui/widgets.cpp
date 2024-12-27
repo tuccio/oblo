@@ -1,11 +1,23 @@
 #include <oblo/editor/ui/widgets.hpp>
 
+#include <oblo/core/debug.hpp>
+#include <oblo/editor/ui/constants.hpp>
+
 #include <imgui_internal.h>
 
 #include <ImGuizmo.h>
 
 namespace oblo::editor::ui
 {
+    namespace
+    {
+        static constexpr ImU32 g_xyzColors[] = {
+            colors::red,
+            colors::green,
+            colors::blue,
+        };
+    }
+
     bool dragfloat_n_xyz(const char* label,
         float* v,
         int components,
@@ -15,13 +27,9 @@ namespace oblo::editor::ui
         const char* displayFormat,
         ImGuiSliderFlags flags)
     {
-        using namespace ImGui;
+        OBLO_ASSERT(components >= 0 && components <= 3);
 
-        static constexpr ImU32 colors[] = {
-            0xFF5757B8, // red
-            0xFF6DA06D, // green
-            0xFF9E8A5A, // blue
-        };
+        using namespace ImGui;
 
         ImGuiWindow* window = GetCurrentWindow();
 
@@ -35,26 +43,28 @@ namespace oblo::editor::ui
         BeginGroup();
         PushID(label);
         PushMultiItemsWidths(components, CalcItemWidth());
+
         for (int i = 0; i < components; i++)
         {
-
             PushID(i);
             value_changed |= DragFloat("##v", &v[i], vSpeed, vMin, vMax, displayFormat, flags);
 
             const ImVec2 min = GetItemRectMin();
             const ImVec2 max = GetItemRectMax();
-            const float spacing = g.Style.FrameRounding;
-            const float halfSpacing = spacing / 2;
+            const f32 spacing = g.Style.FrameRounding;
+            const f32 halfSpacing = spacing / 2;
+            constexpr f32 thickness = 4.f;
 
             window->DrawList->AddLine({min.x + spacing, min.y - halfSpacing},
                 {min.x - spacing, max.y - halfSpacing},
-                colors[i],
-                4);
+                g_xyzColors[i],
+                thickness);
 
             SameLine(0, g.Style.ItemInnerSpacing.x);
             PopID();
             PopItemWidth();
         }
+
         PopID();
 
         TextUnformatted(label, FindRenderedTextEnd(label));
