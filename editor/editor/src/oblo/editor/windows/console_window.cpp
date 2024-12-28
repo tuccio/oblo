@@ -310,6 +310,8 @@ namespace oblo::editor
             const bool autoScrollSetByUser = ui::toggle_button(ICON_FA_ARROWS_DOWN_TO_LINE, &m_autoScroll);
             ImGui::SetItemTooltip("Toggle auto-scroll");
 
+            ImGui::SetItemTooltip("Copy selected message to clipboard");
+
             if (ImGui::BeginTable("#logs",
                     1,
                     ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_ScrollY))
@@ -375,67 +377,19 @@ namespace oblo::editor
                                 {0, selectableHeight}))
                         {
                             m_selected = messageIndex;
-
-                            if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-                            {
-                                ImGui::OpenPopup(buf.clear().format("##logctx{}", messageIndex).c_str());
-                            }
                         }
 
-                        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{});
-
-                        if (ImGui::BeginPopup(buf.clear().format("##logctx{}", messageIndex).c_str(),
-                                ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking))
+                        if (ImGui::BeginPopupContextItem(buf.clear().format("##ctx{}", messageIndex).c_str()))
                         {
-                            if (ImGui::IsWindowAppearing())
+                            if (ImGui::MenuItem("Copy to clipboard"))
                             {
-                                m_messageBuffer.clear().append(message.content).trim_end();
-                            }
-
-                            if (ImGui::BeginTable("#logs", 1, ImGuiTableFlags_RowBg))
-                            {
-                                constexpr f32 cellOffset = 8.f;
-
-                                ImGui::TableSetupColumn("Message", ImGuiTableColumnFlags_None);
-
-                                ImGui::TableNextRow();
-                                ImGui::TableSetColumnIndex(0);
-
-                                ImGui::BeginGroup();
-
-                                ImGui::SameLine(cellOffset);
-
-                                const auto linesCount =
-                                    std::count(m_messageBuffer.begin(), m_messageBuffer.end(), '\n');
-
-                                const auto height =
-                                    ImGui::GetTextLineHeightWithSpacing() + ImGui::GetTextLineHeight() * linesCount;
-
-                                ImGui::InputTextMultiline("",
-                                    m_messageBuffer.mutable_data().data(),
-                                    m_messageBuffer.size(),
-                                    {800, height},
-                                    ImGuiInputTextFlags_ReadOnly);
-
-                                ImGui::NewLine();
-                                ImGui::SameLine(cellOffset);
-
-                                if (ImGui::Button(ICON_FA_COPY))
-                                {
-                                    ImGui::SetClipboardText(message.content.c_str());
-                                }
-
-                                ImGui::SameLine();
-
-                                ImGui::EndGroup();
-
-                                draw_severity_accent(message.severity);
-
-                                ImGui::EndTable();
+                                ImGui::SetClipboardText(messages[messageIndex].content.c_str());
                             }
 
                             ImGui::EndPopup();
                         }
+
+                        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{});
 
                         ImGui::PopStyleVar();
                     }
