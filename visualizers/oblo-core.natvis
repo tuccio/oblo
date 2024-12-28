@@ -27,6 +27,15 @@
     </Expand>
 </Type>
 
+
+<Type Name="oblo::deque_iterator&lt;*&gt;">
+    <DisplayString>{*(*(m_chunks + m_index / m_elementsPerChunk) + m_index % m_elementsPerChunk)}</DisplayString>
+    <Expand>
+        <Item Name="[value]" ExcludeView="simple">*(*(m_chunks + m_index / m_elementsPerChunk) + m_index % m_elementsPerChunk)</Item>
+        <Item Name="[index]" ExcludeView="simple">m_index</Item>
+    </Expand>
+</Type>
+
 <Type Name="oblo::ring_buffer&lt;*&gt;">
     <DisplayString>{{ used={m_usedCount}, capacity={m_capacity} }}</DisplayString>
     <Expand>
