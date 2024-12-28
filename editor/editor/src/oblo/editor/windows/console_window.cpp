@@ -340,6 +340,9 @@ namespace oblo::editor
                     const auto [itemBegin, itemEnd, dy] =
                         m_state->clip_items_by_y(clipper.DisplayStart, clipper.DisplayEnd);
 
+                    // Make sure we keep consistency of the alternating table row colors
+                    ImGui::GetCurrentTable()->RowBgColorCounter = int(itemBegin);
+
                     for (usize itemIndex = itemBegin; itemIndex < itemEnd; ++itemIndex)
                     {
                         usize messageIndex = itemIndex;
