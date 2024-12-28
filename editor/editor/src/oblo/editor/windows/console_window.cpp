@@ -3,6 +3,7 @@
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/flags.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/core/utility.hpp>
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/services/log_queue.hpp>
 #include <oblo/editor/ui/constants.hpp>
@@ -72,7 +73,7 @@ namespace oblo::editor
         }
     }
 
-    class console_window::filter
+    class console_window::state
     {
     public:
         void update(const deque<log_queue::message>& messages)
@@ -152,11 +153,13 @@ namespace oblo::editor
             {
                 incremental_filter(messages);
             }
+
+            incremental_parse(messages);
         }
 
-        bool is_active() const
+        bool has_filter() const
         {
-            return m_isActive;
+            return m_hasFilter;
         }
 
         usize get_filtered_count() const
@@ -169,40 +172,88 @@ namespace oblo::editor
             return m_filteredIndices[i];
         }
 
+        std::pair<usize, usize> clip_items_by_y(int pixelMin, int pixelMax) const
+        {
+            const auto l = std::lower_bound(m_linesPrefixSum.begin(), m_linesPrefixSum.end(), usize(pixelMin));
+            const auto u = std::upper_bound(m_linesPrefixSum.begin(), m_linesPrefixSum.end(), usize(pixelMax));
+
+            const auto first = l - m_linesPrefixSum.begin();
+            const auto last = u - m_linesPrefixSum.begin();
+
+            const auto b = usize(first > 0 ? first - 1 : 0);
+            const auto e = min(usize(last), m_linesPrefixSum.size() - 1);
+
+            return {b, e};
+        }
+
+        usize get_max_height() const
+        {
+            return m_linesPrefixSum.back();
+        }
+
     private:
         void rebuild(const deque<log_queue::message>& messages)
         {
-            m_lastProcessedMessage = 0;
+            m_lastFilteredMessage = 0;
             m_filteredIndices.clear();
-            m_isActive = m_impl.IsActive() || !m_disabledSeverities.is_empty();
+            m_hasFilter = m_impl.IsActive() || !m_disabledSeverities.is_empty();
             incremental_filter(messages);
         }
 
         void incremental_filter(const deque<log_queue::message>& messages)
         {
-            if (!is_active())
+            if (!has_filter())
             {
                 return;
             }
 
-            for (; m_lastProcessedMessage < messages.size(); ++m_lastProcessedMessage)
+            for (; m_lastFilteredMessage < messages.size(); ++m_lastFilteredMessage)
             {
-                const auto& msg = messages[m_lastProcessedMessage];
+                const auto& msg = messages[m_lastFilteredMessage];
 
                 if (!m_disabledSeverities.contains(msg.severity) &&
                     m_impl.PassFilter(msg.content.begin(), msg.content.end()))
                 {
-                    m_filteredIndices.emplace_back(m_lastProcessedMessage);
+                    m_filteredIndices.emplace_back(m_lastFilteredMessage);
                 }
+            }
+        }
+
+        void incremental_parse(const deque<log_queue::message>& messages)
+        {
+            const auto& g = *ImGui::GetCurrentContext();
+
+            usize accum = m_linesPrefixSum.back();
+            auto lastParsedMessage = m_linesPrefixSum.size() - 1;
+
+            for (; lastParsedMessage < messages.size(); ++lastParsedMessage)
+            {
+                const auto& msg = messages[lastParsedMessage];
+
+                // const auto newLineCount = std::count(msg.content.begin(), msg.content.end(), '\n');
+
+                const ImVec2 textSize = ImGui::CalcTextSize(msg.content.begin(), msg.content.end());
+
+                const auto lineHeight = 2 * g.Style.CellPadding.y + textSize.y;
+
+                /*   const auto lineHeight = 2 * g.Style.CellPadding.y + (1 + newLineCount) * g.FontSize +
+                       newLineCount * g.Style.ItemInnerSpacing.y;*/
+                // const auto lineHeight = 2 * g.Style.CellPadding.y + (1 + newLineCount) * g.FontSize;
+
+                accum += usize(lineHeight);
+
+                m_linesPrefixSum.push_back(accum);
             }
         }
 
     private:
         ImGuiTextFilter m_impl{};
-        usize m_lastProcessedMessage{};
+        usize m_lastFilteredMessage{};
         deque<usize> m_filteredIndices;
+        // Initializes the first element to 0 because we keep track of min width and height
+        deque<usize> m_linesPrefixSum{get_global_allocator(), 1};
         flags<log::severity, g_severityCount> m_disabledSeverities{};
-        bool m_isActive{};
+        bool m_hasFilter{};
     };
 
     console_window::console_window() = default;
@@ -214,7 +265,7 @@ namespace oblo::editor
         m_logQueue = ctx.services.find<const log_queue>();
         OBLO_ASSERT(m_logQueue);
 
-        m_filter = std::make_unique<filter>();
+        m_state = std::make_unique<state>();
     }
 
     bool console_window::update(const window_update_context&)
@@ -225,7 +276,7 @@ namespace oblo::editor
         {
             const auto& messages = m_logQueue->get_messages();
 
-            m_filter->update(messages);
+            m_state->update(messages);
 
             ImGui::SameLine();
 
@@ -245,26 +296,33 @@ namespace oblo::editor
 
                 string_builder buf;
 
-                const auto maxMessages =
-                    narrow_cast<int>(m_filter->is_active() ? m_filter->get_filtered_count() : messages.size());
+                /*            const auto maxMessages =
+                                narrow_cast<int>(m_state->has_filter() ? m_state->get_filtered_count() :
+                   messages.size());*/
+
+                const auto maxClipHeight = m_state->get_max_height();
 
                 ImGuiListClipper clipper;
-                clipper.Begin(maxMessages);
+                clipper.Begin(int(maxClipHeight), 1.f);
 
-                if (m_autoScroll && !messages.empty())
+                if (m_autoScroll)
                 {
-                    clipper.IncludeItemByIndex(clipper.ItemsCount - 1);
+                    clipper.IncludeItemByIndex(int(maxClipHeight));
+                    // clipper.IncludeItemByIndex(clipper.ItemsCount - 1);
                 }
 
                 while (clipper.Step())
                 {
-                    for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
-                    {
-                        int messageIndex = i;
+                    const auto [itemBegin, itemEnd] =
+                        m_state->clip_items_by_y(clipper.DisplayStart, clipper.DisplayEnd);
 
-                        if (m_filter->is_active())
+                    for (usize itemIndex = itemBegin; itemIndex < itemEnd; ++itemIndex)
+                    {
+                        usize messageIndex = itemIndex;
+
+                        if (m_state->has_filter())
                         {
-                            messageIndex = narrow_cast<int>(m_filter->get_filtered_index(usize(i)));
+                            messageIndex = m_state->get_filtered_index(itemIndex);
                             OBLO_ASSERT(messageIndex < messages.size() && messageIndex >= 0);
                         }
 
@@ -276,7 +334,7 @@ namespace oblo::editor
 
                         cstring_view msg = message.content;
 
-                        if (auto it = std::find(message.content.begin(), message.content.end(), '\n');
+                        /*if (auto it = std::find(message.content.begin(), message.content.end(), '\n');
                             it != message.content.end())
                         {
                             buf.clear();
@@ -298,7 +356,7 @@ namespace oblo::editor
 
                             buf.append(prev, it);
                             msg = buf;
-                        }
+                        }*/
 
                         draw_message(message.severity, msg);
 
@@ -306,22 +364,22 @@ namespace oblo::editor
 
                         ImGui::SameLine();
 
-                        if (ImGui::Selectable(buf.clear().format("##item{}", i).c_str(),
-                                m_selected == i,
+                        if (ImGui::Selectable(buf.clear().format("##item{}", messageIndex).c_str(),
+                                m_selected == messageIndex,
                                 ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowDoubleClick,
                                 {0, selectableHeight}))
                         {
-                            m_selected = i;
+                            m_selected = messageIndex;
 
                             if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
                             {
-                                ImGui::OpenPopup(buf.clear().format("##logctx{}", i).c_str());
+                                ImGui::OpenPopup(buf.clear().format("##logctx{}", messageIndex).c_str());
                             }
                         }
 
                         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{});
 
-                        if (ImGui::BeginPopup(buf.clear().format("##logctx{}", i).c_str(),
+                        if (ImGui::BeginPopup(buf.clear().format("##logctx{}", messageIndex).c_str(),
                                 ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking))
                         {
                             if (ImGui::IsWindowAppearing())

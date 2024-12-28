@@ -22,13 +22,13 @@ namespace oblo::editor
         bool update(const window_update_context&);
 
     private:
-        class filter;
+        class state;
 
     private:
         const log_queue* m_logQueue{};
         usize m_selected{~usize{}};
         bool m_autoScroll{true};
-        std::unique_ptr<filter> m_filter;
+        std::unique_ptr<state> m_state;
         string_builder m_messageBuffer;
     };
 }
