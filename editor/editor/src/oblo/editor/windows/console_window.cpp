@@ -145,6 +145,8 @@ namespace oblo::editor
                 ImGui::EndPopup();
             }
 
+            incremental_parse(messages);
+
             if (needsRebuild)
             {
                 rebuild(messages);
@@ -153,8 +155,6 @@ namespace oblo::editor
             {
                 incremental_filter(messages);
             }
-
-            incremental_parse(messages);
         }
 
         bool has_filter() const
@@ -181,31 +181,34 @@ namespace oblo::editor
 
         clip_result clip_items_by_y(int pixelMin, int pixelMax) const
         {
-            const auto l = std::lower_bound(m_linesPrefixSum.begin(), m_linesPrefixSum.end(), usize(pixelMin));
-            const auto u = std::upper_bound(m_linesPrefixSum.begin(), m_linesPrefixSum.end(), usize(pixelMax));
+            const auto& linesPrefixSum = has_filter() ? m_filteredLinesPrefixSum : m_linesPrefixSum;
 
-            const auto first = l - m_linesPrefixSum.begin();
-            const auto last = u - m_linesPrefixSum.begin();
+            const auto l = std::lower_bound(linesPrefixSum.begin(), linesPrefixSum.end(), usize(pixelMin));
+            const auto u = std::upper_bound(linesPrefixSum.begin(), linesPrefixSum.end(), usize(pixelMax));
 
-            // m_linesPrefixSum[i] = minY of ith message
-            // m_linesPrefixSum[i+1] = maxY of ith message
+            const auto first = l - linesPrefixSum.begin();
+            const auto last = u - linesPrefixSum.begin();
+
+            // linesPrefixSum[i] = minY of ith message
+            // linesPrefixSum[i+1] = maxY of ith message
 
             // If maxY is the lower_bound, we need to render message i
             const auto b = usize(first > 0 ? first - 1 : 0);
 
             // We keep end at i+1, where i is the last message we want ot render
-            const auto e = min(usize(last), m_linesPrefixSum.size() - 1);
+            const auto e = min(usize(last), linesPrefixSum.size() - 1);
 
             // We calculate the dy based on b.minY (the minY of the first message to render)
             // We may need to partially clip the first message when scrolling, so we need to move the cursor up slightly
-            const int dy = pixelMin - int(m_linesPrefixSum[b]);
+            const int dy = pixelMin - int(linesPrefixSum[b]);
 
             return {b, e, dy};
         }
 
         usize get_max_height() const
         {
-            return m_linesPrefixSum.back();
+            const auto& linesPrefixSum = has_filter() ? m_filteredLinesPrefixSum : m_linesPrefixSum;
+            return linesPrefixSum.back();
         }
 
     private:
@@ -214,6 +217,7 @@ namespace oblo::editor
             m_lastFilteredMessage = 0;
             m_filteredIndices.clear();
             m_hasFilter = m_impl.IsActive() || !m_disabledSeverities.is_empty();
+            m_filteredLinesPrefixSum = {0u};
             incremental_filter(messages);
         }
 
@@ -224,6 +228,9 @@ namespace oblo::editor
                 return;
             }
 
+            const auto& g = *ImGui::GetCurrentContext();
+            usize accum = m_filteredLinesPrefixSum.back();
+
             for (; m_lastFilteredMessage < messages.size(); ++m_lastFilteredMessage)
             {
                 const auto& msg = messages[m_lastFilteredMessage];
@@ -232,6 +239,13 @@ namespace oblo::editor
                     m_impl.PassFilter(msg.content.begin(), msg.content.end()))
                 {
                     m_filteredIndices.emplace_back(m_lastFilteredMessage);
+
+                    const ImVec2 textSize = ImGui::CalcTextSize(msg.content.begin(), msg.content.end());
+                    const auto lineHeight = 2 * g.Style.CellPadding.y + textSize.y;
+
+                    accum += usize(lineHeight);
+
+                    m_filteredLinesPrefixSum.push_back(accum);
                 }
             }
         }
@@ -248,7 +262,6 @@ namespace oblo::editor
                 const auto& msg = messages[lastParsedMessage];
 
                 const ImVec2 textSize = ImGui::CalcTextSize(msg.content.begin(), msg.content.end());
-
                 const auto lineHeight = 2 * g.Style.CellPadding.y + textSize.y;
 
                 accum += usize(lineHeight);
@@ -263,6 +276,7 @@ namespace oblo::editor
         ImGuiTextFilter m_impl{};
         usize m_lastFilteredMessage{};
         deque<usize> m_filteredIndices;
+        deque<usize> m_filteredLinesPrefixSum;
         // Initializes the first element to 0 because we keep track of min width and height
         deque<usize> m_linesPrefixSum{get_global_allocator(), 1};
         flags<log::severity, g_severityCount> m_disabledSeverities{};
@@ -323,13 +337,6 @@ namespace oblo::editor
                 {
                     const auto [itemBegin, itemEnd, dy] =
                         m_state->clip_items_by_y(clipper.DisplayStart, clipper.DisplayEnd);
-
-                    if (m_autoScroll)
-                    {
-                        static int xx = 0;
-                        OBLO_ASSERT(xx == 0 || itemEnd == messages.size());
-                        ++xx;
-                    }
 
                     for (usize itemIndex = itemBegin; itemIndex < itemEnd; ++itemIndex)
                     {
