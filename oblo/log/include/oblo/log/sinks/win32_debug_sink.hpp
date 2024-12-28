@@ -9,7 +9,11 @@ namespace oblo::log
     class win32_debug_sink : public log_sink
     {
     public:
-        LOG_API void sink(severity severity, cstring_view message) override;
+        LOG_API void set_base_time(time baseTime);
+        LOG_API void sink(severity severity, time timestamp, cstring_view message) override;
+
+    private:
+        time m_baseTime{};
     };
 }
 

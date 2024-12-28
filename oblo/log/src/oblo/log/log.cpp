@@ -9,7 +9,7 @@
 
 namespace oblo::log::detail
 {
-    void sink_it(severity severity, char* str, usize n)
+    void sink_it(severity severity, time t, char* str, usize n)
     {
         // Make sure it's null-terminated
         const auto last = min(detail::MaxLogMessageLength, n);
@@ -19,7 +19,7 @@ namespace oblo::log::detail
 
         for (const auto& sink : g_logSinks)
         {
-            sink->sink(severity, message);
+            sink->sink(severity, t, message);
         }
     }
 }

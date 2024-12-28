@@ -2,6 +2,7 @@
 
 #include <oblo/core/deque.hpp>
 #include <oblo/core/string/cstring_view.hpp>
+#include <oblo/core/time/time.hpp>
 
 namespace oblo::log
 {
@@ -16,6 +17,7 @@ namespace oblo::editor
         struct message
         {
             log::severity severity;
+            time timestamp;
             cstring_view content;
         };
 
@@ -29,7 +31,7 @@ namespace oblo::editor
         log_queue& operator=(const log_queue&) = delete;
         log_queue& operator=(log_queue&&) = delete;
 
-        void push(log::severity severity, cstring_view message);
+        void push(log::severity severity, time timestamp, cstring_view message);
 
         const deque<message>& get_messages() const
         {

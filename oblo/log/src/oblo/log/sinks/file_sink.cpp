@@ -1,5 +1,8 @@
 #include <oblo/log/sinks/file_sink.hpp>
 
+#include <oblo/core/string/string_builder.hpp>
+#include <oblo/core/time/clock.hpp>
+#include <oblo/core/time/time.hpp>
 #include <oblo/log/log_internal.hpp>
 
 namespace oblo::log
@@ -22,11 +25,23 @@ namespace oblo::log
         }
     }
 
-    void file_sink::sink(severity severity, cstring_view message)
+    void file_sink::set_base_time(time baseTime)
     {
-        const auto severityString = get_severity_string(severity);
+        m_baseTime = baseTime;
+    }
 
+    void file_sink::sink(severity severity, time timestamp, cstring_view message)
+    {
+        const f32 dt = to_f32_seconds(timestamp - m_baseTime);
+
+        string_builder sb;
+        sb.format("[{:.3f}] ", dt);
+
+        std::fwrite(sb.data(), 1, sb.size(), m_file);
+
+        const auto severityString = get_severity_string(severity);
         std::fwrite(severityString.data(), 1, severityString.size(), m_file);
+
         std::fwrite(message.data(), 1, message.size(), m_file);
         std::fputc('\n', m_file);
     }

@@ -19,10 +19,13 @@ namespace oblo::log
 
         ~file_sink();
 
-        LOG_API void sink(severity severity, cstring_view message) override;
+        LOG_API void set_base_time(time baseTime);
+
+        LOG_API void sink(severity severity, time timestmap, cstring_view message) override;
 
     private:
         FILE* m_file{};
         bool m_isOwned{};
+        time m_baseTime{};
     };
 }

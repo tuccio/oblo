@@ -21,6 +21,7 @@
 #include <oblo/editor/windows/style_window.hpp>
 #include <oblo/editor/windows/viewport.hpp>
 #include <oblo/input/input_queue.hpp>
+#include <oblo/log/log.hpp>
 #include <oblo/log/log_module.hpp>
 #include <oblo/log/sinks/file_sink.hpp>
 #include <oblo/log/sinks/win32_debug_sink.hpp>
@@ -43,9 +44,14 @@ namespace oblo::editor
         class editor_log_sink final : public log::log_sink
         {
         public:
-            void sink(log::severity severity, cstring_view message) override
+            void sink(log::severity severity, time timestamp, cstring_view message) override
             {
-                m_logQueue.push(severity, message);
+                m_logQueue.push(severity, m_baseTime - timestamp, message);
+            }
+
+            void set_base_time(time baseTime)
+            {
+                m_baseTime = baseTime;
             }
 
             log_queue& get_log_queue()
@@ -55,20 +61,30 @@ namespace oblo::editor
 
         private:
             log_queue m_logQueue;
+            time m_baseTime{};
         };
 
-        const log_queue* init_log()
+        const log_queue* init_log(time bootTime)
         {
             auto& mm = module_manager::get();
 
             auto* const logModule = mm.load<oblo::log::log_module>();
-            logModule->add_sink(std::make_unique<log::file_sink>(stderr));
 
-#ifdef WIN32
-            logModule->add_sink(std::make_unique<log::win32_debug_sink>());
-#endif
+            {
+                auto fileSink = std::make_unique<log::file_sink>(stderr);
+                fileSink->set_base_time(bootTime);
+                logModule->add_sink(std::move(fileSink));
+            }
+
+            if constexpr (platform::is_windows())
+            {
+                auto win32Sink = std::make_unique<log::win32_debug_sink>();
+                win32Sink->set_base_time(bootTime);
+                logModule->add_sink(std::move(win32Sink));
+            }
 
             auto logSink = std::make_unique<editor_log_sink>();
+            logSink->set_base_time(bootTime);
             auto& queue = logSink->get_log_queue();
             logModule->add_sink(std::move(logSink));
 
@@ -103,7 +119,8 @@ namespace oblo::editor
             return false;
         }
 
-        m_logQueue = init_log();
+        const auto bootTime = clock::now();
+        m_logQueue = init_log(bootTime);
 
         m_jobManager.init();
         return true;

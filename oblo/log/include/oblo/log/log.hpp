@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/string/format.hpp>
+#include <oblo/core/time/clock.hpp>
 #include <oblo/core/types.hpp>
 
 #include <format>
@@ -18,7 +19,7 @@ namespace oblo::log
     namespace detail
     {
         static constexpr usize MaxLogMessageLength{1023u};
-        LOG_API void sink_it(severity severity, char* str, usize n);
+        LOG_API void sink_it(severity severity, time t, char* str, usize n);
     }
 
     template <typename... Args>
@@ -29,7 +30,7 @@ namespace oblo::log
         const auto endIt =
             std::format_to_n(buffer, detail::MaxLogMessageLength, formatString, std::forward<Args>(args)...);
 
-        detail::sink_it(severity, buffer, usize(endIt.out - buffer));
+        detail::sink_it(severity, clock::now(), buffer, usize(endIt.out - buffer));
     }
 
     template <typename... Args>

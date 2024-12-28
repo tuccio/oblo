@@ -19,11 +19,11 @@ namespace oblo::editor
 
     log_queue::~log_queue() = default;
 
-    void log_queue::push(log::severity severity, cstring_view message)
+    void log_queue::push(log::severity severity, time timestamp, cstring_view message)
     {
         auto& newMessage = m_stringAllocator.push_back_default();
         std::memcpy(newMessage.data, message.data(), message.size() + 1);
 
-        m_messages.emplace_back(severity, cstring_view{newMessage.data, message.size()});
+        m_messages.emplace_back(severity, timestamp, cstring_view{newMessage.data, message.size()});
     }
 }
