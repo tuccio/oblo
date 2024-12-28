@@ -172,7 +172,14 @@ namespace oblo::editor
             return m_filteredIndices[i];
         }
 
-        std::pair<usize, usize> clip_items_by_y(int pixelMin, int pixelMax) const
+        struct clip_result
+        {
+            usize begin;
+            usize end;
+            int dy;
+        };
+
+        clip_result clip_items_by_y(int pixelMin, int pixelMax) const
         {
             const auto l = std::lower_bound(m_linesPrefixSum.begin(), m_linesPrefixSum.end(), usize(pixelMin));
             const auto u = std::upper_bound(m_linesPrefixSum.begin(), m_linesPrefixSum.end(), usize(pixelMax));
@@ -180,10 +187,20 @@ namespace oblo::editor
             const auto first = l - m_linesPrefixSum.begin();
             const auto last = u - m_linesPrefixSum.begin();
 
+            // m_linesPrefixSum[i] = minY of ith message
+            // m_linesPrefixSum[i+1] = maxY of ith message
+
+            // If maxY is the lower_bound, we need to render message i
             const auto b = usize(first > 0 ? first - 1 : 0);
+
+            // We keep end at i+1, where i is the last message we want ot render
             const auto e = min(usize(last), m_linesPrefixSum.size() - 1);
 
-            return {b, e};
+            // We calculate the dy based on b.minY (the minY of the first message to render)
+            // We may need to partially clip the first message when scrolling, so we need to move the cursor up slightly
+            const int dy = pixelMin - int(m_linesPrefixSum[b]);
+
+            return {b, e, dy};
         }
 
         usize get_max_height() const
@@ -230,18 +247,14 @@ namespace oblo::editor
             {
                 const auto& msg = messages[lastParsedMessage];
 
-                // const auto newLineCount = std::count(msg.content.begin(), msg.content.end(), '\n');
-
                 const ImVec2 textSize = ImGui::CalcTextSize(msg.content.begin(), msg.content.end());
 
                 const auto lineHeight = 2 * g.Style.CellPadding.y + textSize.y;
 
-                /*   const auto lineHeight = 2 * g.Style.CellPadding.y + (1 + newLineCount) * g.FontSize +
-                       newLineCount * g.Style.ItemInnerSpacing.y;*/
-                // const auto lineHeight = 2 * g.Style.CellPadding.y + (1 + newLineCount) * g.FontSize;
-
                 accum += usize(lineHeight);
 
+                // m_linesPrefixSum[i] = minY of ith message
+                // m_linesPrefixSum[i+1] = maxY of ith message
                 m_linesPrefixSum.push_back(accum);
             }
         }
@@ -296,10 +309,6 @@ namespace oblo::editor
 
                 string_builder buf;
 
-                /*            const auto maxMessages =
-                                narrow_cast<int>(m_state->has_filter() ? m_state->get_filtered_count() :
-                   messages.size());*/
-
                 const auto maxClipHeight = m_state->get_max_height();
 
                 ImGuiListClipper clipper;
@@ -308,13 +317,19 @@ namespace oblo::editor
                 if (m_autoScroll)
                 {
                     clipper.IncludeItemByIndex(int(maxClipHeight));
-                    // clipper.IncludeItemByIndex(clipper.ItemsCount - 1);
                 }
 
                 while (clipper.Step())
                 {
-                    const auto [itemBegin, itemEnd] =
+                    const auto [itemBegin, itemEnd, dy] =
                         m_state->clip_items_by_y(clipper.DisplayStart, clipper.DisplayEnd);
+
+                    if (m_autoScroll)
+                    {
+                        static int xx = 0;
+                        OBLO_ASSERT(xx == 0 || itemEnd == messages.size());
+                        ++xx;
+                    }
 
                     for (usize itemIndex = itemBegin; itemIndex < itemEnd; ++itemIndex)
                     {
@@ -332,33 +347,16 @@ namespace oblo::editor
 
                         ImGui::TableSetColumnIndex(0);
 
-                        cstring_view msg = message.content;
-
-                        /*if (auto it = std::find(message.content.begin(), message.content.end(), '\n');
-                            it != message.content.end())
+                        // NOTE: We only have 1 column, but this needs to be done for each column if we dd more
+                        if (itemIndex == itemBegin)
                         {
-                            buf.clear();
+                            const f32 cursorY = ImGui::GetCursorPosY();
+                            const f32 scrollY = ImGui::GetScrollY();
+                            const f32 dScroll = scrollY - dy;
+                            ImGui::SetCursorPosY(cursorY - dScroll);
+                        }
 
-                            auto prev = message.content.begin();
-
-                            do
-                            {
-                                buf.append(prev, it);
-                                buf.append(" " ICON_FA_ANGLE_DOWN " ");
-
-                                for (++it; it != message.content.end() && (*it == '\n' || *it == '\r'); ++it)
-                                {
-                                }
-
-                                prev = it;
-                                it = std::find(prev, message.content.end(), '\n');
-                            } while (it != message.content.end());
-
-                            buf.append(prev, it);
-                            msg = buf;
-                        }*/
-
-                        draw_message(message.severity, msg);
+                        draw_message(message.severity, message.content);
 
                         const auto selectableHeight = ImGui::GetItemRectSize().y;
 
