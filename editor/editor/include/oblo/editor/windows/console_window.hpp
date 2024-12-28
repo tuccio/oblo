@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/types.hpp>
 
 #include <memory>
@@ -28,5 +29,6 @@ namespace oblo::editor
         usize m_selected{~usize{}};
         bool m_autoScroll{true};
         std::unique_ptr<filter> m_filter;
+        string_builder m_messageBuffer;
     };
 }

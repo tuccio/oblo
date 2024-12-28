@@ -48,6 +48,8 @@ namespace oblo
         string_builder& make_absolute_path();
         string_builder& make_canonical_path();
 
+        string_builder& trim_end();
+
         string_builder& clear();
 
         const char* c_str() const;

@@ -36,7 +36,7 @@ namespace oblo::editor
             colors::red,
         };
 
-        void draw_message(log::severity severity, cstring_view msg)
+        void draw_severity_accent(log::severity severity)
         {
             ImGuiWindow* window = ImGui::GetCurrentWindow();
 
@@ -45,32 +45,30 @@ namespace oblo::editor
                 return;
             }
 
-            ImGuiContext& g = *GImGui;
-            ImGui::BeginGroup();
+            const ImVec2 min = ImGui::GetItemRectMin();
+            const ImVec2 max = ImGui::GetItemRectMax();
+
+            const auto color = g_severityColors[u32(severity)];
+
+            constexpr f32 thickness = 4.f;
 
             auto table = ImGui::GetCurrentTable();
+            const auto& clipRect = ImGui::TableGetCellBgRect(table, 0);
 
-            {
-                ImGui::TextUnformatted(msg.begin(), msg.end());
+            const f32 x = clipRect.Min.x;
 
-                const ImVec2 min = ImGui::GetItemRectMin();
-                const ImVec2 max = ImGui::GetItemRectMax();
+            ImGuiContext& g = *GImGui;
 
-                const auto color = g_severityColors[u32(severity)];
+            window->DrawList->AddLine({x, min.y - g.Style.CellPadding.y},
+                {x, max.y + g.Style.CellPadding.y},
+                color,
+                thickness);
+        }
 
-                constexpr f32 thickness = 4.f;
-
-                const auto& clipRect = ImGui::TableGetCellBgRect(table, 0);
-
-                const f32 x = clipRect.Min.x + .5f * thickness;
-
-                window->DrawList->AddLine({x, min.y - g.Style.CellPadding.y},
-                    {x, max.y + g.Style.CellPadding.y},
-                    color,
-                    thickness);
-            }
-
-            ImGui::EndGroup();
+        void draw_message(log::severity severity, cstring_view msg)
+        {
+            ImGui::TextUnformatted(msg.begin(), msg.end());
+            draw_severity_accent(severity);
         }
     }
 
@@ -303,7 +301,6 @@ namespace oblo::editor
                         }
 
                         draw_message(message.severity, msg);
-                        ImGui::SetItemTooltip("%s", message.content.c_str());
 
                         const auto selectableHeight = ImGui::GetItemRectSize().y;
 
@@ -318,21 +315,66 @@ namespace oblo::editor
 
                             if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
                             {
-                                m_autoScroll = false;
+                                ImGui::OpenPopup(buf.clear().format("##logctx{}", i).c_str());
                             }
                         }
 
-                        if (ImGui::BeginPopupContextItem(buf.clear().format("##ctx{}", i).c_str()))
-                        {
-                            m_autoScroll = false;
+                        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{});
 
-                            if (ImGui::MenuItem("Copy to clipboard"))
+                        if (ImGui::BeginPopup(buf.clear().format("##logctx{}", i).c_str(),
+                                ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking))
+                        {
+                            if (ImGui::IsWindowAppearing())
                             {
-                                ImGui::SetClipboardText(message.content.c_str());
+                                m_messageBuffer.clear().append(message.content).trim_end();
+                            }
+
+                            if (ImGui::BeginTable("#logs", 1, ImGuiTableFlags_RowBg))
+                            {
+                                constexpr f32 cellOffset = 8.f;
+
+                                ImGui::TableSetupColumn("Message", ImGuiTableColumnFlags_None);
+
+                                ImGui::TableNextRow();
+                                ImGui::TableSetColumnIndex(0);
+
+                                ImGui::BeginGroup();
+
+                                ImGui::SameLine(cellOffset);
+
+                                const auto linesCount =
+                                    std::count(m_messageBuffer.begin(), m_messageBuffer.end(), '\n');
+
+                                const auto height =
+                                    ImGui::GetTextLineHeightWithSpacing() + ImGui::GetTextLineHeight() * linesCount;
+
+                                ImGui::InputTextMultiline("",
+                                    m_messageBuffer.mutable_data().data(),
+                                    m_messageBuffer.size(),
+                                    {800, height},
+                                    ImGuiInputTextFlags_ReadOnly);
+
+                                ImGui::NewLine();
+                                ImGui::SameLine(cellOffset);
+
+                                if (ImGui::Button(ICON_FA_COPY))
+                                {
+                                    ImGui::SetClipboardText(message.content.c_str());
+                                }
+
+                                ImGui::SameLine();
+
+                                ImGui::EndGroup();
+
+                                draw_severity_accent(message.severity);
+
+                                ImGui::EndTable();
                             }
 
                             ImGui::EndPopup();
                         }
+
+                        ImGui::PopStyleVar();
                     }
                 }
 
