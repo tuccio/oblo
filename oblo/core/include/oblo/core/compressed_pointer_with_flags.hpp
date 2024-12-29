@@ -16,10 +16,12 @@ namespace oblo
         uintptr buffer;
 
         compressed_pointer_with_flags() : buffer{0} {}
+
         compressed_pointer_with_flags(T* ptr) : buffer{0}
         {
             set_pointer(ptr);
         }
+
         compressed_pointer_with_flags(const compressed_pointer_with_flags&) = default;
 
         bool get_flag(u32 index) const noexcept
@@ -34,13 +36,13 @@ namespace oblo
             buffer = (buffer & ~(uintptr{1} << index)) | (uintptr{v} << uintptr(index));
         }
 
-        void set_flag(u32 index) const noexcept
+        void set_flag(u32 index) noexcept
         {
             OBLO_ASSERT(index < max_flags);
             buffer |= uintptr{1} << index;
         }
 
-        void unset_flag(u32 index) const noexcept
+        void unset_flag(u32 index) noexcept
         {
             OBLO_ASSERT(index < max_flags);
             buffer &= ~(uintptr{1} << index);
