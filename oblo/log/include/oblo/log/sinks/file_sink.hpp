@@ -5,11 +5,11 @@
 
 namespace oblo::log
 {
-    class file_sink : public log_sink
+    class LOG_API file_sink : public log_sink
     {
     public:
-        LOG_API explicit file_sink(filesystem::file_ptr ptr);
-        LOG_API explicit file_sink(FILE* ptr);
+        explicit file_sink(filesystem::file_ptr ptr);
+        explicit file_sink(FILE* ptr);
 
         file_sink(const file_sink&) = delete;
         file_sink(file_sink&&) = delete;
@@ -19,9 +19,9 @@ namespace oblo::log
 
         ~file_sink();
 
-        LOG_API void set_base_time(time baseTime);
+        void set_base_time(time baseTime);
 
-        LOG_API void sink(severity severity, time timestmap, cstring_view message) override;
+        void sink(severity severity, time timestmap, cstring_view message) override;
 
     private:
         FILE* m_file{};
