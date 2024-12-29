@@ -13,6 +13,7 @@
 #include <oblo/core/string/string_interner.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/log/log.hpp>
+#include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/compute_pass_initializer.hpp>
@@ -700,6 +701,8 @@ namespace oblo::vk
         const shader_compiler::options& compilerOptions,
         dynamic_array<u32>& spirv)
     {
+        OBLO_PROFILE_SCOPE();
+
         const auto sourceCodeRes = filesystem::load_text_file_into_memory(frameAllocator, filePath);
 
         if (!sourceCodeRes)
@@ -1730,6 +1733,8 @@ namespace oblo::vk
     h32<render_pipeline> pass_manager::get_or_create_pipeline(h32<render_pass> renderPassHandle,
         const render_pipeline_initializer& desc)
     {
+        OBLO_PROFILE_SCOPE();
+
         auto* const renderPass = m_impl->renderPasses.try_find(renderPassHandle);
 
         if (!renderPass)

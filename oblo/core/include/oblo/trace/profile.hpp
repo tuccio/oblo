@@ -24,6 +24,7 @@ namespace oblo::trace
     #define OBLO_PROFILE_FRAME_BEGIN()
     #define OBLO_PROFILE_FRAME_END() FrameMark
     #define OBLO_PROFILE_SCOPE(...) ZoneScopedN(oblo::trace::make_scope_name(__VA_ARGS__))
+    #define OBLO_PROFILE_SCOPE_NAMED(Name, ...) ZoneNamedN(Name, oblo::trace::make_scope_name(__VA_ARGS__), true)
 
     #define OBLO_PROFILE_TAG(Text)                                                                                     \
         {                                                                                                              \
@@ -31,11 +32,19 @@ namespace oblo::trace
             ZoneText(_trace_tag.data(), _trace_tag.size());                                                            \
         }
 
+    #define OBLO_PROFILE_TAG_NAMED(Name, Text)                                                                         \
+        {                                                                                                              \
+            const string_view _trace_tag{Text};                                                                        \
+            ZoneTextV(Name, _trace_tag.data(), _trace_tag.size());                                                     \
+        }
+
 #else
 
     #define OBLO_PROFILE_FRAME_BEGIN()
     #define OBLO_PROFILE_FRAME_END()
     #define OBLO_PROFILE_SCOPE(...)
+    #define OBLO_PROFILE_SCOPE_NAMED(Name, ...)
     #define OBLO_PROFILE_TAG(Text)
+    #define OBLO_PROFILE_TAG_NAMED(Name, Text)
 
 #endif

@@ -420,6 +420,8 @@ namespace oblo::vk
         void* deviceFeaturesList,
         const VkPhysicalDeviceFeatures2* physicalDeviceFeatures)
     {
+        OBLO_PROFILE_SCOPE();
+
         // We need to gather the extensions needed by SDL
         constexpr u32 extensionsArraySize{64};
         constexpr u32 layersArraySize{16};
@@ -513,6 +515,8 @@ namespace oblo::vk
 
     bool sandbox_base::create_swapchain()
     {
+        OBLO_PROFILE_SCOPE();
+
         if (!m_swapchain.create(m_context, m_surface, m_renderWidth, m_renderHeight, SwapchainFormat))
         {
             return false;
@@ -642,20 +646,29 @@ namespace oblo::vk
             break;
 
         case SDL_WINDOWEVENT_RESIZED:
-        case SDL_WINDOWEVENT_SIZE_CHANGED:
-            wait_idle();
+        case SDL_WINDOWEVENT_SIZE_CHANGED: {
+            OBLO_PROFILE_SCOPE("Resize swapchain");
 
-            destroy_swapchain();
+            const u32 renderWidth = u32(event.window.data1);
+            const u32 renderHeight = u32(event.window.data2);
 
-            m_renderWidth = u32(event.window.data1);
-            m_renderHeight = u32(event.window.data2);
-
-            if (!create_swapchain())
+            if (m_renderWidth != renderWidth || m_renderHeight != renderHeight)
             {
-                return false;
-            }
+                wait_idle();
 
-            break;
+                destroy_swapchain();
+
+                m_renderWidth = renderWidth;
+                m_renderHeight = renderHeight;
+
+                if (!create_swapchain())
+                {
+                    return false;
+                }
+            }
+        }
+
+        break;
 
         case SDL_WINDOWEVENT_CLOSE:
             return false;

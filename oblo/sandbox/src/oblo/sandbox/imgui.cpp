@@ -2,6 +2,7 @@
 
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/debug.hpp>
+#include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/error.hpp>
 
 #include <imgui_impl_sdl2.h>
@@ -47,6 +48,8 @@ namespace oblo::vk
         u32 swapchainImageCount,
         const sandbox_app_config& config)
     {
+        OBLO_PROFILE_SCOPE();
+
         if (m_context)
         {
             return false;
@@ -124,6 +127,7 @@ namespace oblo::vk
 
     void imgui::finalize_init(VkDevice device)
     {
+        OBLO_PROFILE_SCOPE();
         OBLO_VK_PANIC(vkDeviceWaitIdle(device));
         ImGui_ImplVulkan_DestroyFontUploadObjects();
     }
@@ -147,11 +151,13 @@ namespace oblo::vk
 
     void imgui::process(const SDL_Event& event)
     {
+        OBLO_PROFILE_SCOPE();
         ImGui_ImplSDL2_ProcessEvent(&event);
     }
 
     void imgui::begin_frame()
     {
+        OBLO_PROFILE_SCOPE();
         OBLO_ASSERT(m_context);
 
         ImGui_ImplVulkan_NewFrame();
@@ -162,6 +168,7 @@ namespace oblo::vk
 
     void imgui::end_frame(VkCommandBuffer commandBuffer, VkImageView imageView, u32 width, u32 height)
     {
+        OBLO_PROFILE_SCOPE();
         ImGui::Render();
 
         auto& io = ImGui::GetIO();
