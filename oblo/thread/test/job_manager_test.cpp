@@ -92,22 +92,16 @@ namespace oblo
         ASSERT_EQ(destructionsCounter, 0);
     }
 
-    TEST(job_manager, non_copiable_functor)
+    namespace
     {
-        job_manager jm;
-
-        ASSERT_TRUE(jm.init());
-
-        std::atomic<int> value{};
-
-        struct functor
+        struct non_copiable_functor
         {
-            functor(std::atomic<int>* value) : value{value} {}
-            functor(const functor&) = delete;
-            functor(functor&&) = default;
+            non_copiable_functor(std::atomic<int>* value) : value{value} {}
+            non_copiable_functor(const non_copiable_functor&) = delete;
+            non_copiable_functor(non_copiable_functor&&) = default;
 
-            functor& operator=(const functor&) = delete;
-            functor& operator=(functor&&) = delete;
+            non_copiable_functor& operator=(const non_copiable_functor&) = delete;
+            non_copiable_functor& operator=(non_copiable_functor&&) = delete;
 
             void operator()() const
             {
@@ -116,8 +110,43 @@ namespace oblo
 
             std::atomic<int>* value{};
         };
+    }
 
-        const auto j = jm.push_waitable(functor{&value});
+    TEST(job_manager, non_copiable_functor_small)
+    {
+        job_manager jm;
+
+        ASSERT_TRUE(jm.init());
+
+        std::atomic<int> value{};
+
+        // This should be small enough to fit the SOO
+        const auto j = jm.push_waitable(non_copiable_functor{&value});
+
+        jm.wait(j);
+
+        ASSERT_EQ(value, 42);
+
+        jm.shutdown();
+    }
+
+    TEST(job_manager, non_copiable_functor_big)
+    {
+        job_manager jm;
+
+        ASSERT_TRUE(jm.init());
+
+        std::atomic<int> value{};
+
+        struct big_functor : non_copiable_functor
+        {
+            using non_copiable_functor::non_copiable_functor;
+
+            char buf[4096];
+        };
+
+        // This should be too big for SOO
+        const auto j = jm.push_waitable(big_functor{&value});
 
         jm.wait(j);
 

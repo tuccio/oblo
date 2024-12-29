@@ -91,7 +91,7 @@ namespace oblo
         /// @param cleanup Optional cleanup for the userdata.
         THREAD_API void push_child(job_handle parent, job_fn job, void* userdata, job_userdata_cleanup_fn cleanup);
 
-        /// @brief Waits for a job to finish, possibily picking up more jobs to complete during the wait.
+        /// @brief Waits for a job to finish, possibly picking up more jobs to complete during the wait.
         /// Jobs with a reference count (i.e. waitable jobs or jobs with manually increased reference) have to be waited
         /// exactly once per reference.
         /// @param job The job to wait for.
@@ -155,16 +155,35 @@ namespace oblo
         };
 
     private:
+        static constexpr usize max_soo_size = 32;
+        static constexpr usize max_soo_alignment = 16;
+
+    private:
+        template <typename F>
+        static consteval bool can_inline();
+
         template <bool IsChild>
-        THREAD_API job_handle push_impl(
+        THREAD_API job_handle allocate_job_impl(
             job_handle parent, job_fn job, void* userdata, job_userdata_cleanup_fn cleanup, bool waitable);
+
+        THREAD_API void push_job_impl(job_handle job);
 
         template <typename F>
             requires callable_job<F>
-        any_callable make_callable(F&& f);
+        any_callable allocate_callable(F&& f);
+
+        template <typename F>
+            requires callable_job<F>
+        any_callable prepare_inlined_callable();
 
         [[nodiscard]] THREAD_API void* allocate_userdata(usize size, usize alignment);
         THREAD_API void deallocate_userdata(void* ptr, usize size, usize alignment);
+
+        THREAD_API void* do_inline_buffer(job_handle h);
+
+        template <typename F>
+            requires callable_job<F>
+        static void job_callback(const job_context& ctx);
 
     private:
         std::unique_ptr<impl> m_impl;
@@ -179,22 +198,16 @@ namespace oblo
     };
 
     template <typename F>
-        requires callable_job<F>
-    job_manager::any_callable job_manager::make_callable(F&& f)
+    consteval bool job_manager::can_inline()
     {
-        const job_fn cb = [](const job_context& ctx)
-        {
-            auto& f = *static_cast<F*>(ctx.userdata);
+        return sizeof(F) <= max_soo_size && alignof(F) <= max_soo_alignment;
+    }
 
-            if constexpr (callable_job_ctx<F>)
-            {
-                f(ctx);
-            }
-            else
-            {
-                f();
-            }
-        };
+    template <typename F>
+        requires callable_job<F>
+    job_manager::any_callable job_manager::allocate_callable(F&& f)
+    {
+        const job_fn cb = &job_callback<F>;
 
         void* const userdata = allocate_userdata(sizeof(F), alignof(F));
         new (userdata) F{std::forward<F>(f)};
@@ -213,33 +226,134 @@ namespace oblo
 
     template <typename F>
         requires callable_job<F>
+    job_manager::any_callable job_manager::prepare_inlined_callable()
+    {
+        const job_fn cb = &job_callback<F>;
+
+        const job_userdata_cleanup_fn cleanup = [](void* userdata)
+        {
+            auto* const f = static_cast<F*>(userdata);
+            f->~F();
+        };
+
+        return {cb, nullptr, cleanup};
+    }
+
+    template <typename F>
+        requires callable_job<F>
     job_handle job_manager::push_waitable(F&& f)
     {
-        const auto callable = make_callable(std::forward<F>(f));
-        return push_impl<false>({}, callable.cb, callable.userdata, callable.cleanup, true);
+        any_callable callable;
+
+        if constexpr (can_inline<F>())
+        {
+            callable = prepare_inlined_callable<F>();
+        }
+        else
+        {
+            callable = allocate_callable(std::forward<F>(f));
+        }
+
+        const auto h = allocate_job_impl<false>({}, callable.cb, callable.userdata, callable.cleanup, true);
+
+        if constexpr (can_inline<F>())
+        {
+            new (do_inline_buffer(h)) F{std::forward<F>(f)};
+        }
+
+        push_job_impl(h);
+        return h;
     }
 
     template <typename F>
         requires callable_job<F>
     job_handle job_manager::push_waitable_child(job_handle parent, F&& f)
     {
-        const auto callable = make_callable(std::forward<F>(f));
-        return push_impl<true>(parent, callable.cb, callable.userdata, callable.cleanup, true);
+        any_callable callable;
+
+        if constexpr (can_inline<F>())
+        {
+            callable = prepare_inlined_callable<F>();
+        }
+        else
+        {
+            callable = allocate_callable(std::forward<F>(f));
+        }
+
+        const auto h = allocate_job_impl<true>(parent, callable.cb, callable.userdata, callable.cleanup, true);
+
+        if constexpr (can_inline<F>())
+        {
+            new (do_inline_buffer(h)) F{std::forward<F>(f)};
+        }
+
+        push_job_impl(h);
+        return h;
     }
 
     template <typename F>
         requires callable_job<F>
     void job_manager::push(F&& f)
     {
-        const auto callable = make_callable(std::forward<F>(f));
-        push_impl<false>({}, callable.cb, callable.userdata, callable.cleanup, true);
+        any_callable callable;
+
+        if constexpr (can_inline<F>())
+        {
+            callable = prepare_inlined_callable<F>();
+        }
+        else
+        {
+            callable = allocate_callable(std::forward<F>(f));
+        }
+
+        const auto h = allocate_job_impl<false>({}, callable.cb, callable.userdata, callable.cleanup, false);
+
+        if constexpr (can_inline<F>())
+        {
+            new (do_inline_buffer(h)) F{std::forward<F>(f)};
+        }
+
+        push_job_impl(h);
     }
 
     template <typename F>
         requires callable_job<F>
     void job_manager::push_child(job_handle parent, F&& f)
     {
-        const auto callable = make_callable(std::forward<F>(f));
-        push_impl<true>(parent, callable.cb, callable.userdata, callable.cleanup, true);
+        any_callable callable;
+
+        if constexpr (can_inline<F>())
+        {
+            callable = prepare_inlined_callable<F>();
+        }
+        else
+        {
+            callable = allocate_callable(std::forward<F>(f));
+        }
+
+        const auto h = allocate_job_impl<true>(parent, callable.cb, callable.userdata, callable.cleanup, false);
+
+        if constexpr (can_inline<F>())
+        {
+            new (do_inline_buffer(h)) F{std::forward<F>(f)};
+        }
+
+        push_job_impl(h);
+    }
+
+    template <typename F>
+        requires callable_job<F>
+    void job_manager::job_callback(const job_context& ctx)
+    {
+        auto& f = *static_cast<F*>(ctx.userdata);
+
+        if constexpr (callable_job_ctx<F>)
+        {
+            f(ctx);
+        }
+        else
+        {
+            f();
+        }
     }
 }

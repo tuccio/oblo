@@ -1,5 +1,6 @@
 #include <oblo/thread/job_manager.hpp>
 
+#include <oblo/core/compressed_pointer_with_flags.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/trace/profile.hpp>
 
@@ -18,16 +19,29 @@ namespace oblo
 {
     namespace
     {
+        constexpr u32 g_hasInlinedUserdata{0};
+
         struct alignas(64) job_impl
         {
             job_fn function;
-            job_impl* parent;
-            void* userdata;
+            compressed_pointer_with_flags<job_impl, 1> parent;
+            alignas(16) void* userdataBuffer[4];
             job_userdata_cleanup_fn cleanup;
-            bool waitable;
             std::atomic<i32> unfinishedJobs;
             std::atomic<i32> references;
         };
+
+        void* get_userdata(job_impl& impl)
+        {
+            if (impl.parent.get_flag(g_hasInlinedUserdata))
+            {
+                return impl.userdataBuffer;
+            }
+            else
+            {
+                return impl.userdataBuffer[0];
+            }
+        }
     }
 
     // This is only really here for debugging purposes, the job is meant to be opaque from the outside
@@ -104,7 +118,7 @@ namespace oblo
 
         void signal_finished_job(job_impl* impl)
         {
-            auto* const parent = impl->parent;
+            auto* const parent = impl->parent.get_pointer();
 
             const auto isJobDone = impl->unfinishedJobs.fetch_sub(1) == 1;
 
@@ -121,10 +135,12 @@ namespace oblo
 
         void execute(job_manager* jm, job_impl* impl, u32 threadId)
         {
+            void* const userdata = get_userdata(*impl);
+
             const job_context ctx{
                 .manager = jm,
                 .job = as_job_handle(impl),
-                .userdata = impl->userdata,
+                .userdata = userdata,
                 .threadId = threadId,
             };
 
@@ -132,7 +148,7 @@ namespace oblo
 
             if (impl->cleanup)
             {
-                impl->cleanup(impl->userdata);
+                impl->cleanup(userdata);
             }
         }
 
@@ -153,7 +169,6 @@ namespace oblo
         void worker_thread_init(job_manager* manager, u32 id, job_queue* q, std::atomic<worker_state>* state)
         {
 #ifdef TRACY_ENABLE
-
             char threadName[64]{};
             std::format_to_n(threadName, 64, "{}oblo worker #{}", id == 0 ? "main - " : "", id);
             tracy::SetThreadName(threadName);
@@ -218,27 +233,33 @@ namespace oblo
 
     job_handle job_manager::push_waitable(job_fn job, void* userdata, job_userdata_cleanup_fn cleanup)
     {
-        return push_impl<false>({}, job, userdata, cleanup, true);
+        const auto h = allocate_job_impl<false>({}, job, userdata, cleanup, true);
+        push_job_impl(h);
+        return h;
     }
 
     job_handle job_manager::push_waitable_child(
         job_handle parent, job_fn job, void* userdata, job_userdata_cleanup_fn cleanup)
     {
-        return push_impl<true>(parent, job, userdata, cleanup, true);
+        const auto h = allocate_job_impl<true>(parent, job, userdata, cleanup, true);
+        push_job_impl(h);
+        return h;
     }
 
     void job_manager::push(job_fn job, void* userdata, job_userdata_cleanup_fn cleanup)
     {
-        push_impl<false>({}, job, userdata, cleanup, true);
+        const auto h = allocate_job_impl<false>({}, job, userdata, cleanup, true);
+        push_job_impl(h);
     }
 
     void job_manager::push_child(job_handle parent, job_fn job, void* userdata, job_userdata_cleanup_fn cleanup)
     {
-        push_impl<true>(parent, job, userdata, cleanup, true);
+        const auto h = allocate_job_impl<true>(parent, job, userdata, cleanup, true);
+        push_job_impl(h);
     }
 
     template <bool IsChild>
-    job_handle job_manager::push_impl(
+    job_handle job_manager::allocate_job_impl(
         job_handle parent, job_fn f, void* userdata, job_userdata_cleanup_fn cleanup, bool waitable)
     {
         OBLO_ASSERT(is_worker_thread());
@@ -247,7 +268,7 @@ namespace oblo
 
         if constexpr (IsChild)
         {
-            for (auto* ancestor = parentPtr; ancestor != nullptr; ancestor = ancestor->parent)
+            for (auto* ancestor = parentPtr; ancestor != nullptr; ancestor = ancestor->parent.get_pointer())
             {
                 ancestor->unfinishedJobs.fetch_add(1);
                 oblo::increase_reference(ancestor);
@@ -257,14 +278,18 @@ namespace oblo
         auto* const impl = new (allocate_job()) job_impl{
             .function = f,
             .parent = parentPtr,
-            .userdata = userdata,
+            .userdataBuffer = {userdata},
             .cleanup = cleanup,
             .unfinishedJobs = 1,
             .references = i32{waitable},
         };
 
-        s_tlsWorkerCtx.queue->push(impl);
         return as_job_handle(impl);
+    }
+
+    void job_manager::push_job_impl(job_handle h)
+    {
+        s_tlsWorkerCtx.queue->push(as_job_impl(h));
     }
 
     bool job_manager::init(const job_manager_config& cfg)
@@ -386,6 +411,13 @@ namespace oblo
     void job_manager::deallocate_userdata(void* ptr, usize size, usize alignment)
     {
         m_impl->userdataPool.deallocate(ptr, size, alignment);
+    }
+
+    void* job_manager::do_inline_buffer(job_handle h)
+    {
+        auto* const impl = as_job_impl(h);
+        impl->parent.assign_flag(g_hasInlinedUserdata, true);
+        return impl->userdataBuffer;
     }
 
     THREAD_API job_manager_config job_manager_config::make_default()

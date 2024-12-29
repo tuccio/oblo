@@ -16,7 +16,7 @@ namespace oblo::vk
 {
     namespace
     {
-        constexpr bool DisableCache{false};
+        constexpr bool DisableCache{true};
         constexpr bool OutputSource{true};
 
         void write_file(cstring_view path, std::span<const byte> data)
