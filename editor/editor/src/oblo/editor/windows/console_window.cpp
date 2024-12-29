@@ -363,9 +363,7 @@ namespace oblo::editor
                         if (itemIndex == itemBegin)
                         {
                             const f32 cursorY = ImGui::GetCursorPosY();
-                            const f32 scrollY = ImGui::GetScrollY();
-                            const f32 dScroll = scrollY - dy;
-                            ImGui::SetCursorPosY(cursorY - dScroll);
+                            ImGui::SetCursorPosY(cursorY - dy);
                         }
 
                         draw_message(message.severity, message.content);
