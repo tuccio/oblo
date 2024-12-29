@@ -101,4 +101,16 @@
     </Expand>
 </Type>
 
+<Type Name="oblo::compressed_pointer_with_flags&lt;*&gt;">
+    <DisplayString>{{ {($T1*) (buffer &amp; ~((1 &lt;&lt; max_flags) - 1))} }}</DisplayString>
+    <Expand>
+        <Item Name="[ptr]" ExcludeView="simple">($T1*) (buffer &amp; ~((1ull &lt;&lt; max_flags) - 1))</Item>
+        <IndexListItems>
+            <Size>max_flags</Size>
+            <ValueNode>(buffer &amp; (1ull &lt;&lt; $i)) != 0</ValueNode>
+        </IndexListItems>
+    </Expand>
+</Type>
+
+
 </AutoVisualizer>
