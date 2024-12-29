@@ -1,10 +1,10 @@
 #include <oblo/scene/utility/ecs_utility.hpp>
 
-#include <oblo/core/log.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/tag_type_desc.hpp>
 #include <oblo/ecs/type_registry.hpp>
+#include <oblo/log/log.hpp>
 #include <oblo/math/transform.hpp>
 #include <oblo/properties/property_registry.hpp>
 #include <oblo/reflection/concepts/ranged_type_erasure.hpp>

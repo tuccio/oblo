@@ -7,6 +7,7 @@ target_link_libraries(
     oblo::ecs
     oblo::vk
     PRIVATE
+    oblo::log
     oblo::resource
     oblo::scene
     efsw::efsw

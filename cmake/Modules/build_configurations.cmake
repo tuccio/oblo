@@ -8,6 +8,9 @@ function(oblo_setup_build_configurations)
         # Ignore warning C4324: i.e. padding of structs
         add_compile_options(/wd4324)
 
+        # Ignore warning C4275: i.e. dll exported class inheriting from a non-exported one
+        add_compile_options(/wd4275)
+
         add_compile_options(/permissive-)
 
         # Flags that are note supported or needed by clang-cl

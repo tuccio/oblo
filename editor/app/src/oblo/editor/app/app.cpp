@@ -10,15 +10,21 @@
 #include <oblo/editor/app/commands.hpp>
 #include <oblo/editor/editor_module.hpp>
 #include <oblo/editor/services/component_factory.hpp>
+#include <oblo/editor/services/log_queue.hpp>
 #include <oblo/editor/services/registered_commands.hpp>
 #include <oblo/editor/ui/style.hpp>
 #include <oblo/editor/windows/asset_browser.hpp>
+#include <oblo/editor/windows/console_window.hpp>
 #include <oblo/editor/windows/inspector.hpp>
 #include <oblo/editor/windows/scene_editing_window.hpp>
 #include <oblo/editor/windows/scene_hierarchy.hpp>
 #include <oblo/editor/windows/style_window.hpp>
 #include <oblo/editor/windows/viewport.hpp>
 #include <oblo/input/input_queue.hpp>
+#include <oblo/log/log.hpp>
+#include <oblo/log/log_module.hpp>
+#include <oblo/log/sinks/file_sink.hpp>
+#include <oblo/log/sinks/win32_debug_sink.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_manager.hpp>
@@ -33,6 +39,59 @@
 
 namespace oblo::editor
 {
+    namespace
+    {
+        class editor_log_sink final : public log::log_sink
+        {
+        public:
+            void sink(log::severity severity, time timestamp, cstring_view message) override
+            {
+                m_logQueue.push(severity, m_baseTime - timestamp, message);
+            }
+
+            void set_base_time(time baseTime)
+            {
+                m_baseTime = baseTime;
+            }
+
+            log_queue& get_log_queue()
+            {
+                return m_logQueue;
+            }
+
+        private:
+            log_queue m_logQueue;
+            time m_baseTime{};
+        };
+
+        const log_queue* init_log(time bootTime)
+        {
+            auto& mm = module_manager::get();
+
+            auto* const logModule = mm.load<oblo::log::log_module>();
+
+            {
+                auto fileSink = std::make_unique<log::file_sink>(stderr);
+                fileSink->set_base_time(bootTime);
+                logModule->add_sink(std::move(fileSink));
+            }
+
+            if constexpr (platform::is_windows())
+            {
+                auto win32Sink = std::make_unique<log::win32_debug_sink>();
+                win32Sink->set_base_time(bootTime);
+                logModule->add_sink(std::move(win32Sink));
+            }
+
+            auto logSink = std::make_unique<editor_log_sink>();
+            logSink->set_base_time(bootTime);
+            auto& queue = logSink->get_log_queue();
+            logModule->add_sink(std::move(logSink));
+
+            return &queue;
+        }
+    }
+
     std::span<const char* const> app::get_required_instance_extensions() const
     {
         return runtime::get_required_vulkan_features().instanceExtensions;
@@ -60,6 +119,9 @@ namespace oblo::editor
             return false;
         }
 
+        const auto bootTime = clock::now();
+        m_logQueue = init_log(bootTime);
+
         m_jobManager.init();
         return true;
     }
@@ -69,6 +131,7 @@ namespace oblo::editor
         init_ui_style();
 
         auto& mm = module_manager::get();
+
         auto* const runtime = mm.load<oblo::runtime_module>();
         auto* const reflection = mm.load<oblo::reflection::reflection_module>();
         mm.load<importers::importers_module>();
@@ -120,6 +183,7 @@ namespace oblo::editor
             globalRegistry.add<const input_queue>().externally_owned(ctx.inputQueue);
             globalRegistry.add<component_factory>().unique();
             globalRegistry.add<const time_stats>().externally_owned(&m_timeStats);
+            globalRegistry.add<const log_queue>().externally_owned(m_logQueue);
 
             auto* const registeredCommands = globalRegistry.add<registered_commands>().unique();
             fill_commands(*registeredCommands);
@@ -134,6 +198,7 @@ namespace oblo::editor
             m_windowManager.create_child_window<inspector>(sceneEditingWindow);
             m_windowManager.create_child_window<scene_hierarchy>(sceneEditingWindow);
             m_windowManager.create_child_window<viewport>(sceneEditingWindow);
+            m_windowManager.create_child_window<console_window>(sceneEditingWindow);
         }
 
         m_lastFrameTime = clock::now();

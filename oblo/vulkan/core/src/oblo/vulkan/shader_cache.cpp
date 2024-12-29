@@ -9,13 +9,14 @@
 #include <oblo/core/reflection/fields.hpp>
 #include <oblo/core/struct_apply.hpp>
 #include <oblo/core/unreachable.hpp>
+#include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/shader_compiler.hpp>
 
 namespace oblo::vk
 {
     namespace
     {
-        constexpr bool DisableCache{true};
+        constexpr bool DisableCache{false};
         constexpr bool OutputSource{true};
 
         void write_file(cstring_view path, std::span<const byte> data)
@@ -59,6 +60,8 @@ namespace oblo::vk
         VkShaderStageFlagBits stage,
         const shader_compiler::options& options)
     {
+        OBLO_PROFILE_SCOPE();
+
         constexpr auto numOptions{count_fields<shader_compiler::options>()};
         static_assert(numOptions == 3, "The cache hash might need to be updated");
 
@@ -85,9 +88,13 @@ namespace oblo::vk
 
         std::vector<u32> spirv;
 
-        if (!shader_compiler::compile_glsl_to_spirv(debugName, sourceCode, stage, spirv, options))
         {
-            return false;
+            OBLO_PROFILE_SCOPE_NAMED(CompileScope, "Compile shader");
+
+            if (!shader_compiler::compile_glsl_to_spirv(debugName, sourceCode, stage, spirv, options))
+            {
+                return false;
+            }
         }
 
         outSpirv = allocate_n_span<u32>(allocator, spirv.size());

@@ -2,7 +2,7 @@
 
 #include <oblo/core/string/string.hpp>
 
-#include <utf8cpp/utf8.h>
+#include <utf8cpp/utf8/unchecked.h>
 
 #include <filesystem>
 
@@ -40,7 +40,7 @@ namespace oblo
         end = find_end(str, end);
 
         m_buffer.pop_back();
-        utf8::utf16to8(str, end, std::back_inserter(m_buffer));
+        utf8::unchecked::utf16to8(str, end, std::back_inserter(m_buffer));
         ensure_null_termination();
 
         return *this;
@@ -57,7 +57,7 @@ namespace oblo
         end = find_end(str, end);
 
         m_buffer.pop_back();
-        utf8::utf16to8(str, end, std::back_inserter(m_buffer));
+        utf8::unchecked::utf16to8(str, end, std::back_inserter(m_buffer));
         ensure_null_termination();
 
         return *this;
@@ -114,6 +114,30 @@ namespace oblo
         auto p = std::filesystem::canonical(std::u8string_view{sv.u8data(), sv.size()}, ec);
 
         return clear().append(p.native().data(), p.native().data() + p.native().size());
+    }
+
+    string_builder& string_builder::trim_end()
+    {
+        utf8::unchecked::iterator it{m_buffer.end() - 1};
+        const utf8::unchecked::iterator b{m_buffer.begin()};
+
+        while (it != b)
+        {
+            const auto code32 = *it;
+
+            if (code32 != 0 && !std::isspace(int(code32)))
+            {
+                ++it;
+                break;
+            }
+
+            --it;
+        }
+
+        const auto newSize = it.base() - b.base();
+        resize(newSize);
+
+        return *this;
     }
 
     bool string_builder::operator==(const string_builder& other) const noexcept

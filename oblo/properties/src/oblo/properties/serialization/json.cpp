@@ -3,10 +3,10 @@
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/filesystem/file.hpp>
-#include <oblo/core/log.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/core/uuid.hpp>
+#include <oblo/log/log.hpp>
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
 #include <oblo/properties/serialization/data_node.hpp>

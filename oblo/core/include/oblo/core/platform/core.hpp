@@ -11,4 +11,13 @@ namespace oblo::platform
     void wait_for_attached_debugger();
 
     void* find_symbol(const char* name);
+
+    consteval bool is_windows() noexcept
+    {
+#ifdef WIN32
+        return true;
+#else
+        return false;
+#endif
+    }
 }

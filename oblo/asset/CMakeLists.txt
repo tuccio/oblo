@@ -4,6 +4,7 @@ target_link_libraries(
     oblo_asset
     PUBLIC
     oblo::core
+    oblo::log
     oblo::properties
     oblo::resource
     PRIVATE

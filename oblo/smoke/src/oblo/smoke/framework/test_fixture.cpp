@@ -3,13 +3,13 @@
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/registration.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
-#include <oblo/core/log.hpp>
 #include <oblo/core/platform/shared_library.hpp>
 #include <oblo/core/platform/shell.hpp>
 #include <oblo/core/time/clock.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
 #include <oblo/input/utility/fps_camera_controller.hpp>
+#include <oblo/log/log.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_manager.hpp>

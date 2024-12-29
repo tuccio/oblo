@@ -1,3 +1,4 @@
+#include <oblo/core/lifetime.hpp>
 #include <oblo/core/time/clock.hpp>
 
 #include <chrono>
