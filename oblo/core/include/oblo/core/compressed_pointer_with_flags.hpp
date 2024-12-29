@@ -8,12 +8,19 @@
 
 namespace oblo
 {
-    template <typename T>
+    template <typename T, usize MaxFlags = log2_round_down_power_of_two(alignof(T))>
     struct compressed_pointer_with_flags
     {
-        static constexpr usize max_flags = log2_round_down_power_of_two(alignof(T));
+        static constexpr usize max_flags = MaxFlags;
 
         uintptr buffer;
+
+        compressed_pointer_with_flags() : buffer{0} {}
+        compressed_pointer_with_flags(T* ptr) : buffer{0}
+        {
+            set_pointer(ptr);
+        }
+        compressed_pointer_with_flags(const compressed_pointer_with_flags&) = default;
 
         bool get_flag(u32 index) const noexcept
         {
