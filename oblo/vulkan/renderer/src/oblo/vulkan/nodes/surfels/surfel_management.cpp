@@ -63,13 +63,14 @@ namespace oblo::vk
         });
 
         OBLO_ASSERT(initStackPass);
-        ctx.set_pass_kind(pass_kind::compute);
 
         stackInitialized = false;
     }
 
     void surfel_initializer::build(const frame_graph_build_context& ctx)
     {
+        ctx.begin_pass(pass_kind::compute);
+
         // TODO: When any of these changes we would need to somehow re-initialize all buffers
         const auto gridBounds = ctx.access(inGridBounds);
         const auto gridCellSize = ctx.access(inGridCellSize);
@@ -165,8 +166,6 @@ namespace oblo::vk
         });
 
         OBLO_ASSERT(tilingPass);
-
-        ctx.set_pass_kind(pass_kind::compute);
     }
 
     namespace
@@ -190,13 +189,10 @@ namespace oblo::vk
 
             data<h32<compute_pass>> reductionPass;
 
-            void init(const frame_graph_init_context& ctx)
-            {
-                ctx.set_pass_kind(pass_kind::compute);
-            }
-
             void build(const frame_graph_build_context& ctx)
             {
+                ctx.begin_pass(pass_kind::compute);
+
                 const auto& config = ctx.access(inConfig);
 
                 if (config.isFirstPass)
@@ -236,8 +232,6 @@ namespace oblo::vk
         });
 
         OBLO_ASSERT(reductionPass);
-
-        ctx.set_pass_kind(pass_kind::compute);
     }
 
 #if 0
@@ -362,6 +356,8 @@ namespace oblo::vk
 
     void surfel_tiling::build(const frame_graph_build_context& ctx)
     {
+        ctx.begin_pass(pass_kind::compute);
+
         const auto resolution =
             ctx.get_current_initializer(inVisibilityBuffer).assert_value_or(image_initializer{}).extent;
 
@@ -448,12 +444,12 @@ namespace oblo::vk
         });
 
         OBLO_ASSERT(spawnPass);
-
-        ctx.set_pass_kind(pass_kind::compute);
     }
 
     void surfel_spawner::build(const frame_graph_build_context& ctx)
     {
+        ctx.begin_pass(pass_kind::compute);
+
         const auto tileCoverageSpan = ctx.access(inTileCoverageSink);
 
         if (tileCoverageSpan.empty())
@@ -539,12 +535,11 @@ namespace oblo::vk
         });
 
         OBLO_ASSERT(initGridPass);
-
-        ctx.set_pass_kind(pass_kind::compute);
     }
 
     void surfel_grid_clear::build(const frame_graph_build_context& ctx)
     {
+        ctx.begin_pass(pass_kind::compute);
         ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_write);
     }
 
@@ -606,12 +601,12 @@ namespace oblo::vk
         });
 
         OBLO_ASSERT(updatePass);
-
-        ctx.set_pass_kind(pass_kind::compute);
     }
 
     void surfel_update::build(const frame_graph_build_context& ctx)
     {
+        ctx.begin_pass(pass_kind::compute);
+
         ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_write);
         ctx.acquire(inOutSurfelsPool, buffer_usage::storage_write);
     }

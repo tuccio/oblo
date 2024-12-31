@@ -22,12 +22,12 @@ namespace oblo::vk
             .name = "Lighting Pass",
             .shaderSourcePath = "./vulkan/shaders/visibility/visibility_lighting.comp",
         });
-
-        ctx.set_pass_kind(pass_kind::compute);
     }
 
     void visibility_lighting::build(const frame_graph_build_context& ctx)
     {
+        ctx.begin_pass(pass_kind::compute);
+
         const auto resolution = ctx.access(inResolution);
 
         ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
@@ -135,12 +135,12 @@ namespace oblo::vk
             .name = "Debug Pass",
             .shaderSourcePath = "./vulkan/shaders/visibility/visibility_debug.comp",
         });
-
-        ctx.set_pass_kind(pass_kind::compute);
     }
 
     void visibility_debug::build(const frame_graph_build_context& ctx)
     {
+        ctx.begin_pass(pass_kind::compute);
+
         const auto resolution = ctx.access(inResolution);
 
         ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);

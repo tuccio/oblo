@@ -39,6 +39,7 @@ namespace oblo::vk
     struct loaded_functions;
     struct frame_graph_impl;
     struct frame_graph_pin_storage;
+    struct frame_graph_pass;
     struct resident_texture;
     struct staging_buffer_span;
 
@@ -85,8 +86,6 @@ namespace oblo::vk
 
         string_interner& get_string_interner() const;
 
-        void set_pass_kind(pass_kind passKind) const;
-
     private:
         frame_graph_impl& m_frameGraph;
         renderer& m_renderer;
@@ -97,6 +96,8 @@ namespace oblo::vk
     public:
         explicit frame_graph_build_context(
             frame_graph_impl& frameGraph, renderer& renderer, resource_pool& resourcePool);
+
+        h32<frame_graph_pass> begin_pass(pass_kind kind) const;
 
         void create(
             resource<texture> texture, const texture_resource_initializer& initializer, texture_usage usage) const;
@@ -181,6 +182,8 @@ namespace oblo::vk
     public:
         explicit frame_graph_execute_context(
             frame_graph_impl& frameGraph, renderer& renderer, VkCommandBuffer commandBuffer);
+
+        void begin_pass(h32<frame_graph_pass> handle) const;
 
         template <typename T>
         T& access(data<T> data) const

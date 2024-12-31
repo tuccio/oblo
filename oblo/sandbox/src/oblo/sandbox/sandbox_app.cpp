@@ -46,6 +46,31 @@ namespace oblo::vk
             log::generic(severity, "[Vulkan] (0x{:x}) {}", messageType, pCallbackData->pMessage);
             return VK_FALSE;
         }
+
+        VKAPI_ATTR VkBool32 VKAPI_CALL debug_report_callback(VkDebugReportFlagsEXT flags,
+            [[maybe_unused]] VkDebugReportObjectTypeEXT objectType,
+            [[maybe_unused]] u64 object,
+            [[maybe_unused]] usize location,
+            [[maybe_unused]] i32 messageCode,
+            [[maybe_unused]] const char* layerPrefix,
+            const char* message,
+            [[maybe_unused]] void* userdata)
+        {
+            log::severity severity = log::severity::debug;
+
+            if ((flags & VK_DEBUG_REPORT_ERROR_BIT_EXT) != 0)
+            {
+                severity = log::severity::error;
+            }
+            else if ((flags & VK_DEBUG_REPORT_WARNING_BIT_EXT) != 0)
+            {
+                severity = log::severity::warn;
+            }
+
+            log::generic(severity, "{}", message);
+
+            return VK_FALSE;
+        }
     }
 
     void sandbox_base::shutdown()
@@ -437,6 +462,7 @@ namespace oblo::vk
         }
 
         extensions.resize(sdlExtensionsCount);
+        extensions.emplace_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
 
         if (!SDL_Vulkan_GetInstanceExtensions(m_window, &sdlExtensionsCount, extensions.data()))
         {
@@ -474,6 +500,34 @@ namespace oblo::vk
         if (!SDL_Vulkan_CreateSurface(m_window, m_instance.get(), &m_surface))
         {
             return false;
+        }
+
+        constexpr VkDebugReportCallbackCreateInfoEXT debugReportCreateInfo = {
+            .sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT,
+            .flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT,
+            .pfnCallback = debug_report_callback,
+        };
+
+        // We have to explicitly load this function.
+        const PFN_vkCreateDebugReportCallbackEXT vkCreateDebugReportCallbackEXT =
+            reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT>(
+                vkGetInstanceProcAddr(m_instance.get(), "vkCreateDebugReportCallbackEXT"));
+
+        if (vkCreateDebugReportCallbackEXT)
+        {
+            VkDebugReportCallbackEXT debugReportCallback{};
+
+            const auto result =
+                vkCreateDebugReportCallbackEXT(m_instance.get(), &debugReportCreateInfo, nullptr, &debugReportCallback);
+
+            if (result != VK_SUCCESS)
+            {
+                log::error("Failed to create vkCreateDebugReportCallbackEXT (error: {0:#x})", i32{result});
+            }
+        }
+        else
+        {
+            log::error("Unable to locate vkCreateDebugReportCallbackEXT");
         }
 
         constexpr const char* internalDeviceExtensions[] = {

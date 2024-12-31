@@ -67,10 +67,18 @@ namespace oblo::vk
             return result;
         }
 
-        std::pair<VkPipelineStageFlags2, VkAccessFlags2> convert_for_sync2(pass_kind passKind, buffer_usage usage)
+        struct buffer_access_info
+        {
+            VkPipelineStageFlags2 pipeline;
+            VkAccessFlags2 access;
+            buffer_access_kind accessKind;
+        };
+
+        buffer_access_info convert_for_sync2(pass_kind passKind, buffer_usage usage)
         {
             VkPipelineStageFlags2 pipelineStage{};
             VkAccessFlags2 access{};
+            buffer_access_kind accessKind{};
 
             switch (passKind)
             {
@@ -102,25 +110,30 @@ namespace oblo::vk
             {
             case buffer_usage::storage_read:
                 access = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
+                accessKind = buffer_access_kind::read;
                 break;
             case buffer_usage::storage_write: // We interpret write as RW (e.g. we may read uploaded data)
                 access = VK_ACCESS_2_SHADER_WRITE_BIT | VK_ACCESS_2_SHADER_READ_BIT |
                     VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
+                accessKind = buffer_access_kind::write;
                 break;
             case buffer_usage::storage_upload:
                 access = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+                accessKind = buffer_access_kind::write;
                 break;
             case buffer_usage::uniform:
                 access = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_UNIFORM_READ_BIT;
+                accessKind = buffer_access_kind::read;
                 break;
             case buffer_usage::indirect:
                 access = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
+                accessKind = buffer_access_kind::read;
                 break;
             default:
                 unreachable();
             }
 
-            return {pipelineStage, access};
+            return {pipelineStage, access, accessKind};
         }
 
         void add_texture_usages(
@@ -163,6 +176,8 @@ namespace oblo::vk
     void frame_graph_build_context::create(
         resource<texture> texture, const texture_resource_initializer& initializer, texture_usage usage) const
     {
+        OBLO_ASSERT(m_frameGraph.currentPass);
+
         const image_initializer imageInitializer{
             .imageType = VK_IMAGE_TYPE_2D,
             .format = initializer.format,
@@ -199,6 +214,8 @@ namespace oblo::vk
     void frame_graph_build_context::create(
         resource<buffer> buffer, const buffer_resource_initializer& initializer, buffer_usage usage) const
     {
+        OBLO_ASSERT(m_frameGraph.currentPass);
+
         auto vkUsage = convert_buffer_usage(usage);
 
         if (!initializer.data.empty())
@@ -238,13 +255,17 @@ namespace oblo::vk
 
         m_frameGraph.add_transient_buffer(buffer, poolIndex, stagedDataPtr);
 
-        const auto [pipelineStage, access] = convert_for_sync2(m_frameGraph.currentNode->passKind, usage);
-        m_frameGraph.set_buffer_access(buffer, pipelineStage, access, upload);
+        const auto& currentPass = m_frameGraph.passes[m_frameGraph.currentPass.value];
+
+        const auto [pipelineStage, access, accessKind] = convert_for_sync2(currentPass.kind, usage);
+        m_frameGraph.set_buffer_access(buffer, pipelineStage, access, accessKind, upload);
     }
 
     void frame_graph_build_context::create(
         resource<buffer> buffer, const staging_buffer_span& stagedData, buffer_usage usage) const
     {
+        OBLO_ASSERT(m_frameGraph.currentPass);
+
         auto vkUsage = convert_buffer_usage(usage);
 
         const auto stagedDataSize = calculate_size(stagedData);
@@ -262,12 +283,16 @@ namespace oblo::vk
 
         m_frameGraph.add_transient_buffer(buffer, poolIndex, &stagedData);
 
-        const auto [pipelineStage, access] = convert_for_sync2(m_frameGraph.currentNode->passKind, usage);
-        m_frameGraph.set_buffer_access(buffer, pipelineStage, access, stagedDataSize != 0);
+        const auto& currentPass = m_frameGraph.passes[m_frameGraph.currentPass.value];
+
+        const auto [pipelineStage, access, accessKind] = convert_for_sync2(currentPass.kind, usage);
+        m_frameGraph.set_buffer_access(buffer, pipelineStage, access, accessKind, stagedDataSize != 0);
     }
 
     void frame_graph_build_context::acquire(resource<texture> texture, texture_usage usage) const
     {
+        OBLO_ASSERT(m_frameGraph.currentPass);
+
         m_frameGraph.add_resource_transition(texture, usage);
         add_texture_usages(m_resourcePool, m_frameGraph, texture, usage);
     }
@@ -275,6 +300,8 @@ namespace oblo::vk
     h32<resident_texture> frame_graph_build_context::acquire_bindless(resource<texture> texture,
         texture_usage usage) const
     {
+        OBLO_ASSERT(m_frameGraph.currentPass);
+
         m_frameGraph.add_resource_transition(texture, usage);
         add_texture_usages(m_resourcePool, m_frameGraph, texture, usage);
 
@@ -286,11 +313,16 @@ namespace oblo::vk
 
     void frame_graph_build_context::acquire(resource<buffer> buffer, buffer_usage usage) const
     {
+        OBLO_ASSERT(m_frameGraph.currentPass);
+
         const auto poolIndex = m_frameGraph.find_pool_index(buffer);
         OBLO_ASSERT(poolIndex);
         m_resourcePool.add_transient_buffer_usage(poolIndex, convert_buffer_usage(usage));
-        const auto [pipelineStage, access] = convert_for_sync2(m_frameGraph.currentNode->passKind, usage);
-        m_frameGraph.set_buffer_access(buffer, pipelineStage, access, false);
+
+        const auto& currentPass = m_frameGraph.passes[m_frameGraph.currentPass.value];
+        const auto [pipelineStage, access, accessKind] = convert_for_sync2(currentPass.kind, usage);
+
+        m_frameGraph.set_buffer_access(buffer, pipelineStage, access, accessKind, false);
     }
 
     bool frame_graph_build_context::has_source(resource<buffer> buffer) const
@@ -302,6 +334,8 @@ namespace oblo::vk
     resource<buffer> frame_graph_build_context::create_dynamic_buffer(const buffer_resource_initializer& initializer,
         buffer_usage usage) const
     {
+        OBLO_ASSERT(m_frameGraph.currentPass);
+
         const auto pinHandle = m_frameGraph.allocate_dynamic_resource_pin();
 
         const resource<buffer> resource{pinHandle.value};
@@ -313,6 +347,8 @@ namespace oblo::vk
     resource<buffer> frame_graph_build_context::create_dynamic_buffer(const staging_buffer_span& stagedData,
         buffer_usage usage) const
     {
+        OBLO_ASSERT(m_frameGraph.currentPass);
+
         const auto pinHandle = m_frameGraph.allocate_dynamic_resource_pin();
 
         const resource<buffer> resource{pinHandle.value};
@@ -355,6 +391,11 @@ namespace oblo::vk
     {
     }
 
+    h32<frame_graph_pass> frame_graph_build_context::begin_pass(pass_kind kind) const
+    {
+        return m_frameGraph.begin_pass_build(kind);
+    }
+
     void* frame_graph_build_context::access_storage(h32<frame_graph_pin_storage> handle) const
     {
         return m_frameGraph.access_storage(handle);
@@ -370,6 +411,11 @@ namespace oblo::vk
         m_frameGraph{frameGraph},
         m_renderer{renderer}, m_commandBuffer{commandBuffer}
     {
+    }
+
+    void frame_graph_execute_context::begin_pass(h32<frame_graph_pass> handle) const
+    {
+        m_frameGraph.begin_pass_execution(handle, m_commandBuffer);
     }
 
     texture frame_graph_execute_context::access(resource<texture> h) const
@@ -409,7 +455,9 @@ namespace oblo::vk
 
     void frame_graph_execute_context::upload(resource<buffer> h, std::span<const byte> data, u32 bufferOffset) const
     {
-        OBLO_ASSERT(m_frameGraph.can_exec_time_upload(h));
+        // TODO: Could check at least that we are in a transfer pass
+        OBLO_ASSERT(m_frameGraph.currentPass &&
+            m_frameGraph.passes[m_frameGraph.currentPass.value].kind == pass_kind::transfer);
 
         auto& stagingBuffer = m_renderer.get_staging_buffer();
         const auto stagedData = stagingBuffer.stage(data);
@@ -503,10 +551,5 @@ namespace oblo::vk
     string_interner& frame_graph_init_context::get_string_interner() const
     {
         return m_renderer.get_string_interner();
-    }
-
-    void frame_graph_init_context::set_pass_kind(pass_kind passKind) const
-    {
-        m_frameGraph.currentNode->passKind = passKind;
     }
 }

@@ -30,12 +30,12 @@ namespace oblo::vk
                     },
                 },
         });
-
-        ctx.set_pass_kind(pass_kind::raytracing);
     }
 
     void raytracing_debug::build(const frame_graph_build_context& ctx)
     {
+        ctx.begin_pass(pass_kind::raytracing);
+
         const auto resolution = ctx.access(inResolution);
 
         ctx.create(outShadedImage,

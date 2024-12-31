@@ -32,6 +32,8 @@ namespace oblo::vk
             const auto& cameraBuffer = ctx.access(inCameraData);
             const auto& timeBuffer = ctx.access(inTimeData);
 
+            ctx.begin_pass(pass_kind::none);
+
             ctx.create(outCameraBuffer,
                 {
                     .size = sizeof(camera_buffer),

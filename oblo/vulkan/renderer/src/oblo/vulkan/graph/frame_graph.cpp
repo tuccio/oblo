@@ -17,7 +17,7 @@
 #include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/stateful_command_buffer.hpp>
 
-#include <sstream>
+#include <iosfwd>
 
 namespace oblo::vk
 {
@@ -32,6 +32,109 @@ namespace oblo::vk
         h32<frame_graph_pin_storage> to_storage_handle(h32<resource_pin<T>> h)
         {
             return h32<frame_graph_pin_storage>{h.value};
+        }
+
+        void build_pass_barriers(frame_graph_impl& impl, dynamic_array<VkBufferMemoryBarrier2>& memoryBarriers)
+        {
+            memoryBarriers.reserve(128);
+
+            struct buffer_tracking
+            {
+                VkPipelineStageFlags2 previousStages;
+                VkAccessFlags2 previousAccess;
+                bool hasMemoryBarrier;
+                buffer_access_kind currentAccessKind;
+                usize currentBarrierIdx;
+            };
+
+            h32_flat_extpool_dense_map<frame_graph_pin_storage, buffer_tracking> bufferUsages{&impl.dynamicAllocator};
+            bufferUsages.reserve_sparse(u32(impl.pinStorage.size() + 1));
+            bufferUsages.reserve_dense(u32(impl.pinStorage.size() + 1));
+
+            auto nextPassIt = impl.passes.begin();
+
+            for (auto& pass : impl.passes)
+            {
+                const u32 firstBarrierIdx = u32(memoryBarriers.size());
+
+                for (u32 bufferUsageIdx = pass.bufferUsageBegin; bufferUsageIdx < pass.bufferUsageEnd; ++bufferUsageIdx)
+                {
+                    const auto& bufferUsage = impl.bufferUsages[bufferUsageIdx];
+
+                    const auto [tracking, inserted] = bufferUsages.emplace(bufferUsage.pinStorage);
+
+                    if (bufferUsage.uploadedTo)
+                    {
+                        OBLO_ASSERT(tracking->previousStages == VK_PIPELINE_STAGE_2_NONE);
+
+                        tracking->previousStages = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+                        tracking->previousAccess = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+                    }
+
+                    // If we don't have an actual usage, we just act like we are "forwarding"
+                    if (bufferUsage.stages != VK_PIPELINE_STAGE_2_NONE)
+                    {
+                        // The usage should be either read or write
+                        OBLO_ASSERT(bufferUsage.access != VK_ACCESS_2_NONE);
+
+                        const bool isNewUsageRead = bufferUsage.accessKind == buffer_access_kind::read;
+                        const bool isCurrentUsageRead =
+                            tracking->hasMemoryBarrier && tracking->currentAccessKind == buffer_access_kind::read;
+
+                        // The current usage might be read, write or none
+                        if (isNewUsageRead && isCurrentUsageRead)
+                        {
+                            // When we already added a read barrier and we find another read usage, we can just add the
+                            // stages and access to the previous barrier
+                            auto& barrier = memoryBarriers[tracking->currentBarrierIdx];
+                            barrier.dstStageMask |= bufferUsage.stages;
+                            barrier.dstAccessMask |= bufferUsage.access;
+                        }
+                        else
+                        {
+                            // When we already had a barrier, we pick up the last one to d determine the previous access
+                            // Otherwise we read what tracking is holding (it may be none or transfer due to an upload)
+                            if (tracking->hasMemoryBarrier)
+                            {
+                                auto& barrier = memoryBarriers[tracking->currentBarrierIdx];
+                                tracking->previousStages = barrier.dstStageMask;
+                                tracking->previousAccess = barrier.dstAccessMask;
+                            }
+
+                            // Here the current access might be none, or simply different from our new usage (e.g.
+                            // read-to-write or write-to-read). We need to add a barrier.
+                            const usize newBarrierIdx = memoryBarriers.size();
+                            tracking->currentBarrierIdx = newBarrierIdx;
+                            tracking->currentAccessKind = bufferUsage.accessKind;
+
+                            const auto* const bufferPtr =
+                                static_cast<buffer*>(impl.access_storage(bufferUsage.pinStorage));
+
+                            OBLO_ASSERT(bufferPtr && bufferPtr->buffer);
+
+                            // When there's no access yet, we can just add a new barrier (we might update access/stage
+                            // of it later)
+                            memoryBarriers.push_back({
+                                .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+                                .srcStageMask = tracking->previousStages,
+                                .srcAccessMask = tracking->previousAccess,
+                                .dstStageMask = bufferUsage.stages,
+                                .dstAccessMask = bufferUsage.access,
+                                .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                                .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                                .buffer = bufferPtr->buffer,
+                                .offset = bufferPtr->offset,
+                                .size = bufferPtr->size,
+                            });
+                        }
+                    }
+                }
+
+                const u32 lastBarrierIdx = u32(memoryBarriers.size());
+
+                pass.bufferBarriersBegin = firstBarrierIdx;
+                pass.bufferBarriersEnd = lastBarrierIdx;
+            }
         }
     }
 
@@ -384,13 +487,11 @@ namespace oblo::vk
         m_impl->mark_active_nodes();
         m_impl->rebuild_runtime(renderer);
 
-        // Reset the buffer usages
-        for (auto& node : m_impl->nodes.values())
-        {
-            node.bufferUsages.clear();
-        }
+        m_impl->passesPerNode.clear();
+        m_impl->sortedNodes.reserve(m_impl->sortedNodes.size());
 
-        m_impl->nodeTransitions.assign(m_impl->sortedNodes.size(), {});
+        // We use pass with index 0 as invalid
+        m_impl->passes.assign_default(1);
 
         const frame_graph_build_context buildCtx{*m_impl, renderer, m_impl->resourcePool};
 
@@ -415,6 +516,12 @@ namespace oblo::vk
             auto* const node = m_impl->nodes.try_find(nodeHandle);
 
             m_impl->currentNode = node;
+            m_impl->currentPass = {};
+
+            m_impl->passesPerNode.push_back({
+                .passesBegin = u32(m_impl->passes.size()),
+                .passesEnd = u32(m_impl->passes.size()),
+            });
 
             auto* const ptr = node->ptr;
 
@@ -423,16 +530,10 @@ namespace oblo::vk
                 OBLO_PROFILE_SCOPE("Build Node");
                 OBLO_PROFILE_TAG(node->typeId.name);
 
-                auto& nodeTransitions = m_impl->nodeTransitions[nodeIndex];
-                nodeTransitions.firstTextureTransition = u32(m_impl->textureTransitions.size());
-
                 node->build(ptr, buildCtx);
 
-                nodeTransitions.lastTextureTransition = u32(m_impl->textureTransitions.size());
-
-                // TODO: If we added dynamic nodes, we can build them here
-                // m_impl->currentNode = newNode;
-                // auto& newNodeTransition = m_impl->nodeTransitions.emplace_back();
+                // Close the last pass build (if any)
+                m_impl->end_pass_build();
             }
 
             ++nodeIndex;
@@ -498,12 +599,6 @@ namespace oblo::vk
             new (m_impl->access_storage(resource)) texture{t};
         }
 
-        dynamic_array<VkBufferMemoryBarrier2> bufferBarriers{&m_impl->dynamicAllocator};
-        bufferBarriers.reserve(64);
-
-        dynamic_array<VkImageMemoryBarrier2> imageBarriers{&m_impl->dynamicAllocator};
-        imageBarriers.reserve(64);
-
         {
             // Global memory barrier to cover all uploads we just flushed
             const VkMemoryBarrier2 uploadMemoryBarrier{
@@ -523,119 +618,33 @@ namespace oblo::vk
             vkCmdPipelineBarrier2(commandBuffer.get(), &dependencyInfo);
         }
 
-        dynamic_array<h32<frame_graph_node>> incomingNodes{&m_impl->dynamicAllocator};
-        incomingNodes.reserve(32);
+        frame_graph_barriers barriers{
+            .bufferBarriers{dynamic_array<VkBufferMemoryBarrier2>{&m_impl->dynamicAllocator}},
+            .imageBarriers{dynamic_array<VkImageMemoryBarrier2>{&m_impl->dynamicAllocator}},
+        };
 
-        for (auto&& [nodeToExecute, transitions] : zip_range(m_impl->sortedNodes, m_impl->nodeTransitions))
+        dynamic_array<VkBufferMemoryBarrier2> bufferBarriers{&m_impl->dynamicAllocator};
+        build_pass_barriers(*m_impl, barriers.bufferBarriers);
+
+        barriers.imageBarriers.reserve(64);
+
+        m_impl->barriers = &barriers;
+
+        for (const auto& [nodeToExecute, passesPerNode] : zip_range(m_impl->sortedNodes, m_impl->passesPerNode))
         {
             const auto nodeHandle = m_impl->graph.get(nodeToExecute.handle).node;
             auto* const node = m_impl->nodes.try_find(nodeHandle);
 
             m_impl->currentNode = node;
+            m_impl->currentPass = {};
+
+            if (passesPerNode.passesBegin < passesPerNode.passesEnd)
+            {
+                // We automatically start the first pass
+                m_impl->begin_pass_execution(h32<frame_graph_pass>{passesPerNode.passesBegin}, commandBuffer.get());
+            }
 
             auto* const ptr = node->ptr;
-
-            imageBarriers.clear();
-
-            for (u32 i = transitions.firstTextureTransition; i != transitions.lastTextureTransition; ++i)
-            {
-                const auto& textureTransition = m_impl->textureTransitions[i];
-
-                if (!imageLayoutTracker.add_transition(imageBarriers.push_back_default(),
-                        textureTransition.texture,
-                        node->passKind,
-                        textureTransition.usage))
-                {
-                    imageBarriers.pop_back();
-                }
-            }
-
-            bufferBarriers.clear();
-            incomingNodes.clear();
-
-            for (const auto edge : m_impl->graph.get_in_edges(nodeToExecute.handle))
-            {
-                const auto& v = m_impl->graph.get(edge.vertex);
-
-                if (!v.node)
-                {
-                    continue;
-                }
-
-                incomingNodes.push_back(v.node);
-            }
-
-            for (const auto [storage, usages] : zip_range(node->bufferUsages.keys(), node->bufferUsages.values()))
-            {
-                VkPipelineStageFlags2 srcStages{};
-                VkAccessFlags2 srcAccess{};
-
-                if (usages.uploadedTo)
-                {
-                    srcStages |= VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-                    srcAccess |= VK_ACCESS_2_TRANSFER_WRITE_BIT;
-                }
-
-                for (const auto incomingNode : incomingNodes)
-                {
-                    const auto& inNodeValue = m_impl->nodes.at(incomingNode);
-
-                    if (auto* const usage = inNodeValue.bufferUsages.try_find(storage))
-                    {
-                        srcStages |= usage->stages;
-                        srcAccess |= usage->access;
-
-                        if (usage->uploadedTo)
-                        {
-                            srcStages |= VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-                            srcAccess |= VK_ACCESS_2_TRANSFER_WRITE_BIT;
-                        }
-                    }
-                }
-
-                const auto shouldForwardAccess = usages.stages == VK_PIPELINE_STAGE_2_NONE;
-
-                if (shouldForwardAccess)
-                {
-                    const auto [it, ok] = node->bufferUsages.emplace(storage);
-
-                    *it = {
-                        .stages = srcStages,
-                        .access = srcAccess,
-                    };
-                }
-                else if (srcStages != 0 && srcAccess != 0 && usages.access != 0 && usages.stages != 0)
-                {
-                    const auto* const bufferPtr = static_cast<buffer*>(m_impl->access_storage(storage));
-                    OBLO_ASSERT(bufferPtr && bufferPtr->buffer);
-
-                    bufferBarriers.push_back({
-                        .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
-                        .srcStageMask = srcStages,
-                        .srcAccessMask = srcAccess,
-                        .dstStageMask = usages.stages,
-                        .dstAccessMask = usages.access,
-                        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                        .buffer = bufferPtr->buffer,
-                        .offset = bufferPtr->offset,
-                        .size = bufferPtr->size,
-                    });
-                }
-            }
-
-            if (!bufferBarriers.empty() || !imageBarriers.empty())
-            {
-                const VkDependencyInfo dependencyInfo{
-                    .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-                    .bufferMemoryBarrierCount = u32(bufferBarriers.size()),
-                    .pBufferMemoryBarriers = bufferBarriers.data(),
-                    .imageMemoryBarrierCount = u32(imageBarriers.size()),
-                    .pImageMemoryBarriers = imageBarriers.data(),
-                };
-
-                vkCmdPipelineBarrier2(commandBuffer.get(), &dependencyInfo);
-            }
 
             if (node->execute)
             {
@@ -643,9 +652,13 @@ namespace oblo::vk
                 OBLO_PROFILE_TAG(node->typeId.name);
                 node->execute(ptr, executeCtx);
             }
+
+            // TODO: Somehow check that all passes have been executed once and in order?
         }
 
+        m_impl->barriers = {};
         m_impl->currentNode = {};
+        m_impl->currentPass = {};
 
         auto& textureRegistry = renderer.get_texture_registry();
 
@@ -657,6 +670,81 @@ namespace oblo::vk
         m_impl->bindlessTextures.clear();
 
         m_impl->finish_frame();
+    }
+
+    h32<frame_graph_pass> frame_graph_impl::begin_pass_build(pass_kind passKind)
+    {
+        const auto i = u32(passes.size());
+        const h32<frame_graph_pass> passId{i};
+
+        passes.push_back({
+            .kind = passKind,
+            .textureTransitionBegin = u32(textureTransitions.size()),
+            .bufferUsageBegin = u32(bufferUsages.size()),
+        });
+
+        currentPass = passId;
+        passesPerNode.back().passesEnd = i + 1;
+
+        return passId;
+    }
+
+    void frame_graph_impl::end_pass_build()
+    {
+        if (!currentPass)
+        {
+            return;
+        }
+
+        auto& pass = passes[currentPass.value];
+        pass.textureTransitionEnd = u32(textureTransitions.size());
+        pass.bufferUsageEnd = u32(bufferUsages.size());
+
+        currentPass = {};
+    }
+
+    void frame_graph_impl::begin_pass_execution(h32<frame_graph_pass> passId, VkCommandBuffer commandBuffer)
+    {
+        OBLO_ASSERT(passId);
+
+        const auto& pass = passes[passId.value];
+
+        // TODO: I guess this now goes into the begin_pass call
+        buffered_array<VkImageMemoryBarrier2, 32> imageBarriers{&dynamicAllocator};
+        imageBarriers.reserve(pass.textureTransitionEnd - pass.textureTransitionBegin);
+
+        for (u32 i = pass.textureTransitionBegin; i != pass.textureTransitionEnd; ++i)
+        {
+            const auto& textureTransition = textureTransitions[i];
+
+            if (!imageLayoutTracker.add_transition(imageBarriers.push_back_default(),
+                    textureTransition.texture,
+                    pass.kind,
+                    textureTransition.usage))
+            {
+                imageBarriers.pop_back();
+            }
+        }
+
+        const auto bufferBarriers = std::span{
+            barriers->bufferBarriers.data() + pass.bufferBarriersBegin,
+            barriers->bufferBarriers.data() + pass.bufferBarriersEnd,
+        };
+
+        if (!bufferBarriers.empty() || !imageBarriers.empty())
+        {
+            const VkDependencyInfo dependencyInfo{
+                .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                .bufferMemoryBarrierCount = u32(bufferBarriers.size()),
+                .pBufferMemoryBarriers = bufferBarriers.data(),
+                .imageMemoryBarrierCount = u32(imageBarriers.size()),
+                .pImageMemoryBarriers = imageBarriers.data(),
+            };
+
+            vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
+        }
+
+        currentPass = passId;
     }
 
     void frame_graph::write_dot(std::ostream& os) const
@@ -756,29 +844,24 @@ namespace oblo::vk
         }
     }
 
-    void frame_graph_impl::set_buffer_access(
-        resource<buffer> handle, VkPipelineStageFlags2 pipelineStage, VkAccessFlags2 access, bool uploadedTo)
+    void frame_graph_impl::set_buffer_access(resource<buffer> handle,
+        VkPipelineStageFlags2 pipelineStage,
+        VkAccessFlags2 access,
+        buffer_access_kind accessKind,
+        bool uploadedTo)
     {
         const auto storage = to_storage_handle(handle);
 
         OBLO_ASSERT(storage);
         OBLO_ASSERT(pinStorage.try_find(storage));
 
-        const auto [it, ok] = currentNode->bufferUsages.emplace(storage,
-            frame_graph_buffer_usage{
-                .stages = pipelineStage,
-                .access = access,
-                .uploadedTo = uploadedTo,
-            });
-
-        OBLO_ASSERT(ok);
-    }
-
-    bool frame_graph_impl::can_exec_time_upload(resource<buffer> handle) const
-    {
-        auto* const usage = currentNode->bufferUsages.try_find(to_storage_handle(handle));
-        return usage && usage->access == VK_ACCESS_2_TRANSFER_WRITE_BIT &&
-            usage->stages == VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+        bufferUsages.push_back({
+            .pinStorage = storage,
+            .stages = pipelineStage,
+            .access = access,
+            .accessKind = accessKind,
+            .uploadedTo = uploadedTo,
+        });
     }
 
     h32<frame_graph_pin_storage> frame_graph_impl::allocate_dynamic_resource_pin()

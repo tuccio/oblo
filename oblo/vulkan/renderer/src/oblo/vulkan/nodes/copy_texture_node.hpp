@@ -15,13 +15,9 @@ namespace oblo::vk
 
         resource<texture> inSource;
 
-        void init(const frame_graph_init_context& ctx)
-        {
-            ctx.set_pass_kind(pass_kind::transfer);
-        }
-
         void build(const frame_graph_build_context& ctx)
         {
+            ctx.begin_pass(pass_kind::transfer);
             ctx.acquire(inSource, texture_usage::transfer_source);
         }
 

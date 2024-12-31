@@ -34,14 +34,13 @@ namespace oblo::vk
         });
 
         OBLO_ASSERT(cullPass);
-
-        ctx.set_pass_kind(pass_kind::compute);
     }
 
     void frustum_culling::build(const frame_graph_build_context& ctx)
     {
-        auto& allocator = ctx.get_frame_allocator();
+        ctx.begin_pass(pass_kind::compute);
 
+        auto& allocator = ctx.get_frame_allocator();
         auto& drawBufferData = ctx.access(outDrawBufferData);
 
         const auto& drawRegistry = ctx.get_draw_registry();

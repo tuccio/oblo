@@ -25,7 +25,6 @@ namespace oblo::vk
 
         std::span<instance_data_table> instanceTableArray;
 
-        void init(const frame_graph_init_context& ctx);
         void build(const frame_graph_build_context& ctx);
         void execute(const frame_graph_execute_context& ctx);
     };

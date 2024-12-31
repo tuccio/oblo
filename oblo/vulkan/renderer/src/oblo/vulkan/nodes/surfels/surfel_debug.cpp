@@ -26,12 +26,12 @@ namespace oblo::vk
                     },
                 },
         });
-
-        ctx.set_pass_kind(pass_kind::graphics);
     }
 
     void surfel_debug::build(const frame_graph_build_context& ctx)
     {
+        ctx.begin_pass(pass_kind::graphics);
+
         ctx.acquire(inCameraBuffer, buffer_usage::uniform);
 
         ctx.acquire(inOutImage, texture_usage::render_target_write);
