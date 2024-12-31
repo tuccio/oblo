@@ -674,6 +674,8 @@ namespace oblo::vk
 
     h32<frame_graph_pass> frame_graph_impl::begin_pass_build(pass_kind passKind)
     {
+        end_pass_build();
+
         const auto i = u32(passes.size());
         const h32<frame_graph_pass> passId{i};
 

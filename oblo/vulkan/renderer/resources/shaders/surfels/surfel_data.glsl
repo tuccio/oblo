@@ -3,6 +3,9 @@
 
 const uint SURFEL_MAX_PER_CELL = 31;
 
+// Used as a coverage value for surfel_tile_data when no geometry is present
+const float NO_SURFELS_NEEDED = 100000.f;
+
 struct surfel_data
 {
     vec3 position;

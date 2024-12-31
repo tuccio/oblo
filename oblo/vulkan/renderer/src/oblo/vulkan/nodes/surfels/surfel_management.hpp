@@ -35,15 +35,12 @@ namespace oblo::vk
     struct surfel_tiling_data
     {
         resource<buffer> buffer;
-        vec2u tilesCount;
     };
 
     /// @brief Screen-space pass that calculates coverage of each 16x16 tile and the best candidate pixel within the
     /// tile to spawn a surfel on.
     struct surfel_tiling
     {
-        resource<buffer> outTileCoverage;
-
         data_sink<surfel_tiling_data> outTileCoverageSink;
 
         resource<buffer> inSurfelsGrid;
@@ -58,6 +55,12 @@ namespace oblo::vk
         resource<buffer> inMeshDatabase;
 
         h32<compute_pass> tilingPass;
+        h32<compute_pass> reductionPass;
+
+        u32 reductionGroupSize;
+
+        struct subpass_info;
+        std::span<subpass_info> subpasses;
 
         void init(const frame_graph_init_context& ctx);
 

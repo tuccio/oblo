@@ -169,8 +169,6 @@ void main()
 
     if (gl_LocalInvocationID.xy == worstCoverageID)
     {
-        const float NO_SURFELS_NEEDED = 100000.f;
-
         // TODO: Write output
         const uint globalIndex = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
 

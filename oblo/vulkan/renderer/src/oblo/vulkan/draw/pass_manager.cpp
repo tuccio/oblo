@@ -967,10 +967,18 @@ namespace oblo::vk
             .pPushConstantRanges = pushConstantRanges.data(),
         };
 
-        return vkCreatePipelineLayout(device,
-                   &pipelineLayoutInfo,
-                   vkCtx->get_allocator().get_allocation_callbacks(),
-                   &newPipeline.pipelineLayout) == VK_SUCCESS;
+        const auto success = vkCreatePipelineLayout(device,
+                                 &pipelineLayoutInfo,
+                                 vkCtx->get_allocator().get_allocation_callbacks(),
+                                 &newPipeline.pipelineLayout) == VK_SUCCESS;
+
+        if (success)
+        {
+            const auto& debugUtils = vkCtx->get_debug_utils_object();
+            debugUtils.set_object_name(device, newPipeline.pipelineLayout, newPipeline.label);
+        }
+
+        return success;
     }
 
     void pass_manager::impl::create_reflection(base_pipeline& newPipeline,
@@ -2027,6 +2035,10 @@ namespace oblo::vk
                 &newPipeline.pipeline) == VK_SUCCESS)
         {
             renderPass->variants.push_back({.hash = expectedHash, .pipeline = pipelineHandle});
+
+            const auto& debugUtils = m_impl->vkCtx->get_debug_utils_object();
+            debugUtils.set_object_name(m_impl->device, newPipeline.pipeline, newPipeline.label);
+
             return pipelineHandle;
         }
 
@@ -2141,6 +2153,10 @@ namespace oblo::vk
                 &newPipeline.pipeline) == VK_SUCCESS)
         {
             computePass->variants.push_back({.hash = expectedHash, .pipeline = pipelineHandle});
+
+            const auto& debugUtils = m_impl->vkCtx->get_debug_utils_object();
+            debugUtils.set_object_name(m_impl->device, newPipeline.pipeline, newPipeline.label);
+
             return pipelineHandle;
         }
 
@@ -2336,6 +2352,9 @@ namespace oblo::vk
         {
             return failure();
         }
+
+        const auto& debugUtils = m_impl->vkCtx->get_debug_utils_object();
+        debugUtils.set_object_name(m_impl->device, newPipeline.pipeline, newPipeline.label);
 
         // Create the shader buffer table
 

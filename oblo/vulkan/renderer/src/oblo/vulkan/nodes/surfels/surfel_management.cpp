@@ -156,6 +156,12 @@ namespace oblo::vk
         }
     }
 
+    struct surfel_tiling::subpass_info
+    {
+        h32<frame_graph_pass> id;
+        resource<buffer> outBuffer;
+    };
+
     void surfel_tiling::init(const frame_graph_init_context& ctx)
     {
         auto& pm = ctx.get_pass_manager();
@@ -166,6 +172,177 @@ namespace oblo::vk
         });
 
         OBLO_ASSERT(tilingPass);
+
+        reductionPass = pm.register_compute_pass({
+            .name = "Surfel Tiling Reduction",
+            .shaderSourcePath = "./vulkan/shaders/surfels/tile_reduction.comp",
+        });
+
+        OBLO_ASSERT(reductionPass);
+
+        const u32 subgroupSize = pm.get_subgroup_size();
+        reductionGroupSize = subgroupSize * subgroupSize;
+    }
+
+    void surfel_tiling::build(const frame_graph_build_context& ctx)
+    {
+        resource<buffer> fullTileCoverage;
+
+        const auto resolution =
+            ctx.get_current_initializer(inVisibilityBuffer).assert_value_or(image_initializer{}).extent;
+
+        const u32 tilesX = round_up_div(resolution.width, g_surfelTileSize);
+        const u32 tilesY = round_up_div(resolution.height, g_surfelTileSize);
+        const u32 tilesCount = tilesX * tilesY;
+
+        const u32 reductionPassesCount =
+            u32(std::ceilf(f32(log2_round_down_power_of_two(round_up_power_of_two(tilesCount))) /
+                log2_round_down_power_of_two(reductionGroupSize)));
+
+        subpasses = allocate_n_span<subpass_info>(ctx.get_frame_allocator(), 1 + reductionPassesCount);
+
+        const u32 tilesBufferSize = u32(tilesCount * sizeof(surfel_tile_data));
+
+        // First subpass: split the screen in tiles, find the best candidate for each tile
+        {
+            const auto subpass = ctx.begin_pass(pass_kind::compute);
+
+            fullTileCoverage = ctx.create_dynamic_buffer(
+                buffer_resource_initializer{
+                    .size = tilesBufferSize,
+                },
+                buffer_usage::storage_write);
+
+            ctx.push(outTileCoverageSink,
+                {
+                    .buffer = fullTileCoverage,
+                });
+
+            ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
+
+            ctx.acquire(inCameraBuffer, buffer_usage::uniform);
+            ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
+
+            acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
+
+            if (ctx.has_source(inSurfelsGrid))
+            {
+                ctx.acquire(inSurfelsGrid, buffer_usage::storage_read);
+                ctx.acquire(inSurfelsPool, buffer_usage::storage_read);
+            }
+
+            subpasses.front() = {
+                .id = subpass,
+                .outBuffer = fullTileCoverage,
+            };
+        }
+
+        // Parallel reduction until we only have 1 candidate
+
+        u32 currentBufferSize = round_up_multiple(tilesCount, reductionGroupSize) * sizeof(surfel_tile_data);
+
+        for (u32 i = 1; i <= reductionPassesCount; ++i)
+        {
+            const auto subpass = ctx.begin_pass(pass_kind::compute);
+
+            ctx.acquire(subpasses[i - 1].outBuffer, buffer_usage::storage_read);
+
+            currentBufferSize = max(currentBufferSize / reductionGroupSize, u32(sizeof(surfel_tile_data)));
+            OBLO_ASSERT(currentBufferSize > sizeof(surfel_tile_data) || i == reductionPassesCount);
+
+            const auto newBuffer = ctx.create_dynamic_buffer(
+                buffer_resource_initializer{
+                    .size = currentBufferSize,
+                },
+                buffer_usage::storage_write);
+
+            subpasses[i] = {.id = subpass, .outBuffer = newBuffer};
+        }
+
+        OBLO_ASSERT(currentBufferSize == sizeof(surfel_tile_data));
+    }
+
+    void surfel_tiling::execute(const frame_graph_execute_context& ctx)
+    {
+        auto& pm = ctx.get_pass_manager();
+
+        binding_table bindingTable;
+
+        const binding_table* bindingTables[] = {
+            &bindingTable,
+        };
+
+        const auto commandBuffer = ctx.get_command_buffer();
+
+        const auto tilingPipeline = pm.get_or_create_pipeline(tilingPass, {});
+
+        const auto resolution = ctx.access(inVisibilityBuffer).initializer.extent;
+
+        const u32 tilesX = round_up_div(resolution.width, g_surfelTileSize);
+        const u32 tilesY = round_up_div(resolution.height, g_surfelTileSize);
+
+        resource<buffer> previousBuffer{};
+
+        if (const auto tiling = pm.begin_compute_pass(commandBuffer, tilingPipeline))
+        {
+
+            const auto outBuffer = subpasses.front().outBuffer;
+
+            ctx.bind_buffers(bindingTable,
+                {
+                    {"b_InstanceTables", inInstanceTables},
+                    {"b_MeshTables", inMeshDatabase},
+                    {"b_CameraBuffer", inCameraBuffer},
+                    {"b_SurfelsGrid", inSurfelsGrid},
+                    {"b_SurfelsPool", inSurfelsPool},
+                    {"b_OutTileCoverage", outBuffer},
+                });
+
+            ctx.bind_textures(bindingTable,
+                {
+                    {"t_InVisibilityBuffer", inVisibilityBuffer},
+                });
+
+            pm.bind_descriptor_sets(*tiling, bindingTables);
+
+            vkCmdDispatch(ctx.get_command_buffer(), tilesX, tilesY, 1);
+
+            pm.end_compute_pass(*tiling);
+
+            previousBuffer = outBuffer;
+        }
+
+        const auto reductionPipeline = pm.get_or_create_pipeline(reductionPass, {});
+
+        for (const auto& subpass : subpasses.subspan(1))
+        {
+            ctx.begin_pass(subpass.id);
+
+            // TODO: Start pass and dispatch
+            if (const auto reduction = pm.begin_compute_pass(commandBuffer, reductionPipeline))
+            {
+                bindingTable.clear();
+
+                ctx.bind_buffers(bindingTable,
+                    {
+                        {"b_InBuffer", previousBuffer},
+                        {"b_OutBuffer", subpass.outBuffer},
+                    });
+
+                pm.bind_descriptor_sets(*reduction, bindingTables);
+
+                const u32 inElements = ctx.access(previousBuffer).size / u32{sizeof(surfel_tile_data)};
+                const u32 groups = round_up_div(inElements, reductionGroupSize);
+
+                pm.push_constants(*reduction, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&inElements, 1}));
+
+                vkCmdDispatch(ctx.get_command_buffer(), groups, 1, 1);
+
+                pm.end_compute_pass(*reduction);
+            }
+
+            previousBuffer = subpass.outBuffer;
+        }
     }
 
     namespace
@@ -354,86 +531,6 @@ namespace oblo::vk
     }
 #endif // #if 0
 
-    void surfel_tiling::build(const frame_graph_build_context& ctx)
-    {
-        ctx.begin_pass(pass_kind::compute);
-
-        const auto resolution =
-            ctx.get_current_initializer(inVisibilityBuffer).assert_value_or(image_initializer{}).extent;
-
-        const u32 tilesX = round_up_div(resolution.width, g_surfelTileSize);
-        const u32 tilesY = round_up_div(resolution.height, g_surfelTileSize);
-
-        outTileCoverage = ctx.create_dynamic_buffer(
-            buffer_resource_initializer{
-                .size = u32(tilesX * tilesY * sizeof(surfel_tile_data)),
-            },
-            buffer_usage::storage_write);
-
-        ctx.push(outTileCoverageSink,
-            {
-                .buffer = outTileCoverage,
-                .tilesCount = {.x = tilesX, .y = tilesY},
-            });
-
-        ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
-
-        ctx.acquire(inCameraBuffer, buffer_usage::uniform);
-        ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
-
-        acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
-
-        if (ctx.has_source(inSurfelsGrid))
-        {
-            ctx.acquire(inSurfelsGrid, buffer_usage::storage_read);
-            ctx.acquire(inSurfelsPool, buffer_usage::storage_read);
-        }
-    }
-
-    void surfel_tiling::execute(const frame_graph_execute_context& ctx)
-    {
-        auto& pm = ctx.get_pass_manager();
-
-        binding_table bindingTable;
-
-        ctx.bind_buffers(bindingTable,
-            {
-                {"b_InstanceTables", inInstanceTables},
-                {"b_MeshTables", inMeshDatabase},
-                {"b_CameraBuffer", inCameraBuffer},
-                {"b_SurfelsGrid", inSurfelsGrid},
-                {"b_SurfelsPool", inSurfelsPool},
-                {"b_OutTileCoverage", outTileCoverage},
-            });
-
-        ctx.bind_textures(bindingTable,
-            {
-                {"t_InVisibilityBuffer", inVisibilityBuffer},
-            });
-
-        const auto commandBuffer = ctx.get_command_buffer();
-
-        const auto pipeline = pm.get_or_create_pipeline(tilingPass, {});
-
-        if (const auto pass = pm.begin_compute_pass(commandBuffer, pipeline))
-        {
-            const auto resolution = ctx.access(inVisibilityBuffer).initializer.extent;
-
-            const binding_table* bindingTables[] = {
-                &bindingTable,
-            };
-
-            const u32 tilesX = round_up_div(resolution.width, g_surfelTileSize);
-            const u32 tilesY = round_up_div(resolution.height, g_surfelTileSize);
-
-            pm.bind_descriptor_sets(*pass, bindingTables);
-
-            vkCmdDispatch(ctx.get_command_buffer(), tilesX, tilesY, 1);
-
-            pm.end_compute_pass(*pass);
-        }
-    }
-
     void surfel_spawner::init(const frame_graph_init_context& ctx)
     {
         auto& pm = ctx.get_pass_manager();
@@ -494,12 +591,8 @@ namespace oblo::vk
 
         if (const auto pass = pm.begin_compute_pass(commandBuffer, pipeline))
         {
-            const auto subgroupSize = pm.get_subgroup_size();
-
             for (const auto& tileCoverage : tileCoverageSpan)
             {
-                const auto tilesCount = tileCoverage.tilesCount;
-
                 perDispatchBindingTable.clear();
 
                 ctx.bind_buffers(perDispatchBindingTable,
@@ -513,12 +606,8 @@ namespace oblo::vk
                 };
 
                 pm.bind_descriptor_sets(*pass, bindingTables);
-                pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&tilesCount, 1}));
 
-                const u32 groupsX = round_up_div(tilesCount.x, subgroupSize);
-                const u32 groupsY = tilesCount.y;
-
-                vkCmdDispatch(ctx.get_command_buffer(), groupsX, groupsY, 1);
+                vkCmdDispatch(ctx.get_command_buffer(), 1, 1, 1);
             }
 
             pm.end_compute_pass(*pass);
