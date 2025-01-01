@@ -139,7 +139,7 @@ namespace oblo::editor
 
         m_runtimeRegistry = runtime->create_runtime_registry();
 
-        // TODO: Load a project instead
+        // TODO (#41): Load a project instead
         if (!m_assetRegistry.initialize("./project/assets", "./project/artifacts", "./project/sources"))
         {
             return false;

@@ -715,7 +715,6 @@ namespace oblo::vk
 
         const auto& pass = passes[passId.value];
 
-        // TODO: I guess this now goes into the begin_pass call
         buffered_array<VkImageMemoryBarrier2, 32> imageBarriers{&dynamicAllocator};
         imageBarriers.reserve(pass.textureTransitionEnd - pass.textureTransitionBegin);
 

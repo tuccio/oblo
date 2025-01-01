@@ -455,7 +455,6 @@ namespace oblo::vk
 
     void frame_graph_execute_context::upload(resource<buffer> h, std::span<const byte> data, u32 bufferOffset) const
     {
-        // TODO: Could check at least that we are in a transfer pass
         OBLO_ASSERT(m_frameGraph.currentPass &&
             m_frameGraph.passes[m_frameGraph.currentPass.value].kind == pass_kind::transfer);
 

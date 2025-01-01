@@ -317,7 +317,6 @@ namespace oblo::vk
         {
             ctx.begin_pass(subpass.id);
 
-            // TODO: Start pass and dispatch
             if (const auto reduction = pm.begin_compute_pass(commandBuffer, reductionPipeline))
             {
                 bindingTable.clear();
