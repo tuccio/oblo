@@ -1,13 +1,13 @@
 #version 460
 
-#undef OBLO_DEBUG_PRINTF
-#define OBLO_DEBUG_PRINTF 0
-
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_buffer_reference : require
 #extension GL_ARB_gpu_shader_int64 : require
 #extension GL_EXT_shader_8bit_storage : require
 #extension GL_EXT_control_flow_attributes : require
+#extension GL_KHR_shader_subgroup_arithmetic : require
+#extension GL_KHR_shader_subgroup_basic : require
+#extension GL_KHR_shader_subgroup_ballot : require
 
 #include <renderer/debug/printf>
 #include <renderer/instances>
@@ -23,7 +23,7 @@
 #include <visibility/visibility_buffer>
 #include <visibility/visibility_utils>
 
-const uint g_TileSize = 16;
+const uint g_TileSize = OBLO_SUBGROUP_SIZE;
 
 layout(std430, binding = 0) restrict writeonly buffer b_OutTileCoverage
 {
@@ -39,29 +39,34 @@ layout(binding = 16) uniform b_CameraBuffer
 
 layout(local_size_x = g_TileSize, local_size_y = g_TileSize, local_size_z = 1) in;
 
-shared float g_PixelCoverage[16][16];
-
 bool read_geometry(in ivec2 screenPos, in uvec2 resolution, out vec3 positionWS, out vec3 normalWS);
+
+uint find_lowest_within_subgroup(in float value)
+{
+    const float lowestCoverage = subgroupMin(value);
+    const bool isBestCandidate = lowestCoverage == value;
+    const uvec4 bestCandidateBallot = subgroupBallot(isBestCandidate);
+    return subgroupBallotFindLSB(bestCandidateBallot);
+}
+
+shared surfel_tile_data g_GroupCandidates[OBLO_SUBGROUP_SIZE];
 
 void main()
 {
     const ivec2 screenPos = ivec2(gl_WorkGroupID.xy * gl_WorkGroupSize.xy + gl_LocalInvocationID.xy);
     const uvec2 resolution = imageSize(t_InVisibilityBuffer);
 
-    if (screenPos.x >= resolution.x || screenPos.y >= resolution.y)
-    {
-        return;
-    }
+    const bool outOfScreenBounds = screenPos.x >= resolution.x || screenPos.y >= resolution.y;
 
     // When nothing is in the visibility buffer, we will fall back to the skybox. These pixels should not really matter
     // for the coverage, for now we assign an arbitrary coverage though.
-    float coverage = 0.f;
+    float coverage = NO_SURFELS_NEEDED;
     uint coverageSum = 0;
     uint pixelsWithFragments = 0;
     vec3 positionWS;
     vec3 normalWS;
 
-    const bool hasGeometry = read_geometry(screenPos, resolution, positionWS, normalWS);
+    const bool hasGeometry = !outOfScreenBounds && read_geometry(screenPos, resolution, positionWS, normalWS);
 
     if (hasGeometry)
     {
@@ -89,7 +94,6 @@ void main()
 
                     if (surfel_grid_has_cell(gridHeader, current))
                     {
-
                         const uint cellIndex = surfel_grid_cell_index(gridHeader, current);
                         const surfel_grid_cell cellData = g_SurfelGridCells[cellIndex];
 
@@ -130,8 +134,6 @@ void main()
                 }
             }
 
-            coverage = float(overlappingSurfels);
-
             coverageSum += overlappingSurfels;
             ++pixelsWithFragments;
         }
@@ -142,46 +144,49 @@ void main()
         }
     }
 
-    g_PixelCoverage[gl_LocalInvocationID.y][gl_LocalInvocationID.x] = coverage;
+    // We don't need to spawn surfels if the tile only has skybox
+    coverage = pixelsWithFragments == 0 ? NO_SURFELS_NEEDED : float(coverageSum) / pixelsWithFragments;
 
-    memoryBarrierShared();
-    barrier();
+    const uint bestSubgroupCandidateIdx = find_lowest_within_subgroup(coverage);
 
-    uvec2 worstCoverageID = uvec2(0, 0);
-
-    // We could make better use of threads, but for now just let the first thread do the max
-
-    float worstCoverage = g_PixelCoverage[0][0];
-
-    for (uint i = 0; i < g_TileSize; ++i)
+    if (gl_SubgroupInvocationID == bestSubgroupCandidateIdx)
     {
-        for (uint j = 0; j < g_TileSize; ++j)
-        {
-            const float pixelCoverage = g_PixelCoverage[i][j];
-
-            if (pixelCoverage < worstCoverage)
-            {
-                worstCoverage = pixelCoverage;
-                worstCoverageID = uvec2(i, j);
-            }
-        }
-    }
-
-    if (gl_LocalInvocationID.xy == worstCoverageID)
-    {
-        // TODO: Write output
-        const uint globalIndex = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
-
-        // debugPrintfEXT("%u, %u -> %u\n", gl_WorkGroupID.x, gl_WorkGroupID.y, globalIndex);
-
         surfel_tile_data tileData;
         tileData.position = positionWS;
         tileData.normal = normalWS;
+        tileData.coverage = coverage;
 
-        // We don't need to spawn surfels if the tile only has skybox
-        tileData.coverage = pixelsWithFragments == 0 ? NO_SURFELS_NEEDED : float(coverageSum) / pixelsWithFragments;
+        const uint localOutputIndex = gl_LocalInvocationID.y;
+        g_GroupCandidates[localOutputIndex] = tileData;
+    }
 
+    subgroupMemoryBarrier();
+    memoryBarrierShared();
+    barrier();
+
+    // We only keep the first subgroup active now, to perform another round of reduction
+    if (gl_LocalInvocationID.y > 0)
+    {
+        return;
+    }
+
+    const surfel_tile_data tileData = g_GroupCandidates[gl_SubgroupInvocationID];
+    const uint bestGroupCandidateIdx = find_lowest_within_subgroup(tileData.coverage);
+
+    if (gl_SubgroupInvocationID == bestGroupCandidateIdx)
+    {
+        const uint globalIndex = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
         g_TileData[globalIndex] = tileData;
+
+#if OBLO_DEBUG_PRINTF
+        debugPrintfEXT("TILE BEST (%d %d): %f (%f %f %f)\n",
+            gl_WorkGroupID.x,
+            gl_WorkGroupID.y,
+            tileData.coverage,
+            tileData.position.x,
+            tileData.position.t,
+            tileData.position.z);
+#endif
     }
 }
 
@@ -243,5 +248,5 @@ bool read_geometry(in ivec2 screenPos, in uvec2 resolution, out vec3 positionWS,
     const vec3 normal = barycentric_interpolate(bc, triangleNormal);
     normalWS = (transform.normalMatrix * vec4(normal, 1)).xyz;
 
-    return true;
+    return all(greaterThanEqual(bc.lambda, vec3(0)));
 }

@@ -504,7 +504,7 @@ namespace oblo::vk
 
         constexpr VkDebugReportCallbackCreateInfoEXT debugReportCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT,
-            .flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT,
+            .flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT | VK_DEBUG_REPORT_DEBUG_BIT_EXT,
             .pfnCallback = debug_report_callback,
         };
 

@@ -24,6 +24,7 @@ void main()
         uint newSurfelId;
         const bool allocated = surfel_stack_allocate(newSurfelId);
 
+#if 0
         {
             printf_int("[SPAWN] Allocated, available: ", g_SurfelStackHeader.available);
             //     printf_uint("Tile index:", tileIndex);
@@ -40,6 +41,7 @@ void main()
                 printf_int("[SPAWN] Failed to allocate, available: ", g_SurfelStackHeader.available);
             }
         }
+#endif
 
         if (allocated)
         {

@@ -12,7 +12,6 @@ namespace oblo::vk
 {
     namespace
     {
-        constexpr u32 g_surfelTileSize{16};
         constexpr u32 g_surfelMaxPerCell{31};
 
         struct surfel_data
@@ -181,6 +180,7 @@ namespace oblo::vk
         OBLO_ASSERT(reductionPass);
 
         const u32 subgroupSize = pm.get_subgroup_size();
+        tileSize = subgroupSize;
         reductionGroupSize = subgroupSize * subgroupSize;
     }
 
@@ -191,8 +191,8 @@ namespace oblo::vk
         const auto resolution =
             ctx.get_current_initializer(inVisibilityBuffer).assert_value_or(image_initializer{}).extent;
 
-        const u32 tilesX = round_up_div(resolution.width, g_surfelTileSize);
-        const u32 tilesY = round_up_div(resolution.height, g_surfelTileSize);
+        const u32 tilesX = round_up_div(resolution.width, tileSize);
+        const u32 tilesY = round_up_div(resolution.height, tileSize);
         const u32 tilesCount = tilesX * tilesY;
 
         const u32 reductionPassesCount =
@@ -212,11 +212,6 @@ namespace oblo::vk
                     .size = tilesBufferSize,
                 },
                 buffer_usage::storage_write);
-
-            ctx.push(outTileCoverageSink,
-                {
-                    .buffer = fullTileCoverage,
-                });
 
             ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
 
@@ -259,6 +254,11 @@ namespace oblo::vk
             subpasses[i] = {.id = subpass, .outBuffer = newBuffer};
         }
 
+        ctx.push(outTileCoverageSink,
+            {
+                .buffer = subpasses.back().outBuffer,
+            });
+
         OBLO_ASSERT(currentBufferSize == sizeof(surfel_tile_data));
     }
 
@@ -278,15 +278,14 @@ namespace oblo::vk
 
         const auto resolution = ctx.access(inVisibilityBuffer).initializer.extent;
 
-        const u32 tilesX = round_up_div(resolution.width, g_surfelTileSize);
-        const u32 tilesY = round_up_div(resolution.height, g_surfelTileSize);
+        const u32 tilesX = round_up_div(resolution.width, tileSize);
+        const u32 tilesY = round_up_div(resolution.height, tileSize);
 
-        resource<buffer> previousBuffer{};
+        const auto tileOutputBuffer = subpasses.front().outBuffer;
+        resource<buffer> previousBuffer{tileOutputBuffer};
 
         if (const auto tiling = pm.begin_compute_pass(commandBuffer, tilingPipeline))
         {
-
-            const auto outBuffer = subpasses.front().outBuffer;
 
             ctx.bind_buffers(bindingTable,
                 {
@@ -295,7 +294,7 @@ namespace oblo::vk
                     {"b_CameraBuffer", inCameraBuffer},
                     {"b_SurfelsGrid", inSurfelsGrid},
                     {"b_SurfelsPool", inSurfelsPool},
-                    {"b_OutTileCoverage", outBuffer},
+                    {"b_OutTileCoverage", tileOutputBuffer},
                 });
 
             ctx.bind_textures(bindingTable,
@@ -309,7 +308,7 @@ namespace oblo::vk
 
             pm.end_compute_pass(*tiling);
 
-            previousBuffer = outBuffer;
+            previousBuffer = tileOutputBuffer;
         }
 
         const auto reductionPipeline = pm.get_or_create_pipeline(reductionPass, {});
@@ -343,60 +342,6 @@ namespace oblo::vk
 
             previousBuffer = subpass.outBuffer;
         }
-    }
-
-    namespace
-    {
-        struct reduction_config
-        {
-            u32 inElements;
-            u32 outElements;
-            bool isFirstPass;
-        };
-
-        struct surfel_min_coverage_pass
-        {
-            resource<buffer> inTileCoverage;
-            resource<buffer> inOutMinCoverageBuffer;
-
-            // Only used in the last pass
-            resource<buffer> outTileCoverage;
-
-            data<reduction_config> inConfig;
-
-            data<h32<compute_pass>> reductionPass;
-
-            void build(const frame_graph_build_context& ctx)
-            {
-                ctx.begin_pass(pass_kind::compute);
-
-                const auto& config = ctx.access(inConfig);
-
-                if (config.isFirstPass)
-                {
-                    // In the first pass we allocate the buffer
-                    ctx.create(inOutMinCoverageBuffer,
-                        buffer_resource_initializer{
-                            .size = narrow_cast<u32>(sizeof(u32) * config.outElements),
-                        },
-                        buffer_usage::storage_write);
-                }
-                else
-                {
-                    ctx.acquire(inOutMinCoverageBuffer, buffer_usage::storage_write);
-                }
-
-                // In the last pass we also copy to the output
-                if (config.outElements == 1)
-                {
-                    ctx.create(outTileCoverage,
-                        buffer_resource_initializer{
-                            .size = sizeof(surfel_tile_data),
-                        },
-                        buffer_usage::storage_write);
-                }
-            }
-        };
     }
 
     void surfel_spawner::init(const frame_graph_init_context& ctx)

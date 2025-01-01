@@ -22,10 +22,10 @@ layout(std430, binding = 1) restrict writeonly buffer b_OutBuffer
     surfel_tile_data g_OutBuffer[];
 };
 
-uint find_lowest_within_subgroup(in surfel_tile_data tileData)
+uint find_lowest_within_subgroup(in float value)
 {
-    const float lowestCoverage = subgroupMin(tileData.coverage);
-    const bool isBestCandidate = lowestCoverage == tileData.coverage;
+    const float lowestCoverage = subgroupMin(value);
+    const bool isBestCandidate = lowestCoverage == value;
     const uvec4 bestCandidateBallot = subgroupBallot(isBestCandidate);
     return subgroupBallotFindLSB(bestCandidateBallot);
 }
@@ -56,7 +56,7 @@ void main()
         tileData.coverage = NO_SURFELS_NEEDED;
     }
 
-    const uint bestSubgroupCandidateIdx = find_lowest_within_subgroup(tileData);
+    const uint bestSubgroupCandidateIdx = find_lowest_within_subgroup(tileData.coverage);
 
     if (gl_SubgroupInvocationID == bestSubgroupCandidateIdx)
     {
@@ -75,11 +75,18 @@ void main()
     }
 
     tileData = g_GroupCandidates[gl_SubgroupInvocationID];
-    const uint bestGroupCandidateIdx = find_lowest_within_subgroup(tileData);
+    const uint bestGroupCandidateIdx = find_lowest_within_subgroup(tileData.coverage);
 
     if (gl_SubgroupInvocationID == bestGroupCandidateIdx)
     {
         const uint outputIndex = gl_WorkGroupID.x;
         g_OutBuffer[outputIndex] = tileData;
+
+#if OBLO_DEBUG_PRINTF
+        if (g_Constants.srcElements < 10)
+        {
+            debugPrintfEXT("Best coverage: %f (%f %f %f)\n", tileData.coverage, tileData.position.x, tileData.position.t, tileData.position.z);
+        }
+#endif
     }
 }

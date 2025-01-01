@@ -57,6 +57,7 @@ namespace oblo::vk
         h32<compute_pass> tilingPass;
         h32<compute_pass> reductionPass;
 
+        u32 tileSize;
         u32 reductionGroupSize;
 
         struct subpass_info;
