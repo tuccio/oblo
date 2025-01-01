@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
@@ -20,6 +21,9 @@ namespace oblo::vk
         resource<buffer> inSurfelsGrid;
 
         h32<render_pass> debugPass;
+
+        resource<buffer> sphereGeometry;
+        dynamic_array<f32> sphereGeometryData;
 
         void init(const frame_graph_init_context& context);
 

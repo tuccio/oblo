@@ -1,6 +1,7 @@
 #include <oblo/vulkan/nodes/surfels/surfel_debug.hpp>
 
 #include <oblo/core/array_size.hpp>
+#include <oblo/math/constants.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/render_pass_initializer.hpp>
 #include <oblo/vulkan/graph/node_common.hpp>
@@ -8,6 +9,44 @@
 
 namespace oblo::vk
 {
+    namespace
+    {
+        void generate_sphere_geometry(dynamic_array<f32>& vertices, f32 radius, u32 sectorCount, u32 stackCount)
+        {
+            const u32 expectedSize = 3u * (stackCount + 1) * (sectorCount + 1);
+
+            vertices.reserve(expectedSize);
+
+            const f32 sectorStep = 2 * pi / sectorCount;
+            const f32 stackStep = pi / stackCount;
+
+            for (u32 i = 0; i <= stackCount; ++i)
+            {
+                const f32 stackAngle = pi / 2 - i * stackStep; // starting from pi/2 to -pi/2
+
+                const f32 xy = radius * std::cosf(stackAngle); // r * cos(u)
+                const f32 z = radius * std::sinf(stackAngle);  // r * sin(u)
+
+                // add (sectorCount+1) vertices per stack
+                // first and last vertices have same position and normal, but different tex coords
+                for (u32 j = 0; j <= sectorCount; ++j)
+                {
+                    const f32 sectorAngle = j * sectorStep; // starting from 0 to 2pi
+
+                    // vertex position (x, y, z)
+                    const f32 x = xy * cosf(sectorAngle); // r * cos(u) * cos(v)
+                    const f32 y = xy * sinf(sectorAngle); // r * cos(u) * sin(v)
+
+                    vertices.push_back(x);
+                    vertices.push_back(y);
+                    vertices.push_back(z);
+                }
+            }
+
+            OBLO_ASSERT(vertices.size() == expectedSize);
+        }
+    }
+
     void surfel_debug::init(const frame_graph_init_context& ctx)
     {
         auto& passManager = ctx.get_pass_manager();
@@ -26,6 +65,8 @@ namespace oblo::vk
                     },
                 },
         });
+
+        generate_sphere_geometry(sphereGeometryData, 1.f, 25, 25);
     }
 
     void surfel_debug::build(const frame_graph_build_context& ctx)
@@ -38,6 +79,13 @@ namespace oblo::vk
         ctx.acquire(inDepthBuffer, texture_usage::depth_stencil_read);
 
         ctx.acquire(inSurfelsPool, buffer_usage::storage_read);
+
+        ctx.create(sphereGeometry,
+            buffer_resource_initializer{
+                .size = u32(sphereGeometryData.size_bytes()),
+                .data = as_bytes(std::span{sphereGeometryData}),
+            },
+            buffer_usage::storage_read);
     }
 
     void surfel_debug::execute(const frame_graph_execute_context& ctx)
@@ -118,6 +166,7 @@ namespace oblo::vk
                 {
                     {"b_CameraBuffer", inCameraBuffer},
                     {"b_SurfelsPool", inSurfelsPool},
+                    {"b_SphereGeometry", sphereGeometry},
                 });
 
             const binding_table* bindingTables[] = {
@@ -126,7 +175,9 @@ namespace oblo::vk
 
             pm.bind_descriptor_sets(*pass, bindingTables);
 
-            vkCmdDraw(commandBuffer, 4, 1 << 16u, 0, 0);
+            const u32 vertexCount = u32(sphereGeometryData.size() / 3);
+            constexpr u32 instanceCount = 1 << 16u;
+            vkCmdDraw(commandBuffer, vertexCount, instanceCount, 0, 0);
 
             pm.end_render_pass(*pass);
         }
