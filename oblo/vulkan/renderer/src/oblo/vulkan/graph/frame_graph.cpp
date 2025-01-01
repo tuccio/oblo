@@ -653,7 +653,10 @@ namespace oblo::vk
                 node->execute(ptr, executeCtx);
             }
 
-            // TODO: Somehow check that all passes have been executed once and in order?
+            // We want every node to execute all passes in order, the order check is in the begin_pass_execution call
+            // Here we check that we got to the last pass
+            OBLO_ASSERT(passesPerNode.passesBegin == passesPerNode.passesEnd ||
+                m_impl->currentPass.value == passesPerNode.passesEnd - 1)
         }
 
         m_impl->barriers = {};
@@ -708,6 +711,7 @@ namespace oblo::vk
     void frame_graph_impl::begin_pass_execution(h32<frame_graph_pass> passId, VkCommandBuffer commandBuffer)
     {
         OBLO_ASSERT(passId);
+        OBLO_ASSERT(!currentPass || passId.value == currentPass.value + 1);
 
         const auto& pass = passes[passId.value];
 

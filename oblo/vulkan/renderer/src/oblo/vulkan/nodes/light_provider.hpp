@@ -17,7 +17,7 @@ namespace oblo::vk
         void build(const frame_graph_build_context& ctx)
         {
             // TODO: Make it pass_kind::none or transfer and let other nodes figure out barriers
-            ctx.begin_pass(pass_kind::graphics);
+            ctx.begin_pass(pass_kind::none);
 
             const std::span lights = ctx.access(inOutLights);
             const u32 lightsCount = u32(lights.size());
