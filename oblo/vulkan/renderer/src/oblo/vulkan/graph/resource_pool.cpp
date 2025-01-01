@@ -565,6 +565,7 @@ namespace oblo::vk
             {
                 const auto submitIndex = ctx.get_submit_index();
                 ctx.destroy_deferred(it->second.allocatedBuffer.buffer, submitIndex);
+                ctx.destroy_deferred(it->second.allocatedBuffer.allocation, submitIndex);
                 it = m_stableBuffers.erase(it);
             }
         }
