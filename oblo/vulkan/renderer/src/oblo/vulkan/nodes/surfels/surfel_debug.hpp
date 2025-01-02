@@ -17,7 +17,7 @@ namespace oblo::vk
 
         resource<texture> inOutImage;
 
-        resource<buffer> inSurfelsPool;
+        resource<buffer> inSurfelsData;
         resource<buffer> inSurfelsGrid;
 
         h32<render_pass> debugPass;

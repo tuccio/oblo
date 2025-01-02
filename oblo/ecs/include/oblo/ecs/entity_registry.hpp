@@ -101,6 +101,11 @@ namespace oblo::ecs
 
         std::span<const archetype_storage> get_archetypes() const;
 
+        /// @brief Extracts the entity index.
+        /// @remarks Entity handles are composed of a number of generation bits, while te rest is an index in an array.
+        /// This function allows extracting the index part of the handle.
+        u32 extract_entity_index(ecs::entity e) const;
+
     private:
         struct memory_pool;
         struct tags_storage;

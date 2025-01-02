@@ -23,6 +23,31 @@ namespace oblo
             g.connect(sceneDataProvider, vk::scene_data::OutMeshDatabase, mainView, vk::main_view::InMeshDatabase);
         }
 
+        void connect_scene_data_provider_to_surfels_gi(vk::frame_graph& g,
+            h32<vk::frame_graph_subgraph> sceneDataProvider,
+            h32<vk::frame_graph_subgraph> surfelsGIGlobal)
+        {
+            g.connect(sceneDataProvider,
+                vk::scene_data::OutEcsEntitySetBuffer,
+                surfelsGIGlobal,
+                vk::surfels_gi::InEcsEntitySetBuffer);
+
+            g.connect(sceneDataProvider,
+                vk::scene_data::OutMeshDatabase,
+                surfelsGIGlobal,
+                vk::surfels_gi::InMeshDatabase);
+
+            g.connect(sceneDataProvider,
+                vk::scene_data::OutInstanceBuffers,
+                surfelsGIGlobal,
+                vk::surfels_gi::InInstanceBuffers);
+
+            g.connect(sceneDataProvider,
+                vk::scene_data::OutInstanceTables,
+                surfelsGIGlobal,
+                vk::surfels_gi::InInstanceTables);
+        }
+
         void connect_surfels_gi_to_scene_view(
             vk::frame_graph& g, h32<vk::frame_graph_subgraph> surfelsGIGlobal, h32<vk::frame_graph_subgraph> mainView)
         {
@@ -32,9 +57,9 @@ namespace oblo
                 vk::main_view::InLastFrameSurfelsGrid);
 
             g.connect(surfelsGIGlobal,
-                vk::surfels_gi::OutLastFramePool,
+                vk::surfels_gi::OutLastFrameSurfelData,
                 mainView,
-                vk::main_view::InLastFrameSurfelsPool);
+                vk::main_view::InLastFrameSurfelData);
 
             g.connect(mainView,
                 vk::main_view::OutSurfelsTileCoverageSink,
@@ -77,6 +102,7 @@ namespace oblo
         {
             const auto gi = vk::surfels_gi::create(m_nodeRegistry);
             m_surfelsGI = m_frameGraph.instantiate(gi);
+            connect_scene_data_provider_to_surfels_gi(m_frameGraph, m_sceneDataProvider, m_surfelsGI);
         }
     }
 

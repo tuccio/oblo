@@ -1,17 +1,27 @@
 #ifndef OBLO_INCLUDE_SURFELS_SURFEL_DATA
 #define OBLO_INCLUDE_SURFELS_SURFEL_DATA
 
+#include <ecs/entity>
+
 const uint SURFEL_MAX_PER_CELL = 31;
 
 // Used as a coverage value for surfel_tile_data when no geometry is present
 const float NO_SURFELS_NEEDED = 100000.f;
 
+struct surfel_spawn_data
+{
+    ecs_entity entity;
+    uint packedMeshletAndTriangleId;
+    float barycentricU;
+    float barycentricV;
+};
+
 struct surfel_data
 {
-    vec3 position;
-    bool alive;
-    vec3 normal;
+    vec3 positionWS;
     float radius;
+    vec3 normalWS;
+    uint lastUsedTimestamp;
 };
 
 struct surfel_grid_header
@@ -42,9 +52,8 @@ struct surfel_stack_entry
 
 struct surfel_tile_data
 {
-    vec3 position;
-    vec3 normal;
     float coverage;
+    surfel_spawn_data spawnData;
 };
 
 ivec3 surfel_grid_cells_count(in surfel_grid_header h)
@@ -72,17 +81,12 @@ bool surfel_grid_has_cell(in surfel_grid_header h, in ivec3 cell)
 
 vec3 surfel_data_world_position(in surfel_data surfel)
 {
-    return surfel.position;
+    return surfel.positionWS;
 }
 
 vec3 surfel_data_world_normal(in surfel_data surfel)
 {
-    return surfel.normal;
-}
-
-bool surfel_data_is_alive(in surfel_data surfel)
-{
-    return surfel.alive;
+    return surfel.normalWS;
 }
 
 #endif

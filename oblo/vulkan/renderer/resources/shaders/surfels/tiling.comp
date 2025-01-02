@@ -9,6 +9,7 @@
 #extension GL_KHR_shader_subgroup_basic : require
 #extension GL_KHR_shader_subgroup_ballot : require
 
+#include <ecs/entity_buffer>
 #include <renderer/debug/printf>
 #include <renderer/instances>
 #include <renderer/math>
@@ -17,8 +18,8 @@
 #include <renderer/meshes/mesh_indices>
 #include <renderer/meshes/mesh_table>
 #include <renderer/transform>
+#include <surfels/buffers/surfel_data_r>
 #include <surfels/buffers/surfel_grid_r>
-#include <surfels/buffers/surfel_pool_r>
 #include <surfels/surfel>
 #include <visibility/visibility_buffer>
 #include <visibility/visibility_utils>
@@ -39,7 +40,7 @@ layout(binding = 16) uniform b_CameraBuffer
 
 layout(local_size_x = g_TileSize, local_size_y = g_TileSize, local_size_z = 1) in;
 
-bool read_geometry(in ivec2 screenPos, in uvec2 resolution, out vec3 positionWS, out vec3 normalWS);
+bool read_spawn_data(in ivec2 screenPos, in uvec2 resolution, out surfel_spawn_data spawnData, out vec3 positionWS);
 
 uint find_lowest_within_subgroup(in float value)
 {
@@ -66,7 +67,8 @@ void main()
     vec3 positionWS;
     vec3 normalWS;
 
-    const bool hasGeometry = !outOfScreenBounds && read_geometry(screenPos, resolution, positionWS, normalWS);
+    surfel_spawn_data spawnData;
+    const bool hasGeometry = !outOfScreenBounds && read_spawn_data(screenPos, resolution, spawnData, positionWS);
 
     if (hasGeometry)
     {
@@ -152,10 +154,8 @@ void main()
     if (gl_SubgroupInvocationID == bestSubgroupCandidateIdx)
     {
         surfel_tile_data tileData;
-        tileData.position = positionWS;
-        tileData.normal = normalWS;
         tileData.coverage = coverage;
-
+        tileData.spawnData = spawnData;
         const uint localOutputIndex = gl_LocalInvocationID.y;
         g_GroupCandidates[localOutputIndex] = tileData;
     }
@@ -190,7 +190,7 @@ void main()
     }
 }
 
-bool read_geometry(in ivec2 screenPos, in uvec2 resolution, out vec3 positionWS, out vec3 normalWS)
+bool read_spawn_data(in ivec2 screenPos, in uvec2 resolution, out surfel_spawn_data spawnData, out vec3 positionWS)
 {
     // Parse the visibility buffer to find which triangle we are processing
     const uvec4 visBufferData = imageLoad(t_InVisibilityBuffer, screenPos);
@@ -207,7 +207,6 @@ bool read_geometry(in ivec2 screenPos, in uvec2 resolution, out vec3 positionWS,
     const transform transform = OBLO_INSTANCE_DATA(vb.instanceTableId, i_TransformBuffer, vb.instanceId);
 
     triangle triangleWS;
-    vec3 triangleNormal[3];
 
     // Read the mesh data
     const mesh_table meshTable = mesh_table_fetch(mesh);
@@ -220,9 +219,6 @@ bool read_geometry(in ivec2 screenPos, in uvec2 resolution, out vec3 positionWS,
 
         const vec3 vertexPosition = mesh_get_position(meshTable, vertexId);
         triangleWS.v[i] = (transform.localToWorld * vec4(vertexPosition, 1)).xyz;
-
-        const vec3 vertexNormal = mesh_get_normal(meshTable, vertexId);
-        triangleNormal[i] = vertexNormal;
     }
 
     barycentric_coords bc;
@@ -242,11 +238,14 @@ bool read_geometry(in ivec2 screenPos, in uvec2 resolution, out vec3 positionWS,
     }
 
     positionWS = ray_point_at(cameraRay, intersectionDistance);
-
     barycentric_calculate(bc, triangleWS.v, positionWS);
 
-    const vec3 normal = barycentric_interpolate(bc, triangleNormal);
-    normalWS = (transform.normalMatrix * vec4(normal, 1)).xyz;
+    const ecs_entity entity = OBLO_INSTANCE_DATA(vb.instanceTableId, i_EntityIdBuffer, vb.instanceId);
+
+    spawnData.entity = entity;
+    spawnData.packedMeshletAndTriangleId = visibility_buffer_get_packed_meshlet_ids(visBufferData.xy);
+    spawnData.barycentricU = bc.lambda.x;
+    spawnData.barycentricV = bc.lambda.y;
 
     return all(greaterThanEqual(bc.lambda, vec3(0)));
 }

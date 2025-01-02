@@ -15,6 +15,18 @@ struct visibility_buffer_data
     uint meshletTriangleId;
 };
 
+void visibility_buffer_parse_instance_ids(in uint packedX, out visibility_buffer_data r)
+{
+    r.instanceTableId = packedX & OBLO_VISIBILITY_BUFFER_MASK_INSTANCE_TABLE_ID;
+    r.instanceId = packedX >> OBLO_VISIBILITY_BUFFER_SHIFT_INSTANCE_ID;
+}
+
+void visibility_buffer_parse_meshlet_ids(in uint packedY, out visibility_buffer_data r)
+{
+    r.meshletTriangleId = packedY & OBLO_VISIBILITY_BUFFER_MASK_TRIANGLE_ID;
+    r.meshletId = packedY >> OBLO_VISIBILITY_BUFFER_SHIFT_MESHLET_ID;
+}
+
 bool visibility_buffer_parse(in uvec2 visBuffer, out visibility_buffer_data r)
 {
     const bool valid = visBuffer.y != 0;
@@ -45,6 +57,17 @@ uvec2 visibility_buffer_pack(in visibility_buffer_data data)
     r.y += 1;
 
     return r;
+}
+
+uint visibility_buffer_get_packed_instance_ids(in uvec2 visBuffer)
+{
+    return visBuffer.x;
+}
+
+uint visibility_buffer_get_packed_meshlet_ids(in uvec2 visBuffer)
+{
+    // Remove the +1 we added in the packing
+    return visBuffer.y - 1;
 }
 
 #endif

@@ -117,6 +117,8 @@ namespace oblo::vk
 
         void debug_log(const batch_draw_data& drawData) const;
 
+        ecs::entity_registry& get_entity_registry() const;
+
     private:
         struct blas;
         struct pending_mesh_upload;

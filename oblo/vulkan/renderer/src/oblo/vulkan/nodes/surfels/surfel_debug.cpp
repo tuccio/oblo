@@ -78,7 +78,7 @@ namespace oblo::vk
         ctx.acquire(inOutImage, texture_usage::render_target_write);
         ctx.acquire(inDepthBuffer, texture_usage::depth_stencil_read);
 
-        ctx.acquire(inSurfelsPool, buffer_usage::storage_read);
+        ctx.acquire(inSurfelsData, buffer_usage::storage_read);
 
         ctx.create(sphereGeometry,
             buffer_resource_initializer{
@@ -165,7 +165,7 @@ namespace oblo::vk
             ctx.bind_buffers(bindingTable,
                 {
                     {"b_CameraBuffer", inCameraBuffer},
-                    {"b_SurfelsPool", inSurfelsPool},
+                    {"b_SurfelsData", inSurfelsData},
                     {"b_SphereGeometry", sphereGeometry},
                 });
 

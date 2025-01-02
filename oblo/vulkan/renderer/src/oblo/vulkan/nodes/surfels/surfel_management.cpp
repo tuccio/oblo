@@ -14,12 +14,21 @@ namespace oblo::vk
     {
         constexpr u32 g_surfelMaxPerCell{31};
 
-        struct surfel_data
+        struct surfel_spawn_data
+        {
+            ecs::entity entity;
+            // TODO: We should handle the mesh changing on the entity (it may invalidate the meshlet id)
+            u32 packedMeshletAndTriangleId;
+            f32 barycentricU;
+            f32 barycentricV;
+        };
+
+        struct surfel_dynamic_data
         {
             vec3 position;
-            f32 _padding0;
+            f32 radius;
             vec3 normal;
-            f32 _padding1;
+            u32 lastUsedTimestamp;
         };
 
         struct surfel_grid_header
@@ -45,10 +54,8 @@ namespace oblo::vk
 
         struct surfel_tile_data
         {
-            vec3 position;
-            f32 _padding;
-            vec3 normal;
             f32 coverage;
+            surfel_spawn_data spawnData;
         };
     }
 
@@ -78,7 +85,8 @@ namespace oblo::vk
         const auto cellsCount = (gridBounds.max - gridBounds.min) / gridCellSize;
 
         const u32 surfelsStackSize = sizeof(u32) * (maxSurfels + 1);
-        const u32 surfelsPoolSize = sizeof(surfel_data) * maxSurfels;
+        const u32 SurfelsSpawnDataSize = sizeof(surfel_spawn_data) * maxSurfels;
+        const u32 surfelsDataSize = sizeof(surfel_dynamic_data) * maxSurfels;
         const u32 surfelsGridSize = u32(sizeof(surfel_grid_header) +
             sizeof(surfel_grid_cell) * std::ceil(cellsCount.x) * std::ceil(cellsCount.y) * std::ceil(cellsCount.z));
 
@@ -90,9 +98,16 @@ namespace oblo::vk
             },
             buffer_usage::storage_write);
 
-        ctx.create(outSurfelsPool,
+        ctx.create(outSurfelsSpawnData,
             buffer_resource_initializer{
-                .size = surfelsPoolSize,
+                .size = SurfelsSpawnDataSize,
+                .isStable = true,
+            },
+            buffer_usage::storage_write);
+
+        ctx.create(outSurfelsData,
+            buffer_resource_initializer{
+                .size = surfelsDataSize,
                 .isStable = true,
             },
             buffer_usage::storage_write);
@@ -110,7 +125,7 @@ namespace oblo::vk
 
     void surfel_initializer::execute(const frame_graph_execute_context& ctx)
     {
-        OBLO_ASSERT(ctx.get_frames_alive_count(outSurfelsStack) == ctx.get_frames_alive_count(outSurfelsPool));
+        OBLO_ASSERT(ctx.get_frames_alive_count(outSurfelsStack) == ctx.get_frames_alive_count(outSurfelsSpawnData));
         OBLO_ASSERT(ctx.get_frames_alive_count(outSurfelsStack) == ctx.get_frames_alive_count(outSurfelsGrid));
 
         // Initialize the grid every frame, we fill it after updating/spawning
@@ -131,7 +146,8 @@ namespace oblo::vk
             ctx.bind_buffers(bindings,
                 {
                     {"b_SurfelsStack", outSurfelsStack},
-                    {"b_SurfelsPool", outSurfelsPool},
+                    {"b_SurfelsSpawnData", outSurfelsSpawnData},
+                    {"b_SurfelsData", outSurfelsData},
                 });
 
             const binding_table* bindingTables[] = {
@@ -223,7 +239,7 @@ namespace oblo::vk
             if (ctx.has_source(inSurfelsGrid))
             {
                 ctx.acquire(inSurfelsGrid, buffer_usage::storage_read);
-                ctx.acquire(inSurfelsPool, buffer_usage::storage_read);
+                ctx.acquire(inSurfelsData, buffer_usage::storage_read);
             }
 
             subpasses.front() = {
@@ -286,14 +302,13 @@ namespace oblo::vk
 
         if (const auto tiling = pm.begin_compute_pass(commandBuffer, tilingPipeline))
         {
-
             ctx.bind_buffers(bindingTable,
                 {
                     {"b_InstanceTables", inInstanceTables},
                     {"b_MeshTables", inMeshDatabase},
                     {"b_CameraBuffer", inCameraBuffer},
                     {"b_SurfelsGrid", inSurfelsGrid},
-                    {"b_SurfelsPool", inSurfelsPool},
+                    {"b_SurfelsData", inSurfelsData},
                     {"b_OutTileCoverage", tileOutputBuffer},
                 });
 
@@ -372,7 +387,7 @@ namespace oblo::vk
         }
 
         ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_write);
-        ctx.acquire(inOutSurfelsPool, buffer_usage::storage_write);
+        ctx.acquire(inOutSurfelsSpawnData, buffer_usage::storage_write);
         ctx.acquire(inOutSurfelsStack, buffer_usage::storage_write);
     }
 
@@ -393,7 +408,7 @@ namespace oblo::vk
         ctx.bind_buffers(bindingTable,
             {
                 {"b_SurfelsGrid", inOutSurfelsGrid},
-                {"b_SurfelsPool", inOutSurfelsPool},
+                {"b_SurfelsSpawnData", inOutSurfelsSpawnData},
                 {"b_SurfelsStack", inOutSurfelsStack},
             });
 
@@ -418,6 +433,17 @@ namespace oblo::vk
                 };
 
                 pm.bind_descriptor_sets(*pass, bindingTables);
+
+                struct push_constants
+                {
+                    u32 currentTimestamp;
+                };
+
+                const push_constants constants{
+                    .currentTimestamp = ctx.get_current_frames_count(),
+                };
+
+                pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&constants, 1}));
 
                 vkCmdDispatch(ctx.get_command_buffer(), 1, 1, 1);
             }
@@ -509,7 +535,13 @@ namespace oblo::vk
         ctx.begin_pass(pass_kind::compute);
 
         ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_write);
-        ctx.acquire(inOutSurfelsPool, buffer_usage::storage_write);
+        ctx.acquire(inOutSurfelsSpawnData, buffer_usage::storage_read);
+        ctx.acquire(inOutSurfelsData, buffer_usage::storage_write);
+
+        ctx.acquire(inEntitySetBuffer, buffer_usage::storage_read);
+
+        ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
+        acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
     }
 
     void surfel_update::execute(const frame_graph_execute_context& ctx)
@@ -521,7 +553,12 @@ namespace oblo::vk
         ctx.bind_buffers(bindingTable,
             {
                 {"b_SurfelsGrid", inOutSurfelsGrid},
-                {"b_SurfelsPool", inOutSurfelsPool},
+                {"b_SurfelsSpawnData", inOutSurfelsSpawnData},
+                {"b_SurfelsData", inOutSurfelsData},
+                {"b_SurfelsStack", inOutSurfelsStack},
+                {"b_InstanceTables", inInstanceTables},
+                {"b_MeshTables", inMeshDatabase},
+                {"b_EcsEntitySet", inEntitySetBuffer},
             });
 
         const auto commandBuffer = ctx.get_command_buffer();
@@ -532,16 +569,25 @@ namespace oblo::vk
         {
             const auto subgroupSize = pm.get_subgroup_size();
 
-            const u32 maxSurfels = ctx.access(inMaxSurfels);
+            struct push_constants
+            {
+                u32 maxSurfels;
+                u32 currentTimestamp;
+            };
+
+            const push_constants constants{
+                .maxSurfels = ctx.access(inMaxSurfels),
+                .currentTimestamp = ctx.get_current_frames_count(),
+            };
 
             const binding_table* bindingTables[] = {
                 &bindingTable,
             };
 
             pm.bind_descriptor_sets(*pass, bindingTables);
-            pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&maxSurfels, 1}));
+            pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&constants, 1}));
 
-            const u32 groupsX = round_up_div(maxSurfels, subgroupSize);
+            const u32 groupsX = round_up_div(constants.maxSurfels, subgroupSize);
             vkCmdDispatch(ctx.get_command_buffer(), groupsX, 1, 1);
 
             pm.end_compute_pass(*pass);

@@ -1151,6 +1151,8 @@ namespace oblo::vk
         transientBuffers.clear();
         dynamicPins.clear();
         emptyEvents.clear();
+
+        ++frameCounter;
     }
 
     void frame_graph_impl::free_pin_storage(const frame_graph_pin_storage& storage, bool isFrameAllocated)

@@ -1,5 +1,5 @@
-#ifndef OBLO_INCLUDE_SURFELS_SURFEL_GRID
-#define OBLO_INCLUDE_SURFELS_SURFEL_GRID
+#ifndef OBLO_INCLUDE_SURFELS_SURFEL_GRID_BUFFER
+#define OBLO_INCLUDE_SURFELS_SURFEL_GRID_BUFFER
 
 #include <surfels/buffers/surfel_buffer_bindings>
 #include <surfels/surfel_data>

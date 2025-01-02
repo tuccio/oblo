@@ -13,7 +13,8 @@ namespace oblo::vk
     struct surfel_initializer
     {
         resource<buffer> outSurfelsStack;
-        resource<buffer> outSurfelsPool;
+        resource<buffer> outSurfelsSpawnData;
+        resource<buffer> outSurfelsData;
 
         resource<buffer> outSurfelsGrid;
 
@@ -44,7 +45,7 @@ namespace oblo::vk
         data_sink<surfel_tiling_data> outTileCoverageSink;
 
         resource<buffer> inSurfelsGrid;
-        resource<buffer> inSurfelsPool;
+        resource<buffer> inSurfelsData;
 
         resource<buffer> inCameraBuffer;
         resource<texture> inVisibilityBuffer;
@@ -75,8 +76,11 @@ namespace oblo::vk
     {
         data_sink<surfel_tiling_data> inTileCoverageSink;
 
+        resource<buffer> inInstanceTables;
+        data<instance_data_table_buffers_span> inInstanceBuffers;
+
         resource<buffer> inOutSurfelsStack;
-        resource<buffer> inOutSurfelsPool;
+        resource<buffer> inOutSurfelsSpawnData;
 
         resource<buffer> inOutSurfelsGrid;
 
@@ -108,11 +112,20 @@ namespace oblo::vk
         void execute(const frame_graph_execute_context& ctx);
     };
 
-    /// @brief Fills the grid from the currently alive surfels.
+    /// @brief Fills the grid from the currently alive surfels, updates surfels that moved, and frees unused one.
     struct surfel_update
     {
-        resource<buffer> inOutSurfelsPool;
+        resource<buffer> inOutSurfelsSpawnData;
+        resource<buffer> inOutSurfelsStack;
         resource<buffer> inOutSurfelsGrid;
+
+        resource<buffer> inOutSurfelsData;
+
+        resource<buffer> inMeshDatabase;
+        resource<buffer> inInstanceTables;
+        data<instance_data_table_buffers_span> inInstanceBuffers;
+
+        resource<buffer> inEntitySetBuffer;
 
         data<u32> inMaxSurfels;
 

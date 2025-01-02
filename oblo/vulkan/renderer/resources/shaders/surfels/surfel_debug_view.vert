@@ -4,7 +4,7 @@
 
 #include <renderer/camera>
 #include <renderer/debug/printf>
-#include <surfels/buffers/surfel_pool_r>
+#include <surfels/buffers/surfel_data_r>
 
 layout(binding = 0) uniform b_CameraBuffer
 {
@@ -20,7 +20,7 @@ void main()
 {
     const surfel_data surfel = g_SurfelData[gl_InstanceIndex];
 
-    const float scale = surfel.alive ? 0.01f : 0.f;
+    const float scale = surfel.radius * .01f;
 
     // 1x1 quad centered around 0
     // const vec3 positions[4] =

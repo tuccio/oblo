@@ -29,7 +29,7 @@
 
 #if defined(OUT_GI_SURFELS)
     #include <surfels/buffers/surfel_grid_r>
-    #include <surfels/buffers/surfel_pool_r>
+    #include <surfels/buffers/surfel_data_r>
 
     #define OUT_ALBEDO
 #endif

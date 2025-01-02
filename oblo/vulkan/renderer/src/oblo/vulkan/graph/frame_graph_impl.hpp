@@ -251,6 +251,8 @@ namespace oblo::vk
 
         random_generator rng;
 
+        u32 frameCounter{};
+
         // Used to send signals to the frame graph (e.g. reset an effect)
         std::unordered_set<type_id> emptyEvents;
 

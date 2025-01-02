@@ -21,6 +21,11 @@ namespace oblo
     class string_interner;
 
     class string;
+
+    namespace ecs
+    {
+        class entity_registry;
+    }
 }
 
 namespace oblo::vk
@@ -146,7 +151,11 @@ namespace oblo::vk
 
         const draw_registry& get_draw_registry() const;
 
+        ecs::entity_registry& get_entity_registry() const;
+
         random_generator& get_random_generator() const;
+
+        staging_buffer_span stage_upload(std::span<const byte> data) const;
 
         template <typename T>
         bool has_event() const
@@ -216,7 +225,13 @@ namespace oblo::vk
         /// @param buffer A valid buffer resource.
         u32 get_frames_alive_count(resource<buffer> buffer) const;
 
+        u32 get_current_frames_count() const;
+
+        // TODO: This should probably be deprepcated, it would be hard to make this thread-safe, staging should happen
+        // when building instead.
         void upload(resource<buffer> h, std::span<const byte> data, u32 bufferOffset = 0) const;
+
+        void upload(resource<buffer> h, const staging_buffer_span& data, u32 bufferOffset = 0) const;
 
         VkCommandBuffer get_command_buffer() const;
 

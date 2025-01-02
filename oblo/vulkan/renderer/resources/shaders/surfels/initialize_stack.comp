@@ -2,7 +2,8 @@
 
 #extension GL_GOOGLE_include_directive : require
 
-#include <surfels/buffers/surfel_pool_w>
+#include <surfels/buffers/surfel_data_w>
+#include <surfels/buffers/surfel_spawn_data_w>
 #include <surfels/buffers/surfel_stack_w>
 #include <surfels/surfel_data>
 
@@ -31,5 +32,6 @@ void main()
     }
 
     g_SurfelStackEntries[id].surfelId = id;
-    g_SurfelData[id].alive = false;
+    g_SurfelSpawnData[id].entity = ecs_entity_invalid();
+    g_SurfelData[id].radius = 0.f;
 }

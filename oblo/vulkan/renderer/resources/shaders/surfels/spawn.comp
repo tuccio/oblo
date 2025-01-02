@@ -4,7 +4,7 @@
 
 #include <renderer/debug/printf>
 #include <surfels/buffers/surfel_grid_r>
-#include <surfels/buffers/surfel_pool_rw>
+#include <surfels/buffers/surfel_spawn_data_w>
 #include <surfels/buffers/surfel_stack_rw>
 #include <surfels/surfel>
 
@@ -45,12 +45,7 @@ void main()
 
         if (allocated)
         {
-            surfel_data newSurfel;
-            newSurfel.alive = true;
-            newSurfel.position = tile.position;
-            newSurfel.normal = tile.normal;
-
-            g_SurfelData[newSurfelId] = newSurfel;
+            g_SurfelSpawnData[newSurfelId] = tile.spawnData;
         }
     }
 }

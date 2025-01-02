@@ -379,9 +379,19 @@ namespace oblo::vk
         return m_renderer.get_draw_registry();
     }
 
+    ecs::entity_registry& frame_graph_build_context::get_entity_registry() const
+    {
+        return m_renderer.get_draw_registry().get_entity_registry();
+    }
+
     random_generator& frame_graph_build_context::get_random_generator() const
     {
         return m_frameGraph.rng;
+    }
+
+    staging_buffer_span frame_graph_build_context::stage_upload(std::span<const byte> data) const
+    {
+        return m_renderer.get_staging_buffer().stage(data).value();
     }
 
     frame_graph_build_context::frame_graph_build_context(
@@ -453,6 +463,11 @@ namespace oblo::vk
         return m_frameGraph.resourcePool.get_frames_alive_count(h);
     }
 
+    u32 frame_graph_execute_context::get_current_frames_count() const
+    {
+        return m_frameGraph.frameCounter;
+    }
+
     void frame_graph_execute_context::upload(resource<buffer> h, std::span<const byte> data, u32 bufferOffset) const
     {
         OBLO_ASSERT(m_frameGraph.currentPass &&
@@ -469,6 +484,14 @@ namespace oblo::vk
 
         const auto b = access(h);
         stagingBuffer.upload(get_command_buffer(), *stagedData, b.buffer, b.offset + bufferOffset);
+    }
+
+    void frame_graph_execute_context::upload(
+        resource<buffer> h, const staging_buffer_span& data, u32 bufferOffset) const
+    {
+        auto& stagingBuffer = m_renderer.get_staging_buffer();
+        const auto b = access(h);
+        stagingBuffer.upload(get_command_buffer(), data, b.buffer, b.offset + bufferOffset);
     }
 
     VkCommandBuffer frame_graph_execute_context::get_command_buffer() const

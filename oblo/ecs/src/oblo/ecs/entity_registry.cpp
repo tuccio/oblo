@@ -298,6 +298,11 @@ namespace oblo::ecs
         return m_componentsStorage;
     }
 
+    u32 entity_registry::extract_entity_index(ecs::entity e) const
+    {
+        return decltype(m_entities)::extractor_type{}.extract_key(e);
+    }
+
     const archetype_storage* entity_registry::find_first_match(const archetype_storage* begin,
         usize increment,
         const component_and_tag_sets& includes,
