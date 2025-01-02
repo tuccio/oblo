@@ -63,14 +63,10 @@ void main()
 
     ecs_entity_set_entry entitySetEntry;
 
-    if (!ecs_entity_try_find(surfel.entity, entitySetEntry))
+    if (!ecs_entity_set_try_find(surfel.entity, entitySetEntry))
     {
         return;
     }
-
-#if OBLO_DEBUG_PRINTF
-    debugPrintfEXT("Entity %d is alive!\n", surfel.entity.id);
-#endif
 
     visibility_buffer_data vb;
     visibility_buffer_parse_instance_ids(entitySetEntry.globalInstanceId, vb);

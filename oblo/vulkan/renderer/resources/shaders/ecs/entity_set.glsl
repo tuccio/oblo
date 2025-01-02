@@ -14,17 +14,19 @@ struct ecs_entity_set_entry
     uint globalInstanceId;
 };
 
-layout(std430, binding = 70) restrict readonly buffer b_EcsEntitySet
+layout(std430, binding = 20) restrict readonly buffer b_EcsEntitySet
 {
-    uint g_EcsEntityEntriesCount;
     ecs_entity_set_entry g_EcsEntitySet[];
 };
 
-bool ecs_entity_try_find(in ecs_entity e, out ecs_entity_set_entry entry)
+bool ecs_entity_set_try_find(in ecs_entity e, out ecs_entity_set_entry entry)
 {
     const uint index = e.id & g_EcsEntityIndexMask;
 
-    if (index < g_EcsEntityEntriesCount)
+    // The total number of entries is stored in the first element (it's invalid anyway, since it refers to entity 0)
+    const uint numEntries = g_EcsEntitySet[0].entity.id;
+
+    if (index < numEntries)
     {
         entry = g_EcsEntitySet[index];
     }

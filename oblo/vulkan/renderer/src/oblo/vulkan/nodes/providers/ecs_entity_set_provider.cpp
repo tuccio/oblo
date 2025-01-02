@@ -35,6 +35,9 @@ namespace oblo::vk
                 .elementsPerChunk = (1u << 14) / sizeof(ecs_entity_set_entry),
             }};
 
+        // We always keep entity 0, we will store the number of entries in there
+        entities.emplace_back();
+
         for (const auto [entityIds, instanceIds] : reg.range<draw_instance_id_component>())
         {
             for (const auto [e, id] : zip_range(entityIds, instanceIds))
@@ -53,16 +56,12 @@ namespace oblo::vk
             }
         }
 
-        const auto stagedSpans = allocate_n_span<staging_buffer_span>(frameAllocator, 1 + entities.chunks_count());
+        entities[0].entity.value = u32(entities.size());
+
+        const auto stagedSpans = allocate_n_span<staging_buffer_span>(frameAllocator, entities.chunks_count());
         auto nextStagedSpanIt = stagedSpans.data();
 
-        // Before the actual entries we have a header containing the number of entries to avoid OOB access
-        const u32 setEntriesCount = u32(entities.size());
-
-        *nextStagedSpanIt = ctx.stage_upload(as_bytes(std::span{&setEntriesCount, 1}));
-        ++nextStagedSpanIt;
-
-        for (auto chunk : deque_chunk_range(entities))
+        for (const std::span chunk : deque_chunk_range(entities))
         {
             const auto stagedSpan = ctx.stage_upload(as_bytes(chunk));
             *nextStagedSpanIt = stagedSpan;
@@ -71,9 +70,11 @@ namespace oblo::vk
 
         ctx.create(outEntitySet,
             buffer_resource_initializer{
-                .size = u32(sizeof(u32) + sizeof(ecs_entity_set_entry) * entities.size()),
+                .size = u32(sizeof(ecs_entity_set_entry) * entities.size()),
             },
             buffer_usage::storage_upload);
+
+        stagedData = stagedSpans;
     }
 
     void ecs_entity_set_provider::execute(const frame_graph_execute_context& ctx)

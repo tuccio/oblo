@@ -31,13 +31,11 @@ void main()
         uint newSurfelId;
         const bool allocated = surfel_stack_allocate(newSurfelId);
 
-#if 0
+#if OBLO_DEBUG_PRINTF
         {
             printf_int("[SPAWN] Allocated, available: ", g_SurfelStackHeader.available);
-            //     printf_uint("Tile index:", tileIndex);
+            printf_int("[SPAWN] Entity: ", tile.spawnData.entity.id);
             printf_float("[SPAWN] Coverage: ", tile.coverage);
-            //     printf_uvec2("Tile coord: ", screenPos);
-            printf_vec3("[SPAWN] Spawn at: ", tile.position);
 
             if (allocated)
             {

@@ -178,15 +178,9 @@ void main()
         const uint globalIndex = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
         g_TileData[globalIndex] = tileData;
 
-// #if OBLO_DEBUG_PRINTF
-//         debugPrintfEXT("TILE BEST (%d %d): %f (%f %f %f)\n",
-//             gl_WorkGroupID.x,
-//             gl_WorkGroupID.y,
-//             tileData.coverage,
-//             tileData.position.x,
-//             tileData.position.t,
-//             tileData.position.z);
-// #endif
+        // #if OBLO_DEBUG_PRINTF
+        //         debugPrintfEXT("TIle %d %d -> %f\n", gl_WorkGroupID.y, gl_WorkGroupID.x, tileData.coverage);
+        // #endif
     }
 }
 

@@ -1,5 +1,4 @@
 #include <renderer/quad>
-#include <renderer/debug/printf>
 
 #if BLUR_IMAGE_CHANNELS == 1
     #define blur_pixel_t float
@@ -49,8 +48,6 @@ float blur_get_kernel(in uint offset)
 blur_pixel_t blur_read_pixel_at_offset(in blur_context ctx, int offset)
 {
     const int index = ctx.pixelCacheIndex + offset;
-    debug_assert(index >= 0 && index < g_ImageCacheSize);
-
     return g_ImageCache[index];
 }
 
