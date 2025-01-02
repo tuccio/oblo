@@ -32,7 +32,7 @@ void main()
     const vec3 positionMS =
         vec3(g_SphereGeometry[vertexOffset], g_SphereGeometry[vertexOffset + 1], g_SphereGeometry[vertexOffset + 2]);
 
-    const vec3 positionWS = positionMS * scale + surfel.position;
+    const vec3 positionWS = positionMS * scale + surfel_data_world_position(surfel);
 
     const vec4 positionNDC = g_Camera.viewProjection * vec4(positionWS, 1);
 

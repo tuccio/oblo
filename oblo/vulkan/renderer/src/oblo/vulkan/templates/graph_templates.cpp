@@ -265,8 +265,8 @@ namespace oblo::vk::main_view
                 &visibility_lighting::inSurfelsGrid);
 
             const auto surfelsDebug = graph.add_node<surfel_debug>();
-            graph.make_input(surfelsDebug, &surfel_debug::inSurfelsData, InLastFrameSurfelData);
             graph.connect(surfelsTiling, &surfel_tiling::inSurfelsGrid, surfelsDebug, &surfel_debug::inSurfelsGrid);
+            graph.connect(surfelsTiling, &surfel_tiling::inSurfelsData, surfelsDebug, &surfel_debug::inSurfelsData);
 
             graph.connect(viewBuffers,
                 &view_buffers_node::outCameraBuffer,
