@@ -71,6 +71,9 @@ namespace oblo::vk
 
         void destroy_swapchain();
 
+        void create_debug_callbacks();
+        void destroy_debug_callbacks();
+
         bool handle_window_events(const SDL_Event& event);
 
     protected:
@@ -100,6 +103,8 @@ namespace oblo::vk
 
         VkSemaphore m_acquiredImages[SwapchainImages]{};
         VkSemaphore m_frameCompleted[SwapchainImages]{};
+
+        VkDebugUtilsMessengerEXT m_vkMessenger{};
 
         imgui m_imgui;
 
