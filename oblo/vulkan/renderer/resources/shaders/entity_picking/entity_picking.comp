@@ -32,11 +32,10 @@ void main()
 
     if (!visibility_buffer_parse(visBufferData.xy, vb))
     {
-        // The invalid entity has id 0
-        outPickingId = 0;
+        outPickingId = ecs_entity_invalid();
         return;
     }
 
-    const uint entityId = OBLO_INSTANCE_DATA(vb.instanceTableId, i_EntityIdBuffer, vb.instanceId);
+    const ecs_entity entityId = OBLO_INSTANCE_DATA(vb.instanceTableId, i_EntityIdBuffer, vb.instanceId);
     outPickingId = entityId;
 }
