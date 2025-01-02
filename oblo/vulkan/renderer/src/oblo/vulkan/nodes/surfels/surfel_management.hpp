@@ -81,6 +81,7 @@ namespace oblo::vk
 
         resource<buffer> inOutSurfelsStack;
         resource<buffer> inOutSurfelsSpawnData;
+        resource<buffer> inOutSurfelsData;
 
         resource<buffer> inOutSurfelsGrid;
 

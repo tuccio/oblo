@@ -102,16 +102,16 @@ void main()
                         // TODO: Get all surfels and accumulate
                         const uint surfelsCount = min(cellData.surfelsCount, SURFEL_MAX_PER_CELL);
 
-                        if (debug_is_center(screenPos, resolution))
-                        {
-                            if (surfelsCount != 0)
-                            {
-                                printf_vec3("[TILING] Position WS: ", positionWS);
-                                printf_vec3("[TILING] Bounds Min: ", vec3(g_SurfelGridHeader.boundsMin));
-                                printf_vec3("[TILING] Cell: ", vec3(current));
-                                printf_uint("[TILING] Surfels count: ", surfelsCount);
-                            }
-                        }
+                        // if (debug_is_center(screenPos, resolution))
+                        // {
+                        //     if (surfelsCount != 0)
+                        //     {
+                        //         printf_vec3("[TILING] Position WS: ", positionWS);
+                        //         printf_vec3("[TILING] Bounds Min: ", vec3(g_SurfelGridHeader.boundsMin));
+                        //         printf_vec3("[TILING] Cell: ", vec3(current));
+                        //         printf_uint("[TILING] Surfels count: ", surfelsCount);
+                        //     }
+                        // }
 
                         for (uint cellSurfelIndex = 0; cellSurfelIndex < surfelsCount; ++cellSurfelIndex)
                         {
@@ -121,13 +121,13 @@ void main()
 
                             // debug_assert(surfel.alive);
 
-                            if (debug_is_center(screenPos, resolution))
-                            {
-                                printf_uint("[TILING] Surfel ID: ", surfelId);
-                                printf_uint("[TILING] Surfel alive: ", uint(surfel.alive));
-                                printf_vec3("[TILING] Pixel WS position: ", positionWS);
-                                printf_vec3("[TILING] Surfel position: ", surfel.position);
-                            }
+                            // if (debug_is_center(screenPos, resolution))
+                            // {
+                            //     printf_uint("[TILING] Surfel ID: ", surfelId);
+                            //     printf_uint("[TILING] Surfel alive: ", uint(surfel.alive));
+                            //     printf_vec3("[TILING] Pixel WS position: ", positionWS);
+                            //     printf_vec3("[TILING] Surfel position: ", surfel.position);
+                            // }
 
                             // We should instead probably weigh by distance, but for now we just add 1 if it's in range
                             overlappingSurfels += uint(surfel_affects(surfel, positionWS));
@@ -178,15 +178,15 @@ void main()
         const uint globalIndex = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
         g_TileData[globalIndex] = tileData;
 
-#if OBLO_DEBUG_PRINTF
-        debugPrintfEXT("TILE BEST (%d %d): %f (%f %f %f)\n",
-            gl_WorkGroupID.x,
-            gl_WorkGroupID.y,
-            tileData.coverage,
-            tileData.position.x,
-            tileData.position.t,
-            tileData.position.z);
-#endif
+// #if OBLO_DEBUG_PRINTF
+//         debugPrintfEXT("TILE BEST (%d %d): %f (%f %f %f)\n",
+//             gl_WorkGroupID.x,
+//             gl_WorkGroupID.y,
+//             tileData.coverage,
+//             tileData.position.x,
+//             tileData.position.t,
+//             tileData.position.z);
+// #endif
     }
 }
 

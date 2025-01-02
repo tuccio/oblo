@@ -24,12 +24,12 @@ bool ecs_entity_try_find(in ecs_entity e, out ecs_entity_set_entry entry)
 {
     const uint index = e.id & g_EcsEntityIndexMask;
 
-    if (index < g_EcsEntityEntriesCount && ecs_entity_is_valid(e))
+    if (index < g_EcsEntityEntriesCount)
     {
         entry = g_EcsEntitySet[index];
     }
 
-    return entry.entity.id == e.id;
+    return ecs_entity_is_valid(e) && entry.entity.id == e.id;
 }
 
 #endif

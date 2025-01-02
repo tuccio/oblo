@@ -388,6 +388,7 @@ namespace oblo::vk
 
         ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_write);
         ctx.acquire(inOutSurfelsSpawnData, buffer_usage::storage_write);
+        ctx.acquire(inOutSurfelsData, buffer_usage::storage_write);
         ctx.acquire(inOutSurfelsStack, buffer_usage::storage_write);
     }
 
@@ -409,6 +410,7 @@ namespace oblo::vk
             {
                 {"b_SurfelsGrid", inOutSurfelsGrid},
                 {"b_SurfelsSpawnData", inOutSurfelsSpawnData},
+                {"b_SurfelsData", inOutSurfelsData},
                 {"b_SurfelsStack", inOutSurfelsStack},
             });
 
@@ -535,7 +537,7 @@ namespace oblo::vk
         ctx.begin_pass(pass_kind::compute);
 
         ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_write);
-        ctx.acquire(inOutSurfelsSpawnData, buffer_usage::storage_read);
+        ctx.acquire(inOutSurfelsSpawnData, buffer_usage::storage_write);
         ctx.acquire(inOutSurfelsData, buffer_usage::storage_write);
 
         ctx.acquire(inEntitySetBuffer, buffer_usage::storage_read);

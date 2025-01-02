@@ -73,7 +73,7 @@ namespace oblo::vk
             buffer_resource_initializer{
                 .size = u32(sizeof(u32) + sizeof(ecs_entity_set_entry) * entities.size()),
             },
-            buffer_usage::storage_read);
+            buffer_usage::storage_upload);
     }
 
     void ecs_entity_set_provider::execute(const frame_graph_execute_context& ctx)

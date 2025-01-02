@@ -17,7 +17,7 @@
 #include <renderer/transform>
 #include <surfels/buffers/surfel_data_rw>
 #include <surfels/buffers/surfel_grid_rw>
-#include <surfels/buffers/surfel_spawn_data_r>
+#include <surfels/buffers/surfel_spawn_data_rw>
 #include <surfels/buffers/surfel_stack_rw>
 #include <surfels/surfel>
 #include <surfels/surfel_data>
@@ -45,6 +45,7 @@ void surfel_reject(in uint surfelId)
 
     // We invalidate surfel_data::radius to signal it's not alive
     g_SurfelData[surfelId].radius = 0.f;
+    g_SurfelSpawnData[surfelId].entity = ecs_entity_invalid();
 
     surfel_stack_free(surfelId);
 }
@@ -66,6 +67,10 @@ void main()
     {
         return;
     }
+
+#if OBLO_DEBUG_PRINTF
+    debugPrintfEXT("Entity %d is alive!\n", surfel.entity.id);
+#endif
 
     visibility_buffer_data vb;
     visibility_buffer_parse_instance_ids(entitySetEntry.globalInstanceId, vb);

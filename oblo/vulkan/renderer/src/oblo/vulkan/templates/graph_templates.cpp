@@ -265,7 +265,6 @@ namespace oblo::vk::main_view
                 &visibility_lighting::inSurfelsGrid);
 
             const auto surfelsDebug = graph.add_node<surfel_debug>();
-
             graph.make_input(surfelsDebug, &surfel_debug::inSurfelsData, InLastFrameSurfelData);
             graph.connect(surfelsTiling, &surfel_tiling::inSurfelsGrid, surfelsDebug, &surfel_debug::inSurfelsGrid);
 
@@ -422,7 +421,7 @@ namespace oblo::vk::surfels_gi
 
         // We output the surfels from last frame, then each view will contribute potentially spawning surfels
         graph.make_output(initializer, &surfel_initializer::outSurfelsGrid, OutLastFrameGrid);
-        graph.make_output(initializer, &surfel_initializer::outSurfelsSpawnData, OutLastFrameSurfelData);
+        graph.make_output(initializer, &surfel_initializer::outSurfelsData, OutLastFrameSurfelData);
 
         graph.bind(initializer, &surfel_initializer::inGridCellSize, vec3::splat(2.f));
         graph.bind(initializer, &surfel_initializer::inMaxSurfels, 1u << 14);
@@ -432,6 +431,7 @@ namespace oblo::vk::surfels_gi
             &surfel_initializer::outSurfelsSpawnData,
             spawner,
             &surfel_spawner::inOutSurfelsSpawnData);
+        graph.connect(initializer, &surfel_initializer::outSurfelsData, spawner, &surfel_spawner::inOutSurfelsData);
         graph.connect(initializer, &surfel_initializer::outSurfelsStack, spawner, &surfel_spawner::inOutSurfelsStack);
 
         graph.connect(initializer, &surfel_initializer::inGridBounds, clearGrid, &surfel_grid_clear::inGridBounds);
@@ -443,12 +443,11 @@ namespace oblo::vk::surfels_gi
         graph.make_input(update, &surfel_update::inMeshDatabase, InMeshDatabase);
         graph.make_input(update, &surfel_update::inEntitySetBuffer, InEcsEntitySetBuffer);
         graph.connect(initializer, &surfel_initializer::inMaxSurfels, update, &surfel_update::inMaxSurfels);
-        graph.connect(initializer, &surfel_initializer::outSurfelsData, update, &surfel_update::inOutSurfelsData);
-        graph.connect(initializer, &surfel_initializer::outSurfelsStack, update, &surfel_update::inOutSurfelsStack);
+        graph.connect(spawner, &surfel_spawner::inOutSurfelsData, update, &surfel_update::inOutSurfelsData);
+        graph.connect(spawner, &surfel_spawner::inOutSurfelsStack, update, &surfel_update::inOutSurfelsStack);
         graph.connect(spawner, &surfel_spawner::inOutSurfelsSpawnData, update, &surfel_update::inOutSurfelsSpawnData);
         graph.connect(clearGrid, &surfel_grid_clear::inOutSurfelsGrid, update, &surfel_update::inOutSurfelsGrid);
-        // TODO: Maybe we can output this from spawner, probably update won't modify this
-        graph.make_output(update, &surfel_update::inOutSurfelsData, OutUpdatedSurfelSpawnData);
+        graph.make_output(update, &surfel_update::inOutSurfelsSpawnData, OutUpdatedSurfelSpawnData);
         graph.make_output(update, &surfel_update::inOutSurfelsData, OutUpdatedSurfelData);
 
         return graph;

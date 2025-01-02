@@ -82,11 +82,11 @@ void main()
         const uint outputIndex = gl_WorkGroupID.x;
         g_OutBuffer[outputIndex] = tileData;
 
-#if OBLO_DEBUG_PRINTF
-        if (g_Constants.srcElements < 10)
-        {
-            debugPrintfEXT("Best coverage: %f (%f %f %f)\n", tileData.coverage, tileData.position.x, tileData.position.t, tileData.position.z);
-        }
-#endif
+// #if OBLO_DEBUG_PRINTF
+//         if (g_Constants.srcElements < 10)
+//         {
+//             debugPrintfEXT("Best coverage: %f (%f %f %f)\n", tileData.coverage, tileData.position.x, tileData.position.t, tileData.position.z);
+//         }
+// #endif
     }
 }

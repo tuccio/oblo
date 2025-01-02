@@ -3,6 +3,7 @@
 #extension GL_GOOGLE_include_directive : require
 
 #include <renderer/debug/printf>
+#include <surfels/buffers/surfel_data_w>
 #include <surfels/buffers/surfel_grid_r>
 #include <surfels/buffers/surfel_spawn_data_w>
 #include <surfels/buffers/surfel_stack_rw>
@@ -14,6 +15,12 @@ layout(std430, binding = 0) restrict readonly buffer b_TileCoverage
 };
 
 layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+layout(push_constant) uniform c_PushConstants
+{
+    uint currentTimestamp;
+}
+g_Constants;
 
 void main()
 {
@@ -46,6 +53,7 @@ void main()
         if (allocated)
         {
             g_SurfelSpawnData[newSurfelId] = tile.spawnData;
+            g_SurfelData[newSurfelId].lastUsedTimestamp = g_Constants.currentTimestamp;
         }
     }
 }
