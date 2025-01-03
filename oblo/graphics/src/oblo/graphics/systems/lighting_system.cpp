@@ -52,7 +52,7 @@ namespace oblo
             .type = light_type::directional,
             .color = vec3::splat(1.f),
             .intensity = 10.f,
-            .isShadowCaster = true,
+            .isShadowCaster = false,
             .shadowSamples = 4,
             .shadowBias = .01f,
             .shadowTemporalAccumulationFactor = .3f,

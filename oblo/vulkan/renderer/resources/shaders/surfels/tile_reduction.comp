@@ -45,24 +45,26 @@ void main()
 {
     const uint globalIndex = gl_GlobalInvocationID.x;
 
-    surfel_tile_data tileData;
-
-    if (globalIndex < g_Constants.srcElements)
     {
-        tileData = g_InBuffer[globalIndex];
-    }
-    else
-    {
-        tileData.spawnData = surfel_spawn_data_invalid();
-        tileData.coverage = NO_SURFELS_NEEDED;
-    }
+        surfel_tile_data tileData;
 
-    const uint bestSubgroupCandidateIdx = find_lowest_within_subgroup(tileData.coverage);
+        if (globalIndex < g_Constants.srcElements)
+        {
+            tileData = g_InBuffer[globalIndex];
+        }
+        else
+        {
+            tileData.spawnData = surfel_spawn_data_invalid();
+            tileData.coverage = NO_SURFELS_NEEDED;
+        }
 
-    if (gl_SubgroupInvocationID == bestSubgroupCandidateIdx)
-    {
-        const uint localOutputIndex = gl_LocalInvocationID.x / OBLO_SUBGROUP_SIZE;
-        g_GroupCandidates[localOutputIndex] = tileData;
+        const uint bestSubgroupCandidateIdx = find_lowest_within_subgroup(tileData.coverage);
+
+        if (gl_SubgroupInvocationID == bestSubgroupCandidateIdx)
+        {
+            const uint localOutputIndex = gl_LocalInvocationID.x / OBLO_SUBGROUP_SIZE;
+            g_GroupCandidates[localOutputIndex] = tileData;
+        }
     }
 
     subgroupMemoryBarrierShared();
@@ -75,19 +77,22 @@ void main()
         return;
     }
 
-    tileData = g_GroupCandidates[gl_SubgroupInvocationID];
-    const uint bestGroupCandidateIdx = find_lowest_within_subgroup(tileData.coverage);
-
-    if (gl_SubgroupInvocationID == bestGroupCandidateIdx)
     {
-        const uint outputIndex = gl_WorkGroupID.x;
-        g_OutBuffer[outputIndex] = tileData;
+        const surfel_tile_data tileData = g_GroupCandidates[gl_SubgroupInvocationID];
+        const uint bestWorkGroupCandidateIdx = find_lowest_within_subgroup(tileData.coverage);
 
-// #if OBLO_DEBUG_PRINTF
-//         if (g_Constants.srcElements < 10)
-//         {
-//             debugPrintfEXT("Best coverage: %f (%f %f %f)\n", tileData.coverage, tileData.position.x, tileData.position.t, tileData.position.z);
-//         }
-// #endif
+        if (gl_SubgroupInvocationID == bestWorkGroupCandidateIdx)
+        {
+            const uint outputIndex = gl_WorkGroupID.x;
+            g_OutBuffer[outputIndex] = tileData;
+
+            // #if OBLO_DEBUG_PRINTF
+            //         if (g_Constants.srcElements < 10)
+            //         {
+            //             debugPrintfEXT("Best coverage: %f (%f %f %f)\n", tileData.coverage, tileData.position.x,
+            //             tileData.position.t, tileData.position.z);
+            //         }
+            // #endif
+        }
     }
 }

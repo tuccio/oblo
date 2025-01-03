@@ -35,7 +35,7 @@ g_Constants;
 void surfel_kill(in uint surfelId)
 {
 #if OBLO_DEBUG_PRINTF
-    debugPrintfEXT("Killing surfel %d\n", surfelId);
+    debugPrintfEXT("[UPDATE] Killing surfel %d\n", surfelId);
 #endif
 
     // We invalidate surfel_data::radius to signal it's not alive
@@ -129,16 +129,18 @@ void main()
 
     const ivec3 cell = surfel_grid_find_cell(gridHeader, positionWS);
 
-#if OBLO_DEBUG_PRINTF
-    // if (g_SurfelData[surfelId].radius > 40)
-    {
-        debugPrintfEXT("[UPDATE] Spawned %d on entity %d at: [%f %f %f]\n", surfelId, surfel.entity.id, positionWS.x, positionWS.y, positionWS.z);
-    }
-#endif
+    // #if OBLO_DEBUG_PRINTF
+    //     // if (g_SurfelData[surfelId].radius > 40)
+    //     {
+    //         debugPrintfEXT("[UPDATE] Spawned %d on entity %d at: [%f %f %f]\n", surfelId, surfel.entity.id,
+    //         positionWS.x, positionWS.y, positionWS.z);
+    //     }
+    // #endif
 
     if (!surfel_grid_has_cell(gridHeader, cell))
     {
         // printf_uvec3("[UPDATE] Surfel out of bounds at cell: ", cell);
+        // When the surfel is out of cell boundaries, we don't update it
         surfel_reject(surfelId);
         return;
     }
@@ -150,11 +152,18 @@ void main()
     if (newIndex >= SURFEL_MAX_PER_CELL)
     {
         // We already have the maximum amount of surfels per grid
-        // printf_uvec3("[UPDATE] Overflowing cell: ", cell);
+// #if OBLO_DEBUG_PRINTF
+//         debugPrintfEXT("[UPDATE] Overflowing cell: %d %d %d [Count: %u]\n", cell.x, cell.y, cell.z, newIndex);
+// #endif
 
         // TODO: Should we reject? It might be a good idea to free some space
-        surfel_reject(surfelId);
-        return;
+
+        // If the surfel is killed, we can return, otherwise we still update it, so that the next frame grid has
+        // consistent data that can be used for the next round of tiling
+        if (surfel_reject(surfelId))
+        {
+            return;
+        }
     }
 
     vec3 triangleNormal[3];

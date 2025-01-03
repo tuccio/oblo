@@ -80,6 +80,7 @@ namespace oblo::vk
         ctx.acquire(inDepthBuffer, texture_usage::depth_stencil_read);
 
         ctx.acquire(inSurfelsData, buffer_usage::storage_read);
+        ctx.acquire(inSurfelsGrid, buffer_usage::storage_read);
 
         ctx.create(sphereGeometry,
             buffer_resource_initializer{
@@ -167,6 +168,7 @@ namespace oblo::vk
                 {
                     {"b_CameraBuffer", inCameraBuffer},
                     {"b_SurfelsData", inSurfelsData},
+                    {"b_SurfelsGrid", inSurfelsGrid},
                     {"b_SphereGeometry", sphereGeometry},
                 });
 

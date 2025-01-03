@@ -40,7 +40,10 @@ void main()
             if (allocated)
             {
                 // printf_int("[SPAWN] Spawn id: ", newSurfelId);
-                debugPrintfEXT("[SPAWN] Id: %d Entity: %d Coverage: %f\n", tile.spawnData.entity.id, tile.coverage);
+                debugPrintfEXT("[SPAWN] Id: %d Entity: %d Coverage: %f\n",
+                    newSurfelId,
+                    tile.spawnData.entity.id,
+                    tile.coverage);
             }
             // else
             // {
