@@ -26,7 +26,9 @@ void main()
 {
     const surfel_tile_data tile = g_TileData;
 
-    if (ecs_entity_is_valid(tile.spawnData.entity) && tile.coverage < NO_SURFELS_NEEDED)
+    const float spawnThreshold = .1f / (OBLO_SUBGROUP_SIZE * OBLO_SUBGROUP_SIZE);
+
+    if (ecs_entity_is_valid(tile.spawnData.entity) && tile.coverage < spawnThreshold)
     {
         uint newSurfelId;
         const bool allocated = surfel_stack_allocate(newSurfelId);
@@ -40,10 +42,13 @@ void main()
             if (allocated)
             {
                 // printf_int("[SPAWN] Spawn id: ", newSurfelId);
-                debugPrintfEXT("[SPAWN] Id: %d Entity: %d Coverage: %f\n",
+                debugPrintfEXT("[SPAWN] Id: %d Entity: %d Coverage: %f [Triangle: %d %f %f]\n",
                     newSurfelId,
                     tile.spawnData.entity.id,
-                    tile.coverage);
+                    tile.coverage,
+                    tile.spawnData.packedMeshletAndTriangleId,
+                    tile.spawnData.barycentricU,
+                    tile.spawnData.barycentricV);
             }
             // else
             // {
@@ -55,8 +60,11 @@ void main()
         if (allocated)
         {
             g_SurfelSpawnData[newSurfelId] = tile.spawnData;
-            g_SurfelData[newSurfelId].radius = 42.f; // Kist to make them recognizable
+
+            g_SurfelData[newSurfelId].radius = 42.f; // Just to make them recognizable
             g_SurfelData[newSurfelId].lastUsedTimestamp = g_Constants.currentTimestamp;
+
+            debug_assert(surfel_spawn_data_is_alive(g_SurfelSpawnData[newSurfelId]));
         }
     }
 }

@@ -65,7 +65,7 @@
     #define debug_assert(Condition)                                                                                    \
         if (!(Condition))                                                                                              \
         {                                                                                                              \
-            debugPrintfEXT("Failed assertion at line %d\n", __LINE__);                                                 \
+            debugPrintfEXT("[ASSERT] Failed assertion at line %d\n", __LINE__);                                        \
         }
 
 #else

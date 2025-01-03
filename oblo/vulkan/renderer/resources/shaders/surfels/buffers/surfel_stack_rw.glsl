@@ -18,10 +18,14 @@ bool surfel_stack_allocate(out uint surfelId)
     }
 }
 
-void surfel_stack_free(in uint surfelI)
+void surfel_stack_free(in uint surfelId)
 {
     // This is not safe if a pass can do both free and allocate, we need to be careful to allocate and free in different
     // passes
     const int newIndex = atomicAdd(g_SurfelStackHeader.available, 1);
-    g_SurfelStackEntries[newIndex].surfelId = surfelI;
+    g_SurfelStackEntries[newIndex].surfelId = surfelId;
+
+#ifdef debug_assert
+    debug_assert(newIndex >= 0);
+#endif
 }

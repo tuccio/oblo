@@ -3,7 +3,7 @@
 
 #include <surfels/surfel_data>
 
-bool surfel_affects(in surfel_data surfel, in vec3 positionWS)
+float surfel_weight(in surfel_data surfel, in vec3 positionWS)
 {
     const vec3 surfelPosition = surfel_data_world_position(surfel);
     const vec3 diff = surfelPosition - positionWS;
@@ -11,8 +11,7 @@ bool surfel_affects(in surfel_data surfel, in vec3 positionWS)
     const float radius2 = surfel.radius * surfel.radius;
 
     // TODO: We should probably consider the normal as well, the surfel should not affect anything behind it
-    // return dot(diff, diff) <= radius2;
-    return true;
+    return max(4 * radius2 - dot(diff, diff), 0);
 }
 
 #endif

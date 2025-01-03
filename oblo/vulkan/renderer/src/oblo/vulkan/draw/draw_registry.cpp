@@ -94,12 +94,15 @@ namespace oblo::vk
             u32 meshletCount;
         };
 
+        // Global id containing instance table and instance index, this is the same id that we store in the visibility
+        // buffer and as instanceCustomIndex in the acceleration structures for ray-tracing.
         draw_instance_id_component make_global_instance_id(u32 instanceTableId, u32 instanceIndex)
         {
+            constexpr u32 totalBits = 24;
             constexpr u32 instanceIndexBits = 20;
             constexpr u32 mask = (1u << instanceIndexBits) - 1;
 
-            OBLO_ASSERT(instanceTableId < (1u << (24 - instanceIndexBits)));
+            OBLO_ASSERT(instanceTableId < (1u << (totalBits - instanceIndexBits)));
             OBLO_ASSERT(instanceIndex <= mask);
 
             return {(instanceIndex & mask) | (instanceTableId << instanceIndexBits)};

@@ -38,6 +38,9 @@ void surfel_kill(in uint surfelId)
     debugPrintfEXT("[UPDATE] Killing surfel %d\n", surfelId);
 #endif
 
+    debug_assert(surfel_spawn_data_is_alive(g_SurfelSpawnData[surfelId]));
+    debug_assert(surfel_data_is_alive(g_SurfelData[surfelId]));
+
     // We invalidate surfel_data::radius to signal it's not alive
     // We invalidate it even if we don't kill it because it won't have an effect
     g_SurfelData[surfelId] = surfel_data_invalid();
@@ -48,7 +51,7 @@ void surfel_kill(in uint surfelId)
 
 bool surfel_reject(in uint surfelId)
 {
-    const uint killFramesThreshold = 300;
+    const uint killFramesThreshold = 60;
 
     const surfel_data surfelData = g_SurfelData[surfelId];
 
@@ -70,7 +73,8 @@ void main()
 #if OBLO_DEBUG_PRINTF
     if (surfelId == 0)
     {
-        debugPrintfEXT("[UPDATE] Alive surfels count: %d\n", (1 << 14) - (g_SurfelStackHeader.available));
+        debugPrintfEXT("[UPDATE] Alive surfels count: %d\n",
+            (g_Constants.maxSurfels) - (g_SurfelStackHeader.available));
     }
 #endif
 
@@ -99,8 +103,24 @@ void main()
     }
 
     visibility_buffer_data vb;
+
     visibility_buffer_parse_instance_ids(entitySetEntry.globalInstanceId, vb);
     visibility_buffer_parse_meshlet_ids(surfel.packedMeshletAndTriangleId, vb);
+
+    const bool isSpawned = g_SurfelData[surfelId].radius > 40;
+
+    // #if OBLO_DEBUG_PRINTF
+
+    //     if (isSpawned)
+    //     {
+    //         debugPrintfEXT("[UPDATE] Spawned %d on entity %d [gid: %d] [instance: %d %d]\n",
+    //             surfelId,
+    //             surfel.entity.id,
+    //             entitySetEntry.globalInstanceId,
+    //             vb.instanceTableId,
+    //             vb.instanceId);
+    //     }
+    // #endif
 
     const mesh_handle mesh = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MeshHandles, vb.instanceId);
     const transform transform = OBLO_INSTANCE_DATA(vb.instanceTableId, i_TransformBuffer, vb.instanceId);
@@ -129,40 +149,46 @@ void main()
 
     const ivec3 cell = surfel_grid_find_cell(gridHeader, positionWS);
 
-    // #if OBLO_DEBUG_PRINTF
-    //     // if (g_SurfelData[surfelId].radius > 40)
-    //     {
-    //         debugPrintfEXT("[UPDATE] Spawned %d on entity %d at: [%f %f %f]\n", surfelId, surfel.entity.id,
-    //         positionWS.x, positionWS.y, positionWS.z);
-    //     }
-    // #endif
+    bool isSurfelUsed = true;
 
     if (!surfel_grid_has_cell(gridHeader, cell))
     {
         // printf_uvec3("[UPDATE] Surfel out of bounds at cell: ", cell);
         // When the surfel is out of cell boundaries, we don't update it
-        surfel_reject(surfelId);
-        return;
-    }
-
-    const uint cellIndex = surfel_grid_cell_index(gridHeader, cell);
-
-    const uint newIndex = atomicAdd(g_SurfelGridCells[cellIndex].surfelsCount, 1);
-
-    if (newIndex >= SURFEL_MAX_PER_CELL)
-    {
-        // We already have the maximum amount of surfels per grid
-// #if OBLO_DEBUG_PRINTF
-//         debugPrintfEXT("[UPDATE] Overflowing cell: %d %d %d [Count: %u]\n", cell.x, cell.y, cell.z, newIndex);
-// #endif
-
-        // TODO: Should we reject? It might be a good idea to free some space
-
-        // If the surfel is killed, we can return, otherwise we still update it, so that the next frame grid has
-        // consistent data that can be used for the next round of tiling
         if (surfel_reject(surfelId))
         {
             return;
+        }
+
+        isSurfelUsed = false;
+    }
+    else
+    {
+        const uint cellIndex = surfel_grid_cell_index(gridHeader, cell);
+        const uint newIndex = atomicAdd(g_SurfelGridCells[cellIndex].surfelsCount, 1);
+
+        if (newIndex >= SURFEL_MAX_PER_CELL)
+        {
+            // We already have the maximum amount of surfels per grid
+            // #if OBLO_DEBUG_PRINTF
+            //         debugPrintfEXT("[UPDATE] Overflowing cell: %d %d %d [Count: %u]\n", cell.x, cell.y,
+            // cell.z,
+            //         newIndex);
+            // #endif
+
+            // TODO: Should we reject? It might be a good idea to free some space
+            // If the surfel is killed, we can return, otherwise we still update it, so that the next frame grid has
+            // consistent data that can be used for the next round of tiling
+            if (surfel_reject(surfelId))
+            {
+                return;
+            }
+
+            isSurfelUsed = false;
+        }
+        else
+        {
+            g_SurfelGridCells[cellIndex].surfels[newIndex] = surfelId;
         }
     }
 
@@ -183,11 +209,33 @@ void main()
     surfel_data updatedData;
     updatedData.positionWS = positionWS;
     updatedData.normalWS = normalWS;
-    updatedData.radius = 0.01f; // TODO: Calculate the radius based on screen-space size
-    updatedData.lastUsedTimestamp = g_Constants.currentTimestamp;
+    updatedData.radius = 0.1f; // TODO: Calculate the radius based on screen-space size
+
+    if (isSurfelUsed)
+    {
+        updatedData.lastUsedTimestamp = g_Constants.currentTimestamp;
+    }
+
+#if OBLO_DEBUG_PRINTF
+    if (g_SurfelData[surfelId].radius > 40)
+    {
+        debugPrintfEXT(
+            "[UPDATE] Spawned %d on entity %d [instance: %d %d] at: [wsPos: %f %f %f] [cell: %d %d %d] [used: %d]\n",
+            surfelId,
+            surfel.entity.id,
+            vb.instanceTableId,
+            vb.instanceId,
+            positionWS.x,
+            positionWS.y,
+            positionWS.z,
+            cell.x,
+            cell.y,
+            cell.z,
+            isSurfelUsed);
+    }
+#endif
 
     g_SurfelData[surfelId] = updatedData;
-    g_SurfelGridCells[cellIndex].surfels[newIndex] = surfelId;
 
     // debugPrintfEXT("[UPDATE] Surfel %u alive: %u\n", surfelId, uint(surfel.alive));
     // debugPrintfEXT("[UPDATE] Fill cell: %u\n", cell);

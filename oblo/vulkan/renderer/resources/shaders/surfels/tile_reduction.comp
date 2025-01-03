@@ -10,6 +10,7 @@
 #extension GL_KHR_shader_subgroup_ballot : require
 
 #include <renderer/debug/printf>
+#include <surfels/reduction>
 #include <surfels/surfel_data>
 
 layout(std430, binding = 0) restrict readonly buffer b_InBuffer
@@ -21,14 +22,6 @@ layout(std430, binding = 1) restrict writeonly buffer b_OutBuffer
 {
     surfel_tile_data g_OutBuffer[];
 };
-
-uint find_lowest_within_subgroup(in float value)
-{
-    const float lowestCoverage = subgroupMin(value);
-    const bool isBestCandidate = lowestCoverage == value;
-    const uvec4 bestCandidateBallot = subgroupBallot(isBestCandidate);
-    return subgroupBallotFindLSB(bestCandidateBallot);
-}
 
 shared surfel_tile_data g_GroupCandidates[OBLO_SUBGROUP_SIZE];
 
@@ -67,7 +60,9 @@ void main()
         }
     }
 
+    subgroupMemoryBarrier();
     subgroupMemoryBarrierShared();
+
     memoryBarrierShared();
     barrier();
 
@@ -79,6 +74,10 @@ void main()
 
     {
         const surfel_tile_data tileData = g_GroupCandidates[gl_SubgroupInvocationID];
+
+        subgroupMemoryBarrier();
+        subgroupMemoryBarrierShared();
+
         const uint bestWorkGroupCandidateIdx = find_lowest_within_subgroup(tileData.coverage);
 
         if (gl_SubgroupInvocationID == bestWorkGroupCandidateIdx)
@@ -86,13 +85,17 @@ void main()
             const uint outputIndex = gl_WorkGroupID.x;
             g_OutBuffer[outputIndex] = tileData;
 
-            // #if OBLO_DEBUG_PRINTF
-            //         if (g_Constants.srcElements < 10)
-            //         {
-            //             debugPrintfEXT("Best coverage: %f (%f %f %f)\n", tileData.coverage, tileData.position.x,
-            //             tileData.position.t, tileData.position.z);
-            //         }
-            // #endif
+// #if OBLO_DEBUG_PRINTF
+//             if (g_Constants.srcElements < 10)
+//             {
+//                 debugPrintfEXT("[REDUCTION] Best result Entity: %d Coverage: %f [Triangle: %d %f %f]\n",
+//                     tileData.spawnData.entity.id,
+//                     tileData.coverage,
+//                     tileData.spawnData.packedMeshletAndTriangleId,
+//                     tileData.spawnData.barycentricU,
+//                     tileData.spawnData.barycentricV);
+//             }
+// #endif
         }
     }
 }
