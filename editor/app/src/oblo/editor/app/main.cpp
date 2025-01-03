@@ -1,9 +1,21 @@
 #include <SDL.h>
 
+#include <oblo/core/platform/core.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/sandbox/sandbox_app.hpp>
 
 #include "app.hpp"
+
+namespace oblo
+{
+    // Occasionally useful when debugging the app launched by RenderDoc/Nsight
+    [[maybe_unused]] static void wait_for_debugger()
+    {
+        while (!oblo::platform::is_debugger_attached())
+        {
+        }
+    }
+}
 
 int SDL_main(int, char*[])
 {

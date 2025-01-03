@@ -18,7 +18,6 @@
 #include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/draw/resource_cache.hpp>
 #include <oblo/vulkan/renderer.hpp>
-#include <oblo/vulkan/required_features.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
 #include <oblo/vulkan/stateful_command_buffer.hpp>
@@ -166,10 +165,5 @@ namespace oblo
     ecs::entity_registry& runtime::get_entity_registry() const
     {
         return m_impl->entities;
-    }
-
-    vk::required_features runtime::get_required_vulkan_features()
-    {
-        return vk::renderer::get_required_features();
     }
 }

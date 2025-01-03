@@ -28,16 +28,11 @@ namespace oblo::vk
     class vulkan_context;
     struct buffer;
 
-    struct required_features;
-
     class renderer
     {
     public:
         struct initializer;
         struct update_context;
-
-    public:
-        static required_features get_required_features();
 
     public:
         renderer();
@@ -64,6 +59,8 @@ namespace oblo::vk
 
         frame_graph& get_frame_graph();
 
+        bool is_ray_tracing_enabled() const;
+
     private:
         vulkan_context* m_vkContext{nullptr};
 
@@ -79,6 +76,7 @@ namespace oblo::vk
         frame_graph m_frameGraph;
 
         bool m_firstUpdate{};
+        bool m_isRayTracingEnabled{};
     };
 
     struct renderer::initializer
@@ -122,5 +120,10 @@ namespace oblo::vk
     inline frame_graph& vk::renderer::get_frame_graph()
     {
         return m_frameGraph;
+    }
+
+    inline bool vk::renderer::is_ray_tracing_enabled() const
+    {
+        return m_isRayTracingEnabled;
     }
 }

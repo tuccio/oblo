@@ -51,22 +51,31 @@ namespace oblo::smoke
 
             std::span<const char* const> get_required_instance_extensions() const
             {
-                return runtime::get_required_vulkan_features().instanceExtensions;
+                return module_manager::get()
+                    .find<runtime_module>()
+                    ->get_required_renderer_features()
+                    .instanceExtensions;
             }
 
             VkPhysicalDeviceFeatures2 get_required_physical_device_features() const
             {
-                return runtime::get_required_vulkan_features().physicalDeviceFeatures;
+                return module_manager::get()
+                    .find<runtime_module>()
+                    ->get_required_renderer_features()
+                    .physicalDeviceFeatures;
             }
 
             void* get_required_device_features() const
             {
-                return runtime::get_required_vulkan_features().deviceFeaturesChain;
+                return module_manager::get()
+                    .find<runtime_module>()
+                    ->get_required_renderer_features()
+                    .deviceFeaturesChain;
             }
 
             std::span<const char* const> get_required_device_extensions() const
             {
-                return runtime::get_required_vulkan_features().deviceExtensions;
+                return module_manager::get().find<runtime_module>()->get_required_renderer_features().deviceExtensions;
             }
 
             bool startup(const vk::sandbox_startup_context& ctx)

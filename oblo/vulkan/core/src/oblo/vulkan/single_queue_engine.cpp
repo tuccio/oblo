@@ -2,7 +2,9 @@
 
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/debug.hpp>
+#include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/log/log.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/instance.hpp>
 
@@ -118,8 +120,44 @@ namespace oblo::vk
             .pEnabledFeatures = physicalDeviceFeatures,
         };
 
-        if (vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device) != VK_SUCCESS)
+        if (const auto res = vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device); res != VK_SUCCESS)
         {
+            if (res == VK_ERROR_EXTENSION_NOT_PRESENT)
+            {
+                u32 count;
+                vkEnumerateDeviceExtensionProperties(m_physicalDevice, nullptr, &count, nullptr);
+
+                dynamic_array<VkExtensionProperties> properties;
+                properties.resize(count);
+
+                vkEnumerateDeviceExtensionProperties(m_physicalDevice, nullptr, &count, properties.data());
+
+                dynamic_array<const char*> requestedExtensions;
+                requestedExtensions.assign(enabledExtensions.begin(), enabledExtensions.end());
+
+                requestedExtensions.erase(std::remove_if(requestedExtensions.begin(),
+                                              requestedExtensions.end(),
+                                              [&properties](const char* e)
+                                              {
+                                                  for (auto& p : properties)
+                                                  {
+                                                      if (strcmp(e, p.extensionName) == 0)
+                                                      {
+                                                          return true;
+                                                      }
+                                                  }
+
+                                                  return false;
+                                              }),
+                    requestedExtensions.end());
+
+                string_builder b;
+                b.format("Device creation failed because of {} extensions missing:\n", properties.size());
+                b.join(requestedExtensions.begin(), requestedExtensions.end(), "\n", "\t- {}");
+
+                log::error("{}", b);
+            }
+
             return false;
         }
 

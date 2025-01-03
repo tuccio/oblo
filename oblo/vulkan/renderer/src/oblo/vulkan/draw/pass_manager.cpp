@@ -644,6 +644,7 @@ namespace oblo::vk
         bool enableProfiling{true};
         bool enableProfilingThisFrame{false};
         bool globallyEnablePrintf{false};
+        bool isRayTracingEnabled{true};
         u32 globallyEnablePrintfFrames{~0u};
 
         std::unordered_map<string, watching_passes, hash<string>> fileToPassList;
@@ -1670,6 +1671,11 @@ namespace oblo::vk
         m_impl->includer.systemIncludePaths.assign(paths.begin(), paths.end());
     }
 
+    void pass_manager::set_raytracing_enabled(bool isRayTracingEnabled)
+    {
+        m_impl->isRayTracingEnabled = isRayTracingEnabled;
+    }
+
     h32<render_pass> pass_manager::register_render_pass(const render_pass_initializer& desc)
     {
         const auto [it, handle] = m_impl->renderPasses.emplace();
@@ -2168,7 +2174,7 @@ namespace oblo::vk
     {
         auto* const raytracingPass = m_impl->raytracingPasses.try_find(raytracingPassHandle);
 
-        if (!raytracingPass)
+        if (!raytracingPass || !m_impl->isRayTracingEnabled)
         {
             return {};
         }
