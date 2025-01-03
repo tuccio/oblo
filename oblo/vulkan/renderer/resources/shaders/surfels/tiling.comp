@@ -50,6 +50,12 @@ uint find_lowest_within_subgroup(in float value)
     return subgroupBallotFindLSB(bestCandidateBallot);
 }
 
+uint count_pixels_with_fragments(in bool hasFragment)
+{
+    const uvec4 hasFragmentBallot = subgroupBallot(hasFragment);
+    return subgroupBallotBitCount(hasFragmentBallot);
+}
+
 shared surfel_tile_data g_GroupCandidates[OBLO_SUBGROUP_SIZE];
 
 void main()
@@ -63,9 +69,7 @@ void main()
     // for the coverage, for now we assign an arbitrary coverage though.
     float coverage = NO_SURFELS_NEEDED;
     uint coverageSum = 0;
-    uint pixelsWithFragments = 0;
     vec3 positionWS;
-    vec3 normalWS;
 
     surfel_spawn_data spawnData;
     const bool hasGeometry = !outOfScreenBounds && read_spawn_data(screenPos, resolution, spawnData, positionWS);
@@ -137,7 +141,6 @@ void main()
             }
 
             coverageSum += overlappingSurfels;
-            ++pixelsWithFragments;
         }
 
         if (debug_is_center(screenPos, resolution))
@@ -146,41 +149,106 @@ void main()
         }
     }
 
+    const uint accumulatedCells = 9;
+
     // We don't need to spawn surfels if the tile only has skybox
-    coverage = pixelsWithFragments == 0 ? NO_SURFELS_NEEDED : float(coverageSum) / pixelsWithFragments;
+    // coverage =
+    //     pixelsWithFragments == 0 ? NO_SURFELS_NEEDED : float(coverageSum) / (pixelsWithFragments *
+    //     SURFEL_MAX_PER_CELL);
+
+    // if (coverage > 1)
+    // {
+    //     coverage = NO_SURFELS_NEEDED;
+    // }
+
+    const uint pixelsWithFragments = count_pixels_with_fragments(hasGeometry);
+
+    if (!hasGeometry || pixelsWithFragments == 0)
+    {
+        coverage = NO_SURFELS_NEEDED;
+    }
+    else
+    {
+        coverage = float(coverageSum) / pixelsWithFragments;
+    }
 
     const uint bestSubgroupCandidateIdx = find_lowest_within_subgroup(coverage);
+
+    // #if OBLO_DEBUG_PRINTF
+    //     if (gl_WorkGroupID.xy == uvec2(0) && gl_SubgroupID == 10)
+    //     {
+    //         debugPrintfEXT("[TILING] Best candidate: %d\n", bestSubgroupCandidateIdx);
+    //     }
+    // #endif
 
     if (gl_SubgroupInvocationID == bestSubgroupCandidateIdx)
     {
         surfel_tile_data tileData;
         tileData.coverage = coverage;
         tileData.spawnData = spawnData;
-        const uint localOutputIndex = gl_LocalInvocationID.y;
+
+        const uint localOutputIndex = gl_SubgroupID;
         g_GroupCandidates[localOutputIndex] = tileData;
+
+#if OBLO_DEBUG_PRINTF
+        if (coverage < NO_SURFELS_NEEDED)
+        {
+            debugPrintfEXT("[TILING] Pixel %d %d -> %f [Entity: %d]\n",
+                screenPos.y,
+                screenPos.x,
+                tileData.coverage,
+                tileData.spawnData.entity.id);
+        }
+#endif
     }
 
-    subgroupMemoryBarrier();
+    subgroupMemoryBarrierShared();
     memoryBarrierShared();
     barrier();
 
     // We only keep the first subgroup active now, to perform another round of reduction
-    if (gl_LocalInvocationID.y > 0)
+    if (gl_SubgroupID > 0)
     {
         return;
     }
 
-    const surfel_tile_data tileData = g_GroupCandidates[gl_SubgroupInvocationID];
-    const uint bestGroupCandidateIdx = find_lowest_within_subgroup(tileData.coverage);
+    // #if OBLO_DEBUG_PRINTF
+    //     if (gl_WorkGroupID.xy == uvec2(0) && gl_LocalInvocationID.xy == uvec2(0))
+    //     {
+    //         debugPrintfEXT("TEST\n");
+    //     }
+    // #endif
 
-    if (gl_SubgroupInvocationID == bestGroupCandidateIdx)
+    const surfel_tile_data tileData = g_GroupCandidates[gl_SubgroupInvocationID];
+
+#if OBLO_DEBUG_PRINTF
+    if (tileData.coverage < NO_SURFELS_NEEDED)
+    {
+        debugPrintfEXT("[TILING] Pixel %d %d -> %f [Entity: %d]\n",
+            screenPos.y,
+            screenPos.x,
+            tileData.coverage,
+            tileData.spawnData.entity.id);
+    }
+#endif
+
+    const uint bestWorkGroupCandidateIdx = find_lowest_within_subgroup(tileData.coverage);
+
+    if (gl_SubgroupInvocationID == bestWorkGroupCandidateIdx)
     {
         const uint globalIndex = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
         g_TileData[globalIndex] = tileData;
 
-        // #if OBLO_DEBUG_PRINTF
-        //         debugPrintfEXT("TIle %d %d -> %f\n", gl_WorkGroupID.y, gl_WorkGroupID.x, tileData.coverage);
-        // #endif
+#if OBLO_DEBUG_PRINTF
+        if (tileData.coverage != NO_SURFELS_NEEDED)
+        {
+            debugPrintfEXT("[TILING] Tile %d %d -> %f [Entity: %d]\n",
+                gl_WorkGroupID.y,
+                gl_WorkGroupID.x,
+                tileData.coverage,
+                tileData.spawnData.entity.id);
+        }
+#endif
     }
 }
 

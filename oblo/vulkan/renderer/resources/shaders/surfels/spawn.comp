@@ -26,31 +26,33 @@ void main()
 {
     const surfel_tile_data tile = g_TileData;
 
-    if (tile.coverage < NO_SURFELS_NEEDED)
+    if (ecs_entity_is_valid(tile.spawnData.entity) && tile.coverage < NO_SURFELS_NEEDED)
     {
         uint newSurfelId;
         const bool allocated = surfel_stack_allocate(newSurfelId);
 
 #if OBLO_DEBUG_PRINTF
         {
-            printf_int("[SPAWN] Allocated, available: ", g_SurfelStackHeader.available);
-            printf_int("[SPAWN] Entity: ", tile.spawnData.entity.id);
-            printf_float("[SPAWN] Coverage: ", tile.coverage);
+            // printf_int("[SPAWN] Allocated, available: ", g_SurfelStackHeader.available);
+            // printf_int("[SPAWN] Entity: ", tile.spawnData.entity.id);
+            // printf_float("[SPAWN] Coverage: ", tile.coverage);
 
             if (allocated)
             {
-                printf_int("[SPAWN] Spawn id: ", newSurfelId);
+                // printf_int("[SPAWN] Spawn id: ", newSurfelId);
+                debugPrintfEXT("[SPAWN] Id: %d Entity: %d Coverage: %f\n", tile.spawnData.entity.id, tile.coverage);
             }
-            else
-            {
-                printf_int("[SPAWN] Failed to allocate, available: ", g_SurfelStackHeader.available);
-            }
+            // else
+            // {
+            //     printf_int("[SPAWN] Failed to allocate, available: ", g_SurfelStackHeader.available);
+            // }
         }
 #endif
 
         if (allocated)
         {
             g_SurfelSpawnData[newSurfelId] = tile.spawnData;
+            g_SurfelData[newSurfelId].radius = 42.f; // Kist to make them recognizable
             g_SurfelData[newSurfelId].lastUsedTimestamp = g_Constants.currentTimestamp;
         }
     }

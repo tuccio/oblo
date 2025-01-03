@@ -2,6 +2,7 @@
 #define OBLO_INCLUDE_SURFELS_SURFEL_DATA
 
 #include <ecs/entity>
+#include <renderer/constants>
 
 const uint SURFEL_MAX_PER_CELL = 31;
 
@@ -87,6 +88,35 @@ vec3 surfel_data_world_position(in surfel_data surfel)
 vec3 surfel_data_world_normal(in surfel_data surfel)
 {
     return surfel.normalWS;
+}
+
+bool surfel_spawn_data_is_alive(in surfel_spawn_data spawnData)
+{
+    return spawnData.barycentricU >= 0.f;
+}
+
+surfel_spawn_data surfel_spawn_data_invalid()
+{
+    surfel_spawn_data spawnData;
+    spawnData.entity = ecs_entity_invalid();
+    spawnData.barycentricU = -1.f;
+    spawnData.barycentricV = -1.f;
+    return spawnData;
+}
+
+surfel_data surfel_data_invalid()
+{
+    surfel_data surfelData;
+    surfelData.positionWS = vec3(float_positive_infinity());
+    surfelData.normalWS = vec3(float_positive_infinity());
+    surfelData.radius = 0.f;
+    surfelData.lastUsedTimestamp = 0;
+    return surfelData;
+}
+
+bool surfel_data_is_alive(in surfel_data surfelData)
+{
+    return !isinf(surfelData.positionWS.x);
 }
 
 #endif

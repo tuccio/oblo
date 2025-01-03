@@ -32,27 +32,47 @@ layout(push_constant) uniform c_PushConstants
 }
 g_Constants;
 
-void surfel_reject(in uint surfelId)
+void surfel_kill(in uint surfelId)
 {
-    const uint killFramesThreshold = 120;
+#if OBLO_DEBUG_PRINTF
+    debugPrintfEXT("Killing surfel %d\n", surfelId);
+#endif
 
-    const uint dt = g_Constants.currentTimestamp - g_SurfelData[surfelId].lastUsedTimestamp;
+    // We invalidate surfel_data::radius to signal it's not alive
+    // We invalidate it even if we don't kill it because it won't have an effect
+    g_SurfelData[surfelId] = surfel_data_invalid();
+    g_SurfelSpawnData[surfelId] = surfel_spawn_data_invalid();
+
+    surfel_stack_free(surfelId);
+}
+
+bool surfel_reject(in uint surfelId)
+{
+    const uint killFramesThreshold = 300;
+
+    const surfel_data surfelData = g_SurfelData[surfelId];
+
+    const uint dt = g_Constants.currentTimestamp - surfelData.lastUsedTimestamp;
 
     if (dt <= killFramesThreshold)
     {
-        return;
+        return false;
     }
 
-    // We invalidate surfel_data::radius to signal it's not alive
-    g_SurfelData[surfelId].radius = 0.f;
-    g_SurfelSpawnData[surfelId].entity = ecs_entity_invalid();
-
-    surfel_stack_free(surfelId);
+    surfel_kill(surfelId);
+    return true;
 }
 
 void main()
 {
     const uint surfelId = gl_GlobalInvocationID.x;
+
+#if OBLO_DEBUG_PRINTF
+    if (surfelId == 0)
+    {
+        debugPrintfEXT("[UPDATE] Alive surfels count: %d\n", (1 << 14) - (g_SurfelStackHeader.available));
+    }
+#endif
 
     if (surfelId >= g_Constants.maxSurfels)
     {
@@ -61,10 +81,20 @@ void main()
 
     const surfel_spawn_data surfel = g_SurfelSpawnData[surfelId];
 
+    if (!surfel_spawn_data_is_alive(surfel))
+    {
+        return;
+    }
+
     ecs_entity_set_entry entitySetEntry;
 
     if (!ecs_entity_set_try_find(surfel.entity, entitySetEntry))
     {
+#if OBLO_DEBUG_PRINTF
+        if (surfel.entity.id != 0)
+            debugPrintfEXT("[UPDATE] Entity not alive: %u\n", surfel.entity.id);
+#endif
+        surfel_kill(surfelId);
         return;
     }
 
@@ -99,8 +129,16 @@ void main()
 
     const ivec3 cell = surfel_grid_find_cell(gridHeader, positionWS);
 
+#if OBLO_DEBUG_PRINTF
+    // if (g_SurfelData[surfelId].radius > 40)
+    {
+        debugPrintfEXT("[UPDATE] Spawned %d on entity %d at: [%f %f %f]\n", surfelId, surfel.entity.id, positionWS.x, positionWS.y, positionWS.z);
+    }
+#endif
+
     if (!surfel_grid_has_cell(gridHeader, cell))
     {
+        // printf_uvec3("[UPDATE] Surfel out of bounds at cell: ", cell);
         surfel_reject(surfelId);
         return;
     }
@@ -136,7 +174,7 @@ void main()
     surfel_data updatedData;
     updatedData.positionWS = positionWS;
     updatedData.normalWS = normalWS;
-    updatedData.radius = 1.f; // TODO: Calculate the radius based on screen-space size
+    updatedData.radius = 0.01f; // TODO: Calculate the radius based on screen-space size
     updatedData.lastUsedTimestamp = g_Constants.currentTimestamp;
 
     g_SurfelData[surfelId] = updatedData;

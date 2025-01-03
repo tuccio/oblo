@@ -3,6 +3,7 @@
 #include <oblo/core/array_size.hpp>
 #include <oblo/math/constants.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
+#include <oblo/vulkan/draw/compute_pass_initializer.hpp>
 #include <oblo/vulkan/draw/render_pass_initializer.hpp>
 #include <oblo/vulkan/graph/node_common.hpp>
 #include <oblo/vulkan/utility.hpp>
@@ -180,6 +181,75 @@ namespace oblo::vk
             vkCmdDraw(commandBuffer, vertexCount, instanceCount, 0, 0);
 
             pm.end_render_pass(*pass);
+        }
+    }
+
+    void surfel_debug_tile_coverage::init(const frame_graph_init_context& ctx)
+    {
+        auto& passManager = ctx.get_pass_manager();
+
+        debugPass = passManager.register_compute_pass({
+            .name = "GI Debug Tile Coverage Pass",
+            .shaderSourcePath = "./vulkan/shaders/surfels/surfel_debug_tile_coverage.comp",
+        });
+    }
+
+    void surfel_debug_tile_coverage::build(const frame_graph_build_context& ctx)
+    {
+        const auto resolution = ctx.access(inResolution);
+
+        ctx.begin_pass(pass_kind::compute);
+
+        ctx.acquire(inTileCoverage, buffer_usage::storage_read);
+
+        ctx.create(outImage,
+            texture_resource_initializer{
+                .width = resolution.x,
+                .height = resolution.y,
+                .format = VK_FORMAT_R8G8B8A8_UNORM,
+                .usage = VK_IMAGE_USAGE_STORAGE_BIT,
+            },
+            texture_usage::storage_write);
+    }
+
+    void surfel_debug_tile_coverage::execute(const frame_graph_execute_context& ctx)
+    {
+        auto& pm = ctx.get_pass_manager();
+
+        binding_table bindingTable;
+
+        ctx.bind_buffers(bindingTable,
+            {
+                {"b_InTileCoverage", inTileCoverage},
+            });
+
+        ctx.bind_textures(bindingTable,
+            {
+                {"t_OutImage", outImage},
+            });
+
+        const auto commandBuffer = ctx.get_command_buffer();
+
+        const auto pipeline = pm.get_or_create_pipeline(debugPass, {});
+
+        if (const auto pass = pm.begin_compute_pass(commandBuffer, pipeline))
+        {
+            const auto resolution = ctx.access(inResolution);
+
+            const binding_table* bindingTables[] = {
+                &bindingTable,
+            };
+
+            pm.bind_descriptor_sets(*pass, bindingTables);
+
+            pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&resolution, 1}));
+
+            vkCmdDispatch(ctx.get_command_buffer(),
+                round_up_div(resolution.x, pm.get_subgroup_size()),
+                round_up_div(resolution.y, pm.get_subgroup_size()),
+                1);
+
+            pm.end_compute_pass(*pass);
         }
     }
 }

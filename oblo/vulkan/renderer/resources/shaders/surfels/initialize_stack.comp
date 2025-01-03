@@ -32,6 +32,6 @@ void main()
     }
 
     g_SurfelStackEntries[id].surfelId = id;
-    g_SurfelSpawnData[id].entity = ecs_entity_invalid();
-    g_SurfelData[id].radius = 0.f;
+    g_SurfelSpawnData[id] = surfel_spawn_data_invalid();
+    g_SurfelData[id] = surfel_data_invalid();
 }

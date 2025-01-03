@@ -53,6 +53,7 @@ void main()
     }
     else
     {
+        tileData.spawnData = surfel_spawn_data_invalid();
         tileData.coverage = NO_SURFELS_NEEDED;
     }
 
@@ -64,12 +65,12 @@ void main()
         g_GroupCandidates[localOutputIndex] = tileData;
     }
 
-    subgroupMemoryBarrier();
+    subgroupMemoryBarrierShared();
     memoryBarrierShared();
     barrier();
 
     // We only keep the first subgroup active now, to perform another round of reduction
-    if (gl_LocalInvocationID.x >= OBLO_SUBGROUP_SIZE)
+    if (gl_SubgroupID > 0)
     {
         return;
     }

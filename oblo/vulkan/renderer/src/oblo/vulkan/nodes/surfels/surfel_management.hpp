@@ -44,6 +44,8 @@ namespace oblo::vk
     {
         data_sink<surfel_tiling_data> outTileCoverageSink;
 
+        resource<buffer> outFullTileCoverage;
+
         resource<buffer> inSurfelsGrid;
         resource<buffer> inSurfelsData;
 

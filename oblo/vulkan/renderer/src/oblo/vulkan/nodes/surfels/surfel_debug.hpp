@@ -25,10 +25,26 @@ namespace oblo::vk
         resource<buffer> sphereGeometry;
         dynamic_array<f32> sphereGeometryData;
 
-        void init(const frame_graph_init_context& context);
+        void init(const frame_graph_init_context& ctx);
 
-        void build(const frame_graph_build_context& builder);
+        void build(const frame_graph_build_context& ctx);
 
-        void execute(const frame_graph_execute_context& context);
+        void execute(const frame_graph_execute_context& ctx);
+    };
+
+    struct surfel_debug_tile_coverage
+    {
+        resource<buffer> inTileCoverage;
+        resource<texture> outImage;
+
+        h32<compute_pass> debugPass;
+
+        data<vec2u> inResolution;
+
+        void init(const frame_graph_init_context& ctx);
+
+        void build(const frame_graph_build_context& ctx);
+
+        void execute(const frame_graph_execute_context& ctx);
     };
 }

@@ -7,6 +7,7 @@
 #include <oblo/core/flags.hpp>
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
+#include <oblo/core/string/string.hpp>
 #include <oblo/ecs/archetype_storage.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/range.hpp>
@@ -119,7 +120,7 @@ namespace oblo::vk
 
     struct draw_registry::instance_data_type_info
     {
-        std::string name;
+        string name;
         u32 gpuInstanceBufferId;
     };
 
@@ -281,7 +282,7 @@ namespace oblo::vk
 
     void draw_registry::register_instance_data(ecs::component_type type, string_view name)
     {
-        m_instanceDataTypeNames.emplace(type, name.as<std::string>());
+        m_instanceDataTypeNames.emplace(type, name.as<string>());
         m_instanceDataTypes.add(type);
         m_isInstanceTypeInfoDirty = true;
     }

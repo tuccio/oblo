@@ -41,7 +41,7 @@ namespace oblo::editor
 
         ImVec4* colors = style.Colors;
         colors[ImGuiCol_Text] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
-        colors[ImGuiCol_TextDisabled] = ImVec4(0.59f, 0.49f, 0.62f, 1.00f);
+        colors[ImGuiCol_TextDisabled] = ImVec4(0.90f, 0.67f, 0.95f, 1.00f);
         colors[ImGuiCol_WindowBg] = ImVec4(0.08f, 0.09f, 0.10f, 1.00f);
         colors[ImGuiCol_ChildBg] = ImVec4(0.08f, 0.09f, 0.10f, 1.00f);
         colors[ImGuiCol_PopupBg] = ImVec4(0.08f, 0.09f, 0.10f, 1.00f);

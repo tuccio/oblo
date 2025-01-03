@@ -31,7 +31,8 @@ namespace oblo::vk::main_view
     constexpr string_view OutVisibilityBuffer{"VisibilityBuffer"};
     constexpr string_view OutLitImage{"LitOutput"};
     constexpr string_view OutDebugImage{"DebugOutput"};
-    constexpr string_view OutGIDebugImage{"DebugGIOutput"};
+    constexpr string_view OutGISurfelsImage{"DebugGISurfelsOutput"};
+    constexpr string_view OutGITileCoverageImage{"DebugGITileCoverageOutput"};
     constexpr string_view OutRTDebugImage{"DebugRTOutput"};
     constexpr string_view OutSurfelsTileCoverageSink{"SurfelsGITileOutput"};
 

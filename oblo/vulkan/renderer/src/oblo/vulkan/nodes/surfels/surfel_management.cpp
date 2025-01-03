@@ -202,8 +202,6 @@ namespace oblo::vk
 
     void surfel_tiling::build(const frame_graph_build_context& ctx)
     {
-        resource<buffer> fullTileCoverage;
-
         const auto resolution =
             ctx.get_current_initializer(inVisibilityBuffer).assert_value_or(image_initializer{}).extent;
 
@@ -223,7 +221,7 @@ namespace oblo::vk
         {
             const auto subpass = ctx.begin_pass(pass_kind::compute);
 
-            fullTileCoverage = ctx.create_dynamic_buffer(
+            ctx.create(outFullTileCoverage,
                 buffer_resource_initializer{
                     .size = tilesBufferSize,
                 },
@@ -244,7 +242,7 @@ namespace oblo::vk
 
             subpasses.front() = {
                 .id = subpass,
-                .outBuffer = fullTileCoverage,
+                .outBuffer = outFullTileCoverage,
             };
         }
 

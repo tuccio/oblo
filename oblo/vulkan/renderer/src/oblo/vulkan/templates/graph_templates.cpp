@@ -279,7 +279,25 @@ namespace oblo::vk::main_view
                 surfelsDebug,
                 &surfel_debug::inOutImage);
 
-            add_copy_output(graph, viewBuffers, surfelsDebug, &surfel_debug::inOutImage, OutGIDebugImage);
+            add_copy_output(graph, viewBuffers, surfelsDebug, &surfel_debug::inOutImage, OutGISurfelsImage);
+
+            const auto surfelsDebugTileCoverage = graph.add_node<surfel_debug_tile_coverage>();
+
+            graph.connect(surfelsTiling,
+                &surfel_tiling::outFullTileCoverage,
+                surfelsDebugTileCoverage,
+                &surfel_debug_tile_coverage::inTileCoverage);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::inResolution,
+                surfelsDebugTileCoverage,
+                &surfel_debug_tile_coverage::inResolution);
+
+            add_copy_output(graph,
+                viewBuffers,
+                surfelsDebugTileCoverage,
+                &surfel_debug_tile_coverage::outImage,
+                OutGITileCoverageImage);
         }
 
         return graph;
@@ -495,6 +513,7 @@ namespace oblo::vk
         registry.register_node<surfel_grid_clear>();
         registry.register_node<surfel_update>();
         registry.register_node<surfel_debug>();
+        registry.register_node<surfel_debug_tile_coverage>();
 
         return registry;
     }
