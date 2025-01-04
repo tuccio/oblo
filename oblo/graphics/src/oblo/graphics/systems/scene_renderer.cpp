@@ -65,6 +65,8 @@ namespace oblo
                 vk::main_view::OutSurfelsTileCoverageSink,
                 surfelsGIGlobal,
                 vk::surfels_gi::InTileCoverageSink);
+
+            g.connect(mainView, vk::main_view::OutCameraDataSink, surfelsGIGlobal, vk::surfels_gi::InCameraDataSink);
         }
     }
 

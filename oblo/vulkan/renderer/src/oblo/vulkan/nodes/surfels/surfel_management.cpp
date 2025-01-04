@@ -2,6 +2,7 @@
 
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/math/vec4.hpp>
+#include <oblo/vulkan/data/camera_buffer.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/compute_pass_initializer.hpp>
 #include <oblo/vulkan/events/gi_reset_event.hpp>
@@ -59,6 +60,18 @@ namespace oblo::vk
             f32 _padding[2];
             surfel_spawn_data spawnData;
         };
+
+        vec3 calculate_centroid(std::span<const camera_buffer> cameras)
+        {
+            vec3 c{};
+
+            for (const auto& camera : cameras)
+            {
+                c += camera.position;
+            }
+
+            return c / f32(cameras.size());
+        }
     }
 
     void surfel_initializer::init(const frame_graph_init_context& ctx)
@@ -276,6 +289,9 @@ namespace oblo::vk
                 {
                     .buffer = subpasses.back().outBuffer,
                 });
+
+            const vec3 cameraPosition = ctx.access(inCameraData).position;
+            ctx.push(outCameraPositionSink, cameraPosition);
 
             OBLO_ASSERT(currentBufferSize == sizeof(surfel_tile_data));
         }
@@ -576,11 +592,13 @@ namespace oblo::vk
 
             struct push_constants
             {
+                vec3 cameraCentroid;
                 u32 maxSurfels;
                 u32 currentTimestamp;
             };
 
             const push_constants constants{
+                .cameraCentroid = calculate_centroid(ctx.access(inCameras)),
                 .maxSurfels = ctx.access(inMaxSurfels),
                 .currentTimestamp = ctx.get_current_frames_count(),
             };

@@ -26,6 +26,7 @@ namespace oblo::vk::main_view
     constexpr string_view InDebugMode{"Debug Mode"};
 
     constexpr string_view OutResolution{"Resolution"};
+    constexpr string_view OutCameraDataSink{"CameraDataSink"};
     constexpr string_view OutCameraBuffer{"CameraBuffer"};
     constexpr string_view OutDepthBuffer{"DepthBuffer"};
     constexpr string_view OutVisibilityBuffer{"VisibilityBuffer"};
@@ -83,7 +84,7 @@ namespace oblo::vk::raytraced_shadow_view
 
 namespace oblo::vk::surfels_gi
 {
-    constexpr string_view InCameraBuffer{"CameraBuffer"};
+    constexpr string_view InCameraDataSink{"CameraDataSink"};
     constexpr string_view InGridBounds{"GridBounds"};
     constexpr string_view InGridCellSize{"GridCellSize"};
     constexpr string_view InMaxSurfels{"MaxSurfels"};

@@ -145,6 +145,13 @@ namespace oblo::vk
             a->push_back(std::move(value));
         }
 
+        template <typename T>
+        void push(data_sink<T> data, const T& value) const
+        {
+            auto* a = static_cast<data_sink_container<T>*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
+            a->push_back(value);
+        }
+
         expected<image_initializer> get_current_initializer(resource<texture> texture) const;
 
         frame_allocator& get_frame_allocator() const;

@@ -71,6 +71,7 @@ namespace oblo::vk::main_view
 
         graph.make_output(viewBuffers, &view_buffers_node::inResolution, OutResolution);
         graph.make_output(viewBuffers, &view_buffers_node::outCameraBuffer, OutCameraBuffer);
+        graph.make_output(viewBuffers, &view_buffers_node::outCameraDataSink, OutCameraDataSink);
 
         // Visibility pass outputs, useful for other graphs (e.g shadows)
         graph.make_output(visibilityPass, &visibility_pass::outVisibilityBuffer, OutVisibilityBuffer);
@@ -460,6 +461,7 @@ namespace oblo::vk::surfels_gi
         graph.make_input(update, &surfel_update::inInstanceBuffers, InInstanceBuffers);
         graph.make_input(update, &surfel_update::inMeshDatabase, InMeshDatabase);
         graph.make_input(update, &surfel_update::inEntitySetBuffer, InEcsEntitySetBuffer);
+        graph.make_input(update, &surfel_update::inCameras, InCameraDataSink);
         graph.connect(initializer, &surfel_initializer::inMaxSurfels, update, &surfel_update::inMaxSurfels);
         graph.connect(spawner, &surfel_spawner::inOutSurfelsData, update, &surfel_update::inOutSurfelsData);
         graph.connect(spawner, &surfel_spawner::inOutSurfelsStack, update, &surfel_update::inOutSurfelsStack);

@@ -9,6 +9,8 @@
 
 namespace oblo::vk
 {
+    struct camera_buffer;
+
     /// @brief Creates the buffers necessary for surfels GI.
     struct surfel_initializer
     {
@@ -36,6 +38,7 @@ namespace oblo::vk
     struct surfel_tiling_data
     {
         resource<buffer> buffer;
+        vec3 cameraPosition;
     };
 
     /// @brief Screen-space pass that calculates coverage of each 16x16 tile and the best candidate pixel within the
@@ -43,12 +46,14 @@ namespace oblo::vk
     struct surfel_tiling
     {
         data_sink<surfel_tiling_data> outTileCoverageSink;
+        data_sink<vec3> outCameraPositionSink;
 
         resource<buffer> outFullTileCoverage;
 
         resource<buffer> inSurfelsGrid;
         resource<buffer> inSurfelsData;
 
+        data<camera_buffer> inCameraData;
         resource<buffer> inCameraBuffer;
         resource<texture> inVisibilityBuffer;
 
@@ -130,6 +135,7 @@ namespace oblo::vk
 
         resource<buffer> inEntitySetBuffer;
 
+        data_sink<camera_buffer> inCameras;
         data<u32> inMaxSurfels;
 
         h32<compute_pass> updatePass;

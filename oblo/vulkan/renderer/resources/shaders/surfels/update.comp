@@ -27,6 +27,7 @@ layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in
 
 layout(push_constant) uniform c_PushConstants
 {
+    vec3 cameraCentroid;
     uint maxSurfels;
     uint currentTimestamp;
 }
@@ -203,13 +204,16 @@ void main()
         triangleNormal[i] = vertexNormal;
     }
 
+    const vec3 cameraVector = positionWS - g_Constants.cameraCentroid;
+    const float cameraDistance2 = dot(cameraVector, cameraVector);
+
     const vec3 N = normalize(barycentric_interpolate(bc, triangleNormal));
     const vec3 normalWS = normalize(mat3(transform.normalMatrix) * N);
 
     surfel_data updatedData;
     updatedData.positionWS = positionWS;
     updatedData.normalWS = normalWS;
-    updatedData.radius = 0.1f; // TODO: Calculate the radius based on screen-space size
+    updatedData.radius = 0.02 * sqrt(cameraDistance2); // TODO: Calculate the radius based on screen-space size
 
     if (isSurfelUsed)
     {
