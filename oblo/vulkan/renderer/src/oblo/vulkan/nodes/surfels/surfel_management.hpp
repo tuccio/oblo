@@ -67,6 +67,7 @@ namespace oblo::vk
 
         u32 tileSize;
         u32 reductionGroupSize;
+        u32 randomSeed;
 
         struct subpass_info;
         std::span<subpass_info> subpasses;
@@ -93,8 +94,6 @@ namespace oblo::vk
         resource<buffer> inOutSurfelsGrid;
 
         h32<compute_pass> spawnPass;
-
-        u32 randomSeed;
 
         void init(const frame_graph_init_context& ctx);
 

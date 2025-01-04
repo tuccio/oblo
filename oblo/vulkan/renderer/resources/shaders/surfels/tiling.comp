@@ -8,6 +8,9 @@
 #extension GL_KHR_shader_subgroup_arithmetic : require
 #extension GL_KHR_shader_subgroup_basic : require
 #extension GL_KHR_shader_subgroup_ballot : require
+#extension GL_KHR_shader_subgroup_shuffle : require
+#extension GL_KHR_shader_subgroup_shuffle_relative : require
+#extension GL_KHR_shader_subgroup_vote : require
 
 #include <ecs/entity_buffer>
 #include <renderer/debug/printf>
@@ -17,6 +20,7 @@
 #include <renderer/meshes/mesh_data>
 #include <renderer/meshes/mesh_indices>
 #include <renderer/meshes/mesh_table>
+#include <renderer/random/random>
 #include <renderer/transform>
 #include <surfels/buffers/surfel_data_r>
 #include <surfels/buffers/surfel_grid_r>
@@ -26,6 +30,12 @@
 #include <visibility/visibility_utils>
 
 const uint g_TileSize = OBLO_SUBGROUP_SIZE;
+
+layout(push_constant) uniform c_PushConstants
+{
+    uint randomSeed;
+}
+g_Constants;
 
 layout(std430, binding = 0) restrict writeonly buffer b_OutTileCoverage
 {
@@ -55,8 +65,214 @@ shared surfel_tile_data g_GroupCandidates[OBLO_SUBGROUP_SIZE * OBLO_SUBGROUP_SIZ
 shared uint g_PixelsWithFragments[OBLO_SUBGROUP_SIZE];
 shared float g_WeightSums[OBLO_SUBGROUP_SIZE];
 
+surfel_tile_data impl_slow(
+    in bool hasGeometry, in float weightSum, in surfel_spawn_data spawnData, out float totalSum, out uint totalPixels)
+{
+    surfel_tile_data tileData;
+    tileData.worstPixelCoverage = weightSum;
+    // tileData.worstPixelCoverage = hasGeometry ? weightSum : NO_SURFELS_NEEDED;
+    tileData._hasGeometry = hasGeometry;
+    tileData.spawnData = spawnData;
+
+    const uint indexWrong = gl_WorkGroupID.y * gl_WorkGroupSize.x + gl_WorkGroupID.x;
+    const uint indexCorrect = gl_LocalInvocationIndex;
+    g_GroupCandidates[indexCorrect] = tileData;
+
+    memoryBarrierShared();
+    barrier();
+
+    // if (gl_SubgroupID == 0)
+    {
+        float sum = 0;
+        uint pixels = 0;
+
+        surfel_tile_data candidate;
+
+        candidate.spawnData = surfel_spawn_data_invalid();
+        candidate.averageTileCoverage = NO_SURFELS_NEEDED;
+        candidate.worstPixelCoverage = NO_SURFELS_NEEDED;
+
+        for (uint i = 0; i < OBLO_SUBGROUP_SIZE * OBLO_SUBGROUP_SIZE; ++i)
+        {
+            surfel_tile_data newCandidate = g_GroupCandidates[i];
+
+            if (newCandidate._hasGeometry)
+            {
+                sum += newCandidate.worstPixelCoverage;
+                ++pixels;
+
+                if (newCandidate.worstPixelCoverage < candidate.worstPixelCoverage)
+                {
+                    candidate = newCandidate;
+                }
+            }
+
+            // pixels += uint(newCandidate.worstPixelCoverage < NO_SURFELS_NEEDED);
+        }
+
+        if (pixels == 0)
+        {
+            tileData.spawnData = surfel_spawn_data_invalid();
+            tileData.averageTileCoverage = NO_SURFELS_NEEDED;
+            tileData.worstPixelCoverage = NO_SURFELS_NEEDED;
+        }
+        else
+        {
+            tileData.averageTileCoverage = sum / pixels;
+        }
+
+        totalSum = sum;
+        totalPixels = pixels;
+    }
+
+    return tileData;
+}
+
+surfel_tile_data impl_fast(
+    in bool hasGeometry, in float weightSum, in surfel_spawn_data spawnData, out float totalSum, out uint totalPixels)
+{
+    const float selfSum = subgroupAdd(weightSum);
+    const uint selfPixels = subgroupAdd(hasGeometry ? 1 : 0);
+
+    // if (subgroupElect())
+    // {
+    //     surfel_tile_data invalid;
+    //     invalid.averageTileCoverage = NO_SURFELS_NEEDED;
+    //     invalid.worstPixelCoverage = NO_SURFELS_NEEDED;
+    //     invalid.spawnData = surfel_spawn_data_invalid();
+
+    //     g_GroupCandidates[gl_SubgroupID] = invalid;
+
+    //     g_WeightSums[gl_SubgroupID] = selfSum;
+    //     g_PixelsWithFragments[gl_SubgroupID] = selfPixels;
+    // }
+
+    memoryBarrierShared();
+    barrier();
+
+    uint subgroupSeed = random_seed(g_Constants.randomSeed, gl_SubgroupID);
+
+    // First process within the subgroup
+    {
+        const float bestCandidateIdx = find_lowest_within_subgroup_rand(weightSum, subgroupSeed);
+
+        if (bestCandidateIdx == gl_SubgroupInvocationID)
+        {
+            surfel_tile_data tileData;
+            tileData.averageTileCoverage = NO_SURFELS_NEEDED;
+            tileData.worstPixelCoverage = weightSum;
+            tileData.spawnData = spawnData;
+
+            g_GroupCandidates[gl_SubgroupID] = tileData;
+
+            g_WeightSums[gl_SubgroupID] = selfSum;
+            g_PixelsWithFragments[gl_SubgroupID] = selfPixels;
+        }
+
+        // if (hasGeometry)
+        // {
+        //     const float bestCandidateValue = subgroupMin(weightSum);
+
+        //     if (bestCandidateValue == weightSum)
+        //     {
+        //         if (subgroupElect())
+        //         {
+        //             surfel_tile_data tileData;
+        //             tileData.averageTileCoverage = NO_SURFELS_NEEDED;
+        //             tileData.worstPixelCoverage = weightSum;
+        //             tileData.spawnData = spawnData;
+
+        //             g_GroupCandidates[gl_SubgroupID] = tileData;
+        //         }
+        //     }
+        // }
+    }
+
+    memoryBarrierShared();
+    barrier();
+
+    surfel_tile_data outputTile;
+
+    // Then let a single subgroup continue
+    if (gl_SubgroupID == 0)
+    {
+        const surfel_tile_data candidate = g_GroupCandidates[gl_SubgroupInvocationID];
+
+        const float subgroupsSum = g_WeightSums[gl_SubgroupInvocationID];
+        const uint subgroupsPixels = g_PixelsWithFragments[gl_SubgroupInvocationID];
+
+        const float bestCandidateValue = subgroupMin(candidate.worstPixelCoverage);
+        const float sum = subgroupAdd(subgroupsSum);
+        const uint pixels = subgroupAdd(subgroupsPixels);
+
+#if OBLO_DEBUG_PRINTF
+        // if (candidate.worstPixelCoverage < NO_SURFELS_NEEDED)
+        // {
+        //     debugPrintfEXT("[TILING] Second pass [%d] (avg %f w %f) (best %f) (sum %f) (pixels %d)\n",
+        //         gl_SubgroupInvocationID,
+        //         candidate.averageTileCoverage,
+        //         candidate.worstPixelCoverage,
+        //         bestCandidateValue,
+        //         sum,
+        //         pixels);
+        // }
+#endif
+
+        const uint bestCandidateIdx = find_lowest_within_subgroup_rand(candidate.worstPixelCoverage, subgroupSeed);
+        // const uint bestCandidateIdx = find_lowest_within_subgroup(candidate.worstPixelCoverage);
+
+        //         if (bestCandidateValue == candidate.worstPixelCoverage)
+        //         {
+        //             if (subgroupElect())
+        //             {
+        //                 outputTile.averageTileCoverage = pixels > 0 ? sum / pixels : NO_SURFELS_NEEDED;
+        //                 outputTile.worstPixelCoverage = candidate.worstPixelCoverage;
+        //                 outputTile.spawnData = candidate.spawnData;
+
+        //                 if (pixels > 0)
+        //                 {
+        // #if OBLO_DEBUG_PRINTF
+        //                     debugPrintfEXT("[TILING] RESULT [%d] (avg %f w %f) (best idx %d) (sum %f) (pixels %d)\n",
+        //                         gl_SubgroupInvocationID,
+        //                         outputTile.averageTileCoverage,
+        //                         outputTile.worstPixelCoverage,
+        //                         bestCandidateIdx,
+        //                         sum,
+        //                         pixels);
+        // #endif
+        //                 }
+        //             }
+        //         }
+
+        const surfel_tile_data result = g_GroupCandidates[bestCandidateIdx];
+
+        outputTile.averageTileCoverage = pixels > 0 ? sum / pixels : NO_SURFELS_NEEDED;
+        outputTile.worstPixelCoverage = result.worstPixelCoverage;
+        outputTile.spawnData = result.spawnData;
+
+        // if (outputTile.averageTileCoverage < NO_SURFELS_NEEDED)
+        //     if (pixels > 0)
+        //     {
+        //         debugPrintfEXT("[TILING] RESULT [%d] (avg %f w %f) (best idx %d) (sum %f) (pixels %d)\n",
+        //             gl_SubgroupInvocationID,
+        //             outputTile.averageTileCoverage,
+        //             outputTile.worstPixelCoverage,
+        //             bestCandidateIdx,
+        //             sum,
+        //             pixels);
+        //     }
+
+        totalPixels = pixels;
+        totalSum = sum;
+    }
+
+    return outputTile;
+}
+
 void main()
 {
+    const bool pixelEnabled = true;
+
     const ivec2 screenPos = ivec2(gl_WorkGroupID.xy * gl_WorkGroupSize.xy + gl_LocalInvocationID.xy);
     const uvec2 resolution = imageSize(t_InVisibilityBuffer);
 
@@ -68,7 +284,8 @@ void main()
     vec3 positionWS;
 
     surfel_spawn_data spawnData;
-    const bool hasGeometry = !outOfScreenBounds && read_spawn_data(screenPos, resolution, spawnData, positionWS);
+    const bool hasGeometry =
+        !outOfScreenBounds && pixelEnabled && read_spawn_data(screenPos, resolution, spawnData, positionWS);
 
     if (hasGeometry)
     {
@@ -97,244 +314,54 @@ void main()
                         for (uint cellSurfelIndex = 0; cellSurfelIndex < surfelsCount; ++cellSurfelIndex)
                         {
                             const uint surfelId = cellData.surfels[cellSurfelIndex];
-
                             const surfel_data surfel = g_SurfelData[surfelId];
 
-                            // We should instead probably weigh by distance, but for now we just add 1 if it's in range
                             weightSum += surfel_weight(surfel, positionWS);
                         }
                     }
                 }
             }
         }
+
+        // const float randomFlatBoost = 5.f * random_uniform_1d(pixelSeed);
+        // weightSum = weightSum + randomFlatBoost;
     }
     else
     {
         spawnData = surfel_spawn_data_invalid();
     }
 
-#if 1
+    uint pixelsSlow, pixelsFast;
+    float sumSlow, sumFast;
+    const surfel_tile_data outputTileFast = impl_fast(hasGeometry, weightSum, spawnData, sumFast, pixelsFast);
+    const surfel_tile_data outputTileSlow = impl_slow(hasGeometry, weightSum, spawnData, sumSlow, pixelsSlow);
 
-    surfel_tile_data tileData;
-    tileData.worstPixelCoverage = hasGeometry ? weightSum : NO_SURFELS_NEEDED;
-    tileData.spawnData = spawnData;
-
-    g_GroupCandidates[gl_WorkGroupID.y * gl_WorkGroupSize.x + gl_WorkGroupID.x] = tileData;
-
-    memoryBarrierShared();
-    barrier();
-
-    if (gl_LocalInvocationID.xy == uvec2(0, 0))
+    if (gl_SubgroupID == 0)
     {
-        float sum = 0;
-        uint pixels = 0;
-        uint current = 0;
-
-        surfel_tile_data candidate = g_GroupCandidates[current];
-
-        for (uint i = 1; i < OBLO_SUBGROUP_SIZE * OBLO_SUBGROUP_SIZE; ++i)
+        if (subgroupElect())
         {
-            surfel_tile_data newCandidate = g_GroupCandidates[i];
+            const uint globalIndex = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
+            // g_TileData[globalIndex] = outputTileFast;
+            g_TileData[globalIndex] = outputTileSlow;
 
-            if (newCandidate.worstPixelCoverage < NO_SURFELS_NEEDED)
+#if OBLO_DEBUG_PRINTF
+            // if (outputTileFast.averageTileCoverage < NO_SURFELS_NEEDED)
+            if (globalIndex == 0)
             {
-                sum += newCandidate.worstPixelCoverage;
-                ++pixels;
+                debugPrintfEXT("[TILING] Out[%d] slow (avg %f w %f s %f p %u) fast (avg %f w %f s %f p %u)\n",
+                    globalIndex,
+                    outputTileSlow.averageTileCoverage,
+                    outputTileSlow.worstPixelCoverage,
+                    sumSlow,
+                    pixelsSlow,
+                    outputTileFast.averageTileCoverage,
+                    outputTileFast.worstPixelCoverage,
+                    sumFast,
+                    pixelsFast);
             }
-
-            // pixels += uint(newCandidate.worstPixelCoverage < NO_SURFELS_NEEDED);
-
-            if (newCandidate.worstPixelCoverage < candidate.worstPixelCoverage)
-            {
-                candidate = newCandidate;
-                current = i;
-            }
-        }
-
-        const uint globalIndex = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
-
-        if (candidate.worstPixelCoverage == NO_SURFELS_NEEDED)
-        {
-            tileData.spawnData = surfel_spawn_data_invalid();
-            tileData.averageTileCoverage = NO_SURFELS_NEEDED;
-        }
-        else
-        {
-            tileData.averageTileCoverage = sum / pixels;
-        }
-
-        g_TileData[globalIndex] = tileData;
-    }
-#else
-
-    // const uint pixelsWithFragments = count_pixels_with_fragments(hasGeometry);
-    uint pixelsWithFragments = 0;
-    float subgroupWeightSum = 0;
-
-    const bool hasGeometryData = ecs_entity_is_valid(spawnData.entity);
-
-    if (hasGeometryData)
-    {
-        // Only perform the sum on pixels with geometry
-        // Inactive threads in the dynamic branch will be ignored
-        // TODO: Does it matter? The others should be 0
-        subgroupWeightSum = subgroupAdd(weightSum);
-        pixelsWithFragments = subgroupAdd(1);
-    }
-
-    const float pixelCoverage = hasGeometryData ? weightSum : NO_SURFELS_NEEDED;
-    const uint bestSubgroupCandidateIdx = find_lowest_within_subgroup(pixelCoverage);
-
-    // if (gl_WorkGroupID.xy == uvec2(0))
-    // {
-    //     const uint localOutputIndex2 =
-    //         (OBLO_SUBGROUP_SIZE * gl_LocalInvocationID.y + gl_LocalInvocationID.x) / OBLO_SUBGROUP_SIZE;
-
-    // #if OBLO_DEBUG_PRINTF
-    //     debugPrintfEXT("[TILING] [pixel: %d %d] [wg: %d %d] [lid: %d %d] [%d %d] %d\n",
-    //         screenPos.x,
-    //         screenPos.y,
-    //         gl_WorkGroupID.x,
-    //         gl_WorkGroupID.y,
-    //         gl_LocalInvocationID.x,
-    //         gl_LocalInvocationID.y,
-    //         gl_SubgroupID,
-    //         gl_SubgroupInvocationID,
-    //         localOutputIndex2);
-    // #endif
-    // }
-
-    if (gl_SubgroupInvocationID == bestSubgroupCandidateIdx)
-    {
-        surfel_tile_data tileData;
-        tileData.worstPixelCoverage = pixelCoverage;
-        tileData.spawnData = spawnData;
-
-        debug_assert(tileData.worstPixelCoverage != NO_SURFELS_NEEDED || !ecs_entity_is_valid(spawnData.entity));
-        // debug_assert(
-        //     !ecs_entity_is_valid(tileData.spawnData.entity) || tileData.worstPixelCoverage == NO_SURFELS_NEEDED);
-
-        if (!ecs_entity_is_valid(tileData.spawnData.entity) && tileData.worstPixelCoverage != NO_SURFELS_NEEDED)
-        {
-    #if OBLO_DEBUG_PRINTF
-            debugPrintfEXT("[TILING] (Before) Entity: %d -> %f \n",
-                tileData.spawnData.entity.id,
-                tileData.worstPixelCoverage);
-    #endif
-        }
-
-        const uint localOutputIndex = gl_SubgroupID;
-        g_GroupCandidates[localOutputIndex] = tileData;
-        g_PixelsWithFragments[localOutputIndex] = pixelsWithFragments;
-        g_WeightSums[localOutputIndex] = subgroupWeightSum;
-
-        // #if OBLO_DEBUG_PRINTF
-        //     debugPrintfEXT("[TILING] [pixel: %d %d] [wg: %d %d] [lid: %d %d] [%d %d]\n",
-        //         screenPos.x,
-        //         screenPos.y,
-        //         gl_WorkGroupID.x,
-        //         gl_WorkGroupID.y,
-        //         gl_LocalInvocationID.x,
-        //         gl_LocalInvocationID.y,
-        //         gl_SubgroupID,
-        //         gl_SubgroupInvocationID);
-        // #endif
-    }
-
-    subgroupMemoryBarrierShared();
-    subgroupBarrier();
-
-    memoryBarrierShared();
-    barrier();
-
-    // We only keep the first subgroup active now, to perform another round of reduction
-    if (gl_SubgroupID > 0)
-    {
-        return;
-    }
-
-    surfel_tile_data tileData = g_GroupCandidates[gl_SubgroupInvocationID];
-    const uint pixelWithFragmentsWholeSubgroup = g_PixelsWithFragments[gl_SubgroupInvocationID];
-    const float weightSumWholeSubgroup = g_WeightSums[gl_SubgroupInvocationID];
-
-    debug_assert(ecs_entity_is_valid(tileData.spawnData.entity) || tileData.worstPixelCoverage == NO_SURFELS_NEEDED);
-
-    if (!ecs_entity_is_valid(tileData.spawnData.entity) && tileData.worstPixelCoverage != NO_SURFELS_NEEDED)
-    {
-    #if OBLO_DEBUG_PRINTF
-        debugPrintfEXT("[TILING] (After) Entity: %d -> %f \n",
-            tileData.spawnData.entity.id,
-            tileData.worstPixelCoverage);
-    #endif
-    }
-
-    // #if OBLO_DEBUG_PRINTF
-    //     if (tileData.spawnData.entity.id > 3)
-    //     {
-    //         debugPrintfEXT("[TILING] Entity: %d [%d %d %d %d] \n",
-    //             tileData.spawnData.entity.id,
-    //             gl_WorkGroupID.x,
-    //             gl_WorkGroupID.y,
-    //             gl_SubgroupID,
-    //             gl_SubgroupInvocationID);
-    //     }
-    // #endif
-
-    subgroupMemoryBarrierShared();
-    subgroupBarrier();
-
-    // const uint bestWorkGroupCandidateIdx = find_lowest_within_subgroup(tileData.worstPixelCoverage);
-    const uint bestWorkGroupCandidateIdx = find_lowest_within_subgroup(tileData.worstPixelCoverage);
-
-    const uint totalPixelsWithFragments = subgroupAdd(pixelWithFragmentsWholeSubgroup);
-    float totalWeightSum = NO_SURFELS_NEEDED;
-
-    if (pixelWithFragmentsWholeSubgroup > 0)
-    {
-        totalWeightSum = subgroupAdd(weightSumWholeSubgroup);
-    }
-
-    if (gl_SubgroupInvocationID == bestWorkGroupCandidateIdx)
-    {
-        const uint globalIndex = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
-
-        if (totalPixelsWithFragments == 0 || !ecs_entity_is_valid(tileData.spawnData.entity))
-        {
-            tileData.averageTileCoverage = NO_SURFELS_NEEDED;
-            tileData.worstPixelCoverage = NO_SURFELS_NEEDED;
-            tileData.spawnData = surfel_spawn_data_invalid();
-        }
-        else
-        {
-            tileData.averageTileCoverage = totalWeightSum / totalPixelsWithFragments;
-        }
-
-        g_TileData[globalIndex] = tileData;
-
-        if (!ecs_entity_is_valid(tileData.spawnData.entity) && tileData.averageTileCoverage != NO_SURFELS_NEEDED)
-        {
-    #if OBLO_DEBUG_PRINTF
-            debugPrintfEXT("[TILING] (Final) Entity: %d -> %f \n",
-                tileData.spawnData.entity.id,
-                tileData.averageTileCoverage);
-    #endif
-        }
-
-        // #if OBLO_DEBUG_PRINTF
-        //     if (tileData.spawnData.entity.id != 0)
-        //     {
-        //         debugPrintfEXT("[TILING] Output[%d]: [entity: %d] [triangle: %d %f %f] [coverage: %f]\n",
-        //             globalIndex,
-        //             tileData.spawnData.entity.id,
-        //             tileData.spawnData.packedMeshletAndTriangleId,
-        //             tileData.spawnData.barycentricU,
-        //             tileData.spawnData.barycentricV,
-        //             tileData.worstPixelCoverage);
-        //     }
-        // #endif
-    }
-
 #endif
+        }
+    }
 }
 
 bool read_spawn_data(in ivec2 screenPos, in uvec2 resolution, out surfel_spawn_data spawnData, out vec3 positionWS)

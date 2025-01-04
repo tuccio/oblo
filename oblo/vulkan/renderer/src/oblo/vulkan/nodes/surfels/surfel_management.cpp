@@ -1,6 +1,7 @@
 #include <oblo/vulkan/nodes/surfels/surfel_management.hpp>
 
 #include <oblo/core/allocation_helpers.hpp>
+#include <oblo/core/random_generator.hpp>
 #include <oblo/math/vec4.hpp>
 #include <oblo/vulkan/data/camera_buffer.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
@@ -217,6 +218,8 @@ namespace oblo::vk
 
     void surfel_tiling::build(const frame_graph_build_context& ctx)
     {
+        randomSeed = ctx.get_random_generator().generate();
+
         const auto resolution =
             ctx.get_current_initializer(inVisibilityBuffer).assert_value_or(image_initializer{}).extent;
 
@@ -337,6 +340,7 @@ namespace oblo::vk
                 });
 
             pm.bind_descriptor_sets(*tiling, bindingTables);
+            pm.push_constants(*tiling, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&randomSeed, 1}));
 
             vkCmdDispatch(ctx.get_command_buffer(), tilesX, tilesY, 1);
 
@@ -363,10 +367,20 @@ namespace oblo::vk
 
                 pm.bind_descriptor_sets(*reduction, bindingTables);
 
-                const u32 inElements = ctx.access(previousBuffer).size / u32{sizeof(surfel_tile_data)};
-                const u32 groups = round_up_div(inElements, reductionGroupSize);
+                struct push_constants
+                {
+                    u32 srcElements;
+                    u32 randomSeed;
+                };
 
-                pm.push_constants(*reduction, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&inElements, 1}));
+                const push_constants constants{
+                    .srcElements = ctx.access(previousBuffer).size / u32{sizeof(surfel_tile_data)},
+                    .randomSeed = randomSeed,
+                };
+
+                const u32 groups = round_up_div(constants.srcElements, reductionGroupSize);
+
+                pm.push_constants(*reduction, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&constants, 1}));
 
                 vkCmdDispatch(ctx.get_command_buffer(), groups, 1, 1);
 

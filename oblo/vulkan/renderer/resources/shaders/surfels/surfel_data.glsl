@@ -7,7 +7,7 @@
 const uint SURFEL_MAX_PER_CELL = 31;
 
 // Used as a coverage value for surfel_tile_data when no geometry is present
-const float NO_SURFELS_NEEDED = 100000.f;
+const float NO_SURFELS_NEEDED = 10000000.f;
 
 struct surfel_spawn_data
 {
@@ -55,7 +55,8 @@ struct surfel_tile_data
 {
     float averageTileCoverage;
     float worstPixelCoverage;
-    float _padding[2];
+    bool _hasGeometry;
+    float _padding[1];
     surfel_spawn_data spawnData;
 };
 

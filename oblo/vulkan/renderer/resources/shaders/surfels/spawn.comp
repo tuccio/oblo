@@ -26,9 +26,7 @@ void main()
 {
     const surfel_tile_data tile = g_TileData;
 
-    const float spawnThreshold = .1f / (OBLO_SUBGROUP_SIZE * OBLO_SUBGROUP_SIZE);
-
-    if (ecs_entity_is_valid(tile.spawnData.entity) && tile.worstPixelCoverage < spawnThreshold)
+    if (ecs_entity_is_valid(tile.spawnData.entity))
     {
         uint newSurfelId;
         const bool allocated = surfel_stack_allocate(newSurfelId);
