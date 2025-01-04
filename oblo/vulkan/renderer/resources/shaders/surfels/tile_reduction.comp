@@ -125,9 +125,10 @@ void main()
         subgroupMemoryBarrierShared();
         subgroupBarrier();
 
-        const uint bestWorkGroupCandidateIdx = find_lowest_within_subgroup_rand(
-            ecs_entity_is_valid(tileData.spawnData.entity) ? tileData.averageTileCoverage : NO_SURFELS_NEEDED,
-            subgroupSeed);
+        // We can use the regular (and faster) overload of find_lowest_within_subgroup, since we shuffled the results in
+        // shared memory
+        const uint bestWorkGroupCandidateIdx = find_lowest_within_subgroup(
+            ecs_entity_is_valid(tileData.spawnData.entity) ? tileData.averageTileCoverage : NO_SURFELS_NEEDED);
 
         if (gl_SubgroupInvocationID == bestWorkGroupCandidateIdx)
         {

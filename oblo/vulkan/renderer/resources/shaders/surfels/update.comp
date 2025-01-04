@@ -19,7 +19,6 @@
 #include <surfels/buffers/surfel_grid_rw>
 #include <surfels/buffers/surfel_spawn_data_rw>
 #include <surfels/buffers/surfel_stack_rw>
-#include <surfels/surfel>
 #include <surfels/surfel_data>
 #include <visibility/visibility_buffer>
 

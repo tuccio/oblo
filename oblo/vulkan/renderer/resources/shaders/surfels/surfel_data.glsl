@@ -4,7 +4,7 @@
 #include <ecs/entity>
 #include <renderer/constants>
 
-const uint SURFEL_MAX_PER_CELL = 31;
+const uint SURFEL_MAX_PER_CELL = 63;
 
 // Used as a coverage value for surfel_tile_data when no geometry is present
 const float NO_SURFELS_NEEDED = 10000000.f;

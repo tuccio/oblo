@@ -25,7 +25,6 @@
 #include <surfels/buffers/surfel_data_r>
 #include <surfels/buffers/surfel_grid_r>
 #include <surfels/reduction>
-#include <surfels/surfel>
 #include <visibility/visibility_buffer>
 #include <visibility/visibility_utils>
 
@@ -64,6 +63,74 @@ shared surfel_tile_data g_GroupCandidates[OBLO_SUBGROUP_SIZE * OBLO_SUBGROUP_SIZ
 // shared surfel_tile_data g_GroupCandidates[OBLO_SUBGROUP_SIZE];
 shared uint g_PixelsWithFragments[OBLO_SUBGROUP_SIZE];
 shared float g_WeightSums[OBLO_SUBGROUP_SIZE];
+
+bool read_spawn_data(in ivec2 screenPos, in uvec2 resolution, out surfel_spawn_data spawnData, out vec3 positionWS)
+{
+    // Parse the visibility buffer to find which triangle we are processing
+    const uvec4 visBufferData = imageLoad(t_InVisibilityBuffer, screenPos);
+
+    visibility_buffer_data vb;
+
+    if (!visibility_buffer_parse(visBufferData.xy, vb))
+    {
+        return false;
+    }
+
+    // Read the instance data we need
+    const mesh_handle mesh = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MeshHandles, vb.instanceId);
+    const transform transform = OBLO_INSTANCE_DATA(vb.instanceTableId, i_TransformBuffer, vb.instanceId);
+
+    triangle triangleWS;
+
+    // Read the mesh data
+    const mesh_table meshTable = mesh_table_fetch(mesh);
+    const uvec3 vertexIndices = mesh_get_meshlet_indices(meshTable, mesh, vb.meshletId, vb.meshletTriangleId);
+
+    // Read the vertex data and transform everything in world space, we do lighting calculation in that space
+    [[unroll]] for (uint i = 0; i < 3; ++i)
+    {
+        const uint vertexId = vertexIndices[i];
+
+        const vec3 vertexPosition = mesh_get_position(meshTable, vertexId);
+        triangleWS.v[i] = (transform.localToWorld * vec4(vertexPosition, 1)).xyz;
+    }
+
+    barycentric_coords bc;
+
+    // Cast a ray from the camera to the near plane and calculate the distance of the ray hit to the plane on the
+    // triangle in world space, we use that to derive the position in world space
+    const vec2 ndc = screen_to_ndc(screenPos, resolution);
+    const ray cameraRay = visibility_calculate_camera_ray(g_Camera, ndc);
+
+    float intersectionDistance;
+
+    // Really the plan should be hitting here, since we already know the triangle was rendered by the rasterizer, we
+    // mostly want to calculate at what distance it does
+    if (!distance_from_triangle_plane(cameraRay, triangleWS, intersectionDistance))
+    {
+        return false;
+    }
+
+    positionWS = ray_point_at(cameraRay, intersectionDistance);
+    barycentric_calculate(bc, triangleWS.v, positionWS);
+
+    const ecs_entity entity = OBLO_INSTANCE_DATA(vb.instanceTableId, i_EntityIdBuffer, vb.instanceId);
+
+    // #if OBLO_DEBUG_PRINTF
+    //     if (entity.id > 3)
+    //     {
+    //         debugPrintfEXT("[TILING] Entity: %d [instance: %d %d]\n", spawnData.entity.id, vb.instanceTableId,
+    //         vb.instanceId);
+    //     }
+    // #endif
+
+    spawnData.entity = entity;
+    spawnData.packedMeshletAndTriangleId = visibility_buffer_get_packed_meshlet_ids(visBufferData.xy);
+    spawnData.barycentricU = bc.lambda.x;
+    spawnData.barycentricV = bc.lambda.y;
+
+    return all(greaterThanEqual(bc.lambda, vec3(0)));
+}
 
 surfel_tile_data impl_slow(
     in bool hasGeometry, in float weightSum, in surfel_spawn_data spawnData, out float totalSum, out uint totalPixels)
@@ -220,7 +287,9 @@ surfel_tile_data impl_fast(
         // }
 #endif
 
-        const uint bestCandidateIdx = find_lowest_within_subgroup_rand(candidate.worstPixelCoverage, subgroupSeed);
+        // We can use the regular (and faster) overload of find_lowest_within_subgroup, since we shuffled the results in
+        // shared memory
+        const uint bestCandidateIdx = find_lowest_within_subgroup(candidate.worstPixelCoverage);
         // const uint bestCandidateIdx = find_lowest_within_subgroup(candidate.worstPixelCoverage);
 
         //         if (bestCandidateValue == candidate.worstPixelCoverage)
@@ -269,6 +338,22 @@ surfel_tile_data impl_fast(
     }
 
     return outputTile;
+}
+
+float surfel_weight(in surfel_data surfel, in vec3 positionWS)
+{
+    const vec3 surfelPosition = surfel_data_world_position(surfel);
+    const vec3 diff = surfelPosition - positionWS;
+
+    const float radius2 = surfel.radius * surfel.radius;
+    const float norm2 = dot(diff, diff);
+
+    return norm2 < radius2 ? 1.f : 0.f;
+
+    // TODO: We should probably consider the normal as well, the surfel should not affect anything behind it
+    // return max(radius2 - dot(diff, diff), 0);
+    // return max(2 * sqrt(radius2) - length(diff), 0);
+    // return max(sqrt(radius2) - length(diff), 0);
 }
 
 void main()
@@ -364,72 +449,4 @@ void main()
 #endif
         }
     }
-}
-
-bool read_spawn_data(in ivec2 screenPos, in uvec2 resolution, out surfel_spawn_data spawnData, out vec3 positionWS)
-{
-    // Parse the visibility buffer to find which triangle we are processing
-    const uvec4 visBufferData = imageLoad(t_InVisibilityBuffer, screenPos);
-
-    visibility_buffer_data vb;
-
-    if (!visibility_buffer_parse(visBufferData.xy, vb))
-    {
-        return false;
-    }
-
-    // Read the instance data we need
-    const mesh_handle mesh = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MeshHandles, vb.instanceId);
-    const transform transform = OBLO_INSTANCE_DATA(vb.instanceTableId, i_TransformBuffer, vb.instanceId);
-
-    triangle triangleWS;
-
-    // Read the mesh data
-    const mesh_table meshTable = mesh_table_fetch(mesh);
-    const uvec3 vertexIndices = mesh_get_meshlet_indices(meshTable, mesh, vb.meshletId, vb.meshletTriangleId);
-
-    // Read the vertex data and transform everything in world space, we do lighting calculation in that space
-    [[unroll]] for (uint i = 0; i < 3; ++i)
-    {
-        const uint vertexId = vertexIndices[i];
-
-        const vec3 vertexPosition = mesh_get_position(meshTable, vertexId);
-        triangleWS.v[i] = (transform.localToWorld * vec4(vertexPosition, 1)).xyz;
-    }
-
-    barycentric_coords bc;
-
-    // Cast a ray from the camera to the near plane and calculate the distance of the ray hit to the plane on the
-    // triangle in world space, we use that to derive the position in world space
-    const vec2 ndc = screen_to_ndc(screenPos, resolution);
-    const ray cameraRay = visibility_calculate_camera_ray(g_Camera, ndc);
-
-    float intersectionDistance;
-
-    // Really the plan should be hitting here, since we already know the triangle was rendered by the rasterizer, we
-    // mostly want to calculate at what distance it does
-    if (!distance_from_triangle_plane(cameraRay, triangleWS, intersectionDistance))
-    {
-        return false;
-    }
-
-    positionWS = ray_point_at(cameraRay, intersectionDistance);
-    barycentric_calculate(bc, triangleWS.v, positionWS);
-
-    const ecs_entity entity = OBLO_INSTANCE_DATA(vb.instanceTableId, i_EntityIdBuffer, vb.instanceId);
-
-    // #if OBLO_DEBUG_PRINTF
-    //     if (entity.id > 3)
-    //     {
-    //         debugPrintfEXT("[TILING] Entity: %d [instance: %d %d]\n", spawnData.entity.id, vb.instanceTableId,
-    //         vb.instanceId);
-    //     }
-    // #endif
-
-    spawnData.entity = entity;
-    spawnData.packedMeshletAndTriangleId = visibility_buffer_get_packed_meshlet_ids(visBufferData.xy);
-    spawnData.barycentricU = bc.lambda.x;
-    spawnData.barycentricV = bc.lambda.y;
-
-    return all(greaterThanEqual(bc.lambda, vec3(0)));
 }

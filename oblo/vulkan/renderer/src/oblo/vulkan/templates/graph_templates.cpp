@@ -434,16 +434,16 @@ namespace oblo::vk::surfels_gi
         graph.bind(initializer,
             &surfel_initializer::inGridBounds,
             aabb{
-                .min = {.x = -128.f, .y = -128.f, .z = -128.f},
-                .max = {.x = 128.f, .y = 128.f, .z = 128.f},
+                .min = {.x = -128.f, .y = -32.f, .z = -128.f},
+                .max = {.x = 128.f, .y = 32.f, .z = 128.f},
             });
 
         // We output the surfels from last frame, then each view will contribute potentially spawning surfels
         graph.make_output(initializer, &surfel_initializer::outSurfelsGrid, OutLastFrameGrid);
         graph.make_output(initializer, &surfel_initializer::outSurfelsData, OutLastFrameSurfelData);
 
-        graph.bind(initializer, &surfel_initializer::inGridCellSize, vec3::splat(2.f));
-        graph.bind(initializer, &surfel_initializer::inMaxSurfels, 1u << 14);
+        graph.bind(initializer, &surfel_initializer::inGridCellSize, vec3::splat(1.f));
+        graph.bind(initializer, &surfel_initializer::inMaxSurfels, 1u << 16);
 
         graph.connect(initializer, &surfel_initializer::outSurfelsGrid, spawner, &surfel_spawner::inOutSurfelsGrid);
         graph.connect(initializer,
