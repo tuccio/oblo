@@ -53,6 +53,7 @@ void main()
         tileData.worstPixelCoverage = NO_SURFELS_NEEDED;
     }
 
+#if 1
     g_GroupCandidates[gl_LocalInvocationID.x] = tileData;
 
     memoryBarrierShared();
@@ -91,65 +92,55 @@ void main()
         // #endif
     }
 
-    // {
-    //     surfel_tile_data tileData;
+#else
 
-    //     if (globalIndex < g_Constants.srcElements)
-    //     {
-    //         tileData = g_InBuffer[globalIndex];
-    //     }
-    //     else
-    //     {
-    //         tileData.spawnData = surfel_spawn_data_invalid();
-    //         tileData.averageTileCoverage = NO_SURFELS_NEEDED;
-    //         tileData.worstPixelCoverage = NO_SURFELS_NEEDED;
-    //     }
+    const uint bestSubgroupCandidateIdx = find_lowest_within_subgroup(
+        ecs_entity_is_valid(tileData.spawnData.entity) ? tileData.averageTileCoverage : NO_SURFELS_NEEDED);
 
-    //     const uint bestSubgroupCandidateIdx = find_lowest_within_subgroup(tileData.averageTileCoverage);
+    if (gl_SubgroupInvocationID == bestSubgroupCandidateIdx)
+    {
+        const uint localOutputIndex = gl_SubgroupID;
+        g_GroupCandidates[localOutputIndex] = tileData;
+    }
 
-    //     if (gl_SubgroupInvocationID == bestSubgroupCandidateIdx)
-    //     {
-    //         const uint localOutputIndex = gl_LocalInvocationID.x / OBLO_SUBGROUP_SIZE;
-    //         g_GroupCandidates[localOutputIndex] = tileData;
-    //     }
-    // }
+    subgroupMemoryBarrierShared();
+    subgroupBarrier();
 
-    // subgroupMemoryBarrierShared();
-    // subgroupBarrier();
+    memoryBarrierShared();
+    barrier();
 
-    // memoryBarrierShared();
-    // barrier();
+    // We only keep the first subgroup active now, to perform another round of reduction
+    if (gl_SubgroupID > 0)
+    {
+        return;
+    }
 
-    // // We only keep the first subgroup active now, to perform another round of reduction
-    // if (gl_SubgroupID > 0)
-    // {
-    //     return;
-    // }
+    {
+        const surfel_tile_data tileData = g_GroupCandidates[gl_SubgroupInvocationID];
 
-    // {
-    //     const surfel_tile_data tileData = g_GroupCandidates[gl_SubgroupInvocationID];
+        subgroupMemoryBarrierShared();
+        subgroupBarrier();
 
-    //     subgroupMemoryBarrierShared();
-    //     subgroupBarrier();
+        const uint bestWorkGroupCandidateIdx = find_lowest_within_subgroup(ecs_entity_is_valid(tileData.spawnData.entity) ? tileData.averageTileCoverage : NO_SURFELS_NEEDED);
 
-    //     const uint bestWorkGroupCandidateIdx = find_lowest_within_subgroup(tileData.averageTileCoverage);
+        if (gl_SubgroupInvocationID == bestWorkGroupCandidateIdx)
+        {
+            const uint outputIndex = gl_WorkGroupID.x;
+            g_OutBuffer[outputIndex] = tileData;
 
-    //     if (gl_SubgroupInvocationID == bestWorkGroupCandidateIdx)
-    //     {
-    //         const uint outputIndex = gl_WorkGroupID.x;
-    //         g_OutBuffer[outputIndex] = tileData;
-
-    //         // #if OBLO_DEBUG_PRINTF
-    //         //             if (g_Constants.srcElements < 10)
-    //         //             {
-    //         //                 debugPrintfEXT("[REDUCTION] Best result Entity: %d Coverage: %f [Triangle: %d %f
-    //         %f]\n",
-    //         //                     tileData.spawnData.entity.id,
-    //         //                     tileData.coverage,
-    //         //                     tileData.spawnData.packedMeshletAndTriangleId,
-    //         //                     tileData.spawnData.barycentricU,
-    //         //                     tileData.spawnData.barycentricV);
-    //         //             }
-    //         // #endif
-    //     }
+            // #if OBLO_DEBUG_PRINTF
+            //             if (g_Constants.srcElements < 10)
+            //             {
+            //                 debugPrintfEXT("[REDUCTION] Best result Entity: %d Coverage: %f [Triangle: %d %f
+            // %f]\n",
+            //                     tileData.spawnData.entity.id,
+            //                     tileData.coverage,
+            //                     tileData.spawnData.packedMeshletAndTriangleId,
+            //                     tileData.spawnData.barycentricU,
+            //                     tileData.spawnData.barycentricV);
+            //             }
+            // #endif
+        }
+    }
+#endif
 }
