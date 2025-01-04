@@ -53,7 +53,9 @@ struct surfel_stack_entry
 
 struct surfel_tile_data
 {
-    float coverage;
+    float averageTileCoverage;
+    float worstPixelCoverage;
+    float _padding[2];
     surfel_spawn_data spawnData;
 };
 
@@ -92,13 +94,14 @@ vec3 surfel_data_world_normal(in surfel_data surfel)
 
 bool surfel_spawn_data_is_alive(in surfel_spawn_data spawnData)
 {
-    return spawnData.barycentricU >= 0.f;
+    return ecs_entity_is_valid(spawnData.entity);
 }
 
 surfel_spawn_data surfel_spawn_data_invalid()
 {
     surfel_spawn_data spawnData;
     spawnData.entity = ecs_entity_invalid();
+    spawnData.packedMeshletAndTriangleId = -1;
     spawnData.barycentricU = -1.f;
     spawnData.barycentricV = -1.f;
     return spawnData;

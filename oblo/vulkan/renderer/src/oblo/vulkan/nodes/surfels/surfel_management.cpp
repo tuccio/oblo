@@ -54,7 +54,9 @@ namespace oblo::vk
 
         struct surfel_tile_data
         {
-            f32 coverage;
+            f32 averageTileCoverage;
+            f32 worstPixelCoverage;
+            f32 _padding[2];
             surfel_spawn_data spawnData;
         };
     }
@@ -248,32 +250,35 @@ namespace oblo::vk
 
         // Parallel reduction until we only have 1 candidate
 
-        u32 currentBufferSize = round_up_multiple(tilesCount, reductionGroupSize) * sizeof(surfel_tile_data);
-
-        for (u32 i = 1; i <= reductionPassesCount; ++i)
+        if (reductionPassesCount > 0)
         {
-            const auto subpass = ctx.begin_pass(pass_kind::compute);
+            u32 currentBufferSize = round_up_multiple(tilesCount, reductionGroupSize) * sizeof(surfel_tile_data);
 
-            ctx.acquire(subpasses[i - 1].outBuffer, buffer_usage::storage_read);
-
-            currentBufferSize = max(currentBufferSize / reductionGroupSize, u32(sizeof(surfel_tile_data)));
-            OBLO_ASSERT(currentBufferSize > sizeof(surfel_tile_data) || i == reductionPassesCount);
-
-            const auto newBuffer = ctx.create_dynamic_buffer(
-                buffer_resource_initializer{
-                    .size = currentBufferSize,
-                },
-                buffer_usage::storage_write);
-
-            subpasses[i] = {.id = subpass, .outBuffer = newBuffer};
-        }
-
-        ctx.push(outTileCoverageSink,
+            for (u32 i = 1; i <= reductionPassesCount; ++i)
             {
-                .buffer = subpasses.back().outBuffer,
-            });
+                const auto subpass = ctx.begin_pass(pass_kind::compute);
 
-        OBLO_ASSERT(currentBufferSize == sizeof(surfel_tile_data));
+                ctx.acquire(subpasses[i - 1].outBuffer, buffer_usage::storage_read);
+
+                currentBufferSize = max(currentBufferSize / reductionGroupSize, u32(sizeof(surfel_tile_data)));
+                OBLO_ASSERT(currentBufferSize > sizeof(surfel_tile_data) || i == reductionPassesCount);
+
+                const auto newBuffer = ctx.create_dynamic_buffer(
+                    buffer_resource_initializer{
+                        .size = currentBufferSize,
+                    },
+                    buffer_usage::storage_write);
+
+                subpasses[i] = {.id = subpass, .outBuffer = newBuffer};
+            }
+
+            ctx.push(outTileCoverageSink,
+                {
+                    .buffer = subpasses.back().outBuffer,
+                });
+
+            OBLO_ASSERT(currentBufferSize == sizeof(surfel_tile_data));
+        }
     }
 
     void surfel_tiling::execute(const frame_graph_execute_context& ctx)

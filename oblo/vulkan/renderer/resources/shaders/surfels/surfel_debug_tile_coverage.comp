@@ -32,7 +32,7 @@ void main()
     const uint tileIndex = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
 
     const uvec2 tileCoords = gl_WorkGroupID.xy;
-    const float coverage = g_InTileCoverage[tileIndex].coverage;
+    const float coverage = g_InTileCoverage[tileIndex].worstPixelCoverage;
 
     // imageStore(t_OutImage,
     //     screenPos,
@@ -40,5 +40,5 @@ void main()
     //              .5f * float(tileCoords.x) / gl_WorkGroupSize.x + .5f * float(tileCoords.y) / gl_WorkGroupSize.y),
     //         1));
 
-    imageStore(t_OutImage, screenPos, vec4(debug_color_map(coverage > NO_SURFELS_NEEDED - 0.1f ? 0 : coverage), 1));
+    imageStore(t_OutImage, screenPos, vec4(debug_color_map(coverage / NO_SURFELS_NEEDED), 1));
 }

@@ -11,7 +11,7 @@ float surfel_weight(in surfel_data surfel, in vec3 positionWS)
     const float radius2 = surfel.radius * surfel.radius;
 
     // TODO: We should probably consider the normal as well, the surfel should not affect anything behind it
-    return max(4 * radius2 - dot(diff, diff), 0);
+    return max(radius2 - dot(diff, diff), 0);
 }
 
 #endif
