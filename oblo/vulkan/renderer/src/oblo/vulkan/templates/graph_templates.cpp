@@ -453,6 +453,7 @@ namespace oblo::vk::surfels_gi
         graph.connect(initializer, &surfel_initializer::outSurfelsData, spawner, &surfel_spawner::inOutSurfelsData);
         graph.connect(initializer, &surfel_initializer::outSurfelsStack, spawner, &surfel_spawner::inOutSurfelsStack);
 
+        graph.make_input(clearGrid, &surfel_grid_clear::inCameras, InCameraDataSink);
         graph.connect(initializer, &surfel_initializer::inGridBounds, clearGrid, &surfel_grid_clear::inGridBounds);
         graph.connect(initializer, &surfel_initializer::inGridCellSize, clearGrid, &surfel_grid_clear::inGridCellSize);
         graph.connect(spawner, &surfel_spawner::inOutSurfelsGrid, clearGrid, &surfel_grid_clear::inOutSurfelsGrid);
@@ -461,12 +462,12 @@ namespace oblo::vk::surfels_gi
         graph.make_input(update, &surfel_update::inInstanceBuffers, InInstanceBuffers);
         graph.make_input(update, &surfel_update::inMeshDatabase, InMeshDatabase);
         graph.make_input(update, &surfel_update::inEntitySetBuffer, InEcsEntitySetBuffer);
-        graph.make_input(update, &surfel_update::inCameras, InCameraDataSink);
         graph.connect(initializer, &surfel_initializer::inMaxSurfels, update, &surfel_update::inMaxSurfels);
         graph.connect(spawner, &surfel_spawner::inOutSurfelsData, update, &surfel_update::inOutSurfelsData);
         graph.connect(spawner, &surfel_spawner::inOutSurfelsStack, update, &surfel_update::inOutSurfelsStack);
         graph.connect(spawner, &surfel_spawner::inOutSurfelsSpawnData, update, &surfel_update::inOutSurfelsSpawnData);
         graph.connect(clearGrid, &surfel_grid_clear::inOutSurfelsGrid, update, &surfel_update::inOutSurfelsGrid);
+        graph.connect(clearGrid, &surfel_grid_clear::outCameraCentroid, update, &surfel_update::inCameraCentroid);
         graph.make_output(update, &surfel_update::inOutSurfelsSpawnData, OutUpdatedSurfelSpawnData);
         graph.make_output(update, &surfel_update::inOutSurfelsData, OutUpdatedSurfelData);
 

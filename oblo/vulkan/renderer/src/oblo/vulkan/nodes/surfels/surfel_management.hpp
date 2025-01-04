@@ -111,6 +111,9 @@ namespace oblo::vk
         data<aabb> inGridBounds;
         data<vec3> inGridCellSize;
 
+        data_sink<camera_buffer> inCameras;
+        data<vec3> outCameraCentroid;
+
         h32<compute_pass> initGridPass;
 
         void init(const frame_graph_init_context& ctx);
@@ -135,8 +138,8 @@ namespace oblo::vk
 
         resource<buffer> inEntitySetBuffer;
 
-        data_sink<camera_buffer> inCameras;
         data<u32> inMaxSurfels;
+        data<vec3> inCameraCentroid;
 
         h32<compute_pass> updatePass;
 

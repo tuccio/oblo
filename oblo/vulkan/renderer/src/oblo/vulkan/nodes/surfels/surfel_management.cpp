@@ -489,6 +489,9 @@ namespace oblo::vk
     {
         ctx.begin_pass(pass_kind::compute);
         ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_write);
+
+        const auto centroid = calculate_centroid(ctx.access(inCameras));
+        ctx.access(outCameraCentroid) = centroid;
     }
 
     void surfel_grid_clear::execute(const frame_graph_execute_context& ctx)
@@ -516,10 +519,12 @@ namespace oblo::vk
 
             const auto cellsCount = (gridBounds.max - gridBounds.min) / gridCellSize;
 
+            const auto centroid = ctx.access(outCameraCentroid);
+
             const surfel_grid_header header{
-                .boundsMin = gridBounds.min,
+                .boundsMin = gridBounds.min + centroid,
                 .cellsCountX = u32(std::ceil(cellsCount.x)),
-                .boundsMax = gridBounds.max,
+                .boundsMax = gridBounds.max + centroid,
                 .cellsCountY = u32(std::ceil(cellsCount.y)),
                 .cellSize = gridCellSize,
                 .cellsCountZ = u32(std::ceil(cellsCount.z)),
@@ -598,7 +603,7 @@ namespace oblo::vk
             };
 
             const push_constants constants{
-                .cameraCentroid = calculate_centroid(ctx.access(inCameras)),
+                .cameraCentroid = ctx.access(inCameraCentroid),
                 .maxSurfels = ctx.access(inMaxSurfels),
                 .currentTimestamp = ctx.get_current_frames_count(),
             };
