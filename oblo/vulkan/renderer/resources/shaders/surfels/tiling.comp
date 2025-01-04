@@ -156,6 +156,8 @@ surfel_tile_data impl_fast(
     {
         const float bestCandidateIdx = find_lowest_within_subgroup_rand(weightSum, subgroupSeed);
 
+        const uint subgroupOutIndex = (gl_SubgroupID + g_Constants.randomSeed) % OBLO_SUBGROUP_SIZE;
+
         if (bestCandidateIdx == gl_SubgroupInvocationID)
         {
             surfel_tile_data tileData;
@@ -163,10 +165,10 @@ surfel_tile_data impl_fast(
             tileData.worstPixelCoverage = weightSum;
             tileData.spawnData = spawnData;
 
-            g_GroupCandidates[gl_SubgroupID] = tileData;
+            g_GroupCandidates[subgroupOutIndex] = tileData;
 
-            g_WeightSums[gl_SubgroupID] = selfSum;
-            g_PixelsWithFragments[gl_SubgroupID] = selfPixels;
+            g_WeightSums[subgroupOutIndex] = selfSum;
+            g_PixelsWithFragments[subgroupOutIndex] = selfPixels;
         }
 
         // if (hasGeometry)

@@ -104,9 +104,11 @@ void main()
         ecs_entity_is_valid(tileData.spawnData.entity) ? tileData.averageTileCoverage : NO_SURFELS_NEEDED,
         subgroupSeed);
 
+    const uint subgroupOutIndex = (gl_SubgroupID + g_Constants.randomSeed) % OBLO_SUBGROUP_SIZE;
+
     if (gl_SubgroupInvocationID == bestSubgroupCandidateIdx)
     {
-        g_GroupCandidates[gl_SubgroupID] = tileData;
+        g_GroupCandidates[subgroupOutIndex] = tileData;
     }
 
     subgroupMemoryBarrierShared();
