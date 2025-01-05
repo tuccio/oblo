@@ -98,7 +98,7 @@ namespace oblo::vk
         // buffer and as instanceCustomIndex in the acceleration structures for ray-tracing.
         draw_instance_id_component make_global_instance_id(u32 instanceTableId, u32 instanceIndex)
         {
-            constexpr u32 totalBits = 24;
+            [[maybe_unused]] constexpr u32 totalBits = 24;
             constexpr u32 instanceIndexBits = 20;
             constexpr u32 mask = (1u << instanceIndexBits) - 1;
 

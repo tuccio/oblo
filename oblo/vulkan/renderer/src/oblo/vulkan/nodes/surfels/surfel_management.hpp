@@ -38,7 +38,7 @@ namespace oblo::vk
     struct surfel_tiling_data
     {
         resource<buffer> buffer;
-        vec3 cameraPosition;
+        u32 elements;
     };
 
     /// @brief Screen-space pass that calculates coverage of each 16x16 tile and the best candidate pixel within the

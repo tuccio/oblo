@@ -29,7 +29,7 @@ void main()
         return;
     }
 
-    const uint tileIndex = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
+    const uint tileIndex = gl_WorkGroupID.y * gl_WorkGroupSize.x + gl_WorkGroupID.x;
 
     const uvec2 tileCoords = gl_WorkGroupID.xy;
     const float coverage = g_InTileCoverage[tileIndex].averageTileCoverage;

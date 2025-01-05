@@ -218,6 +218,8 @@ namespace oblo::vk
 
     void surfel_tiling::build(const frame_graph_build_context& ctx)
     {
+        bool reductionEnabled = true;
+
         randomSeed = ctx.get_random_generator().generate();
 
         const auto resolution =
@@ -227,13 +229,15 @@ namespace oblo::vk
         const u32 tilesY = round_up_div(resolution.height, tileSize);
         const u32 tilesCount = tilesX * tilesY;
 
-        const u32 reductionPassesCount =
-            u32(std::ceilf(f32(log2_round_down_power_of_two(round_up_power_of_two(tilesCount))) /
-                log2_round_down_power_of_two(reductionGroupSize)));
+        const u32 reductionPassesCount = reductionEnabled
+            ? u32(std::ceilf(f32(log2_round_down_power_of_two(round_up_power_of_two(tilesCount))) /
+                  log2_round_down_power_of_two(reductionGroupSize)))
+            : 0;
 
         subpasses = allocate_n_span<subpass_info>(ctx.get_frame_allocator(), 1 + reductionPassesCount);
 
         const u32 tilesBufferSize = u32(tilesCount * sizeof(surfel_tile_data));
+        u32 currentBufferSize = tilesBufferSize;
 
         // First subpass: split the screen in tiles, find the best candidate for each tile
         {
@@ -268,7 +272,7 @@ namespace oblo::vk
 
         if (reductionPassesCount > 0)
         {
-            u32 currentBufferSize = round_up_multiple(tilesCount, reductionGroupSize) * sizeof(surfel_tile_data);
+            currentBufferSize = round_up_multiple(tilesCount, reductionGroupSize) * sizeof(surfel_tile_data);
 
             for (u32 i = 1; i <= reductionPassesCount; ++i)
             {
@@ -288,16 +292,17 @@ namespace oblo::vk
                 subpasses[i] = {.id = subpass, .outBuffer = newBuffer};
             }
 
-            ctx.push(outTileCoverageSink,
-                {
-                    .buffer = subpasses.back().outBuffer,
-                });
-
-            const vec3 cameraPosition = ctx.access(inCameraData).position;
-            ctx.push(outCameraPositionSink, cameraPosition);
-
             OBLO_ASSERT(currentBufferSize == sizeof(surfel_tile_data));
         }
+
+        ctx.push(outTileCoverageSink,
+            {
+                .buffer = subpasses.back().outBuffer,
+                .elements = currentBufferSize / u32{sizeof(surfel_tile_data)},
+            });
+
+        const vec3 cameraPosition = ctx.access(inCameraData).position;
+        ctx.push(outCameraPositionSink, cameraPosition);
     }
 
     void surfel_tiling::execute(const frame_graph_execute_context& ctx)
@@ -472,15 +477,19 @@ namespace oblo::vk
                 struct push_constants
                 {
                     u32 currentTimestamp;
+                    u32 srcElements;
                 };
 
                 const push_constants constants{
                     .currentTimestamp = ctx.get_current_frames_count(),
+                    .srcElements = tileCoverage.elements,
                 };
 
                 pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&constants, 1}));
 
-                vkCmdDispatch(ctx.get_command_buffer(), 1, 1, 1);
+                const u32 groups = round_up_div(tileCoverage.elements, pm.get_subgroup_size());
+
+                vkCmdDispatch(ctx.get_command_buffer(), groups, 1, 1);
             }
 
             pm.end_compute_pass(*pass);
