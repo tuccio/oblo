@@ -170,7 +170,7 @@ void main()
     surfel_data updatedData;
     updatedData.positionWS = positionWS;
     updatedData.normalWS = normalWS;
-    updatedData.radius = 0.02 * sqrt(cameraDistance2);
+    updatedData.radius = 0.05 * sqrt(cameraDistance2);
     updatedData.nextSurfelId = SURFEL_ID_INVALID;
 
     surfel_commit_to_grid(updatedData, surfelId, cellIndex);

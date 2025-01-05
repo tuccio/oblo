@@ -133,17 +133,16 @@ bool read_spawn_data(in ivec2 screenPos, in uvec2 resolution, out surfel_spawn_d
 float surfel_weight(in surfel_data surfel, in vec3 positionWS)
 {
     const vec3 surfelPosition = surfel_data_world_position(surfel);
-    const vec3 diff = surfelPosition - positionWS;
+    const vec3 pointToSurfel = surfelPosition - positionWS;
 
     const float radius2 = surfel.radius * surfel.radius;
-    const float norm2 = dot(diff, diff);
 
-    // return norm2 < radius2 ? 1.f : 0.f;
+    // If the vector from point to surfel has positive cosine, it means the point is behind the surfel and will not be
+    // affected by reflections from it
+    const float sideFactor = -dot(surfel.normalWS, pointToSurfel);
+    const float weightFactor = sqrt(radius2) - length(pointToSurfel);
 
-    // TODO: We should probably consider the normal as well, the surfel should not affect anything behind it
-    return max(radius2 - dot(diff, diff), 0);
-    // return max(2 * sqrt(radius2) - length(diff), 0);
-    // return max(sqrt(radius2) - length(diff), 0);
+    return max(sideFactor * weightFactor, 0.f);
 }
 
 void gather_coverage_from_grid(in vec3 positionWS, out float weightSum)
