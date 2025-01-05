@@ -64,11 +64,9 @@ void main()
 
         if (allocated)
         {
-            g_SurfelSpawnData[newSurfelId] = tile.spawnData;
-
             g_SurfelData[newSurfelId].radius = 42.f; // Just to make them recognizable
-            g_SurfelData[newSurfelId].lastUsedTimestamp = g_Constants.currentTimestamp;
 
+            g_SurfelSpawnData[newSurfelId] = tile.spawnData;
             debug_assert(surfel_spawn_data_is_alive(g_SurfelSpawnData[newSurfelId]));
         }
     }

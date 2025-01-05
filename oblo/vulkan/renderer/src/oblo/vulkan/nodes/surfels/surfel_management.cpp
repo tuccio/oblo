@@ -30,7 +30,7 @@ namespace oblo::vk
             vec3 position;
             f32 radius;
             vec3 normal;
-            u32 lastUsedTimestamp;
+            u32 nextSurfelId;
         };
 
         struct surfel_grid_header
@@ -45,8 +45,7 @@ namespace oblo::vk
 
         struct surfel_grid_cell
         {
-            u32 surfelsCount;
-            u32 surfels[g_surfelMaxPerCell];
+            u32 nextSurfelId;
         };
 
         struct surfel_stack_header

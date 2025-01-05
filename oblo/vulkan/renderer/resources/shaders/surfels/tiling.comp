@@ -146,21 +146,10 @@ float surfel_weight(in surfel_data surfel, in vec3 positionWS)
     // return max(sqrt(radius2) - length(diff), 0);
 }
 
-bool gather_coverage_from_grid(in vec3 positionWS, out float weightSum)
+void gather_coverage_from_grid(in vec3 positionWS, out float weightSum)
 {
     const surfel_grid_header gridHeader = g_SurfelGridHeader;
     const ivec3 cell = surfel_grid_find_cell(gridHeader, positionWS);
-
-    // if (surfel_grid_has_cell(gridHeader, cell))
-    // {
-    //     const uint cellIndex = surfel_grid_cell_index(gridHeader, cell);
-    //     const surfel_grid_cell cellData = g_SurfelGridCells[cellIndex];
-
-    //     if (cellData.surfelsCount > SURFEL_MAX_PER_CELL)
-    //     {
-    //         return false;
-    //     }
-    // }
 
     weightSum = 0.f;
 
@@ -180,21 +169,17 @@ bool gather_coverage_from_grid(in vec3 positionWS, out float weightSum)
 
                     // We could consider adding some weight for the number of surfels in the same cell, to
                     // prioritize tiles that don't have any
-                    const uint surfelsCount = min(cellData.surfelsCount, SURFEL_MAX_PER_CELL);
 
-                    for (uint cellSurfelIndex = 0; cellSurfelIndex < surfelsCount; ++cellSurfelIndex)
+                    for (uint surfelId = cellData.nextSurfelId; surfelId != SURFEL_ID_INVALID;)
                     {
-                        const uint surfelId = cellData.surfels[cellSurfelIndex];
                         const surfel_data surfel = g_SurfelData[surfelId];
-
                         weightSum += surfel_weight(surfel, positionWS);
+                        surfelId = surfel.nextSurfelId;
                     }
                 }
             }
         }
     }
-
-    return false;
 }
 
 void main()
@@ -213,11 +198,14 @@ void main()
 
     surfel_spawn_data spawnData;
 
-    const bool hasGeometry = !outOfScreenBounds && pixelEnabled &&
-        read_spawn_data(screenPos, resolution, spawnData, positionWS) &&
-        !gather_coverage_from_grid(positionWS, weightSum);
+    const bool hasGeometry =
+        !outOfScreenBounds && pixelEnabled && read_spawn_data(screenPos, resolution, spawnData, positionWS);
 
-    if (!hasGeometry)
+    if (hasGeometry)
+    {
+        gather_coverage_from_grid(positionWS, weightSum);
+    }
+    else
     {
         spawnData = surfel_spawn_data_invalid();
     }
@@ -246,7 +234,6 @@ void main()
     // First process within the subgroup
     {
         const float bestCandidateIdx = find_lowest_within_subgroup_rand(weightSum, subgroupSeed);
-
         const uint subgroupOutIndex = (gl_SubgroupID + g_Constants.randomSeed) % OBLO_SUBGROUP_SIZE;
 
         if (bestCandidateIdx == gl_SubgroupInvocationID)

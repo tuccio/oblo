@@ -5,6 +5,7 @@
 #include <renderer/constants>
 
 const uint SURFEL_MAX_PER_CELL = 63;
+const uint SURFEL_ID_INVALID = -1;
 
 // Used as a coverage value for surfel_tile_data when no geometry is present
 const float NO_SURFELS_NEEDED = 10000000.f;
@@ -22,7 +23,7 @@ struct surfel_data
     vec3 positionWS;
     float radius;
     vec3 normalWS;
-    uint lastUsedTimestamp;
+    uint nextSurfelId;
 };
 
 struct surfel_grid_header
@@ -37,8 +38,7 @@ struct surfel_grid_header
 
 struct surfel_grid_cell
 {
-    uint surfelsCount;
-    uint surfels[SURFEL_MAX_PER_CELL];
+    uint nextSurfelId;
 };
 
 struct surfel_stack_header
@@ -114,7 +114,7 @@ surfel_data surfel_data_invalid()
     surfelData.positionWS = vec3(float_positive_infinity());
     surfelData.normalWS = vec3(float_positive_infinity());
     surfelData.radius = 0.f;
-    surfelData.lastUsedTimestamp = 0;
+    surfelData.nextSurfelId = SURFEL_ID_INVALID;
     return surfelData;
 }
 
