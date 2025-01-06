@@ -2,7 +2,9 @@
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/graph/dot.hpp>
 #include <oblo/core/graph/topological_sort.hpp>
+#include <oblo/modules/module_manager.hpp>
 #include <oblo/resource/resource_registry.hpp>
+#include <oblo/runtime/runtime_module.hpp>
 #include <oblo/sandbox/sandbox_app.hpp>
 #include <oblo/sandbox/sandbox_app_config.hpp>
 #include <oblo/vulkan/buffer.hpp>
@@ -140,22 +142,31 @@ namespace oblo::vk::test
         {
             std::span<const char* const> get_required_instance_extensions() const
             {
-                return renderer::get_required_features().instanceExtensions;
+                return module_manager::get()
+                    .find<runtime_module>()
+                    ->get_required_renderer_features()
+                    .instanceExtensions;
             }
 
             VkPhysicalDeviceFeatures2 get_required_physical_device_features() const
             {
-                return renderer::get_required_features().physicalDeviceFeatures;
+                return module_manager::get()
+                    .find<runtime_module>()
+                    ->get_required_renderer_features()
+                    .physicalDeviceFeatures;
             }
 
             void* get_required_device_features() const
             {
-                return renderer::get_required_features().deviceFeaturesChain;
+                return module_manager::get()
+                    .find<runtime_module>()
+                    ->get_required_renderer_features()
+                    .deviceFeaturesChain;
             }
 
             std::span<const char* const> get_required_device_extensions() const
             {
-                return renderer::get_required_features().deviceExtensions;
+                return module_manager::get().find<runtime_module>()->get_required_renderer_features().deviceExtensions;
             }
 
             bool startup(const sandbox_startup_context& ctx)

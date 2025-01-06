@@ -18,7 +18,7 @@ namespace oblo::vk
 {
     namespace
     {
-        VKAPI_ATTR VkBool32 VKAPI_CALL debug_messanger_callback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+        VKAPI_ATTR VkBool32 VKAPI_CALL debug_messenger_callback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
             [[maybe_unused]] VkDebugUtilsMessageTypeFlagsEXT messageTypes,
             const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
             [[maybe_unused]] void* pUserData)
@@ -657,7 +657,7 @@ namespace oblo::vk
                     .messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
                         VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
                         VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
-                    .pfnUserCallback = debug_messanger_callback,
+                    .pfnUserCallback = debug_messenger_callback,
                 };
 
                 const auto result =
