@@ -51,8 +51,6 @@ namespace oblo::vk
             bufferUsages.reserve_sparse(u32(impl.pinStorage.size() + 1));
             bufferUsages.reserve_dense(u32(impl.pinStorage.size() + 1));
 
-            auto nextPassIt = impl.passes.begin();
-
             for (auto& pass : impl.passes)
             {
                 const u32 firstBarrierIdx = u32(memoryBarriers.size());
@@ -508,8 +506,6 @@ namespace oblo::vk
         // big graph owning it.
         m_impl->resourcePool.begin_build();
 
-        u32 nodeIndex{};
-
         for (const auto [vertexHandle] : m_impl->sortedNodes)
         {
             const auto nodeHandle = m_impl->graph.get(vertexHandle).node;
@@ -535,8 +531,6 @@ namespace oblo::vk
                 // Close the last pass build (if any)
                 m_impl->end_pass_build();
             }
-
-            ++nodeIndex;
         }
 
         m_impl->currentNode = {};

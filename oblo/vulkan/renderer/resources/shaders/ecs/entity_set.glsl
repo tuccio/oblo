@@ -27,11 +27,12 @@ bool ecs_entity_set_try_find(in ecs_entity e, out ecs_entity_set_entry entry)
     // The total number of entries is stored in the first element (it's invalid anyway, since it refers to entity 0)
     const uint numEntries = g_EcsEntitySet[0].entity.id;
 
-    if (index < numEntries)
+    if (index >= numEntries)
     {
-        entry = g_EcsEntitySet[index];
+        return false;
     }
 
+    entry = g_EcsEntitySet[index];
     return ecs_entity_is_valid(e) && entry.entity.id == e.id;
 }
 

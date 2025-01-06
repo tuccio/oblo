@@ -1,5 +1,3 @@
-#pragma once
-
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/deque.hpp>
 #include <oblo/core/iterator/deque_chunk_iterator.hpp>
@@ -83,7 +81,7 @@ namespace oblo::vk
         {
             const auto& stagedSpan = stagedData[index];
 
-            ctx.upload(outEntitySet, stagedSpan);
+            ctx.upload(outEntitySet, stagedSpan, offset);
 
             const auto bytesCount = (stagedSpan.segments[0].end - stagedSpan.segments[0].begin) +
                 (stagedSpan.segments[1].end - stagedSpan.segments[1].begin);
