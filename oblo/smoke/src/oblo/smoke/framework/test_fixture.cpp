@@ -78,6 +78,15 @@ namespace oblo::smoke
                 return module_manager::get().find<runtime_module>()->get_required_renderer_features().deviceExtensions;
             }
 
+            bool init()
+            {
+                // Load the runtime, which will be queried for required vulkan features
+                auto& mm = module_manager::get();
+                mm.load<oblo::runtime_module>();
+
+                return true;
+            }
+
             bool startup(const vk::sandbox_startup_context& ctx)
             {
                 filesystem::remove_all("./test/smoke/").assert_value();
