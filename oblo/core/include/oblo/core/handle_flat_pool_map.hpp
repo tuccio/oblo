@@ -12,6 +12,9 @@ namespace oblo
     template <typename Tag, typename T, u32 GenBits>
     struct pool_flat_key_extractor
     {
+        static constexpr u32 key_bits = sizeof(T) * 8 - GenBits;
+        static constexpr u32 generation_bits = GenBits;
+
         static constexpr T extract_key(const handle<Tag, T> h) noexcept
         {
             return handle_pool<T, GenBits>::get_index(h.value);
@@ -19,7 +22,7 @@ namespace oblo
 
         static consteval T invalid_key() noexcept
         {
-            return u32{};
+            return T{};
         }
     };
 
