@@ -22,7 +22,7 @@ namespace oblo::vk
 
         data<u32> inMaxSurfels;
         data<aabb> inGridBounds;
-        data<vec3> inGridCellSize;
+        data<f32> inGridCellSize;
 
         h32<compute_pass> initStackPass;
 
@@ -107,7 +107,7 @@ namespace oblo::vk
         resource<buffer> inOutSurfelsGrid;
 
         data<aabb> inGridBounds;
-        data<vec3> inGridCellSize;
+        data<f32> inGridCellSize;
 
         data_sink<camera_buffer> inCameras;
         data<vec3> outCameraCentroid;

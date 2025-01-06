@@ -132,10 +132,13 @@ void main()
     const vec3 N = normalize(barycentric_interpolate(bc, triangleNormal));
     const vec3 normalWS = normalize(mat3(transform.normalMatrix) * N);
 
+    const float g_GridCellSize = surfel_grid_cell_size(gridHeader);
+    const float g_SurfelScalingFactor = 0.03;
+
     surfel_data updatedData;
     updatedData.positionWS = positionWS;
     updatedData.normalWS = normalWS;
-    updatedData.radius = 0.03 * sqrt(cameraDistance2);
+    updatedData.radius = min(g_GridCellSize, g_SurfelScalingFactor * sqrt(cameraDistance2));
     updatedData.nextSurfelId = SURFEL_ID_INVALID;
 
     surfel_commit_to_grid(updatedData, surfelId, cellIndex);

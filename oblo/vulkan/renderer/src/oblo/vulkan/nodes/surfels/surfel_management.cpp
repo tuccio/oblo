@@ -37,11 +37,13 @@ namespace oblo::vk
         struct surfel_grid_header
         {
             vec3 boundsMin;
-            u32 cellsCountX;
+            f32 cellSize;
             vec3 boundsMax;
+            f32 _padding0;
+            u32 cellsCountX;
             u32 cellsCountY;
-            vec3 cellSize;
             u32 cellsCountZ;
+            f32 _padding1;
         };
 
         struct surfel_grid_cell
@@ -554,10 +556,10 @@ namespace oblo::vk
 
             const surfel_grid_header header{
                 .boundsMin = gridBounds.min + centroid,
-                .cellsCountX = u32(std::ceil(cellsCount.x)),
-                .boundsMax = gridBounds.max + centroid,
-                .cellsCountY = u32(std::ceil(cellsCount.y)),
                 .cellSize = gridCellSize,
+                .boundsMax = gridBounds.max + centroid,
+                .cellsCountX = u32(std::ceil(cellsCount.x)),
+                .cellsCountY = u32(std::ceil(cellsCount.y)),
                 .cellsCountZ = u32(std::ceil(cellsCount.z)),
             };
 

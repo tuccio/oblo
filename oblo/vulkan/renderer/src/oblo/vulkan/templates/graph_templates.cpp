@@ -442,7 +442,7 @@ namespace oblo::vk::surfels_gi
         graph.make_output(initializer, &surfel_initializer::outSurfelsGrid, OutLastFrameGrid);
         graph.make_output(initializer, &surfel_initializer::outSurfelsData, OutLastFrameSurfelData);
 
-        graph.bind(initializer, &surfel_initializer::inGridCellSize, vec3::splat(1.f));
+        graph.bind(initializer, &surfel_initializer::inGridCellSize, .5f);
         graph.bind(initializer, &surfel_initializer::inMaxSurfels, 1u << 16);
 
         graph.connect(initializer, &surfel_initializer::outSurfelsGrid, spawner, &surfel_spawner::inOutSurfelsGrid);

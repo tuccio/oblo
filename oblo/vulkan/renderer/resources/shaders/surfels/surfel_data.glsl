@@ -28,11 +28,11 @@ struct surfel_data
 struct surfel_grid_header
 {
     vec3 boundsMin;
-    int cellsCountX;
+    float cellSize;
     vec3 boundsMax;
-    int cellsCountY;
-    vec3 cellSize;
-    int cellsCountZ;
+    float _padding0;
+    ivec3 cellsCount;
+    float _padding1;
 };
 
 struct surfel_grid_cell
@@ -59,12 +59,17 @@ struct surfel_tile_data
 
 ivec3 surfel_grid_cells_count(in surfel_grid_header h)
 {
-    return ivec3(h.cellsCountX, h.cellsCountY, h.cellsCountZ);
+    return h.cellsCount;
+}
+
+float surfel_grid_cell_size(in surfel_grid_header h)
+{
+    return h.cellSize;
 }
 
 uint surfel_grid_cell_index(in surfel_grid_header h, in ivec3 cell)
 {
-    return cell.x + cell.y * h.cellsCountX + cell.z * h.cellsCountX * h.cellsCountY;
+    return cell.x + cell.y * h.cellsCount.x + cell.z * h.cellsCount.x * h.cellsCount.y;
 }
 
 ivec3 surfel_grid_find_cell(in surfel_grid_header h, in vec3 positionWS)
@@ -76,8 +81,7 @@ ivec3 surfel_grid_find_cell(in surfel_grid_header h, in vec3 positionWS)
 
 bool surfel_grid_has_cell(in surfel_grid_header h, in ivec3 cell)
 {
-    const ivec3 cellsCount = ivec3(h.cellsCountX, h.cellsCountY, h.cellsCountZ);
-    return all(greaterThanEqual(cell, ivec3(0))) && all(lessThan(cell, cellsCount));
+    return all(greaterThanEqual(cell, ivec3(0))) && all(lessThan(cell, surfel_grid_cells_count(h)));
 }
 
 vec3 surfel_data_world_position(in surfel_data surfel)
