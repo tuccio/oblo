@@ -3,6 +3,10 @@
 
 #include <renderer/random/random>
 
+/// @brief Looks for the minimum within a subgroup.
+/// @remarks When the minimum is not unique, results will be biased towards the lowest active thread.
+/// @params value The value to do perform the reduction on.
+/// @return An index in the range [0, gl_SubgroupSize), representing the subgroup invocation holding the minimum.
 uint find_lowest_within_subgroup(in float value)
 {
     const float lowestValue = subgroupMin(value);
@@ -11,6 +15,10 @@ uint find_lowest_within_subgroup(in float value)
     return subgroupBallotFindLSB(bestCandidateBallot);
 }
 
+/// @brief Looks for the minimum within a subgroup, adding some randomness to eliminate bias towards lower value.
+/// @params value The value to do perform the reduction on.
+/// @params subgroupSeed A random seed, required to be uniform across all invocations of the subgroup.
+/// @return An index in the range [0, gl_SubgroupSize), representing the subgroup invocation holding the minimum.
 uint find_lowest_within_subgroup_rand(in float value, inout uint subgroupSeed)
 {
     const float lowestValue = subgroupMin(value);
@@ -21,29 +29,18 @@ uint find_lowest_within_subgroup_rand(in float value, inout uint subgroupSeed)
     const uint last = subgroupBallotFindMSB(bestCandidateBallot);
     const uint count = subgroupBallotBitCount(bestCandidateBallot);
 
-    // debug_assert(subgroupAllEqual(count));
     const uint choice = hash_pcg(subgroupSeed) % count;
-    // const uint choice = uint(min(count, random_uniform_1d(subgroupSeed) * (count + 1)));
 
     uint index = first;
 
-    for (uint relative = 0; relative < choice; ++index, ++relative)
+    for (uint relative = 0; relative < choice; ++relative)
     {
-        const bool isMin = subgroupShuffle(isBestCandidate, index);
-        relative += uint(isMin);
+        // Remove the indices we processed so far from the ballot
+        const uvec4 maskedBallot = subgroupBallot(gl_SubgroupInvocationID > index ? isBestCandidate : false);
+        index = subgroupBallotFindLSB(maskedBallot);
     }
 
     return index;
-
-    // const uint delta = hash_pcg(subgroupSeed) % 16;
-
-    // const bool shuffleIsBestCandidate = subgroupShuffleDown(isBestCandidate, delta);
-    // const uint shuffleIndex = subgroupShuffleDown(gl_SubgroupInvocationID, delta);
-
-    // const uvec4 shuffleBestCandidateBallot = subgroupBallot(shuffleIsBestCandidate);
-    // const uint ballotIndex = subgroupBallotFindLSB(shuffleBestCandidateBallot);
-
-    // return subgroupBroadcast(shuffleIndex, ballotIndex);
 }
 
 #endif

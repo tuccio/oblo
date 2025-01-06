@@ -135,7 +135,7 @@ float surfel_weight(in surfel_data surfel, in vec3 positionWS)
 
     // return sideFactor < 0.f && weightFactor > 0.f ? 1.f : 0.f;
 
-    return max(0.f, radius2 - dot(pointToSurfel, pointToSurfel));
+    return max(0.f, 1024 - radius2 - dot(pointToSurfel, pointToSurfel));
 }
 
 void gather_coverage_from_grid(in vec3 positionWS, out float weightSum)
