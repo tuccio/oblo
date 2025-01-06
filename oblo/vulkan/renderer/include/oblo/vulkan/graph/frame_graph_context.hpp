@@ -5,6 +5,7 @@
 #include <oblo/core/flat_dense_forward.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/string/string_view.hpp>
+#include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/graph/frame_graph_resources.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
@@ -20,6 +21,11 @@ namespace oblo
     class string_interner;
 
     class string;
+
+    namespace ecs
+    {
+        class entity_registry;
+    }
 }
 
 namespace oblo::vk
@@ -38,6 +44,7 @@ namespace oblo::vk
     struct loaded_functions;
     struct frame_graph_impl;
     struct frame_graph_pin_storage;
+    struct frame_graph_pass;
     struct resident_texture;
     struct staging_buffer_span;
 
@@ -84,8 +91,6 @@ namespace oblo::vk
 
         string_interner& get_string_interner() const;
 
-        void set_pass_kind(pass_kind passKind) const;
-
     private:
         frame_graph_impl& m_frameGraph;
         renderer& m_renderer;
@@ -96,6 +101,8 @@ namespace oblo::vk
     public:
         explicit frame_graph_build_context(
             frame_graph_impl& frameGraph, renderer& renderer, resource_pool& resourcePool);
+
+        h32<frame_graph_pass> begin_pass(pass_kind kind) const;
 
         void create(
             resource<texture> texture, const texture_resource_initializer& initializer, texture_usage usage) const;
@@ -109,6 +116,9 @@ namespace oblo::vk
         h32<resident_texture> acquire_bindless(resource<texture> texture, texture_usage usage) const;
 
         void acquire(resource<buffer> buffer, buffer_usage usage) const;
+
+        /// @brief Determines whether the pin has an incoming edge.
+        bool has_source(resource<buffer> buffer) const;
 
         [[nodiscard]] resource<buffer> create_dynamic_buffer(const buffer_resource_initializer& initializer,
             buffer_usage usage) const;
@@ -135,16 +145,35 @@ namespace oblo::vk
             a->push_back(std::move(value));
         }
 
+        template <typename T>
+        void push(data_sink<T> data, const T& value) const
+        {
+            auto* a = static_cast<data_sink_container<T>*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
+            a->push_back(value);
+        }
+
         expected<image_initializer> get_current_initializer(resource<texture> texture) const;
 
         frame_allocator& get_frame_allocator() const;
 
         const draw_registry& get_draw_registry() const;
 
+        ecs::entity_registry& get_entity_registry() const;
+
         random_generator& get_random_generator() const;
+
+        staging_buffer_span stage_upload(std::span<const byte> data) const;
+
+        template <typename T>
+        bool has_event() const
+        {
+            return has_event_impl(get_type_id<T>());
+        }
 
     private:
         void* access_storage(h32<frame_graph_pin_storage> handle) const;
+
+        bool has_event_impl(const type_id& type) const;
 
     private:
         frame_graph_impl& m_frameGraph;
@@ -170,15 +199,26 @@ namespace oblo::vk
         explicit frame_graph_execute_context(
             frame_graph_impl& frameGraph, renderer& renderer, VkCommandBuffer commandBuffer);
 
+        void begin_pass(h32<frame_graph_pass> handle) const;
+
         template <typename T>
         T& access(data<T> data) const
         {
             return *static_cast<T*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
         }
 
+        template <typename T>
+        std::span<const T> access(data_sink<T> data) const
+        {
+            return *static_cast<data_sink_container<T>*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
+        }
+
         texture access(resource<texture> h) const;
 
         buffer access(resource<buffer> h) const;
+
+        /// @brief Determines whether the pin has an incoming edge.
+        bool has_source(resource<buffer> buffer) const;
 
         /// @brief Queries the number of frames a stable texture has been alive for.
         /// On the first frame of usage the function will return 0.
@@ -186,7 +226,19 @@ namespace oblo::vk
         /// @param texture A valid texture resource.
         u32 get_frames_alive_count(resource<texture> texture) const;
 
+        /// @brief Queries the number of frames a stable buffer has been alive for.
+        /// On the first frame of usage the function will return 0.
+        /// For transient buffers it will always return 0.
+        /// @param buffer A valid buffer resource.
+        u32 get_frames_alive_count(resource<buffer> buffer) const;
+
+        u32 get_current_frames_count() const;
+
+        // TODO: This should probably be deprepcated, it would be hard to make this thread-safe, staging should happen
+        // when building instead.
         void upload(resource<buffer> h, std::span<const byte> data, u32 bufferOffset = 0) const;
+
+        void upload(resource<buffer> h, const staging_buffer_span& data, u32 bufferOffset = 0) const;
 
         VkCommandBuffer get_command_buffer() const;
 

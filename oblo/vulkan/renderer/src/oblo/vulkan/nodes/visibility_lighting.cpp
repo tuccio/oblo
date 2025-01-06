@@ -1,6 +1,7 @@
 #include <oblo/vulkan/nodes/visibility_lighting.hpp>
 
 #include <oblo/core/allocation_helpers.hpp>
+#include <oblo/core/buffered_array.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/math/vec2u.hpp>
@@ -21,12 +22,12 @@ namespace oblo::vk
             .name = "Lighting Pass",
             .shaderSourcePath = "./vulkan/shaders/visibility/visibility_lighting.comp",
         });
-
-        ctx.set_pass_kind(pass_kind::compute);
     }
 
     void visibility_lighting::build(const frame_graph_build_context& ctx)
     {
+        ctx.begin_pass(pass_kind::compute);
+
         const auto resolution = ctx.access(inResolution);
 
         ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
@@ -45,6 +46,11 @@ namespace oblo::vk
         ctx.acquire(inLightBuffer, buffer_usage::storage_read);
 
         ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
+
+        if (ctx.has_source(inSurfelsGrid))
+        {
+            ctx.acquire(inSurfelsGrid, buffer_usage::storage_read);
+        }
 
         acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
 
@@ -89,9 +95,21 @@ namespace oblo::vk
                 {"t_OutShadedImage", outShadedImage},
             });
 
+        buffered_array<hashed_string_view, 1> defines;
+
+        if (ctx.has_source(inSurfelsGrid))
+        {
+            ctx.bind_buffers(bindingTable,
+                {
+                    {"b_SurfelsGrid", inSurfelsGrid},
+                });
+
+            defines.emplace_back("SURFELS_GI");
+        }
+
         const auto commandBuffer = ctx.get_command_buffer();
 
-        const auto lightingPipeline = pm.get_or_create_pipeline(lightingPass, {});
+        const auto lightingPipeline = pm.get_or_create_pipeline(lightingPass, {.defines = defines});
 
         if (const auto pass = pm.begin_compute_pass(commandBuffer, lightingPipeline))
         {
@@ -117,12 +135,12 @@ namespace oblo::vk
             .name = "Debug Pass",
             .shaderSourcePath = "./vulkan/shaders/visibility/visibility_debug.comp",
         });
-
-        ctx.set_pass_kind(pass_kind::compute);
     }
 
     void visibility_debug::build(const frame_graph_build_context& ctx)
     {
+        ctx.begin_pass(pass_kind::compute);
+
         const auto resolution = ctx.access(inResolution);
 
         ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
@@ -164,7 +182,9 @@ namespace oblo::vk
 
         hashed_string_view define{};
 
-        switch (ctx.access(inDebugMode))
+        const auto debugMode = ctx.access(inDebugMode);
+
+        switch (debugMode)
         {
         case visibility_debug_mode::albedo:
             define = "OUT_ALBEDO"_hsv;
@@ -202,6 +222,8 @@ namespace oblo::vk
         default:
             unreachable();
         }
+
+        OBLO_ASSERT(!define.empty());
 
         const auto commandBuffer = ctx.get_command_buffer();
 

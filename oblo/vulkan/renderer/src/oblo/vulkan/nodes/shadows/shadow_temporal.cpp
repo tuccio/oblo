@@ -17,12 +17,12 @@ namespace oblo::vk
             .name = "Shadow Temporal Pass",
             .shaderSourcePath = "./vulkan/shaders/shadows/shadow_temporal.comp",
         });
-
-        ctx.set_pass_kind(pass_kind::compute);
     }
 
     void shadow_temporal::build(const frame_graph_build_context& ctx)
     {
+        ctx.begin_pass(pass_kind::compute);
+
         ctx.acquire(inShadow, texture_usage::storage_read);
         ctx.acquire(inMoments, texture_usage::storage_read);
 

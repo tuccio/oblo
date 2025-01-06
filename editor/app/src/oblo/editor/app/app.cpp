@@ -94,22 +94,22 @@ namespace oblo::editor
 
     std::span<const char* const> app::get_required_instance_extensions() const
     {
-        return runtime::get_required_vulkan_features().instanceExtensions;
+        return module_manager::get().find<runtime_module>()->get_required_renderer_features().instanceExtensions;
     }
 
     VkPhysicalDeviceFeatures2 app::get_required_physical_device_features() const
     {
-        return runtime::get_required_vulkan_features().physicalDeviceFeatures;
+        return module_manager::get().find<runtime_module>()->get_required_renderer_features().physicalDeviceFeatures;
     }
 
     void* app::get_required_device_features() const
     {
-        return runtime::get_required_vulkan_features().deviceFeaturesChain;
+        return module_manager::get().find<runtime_module>()->get_required_renderer_features().deviceFeaturesChain;
     }
 
     std::span<const char* const> app::get_required_device_extensions() const
     {
-        return runtime::get_required_vulkan_features().deviceExtensions;
+        return module_manager::get().find<runtime_module>()->get_required_renderer_features().deviceExtensions;
     }
 
     bool app::init()
@@ -123,6 +123,11 @@ namespace oblo::editor
         m_logQueue = init_log(bootTime);
 
         m_jobManager.init();
+
+        // Load the runtime, which will be queried for required vulkan features
+        auto& mm = module_manager::get();
+        mm.load<oblo::runtime_module>();
+
         return true;
     }
 
@@ -139,7 +144,7 @@ namespace oblo::editor
 
         m_runtimeRegistry = runtime->create_runtime_registry();
 
-        // TODO: Load a project instead
+        // TODO (#41): Load a project instead
         if (!m_assetRegistry.initialize("./project/assets", "./project/artifacts", "./project/sources"))
         {
             return false;

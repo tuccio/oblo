@@ -79,7 +79,7 @@ namespace oblo::editor
 
         const auto e = entities[0];
 
-        // TODO: Maybe ignore all editor entities?
+        // TODO (#60): Maybe ignore all editor entities?
         if (e == cameraEntity)
         {
             return false;

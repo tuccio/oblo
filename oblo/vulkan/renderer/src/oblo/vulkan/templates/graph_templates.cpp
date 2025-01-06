@@ -8,12 +8,15 @@
 #include <oblo/vulkan/nodes/entity_picking.hpp>
 #include <oblo/vulkan/nodes/frustum_culling.hpp>
 #include <oblo/vulkan/nodes/instance_table_node.hpp>
-#include <oblo/vulkan/nodes/light_provider.hpp>
+#include <oblo/vulkan/nodes/providers/ecs_entity_set_provider.hpp>
+#include <oblo/vulkan/nodes/providers/light_provider.hpp>
 #include <oblo/vulkan/nodes/raytracing_debug.hpp>
 #include <oblo/vulkan/nodes/shadows/raytraced_shadows.hpp>
 #include <oblo/vulkan/nodes/shadows/shadow_filter.hpp>
 #include <oblo/vulkan/nodes/shadows/shadow_output.hpp>
 #include <oblo/vulkan/nodes/shadows/shadow_temporal.hpp>
+#include <oblo/vulkan/nodes/surfels/surfel_debug.hpp>
+#include <oblo/vulkan/nodes/surfels/surfel_management.hpp>
 #include <oblo/vulkan/nodes/view_buffers_node.hpp>
 #include <oblo/vulkan/nodes/visibility_lighting.hpp>
 #include <oblo/vulkan/nodes/visibility_pass.hpp>
@@ -68,6 +71,7 @@ namespace oblo::vk::main_view
 
         graph.make_output(viewBuffers, &view_buffers_node::inResolution, OutResolution);
         graph.make_output(viewBuffers, &view_buffers_node::outCameraBuffer, OutCameraBuffer);
+        graph.make_output(viewBuffers, &view_buffers_node::outCameraDataSink, OutCameraDataSink);
 
         // Visibility pass outputs, useful for other graphs (e.g shadows)
         graph.make_output(visibilityPass, &visibility_pass::outVisibilityBuffer, OutVisibilityBuffer);
@@ -219,6 +223,84 @@ namespace oblo::vk::main_view
             graph.make_output(entityPicking, &entity_picking::outDummyOut, OutPicking);
         }
 
+        // Surfels GI
+        if (cfg.withSurfelsGI)
+        {
+            const auto surfelsTiling = graph.add_node<surfel_tiling>();
+
+            graph.make_input(surfelsTiling, &surfel_tiling::inSurfelsGrid, InLastFrameSurfelsGrid);
+            graph.make_input(surfelsTiling, &surfel_tiling::inSurfelsData, InLastFrameSurfelData);
+            graph.make_output(surfelsTiling, &surfel_tiling::outTileCoverageSink, OutSurfelsTileCoverageSink);
+
+            graph.make_input(visibilityLighting, &visibility_lighting::inSurfelsGrid, InUpdatedSurfelsGrid);
+            graph.make_input(visibilityLighting, &visibility_lighting::inSurfelsData, InUpdatedSurfelsData);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::outCameraBuffer,
+                surfelsTiling,
+                &surfel_tiling::inCameraBuffer);
+
+            graph.connect(visibilityPass,
+                &visibility_pass::outVisibilityBuffer,
+                surfelsTiling,
+                &surfel_tiling::inVisibilityBuffer);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::inInstanceTables,
+                surfelsTiling,
+                &surfel_tiling::inInstanceTables);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::inInstanceBuffers,
+                surfelsTiling,
+                &surfel_tiling::inInstanceBuffers);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::inMeshDatabase,
+                surfelsTiling,
+                &surfel_tiling::inMeshDatabase);
+
+            graph.connect(surfelsTiling,
+                &surfel_tiling::inSurfelsGrid,
+                visibilityLighting,
+                &visibility_lighting::inSurfelsGrid);
+
+            const auto surfelsDebug = graph.add_node<surfel_debug>();
+            graph.connect(surfelsTiling, &surfel_tiling::inSurfelsGrid, surfelsDebug, &surfel_debug::inSurfelsGrid);
+            graph.connect(surfelsTiling, &surfel_tiling::inSurfelsData, surfelsDebug, &surfel_debug::inSurfelsData);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::outCameraBuffer,
+                surfelsDebug,
+                &surfel_debug::inCameraBuffer);
+
+            graph.connect(visibilityPass, &visibility_pass::outDepthBuffer, surfelsDebug, &surfel_debug::inDepthBuffer);
+            graph.connect(visibilityLighting,
+                &visibility_lighting::outShadedImage,
+                surfelsDebug,
+                &surfel_debug::inOutImage);
+
+            add_copy_output(graph, viewBuffers, surfelsDebug, &surfel_debug::inOutImage, OutGISurfelsImage);
+
+            const auto surfelsDebugTileCoverage = graph.add_node<surfel_debug_tile_coverage>();
+
+            graph.connect(surfelsTiling,
+                &surfel_tiling::outFullTileCoverage,
+                surfelsDebugTileCoverage,
+                &surfel_debug_tile_coverage::inTileCoverage);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::inResolution,
+                surfelsDebugTileCoverage,
+                &surfel_debug_tile_coverage::inResolution);
+
+            add_copy_output(graph,
+                viewBuffers,
+                surfelsDebugTileCoverage,
+                &surfel_debug_tile_coverage::outImage,
+                OutGITileCoverageImage);
+        }
+
         return graph;
     }
 }
@@ -242,6 +324,9 @@ namespace oblo::vk::scene_data
         graph.make_output(instanceTableNode, &instance_table_node::outInstanceTables, OutInstanceTables);
         graph.make_output(instanceTableNode, &instance_table_node::outInstanceBuffers, OutInstanceBuffers);
         graph.make_output(instanceTableNode, &instance_table_node::outMeshDatabase, OutMeshDatabase);
+
+        const auto ecsEntitySetProvider = graph.add_node<ecs_entity_set_provider>();
+        graph.make_output(ecsEntitySetProvider, &ecs_entity_set_provider::outEntitySet, OutEcsEntitySetBuffer);
 
         return graph;
     }
@@ -327,6 +412,69 @@ namespace oblo::vk::raytraced_shadow_view
     }
 }
 
+namespace oblo::vk::surfels_gi
+{
+    frame_graph_template create(const frame_graph_registry& registry)
+    {
+        vk::frame_graph_template graph;
+
+        graph.init(registry);
+
+        const auto initializer = graph.add_node<surfel_initializer>();
+        const auto spawner = graph.add_node<surfel_spawner>();
+        const auto clearGrid = graph.add_node<surfel_grid_clear>();
+        const auto update = graph.add_node<surfel_update>();
+
+        graph.make_input(initializer, &surfel_initializer::inGridBounds, InGridBounds);
+        graph.make_input(initializer, &surfel_initializer::inGridCellSize, InGridCellSize);
+        graph.make_input(initializer, &surfel_initializer::inMaxSurfels, InMaxSurfels);
+
+        graph.make_input(spawner, &surfel_spawner::inTileCoverageSink, InTileCoverageSink);
+
+        graph.bind(initializer,
+            &surfel_initializer::inGridBounds,
+            aabb{
+                .min = {.x = -128.f, .y = -32.f, .z = -128.f},
+                .max = {.x = 128.f, .y = 32.f, .z = 128.f},
+            });
+
+        // We output the surfels from last frame, then each view will contribute potentially spawning surfels
+        graph.make_output(initializer, &surfel_initializer::outSurfelsGrid, OutLastFrameGrid);
+        graph.make_output(initializer, &surfel_initializer::outSurfelsData, OutLastFrameSurfelData);
+
+        graph.bind(initializer, &surfel_initializer::inGridCellSize, .5f);
+        graph.bind(initializer, &surfel_initializer::inMaxSurfels, 1u << 16);
+
+        graph.connect(initializer, &surfel_initializer::outSurfelsGrid, spawner, &surfel_spawner::inOutSurfelsGrid);
+        graph.connect(initializer,
+            &surfel_initializer::outSurfelsSpawnData,
+            spawner,
+            &surfel_spawner::inOutSurfelsSpawnData);
+        graph.connect(initializer, &surfel_initializer::outSurfelsData, spawner, &surfel_spawner::inOutSurfelsData);
+        graph.connect(initializer, &surfel_initializer::outSurfelsStack, spawner, &surfel_spawner::inOutSurfelsStack);
+
+        graph.make_input(clearGrid, &surfel_grid_clear::inCameras, InCameraDataSink);
+        graph.connect(initializer, &surfel_initializer::inGridBounds, clearGrid, &surfel_grid_clear::inGridBounds);
+        graph.connect(initializer, &surfel_initializer::inGridCellSize, clearGrid, &surfel_grid_clear::inGridCellSize);
+        graph.connect(spawner, &surfel_spawner::inOutSurfelsGrid, clearGrid, &surfel_grid_clear::inOutSurfelsGrid);
+
+        graph.make_input(update, &surfel_update::inInstanceTables, InInstanceTables);
+        graph.make_input(update, &surfel_update::inInstanceBuffers, InInstanceBuffers);
+        graph.make_input(update, &surfel_update::inMeshDatabase, InMeshDatabase);
+        graph.make_input(update, &surfel_update::inEntitySetBuffer, InEcsEntitySetBuffer);
+        graph.connect(initializer, &surfel_initializer::inMaxSurfels, update, &surfel_update::inMaxSurfels);
+        graph.connect(spawner, &surfel_spawner::inOutSurfelsData, update, &surfel_update::inOutSurfelsData);
+        graph.connect(spawner, &surfel_spawner::inOutSurfelsStack, update, &surfel_update::inOutSurfelsStack);
+        graph.connect(spawner, &surfel_spawner::inOutSurfelsSpawnData, update, &surfel_update::inOutSurfelsSpawnData);
+        graph.connect(clearGrid, &surfel_grid_clear::inOutSurfelsGrid, update, &surfel_update::inOutSurfelsGrid);
+        graph.connect(clearGrid, &surfel_grid_clear::outCameraCentroid, update, &surfel_update::inCameraCentroid);
+        graph.make_output(update, &surfel_update::inOutSurfelsSpawnData, OutUpdatedSurfelSpawnData);
+        graph.make_output(update, &surfel_update::inOutSurfelsData, OutUpdatedSurfelData);
+
+        return graph;
+    }
+}
+
 namespace oblo::vk
 {
     vk::frame_graph_registry create_frame_graph_registry()
@@ -345,6 +493,7 @@ namespace oblo::vk
         registry.register_node<raytracing_debug>();
 
         // Scene data
+        registry.register_node<ecs_entity_set_provider>();
         registry.register_node<light_provider>();
         registry.register_node<instance_table_node>();
 
@@ -359,6 +508,15 @@ namespace oblo::vk
         registry.register_node<gaussian_blur_v>();
         registry.register_node<box_blur_h>();
         registry.register_node<box_blur_v>();
+
+        // Surfels GI
+        registry.register_node<surfel_initializer>();
+        registry.register_node<surfel_tiling>();
+        registry.register_node<surfel_spawner>();
+        registry.register_node<surfel_grid_clear>();
+        registry.register_node<surfel_update>();
+        registry.register_node<surfel_debug>();
+        registry.register_node<surfel_debug_tile_coverage>();
 
         return registry;
     }

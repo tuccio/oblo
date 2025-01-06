@@ -13,16 +13,15 @@
 
 namespace oblo::vk
 {
-    inline VKAPI_ATTR VkBool32 VKAPI_CALL validation_cb(
-        [[maybe_unused]] VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-        [[maybe_unused]] VkDebugUtilsMessageTypeFlagsEXT messageType,
-        [[maybe_unused]] const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+    inline VKAPI_ATTR VkBool32 VKAPI_CALL validation_cb(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+        [[maybe_unused]] VkDebugUtilsMessageTypeFlagsEXT messageTypes,
+        const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
         void* pUserData)
     {
-        if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
+        if ((messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) != 0)
         {
             auto& errors = *static_cast<std::stringstream*>(pUserData);
-            errors << "[Vulkan Validation] (" << std::hex << messageType << ") " << pCallbackData->pMessage;
+            errors << "[Vulkan Validation] (" << std::hex << messageTypes << ") " << pCallbackData->pMessage;
         }
 
         return VK_FALSE;
@@ -60,6 +59,17 @@ namespace oblo::vk
         void shutdown()
         {
             engine.shutdown();
+
+            if (vkMessenger)
+            {
+                const PFN_vkDestroyDebugUtilsMessengerEXT vkDestroyDebugUtilsMessengerEXT =
+                    reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
+                        vkGetInstanceProcAddr(instance.get(), "vkDestroyDebugUtilsMessengerEXT"));
+
+                vkDestroyDebugUtilsMessengerEXT(instance.get(), vkMessenger, nullptr);
+                vkMessenger = {};
+            }
+
             instance.shutdown();
         }
 
@@ -101,11 +111,44 @@ namespace oblo::vk
                         .apiVersion = apiVersion,
                     },
                     {layers},
-                    {extensions},
-                    validation_cb,
-                    validationErrors))
+                    {extensions}))
             {
                 return false;
+            }
+
+            // VkDebugUtilsMessengerEXT
+            {
+                const PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessengerEXT =
+                    reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
+                        vkGetInstanceProcAddr(instance.get(), "vkCreateDebugUtilsMessengerEXT"));
+
+                if (vkCreateDebugUtilsMessengerEXT)
+                {
+                    const VkDebugUtilsMessengerCreateInfoEXT createInfo{
+                        .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+                        .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+                            VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
+                            VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+                            VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
+                        .messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+                            VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+                            VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
+                        .pfnUserCallback = validation_cb,
+                        .pUserData = validationErrors,
+                    };
+
+                    const auto result =
+                        vkCreateDebugUtilsMessengerEXT(instance.get(), &createInfo, nullptr, &vkMessenger);
+
+                    if (result != VK_SUCCESS)
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    return false;
+                }
             }
 
             constexpr const char* internalDeviceExtensions[] = {
@@ -142,5 +185,6 @@ namespace oblo::vk
     public:
         instance instance;
         single_queue_engine engine;
+        VkDebugUtilsMessengerEXT vkMessenger{};
     };
 }

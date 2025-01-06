@@ -27,10 +27,14 @@ namespace oblo::vk
 
         data<copy_texture_info> inFinalRenderTarget;
 
+        data_sink<camera_buffer> outCameraDataSink;
+
         void build(const frame_graph_build_context& ctx)
         {
             const auto& cameraBuffer = ctx.access(inCameraData);
             const auto& timeBuffer = ctx.access(inTimeData);
+
+            ctx.begin_pass(pass_kind::none);
 
             ctx.create(outCameraBuffer,
                 {
@@ -49,6 +53,8 @@ namespace oblo::vk
             acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
 
             ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
+
+            ctx.push(outCameraDataSink, ctx.access(inCameraData));
         }
     };
 }

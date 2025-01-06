@@ -38,12 +38,12 @@ namespace oblo::vk
                     },
                 },
         });
-
-        ctx.set_pass_kind(pass_kind::graphics);
     }
 
     void visibility_pass::build(const frame_graph_build_context& ctx)
     {
+        ctx.begin_pass(pass_kind::graphics);
+
         const auto resolution = ctx.access(inResolution);
 
         ctx.create(outVisibilityBuffer,
@@ -90,7 +90,7 @@ namespace oblo::vk
 
         auto& pm = ctx.get_pass_manager();
 
-        render_pipeline_initializer pipelineInitializer{
+        const render_pipeline_initializer pipelineInitializer{
             .renderTargets =
                 {
                     .colorAttachmentFormats = {visibilityBuffer.initializer.format},
@@ -100,7 +100,7 @@ namespace oblo::vk
                 {
                     .depthTestEnable = true,
                     .depthWriteEnable = true,
-                    .depthCompareOp = VK_COMPARE_OP_GREATER, // We use reverse depth
+                    .depthCompareOp = VK_COMPARE_OP_GREATER, // We use reverse depthccccc
                 },
             .rasterizationState =
                 {
@@ -120,10 +120,6 @@ namespace oblo::vk
             },
         };
 
-        const auto pipeline = pm.get_or_create_pipeline(renderPass, pipelineInitializer);
-
-        const VkCommandBuffer commandBuffer = ctx.get_command_buffer();
-
         const VkRenderingAttachmentInfo depthAttachment{
             .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
             .imageView = depthBuffer.view,
@@ -142,6 +138,10 @@ namespace oblo::vk
             .pColorAttachments = colorAttachments,
             .pDepthAttachment = &depthAttachment,
         };
+
+        const auto pipeline = pm.get_or_create_pipeline(renderPass, pipelineInitializer);
+
+        const VkCommandBuffer commandBuffer = ctx.get_command_buffer();
 
         setup_viewport_scissor(commandBuffer, renderWidth, renderHeight);
 

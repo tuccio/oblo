@@ -13,13 +13,9 @@ namespace oblo::vk
         u64 bufferAddress[MaxInstanceBuffers];
     };
 
-    void instance_table_node::init(const frame_graph_init_context& ctx)
-    {
-        ctx.set_pass_kind(pass_kind::transfer);
-    }
-
     void instance_table_node::build(const frame_graph_build_context& ctx)
     {
+        ctx.begin_pass(pass_kind::transfer);
         const auto& drawRegistry = ctx.get_draw_registry();
 
         const std::span meshDatabaseData = drawRegistry.get_mesh_database_data();

@@ -19,10 +19,12 @@ namespace oblo::ecs
 
     class entity_registry final
     {
+
     public:
         template <typename... Components>
         class typed_range;
 
+    public:
         entity_registry();
         explicit entity_registry(type_registry* typeRegistry);
         entity_registry(const entity_registry&) = delete;
@@ -101,10 +103,17 @@ namespace oblo::ecs
 
         std::span<const archetype_storage> get_archetypes() const;
 
+        /// @brief Extracts the entity index.
+        /// @remarks Entity handles are composed of a number of generation bits, while te rest is an index in an array.
+        /// This function allows extracting the index part of the handle.
+        u32 extract_entity_index(ecs::entity e) const;
+
     private:
         struct memory_pool;
         struct tags_storage;
         struct entity_data;
+
+        using entities_map = h32_flat_pool_dense_map<entity_handle, entity_data>;
 
         template <typename... ComponentOrTags>
         struct filter_components
@@ -112,6 +121,9 @@ namespace oblo::ecs
             using tuple = decltype(std::tuple_cat(std::
                     conditional_t<!std::is_empty_v<ComponentOrTags>, std::tuple<ComponentOrTags*>, std::tuple<>>{}...));
         };
+
+    public:
+        using entity_extractor_type = entities_map::extractor_type;
 
     private:
         const archetype_storage* find_first_match(const archetype_storage* begin,
@@ -144,8 +156,6 @@ namespace oblo::ecs
         void move_archetype(entity_data& entityData, const archetype_storage& newStorage);
 
     private:
-        using entities_map = h32_flat_pool_dense_map<entity_handle, entity_data>;
-
         type_registry* m_typeRegistry{nullptr};
         std::unique_ptr<memory_pool> m_pool;
         entities_map m_entities;

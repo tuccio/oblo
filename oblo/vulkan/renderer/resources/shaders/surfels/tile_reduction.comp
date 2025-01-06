@@ -1,0 +1,125 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_buffer_reference : require
+#extension GL_ARB_gpu_shader_int64 : require
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_control_flow_attributes : require
+#extension GL_KHR_shader_subgroup_arithmetic : require
+#extension GL_KHR_shader_subgroup_basic : require
+#extension GL_KHR_shader_subgroup_ballot : require
+#extension GL_KHR_shader_subgroup_shuffle : require
+
+#include <surfels/reduction>
+#include <surfels/surfel_data>
+
+layout(std430, binding = 0) restrict readonly buffer b_InBuffer
+{
+    surfel_tile_data g_InBuffer[];
+};
+
+layout(std430, binding = 1) restrict writeonly buffer b_OutBuffer
+{
+    surfel_tile_data g_OutBuffer[];
+};
+
+const uint g_GroupSize = OBLO_SUBGROUP_SIZE * OBLO_SUBGROUP_SIZE;
+shared surfel_tile_data g_GroupCandidates[g_GroupSize];
+
+layout(push_constant) uniform c_PushConstants
+{
+    uint srcElements;
+    uint randomSeed;
+}
+g_Constants;
+
+
+layout(local_size_x = g_GroupSize, local_size_y = 1, local_size_z = 1) in;
+
+void main()
+{
+    uint subgroupSeed = random_seed(g_Constants.randomSeed, gl_SubgroupID);
+
+    const uint globalIndex = gl_GlobalInvocationID.x;
+
+    surfel_tile_data tileData;
+
+    if (globalIndex < g_Constants.srcElements)
+    {
+        tileData = g_InBuffer[globalIndex];
+    }
+    else
+    {
+        tileData.spawnData = surfel_spawn_data_invalid();
+        tileData.averageTileCoverage = NO_SURFELS_NEEDED;
+        tileData.worstPixelCoverage = NO_SURFELS_NEEDED;
+    }
+
+#if 0
+    g_GroupCandidates[gl_LocalInvocationID.x] = tileData;
+
+    memoryBarrierShared();
+    barrier();
+
+    if (gl_LocalInvocationID.xy == uvec2(0))
+    {
+        uint current = 0;
+
+        surfel_tile_data candidate = g_GroupCandidates[current];
+
+        for (uint i = 1; i < OBLO_SUBGROUP_SIZE * OBLO_SUBGROUP_SIZE; ++i)
+        {
+            const surfel_tile_data newCandidate = g_GroupCandidates[i];
+
+            if (newCandidate.averageTileCoverage < candidate.averageTileCoverage &&
+                ecs_entity_is_valid(newCandidate.spawnData.entity))
+            {
+                candidate = newCandidate;
+                current = i;
+            }
+        }
+
+        const uint outputIndex = gl_WorkGroupID.x;
+        g_OutBuffer[outputIndex] = candidate;
+    }
+
+#else
+
+    const uint bestSubgroupCandidateIdx = find_lowest_within_subgroup_rand(
+        ecs_entity_is_valid(tileData.spawnData.entity) ? tileData.averageTileCoverage : NO_SURFELS_NEEDED,
+        subgroupSeed);
+
+    const uint subgroupOutIndex = (gl_SubgroupID + g_Constants.randomSeed) % OBLO_SUBGROUP_SIZE;
+
+    if (gl_SubgroupInvocationID == bestSubgroupCandidateIdx)
+    {
+        g_GroupCandidates[subgroupOutIndex] = tileData;
+    }
+
+    subgroupMemoryBarrierShared();
+    subgroupBarrier();
+
+    memoryBarrierShared();
+    barrier();
+
+    // We only keep the first subgroup active now, to perform another round of reduction
+    if (gl_SubgroupID == 0)
+    {
+        const surfel_tile_data tileData = g_GroupCandidates[gl_SubgroupInvocationID];
+
+        subgroupMemoryBarrierShared();
+        subgroupBarrier();
+
+        // We can use the regular (and faster) overload of find_lowest_within_subgroup, since we shuffled the results in
+        // shared memory
+        const uint bestWorkGroupCandidateIdx = find_lowest_within_subgroup(
+            ecs_entity_is_valid(tileData.spawnData.entity) ? tileData.averageTileCoverage : NO_SURFELS_NEEDED);
+
+        if (gl_SubgroupInvocationID == bestWorkGroupCandidateIdx)
+        {
+            const uint outputIndex = gl_WorkGroupID.x;
+            g_OutBuffer[outputIndex] = tileData;
+        }
+    }
+#endif
+}

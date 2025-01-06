@@ -1,0 +1,37 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+
+#include <surfels/buffers/surfel_data_w>
+#include <surfels/buffers/surfel_spawn_data_w>
+#include <surfels/buffers/surfel_stack_w>
+#include <surfels/surfel_data>
+
+#include <renderer/debug/printf>
+
+layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
+
+layout(push_constant) uniform c_PushConstants
+{
+    uint maxSurfels;
+}
+g_Constants;
+
+void main()
+{
+    const uint id = gl_GlobalInvocationID.x;
+
+    if (id == 0)
+    {
+        g_SurfelStackHeader.available = int(g_Constants.maxSurfels);
+    }
+
+    if (id >= g_Constants.maxSurfels)
+    {
+        return;
+    }
+
+    g_SurfelStackEntries[id].surfelId = id;
+    g_SurfelSpawnData[id] = surfel_spawn_data_invalid();
+    g_SurfelData[id] = surfel_data_invalid();
+}

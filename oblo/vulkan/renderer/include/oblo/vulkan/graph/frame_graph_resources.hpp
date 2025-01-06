@@ -21,7 +21,8 @@ namespace oblo::vk
 
     struct buffer_resource_initializer
     {
-        u32 size;
+        u32 size{};
         std::span<const byte> data;
+        bool isStable{};
     };
 }

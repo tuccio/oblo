@@ -25,12 +25,11 @@ namespace oblo::vk
         });
 
         OBLO_ASSERT(drawCallGeneratorPass);
-
-        ctx.set_pass_kind(pass_kind::compute);
     }
 
     void draw_call_generator::build(const frame_graph_build_context& ctx)
     {
+        ctx.begin_pass(pass_kind::compute);
         auto& drawBufferData = ctx.access(inDrawBufferData);
         auto& drawCallBuffer = ctx.access(outDrawCallBuffer);
 

@@ -22,6 +22,52 @@ namespace oblo
 
             g.connect(sceneDataProvider, vk::scene_data::OutMeshDatabase, mainView, vk::main_view::InMeshDatabase);
         }
+
+        void connect_scene_data_provider_to_surfels_gi(vk::frame_graph& g,
+            h32<vk::frame_graph_subgraph> sceneDataProvider,
+            h32<vk::frame_graph_subgraph> surfelsGIGlobal)
+        {
+            g.connect(sceneDataProvider,
+                vk::scene_data::OutEcsEntitySetBuffer,
+                surfelsGIGlobal,
+                vk::surfels_gi::InEcsEntitySetBuffer);
+
+            g.connect(sceneDataProvider,
+                vk::scene_data::OutMeshDatabase,
+                surfelsGIGlobal,
+                vk::surfels_gi::InMeshDatabase);
+
+            g.connect(sceneDataProvider,
+                vk::scene_data::OutInstanceBuffers,
+                surfelsGIGlobal,
+                vk::surfels_gi::InInstanceBuffers);
+
+            g.connect(sceneDataProvider,
+                vk::scene_data::OutInstanceTables,
+                surfelsGIGlobal,
+                vk::surfels_gi::InInstanceTables);
+        }
+
+        void connect_surfels_gi_to_scene_view(
+            vk::frame_graph& g, h32<vk::frame_graph_subgraph> surfelsGIGlobal, h32<vk::frame_graph_subgraph> mainView)
+        {
+            g.connect(surfelsGIGlobal,
+                vk::surfels_gi::OutLastFrameGrid,
+                mainView,
+                vk::main_view::InLastFrameSurfelsGrid);
+
+            g.connect(surfelsGIGlobal,
+                vk::surfels_gi::OutLastFrameSurfelData,
+                mainView,
+                vk::main_view::InLastFrameSurfelData);
+
+            g.connect(mainView,
+                vk::main_view::OutSurfelsTileCoverageSink,
+                surfelsGIGlobal,
+                vk::surfels_gi::InTileCoverageSink);
+
+            g.connect(mainView, vk::main_view::OutCameraDataSink, surfelsGIGlobal, vk::surfels_gi::InCameraDataSink);
+        }
     }
 
     struct scene_renderer::shadow_graph
@@ -53,6 +99,13 @@ namespace oblo
             const auto provider = vk::scene_data::create(m_nodeRegistry);
             m_sceneDataProvider = m_frameGraph.instantiate(provider);
         }
+
+        if (!m_surfelsGI)
+        {
+            const auto gi = vk::surfels_gi::create(m_nodeRegistry);
+            m_surfelsGI = m_frameGraph.instantiate(gi);
+            connect_scene_data_provider_to_surfels_gi(m_frameGraph, m_sceneDataProvider, m_surfelsGI);
+        }
     }
 
     void scene_renderer::setup_lights(const scene_lights& lights)
@@ -67,6 +120,11 @@ namespace oblo
         if (m_sceneDataProvider)
         {
             connect_scene_data_provider_to_scene_view(m_frameGraph, m_sceneDataProvider, subgraph);
+        }
+
+        if (m_surfelsGI)
+        {
+            connect_surfels_gi_to_scene_view(m_frameGraph, m_surfelsGI, subgraph);
         }
     }
 

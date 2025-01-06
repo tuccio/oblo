@@ -36,9 +36,25 @@
         printf_text(Label);                                                                                            \
         debugPrintfEXT("[ %f, %f, %f, %f ]\n", Vector.x, Vector.y, Vector.z, Vector.w);
 
+    #define printf_int(Label, Value)                                                                                   \
+        printf_text(Label);                                                                                            \
+        debugPrintfEXT("[ %d ]\n", Value);
+
     #define printf_uint(Label, Value)                                                                                  \
         printf_text(Label);                                                                                            \
         debugPrintfEXT("[ %u ]\n", Value);
+
+    #define printf_uvec2(Label, Vector)                                                                                \
+        printf_text(Label);                                                                                            \
+        debugPrintfEXT("[ %u, %u ]\n", Vector.x, Vector.y);
+
+    #define printf_uvec3(Label, Vector)                                                                                \
+        printf_text(Label);                                                                                            \
+        debugPrintfEXT("[ %u, %u, %u ]\n", Vector.x, Vector.y, Vector.z);
+
+    #define printf_uvec4(Label, Vector)                                                                                \
+        printf_text(Label);                                                                                            \
+        debugPrintfEXT("[ %u, %u, %u, %u ]\n", Vector.x, Vector.y, Vector.z, Vector.w);
 
     #define debug_if(Condition, Op)                                                                                    \
         if (Condition)                                                                                                 \
@@ -49,7 +65,7 @@
     #define debug_assert(Condition)                                                                                    \
         if (!(Condition))                                                                                              \
         {                                                                                                              \
-            debugPrintfEXT("Failed assertion at line %d\n", __LINE__);                                                 \
+            debugPrintfEXT("[ASSERT] Failed assertion at line %d\n", __LINE__);                                        \
         }
 
 #else
@@ -61,7 +77,11 @@
     #define printf_vec2(Label, Vector)
     #define printf_vec3(Label, Vector)
     #define printf_vec4(Label, Vector)
+    #define printf_int(Label, Value)
     #define printf_uint(Label, Value)
+    #define printf_uvec2(Label, Vector)
+    #define printf_uvec3(Label, Vector)
+    #define printf_uvec4(Label, Vector)
 
     #define debug_if(Condition, Op)
     #define debug_assert(Condition)

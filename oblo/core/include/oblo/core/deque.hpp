@@ -23,6 +23,9 @@ namespace oblo
     class deque_iterator;
 
     template <typename T>
+    class deque_chunk_iterator;
+
+    template <typename T>
     class deque
     {
     public:
@@ -78,6 +81,7 @@ namespace oblo
         usize size() const;
         usize capacity() const;
         usize elements_per_chunk() const;
+        usize chunks_count() const;
 
         T& push_front(const T& e);
         T& push_front(T&& e);
@@ -277,6 +281,9 @@ namespace oblo
 
         template <typename U>
         friend class deque_iterator;
+
+        template <typename U>
+        friend class deque_chunk_iterator;
 
     private:
         auto remove_const() const
@@ -555,6 +562,13 @@ namespace oblo
     OBLO_FORCEINLINE usize deque<T>::size() const
     {
         return m_size;
+    }
+
+    template <typename T>
+    OBLO_FORCEINLINE usize deque<T>::chunks_count() const
+    {
+        // Equivalent to round_up_div(m_start + m_size - 1, m_elementsPerChunk)
+        return (m_start + m_size + m_elementsPerChunk - 1) / m_elementsPerChunk;
     }
 
     template <typename T>

@@ -2,6 +2,7 @@
 #define OBLO_INCLUDE_RENDERER_MESHES_MESH_TABLE
 
 #include <renderer/meshes/mesh_defines>
+#include <renderer/meshes/mesh_handle>
 
 // These are required to use this header
 // #extension GL_EXT_buffer_reference : require
@@ -23,11 +24,6 @@ struct mesh_table
 layout(std430, binding = OBLO_BINDING_MESH_DATABASE) restrict readonly buffer b_MeshTables
 {
     mesh_table g_MeshTables[];
-};
-
-struct mesh_handle
-{
-    uint value;
 };
 
 layout(buffer_reference) buffer i_MeshHandlesType

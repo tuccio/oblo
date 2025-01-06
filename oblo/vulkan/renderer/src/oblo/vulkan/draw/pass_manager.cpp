@@ -163,6 +163,54 @@ namespace oblo::vk
             h32<raytracing_pipeline> pipeline;
         };
 
+        class binding_collision_checker
+        {
+        public:
+            bool has_binding(u32 id) const
+            {
+                OBLO_ASSERT(id < array_size(m_bindings));
+                return m_bindings[id] != nullptr;
+            }
+
+            const char* get_binding(u32 id) const
+            {
+                OBLO_ASSERT(id < array_size(m_bindings));
+                return m_bindings[id];
+            }
+
+            bool add_binding(u32 id, const char* name)
+            {
+                OBLO_ASSERT(id < array_size(m_bindings));
+
+                if (m_bindings[id])
+                {
+                    return false;
+                }
+
+                m_bindings[id] = name;
+                return true;
+            }
+
+            void check(u32 id, const char* name, const char* label)
+            {
+                if (!add_binding(id, name))
+                {
+                    log::error(
+                        "Shader binding collision detected while compiling {}. Attempted to override {} at binding "
+                        "location {} with {}.",
+                        label,
+                        get_binding(id),
+                        id,
+                        name);
+
+                    OBLO_ASSERT(false);
+                }
+            }
+
+        private:
+            const char* m_bindings[256]{};
+        };
+
         enum resource_kind : u8
         {
             vertex_stage_input,
@@ -596,6 +644,7 @@ namespace oblo::vk
         bool enableProfiling{true};
         bool enableProfilingThisFrame{false};
         bool globallyEnablePrintf{false};
+        bool isRayTracingEnabled{true};
         u32 globallyEnablePrintfFrames{~0u};
 
         std::unordered_map<string, watching_passes, hash<string>> fileToPassList;
@@ -826,8 +875,11 @@ namespace oblo::vk
             [](const shader_resource& lhs, const shader_resource& rhs)
             { return shader_resource_sorting::from(lhs) < shader_resource_sorting::from(rhs); });
 
-        for (u32 current = 0, next = 1; next < newPipeline.resources.size(); ++current)
+        // Merge the same resources that belong to different stages together, but we need to keep the order intact
+        for (u32 current = 0; current + 1 < newPipeline.resources.size();)
         {
+            const u32 next = current + 1;
+
             if (shader_resource_sorting::from(newPipeline.resources[current]) ==
                 shader_resource_sorting::from(newPipeline.resources[next]))
             {
@@ -838,7 +890,7 @@ namespace oblo::vk
             }
             else
             {
-                ++next;
+                ++current;
             }
         }
 
@@ -916,10 +968,18 @@ namespace oblo::vk
             .pPushConstantRanges = pushConstantRanges.data(),
         };
 
-        return vkCreatePipelineLayout(device,
-                   &pipelineLayoutInfo,
-                   vkCtx->get_allocator().get_allocation_callbacks(),
-                   &newPipeline.pipelineLayout) == VK_SUCCESS;
+        const auto success = vkCreatePipelineLayout(device,
+                                 &pipelineLayoutInfo,
+                                 vkCtx->get_allocator().get_allocation_callbacks(),
+                                 &newPipeline.pipelineLayout) == VK_SUCCESS;
+
+        if (success)
+        {
+            const auto& debugUtils = vkCtx->get_debug_utils_object();
+            debugUtils.set_object_name(device, newPipeline.pipelineLayout, newPipeline.label);
+        }
+
+        return success;
     }
 
     void pass_manager::impl::create_reflection(base_pipeline& newPipeline,
@@ -976,6 +1036,7 @@ namespace oblo::vk
                 ++vertexAttributeIndex;
             }
         }
+        binding_collision_checker collisionChecker;
 
         for (const auto& storageBuffer : shaderResources.storage_buffers)
         {
@@ -998,6 +1059,8 @@ namespace oblo::vk
                 .kind = resource_kind::storage_buffer,
                 .stageFlags = VkShaderStageFlags(vkStage),
             });
+
+            collisionChecker.check(binding, storageBuffer.name.c_str(), newPipeline.label);
         }
 
         for (const auto& uniformBuffer : shaderResources.uniform_buffers)
@@ -1020,6 +1083,8 @@ namespace oblo::vk
                 .kind = resource_kind::uniform_buffer,
                 .stageFlags = VkShaderStageFlags(vkStage),
             });
+
+            collisionChecker.check(binding, uniformBuffer.name.c_str(), newPipeline.label);
         }
 
         for (const auto& storageImage : shaderResources.storage_images)
@@ -1042,6 +1107,8 @@ namespace oblo::vk
                 .kind = resource_kind::storage_image,
                 .stageFlags = VkShaderStageFlags(vkStage),
             });
+
+            collisionChecker.check(binding, storageImage.name.c_str(), newPipeline.label);
         }
 
         for (const auto& sampledImage : shaderResources.sampled_images)
@@ -1064,6 +1131,8 @@ namespace oblo::vk
                 .kind = resource_kind::sampled_image,
                 .stageFlags = VkShaderStageFlags(vkStage),
             });
+
+            collisionChecker.check(binding, sampledImage.name.c_str(), newPipeline.label);
         }
 
         for (const auto& image : shaderResources.separate_images)
@@ -1087,6 +1156,8 @@ namespace oblo::vk
                 .kind = resource_kind::separate_image,
                 .stageFlags = VkShaderStageFlags(vkStage),
             });
+
+            collisionChecker.check(binding, image.name.c_str(), newPipeline.label);
         }
 
         for (const auto& pushConstant : shaderResources.push_constant_buffers)
@@ -1124,6 +1195,8 @@ namespace oblo::vk
                 .kind = resource_kind::acceleration_structure,
                 .stageFlags = VkShaderStageFlags(vkStage),
             });
+
+            collisionChecker.check(binding, accelerationStructure.name.c_str(), newPipeline.label);
         }
     }
 
@@ -1598,6 +1671,11 @@ namespace oblo::vk
         m_impl->includer.systemIncludePaths.assign(paths.begin(), paths.end());
     }
 
+    void pass_manager::set_raytracing_enabled(bool isRayTracingEnabled)
+    {
+        m_impl->isRayTracingEnabled = isRayTracingEnabled;
+    }
+
     h32<render_pass> pass_manager::register_render_pass(const render_pass_initializer& desc)
     {
         const auto [it, handle] = m_impl->renderPasses.emplace();
@@ -1848,7 +1926,7 @@ namespace oblo::vk
 
         const VkPipelineInputAssemblyStateCreateInfo inputAssembly{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-            .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+            .topology = desc.primitiveTopology,
             .primitiveRestartEnable = VK_FALSE,
         };
 
@@ -1963,6 +2041,10 @@ namespace oblo::vk
                 &newPipeline.pipeline) == VK_SUCCESS)
         {
             renderPass->variants.push_back({.hash = expectedHash, .pipeline = pipelineHandle});
+
+            const auto& debugUtils = m_impl->vkCtx->get_debug_utils_object();
+            debugUtils.set_object_name(m_impl->device, newPipeline.pipeline, newPipeline.label);
+
             return pipelineHandle;
         }
 
@@ -2077,6 +2159,10 @@ namespace oblo::vk
                 &newPipeline.pipeline) == VK_SUCCESS)
         {
             computePass->variants.push_back({.hash = expectedHash, .pipeline = pipelineHandle});
+
+            const auto& debugUtils = m_impl->vkCtx->get_debug_utils_object();
+            debugUtils.set_object_name(m_impl->device, newPipeline.pipeline, newPipeline.label);
+
             return pipelineHandle;
         }
 
@@ -2088,7 +2174,7 @@ namespace oblo::vk
     {
         auto* const raytracingPass = m_impl->raytracingPasses.try_find(raytracingPassHandle);
 
-        if (!raytracingPass)
+        if (!raytracingPass || !m_impl->isRayTracingEnabled)
         {
             return {};
         }
@@ -2272,6 +2358,9 @@ namespace oblo::vk
         {
             return failure();
         }
+
+        const auto& debugUtils = m_impl->vkCtx->get_debug_utils_object();
+        debugUtils.set_object_name(m_impl->device, newPipeline.pipeline, newPipeline.label);
 
         // Create the shader buffer table
 

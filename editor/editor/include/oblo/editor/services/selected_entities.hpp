@@ -2,6 +2,7 @@
 
 #include <oblo/core/flat_dense_map.hpp>
 #include <oblo/core/handle_flat_pool_map.hpp>
+#include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/handles.hpp>
 
 namespace oblo::editor
@@ -25,8 +26,13 @@ namespace oblo::editor
         u32 get_last_refresh_event_id() const;
 
     private:
+        using selected_entities_map = h32_flat_extpool_dense_map<ecs::entity_handle,
+            ecs::entity,
+            ecs::entity_registry::entity_extractor_type::generation_bits>;
+
+    private:
         // TODO: (#8) Should implement a flat_dense_set
-        flat_dense_map<ecs::entity, ecs::entity> m_selected;
+        selected_entities_map m_selected;
         u32 m_eventId{};
     };
 

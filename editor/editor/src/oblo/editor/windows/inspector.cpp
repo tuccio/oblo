@@ -258,6 +258,15 @@ namespace oblo::editor
                     auto* const entityName = entity_utility::get_name_cstr(*m_registry, e);
                     ImGui::TextUnformatted(entityName);
 
+                    builder.clear().format("[Entity id: {}]", e.value);
+
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+
+                    ImGui::SameLine();
+                    ImGui::TextUnformatted(builder.c_str());
+
+                    ImGui::PopStyleColor();
+
                     const std::span components = m_registry->get_component_types(e);
 
                     for (const ecs::component_type type : components)

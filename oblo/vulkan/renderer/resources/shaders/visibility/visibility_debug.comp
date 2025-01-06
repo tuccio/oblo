@@ -10,8 +10,7 @@
 #extension GL_EXT_control_flow_attributes : enable
 
 #include <renderer/camera>
-#include <renderer/debug/printf>
-#include <renderer/debug>
+#include <renderer/debug/colors>
 #include <renderer/geometry/volumes>
 #include <renderer/instances>
 #include <renderer/material>
@@ -26,6 +25,13 @@
 #include <renderer/transform>
 #include <visibility/visibility_shading>
 #include <visibility/visibility_utils>
+
+#if defined(OUT_GI_SURFELS)
+    #include <surfels/buffers/surfel_grid_r>
+    #include <surfels/buffers/surfel_data_r>
+
+    #define OUT_ALBEDO
+#endif
 
 vec4 visibility_shade(in visibility_shade_context ctx)
 {

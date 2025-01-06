@@ -1,0 +1,147 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_buffer_reference : require
+#extension GL_ARB_gpu_shader_int64 : require
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_control_flow_attributes : require
+
+#include <ecs/entity_set>
+#include <renderer/geometry/barycentric>
+#include <renderer/instances>
+#include <renderer/meshes/mesh_attributes>
+#include <renderer/meshes/mesh_data>
+#include <renderer/meshes/mesh_indices>
+#include <renderer/meshes/mesh_table>
+#include <renderer/transform>
+#include <surfels/buffers/surfel_data_rw>
+#include <surfels/buffers/surfel_grid_rw>
+#include <surfels/buffers/surfel_spawn_data_rw>
+#include <surfels/buffers/surfel_stack_rw>
+#include <surfels/surfel_data>
+#include <visibility/visibility_buffer>
+
+// If we overflow the grid cell past this factor, we just kill exceeding surfels
+const uint g_OverflowFactor = 2;
+
+layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
+
+layout(push_constant) uniform c_PushConstants
+{
+    vec3 cameraCentroid;
+    uint maxSurfels;
+    uint currentTimestamp;
+}
+g_Constants;
+
+void surfel_kill(in uint surfelId)
+{
+    // We invalidate surfel_data::radius to signal it's not alive
+    // We invalidate it even if we don't kill it because it won't have an effect
+    g_SurfelData[surfelId] = surfel_data_invalid();
+    g_SurfelSpawnData[surfelId] = surfel_spawn_data_invalid();
+
+    surfel_stack_free(surfelId);
+}
+
+void surfel_commit_to_grid(in surfel_data surfel, in uint surfelId, in uint cellIndex)
+{
+    surfel.nextSurfelId = surfelId;
+    g_SurfelData[surfelId] = surfel;
+    atomicExchange(g_SurfelData[surfelId].nextSurfelId, g_SurfelGridCells[cellIndex].nextSurfelId);
+}
+
+void main()
+{
+    const uint surfelId = gl_GlobalInvocationID.x;
+
+    if (surfelId >= g_Constants.maxSurfels)
+    {
+        return;
+    }
+
+    const surfel_spawn_data surfel = g_SurfelSpawnData[surfelId];
+
+    if (!surfel_spawn_data_is_alive(surfel))
+    {
+        return;
+    }
+
+    ecs_entity_set_entry entitySetEntry;
+
+    if (!ecs_entity_set_try_find(surfel.entity, entitySetEntry))
+    {
+        surfel_kill(surfelId);
+        return;
+    }
+
+    visibility_buffer_data vb;
+
+    visibility_buffer_parse_instance_ids(entitySetEntry.globalInstanceId, vb);
+    visibility_buffer_parse_meshlet_ids(surfel.packedMeshletAndTriangleId, vb);
+
+    const mesh_handle mesh = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MeshHandles, vb.instanceId);
+    const transform transform = OBLO_INSTANCE_DATA(vb.instanceTableId, i_TransformBuffer, vb.instanceId);
+
+    // Read the mesh data
+    const mesh_table meshTable = mesh_table_fetch(mesh);
+    const uvec3 vertexIndices = mesh_get_meshlet_indices(meshTable, mesh, vb.meshletId, vb.meshletTriangleId);
+
+    vec3 triangleWS[3];
+
+    // Read the position, to see if the surfel falls within our grid
+    [[unroll]] for (uint i = 0; i < 3; ++i)
+    {
+        const uint vertexId = vertexIndices[i];
+
+        const vec3 vertexPosition = mesh_get_position(meshTable, vertexId);
+        triangleWS[i] = (transform.localToWorld * vec4(vertexPosition, 1)).xyz;
+    }
+
+    barycentric_coords bc;
+    bc.lambda = vec3(surfel.barycentricU, surfel.barycentricV, 1 - surfel.barycentricU - surfel.barycentricV);
+
+    const vec3 positionWS = barycentric_interpolate(bc, triangleWS);
+
+    const surfel_grid_header gridHeader = g_SurfelGridHeader;
+
+    const ivec3 cell = surfel_grid_find_cell(gridHeader, positionWS);
+
+    if (!surfel_grid_has_cell(gridHeader, cell))
+    {
+        // When the surfel is out of cell boundaries, we don't update it
+        return;
+    }
+
+    const uint cellIndex = surfel_grid_cell_index(gridHeader, cell);
+
+    vec3 triangleNormal[3];
+
+    // We accepted the surfel, time to update
+    [[unroll]] for (uint i = 0; i < 3; ++i)
+    {
+        const uint vertexId = vertexIndices[i];
+
+        const vec3 vertexNormal = mesh_get_normal(meshTable, vertexId);
+        triangleNormal[i] = vertexNormal;
+    }
+
+    const vec3 cameraVector = positionWS - g_Constants.cameraCentroid;
+    const float cameraDistance2 = dot(cameraVector, cameraVector);
+
+    const vec3 N = normalize(barycentric_interpolate(bc, triangleNormal));
+    const vec3 normalWS = normalize(mat3(transform.normalMatrix) * N);
+
+    const float g_GridCellSize = surfel_grid_cell_size(gridHeader);
+    const float g_SurfelScalingFactor = 0.03;
+
+    surfel_data updatedData;
+    updatedData.positionWS = positionWS;
+    updatedData.normalWS = normalWS;
+    updatedData.radius = min(g_GridCellSize, g_SurfelScalingFactor * sqrt(cameraDistance2));
+    updatedData.nextSurfelId = SURFEL_ID_INVALID;
+
+    surfel_commit_to_grid(updatedData, surfelId, cellIndex);
+
+    g_SurfelData[surfelId] = updatedData;
+}

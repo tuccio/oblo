@@ -245,6 +245,7 @@ namespace oblo
                     const auto mainViewTemplate = vk::main_view::create(registry,
                         {
                             .withPicking = true,
+                            .withSurfelsGI = true,
                         });
 
                     const auto subgraph = frameGraph.instantiate(mainViewTemplate);
@@ -346,7 +347,7 @@ namespace oblo
 
                 {
                     // TODO: Deal with errors, also transposing would be enough here most likely
-                    const mat4 view = *inverse(transform.localToWorld);
+                    const mat4 view = inverse(transform.localToWorld).assert_value_or(mat4::identity());
 
                     const f32 ratio = f32(viewport.height) / viewport.width;
                     const mat4 proj = make_perspective_matrix(camera.fovy, ratio, camera.near, camera.far);
@@ -469,7 +470,6 @@ namespace oblo
         void apply_viewport_mode(
             vk::frame_graph& frameGraph, h32<vk::frame_graph_subgraph> subgraph, viewport_mode mode)
         {
-
             frameGraph.disable_all_outputs(subgraph);
 
             switch (mode)
@@ -546,6 +546,14 @@ namespace oblo
 
             case viewport_mode::raytracing_debug:
                 frameGraph.set_output_state(subgraph, vk::main_view::OutRTDebugImage, true);
+                break;
+
+            case viewport_mode::gi_surfels:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutGISurfelsImage, true);
+                break;
+
+            case viewport_mode::gi_surfels_tile_coverage:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutGITileCoverageImage, true);
                 break;
 
             default:

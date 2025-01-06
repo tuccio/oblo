@@ -8,6 +8,7 @@
 #include <oblo/editor/windows/demo_window.hpp>
 #include <oblo/editor/windows/style_window.hpp>
 #include <oblo/editor/windows/viewport.hpp>
+#include <oblo/vulkan/events/gi_reset_event.hpp>
 #include <oblo/vulkan/graph/frame_graph.hpp>
 #include <oblo/vulkan/renderer.hpp>
 
@@ -92,7 +93,9 @@ namespace oblo::editor
                     ctx.windowManager.create_child_window<style_window>(ctx.windowHandle);
                 }
 
-                auto& passManager = ctx.services.find<vk::renderer>()->get_pass_manager();
+                auto* const renderer = ctx.services.find<vk::renderer>();
+
+                auto& passManager = renderer->get_pass_manager();
 
                 if (ImGui::MenuItem("Single frame shader printf"))
                 {
@@ -117,9 +120,14 @@ namespace oblo::editor
                     passManager.set_shader_optimization_enabled(isEnabled);
                 }
 
+                if (ImGui::MenuItem("Reset GI"))
+                {
+                    renderer->get_frame_graph().push_event(vk::gi_reset_event{});
+                }
+
                 if (ImGui::MenuItem("Copy frame graph to clipboard"))
                 {
-                    const auto& frameGraph = ctx.services.find<vk::renderer>()->get_frame_graph();
+                    const auto& frameGraph = renderer->get_frame_graph();
 
                     std::stringstream ss;
                     frameGraph.write_dot(ss);

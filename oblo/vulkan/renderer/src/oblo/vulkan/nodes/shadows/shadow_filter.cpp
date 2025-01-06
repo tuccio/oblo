@@ -17,12 +17,11 @@ namespace oblo::vk
             .name = string_builder{}.format("Shadow filter #{}", passIndex).view(),
             .shaderSourcePath = "./vulkan/shaders/shadows/shadow_filter.comp",
         });
-
-        ctx.set_pass_kind(pass_kind::compute);
     }
 
     void shadow_filter::build(const frame_graph_build_context& ctx)
     {
+        ctx.begin_pass(pass_kind::compute);
         ctx.acquire(inSource, texture_usage::storage_read);
         // ctx.acquire(inMoments, texture_usage::storage_read);
 

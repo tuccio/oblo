@@ -16,8 +16,6 @@ namespace oblo::vk
 {
     class renderer;
     class vulkan_context;
-
-    struct required_features;
 }
 
 namespace oblo
@@ -43,9 +41,6 @@ namespace oblo
 
     class runtime
     {
-    public:
-        RUNTIME_API static vk::required_features get_required_vulkan_features();
-
     public:
         RUNTIME_API runtime();
         runtime(const runtime&) = delete;

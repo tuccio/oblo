@@ -18,32 +18,28 @@ namespace oblo::vk
 {
     namespace
     {
-        VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-            VkDebugUtilsMessageTypeFlagsEXT messageType,
+        VKAPI_ATTR VkBool32 VKAPI_CALL debug_messenger_callback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+            [[maybe_unused]] VkDebugUtilsMessageTypeFlagsEXT messageTypes,
             const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
             [[maybe_unused]] void* pUserData)
         {
             log::severity severity = log::severity::debug;
 
-            switch (messageSeverity)
+            if ((messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) != 0)
             {
-            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
-                severity = log::severity::info;
-                break;
-
-            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
-                severity = log::severity::warn;
-                break;
-
-            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
                 severity = log::severity::error;
-                break;
-
-            default:
-                break;
+            }
+            else if ((messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) != 0)
+            {
+                severity = log::severity::warn;
+            }
+            else if ((messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT) != 0)
+            {
+                severity = log::severity::info;
             }
 
-            log::generic(severity, "[Vulkan] (0x{:x}) {}", messageType, pCallbackData->pMessage);
+            log::generic(severity, "{}", pCallbackData->pMessage);
+
             return VK_FALSE;
         }
     }
@@ -82,6 +78,8 @@ namespace oblo::vk
             SDL_DestroyWindow(m_window);
             m_window = nullptr;
         }
+
+        destroy_debug_callbacks();
     }
 
     void sandbox_base::set_config(const sandbox_app_config& config)
@@ -437,16 +435,26 @@ namespace oblo::vk
         }
 
         extensions.resize(sdlExtensionsCount);
+        extensions.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
         if (!SDL_Vulkan_GetInstanceExtensions(m_window, &sdlExtensionsCount, extensions.data()))
         {
             return false;
         }
 
+        constexpr VkValidationFeatureEnableEXT enabled[] = {VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT};
+        VkValidationFeaturesEXT validationFeatures{};
+
         if (m_config.vkUseValidationLayers)
         {
             layers.emplace_back("VK_LAYER_KHRONOS_validation");
             extensions.emplace_back(VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
+
+            validationFeatures = {
+                .sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT,
+                .enabledValidationFeatureCount = array_size(enabled),
+                .pEnabledValidationFeatures = enabled,
+            };
         }
 
         extensions.insert(extensions.end(), instanceExtensions.begin(), instanceExtensions.end());
@@ -466,7 +474,7 @@ namespace oblo::vk
                 },
                 {layers},
                 {extensions},
-                debug_callback))
+                m_config.vkUseValidationLayers ? &validationFeatures : nullptr))
         {
             return false;
         }
@@ -475,6 +483,8 @@ namespace oblo::vk
         {
             return false;
         }
+
+        create_debug_callbacks();
 
         constexpr const char* internalDeviceExtensions[] = {
             VK_KHR_SWAPCHAIN_EXTENSION_NAME,
@@ -624,6 +634,57 @@ namespace oblo::vk
                 m_resourceManager.unregister_texture(handle);
                 handle = {};
             }
+        }
+    }
+
+    void sandbox_base::create_debug_callbacks()
+    {
+        // NOTE: The default allocator is used on purpose here, so we can log before creating it
+
+        // VkDebugUtilsMessengerEXT
+        {
+            const PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessengerEXT =
+                reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
+                    vkGetInstanceProcAddr(m_instance.get(), "vkCreateDebugUtilsMessengerEXT"));
+
+            if (vkCreateDebugUtilsMessengerEXT)
+            {
+                const VkDebugUtilsMessengerCreateInfoEXT createInfo{
+                    .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+                    .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+                        VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+                        VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
+                    .messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+                        VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+                        VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
+                    .pfnUserCallback = debug_messenger_callback,
+                };
+
+                const auto result =
+                    vkCreateDebugUtilsMessengerEXT(m_instance.get(), &createInfo, nullptr, &m_vkMessenger);
+
+                if (result != VK_SUCCESS)
+                {
+                    log::error("Failed to create vkCreateDebugUtilsMessengerEXT (error: {0:#x})", i32{result});
+                }
+            }
+            else
+            {
+                log::error("Unable to locate vkCreateDebugUtilsMessengerEXT");
+            }
+        }
+    }
+
+    void sandbox_base::destroy_debug_callbacks()
+    {
+        if (m_vkMessenger)
+        {
+            const PFN_vkDestroyDebugUtilsMessengerEXT vkDestroyDebugUtilsMessengerEXT =
+                reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
+                    vkGetInstanceProcAddr(m_instance.get(), "vkDestroyDebugUtilsMessengerEXT"));
+
+            vkDestroyDebugUtilsMessengerEXT(m_instance.get(), m_vkMessenger, nullptr);
+            m_vkMessenger = {};
         }
     }
 

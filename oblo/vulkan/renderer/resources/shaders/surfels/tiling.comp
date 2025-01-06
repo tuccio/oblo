@@ -1,0 +1,265 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_buffer_reference : require
+#extension GL_ARB_gpu_shader_int64 : require
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_control_flow_attributes : require
+#extension GL_KHR_shader_subgroup_arithmetic : require
+#extension GL_KHR_shader_subgroup_basic : require
+#extension GL_KHR_shader_subgroup_ballot : require
+#extension GL_KHR_shader_subgroup_shuffle : require
+
+#include <ecs/entity_buffer>
+#include <renderer/debug/printf>
+#include <renderer/instances>
+#include <renderer/math>
+#include <renderer/meshes/mesh_attributes>
+#include <renderer/meshes/mesh_data>
+#include <renderer/meshes/mesh_indices>
+#include <renderer/meshes/mesh_table>
+#include <renderer/random/random>
+#include <renderer/transform>
+#include <surfels/buffers/surfel_data_r>
+#include <surfels/buffers/surfel_grid_r>
+#include <surfels/reduction>
+#include <visibility/visibility_buffer>
+#include <visibility/visibility_utils>
+
+const uint g_TileSize = TILE_SIZE;
+
+layout(push_constant) uniform c_PushConstants
+{
+    uint randomSeed;
+}
+g_Constants;
+
+layout(std430, binding = 0) restrict writeonly buffer b_OutTileCoverage
+{
+    surfel_tile_data g_TileData[];
+};
+
+layout(binding = 10, rg32ui) uniform restrict readonly uimage2D t_InVisibilityBuffer;
+
+layout(binding = 16) uniform b_CameraBuffer
+{
+    camera_buffer g_Camera;
+};
+
+layout(local_size_x = g_TileSize, local_size_y = g_TileSize, local_size_z = 1) in;
+
+bool read_spawn_data(in ivec2 screenPos, in uvec2 resolution, out surfel_spawn_data spawnData, out vec3 positionWS);
+
+uint count_pixels_with_fragments(in bool hasFragment)
+{
+    const uvec4 hasFragmentBallot = subgroupBallot(hasFragment);
+    return subgroupBallotBitCount(hasFragmentBallot);
+}
+
+shared surfel_tile_data g_GroupCandidates[OBLO_SUBGROUP_SIZE];
+shared uint g_PixelsWithFragments[OBLO_SUBGROUP_SIZE];
+shared float g_WeightSums[OBLO_SUBGROUP_SIZE];
+
+bool read_spawn_data(in ivec2 screenPos, in uvec2 resolution, out surfel_spawn_data spawnData, out vec3 positionWS)
+{
+    // Parse the visibility buffer to find which triangle we are processing
+    const uvec4 visBufferData = imageLoad(t_InVisibilityBuffer, screenPos);
+
+    visibility_buffer_data vb;
+
+    if (!visibility_buffer_parse(visBufferData.xy, vb))
+    {
+        return false;
+    }
+
+    // Read the instance data we need
+    const mesh_handle mesh = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MeshHandles, vb.instanceId);
+    const transform transform = OBLO_INSTANCE_DATA(vb.instanceTableId, i_TransformBuffer, vb.instanceId);
+
+    triangle triangleWS;
+
+    // Read the mesh data
+    const mesh_table meshTable = mesh_table_fetch(mesh);
+    const uvec3 vertexIndices = mesh_get_meshlet_indices(meshTable, mesh, vb.meshletId, vb.meshletTriangleId);
+
+    // Read the vertex data and transform everything in world space, we do lighting calculation in that space
+    [[unroll]] for (uint i = 0; i < 3; ++i)
+    {
+        const uint vertexId = vertexIndices[i];
+
+        const vec3 vertexPosition = mesh_get_position(meshTable, vertexId);
+        triangleWS.v[i] = (transform.localToWorld * vec4(vertexPosition, 1)).xyz;
+    }
+
+    barycentric_coords bc;
+
+    // Cast a ray from the camera to the near plane and calculate the distance of the ray hit to the plane on the
+    // triangle in world space, we use that to derive the position in world space
+    const vec2 ndc = screen_to_ndc(screenPos, resolution);
+    const ray cameraRay = visibility_calculate_camera_ray(g_Camera, ndc);
+
+    float intersectionDistance;
+
+    // Really the plan should be hitting here, since we already know the triangle was rendered by the rasterizer, we
+    // mostly want to calculate at what distance it does
+    if (!distance_from_triangle_plane(cameraRay, triangleWS, intersectionDistance))
+    {
+        return false;
+    }
+
+    positionWS = ray_point_at(cameraRay, intersectionDistance);
+    barycentric_calculate(bc, triangleWS.v, positionWS);
+
+    const ecs_entity entity = OBLO_INSTANCE_DATA(vb.instanceTableId, i_EntityIdBuffer, vb.instanceId);
+
+    spawnData.entity = entity;
+    spawnData.packedMeshletAndTriangleId = visibility_buffer_get_packed_meshlet_ids(visBufferData.xy);
+    spawnData.barycentricU = bc.lambda.x;
+    spawnData.barycentricV = bc.lambda.y;
+
+    return all(greaterThanEqual(bc.lambda, vec3(0)));
+}
+
+float surfel_weight(in surfel_data surfel, in vec3 positionWS)
+{
+    const vec3 surfelPosition = surfel_data_world_position(surfel);
+    const vec3 pointToSurfel = surfelPosition - positionWS;
+
+    const float radius2 = surfel.radius * surfel.radius;
+
+    // // If the vector from point to surfel has positive cosine, it means the point is behind the surfel and will not
+    // be
+    // // affected by reflections from it
+    // const float sideFactor = dot(surfel.normalWS, pointToSurfel);
+    // const float weightFactor = radius2 - dot(pointToSurfel, pointToSurfel);
+
+    // return sideFactor < 0.f && weightFactor > 0.f ? 1.f : 0.f;
+
+    return max(0.f, 1024 - radius2 - dot(pointToSurfel, pointToSurfel));
+}
+
+void gather_coverage_from_grid(in vec3 positionWS, out float weightSum)
+{
+    const surfel_grid_header gridHeader = g_SurfelGridHeader;
+    const ivec3 cell = surfel_grid_find_cell(gridHeader, positionWS);
+
+    weightSum = 0.f;
+
+    // Search neighboring cells and accumulate overlapping surfels
+    [[unroll]] for (int x = -1; x <= 1; ++x)
+    {
+        [[unroll]] for (int y = -1; y <= 1; ++y)
+        {
+            [[unroll]] for (int z = -1; z <= 1; ++z)
+            {
+                const ivec3 current = cell + ivec3(x, y, z);
+
+                if (surfel_grid_has_cell(gridHeader, current))
+                {
+                    const uint cellIndex = surfel_grid_cell_index(gridHeader, current);
+                    const surfel_grid_cell cellData = g_SurfelGridCells[cellIndex];
+
+                    // We could consider adding some weight for the number of surfels in the same cell, to
+                    // prioritize tiles that don't have any
+
+                    for (uint surfelId = cellData.nextSurfelId; surfelId != SURFEL_ID_INVALID;)
+                    {
+                        const surfel_data surfel = g_SurfelData[surfelId];
+                        weightSum += surfel_weight(surfel, positionWS);
+                        surfelId = surfel.nextSurfelId;
+                    }
+                }
+            }
+        }
+    }
+}
+
+void main()
+{
+    const ivec2 screenPos = ivec2(gl_WorkGroupID.xy * gl_WorkGroupSize.xy + gl_LocalInvocationID.xy);
+    const uvec2 resolution = imageSize(t_InVisibilityBuffer);
+
+    const bool withinScreenBounds = screenPos.x < resolution.x && screenPos.y < resolution.y;
+
+    // When nothing is in the visibility buffer, we will fall back to the skybox. These pixels should not really matter
+    // for the coverage, for now we assign an arbitrary coverage though.
+    float weightSum = 0;
+    vec3 positionWS;
+
+    surfel_spawn_data spawnData;
+
+    const bool hasGeometry = withinScreenBounds && read_spawn_data(screenPos, resolution, spawnData, positionWS);
+
+    if (hasGeometry)
+    {
+        gather_coverage_from_grid(positionWS, weightSum);
+    }
+    else
+    {
+        spawnData = surfel_spawn_data_invalid();
+        weightSum = NO_SURFELS_NEEDED;
+    }
+
+    const float selfSum = subgroupAdd(weightSum);
+    const uint selfPixels = subgroupAdd(hasGeometry ? 1 : 0);
+
+    memoryBarrierShared();
+    barrier();
+
+    uint workgroupSeed = random_seed(g_Constants.randomSeed, gl_WorkGroupID.y * gl_WorkGroupSize.x + gl_WorkGroupID.x);
+    uint subgroupSeed = random_seed(workgroupSeed, gl_SubgroupID);
+
+    // First process within the subgroup
+    {
+        const float bestCandidateIdx = find_lowest_within_subgroup_rand(weightSum, subgroupSeed);
+        // const uint subgroupOutIndex = (g_Constants.randomSeed + gl_SubgroupID) % OBLO_SUBGROUP_SIZE;
+        const uint subgroupOutIndex = (hash_pcg(workgroupSeed) + gl_SubgroupID) % OBLO_SUBGROUP_SIZE;
+
+        if (bestCandidateIdx == gl_SubgroupInvocationID)
+        {
+            surfel_tile_data tileData;
+            tileData.averageTileCoverage = NO_SURFELS_NEEDED;
+            tileData.worstPixelCoverage = weightSum;
+            tileData.spawnData = spawnData;
+
+            g_GroupCandidates[subgroupOutIndex] = tileData;
+
+            g_WeightSums[subgroupOutIndex] = selfSum;
+            g_PixelsWithFragments[subgroupOutIndex] = selfPixels;
+        }
+    }
+
+    memoryBarrierShared();
+    barrier();
+
+    // Then let a single subgroup continue
+    if (gl_SubgroupID == 0)
+    {
+        const surfel_tile_data candidate = g_GroupCandidates[gl_SubgroupInvocationID];
+
+        const float subgroupsSum = g_WeightSums[gl_SubgroupInvocationID];
+        const uint subgroupsPixels = g_PixelsWithFragments[gl_SubgroupInvocationID];
+
+        const float bestCandidateValue = subgroupMin(candidate.worstPixelCoverage);
+        const float sum = subgroupAdd(subgroupsSum);
+        const uint pixels = subgroupAdd(subgroupsPixels);
+
+        // We can use the regular (and faster) overload of find_lowest_within_subgroup, since we shuffled the results in
+        // shared memory
+        const uint bestCandidateIdx = find_lowest_within_subgroup(candidate.worstPixelCoverage);
+
+        const surfel_tile_data result = g_GroupCandidates[bestCandidateIdx];
+
+        surfel_tile_data outputTile;
+
+        outputTile.averageTileCoverage = pixels > 0 ? sum / pixels : NO_SURFELS_NEEDED;
+        outputTile.worstPixelCoverage = result.worstPixelCoverage;
+        outputTile.spawnData = result.spawnData;
+
+        if (subgroupElect())
+        {
+            const uint globalIndex = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
+            g_TileData[globalIndex] = outputTile;
+        }
+    }
+}

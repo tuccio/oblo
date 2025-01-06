@@ -19,12 +19,11 @@ namespace oblo::vk
             .name = "Entity Picking Pass",
             .shaderSourcePath = "./vulkan/shaders/entity_picking/entity_picking.comp",
         });
-
-        ctx.set_pass_kind(pass_kind::compute);
     }
 
     void entity_picking::build(const frame_graph_build_context& ctx)
     {
+        ctx.begin_pass(pass_kind::compute);
         ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
 
         acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);

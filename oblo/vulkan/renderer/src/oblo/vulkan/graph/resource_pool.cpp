@@ -79,7 +79,7 @@ namespace oblo::vk
             return imageView;
         }
 
-        constexpr u32 FramesBeforeDeletingStableTextures{1};
+        constexpr u32 FramesBeforeDeletingStableResources{1};
     }
 
     struct resource_pool::texture_resource
@@ -99,6 +99,8 @@ namespace oblo::vk
         VkBufferUsageFlags usage;
         VkBuffer buffer;
         u32 offset;
+        h32<stable_buffer_resource> stableId;
+        u32 framesAlive;
     };
 
     struct resource_pool::buffer_pool
@@ -163,6 +165,7 @@ namespace oblo::vk
         std::swap(m_lastFrameTransientTextures, m_textureResources);
         free_last_frame_resources(ctx);
         free_stable_textures(ctx, 0);
+        free_stable_buffers(ctx, 0);
 
         for (auto& pool : m_bufferPools)
         {
@@ -197,7 +200,8 @@ namespace oblo::vk
         create_textures(ctx);
         create_buffers(ctx);
 
-        free_stable_textures(ctx, FramesBeforeDeletingStableTextures);
+        free_stable_textures(ctx, FramesBeforeDeletingStableResources);
+        free_stable_buffers(ctx, FramesBeforeDeletingStableResources);
     }
 
     h32<transient_texture_resource> resource_pool::add_transient_texture(
@@ -214,13 +218,15 @@ namespace oblo::vk
         return h32<transient_texture_resource>{id + 1};
     }
 
-    h32<transient_buffer_resource> resource_pool::add_transient_buffer(u32 size, VkBufferUsageFlags usage)
+    h32<transient_buffer_resource> resource_pool::add_transient_buffer(
+        u32 size, VkBufferUsageFlags usage, h32<stable_buffer_resource> stableId)
     {
         const auto id = u32(m_bufferResources.size());
 
         m_bufferResources.push_back({
             .size = size,
             .usage = usage,
+            .stableId = stableId,
         });
 
         return h32<transient_buffer_resource>{id + 1};
@@ -268,6 +274,13 @@ namespace oblo::vk
     {
         OBLO_ASSERT(id);
         auto& resource = m_textureResources[id.value - 1];
+        return resource.framesAlive;
+    }
+
+    u32 resource_pool::get_frames_alive_count(h32<transient_buffer_resource> id) const
+    {
+        OBLO_ASSERT(id);
+        auto& resource = m_bufferResources[id.value - 1];
         return resource.framesAlive;
     }
 
@@ -393,6 +406,12 @@ namespace oblo::vk
     {
         for (auto& buffer : m_bufferResources)
         {
+            if (buffer.stableId)
+            {
+                acquire_from_pool(ctx, buffer);
+                continue;
+            }
+
             monotonic_gpu_buffer* poolBuffer{};
 
             for (auto& pool : m_bufferPools)
@@ -422,12 +441,24 @@ namespace oblo::vk
         u32 lastUsedTime;
     };
 
+    struct resource_pool::stable_buffer
+    {
+        allocated_buffer allocatedBuffer;
+        u32 creationTime;
+        u32 lastUsedTime;
+    };
+
     bool resource_pool::stable_texture_key::operator==(const stable_texture_key& rhs) const
     {
         return stableId == rhs.stableId && struct_compare<equal_to>(initializer, rhs.initializer);
     }
 
     usize resource_pool::stable_texture_key_hash::operator()(const stable_texture_key& key) const
+    {
+        return struct_hash<std::hash>(key);
+    }
+
+    usize resource_pool::stable_buffer_key_hash::operator()(const stable_buffer_key& key) const
     {
         return struct_hash<std::hash>(key);
     }
@@ -466,6 +497,37 @@ namespace oblo::vk
         it->second.lastUsedTime = m_frame;
     }
 
+    void resource_pool::acquire_from_pool(vulkan_context& ctx, buffer_resource& resource)
+    {
+        OBLO_ASSERT(resource.stableId);
+        const auto [it, isNew] = m_stableBuffers.try_emplace(stable_buffer_key{
+            .stableId = resource.stableId,
+            .usage = resource.usage,
+            .size = resource.size,
+        });
+
+        if (isNew)
+        {
+            auto& allocator = ctx.get_allocator();
+
+            OBLO_VK_PANIC(allocator.create_buffer(
+                {
+                    .size = resource.size,
+                    .usage = resource.usage,
+                    .memoryUsage = memory_usage::gpu_only,
+                },
+                &it->second.allocatedBuffer));
+
+            it->second.creationTime = m_frame;
+        }
+
+        resource.buffer = it->second.allocatedBuffer.buffer;
+        resource.offset = 0;
+        resource.framesAlive = m_frame - it->second.creationTime;
+
+        it->second.lastUsedTime = m_frame;
+    }
+
     void resource_pool::free_stable_textures(vulkan_context& ctx, u32 unusedFor)
     {
         for (auto it = m_stableTextures.begin(); it != m_stableTextures.end();)
@@ -489,4 +551,23 @@ namespace oblo::vk
         }
     }
 
+    void resource_pool::free_stable_buffers(vulkan_context& ctx, u32 unusedFor)
+    {
+        for (auto it = m_stableBuffers.begin(); it != m_stableBuffers.end();)
+        {
+            const auto dt = m_frame - it->second.lastUsedTime;
+
+            if (dt < unusedFor)
+            {
+                ++it;
+            }
+            else
+            {
+                const auto submitIndex = ctx.get_submit_index();
+                ctx.destroy_deferred(it->second.allocatedBuffer.buffer, submitIndex);
+                ctx.destroy_deferred(it->second.allocatedBuffer.allocation, submitIndex);
+                it = m_stableBuffers.erase(it);
+            }
+        }
+    }
 }

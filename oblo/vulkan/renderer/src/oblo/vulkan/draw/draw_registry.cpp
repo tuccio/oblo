@@ -7,6 +7,7 @@
 #include <oblo/core/flags.hpp>
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
+#include <oblo/core/string/string.hpp>
 #include <oblo/ecs/archetype_storage.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/range.hpp>
@@ -20,6 +21,7 @@
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/buffer.hpp>
+#include <oblo/vulkan/data/components.hpp>
 #include <oblo/vulkan/data/gpu_aabb.hpp>
 #include <oblo/vulkan/draw/mesh_table.hpp>
 #include <oblo/vulkan/error.hpp>
@@ -84,16 +86,6 @@ namespace oblo::vk
             return std::bit_cast<h32<draw_mesh>>(m);
         }
 
-        struct draw_instance_component
-        {
-            mesh_handle mesh;
-        };
-
-        struct draw_instance_id_component
-        {
-            u32 rtinstanceId : 24;
-        };
-
         struct mesh_draw_range
         {
             u32 vertexOffset;
@@ -102,14 +94,15 @@ namespace oblo::vk
             u32 meshletCount;
         };
 
+        // Global id containing instance table and instance index, this is the same id that we store in the visibility
+        // buffer and as instanceCustomIndex in the acceleration structures for ray-tracing.
         draw_instance_id_component make_global_instance_id(u32 instanceTableId, u32 instanceIndex)
         {
+            [[maybe_unused]] constexpr u32 totalBits = 24;
             constexpr u32 instanceIndexBits = 20;
             constexpr u32 mask = (1u << instanceIndexBits) - 1;
 
-            // We use 24 bits, because that is what the ray tracing pipeline allows for custom ids
-            // We reserve 4 for the instance table and 20 for the instance index
-            OBLO_ASSERT(instanceTableId < (1u << (24 - instanceIndexBits)));
+            OBLO_ASSERT(instanceTableId < (1u << (totalBits - instanceIndexBits)));
             OBLO_ASSERT(instanceIndex <= mask);
 
             return {(instanceIndex & mask) | (instanceTableId << instanceIndexBits)};
@@ -130,7 +123,7 @@ namespace oblo::vk
 
     struct draw_registry::instance_data_type_info
     {
-        std::string name;
+        string name;
         u32 gpuInstanceBufferId;
     };
 
@@ -292,7 +285,7 @@ namespace oblo::vk
 
     void draw_registry::register_instance_data(ecs::component_type type, string_view name)
     {
-        m_instanceDataTypeNames.emplace(type, name.as<std::string>());
+        m_instanceDataTypeNames.emplace(type, name.as<string>());
         m_instanceDataTypes.add(type);
         m_isInstanceTypeInfoDirty = true;
     }
@@ -949,7 +942,7 @@ namespace oblo::vk
 
                 instances.push_back({
                     .transform = vkTransform,
-                    .instanceCustomIndex = drawInstanceId.rtinstanceId,
+                    .instanceCustomIndex = drawInstanceId.rtInstanceId,
                     .mask = 0xff,
                     .instanceShaderBindingTableRecordOffset = 0,
                     .flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR,
@@ -1318,5 +1311,10 @@ namespace oblo::vk
         }
 
         log::debug("{}", stringBuffer);
+    }
+
+    ecs::entity_registry& draw_registry::get_entity_registry() const
+    {
+        return *m_entities;
     }
 }

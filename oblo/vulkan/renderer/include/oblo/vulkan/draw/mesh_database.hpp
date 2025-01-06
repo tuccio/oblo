@@ -2,6 +2,7 @@
 
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle.hpp>
+#include <oblo/vulkan/data/handles.hpp>
 
 #include <span>
 
@@ -17,16 +18,9 @@ namespace oblo::vk
 {
     struct buffer;
     struct buffer_column_description;
-    struct gpu_mesh;
 
     class gpu_allocator;
-    class mesh_table;
     class resource_manager;
-
-    // We use 24 bits for the mesh index, 8 bits for mesh tables
-    using mesh_handle = h32<gpu_mesh>;
-
-    using mesh_table_handle = h8<mesh_table>;
 
     struct mesh_attribute_description
     {

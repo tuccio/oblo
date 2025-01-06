@@ -86,7 +86,9 @@ namespace oblo
                 .add_enumerator("roughness", viewport_mode::roughness)
                 .add_enumerator("emissive", viewport_mode::emissive)
                 .add_enumerator("motion_vectors", viewport_mode::motion_vectors)
-                .add_enumerator("raytracing_debug", viewport_mode::raytracing_debug);
+                .add_enumerator("raytracing_debug", viewport_mode::raytracing_debug)
+                .add_enumerator("gi_surfels", viewport_mode::gi_surfels)
+                .add_enumerator("gi_surfels_tile_coverage", viewport_mode::gi_surfels_tile_coverage);
         }
     }
 

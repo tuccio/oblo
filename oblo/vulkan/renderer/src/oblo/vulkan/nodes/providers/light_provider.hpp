@@ -14,14 +14,10 @@ namespace oblo::vk
         resource<buffer> outLightData;
         resource<buffer> outLightConfig;
 
-        void init(const frame_graph_init_context& ctx)
-        {
-            // TODO: Make it pass_kind::none or transfer and let other nodes figure out barriers
-            ctx.set_pass_kind(pass_kind::graphics);
-        }
-
         void build(const frame_graph_build_context& ctx)
         {
+            ctx.begin_pass(pass_kind::none);
+
             const std::span lights = ctx.access(inOutLights);
             const u32 lightsCount = u32(lights.size());
 

@@ -80,5 +80,15 @@ namespace oblo::vk::debug_utils
         {
             set_object_name(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, uint64_t(descriptorSet), name);
         }
+
+        void set_object_name(VkDevice device, VkPipeline pieline, const char* name) const
+        {
+            set_object_name(device, VK_OBJECT_TYPE_PIPELINE, uint64_t(pieline), name);
+        }
+
+        void set_object_name(VkDevice device, VkPipelineLayout pipelineLayout, const char* name) const
+        {
+            set_object_name(device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, uint64_t(pipelineLayout), name);
+        }
     };
 }

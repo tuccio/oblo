@@ -85,7 +85,7 @@ namespace oblo
             const auto gen = (value & GenMask) >> GenOffset;
             const auto newGen = (gen + 1) << GenOffset;
 
-            return newGen | value;
+            return newGen | get_index(value);
         }
     }
 }

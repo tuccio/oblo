@@ -1,0 +1,32 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+
+#include <surfels/buffers/surfel_grid_w>
+#include <surfels/surfel_data>
+
+layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
+
+layout(push_constant) uniform c_PushConstants
+{
+    surfel_grid_header gridHeader;
+}
+g_Constants;
+
+void main()
+{
+    const ivec3 gridCellsCount = surfel_grid_cells_count(g_Constants.gridHeader);
+    const uint id = surfel_grid_cell_index(g_Constants.gridHeader, ivec3(gl_GlobalInvocationID));
+
+    if (id == 0)
+    {
+        g_SurfelGridHeader = g_Constants.gridHeader;
+    }
+
+    if (gl_GlobalInvocationID.x >= g_Constants.gridHeader.cellsCount.x)
+    {
+        return;
+    }
+
+    g_SurfelGridCells[id].nextSurfelId = SURFEL_ID_INVALID;
+}

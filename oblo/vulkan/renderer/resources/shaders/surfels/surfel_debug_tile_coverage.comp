@@ -1,0 +1,38 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+
+#include <renderer/debug/colors>
+#include <surfels/surfel_data>
+
+layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = OBLO_SUBGROUP_SIZE, local_size_z = 1) in;
+
+layout(push_constant) uniform c_PushConstants
+{
+    uvec2 resolution;
+}
+g_Constants;
+
+layout(binding = 12, rgba8) uniform restrict writeonly image2D t_OutImage;
+
+layout(std430, binding = 0) restrict readonly buffer b_InTileCoverage
+{
+    surfel_tile_data g_InTileCoverage[];
+};
+
+void main()
+{
+    const ivec2 screenPos = ivec2(gl_WorkGroupID.xy * gl_WorkGroupSize.xy + gl_LocalInvocationID.xy);
+
+    if (screenPos.x >= g_Constants.resolution.x || screenPos.y >= g_Constants.resolution.y)
+    {
+        return;
+    }
+
+    const uint tileIndex = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
+
+    const surfel_tile_data tile = g_InTileCoverage[tileIndex];
+    const float coverage = ecs_entity_is_valid(tile.spawnData.entity) ? tile.worstPixelCoverage : 0.f;
+
+    imageStore(t_OutImage, screenPos, vec4(debug_color_map(coverage), 1));
+}

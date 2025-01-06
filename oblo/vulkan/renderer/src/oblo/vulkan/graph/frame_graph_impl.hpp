@@ -19,6 +19,7 @@
 #include <iosfwd>
 #include <memory_resource>
 #include <unordered_map>
+#include <unordered_set>
 
 #include <vulkan/vulkan_core.h>
 
@@ -29,10 +30,18 @@ namespace oblo::vk
 
     using frame_graph_topology = directed_graph<frame_graph_vertex>;
 
+    enum class buffer_access_kind : u8
+    {
+        read,
+        write,
+    };
+
     struct frame_graph_buffer_usage
     {
+        h32<frame_graph_pin_storage> pinStorage;
         VkPipelineStageFlags2 stages;
         VkAccessFlags2 access;
+        buffer_access_kind accessKind;
         bool uploadedTo;
     };
 
@@ -48,9 +57,6 @@ namespace oblo::vk
         u32 alignment;
         bool initialized;
         bool markedForRemoval;
-        pass_kind passKind;
-
-        h32_flat_extpool_dense_map<frame_graph_pin_storage, frame_graph_buffer_usage> bufferUsages;
     };
 
     struct frame_graph_pin
@@ -71,6 +77,9 @@ namespace oblo::vk
         h32<transient_texture_resource> transientTexture;
 
         frame_graph_data_desc typeDesc;
+
+        // The handle of the pin that owns the storage
+        h32<frame_graph_pin> owner;
     };
 
     enum class frame_graph_vertex_state : u8
@@ -90,6 +99,12 @@ namespace oblo::vk
 #ifdef OBLO_DEBUG
         type_id debugTypeId;
 #endif
+    };
+
+    struct frame_graph_node_passes
+    {
+        u32 firstPass;
+        u32 passesCount;
     };
 
     struct frame_graph_texture_transition
@@ -164,13 +179,37 @@ namespace oblo::vk
 
     struct frame_graph_node_to_execute
     {
-        frame_graph_node* node;
         frame_graph_topology::vertex_handle handle;
+    };
+
+    struct frame_graph_pass
+    {
+        pass_kind kind;
+
+        u32 textureTransitionBegin;
+        u32 textureTransitionEnd;
+
+        u32 bufferUsageBegin;
+        u32 bufferUsageEnd;
+
+        u32 bufferBarriersBegin;
+        u32 bufferBarriersEnd;
+    };
+
+    struct frame_graph_passes_per_node
+    {
+        u32 passesBegin;
+        u32 passesEnd;
+    };
+
+    struct frame_graph_barriers
+    {
+        dynamic_array<VkBufferMemoryBarrier2> bufferBarriers;
+        dynamic_array<VkImageMemoryBarrier2> imageBarriers;
     };
 
     struct frame_graph_impl
     {
-
     public: // Topology
         frame_graph_topology graph;
         h32_flat_pool_dense_map<frame_graph_node> nodes;
@@ -187,23 +226,35 @@ namespace oblo::vk
         image_layout_tracker imageLayoutTracker;
 
         dynamic_array<frame_graph_node_to_execute> sortedNodes;
+
         h32_flat_pool_dense_map<frame_graph_texture> textures;
         h32_flat_pool_dense_map<frame_graph_buffer> buffers;
 
-        dynamic_array<frame_graph_node_transitions> nodeTransitions;
+        dynamic_array<frame_graph_node_passes> nodePasses;
         dynamic_array<frame_graph_texture_transition> textureTransitions;
+        dynamic_array<frame_graph_buffer_usage> bufferUsages;
         dynamic_array<frame_graph_texture> transientTextures;
         dynamic_array<frame_graph_buffer> transientBuffers;
         dynamic_array<frame_graph_pending_upload> pendingUploads;
+
+        deque<frame_graph_pass> passes;
+        dynamic_array<frame_graph_passes_per_node> passesPerNode;
 
         dynamic_array<h32<frame_graph_pin_storage>> dynamicPins;
         dynamic_array<frame_graph_bindless_texture> bindlessTextures;
 
         resource_pool resourcePool;
 
+        frame_graph_barriers* barriers{};
         frame_graph_node* currentNode{};
+        h32<frame_graph_pass> currentPass{};
 
         random_generator rng;
+
+        u32 frameCounter{};
+
+        // Used to send signals to the frame graph (e.g. reset an effect)
+        std::unordered_set<type_id> emptyEvents;
 
     public: // Internals for frame graph execution
         void mark_active_nodes();
@@ -222,13 +273,24 @@ namespace oblo::vk
 
         void add_transient_buffer(
             resource<buffer> handle, h32<transient_buffer_resource> transientBuffer, const staging_buffer_span* upload);
-        void set_buffer_access(
-            resource<buffer> handle, VkPipelineStageFlags2 pipelineStage, VkAccessFlags2 access, bool uploadedTo);
 
-        // This is called in assert by executors, to check that we declared the upload when building
-        bool can_exec_time_upload(resource<buffer> handle) const;
+        void set_buffer_access(resource<buffer> handle,
+            VkPipelineStageFlags2 pipelineStage,
+            VkAccessFlags2 access,
+            buffer_access_kind,
+            bool uploadedTo);
 
         h32<frame_graph_pin_storage> allocate_dynamic_resource_pin();
+
+        const frame_graph_node* get_owner_node(resource<buffer> buffer) const;
+
+        frame_graph_vertex add_transient_node(const type_id& nodeType);
+        void connect(frame_graph_vertex srcNode, u32 srcOffset, frame_graph_vertex dstNode, u32 dstOffset);
+
+        h32<frame_graph_pass> begin_pass_build(pass_kind passKind);
+        void end_pass_build();
+
+        void begin_pass_execution(h32<frame_graph_pass> pass, VkCommandBuffer commandBuffer);
 
     public: // Utility
         void free_pin_storage(const frame_graph_pin_storage& storage, bool isFrameAllocated);

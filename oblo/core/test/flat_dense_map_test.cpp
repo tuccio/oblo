@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <oblo/core/flat_dense_map.hpp>
+#include <oblo/core/handle_pool.hpp>
 
 namespace oblo
 {
@@ -35,5 +36,44 @@ namespace oblo
                 alreadyInserted[index] = false;
             }
         }
+    }
+
+    TEST(handle_pool, handle_pool_generation)
+    {
+        handle_pool<u32, 2> pool;
+
+        const auto a1 = pool.acquire();
+        const auto b = pool.acquire();
+
+        ASSERT_NE(a1, b);
+
+        pool.release(a1);
+        const auto a2 = pool.acquire();
+
+        ASSERT_NE(a2, a1);
+        ASSERT_NE(a2, b);
+
+        pool.release(a2);
+        const auto a3 = pool.acquire();
+
+        ASSERT_NE(a3, a1);
+        ASSERT_NE(a3, a2);
+        ASSERT_NE(a3, b);
+
+        pool.release(a3);
+        const auto a4 = pool.acquire();
+
+        ASSERT_NE(a4, a1);
+        ASSERT_NE(a4, a2);
+        ASSERT_NE(a4, a3);
+        ASSERT_NE(a4, b);
+
+        pool.release(a4);
+        const auto a5 = pool.acquire();
+
+        ASSERT_NE(a4, a2);
+        ASSERT_NE(a4, a3);
+        ASSERT_NE(a5, a4);
+        ASSERT_NE(a4, b);
     }
 }

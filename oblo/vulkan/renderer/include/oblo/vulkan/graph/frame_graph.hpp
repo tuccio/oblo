@@ -58,8 +58,15 @@ namespace oblo::vk
 
         void write_dot(std::ostream& os) const;
 
+        template <typename T>
+            requires std::is_empty_v<T>
+        void push_event(const T& e);
+
     private:
         void* try_get_input(h32<frame_graph_subgraph> graph, string_view name, const type_id& typeId);
+
+        void push_empty_event_impl(const type_id& type);
+        bool has_event_impl(const type_id& type) const;
 
     private:
         std::unique_ptr<frame_graph_impl> m_impl;
@@ -79,5 +86,12 @@ namespace oblo::vk
         }
 
         return unspecified_error;
+    }
+
+    template <typename T>
+        requires std::is_empty_v<T>
+    void frame_graph::push_event(const T&)
+    {
+        push_empty_event_impl(get_type_id<T>());
     }
 }

@@ -4,10 +4,14 @@
 
 #include <memory>
 
+namespace oblo::vk
+{
+    struct required_features;
+}
+
 namespace oblo
 {
     class runtime_registry;
-    struct vulkan_features;
 
     class runtime_module final : public module_interface
     {
@@ -28,6 +32,8 @@ namespace oblo
         RUNTIME_API void shutdown() override;
 
         RUNTIME_API runtime_registry create_runtime_registry() const;
+
+        RUNTIME_API vk::required_features get_required_renderer_features() const;
 
     private:
         struct impl;
