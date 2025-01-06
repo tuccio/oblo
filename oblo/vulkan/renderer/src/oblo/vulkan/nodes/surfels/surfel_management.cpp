@@ -2,6 +2,7 @@
 
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/random_generator.hpp>
+#include <oblo/core/string/string_builder.hpp>
 #include <oblo/math/vec4.hpp>
 #include <oblo/vulkan/data/camera_buffer.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
@@ -14,7 +15,7 @@ namespace oblo::vk
 {
     namespace
     {
-        constexpr u32 g_surfelMaxPerCell{31};
+        constexpr u32 g_tileSize{32};
 
         struct surfel_spawn_data
         {
@@ -71,6 +72,7 @@ namespace oblo::vk
 
             return c / f32(cameras.size());
         }
+
     }
 
     void surfel_initializer::init(const frame_graph_init_context& ctx)
@@ -212,21 +214,20 @@ namespace oblo::vk
         OBLO_ASSERT(reductionPass);
 
         const u32 subgroupSize = pm.get_subgroup_size();
-        tileSize = subgroupSize;
         reductionGroupSize = subgroupSize * subgroupSize;
     }
 
     void surfel_tiling::build(const frame_graph_build_context& ctx)
     {
-        bool reductionEnabled = true;
+        bool reductionEnabled = false;
 
         randomSeed = ctx.get_random_generator().generate();
 
         const auto resolution =
             ctx.get_current_initializer(inVisibilityBuffer).assert_value_or(image_initializer{}).extent;
 
-        const u32 tilesX = round_up_div(resolution.width, tileSize);
-        const u32 tilesY = round_up_div(resolution.height, tileSize);
+        const u32 tilesX = round_up_div(resolution.width, g_tileSize);
+        const u32 tilesY = round_up_div(resolution.height, g_tileSize);
         const u32 tilesCount = tilesX * tilesY;
 
         const u32 reductionPassesCount = reductionEnabled
@@ -309,6 +310,11 @@ namespace oblo::vk
     {
         auto& pm = ctx.get_pass_manager();
 
+        string_builder sb;
+        sb.format("TILE_SIZE {}", g_tileSize);
+
+        const hashed_string_view defines[] = {sb.as<hashed_string_view>()};
+
         binding_table bindingTable;
 
         const binding_table* bindingTables[] = {
@@ -317,18 +323,22 @@ namespace oblo::vk
 
         const auto commandBuffer = ctx.get_command_buffer();
 
-        const auto tilingPipeline = pm.get_or_create_pipeline(tilingPass, {});
+        const auto tilingPipeline = pm.get_or_create_pipeline(tilingPass,
+            {
+                .defines = {defines},
+            });
 
         const auto resolution = ctx.access(inVisibilityBuffer).initializer.extent;
 
-        const u32 tilesX = round_up_div(resolution.width, tileSize);
-        const u32 tilesY = round_up_div(resolution.height, tileSize);
+        const u32 tilesX = round_up_div(resolution.width, g_tileSize);
+        const u32 tilesY = round_up_div(resolution.height, g_tileSize);
 
         const auto tileOutputBuffer = subpasses.front().outBuffer;
         resource<buffer> previousBuffer{tileOutputBuffer};
 
         if (const auto tiling = pm.begin_compute_pass(commandBuffer, tilingPipeline))
         {
+
             ctx.bind_buffers(bindingTable,
                 {
                     {"b_InstanceTables", inInstanceTables},
@@ -476,12 +486,10 @@ namespace oblo::vk
 
                 struct push_constants
                 {
-                    u32 currentTimestamp;
                     u32 srcElements;
                 };
 
                 const push_constants constants{
-                    .currentTimestamp = ctx.get_current_frames_count(),
                     .srcElements = tileCoverage.elements,
                 };
 

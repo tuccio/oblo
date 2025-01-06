@@ -6,7 +6,7 @@ layout(location = 0) out vec4 out_Color;
 
 layout(location = 0) in vec3 in_SurfelPositionWS;
 
-#include <renderer/debug>
+#include <renderer/debug/colors>
 #include <surfels/buffers/surfel_grid_r>
 
 void main()

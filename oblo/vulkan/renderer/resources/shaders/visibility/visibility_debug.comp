@@ -10,7 +10,7 @@
 #extension GL_EXT_control_flow_attributes : enable
 
 #include <renderer/camera>
-#include <renderer/debug>
+#include <renderer/debug/colors>
 #include <renderer/geometry/volumes>
 #include <renderer/instances>
 #include <renderer/material>

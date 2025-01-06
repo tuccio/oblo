@@ -23,7 +23,8 @@ layout(std430, binding = 1) restrict writeonly buffer b_OutBuffer
     surfel_tile_data g_OutBuffer[];
 };
 
-shared surfel_tile_data g_GroupCandidates[OBLO_SUBGROUP_SIZE];
+const uint g_GroupSize = OBLO_SUBGROUP_SIZE * OBLO_SUBGROUP_SIZE;
+shared surfel_tile_data g_GroupCandidates[g_GroupSize];
 
 layout(push_constant) uniform c_PushConstants
 {
@@ -32,7 +33,6 @@ layout(push_constant) uniform c_PushConstants
 }
 g_Constants;
 
-const uint g_GroupSize = OBLO_SUBGROUP_SIZE * OBLO_SUBGROUP_SIZE;
 
 layout(local_size_x = g_GroupSize, local_size_y = 1, local_size_z = 1) in;
 

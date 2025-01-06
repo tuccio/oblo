@@ -11,6 +11,7 @@
 #extension GL_KHR_shader_subgroup_shuffle : require
 
 #include <ecs/entity_buffer>
+#include <renderer/debug/printf>
 #include <renderer/instances>
 #include <renderer/math>
 #include <renderer/meshes/mesh_attributes>
@@ -25,7 +26,7 @@
 #include <visibility/visibility_buffer>
 #include <visibility/visibility_utils>
 
-const uint g_TileSize = OBLO_SUBGROUP_SIZE;
+const uint g_TileSize = TILE_SIZE;
 
 layout(push_constant) uniform c_PushConstants
 {
@@ -56,8 +57,6 @@ uint count_pixels_with_fragments(in bool hasFragment)
 }
 
 shared surfel_tile_data g_GroupCandidates[OBLO_SUBGROUP_SIZE];
-
-// shared surfel_tile_data g_GroupCandidates[OBLO_SUBGROUP_SIZE];
 shared uint g_PixelsWithFragments[OBLO_SUBGROUP_SIZE];
 shared float g_WeightSums[OBLO_SUBGROUP_SIZE];
 
@@ -128,12 +127,15 @@ float surfel_weight(in surfel_data surfel, in vec3 positionWS)
 
     const float radius2 = surfel.radius * surfel.radius;
 
-    // If the vector from point to surfel has positive cosine, it means the point is behind the surfel and will not be
-    // affected by reflections from it
-    const float sideFactor = -dot(surfel.normalWS, pointToSurfel);
-    const float weightFactor = max(0.f, 32.f + radius2 - dot(pointToSurfel, pointToSurfel));
+    // // If the vector from point to surfel has positive cosine, it means the point is behind the surfel and will not
+    // be
+    // // affected by reflections from it
+    // const float sideFactor = dot(surfel.normalWS, pointToSurfel);
+    // const float weightFactor = radius2 - dot(pointToSurfel, pointToSurfel);
 
-    return max(sideFactor * weightFactor, 0.f);
+    // return sideFactor < 0.f && weightFactor > 0.f ? 1.f : 0.f;
+
+    return max(0.f, radius2 - dot(pointToSurfel, pointToSurfel));
 }
 
 void gather_coverage_from_grid(in vec3 positionWS, out float weightSum)
@@ -174,12 +176,10 @@ void gather_coverage_from_grid(in vec3 positionWS, out float weightSum)
 
 void main()
 {
-    const bool pixelEnabled = true;
-
     const ivec2 screenPos = ivec2(gl_WorkGroupID.xy * gl_WorkGroupSize.xy + gl_LocalInvocationID.xy);
     const uvec2 resolution = imageSize(t_InVisibilityBuffer);
 
-    const bool outOfScreenBounds = screenPos.x >= resolution.x || screenPos.y >= resolution.y;
+    const bool withinScreenBounds = screenPos.x < resolution.x && screenPos.y < resolution.y;
 
     // When nothing is in the visibility buffer, we will fall back to the skybox. These pixels should not really matter
     // for the coverage, for now we assign an arbitrary coverage though.
@@ -188,8 +188,7 @@ void main()
 
     surfel_spawn_data spawnData;
 
-    const bool hasGeometry =
-        !outOfScreenBounds && pixelEnabled && read_spawn_data(screenPos, resolution, spawnData, positionWS);
+    const bool hasGeometry = withinScreenBounds && read_spawn_data(screenPos, resolution, spawnData, positionWS);
 
     if (hasGeometry)
     {
@@ -198,6 +197,7 @@ void main()
     else
     {
         spawnData = surfel_spawn_data_invalid();
+        weightSum = NO_SURFELS_NEEDED;
     }
 
     const float selfSum = subgroupAdd(weightSum);
@@ -206,8 +206,8 @@ void main()
     memoryBarrierShared();
     barrier();
 
-    uint subgroupSeed = random_seed(g_Constants.randomSeed, gl_SubgroupID);
     uint workgroupSeed = random_seed(g_Constants.randomSeed, gl_WorkGroupID.y * gl_WorkGroupSize.x + gl_WorkGroupID.x);
+    uint subgroupSeed = random_seed(workgroupSeed, gl_SubgroupID);
 
     // First process within the subgroup
     {

@@ -36,11 +36,6 @@ g_Constants;
 
 void surfel_kill(in uint surfelId)
 {
-#if OBLO_DEBUG_PRINTF
-    debug_assert(surfel_spawn_data_is_alive(g_SurfelSpawnData[surfelId]));
-    debug_assert(surfel_data_is_alive(g_SurfelData[surfelId]));
-#endif
-
     // We invalidate surfel_data::radius to signal it's not alive
     // We invalidate it even if we don't kill it because it won't have an effect
     g_SurfelData[surfelId] = surfel_data_invalid();
