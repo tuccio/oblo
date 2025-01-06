@@ -20,7 +20,7 @@ namespace oblo::vk
         struct surfel_spawn_data
         {
             ecs::entity entity;
-            // TODO: We should handle the mesh changing on the entity (it may invalidate the meshlet id)
+            // TODO (#62): We should handle the mesh changing on the entity (it may invalidate the meshlet id)
             u32 packedMeshletAndTriangleId;
             f32 barycentricU;
             f32 barycentricV;
@@ -95,7 +95,6 @@ namespace oblo::vk
     {
         ctx.begin_pass(pass_kind::compute);
 
-        // TODO: When any of these changes we would need to somehow re-initialize all buffers
         const auto gridBounds = ctx.access(inGridBounds);
         const auto gridCellSize = ctx.access(inGridCellSize);
         const auto maxSurfels = ctx.access(inMaxSurfels);
@@ -149,6 +148,7 @@ namespace oblo::vk
         // Initialize the grid every frame, we fill it after updating/spawning
         auto& pm = ctx.get_pass_manager();
 
+        // Re-initialize when buffers changed (it might not be a perfect check, but probably good enough)
         stackInitialized = stackInitialized && ctx.get_frames_alive_count(outSurfelsSpawnData) != 0;
 
         // We only need to initialize the stack once, but we could also run this code to reset surfels
