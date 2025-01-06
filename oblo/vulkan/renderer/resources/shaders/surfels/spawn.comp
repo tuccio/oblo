@@ -2,7 +2,6 @@
 
 #extension GL_GOOGLE_include_directive : require
 
-#include <renderer/debug/printf>
 #include <surfels/buffers/surfel_data_w>
 #include <surfels/buffers/surfel_grid_r>
 #include <surfels/buffers/surfel_spawn_data_w>
@@ -31,43 +30,19 @@ void main()
         return;
     }
 
+    // We could consider a random threshold instead
+    const float spawnThreshold = NO_SURFELS_NEEDED;
+
     const surfel_tile_data tile = g_TileData[globalIndex];
 
-    if (ecs_entity_is_valid(tile.spawnData.entity))
+    if (ecs_entity_is_valid(tile.spawnData.entity) && tile.worstPixelCoverage < spawnThreshold)
     {
         uint newSurfelId;
         const bool allocated = surfel_stack_allocate(newSurfelId);
 
-#if OBLO_DEBUG_PRINTF
-        {
-            // printf_int("[SPAWN] Allocated, available: ", g_SurfelStackHeader.available);
-            // printf_int("[SPAWN] Entity: ", tile.spawnData.entity.id);
-            // printf_float("[SPAWN] Coverage: ", tile.coverage);
-
-            if (allocated)
-            {
-                // printf_int("[SPAWN] Spawn id: ", newSurfelId);
-                debugPrintfEXT("[SPAWN] Id: %d Entity: %d Coverage: %f [Triangle: %d %f %f]\n",
-                    newSurfelId,
-                    tile.spawnData.entity.id,
-                    tile.worstPixelCoverage,
-                    tile.spawnData.packedMeshletAndTriangleId,
-                    tile.spawnData.barycentricU,
-                    tile.spawnData.barycentricV);
-            }
-            // else
-            // {
-            //     printf_int("[SPAWN] Failed to allocate, available: ", g_SurfelStackHeader.available);
-            // }
-        }
-#endif
-
         if (allocated)
         {
-            g_SurfelData[newSurfelId].radius = 42.f; // Just to make them recognizable
-
             g_SurfelSpawnData[newSurfelId] = tile.spawnData;
-            debug_assert(surfel_spawn_data_is_alive(g_SurfelSpawnData[newSurfelId]));
         }
     }
 }

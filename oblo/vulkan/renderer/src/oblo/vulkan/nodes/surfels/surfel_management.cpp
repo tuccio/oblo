@@ -57,7 +57,6 @@ namespace oblo::vk
         {
             f32 averageTileCoverage;
             f32 worstPixelCoverage;
-            f32 _padding[2];
             surfel_spawn_data spawnData;
         };
 
@@ -145,6 +144,8 @@ namespace oblo::vk
 
         // Initialize the grid every frame, we fill it after updating/spawning
         auto& pm = ctx.get_pass_manager();
+
+        stackInitialized = stackInitialized && ctx.get_frames_alive_count(outSurfelsSpawnData) != 0;
 
         // We only need to initialize the stack once, but we could also run this code to reset surfels
         if (stackInitialized)

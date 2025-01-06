@@ -4,7 +4,6 @@
 #include <ecs/entity>
 #include <renderer/constants>
 
-const uint SURFEL_MAX_PER_CELL = 63;
 const uint SURFEL_ID_INVALID = -1;
 
 // Used as a coverage value for surfel_tile_data when no geometry is present
@@ -55,8 +54,6 @@ struct surfel_tile_data
 {
     float averageTileCoverage;
     float worstPixelCoverage;
-    bool _hasGeometry;
-    float _padding[1];
     surfel_spawn_data spawnData;
 };
 

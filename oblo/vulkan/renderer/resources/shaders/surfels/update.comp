@@ -7,7 +7,6 @@
 #extension GL_EXT_control_flow_attributes : require
 
 #include <ecs/entity_set>
-#include <renderer/debug/printf>
 #include <renderer/geometry/barycentric>
 #include <renderer/instances>
 #include <renderer/meshes/mesh_attributes>
@@ -38,11 +37,9 @@ g_Constants;
 void surfel_kill(in uint surfelId)
 {
 #if OBLO_DEBUG_PRINTF
-    debugPrintfEXT("[UPDATE] Killing surfel %d\n", surfelId);
-#endif
-
     debug_assert(surfel_spawn_data_is_alive(g_SurfelSpawnData[surfelId]));
     debug_assert(surfel_data_is_alive(g_SurfelData[surfelId]));
+#endif
 
     // We invalidate surfel_data::radius to signal it's not alive
     // We invalidate it even if we don't kill it because it won't have an effect
@@ -63,14 +60,6 @@ void main()
 {
     const uint surfelId = gl_GlobalInvocationID.x;
 
-#if OBLO_DEBUG_PRINTF
-    if (surfelId == 0)
-    {
-        debugPrintfEXT("[UPDATE] Alive surfels count: %d\n",
-            (g_Constants.maxSurfels) - (g_SurfelStackHeader.available));
-    }
-#endif
-
     if (surfelId >= g_Constants.maxSurfels)
     {
         return;
@@ -87,10 +76,6 @@ void main()
 
     if (!ecs_entity_set_try_find(surfel.entity, entitySetEntry))
     {
-#if OBLO_DEBUG_PRINTF
-        if (surfel.entity.id != 0)
-            debugPrintfEXT("[UPDATE] Entity not alive: %u\n", surfel.entity.id);
-#endif
         surfel_kill(surfelId);
         return;
     }
@@ -99,21 +84,6 @@ void main()
 
     visibility_buffer_parse_instance_ids(entitySetEntry.globalInstanceId, vb);
     visibility_buffer_parse_meshlet_ids(surfel.packedMeshletAndTriangleId, vb);
-
-    const bool isSpawned = g_SurfelData[surfelId].radius > 40;
-
-    // #if OBLO_DEBUG_PRINTF
-
-    //     if (isSpawned)
-    //     {
-    //         debugPrintfEXT("[UPDATE] Spawned %d on entity %d [gid: %d] [instance: %d %d]\n",
-    //             surfelId,
-    //             surfel.entity.id,
-    //             entitySetEntry.globalInstanceId,
-    //             vb.instanceTableId,
-    //             vb.instanceId);
-    //     }
-    // #endif
 
     const mesh_handle mesh = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MeshHandles, vb.instanceId);
     const transform transform = OBLO_INSTANCE_DATA(vb.instanceTableId, i_TransformBuffer, vb.instanceId);
@@ -170,33 +140,10 @@ void main()
     surfel_data updatedData;
     updatedData.positionWS = positionWS;
     updatedData.normalWS = normalWS;
-    updatedData.radius = 0.05 * sqrt(cameraDistance2);
+    updatedData.radius = 0.03 * sqrt(cameraDistance2);
     updatedData.nextSurfelId = SURFEL_ID_INVALID;
 
     surfel_commit_to_grid(updatedData, surfelId, cellIndex);
 
-#if OBLO_DEBUG_PRINTF
-    if (g_SurfelData[surfelId].radius > 40)
-    {
-        debugPrintfEXT("[UPDATE] Spawned %d on entity %d [instance: %d %d] at: [wsPos: %f %f %f] [cell: %d %d %d]\n",
-            surfelId,
-            surfel.entity.id,
-            vb.instanceTableId,
-            vb.instanceId,
-            positionWS.x,
-            positionWS.y,
-            positionWS.z,
-            cell.x,
-            cell.y,
-            cell.z);
-    }
-#endif
-
     g_SurfelData[surfelId] = updatedData;
-
-    // debugPrintfEXT("[UPDATE] Surfel %u alive: %u\n", surfelId, uint(surfel.alive));
-    // debugPrintfEXT("[UPDATE] Fill cell: %u\n", cell);
-    // debugPrintfEXT("[UPDATE] Current surfels in cell: %u\n", newIndex);
-
-    // debugPrintfEXT("Fill cell: [ %d %d %d ] (%u) with %u\n", cell.x, cell.y, cell.z, cellIndex, surfelId);
 }
