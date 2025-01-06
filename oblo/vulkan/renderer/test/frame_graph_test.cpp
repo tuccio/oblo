@@ -169,6 +169,15 @@ namespace oblo::vk::test
                 return module_manager::get().find<runtime_module>()->get_required_renderer_features().deviceExtensions;
             }
 
+            bool init()
+            {
+                // Load the runtime, which will be queried for required vulkan features
+                auto& mm = module_manager::get();
+                mm.load<oblo::runtime_module>();
+
+                return true;
+            }
+
             bool startup(const sandbox_startup_context& ctx)
             {
                 frameAllocator.init(1u << 26);
@@ -201,6 +210,7 @@ namespace oblo::vk::test
 
             void update_imgui(const sandbox_update_imgui_context&) {}
 
+            module_manager moduleManager;
             frame_allocator frameAllocator;
 
             renderer renderer;
