@@ -3,8 +3,9 @@
 
 #include <ecs/entity>
 
-const uint g_EcsEntityGenBits = 4;
-const uint g_EcsEntityGenMask = 1 << (32 - g_EcsEntityGenBits);
+const uint g_EcsEntityGenBits = 4u;
+const uint g_EcsEntityIndexBits = 32u - g_EcsEntityGenBits;
+const uint g_EcsEntityGenMask = ~0u << g_EcsEntityIndexBits;
 const uint g_EcsEntityIndexMask = ~g_EcsEntityGenMask;
 
 struct ecs_entity_set_entry
