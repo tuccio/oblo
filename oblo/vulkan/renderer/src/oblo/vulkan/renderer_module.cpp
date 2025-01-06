@@ -70,7 +70,7 @@ namespace oblo::vk
         };
 
         // Hardcoded for now, it should be an option
-        constexpr bool g_withRayTracing = false;
+        constexpr bool g_withRayTracing = true;
 
         renderer_module* g_instance = nullptr;
     }
