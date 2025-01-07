@@ -9,6 +9,9 @@ namespace oblo
     class random_generator
     {
     public:
+        using result_type = u32;
+
+    public:
         random_generator();
         random_generator(const random_generator&) = delete;
         random_generator(random_generator&&) noexcept;

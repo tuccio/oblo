@@ -228,7 +228,7 @@ namespace oblo
 
             if (rac)
             {
-                try_add_property(tree, newNodeIndex, get_type_id<usize>(), notable_properties::array_size, 0);
+                try_add_property(tree, newNodeIndex, get_type_id<usize>(), meta_properties::array_size, 0);
 
                 auto& n = tree.nodes.back();
                 n.isArray = true;
@@ -254,7 +254,7 @@ namespace oblo
 
                     tree.nodes.push_back({
                         .type = rac->valueType,
-                        .name = notable_properties::array_element,
+                        .name = meta_properties::array_element,
                         .parent = newNodeIndex,
                     });
 
@@ -262,7 +262,7 @@ namespace oblo
                 }
                 else
                 {
-                    try_add_property(tree, newNodeIndex, rac->valueType, notable_properties::array_element, 0);
+                    try_add_property(tree, newNodeIndex, rac->valueType, meta_properties::array_element, 0);
                 }
             }
             else

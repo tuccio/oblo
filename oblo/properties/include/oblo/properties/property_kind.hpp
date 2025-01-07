@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/pair.hpp>
 #include <oblo/core/types.hpp>
 
 namespace oblo
@@ -22,7 +23,7 @@ namespace oblo
         enum_max
     };
 
-    constexpr std::pair<usize, usize> get_size_and_alignment(property_kind propertyKind)
+    constexpr pair<usize, usize> get_size_and_alignment(property_kind propertyKind)
     {
         switch (propertyKind)
         {
