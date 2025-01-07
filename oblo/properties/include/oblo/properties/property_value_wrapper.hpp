@@ -43,6 +43,8 @@ namespace oblo
             return m_kind;
         }
 
+        std::span<const byte> get_bytes() const noexcept;
+
         u8 get_u8() const noexcept
         {
             OBLO_ASSERT(m_kind == property_kind::u8);
@@ -143,6 +145,7 @@ namespace oblo
             f64 m_f64;
             uuid m_uuid;
             string_view m_str;
+            byte m_bytes[16];
         };
     };
 }

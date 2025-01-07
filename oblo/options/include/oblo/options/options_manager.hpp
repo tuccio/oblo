@@ -10,12 +10,14 @@
 
 namespace oblo
 {
+    class data_document;
     struct options_layer;
     struct option;
 
     struct option_descriptor
     {
         property_kind kind;
+        uuid id;
         string_view name;
         string_view category;
         property_value_wrapper defaultValue;
@@ -45,13 +47,14 @@ namespace oblo
         h32<options_layer> find_layer(uuid id) const;
 
         h32<option> register_option(const option_descriptor& desc);
+        h32<option> find_option(uuid id) const;
 
         expected<> set_option_value(h32<options_layer> layer, h32<option> option, property_value_wrapper value);
         expected<property_value_wrapper> get_option_value(h32<options_layer> layer, h32<option> option) const;
         expected<> clear_option_value(h32<options_layer> layer, h32<option> option);
 
-        expected<> save_layer_to_json(h32<options_layer> layer, string_view path) const;
-        expected<> load_layer_from_json(h32<options_layer> layer, string_view path);
+        void store_layer(data_document& doc, u32 root, h32<options_layer> layer) const;
+        void load_layer(const data_document& doc, u32 root, h32<options_layer> layer);
 
     private:
         struct impl;
