@@ -142,14 +142,15 @@ namespace oblo::vk
 
     void surfel_initializer::execute(const frame_graph_execute_context& ctx)
     {
-        OBLO_ASSERT(ctx.get_frames_alive_count(outSurfelsStack) == ctx.get_frames_alive_count(outSurfelsSpawnData));
-        OBLO_ASSERT(ctx.get_frames_alive_count(outSurfelsStack) == ctx.get_frames_alive_count(outSurfelsGrid));
+        const bool mustReinitialize =
+            (ctx.get_frames_alive_count(outSurfelsStack) != ctx.get_frames_alive_count(outSurfelsSpawnData) ||
+                ctx.get_frames_alive_count(outSurfelsStack) != ctx.get_frames_alive_count(outSurfelsGrid));
 
         // Initialize the grid every frame, we fill it after updating/spawning
         auto& pm = ctx.get_pass_manager();
 
         // Re-initialize when buffers changed (it might not be a perfect check, but probably good enough)
-        stackInitialized = stackInitialized && ctx.get_frames_alive_count(outSurfelsSpawnData) != 0;
+        stackInitialized = stackInitialized || mustReinitialize;
 
         // We only need to initialize the stack once, but we could also run this code to reset surfels
         if (stackInitialized)

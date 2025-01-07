@@ -134,7 +134,16 @@ namespace oblo
 
     std::span<const byte> property_value_wrapper::get_bytes() const noexcept
     {
-        const auto size = get_size_and_alignment(m_kind).first;
-        return {std::launder(m_bytes), size};
+        return {data(), size()};
+    }
+
+    const byte* property_value_wrapper::data() const noexcept
+    {
+        return std::launder(m_bytes);
+    }
+
+    usize property_value_wrapper::size() const noexcept
+    {
+        return get_size_and_alignment(m_kind).first;
     }
 }

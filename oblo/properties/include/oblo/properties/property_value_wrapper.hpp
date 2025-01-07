@@ -13,37 +13,40 @@ namespace oblo
     class property_value_wrapper
     {
     public:
-        property_value_wrapper() : m_kind{property_kind::enum_max} {}
+        constexpr property_value_wrapper() : m_kind{property_kind::enum_max} {}
 
-        property_value_wrapper(const property_value_wrapper&) = default;
-        property_value_wrapper(property_value_wrapper&&) noexcept = default;
+        constexpr property_value_wrapper(const property_value_wrapper&) = default;
+        constexpr property_value_wrapper(property_value_wrapper&&) noexcept = default;
 
-        property_value_wrapper& operator=(const property_value_wrapper&) = default;
-        property_value_wrapper& operator=(property_value_wrapper&&) noexcept = default;
+        constexpr property_value_wrapper& operator=(const property_value_wrapper&) = default;
+        constexpr property_value_wrapper& operator=(property_value_wrapper&&) noexcept = default;
 
-        explicit property_value_wrapper(bool value) : m_kind{property_kind::boolean}, m_bool{value} {}
-        explicit property_value_wrapper(u8 value) : m_kind{property_kind::u8}, m_u8{value} {}
-        explicit property_value_wrapper(u16 value) : m_kind{property_kind::u16}, m_u16{value} {}
-        explicit property_value_wrapper(u32 value) : m_kind{property_kind::u32}, m_u32{value} {}
-        explicit property_value_wrapper(u64 value) : m_kind{property_kind::u64}, m_u64{value} {}
-        explicit property_value_wrapper(i8 value) : m_kind{property_kind::i8}, m_i8{value} {}
-        explicit property_value_wrapper(i16 value) : m_kind{property_kind::i16}, m_i16{value} {}
-        explicit property_value_wrapper(i32 value) : m_kind{property_kind::i32}, m_i32{value} {}
-        explicit property_value_wrapper(i64 value) : m_kind{property_kind::i64}, m_i64{value} {}
-        explicit property_value_wrapper(f32 value) : m_kind{property_kind::f32}, m_f32{value} {}
-        explicit property_value_wrapper(f64 value) : m_kind{property_kind::f64}, m_f64{value} {}
-        explicit property_value_wrapper(uuid value) : m_kind{property_kind::uuid}, m_uuid{value} {}
-        explicit property_value_wrapper(string_view value) : m_kind{property_kind::string}, m_str{value} {}
+        constexpr explicit property_value_wrapper(bool value) : m_kind{property_kind::boolean}, m_bool{value} {}
+        constexpr explicit property_value_wrapper(u8 value) : m_kind{property_kind::u8}, m_u8{value} {}
+        constexpr explicit property_value_wrapper(u16 value) : m_kind{property_kind::u16}, m_u16{value} {}
+        constexpr explicit property_value_wrapper(u32 value) : m_kind{property_kind::u32}, m_u32{value} {}
+        constexpr explicit property_value_wrapper(u64 value) : m_kind{property_kind::u64}, m_u64{value} {}
+        constexpr explicit property_value_wrapper(i8 value) : m_kind{property_kind::i8}, m_i8{value} {}
+        constexpr explicit property_value_wrapper(i16 value) : m_kind{property_kind::i16}, m_i16{value} {}
+        constexpr explicit property_value_wrapper(i32 value) : m_kind{property_kind::i32}, m_i32{value} {}
+        constexpr explicit property_value_wrapper(i64 value) : m_kind{property_kind::i64}, m_i64{value} {}
+        constexpr explicit property_value_wrapper(f32 value) : m_kind{property_kind::f32}, m_f32{value} {}
+        constexpr explicit property_value_wrapper(f64 value) : m_kind{property_kind::f64}, m_f64{value} {}
+        constexpr explicit property_value_wrapper(uuid value) : m_kind{property_kind::uuid}, m_uuid{value} {}
+        constexpr explicit property_value_wrapper(string_view value) : m_kind{property_kind::string}, m_str{value} {}
 
         bool assign_to(property_kind k, void* dst) const;
         bool assign_from(property_kind k, const void* src);
 
-        property_kind get_kind() const noexcept
+        constexpr property_kind get_kind() const noexcept
         {
             return m_kind;
         }
 
         std::span<const byte> get_bytes() const noexcept;
+
+        const byte* data() const noexcept;
+        usize size() const noexcept;
 
         u8 get_u8() const noexcept
         {
@@ -123,7 +126,28 @@ namespace oblo
             return m_bool;
         }
 
-        explicit operator bool() const noexcept
+        template <typename T>
+        T get() const noexcept;
+
+        template <>
+        bool get<bool>() const noexcept
+        {
+            return get_bool();
+        }
+
+        template <>
+        u32 get<u32>() const noexcept
+        {
+            return get_u32();
+        }
+
+        template <>
+        f32 get<f32>() const noexcept
+        {
+            return get_f32();
+        }
+
+        constexpr explicit operator bool() const noexcept
         {
             return m_kind != property_kind::enum_max;
         }

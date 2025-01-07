@@ -11,6 +11,8 @@
 #include <oblo/graphics/components/light_component.hpp>
 #include <oblo/graphics/systems/scene_renderer.hpp>
 #include <oblo/math/quaternion.hpp>
+#include <oblo/modules/module_manager.hpp>
+#include <oblo/options/options_module.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/scene/components/tags.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
@@ -38,6 +40,15 @@ namespace oblo
     {
         m_sceneRenderer = ctx.services->find<scene_renderer>();
         OBLO_ASSERT(m_sceneRenderer);
+
+        auto* optionsModule = module_manager::get().find<options_module>();
+        OBLO_ASSERT(optionsModule);
+
+        m_optionsManager = &optionsModule->manager();
+
+        m_options.init<&graphics_options::isRayTracingEnabled,
+            &graphics_options::maxSurfels,
+            &graphics_options::gridCellSize>(*m_optionsManager);
 
         m_sceneRenderer->ensure_setup();
 
@@ -67,6 +78,9 @@ namespace oblo
 
     void lighting_system::update(const ecs::system_update_context& ctx)
     {
+        m_options.read(*m_optionsManager);
+        m_sceneRenderer->setup_surfels_gi(m_options.maxSurfels, m_options.gridCellSize);
+
         const auto lightsRange = ctx.entities->range<light_component, global_transform_component>();
 
         const u32 lightsCount = lightsRange.count();

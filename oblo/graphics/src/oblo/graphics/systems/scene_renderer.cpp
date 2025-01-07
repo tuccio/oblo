@@ -113,6 +113,12 @@ namespace oblo
         m_frameGraph.set_input(m_sceneDataProvider, vk::scene_data::InLights, lights.data).assert_value();
     }
 
+    void scene_renderer::setup_surfels_gi(u32 maxSurfels, f32 gridCellsSize)
+    {
+        m_frameGraph.set_input(m_surfelsGI, vk::surfels_gi::InMaxSurfels, maxSurfels).assert_value();
+        m_frameGraph.set_input(m_surfelsGI, vk::surfels_gi::InGridCellSize, gridCellsSize).assert_value();
+    }
+
     void scene_renderer::add_scene_view(h32<vk::frame_graph_subgraph> subgraph)
     {
         m_sceneViews.emplace(subgraph);

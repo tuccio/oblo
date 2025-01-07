@@ -40,6 +40,7 @@ namespace oblo
         void ensure_setup();
 
         void setup_lights(const scene_lights& lights);
+        void setup_surfels_gi(u32 maxSurfels, f32 gridCellsSize);
 
         void add_scene_view(h32<vk::frame_graph_subgraph> subgraph);
         void remove_scene_view(h32<vk::frame_graph_subgraph> subgraph);

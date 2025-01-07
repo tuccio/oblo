@@ -3,8 +3,11 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/core/deque.hpp>
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/iterator/handle_range.hpp>
 #include <oblo/core/iterator/iterator_range.hpp>
+#include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string.hpp>
+#include <oblo/options/option_traits.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
 
 #include <unordered_map>
@@ -31,6 +34,8 @@ namespace oblo
             uuid id;
             string name;
             string category;
+            property_value_wrapper minValue;
+            property_value_wrapper maxValue;
         };
 
         static constexpr h32<options_layer> g_defaultValuesLayer = h32<options_layer>{1u};
@@ -87,6 +92,11 @@ namespace oblo
         return g_defaultValuesLayer;
     }
 
+    h32<options_layer> options_manager::get_highest_layer() const
+    {
+        return h32<options_layer>{narrow_cast<u32>(m_impl->layers.size() - 1)};
+    }
+
     h32<options_layer> options_manager::find_layer(uuid id) const
     {
         h32<options_layer> h{};
@@ -102,6 +112,11 @@ namespace oblo
         }
 
         return h32<options_layer>{};
+    }
+
+    handle_range<h32<option>> options_manager::get_options_range() const
+    {
+        return handle_range{h32<option>{1u}, h32<option>{narrow_cast<u32>(m_impl->options.size())}};
     }
 
     h32<option> options_manager::register_option(const option_descriptor& desc)
@@ -143,6 +158,8 @@ namespace oblo
         opt.id = desc.id;
         opt.name = desc.name;
         opt.category = desc.category;
+        opt.minValue = desc.minValue;
+        opt.maxValue = desc.maxValue;
         opt.layerValueBeginIdx = narrow_cast<u32>(m_impl->values.size());
         opt.layerValueEndIdx = narrow_cast<u32>(opt.layerValueBeginIdx + numLayers);
 
@@ -164,6 +181,28 @@ namespace oblo
         }
 
         return it->second;
+    }
+
+    uuid options_manager::get_option_uuid(h32<option> option) const
+    {
+        return m_impl->options[option.value].id;
+    }
+
+    cstring_view options_manager::get_option_name(h32<option> option) const
+    {
+        return m_impl->options[option.value].name;
+    }
+
+    cstring_view options_manager::get_option_category(h32<option> option) const
+    {
+        return m_impl->options[option.value].category;
+    }
+
+    pair<property_value_wrapper, property_value_wrapper> options_manager::get_option_value_ranges(
+        h32<option> option) const
+    {
+        auto& opt = m_impl->options[option.value];
+        return {opt.minValue, opt.maxValue};
     }
 
     expected<> options_manager::set_option_value(
@@ -228,6 +267,11 @@ namespace oblo
         }
 
         return m_impl->values[opt.layerValueBeginIdx].value;
+    }
+
+    expected<property_value_wrapper> options_manager::get_option_value(h32<option> option) const
+    {
+        return get_option_value(get_highest_layer(), option);
     }
 
     expected<> options_manager::clear_option_value(h32<options_layer> layer, h32<option> option)

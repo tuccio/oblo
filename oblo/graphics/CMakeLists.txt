@@ -7,6 +7,7 @@ target_link_libraries(
     oblo::resource
     PRIVATE
     oblo::ecs
+    oblo::options
     oblo::scene
     oblo::reflection
     oblo::vk

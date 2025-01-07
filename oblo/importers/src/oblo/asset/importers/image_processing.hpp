@@ -79,14 +79,16 @@ namespace oblo::importers::image_processing
         image_view() = default;
         image_view(const image_view&) = default;
 
-        explicit image_view(std::span<byte_type> data, u32 width, u32 height) : m_width{width}, m_height{height}
+        explicit image_view(std::span<byte_type> data, u32 width, u32 height, u32 rowPacking = Components) :
+            m_width{width}, m_height{height}
         {
             OBLO_ASSERT(data.size() % (sizeof(T) * Components) == 0);
             OBLO_ASSERT(uintptr(data.data()) % alignof(T) == 0);
 
             m_view = std::span{reinterpret_cast<T*>(data.data()), data.size() / sizeof(T)};
 
-            m_rowPitch = round_up_multiple(width * Components, 4u);
+            m_rowPitch = round_up_multiple(width * Components, rowPacking);
+            OBLO_ASSERT(data.size() >= height * m_rowPitch);
         }
 
         image_view& operator=(const image_view&) = default;

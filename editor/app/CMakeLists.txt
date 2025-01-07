@@ -11,6 +11,7 @@ target_link_libraries(
     oblo::importers
     oblo::log
     oblo::modules
+    oblo::options
     oblo::sandbox
     oblo::scene
     oblo::thread

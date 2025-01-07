@@ -7,12 +7,14 @@
 #include <oblo/graphics/components/light_component.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
+#include <oblo/graphics/systems/graphics_options.hpp>
 #include <oblo/graphics/systems/lighting_system.hpp>
 #include <oblo/graphics/systems/scene_renderer.hpp>
 #include <oblo/graphics/systems/static_mesh_system.hpp>
 #include <oblo/graphics/systems/viewport_system.hpp>
 #include <oblo/math/color.hpp>
 #include <oblo/modules/module_initializer.hpp>
+#include <oblo/options/options_module.hpp>
 #include <oblo/reflection/registration/module_registration.hpp>
 #include <oblo/scene/systems/barriers.hpp>
 #include <oblo/vulkan/renderer.hpp>
@@ -120,6 +122,12 @@ namespace oblo
                     .before<barriers::renderer_update>();
             },
         });
+
+        auto* const options = module_manager::get().load<options_module>();
+
+        options->manager().register_option(option_traits<&graphics_options::isRayTracingEnabled>::descriptor);
+        options->manager().register_option(option_traits<&graphics_options::maxSurfels>::descriptor);
+        options->manager().register_option(option_traits<&graphics_options::gridCellSize>::descriptor);
 
         return true;
     }

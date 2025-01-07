@@ -1,0 +1,113 @@
+#include <oblo/editor/windows/options_editor.hpp>
+
+#include <oblo/core/formatters/uuid_formatter.hpp>
+#include <oblo/core/iterator/handle_range.hpp>
+#include <oblo/core/string/cstring_view.hpp>
+#include <oblo/core/string/string_builder.hpp>
+#include <oblo/editor/service_context.hpp>
+#include <oblo/editor/window_update_context.hpp>
+#include <oblo/options/options_manager.hpp>
+
+#include <imgui.h>
+
+namespace oblo::editor
+{
+    void options_editor::init(const window_update_context& ctx)
+    {
+        m_options = ctx.services.find<options_manager>();
+        OBLO_ASSERT(m_options);
+    }
+
+    bool options_editor::update(const window_update_context&)
+    {
+        if (ImGui::Begin("Options"))
+        {
+            string_builder sb;
+
+            auto editorLayer = m_options->get_highest_layer();
+
+            if (ImGui::BeginTable("#table",
+                    2,
+                    ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_ScrollY))
+            {
+                ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_None);
+                ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+
+                for (const auto option : m_options->get_options_range())
+                {
+
+                    const auto value = m_options->get_option_value(option);
+
+                    if (value)
+                    {
+                        const cstring_view name = m_options->get_option_name(option);
+
+                        ImGui::TableNextRow();
+
+                        ImGui::TableSetColumnIndex(0);
+
+                        ImGui::AlignTextToFramePadding();
+                        ImGui::TextUnformatted(name.begin(), name.end());
+
+                        ImGui::TableSetColumnIndex(1);
+
+                        sb.format("##{}", m_options->get_option_uuid(option));
+
+                        switch (value->get_kind())
+                        {
+                        case property_kind::boolean:
+                            if (auto v = value->get_bool(); ImGui::Checkbox(sb.c_str(), &v))
+                            {
+                                m_options->set_option_value(editorLayer, option, property_value_wrapper{v})
+                                    .assert_value();
+                            }
+
+                            break;
+
+                        case property_kind::u32: {
+                            const auto [min, max] = m_options->get_option_value_ranges(option);
+
+                            auto* const minPtr = min.get_kind() == property_kind::u32 ? min.data() : nullptr;
+                            auto* const maxPtr = max.get_kind() == property_kind::u32 ? max.data() : nullptr;
+
+                            if (auto v = value->get_u32();
+                                ImGui::DragScalar(sb.c_str(), ImGuiDataType_U32, &v, 1.f, minPtr, maxPtr))
+                            {
+                                m_options->set_option_value(editorLayer, option, property_value_wrapper{v})
+                                    .assert_value();
+                            }
+                        }
+
+                        break;
+
+                        case property_kind::f32: {
+                            const auto [min, max] = m_options->get_option_value_ranges(option);
+
+                            auto* const minPtr = min.get_kind() == property_kind::f32 ? min.data() : nullptr;
+                            auto* const maxPtr = max.get_kind() == property_kind::f32 ? max.data() : nullptr;
+
+                            if (auto v = value->get_f32();
+                                ImGui::DragScalar(sb.c_str(), ImGuiDataType_Float, &v, 1.f, minPtr, maxPtr))
+                            {
+                                m_options->set_option_value(editorLayer, option, property_value_wrapper{v})
+                                    .assert_value();
+                            }
+                        }
+
+                        break;
+
+                        default:
+                            break;
+                        }
+                    }
+                }
+
+                ImGui::EndTable();
+            }
+        }
+
+        ImGui::End();
+
+        return true;
+    }
+}

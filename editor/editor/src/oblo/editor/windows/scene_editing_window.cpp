@@ -6,6 +6,7 @@
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/editor/windows/command_palette_window.hpp>
 #include <oblo/editor/windows/demo_window.hpp>
+#include <oblo/editor/windows/options_editor.hpp>
 #include <oblo/editor/windows/style_window.hpp>
 #include <oblo/editor/windows/viewport.hpp>
 #include <oblo/vulkan/events/gi_reset_event.hpp>
@@ -76,6 +77,11 @@ namespace oblo::editor
                 if (ImGui::MenuItem("Viewport"))
                 {
                     ctx.windowManager.create_child_window<viewport>(ctx.windowHandle);
+                }
+
+                if (ImGui::MenuItem("Options"))
+                {
+                    ctx.windowManager.create_child_window<options_editor>(ctx.windowHandle);
                 }
 
                 ImGui::EndMenu();

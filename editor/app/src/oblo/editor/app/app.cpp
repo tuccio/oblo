@@ -28,6 +28,7 @@
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_manager.hpp>
+#include <oblo/options/options_module.hpp>
 #include <oblo/reflection/reflection_module.hpp>
 #include <oblo/resource/registration.hpp>
 #include <oblo/resource/resource_registry.hpp>
@@ -124,8 +125,16 @@ namespace oblo::editor
 
         m_jobManager.init();
 
-        // Load the runtime, which will be queried for required vulkan features
         auto& mm = module_manager::get();
+
+        // Load the options early for now, so we can initialize it
+        // We could consider inverting the dependency or having 2-phase startup more standardized
+        auto* const options = mm.load<options_module>();
+
+        const options_layer_descriptor optionLayers[] = {{.id = "dc217469-e387-48cf-ad5a-7b6cd4a8b1fc"_uuid}};
+        options->manager().init(optionLayers);
+
+        // Load the runtime, which will be queried for required vulkan features
         mm.load<oblo::runtime_module>();
 
         return true;
@@ -137,6 +146,7 @@ namespace oblo::editor
 
         auto& mm = module_manager::get();
 
+        auto* const options = mm.load<options_module>();
         auto* const runtime = mm.load<oblo::runtime_module>();
         auto* const reflection = mm.load<oblo::reflection::reflection_module>();
         mm.load<importers::importers_module>();
@@ -189,6 +199,7 @@ namespace oblo::editor
             globalRegistry.add<component_factory>().unique();
             globalRegistry.add<const time_stats>().externally_owned(&m_timeStats);
             globalRegistry.add<const log_queue>().externally_owned(m_logQueue);
+            globalRegistry.add<options_manager>().externally_owned(&options->manager());
 
             auto* const registeredCommands = globalRegistry.add<registered_commands>().unique();
             fill_commands(*registeredCommands);

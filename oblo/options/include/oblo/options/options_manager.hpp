@@ -10,18 +10,14 @@
 
 namespace oblo
 {
+    template <typename>
+    class handle_range;
+
+    class cstring_view;
     class data_document;
     struct options_layer;
     struct option;
-
-    struct option_descriptor
-    {
-        property_kind kind;
-        uuid id;
-        string_view name;
-        string_view category;
-        property_value_wrapper defaultValue;
-    };
+    struct option_descriptor;
 
     struct options_layer_descriptor
     {
@@ -43,14 +39,24 @@ namespace oblo
         void shutdown();
 
         h32<options_layer> get_default_layer() const;
+        h32<options_layer> get_highest_layer() const;
 
         h32<options_layer> find_layer(uuid id) const;
 
+        handle_range<h32<option>> get_options_range() const;
         h32<option> register_option(const option_descriptor& desc);
         h32<option> find_option(uuid id) const;
 
+        uuid get_option_uuid(h32<option> option) const;
+        cstring_view get_option_name(h32<option> option) const;
+        cstring_view get_option_category(h32<option> option) const;
+        pair<property_value_wrapper, property_value_wrapper> get_option_value_ranges(h32<option> option) const;
+
         expected<> set_option_value(h32<options_layer> layer, h32<option> option, property_value_wrapper value);
+
         expected<property_value_wrapper> get_option_value(h32<options_layer> layer, h32<option> option) const;
+        expected<property_value_wrapper> get_option_value(h32<option> option) const;
+
         expected<> clear_option_value(h32<options_layer> layer, h32<option> option);
 
         void store_layer(data_document& doc, u32 root, h32<options_layer> layer) const;
