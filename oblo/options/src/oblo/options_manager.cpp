@@ -30,6 +30,7 @@ namespace oblo
             u32 layerValueEndIdx;
             uuid id;
             string name;
+            string category;
         };
 
         static constexpr h32<options_layer> g_defaultValuesLayer = h32<options_layer>{1u};
@@ -140,6 +141,8 @@ namespace oblo
 
         opt.kind = desc.kind;
         opt.id = desc.id;
+        opt.name = desc.name;
+        opt.category = desc.category;
         opt.layerValueBeginIdx = narrow_cast<u32>(m_impl->values.size());
         opt.layerValueEndIdx = narrow_cast<u32>(opt.layerValueBeginIdx + numLayers);
 

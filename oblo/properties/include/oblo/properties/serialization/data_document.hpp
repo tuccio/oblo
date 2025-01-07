@@ -11,8 +11,11 @@
 
 namespace oblo
 {
-    class property_registry;
     enum class property_kind : u8;
+
+    class property_registry;
+    class property_value_wrapper;
+    struct uuid;
 
     struct data_node;
     struct data_string;
@@ -43,6 +46,7 @@ namespace oblo
         u32 get_root() const;
 
         u32 child_object(u32 parent, hashed_string_view key);
+        void child_value(u32 parent, hashed_string_view key, const property_value_wrapper& w);
         void child_value(u32 parent, hashed_string_view key, property_kind kind, std::span<const byte> data);
         u32 child_next(u32 objectOrArray, u32 previous) const;
         u32 children_count(u32 objectOrArray) const;
@@ -64,6 +68,7 @@ namespace oblo
 
         expected<f32, error> read_f32(u32 node) const;
         expected<u32, error> read_u32(u32 node) const;
+        expected<uuid, error> read_uuid(u32 node) const;
 
     private:
         struct data_chunk;
