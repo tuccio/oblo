@@ -181,9 +181,9 @@ namespace oblo::editor
             return true;
         }
 
-        void shutdown() {}
+        void shutdown() override {}
 
-        void finalize()
+        void finalize() override
         {
             m_editorOptions.init();
             m_editorOptions.load();

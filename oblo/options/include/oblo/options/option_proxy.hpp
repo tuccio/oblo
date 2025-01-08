@@ -46,7 +46,7 @@ namespace oblo
                 T{});
             })>;
 
-            services.add<lambda_provider>().as<options_provider>().unique();
+            services.add<lambda_provider>().template as<options_provider>().unique();
         }
 
         void init(const options_manager& manager)
