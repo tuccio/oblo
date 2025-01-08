@@ -6,10 +6,10 @@
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/formatters/uuid_formatter.hpp>
-#include <oblo/log/log.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/core/uuid_generator.hpp>
+#include <oblo/log/log.hpp>
 
 #include <nlohmann/json.hpp>
 
@@ -51,8 +51,7 @@ namespace oblo
 
     importer::importer(
         importer_config config, const type_id& importerType, std::unique_ptr<file_importer> fileImporter) :
-        m_config{std::move(config)},
-        m_importer{std::move(fileImporter)}, m_importerType{importerType}
+        m_config{std::move(config)}, m_importer{std::move(fileImporter)}, m_importerType{importerType}
     {
     }
 

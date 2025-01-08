@@ -1,6 +1,7 @@
 #include <oblo/smoke/framework/test_fixture.hpp>
 
 #include <oblo/asset/asset_registry.hpp>
+#include <oblo/asset/importers/importers_module.hpp>
 #include <oblo/asset/registration.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/platform/shared_library.hpp>
@@ -13,6 +14,7 @@
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_manager.hpp>
+#include <oblo/options/options_module.hpp>
 #include <oblo/reflection/reflection_module.hpp>
 #include <oblo/renderdoc/renderdoc_module.hpp>
 #include <oblo/resource/registration.hpp>
@@ -23,6 +25,7 @@
 #include <oblo/sandbox/sandbox_app.hpp>
 #include <oblo/scene/components/position_component.hpp>
 #include <oblo/scene/components/rotation_component.hpp>
+#include <oblo/scene/scene_module.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
 #include <oblo/smoke/framework/test.hpp>
 #include <oblo/smoke/framework/test_context.hpp>
@@ -80,9 +83,15 @@ namespace oblo::smoke
 
             bool init()
             {
-                // Load the runtime, which will be queried for required vulkan features
                 auto& mm = module_manager::get();
-                mm.load<oblo::runtime_module>();
+
+                mm.load<options_module>();
+                mm.load<runtime_module>();
+                mm.load<reflection::reflection_module>();
+                mm.load<scene_module>();
+                mm.load<importers::importers_module>();
+
+                mm.finalize();
 
                 return true;
             }
@@ -98,8 +107,8 @@ namespace oblo::smoke
 
                 auto& mm = module_manager::get();
 
-                auto* const runtimeModule = mm.load<runtime_module>();
-                auto* const reflectionModule = mm.load<reflection::reflection_module>();
+                auto* const runtimeModule = mm.find<runtime_module>();
+                auto* const reflectionModule = mm.find<reflection::reflection_module>();
 
                 runtimeRegistry = runtimeModule->create_runtime_registry();
 
@@ -234,6 +243,7 @@ namespace oblo::smoke
 
     struct test_fixture::impl
     {
+        oblo::module_manager moduleManager;
         vk::sandbox_app<test_app> app;
 
         ~impl()

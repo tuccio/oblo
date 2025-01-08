@@ -86,9 +86,9 @@ namespace oblo::editor
         colors[ImGuiCol_PlotHistogramHovered] = ImVec4(1.00f, 0.47f, 0.70f, 1.00f);
         colors[ImGuiCol_TableHeaderBg] = ImVec4(0.05f, 0.05f, 0.07f, 1.00f);
         colors[ImGuiCol_TableBorderStrong] = ImVec4(0.05f, 0.05f, 0.07f, 1.00f);
-        colors[ImGuiCol_TableBorderLight] = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
-        colors[ImGuiCol_TableRowBg] = ImVec4(0.12f, 0.13f, 0.15f, 1.00f);
-        colors[ImGuiCol_TableRowBgAlt] = ImVec4(0.10f, 0.11f, 0.12f, 1.00f);
+        colors[ImGuiCol_TableBorderLight] = ImVec4(0.051f, 0.051f, 0.071f, 1.000f);
+        colors[ImGuiCol_TableRowBg] = ImVec4(0.102f, 0.110f, 0.122f, 1.000f);
+        colors[ImGuiCol_TableRowBgAlt] = ImVec4(0.088f, 0.095f, 0.101f, 1.000f);
         colors[ImGuiCol_TextSelectedBg] = ImVec4(0.57f, 0.35f, 0.62f, 1.00f);
         colors[ImGuiCol_DragDropTarget] = ImVec4(0.57f, 0.35f, 0.62f, 1.00f);
         colors[ImGuiCol_NavHighlight] = ImVec4(0.90f, 0.67f, 0.95f, 1.00f);

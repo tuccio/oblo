@@ -23,6 +23,7 @@ namespace oblo::vk
 namespace oblo::editor
 {
     class log_queue;
+    class editor_app_module;
 
     class app
     {
@@ -54,5 +55,6 @@ namespace oblo::editor
         asset_registry m_assetRegistry;
         time_stats m_timeStats{};
         time m_lastFrameTime{};
+        editor_app_module* m_editorModule{};
     };
 }

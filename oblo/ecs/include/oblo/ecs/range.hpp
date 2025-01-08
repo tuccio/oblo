@@ -237,7 +237,7 @@ namespace oblo::ecs
 
                 OBLO_ASSERT(numEntities != 0);
 
-                constexpr auto invoke = []<std::size_t... I>(F&& f,
+                constexpr auto invoke = []<std::size_t... I>(F& f,
                                             u32 numEntities,
                                             const entity* entities,
                                             std::byte** componentsData,
@@ -249,7 +249,7 @@ namespace oblo::ecs
                             numEntities}...);
                 };
 
-                invoke(std::forward<F>(f),
+                invoke(f,
                     numEntities,
                     entities,
                     componentsData,

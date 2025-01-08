@@ -15,7 +15,7 @@ namespace oblo
     enum class property_kind : u8;
     struct property_tree;
 
-    namespace notable_properties
+    namespace meta_properties
     {
         constexpr cstring_view prefix = "$";
         constexpr cstring_view array_size = "$size";

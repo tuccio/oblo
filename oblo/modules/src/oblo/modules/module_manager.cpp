@@ -15,7 +15,59 @@ namespace oblo
     namespace
     {
         module_manager* g_instance{nullptr};
+
+        struct sorted_module
+        {
+            type_id id;
+            u32 loadOrder;
+            module_interface* ptr;
+        };
+
+        struct reverse_load_order
+        {
+            bool operator()(const sorted_module& lhs, const sorted_module& rhs)
+            {
+                return lhs.loadOrder > rhs.loadOrder;
+            }
+        };
+
+        struct load_order
+        {
+            bool operator()(const sorted_module& lhs, const sorted_module& rhs)
+            {
+                return lhs.loadOrder < rhs.loadOrder;
+            }
+        };
+
+        template <typename T, typename Order = load_order>
+        void sort_modules(dynamic_array<sorted_module>& out, const T& modules, Order f = {})
+        {
+            out.reserve(modules.size());
+
+            for (auto& [id, storage] : modules)
+            {
+                out.emplace_back(id, storage.loadOrder, storage.ptr.get());
+            }
+
+            std::sort(out.begin(), out.end(), f);
+        }
     }
+
+    struct module_manager::scoped_state_change
+    {
+        scoped_state_change(state* s, state newState) : prev{*s}, ptr{s}
+        {
+            *s = newState;
+        }
+
+        ~scoped_state_change()
+        {
+            *ptr = prev;
+        }
+
+        state prev;
+        state* ptr;
+    };
 
     struct module_manager::module_storage
     {
@@ -49,26 +101,29 @@ namespace oblo
         g_instance = nullptr;
     }
 
-    void module_manager::shutdown()
+    void module_manager::finalize()
     {
-        struct module_to_delete
-        {
-            type_id id;
-            u32 loadOrder;
-        };
+        OBLO_ASSERT(m_state < state::finalizing);
 
-        std::vector<module_to_delete> modules;
-        modules.reserve(m_modules.size());
+        m_state = state::finalizing;
 
-        for (auto& [id, storage] : m_modules)
+        // We finalize in load order
+        dynamic_array<sorted_module> modules;
+        sort_modules(modules, m_modules);
+
+        for (auto& m : modules)
         {
-            modules.emplace_back(id, storage.loadOrder);
+            m.ptr->finalize();
         }
 
+        m_state = state::finalized;
+    }
+
+    void module_manager::shutdown()
+    {
         // We unload in reverse load order
-        std::sort(modules.begin(),
-            modules.end(),
-            [](const module_to_delete& lhs, const module_to_delete& rhs) { return lhs.loadOrder > rhs.loadOrder; });
+        dynamic_array<sorted_module> modules;
+        sort_modules(modules, m_modules, reverse_load_order{});
 
         for (auto& m : modules)
         {
@@ -98,6 +153,10 @@ namespace oblo
 
     bool module_manager::load(const type_id& id, std::unique_ptr<module_interface> module)
     {
+        OBLO_ASSERT(m_state <= state::loading);
+
+        scoped_state_change state{&m_state, state::loading};
+
         const auto [it, inserted] = m_modules.emplace(id, module_storage{});
 
         if (!inserted)

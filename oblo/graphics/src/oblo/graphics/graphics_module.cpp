@@ -1,18 +1,21 @@
 #include <oblo/graphics/graphics_module.hpp>
 
 #include <oblo/core/service_registry.hpp>
+#include <oblo/core/struct_apply.hpp>
 #include <oblo/ecs/services/world_builder.hpp>
 #include <oblo/ecs/systems/system_graph_builder.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/light_component.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
+#include <oblo/graphics/systems/graphics_options.hpp>
 #include <oblo/graphics/systems/lighting_system.hpp>
 #include <oblo/graphics/systems/scene_renderer.hpp>
 #include <oblo/graphics/systems/static_mesh_system.hpp>
 #include <oblo/graphics/systems/viewport_system.hpp>
 #include <oblo/math/color.hpp>
 #include <oblo/modules/module_initializer.hpp>
+#include <oblo/options/options_module.hpp>
 #include <oblo/reflection/registration/module_registration.hpp>
 #include <oblo/scene/systems/barriers.hpp>
 #include <oblo/vulkan/renderer.hpp>
@@ -120,6 +123,8 @@ namespace oblo
                     .before<barriers::renderer_update>();
             },
         });
+
+        option_proxy_struct<surfels_gi_options>::register_options(*initializer.services);
 
         return true;
     }

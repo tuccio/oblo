@@ -2,6 +2,8 @@
 
 #include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/ecs/forward.hpp>
+#include <oblo/graphics/systems/graphics_options.hpp>
+#include <oblo/options/option_proxy.hpp>
 #include <oblo/vulkan/graph/frame_graph_template.hpp>
 
 namespace oblo::ecs
@@ -16,6 +18,9 @@ namespace oblo::vk
 
 namespace oblo
 {
+    struct option;
+
+    class options_manager;
     class scene_renderer;
 
     class lighting_system
@@ -38,7 +43,9 @@ namespace oblo
 
     private:
         scene_renderer* m_sceneRenderer{};
+        const options_manager* m_optionsManager{};
         vk::frame_graph_template m_rtShadows;
         h32_flat_extpool_dense_map<ecs::entity_handle, shadow_directional> m_shadows;
+        option_proxy_struct<surfels_gi_options> m_giOptions;
     };
 };

@@ -10,6 +10,9 @@ namespace oblo
         virtual ~module_interface() = default;
 
         [[nodiscard]] virtual bool startup(const module_initializer& initializer) = 0;
+
+        virtual void finalize() = 0;
+
         virtual void shutdown() = 0;
     };
 }

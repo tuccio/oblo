@@ -9,5 +9,6 @@ namespace oblo::importers
     public:
         IMPORTERS_API bool startup(const module_initializer& initializer) override;
         IMPORTERS_API void shutdown() override;
+        void finalize() override {}
     };
 }

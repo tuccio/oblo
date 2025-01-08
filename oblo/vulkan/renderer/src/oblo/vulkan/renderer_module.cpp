@@ -1,10 +1,42 @@
 #include <oblo/vulkan/renderer_module.hpp>
+
+#include <oblo/core/service_registry.hpp>
+#include <oblo/core/types.hpp>
+#include <oblo/modules/module_initializer.hpp>
+#include <oblo/modules/module_manager.hpp>
+#include <oblo/options/option_proxy.hpp>
+#include <oblo/options/option_traits.hpp>
+#include <oblo/options/options_module.hpp>
+#include <oblo/options/options_provider.hpp>
 #include <oblo/vulkan/required_features.hpp>
+
+namespace oblo
+{
+    template <>
+    struct option_traits<"r.isRayTracingEnabled">
+    {
+        using type = bool;
+
+        static constexpr option_descriptor descriptor{
+            .kind = property_kind::boolean,
+            .id = "b01a7290-4f14-4b5c-9693-3b748bd9f45a"_uuid,
+            .name = "Enable Ray-Tracing",
+            .category = "Graphics",
+            .defaultValue = property_value_wrapper{true},
+        };
+    };
+}
 
 namespace oblo::vk
 {
     namespace
     {
+        struct renderer_options
+        {
+            // We only read this at startup, any change requires a reset
+            option_proxy<"r.isRayTracingEnabled"> isRayTracingEnabled;
+        };
+
         // Device features
         VkPhysicalDeviceMeshShaderFeaturesEXT g_meshShaderFeatures{
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT,
@@ -68,23 +100,25 @@ namespace oblo::vk
             VK_KHR_RAY_QUERY_EXTENSION_NAME,
             VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
         };
-
-        // Hardcoded for now, it should be an option
-        constexpr bool g_withRayTracing = true;
-
-        renderer_module* g_instance = nullptr;
     }
 
-    renderer_module& renderer_module::get()
+    bool renderer_module::startup(const module_initializer& initializer)
     {
-        return *g_instance;
+        module_manager::get().load<options_module>();
+
+        option_proxy_struct<renderer_options>::register_options(*initializer.services);
+
+        return true;
     }
 
-    bool renderer_module::startup(const module_initializer&)
-    {
-        OBLO_ASSERT(!g_instance);
+    void renderer_module::shutdown() {}
 
-        m_deviceFeaturesChain = g_withRayTracing ? static_cast<void*>(&g_rtPipelineFeatures)
+    void vk::renderer_module::finalize()
+    {
+        auto* const options = module_manager::get().find<options_module>();
+        m_withRayTracing = renderer_options{}.isRayTracingEnabled.read(options->manager());
+
+        m_deviceFeaturesChain = m_withRayTracing ? static_cast<void*>(&g_rtPipelineFeatures)
                                                  : static_cast<void*>(&g_synchronizationFeatures);
 
         m_instanceExtensions.assign(std::begin(g_instanceExtensions), std::end(g_instanceExtensions));
@@ -101,20 +135,10 @@ namespace oblo::vk
             VK_EXT_HOST_QUERY_RESET_EXTENSION_NAME,         // We need this for profiling with Tracy
         };
 
-        if (g_withRayTracing)
+        if (m_withRayTracing)
         {
             m_deviceExtensions.append(std::begin(g_rayTracingDeviceExtensions), std::end(g_rayTracingDeviceExtensions));
         }
-
-        g_instance = this;
-
-        return true;
-    }
-
-    void renderer_module::shutdown()
-    {
-        OBLO_ASSERT(g_instance == this);
-        g_instance = nullptr;
     }
 
     required_features renderer_module::get_required_features()
@@ -138,6 +162,6 @@ namespace oblo::vk
 
     bool renderer_module::is_ray_tracing_enabled() const
     {
-        return g_withRayTracing;
+        return m_withRayTracing;
     }
 }

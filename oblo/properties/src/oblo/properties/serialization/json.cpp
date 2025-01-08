@@ -2,6 +2,7 @@
 
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/debug.hpp>
+#include <oblo/core/deque.hpp>
 #include <oblo/core/filesystem/file.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/unreachable.hpp>
@@ -43,23 +44,35 @@ namespace oblo::json
             state m_state{state::object_or_array_start};
             std::string m_lastString;
 
-            dynamic_array<stack_node> m_stack;
+            deque<stack_node> m_stack;
 
-            explicit Handler(data_document& doc) : m_doc{doc}
-            {
-                m_stack.reserve(32);
-                m_stack.assign(1, {m_doc.get_root(), data_node_kind::object});
-            }
+            explicit Handler(data_document& doc) : m_doc{doc} {}
 
             bool StartObject()
             {
+                if (m_stack.empty())
+                {
+                    const auto root = m_doc.get_root();
+                    m_doc.make_object(root);
+                    m_stack.assign(1, {root, data_node_kind::object});
+
+                    m_state = state::name_or_object_end;
+                    return true;
+                }
+
                 switch (m_state)
                 {
-                case state::object_or_array_start:
+                case state::object_or_array_start: {
                     m_state = state::name_or_object_end;
+
+                    auto& parent = m_stack.back();
+                    const auto newNode = m_doc.child_object(parent.id, hashed_string_view{m_lastString});
+                    m_stack.push_back({newNode, data_node_kind::object});
+                }
                     return true;
 
                 case state::value_or_array_end: {
+
                     auto& parent = m_stack.back();
 
                     u32 newNode;
@@ -108,6 +121,14 @@ namespace oblo::json
 
             bool StartArray()
             {
+                if (m_stack.empty())
+                {
+                    const auto root = m_doc.get_root();
+                    m_doc.make_array(root);
+                    m_stack.assign(1, {root, data_node_kind::array});
+                    return true;
+                }
+
                 switch (m_state)
                 {
                 case state::object_or_array_start:
@@ -115,6 +136,7 @@ namespace oblo::json
                     return true;
 
                 case state::value_or_array_end: {
+
                     auto& parent = m_stack.back();
 
                     u32 newNode;
@@ -334,6 +356,11 @@ namespace oblo::json
     {
         const auto file = filesystem::file_ptr{filesystem::open_file(source, "r")};
 
+        if (!file)
+        {
+            return unspecified_error;
+        }
+
         constexpr auto bufferSize{1024};
         char buffer[bufferSize];
 
@@ -381,6 +408,11 @@ namespace oblo::json
         }
 
         const auto file = filesystem::file_ptr{filesystem::open_file(destination, "w")};
+
+        if (!file)
+        {
+            return unspecified_error_tag{};
+        }
 
         constexpr auto bufferSize{1024};
         char buffer[bufferSize];

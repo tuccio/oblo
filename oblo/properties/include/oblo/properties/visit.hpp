@@ -39,7 +39,7 @@ namespace oblo
                     const auto elementProperty = node.lastProperty - 1;
 
                     const auto& property = tree.properties[elementProperty];
-                    OBLO_ASSERT(property.name == notable_properties::array_element);
+                    OBLO_ASSERT(property.name == meta_properties::array_element);
 
                     if (v(property) == visit_result::terminate)
                     {

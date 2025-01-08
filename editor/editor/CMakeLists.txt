@@ -11,6 +11,7 @@ target_link_libraries(
     PRIVATE
     oblo::graphics
     oblo::input
+    oblo::options
     oblo::properties
     oblo::scene
     oblo::vk

@@ -3,6 +3,7 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/properties/property_kind.hpp>
+#include <oblo/properties/property_value_wrapper.hpp>
 #include <oblo/properties/serialization/data_node.hpp>
 
 #include <memory>
@@ -143,6 +144,21 @@ namespace oblo
         append_new_child(parent, newChild);
 
         return newChild;
+    }
+
+    void data_document::child_value(u32 parentIndex, hashed_string_view key, const property_value_wrapper& w)
+    {
+        OBLO_ASSERT(w);
+
+        if (w.get_kind() == property_kind::string)
+        {
+            const auto str = w.get_string();
+            const data_string dns{str.data(), str.size()};
+            child_value(parentIndex, key, property_kind::string, as_bytes(dns));
+            return;
+        }
+
+        child_value(parentIndex, key, w.get_kind(), w.get_bytes());
     }
 
     void data_document::child_value(
@@ -469,5 +485,36 @@ namespace oblo
         }
 
         return error::value_kind_mismatch;
+    }
+
+    expected<uuid, data_document::error> data_document::read_uuid(u32 node) const
+    {
+        auto& n = m_nodes[node];
+
+        if (n.kind != data_node_kind::value)
+        {
+            return error::node_kind_mismatch;
+        }
+
+        if (n.valueKind == property_kind::uuid)
+        {
+            return *reinterpret_cast<const uuid*>(n.value.data);
+        }
+
+        const auto s = read_string(node);
+
+        if (!s)
+        {
+            return s.error();
+        }
+
+        const auto r = uuid::parse(s->str());
+
+        if (!r)
+        {
+            return error::value_kind_mismatch;
+        }
+
+        return *r;
     }
 }

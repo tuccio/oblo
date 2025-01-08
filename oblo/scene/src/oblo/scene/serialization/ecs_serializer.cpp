@@ -9,6 +9,7 @@
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/property_registry.hpp>
+#include <oblo/properties/property_value_wrapper.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
 #include <oblo/properties/visit.hpp>
 
@@ -23,7 +24,7 @@ namespace oblo::ecs_serializer
 
         hashed_string_view sanitize_name(string_view name)
         {
-            return name.starts_with(notable_properties::prefix) ? hashed_string_view{} : hashed_string_view{name};
+            return name.starts_with(meta_properties::prefix) ? hashed_string_view{} : hashed_string_view{name};
         }
     }
 
@@ -281,7 +282,7 @@ namespace oblo::ecs_serializer
                         auto visitor = overload{
                             [&doc, &nodeStack, &ptrStack](const property_node& node, const property_node_start)
                             {
-                                if (node.name == notable_properties::array_element)
+                                if (node.name == meta_properties::array_element)
                                 {
                                     return visit_result::recurse;
                                 }
@@ -299,7 +300,7 @@ namespace oblo::ecs_serializer
                             },
                             [&nodeStack, &ptrStack](const property_node& node, const property_node_finish)
                             {
-                                if (node.name != notable_properties::array_element)
+                                if (node.name != meta_properties::array_element)
                                 {
                                     nodeStack.pop_back();
                                     ptrStack.pop_back();
@@ -309,7 +310,7 @@ namespace oblo::ecs_serializer
                                 const property_array& array,
                                 auto&& visitElement)
                             {
-                                const auto newNode = node.name.starts_with(notable_properties::prefix)
+                                const auto newNode = node.name.starts_with(meta_properties::prefix)
                                     ? nodeStack.back()
                                     : doc.find_child(nodeStack.back(), hashed_string_view{node.name});
 
@@ -355,7 +356,7 @@ namespace oblo::ecs_serializer
 
                                 const auto parent = nodeStack.back();
 
-                                const auto valueNode = property.name.starts_with(notable_properties::prefix)
+                                const auto valueNode = property.name.starts_with(meta_properties::prefix)
                                     ? parent
                                     : doc.find_child(parent, hashed_string_view{property.name});
 
@@ -368,29 +369,30 @@ namespace oblo::ecs_serializer
                                     case property_kind::string:
                                         if (const auto value = doc.read_string(valueNode))
                                         {
-                                            *reinterpret_cast<string*>(propertyPtr) =
-                                                string_view{value->data, value->length};
+                                            property_value_wrapper{string_view{value->data, value->length}}.assign_to(
+                                                property.kind,
+                                                propertyPtr);
                                         }
                                         break;
 
                                     case property_kind::boolean:
                                         if (const auto value = doc.read_bool(valueNode))
                                         {
-                                            *reinterpret_cast<bool*>(propertyPtr) = *value;
+                                            property_value_wrapper{*value}.assign_to(property.kind, propertyPtr);
                                         }
                                         break;
 
                                     case property_kind::f32:
                                         if (const auto value = doc.read_f32(valueNode))
                                         {
-                                            *reinterpret_cast<f32*>(propertyPtr) = *value;
+                                            property_value_wrapper{*value}.assign_to(property.kind, propertyPtr);
                                         }
                                         break;
 
                                     case property_kind::u32:
                                         if (const auto value = doc.read_u32(valueNode))
                                         {
-                                            *reinterpret_cast<u32*>(propertyPtr) = *value;
+                                            property_value_wrapper{*value}.assign_to(property.kind, propertyPtr);
                                         }
                                         break;
 
