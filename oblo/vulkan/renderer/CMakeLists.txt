@@ -5,6 +5,7 @@ target_link_libraries(
     PUBLIC
     oblo::core
     oblo::ecs
+    oblo::options
     oblo::vk
     PRIVATE
     oblo::log

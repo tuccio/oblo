@@ -24,5 +24,6 @@ namespace oblo::vk
         dynamic_array<const char*> m_instanceExtensions;
         dynamic_array<const char*> m_deviceExtensions;
         void* m_deviceFeaturesChain{};
+        bool m_withRayTracing{};
     };
 }

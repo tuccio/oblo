@@ -1,10 +1,39 @@
 #include <oblo/vulkan/renderer_module.hpp>
+
+#include <oblo/core/types.hpp>
+#include <oblo/modules/module_manager.hpp>
+#include <oblo/options/option_proxy.hpp>
+#include <oblo/options/option_traits.hpp>
+#include <oblo/options/options_module.hpp>
 #include <oblo/vulkan/required_features.hpp>
+
+namespace oblo
+{
+    template <>
+    struct option_traits<"r.isRayTracingEnabled">
+    {
+        using type = bool;
+
+        static constexpr option_descriptor descriptor{
+            .kind = property_kind::boolean,
+            .id = "b01a7290-4f14-4b5c-9693-3b748bd9f45a"_uuid,
+            .name = "Enable Ray-Tracing",
+            .category = "Graphics",
+            .defaultValue = property_value_wrapper{true},
+        };
+    };
+}
 
 namespace oblo::vk
 {
     namespace
     {
+        struct renderer_options
+        {
+            // We only read this at startup, any change requires a reset
+            option_proxy<"r.isRayTracingEnabled"> isRayTracingEnabled;
+        };
+
         // Device features
         VkPhysicalDeviceMeshShaderFeaturesEXT g_meshShaderFeatures{
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT,
@@ -69,9 +98,6 @@ namespace oblo::vk
             VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
         };
 
-        // Hardcoded for now, it should be an option
-        constexpr bool g_withRayTracing = true;
-
         renderer_module* g_instance = nullptr;
     }
 
@@ -84,7 +110,12 @@ namespace oblo::vk
     {
         OBLO_ASSERT(!g_instance);
 
-        m_deviceFeaturesChain = g_withRayTracing ? static_cast<void*>(&g_rtPipelineFeatures)
+        auto* const options = module_manager::get().load<options_module>();
+        option_proxy_struct<renderer_options>::register_options(options->manager());
+
+        m_withRayTracing = renderer_options{}.isRayTracingEnabled.read(options->manager());
+
+        m_deviceFeaturesChain = m_withRayTracing ? static_cast<void*>(&g_rtPipelineFeatures)
                                                  : static_cast<void*>(&g_synchronizationFeatures);
 
         m_instanceExtensions.assign(std::begin(g_instanceExtensions), std::end(g_instanceExtensions));
@@ -101,7 +132,7 @@ namespace oblo::vk
             VK_EXT_HOST_QUERY_RESET_EXTENSION_NAME,         // We need this for profiling with Tracy
         };
 
-        if (g_withRayTracing)
+        if (m_withRayTracing)
         {
             m_deviceExtensions.append(std::begin(g_rayTracingDeviceExtensions), std::end(g_rayTracingDeviceExtensions));
         }
@@ -138,6 +169,6 @@ namespace oblo::vk
 
     bool renderer_module::is_ray_tracing_enabled() const
     {
-        return g_withRayTracing;
+        return m_withRayTracing;
     }
 }
