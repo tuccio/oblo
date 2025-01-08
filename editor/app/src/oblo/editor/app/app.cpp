@@ -29,6 +29,8 @@
 #include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/options/options_module.hpp>
+#include <oblo/properties/serialization/data_document.hpp>
+#include <oblo/properties/serialization/json.hpp>
 #include <oblo/reflection/reflection_module.hpp>
 #include <oblo/resource/registration.hpp>
 #include <oblo/resource/resource_registry.hpp>
@@ -125,14 +127,11 @@ namespace oblo::editor
 
         m_jobManager.init();
 
-        auto& mm = module_manager::get();
-
         // Load the options early for now, so we can initialize it
         // We could consider inverting the dependency or having 2-phase startup more standardized
-        auto* const options = mm.load<options_module>();
+        m_editorOptions.init();
 
-        const options_layer_descriptor optionLayers[] = {{.id = "dc217469-e387-48cf-ad5a-7b6cd4a8b1fc"_uuid}};
-        options->manager().init(optionLayers);
+        auto& mm = module_manager::get();
 
         // Load the runtime, which will be queried for required vulkan features
         mm.load<oblo::runtime_module>();
@@ -151,6 +150,8 @@ namespace oblo::editor
         auto* const reflection = mm.load<oblo::reflection::reflection_module>();
         mm.load<importers::importers_module>();
         mm.load<editor_module>();
+
+        m_editorOptions.load();
 
         m_runtimeRegistry = runtime->create_runtime_registry();
 
@@ -245,5 +246,64 @@ namespace oblo::editor
     void app::update_imgui(const vk::sandbox_update_imgui_context&)
     {
         m_windowManager.update();
+        m_editorOptions.update();
+    }
+
+    void options_layer_helper::init()
+    {
+        auto& mm = module_manager::get();
+
+        auto* const options = mm.load<options_module>();
+
+        auto& optionsManager = options->manager();
+
+        constexpr uuid editorOptionsUuid = "dc217469-e387-48cf-ad5a-7b6cd4a8b1fc"_uuid;
+        const options_layer_descriptor optionLayers[] = {{.id = editorOptionsUuid}};
+        optionsManager.init(optionLayers);
+
+        m_layer = optionsManager.find_layer(editorOptionsUuid);
+        m_changeId = optionsManager.get_change_id(m_layer);
+        m_options = &optionsManager;
+    }
+
+    namespace
+    {
+        constexpr cstring_view g_editorOptionsPath = "oblo_options.json";
+    }
+
+    void options_layer_helper::load()
+    {
+        data_document doc;
+
+        if (!json::read(doc, g_editorOptionsPath))
+        {
+            log::error("Failed to read editor options from {}", g_editorOptionsPath);
+            return;
+        }
+
+        m_options->load_layer(doc, doc.get_root(), m_layer);
+        m_changeId = m_options->get_change_id(m_layer);
+    }
+
+    void options_layer_helper::save()
+    {
+        data_document doc;
+        doc.init();
+
+        m_options->store_layer(doc, doc.get_root(), m_layer);
+
+        if (!json::write(doc, g_editorOptionsPath))
+        {
+            log::error("Failed to write editor options to {}", g_editorOptionsPath);
+        }
+    }
+
+    void options_layer_helper::update()
+    {
+        if (const auto changeId = m_options->get_change_id(m_layer); changeId != m_changeId)
+        {
+            save();
+            m_changeId = changeId;
+        }
     }
 }

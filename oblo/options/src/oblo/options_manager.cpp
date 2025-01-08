@@ -19,6 +19,7 @@ namespace oblo
         struct layer_data
         {
             uuid id;
+            u32 lastChangeId{};
         };
 
         struct option_layer_value
@@ -48,6 +49,8 @@ namespace oblo
         deque<option_layer_value> values;
 
         std::unordered_map<uuid, h32<option>> optionsMap;
+
+        u32 lastChangeId{};
     };
 
     options_manager::options_manager() = default;
@@ -112,6 +115,11 @@ namespace oblo
         }
 
         return h32<options_layer>{};
+    }
+
+    u32 options_manager::get_change_id(h32<options_layer> layer) const
+    {
+        return m_impl->layers[layer.value].lastChangeId;
     }
 
     handle_range<h32<option>> options_manager::get_options_range() const
@@ -232,6 +240,8 @@ namespace oblo
         const u32 idx = opt.layerValueBeginIdx + layer.value - 1;
         m_impl->values[idx].value = std::move(value);
 
+        m_impl->layers[layer.value].lastChangeId = ++m_impl->lastChangeId;
+
         return no_error;
     }
 
@@ -294,6 +304,8 @@ namespace oblo
         // Locate the value, the -1 is for the invalid layer
         const u32 idx = opt.layerValueBeginIdx + layer.value - 1;
         m_impl->values[idx].value = {};
+
+        m_impl->layers[layer.value].lastChangeId = ++m_impl->lastChangeId;
 
         return no_error;
     }
@@ -402,5 +414,7 @@ namespace oblo
                 m_impl->values[idx].value = value;
             }
         }
+
+        m_impl->layers[layer.value].lastChangeId = ++m_impl->lastChangeId;
     }
 }

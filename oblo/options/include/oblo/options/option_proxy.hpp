@@ -1,6 +1,8 @@
 #pragma once
 
+#include <oblo/core/string/fixed_string.hpp>
 #include <oblo/core/struct_apply.hpp>
+#include <oblo/options/option_traits.hpp>
 #include <oblo/options/options_manager.hpp>
 
 namespace oblo

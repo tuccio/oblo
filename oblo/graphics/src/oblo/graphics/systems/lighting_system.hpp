@@ -3,7 +3,7 @@
 #include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/ecs/forward.hpp>
 #include <oblo/graphics/systems/graphics_options.hpp>
-#include <oblo/options/options_reader.hpp>
+#include <oblo/options/option_proxy.hpp>
 #include <oblo/vulkan/graph/frame_graph_template.hpp>
 
 namespace oblo::ecs

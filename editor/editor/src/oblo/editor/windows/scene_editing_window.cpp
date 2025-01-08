@@ -89,12 +89,12 @@ namespace oblo::editor
 
             if (ImGui::BeginMenu("Dev"))
             {
-                if (ImGui::MenuItem("Demo Window"))
+                if (ImGui::MenuItem("ImGui Demo Window"))
                 {
                     ctx.windowManager.create_child_window<demo_window>(ctx.windowHandle);
                 }
 
-                if (ImGui::MenuItem("Style Window"))
+                if (ImGui::MenuItem("ImGui Style Window"))
                 {
                     ctx.windowManager.create_child_window<style_window>(ctx.windowHandle);
                 }

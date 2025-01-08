@@ -8,6 +8,8 @@
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/options/options_manager.hpp>
 
+#include <IconsFontAwesome6.h>
+
 #include <imgui.h>
 
 namespace oblo::editor
@@ -20,22 +22,24 @@ namespace oblo::editor
 
     bool options_editor::update(const window_update_context&)
     {
-        if (ImGui::Begin("Options"))
+        bool isOpen{true};
+
+        if (ImGui::Begin("Options", &isOpen))
         {
             string_builder sb;
 
             auto editorLayer = m_options->get_highest_layer();
 
             if (ImGui::BeginTable("#table",
-                    2,
+                    3,
                     ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_ScrollY))
             {
-                ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_None);
+                ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed);
                 ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+                ImGui::TableSetupColumn("Reset", ImGuiTableColumnFlags_WidthFixed);
 
                 for (const auto option : m_options->get_options_range())
                 {
-
                     const auto value = m_options->get_option_value(option);
 
                     if (value)
@@ -51,7 +55,7 @@ namespace oblo::editor
 
                         ImGui::TableSetColumnIndex(1);
 
-                        sb.format("##{}", m_options->get_option_uuid(option));
+                        sb.clear().format("##edit{}", option.value);
 
                         switch (value->get_kind())
                         {
@@ -99,6 +103,15 @@ namespace oblo::editor
                         default:
                             break;
                         }
+
+                        ImGui::TableSetColumnIndex(2);
+
+                        sb.clear().format(ICON_FA_ARROWS_ROTATE "##reset{}", option.value);
+
+                        if (ImGui::Button(sb.c_str()))
+                        {
+                            m_options->clear_option_value(editorLayer, option).assert_value();
+                        }
                     }
                 }
 
@@ -108,6 +121,6 @@ namespace oblo::editor
 
         ImGui::End();
 
-        return true;
+        return isOpen;
     }
 }

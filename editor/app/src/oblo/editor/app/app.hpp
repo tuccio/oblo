@@ -20,9 +20,29 @@ namespace oblo::vk
     struct sandbox_update_imgui_context;
 }
 
+namespace oblo
+{
+    class options_manager;
+    struct options_layer;
+}
+
 namespace oblo::editor
 {
     class log_queue;
+
+    class options_layer_helper
+    {
+    public:
+        void init();
+        void load();
+        void save();
+        void update();
+
+    private:
+        options_manager* m_options{};
+        h32<options_layer> m_layer{};
+        u32 m_changeId{};
+    };
 
     class app
     {
@@ -54,5 +74,7 @@ namespace oblo::editor
         asset_registry m_assetRegistry;
         time_stats m_timeStats{};
         time m_lastFrameTime{};
+
+        options_layer_helper m_editorOptions;
     };
 }

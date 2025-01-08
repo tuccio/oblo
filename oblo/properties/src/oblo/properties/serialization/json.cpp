@@ -356,6 +356,11 @@ namespace oblo::json
     {
         const auto file = filesystem::file_ptr{filesystem::open_file(source, "r")};
 
+        if (!file)
+        {
+            return unspecified_error;
+        }
+
         constexpr auto bufferSize{1024};
         char buffer[bufferSize];
 

@@ -43,6 +43,8 @@ namespace oblo
 
         h32<options_layer> find_layer(uuid id) const;
 
+        u32 get_change_id(h32<options_layer> layer) const;
+
         handle_range<h32<option>> get_options_range() const;
         h32<option> register_option(const option_descriptor& desc);
         h32<option> find_option(uuid id) const;
