@@ -100,31 +100,18 @@ namespace oblo::vk
             VK_KHR_RAY_QUERY_EXTENSION_NAME,
             VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
         };
-
-        renderer_module* g_instance = nullptr;
-    }
-
-    renderer_module& renderer_module::get()
-    {
-        return *g_instance;
     }
 
     bool renderer_module::startup(const module_initializer& initializer)
     {
-        OBLO_ASSERT(!g_instance);
+        module_manager::get().load<options_module>();
 
         option_proxy_struct<renderer_options>::register_options(*initializer.services);
-
-        g_instance = this;
 
         return true;
     }
 
-    void renderer_module::shutdown()
-    {
-        OBLO_ASSERT(g_instance == this);
-        g_instance = nullptr;
-    }
+    void renderer_module::shutdown() {}
 
     void vk::renderer_module::finalize()
     {

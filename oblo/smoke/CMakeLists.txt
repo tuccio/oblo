@@ -5,10 +5,12 @@ target_link_libraries(
     PUBLIC
     oblo::asset
     oblo::ecs
+    oblo::importers
     oblo::options
     oblo::resource
     oblo::runtime
     oblo::sandbox
+    oblo::scene
     PRIVATE
     oblo::renderdoc
     imgui::imgui
@@ -17,9 +19,7 @@ target_link_libraries(
 target_link_libraries(
     oblo_test_smoke
     PRIVATE
-    oblo::importers
     oblo::modules
-    oblo::scene
     oblo::test::glTF::SampleModels
 )
 

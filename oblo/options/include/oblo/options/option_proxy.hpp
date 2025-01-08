@@ -26,6 +26,11 @@ namespace oblo
             return opts.get_option_value(m_handle)->get<type>();
         }
 
+        constexpr const option_descriptor& descriptor() const
+        {
+            return traits::descriptor;
+        }
+
     private:
         h32<option> m_handle{};
     };

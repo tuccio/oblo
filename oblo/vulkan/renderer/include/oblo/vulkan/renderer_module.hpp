@@ -10,9 +10,6 @@ namespace oblo::vk
     class renderer_module final : public module_interface
     {
     public:
-        static renderer_module& get();
-
-    public:
         bool startup(const module_initializer& initializer) override;
         void shutdown() override;
         void finalize() override;

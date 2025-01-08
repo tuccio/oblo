@@ -247,8 +247,6 @@ namespace oblo
     expected<property_value_wrapper> options_manager::get_option_value(h32<options_layer> layer,
         h32<option> option) const
     {
-        OBLO_ASSERT(layer > g_defaultValuesLayer);
-
         // You can read the default value here
         if (layer < g_defaultValuesLayer || layer.value >= m_impl->layers.size())
         {

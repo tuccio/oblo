@@ -1,6 +1,7 @@
 #include <oblo/vulkan/renderer.hpp>
 
 #include <oblo/core/string/string.hpp>
+#include <oblo/modules/module_manager.hpp>
 #include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/draw/descriptor_set_pool.hpp>
 #include <oblo/vulkan/error.hpp>
@@ -22,7 +23,7 @@ namespace oblo::vk
     bool renderer::init(const renderer::initializer& initializer)
     {
         m_vkContext = &initializer.vkContext;
-        m_isRayTracingEnabled = renderer_module::get().is_ray_tracing_enabled();
+        m_isRayTracingEnabled = module_manager::get().find<renderer_module>()->is_ray_tracing_enabled();
 
         if (!m_stagingBuffer.init(get_allocator(), StagingBufferSize))
         {

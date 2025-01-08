@@ -173,7 +173,9 @@ namespace oblo::vk::test
             {
                 // Load the runtime, which will be queried for required vulkan features
                 auto& mm = module_manager::get();
-                mm.load<oblo::runtime_module>();
+                mm.load<runtime_module>();
+
+                mm.finalize();
 
                 return true;
             }
