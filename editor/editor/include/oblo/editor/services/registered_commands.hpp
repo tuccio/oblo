@@ -1,6 +1,6 @@
 #pragma once
 
-#include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/deque.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 
 namespace oblo
@@ -23,6 +23,6 @@ namespace oblo::editor
 
     struct registered_commands
     {
-        dynamic_array<spawn_entity_command> spawnEntityCommands;
+        deque<spawn_entity_command> spawnEntityCommands;
     };
 }

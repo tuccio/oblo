@@ -3,6 +3,7 @@
 #include <oblo/core/string/fixed_string.hpp>
 #include <oblo/editor/services/registered_commands.hpp>
 #include <oblo/graphics/components/light_component.hpp>
+#include <oblo/graphics/components/skybox_component.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
@@ -95,6 +96,8 @@ namespace oblo::editor
             }
         );
 
+        using NoInit = decltype([](ecs::entity_registry&, ecs::entity) {});
+
         commands.spawnEntityCommands.push_back(
             make_spawn_command<light_component, PointLightInit, "Point Light">(ICON_FA_LIGHTBULB));
 
@@ -103,5 +106,8 @@ namespace oblo::editor
 
         commands.spawnEntityCommands.push_back(
             make_spawn_command<light_component, DirectionalLightInit, "Directional Light">(ICON_FA_SUN));
+
+        commands.spawnEntityCommands.push_back(
+            make_spawn_command<skybox_component, NoInit, "Skybox">(ICON_FA_CLOUD_MOON));
     }
 }

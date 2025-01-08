@@ -9,8 +9,13 @@
 #include <oblo/reflection/reflection_module.hpp>
 #include <oblo/reflection/reflection_registry.hpp>
 #include <oblo/reflection/registration/registrant.hpp>
+#include <oblo/resource/resource_ref.hpp>
+#include <oblo/resource/resource_ref_desc.hpp>
 #include <oblo/resource/resource_types_provider.hpp>
+#include <oblo/scene/assets/material.hpp>
+#include <oblo/scene/assets/mesh.hpp>
 #include <oblo/scene/assets/registration.hpp>
+#include <oblo/scene/assets/texture.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/scene/components/name_component.hpp>
 #include <oblo/scene/components/position_component.hpp>
@@ -30,6 +35,14 @@ namespace oblo
 {
     namespace
     {
+        template <typename T>
+        void register_resource_ref_reflection(reflection::reflection_registry::registrant reg)
+        {
+            reg.add_class<resource_ref<T>>()
+                .add_concept(resource_ref_desc{.resourceType = get_type_id<T>()})
+                .add_field(&resource_ref<T>::id, "id");
+        }
+
         void register_reflection(reflection::reflection_registry::registrant reg)
         {
             reg.add_class<name_component>()
@@ -58,6 +71,10 @@ namespace oblo
                 .add_tag<ecs::component_type_tag>();
 
             reg.add_class<transient_tag>().add_ranged_type_erasure().add_tag<ecs::tag_type_tag>();
+
+            register_resource_ref_reflection<texture>(reg);
+            register_resource_ref_reflection<mesh>(reg);
+            register_resource_ref_reflection<material>(reg);
         }
 
         class scene_resources_provider final : public resource_types_provider
