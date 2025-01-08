@@ -27,7 +27,9 @@
 #include <oblo/log/sinks/win32_debug_sink.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
+#include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_manager.hpp>
+#include <oblo/modules/utility/provider_service.hpp>
 #include <oblo/options/options_module.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
 #include <oblo/properties/serialization/json.hpp>
@@ -93,7 +95,108 @@ namespace oblo::editor
 
             return &queue;
         }
+
+        class options_layer_helper final : public provider_service<options_layer_descriptor>
+        {
+            static constexpr uuid layer_uuid = "dc217469-e387-48cf-ad5a-7b6cd4a8b1fc"_uuid;
+            static constexpr cstring_view options_path = "oblo_options.json";
+
+        public:
+            void init()
+            {
+                auto& mm = module_manager::get();
+
+                auto* const options = mm.find<options_module>();
+
+                auto& optionsManager = options->manager();
+
+                m_layer = optionsManager.find_layer(layer_uuid);
+                m_changeId = optionsManager.get_change_id(m_layer);
+                m_options = &optionsManager;
+            }
+
+            void load()
+            {
+                data_document doc;
+
+                if (!json::read(doc, options_path))
+                {
+                    log::error("Failed to read editor options from {}", options_path);
+                    return;
+                }
+
+                m_options->load_layer(doc, doc.get_root(), m_layer);
+                m_changeId = m_options->get_change_id(m_layer);
+            }
+
+            void save()
+            {
+                data_document doc;
+                doc.init();
+
+                m_options->store_layer(doc, doc.get_root(), m_layer);
+
+                if (!json::write(doc, options_path))
+                {
+                    log::error("Failed to write editor options to {}", options_path);
+                }
+            }
+
+            void update()
+            {
+                if (const auto changeId = m_options->get_change_id(m_layer); changeId != m_changeId)
+                {
+                    save();
+                    m_changeId = changeId;
+                }
+            }
+
+            void fetch(deque<options_layer_descriptor>& out) const
+            {
+                out.push_back({.id = layer_uuid});
+            }
+
+        private:
+            options_manager* m_options{};
+            h32<options_layer> m_layer{};
+            u32 m_changeId{};
+        };
     }
+
+    class editor_app_module final : public module_interface
+    {
+    public:
+        bool startup(const module_initializer& initializer) override
+        {
+            auto& mm = module_manager::get();
+
+            mm.load<options_module>();
+            mm.load<runtime_module>();
+            mm.load<reflection::reflection_module>();
+            mm.load<importers::importers_module>();
+            mm.load<editor_module>();
+
+            initializer.services->add<provider_service<options_layer_descriptor>>().externally_owned(&m_editorOptions);
+
+            return true;
+        }
+
+        void shutdown() {}
+
+        void finalize()
+        {
+            m_editorOptions.init();
+            m_editorOptions.load();
+        }
+
+        void update()
+        {
+            m_editorOptions.update();
+        }
+
+    private:
+        options_layer_helper m_editorOptions;
+    };
 
     std::span<const char* const> app::get_required_instance_extensions() const
     {
@@ -127,22 +230,8 @@ namespace oblo::editor
 
         m_jobManager.init();
 
-        // Load the options early for now, so we can initialize it
-        // We could consider inverting the dependency or having 2-phase startup more standardized
-        m_editorOptions.init();
-
         auto& mm = module_manager::get();
-
-        // Load the runtime, which will be queried for required vulkan features
-        mm.load<oblo::runtime_module>();
-
-        mm.load<options_module>();
-        mm.load<oblo::runtime_module>();
-        mm.load<oblo::reflection::reflection_module>();
-        mm.load<importers::importers_module>();
-        mm.load<editor_module>();
-
-        m_editorOptions.load();
+        m_editorModule = mm.load<editor_app_module>();
 
         mm.finalize();
 
@@ -251,64 +340,7 @@ namespace oblo::editor
     void app::update_imgui(const vk::sandbox_update_imgui_context&)
     {
         m_windowManager.update();
-        m_editorOptions.update();
+        m_editorModule->update();
     }
 
-    void options_layer_helper::init()
-    {
-        auto& mm = module_manager::get();
-
-        auto* const options = mm.load<options_module>();
-
-        auto& optionsManager = options->manager();
-
-        constexpr uuid editorOptionsUuid = "dc217469-e387-48cf-ad5a-7b6cd4a8b1fc"_uuid;
-        const options_layer_descriptor optionLayers[] = {{.id = editorOptionsUuid}};
-        optionsManager.init(optionLayers);
-
-        m_layer = optionsManager.find_layer(editorOptionsUuid);
-        m_changeId = optionsManager.get_change_id(m_layer);
-        m_options = &optionsManager;
-    }
-
-    namespace
-    {
-        constexpr cstring_view g_editorOptionsPath = "oblo_options.json";
-    }
-
-    void options_layer_helper::load()
-    {
-        data_document doc;
-
-        if (!json::read(doc, g_editorOptionsPath))
-        {
-            log::error("Failed to read editor options from {}", g_editorOptionsPath);
-            return;
-        }
-
-        m_options->load_layer(doc, doc.get_root(), m_layer);
-        m_changeId = m_options->get_change_id(m_layer);
-    }
-
-    void options_layer_helper::save()
-    {
-        data_document doc;
-        doc.init();
-
-        m_options->store_layer(doc, doc.get_root(), m_layer);
-
-        if (!json::write(doc, g_editorOptionsPath))
-        {
-            log::error("Failed to write editor options to {}", g_editorOptionsPath);
-        }
-    }
-
-    void options_layer_helper::update()
-    {
-        if (const auto changeId = m_options->get_change_id(m_layer); changeId != m_changeId)
-        {
-            save();
-            m_changeId = changeId;
-        }
-    }
 }

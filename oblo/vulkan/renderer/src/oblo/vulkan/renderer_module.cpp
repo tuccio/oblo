@@ -1,10 +1,13 @@
 #include <oblo/vulkan/renderer_module.hpp>
 
+#include <oblo/core/service_registry.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/options/option_proxy.hpp>
 #include <oblo/options/option_traits.hpp>
 #include <oblo/options/options_module.hpp>
+#include <oblo/options/options_provider.hpp>
 #include <oblo/vulkan/required_features.hpp>
 
 namespace oblo
@@ -106,12 +109,11 @@ namespace oblo::vk
         return *g_instance;
     }
 
-    bool renderer_module::startup(const module_initializer&)
+    bool renderer_module::startup(const module_initializer& initializer)
     {
         OBLO_ASSERT(!g_instance);
 
-        auto* const options = module_manager::get().load<options_module>();
-        option_proxy_struct<renderer_options>::register_options(options->manager());
+        option_proxy_struct<renderer_options>::register_options(*initializer.services);
 
         g_instance = this;
 

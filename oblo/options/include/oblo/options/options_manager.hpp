@@ -2,6 +2,7 @@
 
 #include <oblo/core/expected.hpp>
 #include <oblo/core/handle.hpp>
+#include <oblo/options/option_traits.hpp>
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/property_value_wrapper.hpp>
 

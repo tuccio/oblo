@@ -86,7 +86,6 @@ namespace oblo
 
     void options_manager::shutdown()
     {
-        // TODO: Save if necessary
         m_impl.reset();
     }
 

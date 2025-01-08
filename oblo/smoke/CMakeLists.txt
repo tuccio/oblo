@@ -5,6 +5,7 @@ target_link_libraries(
     PUBLIC
     oblo::asset
     oblo::ecs
+    oblo::options
     oblo::resource
     oblo::runtime
     oblo::sandbox

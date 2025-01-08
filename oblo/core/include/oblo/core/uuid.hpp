@@ -238,18 +238,14 @@ namespace oblo
     {
         constexpr auto operator()(const oblo::uuid& uuid) const noexcept
         {
-            using namespace oblo;
-            constexpr std::hash<u64> hash64{};
-
             struct u128
             {
-                u64 hi;
-                u64 lo;
+                char data[16];
             };
 
-            const auto [hi, lo] = std::bit_cast<u128>(uuid);
+            const auto chars = std::bit_cast<u128>(uuid);
 
-            return hash_mix(hash64(hi), hash64(lo));
+            return hash_xxhz_compile_time(chars.data, sizeof(uuid));
         }
     };
 }

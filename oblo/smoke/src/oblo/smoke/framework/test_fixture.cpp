@@ -13,6 +13,7 @@
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_manager.hpp>
+#include <oblo/options/options_module.hpp>
 #include <oblo/reflection/reflection_module.hpp>
 #include <oblo/renderdoc/renderdoc_module.hpp>
 #include <oblo/resource/registration.hpp>
@@ -83,6 +84,15 @@ namespace oblo::smoke
                 // Load the runtime, which will be queried for required vulkan features
                 auto& mm = module_manager::get();
                 mm.load<oblo::runtime_module>();
+                mm.load<runtime_module>();
+                mm.load<reflection::reflection_module>();
+
+                auto* options = mm.load<options_module>();
+
+                // TODO: Maybe we can invert the dependency instead
+                options->manager().init();
+
+                mm.finalize();
 
                 return true;
             }
@@ -98,8 +108,8 @@ namespace oblo::smoke
 
                 auto& mm = module_manager::get();
 
-                auto* const runtimeModule = mm.load<runtime_module>();
-                auto* const reflectionModule = mm.load<reflection::reflection_module>();
+                auto* const runtimeModule = mm.find<runtime_module>();
+                auto* const reflectionModule = mm.find<reflection::reflection_module>();
 
                 runtimeRegistry = runtimeModule->create_runtime_registry();
 

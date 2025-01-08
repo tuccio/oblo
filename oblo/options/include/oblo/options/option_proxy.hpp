@@ -1,9 +1,11 @@
 #pragma once
 
+#include <oblo/core/service_registry.hpp>
 #include <oblo/core/string/fixed_string.hpp>
 #include <oblo/core/struct_apply.hpp>
 #include <oblo/options/option_traits.hpp>
 #include <oblo/options/options_manager.hpp>
+#include <oblo/options/options_provider.hpp>
 
 namespace oblo
 {
@@ -31,11 +33,15 @@ namespace oblo
     template <typename T>
     struct option_proxy_struct : T
     {
-        static void register_options(options_manager& manager)
+        static void register_options(service_registry& services)
         {
-            struct_apply([&manager]<fixed_string... Names>(const option_proxy<Names>&...)
-                { (manager.register_option(option_proxy<Names>::traits::descriptor), ...); },
+            using lambda_provider = lambda_options_provider<decltype([](deque<option_descriptor>& out) {
+        struct_apply([&out]<fixed_string... Names>(const option_proxy<Names>&...)
+                { (out.push_back(option_proxy<Names>::traits::descriptor), ...); },
                 T{});
+            })>;
+
+            services.add<lambda_provider>().as<options_provider>().unique();
         }
 
         void init(const options_manager& manager)

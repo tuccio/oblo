@@ -15,6 +15,42 @@ namespace oblo
     namespace
     {
         module_manager* g_instance{nullptr};
+
+        struct sorted_module
+        {
+            type_id id;
+            u32 loadOrder;
+            module_interface* ptr;
+        };
+
+        struct reverse_load_order
+        {
+            bool operator()(const sorted_module& lhs, const sorted_module& rhs)
+            {
+                return lhs.loadOrder > rhs.loadOrder;
+            }
+        };
+
+        struct load_order
+        {
+            bool operator()(const sorted_module& lhs, const sorted_module& rhs)
+            {
+                return lhs.loadOrder < rhs.loadOrder;
+            }
+        };
+
+        template <typename T, typename Order = load_order>
+        void sort_modules(dynamic_array<sorted_module>& out, const T& modules, Order f = {})
+        {
+            out.reserve(modules.size());
+
+            for (auto& [id, storage] : modules)
+            {
+                out.emplace_back(id, storage.loadOrder, storage.ptr.get());
+            }
+
+            std::sort(out.begin(), out.end(), f);
+        }
     }
 
     struct module_manager::scoped_state_change
@@ -71,8 +107,11 @@ namespace oblo
 
         m_state = state::finalizing;
 
-        // We could consider finalizing in load order if it matters
-        for (auto& [k, m] : m_modules)
+        // We finalize in load order
+        dynamic_array<sorted_module> modules;
+        sort_modules(modules, m_modules);
+
+        for (auto& m : modules)
         {
             m.ptr->finalize();
         }
@@ -82,24 +121,9 @@ namespace oblo
 
     void module_manager::shutdown()
     {
-        struct module_to_delete
-        {
-            type_id id;
-            u32 loadOrder;
-        };
-
-        std::vector<module_to_delete> modules;
-        modules.reserve(m_modules.size());
-
-        for (auto& [id, storage] : m_modules)
-        {
-            modules.emplace_back(id, storage.loadOrder);
-        }
-
         // We unload in reverse load order
-        std::sort(modules.begin(),
-            modules.end(),
-            [](const module_to_delete& lhs, const module_to_delete& rhs) { return lhs.loadOrder > rhs.loadOrder; });
+        dynamic_array<sorted_module> modules;
+        sort_modules(modules, m_modules, reverse_load_order{});
 
         for (auto& m : modules)
         {

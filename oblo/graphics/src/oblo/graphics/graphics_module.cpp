@@ -124,8 +124,7 @@ namespace oblo
             },
         });
 
-        auto* const options = module_manager::get().load<options_module>();
-        option_proxy_struct<surfels_gi_options>::register_options(options->manager());
+        option_proxy_struct<surfels_gi_options>::register_options(*initializer.services);
 
         return true;
     }
