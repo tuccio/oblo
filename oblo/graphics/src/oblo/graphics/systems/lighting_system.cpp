@@ -46,9 +46,7 @@ namespace oblo
 
         m_optionsManager = &optionsModule->manager();
 
-        m_options.init<&graphics_options::isRayTracingEnabled,
-            &graphics_options::maxSurfels,
-            &graphics_options::gridCellSize>(*m_optionsManager);
+        m_giOptions.init(*m_optionsManager);
 
         m_sceneRenderer->ensure_setup();
 
@@ -78,8 +76,8 @@ namespace oblo
 
     void lighting_system::update(const ecs::system_update_context& ctx)
     {
-        m_options.read(*m_optionsManager);
-        m_sceneRenderer->setup_surfels_gi(m_options.maxSurfels, m_options.gridCellSize);
+        m_sceneRenderer->setup_surfels_gi(m_giOptions.maxSurfels.read(*m_optionsManager),
+            m_giOptions.gridCellSize.read(*m_optionsManager));
 
         const auto lightsRange = ctx.entities->range<light_component, global_transform_component>();
 

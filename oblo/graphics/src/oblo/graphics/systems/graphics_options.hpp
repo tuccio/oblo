@@ -1,20 +1,16 @@
 #pragma once
 
 #include <oblo/core/types.hpp>
+#include <oblo/options/option_proxy.hpp>
 #include <oblo/options/option_traits.hpp>
 
 namespace oblo
 {
-    struct graphics_options
-    {
-        bool isRayTracingEnabled{false};
-        u32 maxSurfels{1u << 16};
-        f32 gridCellSize{1.f};
-    };
-
     template <>
-    struct option_traits<&graphics_options::isRayTracingEnabled>
+    struct option_traits<"r.isRayTracingEnabled">
     {
+        using type = bool;
+
         static constexpr option_descriptor descriptor{
             .kind = property_kind::boolean,
             .id = "b01a7290-4f14-4b5c-9693-3b748bd9f45a"_uuid,
@@ -25,8 +21,10 @@ namespace oblo
     };
 
     template <>
-    struct option_traits<&graphics_options::maxSurfels>
+    struct option_traits<"r.gi.maxSurfels">
     {
+        using type = u32;
+
         static constexpr option_descriptor descriptor{
             .kind = property_kind::u32,
             .id = "230f65b2-3049-455a-aefd-fee4a6567d75"_uuid,
@@ -38,8 +36,10 @@ namespace oblo
     };
 
     template <>
-    struct option_traits<&graphics_options::gridCellSize>
+    struct option_traits<"r.gi.gridCellSize">
     {
+        using type = f32;
+
         static constexpr option_descriptor descriptor{
             .kind = property_kind::f32,
             .id = "7896ff6e-0291-4548-a113-83da75cda1cd"_uuid,
@@ -48,5 +48,16 @@ namespace oblo
             .defaultValue = property_value_wrapper{1.f},
             .minValue = property_value_wrapper{0.1f},
         };
+    };
+
+    struct vulkan_options
+    {
+        option_proxy<"r.isRayTracingEnabled"> isRayTracingEnabled;
+    };
+
+    struct surfels_gi_options
+    {
+        option_proxy<"r.gi.maxSurfels"> maxSurfels;
+        option_proxy<"r.gi.gridCellSize"> gridCellSize;
     };
 }

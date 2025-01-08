@@ -1,6 +1,7 @@
 #include <oblo/graphics/graphics_module.hpp>
 
 #include <oblo/core/service_registry.hpp>
+#include <oblo/core/struct_apply.hpp>
 #include <oblo/ecs/services/world_builder.hpp>
 #include <oblo/ecs/systems/system_graph_builder.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
@@ -125,9 +126,8 @@ namespace oblo
 
         auto* const options = module_manager::get().load<options_module>();
 
-        options->manager().register_option(option_traits<&graphics_options::isRayTracingEnabled>::descriptor);
-        options->manager().register_option(option_traits<&graphics_options::maxSurfels>::descriptor);
-        options->manager().register_option(option_traits<&graphics_options::gridCellSize>::descriptor);
+        option_proxy_struct<vulkan_options>::register_options(options->manager());
+        option_proxy_struct<surfels_gi_options>::register_options(options->manager());
 
         return true;
     }

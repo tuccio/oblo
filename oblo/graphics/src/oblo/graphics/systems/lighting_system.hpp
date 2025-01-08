@@ -46,6 +46,6 @@ namespace oblo
         const options_manager* m_optionsManager{};
         vk::frame_graph_template m_rtShadows;
         h32_flat_extpool_dense_map<ecs::entity_handle, shadow_directional> m_shadows;
-        options_reader<graphics_options> m_options;
+        option_proxy_struct<surfels_gi_options> m_giOptions;
     };
 };

@@ -1,11 +1,12 @@
 #pragma once
 
+#include <oblo/core/string/fixed_string.hpp>
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/property_value_wrapper.hpp>
 
 namespace oblo
 {
-    template <auto>
+    template <fixed_string>
     struct option_traits;
 
     struct option_descriptor
