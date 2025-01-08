@@ -15,6 +15,7 @@ namespace oblo::vk
     public:
         bool startup(const module_initializer& initializer) override;
         void shutdown() override;
+        void finalize() override;
 
         required_features get_required_features();
 

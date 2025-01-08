@@ -113,6 +113,20 @@ namespace oblo::vk
         auto* const options = module_manager::get().load<options_module>();
         option_proxy_struct<renderer_options>::register_options(options->manager());
 
+        g_instance = this;
+
+        return true;
+    }
+
+    void renderer_module::shutdown()
+    {
+        OBLO_ASSERT(g_instance == this);
+        g_instance = nullptr;
+    }
+
+    void vk::renderer_module::finalize()
+    {
+        auto* const options = module_manager::get().find<options_module>();
         m_withRayTracing = renderer_options{}.isRayTracingEnabled.read(options->manager());
 
         m_deviceFeaturesChain = m_withRayTracing ? static_cast<void*>(&g_rtPipelineFeatures)
@@ -136,16 +150,6 @@ namespace oblo::vk
         {
             m_deviceExtensions.append(std::begin(g_rayTracingDeviceExtensions), std::end(g_rayTracingDeviceExtensions));
         }
-
-        g_instance = this;
-
-        return true;
-    }
-
-    void renderer_module::shutdown()
-    {
-        OBLO_ASSERT(g_instance == this);
-        g_instance = nullptr;
     }
 
     required_features renderer_module::get_required_features()

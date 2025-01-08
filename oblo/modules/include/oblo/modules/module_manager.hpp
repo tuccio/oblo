@@ -33,6 +33,8 @@ namespace oblo
         template <typename T>
         T* find() const;
 
+        MODULES_API void finalize();
+
         MODULES_API void shutdown();
 
         template <typename T>
@@ -48,15 +50,28 @@ namespace oblo
         struct module_storage;
         struct service_storage;
 
+        enum class state : u8
+        {
+            idle,
+            loading,
+            finalizing,
+            finalized,
+        };
+
+        struct scoped_state_change;
+
     private:
         std::unordered_map<type_id, module_storage> m_modules;
         std::unordered_map<type_id, service_storage> m_services;
         u32 m_nextLoadIndex{};
+        state m_state{state::idle};
     };
 
     template <typename T>
     T* module_manager::load()
     {
+        OBLO_ASSERT(m_state <= state::loading);
+
         constexpr auto id = get_type_id<T>();
 
         if (auto* const m = find(id))

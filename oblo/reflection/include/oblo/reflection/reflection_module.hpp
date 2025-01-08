@@ -11,6 +11,7 @@ namespace oblo::reflection
     public:
         bool startup(const module_initializer& initializer) override;
         void shutdown() override;
+        void finalize() override {}
 
         const reflection_registry& get_registry() const;
 

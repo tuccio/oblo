@@ -17,6 +17,22 @@ namespace oblo
         module_manager* g_instance{nullptr};
     }
 
+    struct module_manager::scoped_state_change
+    {
+        scoped_state_change(state* s, state newState) : prev{*s}, ptr{s}
+        {
+            *s = newState;
+        }
+
+        ~scoped_state_change()
+        {
+            *ptr = prev;
+        }
+
+        state prev;
+        state* ptr;
+    };
+
     struct module_manager::module_storage
     {
         std::unique_ptr<module_interface> ptr;
@@ -47,6 +63,21 @@ namespace oblo
 
         OBLO_ASSERT(g_instance == this);
         g_instance = nullptr;
+    }
+
+    void module_manager::finalize()
+    {
+        OBLO_ASSERT(m_state < state::finalizing);
+
+        m_state = state::finalizing;
+
+        // We could consider finalizing in load order if it matters
+        for (auto& [k, m] : m_modules)
+        {
+            m.ptr->finalize();
+        }
+
+        m_state = state::finalized;
     }
 
     void module_manager::shutdown()
@@ -98,6 +129,10 @@ namespace oblo
 
     bool module_manager::load(const type_id& id, std::unique_ptr<module_interface> module)
     {
+        OBLO_ASSERT(m_state <= state::loading);
+
+        scoped_state_change state{&m_state, state::loading};
+
         const auto [it, inserted] = m_modules.emplace(id, module_storage{});
 
         if (!inserted)

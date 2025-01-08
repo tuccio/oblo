@@ -136,6 +136,16 @@ namespace oblo::editor
         // Load the runtime, which will be queried for required vulkan features
         mm.load<oblo::runtime_module>();
 
+        mm.load<options_module>();
+        mm.load<oblo::runtime_module>();
+        mm.load<oblo::reflection::reflection_module>();
+        mm.load<importers::importers_module>();
+        mm.load<editor_module>();
+
+        m_editorOptions.load();
+
+        mm.finalize();
+
         return true;
     }
 
@@ -144,14 +154,9 @@ namespace oblo::editor
         init_ui_style();
 
         auto& mm = module_manager::get();
-
-        auto* const options = mm.load<options_module>();
-        auto* const runtime = mm.load<oblo::runtime_module>();
-        auto* const reflection = mm.load<oblo::reflection::reflection_module>();
-        mm.load<importers::importers_module>();
-        mm.load<editor_module>();
-
-        m_editorOptions.load();
+        auto* const reflection = mm.find<oblo::reflection::reflection_module>();
+        auto* const runtime = mm.find<oblo::runtime_module>();
+        auto* const options = mm.find<oblo::options_module>();
 
         m_runtimeRegistry = runtime->create_runtime_registry();
 
