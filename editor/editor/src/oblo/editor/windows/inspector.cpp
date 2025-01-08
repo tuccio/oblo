@@ -15,6 +15,7 @@
 #include <oblo/editor/ui/widgets.hpp>
 #include <oblo/editor/utility/entity_utility.hpp>
 #include <oblo/editor/window_update_context.hpp>
+#include <oblo/editor/windows/artifact_picker.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/properties/attributes.hpp>
 #include <oblo/properties/property_kind.hpp>
@@ -22,6 +23,7 @@
 #include <oblo/properties/property_tree.hpp>
 #include <oblo/properties/visit.hpp>
 #include <oblo/reflection/reflection_registry.hpp>
+#include <oblo/resource/resource_ref_desc.hpp>
 
 #include <format>
 
@@ -38,6 +40,12 @@ namespace oblo::editor
 {
     namespace
     {
+        struct inspector_context
+        {
+            const reflection::reflection_registry& reflection;
+            artifact_picker& artifactPicker;
+        };
+
         void build_quaternion_editor(const property_node& node, std::byte* const data)
         {
             auto* const q = new (data) quaternion;
@@ -72,8 +80,7 @@ namespace oblo::editor
             ImGui::ColorEdit3(node.name.c_str(), &v->x);
         }
 
-        void build_property_grid(
-            const reflection::reflection_registry& refl, const property_tree& tree, std::byte* const data)
+        void build_property_grid(const inspector_context& ctx, const property_tree& tree, std::byte* const data)
         {
             auto* ptr = data;
 
@@ -107,7 +114,7 @@ namespace oblo::editor
                     },
                     [&ptr](const property_node& node, const property_node_finish) { ptr -= node.offset; },
                     [](const property_node&, const property_array&, auto&&) { return visit_result::sibling; },
-                    [&ptr, &refl](const property& property)
+                    [&ptr, &ctx, &tree](const property& property)
                     {
                         const auto makeId = [&property] { return (int(hash_mix(property.offset, property.parent))); };
 
@@ -115,14 +122,14 @@ namespace oblo::editor
 
                         if (property.isEnum)
                         {
-                            const auto e = refl.find_enum(property.type);
+                            const auto e = ctx.reflection.find_enum(property.type);
 
                             if (e)
                             {
-                                const auto names = refl.get_enumerator_names(e);
-                                const auto values = refl.get_enumerator_values(e);
+                                const auto names = ctx.reflection.get_enumerator_names(e);
+                                const auto values = ctx.reflection.get_enumerator_values(e);
 
-                                const u32 size = refl.get_type_data(e).size;
+                                const u32 size = ctx.reflection.get_type_data(e).size;
 
                                 const char* preview = "<Undefined>";
 
@@ -181,19 +188,29 @@ namespace oblo::editor
                             ImGui::PopID();
                             break;
 
-                        case property_kind::uuid:
-                            ImGui::PushID(makeId());
+                        case property_kind::uuid: {
+                            const auto parentType = ctx.reflection.find_type(tree.nodes[property.parent].type);
 
+                            if (const auto resourceRef = ctx.reflection.find_concept<resource_ref_desc>(parentType))
                             {
+                                const auto& currentValue = *reinterpret_cast<uuid*>(propertyPtr);
+                                ctx.artifactPicker.draw(makeId(), resourceRef->resourceType, currentValue);
+                            }
+                            else
+                            {
+                                ImGui::PushID(makeId());
+
                                 char buf[36];
                                 const auto& v = *reinterpret_cast<uuid*>(propertyPtr);
                                 v.format_to(buf);
 
                                 ImGui::TextUnformatted(buf, buf + array_size(buf));
-                            }
 
-                            ImGui::PopID();
-                            break;
+                                ImGui::PopID();
+                            }
+                        }
+
+                        break;
 
                         default:
                             ImGui::TextUnformatted(property.name.c_str());
@@ -206,6 +223,10 @@ namespace oblo::editor
         }
     }
 
+    inspector::inspector() = default;
+
+    inspector::~inspector() = default;
+
     void inspector::init(const window_update_context& ctx)
     {
         m_propertyRegistry = ctx.services.find<property_registry>();
@@ -213,6 +234,9 @@ namespace oblo::editor
         m_registry = ctx.services.find<ecs::entity_registry>();
         m_selection = ctx.services.find<selected_entities>();
         m_factory = ctx.services.find<component_factory>();
+
+        auto* assetRegistry = ctx.services.find<asset_registry>();
+        m_artifactPicker = std::make_unique<artifact_picker>(*assetRegistry);
     }
 
     bool inspector::update(const window_update_context&)
@@ -269,6 +293,11 @@ namespace oblo::editor
 
                     const std::span components = m_registry->get_component_types(e);
 
+                    const inspector_context inspectorContext = {
+                        .reflection = *m_reflection,
+                        .artifactPicker = *m_artifactPicker,
+                    };
+
                     for (const ecs::component_type type : components)
                     {
                         const auto& desc = typeRegistry.get_component_type_desc(type);
@@ -324,7 +353,7 @@ namespace oblo::editor
                                 auto* const data = m_registry->try_get(e, type);
 
                                 ImGui::PushID(int(type.value));
-                                build_property_grid(*m_reflection, *propertyTree, data);
+                                build_property_grid(inspectorContext, *propertyTree, data);
                                 ImGui::PopID();
                             }
                         }

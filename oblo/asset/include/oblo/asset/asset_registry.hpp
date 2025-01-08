@@ -9,14 +9,12 @@
 
 namespace oblo
 {
-    struct uuid;
-    class string;
-    class string_builder;
-}
-
-namespace oblo
-{
     class importer;
+    class string_builder;
+    class string;
+
+    template <typename T>
+    class function_ref;
 
     struct artifact_meta;
     struct asset_meta;
@@ -24,6 +22,7 @@ namespace oblo
     struct file_importer_desc;
     struct import_preview;
     struct import_node_config;
+    struct uuid;
 
     class asset_registry
     {
@@ -59,6 +58,9 @@ namespace oblo
         bool find_asset_artifacts(const uuid& id, dynamic_array<uuid>& artifacts) const;
 
         bool load_artifact_meta(const uuid& artifactId, artifact_meta& artifact) const;
+
+        void iterate_artifacts_by_type(type_id type,
+            function_ref<bool(const uuid& assetId, const uuid& artifactId)> callback) const;
 
         cstring_view get_asset_directory() const;
 
