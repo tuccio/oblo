@@ -83,7 +83,7 @@ namespace oblo::vk::main_view
         graph.make_input(visibilityLighting, &visibility_lighting::inLightConfig, InLightConfig);
         graph.make_input(visibilityLighting, &visibility_lighting::inLightBuffer, InLightBuffer);
         graph.make_input(visibilityLighting, &visibility_lighting::inShadowSink, InShadowSink);
-        graph.make_input(visibilityLighting, &visibility_lighting::inSkyboxResidentTexture, InSkyboxResidentTexture);
+        graph.make_input(visibilityLighting, &visibility_lighting::inSkyboxSettingsBuffer, InSkyboxSettingsBuffer);
 
         graph.make_input(visibilityDebug, &visibility_debug::inDebugMode, InDebugMode);
 
@@ -332,7 +332,8 @@ namespace oblo::vk::scene_data
 
         const auto skyboxProvider = graph.add_node<skybox_provider>();
         graph.make_input(skyboxProvider, &skybox_provider::inSkyboxResource, InSkyboxResource);
-        graph.make_output(skyboxProvider, &skybox_provider::outSkyboxResidentTexture, OutSkyboxResidentTexture);
+        graph.make_input(skyboxProvider, &skybox_provider::inSkyboxSettings, InSkyboxSettings);
+        graph.make_output(skyboxProvider, &skybox_provider::outSkyboxSettingsBuffer, OutSkyboxSettingsBuffer);
 
         return graph;
     }

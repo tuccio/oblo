@@ -3,6 +3,7 @@
 #include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/data/light_data.hpp>
 #include <oblo/vulkan/data/light_visibility_event.hpp>
+#include <oblo/vulkan/data/skybox_settings.hpp>
 #include <oblo/vulkan/data/visibility_debug_mode.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
@@ -20,18 +21,17 @@ namespace oblo::vk
 {
     struct draw_buffer_data;
     struct picking_configuration;
-    struct resident_texture;
 
     struct visibility_lighting
     {
         data<vec2u> inResolution;
 
         data<std::span<const light_data>> inLights;
-        data<h32<resident_texture>> inSkyboxResidentTexture;
 
         data_sink<light_visibility_event> inShadowSink;
 
         resource<buffer> inCameraBuffer;
+        resource<buffer> inSkyboxSettingsBuffer;
 
         resource<buffer> inLightBuffer;
         resource<buffer> inLightConfig;

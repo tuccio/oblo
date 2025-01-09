@@ -96,6 +96,8 @@ namespace oblo::editor
             }
         );
 
+        using SkyboxInit = decltype([](ecs::entity_registry& reg, ecs::entity e) { auto& skybox = reg.get<skybox_component>(e); skybox.tint = vec3::splat(1.f); skybox.multiplier = 1.f; } );
+
         using NoInit = decltype([](ecs::entity_registry&, ecs::entity) {});
 
         commands.spawnEntityCommands.push_back(
@@ -108,6 +110,6 @@ namespace oblo::editor
             make_spawn_command<light_component, DirectionalLightInit, "Directional Light">(ICON_FA_SUN));
 
         commands.spawnEntityCommands.push_back(
-            make_spawn_command<skybox_component, NoInit, "Skybox">(ICON_FA_CLOUD_MOON));
+            make_spawn_command<skybox_component, SkyboxInit, "Skybox">(ICON_FA_CLOUD_MOON));
     }
 }

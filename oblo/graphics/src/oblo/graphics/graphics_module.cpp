@@ -94,6 +94,9 @@ namespace oblo
 
             reg.add_class<skybox_component>()
                 .add_field(&skybox_component::texture, "texture")
+                .add_field(&skybox_component::multiplier, "multiplier")
+                .add_field(&skybox_component::tint, "tint")
+                .add_attribute<linear_color_tag>()
                 .add_ranged_type_erasure()
                 .add_tag<ecs::component_type_tag>();
         }

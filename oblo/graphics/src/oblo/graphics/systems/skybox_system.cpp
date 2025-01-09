@@ -9,6 +9,7 @@
 #include <oblo/graphics/systems/scene_renderer.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
+#include <oblo/vulkan/data/skybox_settings.hpp>
 
 namespace oblo
 {
@@ -51,7 +52,11 @@ namespace oblo
         if (skybox)
         {
             const auto skyboxPtr = m_resourceRegistry->get_resource(skybox->texture.id).as<texture>();
-            m_sceneRenderer->setup_skybox(skyboxPtr);
+
+            m_sceneRenderer->setup_skybox(skyboxPtr,
+                {
+                    .multiplier = skybox->tint * skybox->multiplier,
+                });
         }
     }
 }

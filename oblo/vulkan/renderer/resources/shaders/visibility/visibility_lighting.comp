@@ -41,6 +41,12 @@ layout(std430, binding = 2) restrict readonly buffer b_ShadowMaps
     uint g_ShadowMaps[];
 };
 
+layout(std430, binding = 3) restrict readonly buffer b_SkyboxSettings
+{
+    vec3 g_SkyboxMultiplier;
+    uint g_SkyboxTexture;
+};
+
 vec4 visibility_shade(in visibility_shade_context ctx)
 {
     // Read the instance data we need
@@ -193,16 +199,17 @@ vec4 visibility_miss(in visibility_shade_context ctx)
     const vec2 uvQuadX = subgroupQuadSwapHorizontal(uv);
     const vec2 uvQuadY = subgroupQuadSwapVertical(uv);
 
-#if 0 // Using gradients this way introduces a seam where the skybox wraps, maybe we can just choose a mipmap manually instead
+#if 0 // Using gradients this way introduces a seam where the skybox wraps, maybe we can just choose a mipmap manually
+      // instead
     const vec2 uvDDX = uv - uvQuadX;
     const vec2 uvDDY = uv - uvQuadY;
 
-    const vec4 color = texture_sample_2d_grad(g_Constants.skybox, OBLO_SAMPLER_LINEAR, uv, uvDDX, uvDDY);
+    const vec4 color = texture_sample_2d_grad(g_SkyboxTexture, OBLO_SAMPLER_LINEAR, uv, uvDDX, uvDDY);
 
 #else
     const uint lod = 0;
-    const vec4 color = texture_sample_2d_lod(g_Constants.skybox, OBLO_SAMPLER_LINEAR, uv, 0);
+    const vec4 color = texture_sample_2d_lod(g_SkyboxTexture, OBLO_SAMPLER_LINEAR, uv, 0);
 #endif
 
-    return color;
+    return vec4(color.xyz * g_SkyboxMultiplier, 1);
 }

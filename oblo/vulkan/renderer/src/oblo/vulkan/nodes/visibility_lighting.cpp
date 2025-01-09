@@ -14,6 +14,10 @@
 
 namespace oblo::vk
 {
+    namespace
+    {
+
+    }
     void visibility_lighting::init(const frame_graph_init_context& ctx)
     {
         auto& passManager = ctx.get_pass_manager();
@@ -44,6 +48,7 @@ namespace oblo::vk
         ctx.acquire(inCameraBuffer, buffer_usage::uniform);
         ctx.acquire(inLightConfig, buffer_usage::uniform);
         ctx.acquire(inLightBuffer, buffer_usage::storage_read);
+        ctx.acquire(inSkyboxSettingsBuffer, buffer_usage::uniform);
 
         ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
 
@@ -87,6 +92,7 @@ namespace oblo::vk
                 {"b_MeshTables", inMeshDatabase},
                 {"b_CameraBuffer", inCameraBuffer},
                 {"b_ShadowMaps", outShadowMaps},
+                {"b_SkyboxSettings", inSkyboxSettingsBuffer},
             });
 
         ctx.bind_textures(bindingTable,
@@ -120,9 +126,6 @@ namespace oblo::vk
             };
 
             pm.bind_descriptor_sets(*pass, bindingTables);
-
-            const auto skybox = ctx.access(inSkyboxResidentTexture);
-            pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&skybox, 1}));
 
             vkCmdDispatch(ctx.get_command_buffer(), round_up_div(resolution.x, 8u), round_up_div(resolution.y, 8u), 1);
 

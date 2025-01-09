@@ -48,6 +48,11 @@ namespace oblo::vk
 
     h32<resident_texture> resource_cache::get_or_add(const texture_resource_ptr& resource)
     {
+        if (!resource)
+        {
+            return {};
+        }
+
         const auto id = resource.get_id();
 
         if (const auto it = m_textures.find(id); it != m_textures.end())
