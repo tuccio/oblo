@@ -20,11 +20,14 @@ namespace oblo::vk
 {
     struct draw_buffer_data;
     struct picking_configuration;
+    struct resident_texture;
 
     struct visibility_lighting
     {
         data<vec2u> inResolution;
+
         data<std::span<const light_data>> inLights;
+        data<h32<resident_texture>> inSkyboxResidentTexture;
 
         data_sink<light_visibility_event> inShadowSink;
 

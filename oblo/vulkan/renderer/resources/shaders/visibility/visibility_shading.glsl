@@ -23,6 +23,13 @@ struct visibility_shade_context
 };
 
 vec4 visibility_shade(in visibility_shade_context ctx);
+vec4 visibility_miss(in visibility_shade_context ctx);
+
+layout(push_constant) uniform c_PushConstants
+{
+    uint skybox;
+}
+g_Constants;
 
 void main()
 {
@@ -40,16 +47,20 @@ void main()
 
     visibility_shade_context ctx;
 
-    if (!visibility_buffer_parse(visBufferData.xy, ctx.vb))
-    {
-        // This means we didn't hit anything, and have no triangle in this pixel
-        return;
-    }
+    vec4 color;
 
     ctx.screenPos = uvec2(screenPos);
     ctx.resolution = resolution;
 
-    const vec4 color = visibility_shade(ctx);
+    if (!visibility_buffer_parse(visBufferData.xy, ctx.vb))
+    {
+        color = visibility_miss(ctx);
+    }
+    else
+    {
+        color = visibility_shade(ctx);
+    }
+
     imageStore(t_OutShadedImage, screenPos, color);
 }
 

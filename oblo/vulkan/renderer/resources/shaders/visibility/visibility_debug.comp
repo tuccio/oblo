@@ -27,8 +27,9 @@
 #include <visibility/visibility_utils>
 
 #if defined(OUT_GI_SURFELS)
-    #include <surfels/buffers/surfel_grid_r>
     #include <surfels/buffers/surfel_data_r>
+    #include <surfels/buffers/surfel_grid_r>
+
 
     #define OUT_ALBEDO
 #endif
@@ -207,4 +208,9 @@ vec4 visibility_shade(in visibility_shade_context ctx)
 
     return vec4(diff, 0, 1);
 #endif
+}
+
+vec4 visibility_miss(in visibility_shade_context ctx)
+{
+    return vec4(0, 0, 0, 1);
 }

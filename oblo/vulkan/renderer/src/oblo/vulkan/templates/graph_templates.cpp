@@ -15,7 +15,6 @@
 #include <oblo/vulkan/nodes/shadows/shadow_filter.hpp>
 #include <oblo/vulkan/nodes/shadows/shadow_output.hpp>
 #include <oblo/vulkan/nodes/shadows/shadow_temporal.hpp>
-#include <oblo/vulkan/nodes/skybox_pass.hpp>
 #include <oblo/vulkan/nodes/skybox_provider.hpp>
 #include <oblo/vulkan/nodes/surfels/surfel_debug.hpp>
 #include <oblo/vulkan/nodes/surfels/surfel_management.hpp>
@@ -84,6 +83,7 @@ namespace oblo::vk::main_view
         graph.make_input(visibilityLighting, &visibility_lighting::inLightConfig, InLightConfig);
         graph.make_input(visibilityLighting, &visibility_lighting::inLightBuffer, InLightBuffer);
         graph.make_input(visibilityLighting, &visibility_lighting::inShadowSink, InShadowSink);
+        graph.make_input(visibilityLighting, &visibility_lighting::inSkyboxResidentTexture, InSkyboxResidentTexture);
 
         graph.make_input(visibilityDebug, &visibility_debug::inDebugMode, InDebugMode);
 
@@ -197,20 +197,6 @@ namespace oblo::vk::main_view
                 &view_buffers_node::inMeshDatabase,
                 drawCallGenerator,
                 &draw_call_generator::inMeshDatabase);
-        }
-
-        // Skybox
-        {
-            const auto skyboxPass = graph.add_node<skybox_pass>();
-
-            graph.make_input(skyboxPass, &skybox_pass::inSkyboxResidentTexture, InSkyboxResidentTexture);
-
-            graph.connect(skyboxPass,
-                &skybox_pass::outShading,
-                visibilityLighting,
-                &visibility_lighting::outShadedImage);
-
-            graph.connect(viewBuffers, &view_buffers_node::inResolution, skyboxPass, &skybox_pass::inResolution);
         }
 
         // Picking
@@ -511,7 +497,6 @@ namespace oblo::vk
         registry.register_node<draw_call_generator>();
         registry.register_node<entity_picking>();
         registry.register_node<raytracing_debug>();
-        registry.register_node<skybox_pass>();
 
         // Scene data
         registry.register_node<ecs_entity_set_provider>();

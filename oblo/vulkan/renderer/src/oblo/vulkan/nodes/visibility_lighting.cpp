@@ -30,7 +30,16 @@ namespace oblo::vk
 
         ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
 
-        ctx.acquire(outShadedImage, texture_usage::storage_write);
+        const auto resolution = ctx.access(inResolution);
+
+        ctx.create(outShadedImage,
+            {
+                .width = resolution.x,
+                .height = resolution.y,
+                .format = VK_FORMAT_R8G8B8A8_UNORM,
+                .usage = VK_IMAGE_USAGE_STORAGE_BIT,
+            },
+            texture_usage::storage_write);
 
         ctx.acquire(inCameraBuffer, buffer_usage::uniform);
         ctx.acquire(inLightConfig, buffer_usage::uniform);
@@ -111,6 +120,9 @@ namespace oblo::vk
             };
 
             pm.bind_descriptor_sets(*pass, bindingTables);
+
+            const auto skybox = ctx.access(inSkyboxResidentTexture);
+            pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&skybox, 1}));
 
             vkCmdDispatch(ctx.get_command_buffer(), round_up_div(resolution.x, 8u), round_up_div(resolution.y, 8u), 1);
 
