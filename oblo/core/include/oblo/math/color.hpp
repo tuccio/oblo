@@ -22,6 +22,11 @@ namespace oblo
         return value / f32(0xffu);
     }
 
+    inline f32 color_convert_linear_f32(linear_color_tag, f32 value)
+    {
+        return value;
+    }
+
     template <typename T>
     T color_convert(linear_color_tag, srgb_color_tag, f32 source);
 
@@ -38,5 +43,11 @@ namespace oblo
     u8 color_convert<u8>(linear_color_tag, linear_color_tag, f32 source)
     {
         return u8(source * f32(0xffu));
+    }
+
+    template <>
+    f32 color_convert<f32>(linear_color_tag, linear_color_tag, f32 source)
+    {
+        return source;
     }
 }

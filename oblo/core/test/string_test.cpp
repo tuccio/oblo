@@ -74,6 +74,54 @@ namespace oblo
         EXPECT_EQ(sv.back(), 't');
     }
 
+    TEST(string_view, starts_with)
+    {
+        string_view sv = "Hello, world!";
+
+        // Match case, starts with prefix
+        EXPECT_TRUE(sv.starts_with("Hello"));
+
+        // Does not match
+        EXPECT_FALSE(sv.starts_with("world"));
+
+        // Prefix is empty, always true
+        EXPECT_TRUE(sv.starts_with(""));
+
+        // Prefix is the full string
+        EXPECT_TRUE(sv.starts_with("Hello, world!"));
+
+        // Prefix is longer than the string
+        EXPECT_FALSE(sv.starts_with("Hello, world! this is longer"));
+
+        // Test with substring view
+        string_view prefix = "Hello";
+        EXPECT_TRUE(sv.starts_with(prefix));
+    }
+
+    TEST(string_view, ends_with)
+    {
+        string_view sv = "Hello, world!";
+
+        // Match case, ends with suffix
+        EXPECT_TRUE(sv.ends_with("world!"));
+
+        // Does not match
+        EXPECT_FALSE(sv.ends_with("Hello"));
+
+        // Suffix is empty, always true
+        EXPECT_TRUE(sv.ends_with(""));
+
+        // Suffix is the full string
+        EXPECT_TRUE(sv.ends_with("Hello, world!"));
+
+        // Suffix is longer than the string
+        EXPECT_FALSE(sv.ends_with("Hello, world! this is longer"));
+
+        // Test with substring view
+        string_view suffix = "world!";
+        EXPECT_TRUE(sv.ends_with(suffix));
+    }
+
     TEST(cstring_view_test, default_constructor)
     {
         cstring_view sv{};

@@ -13,10 +13,13 @@ function(oblo_setup_build_configurations)
 
         add_compile_options(/permissive-)
 
-        # Flags that are note supported or needed by clang-cl
         if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+            # Flags that are note supported or needed by clang-cl
             add_compile_options(/Zc:preprocessor)
             add_compile_options(/MP)
+        else()
+            # Disable -Wlogical-op-parentheses which warns if you don't add parentheses to A || B && C
+            add_compile_options(-Wno-logical-op-parentheses)
         endif()
     endif()
 
