@@ -6,8 +6,9 @@
 #include <oblo/vulkan/nodes/drawing/draw_call_generator.hpp>
 #include <oblo/vulkan/nodes/drawing/frustum_culling.hpp>
 #include <oblo/vulkan/nodes/postprocess/blur_nodes.hpp>
-#include <oblo/vulkan/nodes/providers/instance_table_node.hpp>
+#include <oblo/vulkan/nodes/postprocess/tone_mapping_node.hpp>
 #include <oblo/vulkan/nodes/providers/ecs_entity_set_provider.hpp>
+#include <oblo/vulkan/nodes/providers/instance_table_node.hpp>
 #include <oblo/vulkan/nodes/providers/light_provider.hpp>
 #include <oblo/vulkan/nodes/providers/skybox_provider.hpp>
 #include <oblo/vulkan/nodes/providers/view_buffers_node.hpp>
@@ -133,8 +134,11 @@ namespace oblo::vk::main_view
         connectVisibilityShadingPass(visibilityDebug, h32<visibility_debug>{});
         connectShadingPass(raytracingDebug, h32<raytracing_debug>{});
 
+        const auto toneMapping = graph.add_node<tone_mapping_node>();
+        graph.connect(visibilityLighting, &visibility_lighting::outShadedImage, toneMapping, &tone_mapping_node::inHDR);
+
         // Copies to the output textures
-        add_copy_output(graph, viewBuffers, visibilityLighting, &visibility_lighting::outShadedImage, OutLitImage);
+        add_copy_output(graph, viewBuffers, toneMapping, &tone_mapping_node::outLDR, OutLitImage);
         add_copy_output(graph, viewBuffers, visibilityDebug, &visibility_debug::outShadedImage, OutDebugImage);
         add_copy_output(graph, viewBuffers, raytracingDebug, &raytracing_debug::outShadedImage, OutRTDebugImage);
 
@@ -498,6 +502,7 @@ namespace oblo::vk
         registry.register_node<draw_call_generator>();
         registry.register_node<entity_picking>();
         registry.register_node<raytracing_debug>();
+        registry.register_node<tone_mapping_node>();
 
         // Scene data
         registry.register_node<ecs_entity_set_provider>();

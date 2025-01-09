@@ -182,8 +182,7 @@ vec4 visibility_shade(in visibility_shade_context ctx)
 
     const vec3 outLight = emitted + reflected;
 
-    // A simple color mapping for now, since we have none implemented and we output to RGBA8
-    return vec4(outLight / (outLight + 1), 1);
+    return vec4(outLight, 1);
 }
 
 vec4 visibility_miss(in visibility_shade_context ctx)

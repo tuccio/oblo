@@ -52,11 +52,11 @@ namespace oblo::vk
 
         h32<compute_pass> lightingPass;
 
-        void init(const frame_graph_init_context& context);
+        void init(const frame_graph_init_context& ctx);
 
-        void build(const frame_graph_build_context& builder);
+        void build(const frame_graph_build_context& ctx);
 
-        void execute(const frame_graph_execute_context& context);
+        void execute(const frame_graph_execute_context& ctx);
     };
 
     // TODO: (#56) The standard layout requirement for nodes forces some copy paste.
@@ -78,10 +78,10 @@ namespace oblo::vk
 
         h32<compute_pass> albedoPass;
 
-        void init(const frame_graph_init_context& context);
+        void init(const frame_graph_init_context& ctx);
 
-        void build(const frame_graph_build_context& builder);
+        void build(const frame_graph_build_context& ctx);
 
-        void execute(const frame_graph_execute_context& context);
+        void execute(const frame_graph_execute_context& ctx);
     };
 }
