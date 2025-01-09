@@ -11,6 +11,9 @@ namespace oblo
     template <typename T>
     struct resource_ref;
 
+    template <typename T>
+    class resource_ptr;
+
     class resource_registry;
     class texture;
 }
@@ -21,6 +24,7 @@ namespace oblo::vk
     struct resident_texture;
 
     using texture_resource_ref = resource_ref<oblo::texture>;
+    using texture_resource_ptr = resource_ptr<oblo::texture>;
 
     class resource_cache
     {
@@ -35,6 +39,7 @@ namespace oblo::vk
         void init(resource_registry& resources, texture_registry& textureRegistry);
 
         h32<resident_texture> get_or_add(const texture_resource_ref& t);
+        h32<resident_texture> get_or_add(const texture_resource_ptr& t);
 
     private:
         struct cached_texture;

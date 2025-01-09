@@ -19,8 +19,11 @@ namespace oblo
     class frame_allocator;
     class random_generator;
     class string_interner;
-
     class string;
+    class texture;
+
+    template <typename>
+    class resource_ptr;
 
     namespace ecs
     {
@@ -114,6 +117,8 @@ namespace oblo::vk
         void acquire(resource<texture> texture, texture_usage usage) const;
 
         h32<resident_texture> acquire_bindless(resource<texture> texture, texture_usage usage) const;
+
+        h32<resident_texture> load_resource(const resource_ptr<oblo::texture>& texture) const;
 
         void acquire(resource<buffer> buffer, buffer_usage usage) const;
 

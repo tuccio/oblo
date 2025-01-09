@@ -1,4 +1,4 @@
-#include <oblo/vulkan/nodes/visibility_lighting.hpp>
+#include <oblo/vulkan/nodes/visibility/visibility_lighting.hpp>
 
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/buffered_array.hpp>
@@ -28,15 +28,15 @@ namespace oblo::vk
     {
         ctx.begin_pass(pass_kind::compute);
 
-        const auto resolution = ctx.access(inResolution);
-
         ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
+
+        const auto resolution = ctx.access(inResolution);
 
         ctx.create(outShadedImage,
             {
                 .width = resolution.x,
                 .height = resolution.y,
-                .format = VK_FORMAT_R8G8B8A8_UNORM,
+                .format = VK_FORMAT_R16G16B16A16_SFLOAT,
                 .usage = VK_IMAGE_USAGE_STORAGE_BIT,
             },
             texture_usage::storage_write);
@@ -44,6 +44,7 @@ namespace oblo::vk
         ctx.acquire(inCameraBuffer, buffer_usage::uniform);
         ctx.acquire(inLightConfig, buffer_usage::uniform);
         ctx.acquire(inLightBuffer, buffer_usage::storage_read);
+        ctx.acquire(inSkyboxSettingsBuffer, buffer_usage::uniform);
 
         ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
 
@@ -87,6 +88,7 @@ namespace oblo::vk
                 {"b_MeshTables", inMeshDatabase},
                 {"b_CameraBuffer", inCameraBuffer},
                 {"b_ShadowMaps", outShadowMaps},
+                {"b_SkyboxSettings", inSkyboxSettingsBuffer},
             });
 
         ctx.bind_textures(bindingTable,

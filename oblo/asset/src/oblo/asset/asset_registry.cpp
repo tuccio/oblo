@@ -9,10 +9,11 @@
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
-#include <oblo/log/log.hpp>
+#include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/core/uuid_generator.hpp>
+#include <oblo/log/log.hpp>
 
 #include <nlohmann/json.hpp>
 
@@ -520,7 +521,7 @@ namespace oblo
         string_builder resourceFile;
         resourceFile.append(artifactsDir).append_path(id.format_to(uuidBuffer));
 
-        if (filesystem::exists(resourceFile).value_or(false))
+        if (!filesystem::exists(resourceFile).value_or(false))
         {
             return false;
         }
@@ -529,6 +530,26 @@ namespace oblo
         resourceMeta.append(ArtifactMetaExtension);
 
         return oblo::load_artifact_meta(resourceMeta, m_impl->assetTypes, artifact);
+    }
+
+    void asset_registry::iterate_artifacts_by_type(type_id type,
+        function_ref<bool(const uuid& assetId, const uuid& artifactId)> callback) const
+    {
+        artifact_meta meta{};
+
+        for (const auto& [id, asset] : m_impl->assets)
+        {
+            for (const auto& artifactId : asset.artifacts)
+            {
+                if (load_artifact_meta(artifactId, meta) && meta.type == type)
+                {
+                    if (!callback(id, artifactId))
+                    {
+                        return;
+                    }
+                }
+            }
+        }
     }
 
     cstring_view asset_registry::get_asset_directory() const

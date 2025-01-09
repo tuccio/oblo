@@ -240,7 +240,7 @@ namespace oblo
         template <typename U>
         constexpr T value_or(U&& fallback) const noexcept
         {
-            return m_hasValue ? *reinterpret_cast<T*>(m_buffer) : std::forward<U>(fallback);
+            return m_hasValue ? *reinterpret_cast<const T*>(m_buffer) : std::forward<U>(fallback);
         }
 
         template <typename U>

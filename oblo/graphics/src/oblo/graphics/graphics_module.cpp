@@ -6,11 +6,13 @@
 #include <oblo/ecs/systems/system_graph_builder.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/light_component.hpp>
+#include <oblo/graphics/components/skybox_component.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
 #include <oblo/graphics/systems/graphics_options.hpp>
 #include <oblo/graphics/systems/lighting_system.hpp>
 #include <oblo/graphics/systems/scene_renderer.hpp>
+#include <oblo/graphics/systems/skybox_system.hpp>
 #include <oblo/graphics/systems/static_mesh_system.hpp>
 #include <oblo/graphics/systems/viewport_system.hpp>
 #include <oblo/math/color.hpp>
@@ -68,9 +70,6 @@ namespace oblo
                 .add_field(&light_component::shadowBlurKernel, "shadowBlurKernel")
                 .add_field(&light_component::shadowBlurSigma, "shadowBlurSigma");
 
-            reg.add_class<resource_ref<mesh>>().add_field(&resource_ref<mesh>::id, "id");
-            reg.add_class<resource_ref<material>>().add_field(&resource_ref<material>::id, "id");
-
             reg.add_enum<light_type>()
                 .add_enumerator("point", light_type::point)
                 .add_enumerator("spot", light_type::spot)
@@ -92,6 +91,14 @@ namespace oblo
                 .add_enumerator("raytracing_debug", viewport_mode::raytracing_debug)
                 .add_enumerator("gi_surfels", viewport_mode::gi_surfels)
                 .add_enumerator("gi_surfels_tile_coverage", viewport_mode::gi_surfels_tile_coverage);
+
+            reg.add_class<skybox_component>()
+                .add_field(&skybox_component::texture, "texture")
+                .add_field(&skybox_component::multiplier, "multiplier")
+                .add_field(&skybox_component::tint, "tint")
+                .add_attribute<linear_color_tag>()
+                .add_ranged_type_erasure()
+                .add_tag<ecs::component_type_tag>();
         }
     }
 
@@ -119,6 +126,10 @@ namespace oblo
                     .before<barriers::renderer_update>();
 
                 builder.add_system<static_mesh_system>()
+                    .after<barriers::renderer_extract>()
+                    .before<barriers::renderer_update>();
+
+                builder.add_system<skybox_system>()
                     .after<barriers::renderer_extract>()
                     .before<barriers::renderer_update>();
             },

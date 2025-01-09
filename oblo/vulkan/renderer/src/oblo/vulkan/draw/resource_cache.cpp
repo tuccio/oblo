@@ -45,4 +45,33 @@ namespace oblo::vk
 
         return handle;
     }
+
+    h32<resident_texture> resource_cache::get_or_add(const texture_resource_ptr& resource)
+    {
+        if (!resource)
+        {
+            return {};
+        }
+
+        const auto id = resource.get_id();
+
+        if (const auto it = m_textures.find(id); it != m_textures.end())
+        {
+            return it->second.handle;
+        }
+
+        if (!resource)
+        {
+            return {};
+        }
+
+        const auto handle = m_textureRegistry->add(*resource.get(), resource.get_name());
+
+        if (handle)
+        {
+            m_textures.emplace(id, handle);
+        }
+
+        return handle;
+    }
 }

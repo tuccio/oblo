@@ -11,11 +11,17 @@ namespace oblo::vk
 {
     struct light_config;
     struct light_data;
+    struct skybox_settings;
 }
 
 namespace oblo
 {
+    template <typename>
+    class resource_ptr;
+
     class service_registry;
+
+    class texture;
 
     struct scene_lights
     {
@@ -40,6 +46,7 @@ namespace oblo
         void ensure_setup();
 
         void setup_lights(const scene_lights& lights);
+        void setup_skybox(const resource_ptr<texture>& skybox, const vk::skybox_settings& settings);
         void setup_surfels_gi(u32 maxSurfels, f32 gridCellsSize);
 
         void add_scene_view(h32<vk::frame_graph_subgraph> subgraph);

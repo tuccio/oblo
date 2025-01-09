@@ -1,23 +1,24 @@
 #pragma once
 
-#include <oblo/vulkan/draw/binding_table.hpp>
-#include <oblo/vulkan/draw/draw_registry.hpp>
+#include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
-#include <oblo/vulkan/nodes/instance_table_node.hpp>
+#include <oblo/vulkan/nodes/providers/instance_table_node.hpp>
 
 namespace oblo::vk
 {
-    struct draw_buffer_data;
-
-    struct frustum_culling
+    struct raytracing_debug
     {
-        h32<compute_pass> cullPass;
+        data<vec2u> inResolution;
 
-        data<std::span<draw_buffer_data>> outDrawBufferData;
+        resource<buffer> inCameraBuffer;
+
+        resource<texture> outShadedImage;
+
+        h32<raytracing_pass> rtDebugPass;
 
         resource<buffer> inMeshDatabase;
-        resource<buffer> inCameraBuffer;
+
         resource<buffer> inInstanceTables;
         data<instance_data_table_buffers_span> inInstanceBuffers;
 

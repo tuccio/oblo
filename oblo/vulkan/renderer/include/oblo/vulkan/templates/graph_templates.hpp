@@ -22,6 +22,7 @@ namespace oblo::vk::main_view
     constexpr string_view InUpdatedSurfelsGrid{"UpdatedSurfelsGrid"};
     constexpr string_view InUpdatedSurfelsData{"UpdatedSurfelsData"};
     constexpr string_view InShadowSink{"ShadowSink"};
+    constexpr string_view InSkyboxSettingsBuffer{"SkyboxSettingsBuffer"};
 
     constexpr string_view InDebugMode{"Debug Mode"};
 
@@ -51,6 +52,8 @@ namespace oblo::vk::main_view
 namespace oblo::vk::scene_data
 {
     constexpr string_view InLights{"LightData"};
+    constexpr string_view InSkyboxResource{"InSkyboxResource"};
+    constexpr string_view InSkyboxSettings{"SkyboxSettings"};
     constexpr string_view OutLights{"LightData"};
     constexpr string_view OutLightBuffer{"LightDataBuffer"};
     constexpr string_view OutLightConfig{"LightConfig"};
@@ -58,6 +61,7 @@ namespace oblo::vk::scene_data
     constexpr string_view OutInstanceTables{"InstanceTables"};
     constexpr string_view OutInstanceBuffers{"InstanceBuffers"};
     constexpr string_view OutEcsEntitySetBuffer{"EcsEntitySetBuffer"};
+    constexpr string_view OutSkyboxSettingsBuffer{"OutSkyboxSettingsBuffer"};
 
     frame_graph_template create(const frame_graph_registry& registry);
 }

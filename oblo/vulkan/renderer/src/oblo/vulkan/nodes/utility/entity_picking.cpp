@@ -1,12 +1,12 @@
-#include <oblo/vulkan/nodes/entity_picking.hpp>
+#include <oblo/vulkan/nodes/utility/entity_picking.hpp>
 
 #include <oblo/core/utility.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/data/draw_buffer_data.hpp>
 #include <oblo/vulkan/data/picking_configuration.hpp>
+#include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/compute_pass_initializer.hpp>
 #include <oblo/vulkan/graph/node_common.hpp>
-#include <oblo/vulkan/nodes/frustum_culling.hpp>
 #include <oblo/vulkan/utility.hpp>
 
 namespace oblo::vk

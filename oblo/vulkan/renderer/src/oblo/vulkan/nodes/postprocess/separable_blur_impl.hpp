@@ -1,4 +1,4 @@
-#include <oblo/vulkan/nodes/separable_blur.hpp>
+#include <oblo/vulkan/nodes/postprocess/separable_blur.hpp>
 
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/string/string_builder.hpp>

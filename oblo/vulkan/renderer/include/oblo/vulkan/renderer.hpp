@@ -4,6 +4,7 @@
 #include <oblo/core/string/string_interner.hpp>
 #include <oblo/vulkan/draw/draw_registry.hpp>
 #include <oblo/vulkan/draw/pass_manager.hpp>
+#include <oblo/vulkan/draw/resource_cache.hpp>
 #include <oblo/vulkan/draw/texture_registry.hpp>
 #include <oblo/vulkan/graph/frame_graph.hpp>
 #include <oblo/vulkan/renderer_context.hpp>
@@ -56,6 +57,7 @@ namespace oblo::vk
         staging_buffer& get_staging_buffer();
         stateful_command_buffer& get_active_command_buffer();
         texture_registry& get_texture_registry();
+        resource_cache& get_resource_cache();
 
         frame_graph& get_frame_graph();
 
@@ -67,6 +69,7 @@ namespace oblo::vk
         staging_buffer m_stagingBuffer;
         draw_registry m_drawRegistry;
         texture_registry m_textureRegistry;
+        resource_cache m_resourceCache;
 
         string_interner m_stringInterner;
         pass_manager m_passManager;
@@ -115,6 +118,11 @@ namespace oblo::vk
     inline texture_registry& renderer::get_texture_registry()
     {
         return m_textureRegistry;
+    }
+
+    inline resource_cache& renderer::get_resource_cache()
+    {
+        return m_resourceCache;
     }
 
     inline frame_graph& vk::renderer::get_frame_graph()

@@ -1,4 +1,4 @@
-#include <oblo/vulkan/nodes/frustum_culling.hpp>
+#include <oblo/vulkan/nodes/drawing/frustum_culling.hpp>
 
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/debug.hpp>

@@ -2,24 +2,26 @@
 
 #include <oblo/vulkan/data/blur_configs.hpp>
 #include <oblo/vulkan/graph/frame_graph_registry.hpp>
-#include <oblo/vulkan/nodes/blur_nodes.hpp>
-#include <oblo/vulkan/nodes/copy_texture_node.hpp>
-#include <oblo/vulkan/nodes/draw_call_generator.hpp>
-#include <oblo/vulkan/nodes/entity_picking.hpp>
-#include <oblo/vulkan/nodes/frustum_culling.hpp>
-#include <oblo/vulkan/nodes/instance_table_node.hpp>
+#include <oblo/vulkan/nodes/debug/raytracing_debug.hpp>
+#include <oblo/vulkan/nodes/drawing/draw_call_generator.hpp>
+#include <oblo/vulkan/nodes/drawing/frustum_culling.hpp>
+#include <oblo/vulkan/nodes/postprocess/blur_nodes.hpp>
+#include <oblo/vulkan/nodes/postprocess/tone_mapping_node.hpp>
 #include <oblo/vulkan/nodes/providers/ecs_entity_set_provider.hpp>
+#include <oblo/vulkan/nodes/providers/instance_table_node.hpp>
 #include <oblo/vulkan/nodes/providers/light_provider.hpp>
-#include <oblo/vulkan/nodes/raytracing_debug.hpp>
+#include <oblo/vulkan/nodes/providers/skybox_provider.hpp>
+#include <oblo/vulkan/nodes/providers/view_buffers_node.hpp>
 #include <oblo/vulkan/nodes/shadows/raytraced_shadows.hpp>
 #include <oblo/vulkan/nodes/shadows/shadow_filter.hpp>
 #include <oblo/vulkan/nodes/shadows/shadow_output.hpp>
 #include <oblo/vulkan/nodes/shadows/shadow_temporal.hpp>
 #include <oblo/vulkan/nodes/surfels/surfel_debug.hpp>
 #include <oblo/vulkan/nodes/surfels/surfel_management.hpp>
-#include <oblo/vulkan/nodes/view_buffers_node.hpp>
-#include <oblo/vulkan/nodes/visibility_lighting.hpp>
-#include <oblo/vulkan/nodes/visibility_pass.hpp>
+#include <oblo/vulkan/nodes/utility/copy_texture_node.hpp>
+#include <oblo/vulkan/nodes/utility/entity_picking.hpp>
+#include <oblo/vulkan/nodes/visibility/visibility_lighting.hpp>
+#include <oblo/vulkan/nodes/visibility/visibility_pass.hpp>
 
 namespace oblo::vk
 {
@@ -82,6 +84,7 @@ namespace oblo::vk::main_view
         graph.make_input(visibilityLighting, &visibility_lighting::inLightConfig, InLightConfig);
         graph.make_input(visibilityLighting, &visibility_lighting::inLightBuffer, InLightBuffer);
         graph.make_input(visibilityLighting, &visibility_lighting::inShadowSink, InShadowSink);
+        graph.make_input(visibilityLighting, &visibility_lighting::inSkyboxSettingsBuffer, InSkyboxSettingsBuffer);
 
         graph.make_input(visibilityDebug, &visibility_debug::inDebugMode, InDebugMode);
 
@@ -131,8 +134,11 @@ namespace oblo::vk::main_view
         connectVisibilityShadingPass(visibilityDebug, h32<visibility_debug>{});
         connectShadingPass(raytracingDebug, h32<raytracing_debug>{});
 
+        const auto toneMapping = graph.add_node<tone_mapping_node>();
+        graph.connect(visibilityLighting, &visibility_lighting::outShadedImage, toneMapping, &tone_mapping_node::inHDR);
+
         // Copies to the output textures
-        add_copy_output(graph, viewBuffers, visibilityLighting, &visibility_lighting::outShadedImage, OutLitImage);
+        add_copy_output(graph, viewBuffers, toneMapping, &tone_mapping_node::outLDR, OutLitImage);
         add_copy_output(graph, viewBuffers, visibilityDebug, &visibility_debug::outShadedImage, OutDebugImage);
         add_copy_output(graph, viewBuffers, raytracingDebug, &raytracing_debug::outShadedImage, OutRTDebugImage);
 
@@ -328,6 +334,11 @@ namespace oblo::vk::scene_data
         const auto ecsEntitySetProvider = graph.add_node<ecs_entity_set_provider>();
         graph.make_output(ecsEntitySetProvider, &ecs_entity_set_provider::outEntitySet, OutEcsEntitySetBuffer);
 
+        const auto skyboxProvider = graph.add_node<skybox_provider>();
+        graph.make_input(skyboxProvider, &skybox_provider::inSkyboxResource, InSkyboxResource);
+        graph.make_input(skyboxProvider, &skybox_provider::inSkyboxSettings, InSkyboxSettings);
+        graph.make_output(skyboxProvider, &skybox_provider::outSkyboxSettingsBuffer, OutSkyboxSettingsBuffer);
+
         return graph;
     }
 }
@@ -491,11 +502,13 @@ namespace oblo::vk
         registry.register_node<draw_call_generator>();
         registry.register_node<entity_picking>();
         registry.register_node<raytracing_debug>();
+        registry.register_node<tone_mapping_node>();
 
         // Scene data
         registry.register_node<ecs_entity_set_provider>();
         registry.register_node<light_provider>();
         registry.register_node<instance_table_node>();
+        registry.register_node<skybox_provider>();
 
         // Ray-traced shadows
         registry.register_node<raytraced_shadows>();

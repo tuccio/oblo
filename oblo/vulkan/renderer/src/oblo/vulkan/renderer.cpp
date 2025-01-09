@@ -62,6 +62,8 @@ namespace oblo::vk
             initializer.entities,
             initializer.resources);
 
+        m_resourceCache.init(initializer.resources, m_textureRegistry);
+
         m_firstUpdate = true;
 
         return true;

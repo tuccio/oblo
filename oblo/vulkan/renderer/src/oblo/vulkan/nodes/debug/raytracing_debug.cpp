@@ -1,15 +1,15 @@
-#include <oblo/vulkan/nodes/raytracing_debug.hpp>
+#include <oblo/vulkan/nodes/debug/raytracing_debug.hpp>
 
 #include <oblo/core/unreachable.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/data/draw_buffer_data.hpp>
 #include <oblo/vulkan/data/picking_configuration.hpp>
+#include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/compute_pass_initializer.hpp>
 #include <oblo/vulkan/draw/raytracing_pass_initializer.hpp>
 #include <oblo/vulkan/graph/node_common.hpp>
 #include <oblo/vulkan/loaded_functions.hpp>
-#include <oblo/vulkan/nodes/frustum_culling.hpp>
 #include <oblo/vulkan/utility.hpp>
 
 namespace oblo::vk

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+
 namespace oblo
 {
     class property_registry;
@@ -17,6 +19,7 @@ namespace oblo::reflection
 
 namespace oblo::editor
 {
+    class artifact_picker;
     class component_factory;
     class selected_entities;
 
@@ -25,6 +28,14 @@ namespace oblo::editor
     class inspector final
     {
     public:
+        inspector();
+        inspector(const inspector&) = delete;
+        inspector(inspector&&) noexcept = delete;
+        ~inspector();
+
+        inspector& operator=(const inspector&) = delete;
+        inspector& operator=(inspector&&) noexcept = delete;
+
         void init(const window_update_context&);
         bool update(const window_update_context&);
 
@@ -34,5 +45,6 @@ namespace oblo::editor
         ecs::entity_registry* m_registry{};
         const selected_entities* m_selection{};
         const component_factory* m_factory{};
+        std::unique_ptr<artifact_picker> m_artifactPicker;
     };
 }

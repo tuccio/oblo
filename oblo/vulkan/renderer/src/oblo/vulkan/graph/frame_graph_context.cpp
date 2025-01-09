@@ -311,6 +311,11 @@ namespace oblo::vk
         return bindlessHandle;
     }
 
+    h32<resident_texture> frame_graph_build_context::load_resource(const resource_ptr<oblo::texture>& texture) const
+    {
+        return m_renderer.get_resource_cache().get_or_add(texture);
+    }
+
     void frame_graph_build_context::acquire(resource<buffer> buffer, buffer_usage usage) const
     {
         OBLO_ASSERT(m_frameGraph.currentPass);
@@ -394,10 +399,9 @@ namespace oblo::vk
         return m_renderer.get_staging_buffer().stage(data).value();
     }
 
-    frame_graph_build_context::frame_graph_build_context(
-        frame_graph_impl& frameGraph, renderer& renderer, resource_pool& resourcePool) :
-        m_frameGraph{frameGraph},
-        m_renderer{renderer}, m_resourcePool{resourcePool}
+    frame_graph_build_context::frame_graph_build_context(frame_graph_impl& frameGraph,
+        renderer& renderer,
+        resource_pool& resourcePool) : m_frameGraph{frameGraph}, m_renderer{renderer}, m_resourcePool{resourcePool}
     {
     }
 
@@ -416,10 +420,9 @@ namespace oblo::vk
         return m_frameGraph.emptyEvents.contains(type);
     }
 
-    frame_graph_execute_context::frame_graph_execute_context(
-        frame_graph_impl& frameGraph, renderer& renderer, VkCommandBuffer commandBuffer) :
-        m_frameGraph{frameGraph},
-        m_renderer{renderer}, m_commandBuffer{commandBuffer}
+    frame_graph_execute_context::frame_graph_execute_context(frame_graph_impl& frameGraph,
+        renderer& renderer,
+        VkCommandBuffer commandBuffer) : m_frameGraph{frameGraph}, m_renderer{renderer}, m_commandBuffer{commandBuffer}
     {
     }
 
