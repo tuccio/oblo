@@ -9,7 +9,7 @@
 #include <oblo/vulkan/graph/frame_graph_context.hpp>
 #include <oblo/vulkan/graph/node_common.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
-#include <oblo/vulkan/nodes/instance_table_node.hpp>
+#include <oblo/vulkan/nodes/providers/instance_table_node.hpp>
 
 namespace oblo::vk
 {

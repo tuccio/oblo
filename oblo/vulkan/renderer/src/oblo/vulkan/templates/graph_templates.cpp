@@ -2,25 +2,25 @@
 
 #include <oblo/vulkan/data/blur_configs.hpp>
 #include <oblo/vulkan/graph/frame_graph_registry.hpp>
-#include <oblo/vulkan/nodes/blur_nodes.hpp>
-#include <oblo/vulkan/nodes/copy_texture_node.hpp>
-#include <oblo/vulkan/nodes/draw_call_generator.hpp>
-#include <oblo/vulkan/nodes/entity_picking.hpp>
-#include <oblo/vulkan/nodes/frustum_culling.hpp>
-#include <oblo/vulkan/nodes/instance_table_node.hpp>
+#include <oblo/vulkan/nodes/debug/raytracing_debug.hpp>
+#include <oblo/vulkan/nodes/drawing/draw_call_generator.hpp>
+#include <oblo/vulkan/nodes/drawing/frustum_culling.hpp>
+#include <oblo/vulkan/nodes/postprocess/blur_nodes.hpp>
+#include <oblo/vulkan/nodes/providers/instance_table_node.hpp>
 #include <oblo/vulkan/nodes/providers/ecs_entity_set_provider.hpp>
 #include <oblo/vulkan/nodes/providers/light_provider.hpp>
-#include <oblo/vulkan/nodes/raytracing_debug.hpp>
+#include <oblo/vulkan/nodes/providers/skybox_provider.hpp>
+#include <oblo/vulkan/nodes/providers/view_buffers_node.hpp>
 #include <oblo/vulkan/nodes/shadows/raytraced_shadows.hpp>
 #include <oblo/vulkan/nodes/shadows/shadow_filter.hpp>
 #include <oblo/vulkan/nodes/shadows/shadow_output.hpp>
 #include <oblo/vulkan/nodes/shadows/shadow_temporal.hpp>
-#include <oblo/vulkan/nodes/skybox_provider.hpp>
 #include <oblo/vulkan/nodes/surfels/surfel_debug.hpp>
 #include <oblo/vulkan/nodes/surfels/surfel_management.hpp>
-#include <oblo/vulkan/nodes/view_buffers_node.hpp>
-#include <oblo/vulkan/nodes/visibility_lighting.hpp>
-#include <oblo/vulkan/nodes/visibility_pass.hpp>
+#include <oblo/vulkan/nodes/utility/copy_texture_node.hpp>
+#include <oblo/vulkan/nodes/utility/entity_picking.hpp>
+#include <oblo/vulkan/nodes/visibility/visibility_lighting.hpp>
+#include <oblo/vulkan/nodes/visibility/visibility_pass.hpp>
 
 namespace oblo::vk
 {

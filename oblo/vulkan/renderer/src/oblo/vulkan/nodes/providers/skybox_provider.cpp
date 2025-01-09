@@ -1,4 +1,4 @@
-#include <oblo/vulkan/nodes/skybox_provider.hpp>
+#include <oblo/vulkan/nodes/providers/skybox_provider.hpp>
 
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/scene/assets/texture.hpp>

@@ -1,4 +1,4 @@
-#include <oblo/vulkan/nodes/visibility_lighting.hpp>
+#include <oblo/vulkan/nodes/visibility/visibility_lighting.hpp>
 
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/buffered_array.hpp>
@@ -14,10 +14,6 @@
 
 namespace oblo::vk
 {
-    namespace
-    {
-
-    }
     void visibility_lighting::init(const frame_graph_init_context& ctx)
     {
         auto& passManager = ctx.get_pass_manager();

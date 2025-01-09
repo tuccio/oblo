@@ -1,7 +1,7 @@
 #pragma once
 
 #include <oblo/vulkan/data/blur_configs.hpp>
-#include <oblo/vulkan/nodes/separable_blur.hpp>
+#include <oblo/vulkan/nodes/postprocess/separable_blur.hpp>
 
 namespace oblo::vk
 {

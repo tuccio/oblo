@@ -1,4 +1,4 @@
-#include <oblo/vulkan/nodes/draw_call_generator.hpp>
+#include <oblo/vulkan/nodes/drawing/draw_call_generator.hpp>
 
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/vulkan/data/draw_buffer_data.hpp>

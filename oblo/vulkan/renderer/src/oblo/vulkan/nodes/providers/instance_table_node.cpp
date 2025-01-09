@@ -1,4 +1,4 @@
-#include <oblo/vulkan/nodes/instance_table_node.hpp>
+#include <oblo/vulkan/nodes/providers/instance_table_node.hpp>
 
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/vulkan/buffer.hpp>
