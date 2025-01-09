@@ -10,6 +10,7 @@
 #extension GL_EXT_control_flow_attributes : enable
 
 #include <renderer/camera>
+#include <renderer/constants>
 #include <renderer/geometry/volumes>
 #include <renderer/instances>
 #include <renderer/lights>
@@ -88,7 +89,7 @@ vec4 visibility_shade(in visibility_shade_context ctx)
             bcDDX,
             bcDDY))
     {
-        return vec4(0);
+        return visibility_miss(ctx);
     }
 
     // Interpolate UV0 and calculate gradients
@@ -181,10 +182,27 @@ vec4 visibility_shade(in visibility_shade_context ctx)
 
 vec4 visibility_miss(in visibility_shade_context ctx)
 {
-    const vec2 uv = vec2(ctx.screenPos) / ctx.resolution;
+    const vec2 ndc = screen_to_ndc(ctx.screenPos, ctx.resolution);
+    const ray cameraRay = visibility_calculate_camera_ray(g_Camera, ndc);
 
+    // Generate sphere UVs to sample the skybox
+    vec2 uv;
+    uv.x = 0.5f + atan(cameraRay.direction.z, cameraRay.direction.x) / (2 * float_pi());
+    uv.y = 0.5f - asin(cameraRay.direction.y) / float_pi();
+
+    const vec2 uvQuadX = subgroupQuadSwapHorizontal(uv);
+    const vec2 uvQuadY = subgroupQuadSwapVertical(uv);
+
+#if 0 // Using gradients this way introduces a seam where the skybox wraps, maybe we can just choose a mipmap manually instead
+    const vec2 uvDDX = uv - uvQuadX;
+    const vec2 uvDDY = uv - uvQuadY;
+
+    const vec4 color = texture_sample_2d_grad(g_Constants.skybox, OBLO_SAMPLER_LINEAR, uv, uvDDX, uvDDY);
+
+#else
     const uint lod = 0;
-    const vec4 color = texture_sample_2d_lod(g_Constants.skybox, OBLO_SAMPLER_LINEAR, uv, lod);
+    const vec4 color = texture_sample_2d_lod(g_Constants.skybox, OBLO_SAMPLER_LINEAR, uv, 0);
+#endif
 
     return color;
 }
