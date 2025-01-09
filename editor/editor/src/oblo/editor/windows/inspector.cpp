@@ -193,8 +193,12 @@ namespace oblo::editor
 
                             if (const auto resourceRef = ctx.reflection.find_concept<resource_ref_desc>(parentType))
                             {
-                                const auto& currentValue = *reinterpret_cast<uuid*>(propertyPtr);
-                                ctx.artifactPicker.draw(makeId(), resourceRef->resourceType, currentValue);
+                                auto& currentValue = *reinterpret_cast<uuid*>(propertyPtr);
+
+                                if (ctx.artifactPicker.draw(makeId(), resourceRef->resourceType, currentValue))
+                                {
+                                    currentValue = ctx.artifactPicker.get_current_ref();
+                                }
                             }
                             else
                             {

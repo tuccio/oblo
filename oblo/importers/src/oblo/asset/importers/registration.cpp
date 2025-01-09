@@ -19,7 +19,7 @@ namespace oblo::importers
         }
 
         constexpr string_view g_gltfExtensions[] = {".gltf", ".glb"};
-        constexpr string_view g_stbExtensions[] = {".jpg", ".jpeg", ".png", ".tga", ".bmp"};
+        constexpr string_view g_stbExtensions[] = {".jpg", ".jpeg", ".png", ".tga", ".bmp", ".hdr"};
     }
 
     void register_gltf_importer(asset_registry& registry)

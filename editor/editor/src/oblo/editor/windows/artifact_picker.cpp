@@ -59,6 +59,7 @@ namespace oblo::editor
                     if (ImGui::Selectable(builder.c_str()))
                     {
                         selectionChanged = true;
+                        m_currentRef = artifactId;
                     }
 
                     return true;

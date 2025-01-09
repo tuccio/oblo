@@ -15,6 +15,8 @@
 #include <oblo/vulkan/nodes/shadows/shadow_filter.hpp>
 #include <oblo/vulkan/nodes/shadows/shadow_output.hpp>
 #include <oblo/vulkan/nodes/shadows/shadow_temporal.hpp>
+#include <oblo/vulkan/nodes/skybox_pass.hpp>
+#include <oblo/vulkan/nodes/skybox_provider.hpp>
 #include <oblo/vulkan/nodes/surfels/surfel_debug.hpp>
 #include <oblo/vulkan/nodes/surfels/surfel_management.hpp>
 #include <oblo/vulkan/nodes/view_buffers_node.hpp>
@@ -197,6 +199,20 @@ namespace oblo::vk::main_view
                 &draw_call_generator::inMeshDatabase);
         }
 
+        // Skybox
+        {
+            const auto skyboxPass = graph.add_node<skybox_pass>();
+
+            graph.make_input(skyboxPass, &skybox_pass::inSkyboxResidentTexture, InSkyboxResidentTexture);
+
+            graph.connect(skyboxPass,
+                &skybox_pass::outShading,
+                visibilityLighting,
+                &visibility_lighting::outShadedImage);
+
+            graph.connect(viewBuffers, &view_buffers_node::inResolution, skyboxPass, &skybox_pass::inResolution);
+        }
+
         // Picking
         if (cfg.withPicking)
         {
@@ -327,6 +343,10 @@ namespace oblo::vk::scene_data
 
         const auto ecsEntitySetProvider = graph.add_node<ecs_entity_set_provider>();
         graph.make_output(ecsEntitySetProvider, &ecs_entity_set_provider::outEntitySet, OutEcsEntitySetBuffer);
+
+        const auto skyboxProvider = graph.add_node<skybox_provider>();
+        graph.make_input(skyboxProvider, &skybox_provider::inSkyboxResource, InSkyboxResource);
+        graph.make_output(skyboxProvider, &skybox_provider::outSkyboxResidentTexture, OutSkyboxResidentTexture);
 
         return graph;
     }
@@ -491,11 +511,13 @@ namespace oblo::vk
         registry.register_node<draw_call_generator>();
         registry.register_node<entity_picking>();
         registry.register_node<raytracing_debug>();
+        registry.register_node<skybox_pass>();
 
         // Scene data
         registry.register_node<ecs_entity_set_provider>();
         registry.register_node<light_provider>();
         registry.register_node<instance_table_node>();
+        registry.register_node<skybox_provider>();
 
         // Ray-traced shadows
         registry.register_node<raytraced_shadows>();

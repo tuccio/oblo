@@ -16,7 +16,6 @@
 #include <oblo/scene/scene_module.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
 #include <oblo/trace/profile.hpp>
-#include <oblo/vulkan/draw/resource_cache.hpp>
 #include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
@@ -109,9 +108,7 @@ namespace oblo
             (worldBuilder->services)(m_impl->services);
         }
 
-        auto* const resourceCache = m_impl->services.add<vk::resource_cache>().unique();
-
-        resourceCache->init(*initializer.resourceRegistry, m_impl->renderer.get_texture_registry());
+        m_impl->services.add<vk::resource_cache>().externally_owned(&m_impl->renderer.get_resource_cache());
 
         m_impl->executor = std::move(*executor);
 

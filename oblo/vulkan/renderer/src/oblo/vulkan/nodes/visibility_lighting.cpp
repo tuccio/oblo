@@ -28,18 +28,9 @@ namespace oblo::vk
     {
         ctx.begin_pass(pass_kind::compute);
 
-        const auto resolution = ctx.access(inResolution);
-
         ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
 
-        ctx.create(outShadedImage,
-            {
-                .width = resolution.x,
-                .height = resolution.y,
-                .format = VK_FORMAT_R8G8B8A8_UNORM,
-                .usage = VK_IMAGE_USAGE_STORAGE_BIT,
-            },
-            texture_usage::storage_write);
+        ctx.acquire(outShadedImage, texture_usage::storage_write);
 
         ctx.acquire(inCameraBuffer, buffer_usage::uniform);
         ctx.acquire(inLightConfig, buffer_usage::uniform);

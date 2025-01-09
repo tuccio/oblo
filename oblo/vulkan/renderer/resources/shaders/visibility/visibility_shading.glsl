@@ -43,7 +43,6 @@ void main()
     if (!visibility_buffer_parse(visBufferData.xy, ctx.vb))
     {
         // This means we didn't hit anything, and have no triangle in this pixel
-        imageStore(t_OutShadedImage, screenPos, vec4(0));
         return;
     }
 

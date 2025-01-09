@@ -1,6 +1,7 @@
 #include <oblo/graphics/systems/scene_renderer.hpp>
 
 #include <oblo/core/service_registry.hpp>
+#include <oblo/resource/resource_ptr.hpp>
 #include <oblo/vulkan/templates/graph_templates.hpp>
 
 namespace oblo
@@ -21,6 +22,11 @@ namespace oblo
                 vk::main_view::InInstanceBuffers);
 
             g.connect(sceneDataProvider, vk::scene_data::OutMeshDatabase, mainView, vk::main_view::InMeshDatabase);
+
+            g.connect(sceneDataProvider,
+                vk::scene_data::OutSkyboxResidentTexture,
+                mainView,
+                vk::main_view::InSkyboxResidentTexture);
         }
 
         void connect_scene_data_provider_to_surfels_gi(vk::frame_graph& g,
@@ -111,6 +117,11 @@ namespace oblo
     void scene_renderer::setup_lights(const scene_lights& lights)
     {
         m_frameGraph.set_input(m_sceneDataProvider, vk::scene_data::InLights, lights.data).assert_value();
+    }
+
+    void scene_renderer::setup_skybox(const resource_ptr<texture>& skybox)
+    {
+        m_frameGraph.set_input(m_sceneDataProvider, vk::scene_data::InSkyboxResource, skybox).assert_value();
     }
 
     void scene_renderer::setup_surfels_gi(u32 maxSurfels, f32 gridCellsSize)

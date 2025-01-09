@@ -24,7 +24,6 @@ void main()
 {
     const uint globalIndex = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationIndex;
 
-    // if (globalIndex >= 3280)
     if (globalIndex >= g_Constants.srcElements)
     {
         return;
@@ -35,7 +34,7 @@ void main()
 
     const surfel_tile_data tile = g_TileData[globalIndex];
 
-    if (ecs_entity_is_valid(tile.spawnData.entity) )
+    if (ecs_entity_is_valid(tile.spawnData.entity))
     {
         uint newSurfelId;
         const bool allocated = surfel_stack_allocate(newSurfelId);
