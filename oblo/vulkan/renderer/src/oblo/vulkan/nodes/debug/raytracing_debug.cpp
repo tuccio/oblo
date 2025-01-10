@@ -21,7 +21,11 @@ namespace oblo::vk
         rtDebugPass = passManager.register_raytracing_pass({
             .name = "Ray-Tracing Debug Pass",
             .generation = "./vulkan/shaders/raytracing_debug/rtdebug.rgen",
-            .miss = "./vulkan/shaders/raytracing_debug/rtdebug.rmiss",
+            .miss =
+                {
+                    "./vulkan/shaders/raytracing_debug/rtdebug.rmiss",
+                    "./vulkan/shaders/raytracing_debug/rtdebug_shadow.rmiss",
+                },
             .hitGroups =
                 {
                     {
@@ -42,12 +46,17 @@ namespace oblo::vk
             {
                 .width = resolution.x,
                 .height = resolution.y,
-                .format = VK_FORMAT_R8G8B8A8_UNORM,
+                .format = VK_FORMAT_R16G16B16A16_SFLOAT,
                 .usage = VK_IMAGE_USAGE_STORAGE_BIT,
             },
             texture_usage::storage_write);
 
         ctx.acquire(inCameraBuffer, buffer_usage::uniform);
+
+        ctx.acquire(inLightConfig, buffer_usage::uniform);
+        ctx.acquire(inLightBuffer, buffer_usage::storage_read);
+
+        ctx.acquire(inSkyboxSettingsBuffer, buffer_usage::uniform);
 
         ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
 
@@ -65,6 +74,9 @@ namespace oblo::vk
                 {"b_InstanceTables", inInstanceTables},
                 {"b_MeshTables", inMeshDatabase},
                 {"b_CameraBuffer", inCameraBuffer},
+                {"b_LightConfig", inLightConfig},
+                {"b_LightData", inLightBuffer},
+                {"b_SkyboxSettings", inSkyboxSettingsBuffer},
             });
 
         ctx.bind_textures(bindingTable,
@@ -77,7 +89,7 @@ namespace oblo::vk
 
         const auto commandBuffer = ctx.get_command_buffer();
 
-        const auto pipeline = pm.get_or_create_pipeline(rtDebugPass, {});
+        const auto pipeline = pm.get_or_create_pipeline(rtDebugPass, {.maxPipelineRayRecursionDepth = 2});
 
         if (const auto pass = pm.begin_raytracing_pass(commandBuffer, pipeline))
         {

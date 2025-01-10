@@ -66,7 +66,6 @@ void main()
 
 #if SHADOW_TYPE == OBLO_LIGHT_TYPE_POINT || SHADOW_TYPE == OBLO_LIGHT_TYPE_SPOT
     const vec3 L = normalize(light.position - positionWS);
-
 #endif
 
     const vec3 origin = positionWS;

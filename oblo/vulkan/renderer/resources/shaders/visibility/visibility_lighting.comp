@@ -22,8 +22,10 @@
 #include <renderer/meshes/mesh_table>
 #include <renderer/shading/normal_mapping>
 #include <renderer/shading/pbr>
+#include <renderer/shading/pbr_utility>
 #include <renderer/textures>
 #include <renderer/transform>
+#include <skybox/skybox>
 #include <visibility/visibility_shading>
 
 layout(binding = 0) uniform b_LightConfig
@@ -41,7 +43,7 @@ layout(std430, binding = 2) restrict readonly buffer b_ShadowMaps
     uint g_ShadowMaps[];
 };
 
-layout(std430, binding = 3) restrict readonly buffer b_SkyboxSettings
+layout(binding = 3) uniform b_SkyboxSettings
 {
     vec3 g_SkyboxMultiplier;
     uint g_SkyboxTexture;
@@ -124,28 +126,7 @@ vec4 visibility_shade(in visibility_shade_context ctx)
     }
 
     // Extract the PBR parameters from the material
-    pbr_material pbr;
-    pbr.albedo = material.albedo;
-    pbr.metalness = material.metalness;
-    pbr.roughness = material.roughness;
-    pbr.ior = material.ior;
-
-    if (material.albedoTexture != 0)
-    {
-        const vec3 albedo =
-            texture_sample_2d_grad(material.albedoTexture, OBLO_SAMPLER_LINEAR, uv0, uv0DDX, uv0DDY).xyz;
-
-        pbr.albedo *= albedo;
-    }
-
-    if (material.metalnessRoughnessTexture != 0)
-    {
-        const vec4 metalnessRoughness =
-            texture_sample_2d_grad(material.metalnessRoughnessTexture, OBLO_SAMPLER_LINEAR, uv0, uv0DDX, uv0DDY);
-
-        pbr.metalness *= metalnessRoughness.x;
-        pbr.roughness *= metalnessRoughness.y;
-    }
+    const pbr_material pbr = pbr_extract_parameters(material, uv0, uv0DDX, uv0DDY);
 
     vec3 reflected = vec3(0);
     const vec3 viewWS = normalize(g_Camera.position - positionWS);
@@ -191,9 +172,7 @@ vec4 visibility_miss(in visibility_shade_context ctx)
     const ray cameraRay = visibility_calculate_camera_ray(g_Camera, ndc);
 
     // Generate sphere UVs to sample the skybox
-    vec2 uv;
-    uv.x = 0.5f + atan(cameraRay.direction.z, cameraRay.direction.x) / (2 * float_pi());
-    uv.y = 0.5f - asin(cameraRay.direction.y) / float_pi();
+    const vec2 uv = skybox_uv_from_ray_direction(cameraRay.direction);
 
     const vec2 uvQuadX = subgroupQuadSwapHorizontal(uv);
     const vec2 uvQuadY = subgroupQuadSwapVertical(uv);

@@ -44,9 +44,16 @@ namespace oblo::vk
             .meshShader = true,
         };
 
+        VkPhysicalDeviceVulkan11Features g_deviceVulkan11Features{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
+            .pNext = &g_meshShaderFeatures,
+            .storageBuffer16BitAccess = true,
+            .shaderDrawParameters = true,
+        };
+
         VkPhysicalDeviceVulkan12Features g_deviceVulkan12Features{
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
-            .pNext = &g_meshShaderFeatures,
+            .pNext = &g_deviceVulkan11Features,
             .drawIndirectCount = true,
             .storageBuffer8BitAccess = true,
             .shaderInt8 = true,
@@ -154,6 +161,7 @@ namespace oblo::vk
                         {
                             .multiDrawIndirect = true,
                             .shaderInt64 = true,
+                            .shaderInt16 = true,
                         },
                 },
             .deviceFeaturesChain = m_deviceFeaturesChain,

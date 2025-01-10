@@ -24,7 +24,7 @@ namespace oblo::vk
     {
         string_view name;
         string_view generation;
-        string_view miss;
+        buffered_array<string_view, 2> miss;
         buffered_array<raytracing_hit_group_initializer, 2> hitGroups;
     };
 

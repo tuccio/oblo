@@ -5,6 +5,8 @@
 
 #include <renderer/camera>
 
+const uint g_HitColorPayload = 0;
+
 layout(binding = 16) uniform b_CameraBuffer
 {
     camera_buffer g_Camera;
@@ -12,7 +14,7 @@ layout(binding = 16) uniform b_CameraBuffer
 
 layout(binding = 11) uniform accelerationStructureEXT u_SceneTLAS;
 
-layout(binding = 12, rgba8) uniform restrict writeonly image2D t_OutShadedImage;
+layout(binding = 12, rgba32f) uniform restrict writeonly image2D t_OutShadedImage;
 
 layout(location = 0) rayPayloadEXT vec3 r_HitColor;
 
@@ -27,7 +29,7 @@ void main()
     const float tMax = 1e6f;
 
     traceRayEXT(u_SceneTLAS,
-        gl_RayFlagsNoneEXT,
+        gl_RayFlagsOpaqueEXT,
         0xff, // cull mask
         0,    // STB record offset
         0,    // STB record stride

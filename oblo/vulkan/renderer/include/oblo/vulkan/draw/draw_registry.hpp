@@ -166,7 +166,7 @@ namespace oblo::vk
         flat_dense_map<ecs::component_type, instance_data_type_info> m_instanceDataTypeNames;
         ecs::type_set m_instanceDataTypes{};
 
-        static constexpr u32 MeshBuffersCount{2};
+        static constexpr u32 MeshBuffersCount{3};
         std::array<h32<string>, MeshBuffersCount> m_meshDataNames{};
 
         dynamic_array<pending_mesh_upload> m_pendingMeshUploads;

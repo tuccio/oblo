@@ -44,7 +44,6 @@ namespace oblo::vk
         resource<buffer> inInstanceTables;
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
-        resource<texture> inSkybox;
         resource<texture> inVisibilityBuffer;
         resource<texture> outShadedImage;
 

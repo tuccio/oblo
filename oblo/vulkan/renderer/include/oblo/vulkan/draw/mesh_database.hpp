@@ -44,8 +44,8 @@ namespace oblo::vk
         struct initializer;
         struct table_range;
 
-        static constexpr u32 MaxAttributes{8};
-        static constexpr u32 MaxMeshBuffers{2};
+        static constexpr u32 MaxAttributes{7};
+        static constexpr u32 MaxMeshBuffers{3};
         static constexpr u32 MeshIndexTypeCount{u32(mesh_index_type::u32)};
 
     public:
