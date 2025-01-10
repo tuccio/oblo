@@ -2,6 +2,7 @@
 
 #extension GL_GOOGLE_include_directive : require
 
+#include <renderer/debug/printf>
 #include <surfels/buffers/surfel_data_w>
 #include <surfels/buffers/surfel_grid_r>
 #include <surfels/buffers/surfel_spawn_data_w>
@@ -42,6 +43,12 @@ void main()
         if (allocated)
         {
             g_SurfelSpawnData[newSurfelId] = tile.spawnData;
+        }
+        else
+        {
+#if OBLO_DEBUG_PRINTF
+            debugPrintfEXT("[SPAWN] Failed to allocate surfel\n");
+#endif
         }
     }
 }

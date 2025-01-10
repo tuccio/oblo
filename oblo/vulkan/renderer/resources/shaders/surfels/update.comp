@@ -46,13 +46,20 @@ void surfel_kill(in uint surfelId)
 
 void surfel_commit_to_grid(in surfel_data surfel, in uint surfelId, in uint cellIndex)
 {
-    surfel.nextSurfelId = surfelId;
+    const uint previousHead = atomicExchange(g_SurfelGridCells[cellIndex].nextSurfelId, surfelId);
+    surfel.nextSurfelId = previousHead;
     g_SurfelData[surfelId] = surfel;
-    atomicExchange(g_SurfelData[surfelId].nextSurfelId, g_SurfelGridCells[cellIndex].nextSurfelId);
 }
 
 void main()
 {
+#if OBLO_DEBUG_PRINTF
+    if (gl_GlobalInvocationID.x == 0)
+    {
+        debugPrintfEXT("[UPDATE] Surfels alive: %u\n", g_Constants.maxSurfels - g_SurfelStackHeader.available);
+    }
+#endif
+
     const uint surfelId = gl_GlobalInvocationID.x;
 
     if (surfelId >= g_Constants.maxSurfels)

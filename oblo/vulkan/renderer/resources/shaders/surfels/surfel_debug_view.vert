@@ -22,12 +22,6 @@ void main()
 {
     const surfel_data surfel = g_SurfelData[gl_InstanceIndex];
 
-    // 1x1 quad centered around 0
-    // const vec3 positions[4] =
-    //     vec3[4](vec3(.5f, .5f, 0.0f), vec3(-.5f, .5f, 0.0f), vec3(-.5f, -.5f, 0.0f), vec3(.5f, -.5f, 0.0f));
-
-    // const vec3 positionMS = positions[gl_VertexIndex];
-
     const uint vertexOffset = gl_VertexIndex * 3;
     const vec3 positionMS =
         vec3(g_SphereGeometry[vertexOffset], g_SphereGeometry[vertexOffset + 1], g_SphereGeometry[vertexOffset + 2]);

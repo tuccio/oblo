@@ -138,12 +138,14 @@ float surfel_weight(in surfel_data surfel, in vec3 positionWS)
     return max(0.f, 1024 - radius2 - dot(pointToSurfel, pointToSurfel));
 }
 
-void gather_coverage_from_grid(in vec3 positionWS, out float weightSum)
+bool gather_coverage_from_grid(in vec3 positionWS, out float weightSum)
 {
     const surfel_grid_header gridHeader = g_SurfelGridHeader;
     const ivec3 cell = surfel_grid_find_cell(gridHeader, positionWS);
 
     weightSum = 0.f;
+
+    bool anyOverlap = false;
 
     // Search neighboring cells and accumulate overlapping surfels
     [[unroll]] for (int x = -1; x <= 1; ++x)
@@ -161,17 +163,30 @@ void gather_coverage_from_grid(in vec3 positionWS, out float weightSum)
 
                     // We could consider adding some weight for the number of surfels in the same cell, to
                     // prioritize tiles that don't have any
-
                     for (uint surfelId = cellData.nextSurfelId; surfelId != SURFEL_ID_INVALID;)
                     {
                         const surfel_data surfel = g_SurfelData[surfelId];
-                        weightSum += surfel_weight(surfel, positionWS);
+
+                        const vec3 surfelPosition = surfel_data_world_position(surfel);
+                        const vec3 pointToSurfel = surfelPosition - positionWS;
+
+                        const float radius2 = surfel.radius * surfel.radius;
+                        const float twiceRadius2 = 4 * radius2;
+                        const float distance2 = dot(pointToSurfel, pointToSurfel);
+
+                        anyOverlap = anyOverlap || (distance2 <= twiceRadius2);
+
+                        const float weight = twiceRadius2 - distance2;
+                        weightSum += weight;
+
                         surfelId = surfel.nextSurfelId;
                     }
                 }
             }
         }
     }
+
+    return !anyOverlap;
 }
 
 void main()
@@ -190,11 +205,7 @@ void main()
 
     const bool hasGeometry = withinScreenBounds && read_spawn_data(screenPos, resolution, spawnData, positionWS);
 
-    if (hasGeometry)
-    {
-        gather_coverage_from_grid(positionWS, weightSum);
-    }
-    else
+    if (!hasGeometry || !gather_coverage_from_grid(positionWS, weightSum))
     {
         spawnData = surfel_spawn_data_invalid();
         weightSum = NO_SURFELS_NEEDED;
@@ -211,7 +222,7 @@ void main()
 
     // First process within the subgroup
     {
-        const float bestCandidateIdx = find_lowest_within_subgroup_rand(weightSum, subgroupSeed);
+        const uint bestCandidateIdx = find_lowest_within_subgroup_rand(weightSum, subgroupSeed);
         // const uint subgroupOutIndex = (g_Constants.randomSeed + gl_SubgroupID) % OBLO_SUBGROUP_SIZE;
         const uint subgroupOutIndex = (hash_pcg(workgroupSeed) + gl_SubgroupID) % OBLO_SUBGROUP_SIZE;
 

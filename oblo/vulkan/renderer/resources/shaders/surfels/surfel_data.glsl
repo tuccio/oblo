@@ -7,7 +7,7 @@
 const uint SURFEL_ID_INVALID = -1;
 
 // Used as a coverage value for surfel_tile_data when no geometry is present
-const float NO_SURFELS_NEEDED = 10000000.f;
+const float NO_SURFELS_NEEDED = 1e6;
 
 struct surfel_spawn_data
 {
