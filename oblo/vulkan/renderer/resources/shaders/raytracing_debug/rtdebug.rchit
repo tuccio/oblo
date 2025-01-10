@@ -8,7 +8,6 @@
 #extension GL_EXT_shader_16bit_storage : require
 #extension GL_EXT_control_flow_attributes : require
 
-#include <renderer/camera>
 #include <renderer/geometry/barycentric>
 #include <renderer/instance_id>
 #include <renderer/instances>
@@ -20,11 +19,6 @@
 #include <renderer/meshes/mesh_table>
 #include <renderer/shading/pbr_utility>
 #include <renderer/textures>
-
-layout(binding = 16) uniform b_CameraBuffer
-{
-    camera_buffer g_Camera;
-};
 
 layout(binding = 0) uniform b_LightConfig
 {
@@ -87,7 +81,7 @@ void main()
     const pbr_material pbr = pbr_extract_parameters(material, uv0, uv0DDX, uv0DDY);
 
     vec3 reflected = vec3(0);
-    const vec3 viewWS = normalize(g_Camera.position - positionWS);
+    const vec3 viewWS = normalize(gl_WorldRayOriginEXT - positionWS);
 
     for (uint lightIndex = 0; lightIndex < g_LightConfig.lightsCount; ++lightIndex)
     {
