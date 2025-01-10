@@ -60,7 +60,6 @@ namespace oblo::vk::main_view
         const auto visibilityPass = graph.add_node<visibility_pass>();
         const auto visibilityLighting = graph.add_node<visibility_lighting>();
         const auto visibilityDebug = graph.add_node<visibility_debug>();
-        const auto raytracingDebug = graph.add_node<raytracing_debug>();
 
         // Hacky view buffers node
         graph.make_input(viewBuffers, &view_buffers_node::inResolution, InResolution);
@@ -132,15 +131,26 @@ namespace oblo::vk::main_view
 
         connectVisibilityShadingPass(visibilityLighting, h32<visibility_lighting>{});
         connectVisibilityShadingPass(visibilityDebug, h32<visibility_debug>{});
-        connectShadingPass(raytracingDebug, h32<raytracing_debug>{});
 
+        // Outputs of the main passes
         const auto toneMapping = graph.add_node<tone_mapping_node>();
         graph.connect(visibilityLighting, &visibility_lighting::outShadedImage, toneMapping, &tone_mapping_node::inHDR);
 
         // Copies to the output textures
         add_copy_output(graph, viewBuffers, toneMapping, &tone_mapping_node::outLDR, OutLitImage);
         add_copy_output(graph, viewBuffers, visibilityDebug, &visibility_debug::outShadedImage, OutDebugImage);
-        add_copy_output(graph, viewBuffers, raytracingDebug, &raytracing_debug::outShadedImage, OutRTDebugImage);
+
+        {
+            // Ray-Tracing debug pass outputs HDR, and has its own tone-mapping, which leats to the RT debug output
+            const auto raytracingDebug = graph.add_node<raytracing_debug>();
+
+            connectShadingPass(raytracingDebug, h32<raytracing_debug>{});
+
+            const auto rtToneMapping = graph.add_node<tone_mapping_node>();
+            graph.connect(raytracingDebug, &raytracing_debug::outShadedImage, rtToneMapping, &tone_mapping_node::inHDR);
+
+            add_copy_output(graph, viewBuffers, rtToneMapping, &tone_mapping_node::outLDR, OutRTDebugImage);
+        }
 
         // Culling + draw call generation
         {
@@ -281,10 +291,7 @@ namespace oblo::vk::main_view
                 &surfel_debug::inCameraBuffer);
 
             graph.connect(visibilityPass, &visibility_pass::outDepthBuffer, surfelsDebug, &surfel_debug::inDepthBuffer);
-            graph.connect(visibilityLighting,
-                &visibility_lighting::outShadedImage,
-                surfelsDebug,
-                &surfel_debug::inOutImage);
+            graph.connect(toneMapping, &tone_mapping_node::outLDR, surfelsDebug, &surfel_debug::inOutImage);
 
             add_copy_output(graph, viewBuffers, surfelsDebug, &surfel_debug::inOutImage, OutGISurfelsImage);
 

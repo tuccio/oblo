@@ -26,7 +26,7 @@ namespace oblo::vk
                 {
                     {
                         .type = raytracing_hit_type::triangle,
-                        .shaders = {"./vulkan/shaders/raytracing_debug/rtdebug.rchit"},
+                        .shaders = {"./vulkan/shaders/raytracing_debug/rtdebug_shading.rchit"},
                     },
                 },
         });
@@ -42,7 +42,7 @@ namespace oblo::vk
             {
                 .width = resolution.x,
                 .height = resolution.y,
-                .format = VK_FORMAT_R8G8B8A8_UNORM,
+                .format = VK_FORMAT_R16G16B16A16_SFLOAT,
                 .usage = VK_IMAGE_USAGE_STORAGE_BIT,
             },
             texture_usage::storage_write);
