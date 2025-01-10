@@ -5,7 +5,15 @@
 
 namespace oblo
 {
-    using options_layer_provider = provider_service<options_layer_descriptor>;
+    struct options_layer_provider_descriptor
+    {
+        using load_fn = bool (*)(data_document& doc);
+
+        options_layer_descriptor layer{};
+        load_fn load{};
+    };
+
+    using options_layer_provider = provider_service<options_layer_provider_descriptor>;
     using options_provider = provider_service<option_descriptor>;
 
     template <typename F>

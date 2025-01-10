@@ -31,6 +31,7 @@
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/modules/utility/provider_service.hpp>
 #include <oblo/options/options_module.hpp>
+#include <oblo/options/options_provider.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
 #include <oblo/properties/serialization/json.hpp>
 #include <oblo/reflection/reflection_module.hpp>
@@ -96,7 +97,7 @@ namespace oblo::editor
             return &queue;
         }
 
-        class options_layer_helper final : public provider_service<options_layer_descriptor>
+        class options_layer_helper final : public options_layer_provider
         {
             static constexpr uuid layer_uuid = "dc217469-e387-48cf-ad5a-7b6cd4a8b1fc"_uuid;
             static constexpr cstring_view options_path = "oblo_options.json";
@@ -115,17 +116,8 @@ namespace oblo::editor
                 m_options = &optionsManager;
             }
 
-            void load()
+            void refresh_change_id()
             {
-                data_document doc;
-
-                if (!json::read(doc, options_path))
-                {
-                    log::error("Failed to read editor options from {}", options_path);
-                    return;
-                }
-
-                m_options->load_layer(doc, doc.get_root(), m_layer);
                 m_changeId = m_options->get_change_id(m_layer);
             }
 
@@ -151,9 +143,22 @@ namespace oblo::editor
                 }
             }
 
-            void fetch(deque<options_layer_descriptor>& out) const
+            void fetch(deque<options_layer_provider_descriptor>& out) const override
             {
-                out.push_back({.id = layer_uuid});
+                out.push_back({
+                    .layer = {.id = layer_uuid},
+                    .load =
+                        [](data_document& doc)
+                    {
+                        if (!json::read(doc, options_path))
+                        {
+                            log::error("Failed to read editor options from {}", options_path);
+                            return false;
+                        }
+
+                        return true;
+                    },
+                });
             }
 
         private:
@@ -176,7 +181,7 @@ namespace oblo::editor
             mm.load<importers::importers_module>();
             mm.load<editor_module>();
 
-            initializer.services->add<provider_service<options_layer_descriptor>>().externally_owned(&m_editorOptions);
+            initializer.services->add<options_layer_provider>().externally_owned(&m_editorOptions);
 
             return true;
         }
@@ -186,7 +191,7 @@ namespace oblo::editor
         void finalize() override
         {
             m_editorOptions.init();
-            m_editorOptions.load();
+            m_editorOptions.refresh_change_id();
         }
 
         void update()
