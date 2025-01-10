@@ -21,7 +21,11 @@ namespace oblo::vk
         rtDebugPass = passManager.register_raytracing_pass({
             .name = "Ray-Tracing Debug Pass",
             .generation = "./vulkan/shaders/raytracing_debug/rtdebug.rgen",
-            .miss = "./vulkan/shaders/raytracing_debug/rtdebug.rmiss",
+            .miss =
+                {
+                    "./vulkan/shaders/raytracing_debug/rtdebug.rmiss",
+                    "./vulkan/shaders/raytracing_debug/rtdebug_shadow.rmiss",
+                },
             .hitGroups =
                 {
                     {

@@ -30,7 +30,10 @@ layout(std430, binding = 1) restrict readonly buffer b_LightData
     light_data g_Lights[];
 };
 
+layout(binding = 11) uniform accelerationStructureEXT u_SceneTLAS;
+
 layout(location = 0) rayPayloadInEXT vec3 r_HitColor;
+layout(location = 1) rayPayloadEXT bool r_IsShadowed;
 
 hitAttributeEXT vec2 h_BarycentricCoords;
 
@@ -85,12 +88,43 @@ void main()
 
     for (uint lightIndex = 0; lightIndex < g_LightConfig.lightsCount; ++lightIndex)
     {
+        const light_data light = g_Lights[lightIndex];
+
         vec3 L;
 
-        const vec3 contribution = light_contribution(g_Lights[lightIndex], positionWS, L);
+        const vec3 contribution = light_contribution(light, positionWS, L);
         const vec3 brdf = pbr_brdf(normalWS, viewWS, L, pbr);
 
-        reflected += contribution * brdf;
+        // Trace hard shadow by shooting a ray from the hit position towards the light
+        const float tMin = 1e-2f;
+        float tMax = 1e6f;
+
+        // No reason to call the hit shader, we only care about the miss shader
+        const uint flags = gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
+
+        // The miss shader will set it to false if no geometry is hit
+        r_IsShadowed = true;
+
+        if (light.type != OBLO_LIGHT_TYPE_DIRECTIONAL)
+        {
+            tMax = length(light.position - positionWS);
+        }
+
+        traceRayEXT(u_SceneTLAS,
+            flags,
+            0xff, // cull mask
+            0,    // STB record offset
+            0,    // STB record stride
+            1,    // Miss index
+            positionWS,
+            tMin,
+            L,
+            tMax,
+            1 // payload location
+        );
+
+        const float visibility = r_IsShadowed ? 0.f : 1.f;
+        reflected += visibility * contribution * brdf;
     }
 
     r_HitColor = reflected;

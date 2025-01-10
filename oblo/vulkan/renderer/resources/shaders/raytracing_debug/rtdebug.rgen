@@ -5,6 +5,8 @@
 
 #include <renderer/camera>
 
+const uint g_HitColorPayload = 0;
+
 layout(binding = 16) uniform b_CameraBuffer
 {
     camera_buffer g_Camera;
@@ -27,7 +29,7 @@ void main()
     const float tMax = 1e6f;
 
     traceRayEXT(u_SceneTLAS,
-        gl_RayFlagsNoneEXT,
+        gl_RayFlagsOpaqueEXT,
         0xff, // cull mask
         0,    // STB record offset
         0,    // STB record stride

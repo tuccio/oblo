@@ -22,7 +22,7 @@ namespace oblo::vk
         shadowPass = passManager.register_raytracing_pass({
             .name = "Ray-Traced Shadows",
             .generation = "./vulkan/shaders/shadows/rtshadows.rgen",
-            .miss = "./vulkan/shaders/shadows/rtshadows.rmiss",
+            .miss = {"./vulkan/shaders/shadows/rtshadows.rmiss"},
             .hitGroups =
                 {
                     {

@@ -371,7 +371,8 @@ namespace oblo::vk
         h32<string> name;
 
         u32 generation = VK_SHADER_UNUSED_KHR;
-        u32 miss = VK_SHADER_UNUSED_KHR;
+
+        dynamic_array<raytracing_shader> miss;
 
         dynamic_array<raytracing_hit_group> hitGroups;
 
@@ -1781,7 +1782,13 @@ namespace oblo::vk
         };
 
         renderPass.generation = appendShader(desc.generation);
-        renderPass.miss = appendShader(desc.miss);
+
+        renderPass.miss.reserve(desc.miss.size());
+
+        for (const auto& miss : desc.miss)
+        {
+            renderPass.miss.push_back({.shaderIndex = appendShader(miss)});
+        }
 
         renderPass.hitGroups.reserve(desc.hitGroups.size());
 
@@ -1802,8 +1809,8 @@ namespace oblo::vk
         }
 
         renderPass.shadersCount = narrow_cast<u32>(renderPass.shaderSourcePaths.size());
-        renderPass.groupsCount = u32{renderPass.generation != VK_SHADER_UNUSED_KHR} +
-            u32{renderPass.miss != VK_SHADER_UNUSED_KHR} + u32(desc.hitGroups.size());
+        renderPass.groupsCount = u32{renderPass.generation != VK_SHADER_UNUSED_KHR} + u32(renderPass.miss.size()) +
+            u32(desc.hitGroups.size());
 
         return handle;
     }
@@ -2286,14 +2293,17 @@ namespace oblo::vk
             .intersectionShader = VK_SHADER_UNUSED_KHR,
         });
 
-        groups.push_back({
-            .sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR,
-            .type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR,
-            .generalShader = raytracingPass->miss,
-            .closestHitShader = VK_SHADER_UNUSED_KHR,
-            .anyHitShader = VK_SHADER_UNUSED_KHR,
-            .intersectionShader = VK_SHADER_UNUSED_KHR,
-        });
+        for (const auto& miss : raytracingPass->miss)
+        {
+            groups.push_back({
+                .sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR,
+                .type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR,
+                .generalShader = miss.shaderIndex,
+                .closestHitShader = VK_SHADER_UNUSED_KHR,
+                .anyHitShader = VK_SHADER_UNUSED_KHR,
+                .intersectionShader = VK_SHADER_UNUSED_KHR,
+            });
+        }
 
         for (const auto& hg : raytracingPass->hitGroups)
         {
@@ -2375,7 +2385,7 @@ namespace oblo::vk
         // Ray-generation is a special case, size has to match the stride
         newPipeline.rayGen.size = newPipeline.rayGen.stride;
 
-        const u32 missCount = u32{raytracingPass->miss != VK_SHADER_UNUSED_KHR};
+        const u32 missCount = u32(raytracingPass->miss.size());
 
         if (missCount > 0)
         {
