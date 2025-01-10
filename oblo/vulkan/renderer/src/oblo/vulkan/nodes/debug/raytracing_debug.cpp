@@ -52,6 +52,8 @@ namespace oblo::vk
         ctx.acquire(inLightConfig, buffer_usage::uniform);
         ctx.acquire(inLightBuffer, buffer_usage::storage_read);
 
+        ctx.acquire(inSkyboxSettingsBuffer, buffer_usage::uniform);
+
         ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
 
         acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
@@ -70,6 +72,7 @@ namespace oblo::vk
                 {"b_CameraBuffer", inCameraBuffer},
                 {"b_LightConfig", inLightConfig},
                 {"b_LightData", inLightBuffer},
+                {"b_SkyboxSettings", inSkyboxSettingsBuffer},
             });
 
         ctx.bind_textures(bindingTable,

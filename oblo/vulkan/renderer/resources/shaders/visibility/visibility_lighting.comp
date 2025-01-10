@@ -25,6 +25,7 @@
 #include <renderer/shading/pbr_utility>
 #include <renderer/textures>
 #include <renderer/transform>
+#include <skybox/skybox>
 #include <visibility/visibility_shading>
 
 layout(binding = 0) uniform b_LightConfig
@@ -171,9 +172,7 @@ vec4 visibility_miss(in visibility_shade_context ctx)
     const ray cameraRay = visibility_calculate_camera_ray(g_Camera, ndc);
 
     // Generate sphere UVs to sample the skybox
-    vec2 uv;
-    uv.x = 0.5f + atan(cameraRay.direction.z, cameraRay.direction.x) / (2 * float_pi());
-    uv.y = 0.5f - asin(cameraRay.direction.y) / float_pi();
+    const vec2 uv = skybox_uv_from_ray_direction(cameraRay.direction);
 
     const vec2 uvQuadX = subgroupQuadSwapHorizontal(uv);
     const vec2 uvQuadY = subgroupQuadSwapVertical(uv);
