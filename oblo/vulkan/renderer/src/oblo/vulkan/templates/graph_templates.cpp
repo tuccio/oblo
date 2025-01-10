@@ -12,6 +12,7 @@
 #include <oblo/vulkan/nodes/providers/light_provider.hpp>
 #include <oblo/vulkan/nodes/providers/skybox_provider.hpp>
 #include <oblo/vulkan/nodes/providers/view_buffers_node.hpp>
+#include <oblo/vulkan/nodes/providers/view_light_data_provider.hpp>
 #include <oblo/vulkan/nodes/shadows/raytraced_shadows.hpp>
 #include <oblo/vulkan/nodes/shadows/shadow_filter.hpp>
 #include <oblo/vulkan/nodes/shadows/shadow_output.hpp>
@@ -57,6 +58,7 @@ namespace oblo::vk::main_view
         graph.init(registry);
 
         const auto viewBuffers = graph.add_node<view_buffers_node>();
+        const auto viewLightData = graph.add_node<view_light_data_provider>();
         const auto visibilityPass = graph.add_node<visibility_pass>();
         const auto visibilityLighting = graph.add_node<visibility_lighting>();
         const auto visibilityDebug = graph.add_node<visibility_debug>();
@@ -70,6 +72,12 @@ namespace oblo::vk::main_view
         graph.make_input(viewBuffers, &view_buffers_node::inFinalRenderTarget, InFinalRenderTarget);
         graph.make_input(viewBuffers, &view_buffers_node::inMeshDatabase, InMeshDatabase);
 
+        // View light data node
+        graph.make_input(viewLightData, &view_light_data_provider::inLights, InLights);
+        graph.make_input(viewLightData, &view_light_data_provider::inLightConfig, InLightConfig);
+        graph.make_input(viewLightData, &view_light_data_provider::inLightBuffer, InLightBuffer);
+        graph.make_input(viewLightData, &view_light_data_provider::inSkyboxSettingsBuffer, InSkyboxSettingsBuffer);
+
         graph.make_output(viewBuffers, &view_buffers_node::inResolution, OutResolution);
         graph.make_output(viewBuffers, &view_buffers_node::outCameraBuffer, OutCameraBuffer);
         graph.make_output(viewBuffers, &view_buffers_node::outCameraDataSink, OutCameraDataSink);
@@ -79,11 +87,7 @@ namespace oblo::vk::main_view
         graph.make_output(visibilityPass, &visibility_pass::outDepthBuffer, OutDepthBuffer);
 
         // Visibility shading inputs
-        graph.make_input(visibilityLighting, &visibility_lighting::inLights, InLights);
-        graph.make_input(visibilityLighting, &visibility_lighting::inLightConfig, InLightConfig);
-        graph.make_input(visibilityLighting, &visibility_lighting::inLightBuffer, InLightBuffer);
         graph.make_input(visibilityLighting, &visibility_lighting::inShadowSink, InShadowSink);
-        graph.make_input(visibilityLighting, &visibility_lighting::inSkyboxSettingsBuffer, InSkyboxSettingsBuffer);
 
         graph.make_input(visibilityDebug, &visibility_debug::inDebugMode, InDebugMode);
 
@@ -118,6 +122,29 @@ namespace oblo::vk::main_view
             graph.connect(viewBuffers, &view_buffers_node::inInstanceTables, shadingPass, &T::inInstanceTables);
             graph.connect(viewBuffers, &view_buffers_node::inInstanceBuffers, shadingPass, &T::inInstanceBuffers);
             graph.connect(viewBuffers, &view_buffers_node::inMeshDatabase, shadingPass, &T::inMeshDatabase);
+
+            if constexpr (requires { &T::inLights; })
+            {
+                graph.connect(viewLightData, &view_light_data_provider::inLights, shadingPass, &T::inLights);
+            }
+
+            if constexpr (requires { &T::inLightConfig; })
+            {
+                graph.connect(viewLightData, &view_light_data_provider::inLightConfig, shadingPass, &T::inLightConfig);
+            }
+
+            if constexpr (requires { &T::inLightBuffer; })
+            {
+                graph.connect(viewLightData, &view_light_data_provider::inLightBuffer, shadingPass, &T::inLightBuffer);
+            }
+
+            if constexpr (requires { &T::inSkyboxSettingsBuffer; })
+            {
+                graph.connect(viewLightData,
+                    &view_light_data_provider::inSkyboxSettingsBuffer,
+                    shadingPass,
+                    &T::inSkyboxSettingsBuffer);
+            }
         };
 
         const auto connectVisibilityShadingPass =
@@ -502,6 +529,7 @@ namespace oblo::vk
         // Main view
         registry.register_node<copy_texture_node>();
         registry.register_node<view_buffers_node>();
+        registry.register_node<view_light_data_provider>();
         registry.register_node<frustum_culling>();
         registry.register_node<visibility_pass>();
         registry.register_node<visibility_debug>();

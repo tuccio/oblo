@@ -26,7 +26,7 @@ namespace oblo::vk
                 {
                     {
                         .type = raytracing_hit_type::triangle,
-                        .shaders = {"./vulkan/shaders/raytracing_debug/rtdebug_shading.rchit"},
+                        .shaders = {"./vulkan/shaders/raytracing_debug/rtdebug.rchit"},
                     },
                 },
         });
@@ -49,6 +49,9 @@ namespace oblo::vk
 
         ctx.acquire(inCameraBuffer, buffer_usage::uniform);
 
+        ctx.acquire(inLightConfig, buffer_usage::uniform);
+        ctx.acquire(inLightBuffer, buffer_usage::storage_read);
+
         ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
 
         acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
@@ -65,6 +68,8 @@ namespace oblo::vk
                 {"b_InstanceTables", inInstanceTables},
                 {"b_MeshTables", inMeshDatabase},
                 {"b_CameraBuffer", inCameraBuffer},
+                {"b_LightConfig", inLightConfig},
+                {"b_LightData", inLightBuffer},
             });
 
         ctx.bind_textures(bindingTable,
@@ -77,7 +82,7 @@ namespace oblo::vk
 
         const auto commandBuffer = ctx.get_command_buffer();
 
-        const auto pipeline = pm.get_or_create_pipeline(rtDebugPass, {});
+        const auto pipeline = pm.get_or_create_pipeline(rtDebugPass, {.maxPipelineRayRecursionDepth = 2});
 
         if (const auto pass = pm.begin_raytracing_pass(commandBuffer, pipeline))
         {

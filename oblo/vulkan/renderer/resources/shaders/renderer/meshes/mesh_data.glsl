@@ -26,6 +26,14 @@ struct meshlet_draw_range
     uint indexCount;
 };
 
+// This needs to match gpu_full_index_buffer
+struct full_index_buffer
+{
+    uint64_t deviceAddress;
+    uint indexType;
+    uint _padding;
+};
+
 // Buffer references
 
 layout(buffer_reference) buffer AabbAttributeType
@@ -36,6 +44,11 @@ layout(buffer_reference) buffer AabbAttributeType
 layout(buffer_reference) buffer MeshDrawRangeType
 {
     mesh_draw_range values[];
+};
+
+layout(buffer_reference) buffer FullIndexBufferType
+{
+    full_index_buffer values[];
 };
 
 layout(buffer_reference) buffer MeshletDrawRangeType
@@ -55,6 +68,13 @@ aabb mesh_get_aabb(in mesh_table t, in uint meshId)
     res.min = padded.min;
     res.max = padded.max;
     return res;
+}
+
+full_index_buffer mesh_get_full_index_buffer(in mesh_table t, in uint meshId)
+{
+    const uint64_t address = t.meshDataAddress + t.meshDataOffsets[OBLO_MESH_DATA_FULL_INDEX_BUFFER];
+    FullIndexBufferType attributeBuffer = FullIndexBufferType(address);
+    return attributeBuffer.values[meshId];
 }
 
 // Mesh draw ranges fetch

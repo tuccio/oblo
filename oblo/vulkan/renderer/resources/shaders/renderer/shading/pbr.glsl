@@ -2,7 +2,6 @@
 #define OBLO_INCLUDE_RENDERER_SHADING_PBR
 
 #include <renderer/constants>
-#include <renderer/material>
 #include <renderer/math>
 
 struct pbr_material

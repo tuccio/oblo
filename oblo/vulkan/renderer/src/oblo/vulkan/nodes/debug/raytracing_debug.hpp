@@ -13,6 +13,9 @@ namespace oblo::vk
 
         resource<buffer> inCameraBuffer;
 
+        resource<buffer> inLightBuffer;
+        resource<buffer> inLightConfig;
+
         resource<texture> outShadedImage;
 
         h32<raytracing_pass> rtDebugPass;

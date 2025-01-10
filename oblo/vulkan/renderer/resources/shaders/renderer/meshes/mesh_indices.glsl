@@ -38,7 +38,7 @@ uvec3 meshlet_get_triangle_microindices(
     return triangleIndices;
 }
 
-/// Returns the meshlet microindices for the meshlet.
+/// Returns the vertex indices for the meshlet.
 uvec3 mesh_get_meshlet_indices(in mesh_table t, in mesh_handle mesh, in uint meshletId, in uint meshletTriangleId)
 {
     const uint meshIndex = mesh_handle_as_index(mesh);
@@ -51,5 +51,25 @@ uvec3 mesh_get_meshlet_indices(in mesh_table t, in mesh_handle mesh, in uint mes
 
     return vertexIndices;
 }
+
+// /// Returns the vertex indices for the specified triangle.
+// /// @remarks This is mostly useful in ray-tracing where we don't use micro-indices, but full index buffers.
+// uvec3 mesh_get_primitive_indices(in mesh_table t, in mesh_handle mesh, in uint primitiveId)
+// {
+//     const uint meshIndex = mesh_handle_as_index(mesh);
+//     const mesh_draw_range meshRange = mesh_get_draw_range(t, meshIndex);
+
+//     const uint globalIndexOffset = meshRange.indexOffset + primitiveId * 3;
+
+//     uvec3 microIndices;
+//     microIndices[0] = uint(mesh_get_index_u8(t, globalIndexOffset));
+//     microIndices[1] = uint(mesh_get_index_u8(t, globalIndexOffset + 1));
+//     microIndices[2] = uint(mesh_get_index_u8(t, globalIndexOffset + 2));
+
+//     // TODO: Need to translate micro-indices ?
+//     const uvec3 vertexIndices = uvec3(meshRange.vertexOffset /* + meshletRange.vertexOffset */) + microIndices;
+
+//     return vertexIndices;
+// }
 
 #endif

@@ -1,6 +1,9 @@
 #ifndef OBLO_INCLUDE_RENDERER_TEXTURES
 #define OBLO_INCLUDE_RENDERER_TEXTURES
 
+// This is required to use this header
+// #extension GL_EXT_nonuniform_qualifier : require
+
 #define OBLO_DESCRIPTOR_SET_SAMPLERS 1
 #define OBLO_DESCRIPTOR_SET_TEXTURES_2D 2
 

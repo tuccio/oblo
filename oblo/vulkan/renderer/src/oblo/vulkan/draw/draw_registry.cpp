@@ -59,6 +59,7 @@ namespace oblo::vk
         {
             mesh_draw_range,
             aabb,
+            full_index_buffer,
         };
 
         constexpr vertex_attributes convert_vertex_attribute(attribute_kind attribute)
@@ -94,6 +95,13 @@ namespace oblo::vk
             u32 meshletCount;
         };
 
+        struct gpu_full_index_buffer
+        {
+            u64 deviceAddress;
+            u32 indexType;
+            u32 _padding;
+        };
+
         // Global id containing instance table and instance index, this is the same id that we store in the visibility
         // buffer and as instanceCustomIndex in the acceleration structures for ray-tracing.
         draw_instance_id_component make_global_instance_id(u32 instanceTableId, u32 instanceIndex)
@@ -113,6 +121,7 @@ namespace oblo::vk
     {
         rt_acceleration_structure as;
         resource_ref<mesh> mesh;
+        allocated_buffer fullIndexBuffer;
     };
 
     struct draw_registry::pending_mesh_upload
@@ -191,6 +200,10 @@ namespace oblo::vk
             {
                 .name = interner.get_or_add("b_MeshAABBs"),
                 .elementSize = sizeof(gpu_aabb),
+            },
+            {
+                .name = interner.get_or_add("b_FullIndexBuffer"),
+                .elementSize = sizeof(gpu_full_index_buffer),
             },
         };
 
@@ -276,6 +289,16 @@ namespace oblo::vk
         for (auto& blas : m_meshToBlas.values())
         {
             release(blas.as);
+
+            if (blas.fullIndexBuffer.allocation)
+            {
+                m_ctx->destroy_deferred(blas.fullIndexBuffer.allocation, m_ctx->get_submit_index());
+            }
+
+            if (blas.fullIndexBuffer.buffer)
+            {
+                m_ctx->destroy_deferred(blas.fullIndexBuffer.buffer, m_ctx->get_submit_index());
+            }
         }
 
         m_meshToBlas.clear();
@@ -799,7 +822,7 @@ namespace oblo::vk
                             {
                                 .size = indexBufferByteSize,
                                 .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
-                                    VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
                                     VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
                                 .memoryUsage = memory_usage::gpu_only,
                             },
@@ -807,12 +830,6 @@ namespace oblo::vk
                     {
                         continue;
                     }
-
-                    // We need this buffer for one frame only, destroy it after
-                    const auto submitIndex = m_ctx->get_submit_index();
-
-                    m_ctx->destroy_deferred(allocatedIndexBuffer.buffer, submitIndex);
-                    m_ctx->destroy_deferred(allocatedIndexBuffer.allocation, submitIndex);
 
                     const buffer indexBuffer{
                         .buffer = allocatedIndexBuffer.buffer,
@@ -901,6 +918,13 @@ namespace oblo::vk
                     {
                         log::error("Failed to create blas for mesh {}", mesh.mesh.value);
                         gpuAllocator.destroy(blasBuffer);
+
+                        // Free the index buffer we allocated as well
+                        const auto submitIndex = m_ctx->get_submit_index();
+
+                        m_ctx->destroy_deferred(allocatedIndexBuffer.buffer, submitIndex);
+                        m_ctx->destroy_deferred(allocatedIndexBuffer.allocation, submitIndex);
+
                         continue;
                     }
 
@@ -914,6 +938,8 @@ namespace oblo::vk
                     blas->as.deviceAddress =
                         vkFn.vkGetAccelerationStructureDeviceAddressKHR(m_ctx->get_device(), &asAddrInfo);
 
+                    blas->fullIndexBuffer = allocatedIndexBuffer;
+
                     auto& blasBuild = blasBuilds.emplace_back();
 
                     blasBuild.geometry = geometry;
@@ -925,7 +951,43 @@ namespace oblo::vk
 
                     blasScratchSize += blasBuild.scratchSize;
 
+                    // Upload the newly created index buffer
                     defer_upload(indexData, indexBuffer);
+
+                    {
+                        // Finally we need to update the mesh table with the reference to our index buffer, so we can
+                        // access it in the ray-tracing pipeline
+                        h32<string> meshBufferNames[1]{m_meshDataNames[u32(mesh_data_buffers::full_index_buffer)]};
+                        buffer meshBuffers[1]{};
+
+                        m_meshes.fetch_buffers(meshHandle, {}, {}, nullptr, meshBufferNames, meshBuffers, nullptr);
+
+                        OBLO_ASSERT(meshBuffers[0].buffer);
+
+                        mesh_index_type meshIndexType{};
+
+                        switch (indexType)
+                        {
+                        case data_format::u16:
+                            meshIndexType = mesh_index_type::u16;
+                            break;
+
+                        case data_format::u32:
+                            meshIndexType = mesh_index_type::u32;
+                            break;
+
+                        default:
+                            OBLO_ASSERT(false, "Ray-Tracing only supports u16 and u32 indices");
+                            break;
+                        }
+
+                        const gpu_full_index_buffer fullIndexBufferData[1] = {{
+                            .deviceAddress = indexAddress,
+                            .indexType = u32(meshIndexType),
+                        }};
+
+                        defer_upload(as_bytes(std::span(fullIndexBufferData)), meshBuffers[0]);
+                    }
                 }
 
                 VkTransformMatrixKHR vkTransform{};

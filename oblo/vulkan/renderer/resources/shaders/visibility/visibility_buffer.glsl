@@ -1,14 +1,7 @@
 #ifndef OBLO_INCLUDE_VISIBILITY_VISIBILITY_BUFFER
 #define OBLO_INCLUDE_VISIBILITY_VISIBILITY_BUFFER
 
-#define OBLO_VISIBILITY_BUFFER_MASK_INSTANCE_TABLE_ID 15 // 4 bits for instance tables
-
-// We have 20 bits for the instance and 4 for the instance table, for a total of 24, which is the maximum we can use as
-// instanceCustomIndex in the acceleration structures for ray-tracing
-#define OBLO_VISIBILITY_BUFFER_INSTANCE_GLOBAL_ID_BITS 24 // We can only use 24 in the acceleration structures for RT
-#define OBLO_VISIBILITY_BUFFER_INSTANCE_TABLE_ID_BITS 4   // We reserve 4 for the table id
-#define OBLO_VISIBILITY_BUFFER_INSTANCE_ID_BITS 20        // And the remaining 20 for the instance index
-#define OBLO_VISIBILITY_BUFFER_INSTANCE_ID_MASK 0xFFFFF   // Value of (1 << OBLO_VISIBILITY_BUFFER_INSTANCE_ID_BITS) - 1
+#include <renderer/instance_id>
 
 #define OBLO_VISIBILITY_BUFFER_SHIFT_MESHLET_ID 8   // We keep 24 bits for the meshlet id
 #define OBLO_VISIBILITY_BUFFER_MASK_TRIANGLE_ID 255 // And use the remaining 8 bits for the triangle id
@@ -23,8 +16,7 @@ struct visibility_buffer_data
 
 void visibility_buffer_parse_instance_ids(in uint packedX, inout visibility_buffer_data r)
 {
-    r.instanceTableId = packedX >> OBLO_VISIBILITY_BUFFER_INSTANCE_ID_BITS;
-    r.instanceId = packedX & OBLO_VISIBILITY_BUFFER_INSTANCE_ID_MASK;
+    instance_parse_global_id(packedX, r.instanceTableId, r.instanceId);
 }
 
 void visibility_buffer_parse_meshlet_ids(in uint packedY, inout visibility_buffer_data r)
@@ -37,7 +29,7 @@ uvec2 visibility_buffer_pack(in visibility_buffer_data data)
 {
     uvec2 r;
 
-    r.x = (data.instanceTableId << OBLO_VISIBILITY_BUFFER_INSTANCE_ID_BITS) | data.instanceId;
+    r.x = instance_pack_global_id(data.instanceTableId, data.instanceId);
 
     r.y = (data.meshletTriangleId & OBLO_VISIBILITY_BUFFER_MASK_TRIANGLE_ID) |
         (data.meshletId << OBLO_VISIBILITY_BUFFER_SHIFT_MESHLET_ID);
