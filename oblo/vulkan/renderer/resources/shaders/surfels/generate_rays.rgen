@@ -29,7 +29,7 @@ void main()
 
     if (!surfel_data_is_alive(surfel))
     {
-        g_OutSurfelsLighting[surfelId].radiance = vec3(0);
+        g_OutSurfelsLighting[surfelId] = surfel_lighting_data_new();
         return;
     }
 
@@ -58,8 +58,6 @@ void main()
     const float tMin = 1e-2f;
     const float tMax = 1e6f;
 
-    r_HitColor = vec3(0);
-
     traceRayEXT(u_SceneTLAS,
         gl_RayFlagsOpaqueEXT,
         0xff, // cull mask
@@ -73,7 +71,24 @@ void main()
         0 // payload location
     );
 
-    const float k = .5f;
-    g_OutSurfelsLighting[surfelId].radiance = r_HitColor;
-    // g_OutSurfelsLighting[surfelId].radiance = mix(r_HitColor, g_InSurfelsLighting[surfelId].radiance, k);
+    // TODO: Should we attenuate with distance?
+    // The hit shader should attenuate in case? We should not attenuate sky light
+    const sh3 shIrradiance = sh3_eval(direction);
+
+    // g_OutSurfelsLighting[surfelId].radiance = r_HitColor;
+    const sh3 r = sh_mul(shIrradiance, r_HitColor.r);
+    const sh3 g = sh_mul(shIrradiance, r_HitColor.g);
+    const sh3 b = sh_mul(shIrradiance, r_HitColor.b);
+
+#if 0
+    g_OutSurfelsLighting[surfelId].shRed = r;
+    g_OutSurfelsLighting[surfelId].shGreen = g;
+    g_OutSurfelsLighting[surfelId].shBlue = b;
+#else
+    const float k = .25f;
+
+    g_OutSurfelsLighting[surfelId].shRed = sh_mix(g_InSurfelsLighting[surfelId].shRed, r, k);
+    g_OutSurfelsLighting[surfelId].shGreen = sh_mix(g_InSurfelsLighting[surfelId].shGreen, g, k);
+    g_OutSurfelsLighting[surfelId].shBlue = sh_mix(g_InSurfelsLighting[surfelId].shBlue, b, k);
+#endif
 }

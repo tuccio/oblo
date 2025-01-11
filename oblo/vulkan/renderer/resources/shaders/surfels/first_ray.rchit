@@ -39,6 +39,8 @@ hitAttributeEXT vec2 h_BarycentricCoords;
 
 void main()
 {
+    r_HitColor = vec3(0);
+
 #if 0
     const uint globalInstanceId = gl_InstanceCustomIndexEXT;
 

@@ -3,6 +3,7 @@
 
 #include <ecs/entity>
 #include <renderer/constants>
+#include <renderer/math/spherical_harmonics>
 
 const uint SURFEL_ID_INVALID = -1;
 const uint SURFEL_MAX_PER_CELL = 31;
@@ -60,8 +61,9 @@ struct surfel_tile_data
 
 struct surfel_lighting_data
 {
-    vec3 radiance;
-    float _padding;
+    sh3 shRed;
+    sh3 shGreen;
+    sh3 shBlue;
 };
 
 ivec3 surfel_grid_cells_count(in surfel_grid_header h)
@@ -147,7 +149,9 @@ float surfel_estimate_radius(in surfel_grid_header gridHeader, in vec3 cameraPos
 surfel_lighting_data surfel_lighting_data_new()
 {
     surfel_lighting_data r;
-    r.radiance = vec3(0);
+    r.shRed = sh3_zero();
+    r.shGreen = sh3_zero();
+    r.shBlue = sh3_zero();
     return r;
 }
 

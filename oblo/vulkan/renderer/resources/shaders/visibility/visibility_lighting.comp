@@ -156,25 +156,8 @@ vec4 visibility_shade(in visibility_shade_context ctx)
     }
 
 #ifdef SURFELS_GI
-    uint surfelsContributionsCount;
-    const vec3 surfelsContributions[SURFEL_MAX_PER_CELL] =
-        surfel_contributions_at(positionWS, surfelsContributionsCount);
-
-    // TODO: Remove
-
-    // for (uint i = 0; i < surfelsContributionsCount; ++i)
-    // {
-    //     reflected +=
-    //         (surfelsContributions[i] * pbr_brdf(normalWS, viewWS, vec3(0, 1, 0), pbr)) / surfelsContributionsCount;
-    // }
-
-    surfel_contribution contribution;
-
-    if (surfel_find_in_range(positionWS, contribution))
-    {
-        reflected = vec3(0);
-        reflected = contribution.radiance;
-    }
+    const vec3 giContribution = surfel_calculate_contribution(positionWS, normalWS);
+    reflected += giContribution * pbr_brdf_diffuse(normalWS, viewWS, normalWS, pbr);
 #endif
 
     vec3 emitted = material.emissive;
@@ -203,8 +186,8 @@ vec4 visibility_miss(in visibility_shade_context ctx)
     const vec2 uvQuadX = subgroupQuadSwapHorizontal(uv);
     const vec2 uvQuadY = subgroupQuadSwapVertical(uv);
 
-#if 0 // Using gradients this way introduces a seam where the skybox wraps, maybe we can just choose a mipmap manually
-      // instead
+#if 0 // Using gradients this way introduces a seam where the skybox wraps, maybe we can just choose a mipmap
+      // manually instead
     const vec2 uvDDX = uv - uvQuadX;
     const vec2 uvDDY = uv - uvQuadY;
 

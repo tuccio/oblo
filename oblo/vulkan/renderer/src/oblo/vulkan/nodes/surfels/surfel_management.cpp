@@ -67,8 +67,9 @@ namespace oblo::vk
 
         struct surfel_lighting_data
         {
-            vec3 irradiance; // Just temporary before implementing SH lighting, irradiance from the sun
-            f32 _padding;
+            f32 shRed[9];
+            f32 shGreen[9];
+            f32 shBlue[9];
         };
 
         vec3 calculate_centroid(std::span<const camera_buffer> cameras)
