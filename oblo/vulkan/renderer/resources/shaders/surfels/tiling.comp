@@ -120,24 +120,6 @@ bool read_spawn_data(in ivec2 screenPos, in uvec2 resolution, out surfel_spawn_d
     return all(greaterThanEqual(bc.lambda, vec3(0)));
 }
 
-float surfel_weight(in surfel_data surfel, in vec3 positionWS)
-{
-    const vec3 surfelPosition = surfel_data_world_position(surfel);
-    const vec3 pointToSurfel = surfelPosition - positionWS;
-
-    const float radius2 = surfel.radius * surfel.radius;
-
-    // // If the vector from point to surfel has positive cosine, it means the point is behind the surfel and will not
-    // be
-    // // affected by reflections from it
-    // const float sideFactor = dot(surfel.normalWS, pointToSurfel);
-    // const float weightFactor = radius2 - dot(pointToSurfel, pointToSurfel);
-
-    // return sideFactor < 0.f && weightFactor > 0.f ? 1.f : 0.f;
-
-    return max(0.f, 1024 - radius2 - dot(pointToSurfel, pointToSurfel));
-}
-
 bool gather_coverage_from_grid(in vec3 positionWS, out float weightSum)
 {
     const surfel_grid_header gridHeader = g_SurfelGridHeader;
@@ -145,48 +127,48 @@ bool gather_coverage_from_grid(in vec3 positionWS, out float weightSum)
 
     weightSum = 0.f;
 
-    bool anyOverlap = false;
-
-    // Search neighboring cells and accumulate overlapping surfels
-    [[unroll]] for (int x = -1; x <= 1; ++x)
+    if (surfel_grid_has_cell(gridHeader, cell))
     {
-        [[unroll]] for (int y = -1; y <= 1; ++y)
+        const uint cellIndex = surfel_grid_cell_index(gridHeader, cell);
+        const surfel_grid_cell cellData = g_SurfelGridCells[cellIndex];
+
+        if (cellData.surfelsCount >= SURFEL_MAX_PER_CELL)
         {
-            [[unroll]] for (int z = -1; z <= 1; ++z)
+            return false;
+        }
+
+        // We could consider adding some weight for the number of surfels in the same cell, to
+        // prioritize tiles that don't have any
+        const uint surfelsCount = min(cellData.surfelsCount, SURFEL_MAX_PER_CELL);
+
+        for (uint i = 0; i < surfelsCount; ++i)
+        {
+            const uint surfelId = cellData.surfels[i];
+            const surfel_data surfel = g_SurfelData[surfelId];
+
+            const vec3 surfelPosition = surfel_data_world_position(surfel);
+            const vec3 pointToSurfel = surfelPosition - positionWS;
+
+            // Should we estimate the radius or just take the one from the previous update?
+            // Surfels update might have been skipped last frame for whatever reason
+            const float radius = surfel_estimate_radius(gridHeader, g_Camera.position, surfelPosition);
+            // const float radius = surfel.radius;
+
+            const float radius2 = radius * radius;
+            const float twiceRadius2 = 4 * radius2;
+            const float distance2 = dot(pointToSurfel, pointToSurfel);
+
+            if (distance2 <= twiceRadius2)
             {
-                const ivec3 current = cell + ivec3(x, y, z);
-
-                if (surfel_grid_has_cell(gridHeader, current))
-                {
-                    const uint cellIndex = surfel_grid_cell_index(gridHeader, current);
-                    const surfel_grid_cell cellData = g_SurfelGridCells[cellIndex];
-
-                    // We could consider adding some weight for the number of surfels in the same cell, to
-                    // prioritize tiles that don't have any
-                    for (uint surfelId = cellData.nextSurfelId; surfelId != SURFEL_ID_INVALID;)
-                    {
-                        const surfel_data surfel = g_SurfelData[surfelId];
-
-                        const vec3 surfelPosition = surfel_data_world_position(surfel);
-                        const vec3 pointToSurfel = surfelPosition - positionWS;
-
-                        const float radius2 = surfel.radius * surfel.radius;
-                        const float twiceRadius2 = 4 * radius2;
-                        const float distance2 = dot(pointToSurfel, pointToSurfel);
-
-                        anyOverlap = anyOverlap || (distance2 <= twiceRadius2);
-
-                        const float weight = twiceRadius2 - distance2;
-                        weightSum += weight;
-
-                        surfelId = surfel.nextSurfelId;
-                    }
-                }
+                return false;
             }
+
+            const float weight = twiceRadius2 - distance2;
+            weightSum += weight;
         }
     }
 
-    return !anyOverlap;
+    return true;
 }
 
 void main()
@@ -196,8 +178,8 @@ void main()
 
     const bool withinScreenBounds = screenPos.x < resolution.x && screenPos.y < resolution.y;
 
-    // When nothing is in the visibility buffer, we will fall back to the skybox. These pixels should not really matter
-    // for the coverage, for now we assign an arbitrary coverage though.
+    // When nothing is in the visibility buffer, we will fall back to the skybox. These pixels should not really
+    // matter for the coverage, for now we assign an arbitrary coverage though.
     float weightSum = 0;
     vec3 positionWS;
 
@@ -223,13 +205,15 @@ void main()
     // First process within the subgroup
     {
         const uint bestCandidateIdx = find_lowest_within_subgroup_rand(weightSum, subgroupSeed);
+        // const uint bestCandidateIdx = find_lowest_within_subgroup_naive(weightSum);
+        // const uint bestCandidateIdx = find_lowest_within_subgroup(weightSum);
+
         // const uint subgroupOutIndex = (g_Constants.randomSeed + gl_SubgroupID) % OBLO_SUBGROUP_SIZE;
         const uint subgroupOutIndex = (hash_pcg(workgroupSeed) + gl_SubgroupID) % OBLO_SUBGROUP_SIZE;
 
         if (bestCandidateIdx == gl_SubgroupInvocationID)
         {
             surfel_tile_data tileData;
-            tileData.averageTileCoverage = NO_SURFELS_NEEDED;
             tileData.worstPixelCoverage = weightSum;
             tileData.spawnData = spawnData;
 
@@ -238,6 +222,33 @@ void main()
             g_WeightSums[subgroupOutIndex] = selfSum;
             g_PixelsWithFragments[subgroupOutIndex] = selfPixels;
         }
+
+        // const uint globalIndex = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
+        // if (globalIndex == 0 && gl_SubgroupID == 0)
+        // {
+        //     memoryBarrierShared();
+        //     barrier();
+
+        //     if (subgroupElect())
+        //     {
+        //         debugPrintfEXT("[TILING] Global Index %u Subgroup %u worst (%u) = %f\n",
+        //             globalIndex,
+        //             gl_SubgroupID,
+        //             bestCandidateIdx,
+        //             g_GroupCandidates[subgroupOutIndex].worstPixelCoverage);
+        //     }
+
+        //     for (uint i = 0; i < OBLO_SUBGROUP_SIZE; ++i)
+        //     {
+        //         if (i == gl_SubgroupInvocationID)
+        //         {
+        //             debugPrintfEXT("[TILING] Subgroup %u invocation %u worst = %f\n",
+        //                 gl_SubgroupID,
+        //                 i,
+        //                 subgroupBroadcast(weightSum, i));
+        //         }
+        //     }
+        // }
     }
 
     memoryBarrierShared();
@@ -255,15 +266,14 @@ void main()
         const float sum = subgroupAdd(subgroupsSum);
         const uint pixels = subgroupAdd(subgroupsPixels);
 
-        // We can use the regular (and faster) overload of find_lowest_within_subgroup, since we shuffled the results in
-        // shared memory
+        // We can use the regular (and faster) overload of find_lowest_within_subgroup, since we shuffled the
+        // results in shared memory
         const uint bestCandidateIdx = find_lowest_within_subgroup(candidate.worstPixelCoverage);
 
         const surfel_tile_data result = g_GroupCandidates[bestCandidateIdx];
 
         surfel_tile_data outputTile;
 
-        outputTile.averageTileCoverage = pixels > 0 ? sum / pixels : NO_SURFELS_NEEDED;
         outputTile.worstPixelCoverage = result.worstPixelCoverage;
         outputTile.spawnData = result.spawnData;
 

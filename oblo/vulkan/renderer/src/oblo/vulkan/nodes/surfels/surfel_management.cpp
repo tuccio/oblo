@@ -16,6 +16,7 @@ namespace oblo::vk
     namespace
     {
         constexpr u32 g_tileSize{32};
+        constexpr u32 g_maxSurfelsPerCell{31};
 
         struct surfel_spawn_data
         {
@@ -48,7 +49,8 @@ namespace oblo::vk
 
         struct surfel_grid_cell
         {
-            u32 nextSurfelId;
+            u32 surfelsCount;
+            u32 surfels[g_maxSurfelsPerCell];
         };
 
         struct surfel_stack_header
@@ -58,7 +60,6 @@ namespace oblo::vk
 
         struct surfel_tile_data
         {
-            f32 averageTileCoverage;
             f32 worstPixelCoverage;
             surfel_spawn_data spawnData;
         };
@@ -192,12 +193,6 @@ namespace oblo::vk
         }
     }
 
-    struct surfel_tiling::subpass_info
-    {
-        h32<frame_graph_pass> id;
-        resource<buffer> outBuffer;
-    };
-
     void surfel_tiling::init(const frame_graph_init_context& ctx)
     {
         auto& pm = ctx.get_pass_manager();
@@ -208,22 +203,10 @@ namespace oblo::vk
         });
 
         OBLO_ASSERT(tilingPass);
-
-        reductionPass = pm.register_compute_pass({
-            .name = "Surfel Tiling Reduction",
-            .shaderSourcePath = "./vulkan/shaders/surfels/tile_reduction.comp",
-        });
-
-        OBLO_ASSERT(reductionPass);
-
-        const u32 subgroupSize = pm.get_subgroup_size();
-        reductionGroupSize = subgroupSize * subgroupSize;
     }
 
     void surfel_tiling::build(const frame_graph_build_context& ctx)
     {
-        bool reductionEnabled = false;
-
         randomSeed = ctx.get_random_generator().generate();
 
         const auto resolution =
@@ -233,75 +216,33 @@ namespace oblo::vk
         const u32 tilesY = round_up_div(resolution.height, g_tileSize);
         const u32 tilesCount = tilesX * tilesY;
 
-        const u32 reductionPassesCount = reductionEnabled
-            ? u32(std::ceilf(f32(log2_round_down_power_of_two(round_up_power_of_two(tilesCount))) /
-                  log2_round_down_power_of_two(reductionGroupSize)))
-            : 0;
-
-        subpasses = allocate_n_span<subpass_info>(ctx.get_frame_allocator(), 1 + reductionPassesCount);
-
         const u32 tilesBufferSize = u32(tilesCount * sizeof(surfel_tile_data));
         u32 currentBufferSize = tilesBufferSize;
 
-        // First subpass: split the screen in tiles, find the best candidate for each tile
+        ctx.begin_pass(pass_kind::compute);
+
+        ctx.create(outFullTileCoverage,
+            buffer_resource_initializer{
+                .size = tilesBufferSize,
+            },
+            buffer_usage::storage_write);
+
+        ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
+
+        ctx.acquire(inCameraBuffer, buffer_usage::uniform);
+        ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
+
+        acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
+
+        if (ctx.has_source(inSurfelsGrid))
         {
-            const auto subpass = ctx.begin_pass(pass_kind::compute);
-
-            ctx.create(outFullTileCoverage,
-                buffer_resource_initializer{
-                    .size = tilesBufferSize,
-                },
-                buffer_usage::storage_write);
-
-            ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
-
-            ctx.acquire(inCameraBuffer, buffer_usage::uniform);
-            ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
-
-            acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
-
-            if (ctx.has_source(inSurfelsGrid))
-            {
-                ctx.acquire(inSurfelsGrid, buffer_usage::storage_read);
-                ctx.acquire(inSurfelsData, buffer_usage::storage_read);
-            }
-
-            subpasses.front() = {
-                .id = subpass,
-                .outBuffer = outFullTileCoverage,
-            };
-        }
-
-        // Parallel reduction until we only have 1 candidate
-
-        if (reductionPassesCount > 0)
-        {
-            currentBufferSize = round_up_multiple(tilesCount, reductionGroupSize) * sizeof(surfel_tile_data);
-
-            for (u32 i = 1; i <= reductionPassesCount; ++i)
-            {
-                const auto subpass = ctx.begin_pass(pass_kind::compute);
-
-                ctx.acquire(subpasses[i - 1].outBuffer, buffer_usage::storage_read);
-
-                currentBufferSize = max(currentBufferSize / reductionGroupSize, u32(sizeof(surfel_tile_data)));
-                OBLO_ASSERT(currentBufferSize > sizeof(surfel_tile_data) || i == reductionPassesCount);
-
-                const auto newBuffer = ctx.create_dynamic_buffer(
-                    buffer_resource_initializer{
-                        .size = currentBufferSize,
-                    },
-                    buffer_usage::storage_write);
-
-                subpasses[i] = {.id = subpass, .outBuffer = newBuffer};
-            }
-
-            OBLO_ASSERT(currentBufferSize == sizeof(surfel_tile_data));
+            ctx.acquire(inSurfelsGrid, buffer_usage::storage_read);
+            ctx.acquire(inSurfelsData, buffer_usage::storage_read);
         }
 
         ctx.push(outTileCoverageSink,
             {
-                .buffer = subpasses.back().outBuffer,
+                .buffer = outFullTileCoverage,
                 .elements = currentBufferSize / u32{sizeof(surfel_tile_data)},
             });
 
@@ -336,8 +277,7 @@ namespace oblo::vk
         const u32 tilesX = round_up_div(resolution.width, g_tileSize);
         const u32 tilesY = round_up_div(resolution.height, g_tileSize);
 
-        const auto tileOutputBuffer = subpasses.front().outBuffer;
-        resource<buffer> previousBuffer{tileOutputBuffer};
+        const auto tileOutputBuffer = outFullTileCoverage;
 
         if (const auto tiling = pm.begin_compute_pass(commandBuffer, tilingPipeline))
         {
@@ -349,7 +289,7 @@ namespace oblo::vk
                     {"b_CameraBuffer", inCameraBuffer},
                     {"b_SurfelsGrid", inSurfelsGrid},
                     {"b_SurfelsData", inSurfelsData},
-                    {"b_OutTileCoverage", tileOutputBuffer},
+                    {"b_OutTileCoverage", outFullTileCoverage},
                 });
 
             ctx.bind_textures(bindingTable,
@@ -363,49 +303,6 @@ namespace oblo::vk
             vkCmdDispatch(ctx.get_command_buffer(), tilesX, tilesY, 1);
 
             pm.end_compute_pass(*tiling);
-
-            previousBuffer = tileOutputBuffer;
-        }
-
-        const auto reductionPipeline = pm.get_or_create_pipeline(reductionPass, {});
-
-        for (const auto& subpass : subpasses.subspan(1))
-        {
-            ctx.begin_pass(subpass.id);
-
-            if (const auto reduction = pm.begin_compute_pass(commandBuffer, reductionPipeline))
-            {
-                bindingTable.clear();
-
-                ctx.bind_buffers(bindingTable,
-                    {
-                        {"b_InBuffer", previousBuffer},
-                        {"b_OutBuffer", subpass.outBuffer},
-                    });
-
-                pm.bind_descriptor_sets(*reduction, bindingTables);
-
-                struct push_constants
-                {
-                    u32 srcElements;
-                    u32 randomSeed;
-                };
-
-                const push_constants constants{
-                    .srcElements = ctx.access(previousBuffer).size / u32{sizeof(surfel_tile_data)},
-                    .randomSeed = randomSeed,
-                };
-
-                const u32 groups = round_up_div(constants.srcElements, reductionGroupSize);
-
-                pm.push_constants(*reduction, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&constants, 1}));
-
-                vkCmdDispatch(ctx.get_command_buffer(), groups, 1, 1);
-
-                pm.end_compute_pass(*reduction);
-            }
-
-            previousBuffer = subpass.outBuffer;
         }
     }
 

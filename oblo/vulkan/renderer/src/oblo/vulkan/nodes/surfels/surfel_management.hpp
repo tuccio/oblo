@@ -63,13 +63,8 @@ namespace oblo::vk
         resource<buffer> inMeshDatabase;
 
         h32<compute_pass> tilingPass;
-        h32<compute_pass> reductionPass;
 
-        u32 reductionGroupSize;
         u32 randomSeed;
-
-        struct subpass_info;
-        std::span<subpass_info> subpasses;
 
         void init(const frame_graph_init_context& ctx);
 

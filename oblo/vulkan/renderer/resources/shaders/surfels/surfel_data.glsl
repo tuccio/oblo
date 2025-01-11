@@ -5,6 +5,7 @@
 #include <renderer/constants>
 
 const uint SURFEL_ID_INVALID = -1;
+const uint SURFEL_MAX_PER_CELL = 31;
 
 // Used as a coverage value for surfel_tile_data when no geometry is present
 const float NO_SURFELS_NEEDED = 1e6;
@@ -22,7 +23,7 @@ struct surfel_data
     vec3 positionWS;
     float radius;
     vec3 normalWS;
-    uint nextSurfelId;
+    uint _padding;
 };
 
 struct surfel_grid_header
@@ -37,7 +38,8 @@ struct surfel_grid_header
 
 struct surfel_grid_cell
 {
-    uint nextSurfelId;
+    uint surfelsCount;
+    uint surfels[SURFEL_MAX_PER_CELL];
 };
 
 struct surfel_stack_header
@@ -52,7 +54,6 @@ struct surfel_stack_entry
 
 struct surfel_tile_data
 {
-    float averageTileCoverage;
     float worstPixelCoverage;
     surfel_spawn_data spawnData;
 };
@@ -115,13 +116,25 @@ surfel_data surfel_data_invalid()
     surfelData.positionWS = vec3(float_positive_infinity());
     surfelData.normalWS = vec3(float_positive_infinity());
     surfelData.radius = 0.f;
-    surfelData.nextSurfelId = SURFEL_ID_INVALID;
     return surfelData;
 }
 
 bool surfel_data_is_alive(in surfel_data surfelData)
 {
     return !isinf(surfelData.positionWS.x);
+}
+
+float surfel_estimate_radius(in surfel_grid_header gridHeader, in vec3 cameraPosition, in vec3 surfelPosition)
+{
+    const vec3 cameraVector = surfelPosition - cameraPosition;
+    const float cameraDistance2 = dot(cameraVector, cameraVector);
+
+    const float g_GridCellSize = surfel_grid_cell_size(gridHeader);
+    const float g_SurfelScalingFactor = 0.03;
+
+    const float radius = min(g_GridCellSize, g_SurfelScalingFactor * sqrt(cameraDistance2));
+
+    return radius;
 }
 
 #endif

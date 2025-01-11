@@ -479,8 +479,8 @@ namespace oblo::vk::surfels_gi
         graph.bind(initializer,
             &surfel_initializer::inGridBounds,
             aabb{
-                .min = {.x = -128.f, .y = -32.f, .z = -128.f},
-                .max = {.x = 128.f, .y = 32.f, .z = 128.f},
+                .min = {.x = -32, .y = -16, .z = -32},
+                .max = {.x = 32, .y = 16, .z = 32},
             });
 
         // We output the surfels from last frame, then each view will contribute potentially spawning surfels

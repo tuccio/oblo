@@ -28,5 +28,5 @@ void main()
         return;
     }
 
-    g_SurfelGridCells[id].nextSurfelId = SURFEL_ID_INVALID;
+    g_SurfelGridCells[id].surfelsCount = 0;
 }
