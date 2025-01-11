@@ -5,6 +5,8 @@
 #include <renderer/debug/printf>
 #include <surfels/buffers/surfel_data_w>
 #include <surfels/buffers/surfel_grid_r>
+#include <surfels/buffers/surfel_lighting_data_in_w>
+#include <surfels/buffers/surfel_lighting_data_out_w>
 #include <surfels/buffers/surfel_spawn_data_w>
 #include <surfels/buffers/surfel_stack_rw>
 
@@ -43,6 +45,10 @@ void main()
         if (allocated)
         {
             g_SurfelSpawnData[newSurfelId] = tile.spawnData;
+
+            // This might not be necessary because we reset in the rgen shader on dead surfels
+            g_InSurfelsLighting[newSurfelId] = surfel_lighting_data_new();
+            g_OutSurfelsLighting[newSurfelId] = surfel_lighting_data_new();
         }
         else
         {

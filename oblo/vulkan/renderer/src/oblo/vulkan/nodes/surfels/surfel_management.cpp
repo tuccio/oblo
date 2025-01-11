@@ -7,6 +7,7 @@
 #include <oblo/vulkan/data/camera_buffer.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/compute_pass_initializer.hpp>
+#include <oblo/vulkan/draw/raytracing_pass_initializer.hpp>
 #include <oblo/vulkan/events/gi_reset_event.hpp>
 #include <oblo/vulkan/graph/frame_graph_template.hpp>
 #include <oblo/vulkan/graph/node_common.hpp>
@@ -32,7 +33,7 @@ namespace oblo::vk
             vec3 position;
             f32 radius;
             vec3 normal;
-            u32 nextSurfelId;
+            u32 globalInstanceId;
         };
 
         struct surfel_grid_header
@@ -62,6 +63,12 @@ namespace oblo::vk
         {
             f32 worstPixelCoverage;
             surfel_spawn_data spawnData;
+        };
+
+        struct surfel_lighting_data
+        {
+            vec3 irradiance; // Just temporary before implementing SH lighting, irradiance from the sun
+            f32 _padding;
         };
 
         vec3 calculate_centroid(std::span<const camera_buffer> cameras)
@@ -105,6 +112,7 @@ namespace oblo::vk
         const u32 surfelsStackSize = sizeof(u32) * (maxSurfels + 1);
         const u32 SurfelsSpawnDataSize = sizeof(surfel_spawn_data) * maxSurfels;
         const u32 surfelsDataSize = sizeof(surfel_dynamic_data) * maxSurfels;
+        const u32 surfelsLightingDataSize = sizeof(surfel_lighting_data) * maxSurfels;
         const u32 surfelsGridSize = u32(sizeof(surfel_grid_header) +
             sizeof(surfel_grid_cell) * std::ceil(cellsCount.x) * std::ceil(cellsCount.y) * std::ceil(cellsCount.z));
 
@@ -126,6 +134,21 @@ namespace oblo::vk
         ctx.create(outSurfelsData,
             buffer_resource_initializer{
                 .size = surfelsDataSize,
+                .isStable = true,
+            },
+            buffer_usage::storage_write);
+
+        // Probably only one of the two reallyneeds to be stable at a given time
+        ctx.create(outSurfelsLightingData0,
+            buffer_resource_initializer{
+                .size = surfelsLightingDataSize,
+                .isStable = true,
+            },
+            buffer_usage::storage_write);
+
+        ctx.create(outSurfelsLightingData1,
+            buffer_resource_initializer{
+                .size = surfelsLightingDataSize,
                 .isStable = true,
             },
             buffer_usage::storage_write);
@@ -338,6 +361,8 @@ namespace oblo::vk
         ctx.acquire(inOutSurfelsSpawnData, buffer_usage::storage_write);
         ctx.acquire(inOutSurfelsData, buffer_usage::storage_write);
         ctx.acquire(inOutSurfelsStack, buffer_usage::storage_write);
+        ctx.acquire(inOutSurfelsLightingData0, buffer_usage::storage_write);
+        ctx.acquire(inOutSurfelsLightingData1, buffer_usage::storage_write);
     }
 
     void surfel_spawner::execute(const frame_graph_execute_context& ctx)
@@ -360,6 +385,8 @@ namespace oblo::vk
                 {"b_SurfelsSpawnData", inOutSurfelsSpawnData},
                 {"b_SurfelsData", inOutSurfelsData},
                 {"b_SurfelsStack", inOutSurfelsStack},
+                {"b_InSurfelsLighting", inOutSurfelsLightingData0},
+                {"b_OutSurfelsLighting", inOutSurfelsLightingData1},
             });
 
         const auto commandBuffer = ctx.get_command_buffer();
@@ -550,6 +577,113 @@ namespace oblo::vk
             vkCmdDispatch(ctx.get_command_buffer(), groupsX, 1, 1);
 
             pm.end_compute_pass(*pass);
+        }
+    }
+
+    void surfel_raytracing::init(const frame_graph_init_context& ctx)
+    {
+        auto& passManager = ctx.get_pass_manager();
+
+        rtPass = passManager.register_raytracing_pass({
+            .name = "Surfel Ray-Tracing",
+            .generation = "./vulkan/shaders/surfels/generate_rays.rgen",
+            .miss =
+                {
+                    "./vulkan/shaders/surfels/skybox.rmiss",
+                },
+            .hitGroups =
+                {
+                    {
+                        .type = raytracing_hit_type::triangle,
+                        .shaders = {"./vulkan/shaders/surfels/first_ray.rchit"},
+                    },
+                },
+        });
+
+        outputSelector = 0;
+    }
+
+    void surfel_raytracing::build(const frame_graph_build_context& ctx)
+    {
+        // Last frame output becomes the input
+        const auto inputSelector = outputSelector;
+        outputSelector = 1 - outputSelector;
+
+        ctx.begin_pass(pass_kind::raytracing);
+
+        ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_read);
+        ctx.acquire(inOutSurfelsData, buffer_usage::storage_read);
+
+        const resource<buffer> lightingDataBuffers[] = {
+            inSurfelsLightingData0,
+            inSurfelsLightingData1,
+        };
+
+        ctx.reroute(lightingDataBuffers[inputSelector], lastFrameSurfelsLightingData);
+        ctx.reroute(lightingDataBuffers[outputSelector], outSurfelsLightingData);
+
+        ctx.acquire(lastFrameSurfelsLightingData, buffer_usage::storage_read);
+        ctx.acquire(outSurfelsLightingData, buffer_usage::storage_write);
+
+        ctx.acquire(inLightConfig, buffer_usage::uniform);
+        ctx.acquire(inLightBuffer, buffer_usage::storage_read);
+
+        ctx.acquire(inSkyboxSettingsBuffer, buffer_usage::uniform);
+
+        ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
+
+        acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
+
+        randomSeed = ctx.get_random_generator().generate();
+    }
+
+    void surfel_raytracing::execute(const frame_graph_execute_context& ctx)
+    {
+        auto& pm = ctx.get_pass_manager();
+
+        binding_table bindingTable;
+
+        ctx.bind_buffers(bindingTable,
+            {
+                {"b_MeshTables", inMeshDatabase},
+                {"b_InstanceTables", inInstanceTables},
+                {"b_LightConfig", inLightConfig},
+                {"b_LightData", inLightBuffer},
+                {"b_SkyboxSettings", inSkyboxSettingsBuffer},
+                {"b_SurfelsGrid", inOutSurfelsGrid},
+                {"b_SurfelsData", inOutSurfelsData},
+                {"b_InSurfelsLighting", lastFrameSurfelsLightingData},
+                {"b_OutSurfelsLighting", outSurfelsLightingData},
+            });
+
+        bindingTable.emplace(ctx.get_string_interner().get_or_add("u_SceneTLAS"),
+            make_bindable_object(ctx.get_draw_registry().get_tlas()));
+
+        const auto commandBuffer = ctx.get_command_buffer();
+
+        const auto pipeline = pm.get_or_create_pipeline(rtPass, {.maxPipelineRayRecursionDepth = 2});
+
+        if (const auto pass = pm.begin_raytracing_pass(commandBuffer, pipeline))
+        {
+            const auto maxSurfels = ctx.access(inMaxSurfels);
+
+            const binding_table* bindingTables[] = {
+                &bindingTable,
+            };
+
+            const struct push_constants
+            {
+                u32 randomSeed;
+            } constants{
+                .randomSeed = randomSeed,
+            };
+
+            pm.bind_descriptor_sets(*pass, bindingTables);
+            pm.push_constants(*pass, VK_SHADER_STAGE_RAYGEN_BIT_KHR, 0, as_bytes(std::span{&constants, 1}));
+
+            pm.trace_rays(*pass, maxSurfels, 1, 1);
+
+            pm.end_raytracing_pass(*pass);
         }
     }
 }

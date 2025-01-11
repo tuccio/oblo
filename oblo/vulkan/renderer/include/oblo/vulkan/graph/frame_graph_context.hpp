@@ -122,8 +122,13 @@ namespace oblo::vk
 
         void acquire(resource<buffer> buffer, buffer_usage usage) const;
 
+        void reroute(resource<buffer> source, resource<buffer> destination) const;
+
         /// @brief Determines whether the pin has an incoming edge.
         bool has_source(resource<buffer> buffer) const;
+
+        /// @brief Determines whether the pin has an incoming edge.
+        bool has_source(resource<texture> texture) const;
 
         [[nodiscard]] resource<buffer> create_dynamic_buffer(const buffer_resource_initializer& initializer,
             buffer_usage usage) const;
@@ -224,6 +229,9 @@ namespace oblo::vk
 
         /// @brief Determines whether the pin has an incoming edge.
         bool has_source(resource<buffer> buffer) const;
+
+        /// @brief Determines whether the pin has an incoming edge.
+        bool has_source(resource<texture> texture) const;
 
         /// @brief Queries the number of frames a stable texture has been alive for.
         /// On the first frame of usage the function will return 0.

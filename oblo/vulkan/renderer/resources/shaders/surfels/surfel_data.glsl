@@ -23,7 +23,7 @@ struct surfel_data
     vec3 positionWS;
     float radius;
     vec3 normalWS;
-    uint _padding;
+    uint globalInstanceId;
 };
 
 struct surfel_grid_header
@@ -56,6 +56,12 @@ struct surfel_tile_data
 {
     float worstPixelCoverage;
     surfel_spawn_data spawnData;
+};
+
+struct surfel_lighting_data
+{
+    vec3 radiance;
+    float _padding;
 };
 
 ivec3 surfel_grid_cells_count(in surfel_grid_header h)
@@ -116,6 +122,7 @@ surfel_data surfel_data_invalid()
     surfelData.positionWS = vec3(float_positive_infinity());
     surfelData.normalWS = vec3(float_positive_infinity());
     surfelData.radius = 0.f;
+    surfelData.globalInstanceId = ~0u;
     return surfelData;
 }
 
@@ -135,6 +142,13 @@ float surfel_estimate_radius(in surfel_grid_header gridHeader, in vec3 cameraPos
     const float radius = min(g_GridCellSize, g_SurfelScalingFactor * sqrt(cameraDistance2));
 
     return radius;
+}
+
+surfel_lighting_data surfel_lighting_data_new()
+{
+    surfel_lighting_data r;
+    r.radiance = vec3(0);
+    return r;
 }
 
 #endif

@@ -21,6 +21,7 @@ namespace oblo::vk::main_view
     constexpr string_view InLastFrameSurfelData{"LastFrameSurfelData"};
     constexpr string_view InUpdatedSurfelsGrid{"UpdatedSurfelsGrid"};
     constexpr string_view InUpdatedSurfelsData{"UpdatedSurfelsData"};
+    constexpr string_view InUpdatedSurfelsLightingData{"UpdatedSurfelsLightingData"};
     constexpr string_view InShadowSink{"ShadowSink"};
     constexpr string_view InSkyboxSettingsBuffer{"SkyboxSettingsBuffer"};
 
@@ -54,6 +55,7 @@ namespace oblo::vk::scene_data
     constexpr string_view InLights{"LightData"};
     constexpr string_view InSkyboxResource{"InSkyboxResource"};
     constexpr string_view InSkyboxSettings{"SkyboxSettings"};
+
     constexpr string_view OutLights{"LightData"};
     constexpr string_view OutLightBuffer{"LightDataBuffer"};
     constexpr string_view OutLightConfig{"LightConfig"};
@@ -77,6 +79,7 @@ namespace oblo::vk::raytraced_shadow_view
     constexpr string_view InMeshDatabase{"MeshDatabase"};
     constexpr string_view InInstanceTables{"InstanceTables"};
     constexpr string_view InInstanceBuffers{"InstanceBuffers"};
+
     constexpr string_view OutShadow{"Shadow"};
     constexpr string_view OutShadowSink{"ShadowSink"};
 
@@ -97,11 +100,15 @@ namespace oblo::vk::surfels_gi
     constexpr string_view InMeshDatabase{"MeshDatabase"};
     constexpr string_view InInstanceTables{"InstanceTables"};
     constexpr string_view InInstanceBuffers{"InstanceBuffers"};
+    constexpr string_view InLightBuffer{"LightDataBuffer"};
+    constexpr string_view InLightConfig{"LightConfig"};
+    constexpr string_view InSkyboxSettingsBuffer{"SkyboxSettingsBuffer"};
+
     constexpr string_view OutLastFrameGrid{"LastGrid"};
     constexpr string_view OutLastFrameSurfelData{"LastSurfelData"};
     constexpr string_view OutUpdatedSurfelGrid{"UpdatedSurfelGrid"};
-    constexpr string_view OutUpdatedSurfelSpawnData{"UpdatedSurfelSpawnData"};
     constexpr string_view OutUpdatedSurfelData{"UpdatedSurfelData"};
+    constexpr string_view OutUpdatedSurfelLightingData{"UpdatedSurfelLightingData"};
 
     frame_graph_template create(const frame_graph_registry& registry);
 }

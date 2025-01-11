@@ -53,6 +53,21 @@ namespace oblo
                 vk::scene_data::OutInstanceTables,
                 surfelsGIGlobal,
                 vk::surfels_gi::InInstanceTables);
+
+            g.connect(sceneDataProvider,
+                vk::scene_data::OutSkyboxSettingsBuffer,
+                surfelsGIGlobal,
+                vk::surfels_gi::InSkyboxSettingsBuffer);
+
+            g.connect(sceneDataProvider,
+                vk::scene_data::OutLightConfig,
+                surfelsGIGlobal,
+                vk::surfels_gi::InLightConfig);
+
+            g.connect(sceneDataProvider,
+                vk::scene_data::OutLightBuffer,
+                surfelsGIGlobal,
+                vk::surfels_gi::InLightBuffer);
         }
 
         void connect_surfels_gi_to_scene_view(
@@ -67,6 +82,21 @@ namespace oblo
                 vk::surfels_gi::OutLastFrameSurfelData,
                 mainView,
                 vk::main_view::InLastFrameSurfelData);
+
+            g.connect(surfelsGIGlobal,
+                vk::surfels_gi::OutUpdatedSurfelGrid,
+                mainView,
+                vk::main_view::InUpdatedSurfelsGrid);
+
+            g.connect(surfelsGIGlobal,
+                vk::surfels_gi::OutUpdatedSurfelData,
+                mainView,
+                vk::main_view::InUpdatedSurfelsData);
+
+            g.connect(surfelsGIGlobal,
+                vk::surfels_gi::OutUpdatedSurfelLightingData,
+                mainView,
+                vk::main_view::InUpdatedSurfelsLightingData);
 
             g.connect(mainView,
                 vk::main_view::OutSurfelsTileCoverageSink,

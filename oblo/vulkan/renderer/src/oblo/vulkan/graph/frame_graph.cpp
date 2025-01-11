@@ -882,6 +882,32 @@ namespace oblo::vk
         return &nodes.at(nodeHandle);
     }
 
+    const frame_graph_node* frame_graph_impl::get_owner_node(resource<texture> texture) const
+    {
+        const auto storage = to_storage_handle(texture);
+        const auto owner = pinStorage.at(storage).owner;
+        const auto vertexHandle = pins.at(owner).nodeHandle;
+        const auto nodeHandle = graph.get(vertexHandle).node;
+        return &nodes.at(nodeHandle);
+    }
+
+    void frame_graph_impl::reroute(resource<buffer> source, resource<buffer> destination)
+    {
+        // Source is a node that should end its path here
+        // Destination is a node with no incoming edges, owned by the current node
+        OBLO_ASSERT(get_owner_node(destination) == currentNode, "Only the source of the pin should reroute");
+
+        const auto srcStorageHandle = to_storage_handle(source);
+        const auto dstStorageHandle = to_storage_handle(destination);
+
+        const auto& srcRouteStorage = pinStorage.at(srcStorageHandle);
+        auto& dstRouteStorage = pinStorage.at(dstStorageHandle);
+
+        rerouteStash.emplace_back(dstStorageHandle, dstRouteStorage);
+
+        dstRouteStorage = srcRouteStorage;
+    }
+
     void* frame_graph_impl::access_storage(h32<frame_graph_pin_storage> handle) const
     {
         const auto& storage = pinStorage.at(handle);
@@ -1133,6 +1159,12 @@ namespace oblo::vk
 
     void frame_graph_impl::finish_frame()
     {
+        // Re-establish stashed reroutes (in reverse order just in case it matters)
+        for (const auto& [handle, value] : reverse_range(rerouteStash))
+        {
+            pinStorage.at(handle) = value;
+        }
+
         for (auto& h : dynamicPins)
         {
             const auto& storage = pinStorage.at(h);

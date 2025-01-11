@@ -20,6 +20,10 @@ namespace oblo::vk
 
         resource<buffer> outSurfelsGrid;
 
+        // Two buffers we ping pong during the ray-tracing update
+        resource<buffer> outSurfelsLightingData0;
+        resource<buffer> outSurfelsLightingData1;
+
         data<u32> inMaxSurfels;
         data<aabb> inGridBounds;
         data<f32> inGridCellSize;
@@ -85,6 +89,9 @@ namespace oblo::vk
         resource<buffer> inOutSurfelsSpawnData;
         resource<buffer> inOutSurfelsData;
 
+        resource<buffer> inOutSurfelsLightingData0;
+        resource<buffer> inOutSurfelsLightingData1;
+
         resource<buffer> inOutSurfelsGrid;
 
         h32<compute_pass> spawnPass;
@@ -135,6 +142,41 @@ namespace oblo::vk
         data<vec3> inCameraCentroid;
 
         h32<compute_pass> updatePass;
+
+        void init(const frame_graph_init_context& ctx);
+
+        void build(const frame_graph_build_context& ctx);
+
+        void execute(const frame_graph_execute_context& ctx);
+    };
+
+    struct surfel_raytracing
+    {
+        data<u32> inMaxSurfels;
+
+        resource<buffer> inOutSurfelsGrid;
+        resource<buffer> inOutSurfelsData;
+
+        resource<buffer> inSurfelsLightingData0;
+        resource<buffer> inSurfelsLightingData1;
+
+        resource<buffer> lastFrameSurfelsLightingData;
+        resource<buffer> outSurfelsLightingData;
+
+        resource<buffer> inLightBuffer;
+        resource<buffer> inLightConfig;
+
+        resource<buffer> inSkyboxSettingsBuffer;
+
+        resource<buffer> inMeshDatabase;
+
+        resource<buffer> inInstanceTables;
+        data<instance_data_table_buffers_span> inInstanceBuffers;
+
+        h32<raytracing_pass> rtPass;
+
+        u32 randomSeed;
+        u8 outputSelector;
 
         void init(const frame_graph_init_context& ctx);
 

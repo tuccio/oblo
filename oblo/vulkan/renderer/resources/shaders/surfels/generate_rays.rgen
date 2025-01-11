@@ -1,0 +1,79 @@
+#version 460
+
+#extension GL_EXT_ray_tracing : require
+#extension GL_GOOGLE_include_directive : require
+
+#include <renderer/random/random>
+#include <renderer/random/sampling>
+#include <surfels/buffers/surfel_buffer_bindings>
+#include <surfels/buffers/surfel_data_r>
+#include <surfels/buffers/surfel_grid_r>
+#include <surfels/buffers/surfel_lighting_data_in_r>
+#include <surfels/buffers/surfel_lighting_data_out_w>
+#include <surfels/surfel_data>
+
+layout(binding = 11) uniform accelerationStructureEXT u_SceneTLAS;
+
+layout(location = 0) rayPayloadEXT vec3 r_HitColor;
+
+layout(push_constant) uniform c_PushConstants
+{
+    uint randomSeed;
+}
+g_Constants;
+
+void main()
+{
+    const uint surfelId = gl_LaunchIDEXT.x;
+    const surfel_data surfel = g_SurfelData[surfelId];
+
+    if (!surfel_data_is_alive(surfel))
+    {
+        g_OutSurfelsLighting[surfelId].radiance = vec3(0);
+        return;
+    }
+
+    uint randomSeed = random_seed(g_Constants.randomSeed, surfelId);
+
+    const vec3 origin = surfel_data_world_position(surfel);
+    const vec3 N = surfel_data_world_normal(surfel);
+    const vec3 direction = random_sample_uniform_hemisphere(N, random_uniform_2d(randomSeed));
+
+#if OBLO_DEBUG_PRINTF
+
+    // debugPrintfEXT("Surfel %u should shoot a ray! [%f %f %f] -> [%f %f %f] (%f %f %f)\n",
+    //     surfelId,
+    //     origin.x,
+    //     origin.y,
+    //     origin.z,
+    //     direction.x,
+    //     direction.y,
+    //     direction.z,
+    //     N.x,
+    //     N.y,
+    //     N.z);
+
+#endif
+
+    const float tMin = 1e-2f;
+    const float tMax = 1e6f;
+
+    r_HitColor = vec3(0);
+
+    traceRayEXT(u_SceneTLAS,
+        gl_RayFlagsOpaqueEXT,
+        0xff, // cull mask
+        0,    // STB record offset
+        0,    // STB record stride
+        0,    // Miss index
+        origin,
+        tMin,
+        direction,
+        tMax,
+        0 // payload location
+    );
+
+    const float k = .5f;
+    g_OutSurfelsLighting[surfelId].radiance = r_HitColor;
+    // g_OutSurfelsLighting[surfelId].radiance = mix(r_HitColor, g_InSurfelsLighting[surfelId].radiance, k);
+}

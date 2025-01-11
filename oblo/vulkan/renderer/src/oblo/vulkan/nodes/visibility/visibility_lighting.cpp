@@ -104,6 +104,8 @@ namespace oblo::vk
             ctx.bind_buffers(bindingTable,
                 {
                     {"b_SurfelsGrid", inSurfelsGrid},
+                    {"b_SurfelsData", inSurfelsData},
+                    {"b_InSurfelsLighting", inSurfelsLightingData},
                 });
 
             defines.emplace_back("SURFELS_GI");

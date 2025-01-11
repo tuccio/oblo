@@ -28,6 +28,10 @@
 #include <skybox/skybox>
 #include <visibility/visibility_shading>
 
+#ifdef SURFELS_GI
+    #include <surfels/contribution>
+#endif
+
 layout(binding = 0) uniform b_LightConfig
 {
     light_config g_LightConfig;
@@ -150,6 +154,28 @@ vec4 visibility_shade(in visibility_shade_context ctx)
 
         reflected += visibility * contribution * brdf;
     }
+
+#ifdef SURFELS_GI
+    uint surfelsContributionsCount;
+    const vec3 surfelsContributions[SURFEL_MAX_PER_CELL] =
+        surfel_contributions_at(positionWS, surfelsContributionsCount);
+
+    // TODO: Remove
+
+    // for (uint i = 0; i < surfelsContributionsCount; ++i)
+    // {
+    //     reflected +=
+    //         (surfelsContributions[i] * pbr_brdf(normalWS, viewWS, vec3(0, 1, 0), pbr)) / surfelsContributionsCount;
+    // }
+
+    surfel_contribution contribution;
+
+    if (surfel_find_in_range(positionWS, contribution))
+    {
+        reflected = vec3(0);
+        reflected = contribution.radiance;
+    }
+#endif
 
     vec3 emitted = material.emissive;
 

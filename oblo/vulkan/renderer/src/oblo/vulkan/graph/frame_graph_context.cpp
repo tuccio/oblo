@@ -330,9 +330,20 @@ namespace oblo::vk
         m_frameGraph.set_buffer_access(buffer, pipelineStage, access, accessKind, false);
     }
 
+    void frame_graph_build_context::reroute(resource<buffer> source, resource<buffer> destination) const
+    {
+        m_frameGraph.reroute(source, destination);
+    }
+
     bool frame_graph_build_context::has_source(resource<buffer> buffer) const
     {
         auto* const owner = m_frameGraph.get_owner_node(buffer);
+        return m_frameGraph.currentNode != owner;
+    }
+
+    bool frame_graph_build_context::has_source(resource<texture> texture) const
+    {
+        auto* const owner = m_frameGraph.get_owner_node(texture);
         return m_frameGraph.currentNode != owner;
     }
 
@@ -449,6 +460,12 @@ namespace oblo::vk
     bool frame_graph_execute_context::has_source(resource<buffer> buffer) const
     {
         auto* const owner = m_frameGraph.get_owner_node(buffer);
+        return m_frameGraph.currentNode != owner;
+    }
+
+    bool frame_graph_execute_context::has_source(resource<texture> texture) const
+    {
+        auto* const owner = m_frameGraph.get_owner_node(texture);
         return m_frameGraph.currentNode != owner;
     }
 
