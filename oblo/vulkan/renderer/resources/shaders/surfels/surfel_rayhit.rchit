@@ -19,6 +19,7 @@
 #include <renderer/meshes/mesh_table>
 #include <renderer/shading/pbr_utility>
 #include <renderer/textures>
+#include <surfels/contribution>
 
 layout(binding = 0) uniform b_LightConfig
 {
@@ -39,9 +40,6 @@ hitAttributeEXT vec2 h_BarycentricCoords;
 
 void main()
 {
-    r_HitColor = vec3(0);
-
-#if 0
     const uint globalInstanceId = gl_InstanceCustomIndexEXT;
 
     uint instanceTableId;
@@ -55,7 +53,6 @@ void main()
     barycentric_coords bc;
     bc.lambda = vec3(1.f - h_BarycentricCoords.x - h_BarycentricCoords.y, h_BarycentricCoords.x, h_BarycentricCoords.y);
 
-    // r_HitColor = debug_color_map(uint(gl_InstanceCustomIndexEXT));
     vec2 triangleUV0[3];
     vec3 trianglePosition[3];
     vec3 triangleNormal[3];
@@ -130,6 +127,8 @@ void main()
         reflected += visibility * contribution * brdf;
     }
 
+    const vec3 giContribution = surfel_calculate_contribution(positionWS, normalWS);
+    reflected += giContribution * pbr_brdf_diffuse(normalWS, viewWS, normalWS, pbr);
+
     r_HitColor = reflected;
-#endif
 }

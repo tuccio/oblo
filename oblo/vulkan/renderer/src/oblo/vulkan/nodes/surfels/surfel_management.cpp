@@ -587,16 +587,17 @@ namespace oblo::vk
 
         rtPass = passManager.register_raytracing_pass({
             .name = "Surfel Ray-Tracing",
-            .generation = "./vulkan/shaders/surfels/generate_rays.rgen",
+            .generation = "./vulkan/shaders/surfels/surfel_raygen.rgen",
             .miss =
                 {
-                    "./vulkan/shaders/surfels/skybox.rmiss",
+                    "./vulkan/shaders/surfels/surfel_skybox.rmiss",
+                    "./vulkan/shaders/surfels/surfel_shadow.rmiss",
                 },
             .hitGroups =
                 {
                     {
                         .type = raytracing_hit_type::triangle,
-                        .shaders = {"./vulkan/shaders/surfels/first_ray.rchit"},
+                        .shaders = {"./vulkan/shaders/surfels/surfel_rayhit.rchit"},
                     },
                 },
         });
