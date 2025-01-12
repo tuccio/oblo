@@ -11,6 +11,7 @@
 #include <oblo/editor/services/selected_entities.hpp>
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
+#include <oblo/graphics/components/skybox_component.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
 #include <oblo/input/input_queue.hpp>
@@ -20,6 +21,7 @@
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/assets/model.hpp>
+#include <oblo/scene/assets/texture.hpp>
 #include <oblo/scene/components/position_component.hpp>
 #include <oblo/scene/components/rotation_component.hpp>
 #include <oblo/scene/components/tags.hpp>
@@ -246,6 +248,29 @@ namespace oblo::editor
                                         selected->add({&e, 1});
                                     }
                                 }
+                            }
+                        }
+                        else if (const resource_ptr textureRes = resource.as<texture>())
+                        {
+                            const auto name = textureRes.get_name();
+
+                            const auto e = ecs_utility::create_named_physical_entity<skybox_component>(*m_entities,
+                                name.empty() ? "New Skybox" : name,
+                                vec3{},
+                                quaternion::identity(),
+                                vec3::splat(1));
+
+                            auto& sm = m_entities->get<skybox_component>(e);
+                            sm.texture = textureRes.as_ref();
+                            sm.multiplier = 1.f;
+                            sm.tint = vec3::splat(1.f);
+
+                            auto* const selected = ctx.services.find<selected_entities>();
+
+                            if (selected)
+                            {
+                                selected->clear();
+                                selected->add({&e, 1});
                             }
                         }
                     }
