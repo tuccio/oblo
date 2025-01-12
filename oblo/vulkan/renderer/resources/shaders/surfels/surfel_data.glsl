@@ -93,6 +93,35 @@ bool surfel_grid_has_cell(in surfel_grid_header h, in ivec3 cell)
     return all(greaterThanEqual(cell, ivec3(0))) && all(lessThan(cell, surfel_grid_cells_count(h)));
 }
 
+struct surfel_grid_cell_iterator
+{
+    uint index;
+    uint surfelsCount;
+};
+
+surfel_grid_cell_iterator surfel_grid_cell_iterator_begin(in surfel_grid_cell cell)
+{
+    surfel_grid_cell_iterator it;
+    it.index = 0;
+    it.surfelsCount = min(SURFEL_MAX_PER_CELL, cell.surfelsCount);
+    return it;
+}
+
+bool surfel_grid_cell_iterator_has_next(in surfel_grid_cell_iterator it)
+{
+    return it.index != it.surfelsCount;
+}
+
+void surfel_grid_cell_iterator_advance(inout surfel_grid_cell_iterator it)
+{
+    ++it.index;
+}
+
+uint surfel_grid_cell_iterator_get(in surfel_grid_cell cell, in surfel_grid_cell_iterator it)
+{
+    return cell.surfels[it.index];
+}
+
 vec3 surfel_data_world_position(in surfel_data surfel)
 {
     return surfel.positionWS;

@@ -247,7 +247,7 @@ namespace oblo::vk
 
         u32 get_current_frames_count() const;
 
-        // TODO: This should probably be deprepcated, it would be hard to make this thread-safe, staging should happen
+        // TODO: This should probably be deprecated, it would be hard to make this thread-safe, staging should happen
         // when building instead.
         void upload(resource<buffer> h, std::span<const byte> data, u32 bufferOffset = 0) const;
 

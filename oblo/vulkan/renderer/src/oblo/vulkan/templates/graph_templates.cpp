@@ -1,5 +1,7 @@
 #include <oblo/vulkan/templates/graph_templates.hpp>
 
+#include <oblo/core/array_size.hpp>
+#include <oblo/core/iterator/enum_range.hpp>
 #include <oblo/vulkan/data/blur_configs.hpp>
 #include <oblo/vulkan/graph/frame_graph_registry.hpp>
 #include <oblo/vulkan/nodes/debug/raytracing_debug.hpp>
@@ -311,37 +313,65 @@ namespace oblo::vk::main_view
                 visibilityLighting,
                 &visibility_lighting::inSurfelsGrid);
 
-            const auto surfelsDebug = graph.add_node<surfel_debug>();
-            graph.connect(surfelsTiling, &surfel_tiling::inSurfelsGrid, surfelsDebug, &surfel_debug::inSurfelsGrid);
-            graph.connect(surfelsTiling, &surfel_tiling::inSurfelsData, surfelsDebug, &surfel_debug::inSurfelsData);
+            {
+                constexpr string_view outputs[] = {
+                    OutGISurfelsImage,
+                    OutGiSurfelsLightingImage,
+                };
 
-            graph.connect(viewBuffers,
-                &view_buffers_node::outCameraBuffer,
-                surfelsDebug,
-                &surfel_debug::inCameraBuffer);
+                static_assert(u32(surfel_debug::mode::enum_max) == array_size(outputs));
 
-            graph.connect(visibilityPass, &visibility_pass::outDepthBuffer, surfelsDebug, &surfel_debug::inDepthBuffer);
-            graph.connect(toneMapping, &tone_mapping_node::outLDR, surfelsDebug, &surfel_debug::inOutImage);
+                for (auto mode : enum_range<surfel_debug::mode>())
+                {
+                    const auto surfelsDebug = graph.add_node<surfel_debug>();
 
-            add_copy_output(graph, viewBuffers, surfelsDebug, &surfel_debug::inOutImage, OutGISurfelsImage);
+                    graph.bind(surfelsDebug, &surfel_debug::inMode, mode);
 
-            const auto surfelsDebugTileCoverage = graph.add_node<surfel_debug_tile_coverage>();
+                    graph.connect(surfelsTiling,
+                        &surfel_tiling::inSurfelsGrid,
+                        surfelsDebug,
+                        &surfel_debug::inSurfelsGrid);
 
-            graph.connect(surfelsTiling,
-                &surfel_tiling::outFullTileCoverage,
-                surfelsDebugTileCoverage,
-                &surfel_debug_tile_coverage::inTileCoverage);
+                    graph.connect(surfelsTiling,
+                        &surfel_tiling::inSurfelsData,
+                        surfelsDebug,
+                        &surfel_debug::inSurfelsData);
 
-            graph.connect(viewBuffers,
-                &view_buffers_node::inResolution,
-                surfelsDebugTileCoverage,
-                &surfel_debug_tile_coverage::inResolution);
+                    graph.connect(surfelsTiling,
+                        &surfel_tiling::inMeshDatabase,
+                        surfelsDebug,
+                        &surfel_debug::inMeshDatabase);
 
-            add_copy_output(graph,
-                viewBuffers,
-                surfelsDebugTileCoverage,
-                &surfel_debug_tile_coverage::outImage,
-                OutGITileCoverageImage);
+                    graph.connect(surfelsTiling,
+                        &surfel_tiling::inInstanceBuffers,
+                        surfelsDebug,
+                        &surfel_debug::inInstanceBuffers);
+
+                    graph.connect(surfelsTiling,
+                        &surfel_tiling::inInstanceTables,
+                        surfelsDebug,
+                        &surfel_debug::inInstanceTables);
+
+                    graph.connect(viewBuffers,
+                        &view_buffers_node::outCameraBuffer,
+                        surfelsDebug,
+                        &surfel_debug::inCameraBuffer);
+
+                    graph.connect(visibilityPass,
+                        &visibility_pass::outVisibilityBuffer,
+                        surfelsDebug,
+                        &surfel_debug::inVisibilityBuffer);
+
+                    graph.connect(visibilityLighting,
+                        &visibility_lighting::inSurfelsLightingData,
+                        surfelsDebug,
+                        &surfel_debug::inSurfelsLightingData);
+
+                    graph.connect(toneMapping, &tone_mapping_node::outLDR, surfelsDebug, &surfel_debug::inImage);
+
+                    add_copy_output(graph, viewBuffers, surfelsDebug, &surfel_debug::outDebugImage, outputs[u32(mode)]);
+                }
+            }
         }
 
         return graph;
@@ -606,7 +636,6 @@ namespace oblo::vk
         registry.register_node<surfel_update>();
         registry.register_node<surfel_raytracing>();
         registry.register_node<surfel_debug>();
-        registry.register_node<surfel_debug_tile_coverage>();
 
         return registry;
     }

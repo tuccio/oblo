@@ -45,7 +45,7 @@ namespace oblo
         motion_vectors,
         raytracing_debug,
         gi_surfels,
-        gi_surfels_tile_coverage,
+        gi_surfels_lighting,
     };
 
     struct viewport_component
