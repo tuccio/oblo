@@ -1,6 +1,7 @@
 #include <oblo/graphics/systems/scene_renderer.hpp>
 
 #include <oblo/core/service_registry.hpp>
+#include <oblo/math/aabb.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/vulkan/data/skybox_settings.hpp>
 #include <oblo/vulkan/templates/graph_templates.hpp>
@@ -156,10 +157,11 @@ namespace oblo
         m_frameGraph.set_input(m_sceneDataProvider, vk::scene_data::InSkyboxSettings, settings).assert_value();
     }
 
-    void scene_renderer::setup_surfels_gi(u32 maxSurfels, f32 gridCellsSize)
+    void scene_renderer::setup_surfels_gi(u32 maxSurfels, f32 gridCellsSize, const aabb& gridBounds)
     {
         m_frameGraph.set_input(m_surfelsGI, vk::surfels_gi::InMaxSurfels, maxSurfels).assert_value();
         m_frameGraph.set_input(m_surfelsGI, vk::surfels_gi::InGridCellSize, gridCellsSize).assert_value();
+        m_frameGraph.set_input(m_surfelsGI, vk::surfels_gi::InGridBounds, gridBounds).assert_value();
     }
 
     void scene_renderer::add_scene_view(h32<vk::frame_graph_subgraph> subgraph)
