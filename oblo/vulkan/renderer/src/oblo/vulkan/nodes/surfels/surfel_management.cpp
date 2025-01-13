@@ -175,7 +175,7 @@ namespace oblo::vk
         auto& pm = ctx.get_pass_manager();
 
         // Re-initialize when buffers changed (it might not be a perfect check, but probably good enough)
-        stackInitialized = stackInitialized || mustReinitialize;
+        stackInitialized = stackInitialized && !mustReinitialize;
 
         // We only need to initialize the stack once, but we could also run this code to reset surfels
         if (stackInitialized)
@@ -194,6 +194,8 @@ namespace oblo::vk
                     {"b_SurfelsStack", outSurfelsStack},
                     {"b_SurfelsSpawnData", outSurfelsSpawnData},
                     {"b_SurfelsData", outSurfelsData},
+                    {"b_InSurfelsLighting", outSurfelsLightingData0},
+                    {"b_OutSurfelsLighting", outSurfelsLightingData1},
                 });
 
             const binding_table* bindingTables[] = {

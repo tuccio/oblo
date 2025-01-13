@@ -4,6 +4,8 @@
 
 #include <renderer/debug/printf>
 #include <surfels/buffers/surfel_data_w>
+#include <surfels/buffers/surfel_lighting_data_in_w>
+#include <surfels/buffers/surfel_lighting_data_out_w>
 #include <surfels/buffers/surfel_spawn_data_w>
 #include <surfels/buffers/surfel_stack_w>
 #include <surfels/surfel_data>
@@ -33,4 +35,6 @@ void main()
     g_SurfelStackEntries[id].surfelId = id;
     g_SurfelSpawnData[id] = surfel_spawn_data_invalid();
     g_SurfelData[id] = surfel_data_invalid();
+    g_InSurfelsLighting[id] = surfel_lighting_data_new();
+    g_OutSurfelsLighting[id] = surfel_lighting_data_new();
 }
