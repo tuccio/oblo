@@ -378,6 +378,8 @@ namespace oblo::vk
         ctx.acquire(inOutSurfelsStack, buffer_usage::storage_write);
         ctx.acquire(inOutSurfelsLightingData0, buffer_usage::storage_write);
         ctx.acquire(inOutSurfelsLightingData1, buffer_usage::storage_write);
+
+        randomSeed = ctx.get_random_generator().generate();
     }
 
     void surfel_spawner::execute(const frame_graph_execute_context& ctx)
@@ -428,10 +430,12 @@ namespace oblo::vk
                 struct push_constants
                 {
                     u32 srcElements;
+                    u32 randomSeed;
                 };
 
                 const push_constants constants{
                     .srcElements = tileCoverage.elements,
+                    .randomSeed = randomSeed,
                 };
 
                 pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&constants, 1}));

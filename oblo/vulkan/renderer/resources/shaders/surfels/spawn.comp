@@ -3,6 +3,7 @@
 #extension GL_GOOGLE_include_directive : require
 
 #include <renderer/debug/printf>
+#include <renderer/random/random>
 #include <surfels/buffers/surfel_data_w>
 #include <surfels/buffers/surfel_lighting_data_in_w>
 #include <surfels/buffers/surfel_lighting_data_out_w>
@@ -19,14 +20,24 @@ layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in
 layout(push_constant) uniform c_PushConstants
 {
     uint srcElements;
+    uint randomSeed;
 }
 g_Constants;
 
 void main()
 {
     const uint globalIndex = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationIndex;
+    uint randomSeed = random_seed(g_Constants.randomSeed, globalIndex);
 
     if (globalIndex >= g_Constants.srcElements)
+    {
+        return;
+    }
+
+    // This should really depend on the coverage
+    const float skipProbability = .50f;
+
+    if (random_uniform_1d(randomSeed) < skipProbability)
     {
         return;
     }
@@ -36,7 +47,7 @@ void main()
 
     const surfel_tile_data tile = g_TileData[globalIndex];
 
-    if (ecs_entity_is_valid(tile.spawnData.entity) && tile.worstPixelCoverage < 1)
+    if (ecs_entity_is_valid(tile.spawnData.entity) && tile.worstPixelCoverage < 0.5)
     {
         uint newSurfelId;
         const bool allocated = surfel_stack_allocate(newSurfelId);

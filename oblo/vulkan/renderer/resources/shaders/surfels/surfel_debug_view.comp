@@ -33,7 +33,6 @@
 #include <visibility/visibility_shading>
 #include <visibility/visibility_utils>
 
-
 vec4 visibility_shade(in visibility_shade_context ctx)
 {
     // Read the instance data we need
@@ -83,6 +82,10 @@ vec4 visibility_shade(in visibility_shade_context ctx)
 
     const surfel_grid_cell gridCell = g_SurfelGridCells[cellIndex];
 
+    // Since we might have multiple surfels overlapping on the pixel, we try to keep debug views stable by choosing the
+    // minimum id
+    uint minSurfelId = gridHeader.maxSurfels;
+
     for (surfel_grid_cell_iterator cellIt = surfel_grid_cell_iterator_begin(gridCell);
          surfel_grid_cell_iterator_has_next(cellIt);
          surfel_grid_cell_iterator_advance(cellIt))
@@ -99,24 +102,31 @@ vec4 visibility_shade(in visibility_shade_context ctx)
 
         if (distance2 <= radius2)
         {
-#if defined(MODE_SURFEL_GRID_ID)
-            return vec4(debug_color_map(surfelId), 1);
-#elif defined(MODE_SURFEL_LIGHTING)
-            const surfel_lighting_data surfelLight = g_InSurfelsLighting[surfelId];
-
-            const sh3 lobe = sh3_cosine_lobe_project(normalWS);
-
-            // Integral of the product of cosine and the irradiance
-            const float r = sh_dot(lobe, surfelLight.shRed);
-            const float g = sh_dot(lobe, surfelLight.shGreen);
-            const float b = sh_dot(lobe, surfelLight.shBlue);
-
-            const vec3 irradiance = vec3(r, g, b);
-            const vec3 radiance = irradiance / float_pi();
-
-            return vec4(tonemap_aces_approx(radiance), 1);
-#endif
+            minSurfelId = min(minSurfelId, surfelId);
         }
+    }
+
+    if (minSurfelId < gridHeader.maxSurfels)
+    {
+        const uint surfelId = minSurfelId;
+
+#if defined(MODE_SURFEL_GRID_ID)
+        return vec4(debug_color_map(surfelId), 1);
+#elif defined(MODE_SURFEL_LIGHTING)
+        const surfel_lighting_data surfelLight = g_InSurfelsLighting[surfelId];
+
+        const sh3 lobe = sh3_cosine_lobe_project(normalWS);
+
+        // Integral of the product of cosine and the irradiance
+        const float r = sh_dot(lobe, surfelLight.shRed);
+        const float g = sh_dot(lobe, surfelLight.shGreen);
+        const float b = sh_dot(lobe, surfelLight.shBlue);
+
+        const vec3 irradiance = vec3(r, g, b);
+        const vec3 radiance = irradiance / float_pi();
+
+        return vec4(tonemap_aces_approx(radiance), 1);
+#endif
     }
 
     return vec4(0);

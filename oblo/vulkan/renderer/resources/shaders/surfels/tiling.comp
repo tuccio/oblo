@@ -130,6 +130,12 @@ bool gather_coverage_from_grid(in vec3 positionWS, out float weightSum)
 
     if (surfel_grid_has_cell(gridHeader, cell))
     {
+        // Estimate this pixel's radius
+        const float selfRadius = surfel_estimate_radius(gridHeader, g_Camera.position, positionWS);
+        const float selfRadius2 = selfRadius * selfRadius;
+        const float invSelfRadius2 = 1.f / selfRadius2;
+        const float threshold2 = 4 * selfRadius2;
+
         const uint cellIndex = surfel_grid_cell_index(gridHeader, cell);
 
         surfel_grid_cell_iterator it = surfel_grid_cell_iterator_begin(g_SurfelGridCells[cellIndex]);
@@ -151,15 +157,14 @@ bool gather_coverage_from_grid(in vec3 positionWS, out float weightSum)
             // const float radius = surfel.radius;
 
             const float radius2 = radius * radius;
-            const float twiceRadius2 = 4 * radius2;
             const float distance2 = dot(pointToSurfel, pointToSurfel);
 
-            if (distance2 <= twiceRadius2)
+            if (distance2 <= radius2)
             {
                 return false;
             }
 
-            const float weight = twiceRadius2 - distance2;
+            const float weight = max((threshold2 - distance2) * invSelfRadius2, 0);
             weightSum += weight;
         }
     }
