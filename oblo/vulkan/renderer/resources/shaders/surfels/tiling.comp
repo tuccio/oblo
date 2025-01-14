@@ -21,6 +21,7 @@
 #include <renderer/random/random>
 #include <renderer/transform>
 #include <surfels/buffers/surfel_data_r>
+#include <surfels/buffers/surfel_grid_data_r>
 #include <surfels/buffers/surfel_grid_r>
 #include <surfels/reduction>
 #include <visibility/visibility_buffer>
@@ -130,20 +131,15 @@ bool gather_coverage_from_grid(in vec3 positionWS, out float weightSum)
     if (surfel_grid_has_cell(gridHeader, cell))
     {
         const uint cellIndex = surfel_grid_cell_index(gridHeader, cell);
-        const surfel_grid_cell cellData = g_SurfelGridCells[cellIndex];
 
-        if (cellData.surfelsCount >= SURFEL_MAX_PER_CELL)
-        {
-            return false;
-        }
+        surfel_grid_cell_iterator it = surfel_grid_cell_iterator_begin(g_SurfelGridCells[cellIndex]);
 
         // We could consider adding some weight for the number of surfels in the same cell, to
         // prioritize tiles that don't have any
-        const uint surfelsCount = min(cellData.surfelsCount, SURFEL_MAX_PER_CELL);
 
-        for (uint i = 0; i < surfelsCount; ++i)
+        for (; surfel_grid_cell_iterator_has_next(it); surfel_grid_cell_iterator_advance(it))
         {
-            const uint surfelId = cellData.surfels[i];
+            const uint surfelId = surfel_grid_cell_iterator_get(it);
             const surfel_data surfel = g_SurfelData[surfelId];
 
             const vec3 surfelPosition = surfel_data_world_position(surfel);

@@ -21,9 +21,6 @@
 #include <surfels/surfel_data>
 #include <visibility/visibility_buffer>
 
-// If we overflow the grid cell past this factor, we just kill exceeding surfels
-const uint g_OverflowFactor = 2;
-
 layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
 layout(push_constant) uniform c_PushConstants
@@ -46,12 +43,7 @@ void surfel_kill(in uint surfelId)
 
 void surfel_commit_to_grid(in uint surfelId, in uint cellIndex)
 {
-    const uint newIndex = atomicAdd(g_SurfelGridCells[cellIndex].surfelsCount, 1);
-
-    if (newIndex < SURFEL_MAX_PER_CELL)
-    {
-        g_SurfelGridCells[cellIndex].surfels[newIndex] = surfelId;
-    }
+    atomicAdd(g_SurfelGridCells[cellIndex].surfelsCount, 1);
 }
 
 void main()

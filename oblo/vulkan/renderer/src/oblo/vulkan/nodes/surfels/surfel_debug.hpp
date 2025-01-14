@@ -28,6 +28,7 @@ namespace oblo::vk
 
         resource<buffer> inSurfelsData;
         resource<buffer> inSurfelsGrid;
+        resource<buffer> inSurfelsGridData;
         resource<buffer> inSurfelsLightingData;
 
         resource<texture> inVisibilityBuffer;

@@ -2,6 +2,7 @@
 #define OBLO_INCLUDE_SURFELS_CONTRIBUTION
 
 #include <surfels/buffers/surfel_data_r>
+#include <surfels/buffers/surfel_grid_data_r>
 #include <surfels/buffers/surfel_grid_r>
 #include <surfels/buffers/surfel_lighting_data_in_r>
 
@@ -15,16 +16,18 @@ vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
         const uint cellIndex = surfel_grid_cell_index(g_SurfelGridHeader, cell);
 
         const surfel_grid_cell gridCell = g_SurfelGridCells[cellIndex];
-        const uint surfelsCount = min(SURFEL_MAX_PER_CELL, gridCell.surfelsCount);
+
+        surfel_grid_cell_iterator it = surfel_grid_cell_iterator_begin(gridCell);
+        const uint surfelsCount = surfel_grid_cell_iterator_count(it);
 
         vec3 radianceSum = vec3(0);
         float weightSum = 0.f;
 
         const sh3 lobe = sh3_cosine_lobe_project(normal);
 
-        for (uint i = 0; i < surfelsCount; ++i)
+        for (; surfel_grid_cell_iterator_has_next(it); surfel_grid_cell_iterator_advance(it))
         {
-            const uint surfelId = gridCell.surfels[i];
+            const uint surfelId = surfel_grid_cell_iterator_get(it);
 
             const surfel_data surfel = g_SurfelData[surfelId];
 

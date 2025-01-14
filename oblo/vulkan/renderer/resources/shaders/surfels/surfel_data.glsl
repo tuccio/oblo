@@ -5,9 +5,6 @@
 #include <renderer/constants>
 #include <renderer/math/spherical_harmonics>
 
-const uint SURFEL_ID_INVALID = -1;
-const uint SURFEL_MAX_PER_CELL = 31;
-
 // Used as a coverage value for surfel_tile_data when no geometry is present
 const float NO_SURFELS_NEEDED = 1e6;
 
@@ -40,7 +37,7 @@ struct surfel_grid_header
 struct surfel_grid_cell
 {
     uint surfelsCount;
-    uint surfels[SURFEL_MAX_PER_CELL];
+    uint surfelsBegin;
 };
 
 struct surfel_stack_header
@@ -93,35 +90,6 @@ bool surfel_grid_has_cell(in surfel_grid_header h, in ivec3 cell)
     return all(greaterThanEqual(cell, ivec3(0))) && all(lessThan(cell, surfel_grid_cells_count(h)));
 }
 
-struct surfel_grid_cell_iterator
-{
-    uint index;
-    uint surfelsCount;
-};
-
-surfel_grid_cell_iterator surfel_grid_cell_iterator_begin(in surfel_grid_cell cell)
-{
-    surfel_grid_cell_iterator it;
-    it.index = 0;
-    it.surfelsCount = min(SURFEL_MAX_PER_CELL, cell.surfelsCount);
-    return it;
-}
-
-bool surfel_grid_cell_iterator_has_next(in surfel_grid_cell_iterator it)
-{
-    return it.index != it.surfelsCount;
-}
-
-void surfel_grid_cell_iterator_advance(inout surfel_grid_cell_iterator it)
-{
-    ++it.index;
-}
-
-uint surfel_grid_cell_iterator_get(in surfel_grid_cell cell, in surfel_grid_cell_iterator it)
-{
-    return cell.surfels[it.index];
-}
-
 vec3 surfel_data_world_position(in surfel_data surfel)
 {
     return surfel.positionWS;
@@ -130,6 +98,11 @@ vec3 surfel_data_world_position(in surfel_data surfel)
 vec3 surfel_data_world_normal(in surfel_data surfel)
 {
     return surfel.normalWS;
+}
+
+float surfel_data_world_radius(in surfel_data surfel)
+{
+    return surfel.radius;
 }
 
 bool surfel_spawn_data_is_alive(in surfel_spawn_data spawnData)

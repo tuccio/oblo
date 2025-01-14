@@ -321,7 +321,7 @@ namespace oblo::vk
         OBLO_ASSERT(m_frameGraph.currentPass);
 
         const auto poolIndex = m_frameGraph.find_pool_index(buffer);
-        OBLO_ASSERT(poolIndex);
+        OBLO_ASSERT(poolIndex, "The buffer might not have an input connected, or needs to be created");
         m_resourcePool.add_transient_buffer_usage(poolIndex, convert_buffer_usage(usage));
 
         const auto& currentPass = m_frameGraph.passes[m_frameGraph.currentPass.value];

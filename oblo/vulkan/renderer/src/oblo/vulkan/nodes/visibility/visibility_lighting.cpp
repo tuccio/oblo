@@ -51,6 +51,9 @@ namespace oblo::vk
         if (ctx.has_source(inSurfelsGrid))
         {
             ctx.acquire(inSurfelsGrid, buffer_usage::storage_read);
+            ctx.acquire(inSurfelsGridData, buffer_usage::storage_read);
+            ctx.acquire(inSurfelsData, buffer_usage::storage_read);
+            ctx.acquire(inSurfelsLightingData, buffer_usage::storage_read);
         }
 
         acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
@@ -104,6 +107,7 @@ namespace oblo::vk
             ctx.bind_buffers(bindingTable,
                 {
                     {"b_SurfelsGrid", inSurfelsGrid},
+                    {"b_SurfelsGridData", inSurfelsGridData},
                     {"b_SurfelsData", inSurfelsData},
                     {"b_InSurfelsLighting", inSurfelsLightingData},
                 });

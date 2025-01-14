@@ -4,7 +4,6 @@
 
 #include <renderer/debug/printf>
 #include <surfels/buffers/surfel_data_w>
-#include <surfels/buffers/surfel_grid_r>
 #include <surfels/buffers/surfel_lighting_data_in_w>
 #include <surfels/buffers/surfel_lighting_data_out_w>
 #include <surfels/buffers/surfel_spawn_data_w>

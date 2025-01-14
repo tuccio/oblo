@@ -1,0 +1,94 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_buffer_reference : require
+#extension GL_ARB_gpu_shader_int64 : require
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_control_flow_attributes : require
+
+#include <renderer/debug/printf>
+#include <renderer/transform>
+#include <surfels/buffers/surfel_data_r>
+#include <surfels/buffers/surfel_grid_data_w>
+#include <surfels/buffers/surfel_grid_r>
+#include <surfels/surfel_data>
+#include <visibility/visibility_buffer>
+
+layout(std430, binding = 0) restrict buffer b_SurfelsGridFill
+{
+    uint g_SurfelGridCellNextSurfelIndex[];
+};
+
+layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
+
+layout(push_constant) uniform c_PushConstants
+{
+    uint maxSurfels;
+}
+g_Constants;
+
+void surfel_commit_to_grid(in uint surfelId, in uint cellIndex)
+{
+    const uint surfelsBegin = g_SurfelGridCells[cellIndex].surfelsBegin;
+    const uint surfelIndex = atomicAdd(g_SurfelGridCellNextSurfelIndex[cellIndex], 1);
+
+    debug_assert(surfelIndex < g_SurfelGridCells[cellIndex].surfelsCount);
+    g_SurfelGridCellData[surfelsBegin + surfelIndex] = surfelId;
+}
+
+void main()
+{
+    const uint surfelId = gl_GlobalInvocationID.x;
+
+    if (surfelId >= g_Constants.maxSurfels)
+    {
+        return;
+    }
+
+    const surfel_data surfel = g_SurfelData[surfelId];
+
+    if (!surfel_data_is_alive(surfel))
+    {
+        return;
+    }
+
+    const surfel_grid_header gridHeader = g_SurfelGridHeader;
+
+    const vec3 positionWS = surfel_data_world_position(surfel);
+    const ivec3 cell = surfel_grid_find_cell(gridHeader, positionWS);
+
+    if (surfel_grid_has_cell(gridHeader, cell))
+    {
+        const uint cellIndex = surfel_grid_cell_index(gridHeader, cell);
+        surfel_commit_to_grid(surfelId, cellIndex);
+    }
+
+    const float radius = surfel_data_world_radius(surfel);
+
+    // Search neighboring cells and accumulate overlapping surfels
+    [[unroll]] for (int x = -1; x <= 1; ++x)
+    {
+        [[unroll]] for (int y = -1; y <= 1; ++y)
+        {
+            [[unroll]] for (int z = -1; z <= 1; ++z)
+            {
+                if (x == 0 && y == 0 && z == 0)
+                {
+                    // Skip the cell we already dealt with
+                    continue;
+                }
+
+                const vec3 delta = vec3(radius) * vec3(x, y, z);
+                const vec3 posOnSurface = positionWS + delta;
+
+                const ivec3 neighboringCell = surfel_grid_find_cell(gridHeader, posOnSurface);
+
+                if (neighboringCell != cell)
+                {
+                    const uint neighboringCellIndex = surfel_grid_cell_index(gridHeader, neighboringCell);
+                    surfel_commit_to_grid(surfelId, neighboringCellIndex);
+                }
+            }
+        }
+    }
+}

@@ -37,6 +37,7 @@ namespace oblo::vk
         resource<buffer> inLightConfig;
 
         resource<buffer> inSurfelsGrid;
+        resource<buffer> inSurfelsGridData;
         resource<buffer> inSurfelsData;
         resource<buffer> inSurfelsLightingData;
 

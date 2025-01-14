@@ -2,7 +2,7 @@
 
 #include <oblo/core/types.hpp>
 #include <oblo/math/aabb.hpp>
-#include <oblo/math/vec2u.hpp>
+#include <oblo/math/vec3u.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 #include <oblo/vulkan/nodes/providers/instance_table_node.hpp>
@@ -19,6 +19,7 @@ namespace oblo::vk
         resource<buffer> outSurfelsData;
 
         resource<buffer> outSurfelsGrid;
+        resource<buffer> outSurfelsGridData;
 
         // Two buffers we ping pong during the ray-tracing update
         resource<buffer> outSurfelsLightingData0;
@@ -27,6 +28,8 @@ namespace oblo::vk
         data<u32> inMaxSurfels;
         data<aabb> inGridBounds;
         data<f32> inGridCellSize;
+
+        data<vec3u> outCellsCount;
 
         h32<compute_pass> initStackPass;
 
@@ -55,6 +58,7 @@ namespace oblo::vk
         resource<buffer> outFullTileCoverage;
 
         resource<buffer> inSurfelsGrid;
+        resource<buffer> inSurfelsGridData;
         resource<buffer> inSurfelsData;
 
         data<camera_buffer> inCameraData;
@@ -92,8 +96,6 @@ namespace oblo::vk
         resource<buffer> inOutSurfelsLightingData0;
         resource<buffer> inOutSurfelsLightingData1;
 
-        resource<buffer> inOutSurfelsGrid;
-
         h32<compute_pass> spawnPass;
 
         void init(const frame_graph_init_context& ctx);
@@ -107,9 +109,13 @@ namespace oblo::vk
     struct surfel_grid_clear
     {
         resource<buffer> inOutSurfelsGrid;
+        resource<buffer> inOutSurfelsGridData;
+
+        resource<buffer> outGridFillBuffer;
 
         data<aabb> inGridBounds;
         data<f32> inGridCellSize;
+        data<vec3u> inCellsCount;
 
         data_sink<camera_buffer> inCameras;
         data<vec3> outCameraCentroid;
@@ -129,6 +135,8 @@ namespace oblo::vk
         resource<buffer> inOutSurfelsSpawnData;
         resource<buffer> inOutSurfelsStack;
         resource<buffer> inOutSurfelsGrid;
+        resource<buffer> inOutSurfelsGridData;
+        resource<buffer> inGridFillBuffer;
 
         resource<buffer> inOutSurfelsData;
 
@@ -139,9 +147,16 @@ namespace oblo::vk
         resource<buffer> inEntitySetBuffer;
 
         data<u32> inMaxSurfels;
+        data<vec3u> inCellsCount;
         data<vec3> inCameraCentroid;
 
         h32<compute_pass> updatePass;
+        h32<compute_pass> allocatePass;
+        h32<compute_pass> fillPass;
+
+        h32<frame_graph_pass> updateFgPass;
+        h32<frame_graph_pass> allocateFgPass;
+        h32<frame_graph_pass> fillFgPass;
 
         void init(const frame_graph_init_context& ctx);
 
@@ -156,6 +171,7 @@ namespace oblo::vk
 
         resource<buffer> inOutSurfelsGrid;
         resource<buffer> inOutSurfelsData;
+        resource<buffer> inOutSurfelsGridData;
 
         resource<buffer> inSurfelsLightingData0;
         resource<buffer> inSurfelsLightingData1;

@@ -80,6 +80,11 @@ namespace oblo
                 vk::main_view::InLastFrameSurfelsGrid);
 
             g.connect(surfelsGIGlobal,
+                vk::surfels_gi::OutLastFrameGridData,
+                mainView,
+                vk::main_view::InLastFrameSurfelsGridData);
+
+            g.connect(surfelsGIGlobal,
                 vk::surfels_gi::OutLastFrameSurfelData,
                 mainView,
                 vk::main_view::InLastFrameSurfelData);
@@ -88,6 +93,11 @@ namespace oblo
                 vk::surfels_gi::OutUpdatedSurfelGrid,
                 mainView,
                 vk::main_view::InUpdatedSurfelsGrid);
+
+            g.connect(surfelsGIGlobal,
+                vk::surfels_gi::OutUpdatedSurfelGridData,
+                mainView,
+                vk::main_view::InUpdatedSurfelsGridData);
 
             g.connect(surfelsGIGlobal,
                 vk::surfels_gi::OutUpdatedSurfelData,

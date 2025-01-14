@@ -25,12 +25,14 @@
 #include <renderer/textures>
 #include <renderer/transform>
 #include <surfels/buffers/surfel_data_r>
+#include <surfels/buffers/surfel_grid_data_r>
 #include <surfels/buffers/surfel_grid_r>
 #include <surfels/buffers/surfel_lighting_data_in_r>
 #include <surfels/surfel_data>
 #include <tone_mapping/tonemap>
 #include <visibility/visibility_shading>
 #include <visibility/visibility_utils>
+
 
 vec4 visibility_shade(in visibility_shade_context ctx)
 {
@@ -85,7 +87,7 @@ vec4 visibility_shade(in visibility_shade_context ctx)
          surfel_grid_cell_iterator_has_next(cellIt);
          surfel_grid_cell_iterator_advance(cellIt))
     {
-        const uint surfelId = surfel_grid_cell_iterator_get(gridCell, cellIt);
+        const uint surfelId = surfel_grid_cell_iterator_get(cellIt);
         const surfel_data surfel = g_SurfelData[surfelId];
 
         const vec3 surfelPosition = surfel_data_world_position(surfel);

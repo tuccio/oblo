@@ -705,6 +705,12 @@ namespace oblo::vk
     void frame_graph_impl::begin_pass_execution(h32<frame_graph_pass> passId, VkCommandBuffer commandBuffer)
     {
         OBLO_ASSERT(passId);
+
+        if (currentPass == passId)
+        {
+            return;
+        }
+
         OBLO_ASSERT(!currentPass || passId.value == currentPass.value + 1);
 
         const auto& pass = passes[passId.value];

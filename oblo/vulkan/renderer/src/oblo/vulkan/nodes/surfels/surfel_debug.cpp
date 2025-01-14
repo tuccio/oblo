@@ -43,13 +43,10 @@ namespace oblo::vk
 
         ctx.acquire(inSurfelsData, buffer_usage::storage_read);
         ctx.acquire(inSurfelsGrid, buffer_usage::storage_read);
+        ctx.acquire(inSurfelsGridData, buffer_usage::storage_read);
+        ctx.acquire(inSurfelsLightingData, buffer_usage::storage_read);
 
         ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
-
-        if (ctx.has_source(inSurfelsGrid))
-        {
-            ctx.acquire(inSurfelsGrid, buffer_usage::storage_read);
-        }
 
         acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
     }
@@ -87,6 +84,7 @@ namespace oblo::vk
                     {"b_CameraBuffer", inCameraBuffer},
                     {"b_SurfelsData", inSurfelsData},
                     {"b_SurfelsGrid", inSurfelsGrid},
+                    {"b_SurfelsGridData", inSurfelsGridData},
                     {"b_InSurfelsLighting", inSurfelsLightingData},
                     {"b_InstanceTables", inInstanceTables},
                     {"b_MeshTables", inMeshDatabase},
