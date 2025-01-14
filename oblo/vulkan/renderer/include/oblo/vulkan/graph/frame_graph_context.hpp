@@ -268,8 +268,16 @@ namespace oblo::vk
         void bind_buffers(binding_table& table, std::initializer_list<buffer_binding_desc> bindings) const;
         void bind_textures(binding_table& table, std::initializer_list<texture_binding_desc> bindings) const;
 
+        template <typename T>
+        bool has_event() const
+        {
+            return has_event_impl(get_type_id<T>());
+        }
+
     private:
         void* access_storage(h32<frame_graph_pin_storage> handle) const;
+
+        bool has_event_impl(const type_id& type) const;
 
     private:
         frame_graph_impl& m_frameGraph;

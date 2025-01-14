@@ -99,8 +99,6 @@ namespace oblo::vk
         });
 
         OBLO_ASSERT(initStackPass);
-
-        stackInitialized = false;
     }
 
     void surfel_initializer::build(const frame_graph_build_context& ctx)
@@ -180,24 +178,21 @@ namespace oblo::vk
                 .isStable = true,
             },
             buffer_usage::storage_write);
-
-        stackInitialized = stackInitialized && !ctx.has_event<gi_reset_event>();
     }
 
     void surfel_initializer::execute(const frame_graph_execute_context& ctx)
     {
-        const bool mustReinitialize =
-            (ctx.get_frames_alive_count(outSurfelsStack) != ctx.get_frames_alive_count(outSurfelsSpawnData) ||
-                ctx.get_frames_alive_count(outSurfelsStack) != ctx.get_frames_alive_count(outSurfelsGrid));
+        const bool mustReinitialize = ctx.has_event<gi_reset_event>() ||
+            ctx.get_frames_alive_count(outSurfelsStack) == 0 || ctx.get_frames_alive_count(outSurfelsSpawnData) == 0 ||
+            ctx.get_frames_alive_count(outSurfelsData) == 0 ||
+            ctx.get_frames_alive_count(outSurfelsLightingData0) == 0 ||
+            ctx.get_frames_alive_count(outSurfelsLightingData1) == 0;
 
         // Initialize the grid every frame, we fill it after updating/spawning
         auto& pm = ctx.get_pass_manager();
 
-        // Re-initialize when buffers changed (it might not be a perfect check, but probably good enough)
-        stackInitialized = stackInitialized && !mustReinitialize;
-
         // We only need to initialize the stack once, but we could also run this code to reset surfels
-        if (stackInitialized)
+        if (!mustReinitialize)
         {
             return;
         }
@@ -233,8 +228,6 @@ namespace oblo::vk
             vkCmdDispatch(ctx.get_command_buffer(), groups, 1, 1);
 
             pm.end_compute_pass(*pass);
-
-            stackInitialized = true;
         }
     }
 

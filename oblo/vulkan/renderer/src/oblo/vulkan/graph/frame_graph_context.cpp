@@ -580,6 +580,11 @@ namespace oblo::vk
         return m_frameGraph.access_storage(handle);
     }
 
+    bool frame_graph_execute_context::has_event_impl(const type_id& type) const
+    {
+        return m_frameGraph.emptyEvents.contains(type);
+    }
+
     frame_graph_init_context::frame_graph_init_context(frame_graph_impl& frameGraph, renderer& renderer) :
         m_frameGraph{frameGraph}, m_renderer{renderer}
     {

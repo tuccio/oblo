@@ -33,8 +33,6 @@ namespace oblo::vk
 
         h32<compute_pass> initStackPass;
 
-        bool stackInitialized;
-
         void init(const frame_graph_init_context& ctx);
 
         void build(const frame_graph_build_context& ctx);
