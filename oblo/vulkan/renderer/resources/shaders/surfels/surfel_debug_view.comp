@@ -33,6 +33,13 @@
 #include <visibility/visibility_shading>
 #include <visibility/visibility_utils>
 
+layout(binding = 0, rgba8) uniform restrict readonly image2D t_InImage;
+
+vec4 sample_fallback(in uvec2 screenPos)
+{
+    return imageLoad(t_InImage, ivec2(screenPos));
+}
+
 vec4 visibility_shade(in visibility_shade_context ctx)
 {
     // Read the instance data we need
@@ -70,7 +77,7 @@ vec4 visibility_shade(in visibility_shade_context ctx)
             bcDDX,
             bcDDY))
     {
-        return vec4(0);
+        return sample_fallback(ctx.screenPos);
     }
 
     const vec3 normalWS = barycentric_interpolate(bc, triangleNormal);
@@ -129,10 +136,10 @@ vec4 visibility_shade(in visibility_shade_context ctx)
 #endif
     }
 
-    return vec4(0);
+    return sample_fallback(ctx.screenPos);
 }
 
 vec4 visibility_miss(in visibility_shade_context ctx)
 {
-    return vec4(0, 0, 0, 1);
+    return sample_fallback(ctx.screenPos);
 }
