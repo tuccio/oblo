@@ -18,7 +18,7 @@ namespace oblo::editor
     namespace
     {
         template <typename T>
-        bool is_range_respected(T& v, const void* minPtr, const void* maxPtr)
+        bool is_value_within_range(T& v, const void* minPtr, const void* maxPtr)
         {
             return (!minPtr || v >= *reinterpret_cast<const T*>(minPtr)) &&
                 (!maxPtr || v <= *reinterpret_cast<const T*>(maxPtr));
@@ -87,7 +87,7 @@ namespace oblo::editor
 
                             if (auto v = value->get_u32();
                                 ImGui::DragScalar(sb.c_str(), ImGuiDataType_U32, &v, 1.f, minPtr, maxPtr) &&
-                                is_range_respected(v, minPtr, maxPtr))
+                                is_value_within_range(v, minPtr, maxPtr))
                             {
                                 m_options->set_option_value(editorLayer, option, property_value_wrapper{v})
                                     .assert_value();
@@ -104,7 +104,7 @@ namespace oblo::editor
 
                             if (auto v = value->get_f32();
                                 ImGui::DragScalar(sb.c_str(), ImGuiDataType_Float, &v, 1.f, minPtr, maxPtr) &&
-                                is_range_respected(v, minPtr, maxPtr))
+                                is_value_within_range(v, minPtr, maxPtr))
                             {
                                 m_options->set_option_value(editorLayer, option, property_value_wrapper{v})
                                     .assert_value();
