@@ -2,25 +2,45 @@
 
 #extension GL_GOOGLE_include_directive : require
 
+#include <renderer/debug/printf>
 #include <surfels/buffers/surfel_grid_data_rw>
 #include <surfels/buffers/surfel_grid_rw>
 #include <surfels/surfel_data>
 
 layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
-
-
 void main()
 {
     const surfel_grid_header gridHeader = g_SurfelGridHeader;
     const uint cellIndex = gl_GlobalInvocationID.x;
 
-    if (gl_GlobalInvocationID.x >= gridHeader.cellsCount.x)
+    if (gl_GlobalInvocationID.x >= gridHeader.cellsCountLinearized)
     {
         return;
     }
 
-    const uint surfelsBegin = atomicAdd(g_SurfelGridCellDataIndex, g_SurfelGridCells[cellIndex].surfelsCount);
+    const uint surfelsCount = g_SurfelGridCells[cellIndex].surfelsCount;
+
+    if (surfelsCount == 0)
+    {
+        return;
+    }
+
+    const uint surfelsBegin = atomicAdd(g_SurfelGridCellDataIndex, surfelsCount);
+
+#if OBLO_DEBUG_PRINTF
+    if (!(surfelsBegin + surfelsCount < SURFEL_MAX_MULTIPLICITY * gridHeader.maxSurfels))
+    {
+        debugPrintfEXT("Failed to allocate at %u Count: [%u %u] [max: %u]\n",
+            cellIndex,
+            surfelsBegin,
+            surfelsCount,
+            SURFEL_MAX_MULTIPLICITY * gridHeader.maxSurfels);
+
+        g_SurfelGridCells[cellIndex].surfelsCount = 0;
+        return;
+    }
+#endif
 
     g_SurfelGridCells[cellIndex].surfelsBegin = surfelsBegin;
 }

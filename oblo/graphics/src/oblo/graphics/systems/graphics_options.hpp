@@ -17,7 +17,7 @@ namespace oblo
             .name = "Max Surfels",
             .category = "Graphics/GI",
             .defaultValue = property_value_wrapper{1u << 16},
-            .minValue = property_value_wrapper{1u << 10},
+            .minValue = property_value_wrapper{1u},
         };
     };
 

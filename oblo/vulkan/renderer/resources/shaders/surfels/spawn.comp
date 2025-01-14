@@ -36,7 +36,7 @@ void main()
 
     const surfel_tile_data tile = g_TileData[globalIndex];
 
-    if (ecs_entity_is_valid(tile.spawnData.entity))
+    if (ecs_entity_is_valid(tile.spawnData.entity) && tile.worstPixelCoverage < 1)
     {
         uint newSurfelId;
         const bool allocated = surfel_stack_allocate(newSurfelId);
@@ -52,7 +52,7 @@ void main()
         else
         {
 #if OBLO_DEBUG_PRINTF
-            debugPrintfEXT("[SPAWN] Failed to allocate surfel\n");
+            // debugPrintfEXT("[SPAWN] Failed to allocate surfel\n");
 #endif
         }
     }

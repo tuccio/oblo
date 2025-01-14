@@ -116,6 +116,7 @@ namespace oblo::vk
         data<aabb> inGridBounds;
         data<f32> inGridCellSize;
         data<vec3u> inCellsCount;
+        data<u32> inMaxSurfels;
 
         data_sink<camera_buffer> inCameras;
         data<vec3> outCameraCentroid;

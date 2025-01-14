@@ -553,6 +553,7 @@ namespace oblo::vk::surfels_gi
 
         // Clear grid setup
         graph.make_input(clear, &surfel_grid_clear::inCameras, InCameraDataSink);
+        graph.connect(initializer, &surfel_initializer::inMaxSurfels, clear, &surfel_grid_clear::inMaxSurfels);
         graph.connect(initializer, &surfel_initializer::inGridBounds, clear, &surfel_grid_clear::inGridBounds);
         graph.connect(initializer, &surfel_initializer::inGridCellSize, clear, &surfel_grid_clear::inGridCellSize);
         graph.connect(initializer, &surfel_initializer::outCellsCount, clear, &surfel_grid_clear::inCellsCount);

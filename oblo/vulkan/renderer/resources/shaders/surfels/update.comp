@@ -33,8 +33,10 @@ g_Constants;
 
 void surfel_kill(in uint surfelId)
 {
-    // We invalidate surfel_data::radius to signal it's not alive
-    // We invalidate it even if we don't kill it because it won't have an effect
+#if OBLO_DEBUG_PRINTF
+    debugPrintfEXT("[UPDATE] Killed surfel: %u\n", surfelId);
+#endif
+
     g_SurfelData[surfelId] = surfel_data_invalid();
     g_SurfelSpawnData[surfelId] = surfel_spawn_data_invalid();
 
@@ -43,7 +45,8 @@ void surfel_kill(in uint surfelId)
 
 void surfel_commit_to_grid(in uint surfelId, in uint cellIndex)
 {
-    atomicAdd(g_SurfelGridCells[cellIndex].surfelsCount, 1);
+    const uint prev = atomicAdd(g_SurfelGridCells[cellIndex].surfelsCount, 1);
+    // debugPrintfEXT("Cell %u Count: %u\n", cellIndex, prev + 1);
 }
 
 void main()

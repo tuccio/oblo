@@ -18,6 +18,10 @@ namespace oblo::vk
     {
         constexpr u32 g_tileSize{32};
 
+        // A single surfel might be inserted in a few neighboring cells in the grid, if it's big enough
+        // We are overestimating here, since the radius is limited to the grid cell size
+        constexpr u32 g_MaxSurfelMultiplicity = 27;
+
         struct surfel_spawn_data
         {
             ecs::entity entity;
@@ -40,11 +44,11 @@ namespace oblo::vk
             vec3 boundsMin;
             f32 cellSize;
             vec3 boundsMax;
-            f32 _padding0;
+            u32 maxSurfels;
             u32 cellsCountX;
             u32 cellsCountY;
             u32 cellsCountZ;
-            f32 _padding1;
+            u32 cellsCountLinearized;
         };
 
         struct surfel_grid_cell
@@ -107,10 +111,6 @@ namespace oblo::vk
         const auto gridCellSize = ctx.access(inGridCellSize);
         const auto maxSurfels = ctx.access(inMaxSurfels);
 
-        // A single surfel might be inserted in a few neighboring cells in the grid, if it's big enough
-        // We are overestimating here, since the radius is limited to the grid cell size
-        constexpr u32 neighboringCells = 16;
-
         const auto cellsCountF32 = (gridBounds.max - gridBounds.min) / gridCellSize;
         const auto cellsCount = vec3u{
             .x = u32(std::ceil(cellsCountF32.x)),
@@ -127,7 +127,7 @@ namespace oblo::vk
         const u32 surfelsDataSize = sizeof(surfel_dynamic_data) * maxSurfels;
         const u32 surfelsLightingDataSize = sizeof(surfel_lighting_data) * maxSurfels;
         const u32 surfelsGridSize = u32(sizeof(surfel_grid_header) + sizeof(surfel_grid_cell) * cellsCountLinearized);
-        const u32 surfelsGridDataSize = u32((1 + neighboringCells * maxSurfels) * sizeof(u32));
+        const u32 surfelsGridDataSize = u32((1 + g_MaxSurfelMultiplicity * maxSurfels) * sizeof(u32));
 
         // TODO: After creation and initialization happened, the usage could be none to avoid any useless memory barrier
         ctx.create(outSurfelsStack,
@@ -477,6 +477,8 @@ namespace oblo::vk
         ctx.create(outGridFillBuffer,
             buffer_resource_initializer{
                 .size = u32(sizeof(u32) * cellsCountLinearized),
+                .isStable = true, // It doesn't need to be stable, but this might exceed the chunk size of the monotonic
+                                  // allocator
             },
             buffer_usage::storage_write);
 
@@ -510,20 +512,24 @@ namespace oblo::vk
             const auto gridCellSize = ctx.access(inGridCellSize);
             const auto cellsCount = ctx.access(inCellsCount);
 
+            const u32 cellsCountLinearized = cellsCount.x * cellsCount.y * cellsCount.z;
+
             const auto centroid = ctx.access(outCameraCentroid);
 
             const surfel_grid_header header{
                 .boundsMin = gridBounds.min + centroid,
                 .cellSize = gridCellSize,
                 .boundsMax = gridBounds.max + centroid,
+                .maxSurfels = ctx.access(inMaxSurfels),
                 .cellsCountX = cellsCount.x,
                 .cellsCountY = cellsCount.y,
                 .cellsCountZ = cellsCount.z,
+                .cellsCountLinearized = cellsCountLinearized,
             };
 
             const auto subgroupSize = pm.get_subgroup_size();
 
-            const auto groupsX = round_up_div(cellsCount.x * cellsCount.y * cellsCount.z, subgroupSize);
+            const auto groupsX = round_up_div(cellsCountLinearized, subgroupSize);
 
             pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span(&header, 1)));
 
@@ -649,7 +655,12 @@ namespace oblo::vk
         {
             ctx.begin_pass(allocateFgPass);
 
-            const auto pipeline = pm.get_or_create_pipeline(allocatePass, {});
+            string_builder multiplicityDefine;
+            multiplicityDefine.format("SURFEL_MAX_MULTIPLICITY {}", g_MaxSurfelMultiplicity);
+
+            const hashed_string_view defines[] = {multiplicityDefine.as<hashed_string_view>()};
+
+            const auto pipeline = pm.get_or_create_pipeline(allocatePass, {.defines = defines});
 
             if (const auto pass = pm.begin_compute_pass(commandBuffer, pipeline))
             {
@@ -679,24 +690,14 @@ namespace oblo::vk
             {
                 const auto subgroupSize = pm.get_subgroup_size();
 
-                struct push_constants
-                {
-                    u32 maxSurfels;
-                };
-
-                // Maybe we can reuse the previous push constants here if the layout is compatible
-                const push_constants constants{
-                    .maxSurfels = ctx.access(inMaxSurfels),
-                };
-
                 const binding_table* bindingTables[] = {
                     &bindingTable,
                 };
 
                 pm.bind_descriptor_sets(*pass, bindingTables);
-                pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&constants, 1}));
 
-                const u32 groupsX = round_up_div(constants.maxSurfels, subgroupSize);
+                const u32 maxSurfels = ctx.access(inMaxSurfels);
+                const u32 groupsX = round_up_div(maxSurfels, subgroupSize);
                 vkCmdDispatch(ctx.get_command_buffer(), groupsX, 1, 1);
 
                 pm.end_compute_pass(*pass);

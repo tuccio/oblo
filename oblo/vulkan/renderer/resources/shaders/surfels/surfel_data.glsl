@@ -29,9 +29,9 @@ struct surfel_grid_header
     vec3 boundsMin;
     float cellSize;
     vec3 boundsMax;
-    float _padding0;
+    uint maxSurfels;
     ivec3 cellsCount;
-    float _padding1;
+    uint cellsCountLinearized;
 };
 
 struct surfel_grid_cell
