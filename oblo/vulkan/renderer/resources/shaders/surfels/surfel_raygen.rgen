@@ -35,50 +35,72 @@ void main()
 
     uint randomSeed = random_seed(g_Constants.randomSeed, surfelId);
 
+    const uint numRays = 32;
+
+    sh3 r = sh3_zero();
+    sh3 g = sh3_zero();
+    sh3 b = sh3_zero();
+
     const vec3 origin = surfel_data_world_position(surfel);
     const vec3 N = surfel_data_world_normal(surfel);
-    const vec3 direction = random_sample_uniform_hemisphere(N, random_uniform_2d(randomSeed));
+
+    for (uint i = 0; i < numRays; ++i)
+    {
+        const vec3 direction = random_sample_uniform_hemisphere(N, random_uniform_2d(randomSeed));
 
 #if OBLO_DEBUG_PRINTF
 
-    // debugPrintfEXT("Surfel %u should shoot a ray! [%f %f %f] -> [%f %f %f] (%f %f %f)\n",
-    //     surfelId,
-    //     origin.x,
-    //     origin.y,
-    //     origin.z,
-    //     direction.x,
-    //     direction.y,
-    //     direction.z,
-    //     N.x,
-    //     N.y,
-    //     N.z);
+        // debugPrintfEXT("Surfel %u should shoot a ray! [%f %f %f] -> [%f %f %f] (%f %f %f)\n",
+        //     surfelId,
+        //     origin.x,
+        //     origin.y,
+        //     origin.z,
+        //     direction.x,
+        //     direction.y,
+        //     direction.z,
+        //     N.x,
+        //     N.y,
+        //     N.z);
 
 #endif
 
-    const float tMin = 1e-2f;
-    const float tMax = 1e6f;
+        const float tMin = 1e-2f;
+        const float tMax = 1e6f;
 
-    traceRayEXT(u_SceneTLAS,
-        gl_RayFlagsOpaqueEXT,
-        0xff, // cull mask
-        0,    // STB record offset
-        0,    // STB record stride
-        0,    // Miss index
-        origin,
-        tMin,
-        direction,
-        tMax,
-        0 // payload location
-    );
+        traceRayEXT(u_SceneTLAS,
+            gl_RayFlagsOpaqueEXT,
+            0xff, // cull mask
+            0,    // STB record offset
+            0,    // STB record stride
+            0,    // Miss index
+            origin,
+            tMin,
+            direction,
+            tMax,
+            0 // payload location
+        );
 
-    // TODO: Should we attenuate with distance?
-    // The hit shader should attenuate in case? We should not attenuate sky light
-    const sh3 shIrradiance = sh3_eval(direction);
+        // TODO: Should we attenuate with distance?
+        // The hit shader should attenuate in case? We should not attenuate sky light
+        const sh3 shIrradiance = sh3_eval(direction);
 
-    // g_OutSurfelsLighting[surfelId].radiance = r_HitColor;
-    const sh3 r = sh_mul(shIrradiance, r_HitColor.r);
-    const sh3 g = sh_mul(shIrradiance, r_HitColor.g);
-    const sh3 b = sh_mul(shIrradiance, r_HitColor.b);
+        // g_OutSurfelsLighting[surfelId].radiance = r_HitColor;
+        r = sh_add(sh_mul(shIrradiance, r_HitColor.r), r);
+        g = sh_add(sh_mul(shIrradiance, r_HitColor.g), g);
+        b = sh_add(sh_mul(shIrradiance, r_HitColor.b), b);
+    }
+
+    if (numRays > 1)
+    {
+        const float invNumRays = 1.f / numRays;
+        r = sh_mul(r, invNumRays);
+        g = sh_mul(g, invNumRays);
+        b = sh_mul(b, invNumRays);
+    }
+
+// #ifdef OBLO_DEBUG_PRINTF
+//     debugPrintfEXT("Surfel %u radiance %f %f %f\n", surfelId, r_HitColor.x, r_HitColor.y, r_HitColor.z);
+// #endif
 
 #if 0
     g_OutSurfelsLighting[surfelId].shRed = r;

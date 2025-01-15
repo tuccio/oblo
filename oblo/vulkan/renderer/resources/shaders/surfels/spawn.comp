@@ -35,7 +35,7 @@ void main()
     }
 
     // This should really depend on the coverage
-    const float skipProbability = .50f;
+    const float skipProbability = 0.f;
 
     if (random_uniform_1d(randomSeed) < skipProbability)
     {

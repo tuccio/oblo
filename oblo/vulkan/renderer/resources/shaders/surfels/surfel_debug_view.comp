@@ -130,7 +130,7 @@ vec4 visibility_shade(in visibility_shade_context ctx)
         const float b = sh_dot(lobe, surfelLight.shBlue);
 
         const vec3 irradiance = vec3(r, g, b);
-        const vec3 radiance = irradiance / float_pi();
+        const vec3 radiance = irradiance /* / float_pi() */;
 
         return vec4(tonemap_aces_approx(radiance), 1);
 #endif

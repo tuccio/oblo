@@ -93,7 +93,7 @@ void main()
         vec3 L;
 
         const vec3 contribution = light_contribution(light, positionWS, L);
-        const vec3 brdf = pbr_brdf(normalWS, viewWS, L, pbr);
+        const vec3 brdf = pbr_brdf_diffuse(normalWS, viewWS, L, pbr);
 
         // Trace hard shadow by shooting a ray from the hit position towards the light
         const float tMin = 1e-2f;

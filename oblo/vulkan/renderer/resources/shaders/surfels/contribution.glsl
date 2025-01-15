@@ -9,6 +9,7 @@
 vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
 {
     vec3 radiance = vec3(0);
+
     const ivec3 cell = surfel_grid_find_cell(g_SurfelGridHeader, position);
 
     if (surfel_grid_has_cell(g_SurfelGridHeader, cell))
@@ -18,12 +19,17 @@ vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
         const surfel_grid_cell gridCell = g_SurfelGridCells[cellIndex];
 
         surfel_grid_cell_iterator it = surfel_grid_cell_iterator_begin(gridCell);
-        const uint surfelsCount = surfel_grid_cell_iterator_count(it);
 
         vec3 radianceSum = vec3(0);
         float weightSum = 0.f;
 
         const sh3 lobe = sh3_cosine_lobe_project(normal);
+
+#define INTERPOLATE_SH 1
+
+        sh3 red = sh3_zero();
+        sh3 green = sh3_zero();
+        sh3 blue = sh3_zero();
 
         for (; surfel_grid_cell_iterator_has_next(it); surfel_grid_cell_iterator_advance(it))
         {
@@ -34,6 +40,14 @@ vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
             const vec3 positionToSurfel = surfel_data_world_position(surfel) - position;
             const float distance2 = dot(positionToSurfel, positionToSurfel);
             const float radius2 = surfel.radius * surfel.radius;
+
+            const float contributionThreshold = 2 * surfel.radius;
+            const float contributionThreshold2 = contributionThreshold * contributionThreshold;
+
+            if (distance2 > contributionThreshold2)
+            {
+                continue;
+            }
 
             const surfel_lighting_data surfelLight = g_InSurfelsLighting[surfelId];
 
@@ -48,35 +62,46 @@ vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
             //     return vec3(r, g, b);
             // }
 
-            const float weight = max(0, 4 * radius2 - distance2);
+            const float weight = max(0.1f, contributionThreshold2 - distance2);
+            // const float weight = max(0.1f, contributionThreshold - sqrt(distance2));
             // const float weight = 1.f / surfelsCount;
             // const float weight = 1;
 
-            radiance.r += weight * r;
-            radiance.g += weight * g;
-            radiance.b += weight * b;
-
-            radianceSum.r += r;
-            radianceSum.g += g;
-            radianceSum.b += b;
+#if INTERPOLATE_SH
+            red = sh_add(red, sh_mul(surfelLight.shRed, weight));
+            green = sh_add(sh_mul(surfelLight.shGreen, weight), green);
+            blue = sh_add(sh_mul(surfelLight.shBlue, weight), blue);
+#else
+            // Multiply by weight?
+            radianceSum.r += weight * r;
+            radianceSum.g += weight * g;
+            radianceSum.b += weight * b;
+#endif
 
             weightSum += weight;
         }
 
-        if (weightSum < .5 && surfelsCount > 0)
-        {
-            radiance = radianceSum / surfelsCount;
-        }
-        else if (weightSum > 1.f)
-        {
-            const float k = 1 / weightSum;
-            radiance = radianceSum / k;
-        }
+#if INTERPOLATE_SH
+        radianceSum.r = sh_dot(lobe, red);
+        radianceSum.g = sh_dot(lobe, green);
+        radianceSum.b = sh_dot(lobe, blue);
+#endif
 
-        // We divide by pi to go from irradiance to radiance
-        // Could simplify calculations by eliminating pi in the projection coefficients instead
-        // c.f. https://seblagarde.wordpress.com/2011/10/09/dive-in-sh-buffer-idea/#more-379
-        radiance /= float_pi();
+        if (weightSum > .5f)
+        {
+            // L1 normalization of weights
+            radiance = radianceSum / weightSum;
+
+            // We divide by pi to go from irradiance to radiance
+            // Could simplify calculations by eliminating pi in the projection coefficients instead
+            // c.f. https://seblagarde.wordpress.com/2011/10/09/dive-in-sh-buffer-idea/#more-379
+            // radiance /= float_pi();
+            // radiance *= float_pi();
+        }
+        else
+        {
+            radiance = vec3(0);
+        }
     }
 
     return radiance;

@@ -153,8 +153,8 @@ bool gather_coverage_from_grid(in vec3 positionWS, out float weightSum)
 
             // Should we estimate the radius or just take the one from the previous update?
             // Surfels update might have been skipped last frame for whatever reason
-            const float radius = surfel_estimate_radius(gridHeader, g_Camera.position, surfelPosition);
-            // const float radius = surfel.radius;
+            // const float radius = surfel_estimate_radius(gridHeader, g_Camera.position, surfelPosition);
+            const float radius = surfel.radius;
 
             const float radius2 = radius * radius;
             const float distance2 = dot(pointToSurfel, pointToSurfel);
@@ -164,7 +164,9 @@ bool gather_coverage_from_grid(in vec3 positionWS, out float weightSum)
                 return false;
             }
 
-            const float weight = max((threshold2 - distance2) * invSelfRadius2, 0);
+            // const float weight = max(sqrt(threshold2) - sqrt(distance2), 0);
+            const float weight = max(threshold2 - distance2, 0);
+            // const float weight = max((threshold2 - distance2) * invSelfRadius2, 0);
             weightSum += weight;
         }
     }

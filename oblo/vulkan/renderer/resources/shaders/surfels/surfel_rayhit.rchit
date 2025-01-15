@@ -8,6 +8,7 @@
 #extension GL_EXT_shader_16bit_storage : require
 #extension GL_EXT_control_flow_attributes : require
 
+#include <renderer/debug/printf>
 #include <renderer/geometry/barycentric>
 #include <renderer/instance_id>
 #include <renderer/instances>
@@ -84,7 +85,7 @@ void main()
     const pbr_material pbr = pbr_extract_parameters(material, uv0, uv0DDX, uv0DDY);
 
     vec3 reflected = vec3(0);
-    const vec3 viewWS = normalize(gl_WorldRayOriginEXT - positionWS);
+    const vec3 viewWS = -gl_WorldRayDirectionEXT;
 
     for (uint lightIndex = 0; lightIndex < g_LightConfig.lightsCount; ++lightIndex)
     {
@@ -93,7 +94,7 @@ void main()
         vec3 L;
 
         const vec3 contribution = light_contribution(light, positionWS, L);
-        const vec3 brdf = pbr_brdf(normalWS, viewWS, L, pbr);
+        const vec3 brdf = pbr_brdf_diffuse(normalWS, viewWS, L, pbr);
 
         // Trace hard shadow by shooting a ray from the hit position towards the light
         const float tMin = 1e-2f;
@@ -102,13 +103,13 @@ void main()
         // No reason to call the hit shader, we only care about the miss shader
         const uint flags = gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
 
-        // The miss shader will set it to false if no geometry is hit
-        r_IsShadowed = true;
-
         if (light.type != OBLO_LIGHT_TYPE_DIRECTIONAL)
         {
             tMax = length(light.position - positionWS);
         }
+
+        // The miss shader will set it to false if no geometry is hit
+        r_IsShadowed = true;
 
         traceRayEXT(u_SceneTLAS,
             flags,
@@ -124,7 +125,25 @@ void main()
         );
 
         const float visibility = r_IsShadowed ? 0.f : 1.f;
-        reflected += visibility * contribution * brdf;
+        const vec3 lightContribution = visibility * contribution * brdf;
+
+// #ifdef OBLO_DEBUG_PRINTF
+//         if (debug_is_center())
+//         {
+//             debugPrintfEXT("Light %u type %u intensity %f %f %f shadow %u contrib %f %f %f\n",
+//                 lightIndex,
+//                 light.type,
+//                 light.intensity.x,
+//                 light.intensity.y,
+//                 light.intensity.z,
+//                 r_IsShadowed ? 1 : 0,
+//                 lightContribution.x,
+//                 lightContribution.y,
+//                 lightContribution.z);
+//         }
+// #endif
+
+        reflected += lightContribution;
     }
 
     const vec3 giContribution = surfel_calculate_contribution(positionWS, normalWS);

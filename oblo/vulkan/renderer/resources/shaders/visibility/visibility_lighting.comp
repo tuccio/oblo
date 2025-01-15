@@ -11,6 +11,7 @@
 
 #include <renderer/camera>
 #include <renderer/constants>
+#include <renderer/debug/printf>
 #include <renderer/geometry/volumes>
 #include <renderer/instances>
 #include <renderer/lights>
@@ -157,7 +158,15 @@ vec4 visibility_shade(in visibility_shade_context ctx)
 
 #ifdef SURFELS_GI
     const vec3 giContribution = surfel_calculate_contribution(positionWS, normalWS);
-    reflected += giContribution * pbr_brdf_diffuse(normalWS, viewWS, normalWS, pbr);
+    reflected += giContribution * pbr_brdf(normalWS, viewWS, normalWS, pbr);
+    // reflected += giContribution * pbr_brdf_diffuse(normalWS, viewWS, normalWS, pbr);
+
+    // #if OBLO_DEBUG_PRINTF
+    // if (debug_is_center(ctx.screenPos, ctx.resolution))
+    // {
+    //     debugPrintfEXT("GI contribution %f %f %f\n", giContribution.x, giContribution.y, giContribution.z);
+    // }
+    // #endif
 #endif
 
     vec3 emitted = material.emissive;

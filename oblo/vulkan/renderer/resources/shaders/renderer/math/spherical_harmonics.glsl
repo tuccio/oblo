@@ -194,7 +194,7 @@ sh2 sh2_cosine_lobe_project(in vec3 direction)
 sh3 sh3_cosine_lobe_project(in vec3 direction)
 {
     const float c0 = 3.141592653f; // pi
-    const float c1 = 2.094395102f; // 2 * pi /3
+    const float c1 = 2.094395102f; // 2 * pi / 3
     const float c2 = 0.785398163f; // pi / 4
 
     // Obtained by rotating a ZH3 cosine lobe, by scaling against the evaluated SH direction
