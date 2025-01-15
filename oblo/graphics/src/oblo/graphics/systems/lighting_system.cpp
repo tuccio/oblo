@@ -79,6 +79,7 @@ namespace oblo
     {
         {
             const u32 maxSurfels = m_giOptions.maxSurfels.read(*m_optionsManager);
+            const f32 giMultiplier = m_giOptions.giMultiplier.read(*m_optionsManager);
             const f32 gridCellSize = m_giOptions.gridCellSize.read(*m_optionsManager);
             const vec3 gridSize{
                 m_giOptions.gridSizeX.read(*m_optionsManager),
@@ -89,7 +90,7 @@ namespace oblo
             const auto halfExtents = gridSize * .5f;
             const aabb gridBounds{.min = -halfExtents, .max = halfExtents};
 
-            m_sceneRenderer->setup_surfels_gi(maxSurfels, gridCellSize, gridBounds);
+            m_sceneRenderer->setup_surfels_gi(maxSurfels, gridCellSize, gridBounds, giMultiplier);
         }
 
         const auto lightsRange = ctx.entities->range<light_component, global_transform_component>();

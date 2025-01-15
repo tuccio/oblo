@@ -169,6 +169,7 @@ namespace oblo::vk
     struct surfel_raytracing
     {
         data<u32> inMaxSurfels;
+        data<f32> inGIMultiplier;
 
         resource<buffer> inOutSurfelsGrid;
         resource<buffer> inOutSurfelsData;

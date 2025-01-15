@@ -68,6 +68,7 @@ namespace oblo
             .maxValue = property_value_wrapper{1024.f},
         };
     };
+
     template <>
     struct option_traits<"r.gi.gridSizeZ">
     {
@@ -84,6 +85,22 @@ namespace oblo
         };
     };
 
+    template <>
+    struct option_traits<"r.gi.multiplier">
+    {
+        using type = f32;
+
+        static constexpr option_descriptor descriptor{
+            .kind = property_kind::f32,
+            .id = "a9e802d0-85cc-47f1-a6cb-26b53ced57db"_uuid,
+            .name = "GI Multiplier",
+            .category = "Graphics/GI",
+            .defaultValue = property_value_wrapper{1.f},
+            .minValue = property_value_wrapper{0.f},
+            .maxValue = property_value_wrapper{1024.f},
+        };
+    };
+
     struct surfels_gi_options
     {
         option_proxy<"r.gi.maxSurfels"> maxSurfels;
@@ -91,5 +108,6 @@ namespace oblo
         option_proxy<"r.gi.gridSizeX"> gridSizeX;
         option_proxy<"r.gi.gridSizeY"> gridSizeY;
         option_proxy<"r.gi.gridSizeZ"> gridSizeZ;
+        option_proxy<"r.gi.multiplier"> giMultiplier;
     };
 }

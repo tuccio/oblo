@@ -87,7 +87,7 @@ vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
         radianceSum.b = sh_dot(lobe, blue);
 #endif
 
-        if (weightSum > .5f)
+        if (weightSum > .1f)
         {
             // L1 normalization of weights
             radiance = radianceSum / weightSum;

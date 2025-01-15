@@ -584,9 +584,12 @@ namespace oblo::vk::surfels_gi
         graph.make_output(update, &surfel_update::inOutSurfelsGridData, OutUpdatedSurfelGridData);
 
         // Ray-Tracing setup
+        graph.make_input(rayTracing, &surfel_raytracing::inGIMultiplier, InGIMultiplier);
         graph.make_input(rayTracing, &surfel_raytracing::inLightBuffer, InLightBuffer);
         graph.make_input(rayTracing, &surfel_raytracing::inLightConfig, InLightConfig);
         graph.make_input(rayTracing, &surfel_raytracing::inSkyboxSettingsBuffer, InSkyboxSettingsBuffer);
+
+        graph.bind(rayTracing, &surfel_raytracing::inGIMultiplier, 1.f);
 
         graph.connect(update, &surfel_update::inOutSurfelsGrid, rayTracing, &surfel_raytracing::inOutSurfelsGrid);
         graph.connect(update,

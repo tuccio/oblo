@@ -799,8 +799,10 @@ namespace oblo::vk
             const struct push_constants
             {
                 u32 randomSeed;
+                f32 giMultiplier;
             } constants{
                 .randomSeed = randomSeed,
+                .giMultiplier = ctx.access(inGIMultiplier),
             };
 
             pm.bind_descriptor_sets(*pass, bindingTables);

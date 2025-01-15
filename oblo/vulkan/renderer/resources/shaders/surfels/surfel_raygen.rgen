@@ -19,6 +19,7 @@ layout(location = 0) rayPayloadEXT vec3 r_HitColor;
 layout(push_constant) uniform c_PushConstants
 {
     uint randomSeed;
+    float giMultiplier;
 }
 g_Constants;
 
@@ -90,17 +91,17 @@ void main()
         b = sh_add(sh_mul(shIrradiance, r_HitColor.b), b);
     }
 
-    if (numRays > 1)
+    if (numRays > 0)
     {
         const float invNumRays = 1.f / numRays;
-        r = sh_mul(r, invNumRays);
-        g = sh_mul(g, invNumRays);
-        b = sh_mul(b, invNumRays);
+        r = sh_mul(r, g_Constants.giMultiplier * invNumRays);
+        g = sh_mul(g, g_Constants.giMultiplier * invNumRays);
+        b = sh_mul(b, g_Constants.giMultiplier * invNumRays);
     }
 
-// #ifdef OBLO_DEBUG_PRINTF
-//     debugPrintfEXT("Surfel %u radiance %f %f %f\n", surfelId, r_HitColor.x, r_HitColor.y, r_HitColor.z);
-// #endif
+    // #ifdef OBLO_DEBUG_PRINTF
+    //     debugPrintfEXT("Surfel %u radiance %f %f %f\n", surfelId, r_HitColor.x, r_HitColor.y, r_HitColor.z);
+    // #endif
 
 #if 0
     g_OutSurfelsLighting[surfelId].shRed = r;
