@@ -47,7 +47,7 @@ namespace oblo::vk
                 usize currentBarrierIdx;
             };
 
-            h32_flat_extpool_dense_map<frame_graph_pin_storage, buffer_tracking> bufferUsages{&impl.dynamicAllocator};
+            h32_flat_extpool_dense_map<transient_buffer_resource, buffer_tracking> bufferUsages{&impl.dynamicAllocator};
             bufferUsages.reserve_sparse(u32(impl.pinStorage.size() + 1));
             bufferUsages.reserve_dense(u32(impl.pinStorage.size() + 1));
 
@@ -59,7 +59,12 @@ namespace oblo::vk
                 {
                     const auto& bufferUsage = impl.bufferUsages[bufferUsageIdx];
 
-                    const auto [tracking, inserted] = bufferUsages.emplace(bufferUsage.pinStorage);
+                    // We use the pool index as id because it should identify a buffer
+                    // On the contrary, two different pin storages might point to the same buffer in case of rerouting
+                    const auto bufferResourceId = impl.pinStorage.at(bufferUsage.pinStorage).transientBuffer;
+                    OBLO_ASSERT(bufferResourceId);
+
+                    const auto [tracking, inserted] = bufferUsages.emplace(bufferResourceId);
 
                     if (bufferUsage.uploadedTo)
                     {
