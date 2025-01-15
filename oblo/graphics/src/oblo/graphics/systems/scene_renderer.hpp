@@ -23,7 +23,7 @@ namespace oblo
 
     class texture;
 
-    struct aabb;
+    struct surfels_gi_config;
 
     struct scene_lights
     {
@@ -49,7 +49,7 @@ namespace oblo
 
         void setup_lights(const scene_lights& lights);
         void setup_skybox(const resource_ptr<texture>& skybox, const vk::skybox_settings& settings);
-        void setup_surfels_gi(u32 maxSurfels, f32 gridCellsSize, const aabb& gridBounds, f32 giMultiplier);
+        void setup_surfels_gi(const surfels_gi_config& giConfig);
 
         void add_scene_view(h32<vk::frame_graph_subgraph> subgraph);
         void remove_scene_view(h32<vk::frame_graph_subgraph> subgraph);

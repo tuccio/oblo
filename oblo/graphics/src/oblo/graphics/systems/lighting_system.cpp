@@ -77,21 +77,9 @@ namespace oblo
 
     void lighting_system::update(const ecs::system_update_context& ctx)
     {
-        {
-            const u32 maxSurfels = m_giOptions.maxSurfels.read(*m_optionsManager);
-            const f32 giMultiplier = m_giOptions.giMultiplier.read(*m_optionsManager);
-            const f32 gridCellSize = m_giOptions.gridCellSize.read(*m_optionsManager);
-            const vec3 gridSize{
-                m_giOptions.gridSizeX.read(*m_optionsManager),
-                m_giOptions.gridSizeY.read(*m_optionsManager),
-                m_giOptions.gridSizeZ.read(*m_optionsManager),
-            };
-
-            const auto halfExtents = gridSize * .5f;
-            const aabb gridBounds{.min = -halfExtents, .max = halfExtents};
-
-            m_sceneRenderer->setup_surfels_gi(maxSurfels, gridCellSize, gridBounds, giMultiplier);
-        }
+        surfels_gi_config giConfig;
+        m_giOptions.read(*m_optionsManager, giConfig);
+        m_sceneRenderer->setup_surfels_gi(giConfig);
 
         const auto lightsRange = ctx.entities->range<light_component, global_transform_component>();
 

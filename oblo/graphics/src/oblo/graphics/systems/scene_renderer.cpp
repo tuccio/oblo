@@ -1,6 +1,7 @@
 #include <oblo/graphics/systems/scene_renderer.hpp>
 
 #include <oblo/core/service_registry.hpp>
+#include <oblo/graphics/systems/graphics_options.hpp>
 #include <oblo/math/aabb.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/vulkan/data/skybox_settings.hpp>
@@ -167,12 +168,17 @@ namespace oblo
         m_frameGraph.set_input(m_sceneDataProvider, vk::scene_data::InSkyboxSettings, settings).assert_value();
     }
 
-    void scene_renderer::setup_surfels_gi(u32 maxSurfels, f32 gridCellsSize, const aabb& gridBounds, f32 giMultiplier)
+    void scene_renderer::setup_surfels_gi(const surfels_gi_config& giConfig)
     {
-        m_frameGraph.set_input(m_surfelsGI, vk::surfels_gi::InMaxSurfels, maxSurfels).assert_value();
-        m_frameGraph.set_input(m_surfelsGI, vk::surfels_gi::InGridCellSize, gridCellsSize).assert_value();
+        const vec3 gridSize{giConfig.gridSizeX, giConfig.gridSizeY, giConfig.gridSizeZ};
+
+        const auto halfExtents = gridSize * .5f;
+        const aabb gridBounds{.min = -halfExtents, .max = halfExtents};
+
+        m_frameGraph.set_input(m_surfelsGI, vk::surfels_gi::InMaxSurfels, giConfig.maxSurfels).assert_value();
+        m_frameGraph.set_input(m_surfelsGI, vk::surfels_gi::InGridCellSize, giConfig.gridCellSize).assert_value();
         m_frameGraph.set_input(m_surfelsGI, vk::surfels_gi::InGridBounds, gridBounds).assert_value();
-        m_frameGraph.set_input(m_surfelsGI, vk::surfels_gi::InGIMultiplier, giMultiplier).assert_value();
+        m_frameGraph.set_input(m_surfelsGI, vk::surfels_gi::InGIMultiplier, giConfig.multiplier).assert_value();
     }
 
     void scene_renderer::add_scene_view(h32<vk::frame_graph_subgraph> subgraph)

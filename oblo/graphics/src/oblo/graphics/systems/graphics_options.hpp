@@ -110,4 +110,14 @@ namespace oblo
         option_proxy<"r.gi.gridSizeZ"> gridSizeZ;
         option_proxy<"r.gi.multiplier"> giMultiplier;
     };
+
+    struct surfels_gi_config
+    {
+        u32 maxSurfels;
+        f32 gridCellSize;
+        f32 gridSizeX;
+        f32 gridSizeY;
+        f32 gridSizeZ;
+        f32 multiplier;
+    };
 }

@@ -51,7 +51,14 @@ namespace oblo
 
         void init(const options_manager& manager)
         {
-            struct_apply([&manager]<fixed_string... Names>(auto&... proxy) { (proxy.init(manager), ...); },
+            struct_apply([&manager](auto&... proxy) { (proxy.init(manager), ...); }, *static_cast<T*>(this));
+        }
+
+        template <typename U>
+        void read(const options_manager& manager, U& out)
+        {
+            struct_apply([&manager, &out](auto&... proxy)
+                { struct_apply([&proxy..., &manager](auto&... o) { ((o = proxy.read(manager)), ...); }, out); },
                 *static_cast<T*>(this));
         }
     };
