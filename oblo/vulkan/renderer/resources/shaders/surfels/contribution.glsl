@@ -64,19 +64,21 @@ vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
             // const float weight = 1.f / surfelsCount;
             // const float weight = 1;
 
+            const float multiplier = surfelLight.numSamples == 0 ? 0.f : (1.f / surfelLight.numSamples);
+
 #if INTERPOLATE_SH
-            red = sh_add(red, sh_mul(surfelLight.shRed, weight));
-            green = sh_add(sh_mul(surfelLight.shGreen, weight), green);
-            blue = sh_add(sh_mul(surfelLight.shBlue, weight), blue);
+            red = sh_add(sh_mul(surfelLight.shRed, multiplier * weight), red);
+            green = sh_add(sh_mul(surfelLight.shGreen, multiplier * weight), green);
+            blue = sh_add(sh_mul(surfelLight.shBlue, multiplier * weight), blue);
 #else
             // Integral of the product of cosine and the irradiance
             const float r = sh_dot(lobe, surfelLight.shRed);
             const float g = sh_dot(lobe, surfelLight.shGreen);
             const float b = sh_dot(lobe, surfelLight.shBlue);
 
-            radianceSum.r += weight * r;
-            radianceSum.g += weight * g;
-            radianceSum.b += weight * b;
+            radianceSum.r += multiplier * weight * r;
+            radianceSum.g += multiplier * weight * g;
+            radianceSum.b += multiplier * weight * b;
 #endif
 
             weightSum += weight;

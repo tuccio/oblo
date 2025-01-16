@@ -77,6 +77,7 @@ namespace oblo::vk
             surfel_sh_type shRed;
             surfel_sh_type shGreen;
             surfel_sh_type shBlue;
+            u32 numSamples;
         };
 
         vec3 calculate_centroid(std::span<const camera_buffer> cameras)

@@ -36,47 +36,20 @@ void main()
 
     uint randomSeed = random_seed(g_Constants.randomSeed, surfelId);
 
-    const uint numRays = 1;
-
     surfel_sh r, g, b;
-    sh_zero(r);
-    sh_zero(g);
-    sh_zero(b);
+
+    r = g_InSurfelsLighting[surfelId].shRed;
+    g = g_InSurfelsLighting[surfelId].shGreen;
+    b = g_InSurfelsLighting[surfelId].shBlue;
 
     const vec3 origin = surfel_data_world_position(surfel);
     const vec3 N = surfel_data_world_normal(surfel);
 
-#define SAMPLE_UNIFORM 0
+    const uint numRays = 1;
 
     for (uint i = 0; i < numRays; ++i)
     {
-#if SAMPLE_UNIFORM
         const vec3 direction = random_sample_uniform_hemisphere(N, random_uniform_2d(randomSeed));
-        const float invPdf = 1.f;
-#else
-        const vec3 direction = random_sample_cosine_hemisphere(N, random_uniform_2d(randomSeed));
-
-        // For cosine-weighted sampling, we divide by the probability of the sample
-        const float cosTheta = max(.01f, dot(N, direction));
-
-        const float invPdf = float_pi() / cosTheta;
-#endif
-
-#if OBLO_DEBUG_PRINTF
-
-        // debugPrintfEXT("Surfel %u should shoot a ray! [%f %f %f] -> [%f %f %f] (%f %f %f)\n",
-        //     surfelId,
-        //     origin.x,
-        //     origin.y,
-        //     origin.z,
-        //     direction.x,
-        //     direction.y,
-        //     direction.z,
-        //     N.x,
-        //     N.y,
-        //     N.z);
-
-#endif
 
         const float tMin = 1e-2f;
         const float tMax = 1e6f;
@@ -96,31 +69,26 @@ void main()
 
         // TODO: Should we attenuate with distance?
         // The hit shader should attenuate in case? We should not attenuate sky light
-        surfel_sh shIrradiance;
-        sh_eval(shIrradiance, direction);
+        surfel_sh shDirection;
+        sh_eval(shDirection, direction);
 
-        // g_OutSurfelsLighting[surfelId].radiance = r_HitColor;
-        r = sh_add(sh_mul(shIrradiance, r_HitColor.r), r);
-        g = sh_add(sh_mul(shIrradiance, r_HitColor.g), g);
-        b = sh_add(sh_mul(shIrradiance, r_HitColor.b), b);
+        // const float prevNumSamples = sh_dot(shDirection, s);
 
-        // The probability of the sample is cos(theta) / pi, we want to divide by that
-        const float multiplier = g_Constants.giMultiplier * invPdf;
+        // if (prevNumSamples > 0.1)
+        // {
+        //     const surfel_sh invScale = sh_mul(shDirection, -1.f / prevNumSamples);
 
-        r = sh_mul(r, multiplier);
-        g = sh_mul(g, multiplier);
-        b = sh_mul(b, multiplier);
+        //     r = sh_add(r, sh_mul(invScale, r));
+        //     g = sh_add(g, sh_mul(invScale, g));
+        //     b = sh_add(b, sh_mul(invScale, b));
+        // }
+
+        // s = sh_add(shDirection, s);
+
+        r = sh_add(sh_mul(shDirection, r_HitColor.r), r);
+        g = sh_add(sh_mul(shDirection, r_HitColor.g), g);
+        b = sh_add(sh_mul(shDirection, r_HitColor.b), b);
     }
-
-#if SAMPLE_UNIFORM
-    if (numRays > 0)
-    {
-        const float invNumRays = 1.f / numRays;
-        r = sh_mul(r, g_Constants.giMultiplier * invNumRays);
-        g = sh_mul(g, g_Constants.giMultiplier * invNumRays);
-        b = sh_mul(b, g_Constants.giMultiplier * invNumRays);
-    }
-#endif
 
     // #ifdef OBLO_DEBUG_PRINTF
     //     debugPrintfEXT("Surfel %u radiance %f %f %f\n", surfelId, r_HitColor.x, r_HitColor.y, r_HitColor.z);
@@ -131,10 +99,9 @@ void main()
     g_OutSurfelsLighting[surfelId].shGreen = g;
     g_OutSurfelsLighting[surfelId].shBlue = b;
 #else
-    const float k = .05f;
-
-    g_OutSurfelsLighting[surfelId].shRed = sh_mix(g_InSurfelsLighting[surfelId].shRed, r, k);
-    g_OutSurfelsLighting[surfelId].shGreen = sh_mix(g_InSurfelsLighting[surfelId].shGreen, g, k);
-    g_OutSurfelsLighting[surfelId].shBlue = sh_mix(g_InSurfelsLighting[surfelId].shBlue, b, k);
+    g_OutSurfelsLighting[surfelId].shRed = r;
+    g_OutSurfelsLighting[surfelId].shGreen = g;
+    g_OutSurfelsLighting[surfelId].shBlue = b;
+    g_OutSurfelsLighting[surfelId].numSamples = g_InSurfelsLighting[surfelId].numSamples + 1;
 #endif
 }

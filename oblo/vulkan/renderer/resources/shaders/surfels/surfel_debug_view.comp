@@ -125,10 +125,12 @@ vec4 visibility_shade(in visibility_shade_context ctx)
         surfel_sh lobe;
         sh_cosine_lobe_project(lobe, normalWS);
 
+        const float multiplier = 1.f / surfelLight.numSamples;
+
         // Integral of the product of cosine and the irradiance
-        const float r = sh_dot(lobe, surfelLight.shRed);
-        const float g = sh_dot(lobe, surfelLight.shGreen);
-        const float b = sh_dot(lobe, surfelLight.shBlue);
+        const float r = multiplier * sh_dot(lobe, surfelLight.shRed);
+        const float g = multiplier * sh_dot(lobe, surfelLight.shGreen);
+        const float b = multiplier * sh_dot(lobe, surfelLight.shBlue);
 
         const vec3 irradiance = vec3(r, g, b);
         const vec3 radiance = irradiance /* / float_pi() */;

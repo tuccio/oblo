@@ -64,6 +64,7 @@ struct surfel_lighting_data
     surfel_sh shRed;
     surfel_sh shGreen;
     surfel_sh shBlue;
+    uint numSamples;
 };
 
 ivec3 surfel_grid_cells_count(in surfel_grid_header h)
@@ -159,6 +160,7 @@ surfel_lighting_data surfel_lighting_data_new()
     sh_zero(r.shRed);
     sh_zero(r.shGreen);
     sh_zero(r.shBlue);
+    r.numSamples = 0;
     return r;
 }
 
