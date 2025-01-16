@@ -41,20 +41,15 @@ vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
             const float distance2 = dot(positionToSurfel, positionToSurfel);
             const float radius2 = surfel.radius * surfel.radius;
 
-            const float contributionThreshold = 2 * surfel.radius;
+            const float contributionThreshold = 4 * surfel.radius;
             const float contributionThreshold2 = contributionThreshold * contributionThreshold;
 
-            if (distance2 > contributionThreshold2)
-            {
-                continue;
-            }
+            // if (distance2 > contributionThreshold2)
+            // {
+            //     continue;
+            // }
 
             const surfel_lighting_data surfelLight = g_InSurfelsLighting[surfelId];
-
-            // Integral of the product of cosine and the irradiance
-            const float r = sh_dot(lobe, surfelLight.shRed);
-            const float g = sh_dot(lobe, surfelLight.shGreen);
-            const float b = sh_dot(lobe, surfelLight.shBlue);
 
             // if (distance2 <= radius2)
             // {
@@ -72,7 +67,11 @@ vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
             green = sh_add(sh_mul(surfelLight.shGreen, weight), green);
             blue = sh_add(sh_mul(surfelLight.shBlue, weight), blue);
 #else
-            // Multiply by weight?
+            // Integral of the product of cosine and the irradiance
+            const float r = sh_dot(lobe, surfelLight.shRed);
+            const float g = sh_dot(lobe, surfelLight.shGreen);
+            const float b = sh_dot(lobe, surfelLight.shBlue);
+
             radianceSum.r += weight * r;
             radianceSum.g += weight * g;
             radianceSum.b += weight * b;

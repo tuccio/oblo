@@ -47,7 +47,7 @@ void main()
 
     const surfel_tile_data tile = g_TileData[globalIndex];
 
-    if (ecs_entity_is_valid(tile.spawnData.entity) && tile.worstPixelCoverage < 0.5)
+    if (ecs_entity_is_valid(tile.spawnData.entity) && tile.worstPixelCoverage < 0.15)
     {
         uint newSurfelId;
         const bool allocated = surfel_stack_allocate(newSurfelId);

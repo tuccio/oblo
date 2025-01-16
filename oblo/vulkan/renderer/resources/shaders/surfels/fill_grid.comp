@@ -27,7 +27,11 @@ void surfel_commit_to_grid(in uint surfelId, in uint cellIndex)
     const uint surfelIndex = atomicAdd(g_SurfelGridCellNextSurfelIndex[cellIndex], 1);
 
     debug_assert(surfelIndex < g_SurfelGridCells[cellIndex].surfelsCount);
-    g_SurfelGridCellData[surfelsBegin + surfelIndex] = surfelId;
+
+    if (surfelIndex < g_SurfelGridCells[cellIndex].surfelsCount)
+    {
+        g_SurfelGridCellData[surfelsBegin + surfelIndex] = surfelId;
+    }
 }
 
 void main()
