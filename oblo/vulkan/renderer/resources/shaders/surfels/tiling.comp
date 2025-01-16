@@ -208,10 +208,7 @@ void main()
     // First process within the subgroup
     {
         const uint bestCandidateIdx = find_lowest_within_subgroup_rand(weightSum, subgroupSeed);
-        // const uint bestCandidateIdx = find_lowest_within_subgroup_naive(weightSum);
-        // const uint bestCandidateIdx = find_lowest_within_subgroup(weightSum);
 
-        // const uint subgroupOutIndex = (g_Constants.randomSeed + gl_SubgroupID) % OBLO_SUBGROUP_SIZE;
         const uint subgroupOutIndex = (hash_pcg(workgroupSeed) + gl_SubgroupID) % OBLO_SUBGROUP_SIZE;
 
         if (bestCandidateIdx == gl_SubgroupInvocationID)
@@ -225,33 +222,6 @@ void main()
             g_WeightSums[subgroupOutIndex] = selfSum;
             g_PixelsWithFragments[subgroupOutIndex] = selfPixels;
         }
-
-        // const uint globalIndex = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
-        // if (globalIndex == 0 && gl_SubgroupID == 0)
-        // {
-        //     memoryBarrierShared();
-        //     barrier();
-
-        //     if (subgroupElect())
-        //     {
-        //         debugPrintfEXT("[TILING] Global Index %u Subgroup %u worst (%u) = %f\n",
-        //             globalIndex,
-        //             gl_SubgroupID,
-        //             bestCandidateIdx,
-        //             g_GroupCandidates[subgroupOutIndex].worstPixelCoverage);
-        //     }
-
-        //     for (uint i = 0; i < OBLO_SUBGROUP_SIZE; ++i)
-        //     {
-        //         if (i == gl_SubgroupInvocationID)
-        //         {
-        //             debugPrintfEXT("[TILING] Subgroup %u invocation %u worst = %f\n",
-        //                 gl_SubgroupID,
-        //                 i,
-        //                 subgroupBroadcast(weightSum, i));
-        //         }
-        //     }
-        // }
     }
 
     memoryBarrierShared();

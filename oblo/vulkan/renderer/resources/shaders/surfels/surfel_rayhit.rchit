@@ -127,22 +127,6 @@ void main()
         const float visibility = r_IsShadowed ? 0.f : 1.f;
         const vec3 lightContribution = visibility * contribution * brdf;
 
-        // #ifdef OBLO_DEBUG_PRINTF
-        //         if (debug_is_center())
-        //         {
-        //             debugPrintfEXT("Light %u type %u intensity %f %f %f shadow %u contrib %f %f %f\n",
-        //                 lightIndex,
-        //                 light.type,
-        //                 light.intensity.x,
-        //                 light.intensity.y,
-        //                 light.intensity.z,
-        //                 r_IsShadowed ? 1 : 0,
-        //                 lightContribution.x,
-        //                 lightContribution.y,
-        //                 lightContribution.z);
-        //         }
-        // #endif
-
         reflected += lightContribution;
     }
 

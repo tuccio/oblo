@@ -45,7 +45,7 @@ void main()
     const vec3 origin = surfel_data_world_position(surfel);
     const vec3 N = surfel_data_world_normal(surfel);
 
-    const uint numRays = 1;
+    const uint numRays = 4;
 
     for (uint i = 0; i < numRays; ++i)
     {
@@ -67,41 +67,16 @@ void main()
             0 // payload location
         );
 
-        // TODO: Should we attenuate with distance?
-        // The hit shader should attenuate in case? We should not attenuate sky light
         surfel_sh shDirection;
         sh_eval(shDirection, direction);
-
-        // const float prevNumSamples = sh_dot(shDirection, s);
-
-        // if (prevNumSamples > 0.1)
-        // {
-        //     const surfel_sh invScale = sh_mul(shDirection, -1.f / prevNumSamples);
-
-        //     r = sh_add(r, sh_mul(invScale, r));
-        //     g = sh_add(g, sh_mul(invScale, g));
-        //     b = sh_add(b, sh_mul(invScale, b));
-        // }
-
-        // s = sh_add(shDirection, s);
 
         r = sh_add(sh_mul(shDirection, g_Constants.giMultiplier * r_HitColor.r), r);
         g = sh_add(sh_mul(shDirection, g_Constants.giMultiplier * r_HitColor.g), g);
         b = sh_add(sh_mul(shDirection, g_Constants.giMultiplier * r_HitColor.b), b);
     }
 
-    // #ifdef OBLO_DEBUG_PRINTF
-    //     debugPrintfEXT("Surfel %u radiance %f %f %f\n", surfelId, r_HitColor.x, r_HitColor.y, r_HitColor.z);
-    // #endif
-
-#if 0
-    g_OutSurfelsLighting[surfelId].shRed = r;
-    g_OutSurfelsLighting[surfelId].shGreen = g;
-    g_OutSurfelsLighting[surfelId].shBlue = b;
-#else
     g_OutSurfelsLighting[surfelId].shRed = r;
     g_OutSurfelsLighting[surfelId].shGreen = g;
     g_OutSurfelsLighting[surfelId].shBlue = b;
     g_OutSurfelsLighting[surfelId].numSamples = g_InSurfelsLighting[surfelId].numSamples + 1;
-#endif
 }
