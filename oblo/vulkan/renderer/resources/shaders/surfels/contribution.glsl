@@ -6,9 +6,19 @@
 #include <surfels/buffers/surfel_grid_r>
 #include <surfels/buffers/surfel_lighting_data_in_r>
 
-vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
+const uint g_SurfelCandidatesMax = 4;
+
+struct surfel_candidates
 {
-    vec3 radiance = vec3(0);
+    uint ids[g_SurfelCandidatesMax];
+    float sqrDistances[g_SurfelCandidatesMax];
+    uint count;
+};
+
+surfel_candidates surfel_fetch_best_candidates(in vec3 position)
+{
+    surfel_candidates r;
+    r.count = 0;
 
     const ivec3 cell = surfel_grid_find_cell(g_SurfelGridHeader, position);
 
@@ -18,92 +28,145 @@ vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
 
         const surfel_grid_cell gridCell = g_SurfelGridCells[cellIndex];
 
-        surfel_grid_cell_iterator it = surfel_grid_cell_iterator_begin(gridCell);
-
-        vec3 radianceSum = vec3(0);
-        float weightSum = 0.f;
-
-        surfel_sh lobe;
-        sh_cosine_lobe_project(lobe, normal);
-
-#define INTERPOLATE_SH 1
-
-        surfel_sh red, green, blue;
-        sh_zero(red);
-        sh_zero(green);
-        sh_zero(blue);
-
-        for (; surfel_grid_cell_iterator_has_next(it); surfel_grid_cell_iterator_advance(it))
+        for (surfel_grid_cell_iterator cellIt = surfel_grid_cell_iterator_begin(gridCell);
+             surfel_grid_cell_iterator_has_next(cellIt);
+             surfel_grid_cell_iterator_advance(cellIt))
         {
-            const uint surfelId = surfel_grid_cell_iterator_get(it);
-
+            const uint surfelId = surfel_grid_cell_iterator_get(cellIt);
             const surfel_data surfel = g_SurfelData[surfelId];
 
-            const vec3 positionToSurfel = surfel_data_world_position(surfel) - position;
-            const float distance2 = dot(positionToSurfel, positionToSurfel);
-            const float radius2 = surfel.radius * surfel.radius;
+            const vec3 surfelPosition = surfel_data_world_position(surfel);
 
-            const float contributionThreshold = 4 * surfel.radius;
-            const float contributionThreshold2 = contributionThreshold * contributionThreshold;
+            const vec3 pToS = surfelPosition - position;
 
-            // if (distance2 > contributionThreshold2)
-            // {
-            //     continue;
-            // }
+            const float distance2 = dot(pToS, pToS);
+            const float radius2 = dot(surfel.radius, surfel.radius);
+
+            if (r.count < g_SurfelCandidatesMax)
+            {
+                r.ids[r.count] = surfelId;
+                r.sqrDistances[r.count] = distance2;
+                ++r.count;
+            }
+            else
+            {
+                uint worstCandidateIdx = 0;
+
+                for (uint i = 1; i < r.count; ++i)
+                {
+                    if (r.sqrDistances[i] > r.sqrDistances[worstCandidateIdx])
+                    {
+                        worstCandidateIdx = i;
+                    }
+                }
+
+                if (distance2 < r.sqrDistances[worstCandidateIdx])
+                {
+                    r.ids[worstCandidateIdx] = surfelId;
+                    r.sqrDistances[worstCandidateIdx] = surfelId;
+                }
+            }
+        }
+    }
+
+    return r;
+}
+
+vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
+{
+    const surfel_candidates candidates = surfel_fetch_best_candidates(position);
+
+    if (candidates.count == 0)
+    {
+        return vec3(0);
+    }
+
+    vec3 radiance = vec3(0);
+    float weightSum = 0.f;
+
+    surfel_sh lobe;
+    sh_cosine_lobe_project(lobe, normal);
+
+    for (uint i = 0; i < candidates.count; ++i)
+    {
+        const uint surfelId = candidates.ids[i];
+
+        const surfel_lighting_data surfelLight = g_InSurfelsLighting[surfelId];
+
+        const float multiplier = surfelLight.numSamples == 0 ? 0.f : 1.f / surfelLight.numSamples;
+
+        // Integral of the product of cosine and the irradiance
+        const float r = multiplier * sh_dot(lobe, surfelLight.shRed);
+        const float g = multiplier * sh_dot(lobe, surfelLight.shGreen);
+        const float b = multiplier * sh_dot(lobe, surfelLight.shBlue);
+
+#if 0
+        const float gridCellSize = surfel_grid_cell_size(gridHeader);
+        const float weight = gridCellSize - sqrt(candidates.sqrDistances[i]);
+#else
+        const float weight = 1.f;
+#endif
+        radiance += vec3(r, g, b) * weight;
+
+        weightSum += weight;
+    }
+
+    radiance /= weightSum;
+
+    return radiance;
+}
+
+vec3 surfel_calculate_contribution2(in vec3 position, in vec3 normal)
+{
+    vec3 radiance = vec3(0);
+
+    const ivec3 cell = surfel_grid_find_cell(g_SurfelGridHeader, position);
+
+    uint minSurfelId = g_SurfelGridHeader.maxSurfels;
+
+    if (surfel_grid_has_cell(g_SurfelGridHeader, cell))
+    {
+        const uint cellIndex = surfel_grid_cell_index(g_SurfelGridHeader, cell);
+
+        const surfel_grid_cell gridCell = g_SurfelGridCells[cellIndex];
+
+        for (surfel_grid_cell_iterator cellIt = surfel_grid_cell_iterator_begin(gridCell);
+             surfel_grid_cell_iterator_has_next(cellIt);
+             surfel_grid_cell_iterator_advance(cellIt))
+        {
+            const uint surfelId = surfel_grid_cell_iterator_get(cellIt);
+            const surfel_data surfel = g_SurfelData[surfelId];
+
+            const vec3 surfelPosition = surfel_data_world_position(surfel);
+
+            const vec3 pToS = surfelPosition - position;
+
+            const float distance2 = dot(pToS, pToS);
+            const float radius2 = dot(surfel.radius, surfel.radius);
+
+            if (distance2 <= radius2)
+            {
+                minSurfelId = min(minSurfelId, surfelId);
+            }
+        }
+
+        if (minSurfelId < g_SurfelGridHeader.maxSurfels)
+        {
+            const uint surfelId = minSurfelId;
 
             const surfel_lighting_data surfelLight = g_InSurfelsLighting[surfelId];
 
-            // if (distance2 <= radius2)
-            // {
-            //     // return vec3(1);
-            //     return vec3(r, g, b);
-            // }
+            surfel_sh lobe;
+            sh_cosine_lobe_project(lobe, normal);
 
-            const float weight = max(0.1f, contributionThreshold2 - distance2);
-            // const float weight = max(0.1f, contributionThreshold - sqrt(distance2));
-            // const float weight = 1.f / surfelsCount;
-            // const float weight = 1;
+            const float multiplier = surfelLight.numSamples == 0 ? 0.f : 1.f / surfelLight.numSamples;
 
-            const float multiplier = surfelLight.numSamples == 0 ? 0.f : (1.f / surfelLight.numSamples);
-
-#if INTERPOLATE_SH
-            red = sh_add(sh_mul(surfelLight.shRed, multiplier * weight), red);
-            green = sh_add(sh_mul(surfelLight.shGreen, multiplier * weight), green);
-            blue = sh_add(sh_mul(surfelLight.shBlue, multiplier * weight), blue);
-#else
             // Integral of the product of cosine and the irradiance
-            const float r = sh_dot(lobe, surfelLight.shRed);
-            const float g = sh_dot(lobe, surfelLight.shGreen);
-            const float b = sh_dot(lobe, surfelLight.shBlue);
+            const float r = multiplier * sh_dot(lobe, surfelLight.shRed);
+            const float g = multiplier * sh_dot(lobe, surfelLight.shGreen);
+            const float b = multiplier * sh_dot(lobe, surfelLight.shBlue);
 
-            radianceSum.r += multiplier * weight * r;
-            radianceSum.g += multiplier * weight * g;
-            radianceSum.b += multiplier * weight * b;
-#endif
-
-            weightSum += weight;
-        }
-
-#if INTERPOLATE_SH
-        radianceSum.r = sh_dot(lobe, red);
-        radianceSum.g = sh_dot(lobe, green);
-        radianceSum.b = sh_dot(lobe, blue);
-#endif
-
-        if (weightSum > .1f)
-        {
-            // L1 normalization of weights
-            radiance = radianceSum / weightSum;
-
-            // We divide by pi to go from irradiance to radiance
-            // Could simplify calculations by eliminating pi in the projection coefficients instead
-            // c.f. https://seblagarde.wordpress.com/2011/10/09/dive-in-sh-buffer-idea/#more-379
-            // radiance /= float_pi();
-            // radiance *= float_pi();
-        }
-        else
-        {
-            radiance = vec3(0);
+            radiance = vec3(r, g, b);
         }
     }
 

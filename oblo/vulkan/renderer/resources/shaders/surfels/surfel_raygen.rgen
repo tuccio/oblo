@@ -85,9 +85,9 @@ void main()
 
         // s = sh_add(shDirection, s);
 
-        r = sh_add(sh_mul(shDirection, r_HitColor.r), r);
-        g = sh_add(sh_mul(shDirection, r_HitColor.g), g);
-        b = sh_add(sh_mul(shDirection, r_HitColor.b), b);
+        r = sh_add(sh_mul(shDirection, g_Constants.giMultiplier * r_HitColor.r), r);
+        g = sh_add(sh_mul(shDirection, g_Constants.giMultiplier * r_HitColor.g), g);
+        b = sh_add(sh_mul(shDirection, g_Constants.giMultiplier * r_HitColor.b), b);
     }
 
     // #ifdef OBLO_DEBUG_PRINTF

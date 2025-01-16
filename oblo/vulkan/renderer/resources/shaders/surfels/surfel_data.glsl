@@ -145,7 +145,7 @@ float surfel_estimate_radius(in surfel_grid_header gridHeader, in vec3 cameraPos
     const float cameraDistance2 = dot(cameraVector, cameraVector);
 
     const float gridCellSize = surfel_grid_cell_size(gridHeader);
-    const float surfelScalingFactor = 0.02;
+    const float surfelScalingFactor = 0.03;
 
     const float maxRadius = .5f * gridCellSize - .01f;
 
