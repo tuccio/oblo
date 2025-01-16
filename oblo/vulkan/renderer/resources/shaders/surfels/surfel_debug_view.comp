@@ -118,8 +118,7 @@ vec4 visibility_shade(in visibility_shade_context ctx)
         const uint surfelId = minSurfelId;
 
 #if defined(MODE_SURFEL_GRID_ID)
-        return vec4(debug_color_map(cellIndex), 1);
-        // return vec4(debug_color_map(surfelId), 1);
+        return vec4(debug_color_map(surfelId), 1);
 #elif defined(MODE_SURFEL_LIGHTING)
         const surfel_lighting_data surfelLight = g_InSurfelsLighting[surfelId];
 
