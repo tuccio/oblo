@@ -10,6 +10,7 @@
 #include <oblo/ecs/utility/registration.hpp>
 #include <oblo/graphics/components/light_component.hpp>
 #include <oblo/graphics/systems/scene_renderer.hpp>
+#include <oblo/math/aabb.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/options/options_module.hpp>
@@ -76,8 +77,9 @@ namespace oblo
 
     void lighting_system::update(const ecs::system_update_context& ctx)
     {
-        m_sceneRenderer->setup_surfels_gi(m_giOptions.maxSurfels.read(*m_optionsManager),
-            m_giOptions.gridCellSize.read(*m_optionsManager));
+        surfels_gi_config giConfig;
+        m_giOptions.read(*m_optionsManager, giConfig);
+        m_sceneRenderer->setup_surfels_gi(giConfig);
 
         const auto lightsRange = ctx.entities->range<light_component, global_transform_component>();
 

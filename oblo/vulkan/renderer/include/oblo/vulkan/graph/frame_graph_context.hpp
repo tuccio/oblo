@@ -122,8 +122,13 @@ namespace oblo::vk
 
         void acquire(resource<buffer> buffer, buffer_usage usage) const;
 
+        void reroute(resource<buffer> source, resource<buffer> destination) const;
+
         /// @brief Determines whether the pin has an incoming edge.
         bool has_source(resource<buffer> buffer) const;
+
+        /// @brief Determines whether the pin has an incoming edge.
+        bool has_source(resource<texture> texture) const;
 
         [[nodiscard]] resource<buffer> create_dynamic_buffer(const buffer_resource_initializer& initializer,
             buffer_usage usage) const;
@@ -225,6 +230,9 @@ namespace oblo::vk
         /// @brief Determines whether the pin has an incoming edge.
         bool has_source(resource<buffer> buffer) const;
 
+        /// @brief Determines whether the pin has an incoming edge.
+        bool has_source(resource<texture> texture) const;
+
         /// @brief Queries the number of frames a stable texture has been alive for.
         /// On the first frame of usage the function will return 0.
         /// For transient textures it will always return 0.
@@ -239,7 +247,7 @@ namespace oblo::vk
 
         u32 get_current_frames_count() const;
 
-        // TODO: This should probably be deprepcated, it would be hard to make this thread-safe, staging should happen
+        // TODO: This should probably be deprecated, it would be hard to make this thread-safe, staging should happen
         // when building instead.
         void upload(resource<buffer> h, std::span<const byte> data, u32 bufferOffset = 0) const;
 
@@ -260,8 +268,16 @@ namespace oblo::vk
         void bind_buffers(binding_table& table, std::initializer_list<buffer_binding_desc> bindings) const;
         void bind_textures(binding_table& table, std::initializer_list<texture_binding_desc> bindings) const;
 
+        template <typename T>
+        bool has_event() const
+        {
+            return has_event_impl(get_type_id<T>());
+        }
+
     private:
         void* access_storage(h32<frame_graph_pin_storage> handle) const;
+
+        bool has_event_impl(const type_id& type) const;
 
     private:
         frame_graph_impl& m_frameGraph;

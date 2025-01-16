@@ -4,6 +4,7 @@
 #include <oblo/core/iterator/handle_range.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/core/utility.hpp>
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/options/options_manager.hpp>
@@ -14,6 +15,16 @@
 
 namespace oblo::editor
 {
+    namespace
+    {
+        template <typename T>
+        bool is_value_within_range(T& v, const void* minPtr, const void* maxPtr)
+        {
+            return (!minPtr || v >= *reinterpret_cast<const T*>(minPtr)) &&
+                (!maxPtr || v <= *reinterpret_cast<const T*>(maxPtr));
+        }
+    }
+
     void options_editor::init(const window_update_context& ctx)
     {
         m_options = ctx.services.find<options_manager>();
@@ -75,7 +86,8 @@ namespace oblo::editor
                             auto* const maxPtr = max.get_kind() == property_kind::u32 ? max.data() : nullptr;
 
                             if (auto v = value->get_u32();
-                                ImGui::DragScalar(sb.c_str(), ImGuiDataType_U32, &v, 1.f, minPtr, maxPtr))
+                                ImGui::DragScalar(sb.c_str(), ImGuiDataType_U32, &v, 1.f, minPtr, maxPtr) &&
+                                is_value_within_range(v, minPtr, maxPtr))
                             {
                                 m_options->set_option_value(editorLayer, option, property_value_wrapper{v})
                                     .assert_value();
@@ -91,7 +103,8 @@ namespace oblo::editor
                             auto* const maxPtr = max.get_kind() == property_kind::f32 ? max.data() : nullptr;
 
                             if (auto v = value->get_f32();
-                                ImGui::DragScalar(sb.c_str(), ImGuiDataType_Float, &v, 1.f, minPtr, maxPtr))
+                                ImGui::DragScalar(sb.c_str(), ImGuiDataType_Float, &v, 1.f, minPtr, maxPtr) &&
+                                is_value_within_range(v, minPtr, maxPtr))
                             {
                                 m_options->set_option_value(editorLayer, option, property_value_wrapper{v})
                                     .assert_value();

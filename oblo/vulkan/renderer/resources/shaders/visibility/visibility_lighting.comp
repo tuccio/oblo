@@ -11,6 +11,7 @@
 
 #include <renderer/camera>
 #include <renderer/constants>
+#include <renderer/debug/printf>
 #include <renderer/geometry/volumes>
 #include <renderer/instances>
 #include <renderer/lights>
@@ -27,6 +28,10 @@
 #include <renderer/transform>
 #include <skybox/skybox>
 #include <visibility/visibility_shading>
+
+#ifdef SURFELS_GI
+    #include <surfels/contribution>
+#endif
 
 layout(binding = 0) uniform b_LightConfig
 {
@@ -151,6 +156,11 @@ vec4 visibility_shade(in visibility_shade_context ctx)
         reflected += visibility * contribution * brdf;
     }
 
+#ifdef SURFELS_GI
+    const vec3 giContribution = surfel_calculate_contribution(g_Camera.position, positionWS, normalWS);
+    reflected += giContribution * pbr_brdf(normalWS, viewWS, normalWS, pbr);
+#endif
+
     vec3 emitted = material.emissive;
 
     if (material.emissiveTexture != 0)
@@ -177,8 +187,8 @@ vec4 visibility_miss(in visibility_shade_context ctx)
     const vec2 uvQuadX = subgroupQuadSwapHorizontal(uv);
     const vec2 uvQuadY = subgroupQuadSwapVertical(uv);
 
-#if 0 // Using gradients this way introduces a seam where the skybox wraps, maybe we can just choose a mipmap manually
-      // instead
+#if 0 // Using gradients this way introduces a seam where the skybox wraps, maybe we can just choose a mipmap
+      // manually instead
     const vec2 uvDDX = uv - uvQuadX;
     const vec2 uvDDY = uv - uvQuadY;
 

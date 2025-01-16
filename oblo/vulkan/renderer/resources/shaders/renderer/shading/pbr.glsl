@@ -84,4 +84,25 @@ vec3 pbr_brdf(in vec3 N, in vec3 V, in vec3 L, in pbr_material m)
     return m.albedo * mix(diffuse, specular, m.metalness);
 }
 
+vec3 pbr_brdf_diffuse(in vec3 N, in vec3 V, in vec3 L, in pbr_material m)
+{
+    // The math breaks with roughness is 0, we clamp here at a reasonably low value instead
+    const float alpha2 = max(m.roughness * m.roughness, 1e-3);
+
+    const vec3 H = normalize(V + L);
+
+    // The min non-zero value avoids some artifacts and NaNs
+    const float NdotV = max(dot(N, V), 1e-5);
+    const float NdotL = max(dot(N, L), 1e-5);
+    const float LdotH = max(dot(L, H), 0);
+
+    // Lambert diffuse, with the Disney Fresnel term
+    const float F90 = pbr_f90(LdotH, alpha2);
+    const float Fd = pbr_fresnel_diffuse_disney(NdotL, F90) * pbr_fresnel_diffuse_disney(NdotV, F90);
+
+    const float diffuse = NdotL * Fd * float_inv_pi();
+
+    return m.albedo * diffuse * (1 - m.metalness);
+}
+
 #endif

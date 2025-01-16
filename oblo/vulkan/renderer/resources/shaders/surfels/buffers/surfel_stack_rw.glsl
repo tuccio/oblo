@@ -25,6 +25,10 @@ void surfel_stack_free(in uint surfelId)
     const int newIndex = atomicAdd(g_SurfelStackHeader.available, 1);
     g_SurfelStackEntries[newIndex].surfelId = surfelId;
 
+#if OBLO_DEBUG_PRINTF
+    debugPrintfEXT("Freeing surfel: %u\n", surfelId);
+#endif
+
 #ifdef debug_assert
     debug_assert(newIndex >= 0);
 #endif

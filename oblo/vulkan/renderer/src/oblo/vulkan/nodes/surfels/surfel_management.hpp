@@ -2,7 +2,7 @@
 
 #include <oblo/core/types.hpp>
 #include <oblo/math/aabb.hpp>
-#include <oblo/math/vec2u.hpp>
+#include <oblo/math/vec3u.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 #include <oblo/vulkan/nodes/providers/instance_table_node.hpp>
@@ -19,14 +19,19 @@ namespace oblo::vk
         resource<buffer> outSurfelsData;
 
         resource<buffer> outSurfelsGrid;
+        resource<buffer> outSurfelsGridData;
+
+        // Two buffers we ping pong during the ray-tracing update
+        resource<buffer> outSurfelsLightingData0;
+        resource<buffer> outSurfelsLightingData1;
 
         data<u32> inMaxSurfels;
         data<aabb> inGridBounds;
         data<f32> inGridCellSize;
 
-        h32<compute_pass> initStackPass;
+        data<vec3u> outCellsCount;
 
-        bool stackInitialized;
+        h32<compute_pass> initStackPass;
 
         void init(const frame_graph_init_context& ctx);
 
@@ -51,6 +56,7 @@ namespace oblo::vk
         resource<buffer> outFullTileCoverage;
 
         resource<buffer> inSurfelsGrid;
+        resource<buffer> inSurfelsGridData;
         resource<buffer> inSurfelsData;
 
         data<camera_buffer> inCameraData;
@@ -63,13 +69,8 @@ namespace oblo::vk
         resource<buffer> inMeshDatabase;
 
         h32<compute_pass> tilingPass;
-        h32<compute_pass> reductionPass;
 
-        u32 reductionGroupSize;
         u32 randomSeed;
-
-        struct subpass_info;
-        std::span<subpass_info> subpasses;
 
         void init(const frame_graph_init_context& ctx);
 
@@ -90,9 +91,12 @@ namespace oblo::vk
         resource<buffer> inOutSurfelsSpawnData;
         resource<buffer> inOutSurfelsData;
 
-        resource<buffer> inOutSurfelsGrid;
+        resource<buffer> inOutSurfelsLightingData0;
+        resource<buffer> inOutSurfelsLightingData1;
 
         h32<compute_pass> spawnPass;
+
+        u32 randomSeed;
 
         void init(const frame_graph_init_context& ctx);
 
@@ -105,9 +109,14 @@ namespace oblo::vk
     struct surfel_grid_clear
     {
         resource<buffer> inOutSurfelsGrid;
+        resource<buffer> inOutSurfelsGridData;
+
+        resource<buffer> outGridFillBuffer;
 
         data<aabb> inGridBounds;
         data<f32> inGridCellSize;
+        data<vec3u> inCellsCount;
+        data<u32> inMaxSurfels;
 
         data_sink<camera_buffer> inCameras;
         data<vec3> outCameraCentroid;
@@ -127,6 +136,8 @@ namespace oblo::vk
         resource<buffer> inOutSurfelsSpawnData;
         resource<buffer> inOutSurfelsStack;
         resource<buffer> inOutSurfelsGrid;
+        resource<buffer> inOutSurfelsGridData;
+        resource<buffer> inGridFillBuffer;
 
         resource<buffer> inOutSurfelsData;
 
@@ -137,9 +148,53 @@ namespace oblo::vk
         resource<buffer> inEntitySetBuffer;
 
         data<u32> inMaxSurfels;
+        data<vec3u> inCellsCount;
         data<vec3> inCameraCentroid;
 
         h32<compute_pass> updatePass;
+        h32<compute_pass> allocatePass;
+        h32<compute_pass> fillPass;
+
+        h32<frame_graph_pass> updateFgPass;
+        h32<frame_graph_pass> allocateFgPass;
+        h32<frame_graph_pass> fillFgPass;
+
+        void init(const frame_graph_init_context& ctx);
+
+        void build(const frame_graph_build_context& ctx);
+
+        void execute(const frame_graph_execute_context& ctx);
+    };
+
+    struct surfel_raytracing
+    {
+        data<u32> inMaxSurfels;
+        data<f32> inGIMultiplier;
+
+        resource<buffer> inOutSurfelsGrid;
+        resource<buffer> inOutSurfelsData;
+        resource<buffer> inOutSurfelsGridData;
+
+        resource<buffer> inSurfelsLightingData0;
+        resource<buffer> inSurfelsLightingData1;
+
+        resource<buffer> lastFrameSurfelsLightingData;
+        resource<buffer> outSurfelsLightingData;
+
+        resource<buffer> inLightBuffer;
+        resource<buffer> inLightConfig;
+
+        resource<buffer> inSkyboxSettingsBuffer;
+
+        resource<buffer> inMeshDatabase;
+
+        resource<buffer> inInstanceTables;
+        data<instance_data_table_buffers_span> inInstanceBuffers;
+
+        h32<raytracing_pass> rtPass;
+
+        u32 randomSeed;
+        u8 outputSelector;
 
         void init(const frame_graph_init_context& ctx);
 

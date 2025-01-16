@@ -3,7 +3,7 @@
 
 vec3 debug_color_map(uint value)
 {
-    vec3 colors[10];
+    vec3 colors[13];
     colors[0] = vec3(0.388, 0.431, 0.980); // Blue (#636EFA)
     colors[1] = vec3(0.937, 0.329, 0.231); // Red (#EF553B)
     colors[2] = vec3(0.000, 0.800, 0.588); // Green (#00CC96)
@@ -14,12 +14,16 @@ vec3 debug_color_map(uint value)
     colors[7] = vec3(0.714, 0.910, 0.502); // Light Green (#B6E880)
     colors[8] = vec3(1.000, 0.592, 1.000); // Light Pink (#FF97FF)
     colors[9] = vec3(0.996, 0.796, 0.322); // Yellow (#FECB52)
+    colors[10] = vec3(0.122, 0.467, 0.706); // Dark Blue (#1F77B4)
+    colors[11] = vec3(0.090, 0.741, 0.753); // Teal (#17BECF)
+    colors[12] = vec3(0.616, 0.000, 1.000); // Violet (#9D00FF)
 
     // Ensure the value is within the range of defined colors
-    uint index = value % 10;
+    uint index = value % 13;
 
     return colors[index];
 }
+
 
 vec3 debug_color_map(float t)
 {

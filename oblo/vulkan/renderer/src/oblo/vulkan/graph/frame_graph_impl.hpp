@@ -208,6 +208,12 @@ namespace oblo::vk
         dynamic_array<VkImageMemoryBarrier2> imageBarriers;
     };
 
+    struct frame_graph_pin_reroute
+    {
+        h32<frame_graph_pin_storage> storageHandle;
+        frame_graph_pin_storage value;
+    };
+
     struct frame_graph_impl
     {
     public: // Topology
@@ -242,6 +248,8 @@ namespace oblo::vk
 
         dynamic_array<h32<frame_graph_pin_storage>> dynamicPins;
         dynamic_array<frame_graph_bindless_texture> bindlessTextures;
+
+        deque<frame_graph_pin_reroute> rerouteStash;
 
         resource_pool resourcePool;
 
@@ -283,6 +291,9 @@ namespace oblo::vk
         h32<frame_graph_pin_storage> allocate_dynamic_resource_pin();
 
         const frame_graph_node* get_owner_node(resource<buffer> buffer) const;
+        const frame_graph_node* get_owner_node(resource<texture> texture) const;
+
+        void reroute(resource<buffer> oldRoute, resource<buffer> newRoute);
 
         frame_graph_vertex add_transient_node(const type_id& nodeType);
         void connect(frame_graph_vertex srcNode, u32 srcOffset, frame_graph_vertex dstNode, u32 dstOffset);

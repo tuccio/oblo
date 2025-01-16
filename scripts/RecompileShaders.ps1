@@ -9,12 +9,12 @@ param (
 
 function ExpandIncludes {
     param (
-        [string] $Path
+        [string] $Path,
+        [string] $Out
     )
     
     $item = Get-Item $Path
     $includeDir = "$($item.Directory)/../vulkan/shaders"
-    $outFile = "$($item.Directory)/$($item.BaseName).exp.glsl"
 
     $fileContent = (Get-Content $Path)
 
@@ -43,13 +43,12 @@ function ExpandIncludes {
         }
     }
 
-    Set-Content -Path $outFile -Value $fileContent
+    Set-Content -Path $Out -Value $fileContent
 }
 
 function CompileShader {
     param (
-        [string] $Path,
-        [string] $ShaderStage
+        [string] $Path
     )
 
     $item = Get-Item $Path
@@ -58,33 +57,19 @@ function CompileShader {
     $debugFlags = "-g"
     $optimizationFlags = "-O0"
 
-    & $Compiler --target-env=vulkan1.3 --target-spv=spv1.5 $optimizationFlags $debugFlags "-fshader-stage=$ShaderStage" -o $outFile $Path
+    & $Compiler --target-env=vulkan1.3 --target-spv=spv1.5 $optimizationFlags $debugFlags -o $outFile $Path
 }
 
 Get-ChildItem -Path $Root -Recurse -ErrorAction SilentlyContinue -Force | ForEach-Object {
-    $stage = $null
+    $isShader = @(".vert", ".frag", ".comp", ".mesh", ".rgen", ".rint", ".rahit", ".rchit", ".rmiss", ".rcall") -contains $_.Extension
 
-    switch ($_.Extension) {
-        ".vert" { 
-            $stage = "vertex"
-        }
-
-        ".frag" { 
-            $stage = "fragment"
-        }
-
-        ".comp" { 
-            $stage = "compute"
-        }
-    }
-
-    if ($stage) {
-        $expandedGlsl = "$($_.Directory)/$($_.BaseName).exp.glsl"
+    if ($isShader) {
+        $expandedGlsl = "$($_.Directory)/$($_.BaseName).exp$($_.Extension)"
         $expandedSpirv = "$($_.Directory)/$($_.BaseName).exp.spirv"
         $originalSpirv = "$($_.Directory)/$($_.BaseName).spirv"
 
-        ExpandIncludes -Path $_.FullName
-        CompileShader -Path $expandedGlsl -ShaderStage $stage
+        ExpandIncludes -Path $_.FullName -Out $expandedGlsl
+        CompileShader -Path $expandedGlsl
 
         Remove-Item $originalSpirv -ErrorAction SilentlyContinue
         Rename-Item $expandedSpirv $originalSpirv

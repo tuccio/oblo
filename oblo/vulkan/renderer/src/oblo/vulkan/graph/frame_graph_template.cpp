@@ -13,7 +13,9 @@ namespace oblo::vk
         OBLO_ASSERT(v.kind == frame_graph_vertex_kind::pin);
 
         m_inputs.emplace_back(pin);
-        v.name = name.as<std::string>();
+        OBLO_ASSERT(v.name.empty() || v.name == name);
+
+        v.name = name;
     }
 
     void frame_graph_template::make_output(vertex_handle pin, string_view name)
@@ -22,7 +24,9 @@ namespace oblo::vk
         OBLO_ASSERT(v.kind == frame_graph_vertex_kind::pin);
 
         m_outputs.emplace_back(pin);
-        v.name = name.as<std::string>();
+        OBLO_ASSERT(v.name.empty() || v.name == name);
+
+        v.name = name;
     }
 
     frame_graph_template::vertex_handle frame_graph_template::add_node(const uuid& id,

@@ -4,6 +4,7 @@
 #include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
+#include <oblo/vulkan/nodes/providers/instance_table_node.hpp>
 
 #include <span>
 
@@ -11,35 +12,33 @@ namespace oblo::vk
 {
     struct surfel_debug
     {
+        enum class mode : u8
+        {
+            surfel_grid_id,
+            surfel_lighting,
+            enum_max,
+        };
+
+        data<mode> inMode;
+
         resource<buffer> inCameraBuffer;
 
-        resource<texture> inDepthBuffer;
-
-        resource<texture> inOutImage;
+        resource<texture> inImage;
+        resource<texture> outDebugImage;
 
         resource<buffer> inSurfelsData;
         resource<buffer> inSurfelsGrid;
+        resource<buffer> inSurfelsGridData;
+        resource<buffer> inSurfelsLightingData;
 
-        h32<render_pass> debugPass;
-
-        resource<buffer> sphereGeometry;
-        dynamic_array<f32> sphereGeometryData;
-
-        void init(const frame_graph_init_context& ctx);
-
-        void build(const frame_graph_build_context& ctx);
-
-        void execute(const frame_graph_execute_context& ctx);
-    };
-
-    struct surfel_debug_tile_coverage
-    {
-        resource<buffer> inTileCoverage;
-        resource<texture> outImage;
+        resource<texture> inVisibilityBuffer;
+        resource<buffer> inMeshDatabase;
+        resource<buffer> inInstanceTables;
+        data<instance_data_table_buffers_span> inInstanceBuffers;
 
         h32<compute_pass> debugPass;
 
-        data<vec2u> inResolution;
+        dynamic_array<f32> sphereGeometryData;
 
         void init(const frame_graph_init_context& ctx);
 

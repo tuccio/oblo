@@ -1,0 +1,82 @@
+#version 460
+
+#extension GL_EXT_ray_tracing : require
+#extension GL_GOOGLE_include_directive : require
+
+#include <renderer/random/random>
+#include <renderer/random/sampling>
+#include <surfels/buffers/surfel_buffer_bindings>
+#include <surfels/buffers/surfel_data_r>
+#include <surfels/buffers/surfel_grid_r>
+#include <surfels/buffers/surfel_lighting_data_in_r>
+#include <surfels/buffers/surfel_lighting_data_out_w>
+#include <surfels/surfel_data>
+
+layout(binding = 11) uniform accelerationStructureEXT u_SceneTLAS;
+
+layout(location = 0) rayPayloadEXT vec3 r_HitColor;
+
+layout(push_constant) uniform c_PushConstants
+{
+    uint randomSeed;
+    float giMultiplier;
+}
+g_Constants;
+
+void main()
+{
+    const uint surfelId = gl_LaunchIDEXT.x;
+    const surfel_data surfel = g_SurfelData[surfelId];
+
+    if (!surfel_data_is_alive(surfel))
+    {
+        g_OutSurfelsLighting[surfelId] = surfel_lighting_data_new();
+        return;
+    }
+
+    uint randomSeed = random_seed(g_Constants.randomSeed, surfelId);
+
+    surfel_sh r, g, b;
+
+    r = g_InSurfelsLighting[surfelId].shRed;
+    g = g_InSurfelsLighting[surfelId].shGreen;
+    b = g_InSurfelsLighting[surfelId].shBlue;
+
+    const vec3 origin = surfel_data_world_position(surfel);
+    const vec3 N = surfel_data_world_normal(surfel);
+
+    const uint numRays = 4;
+
+    for (uint i = 0; i < numRays; ++i)
+    {
+        const vec3 direction = random_sample_uniform_hemisphere(N, random_uniform_2d(randomSeed));
+
+        const float tMin = 1e-2f;
+        const float tMax = 1e6f;
+
+        traceRayEXT(u_SceneTLAS,
+            gl_RayFlagsOpaqueEXT,
+            0xff, // cull mask
+            0,    // STB record offset
+            0,    // STB record stride
+            0,    // Miss index
+            origin,
+            tMin,
+            direction,
+            tMax,
+            0 // payload location
+        );
+
+        surfel_sh shDirection;
+        sh_eval(shDirection, direction);
+
+        r = sh_add(sh_mul(shDirection, g_Constants.giMultiplier * r_HitColor.r), r);
+        g = sh_add(sh_mul(shDirection, g_Constants.giMultiplier * r_HitColor.g), g);
+        b = sh_add(sh_mul(shDirection, g_Constants.giMultiplier * r_HitColor.b), b);
+    }
+
+    g_OutSurfelsLighting[surfelId].shRed = r;
+    g_OutSurfelsLighting[surfelId].shGreen = g;
+    g_OutSurfelsLighting[surfelId].shBlue = b;
+    g_OutSurfelsLighting[surfelId].numSamples = g_InSurfelsLighting[surfelId].numSamples + 1;
+}

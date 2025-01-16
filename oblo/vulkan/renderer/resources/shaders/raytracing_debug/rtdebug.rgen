@@ -14,7 +14,7 @@ layout(binding = 16) uniform b_CameraBuffer
 
 layout(binding = 11) uniform accelerationStructureEXT u_SceneTLAS;
 
-layout(binding = 12, rgba32f) uniform restrict writeonly image2D t_OutShadedImage;
+layout(binding = 12, rgba16f) uniform restrict writeonly image2D t_OutShadedImage;
 
 layout(location = 0) rayPayloadEXT vec3 r_HitColor;
 

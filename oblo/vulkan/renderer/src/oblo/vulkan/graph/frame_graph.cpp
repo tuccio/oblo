@@ -47,7 +47,7 @@ namespace oblo::vk
                 usize currentBarrierIdx;
             };
 
-            h32_flat_extpool_dense_map<frame_graph_pin_storage, buffer_tracking> bufferUsages{&impl.dynamicAllocator};
+            h32_flat_extpool_dense_map<transient_buffer_resource, buffer_tracking> bufferUsages{&impl.dynamicAllocator};
             bufferUsages.reserve_sparse(u32(impl.pinStorage.size() + 1));
             bufferUsages.reserve_dense(u32(impl.pinStorage.size() + 1));
 
@@ -59,7 +59,12 @@ namespace oblo::vk
                 {
                     const auto& bufferUsage = impl.bufferUsages[bufferUsageIdx];
 
-                    const auto [tracking, inserted] = bufferUsages.emplace(bufferUsage.pinStorage);
+                    // We use the pool index as id because it should identify a buffer
+                    // On the contrary, two different pin storages might point to the same buffer in case of rerouting
+                    const auto bufferResourceId = impl.pinStorage.at(bufferUsage.pinStorage).transientBuffer;
+                    OBLO_ASSERT(bufferResourceId);
+
+                    const auto [tracking, inserted] = bufferUsages.emplace(bufferResourceId);
 
                     if (bufferUsage.uploadedTo)
                     {
@@ -705,6 +710,12 @@ namespace oblo::vk
     void frame_graph_impl::begin_pass_execution(h32<frame_graph_pass> passId, VkCommandBuffer commandBuffer)
     {
         OBLO_ASSERT(passId);
+
+        if (currentPass == passId)
+        {
+            return;
+        }
+
         OBLO_ASSERT(!currentPass || passId.value == currentPass.value + 1);
 
         const auto& pass = passes[passId.value];
@@ -880,6 +891,32 @@ namespace oblo::vk
         const auto vertexHandle = pins.at(owner).nodeHandle;
         const auto nodeHandle = graph.get(vertexHandle).node;
         return &nodes.at(nodeHandle);
+    }
+
+    const frame_graph_node* frame_graph_impl::get_owner_node(resource<texture> texture) const
+    {
+        const auto storage = to_storage_handle(texture);
+        const auto owner = pinStorage.at(storage).owner;
+        const auto vertexHandle = pins.at(owner).nodeHandle;
+        const auto nodeHandle = graph.get(vertexHandle).node;
+        return &nodes.at(nodeHandle);
+    }
+
+    void frame_graph_impl::reroute(resource<buffer> source, resource<buffer> destination)
+    {
+        // Source is a node that should end its path here
+        // Destination is a node with no incoming edges, owned by the current node
+        OBLO_ASSERT(get_owner_node(destination) == currentNode, "Only the source of the pin should reroute");
+
+        const auto srcStorageHandle = to_storage_handle(source);
+        const auto dstStorageHandle = to_storage_handle(destination);
+
+        const auto& srcRouteStorage = pinStorage.at(srcStorageHandle);
+        auto& dstRouteStorage = pinStorage.at(dstStorageHandle);
+
+        rerouteStash.emplace_back(dstStorageHandle, dstRouteStorage);
+
+        dstRouteStorage = srcRouteStorage;
     }
 
     void* frame_graph_impl::access_storage(h32<frame_graph_pin_storage> handle) const
@@ -1133,6 +1170,12 @@ namespace oblo::vk
 
     void frame_graph_impl::finish_frame()
     {
+        // Re-establish stashed reroutes (in reverse order just in case it matters)
+        for (const auto& [handle, value] : reverse_range(rerouteStash))
+        {
+            pinStorage.at(handle) = value;
+        }
+
         for (auto& h : dynamicPins)
         {
             const auto& storage = pinStorage.at(h);

@@ -30,7 +30,6 @@
     #include <surfels/buffers/surfel_data_r>
     #include <surfels/buffers/surfel_grid_r>
 
-
     #define OUT_ALBEDO
 #endif
 

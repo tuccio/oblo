@@ -8,6 +8,7 @@
 #extension GL_EXT_shader_16bit_storage : require
 #extension GL_EXT_control_flow_attributes : require
 
+#include <renderer/debug/printf>
 #include <renderer/geometry/barycentric>
 #include <renderer/instance_id>
 #include <renderer/instances>
@@ -19,6 +20,7 @@
 #include <renderer/meshes/mesh_table>
 #include <renderer/shading/pbr_utility>
 #include <renderer/textures>
+#include <surfels/contribution>
 
 layout(binding = 0) uniform b_LightConfig
 {
@@ -52,7 +54,6 @@ void main()
     barycentric_coords bc;
     bc.lambda = vec3(1.f - h_BarycentricCoords.x - h_BarycentricCoords.y, h_BarycentricCoords.x, h_BarycentricCoords.y);
 
-    // r_HitColor = debug_color_map(uint(gl_InstanceCustomIndexEXT));
     vec2 triangleUV0[3];
     vec3 trianglePosition[3];
     vec3 triangleNormal[3];
@@ -84,7 +85,7 @@ void main()
     const pbr_material pbr = pbr_extract_parameters(material, uv0, uv0DDX, uv0DDY);
 
     vec3 reflected = vec3(0);
-    const vec3 viewWS = normalize(gl_WorldRayOriginEXT - positionWS);
+    const vec3 viewWS = -gl_WorldRayDirectionEXT;
 
     for (uint lightIndex = 0; lightIndex < g_LightConfig.lightsCount; ++lightIndex)
     {
@@ -102,13 +103,13 @@ void main()
         // No reason to call the hit shader, we only care about the miss shader
         const uint flags = gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
 
-        // The miss shader will set it to false if no geometry is hit
-        r_IsShadowed = true;
-
         if (light.type != OBLO_LIGHT_TYPE_DIRECTIONAL)
         {
             tMax = length(light.position - positionWS);
         }
+
+        // The miss shader will set it to false if no geometry is hit
+        r_IsShadowed = true;
 
         traceRayEXT(u_SceneTLAS,
             flags,
@@ -124,8 +125,13 @@ void main()
         );
 
         const float visibility = r_IsShadowed ? 0.f : 1.f;
-        reflected += visibility * contribution * brdf;
+        const vec3 lightContribution = visibility * contribution * brdf;
+
+        reflected += lightContribution;
     }
+
+    const vec3 giContribution = surfel_calculate_contribution_single_cell(positionWS, normalWS);
+    reflected += giContribution * pbr_brdf_diffuse(normalWS, viewWS, normalWS, pbr);
 
     r_HitColor = reflected;
 }

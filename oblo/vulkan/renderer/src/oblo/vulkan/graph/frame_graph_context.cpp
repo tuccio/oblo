@@ -321,7 +321,7 @@ namespace oblo::vk
         OBLO_ASSERT(m_frameGraph.currentPass);
 
         const auto poolIndex = m_frameGraph.find_pool_index(buffer);
-        OBLO_ASSERT(poolIndex);
+        OBLO_ASSERT(poolIndex, "The buffer might not have an input connected, or needs to be created");
         m_resourcePool.add_transient_buffer_usage(poolIndex, convert_buffer_usage(usage));
 
         const auto& currentPass = m_frameGraph.passes[m_frameGraph.currentPass.value];
@@ -330,9 +330,20 @@ namespace oblo::vk
         m_frameGraph.set_buffer_access(buffer, pipelineStage, access, accessKind, false);
     }
 
+    void frame_graph_build_context::reroute(resource<buffer> source, resource<buffer> destination) const
+    {
+        m_frameGraph.reroute(source, destination);
+    }
+
     bool frame_graph_build_context::has_source(resource<buffer> buffer) const
     {
         auto* const owner = m_frameGraph.get_owner_node(buffer);
+        return m_frameGraph.currentNode != owner;
+    }
+
+    bool frame_graph_build_context::has_source(resource<texture> texture) const
+    {
+        auto* const owner = m_frameGraph.get_owner_node(texture);
         return m_frameGraph.currentNode != owner;
     }
 
@@ -452,6 +463,12 @@ namespace oblo::vk
         return m_frameGraph.currentNode != owner;
     }
 
+    bool frame_graph_execute_context::has_source(resource<texture> texture) const
+    {
+        auto* const owner = m_frameGraph.get_owner_node(texture);
+        return m_frameGraph.currentNode != owner;
+    }
+
     u32 frame_graph_execute_context::get_frames_alive_count(resource<texture> texture) const
     {
         const auto h = m_frameGraph.find_pool_index(texture);
@@ -561,6 +578,11 @@ namespace oblo::vk
     void* frame_graph_execute_context::access_storage(h32<frame_graph_pin_storage> handle) const
     {
         return m_frameGraph.access_storage(handle);
+    }
+
+    bool frame_graph_execute_context::has_event_impl(const type_id& type) const
+    {
+        return m_frameGraph.emptyEvents.contains(type);
     }
 
     frame_graph_init_context::frame_graph_init_context(frame_graph_impl& frameGraph, renderer& renderer) :

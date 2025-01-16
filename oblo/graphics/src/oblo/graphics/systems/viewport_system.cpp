@@ -552,8 +552,8 @@ namespace oblo
                 frameGraph.set_output_state(subgraph, vk::main_view::OutGISurfelsImage, true);
                 break;
 
-            case viewport_mode::gi_surfels_tile_coverage:
-                frameGraph.set_output_state(subgraph, vk::main_view::OutGITileCoverageImage, true);
+            case viewport_mode::gi_surfels_lighting:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutGiSurfelsLightingImage, true);
                 break;
 
             default:
