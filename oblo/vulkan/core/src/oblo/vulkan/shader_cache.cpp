@@ -18,6 +18,7 @@ namespace oblo::vk
     {
         constexpr bool DisableCache{true};
         constexpr bool OutputSource{true};
+        constexpr bool OutputSpirv{true};
 
         void write_file(cstring_view path, std::span<const byte> data)
         {
@@ -100,55 +101,55 @@ namespace oblo::vk
         outSpirv = allocate_n_span<u32>(allocator, spirv.size());
         std::copy(spirv.begin(), spirv.end(), outSpirv.begin());
 
-        if constexpr (!DisableCache)
+        if constexpr (!DisableCache || OutputSpirv)
         {
             write_file(spvPath, as_bytes(outSpirv));
         }
 
         if constexpr (OutputSource)
         {
-            const char* extension = "glsl";
+            const char* extension = ".glsl";
 
             switch (stage)
             {
             case VK_SHADER_STAGE_VERTEX_BIT:
-                extension = "vert";
+                extension = ".vert";
                 break;
 
             case VK_SHADER_STAGE_FRAGMENT_BIT:
-                extension = "frag";
+                extension = ".frag";
                 break;
 
             case VK_SHADER_STAGE_COMPUTE_BIT:
-                extension = "comp";
+                extension = ".comp";
                 break;
 
             case VK_SHADER_STAGE_MESH_BIT_EXT:
-                extension = "mesh";
+                extension = ".mesh";
                 break;
 
             case VK_SHADER_STAGE_RAYGEN_BIT_KHR:
-                extension = "rgen";
+                extension = ".rgen";
                 break;
 
             case VK_SHADER_STAGE_INTERSECTION_BIT_KHR:
-                extension = "rint";
+                extension = ".rint";
                 break;
 
             case VK_SHADER_STAGE_ANY_HIT_BIT_KHR:
-                extension = "rahit";
+                extension = ".rahit";
                 break;
 
             case VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR:
-                extension = "rchit";
+                extension = ".rchit";
                 break;
 
             case VK_SHADER_STAGE_MISS_BIT_KHR:
-                extension = "rmiss";
+                extension = ".rmiss";
                 break;
 
             case VK_SHADER_STAGE_CALLABLE_BIT_KHR:
-                extension = "rcall";
+                extension = ".rcall";
                 break;
 
             default:
