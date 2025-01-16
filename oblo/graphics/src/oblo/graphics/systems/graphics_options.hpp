@@ -33,7 +33,7 @@ namespace oblo
             .category = "Graphics/GI",
             .defaultValue = property_value_wrapper{1.f},
             .minValue = property_value_wrapper{0.1f},
-            .maxValue = property_value_wrapper{2.f},
+            .maxValue = property_value_wrapper{20.f},
         };
     };
 
