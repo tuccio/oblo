@@ -321,8 +321,6 @@ namespace oblo::vk
         const u32 tilesX = round_up_div(resolution.width, g_tileSize);
         const u32 tilesY = round_up_div(resolution.height, g_tileSize);
 
-        const auto tileOutputBuffer = outFullTileCoverage;
-
         if (const auto tiling = pm.begin_compute_pass(commandBuffer, tilingPipeline))
         {
             ctx.bind_buffers(bindingTable,
