@@ -72,7 +72,80 @@ surfel_candidates surfel_fetch_best_candidates(in vec3 position)
     return r;
 }
 
-vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
+vec3 surfel_calculate_contribution(in vec3 cameraPosition, in vec3 position, in vec3 normal)
+{
+    vec3 radiance = vec3(0);
+
+    const ivec3 baseCell = surfel_grid_find_cell(g_SurfelGridHeader, position);
+
+    const float searchRadius = surfel_estimate_radius(g_SurfelGridHeader, cameraPosition, position);
+    const float threshold = 4 * searchRadius * searchRadius;
+
+    uint surfelsFound = 0;
+
+    [[unroll]] for (int x = -1; x <= 1; ++x)
+    {
+        [[unroll]] for (int y = -1; y <= 1; ++y)
+        {
+            [[unroll]] for (int z = -1; z <= 1; ++z)
+            {
+                const ivec3 cell = baseCell + ivec3(x, y, z);
+
+                const vec3 deltaPos = vec3(searchRadius) * vec3(x, y, z);
+                const vec3 posOnSurface = position + deltaPos;
+
+                if (surfel_grid_has_cell(g_SurfelGridHeader, cell) &&
+                    cell == surfel_grid_find_cell(g_SurfelGridHeader, posOnSurface))
+                {
+                    const uint cellIndex = surfel_grid_cell_index(g_SurfelGridHeader, cell);
+
+                    const surfel_grid_cell gridCell = g_SurfelGridCells[cellIndex];
+
+                    for (surfel_grid_cell_iterator cellIt = surfel_grid_cell_iterator_begin(gridCell);
+                         surfel_grid_cell_iterator_has_next(cellIt);
+                         surfel_grid_cell_iterator_advance(cellIt))
+                    {
+                        const uint surfelId = surfel_grid_cell_iterator_get(cellIt);
+                        const surfel_data surfel = g_SurfelData[surfelId];
+
+                        const vec3 surfelPosition = surfel_data_world_position(surfel);
+
+                        const vec3 pToS = surfelPosition - position;
+
+                        const float distance2 = dot(pToS, pToS);
+
+                        if (distance2 <= threshold)
+                        {
+                            const surfel_lighting_data surfelLight = g_InSurfelsLighting[surfelId];
+
+                            surfel_sh lobe;
+                            sh_cosine_lobe_project(lobe, normal);
+
+                            const float multiplier = surfelLight.numSamples == 0 ? 0.f : 1.f / surfelLight.numSamples;
+
+                            // Integral of the product of cosine and the irradiance
+                            const float r = multiplier * sh_dot(lobe, surfelLight.shRed);
+                            const float g = multiplier * sh_dot(lobe, surfelLight.shGreen);
+                            const float b = multiplier * sh_dot(lobe, surfelLight.shBlue);
+
+                            radiance += vec3(r, g, b);
+                            ++surfelsFound;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (surfelsFound > 0)
+    {
+        radiance /= surfelsFound;
+    }
+
+    return radiance;
+}
+
+vec3 surfel_calculate_contribution_single_cell_2(in vec3 position, in vec3 normal)
 {
     const surfel_candidates candidates = surfel_fetch_best_candidates(position);
 
@@ -116,7 +189,7 @@ vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
     return radiance;
 }
 
-vec3 surfel_calculate_contribution2(in vec3 position, in vec3 normal)
+vec3 surfel_calculate_contribution_single_cell(in vec3 position, in vec3 normal)
 {
     vec3 radiance = vec3(0);
 
