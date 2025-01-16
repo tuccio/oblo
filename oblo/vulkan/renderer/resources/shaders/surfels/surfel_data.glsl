@@ -8,6 +8,9 @@
 // Used as a coverage value for surfel_tile_data when no geometry is present
 const float NO_SURFELS_NEEDED = 1e6;
 
+// The spherical harmonics type used with surfels
+#define surfel_sh sh3
+
 struct surfel_spawn_data
 {
     ecs_entity entity;
@@ -58,9 +61,9 @@ struct surfel_tile_data
 
 struct surfel_lighting_data
 {
-    sh3 shRed;
-    sh3 shGreen;
-    sh3 shBlue;
+    surfel_sh shRed;
+    surfel_sh shGreen;
+    surfel_sh shBlue;
 };
 
 ivec3 surfel_grid_cells_count(in surfel_grid_header h)
@@ -153,9 +156,9 @@ float surfel_estimate_radius(in surfel_grid_header gridHeader, in vec3 cameraPos
 surfel_lighting_data surfel_lighting_data_new()
 {
     surfel_lighting_data r;
-    r.shRed = sh3_zero();
-    r.shGreen = sh3_zero();
-    r.shBlue = sh3_zero();
+    sh_zero(r.shRed);
+    sh_zero(r.shGreen);
+    sh_zero(r.shBlue);
     return r;
 }
 

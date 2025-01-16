@@ -122,7 +122,8 @@ vec4 visibility_shade(in visibility_shade_context ctx)
 #elif defined(MODE_SURFEL_LIGHTING)
         const surfel_lighting_data surfelLight = g_InSurfelsLighting[surfelId];
 
-        const sh3 lobe = sh3_cosine_lobe_project(normalWS);
+        surfel_sh lobe;
+        sh_cosine_lobe_project(lobe, normalWS);
 
         // Integral of the product of cosine and the irradiance
         const float r = sh_dot(lobe, surfelLight.shRed);

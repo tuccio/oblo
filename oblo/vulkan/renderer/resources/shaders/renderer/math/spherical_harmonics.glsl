@@ -35,6 +35,16 @@ sh3 sh3_zero()
     return r;
 }
 
+void sh_zero(out sh2 r)
+{
+    r = sh2_zero();
+}
+
+void sh_zero(out sh3 r)
+{
+    r = sh3_zero();
+}
+
 sh2 sh_add(in sh2 a, in sh2 b)
 {
     sh2 r;
@@ -166,6 +176,16 @@ sh3 sh3_eval(in vec3 direction)
     return r;
 }
 
+void sh_eval(out sh2 r, in vec3 direction)
+{
+    r = sh2_eval(direction);
+}
+
+void sh_eval(out sh3 r, in vec3 direction)
+{
+    r = sh3_eval(direction);
+}
+
 /// Returns the order 2 cosine lobe in the given direction.
 /// Can be used for lambertian irradiance (or radiance when dividing by PI)
 /// c.f. https://seblagarde.wordpress.com/2012/01/08/pi-or-not-to-pi-in-game-lighting-equation/
@@ -216,6 +236,16 @@ sh3 sh3_cosine_lobe_project(in vec3 direction)
     r.coefficients[8] *= c2;
 
     return r;
+}
+
+void sh_cosine_lobe_project(out sh2 r, in vec3 direction)
+{
+    r = sh2_cosine_lobe_project(direction);
+}
+
+void sh_cosine_lobe_project(out sh3 r, in vec3 direction)
+{
+    r = sh3_cosine_lobe_project(direction);
 }
 
 #endif

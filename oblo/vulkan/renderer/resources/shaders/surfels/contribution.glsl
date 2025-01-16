@@ -23,13 +23,15 @@ vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
         vec3 radianceSum = vec3(0);
         float weightSum = 0.f;
 
-        const sh3 lobe = sh3_cosine_lobe_project(normal);
+        surfel_sh lobe;
+        sh_cosine_lobe_project(lobe, normal);
 
 #define INTERPOLATE_SH 1
 
-        sh3 red = sh3_zero();
-        sh3 green = sh3_zero();
-        sh3 blue = sh3_zero();
+        surfel_sh red, green, blue;
+        sh_zero(red);
+        sh_zero(green);
+        sh_zero(blue);
 
         for (; surfel_grid_cell_iterator_has_next(it); surfel_grid_cell_iterator_advance(it))
         {

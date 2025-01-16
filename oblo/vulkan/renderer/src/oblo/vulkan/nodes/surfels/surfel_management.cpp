@@ -22,6 +22,10 @@ namespace oblo::vk
         // We are overestimating here, since the radius is limited to the grid cell size
         constexpr u32 g_MaxSurfelMultiplicity = 27;
 
+        // We need 9 coefficients for order 3, or 4 for order 2. The surfel_sh define in shaders has to be changed
+        // accordingly.
+        using surfel_sh_type = f32[9];
+
         struct surfel_spawn_data
         {
             ecs::entity entity;
@@ -70,9 +74,9 @@ namespace oblo::vk
 
         struct surfel_lighting_data
         {
-            f32 shRed[9];
-            f32 shGreen[9];
-            f32 shBlue[9];
+            surfel_sh_type shRed;
+            surfel_sh_type shGreen;
+            surfel_sh_type shBlue;
         };
 
         vec3 calculate_centroid(std::span<const camera_buffer> cameras)

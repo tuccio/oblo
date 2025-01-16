@@ -38,9 +38,10 @@ void main()
 
     const uint numRays = 1;
 
-    sh3 r = sh3_zero();
-    sh3 g = sh3_zero();
-    sh3 b = sh3_zero();
+    surfel_sh r, g, b;
+    sh_zero(r);
+    sh_zero(g);
+    sh_zero(b);
 
     const vec3 origin = surfel_data_world_position(surfel);
     const vec3 N = surfel_data_world_normal(surfel);
@@ -95,7 +96,8 @@ void main()
 
         // TODO: Should we attenuate with distance?
         // The hit shader should attenuate in case? We should not attenuate sky light
-        const sh3 shIrradiance = sh3_eval(direction);
+        surfel_sh shIrradiance;
+        sh_eval(shIrradiance, direction);
 
         // g_OutSurfelsLighting[surfelId].radiance = r_HitColor;
         r = sh_add(sh_mul(shIrradiance, r_HitColor.r), r);
