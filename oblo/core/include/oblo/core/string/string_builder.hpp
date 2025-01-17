@@ -17,6 +17,7 @@ namespace oblo
     public:
         string_builder();
         explicit string_builder(allocator* allocator);
+        string_builder(allocator* allocator, string_view content);
         string_builder(const string_builder&) = default;
         string_builder(string_builder&&) noexcept = default;
 
@@ -90,6 +91,12 @@ namespace oblo
 
     OBLO_FORCEINLINE string_builder::string_builder(allocator* allocator) : m_buffer{allocator}
     {
+        m_buffer.emplace_back('\0');
+    }
+
+    OBLO_FORCEINLINE string_builder::string_builder(allocator* allocator, string_view content) : m_buffer{allocator}
+    {
+        m_buffer.insert(m_buffer.end(), content.begin(), content.end());
         m_buffer.emplace_back('\0');
     }
 

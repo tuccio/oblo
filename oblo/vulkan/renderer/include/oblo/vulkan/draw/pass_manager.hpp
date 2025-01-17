@@ -70,7 +70,7 @@ namespace oblo::vk
 
         void shutdown(vulkan_context& vkContext);
 
-        void set_system_include_paths(std::span<const string> paths);
+        void set_system_include_paths(std::span<const string_view> paths);
         void set_raytracing_enabled(bool isRayTracingEnabled);
 
         h32<render_pass> register_render_pass(const render_pass_initializer& desc);

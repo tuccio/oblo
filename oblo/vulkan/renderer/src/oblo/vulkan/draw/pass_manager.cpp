@@ -13,8 +13,11 @@
 #include <oblo/core/string/string_interner.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/log/log.hpp>
+#include <oblo/modules/module_manager.hpp>
 #include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/buffer.hpp>
+#include <oblo/vulkan/compiler/compiler_module.hpp>
+#include <oblo/vulkan/compiler/shader_cache.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/compute_pass_initializer.hpp>
 #include <oblo/vulkan/draw/descriptor_set_pool.hpp>
@@ -24,8 +27,6 @@
 #include <oblo/vulkan/draw/render_pass_initializer.hpp>
 #include <oblo/vulkan/draw/texture_registry.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
-#include <oblo/vulkan/shader_cache.hpp>
-#include <oblo/vulkan/shader_compiler.hpp>
 #include <oblo/vulkan/texture.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
 
@@ -113,6 +114,43 @@ namespace oblo::vk
             case raytracing_stage::callable:
                 return VK_SHADER_STAGE_CALLABLE_BIT_KHR;
 
+            default:
+                unreachable();
+            }
+        }
+
+        shader_stage from_vk_shader_stage(VkShaderStageFlagBits vkStage)
+        {
+            switch (vkStage)
+            {
+            case VK_SHADER_STAGE_VERTEX_BIT:
+                return shader_stage::vertex;
+            case VK_SHADER_STAGE_GEOMETRY_BIT:
+                return shader_stage::geometry;
+            case VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT:
+                return shader_stage::tessellation_control;
+            case VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT:
+                return shader_stage::tessellation_evaluation;
+            case VK_SHADER_STAGE_FRAGMENT_BIT:
+                return shader_stage::fragment;
+            case VK_SHADER_STAGE_COMPUTE_BIT:
+                return shader_stage::compute;
+            case VK_SHADER_STAGE_RAYGEN_BIT_KHR:
+                return shader_stage::raygen;
+            case VK_SHADER_STAGE_INTERSECTION_BIT_KHR:
+                return shader_stage::intersection;
+            case VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR:
+                return shader_stage::closest_hit;
+            case VK_SHADER_STAGE_ANY_HIT_BIT_KHR:
+                return shader_stage::any_hit;
+            case VK_SHADER_STAGE_MISS_BIT_KHR:
+                return shader_stage::miss;
+            case VK_SHADER_STAGE_CALLABLE_BIT_KHR:
+                return shader_stage::callable;
+            case VK_SHADER_STAGE_TASK_BIT_EXT:
+                return shader_stage::task;
+            case VK_SHADER_STAGE_MESH_BIT_EXT:
+                return shader_stage::mesh;
             default:
                 unreachable();
             }
@@ -329,6 +367,30 @@ namespace oblo::vk
                 return false;
             }
         }
+
+        VkShaderModule create_shader_module_from_spirv(
+            VkDevice device, std::span<const unsigned> spirv, const VkAllocationCallbacks* allocationCbs)
+        {
+            const VkShaderModuleCreateInfo shaderModuleCreateInfo{
+                .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+                .codeSize = spirv.size() * sizeof(spirv[0]),
+                .pCode = spirv.data(),
+            };
+
+            VkShaderModule shaderModule;
+
+            if (vkCreateShaderModule(device, &shaderModuleCreateInfo, allocationCbs, &shaderModule) != VK_SUCCESS)
+            {
+                return nullptr;
+            }
+
+            return shaderModule;
+        }
+
+        bool is_printf_include(string_view path)
+        {
+            return path.ends_with("renderer/debug/printf.glsl");
+        }
     }
 
     struct render_pass
@@ -516,45 +578,6 @@ namespace oblo::vk
             }
         }
 
-        struct includer final : shader_compiler::include_handler
-        {
-            explicit includer(frame_allocator& allocator) : allocator{allocator} {}
-
-            frame_allocator& get_allocator() override
-            {
-                return allocator;
-            }
-
-            bool resolve(string_view header, string_builder& outPath) override
-            {
-                for (auto& path : systemIncludePaths)
-                {
-                    hasPrintfInclude |= header == "renderer/debug/printf";
-
-                    outPath.clear().append(path).append_path(header).append(".glsl");
-
-                    if (filesystem::exists(outPath).value_or(false))
-                    {
-                        resolvedIncludes.emplace_back(outPath.as<string>());
-                        return true;
-                    }
-                }
-
-                return false;
-            }
-
-            void reset()
-            {
-                resolvedIncludes.clear();
-                hasPrintfInclude = false;
-            }
-
-            frame_allocator& allocator;
-            dynamic_array<string> systemIncludePaths;
-            dynamic_array<string> resolvedIncludes;
-            bool hasPrintfInclude{};
-        };
-
         template <typename Pass, typename Pipelines>
         void poll_hot_reloading(
             const string_interner& interner, vulkan_context& vkCtx, Pass& pass, Pipelines& pipelines)
@@ -610,8 +633,9 @@ namespace oblo::vk
     struct pass_manager::impl
     {
         frame_allocator frameAllocator;
+
+        std::unique_ptr<shader_compiler> glslCompiler;
         shader_cache shaderCache;
-        includer includer{frameAllocator};
 
         vulkan_context* vkCtx{};
         VkDevice device{};
@@ -665,8 +689,8 @@ namespace oblo::vk
             std::span<const string_view> builtInDefines,
             std::span<const hashed_string_view> defines,
             string_view debugName,
-            const shader_compiler::options& compilerOptions,
-            dynamic_array<u32>& spirv);
+            const shader_compiler_options& compilerOptions,
+            shader_compiler::result& result);
 
         bool create_pipeline_layout(base_pipeline& newPipeline);
 
@@ -679,7 +703,7 @@ namespace oblo::vk
             const base_pipeline& pipeline,
             std::span<const binding_table* const> bindingTables);
 
-        shader_compiler::options make_compiler_options();
+        shader_compiler_options make_compiler_options();
 
         template <typename Filter = decltype([](auto&&) { return true; })>
         void invalidate_all_passes(Filter&& f = {});
@@ -748,106 +772,49 @@ namespace oblo::vk
         std::span<const string_view> builtInDefines,
         std::span<const hashed_string_view> userDefines,
         string_view debugName,
-        const shader_compiler::options& compilerOptions,
-        dynamic_array<u32>& spirv)
+        const shader_compiler_options& compilerOptions,
+        shader_compiler::result& result)
     {
         OBLO_PROFILE_SCOPE();
 
-        const auto sourceCodeRes = filesystem::load_text_file_into_memory(frameAllocator, filePath);
-
-        if (!sourceCodeRes)
-        {
-            log::debug("Failed to read file {}", filePath);
-            return nullptr;
-        }
-
-        const auto sourceCode = *sourceCodeRes;
-
-        u32 requiredDefinesLength{0};
-
-        string_builder sb{&frameAllocator};
-        sb.reserve(1u << 16);
+        string_builder preambleBuilder{&frameAllocator};
+        preambleBuilder.reserve(1u << 16);
 
         if (globallyEnablePrintf)
         {
-            sb.format("#define OBLO_DEBUG_PRINTF 1\n");
-            sb.format("#extension GL_EXT_debug_printf : enable\n");
+            preambleBuilder.format("#define OBLO_DEBUG_PRINTF 1\n");
+            preambleBuilder.format("#extension GL_EXT_debug_printf : enable\n");
         }
 
-        sb.format("#define OBLO_SUBGROUP_SIZE {}\n", subgroupSize);
+        preambleBuilder.format("#define OBLO_SUBGROUP_SIZE {}\n", subgroupSize);
 
         for (const auto& define : builtInDefines)
         {
-            sb.format("#define {}\n", define);
+            preambleBuilder.format("#define {}\n", define);
         }
 
-        const u64 builtInDefinesLength = sb.size();
+        preambleBuilder.append(instanceDataDefines);
 
-        for (const auto define : userDefines)
+        for (const auto& define : userDefines)
         {
-            constexpr auto fixedSize = string_view{"#define \n"}.size();
-            requiredDefinesLength += u32(fixedSize + define.size());
+            preambleBuilder.format("#define {}\n", define);
         }
 
-        requiredDefinesLength += u32(instanceDataDefines.size());
+        result = shaderCache.find_or_compile(frameAllocator,
+            filePath,
+            from_vk_shader_stage(vkStage),
+            preambleBuilder.as<string_view>(),
+            compilerOptions,
+            debugName);
 
-        constexpr string_view lineDirective{"#line 0\n"};
-
-        const auto firstLineEnd = std::find(sourceCode.begin(), sourceCode.end(), '\n');
-        const auto firstLineLen = 1 + (firstLineEnd - sourceCode.begin());
-
-        auto sourceWithDefines = allocate_n_span<char>(frameAllocator,
-            sourceCode.size() + builtInDefinesLength + requiredDefinesLength + firstLineLen + lineDirective.size());
-
-        auto it = sourceWithDefines.begin();
-
-        // We copy the first line first, because it must contain the #version directive
-        it = std::copy(sourceCode.begin(), firstLineEnd, it);
-        *it = '\n';
-        ++it;
-
-        const auto builtInDefinesStr = sb.view();
-
-        const auto instanceDataDefinesSv = instanceDataDefines.view();
-
-        it = std::copy(builtInDefinesStr.data(), builtInDefinesStr.data() + builtInDefinesStr.size(), it);
-        it = std::copy(instanceDataDefinesSv.begin(), instanceDataDefinesSv.end(), it);
-
-        for (const auto define : userDefines)
+        if (result.has_errors())
         {
-            constexpr string_view directive{"#define "};
-            it = std::copy(directive.begin(), directive.end(), it);
-
-            it = std::copy(define.begin(), define.end(), it);
-
-            *it = '\n';
-            ++it;
-        }
-
-        it = std::copy(lineDirective.begin(), lineDirective.end(), it);
-
-        const auto end = std::copy(firstLineEnd, sourceCode.end(), it);
-        const auto processedSourceCode = sourceWithDefines.subspan(0, end - sourceWithDefines.begin());
-
-        // Clear the resolved includes, we keep track of them for adding watches
-        includer.reset();
-
-        std::span<u32> spirvData;
-
-        if (!shaderCache.find_or_add(spirvData,
-                frameAllocator,
-                debugName,
-                {processedSourceCode.data(), processedSourceCode.size()},
-                vkStage,
-                compilerOptions))
-        {
+            log::error("Shader compilation failed for {}\n{}", debugName, result.get_error_message());
             return nullptr;
         }
 
-        spirv.assign(spirvData.begin(), spirvData.end());
-
-        return shader_compiler::create_shader_module_from_spirv(device,
-            spirvData,
+        return create_shader_module_from_spirv(device,
+            result.get_spirv(),
             vkCtx->get_allocator().get_allocation_callbacks());
     }
 
@@ -1201,10 +1168,9 @@ namespace oblo::vk
         }
     }
 
-    shader_compiler::options pass_manager::impl::make_compiler_options()
+    shader_compiler_options pass_manager::impl::make_compiler_options()
     {
         return {
-            .includeHandler = &includer,
             .codeOptimization = enableShaderOptimizations,
             .generateDebugInfo = WithShaderDebugInfo,
         };
@@ -1454,8 +1420,10 @@ namespace oblo::vk
 
         m_impl->textureRegistry = &textureRegistry;
 
-        shader_compiler::init();
+        m_impl->glslCompiler = module_manager::get().find<compiler_module>()->make_glsl_compiler();
+
         m_impl->shaderCache.init("./spirv");
+        m_impl->shaderCache.set_glsl_compiler(m_impl->glslCompiler.get());
 
         {
             const VkSamplerCreateInfo samplerInfo{
@@ -1646,8 +1614,6 @@ namespace oblo::vk
             {
                 destroy_pipeline(*m_impl->vkCtx, raytracingPipeline);
             }
-
-            shader_compiler::shutdown();
         }
 
         for (auto sampler : m_impl->samplers)
@@ -1667,9 +1633,9 @@ namespace oblo::vk
         m_impl.reset();
     }
 
-    void pass_manager::set_system_include_paths(std::span<const string> paths)
+    void pass_manager::set_system_include_paths(std::span<const string_view> paths)
     {
-        m_impl->includer.systemIncludePaths.assign(paths.begin(), paths.end());
+        m_impl->glslCompiler->set_search_directories(paths);
     }
 
     void pass_manager::set_raytracing_enabled(bool isRayTracingEnabled)
@@ -1863,16 +1829,15 @@ namespace oblo::vk
         VkPipelineShaderStageCreateInfo stageCreateInfo[MaxPipelineStages]{};
         u32 actualStagesCount{0};
 
-        dynamic_array<unsigned> spirv;
-        spirv.reserve(1u << 16);
-
         vertex_inputs_reflection vertexInputReflection{};
 
-        const shader_compiler::options compilerOptions{m_impl->make_compiler_options()};
+        const shader_compiler_options compilerOptions{m_impl->make_compiler_options()};
 
         string_view builtInDefines[2]{"OBLO_PIPELINE_RENDER"};
 
         string_builder builder;
+
+        deque<string_view> sourceFiles;
 
         for (u8 stageIndex = 0; stageIndex < renderPass->stagesCount; ++stageIndex)
         {
@@ -1883,25 +1848,30 @@ namespace oblo::vk
 
             builtInDefines[1] = get_define_from_stage(pipelineStage);
 
+            shader_compiler::result compilerResult;
+
             const auto shaderModule = m_impl->create_shader_module(vkStage,
                 filePath,
                 builtInDefines,
                 desc.defines,
                 make_debug_name(builder, *m_impl->interner, renderPass->name, filePath),
                 compilerOptions,
-                spirv);
+                compilerResult);
 
             if (!shaderModule)
             {
                 return failure();
             }
 
-            for (const auto& include : m_impl->includer.resolvedIncludes)
+            sourceFiles.clear();
+            compilerResult.get_source_files(sourceFiles);
+
+            for (const auto& include : sourceFiles)
             {
                 m_impl->add_watch(include, renderPassHandle);
+                newPipeline.hasPrintfInclude |= is_printf_include(include);
             }
 
-            newPipeline.hasPrintfInclude |= m_impl->includer.hasPrintfInclude;
             newPipeline.shaderModules[stageIndex] = shaderModule;
 
             stageCreateInfo[actualStagesCount] = {
@@ -1911,7 +1881,7 @@ namespace oblo::vk
                 .pName = "main",
             };
 
-            m_impl->create_reflection(newPipeline, vkStage, spirv, vertexInputReflection);
+            m_impl->create_reflection(newPipeline, vkStage, compilerResult.get_spirv(), vertexInputReflection);
 
             ++actualStagesCount;
         }
@@ -2100,12 +2070,9 @@ namespace oblo::vk
             return h32<compute_pipeline>{};
         };
 
-        dynamic_array<unsigned> spirv;
-        spirv.reserve(1u << 16);
-
         vertex_inputs_reflection vertexInputReflection{};
 
-        const shader_compiler::options compilerOptions{m_impl->make_compiler_options()};
+        const shader_compiler_options compilerOptions{m_impl->make_compiler_options()};
 
         {
             constexpr string_view builtInDefines[] = {"OBLO_PIPELINE_COMPUTE", "OBLO_STAGE_COMPUTE"};
@@ -2116,28 +2083,33 @@ namespace oblo::vk
 
             string_builder builder;
 
+            shader_compiler::result compilerResult;
+
             const auto shaderModule = m_impl->create_shader_module(vkStage,
                 filePath,
                 builtInDefines,
                 desc.defines,
                 make_debug_name(builder, *m_impl->interner, computePass->name, filePath),
                 compilerOptions,
-                spirv);
+                compilerResult);
 
             if (!shaderModule)
             {
                 return failure();
             }
 
-            for (const auto& include : m_impl->includer.resolvedIncludes)
+            deque<string_view> sourceFiles;
+            compilerResult.get_source_files(sourceFiles);
+
+            for (const auto& include : sourceFiles)
             {
                 m_impl->add_watch(include, computePassHandle);
+                newPipeline.hasPrintfInclude |= is_printf_include(include);
             }
 
-            newPipeline.hasPrintfInclude |= m_impl->includer.hasPrintfInclude;
             newPipeline.shaderModule = shaderModule;
 
-            m_impl->create_reflection(newPipeline, vkStage, spirv, vertexInputReflection);
+            m_impl->create_reflection(newPipeline, vkStage, compilerResult.get_spirv(), vertexInputReflection);
         }
 
         if (!m_impl->create_pipeline_layout(newPipeline))
@@ -2226,12 +2198,9 @@ namespace oblo::vk
             return h32<raytracing_pipeline>{};
         };
 
-        dynamic_array<unsigned> spirv;
-        spirv.reserve(1u << 16);
-
         vertex_inputs_reflection vertexInputReflection{};
 
-        const shader_compiler::options compilerOptions{m_impl->make_compiler_options()};
+        const shader_compiler_options compilerOptions{m_impl->make_compiler_options()};
 
         dynamic_array<VkPipelineShaderStageCreateInfo> stages{&m_impl->frameAllocator};
         stages.reserve(raytracingPass->shadersCount);
@@ -2239,6 +2208,7 @@ namespace oblo::vk
         string_view builtInDefines[2] = {"OBLO_PIPELINE_RAYTRACING"};
 
         string_builder builder;
+        deque<string_view> sourceFiles;
 
         for (u32 currentShaderIndex = 0; currentShaderIndex < raytracingPass->shaderSourcePaths.size();
              ++currentShaderIndex)
@@ -2250,28 +2220,33 @@ namespace oblo::vk
 
             builtInDefines[1] = get_define_from_stage(rtStage);
 
+            shader_compiler::result compilerResult;
+
             const auto shaderModule = m_impl->create_shader_module(vkStage,
                 filePath,
                 builtInDefines,
                 desc.defines,
                 make_debug_name(builder, *m_impl->interner, raytracingPass->name, filePath),
                 compilerOptions,
-                spirv);
+                compilerResult);
 
             if (!shaderModule)
             {
                 return failure();
             }
 
-            for (const auto& include : m_impl->includer.resolvedIncludes)
+            sourceFiles.clear();
+            compilerResult.get_source_files(sourceFiles);
+
+            for (const auto& include : sourceFiles)
             {
                 m_impl->add_watch(include, raytracingPassHandle);
+                newPipeline.hasPrintfInclude |= is_printf_include(include);
             }
 
-            newPipeline.hasPrintfInclude |= m_impl->includer.hasPrintfInclude;
             newPipeline.shaderModules.push_back(shaderModule);
 
-            m_impl->create_reflection(newPipeline, vkStage, spirv, vertexInputReflection);
+            m_impl->create_reflection(newPipeline, vkStage, compilerResult.get_spirv(), vertexInputReflection);
 
             stages.push_back({
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
