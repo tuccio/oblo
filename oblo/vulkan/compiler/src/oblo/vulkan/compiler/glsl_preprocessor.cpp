@@ -2,6 +2,7 @@
 
 #include <oblo/core/debug.hpp>
 #include <oblo/core/filesystem/file.hpp>
+#include <oblo/core/filesystem/filesystem.hpp>
 
 namespace oblo::vk
 {
@@ -12,6 +13,7 @@ namespace oblo::vk
             usize directiveBegin;
             usize pathBegin;
             usize pathEnd;
+            u32 line;
             source_file* file;
         };
 
@@ -45,6 +47,8 @@ namespace oblo::vk
 
         while (!files.empty())
         {
+            u32 lineCount = 0;
+
             source_file* file = files.back();
             files.pop_back();
 
@@ -101,6 +105,7 @@ namespace oblo::vk
                                     .directiveBegin = usize(directiveLineBegin - content.begin()),
                                     .pathBegin = usize(includePathBegin - content.begin()),
                                     .pathEnd = usize(includeEnd - content.begin()),
+                                    .line = lineCount,
                                 });
                             }
                         }
@@ -110,12 +115,14 @@ namespace oblo::vk
                 // Go to the next line
                 while (charIt != content.end() && *charIt != '\n')
                 {
+                    lineCount += u32{*charIt == '\n'};
                     ++charIt;
                 }
 
                 // Skip all whitespaces
                 while (charIt != content.end() && std::isspace(*charIt))
                 {
+                    lineCount += u32{*charIt == '\n'};
                     ++charIt;
                 }
             }
@@ -165,8 +172,12 @@ namespace oblo::vk
 
         m_hasError = false;
 
-        const auto expandIncludes =
-            [](const source_file* file, function_ref<void(string_view)> append, auto&& recursive) -> void
+        string_builder lineDirectiveBuilder{m_memoryResource.get_allocator()};
+
+        const auto expandIncludes = [&lineDirectiveBuilder](const source_file* file,
+                                        function_ref<void(string_view)> append,
+                                        string_view sourceName,
+                                        auto&& recursive) -> void
         {
             const auto content = string_view{file->content};
 
@@ -174,12 +185,30 @@ namespace oblo::vk
 
             for (auto& include : file->includes)
             {
+                // Copy all the code that preceeds the include
                 const auto data = content.substr(currentOffset, include.directiveBegin - currentOffset);
                 append(data);
 
                 currentOffset += data.size();
 
-                recursive(include.file, append, recursive);
+                // Add the #line directive
+                const auto includePath = content.substr(include.pathBegin, include.pathEnd - include.pathBegin);
+
+                append("#line 1 \"");
+                append(includePath);
+                append("\"\n");
+
+                // Expand the include recursively
+                recursive(include.file, append, includePath, recursive);
+
+                // We add +1 because the errors seem to be 1 line off otherwise
+                lineDirectiveBuilder.clear().format("{}", 1 + include.line);
+                append("\n#line ");
+                append(lineDirectiveBuilder.as<string_view>());
+
+                append("\"");
+                append(sourceName);
+                append("\"\n");
 
                 // Skip the include directive and move forward without copying
                 // +1 to skip the > as well
@@ -203,7 +232,7 @@ namespace oblo::vk
             append(preamble);
 
             // Finally expand the includes
-            expandIncludes(mainSource, append, expandIncludes);
+            expandIncludes(mainSource, append, filesystem::filename(path), expandIncludes);
         };
 
         // Calculate the size first
