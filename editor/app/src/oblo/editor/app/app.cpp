@@ -230,6 +230,8 @@ namespace oblo::editor
             return false;
         }
 
+        debug_assert_hook_install();
+
         const auto bootTime = clock::now();
         m_logQueue = init_log(bootTime);
 
@@ -329,6 +331,8 @@ namespace oblo::editor
         platform::shutdown();
 
         m_jobManager.shutdown();
+
+        debug_assert_hook_remove();
     }
 
     void app::update(const vk::sandbox_render_context&)

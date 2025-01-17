@@ -28,6 +28,9 @@
 
 namespace oblo
 {
+    void debug_assert_hook_install();
+    void debug_assert_hook_remove();
+
     void debug_assert_report(const char* filename, int lineNumber, const char* message);
 
     // Used to throw in OBLO_ASSERT, to make the assertion compatible with constexpr
