@@ -27,6 +27,11 @@ namespace oblo::filesystem
             return m;
         }
 
+        void* allocate_impl(allocator* allocator, usize size, usize alignment)
+        {
+            return allocator->allocate(size, alignment);
+        }
+
         void* allocate_impl(frame_allocator& allocator, usize size, usize alignment)
         {
             return allocator.allocate(size, alignment);
@@ -80,6 +85,20 @@ namespace oblo::filesystem
         }
     }
 
+    expected<unique_ptr<byte[]>> load_binary_file_into_memory(allocator* allocator, cstring_view path, usize alignment)
+    {
+        const auto e = load_impl(allocator, path, "rb", alignment);
+        expected<unique_ptr<byte[]>> res{unspecified_error};
+
+        if (e)
+        {
+            const auto span = std::as_writable_bytes(*e);
+            res = unique_ptr<byte[]>(span.data(), span.size(), allocator);
+        }
+
+        return res;
+    }
+
     expected<std::span<byte>> load_binary_file_into_memory(
         frame_allocator& allocator, cstring_view path, usize alignment)
     {
@@ -99,9 +118,9 @@ namespace oblo::filesystem
         return load_impl(allocator, path, "r", alignment);
     }
 
-    expected<std::span<byte>> load_binary_file_into_memory(dynamic_array<byte>& out, cstring_view path, usize alignment)
+    expected<std::span<byte>> load_binary_file_into_memory(dynamic_array<byte>& out, cstring_view path)
     {
-        const auto e = load_impl(out, path, "rb", alignment);
+        const auto e = load_impl(out, path, "rb", 1);
         expected<std::span<byte>> res{unspecified_error};
 
         if (e)
@@ -112,9 +131,9 @@ namespace oblo::filesystem
         return res;
     }
 
-    expected<std::span<char>> load_text_file_into_memory(string_builder& out, cstring_view path, usize alignment)
+    expected<std::span<char>> load_text_file_into_memory(string_builder& out, cstring_view path)
     {
-        return load_impl(out, path, "r", alignment);
+        return load_impl(out, path, "r", 1);
     }
 
     FILE* open_file(cstring_view path, const char* mode)
@@ -146,6 +165,40 @@ namespace oblo::filesystem
 #else
         return fopen(path.c_str(), mode);
 #endif
+    }
+
+    expected<> write_file(cstring_view destination, std::span<const byte> bytes, flags<write_mode> mode)
+    {
+        const char* cMode{};
+
+        if (mode.is_empty())
+        {
+            cMode = "w";
+        }
+        else if (mode == write_mode::binary)
+        {
+            cMode = "wb";
+        }
+        else if (mode == write_mode::append)
+        {
+            cMode = "w+";
+        }
+        else if (mode == (write_mode::binary | write_mode::append))
+        {
+            cMode = "wb+";
+        }
+
+        OBLO_ASSERT(cMode);
+
+        filesystem::file_ptr f{filesystem::open_file(destination, cMode)};
+
+        if (!f || fwrite(bytes.data(), sizeof(bytes[0]), bytes.size(), f.get()) != bytes.size())
+        {
+            f.reset();
+            return unspecified_error;
+        }
+
+        return no_error;
     }
 
     expected<bool> exists(cstring_view path)

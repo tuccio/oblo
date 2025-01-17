@@ -1,8 +1,13 @@
-#include <oblo/vulkan/compiler/glslang_compiler.hpp>
+#include <oblo/vulkan/compiler/glsl_compiler.hpp>
 
 #include <oblo/core/array_size.hpp>
+#include <oblo/core/filesystem/file.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/formatters/uuid_formatter.hpp>
+#include <oblo/core/lifetime.hpp>
+#include <oblo/core/platform/core.hpp>
+#include <oblo/core/platform/process.hpp>
+#include <oblo/core/unreachable.hpp>
 #include <oblo/core/uuid_generator.hpp>
 #include <oblo/vulkan/compiler/glsl_preprocessor.hpp>
 #include <oblo/vulkan/compiler/shader_compiler_result.hpp>
@@ -174,8 +179,9 @@ namespace oblo::vk
             return resources;
         }
 
-        struct glslang_compilation final : shader_compiler::result_core
+        struct glsl_compilation_base : shader_compiler::result_core
         {
+        public:
             enum class state : u8
             {
                 idle,
@@ -187,17 +193,29 @@ namespace oblo::vk
                 done,
             };
 
-        public:
-            glslang_compilation(allocator& allocator, shader_stage stage) :
-                m_language{find_language(stage)}, m_preprocessor{allocator}, m_shader{m_language}, m_error{&allocator}
-            {
-            }
+            glsl_compilation_base(allocator& allocator) : m_preprocessor{allocator}, m_error{&allocator} {}
 
-            bool preprocess_from_file(string_view path, string_view preamble, resolve_include_fn resolveInclude)
+            bool preprocess_from_file(
+                string_view path, string_view preamble, std::span<const string_builder> includeDirs)
             {
                 OBLO_ASSERT(m_state == state::idle);
 
-                if (!m_preprocessor.process_from_file(path, preamble, resolveInclude))
+                if (!m_preprocessor.process_from_file(path,
+                        preamble,
+                        [includeDirs](string_view includePath, string_builder& outPath)
+                        {
+                            for (auto& path : includeDirs)
+                            {
+                                outPath.clear().append(path).append_path(includePath).append(".glsl");
+
+                                if (filesystem::exists(outPath).value_or(false))
+                                {
+                                    return true;
+                                }
+                            }
+
+                            return false;
+                        }))
                 {
                     m_state = state::compilation_failed;
                     return false;
@@ -205,6 +223,38 @@ namespace oblo::vk
 
                 m_state = state::preprocess_complete;
                 return true;
+            }
+
+            bool has_errors() final
+            {
+                return m_state == state::preprocess_failed || m_state == state::compilation_failed ||
+                    m_state == state::link_failed;
+            }
+
+            string_view get_source_code() override
+            {
+                OBLO_ASSERT(m_state >= state::preprocess_complete);
+                return m_preprocessor.get_code();
+            }
+
+            void get_source_files(deque<string_view>& sourceFiles) override
+            {
+                OBLO_ASSERT(m_state >= state::preprocess_failed);
+                m_preprocessor.get_source_files(sourceFiles);
+            }
+
+        protected:
+            state m_state{state::idle};
+            glsl_preprocessor m_preprocessor;
+            string_builder m_error;
+        };
+
+        struct glslang_compilation final : glsl_compilation_base
+        {
+        public:
+            glslang_compilation(allocator& allocator, shader_stage stage) :
+                glsl_compilation_base{allocator}, m_language{find_language(stage)}, m_shader{m_language}
+            {
             }
 
             bool compile(const shader_compiler_options& options)
@@ -217,8 +267,8 @@ namespace oblo::vk
 
                 const auto sourceCode = m_preprocessor.get_code();
 
+                m_shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
                 m_shader.setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_5);
-                m_shader.setDebugInfo(options.generateDebugInfo);
 
                 const char* const sourceCodeStrings[] = {sourceCode.data()};
                 const int sourceCodeLengths[] = {narrow_cast<int>(sourceCode.size())};
@@ -248,6 +298,21 @@ namespace oblo::vk
                 spvOptions.emitNonSemanticShaderDebugSource = options.generateDebugInfo;
                 spvOptions.disableOptimizer = !options.codeOptimization;
 
+                constexpr bool forceDisableDebugInfo = true;
+
+                if constexpr (forceDisableDebugInfo)
+                {
+                    // This is failing to generate info with buffer reference types
+                    // https://github.com/KhronosGroup/glslang/pull/3617 might fix it
+                    spvOptions.generateDebugInfo = false;
+                    spvOptions.emitNonSemanticShaderDebugInfo = false;
+                    spvOptions.emitNonSemanticShaderDebugSource = false;
+                }
+                else
+                {
+                    m_shader.setDebugInfo(options.generateDebugInfo);
+                }
+
                 auto* const intermediate = m_program.getIntermediate(m_language);
 
                 if (!options.sourceCodeFilePath.empty())
@@ -255,7 +320,7 @@ namespace oblo::vk
                     intermediate->setSourceFile(options.sourceCodeFilePath.c_str());
                 }
 
-                if (options.generateDebugInfo)
+                if (spvOptions.generateDebugInfo)
                 {
                     string_builder include;
 
@@ -275,13 +340,9 @@ namespace oblo::vk
 
                 glslang::GlslangToSpv(*intermediate, m_spirv, &spvOptions);
 
-                return true;
-            }
+                m_state = state::compilation_complete;
 
-            bool has_errors() override
-            {
-                return m_state == state::preprocess_failed || m_state == state::compilation_failed ||
-                    m_state == state::link_failed;
+                return true;
             }
 
             string_view get_error_message() override
@@ -307,37 +368,136 @@ namespace oblo::vk
                 }
             }
 
-            string_view get_source_code() override
-            {
-                OBLO_ASSERT(m_state >= state::preprocess_complete);
-                return m_preprocessor.get_code();
-            }
-
-            void get_source_files(deque<string_view>& sourceFiles) override
-            {
-                OBLO_ASSERT(m_state >= state::preprocess_failed);
-                m_preprocessor.get_source_files(sourceFiles);
-            }
-
             std::span<const u32> get_spirv() override
             {
+                OBLO_ASSERT(m_state == state::compilation_complete);
                 return std::span{m_spirv};
             }
 
         private:
-            state m_state{state::idle};
             EShLanguage m_language;
-            glsl_preprocessor m_preprocessor;
             glslang::TShader m_shader;
             glslang::TProgram m_program;
-            string_builder m_error;
             std::vector<unsigned int> m_spirv;
+        };
+
+        struct glslc_compilation final : glsl_compilation_base
+        {
+        public:
+            glslc_compilation(allocator& allocator, shader_stage stage) :
+                glsl_compilation_base{allocator}, m_stage{stage}, m_spirv{nullptr, 0, &allocator}
+            {
+            }
+
+            bool compile(const shader_compiler_options& options, cstring_view workDir, cstring_view glslc)
+            {
+                OBLO_ASSERT(m_state == state::preprocess_complete);
+
+                const auto sourceCode = m_preprocessor.get_code();
+
+                constexpr cstring_view spirvExtension = ".spirv";
+
+                string_builder glslFile;
+                glslFile.append(workDir).append_path("source").append(glsl_deduce_extension(m_stage));
+
+                if (!write_file(glslFile, as_bytes(std::span{sourceCode}), filesystem::write_mode::binary))
+                {
+                    m_state = state::compilation_failed;
+                    m_error.clear().format("A filesystem error occurred while writing source code to {}", glslFile);
+                    return false;
+                }
+
+                buffered_array<cstring_view, 7> args;
+                args.push_back(glslFile);
+
+                args.push_back("--target-env=vulkan1.3");
+                args.push_back("--target-spv=spv1.5");
+                args.push_back(options.codeOptimization ? "-O" : "-O0");
+
+                if (options.generateDebugInfo)
+                {
+                    args.push_back("-g");
+                }
+
+                string_builder spirvFile;
+                spirvFile.append(workDir).append_path("source").append(glsl_deduce_extension(m_stage)).append(".spirv");
+
+                args.push_back("-o");
+                args.push_back(spirvFile);
+
+                platform::process glslcProcess;
+
+                if (!glslcProcess.start(glslc, args) || !glslcProcess.wait())
+                {
+                    m_error.clear()
+                        .format("Failed to execute {} ", glslc)
+                        .join(args.begin(), args.end(), " ", "\"{}\"");
+
+                    m_state = state::compilation_failed;
+                }
+                else if (const auto exitCode = glslcProcess.get_exit_code().value_or(-1); exitCode != 0)
+                {
+                    // TODO: Read stdout/stderr
+                    m_state = state::compilation_failed;
+                }
+                else
+                {
+                    auto spvData =
+                        filesystem::load_binary_file_into_memory(m_spirv.get_allocator(), spirvFile, alignof(u32));
+
+                    if (!spvData)
+                    {
+                        m_error.clear().format("A filesystem error occurred while reading spirv from {}", spirvFile);
+                        m_state = state::compilation_failed;
+                        return false;
+                    }
+
+                    m_spirv = std::move(*spvData);
+                    m_state = state::compilation_complete;
+                }
+
+                return true;
+            }
+
+            string_view get_error_message() override
+            {
+                switch (m_state)
+                {
+                case state::preprocess_failed:
+                    return m_preprocessor.get_error();
+
+                case state::compilation_failed:
+                    [[fallthrough]];
+                case state::link_failed: {
+                    return m_error.as<string_view>();
+                }
+
+                default:
+                    return {};
+                }
+            }
+
+            std::span<const u32> get_spirv() override
+            {
+                OBLO_ASSERT(m_state == state::compilation_complete);
+                OBLO_ASSERT(m_spirv.size() % sizeof(u32) == 0);
+
+                const auto n = m_spirv.size() / sizeof(u32);
+                const auto spv = std::span{start_lifetime_as_array<u32>(m_spirv.data(), n), n};
+
+                return spv;
+            }
+
+        private:
+            shader_stage m_stage;
+            unique_ptr<byte[]> m_spirv;
         };
     }
 
     void glslang_compiler::init(const shader_compiler_config& config)
     {
         m_includeDirs.clear();
+        m_includeDirs.reserve(config.includeDirectories.size());
 
         for (const auto& p : config.includeDirectories)
         {
@@ -350,22 +510,7 @@ namespace oblo::vk
     {
         auto r = std::make_unique<glslang_compilation>(allocator, stage);
 
-        r->preprocess_from_file(path,
-            preamble,
-            [this](string_view includePath, string_builder& outPath)
-            {
-                for (auto& path : m_includeDirs)
-                {
-                    outPath.clear().append(path).append_path(includePath).append(".glsl");
-
-                    if (filesystem::exists(outPath).value_or(false))
-                    {
-                        return true;
-                    }
-                }
-
-                return false;
-            });
+        r->preprocess_from_file(path, preamble, m_includeDirs);
 
         return result{std::move(r)};
     }
@@ -374,5 +519,110 @@ namespace oblo::vk
     {
         get_shader_compiler_result_core_as<glslang_compilation>(r).compile(options);
         return r;
+    }
+
+    bool glslc_compiler::find_glslc()
+    {
+        char buf[260];
+        usize bufSize = sizeof(buf);
+
+        if (getenv_s(&bufSize, buf, bufSize, "VULKAN_SDK") == 0)
+        {
+            m_glslcPath = buf;
+            m_glslcPath.append_path("Bin").append_path("glslc");
+
+            if constexpr (platform::is_windows())
+            {
+                m_glslcPath.append(".exe");
+            }
+
+            return filesystem::exists(m_glslcPath).value_or(false);
+        }
+        return false;
+    }
+
+    void glslc_compiler::set_work_directory(string_view workDirectory)
+    {
+        m_workDirectory = workDirectory;
+    }
+
+    void glslc_compiler::init(const shader_compiler_config& config)
+    {
+        m_includeDirs.clear();
+        m_includeDirs.reserve(config.includeDirectories.size());
+
+        for (const auto& p : config.includeDirectories)
+        {
+            m_includeDirs.emplace_back().append(p);
+        }
+    }
+
+    shader_compiler::result glslc_compiler::preprocess_from_file(
+        allocator& allocator, string_view path, shader_stage stage, string_view preamble)
+    {
+        auto r = std::make_unique<glslc_compilation>(allocator, stage);
+
+        r->preprocess_from_file(path, preamble, m_includeDirs);
+
+        return result{std::move(r)};
+    }
+
+    shader_compiler::result glslc_compiler::compile(result r, const shader_compiler_options& options)
+    {
+        get_shader_compiler_result_core_as<glslc_compilation>(r).compile(options, m_workDirectory, m_glslcPath);
+        return r;
+    }
+
+    cstring_view glsl_deduce_extension(shader_stage stage)
+    {
+        cstring_view extension = ".glsl";
+
+        switch (stage)
+        {
+        case shader_stage::vertex:
+            extension = ".vert";
+            break;
+
+        case shader_stage::fragment:
+            extension = ".frag";
+            break;
+
+        case shader_stage::compute:
+            extension = ".comp";
+            break;
+
+        case shader_stage::mesh:
+            extension = ".mesh";
+            break;
+
+        case shader_stage::raygen:
+            extension = ".rgen";
+            break;
+
+        case shader_stage::intersection:
+            extension = ".rint";
+            break;
+
+        case shader_stage::any_hit:
+            extension = ".rahit";
+            break;
+
+        case shader_stage::closest_hit:
+            extension = ".rchit";
+            break;
+
+        case shader_stage::miss:
+            extension = ".rmiss";
+            break;
+
+        case shader_stage::callable:
+            extension = ".rcall";
+            break;
+
+        default:
+            unreachable();
+        }
+
+        return extension;
     }
 }

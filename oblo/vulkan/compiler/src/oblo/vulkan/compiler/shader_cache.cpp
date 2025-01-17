@@ -20,18 +20,6 @@ namespace oblo::vk
         constexpr bool OutputSource{true};
         constexpr bool OutputSpirv{true};
 
-        void write_file(cstring_view path, std::span<const byte> data)
-        {
-            filesystem::file_ptr f{filesystem::open_file(path, "wb")};
-
-            if (f && fwrite(data.data(), sizeof(data[0]), data.size(), f.get()) != data.size())
-            {
-                f.reset();
-
-                filesystem::remove(path).assert_value();
-            }
-        }
-
         class cached_spirv final : public shader_compiler::result_core
         {
         public:
@@ -106,59 +94,9 @@ namespace oblo::vk
             string_view m_error;
         };
 
-        cstring_view deduce_extension(shader_stage stage)
-        {
-            cstring_view extension = ".glsl";
-
-            switch (stage)
-            {
-            case shader_stage::vertex:
-                extension = ".vert";
-                break;
-
-            case shader_stage::fragment:
-                extension = ".frag";
-                break;
-
-            case shader_stage::compute:
-                extension = ".comp";
-                break;
-
-            case shader_stage::mesh:
-                extension = ".mesh";
-                break;
-
-            case shader_stage::raygen:
-                extension = ".rgen";
-                break;
-
-            case shader_stage::intersection:
-                extension = ".rint";
-                break;
-
-            case shader_stage::any_hit:
-                extension = ".rahit";
-                break;
-
-            case shader_stage::closest_hit:
-                extension = ".rchit";
-                break;
-
-            case shader_stage::miss:
-                extension = ".rmiss";
-                break;
-
-            case shader_stage::callable:
-                extension = ".rcall";
-                break;
-
-            default:
-                unreachable();
-            }
-
-            return extension;
-        }
     }
+
+    cstring_view glsl_deduce_extension(shader_stage stage);
 
     bool shader_cache::init(string_view dir)
     {
@@ -243,9 +181,12 @@ namespace oblo::vk
         if constexpr (OutputSource)
         {
             sourceCodePath = spvPath;
-            sourceCodePath.append(deduce_extension(stage));
+            sourceCodePath.append(glsl_deduce_extension(stage));
 
-            write_file(sourceCodePath, as_bytes(std::span{sourceCode.data(), sourceCode.size()}));
+            write_file(sourceCodePath,
+                as_bytes(std::span{sourceCode.data(), sourceCode.size()}),
+                filesystem::write_mode::binary)
+                .assert_value();
         }
 
         {
@@ -261,7 +202,7 @@ namespace oblo::vk
         {
             if constexpr (!DisableCache || OutputSpirv)
             {
-                write_file(spvPath, as_bytes(result.get_spirv()));
+                write_file(spvPath, as_bytes(result.get_spirv()), filesystem::write_mode::binary).assert_value();
             }
         }
 
