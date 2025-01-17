@@ -57,7 +57,7 @@ namespace oblo::vk
         virtual void init(const shader_compiler_config& config) = 0;
 
         virtual result preprocess_from_file(
-            allocator& allocator, string_view path, shader_stage stage, string_view preamble) = 0;
+            allocator& allocator, cstring_view path, shader_stage stage, string_view preamble) = 0;
 
         virtual result compile(result r, const shader_compiler_options& options) = 0;
     };

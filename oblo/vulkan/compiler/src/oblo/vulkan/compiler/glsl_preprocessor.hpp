@@ -27,7 +27,10 @@ namespace oblo::vk
         glsl_preprocessor& operator=(const glsl_preprocessor&) = delete;
         glsl_preprocessor& operator=(glsl_preprocessor&&) noexcept = delete;
 
-        bool process_from_file(string_view path, string_view preamble, resolve_include_fn searchInclude);
+        // We may want to avoid emitting line directives not to confuse tooling in certain cases
+        void set_emit_line_directives(bool emitLineDirectives);
+
+        bool process_from_file(cstring_view path, string_view preamble, resolve_include_fn searchInclude);
 
         cstring_view get_code() const;
 
@@ -35,15 +38,10 @@ namespace oblo::vk
 
         void get_source_files(deque<string_view>& sourceFiles) const;
 
-        auto& get_includes_map() const
+        auto& get_source_files_map() const
         {
-            return m_includesMap;
+            return m_sourceFilesMap;
         }
-
-        string_view get_resolved_path(const source_file* file) const;
-
-        string_view get_main_source_path() const;
-        string_view get_main_source_name() const;
 
     private:
         source_file* add_or_get_file(const string_builder& path);
@@ -71,9 +69,9 @@ namespace oblo::vk
 
     private:
         bool m_hasError{};
+        bool m_emitLineDirectives{true};
         memory_resource_adapter m_memoryResource;
         string_builder m_builder;
-        string_builder m_mainSourcePath;
         deque<source_file> m_sourceFiles;
         std::pmr::unordered_map<string_builder, source_file*, transparent_string_hash> m_sourceFilesMap;
         std::pmr::unordered_map<string_view, source_file*, transparent_string_hash> m_includesMap;

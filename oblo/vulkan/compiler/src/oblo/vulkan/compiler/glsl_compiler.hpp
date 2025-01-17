@@ -11,7 +11,7 @@ namespace oblo::vk
         void init(const shader_compiler_config& config) override;
 
         result preprocess_from_file(
-            allocator& allocator, string_view path, shader_stage stage, string_view preamble) override;
+            allocator& allocator, cstring_view path, shader_stage stage, string_view preamble) override;
 
         result compile(result r, const shader_compiler_options& options) override;
 
@@ -28,7 +28,7 @@ namespace oblo::vk
         void init(const shader_compiler_config& config) override;
 
         result preprocess_from_file(
-            allocator& allocator, string_view path, shader_stage stage, string_view preamble) override;
+            allocator& allocator, cstring_view path, shader_stage stage, string_view preamble) override;
 
         result compile(result r, const shader_compiler_options& options) override;
 
@@ -36,6 +36,7 @@ namespace oblo::vk
         string_builder m_workDirectory;
         string_builder m_glslcPath;
         dynamic_array<string_builder> m_includeDirs;
+        u32 m_counter{};
     };
 
     cstring_view glsl_deduce_extension(shader_stage stage);

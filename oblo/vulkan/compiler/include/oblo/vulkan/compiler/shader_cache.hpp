@@ -23,7 +23,7 @@ namespace oblo::vk
         VK_COMPILER_API shader_compiler* get_glsl_compiler() const;
 
         VK_COMPILER_API shader_compiler::result find_or_compile(frame_allocator& allocator,
-            string_view filePath,
+            cstring_view filePath,
             shader_stage stage,
             string_view preamble,
             const shader_compiler_options& options,

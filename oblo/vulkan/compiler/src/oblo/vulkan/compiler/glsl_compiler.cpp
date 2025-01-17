@@ -196,7 +196,7 @@ namespace oblo::vk
             glsl_compilation_base(allocator& allocator) : m_preprocessor{allocator}, m_error{&allocator} {}
 
             bool preprocess_from_file(
-                string_view path, string_view preamble, std::span<const string_builder> includeDirs)
+                cstring_view path, string_view preamble, std::span<const string_builder> includeDirs)
             {
                 OBLO_ASSERT(m_state == state::idle);
 
@@ -322,19 +322,9 @@ namespace oblo::vk
 
                 if (spvOptions.generateDebugInfo)
                 {
-                    string_builder include;
-
+                    for (const auto& [path, f] : m_preprocessor.get_source_files_map())
                     {
-                        include = m_preprocessor.get_main_source_name();
-                        const auto mainPath = m_preprocessor.get_main_source_path();
-                        intermediate->addIncludeText(include.c_str(), mainPath.data(), mainPath.size());
-                    }
-
-                    for (const auto& [k, f] : m_preprocessor.get_includes_map())
-                    {
-                        include = k;
-                        const auto path = m_preprocessor.get_resolved_path(f);
-                        intermediate->addIncludeText(include.c_str(), path.data(), path.size());
+                        intermediate->addIncludeText(path.c_str(), path.data(), path.size());
                     }
                 }
 
@@ -389,7 +379,7 @@ namespace oblo::vk
             {
             }
 
-            bool compile(const shader_compiler_options& options, cstring_view workDir, cstring_view glslc)
+            bool compile(const shader_compiler_options& options, cstring_view workDir, cstring_view glslc, u32 id)
             {
                 OBLO_ASSERT(m_state == state::preprocess_complete);
 
@@ -398,7 +388,8 @@ namespace oblo::vk
                 constexpr cstring_view spirvExtension = ".spirv";
 
                 string_builder glslFile;
-                glslFile.append(workDir).append_path("source").append(glsl_deduce_extension(m_stage));
+                glslFile.append(workDir).append_path_separator().format("{}", id).append(
+                    glsl_deduce_extension(m_stage));
 
                 if (!write_file(glslFile, as_bytes(std::span{sourceCode}), filesystem::write_mode::binary))
                 {
@@ -420,7 +411,7 @@ namespace oblo::vk
                 }
 
                 string_builder spirvFile;
-                spirvFile.append(workDir).append_path("source").append(glsl_deduce_extension(m_stage)).append(".spirv");
+                spirvFile.append(workDir).append_path_separator().format("{}", id).append(".spirv");
 
                 args.push_back("-o");
                 args.push_back(spirvFile);
@@ -437,6 +428,10 @@ namespace oblo::vk
                 }
                 else if (const auto exitCode = glslcProcess.get_exit_code().value_or(-1); exitCode != 0)
                 {
+                    m_error.clear()
+                        .format("Failed to execute {} ", glslc)
+                        .join(args.begin(), args.end(), " ", "\"{}\"");
+
                     // TODO: Read stdout/stderr
                     m_state = state::compilation_failed;
                 }
@@ -506,7 +501,7 @@ namespace oblo::vk
     }
 
     shader_compiler::result glslang_compiler::preprocess_from_file(
-        allocator& allocator, string_view path, shader_stage stage, string_view preamble)
+        allocator& allocator, cstring_view path, shader_stage stage, string_view preamble)
     {
         auto r = std::make_unique<glslang_compilation>(allocator, stage);
 
@@ -558,7 +553,7 @@ namespace oblo::vk
     }
 
     shader_compiler::result glslc_compiler::preprocess_from_file(
-        allocator& allocator, string_view path, shader_stage stage, string_view preamble)
+        allocator& allocator, cstring_view path, shader_stage stage, string_view preamble)
     {
         auto r = std::make_unique<glslc_compilation>(allocator, stage);
 
@@ -569,7 +564,11 @@ namespace oblo::vk
 
     shader_compiler::result glslc_compiler::compile(result r, const shader_compiler_options& options)
     {
-        get_shader_compiler_result_core_as<glslc_compilation>(r).compile(options, m_workDirectory, m_glslcPath);
+        get_shader_compiler_result_core_as<glslc_compilation>(r).compile(options,
+            m_workDirectory,
+            m_glslcPath,
+            ++m_counter);
+
         return r;
     }
 

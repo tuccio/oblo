@@ -130,7 +130,7 @@ namespace oblo::vk
     }
 
     shader_compiler::result shader_cache::find_or_compile(frame_allocator& allocator,
-        string_view filePath,
+        cstring_view filePath,
         shader_stage stage,
         string_view preamble,
         const shader_compiler_options& options,

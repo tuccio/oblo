@@ -292,6 +292,24 @@ namespace oblo::filesystem
         return r;
     }
 
+    expected<> absolute(cstring_view path, string_builder& out)
+    {
+        std::filesystem::path p{std::u8string_view{path.u8data(), path.size()}};
+        std::error_code ec;
+
+        const auto r = std::filesystem::absolute(p, ec);
+
+        if (ec)
+        {
+            return unspecified_error;
+        }
+
+        const auto ru8 = r.u8string();
+        out = reinterpret_cast<const char*>(ru8.c_str());
+
+        return no_error;
+    }
+
     bool is_relative(string_view path)
     {
         std::filesystem::path p{std::u8string_view{path.u8data(), path.size()}};

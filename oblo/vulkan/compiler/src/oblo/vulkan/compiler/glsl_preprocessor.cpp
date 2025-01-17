@@ -6,6 +6,25 @@
 
 namespace oblo::vk
 {
+    namespace
+    {
+        void prepare_for_line_directive(string_builder& out, cstring_view path)
+        {
+            if (!filesystem::absolute(path, out))
+            {
+                out = path;
+            }
+
+            // A little hacky, we use / instead of \ on windows to make sure we don't have escapes in our strings
+            for (auto& c : out.mutable_data())
+            {
+                if (c == '\\')
+                {
+                    c = '/';
+                }
+            }
+        }
+    }
     struct glsl_preprocessor::source_file
     {
         struct include
@@ -20,7 +39,7 @@ namespace oblo::vk
         explicit source_file(allocator* allocator) : content{allocator}, includes{allocator} {}
 
         string_builder content;
-        string_view path;
+        string_builder fullPath;
         deque<include> includes;
         usize versionDirectiveLength{0};
     };
@@ -31,14 +50,18 @@ namespace oblo::vk
     {
     }
 
-    bool glsl_preprocessor::process_from_file(string_view path, string_view preamble, resolve_include_fn resolveInclude)
+    void glsl_preprocessor::set_emit_line_directives(bool emitLineDirectives)
+    {
+        m_emitLineDirectives = emitLineDirectives;
+    }
+
+    bool glsl_preprocessor::process_from_file(
+        cstring_view path, string_view preamble, resolve_include_fn resolveInclude)
     {
         OBLO_ASSERT(m_sourceFilesMap.empty());
 
         m_builder.clear().append(path);
         auto* const mainSource = add_or_get_file(m_builder);
-
-        m_mainSourcePath = path;
 
         if (!mainSource)
         {
@@ -177,9 +200,8 @@ namespace oblo::vk
 
         string_builder lineDirectiveBuilder{m_memoryResource.get_allocator()};
 
-        const auto expandIncludes = [&lineDirectiveBuilder](const source_file* file,
+        const auto expandIncludes = [this, &lineDirectiveBuilder](const source_file* file,
                                         function_ref<void(string_view)> append,
-                                        string_view sourceName,
                                         auto&& recursive) -> void
         {
             const auto content = string_view{file->content};
@@ -195,23 +217,29 @@ namespace oblo::vk
                 currentOffset += data.size();
 
                 // Add the #line directive
-                const auto includePath = content.substr(include.pathBegin, include.pathEnd - include.pathBegin);
+                const auto includePath = string_view{include.file->fullPath};
 
-                append("#line 1 \"");
-                append(includePath);
-                append("\"\n");
+                if (m_emitLineDirectives)
+                {
+                    append("#line 1 \"");
+                    append(includePath);
+                    append("\"\n");
+                }
 
                 // Expand the include recursively
-                recursive(include.file, append, includePath, recursive);
+                recursive(include.file, append, recursive);
 
-                // We add +1 because the errors seem to be 1 line off otherwise
-                lineDirectiveBuilder.clear().format("{}", 1 + include.line);
-                append("\n#line ");
-                append(lineDirectiveBuilder.as<string_view>());
+                if (m_emitLineDirectives)
+                {
+                    // We add +1 because the errors seem to be 1 line off otherwise
+                    lineDirectiveBuilder.clear().format("{}", 1 + include.line);
+                    append("\n#line ");
+                    append(lineDirectiveBuilder.as<string_view>());
 
-                append("\"");
-                append(sourceName);
-                append("\"\n");
+                    append(" \"");
+                    append(file->fullPath);
+                    append("\"\n");
+                }
 
                 // Skip the include directive and move forward without copying
                 // +1 to skip the > as well
@@ -235,7 +263,7 @@ namespace oblo::vk
             append(preamble);
 
             // Finally expand the includes
-            expandIncludes(mainSource, append, get_main_source_name(), expandIncludes);
+            expandIncludes(mainSource, append, expandIncludes);
         };
 
         // Calculate the size first
@@ -251,21 +279,6 @@ namespace oblo::vk
         OBLO_ASSERT(m_builder.size() == codeLength);
 
         return true;
-    }
-
-    string_view glsl_preprocessor::get_resolved_path(const source_file* file) const
-    {
-        return file->path;
-    }
-
-    string_view glsl_preprocessor::get_main_source_path() const
-    {
-        return m_mainSourcePath.as<string_view>();
-    }
-
-    string_view glsl_preprocessor::get_main_source_name() const
-    {
-        return filesystem::filename(get_main_source_path());
     }
 
     glsl_preprocessor::source_file* glsl_preprocessor::add_or_get_file(const string_builder& path)
@@ -291,7 +304,7 @@ namespace oblo::vk
             return nullptr;
         }
 
-        sourceFile.path = it->first.as<string_view>();
+        prepare_for_line_directive(sourceFile.fullPath, it->first);
 
         it->second = &sourceFile;
 
