@@ -105,6 +105,7 @@ namespace oblo
 
     template struct uniform_distribution<f32>;
     template struct uniform_distribution<u32>;
+    template struct uniform_distribution<u64>;
 
     template struct uniform_distribution<vec2>;
     template struct uniform_distribution<vec2u>;
