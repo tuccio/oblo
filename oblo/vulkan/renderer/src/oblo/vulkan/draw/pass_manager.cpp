@@ -1635,7 +1635,9 @@ namespace oblo::vk
 
     void pass_manager::set_system_include_paths(std::span<const string_view> paths)
     {
-        m_impl->glslCompiler->set_search_directories(paths);
+        m_impl->glslCompiler->init({
+            .includeDirectories = paths,
+        });
     }
 
     void pass_manager::set_raytracing_enabled(bool isRayTracingEnabled)

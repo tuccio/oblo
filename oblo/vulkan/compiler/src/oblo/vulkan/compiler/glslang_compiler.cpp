@@ -2,6 +2,8 @@
 
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
+#include <oblo/core/formatters/uuid_formatter.hpp>
+#include <oblo/core/uuid_generator.hpp>
 #include <oblo/vulkan/compiler/glsl_preprocessor.hpp>
 #include <oblo/vulkan/compiler/shader_compiler_result.hpp>
 
@@ -216,6 +218,7 @@ namespace oblo::vk
                 const auto sourceCode = m_preprocessor.get_code();
 
                 m_shader.setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_5);
+                m_shader.setDebugInfo(options.generateDebugInfo);
 
                 const char* const sourceCodeStrings[] = {sourceCode.data()};
                 const int sourceCodeLengths[] = {narrow_cast<int>(sourceCode.size())};
@@ -241,9 +244,35 @@ namespace oblo::vk
 
                 glslang::SpvOptions spvOptions{};
                 spvOptions.generateDebugInfo = options.generateDebugInfo;
+                spvOptions.emitNonSemanticShaderDebugInfo = options.generateDebugInfo;
+                spvOptions.emitNonSemanticShaderDebugSource = options.generateDebugInfo;
                 spvOptions.disableOptimizer = !options.codeOptimization;
 
                 auto* const intermediate = m_program.getIntermediate(m_language);
+
+                if (!options.sourceCodeFilePath.empty())
+                {
+                    intermediate->setSourceFile(options.sourceCodeFilePath.c_str());
+                }
+
+                if (options.generateDebugInfo)
+                {
+                    string_builder include;
+
+                    {
+                        include = m_preprocessor.get_main_source_name();
+                        const auto mainPath = m_preprocessor.get_main_source_path();
+                        intermediate->addIncludeText(include.c_str(), mainPath.data(), mainPath.size());
+                    }
+
+                    for (const auto& [k, f] : m_preprocessor.get_includes_map())
+                    {
+                        include = k;
+                        const auto path = m_preprocessor.get_resolved_path(f);
+                        intermediate->addIncludeText(include.c_str(), path.data(), path.size());
+                    }
+                }
+
                 glslang::GlslangToSpv(*intermediate, m_spirv, &spvOptions);
 
                 return true;
@@ -306,12 +335,11 @@ namespace oblo::vk
         };
     }
 
-    void glslang_compiler::set_search_directories(std::span<const string_view> paths)
+    void glslang_compiler::init(const shader_compiler_config& config)
     {
         m_includeDirs.clear();
-        m_includeDirs.reserve(paths.size());
 
-        for (const auto& p : paths)
+        for (const auto& p : config.includeDirectories)
         {
             m_includeDirs.emplace_back().append(p);
         }

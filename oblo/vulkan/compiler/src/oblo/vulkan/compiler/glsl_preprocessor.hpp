@@ -15,6 +15,9 @@ namespace oblo::vk
     class glsl_preprocessor
     {
     public:
+        struct source_file;
+
+    public:
         glsl_preprocessor() = delete;
         explicit glsl_preprocessor(allocator& allocator);
         glsl_preprocessor(const glsl_preprocessor&) = delete;
@@ -32,9 +35,17 @@ namespace oblo::vk
 
         void get_source_files(deque<string_view>& sourceFiles) const;
 
-    private:
-        struct source_file;
+        auto& get_includes_map() const
+        {
+            return m_includesMap;
+        }
 
+        string_view get_resolved_path(const source_file* file) const;
+
+        string_view get_main_source_path() const;
+        string_view get_main_source_name() const;
+
+    private:
         source_file* add_or_get_file(const string_builder& path);
 
     private:
@@ -62,6 +73,7 @@ namespace oblo::vk
         bool m_hasError{};
         memory_resource_adapter m_memoryResource;
         string_builder m_builder;
+        string_builder m_mainSourcePath;
         deque<source_file> m_sourceFiles;
         std::pmr::unordered_map<string_builder, source_file*, transparent_string_hash> m_sourceFilesMap;
         std::pmr::unordered_map<string_view, source_file*, transparent_string_hash> m_includesMap;

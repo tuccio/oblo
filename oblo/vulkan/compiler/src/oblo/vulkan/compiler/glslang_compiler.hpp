@@ -8,7 +8,7 @@ namespace oblo::vk
     class glslang_compiler final : public shader_compiler
     {
     public:
-        void set_search_directories(std::span<const string_view> paths) override;
+        void init(const shader_compiler_config& config) override;
 
         result preprocess_from_file(
             allocator& allocator, string_view path, shader_stage stage, string_view preamble) override;

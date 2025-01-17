@@ -105,6 +105,59 @@ namespace oblo::vk
         private:
             string_view m_error;
         };
+
+        cstring_view deduce_extension(shader_stage stage)
+        {
+            cstring_view extension = ".glsl";
+
+            switch (stage)
+            {
+            case shader_stage::vertex:
+                extension = ".vert";
+                break;
+
+            case shader_stage::fragment:
+                extension = ".frag";
+                break;
+
+            case shader_stage::compute:
+                extension = ".comp";
+                break;
+
+            case shader_stage::mesh:
+                extension = ".mesh";
+                break;
+
+            case shader_stage::raygen:
+                extension = ".rgen";
+                break;
+
+            case shader_stage::intersection:
+                extension = ".rint";
+                break;
+
+            case shader_stage::any_hit:
+                extension = ".rahit";
+                break;
+
+            case shader_stage::closest_hit:
+                extension = ".rchit";
+                break;
+
+            case shader_stage::miss:
+                extension = ".rmiss";
+                break;
+
+            case shader_stage::callable:
+                extension = ".rcall";
+                break;
+
+            default:
+                unreachable();
+            }
+
+            return extension;
+        }
     }
 
     bool shader_cache::init(string_view dir)
@@ -148,7 +201,7 @@ namespace oblo::vk
         OBLO_PROFILE_SCOPE();
 
         constexpr auto numOptions{count_fields<shader_compiler_options>()};
-        static_assert(numOptions == 2, "The cache hash might need to be updated");
+        static_assert(numOptions == 3, "The cache hash might need to be updated");
 
         if (!m_glslCompiler)
         {
@@ -185,9 +238,23 @@ namespace oblo::vk
             }
         }
 
+        string_builder sourceCodePath;
+
+        if constexpr (OutputSource)
+        {
+            sourceCodePath = spvPath;
+            sourceCodePath.append(deduce_extension(stage));
+
+            write_file(sourceCodePath, as_bytes(std::span{sourceCode.data(), sourceCode.size()}));
+        }
+
         {
             OBLO_PROFILE_SCOPE_NAMED(CompileScope, "Compile shader");
-            result = m_glslCompiler->compile(std::move(result), options);
+
+            shader_compiler_options optionsCopy = options;
+            optionsCopy.sourceCodeFilePath = sourceCodePath;
+
+            result = m_glslCompiler->compile(std::move(result), optionsCopy);
         }
 
         if (!result.has_errors())
@@ -195,61 +262,6 @@ namespace oblo::vk
             if constexpr (!DisableCache || OutputSpirv)
             {
                 write_file(spvPath, as_bytes(result.get_spirv()));
-            }
-
-            if constexpr (OutputSource)
-            {
-                const char* extension = ".glsl";
-
-                switch (stage)
-                {
-                case shader_stage::vertex:
-                    extension = ".vert";
-                    break;
-
-                case shader_stage::fragment:
-                    extension = ".frag";
-                    break;
-
-                case shader_stage::compute:
-                    extension = ".comp";
-                    break;
-
-                case shader_stage::mesh:
-                    extension = ".mesh";
-                    break;
-
-                case shader_stage::raygen:
-                    extension = ".rgen";
-                    break;
-
-                case shader_stage::intersection:
-                    extension = ".rint";
-                    break;
-
-                case shader_stage::any_hit:
-                    extension = ".rahit";
-                    break;
-
-                case shader_stage::closest_hit:
-                    extension = ".rchit";
-                    break;
-
-                case shader_stage::miss:
-                    extension = ".rmiss";
-                    break;
-
-                case shader_stage::callable:
-                    extension = ".rcall";
-                    break;
-
-                default:
-                    unreachable();
-                }
-
-                spvPath.append(extension);
-
-                write_file(spvPath, as_bytes(std::span{sourceCode.data(), sourceCode.size()}));
             }
         }
 

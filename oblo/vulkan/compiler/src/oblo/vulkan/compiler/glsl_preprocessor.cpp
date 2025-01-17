@@ -20,6 +20,7 @@ namespace oblo::vk
         explicit source_file(allocator* allocator) : content{allocator}, includes{allocator} {}
 
         string_builder content;
+        string_view path;
         deque<include> includes;
         usize versionDirectiveLength{0};
     };
@@ -36,6 +37,8 @@ namespace oblo::vk
 
         m_builder.clear().append(path);
         auto* const mainSource = add_or_get_file(m_builder);
+
+        m_mainSourcePath = path;
 
         if (!mainSource)
         {
@@ -232,7 +235,7 @@ namespace oblo::vk
             append(preamble);
 
             // Finally expand the includes
-            expandIncludes(mainSource, append, filesystem::filename(path), expandIncludes);
+            expandIncludes(mainSource, append, get_main_source_name(), expandIncludes);
         };
 
         // Calculate the size first
@@ -248,6 +251,21 @@ namespace oblo::vk
         OBLO_ASSERT(m_builder.size() == codeLength);
 
         return true;
+    }
+
+    string_view glsl_preprocessor::get_resolved_path(const source_file* file) const
+    {
+        return file->path;
+    }
+
+    string_view glsl_preprocessor::get_main_source_path() const
+    {
+        return m_mainSourcePath.as<string_view>();
+    }
+
+    string_view glsl_preprocessor::get_main_source_name() const
+    {
+        return filesystem::filename(get_main_source_path());
     }
 
     glsl_preprocessor::source_file* glsl_preprocessor::add_or_get_file(const string_builder& path)
@@ -272,6 +290,8 @@ namespace oblo::vk
             m_builder.clear().format("Failed to read file: {}", path);
             return nullptr;
         }
+
+        sourceFile.path = it->first.as<string_view>();
 
         it->second = &sourceFile;
 

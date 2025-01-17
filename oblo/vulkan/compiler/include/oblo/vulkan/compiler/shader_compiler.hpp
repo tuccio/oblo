@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/deque.hpp>
+#include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
 
@@ -33,6 +34,15 @@ namespace oblo::vk
     {
         bool codeOptimization{false};
         bool generateDebugInfo{false};
+
+        /// @brief Path to the source file, allows the SPIR-V output to reference the file correctly when including
+        /// debug info.
+        cstring_view sourceCodeFilePath{};
+    };
+
+    struct shader_compiler_config
+    {
+        std::span<const string_view> includeDirectories;
     };
 
     class shader_compiler
@@ -44,7 +54,7 @@ namespace oblo::vk
     public:
         virtual ~shader_compiler() = default;
 
-        virtual void set_search_directories(std::span<const string_view> paths) = 0;
+        virtual void init(const shader_compiler_config& config) = 0;
 
         virtual result preprocess_from_file(
             allocator& allocator, string_view path, shader_stage stage, string_view preamble) = 0;
