@@ -386,8 +386,6 @@ namespace oblo::vk
 
                 const auto sourceCode = m_preprocessor.get_code();
 
-                constexpr cstring_view spirvExtension = ".spirv";
-
                 string_builder glslFile;
                 glslFile.append(workDir).append_path_separator().format("{}", id).append(
                     glsl_deduce_extension(m_stage));

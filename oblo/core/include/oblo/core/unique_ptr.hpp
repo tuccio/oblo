@@ -25,7 +25,6 @@ namespace oblo
         unique_ptr_default_deleter& operator=(const unique_ptr_default_deleter& other) = default;
         unique_ptr_default_deleter& operator=(unique_ptr_default_deleter&& other) noexcept = default;
 
-        template <typename T>
         void operator()(T* ptr) const
         {
             if constexpr (!std::is_trivially_destructible_v<T>)
@@ -62,7 +61,6 @@ namespace oblo
         unique_ptr_default_deleter& operator=(const unique_ptr_default_deleter& other) = default;
         unique_ptr_default_deleter& operator=(unique_ptr_default_deleter&& other) noexcept = default;
 
-        template <typename T>
         void operator()(T* ptr, usize count) const
         {
             if constexpr (!std::is_trivially_destructible_v<T>)
@@ -196,7 +194,7 @@ namespace oblo
         }
 
     private:
-        template <typename U, typename D>
+        template <typename U, typename E>
         friend class unique_ptr;
 
     private:
