@@ -19,6 +19,12 @@ namespace oblo::vk
 {
     namespace
     {
+        constexpr auto g_glslangEnvTarget = glslang::EShTargetVulkan_1_3;
+        constexpr auto g_glslangSpvTarget = glslang::EShTargetSpv_1_5;
+
+        constexpr const char* g_glslcEnvTarget = "--target-env=vulkan1.3";
+        constexpr const char* g_glslcSpvTarget = "--target-spv=spv1.5";
+
         EShLanguage find_language(const shader_stage stage)
         {
             switch (stage)
@@ -268,8 +274,8 @@ namespace oblo::vk
 
                 const auto sourceCode = m_preprocessor.get_code();
 
-                m_shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
-                m_shader.setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_5);
+                m_shader.setEnvClient(glslang::EShClientVulkan, g_glslangEnvTarget);
+                m_shader.setEnvTarget(glslang::EshTargetSpv, g_glslangSpvTarget);
 
                 const char* const sourceCodeStrings[] = {sourceCode.data()};
                 const int sourceCodeLengths[] = {narrow_cast<int>(sourceCode.size())};
@@ -400,8 +406,9 @@ namespace oblo::vk
                 buffered_array<cstring_view, 7> args;
                 args.push_back(glslFile);
 
-                args.push_back("--target-env=vulkan1.3");
-                args.push_back("--target-spv=spv1.5");
+                args.push_back(g_glslcEnvTarget);
+                args.push_back(g_glslcSpvTarget);
+
                 args.push_back(options.codeOptimization ? "-O" : "-O0");
 
                 if (options.generateDebugInfo)
