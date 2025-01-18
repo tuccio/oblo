@@ -710,6 +710,8 @@ namespace oblo::vk
         template <typename Filter = decltype([](auto&&) { return true; })>
         void invalidate_all_passes(Filter&& f = {});
 
+        void propagate_pipeline_invalidation();
+
         [[nodiscard]] void* begin_pass(VkCommandBuffer commandBuffer, const base_pipeline& pipeline)
         {
             void* scope{};
@@ -1214,6 +1216,38 @@ namespace oblo::vk
         processPasses(renderPasses, renderPipelines);
         processPasses(computePasses, computePipelines);
         processPasses(raytracingPasses, raytracingPipelines);
+    }
+
+    void pass_manager::impl::propagate_pipeline_invalidation()
+    {
+        std::lock_guard lock{watchListener.mutex};
+
+        for (const auto& f : watchListener.touchedFiles)
+        {
+            const auto it = fileToPassList.find(f);
+
+            if (it == fileToPassList.end())
+            {
+                continue;
+            }
+
+            for (const auto& r : it->second.renderPasses.keys())
+            {
+                renderPasses.at(r).shouldRecompile = true;
+            }
+
+            for (const auto& c : it->second.computePasses.keys())
+            {
+                computePasses.at(c).shouldRecompile = true;
+            }
+
+            for (const auto& c : it->second.raytracingPasses.keys())
+            {
+                raytracingPasses.at(c).shouldRecompile = true;
+            }
+        }
+
+        watchListener.touchedFiles.clear();
     }
 
     VkDescriptorSet pass_manager::impl::create_descriptor_set(VkDescriptorSetLayout descriptorSetLayout,
@@ -2531,9 +2565,6 @@ namespace oblo::vk
 
         const auto debugUtils = m_impl->vkCtx->get_debug_utils_object();
 
-        const auto samplerDescriptorSet = m_impl->texturesDescriptorSetPool.acquire(m_impl->samplersSetLayout);
-        debugUtils.set_object_name(m_impl->device, samplerDescriptorSet, "Sampler Descriptor Set");
-
         const std::span textures2DInfo = m_impl->textureRegistry->get_textures2d_info();
 
         if (textures2DInfo.empty())
@@ -2542,31 +2573,24 @@ namespace oblo::vk
             return;
         }
 
-        u32 maxBinding = u32(textures2DInfo.size());
+        // Update the Texture 2D descriptor set
+        const u32 maxTextureDescriptorId = u32(textures2DInfo.size());
 
         VkDescriptorSetVariableDescriptorCountAllocateInfoEXT countInfo{
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO_EXT,
             .descriptorSetCount = 1,
-            .pDescriptorCounts = &maxBinding,
+            .pDescriptorCounts = &maxTextureDescriptorId,
         };
 
-        const VkDescriptorSet descriptorSet =
+        const VkDescriptorSet texture2dDescriptorSet =
             m_impl->texturesDescriptorSetPool.acquire(m_impl->textures2DSetLayout, &countInfo);
 
-        debugUtils.set_object_name(m_impl->device, descriptorSet, "Textures 2D Descriptor Set");
-
-        constexpr u32 numSamplers = u32(sampler::enum_max);
-        VkDescriptorImageInfo samplers[numSamplers];
-
-        for (u32 i = 0; i < numSamplers; ++i)
-        {
-            samplers[i] = {.sampler = m_impl->samplers[i]};
-        }
+        debugUtils.set_object_name(m_impl->device, texture2dDescriptorSet, "Textures 2D Descriptor Set");
 
         const VkWriteDescriptorSet descriptorSetWrites[] = {
             {
                 .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                .dstSet = descriptorSet,
+                .dstSet = texture2dDescriptorSet,
                 .dstBinding = Textures2DBinding,
                 .dstArrayElement = 0,
                 .descriptorCount = u32(textures2DInfo.size()),
@@ -2577,39 +2601,16 @@ namespace oblo::vk
 
         vkUpdateDescriptorSets(m_impl->device, array_size(descriptorSetWrites), descriptorSetWrites, 0, nullptr);
 
-        m_impl->currentTextures2DDescriptor = descriptorSet;
-        m_impl->currentSamplersDescriptor = m_impl->texturesDescriptorSetPool.acquire(m_impl->samplersSetLayout);
+        // Sampler descriptors are immutable and require no update
+        const VkDescriptorSet samplerDescriptorSet =
+            m_impl->texturesDescriptorSetPool.acquire(m_impl->samplersSetLayout);
 
-        {
-            std::lock_guard lock{m_impl->watchListener.mutex};
+        debugUtils.set_object_name(m_impl->device, samplerDescriptorSet, "Sampler Descriptor Set");
 
-            for (const auto& f : m_impl->watchListener.touchedFiles)
-            {
-                const auto it = m_impl->fileToPassList.find(f);
+        m_impl->currentTextures2DDescriptor = texture2dDescriptorSet;
+        m_impl->currentSamplersDescriptor = samplerDescriptorSet;
 
-                if (it == m_impl->fileToPassList.end())
-                {
-                    continue;
-                }
-
-                for (const auto& r : it->second.renderPasses.keys())
-                {
-                    m_impl->renderPasses.at(r).shouldRecompile = true;
-                }
-
-                for (const auto& c : it->second.computePasses.keys())
-                {
-                    m_impl->computePasses.at(c).shouldRecompile = true;
-                }
-
-                for (const auto& c : it->second.raytracingPasses.keys())
-                {
-                    m_impl->raytracingPasses.at(c).shouldRecompile = true;
-                }
-            }
-
-            m_impl->watchListener.touchedFiles.clear();
-        }
+        m_impl->propagate_pipeline_invalidation();
 
 #ifdef TRACY_ENABLE
         if (m_impl->enableProfilingThisFrame)
