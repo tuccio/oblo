@@ -99,16 +99,18 @@ namespace oblo
         {
         }
 
+        unique_ptr(unique_ptr&& other) noexcept : D{std::move(other.get_deleter())}, m_ptr{other.m_ptr}
+        {
+            other.m_ptr = nullptr;
+        }
+
         template <typename U, typename E>
         unique_ptr(unique_ptr<U, E>&& other) noexcept : D{std::move(other.get_deleter())}, m_ptr{other.m_ptr}
         {
             other.m_ptr = nullptr;
         }
 
-        unique_ptr(unique_ptr&& other) noexcept : D{std::move(other.get_deleter())}, m_ptr{other.m_ptr}
-        {
-            other.m_ptr = nullptr;
-        }
+        unique_ptr(std::nullptr_t) : unique_ptr{} {}
 
         ~unique_ptr()
         {

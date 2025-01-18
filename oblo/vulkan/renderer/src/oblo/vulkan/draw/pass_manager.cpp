@@ -14,6 +14,7 @@
 #include <oblo/core/unreachable.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/modules/module_manager.hpp>
+#include <oblo/options/options_module.hpp>
 #include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/compiler/compiler_module.hpp>
@@ -22,6 +23,7 @@
 #include <oblo/vulkan/draw/compute_pass_initializer.hpp>
 #include <oblo/vulkan/draw/descriptor_set_pool.hpp>
 #include <oblo/vulkan/draw/draw_registry.hpp>
+#include <oblo/vulkan/draw/global_shader_options.hpp>
 #include <oblo/vulkan/draw/mesh_table.hpp>
 #include <oblo/vulkan/draw/raytracing_pass_initializer.hpp>
 #include <oblo/vulkan/draw/render_pass_initializer.hpp>
@@ -47,9 +49,6 @@ namespace oblo::vk
         constexpr u32 Textures2DDescriptorSet{2};
         constexpr u32 TexturesSamplerBinding{32};
         constexpr u32 Textures2DBinding{33};
-
-        constexpr bool DefaultWithShaderCodeOptimizations{false};
-        constexpr bool WithShaderDebugInfo{true};
 
         // Push constants with this names are detected through reflection to be set at each draw
         constexpr auto InstanceTableIdPushConstant = "instanceTableId";
@@ -634,7 +633,10 @@ namespace oblo::vk
     {
         frame_allocator frameAllocator;
 
-        std::unique_ptr<shader_compiler> glslCompiler;
+        unique_ptr<shader_compiler> glslcCompiler;
+        unique_ptr<shader_compiler> glslangCompiler;
+        option_proxy_struct<global_shader_options_proxy> shaderCompilerOptions;
+        options_manager* optionsManager{};
         shader_cache shaderCache;
 
         vulkan_context* vkCtx{};
@@ -665,7 +667,8 @@ namespace oblo::vk
         watch_listener watchListener;
         std::optional<efsw::FileWatcher> fileWatcher;
 
-        bool enableShaderOptimizations{DefaultWithShaderCodeOptimizations};
+        bool enableShaderOptimizations{};
+        bool emitDebugInfo{};
         bool enableProfiling{true};
         bool enableProfilingThisFrame{false};
         bool globallyEnablePrintf{false};
@@ -1172,7 +1175,7 @@ namespace oblo::vk
     {
         return {
             .codeOptimization = enableShaderOptimizations,
-            .generateDebugInfo = WithShaderDebugInfo,
+            .generateDebugInfo = emitDebugInfo,
         };
     }
 
@@ -1420,10 +1423,15 @@ namespace oblo::vk
 
         m_impl->textureRegistry = &textureRegistry;
 
-        m_impl->glslCompiler = module_manager::get().find<compiler_module>()->make_glsl_compiler();
+        auto* compilerModule = module_manager::get().find<compiler_module>();
+        m_impl->glslcCompiler = compilerModule->make_glslc_compiler("./glslc");
+        m_impl->glslangCompiler = compilerModule->make_glslang_compiler();
+
+        auto* const optionsModule = module_manager::get().find<options_module>();
+        m_impl->optionsManager = &optionsModule->manager();
+        m_impl->shaderCompilerOptions.init(*m_impl->optionsManager);
 
         m_impl->shaderCache.init("./spirv");
-        m_impl->shaderCache.set_glsl_compiler(m_impl->glslCompiler.get());
 
         {
             const VkSamplerCreateInfo samplerInfo{
@@ -1635,9 +1643,19 @@ namespace oblo::vk
 
     void pass_manager::set_system_include_paths(std::span<const string_view> paths)
     {
-        m_impl->glslCompiler->init({
-            .includeDirectories = paths,
-        });
+        if (m_impl->glslcCompiler)
+        {
+            m_impl->glslcCompiler->init({
+                .includeDirectories = paths,
+            });
+        }
+
+        if (m_impl->glslangCompiler)
+        {
+            m_impl->glslangCompiler->init({
+                .includeDirectories = paths,
+            });
+        }
     }
 
     void pass_manager::set_raytracing_enabled(bool isRayTracingEnabled)
@@ -2484,6 +2502,30 @@ namespace oblo::vk
         if (m_impl->globallyEnablePrintf && m_impl->globallyEnablePrintfFrames-- == 0)
         {
             set_printf_enabled(false);
+        }
+
+        {
+            global_shader_options shaderCompilerConfig{};
+            m_impl->shaderCompilerOptions.read(*m_impl->optionsManager, shaderCompilerConfig);
+
+            shader_compiler* const compilers[2] = {m_impl->glslcCompiler.get(), m_impl->glslangCompiler.get()};
+            const u32 preferred = u32{shaderCompilerConfig.preferGlslang};
+
+            auto* const chosenCompiler = compilers[preferred] ? compilers[preferred] : compilers[1 - preferred];
+
+            const bool anyChange = m_impl->enableShaderOptimizations != shaderCompilerConfig.optimizeShaders ||
+                m_impl->emitDebugInfo != shaderCompilerConfig.emitDebugInfo ||
+                chosenCompiler != m_impl->shaderCache.get_glsl_compiler();
+
+            if (anyChange)
+            {
+                m_impl->shaderCache.set_glsl_compiler(chosenCompiler);
+
+                m_impl->enableShaderOptimizations = shaderCompilerConfig.optimizeShaders;
+                m_impl->emitDebugInfo = shaderCompilerConfig.emitDebugInfo;
+
+                m_impl->invalidate_all_passes();
+            }
         }
 
         m_impl->descriptorSetPool.begin_frame();

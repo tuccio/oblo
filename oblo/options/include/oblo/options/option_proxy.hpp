@@ -35,15 +35,15 @@ namespace oblo
         h32<option> m_handle{};
     };
 
-    template <typename T>
-    struct option_proxy_struct : T
+    template <typename... T>
+    struct option_proxy_struct : T...
     {
         static void register_options(service_registry& services)
         {
             using lambda_provider = lambda_options_provider<decltype([](deque<option_descriptor>& out) {
-        struct_apply([&out]<fixed_string... Names>(const option_proxy<Names>&...)
+        (struct_apply([&out]<fixed_string... Names>(const option_proxy<Names>&...)
                 { (out.push_back(option_proxy<Names>::traits::descriptor), ...); },
-                T{});
+                T{}), ...);
             })>;
 
             services.add<lambda_provider>().template as<options_provider>().unique();
@@ -51,15 +51,16 @@ namespace oblo
 
         void init(const options_manager& manager)
         {
-            struct_apply([&manager](auto&... proxy) { (proxy.init(manager), ...); }, *static_cast<T*>(this));
+            (struct_apply([&manager](auto&... proxy) { (proxy.init(manager), ...); }, *static_cast<T*>(this)), ...);
         }
 
         template <typename U>
         void read(const options_manager& manager, U& out)
         {
-            struct_apply([&manager, &out](auto&... proxy)
-                { struct_apply([&proxy..., &manager](auto&... o) { ((o = proxy.read(manager)), ...); }, out); },
-                *static_cast<T*>(this));
+            (struct_apply([&manager, &out](auto&... proxy)
+                 { struct_apply([&proxy..., &manager](auto&... o) { ((o = proxy.read(manager)), ...); }, out); },
+                 *static_cast<T*>(this)),
+                ...);
         }
     };
 }

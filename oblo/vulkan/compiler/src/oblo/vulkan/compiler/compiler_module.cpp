@@ -19,19 +19,22 @@ namespace oblo::vk
 
     void compiler_module::finalize() {}
 
-    std::unique_ptr<shader_compiler> compiler_module::make_glsl_compiler() const
+    unique_ptr<shader_compiler> compiler_module::make_glslc_compiler(cstring_view workDir) const
     {
         glslc_compiler glslc;
 
         if (glslc.find_glslc())
         {
-            constexpr cstring_view workDir = "./glslc";
-
             filesystem::create_directories(workDir).assert_value();
             glslc.set_work_directory(workDir);
-            return std::make_unique<glslc_compiler>(std::move(glslc));
+            return allocate_unique<glslc_compiler>(std::move(glslc));
         }
 
-        return std::make_unique<glslang_compiler>();
+        return nullptr;
+    }
+
+    unique_ptr<shader_compiler> compiler_module::make_glslang_compiler() const
+    {
+        return allocate_unique<glslang_compiler>();
     }
 }
