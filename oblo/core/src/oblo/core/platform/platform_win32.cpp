@@ -3,6 +3,7 @@
     #include <oblo/core/debug.hpp>
     #include <oblo/core/filesystem/filesystem.hpp>
     #include <oblo/core/platform/core.hpp>
+    #include <oblo/core/platform/file.hpp>
     #include <oblo/core/platform/platform_win32.hpp>
     #include <oblo/core/platform/process.hpp>
     #include <oblo/core/platform/shell.hpp>
@@ -110,31 +111,12 @@ namespace oblo::platform
         return reinterpret_cast<void*>(GetProcAddress(g_moduleHandle, name));
     }
 
-    namespace
-    {
-        constexpr u8 g_processProcessHandle = 0;
-        constexpr u8 g_processThreadHandle = 1;
-
-        void set_handle(std::span<uintptr, 2> handles, u32 id, HANDLE h)
-        {
-            handles[id] = std::bit_cast<uintptr>(h);
-        }
-
-        HANDLE get_handle(std::span<uintptr, 2> handles, u32 id)
-        {
-            return std::bit_cast<HANDLE>(handles[id]);
-        }
-    }
-
     process::process() = default;
 
     process::process(process&& other) noexcept
     {
-        set_handle(m_handles, g_processProcessHandle, get_handle(other.m_handles, g_processProcessHandle));
-        set_handle(m_handles, g_processThreadHandle, get_handle(other.m_handles, g_processThreadHandle));
-
-        set_handle(other.m_handles, g_processProcessHandle, NULL);
-        set_handle(other.m_handles, g_processThreadHandle, NULL);
+        m_hProcess = other.m_hProcess;
+        other.m_hProcess = nullptr;
     }
 
     process::~process()
@@ -146,16 +128,13 @@ namespace oblo::platform
     {
         detach();
 
-        set_handle(m_handles, g_processProcessHandle, get_handle(other.m_handles, g_processProcessHandle));
-        set_handle(m_handles, g_processThreadHandle, get_handle(other.m_handles, g_processThreadHandle));
-
-        set_handle(other.m_handles, g_processProcessHandle, NULL);
-        set_handle(other.m_handles, g_processThreadHandle, NULL);
+        m_hProcess = other.m_hProcess;
+        other.m_hProcess = nullptr;
 
         return *this;
     }
 
-    expected<> process::start(cstring_view path, std::span<const cstring_view> arguments)
+    expected<> process::start(const process_descriptor& desc)
     {
         detach();
 
@@ -163,15 +142,19 @@ namespace oblo::platform
 
         STARTUPINFO startupInfo{
             .cb = sizeof(STARTUPINFO),
+            .dwFlags = STARTF_USESTDHANDLES,
+            .hStdInput = desc.inputStream ? desc.inputStream->get_native_handle() : nullptr,
+            .hStdOutput = desc.outputStream ? desc.outputStream->get_native_handle() : nullptr,
+            .hStdError = desc.errorStream ? desc.errorStream->get_native_handle() : nullptr,
         };
 
         PROCESS_INFORMATION processInfo{};
 
         string_builder cmd;
 
-        cmd.append(path);
+        cmd.append(desc.path);
         cmd.append(" ");
-        cmd.join(arguments.begin(), arguments.end(), " ", "\"{}\"");
+        cmd.join(desc.arguments.begin(), desc.arguments.end(), " ", "\"{}\"");
 
         const auto success = CreateProcessA(nullptr,
             cmd.mutable_data().data(),
@@ -189,17 +172,22 @@ namespace oblo::platform
             return unspecified_error;
         }
 
-        set_handle(m_handles, g_processProcessHandle, processInfo.hProcess);
-        set_handle(m_handles, g_processThreadHandle, processInfo.hThread);
+        m_hProcess = processInfo.hProcess;
+
+        // We don't really have a use for this currently
+        CloseHandle(processInfo.hThread);
 
         return no_error;
     }
 
+    bool process::is_done()
+    {
+        return WaitForSingleObject(m_hProcess, 0) == WAIT_OBJECT_0;
+    }
+
     expected<> process::wait()
     {
-        const HANDLE hProcess = get_handle(m_handles, g_processProcessHandle);
-
-        if (WaitForSingleObject(hProcess, INFINITE) != WAIT_OBJECT_0)
+        if (WaitForSingleObject(m_hProcess, INFINITE) != WAIT_OBJECT_0)
         {
             return unspecified_error;
         }
@@ -209,11 +197,9 @@ namespace oblo::platform
 
     expected<i64> process::get_exit_code()
     {
-        const HANDLE hProcess = get_handle(m_handles, g_processProcessHandle);
-
         DWORD exitCode;
 
-        if (!GetExitCodeProcess(hProcess, &exitCode))
+        if (!GetExitCodeProcess(m_hProcess, &exitCode))
         {
             return unspecified_error;
         }
@@ -223,17 +209,120 @@ namespace oblo::platform
 
     void process::detach()
     {
-        if (const auto h = get_handle(m_handles, g_processProcessHandle))
+        if (m_hProcess)
         {
-            CloseHandle(h);
-            set_handle(m_handles, g_processProcessHandle, NULL);
+            CloseHandle(m_hProcess);
+            m_hProcess = nullptr;
+        }
+    }
+
+    namespace
+    {
+        file::error translate_file_error()
+        {
+            using error = file::error;
+
+            const auto e = GetLastError();
+
+            switch (e)
+            {
+            case ERROR_HANDLE_EOF:
+                return error::eof;
+
+            default:
+                return error::unspecified;
+            }
+        }
+    }
+
+    expected<> file::create_pipe(file& readPipe, file& writePipe, u32 bufferSizeHint)
+    {
+        readPipe.close();
+        writePipe.close();
+
+        SECURITY_ATTRIBUTES securityAttributes{
+            .nLength = sizeof(SECURITY_ATTRIBUTES),
+            .bInheritHandle = TRUE,
+        };
+
+        if (!CreatePipe(&readPipe.m_handle, &writePipe.m_handle, &securityAttributes, bufferSizeHint))
+        {
+            return unspecified_error;
         }
 
-        if (const auto h = get_handle(m_handles, g_processThreadHandle))
+        return no_error;
+    }
+
+    file::file() noexcept = default;
+
+    file::file(file&& other) noexcept : m_handle{other.m_handle}
+    {
+        other.m_handle = nullptr;
+    }
+
+    file::~file()
+    {
+        close();
+    }
+
+    file& file::operator=(file&& other) noexcept
+    {
+        close();
+        m_handle = other.m_handle;
+        other.m_handle = nullptr;
+        return *this;
+    }
+
+    expected<u32, file::error> file::read(void* dst, u32 size) const noexcept
+    {
+        DWORD actuallyRead{};
+
+        if (!ReadFile(m_handle, dst, size, &actuallyRead, nullptr))
         {
-            CloseHandle(h);
-            set_handle(m_handles, g_processThreadHandle, NULL);
+            return translate_file_error();
         }
+
+        return actuallyRead;
+    }
+
+    expected<u32, file::error> file::write(const void* src, u32 size) const noexcept
+    {
+        DWORD actuallyRead{};
+
+        if (!WriteFile(m_handle, src, size, &actuallyRead, nullptr))
+        {
+            return translate_file_error();
+        }
+
+        return actuallyRead;
+    }
+
+    bool file::is_open() const noexcept
+    {
+        return m_handle != nullptr;
+    }
+
+    void file::close() noexcept
+    {
+        if (!m_handle)
+        {
+            return;
+        }
+
+        [[maybe_unused]] const auto handleClosed = CloseHandle(m_handle);
+        OBLO_ASSERT(handleClosed);
+
+        m_handle = {};
+    }
+
+    file::operator bool() const noexcept
+    {
+        return m_handle != nullptr;
+    }
+
+    void* file::get_native_handle() const noexcept
+    {
+        return m_handle;
     }
 }
 

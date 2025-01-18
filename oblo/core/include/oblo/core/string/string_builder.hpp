@@ -58,6 +58,8 @@ namespace oblo
         std::span<char> mutable_data();
         usize size() const;
 
+        bool empty() const;
+
         const char* begin() const;
 
         const char* end() const;
@@ -183,6 +185,12 @@ namespace oblo
     {
         OBLO_ASSERT(!m_buffer.empty());
         return m_buffer.size() - 1;
+    }
+
+    OBLO_FORCEINLINE bool string_builder::empty() const
+    {
+        OBLO_ASSERT(!m_buffer.empty());
+        return m_buffer.size() == 1;
     }
 
     OBLO_FORCEINLINE const char* string_builder::begin() const

@@ -6,6 +6,7 @@
 #include <oblo/core/formatters/uuid_formatter.hpp>
 #include <oblo/core/lifetime.hpp>
 #include <oblo/core/platform/core.hpp>
+#include <oblo/core/platform/file.hpp>
 #include <oblo/core/platform/process.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/core/uuid_generator.hpp>
@@ -418,39 +419,78 @@ namespace oblo::vk
 
                 platform::process glslcProcess;
 
-                if (!glslcProcess.start(glslc, args) || !glslcProcess.wait())
+                platform::file rPipe, wPipe;
+
+                constexpr u32 pipeSize = 1u << 12;
+
+                if (!platform::file::create_pipe(rPipe, wPipe, pipeSize))
+                {
+                    // We won't have output, but we can go further
+                }
+
+                if (!glslcProcess.start({
+                        .path = glslc,
+                        .arguments = args,
+                        .outputStream = &wPipe,
+                        .errorStream = &wPipe,
+                    }))
                 {
                     m_error.clear()
                         .format("Failed to execute {} ", glslc)
                         .join(args.begin(), args.end(), " ", "\"{}\"");
 
                     m_state = state::compilation_failed;
+                    return false;
                 }
-                else if (const auto exitCode = glslcProcess.get_exit_code().value_or(-1); exitCode != 0)
-                {
-                    m_error.clear()
-                        .format("Failed to execute {} ", glslc)
-                        .join(args.begin(), args.end(), " ", "\"{}\"");
 
-                    // TODO: Read stdout/stderr
-                    m_state = state::compilation_failed;
-                }
-                else
-                {
-                    auto spvData = filesystem::load_binary_file_into_memory(m_spirv.get_deleter().get_allocator(),
-                        spirvFile,
-                        alignof(u32));
+                m_error.clear();
 
-                    if (!spvData)
+                // This was inherited by the process we started, we can close it
+                wPipe.close();
+
+                for (char readBuffer[pipeSize];;)
+                {
+                    const bool processDone = glslcProcess.is_done();
+
+                    const auto res = rPipe.read(readBuffer, pipeSize);
+
+                    if (!res)
                     {
-                        m_error.clear().format("A filesystem error occurred while reading spirv from {}", spirvFile);
-                        m_state = state::compilation_failed;
-                        return false;
+                        break;
                     }
 
-                    m_spirv = std::move(*spvData);
-                    m_state = state::compilation_complete;
+                    if (const auto bytes = *res; bytes > 0)
+                    {
+                        m_error.append(string_view{readBuffer, bytes});
+                    }
+
+                    if (processDone)
+                    {
+                        break;
+                    }
                 }
+
+                glslcProcess.wait().assert_value();
+
+                if (const auto exitCode = glslcProcess.get_exit_code().value_or(-1); exitCode != 0)
+                {
+                    m_state = state::compilation_failed;
+                    return false;
+                }
+
+                auto spvData = filesystem::load_binary_file_into_memory(m_spirv.get_deleter().get_allocator(),
+                    spirvFile,
+                    alignof(u32));
+
+                if (!spvData)
+                {
+                    m_error.clear().format("A filesystem error occurred while reading spirv from {}", spirvFile);
+                    m_state = state::compilation_failed;
+                    return false;
+                }
+
+                m_spirv = std::move(*spvData);
+                m_state = state::compilation_complete;
 
                 return true;
             }
