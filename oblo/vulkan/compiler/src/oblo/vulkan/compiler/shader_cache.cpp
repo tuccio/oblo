@@ -16,10 +16,6 @@ namespace oblo::vk
 {
     namespace
     {
-        constexpr bool DisableCache{true};
-        constexpr bool OutputSource{true};
-        constexpr bool OutputSpirv{true};
-
         class cached_spirv final : public shader_compiler::result_core
         {
         public:
@@ -129,6 +125,11 @@ namespace oblo::vk
         return m_glslCompiler;
     }
 
+    void shader_cache::set_cache_enabled(bool enable)
+    {
+        m_cacheEnabled = enable;
+    }
+
     shader_compiler::result shader_cache::find_or_compile(frame_allocator& allocator,
         cstring_view filePath,
         shader_stage stage,
@@ -163,7 +164,7 @@ namespace oblo::vk
         string_builder spvPath;
         spvPath.append(m_path).append_path_separator().format("{}_{}.spirv", debugName, id);
 
-        if constexpr (!DisableCache)
+        if (m_cacheEnabled)
         {
             const auto diskSpv = filesystem::load_binary_file_into_memory(allocator, spvPath, alignof(u32));
 
@@ -178,7 +179,7 @@ namespace oblo::vk
 
         string_builder sourceCodePath;
 
-        if constexpr (OutputSource)
+        if (m_cacheEnabled)
         {
             sourceCodePath = spvPath;
             sourceCodePath.append(glsl_deduce_extension(stage));
@@ -198,12 +199,9 @@ namespace oblo::vk
             result = m_glslCompiler->compile(std::move(result), optionsCopy);
         }
 
-        if (!result.has_errors())
+        if (!result.has_errors() && m_cacheEnabled)
         {
-            if constexpr (!DisableCache || OutputSpirv)
-            {
-                write_file(spvPath, as_bytes(result.get_spirv()), filesystem::write_mode::binary).assert_value();
-            }
+            write_file(spvPath, as_bytes(result.get_spirv()), filesystem::write_mode::binary).assert_value();
         }
 
         return result;

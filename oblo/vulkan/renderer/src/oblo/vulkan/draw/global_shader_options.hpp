@@ -44,7 +44,35 @@ namespace oblo
             .id = "be64e526-68dd-440d-8b8d-e52ecc5f6a89"_uuid,
             .name = "Emit shader debug info",
             .category = "Graphics/Shaders",
+            .defaultValue = property_value_wrapper{true},
+        };
+    };
+
+    template <>
+    struct option_traits<"r.shaders.enablePrintf">
+    {
+        using type = bool;
+
+        static constexpr option_descriptor descriptor{
+            .kind = property_kind::boolean,
+            .id = "02a9a58d-636c-4dc8-9990-e580b50e031b"_uuid,
+            .name = "Enable shader printf",
+            .category = "Graphics/Shaders",
             .defaultValue = property_value_wrapper{false},
+        };
+    };
+
+    template <>
+    struct option_traits<"r.shaders.enableSpirvCache">
+    {
+        using type = bool;
+
+        static constexpr option_descriptor descriptor{
+            .kind = property_kind::boolean,
+            .id = "37b235f2-0141-4381-ab81-aee8ba9f6fde"_uuid,
+            .name = "Enable SPIR-V cache",
+            .category = "Graphics/Shaders",
+            .defaultValue = property_value_wrapper{true},
         };
     };
 
@@ -53,6 +81,8 @@ namespace oblo
         option_proxy<"r.shaders.preferGlslang"> preferGlslang;
         option_proxy<"r.shaders.optimizeShaders"> optimizeShaders;
         option_proxy<"r.shaders.emitDebugInfo"> emitDebugInfo;
+        option_proxy<"r.shaders.enablePrintf"> enablePrintf;
+        option_proxy<"r.shaders.enableSpirvCache"> enableSpirvCache;
     };
 
     struct global_shader_options
@@ -60,5 +90,7 @@ namespace oblo
         bool preferGlslang;
         bool optimizeShaders;
         bool emitDebugInfo;
+        bool enablePrintf;
+        bool enableSpirvCache;
     };
 }

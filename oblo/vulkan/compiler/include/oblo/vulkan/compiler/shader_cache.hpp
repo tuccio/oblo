@@ -22,6 +22,8 @@ namespace oblo::vk
         VK_COMPILER_API void set_glsl_compiler(shader_compiler* glslCompiler);
         VK_COMPILER_API shader_compiler* get_glsl_compiler() const;
 
+        VK_COMPILER_API void set_cache_enabled(bool enable);
+
         VK_COMPILER_API shader_compiler::result find_or_compile(frame_allocator& allocator,
             cstring_view filePath,
             shader_stage stage,
@@ -32,5 +34,6 @@ namespace oblo::vk
     private:
         string_builder m_path;
         shader_compiler* m_glslCompiler{};
+        bool m_cacheEnabled{};
     };
 }

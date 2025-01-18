@@ -673,7 +673,6 @@ namespace oblo::vk
         bool enableProfilingThisFrame{false};
         bool globallyEnablePrintf{false};
         bool isRayTracingEnabled{true};
-        u32 globallyEnablePrintfFrames{~0u};
 
         std::unordered_map<string, watching_passes, hash<string>> fileToPassList;
 
@@ -2499,11 +2498,6 @@ namespace oblo::vk
     {
         m_impl->frameAllocator.restore_all();
 
-        if (m_impl->globallyEnablePrintf && m_impl->globallyEnablePrintfFrames-- == 0)
-        {
-            set_printf_enabled(false);
-        }
-
         {
             global_shader_options shaderCompilerConfig{};
             m_impl->shaderCompilerOptions.read(*m_impl->optionsManager, shaderCompilerConfig);
@@ -2515,6 +2509,7 @@ namespace oblo::vk
 
             const bool anyChange = m_impl->enableShaderOptimizations != shaderCompilerConfig.optimizeShaders ||
                 m_impl->emitDebugInfo != shaderCompilerConfig.emitDebugInfo ||
+                m_impl->globallyEnablePrintf != shaderCompilerConfig.enablePrintf ||
                 chosenCompiler != m_impl->shaderCache.get_glsl_compiler();
 
             if (anyChange)
@@ -2523,9 +2518,12 @@ namespace oblo::vk
 
                 m_impl->enableShaderOptimizations = shaderCompilerConfig.optimizeShaders;
                 m_impl->emitDebugInfo = shaderCompilerConfig.emitDebugInfo;
+                m_impl->globallyEnablePrintf = shaderCompilerConfig.enablePrintf;
 
                 m_impl->invalidate_all_passes();
             }
+
+            m_impl->shaderCache.set_cache_enabled(shaderCompilerConfig.enableSpirvCache);
         }
 
         m_impl->descriptorSetPool.begin_frame();
@@ -2637,22 +2635,6 @@ namespace oblo::vk
         m_impl->invalidate_all_passes();
     }
 
-    bool pass_manager::is_printf_enabled() const
-    {
-        return m_impl->globallyEnablePrintf;
-    }
-
-    void pass_manager::set_printf_enabled(bool enabled, u32 frames)
-    {
-        m_impl->globallyEnablePrintfFrames = frames;
-
-        if (m_impl->globallyEnablePrintf != enabled)
-        {
-            m_impl->globallyEnablePrintf = enabled;
-            m_impl->invalidate_all_passes();
-        }
-    }
-
     bool pass_manager::is_profiling_enabled() const
     {
         return m_impl->enableProfiling;
@@ -2661,17 +2643,6 @@ namespace oblo::vk
     void pass_manager::set_profiling_enabled(bool enable)
     {
         m_impl->enableProfiling = enable;
-    }
-
-    bool pass_manager::is_shader_optimization_enabled() const
-    {
-        return m_impl->enableShaderOptimizations;
-    }
-
-    void pass_manager::set_shader_optimization_enabled(bool enable)
-    {
-        m_impl->enableShaderOptimizations = enable;
-        m_impl->invalidate_all_passes();
     }
 
     expected<render_pass_context> pass_manager::begin_render_pass(
