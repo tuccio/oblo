@@ -1,8 +1,9 @@
 #pragma once
 
 #include <oblo/core/types.hpp>
+#include <oblo/core/unique_ptr.hpp>
 
-#include <memory>
+#include <limits>
 
 namespace oblo
 {
@@ -32,14 +33,14 @@ namespace oblo
 
     private:
         struct impl;
-        std::unique_ptr<impl> m_impl;
+        unique_ptr<impl> m_impl;
     };
 
     template <typename T>
     struct uniform_distribution
     {
-        T min;
-        T max;
+        T min = std::numeric_limits<T>::lowest();
+        T max = std::numeric_limits<T>::max();
 
         T generate(random_generator& gen) const;
 

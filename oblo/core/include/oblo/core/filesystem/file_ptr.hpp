@@ -1,9 +1,10 @@
 #pragma once
 
+#include <oblo/core/unique_ptr.hpp>
+
 #include <cstdio>
-#include <memory>
 
 namespace oblo::filesystem
 {
-    using file_ptr = std::unique_ptr<FILE, decltype([](FILE* f) { fclose(f); })>;
+    using file_ptr = unique_ptr<FILE, decltype([](FILE* f) { fclose(f); })>;
 }

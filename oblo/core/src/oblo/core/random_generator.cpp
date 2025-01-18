@@ -32,7 +32,7 @@ namespace oblo
     {
         if (!m_impl)
         {
-            m_impl = std::make_unique<impl>();
+            m_impl = allocate_unique<impl>();
         }
 
         m_impl->seed(seed);
@@ -105,6 +105,7 @@ namespace oblo
 
     template struct uniform_distribution<f32>;
     template struct uniform_distribution<u32>;
+    template struct uniform_distribution<u64>;
 
     template struct uniform_distribution<vec2>;
     template struct uniform_distribution<vec2u>;

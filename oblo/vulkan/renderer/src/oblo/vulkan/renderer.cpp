@@ -53,7 +53,7 @@ namespace oblo::vk
         m_passManager.init(*m_vkContext, m_stringInterner, resourceManager.get(m_dummy), m_textureRegistry);
         m_passManager.set_raytracing_enabled(m_isRayTracingEnabled);
 
-        const string includePaths[] = {"./vulkan/shaders/"};
+        const string_view includePaths[] = {"./vulkan/shaders/"};
         m_passManager.set_system_include_paths(includePaths);
 
         m_drawRegistry.init(*m_vkContext,

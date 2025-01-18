@@ -70,7 +70,7 @@ namespace oblo::vk
 
         void shutdown(vulkan_context& vkContext);
 
-        void set_system_include_paths(std::span<const string> paths);
+        void set_system_include_paths(std::span<const string_view> paths);
         void set_raytracing_enabled(bool isRayTracingEnabled);
 
         h32<render_pass> register_render_pass(const render_pass_initializer& desc);
@@ -88,14 +88,8 @@ namespace oblo::vk
 
         void update_instance_data_defines(string_view defines);
 
-        bool is_printf_enabled() const;
-        void set_printf_enabled(bool enabled, u32 frames = ~0u);
-
         bool is_profiling_enabled() const;
         void set_profiling_enabled(bool enabled);
-
-        bool is_shader_optimization_enabled() const;
-        void set_shader_optimization_enabled(bool enabled);
 
         [[nodiscard]] expected<render_pass_context> begin_render_pass(
             VkCommandBuffer commandBuffer, h32<render_pipeline> pipeline, const VkRenderingInfo& renderingInfo) const;

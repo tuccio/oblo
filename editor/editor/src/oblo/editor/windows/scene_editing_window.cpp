@@ -103,27 +103,10 @@ namespace oblo::editor
 
                 auto& passManager = renderer->get_pass_manager();
 
-                if (ImGui::MenuItem("Single frame shader printf"))
-                {
-                    passManager.set_printf_enabled(true, 1);
-                }
-
-                if (bool isEnabled = passManager.is_printf_enabled();
-                    ImGui::MenuItem("Shader printf", nullptr, &isEnabled))
-                {
-                    passManager.set_printf_enabled(isEnabled);
-                }
-
                 if (bool isEnabled = passManager.is_profiling_enabled();
                     ImGui::MenuItem("GPU profiling", nullptr, &isEnabled))
                 {
                     passManager.set_profiling_enabled(isEnabled);
-                }
-
-                if (bool isEnabled = passManager.is_shader_optimization_enabled();
-                    ImGui::MenuItem("Shader optimizations", nullptr, &isEnabled))
-                {
-                    passManager.set_shader_optimization_enabled(isEnabled);
                 }
 
                 if (ImGui::MenuItem("Reset GI"))

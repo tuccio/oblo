@@ -3,7 +3,9 @@
     #include <oblo/core/debug.hpp>
     #include <oblo/core/filesystem/filesystem.hpp>
     #include <oblo/core/platform/core.hpp>
+    #include <oblo/core/platform/file.hpp>
     #include <oblo/core/platform/platform_win32.hpp>
+    #include <oblo/core/platform/process.hpp>
     #include <oblo/core/platform/shell.hpp>
 
     #include <utf8cpp/utf8.h>
@@ -107,6 +109,220 @@ namespace oblo::platform
     void* find_symbol(const char* name)
     {
         return reinterpret_cast<void*>(GetProcAddress(g_moduleHandle, name));
+    }
+
+    process::process() = default;
+
+    process::process(process&& other) noexcept
+    {
+        m_hProcess = other.m_hProcess;
+        other.m_hProcess = nullptr;
+    }
+
+    process::~process()
+    {
+        detach();
+    }
+
+    process& process::operator=(process&& other) noexcept
+    {
+        detach();
+
+        m_hProcess = other.m_hProcess;
+        other.m_hProcess = nullptr;
+
+        return *this;
+    }
+
+    expected<> process::start(const process_descriptor& desc)
+    {
+        detach();
+
+        constexpr DWORD flags = CREATE_NO_WINDOW;
+
+        STARTUPINFO startupInfo{
+            .cb = sizeof(STARTUPINFO),
+            .dwFlags = STARTF_USESTDHANDLES,
+            .hStdInput = desc.inputStream ? desc.inputStream->get_native_handle() : nullptr,
+            .hStdOutput = desc.outputStream ? desc.outputStream->get_native_handle() : nullptr,
+            .hStdError = desc.errorStream ? desc.errorStream->get_native_handle() : nullptr,
+        };
+
+        PROCESS_INFORMATION processInfo{};
+
+        string_builder cmd;
+
+        cmd.append(desc.path);
+        cmd.append(" ");
+        cmd.join(desc.arguments.begin(), desc.arguments.end(), " ", "\"{}\"");
+
+        const auto success = CreateProcessA(nullptr,
+            cmd.mutable_data().data(),
+            nullptr,
+            nullptr,
+            TRUE,
+            flags,
+            nullptr,
+            nullptr,
+            &startupInfo,
+            &processInfo);
+
+        if (!success)
+        {
+            return unspecified_error;
+        }
+
+        m_hProcess = processInfo.hProcess;
+
+        // We don't really have a use for this currently
+        CloseHandle(processInfo.hThread);
+
+        return no_error;
+    }
+
+    bool process::is_done()
+    {
+        return WaitForSingleObject(m_hProcess, 0) == WAIT_OBJECT_0;
+    }
+
+    expected<> process::wait()
+    {
+        if (WaitForSingleObject(m_hProcess, INFINITE) != WAIT_OBJECT_0)
+        {
+            return unspecified_error;
+        }
+
+        return no_error;
+    }
+
+    expected<i64> process::get_exit_code()
+    {
+        DWORD exitCode;
+
+        if (!GetExitCodeProcess(m_hProcess, &exitCode))
+        {
+            return unspecified_error;
+        }
+
+        return i64{exitCode};
+    }
+
+    void process::detach()
+    {
+        if (m_hProcess)
+        {
+            CloseHandle(m_hProcess);
+            m_hProcess = nullptr;
+        }
+    }
+
+    namespace
+    {
+        file::error translate_file_error()
+        {
+            using error = file::error;
+
+            const auto e = GetLastError();
+
+            switch (e)
+            {
+            case ERROR_HANDLE_EOF:
+                return error::eof;
+
+            default:
+                return error::unspecified;
+            }
+        }
+    }
+
+    expected<> file::create_pipe(file& readPipe, file& writePipe, u32 bufferSizeHint)
+    {
+        readPipe.close();
+        writePipe.close();
+
+        SECURITY_ATTRIBUTES securityAttributes{
+            .nLength = sizeof(SECURITY_ATTRIBUTES),
+            .bInheritHandle = TRUE,
+        };
+
+        if (!CreatePipe(&readPipe.m_handle, &writePipe.m_handle, &securityAttributes, bufferSizeHint))
+        {
+            return unspecified_error;
+        }
+
+        return no_error;
+    }
+
+    file::file() noexcept = default;
+
+    file::file(file&& other) noexcept : m_handle{other.m_handle}
+    {
+        other.m_handle = nullptr;
+    }
+
+    file::~file()
+    {
+        close();
+    }
+
+    file& file::operator=(file&& other) noexcept
+    {
+        close();
+        m_handle = other.m_handle;
+        other.m_handle = nullptr;
+        return *this;
+    }
+
+    expected<u32, file::error> file::read(void* dst, u32 size) const noexcept
+    {
+        DWORD actuallyRead{};
+
+        if (!ReadFile(m_handle, dst, size, &actuallyRead, nullptr))
+        {
+            return translate_file_error();
+        }
+
+        return actuallyRead;
+    }
+
+    expected<u32, file::error> file::write(const void* src, u32 size) const noexcept
+    {
+        DWORD actuallyRead{};
+
+        if (!WriteFile(m_handle, src, size, &actuallyRead, nullptr))
+        {
+            return translate_file_error();
+        }
+
+        return actuallyRead;
+    }
+
+    bool file::is_open() const noexcept
+    {
+        return m_handle != nullptr;
+    }
+
+    void file::close() noexcept
+    {
+        if (!m_handle)
+        {
+            return;
+        }
+
+        [[maybe_unused]] const auto handleClosed = CloseHandle(m_handle);
+        OBLO_ASSERT(handleClosed);
+
+        m_handle = {};
+    }
+
+    file::operator bool() const noexcept
+    {
+        return m_handle != nullptr;
+    }
+
+    void* file::get_native_handle() const noexcept
+    {
+        return m_handle;
     }
 }
 

@@ -269,7 +269,8 @@ namespace oblo
 
     struct asset_registry::impl
     {
-        uuid_random_generator uuidGenerator;
+        random_generator rng;
+        uuid_random_generator uuidGenerator{rng};
         std::unordered_map<type_id, asset_type_info> assetTypes;
         std::unordered_map<type_id, file_importer_info> importers;
         std::unordered_map<uuid, asset_entry> assets;
@@ -309,6 +310,8 @@ namespace oblo
         m_impl->assetsDir.append(assetsDir).make_absolute_path();
         m_impl->artifactsDir.append(artifactsDir).make_absolute_path();
         m_impl->sourceFilesDir.append(sourceFilesDir).make_absolute_path();
+
+        m_impl->rng.seed();
 
         return true;
     }
