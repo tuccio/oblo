@@ -311,6 +311,8 @@ namespace oblo
         m_impl->artifactsDir.append(artifactsDir).make_absolute_path();
         m_impl->sourceFilesDir.append(sourceFilesDir).make_absolute_path();
 
+        m_impl->rng.seed();
+
         return true;
     }
 

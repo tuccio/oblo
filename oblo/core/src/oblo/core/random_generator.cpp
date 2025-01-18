@@ -32,7 +32,7 @@ namespace oblo
     {
         if (!m_impl)
         {
-            m_impl = std::make_unique<impl>();
+            m_impl = allocate_unique<impl>();
         }
 
         m_impl->seed(seed);

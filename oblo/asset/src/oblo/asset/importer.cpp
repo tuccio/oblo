@@ -176,7 +176,7 @@ namespace oblo
 
             if (artifactIt == m_artifacts.end())
             {
-                log::error("Artifact {} ({}) will be skipped due to a UUID collision", artifact.id, artifact.name);
+                log::error("Artifact '{}' ({}) will be skipped due to a UUID collision", artifact.name, artifact.id);
                 allSucceeded = false;
                 continue;
             }
@@ -185,10 +185,10 @@ namespace oblo
 
             if (!artifactPtr)
             {
-                log::error("Artifact {} ({}) will be skipped due to missing imported data (this may signal a bug in "
+                log::error("Artifact '{}' ({}) will be skipped due to missing imported data (this may signal a bug in "
                            "the importer)",
-                    artifact.id,
-                    artifact.name);
+                    artifact.name,
+                    artifact.id);
 
                 allSucceeded = false;
                 continue;
@@ -203,9 +203,9 @@ namespace oblo
 
             if (!registry.save_artifact(artifact.id, artifact.data.get_type(), artifactPtr, meta))
             {
-                log::error("Artifact {} ({}) will be skipped due to an error occurring while saving to disk",
-                    artifact.id,
-                    artifact.name);
+                log::error("Artifact '{}' ({}) will be skipped due to an error occurring while saving to disk",
+                    artifact.name,
+                    artifact.id);
 
                 allSucceeded = false;
                 continue;
