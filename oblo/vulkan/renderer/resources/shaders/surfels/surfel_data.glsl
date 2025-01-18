@@ -9,7 +9,7 @@
 const float NO_SURFELS_NEEDED = 1e6;
 
 // The spherical harmonics type used with surfels
-#define surfel_sh sh3
+#define surfel_sh sh2
 
 struct surfel_spawn_data
 {

@@ -87,6 +87,9 @@ namespace oblo::editor
 
         string_builder buffer;
 
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{});
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
+
         if (ImGui::Begin(buffer.format("Viewport##{}", m_viewportId).c_str(), &open))
         {
             buffer.clear();
@@ -306,6 +309,8 @@ namespace oblo::editor
         }
 
         ImGui::End();
+
+        ImGui::PopStyleVar(2);
 
         if (!open)
         {

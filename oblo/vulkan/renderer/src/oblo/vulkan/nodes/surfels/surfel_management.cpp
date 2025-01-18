@@ -24,7 +24,7 @@ namespace oblo::vk
 
         // We need 9 coefficients for order 3, or 4 for order 2. The surfel_sh define in shaders has to be changed
         // accordingly.
-        using surfel_sh_type = f32[9];
+        using surfel_sh_type = f32[4];
 
         struct surfel_spawn_data
         {
