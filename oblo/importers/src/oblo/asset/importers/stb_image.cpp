@@ -129,9 +129,9 @@ namespace oblo::importers
                 }
             }
 
-            // Convert RGB8 to RGBA8
             if (vkFormat == VK_FORMAT_R8G8B8_UNORM)
             {
+                // Convert RGB8 to RGBA8
                 texture withAlpha;
 
                 withAlpha.allocate({
@@ -165,6 +165,46 @@ namespace oblo::importers
                             {
                                 pixel[k] = source[k];
                                 pixel[3] = u8{0xffu};
+                            }
+                        });
+                }
+            }
+            else if (vkFormat == VK_FORMAT_R32G32B32_SFLOAT)
+            {
+                // Convert RGB32F to RGBA32F
+                texture withAlpha;
+
+                withAlpha.allocate({
+                    .vkFormat = VK_FORMAT_R32G32B32A32_SFLOAT,
+                    .width = u32(w),
+                    .height = u32(h),
+                    .depth = 1,
+                    .dimensions = 2,
+                    .numLevels = numLevels,
+                    .numLayers = 1,
+                    .numFaces = 1,
+                    .isArray = false,
+                });
+
+                for (u32 mipLevel = 0; mipLevel < numLevels; ++mipLevel)
+                {
+                    const u32 mipWidth = width >> mipLevel;
+                    const u32 mipHeight = height >> mipLevel;
+
+                    using namespace image_processing;
+
+                    const image_view_rgb<f32> rgb{out.get_data(mipLevel, 0, 0), mipWidth, mipHeight};
+                    const image_view_rgba<f32> rgba{withAlpha.get_data(mipLevel, 0, 0), mipWidth, mipHeight};
+
+                    parallel_for_each_pixel(rgba,
+                        [&rgb](u32 i, u32 j, image_view_rgba<f32>::pixel_view pixel)
+                        {
+                            const auto source = rgb.at(i, j);
+
+                            for (u32 k = 0; k < 3; ++k)
+                            {
+                                pixel[k] = source[k];
+                                pixel[3] = 1.f;
                             }
                         });
                 }
