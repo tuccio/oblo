@@ -1,12 +1,12 @@
 #pragma once
 
 #include <oblo/core/expected.hpp>
+#include <oblo/core/string/cstring_view.hpp>
+#include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
 
 namespace oblo
 {
-    class cstring_view;
-    class string_view;
     class string_builder;
 }
 

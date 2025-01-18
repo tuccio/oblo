@@ -437,8 +437,9 @@ namespace oblo::vk
                 }
                 else
                 {
-                    auto spvData =
-                        filesystem::load_binary_file_into_memory(m_spirv.get_allocator(), spirvFile, alignof(u32));
+                    auto spvData = filesystem::load_binary_file_into_memory(m_spirv.get_deleter().get_allocator(),
+                        spirvFile,
+                        alignof(u32));
 
                     if (!spvData)
                     {
@@ -503,7 +504,7 @@ namespace oblo::vk
     shader_compiler::result glslang_compiler::preprocess_from_file(
         allocator& allocator, cstring_view path, shader_stage stage, string_view preamble)
     {
-        auto r = std::make_unique<glslang_compilation>(allocator, stage);
+        auto r = allocate_unique<glslang_compilation>(allocator, stage);
 
         r->preprocess_from_file(path, preamble, m_includeDirs);
 
@@ -518,21 +519,27 @@ namespace oblo::vk
 
     bool glslc_compiler::find_glslc()
     {
-        char buf[260];
-        usize bufSize = sizeof(buf);
+        buffered_array<char, 256> buf;
+        usize requiredSize{};
 
-        if (getenv_s(&bufSize, buf, bufSize, "VULKAN_SDK") == 0)
+        if (getenv_s(&requiredSize, nullptr, requiredSize, "VULKAN_SDK") == 0)
         {
-            m_glslcPath = buf;
-            m_glslcPath.append_path("Bin").append_path("glslc");
+            buf.resize_default(requiredSize);
 
-            if constexpr (platform::is_windows())
+            if (getenv_s(&requiredSize, buf.data(), requiredSize, "VULKAN_SDK") == 0)
             {
-                m_glslcPath.append(".exe");
-            }
+                m_glslcPath.append(buf.begin(), buf.end());
+                m_glslcPath.append_path("Bin").append_path("glslc");
 
-            return filesystem::exists(m_glslcPath).value_or(false);
+                if constexpr (platform::is_windows())
+                {
+                    m_glslcPath.append(".exe");
+                }
+
+                return filesystem::exists(m_glslcPath).value_or(false);
+            }
         }
+
         return false;
     }
 
@@ -555,7 +562,7 @@ namespace oblo::vk
     shader_compiler::result glslc_compiler::preprocess_from_file(
         allocator& allocator, cstring_view path, shader_stage stage, string_view preamble)
     {
-        auto r = std::make_unique<glslc_compilation>(allocator, stage);
+        auto r = allocate_unique<glslc_compilation>(allocator, stage);
 
         r->preprocess_from_file(path, preamble, m_includeDirs);
 

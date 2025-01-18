@@ -94,7 +94,6 @@ namespace oblo::vk
                 file->versionDirectiveLength = usize(maybePlus1 + charIt - content.begin());
             }
 
-            // TODO: Parse
             // We need to find each #include <...> and track the position in the string in the includes of source_file
 
             for (; charIt != content.end();)

@@ -4,8 +4,8 @@
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/core/unique_ptr.hpp>
 
-#include <memory>
 #include <span>
 
 namespace oblo::vk
@@ -66,7 +66,7 @@ namespace oblo::vk
     {
     public:
         VK_COMPILER_API result();
-        VK_COMPILER_API result(std::unique_ptr<shader_compiler::result_core> core);
+        VK_COMPILER_API result(unique_ptr<shader_compiler::result_core> core);
         result(const result&) = delete;
         VK_COMPILER_API result(result&&) noexcept;
 
@@ -86,6 +86,6 @@ namespace oblo::vk
         VK_COMPILER_API std::span<const u32> get_spirv() const;
 
     private:
-        std::unique_ptr<shader_compiler::result_core> m_core;
+        unique_ptr<shader_compiler::result_core> m_core;
     };
 }

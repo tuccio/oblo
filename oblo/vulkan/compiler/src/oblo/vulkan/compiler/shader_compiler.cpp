@@ -6,7 +6,7 @@ namespace oblo::vk
 {
     shader_compiler::result::result() = default;
 
-    shader_compiler::result::result(std::unique_ptr<shader_compiler::result_core> core) : m_core{std::move(core)} {}
+    shader_compiler::result::result(unique_ptr<shader_compiler::result_core> core) : m_core{std::move(core)} {}
 
     shader_compiler::result::result(result&&) noexcept = default;
 

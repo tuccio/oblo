@@ -143,7 +143,7 @@ namespace oblo::vk
 
         if (!m_glslCompiler)
         {
-            return shader_compiler::result{std::make_unique<error_result>("No GLSL compiler is available")};
+            return shader_compiler::result{allocate_unique<error_result>("No GLSL compiler is available")};
         }
 
         shader_compiler::result result = m_glslCompiler->preprocess_from_file(allocator, filePath, stage, preamble);
@@ -172,7 +172,7 @@ namespace oblo::vk
                 const auto n = diskSpv->size() / sizeof(u32);
                 const auto spv = std::span{start_lifetime_as_array<u32>(diskSpv->data(), n), n};
 
-                return shader_compiler::result{std::make_unique<cached_spirv>(std::move(result), spv)};
+                return shader_compiler::result{allocate_unique<cached_spirv>(std::move(result), spv)};
             }
         }
 
