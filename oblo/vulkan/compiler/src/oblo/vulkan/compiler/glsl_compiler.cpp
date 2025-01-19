@@ -224,7 +224,7 @@ namespace oblo::vk
                             return false;
                         }))
                 {
-                    m_state = state::compilation_failed;
+                    m_state = state::preprocess_failed;
                     return false;
                 }
 
@@ -248,6 +248,11 @@ namespace oblo::vk
             {
                 OBLO_ASSERT(m_state >= state::preprocess_failed);
                 m_preprocessor.get_source_files(sourceFiles);
+            }
+
+            glsl_preprocessor& get_preprocessor()
+            {
+                return m_preprocessor;
             }
 
         protected:
@@ -547,11 +552,12 @@ namespace oblo::vk
     }
 
     shader_compiler::result glslang_compiler::preprocess_from_file(
-        allocator& allocator, cstring_view path, shader_stage stage, string_view preamble)
+        allocator& allocator, cstring_view path, shader_stage stage, const shader_preprocessor_options& options)
     {
         auto r = allocate_unique<glslang_compilation>(allocator, stage);
 
-        r->preprocess_from_file(path, preamble, m_includeDirs);
+        r->get_preprocessor().set_emit_line_directives(options.emitLineDirectives);
+        r->preprocess_from_file(path, options.preamble, m_includeDirs);
 
         return result{std::move(r)};
     }
@@ -605,11 +611,12 @@ namespace oblo::vk
     }
 
     shader_compiler::result glslc_compiler::preprocess_from_file(
-        allocator& allocator, cstring_view path, shader_stage stage, string_view preamble)
+        allocator& allocator, cstring_view path, shader_stage stage, const shader_preprocessor_options& options)
     {
         auto r = allocate_unique<glslc_compilation>(allocator, stage);
 
-        r->preprocess_from_file(path, preamble, m_includeDirs);
+        r->get_preprocessor().set_emit_line_directives(options.emitLineDirectives);
+        r->preprocess_from_file(path, options.preamble, m_includeDirs);
 
         return result{std::move(r)};
     }

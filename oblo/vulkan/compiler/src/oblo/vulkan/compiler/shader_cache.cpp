@@ -133,21 +133,22 @@ namespace oblo::vk
     shader_compiler::result shader_cache::find_or_compile(frame_allocator& allocator,
         cstring_view filePath,
         shader_stage stage,
-        string_view preamble,
-        const shader_compiler_options& options,
+        const shader_preprocessor_options& preprocessorOptions,
+        const shader_compiler_options& compilerOptions,
         string_view debugName)
     {
         OBLO_PROFILE_SCOPE();
 
-        constexpr auto numOptions{count_fields<shader_compiler_options>()};
-        static_assert(numOptions == 3, "The cache hash might need to be updated");
+        constexpr auto numCompilerOptions{count_fields<shader_compiler_options>()};
+        static_assert(numCompilerOptions == 3, "The cache hash might need to be updated");
 
         if (!m_glslCompiler)
         {
             return shader_compiler::result{allocate_unique<error_result>("No GLSL compiler is available")};
         }
 
-        shader_compiler::result result = m_glslCompiler->preprocess_from_file(allocator, filePath, stage, preamble);
+        shader_compiler::result result =
+            m_glslCompiler->preprocess_from_file(allocator, filePath, stage, preprocessorOptions);
 
         if (result.has_errors())
         {
@@ -158,8 +159,8 @@ namespace oblo::vk
         u64 id = hash_xxh64(sourceCode.data(), sourceCode.size());
 
         id = hash_xxh64(&stage, sizeof(stage), id);
-        id = hash_xxh64(&options.codeOptimization, sizeof(options.codeOptimization), id);
-        id = hash_xxh64(&options.generateDebugInfo, sizeof(options.generateDebugInfo), id);
+        id = hash_xxh64(&compilerOptions.codeOptimization, sizeof(compilerOptions.codeOptimization), id);
+        id = hash_xxh64(&compilerOptions.generateDebugInfo, sizeof(compilerOptions.generateDebugInfo), id);
 
         string_builder spvPath;
         spvPath.append(m_path).append_path_separator().format("{}_{}.spirv", debugName, id);
@@ -193,7 +194,7 @@ namespace oblo::vk
         {
             OBLO_PROFILE_SCOPE_NAMED(CompileScope, "Compile shader");
 
-            shader_compiler_options optionsCopy = options;
+            shader_compiler_options optionsCopy = compilerOptions;
             optionsCopy.sourceCodeFilePath = sourceCodePath;
 
             result = m_glslCompiler->compile(std::move(result), optionsCopy);

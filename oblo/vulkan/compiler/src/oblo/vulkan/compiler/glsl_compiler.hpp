@@ -10,8 +10,10 @@ namespace oblo::vk
     public:
         void init(const shader_compiler_config& config) override;
 
-        result preprocess_from_file(
-            allocator& allocator, cstring_view path, shader_stage stage, string_view preamble) override;
+        result preprocess_from_file(allocator& allocator,
+            cstring_view path,
+            shader_stage stage,
+            const shader_preprocessor_options& options) override;
 
         result compile(result r, const shader_compiler_options& options) override;
 
@@ -27,8 +29,10 @@ namespace oblo::vk
 
         void init(const shader_compiler_config& config) override;
 
-        result preprocess_from_file(
-            allocator& allocator, cstring_view path, shader_stage stage, string_view preamble) override;
+        result preprocess_from_file(allocator& allocator,
+            cstring_view path,
+            shader_stage stage,
+            const shader_preprocessor_options& options) override;
 
         result compile(result r, const shader_compiler_options& options) override;
 

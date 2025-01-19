@@ -667,8 +667,9 @@ namespace oblo::vk
         watch_listener watchListener;
         std::optional<efsw::FileWatcher> fileWatcher;
 
-        bool enableShaderOptimizations{};
-        bool emitDebugInfo{};
+        bool enableShaderOptimizations{false};
+        bool emitDebugInfo{false};
+        bool emitLineDirectives{true};
         bool enableProfiling{true};
         bool enableProfilingThisFrame{false};
         bool globallyEnablePrintf{false};
@@ -804,10 +805,15 @@ namespace oblo::vk
             preambleBuilder.format("#define {}\n", define);
         }
 
+        const shader_preprocessor_options preprocessorOptions = {
+            .emitLineDirectives = emitLineDirectives,
+            .preamble = preambleBuilder.as<string_view>(),
+        };
+
         result = shaderCache.find_or_compile(frameAllocator,
             filePath,
             from_vk_shader_stage(vkStage),
-            preambleBuilder.as<string_view>(),
+            preprocessorOptions,
             compilerOptions,
             debugName);
 
@@ -2544,6 +2550,7 @@ namespace oblo::vk
             const bool anyChange = m_impl->enableShaderOptimizations != shaderCompilerConfig.optimizeShaders ||
                 m_impl->emitDebugInfo != shaderCompilerConfig.emitDebugInfo ||
                 m_impl->globallyEnablePrintf != shaderCompilerConfig.enablePrintf ||
+                m_impl->emitLineDirectives != shaderCompilerConfig.emitLineDirectives ||
                 chosenCompiler != m_impl->shaderCache.get_glsl_compiler();
 
             if (anyChange)
@@ -2553,6 +2560,7 @@ namespace oblo::vk
                 m_impl->enableShaderOptimizations = shaderCompilerConfig.optimizeShaders;
                 m_impl->emitDebugInfo = shaderCompilerConfig.emitDebugInfo;
                 m_impl->globallyEnablePrintf = shaderCompilerConfig.enablePrintf;
+                m_impl->emitLineDirectives = shaderCompilerConfig.emitLineDirectives;
 
                 m_impl->invalidate_all_passes();
             }

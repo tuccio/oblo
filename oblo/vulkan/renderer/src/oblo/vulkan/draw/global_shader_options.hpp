@@ -76,6 +76,20 @@ namespace oblo
         };
     };
 
+    template <>
+    struct option_traits<"r.shaders.emitLineDirectives">
+    {
+        using type = bool;
+
+        static constexpr option_descriptor descriptor{
+            .kind = property_kind::boolean,
+            .id = "73506162-fc22-4148-a7df-ee30c4726c95"_uuid,
+            .name = "Emit line directives on shaders",
+            .category = "Graphics/Shaders",
+            .defaultValue = property_value_wrapper{true},
+        };
+    };
+
     struct global_shader_options_proxy
     {
         option_proxy<"r.shaders.preferGlslang"> preferGlslang;
@@ -83,6 +97,7 @@ namespace oblo
         option_proxy<"r.shaders.emitDebugInfo"> emitDebugInfo;
         option_proxy<"r.shaders.enablePrintf"> enablePrintf;
         option_proxy<"r.shaders.enableSpirvCache"> enableSpirvCache;
+        option_proxy<"r.shaders.emitLineDirectives"> emitLineDirectives;
     };
 
     struct global_shader_options
@@ -92,5 +107,6 @@ namespace oblo
         bool emitDebugInfo;
         bool enablePrintf;
         bool enableSpirvCache;
+        bool emitLineDirectives;
     };
 }
