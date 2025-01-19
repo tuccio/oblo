@@ -157,7 +157,7 @@ vec4 visibility_shade(in visibility_shade_context ctx)
     }
 
 #ifdef SURFELS_GI
-    const vec3 giContribution = surfel_calculate_contribution(g_Camera.position, positionWS, normalWS);
+    const vec3 giContribution = surfel_calculate_contribution(positionWS, normalWS);
     reflected += giContribution * pbr_brdf(normalWS, viewWS, normalWS, pbr);
 #endif
 

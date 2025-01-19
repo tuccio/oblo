@@ -130,7 +130,7 @@ void main()
         reflected += lightContribution;
     }
 
-    const vec3 giContribution = surfel_calculate_contribution_single_cell(positionWS, normalWS);
+    const vec3 giContribution = surfel_calculate_contribution(positionWS, normalWS);
     reflected += giContribution * pbr_brdf_diffuse(normalWS, viewWS, normalWS, pbr);
 
     r_HitColor = reflected;
