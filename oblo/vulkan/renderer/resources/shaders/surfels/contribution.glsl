@@ -18,47 +18,64 @@ struct surfel_candidates
 vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
 {
     vec3 irradiance = vec3(0);
-    uint surfelsFound = 0;
 
     const ivec3 cell = surfel_grid_find_cell(g_SurfelGridHeader, position);
 
     if (surfel_grid_has_cell(g_SurfelGridHeader, cell))
     {
+        vec3 allSum = vec3(0);
+        float weightSum = 0;
+
         const uint cellIndex = surfel_grid_cell_index(g_SurfelGridHeader, cell);
 
         const surfel_grid_cell gridCell = g_SurfelGridCells[cellIndex];
 
-        for (surfel_grid_cell_iterator cellIt = surfel_grid_cell_iterator_begin(gridCell);
-             surfel_grid_cell_iterator_has_next(cellIt);
-             surfel_grid_cell_iterator_advance(cellIt))
+        surfel_grid_cell_iterator cellIt = surfel_grid_cell_iterator_begin(gridCell);
+
+        for (; surfel_grid_cell_iterator_has_next(cellIt); surfel_grid_cell_iterator_advance(cellIt))
         {
             const uint surfelId = surfel_grid_cell_iterator_get(cellIt);
             const surfel_data surfel = g_SurfelData[surfelId];
 
             const vec3 surfelPosition = surfel_data_world_position(surfel);
+            const vec3 surfelNormal = surfel_data_world_normal(surfel);
 
             const vec3 pToS = surfelPosition - position;
 
             const float distance2 = dot(pToS, pToS);
 
+            const float radius2 = surfel.radius * surfel.radius;
+
             // We allow influences up to this distance
-            const float threshold2 = 4 * surfel.radius * surfel.radius;
+            const float threshold = SURFEL_CONTRIBUTION_THRESHOLD_SQR * radius2;
 
-            if (distance2 <= threshold2)
+            const surfel_lighting_data surfelLight = g_InSurfelsLighting[surfelId];
+
+            const vec3 surfelContribution = max(dot(surfelNormal, normal), 0) * surfelLight.irradiance;
+            allSum += surfelContribution;
+
+            if (distance2 <= threshold)
             {
-                const surfel_lighting_data surfelLight = g_InSurfelsLighting[surfelId];
-                const vec3 surfelNormal = surfel_data_world_normal(surfel);
+                const float weight = 1 - distance2 / threshold;
+                // const float weight = 1;
+                weightSum += weight;
 
-                // We should probably weigh based on distance
-                irradiance += max(dot(surfelNormal, normal), 0) * surfelLight.irradiance;
-                ++surfelsFound;
+                // irradiance += max(dot(surfelNormal, normal), 0) * surfelLight.irradiance;
+                irradiance += weight * surfelContribution;
             }
         }
-    }
 
-    if (surfelsFound > 0)
-    {
-        irradiance /= surfelsFound;
+        const vec3 weightedAvg = weightSum < 1e-1 ? vec3(0) : irradiance / weightSum;
+
+        if (weightSum < 1)
+        {
+            const vec3 gridAvg = allSum / max(1, surfel_grid_cell_iterator_count(cellIt));
+            irradiance = mix(gridAvg, weightedAvg, weightSum);
+        }
+        else
+        {
+            irradiance = weightedAvg;
+        }
     }
 
     return irradiance;

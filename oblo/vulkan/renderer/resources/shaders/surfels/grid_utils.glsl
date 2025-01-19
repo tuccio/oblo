@@ -22,9 +22,9 @@ void surfel_scatter_to_grid(
                     continue;
                 }
 
-                const vec3 posOnSurface = positionWS + radius * vec3(x, y, z);
+                const vec3 contributionThreshold = positionWS + SURFEL_CONTRIBUTION_THRESHOLD * radius * vec3(x, y, z);
 
-                if (neighboringCell == surfel_grid_find_cell(gridHeader, posOnSurface))
+                if (neighboringCell == surfel_grid_find_cell(gridHeader, contributionThreshold))
                 {
                     const uint neighboringCellIndex = surfel_grid_cell_index(gridHeader, neighboringCell);
                     surfel_commit_to_grid(surfelId, neighboringCellIndex);

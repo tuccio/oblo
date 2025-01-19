@@ -6,6 +6,8 @@
 
 // Used as a coverage value for surfel_tile_data when no geometry is present
 const float NO_SURFELS_NEEDED = 1e6;
+const float SURFEL_CONTRIBUTION_THRESHOLD = 2;
+const float SURFEL_CONTRIBUTION_THRESHOLD_SQR = SURFEL_CONTRIBUTION_THRESHOLD * SURFEL_CONTRIBUTION_THRESHOLD;
 
 struct surfel_spawn_data
 {
@@ -148,7 +150,7 @@ float surfel_max_radius(in surfel_grid_header gridHeader)
     return maxRadius;
 }
 
-float surfel_estimate_radius(in surfel_grid_header gridHeader,in vec3 cameraPosition, in vec3 surfelPosition)
+float surfel_estimate_radius(in surfel_grid_header gridHeader, in vec3 cameraPosition, in vec3 surfelPosition)
 {
     const vec3 cameraVector = surfelPosition - cameraPosition;
     const float cameraDistance2 = dot(cameraVector, cameraVector);
