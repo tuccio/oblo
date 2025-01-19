@@ -100,7 +100,7 @@ void main()
 
     for (uint i = 0; i < numRays; ++i)
     {
-        const vec3 direction = random_sample_uniform_hemisphere(N, random_uniform_2d(randomSeed));
+        const vec3 direction = random_sample_cosine_hemisphere(N, random_uniform_2d(randomSeed));
 
         const float tMin = 1e-2f;
         const float tMax = 1e6f;
@@ -118,7 +118,10 @@ void main()
             0 // payload location
         );
 
-        irradiance += g_Constants.giMultiplier * r_HitColor;
+        const vec3 rayContribution = g_Constants.giMultiplier * r_HitColor;
+
+        const float sampleProbability = max(1e-2, dot(direction, N));
+        irradiance += rayContribution / sampleProbability;
     }
 
     irradiance /= numRays;
