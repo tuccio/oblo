@@ -74,7 +74,7 @@ surfel_candidates surfel_fetch_best_candidates(in vec3 position)
 
 vec3 surfel_calculate_contribution(in vec3 cameraPosition, in vec3 position, in vec3 normal)
 {
-    vec3 radiance = vec3(0);
+    vec3 irradiance = vec3(0);
 
     const ivec3 baseCell = surfel_grid_find_cell(g_SurfelGridHeader, position);
 
@@ -117,18 +117,7 @@ vec3 surfel_calculate_contribution(in vec3 cameraPosition, in vec3 position, in 
                         if (distance2 <= threshold)
                         {
                             const surfel_lighting_data surfelLight = g_InSurfelsLighting[surfelId];
-
-                            surfel_sh lobe;
-                            sh_cosine_lobe_project(lobe, normal);
-
-                            const float multiplier = surfelLight.numSamples == 0 ? 0.f : 1.f / surfelLight.numSamples;
-
-                            // Integral of the product of cosine and the irradiance
-                            const float r = multiplier * sh_dot(lobe, surfelLight.shRed);
-                            const float g = multiplier * sh_dot(lobe, surfelLight.shGreen);
-                            const float b = multiplier * sh_dot(lobe, surfelLight.shBlue);
-
-                            radiance += vec3(r, g, b);
+                            irradiance += surfelLight.irradiance / max(1, surfelLight.numSamples);
                             ++surfelsFound;
                         }
                     }
@@ -139,15 +128,15 @@ vec3 surfel_calculate_contribution(in vec3 cameraPosition, in vec3 position, in 
 
     if (surfelsFound > 0)
     {
-        radiance /= surfelsFound;
+        irradiance /= surfelsFound;
     }
 
-    return radiance;
+    return irradiance;
 }
 
 vec3 surfel_calculate_contribution_single_cell(in vec3 position, in vec3 normal)
 {
-    vec3 radiance = vec3(0);
+    vec3 irradiance = vec3(0);
 
     const ivec3 cell = surfel_grid_find_cell(g_SurfelGridHeader, position);
 
@@ -184,22 +173,11 @@ vec3 surfel_calculate_contribution_single_cell(in vec3 position, in vec3 normal)
             const uint surfelId = minSurfelId;
 
             const surfel_lighting_data surfelLight = g_InSurfelsLighting[surfelId];
-
-            surfel_sh lobe;
-            sh_cosine_lobe_project(lobe, normal);
-
-            const float multiplier = surfelLight.numSamples == 0 ? 0.f : 1.f / surfelLight.numSamples;
-
-            // Integral of the product of cosine and the irradiance
-            const float r = multiplier * sh_dot(lobe, surfelLight.shRed);
-            const float g = multiplier * sh_dot(lobe, surfelLight.shGreen);
-            const float b = multiplier * sh_dot(lobe, surfelLight.shBlue);
-
-            radiance = vec3(r, g, b);
+            irradiance = surfelLight.irradiance / max(1, surfelLight.numSamples);
         }
     }
 
-    return radiance;
+    return irradiance;
 }
 
 #endif

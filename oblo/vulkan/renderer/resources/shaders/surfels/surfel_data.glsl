@@ -3,13 +3,9 @@
 
 #include <ecs/entity>
 #include <renderer/constants>
-#include <renderer/math/spherical_harmonics>
 
 // Used as a coverage value for surfel_tile_data when no geometry is present
 const float NO_SURFELS_NEEDED = 1e6;
-
-// The spherical harmonics type used with surfels
-#define surfel_sh sh2
 
 struct surfel_spawn_data
 {
@@ -61,9 +57,7 @@ struct surfel_tile_data
 
 struct surfel_lighting_data
 {
-    surfel_sh shRed;
-    surfel_sh shGreen;
-    surfel_sh shBlue;
+    vec3 irradiance;
     uint numSamples;
 };
 
@@ -157,9 +151,7 @@ float surfel_estimate_radius(in surfel_grid_header gridHeader, in vec3 cameraPos
 surfel_lighting_data surfel_lighting_data_new()
 {
     surfel_lighting_data r;
-    sh_zero(r.shRed);
-    sh_zero(r.shGreen);
-    sh_zero(r.shBlue);
+    r.irradiance = vec3(0);
     r.numSamples = 0;
     return r;
 }

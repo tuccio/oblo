@@ -36,11 +36,7 @@ void main()
 
     uint randomSeed = random_seed(g_Constants.randomSeed, surfelId);
 
-    surfel_sh r, g, b;
-
-    r = g_InSurfelsLighting[surfelId].shRed;
-    g = g_InSurfelsLighting[surfelId].shGreen;
-    b = g_InSurfelsLighting[surfelId].shBlue;
+    vec3 irradiance = g_InSurfelsLighting[surfelId].irradiance;
 
     const vec3 origin = surfel_data_world_position(surfel);
     const vec3 N = surfel_data_world_normal(surfel);
@@ -67,16 +63,9 @@ void main()
             0 // payload location
         );
 
-        surfel_sh shDirection;
-        sh_eval(shDirection, direction);
-
-        r = sh_add(sh_mul(shDirection, g_Constants.giMultiplier * r_HitColor.r), r);
-        g = sh_add(sh_mul(shDirection, g_Constants.giMultiplier * r_HitColor.g), g);
-        b = sh_add(sh_mul(shDirection, g_Constants.giMultiplier * r_HitColor.b), b);
+        irradiance += g_Constants.giMultiplier * r_HitColor;
     }
 
-    g_OutSurfelsLighting[surfelId].shRed = r;
-    g_OutSurfelsLighting[surfelId].shGreen = g;
-    g_OutSurfelsLighting[surfelId].shBlue = b;
-    g_OutSurfelsLighting[surfelId].numSamples = g_InSurfelsLighting[surfelId].numSamples + 1;
+    g_OutSurfelsLighting[surfelId].irradiance = irradiance;
+    g_OutSurfelsLighting[surfelId].numSamples = g_InSurfelsLighting[surfelId].numSamples + numRays;
 }
