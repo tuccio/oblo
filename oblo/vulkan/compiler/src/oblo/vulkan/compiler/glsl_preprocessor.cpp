@@ -173,7 +173,7 @@ namespace oblo::vk
                     if (!resolveInclude(includePath, m_builder))
                     {
                         m_hasError = true;
-                        m_builder.format("Failed to resolve include: {}", includePath);
+                        m_builder.clear().format("Failed to resolve include: {}", includePath);
                         return false;
                     }
 
@@ -320,7 +320,7 @@ namespace oblo::vk
 
     cstring_view glsl_preprocessor::get_error() const
     {
-        OBLO_ASSERT(!m_hasError);
+        OBLO_ASSERT(m_hasError);
         return m_builder;
     }
 
