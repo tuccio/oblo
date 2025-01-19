@@ -294,12 +294,12 @@ namespace oblo::vk
 
         auto& sourceFile = m_sourceFiles.emplace_back(m_memoryResource.get_allocator());
 
-        const auto r = filesystem::load_text_file_into_memory(sourceFile.content, path);
+        const auto r = filesystem::load_text_file_into_memory(sourceFile.content, it->first);
 
         if (!r)
         {
             m_hasError = true;
-            m_builder.clear().format("Failed to read file: {}", path);
+            m_builder.clear().format("Failed to read file: {}", it->first);
             return nullptr;
         }
 
