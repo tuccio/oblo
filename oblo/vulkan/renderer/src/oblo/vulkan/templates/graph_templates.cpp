@@ -601,6 +601,10 @@ namespace oblo::vk::surfels_gi
         graph.connect(update, &surfel_update::inInstanceTables, rayTracing, &surfel_raytracing::inInstanceTables);
         graph.connect(update, &surfel_update::inInstanceBuffers, rayTracing, &surfel_raytracing::inInstanceBuffers);
         graph.connect(initializer, &surfel_initializer::inMaxSurfels, rayTracing, &surfel_raytracing::inMaxSurfels);
+        graph.connect(initializer,
+            &surfel_initializer::outSurfelsLightEstimatorData,
+            rayTracing,
+            &surfel_raytracing::inOutSurfelsLightEstimatorData);
 
         graph.connect(spawner,
             &surfel_spawner::inOutSurfelsLightingData0,

@@ -18,6 +18,11 @@ layout(push_constant) uniform c_PushConstants
 }
 g_Constants;
 
+layout(std430, binding = SURFEL_LIGHT_ESTIMATOR_DATA_BINDING) restrict buffer b_OutSurfelsLightEstimator
+{
+    surfel_light_estimator_data g_SurfelsLightEstimatorData[];
+};
+
 void main()
 {
     const uint id = gl_GlobalInvocationID.x;
@@ -37,4 +42,5 @@ void main()
     g_SurfelData[id] = surfel_data_invalid();
     g_InSurfelsLighting[id] = surfel_lighting_data_new();
     g_OutSurfelsLighting[id] = surfel_lighting_data_new();
+    g_SurfelsLightEstimatorData[id] = surfel_light_estimator_data_new();
 }

@@ -61,6 +61,14 @@ struct surfel_lighting_data
     uint numSamples;
 };
 
+struct surfel_light_estimator_data
+{
+    vec3 shortTermMean;
+    float varianceBasedBlendReduction;
+    vec3 variance;
+    float inconsistency;
+};
+
 ivec3 surfel_grid_cells_count(in surfel_grid_header h)
 {
     return h.cellsCount;
@@ -152,7 +160,16 @@ surfel_lighting_data surfel_lighting_data_new()
 {
     surfel_lighting_data r;
     r.irradiance = vec3(0);
-    r.numSamples = 0;
+    return r;
+}
+
+surfel_light_estimator_data surfel_light_estimator_data_new()
+{
+    surfel_light_estimator_data r;
+    r.shortTermMean = vec3(0);
+    r.varianceBasedBlendReduction = 0;
+    r.variance = vec3(0);
+    r.inconsistency = 0;
     return r;
 }
 

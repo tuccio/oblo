@@ -117,7 +117,7 @@ vec3 surfel_calculate_contribution(in vec3 cameraPosition, in vec3 position, in 
                         if (distance2 <= threshold)
                         {
                             const surfel_lighting_data surfelLight = g_InSurfelsLighting[surfelId];
-                            irradiance += surfelLight.irradiance / max(1, surfelLight.numSamples);
+                            irradiance += surfelLight.irradiance;
                             ++surfelsFound;
                         }
                     }
@@ -173,7 +173,7 @@ vec3 surfel_calculate_contribution_single_cell(in vec3 position, in vec3 normal)
             const uint surfelId = minSurfelId;
 
             const surfel_lighting_data surfelLight = g_InSurfelsLighting[surfelId];
-            irradiance = surfelLight.irradiance / max(1, surfelLight.numSamples);
+            irradiance = surfelLight.irradiance;
         }
     }
 

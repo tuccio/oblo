@@ -24,6 +24,7 @@ namespace oblo::vk
         // Two buffers we ping pong during the ray-tracing update
         resource<buffer> outSurfelsLightingData0;
         resource<buffer> outSurfelsLightingData1;
+        resource<buffer> outSurfelsLightEstimatorData;
 
         data<u32> inMaxSurfels;
         data<aabb> inGridBounds;
@@ -180,6 +181,7 @@ namespace oblo::vk
 
         resource<buffer> lastFrameSurfelsLightingData;
         resource<buffer> outSurfelsLightingData;
+        resource<buffer> inOutSurfelsLightEstimatorData;
 
         resource<buffer> inLightBuffer;
         resource<buffer> inLightConfig;

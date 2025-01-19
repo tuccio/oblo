@@ -71,7 +71,15 @@ namespace oblo::vk
         struct surfel_lighting_data
         {
             vec3 irradiance;
-            u32 numSamples;
+            f32 _padding;
+        };
+
+        struct surfel_light_estimator_data
+        {
+            vec3 shortTermMean;
+            f32 varianceBasedBlendReduction;
+            vec3 variance;
+            f32 inconsistency;
         };
 
         vec3 calculate_centroid(std::span<const camera_buffer> cameras)
@@ -123,6 +131,7 @@ namespace oblo::vk
         const u32 SurfelsSpawnDataSize = sizeof(surfel_spawn_data) * maxSurfels;
         const u32 surfelsDataSize = sizeof(surfel_dynamic_data) * maxSurfels;
         const u32 surfelsLightingDataSize = sizeof(surfel_lighting_data) * maxSurfels;
+        const u32 surfelsLightEstimatorgDataSize = sizeof(surfel_light_estimator_data) * maxSurfels;
         const u32 surfelsGridSize = u32(sizeof(surfel_grid_header) + sizeof(surfel_grid_cell) * cellsCountLinearized);
         const u32 surfelsGridDataSize = u32((1 + g_MaxSurfelMultiplicity * maxSurfels) * sizeof(u32));
 
@@ -159,6 +168,13 @@ namespace oblo::vk
         ctx.create(outSurfelsLightingData1,
             buffer_resource_initializer{
                 .size = surfelsLightingDataSize,
+                .isStable = true,
+            },
+            buffer_usage::storage_write);
+
+        ctx.create(outSurfelsLightEstimatorData,
+            buffer_resource_initializer{
+                .size = surfelsLightEstimatorgDataSize,
                 .isStable = true,
             },
             buffer_usage::storage_write);
@@ -209,6 +225,7 @@ namespace oblo::vk
                     {"b_SurfelsData", outSurfelsData},
                     {"b_InSurfelsLighting", outSurfelsLightingData0},
                     {"b_OutSurfelsLighting", outSurfelsLightingData1},
+                    {"b_OutSurfelsLightEstimator", outSurfelsLightEstimatorData},
                 });
 
             const binding_table* bindingTables[] = {
@@ -745,6 +762,7 @@ namespace oblo::vk
 
         ctx.acquire(lastFrameSurfelsLightingData, buffer_usage::storage_read);
         ctx.acquire(outSurfelsLightingData, buffer_usage::storage_write);
+        ctx.acquire(inOutSurfelsLightEstimatorData, buffer_usage::storage_write);
 
         ctx.acquire(inLightConfig, buffer_usage::uniform);
         ctx.acquire(inLightBuffer, buffer_usage::storage_read);
@@ -776,6 +794,7 @@ namespace oblo::vk
                 {"b_SurfelsData", inOutSurfelsData},
                 {"b_InSurfelsLighting", lastFrameSurfelsLightingData},
                 {"b_OutSurfelsLighting", outSurfelsLightingData},
+                {"b_OutSurfelsLightEstimator", inOutSurfelsLightEstimatorData},
             });
 
         bindingTable.emplace(ctx.get_string_interner().get_or_add("u_SceneTLAS"),
