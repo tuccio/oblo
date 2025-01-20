@@ -51,6 +51,8 @@ namespace oblo::vk
             bufferUsages.reserve_sparse(u32(impl.pinStorage.size() + 1));
             bufferUsages.reserve_dense(u32(impl.pinStorage.size() + 1));
 
+            deque<h32<transient_buffer_resource>> stableBuffers{&impl.dynamicAllocator};
+
             for (auto& pass : impl.passes)
             {
                 const u32 firstBarrierIdx = u32(memoryBarriers.size());
@@ -66,8 +68,22 @@ namespace oblo::vk
 
                     const auto [tracking, inserted] = bufferUsages.emplace(bufferResourceId);
 
-                    if (bufferUsage.uploadedTo)
+                    if (inserted && impl.resourcePool.is_stable(bufferResourceId))
                     {
+                        // This is a stable buffer, we need to keep track of its usage over multiple frames
+                        impl.resourcePool.fetch_buffer_tracking(bufferResourceId,
+                            &tracking->previousStages,
+                            &tracking->previousAccess,
+                            &tracking->currentAccessKind);
+
+                        stableBuffers.push_back(bufferResourceId);
+                    }
+                    else if (bufferUsage.uploadedTo)
+                    {
+                        OBLO_ASSERT(!impl.resourcePool.is_stable(bufferResourceId),
+                            "We don't support uploading to stable buffers currently, but if we did it would require a "
+                            "barrier on the first frame");
+
                         OBLO_ASSERT(tracking->previousStages == VK_PIPELINE_STAGE_2_NONE);
 
                         tracking->previousStages = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
@@ -107,6 +123,7 @@ namespace oblo::vk
                             // Here the current access might be none, or simply different from our new usage (e.g.
                             // read-to-write or write-to-read). We need to add a barrier.
                             const usize newBarrierIdx = memoryBarriers.size();
+                            tracking->hasMemoryBarrier = true;
                             tracking->currentBarrierIdx = newBarrierIdx;
                             tracking->currentAccessKind = bufferUsage.accessKind;
 
@@ -137,6 +154,22 @@ namespace oblo::vk
 
                 pass.bufferBarriersBegin = firstBarrierIdx;
                 pass.bufferBarriersEnd = lastBarrierIdx;
+            }
+
+            for (const auto stableBufferId : stableBuffers)
+            {
+                auto* const tracking = bufferUsages.try_find(stableBufferId);
+                OBLO_ASSERT(tracking);
+
+                if (tracking && tracking->hasMemoryBarrier)
+                {
+                    const auto& barrier = memoryBarriers[tracking->currentBarrierIdx];
+
+                    impl.resourcePool.store_buffer_tracking(stableBufferId,
+                        barrier.dstStageMask,
+                        barrier.dstAccessMask,
+                        tracking->currentAccessKind);
+                }
             }
         }
     }

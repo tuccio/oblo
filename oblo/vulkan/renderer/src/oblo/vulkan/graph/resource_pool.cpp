@@ -109,6 +109,26 @@ namespace oblo::vk
         VkBufferUsageFlags usage;
     };
 
+    struct resource_pool::stable_texture
+    {
+        allocated_image allocatedImage;
+        VkImageView imageView;
+        u32 creationTime;
+        u32 lastUsedTime;
+    };
+
+    struct resource_pool::stable_buffer
+    {
+        allocated_buffer allocatedBuffer;
+        u32 creationTime;
+        u32 lastUsedTime;
+
+        VkPipelineStageFlags2 previousStages = VK_PIPELINE_STAGE_2_NONE;
+        VkAccessFlags2 previousAccess = VK_ACCESS_2_NONE;
+
+        buffer_access_kind previousAccessKind{};
+    };
+
     resource_pool::resource_pool() = default;
 
     resource_pool::~resource_pool() = default;
@@ -270,6 +290,13 @@ namespace oblo::vk
         };
     }
 
+    bool resource_pool::is_stable(h32<transient_buffer_resource> id) const
+    {
+        OBLO_ASSERT(id);
+        auto& resource = m_bufferResources[id.value - 1];
+        return bool{resource.stableId};
+    }
+
     u32 resource_pool::get_frames_alive_count(h32<transient_texture_resource> id) const
     {
         OBLO_ASSERT(id);
@@ -289,6 +316,46 @@ namespace oblo::vk
         OBLO_ASSERT(id);
         auto& resource = m_textureResources[id.value - 1];
         return resource.initializer;
+    }
+
+    void resource_pool::fetch_buffer_tracking(h32<transient_buffer_resource> id,
+        VkPipelineStageFlags2* stages,
+        VkAccessFlags2* access,
+        buffer_access_kind* accessKind) const
+    {
+        OBLO_ASSERT(id);
+        auto& resource = m_bufferResources[id.value - 1];
+        OBLO_ASSERT(resource.stableId);
+
+        const auto& stableBuffer = m_stableBuffers.at(stable_buffer_key{
+            .stableId = resource.stableId,
+            .usage = resource.usage,
+            .size = resource.size,
+        });
+
+        *stages = stableBuffer.previousStages;
+        *access = stableBuffer.previousAccess;
+        *accessKind = stableBuffer.previousAccessKind;
+    }
+
+    void resource_pool::store_buffer_tracking(h32<transient_buffer_resource> id,
+        VkPipelineStageFlags2 stages,
+        VkAccessFlags2 access,
+        buffer_access_kind accessKind)
+    {
+        OBLO_ASSERT(id);
+        auto& resource = m_bufferResources[id.value - 1];
+        OBLO_ASSERT(resource.stableId);
+
+        auto& stableBuffer = m_stableBuffers.at(stable_buffer_key{
+            .stableId = resource.stableId,
+            .usage = resource.usage,
+            .size = resource.size,
+        });
+
+        stableBuffer.previousStages = stages;
+        stableBuffer.previousAccess = access;
+        stableBuffer.previousAccessKind = accessKind;
     }
 
     void resource_pool::free_last_frame_resources(vulkan_context& ctx)
@@ -432,21 +499,6 @@ namespace oblo::vk
             buffer.size = r.size;
         }
     }
-
-    struct resource_pool::stable_texture
-    {
-        allocated_image allocatedImage;
-        VkImageView imageView;
-        u32 creationTime;
-        u32 lastUsedTime;
-    };
-
-    struct resource_pool::stable_buffer
-    {
-        allocated_buffer allocatedBuffer;
-        u32 creationTime;
-        u32 lastUsedTime;
-    };
 
     bool resource_pool::stable_texture_key::operator==(const stable_texture_key& rhs) const
     {
