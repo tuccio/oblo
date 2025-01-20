@@ -36,37 +36,36 @@ void main()
     }
 
     // This should really depend on the coverage
-    const float skipProbability = 0.f;
+    const float skipProbability = 0.2f;
 
     if (random_uniform_1d(randomSeed) < skipProbability)
     {
         return;
     }
 
-    // We could consider a random threshold instead
-    const float spawnThreshold = NO_SURFELS_NEEDED;
+    // We don't spawn anything if the coverage is already high
+    const float maxCoverageThreshold = 0.9;
 
     const surfel_tile_data tile = g_TileData[globalIndex];
 
-    if (ecs_entity_is_valid(tile.spawnData.entity) && tile.worstPixelCoverage < 0.15)
+    if (tile.worstPixelCoverage < 0.75)
     {
-        uint newSurfelId;
-        const bool allocated = surfel_stack_allocate(newSurfelId);
-
-        if (allocated)
+        if (ecs_entity_is_valid(tile.spawnData.entity) && tile.worstPixelCoverage < maxCoverageThreshold)
         {
-            g_SurfelSpawnData[newSurfelId] = tile.spawnData;
-            g_SurfelSpawnData[newSurfelId].spawnTimestamp = g_Constants.currentTimestamp;
+            uint newSurfelId;
+            const bool allocated = surfel_stack_allocate(newSurfelId);
 
-            // This might not be necessary because we reset in the rgen shader on dead surfels
-            g_InSurfelsLighting[newSurfelId] = surfel_lighting_data_new();
-            g_OutSurfelsLighting[newSurfelId] = surfel_lighting_data_new();
-        }
-        else
-        {
-#if OBLO_DEBUG_PRINTF
-            // debugPrintfEXT("[SPAWN] Failed to allocate surfel\n");
-#endif
+            if (allocated)
+            {
+                g_SurfelSpawnData[newSurfelId] = tile.spawnData;
+                g_SurfelSpawnData[newSurfelId].spawnTimestamp = g_Constants.currentTimestamp;
+
+                // This might not be necessary because we reset in the rgen shader on dead surfels
+                g_InSurfelsLighting[newSurfelId] = surfel_lighting_data_new();
+                g_OutSurfelsLighting[newSurfelId] = surfel_lighting_data_new();
+            }
+
+            // Maybe if we failed to allocate we should try to free some space somewhere else
         }
     }
 }

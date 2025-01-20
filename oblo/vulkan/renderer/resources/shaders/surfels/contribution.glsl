@@ -6,15 +6,6 @@
 #include <surfels/buffers/surfel_grid_r>
 #include <surfels/buffers/surfel_lighting_data_in_r>
 
-const uint g_SurfelCandidatesMax = 4;
-
-struct surfel_candidates
-{
-    uint ids[g_SurfelCandidatesMax];
-    float sqrDistances[g_SurfelCandidatesMax];
-    uint count;
-};
-
 vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
 {
     vec3 irradiance = vec3(0);
@@ -57,10 +48,8 @@ vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
             if (distance2 <= threshold)
             {
                 const float weight = 1 - distance2 / threshold;
-                // const float weight = 1;
                 weightSum += weight;
 
-                // irradiance += max(dot(surfelNormal, normal), 0) * surfelLight.irradiance;
                 irradiance += weight * surfelContribution;
             }
         }
