@@ -9,6 +9,8 @@ const float NO_SURFELS_NEEDED = 1e6;
 const float SURFEL_CONTRIBUTION_THRESHOLD = 2;
 const float SURFEL_CONTRIBUTION_THRESHOLD_SQR = SURFEL_CONTRIBUTION_THRESHOLD * SURFEL_CONTRIBUTION_THRESHOLD;
 
+const uint SURFEL_MAX_RAYS_PER_SURFEL = 64;
+
 struct surfel_spawn_data
 {
     ecs_entity entity;

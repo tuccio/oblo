@@ -46,6 +46,7 @@ namespace oblo
         raytracing_debug,
         gi_surfels,
         gi_surfels_lighting,
+        gi_surfels_raycount,
     };
 
     struct viewport_component

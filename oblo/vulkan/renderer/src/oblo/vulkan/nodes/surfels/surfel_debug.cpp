@@ -69,6 +69,10 @@ namespace oblo::vk
             define = "MODE_SURFEL_LIGHTING"_hsv;
             break;
 
+        case mode::surfel_raycount:
+            define = "MODE_SURFEL_RAYCOUNT"_hsv;
+            break;
+
         default:
             unreachable();
         }

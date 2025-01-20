@@ -16,6 +16,7 @@ namespace oblo::vk
         {
             surfel_grid_id,
             surfel_lighting,
+            surfel_raycount,
             enum_max,
         };
 

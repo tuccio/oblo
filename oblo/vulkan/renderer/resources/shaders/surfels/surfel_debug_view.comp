@@ -121,10 +121,18 @@ vec4 visibility_shade(in visibility_shade_context ctx)
 #elif defined(MODE_SURFEL_LIGHTING)
         const surfel_lighting_data surfelLight = g_InSurfelsLighting[surfelId];
         return vec4(tonemap_aces_approx(surfelLight.irradiance), 1);
+#elif defined(MODE_SURFEL_RAYCOUNT)
+        const float maxRays = float(SURFEL_MAX_RAYS_PER_SURFEL);
+        const surfel_data surfel = g_SurfelData[surfelId];
+        return vec4(debug_color_map_jet(surfel.requestedRays / maxRays), 1);
 #endif
     }
 
+#if defined(MODE_SURFEL_RAYCOUNT)
+    return vec4(0, 0, 0, 1);
+#else
     return sample_fallback(ctx.screenPos);
+#endif
 }
 
 vec4 visibility_miss(in visibility_shade_context ctx)

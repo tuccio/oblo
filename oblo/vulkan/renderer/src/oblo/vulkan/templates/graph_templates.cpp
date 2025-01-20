@@ -319,6 +319,7 @@ namespace oblo::vk::main_view
                 constexpr string_view outputs[] = {
                     OutGISurfelsImage,
                     OutGiSurfelsLightingImage,
+                    OutGiSurfelsRayCount,
                 };
 
                 static_assert(u32(surfel_debug::mode::enum_max) == array_size(outputs));

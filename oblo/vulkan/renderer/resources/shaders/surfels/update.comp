@@ -132,47 +132,47 @@ void main()
     surfel_data updatedData;
     updatedData.positionWS = positionWS;
     updatedData.radius = radius;
-    updatedData.requestedRays = 32;
     surfel_data_set_world_normal(updatedData, normalWS);
 
     // Surfels that just spawned will ask for maxRays, then going down to 0 after warmUp frames
     // Surfels that moved or changed orientation will ask for more rays
     // All other surfels will ask for 1 ray
-    const uint maxRays = 64;
+    const uint maxRays = SURFEL_MAX_RAYS_PER_SURFEL;
     const uint warmupFrames = 32;
 
     uint numRequestedRays;
 
+    // TODO: actually calculate it
     const uint framesAlive = 1;
 
     if (framesAlive > 0)
     {
+        // We might instead choose a number randomly, but we want to sample every now and then at least
+        const uint minRays = 1;
+
         const vec3 previousNormal = surfel_data_world_normal(g_SurfelData[surfelId]);
         const float cosAngle = dot(normalWS, previousNormal);
 
-        const float orientationFactor = 1 - .5f * cosAngle;
+        const float orientationFactor = (1 - cosAngle) * .5f;
         const uint numRaysOrientation = uint(orientationFactor * maxRays);
 
         const vec3 previousPosition = surfel_data_world_position(g_SurfelData[surfelId]);
 
         const vec3 dx = previousPosition - positionWS;
 
-        // If we move by this distance, ask for more rays
-        const float minThreshold2 = gridHeader.cellSize * gridHeader.cellSize;
-
-        // A big distance to move in a single frame, we ask for max rays from here on
-        const float maxThreshold2 = 1;
-
         const float distance2 = dot(dx, dx);
-        const float translationFactor = min(maxThreshold2, max(0, distance2 - minThreshold2));
+        const float translationFactor = min(1.f, sqrt(distance2));
         const uint numRaysTranslation = uint(translationFactor * maxRays);
 
-        numRequestedRays = max(maxRays, numRaysOrientation + numRaysTranslation);
+        // TODO: Also consider incosistency in the sampled data
+        numRequestedRays = min(maxRays, max(minRays, numRaysOrientation + numRaysTranslation));
     }
     else
     {
         numRequestedRays = maxRays;
     }
+
+    updatedData.requestedRays = numRequestedRays;
 
     g_SurfelData[surfelId] = updatedData;
 
