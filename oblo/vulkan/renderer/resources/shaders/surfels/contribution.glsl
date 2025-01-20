@@ -28,6 +28,13 @@ vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
             const uint surfelId = surfel_grid_cell_iterator_get(cellIt);
             const surfel_data surfel = g_SurfelData[surfelId];
 
+            const surfel_lighting_data surfelLight = g_InSurfelsLighting[surfelId];
+
+            if (surfelLight.confidence < 0.5)
+            {
+                continue;
+            }
+
             const vec3 surfelPosition = surfel_data_world_position(surfel);
             const vec3 surfelNormal = surfel_data_world_normal(surfel);
 
@@ -39,8 +46,6 @@ vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
 
             // We allow influences up to this distance
             const float threshold = SURFEL_CONTRIBUTION_THRESHOLD_SQR * radius2;
-
-            const surfel_lighting_data surfelLight = g_InSurfelsLighting[surfelId];
 
             const vec3 surfelContribution = max(dot(surfelNormal, normal), 0) * surfelLight.irradiance;
             allSum += surfelContribution;

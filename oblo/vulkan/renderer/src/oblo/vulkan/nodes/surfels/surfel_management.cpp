@@ -73,7 +73,7 @@ namespace oblo::vk
         struct surfel_lighting_data
         {
             vec3 irradiance;
-            f32 _padding;
+            f32 confidence;
         };
 
         struct surfel_light_estimator_data

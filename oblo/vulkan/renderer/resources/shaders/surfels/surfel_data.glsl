@@ -63,7 +63,7 @@ struct surfel_tile_data
 struct surfel_lighting_data
 {
     vec3 irradiance;
-    uint numSamples;
+    float confidence;
 };
 
 struct surfel_light_estimator_data
@@ -177,6 +177,7 @@ surfel_lighting_data surfel_lighting_data_new()
 {
     surfel_lighting_data r;
     r.irradiance = vec3(0);
+    r.confidence = 0;
     return r;
 }
 

@@ -148,10 +148,17 @@ void main()
 
     const float shortWindowBlend = 0.08f;
 
-    const vec3 mean = MultiscaleMeanEstimator(irradiance,
-        g_InSurfelsLighting[surfelId].irradiance,
-        g_SurfelsLightEstimatorData[surfelId],
-        shortWindowBlend);
+    surfel_light_estimator_data estimator = g_SurfelsLightEstimatorData[surfelId];
 
-    g_OutSurfelsLighting[surfelId].irradiance = mean;
+    const vec3 mean =
+        MultiscaleMeanEstimator(irradiance, g_InSurfelsLighting[surfelId].irradiance, estimator, shortWindowBlend);
+
+    surfel_lighting_data result;
+    result.irradiance = mean;
+
+    const float invTargetConfidence = 16.f / SURFEL_MAX_RAYS_PER_SURFEL;
+    result.confidence = max(1.f, g_InSurfelsLighting[surfelId].confidence + numRays * invTargetConfidence);
+
+    g_OutSurfelsLighting[surfelId] = result;
+    g_SurfelsLightEstimatorData[surfelId] = estimator;
 }
