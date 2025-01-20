@@ -509,6 +509,7 @@ namespace oblo::vk::surfels_gi
         const auto spawner = graph.add_node<surfel_spawner>();
         const auto clear = graph.add_node<surfel_grid_clear>();
         const auto update = graph.add_node<surfel_update>();
+        const auto accumulateRays = graph.add_node<surfel_accumulate_raycount>();
         const auto rayTracing = graph.add_node<surfel_raytracing>();
 
         // Initializer setup
@@ -583,12 +584,25 @@ namespace oblo::vk::surfels_gi
         graph.make_output(update, &surfel_update::inOutSurfelsGrid, OutUpdatedSurfelGrid);
         graph.make_output(update, &surfel_update::inOutSurfelsGridData, OutUpdatedSurfelGridData);
 
+        // Accumulate ray count setup
+        graph.connect(update,
+            &surfel_update::inOutSurfelsData,
+            accumulateRays,
+            &surfel_accumulate_raycount::inSurfelsData);
+
+        graph.connect(initializer,
+            &surfel_initializer::inMaxSurfels,
+            accumulateRays,
+            &surfel_accumulate_raycount::inMaxSurfels);
+
         // Ray-Tracing setup
+        graph.make_input(rayTracing, &surfel_raytracing::inMaxRayPaths, InMaxRayPaths);
         graph.make_input(rayTracing, &surfel_raytracing::inGIMultiplier, InGIMultiplier);
         graph.make_input(rayTracing, &surfel_raytracing::inLightBuffer, InLightBuffer);
         graph.make_input(rayTracing, &surfel_raytracing::inLightConfig, InLightConfig);
         graph.make_input(rayTracing, &surfel_raytracing::inSkyboxSettingsBuffer, InSkyboxSettingsBuffer);
 
+        graph.bind(rayTracing, &surfel_raytracing::inMaxRayPaths, 1u << 20);
         graph.bind(rayTracing, &surfel_raytracing::inGIMultiplier, 1.f);
 
         graph.connect(update, &surfel_update::inOutSurfelsGrid, rayTracing, &surfel_raytracing::inOutSurfelsGrid);
@@ -615,6 +629,11 @@ namespace oblo::vk::surfels_gi
             &surfel_spawner::inOutSurfelsLightingData1,
             rayTracing,
             &surfel_raytracing::inSurfelsLightingData1);
+
+        graph.connect(accumulateRays,
+            &surfel_accumulate_raycount::outTotalRayCount,
+            rayTracing,
+            &surfel_raytracing::inTotalRayCount);
 
         graph.make_output(rayTracing, &surfel_raytracing::outSurfelsLightingData, OutUpdatedSurfelLightingData);
 
@@ -665,6 +684,7 @@ namespace oblo::vk
         registry.register_node<surfel_spawner>();
         registry.register_node<surfel_grid_clear>();
         registry.register_node<surfel_update>();
+        registry.register_node<surfel_accumulate_raycount>();
         registry.register_node<surfel_raytracing>();
         registry.register_node<surfel_debug>();
 

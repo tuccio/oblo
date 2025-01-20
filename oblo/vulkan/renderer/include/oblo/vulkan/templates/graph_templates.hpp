@@ -97,6 +97,7 @@ namespace oblo::vk::surfels_gi
     constexpr string_view InGridBounds{"GridBounds"};
     constexpr string_view InGridCellSize{"GridCellSize"};
     constexpr string_view InMaxSurfels{"MaxSurfels"};
+    constexpr string_view InMaxRayPaths{"MaxRayPaths"};
     constexpr string_view InGIMultiplier{"GIMultiplier"};
     constexpr string_view InTileCoverageSink{"TileCoverageSink"};
     constexpr string_view InEcsEntitySetBuffer{"EcsEntitySetBuffer"};

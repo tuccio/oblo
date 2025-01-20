@@ -22,7 +22,7 @@ struct surfel_data
     vec3 positionWS;
     float radius;
     vec3 normalWS;
-    uint globalInstanceId;
+    uint requestedRays;
 };
 
 struct surfel_grid_header
@@ -108,6 +108,11 @@ vec3 surfel_data_world_normal(in surfel_data surfel)
     return surfel.normalWS;
 }
 
+void surfel_data_set_world_normal(inout surfel_data surfel, in vec3 normalWS)
+{
+    surfel.normalWS = normalWS;
+}
+
 float surfel_data_world_radius(in surfel_data surfel)
 {
     return surfel.radius;
@@ -134,7 +139,7 @@ surfel_data surfel_data_invalid()
     surfelData.positionWS = vec3(float_positive_infinity());
     surfelData.normalWS = vec3(float_positive_infinity());
     surfelData.radius = 0.f;
-    surfelData.globalInstanceId = ~0u;
+    surfelData.requestedRays = 0u;
     return surfelData;
 }
 

@@ -3,6 +3,7 @@
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/random_generator.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/math/vec2.hpp>
 #include <oblo/math/vec4.hpp>
 #include <oblo/vulkan/data/camera_buffer.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
@@ -36,7 +37,7 @@ namespace oblo::vk
             vec3 position;
             f32 radius;
             vec3 normal;
-            u32 globalInstanceId;
+            u32 requestedRays;
         };
 
         struct surfel_grid_header
@@ -716,6 +717,159 @@ namespace oblo::vk
         }
     }
 
+    void surfel_accumulate_raycount::init(const frame_graph_init_context& ctx)
+    {
+        auto& passManager = ctx.get_pass_manager();
+
+        reducePass = passManager.register_compute_pass({
+            .name = "Surfel Accumulate Ray Count",
+            .shaderSourcePath = "./vulkan/shaders/surfels/surfel_raycount.comp",
+        });
+
+        const u32 subgroupSize = ctx.get_pass_manager().get_subgroup_size();
+        reductionGroupSize = subgroupSize * subgroupSize;
+    }
+
+    struct surfel_accumulate_raycount::subpass_info
+    {
+        h32<frame_graph_pass> id;
+        u32 inputSurfels;
+        resource<buffer> outputBuffer;
+    };
+
+    void surfel_accumulate_raycount::build(const frame_graph_build_context& ctx)
+    {
+        const u32 maxSurfels = ctx.access(inMaxSurfels);
+
+        const u32 reductionPassesCount = max(1u,
+            u32(std::ceilf(f32(log2_round_down_power_of_two(round_up_power_of_two(maxSurfels))) /
+                log2_round_down_power_of_two(reductionGroupSize))));
+
+        subpasses = allocate_n_span<subpass_info>(ctx.get_frame_allocator(), reductionPassesCount);
+
+        u32 inputSurfels = maxSurfels;
+
+        for (u32 i = 0; i < reductionPassesCount; ++i)
+        {
+            const auto subpassId = ctx.begin_pass(pass_kind::compute);
+
+            const auto inputBuffer = i == 0 ? inSurfelsData : subpasses[i - 1].outputBuffer;
+
+            ctx.acquire(inputBuffer, buffer_usage::storage_read);
+
+            const u32 outputSurfels = max(inputSurfels / reductionGroupSize, 1u);
+            OBLO_ASSERT(inputSurfels > 1 || i == reductionPassesCount - 1);
+
+            const auto outputBuffer = ctx.create_dynamic_buffer(
+                {
+                    .size = u32(sizeof(u32) * outputSurfels),
+                },
+                buffer_usage::storage_write);
+
+            subpasses[i] = {
+                .id = subpassId,
+                .inputSurfels = inputSurfels,
+                .outputBuffer = outputBuffer,
+            };
+
+            inputSurfels = outputSurfels;
+        }
+
+        OBLO_ASSERT(inputSurfels == 1);
+
+        // Output the last buffer from the node
+        ctx.access(outTotalRayCount) = subpasses.back().outputBuffer;
+    }
+
+    void surfel_accumulate_raycount::execute(const frame_graph_execute_context& ctx)
+    {
+        OBLO_ASSERT(!subpasses.empty());
+
+        auto& pm = ctx.get_pass_manager();
+
+        const auto commandBuffer = ctx.get_command_buffer();
+
+        binding_table bindingTable;
+
+        const binding_table* bindingTables[] = {
+            &bindingTable,
+        };
+
+        const hashed_string_view firstReductionDefines[] = {"READ_SURFELS"_hsv};
+
+        const auto firstReduction = pm.get_or_create_pipeline(reducePass, {.defines = firstReductionDefines});
+
+        if (const auto pass = pm.begin_compute_pass(commandBuffer, firstReduction))
+        {
+            bindingTable.clear();
+
+            const auto& subpass = subpasses[0];
+
+            ctx.bind_buffers(bindingTable,
+                {
+                    {"b_SurfelsData", inSurfelsData},
+                    {"b_OutBuffer", subpass.outputBuffer},
+                });
+
+            pm.bind_descriptor_sets(*pass, bindingTables);
+
+            struct push_constants
+            {
+                u32 inElements;
+            };
+
+            const push_constants constants{
+                .inElements = subpass.inputSurfels,
+            };
+
+            pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&constants, 1}));
+
+            const u32 groups = round_up_div(constants.inElements, reductionGroupSize);
+
+            vkCmdDispatch(ctx.get_command_buffer(), groups, 1, 1);
+
+            pm.end_compute_pass(*pass);
+        }
+
+        for (usize i = 1; i < subpasses.size(); ++i)
+        {
+            const auto& subpass = subpasses[i];
+            ctx.begin_pass(subpass.id);
+
+            const auto reduction = pm.get_or_create_pipeline(reducePass, {});
+
+            if (const auto pass = pm.begin_compute_pass(commandBuffer, reduction))
+            {
+                bindingTable.clear();
+
+                ctx.bind_buffers(bindingTable,
+                    {
+                        {"b_InBuffer", subpasses[i - 1].outputBuffer},
+                        {"b_OutBuffer", subpass.outputBuffer},
+                    });
+
+                pm.bind_descriptor_sets(*pass, bindingTables);
+
+                struct push_constants
+                {
+                    u32 inElements;
+                };
+
+                const push_constants constants{
+                    .inElements = subpass.inputSurfels,
+                };
+
+                pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&constants, 1}));
+
+                const u32 groups = round_up_div(constants.inElements, reductionGroupSize);
+
+                vkCmdDispatch(ctx.get_command_buffer(), groups, 1, 1);
+
+                pm.end_compute_pass(*pass);
+            }
+        }
+    }
+
     void surfel_raytracing::init(const frame_graph_init_context& ctx)
     {
         auto& passManager = ctx.get_pass_manager();
@@ -771,6 +925,9 @@ namespace oblo::vk
 
         ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
 
+        // Maybe it should be a uniform, but currently we don't have a storage that supports both
+        ctx.acquire(ctx.access(inTotalRayCount), buffer_usage::storage_read);
+
         acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
 
         randomSeed = ctx.get_random_generator().generate();
@@ -795,6 +952,7 @@ namespace oblo::vk
                 {"b_InSurfelsLighting", lastFrameSurfelsLightingData},
                 {"b_OutSurfelsLighting", outSurfelsLightingData},
                 {"b_OutSurfelsLightEstimator", inOutSurfelsLightEstimatorData},
+                {"b_TotalRayCount", ctx.access(inTotalRayCount)},
             });
 
         bindingTable.emplace(ctx.get_string_interner().get_or_add("u_SceneTLAS"),
@@ -814,9 +972,11 @@ namespace oblo::vk
 
             const struct push_constants
             {
+                u32 maxRayPaths;
                 u32 randomSeed;
                 f32 giMultiplier;
             } constants{
+                .maxRayPaths = ctx.access(inMaxRayPaths),
                 .randomSeed = randomSeed,
                 .giMultiplier = ctx.access(inGIMultiplier),
             };

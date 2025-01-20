@@ -55,7 +55,7 @@ void main()
 #if OBLO_DEBUG_PRINTF
     if (gl_GlobalInvocationID.x == 0)
     {
-        debugPrintfEXT("[UPDATE] Surfels alive: %u\n", g_Constants.maxSurfels - g_SurfelStackHeader.available);
+        // debugPrintfEXT("[UPDATE] Surfels alive: %u\n", g_Constants.maxSurfels - g_SurfelStackHeader.available);
     }
 #endif
 
@@ -131,8 +131,48 @@ void main()
 
     surfel_data updatedData;
     updatedData.positionWS = positionWS;
-    updatedData.normalWS = normalWS;
     updatedData.radius = radius;
+    updatedData.requestedRays = 32;
+    surfel_data_set_world_normal(updatedData, normalWS);
+
+    // Surfels that just spawned will ask for maxRays, then going down to 0 after warmUp frames
+    // Surfels that moved or changed orientation will ask for more rays
+    // All other surfels will ask for 1 ray
+    const uint maxRays = 64;
+    const uint warmupFrames = 32;
+
+    uint numRequestedRays;
+
+    const uint framesAlive = 1;
+
+    if (framesAlive > 0)
+    {
+        const vec3 previousNormal = surfel_data_world_normal(g_SurfelData[surfelId]);
+        const float cosAngle = dot(normalWS, previousNormal);
+
+        const float orientationFactor = 1 - .5f * cosAngle;
+        const uint numRaysOrientation = uint(orientationFactor * maxRays);
+
+        const vec3 previousPosition = surfel_data_world_position(g_SurfelData[surfelId]);
+
+        const vec3 dx = previousPosition - positionWS;
+
+        // If we move by this distance, ask for more rays
+        const float minThreshold2 = gridHeader.cellSize * gridHeader.cellSize;
+
+        // A big distance to move in a single frame, we ask for max rays from here on
+        const float maxThreshold2 = 1;
+
+        const float distance2 = dot(dx, dx);
+        const float translationFactor = min(maxThreshold2, max(0, distance2 - minThreshold2));
+        const uint numRaysTranslation = uint(translationFactor * maxRays);
+
+        numRequestedRays = max(maxRays, numRaysOrientation + numRaysTranslation);
+    }
+    else
+    {
+        numRequestedRays = maxRays;
+    }
 
     g_SurfelData[surfelId] = updatedData;
 

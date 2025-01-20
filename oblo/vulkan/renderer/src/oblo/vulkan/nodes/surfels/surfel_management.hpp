@@ -167,8 +167,32 @@ namespace oblo::vk
         void execute(const frame_graph_execute_context& ctx);
     };
 
+    struct surfel_accumulate_raycount
+    {
+        data<u32> inMaxSurfels;
+
+        data<resource<buffer>> outTotalRayCount;
+
+        resource<buffer> inSurfelsData;
+
+        h32<compute_pass> reducePass;
+
+        struct subpass_info;
+
+        std::span<subpass_info> subpasses;
+
+        u32 reductionGroupSize;
+
+        void init(const frame_graph_init_context& ctx);
+
+        void build(const frame_graph_build_context& ctx);
+
+        void execute(const frame_graph_execute_context& ctx);
+    };
+
     struct surfel_raytracing
     {
+        data<u32> inMaxRayPaths;
         data<u32> inMaxSurfels;
         data<f32> inGIMultiplier;
 
@@ -185,6 +209,8 @@ namespace oblo::vk
 
         resource<buffer> inLightBuffer;
         resource<buffer> inLightConfig;
+
+        data<resource<buffer>> inTotalRayCount;
 
         resource<buffer> inSkyboxSettingsBuffer;
 

@@ -14,6 +14,11 @@
 
 layout(binding = 11) uniform accelerationStructureEXT u_SceneTLAS;
 
+layout(std430, binding = 12) restrict buffer b_TotalRayCount
+{
+    uint g_TotalRayCount;
+};
+
 layout(std430, binding = SURFEL_LIGHT_ESTIMATOR_DATA_BINDING) restrict buffer b_OutSurfelsLightEstimator
 {
     surfel_light_estimator_data g_SurfelsLightEstimatorData[];
@@ -23,6 +28,7 @@ layout(location = 0) rayPayloadEXT vec3 r_HitColor;
 
 layout(push_constant) uniform c_PushConstants
 {
+    uint maxRayPaths;
     uint randomSeed;
     float giMultiplier;
 }
@@ -91,12 +97,25 @@ void main()
 
     uint randomSeed = random_seed(g_Constants.randomSeed, surfelId);
 
+    uint numRays = surfel.requestedRays;
+
+    if (g_TotalRayCount > g_Constants.maxRayPaths && g_TotalRayCount > 0)
+    {
+        const float numRaysFloat = float(numRays * g_Constants.maxRayPaths) / g_TotalRayCount;
+        // Give it a chance to shoot a ray when we have a remainder in the division
+        const bool extraRay = random_uniform_1d(randomSeed) < mod(numRaysFloat, 1.f);
+        numRays = uint(numRaysFloat) + (extraRay ? 1 : 0);
+    }
+
+    if (numRays == 0)
+    {
+        return;
+    }
+
     vec3 irradiance = vec3(0);
 
     const vec3 origin = surfel_data_world_position(surfel);
     const vec3 N = surfel_data_world_normal(surfel);
-
-    const uint numRays = 4;
 
     for (uint i = 0; i < numRays; ++i)
     {
@@ -122,6 +141,7 @@ void main()
 
         const float sampleProbability = max(1e-2, dot(direction, N));
         irradiance += rayContribution / sampleProbability;
+        irradiance += rayContribution;
     }
 
     irradiance /= numRays;

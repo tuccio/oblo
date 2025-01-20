@@ -176,6 +176,7 @@ namespace oblo
         const aabb gridBounds{.min = -halfExtents, .max = halfExtents};
 
         m_frameGraph.set_input(m_surfelsGI, vk::surfels_gi::InMaxSurfels, giConfig.maxSurfels).assert_value();
+        m_frameGraph.set_input(m_surfelsGI, vk::surfels_gi::InMaxRayPaths, giConfig.rayBudget).assert_value();
         m_frameGraph.set_input(m_surfelsGI, vk::surfels_gi::InGridCellSize, giConfig.gridCellSize).assert_value();
         m_frameGraph.set_input(m_surfelsGI, vk::surfels_gi::InGridBounds, gridBounds).assert_value();
         m_frameGraph.set_input(m_surfelsGI, vk::surfels_gi::InGIMultiplier, giConfig.multiplier).assert_value();
