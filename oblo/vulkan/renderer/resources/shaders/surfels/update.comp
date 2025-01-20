@@ -22,6 +22,11 @@
 #include <surfels/surfel_data>
 #include <visibility/visibility_buffer>
 
+layout(std430, binding = SURFEL_LIGHT_ESTIMATOR_DATA_BINDING) restrict buffer readonly b_SurfelsLightEstimator
+{
+    surfel_light_estimator_data g_SurfelsLightEstimatorData[];
+};
+
 layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
 layout(push_constant) uniform c_PushConstants
@@ -138,14 +143,18 @@ void main()
     // Surfels that moved or changed orientation will ask for more rays
     // All other surfels will ask for 1 ray
     const uint maxRays = SURFEL_MAX_RAYS_PER_SURFEL;
-    const uint warmupFrames = 32;
+    const uint warmupFrames = 4;
 
     uint numRequestedRays;
 
     // TODO: actually calculate it
-    const uint framesAlive = 1;
+    const uint framesAlive = warmupFrames;
 
-    if (framesAlive > 0)
+    if (framesAlive < warmupFrames)
+    {
+        numRequestedRays = maxRays;
+    }
+    else
     {
         // We might instead choose a number randomly, but we want to sample every now and then at least
         const uint minRays = 1;
@@ -164,12 +173,10 @@ void main()
         const float translationFactor = min(1.f, sqrt(distance2));
         const uint numRaysTranslation = uint(translationFactor * maxRays);
 
-        // TODO: Also consider incosistency in the sampled data
-        numRequestedRays = min(maxRays, max(minRays, numRaysOrientation + numRaysTranslation));
-    }
-    else
-    {
-        numRequestedRays = maxRays;
+        const float inconsistencyFactor = max(0, g_SurfelsLightEstimatorData[surfelId].inconsistency - 0.15);
+        const uint numRaysInconsistency = uint(inconsistencyFactor * maxRays);
+
+        numRequestedRays = min(maxRays, max(minRays, numRaysOrientation + numRaysTranslation + numRaysInconsistency));
     }
 
     updatedData.requestedRays = numRequestedRays;

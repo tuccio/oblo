@@ -47,6 +47,7 @@ namespace oblo
         gi_surfels,
         gi_surfels_lighting,
         gi_surfels_raycount,
+        gi_surfels_inconsistency,
     };
 
     struct viewport_component

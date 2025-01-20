@@ -41,6 +41,9 @@ namespace oblo::vk
         resource<buffer> inSurfelsData;
         resource<buffer> inSurfelsLightingData;
 
+        // We might not use it for now, but we still forward it to debug views
+        resource<buffer> inSurfelsLightEstimatorData;
+
         resource<buffer> inMeshDatabase;
 
         resource<buffer> inInstanceTables;

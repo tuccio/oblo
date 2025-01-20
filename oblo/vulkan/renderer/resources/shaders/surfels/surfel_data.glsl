@@ -185,7 +185,7 @@ surfel_light_estimator_data surfel_light_estimator_data_new()
     r.shortTermMean = vec3(0);
     r.varianceBasedBlendReduction = 0;
     r.variance = vec3(0);
-    r.inconsistency = 0;
+    r.inconsistency = 1;
     return r;
 }
 

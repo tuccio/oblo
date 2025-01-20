@@ -141,6 +141,7 @@ namespace oblo::vk
         resource<buffer> inGridFillBuffer;
 
         resource<buffer> inOutSurfelsData;
+        resource<buffer> inSurfelsLightEstimatorData;
 
         resource<buffer> inMeshDatabase;
         resource<buffer> inInstanceTables;

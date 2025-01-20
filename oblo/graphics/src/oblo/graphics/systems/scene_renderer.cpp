@@ -110,6 +110,11 @@ namespace oblo
                 mainView,
                 vk::main_view::InUpdatedSurfelsLightingData);
 
+            g.connect(surfelsGIGlobal,
+                vk::surfels_gi::OutUpdatedSurfelLightEstimatorData,
+                mainView,
+                vk::main_view::InUpdatedSurfelsLightEstimatorData);
+
             g.connect(mainView,
                 vk::main_view::OutSurfelsTileCoverageSink,
                 surfelsGIGlobal,

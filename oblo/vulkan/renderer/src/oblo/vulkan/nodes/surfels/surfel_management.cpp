@@ -603,6 +603,7 @@ namespace oblo::vk
             ctx.acquire(inOutSurfelsData, buffer_usage::storage_read);
             ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_read);
             ctx.acquire(inOutSurfelsGridData, buffer_usage::storage_write);
+            ctx.acquire(inSurfelsLightEstimatorData, buffer_usage::storage_read);
             ctx.acquire(inGridFillBuffer, buffer_usage::storage_write);
         }
     }
@@ -620,6 +621,7 @@ namespace oblo::vk
                 {"b_SurfelsGridFill", inGridFillBuffer},
                 {"b_SurfelsSpawnData", inOutSurfelsSpawnData},
                 {"b_SurfelsData", inOutSurfelsData},
+                {"b_SurfelsLightEstimator", inSurfelsLightEstimatorData},
                 {"b_SurfelsStack", inOutSurfelsStack},
                 {"b_InstanceTables", inInstanceTables},
                 {"b_MeshTables", inMeshDatabase},

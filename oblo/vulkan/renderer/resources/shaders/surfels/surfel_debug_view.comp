@@ -33,6 +33,13 @@
 
 layout(binding = 0, rgba8) uniform restrict readonly image2D t_InImage;
 
+#ifdef MODE_SURFEL_INCONSISTENCY
+layout(std430, binding = SURFEL_LIGHT_ESTIMATOR_DATA_BINDING) restrict buffer readonly b_SurfelsLightEstimator
+{
+    surfel_light_estimator_data g_SurfelsLightEstimatorData[];
+};
+#endif
+
 vec4 sample_fallback(in uvec2 screenPos)
 {
     return imageLoad(t_InImage, ivec2(screenPos));
@@ -124,6 +131,9 @@ vec4 visibility_shade(in visibility_shade_context ctx)
         const float maxRays = float(SURFEL_MAX_RAYS_PER_SURFEL);
         const surfel_data surfel = g_SurfelData[surfelId];
         return vec4(debug_color_map_jet(surfel.requestedRays / maxRays), 1);
+#elif defined(MODE_SURFEL_INCONSISTENCY)
+        const float inconsistency = g_SurfelsLightEstimatorData[surfelId].inconsistency;
+        return vec4(debug_color_map_jet(inconsistency), 1);
 #endif
     }
 
