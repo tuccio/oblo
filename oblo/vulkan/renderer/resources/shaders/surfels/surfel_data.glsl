@@ -17,6 +17,7 @@ struct surfel_spawn_data
     uint packedMeshletAndTriangleId;
     float barycentricU;
     float barycentricV;
+    uint spawnTimestamp;
 };
 
 struct surfel_data

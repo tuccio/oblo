@@ -30,6 +30,7 @@ namespace oblo::vk
             u32 packedMeshletAndTriangleId;
             f32 barycentricU;
             f32 barycentricV;
+            u32 spawnTimestamp;
         };
 
         struct surfel_dynamic_data
@@ -446,11 +447,13 @@ namespace oblo::vk
                 {
                     u32 srcElements;
                     u32 randomSeed;
+                    u32 currentTimestamp;
                 };
 
                 const push_constants constants{
                     .srcElements = tileCoverage.elements,
                     .randomSeed = randomSeed,
+                    .currentTimestamp = ctx.get_current_frames_count(),
                 };
 
                 pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&constants, 1}));
