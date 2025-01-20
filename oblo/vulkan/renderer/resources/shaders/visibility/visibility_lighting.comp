@@ -115,14 +115,13 @@ vec4 visibility_shade(in visibility_shade_context ctx)
 
     if (material.normalMapTexture != 0)
     {
-        const vec4 sampledNormal =
-            texture_sample_2d_grad(material.normalMapTexture, OBLO_SAMPLER_LINEAR, uv0, uv0DDX, uv0DDY);
+        const vec4 sampledNormal = normal_map_sample_grad(material.normalMapTexture, uv0, uv0DDX, uv0DDY);
 
         const vec3 T = normalize(barycentric_interpolate(bc, triangleTangent));
         const vec3 B = normalize(barycentric_interpolate(bc, triangleBitangent));
         const vec3 N = normalize(barycentric_interpolate(bc, triangleNormal));
 
-        normalWS = normal_mapping(sampledNormal, T, B, N, mat3(transform.normalMatrix));
+        normalWS = normal_map_apply(sampledNormal, T, B, N, mat3(transform.normalMatrix));
     }
     else
     {

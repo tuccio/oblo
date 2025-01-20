@@ -16,6 +16,7 @@ layout(set = OBLO_DESCRIPTOR_SET_TEXTURES_2D, binding = OBLO_BINDING_TEXTURES_2D
 // These need to match the sampler enum in C++
 #define OBLO_SAMPLER_LINEAR 0
 #define OBLO_SAMPLER_NEAREST 1
+#define OBLO_SAMPLER_ANISOTROPIC 2
 
 uint texture_get_index(uint textureId)
 {

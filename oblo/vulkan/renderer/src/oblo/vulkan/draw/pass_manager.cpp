@@ -280,6 +280,7 @@ namespace oblo::vk
         {
             linear,
             nearest,
+            anisotropic,
             enum_max
         };
 
@@ -1518,6 +1519,32 @@ namespace oblo::vk
                 &samplerInfo,
                 vkContext.get_allocator().get_allocation_callbacks(),
                 &m_impl->samplers[u32(sampler::nearest)]);
+        }
+
+        {
+            const VkSamplerCreateInfo samplerInfo{
+                .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+                .magFilter = VK_FILTER_LINEAR,
+                .minFilter = VK_FILTER_LINEAR,
+                .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+                .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                .mipLodBias = 0.0f,
+                .anisotropyEnable = true,
+                .maxAnisotropy = 16,
+                .compareEnable = false,
+                .compareOp = VK_COMPARE_OP_ALWAYS,
+                .minLod = 0.0f,
+                .maxLod = VK_LOD_CLAMP_NONE,
+                .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+                .unnormalizedCoordinates = false,
+            };
+
+            vkCreateSampler(vkContext.get_device(),
+                &samplerInfo,
+                vkContext.get_allocator().get_allocation_callbacks(),
+                &m_impl->samplers[u32(sampler::anisotropic)]);
         }
 
         {

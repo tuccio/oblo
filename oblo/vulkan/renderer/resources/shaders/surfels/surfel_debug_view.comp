@@ -19,7 +19,6 @@
 #include <renderer/meshes/mesh_data>
 #include <renderer/meshes/mesh_indices>
 #include <renderer/meshes/mesh_table>
-#include <renderer/shading/normal_mapping>
 #include <renderer/shading/pbr>
 #include <renderer/textures>
 #include <renderer/transform>
