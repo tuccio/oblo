@@ -156,9 +156,6 @@ void main()
     surfel_lighting_data result;
     result.irradiance = mean;
 
-    const float invTargetConfidence = 16.f / SURFEL_MAX_RAYS_PER_SURFEL;
-    result.confidence = max(1.f, g_InSurfelsLighting[surfelId].confidence + numRays * invTargetConfidence);
-
     g_OutSurfelsLighting[surfelId] = result;
     g_SurfelsLightEstimatorData[surfelId] = estimator;
 }

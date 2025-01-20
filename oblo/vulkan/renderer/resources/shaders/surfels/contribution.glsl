@@ -30,10 +30,6 @@ vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
 
             const surfel_lighting_data surfelLight = g_InSurfelsLighting[surfelId];
 
-            if (surfelLight.confidence < 0.5)
-            {
-                continue;
-            }
 
             const vec3 surfelPosition = surfel_data_world_position(surfel);
             const vec3 surfelNormal = surfel_data_world_normal(surfel);
