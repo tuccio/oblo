@@ -1,5 +1,6 @@
 #include <oblo/vulkan/graph/frame_graph_context.hpp>
 
+#include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
@@ -476,7 +477,42 @@ namespace oblo::vk
             return unspecified_error;
         }
 
-        pm.bind_descriptor_sets(*computeCtx, bindingTables.span());
+        pm.bind_descriptor_sets(*computeCtx,
+            [this, bindingTables = bindingTables.span(), &interner = m_renderer.get_string_interner()](
+                h32<string> name) -> bindable_object
+            {
+                const hashed_string_view str = hashed_string_view{interner.str(name)};
+
+                for (const auto& bindingTable : bindingTables)
+                {
+                    if (auto* const r = bindingTable->try_find(str))
+                    {
+                        switch (r->kind)
+                        {
+                        case bindable_resource_kind::buffer:
+                            return make_bindable_object(access(r->buffer));
+
+                        case bindable_resource_kind::texture: {
+                            const auto& t = access(r->texture);
+
+                            // The frame graph converts the pin storage handle to texture handle to use when keeping
+                            // track of textures
+                            const auto storage = h32<frame_graph_pin_storage>{r->texture.value};
+
+                            const auto layout = m_state.imageLayoutTracker.try_get_layout(storage);
+                            layout.assert_value();
+
+                            return make_bindable_object(t.view, layout.value_or(VK_IMAGE_LAYOUT_UNDEFINED));
+                        }
+
+                        default:
+                            unreachable();
+                        }
+                    }
+                }
+
+                return {};
+            });
 
         m_state.passKind = pass_kind::compute;
         m_state.computeCtx = *computeCtx;

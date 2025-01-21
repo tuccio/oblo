@@ -597,22 +597,21 @@ namespace oblo::vk
 
     void surfel_update::execute(const frame_graph_execute_context& ctx)
     {
-        binding_table bindingTable;
+        binding_table2 bindingTable;
 
-        ctx.bind_buffers(bindingTable,
-            {
-                {"b_SurfelsGrid", inOutSurfelsGrid},
-                {"b_SurfelsGridData", inOutSurfelsGridData},
-                {"b_SurfelsGridFill", outGridFillBuffer},
-                {"b_SurfelsSpawnData", inOutSurfelsSpawnData},
-                {"b_SurfelsData", inOutSurfelsData},
-                {"b_SurfelsLastUsage", inOutSurfelsLastUsage},
-                {"b_SurfelsLightEstimator", inSurfelsLightEstimatorData},
-                {"b_SurfelsStack", inOutSurfelsStack},
-                {"b_InstanceTables", inInstanceTables},
-                {"b_MeshTables", inMeshDatabase},
-                {"b_EcsEntitySet", inEntitySetBuffer},
-            });
+        bindingTable.bind_buffers({
+            {"b_SurfelsGrid"_hsv, inOutSurfelsGrid},
+            {"b_SurfelsGridData"_hsv, inOutSurfelsGridData},
+            {"b_SurfelsGridFill"_hsv, outGridFillBuffer},
+            {"b_SurfelsSpawnData"_hsv, inOutSurfelsSpawnData},
+            {"b_SurfelsData"_hsv, inOutSurfelsData},
+            {"b_SurfelsLastUsage"_hsv, inOutSurfelsLastUsage},
+            {"b_SurfelsLightEstimator"_hsv, inSurfelsLightEstimatorData},
+            {"b_SurfelsStack"_hsv, inOutSurfelsStack},
+            {"b_InstanceTables"_hsv, inInstanceTables},
+            {"b_MeshTables"_hsv, inMeshDatabase},
+            {"b_EcsEntitySet"_hsv, inEntitySetBuffer},
+        });
 
         const auto subgroupSize = ctx.get_gpu_info().subgroupSize;
 

@@ -59,6 +59,7 @@ namespace oblo::vk
     struct compute_pipeline_initializer;
 
     using binding_table = flat_dense_map<h32<string>, bindable_object>;
+    class binding_table2;
 
     enum class pass_kind : u8
     {
@@ -92,16 +93,16 @@ namespace oblo::vk
         enum_max,
     };
 
-    struct buffer_binding_desc
-    {
-        string_view name;
-        resource<buffer> resource;
-    };
-
     struct texture_binding_desc
     {
         string_view name;
         resource<texture> resource;
+    };
+
+    struct buffer_binding_desc
+    {
+        string_view name;
+        resource<buffer> resource;
     };
 
     struct gpu_info
@@ -109,31 +110,7 @@ namespace oblo::vk
         u32 subgroupSize;
     };
 
-    class binding_tables_span
-    {
-    public:
-        binding_tables_span(const binding_table& t) : m_table{&t}, m_count{1} {}
-
-        binding_tables_span(std::span<const binding_table* const> tables) :
-            m_array{tables.data()}, m_count{tables.size()}
-        {
-            if (m_count == 1)
-            {
-                m_table = m_array[0];
-            }
-        }
-
-        std::span<const binding_table* const> span() const&
-        {
-            auto* const array = m_count == 1 ? &m_table : m_array;
-            return std::span<const binding_table* const>{array, m_count};
-        }
-
-    private:
-        const binding_table* m_table{};
-        const binding_table* const* m_array{};
-        usize m_count{};
-    };
+    class binding_tables_span;
 
     class frame_graph_init_context
     {

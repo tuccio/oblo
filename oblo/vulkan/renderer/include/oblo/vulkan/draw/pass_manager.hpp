@@ -20,6 +20,9 @@ namespace oblo
 
     template <typename Key, typename Value, typename KeyExtractor>
     class flat_dense_map;
+
+    template <typename>
+    class function_ref;
 }
 
 namespace oblo::vk
@@ -55,6 +58,9 @@ namespace oblo::vk
 
     class pass_manager
     {
+    public:
+        using locate_binding_fn = function_ref<bindable_object(h32<string> name)>;
+
     public:
         pass_manager();
         pass_manager(const pass_manager&) = delete;
@@ -125,6 +131,9 @@ namespace oblo::vk
 
         void bind_descriptor_sets(const compute_pass_context& ctx,
             std::span<const binding_table* const> bindingTables) const;
+
+        void bind_descriptor_sets(const compute_pass_context& ctx,
+            function_ref<bindable_object(h32<string> name)> locateBinding) const;
 
         void bind_descriptor_sets(const raytracing_pass_context& ctx,
             std::span<const binding_table* const> bindingTables) const;

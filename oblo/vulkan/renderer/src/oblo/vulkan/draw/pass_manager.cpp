@@ -7,6 +7,7 @@
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/core/hash.hpp>
+#include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/core/iterator/enum_range.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/string/string_builder.hpp>
@@ -671,6 +672,9 @@ namespace oblo::vk
             const base_pipeline& pipeline,
             std::span<const binding_table* const> bindingTables);
 
+        VkDescriptorSet create_descriptor_set(
+            VkDescriptorSetLayout descriptorSetLayout, const base_pipeline& pipeline, locate_binding_fn findBinding);
+
         shader_compiler_options make_compiler_options();
 
         template <typename Filter = decltype([](auto&&) { return true; })>
@@ -1225,6 +1229,25 @@ namespace oblo::vk
         const base_pipeline& pipeline,
         std::span<const binding_table* const> bindingTables)
     {
+        return create_descriptor_set(descriptorSetLayout,
+            pipeline,
+            [&bindingTables](const h32<string> name) -> bindable_object
+            {
+                for (const auto& bindingTable : bindingTables)
+                {
+                    if (auto* const o = bindingTable->try_find(name))
+                    {
+                        return *o;
+                    }
+                }
+
+                return {};
+            });
+    }
+
+    VkDescriptorSet pass_manager::impl::create_descriptor_set(
+        VkDescriptorSetLayout descriptorSetLayout, const base_pipeline& pipeline, locate_binding_fn locateBinding)
+    {
         const VkDescriptorSet descriptorSet = descriptorSetPool.acquire(descriptorSetLayout);
 
         vkCtx->get_debug_utils_object().set_object_name(device,
@@ -1332,71 +1355,61 @@ namespace oblo::vk
 
         for (const auto& binding : pipeline.descriptorSetBindings)
         {
-            bool found = false;
+            const auto bindableObject = locateBinding(binding.name);
 
-            for (const auto* const table : bindingTables)
+            switch (bindableObject.kind)
             {
-                auto* const bindableObject = table->try_find(binding.name);
-
-                if (bindableObject)
+            case bindable_resource_kind::buffer:
+                if (is_buffer_binding(binding))
                 {
-                    switch (bindableObject->kind)
-                    {
-                    case bindable_object_kind::buffer:
-                        if (is_buffer_binding(binding))
-                        {
-                            writeBufferToDescriptorSet(binding, bindableObject->buffer);
-                        }
-                        else
-                        {
-                            log::debug("[{}] A binding for {} was found, but it's not a buffer as expected",
-                                pipeline.label,
-                                interner->str(binding.name));
-                        }
-
-                        break;
-                    case bindable_object_kind::texture:
-                        if (is_image_binding(binding))
-                        {
-                            writeImageToDescriptorSet(binding, bindableObject->texture);
-                        }
-                        else
-                        {
-                            log::debug("[{}] A binding for {} was found, but it's not a texture as expected",
-                                pipeline.label,
-                                interner->str(binding.name));
-                        }
-
-                        break;
-                    case bindable_object_kind::acceleration_structure:
-                        if (binding.descriptorType == VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR)
-                        {
-                            writeAccelerationStructureToDescriptorSet(binding, bindableObject->accelerationStructure);
-                        }
-                        else
-                        {
-                            log::debug("[{}] A binding for {} was found, but it's not an acceleration structure as "
-                                       "expected",
-                                pipeline.label,
-                                interner->str(binding.name));
-                        }
-
-                        break;
-                    }
-
-                    found = true;
-                    break;
+                    writeBufferToDescriptorSet(binding, bindableObject.buffer);
                 }
-            }
+                else
+                {
+                    log::debug("[{}] A binding for {} was found, but it's not a buffer as expected",
+                        pipeline.label,
+                        interner->str(binding.name));
+                }
 
-            if (found)
-            {
-                continue;
-            }
+                break;
+            case bindable_resource_kind::texture:
+                if (is_image_binding(binding))
+                {
+                    writeImageToDescriptorSet(binding, bindableObject.texture);
+                }
+                else
+                {
+                    log::debug("[{}] A binding for {} was found, but it's not a texture as expected",
+                        pipeline.label,
+                        interner->str(binding.name));
+                }
 
-            log::debug("[{}] Unable to find matching buffer for binding {}",
-                pipeline.label,
-                interner->str(binding.name));
+                break;
+            case bindable_resource_kind::acceleration_structure:
+                if (binding.descriptorType == VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR)
+                {
+                    writeAccelerationStructureToDescriptorSet(binding, bindableObject.accelerationStructure);
+                }
+                else
+                {
+                    log::debug("[{}] A binding for {} was found, but it's not an acceleration structure as "
+                               "expected",
+                        pipeline.label,
+                        interner->str(binding.name));
+                }
+
+                break;
+
+            case bindable_resource_kind::none:
+                log::debug("[{}] Unable to find matching buffer for binding {}",
+                    pipeline.label,
+                    interner->str(binding.name));
+
+                break;
+
+            default:
+                unreachable();
+            }
         }
 
         if (writesCount > 0)
@@ -2869,6 +2882,27 @@ namespace oblo::vk
         {
             const VkDescriptorSet descriptorSet =
                 m_impl->create_descriptor_set(descriptorSetLayout, *pipeline, bindingTables);
+
+            vkCmdBindDescriptorSets(ctx.commandBuffer,
+                VK_PIPELINE_BIND_POINT_COMPUTE,
+                pipeline->pipelineLayout,
+                0,
+                1,
+                &descriptorSet,
+                0,
+                nullptr);
+        }
+    }
+
+    void pass_manager::bind_descriptor_sets(const compute_pass_context& ctx,
+        function_ref<bindable_object(h32<string> name)> locateBinding) const
+    {
+        auto* const pipeline = ctx.internalPipeline;
+
+        if (const auto descriptorSetLayout = pipeline->descriptorSetLayout)
+        {
+            const VkDescriptorSet descriptorSet =
+                m_impl->create_descriptor_set(descriptorSetLayout, *pipeline, locateBinding);
 
             vkCmdBindDescriptorSets(ctx.commandBuffer,
                 VK_PIPELINE_BIND_POINT_COMPUTE,
