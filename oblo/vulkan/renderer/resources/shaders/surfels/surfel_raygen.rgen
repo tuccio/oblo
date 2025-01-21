@@ -112,7 +112,7 @@ void main()
         return;
     }
 
-    vec3 irradiance = vec3(0);
+    vec3 irradianceSum = vec3(0);
 
     const vec3 origin = surfel_data_world_position(surfel);
     const vec3 N = surfel_data_world_normal(surfel);
@@ -140,22 +140,32 @@ void main()
         const vec3 rayContribution = g_Constants.giMultiplier * r_HitColor;
 
         const float sampleProbability = max(1e-2, dot(direction, N));
-        irradiance += rayContribution / sampleProbability;
-        irradiance += rayContribution;
+        irradianceSum += rayContribution / sampleProbability;
     }
 
-    irradiance /= numRays;
-
+    // We interpolate the first N samples linearly
+    const uint linearInterpolationThreshold = 32;
     const float shortWindowBlend = 0.08f;
 
-    surfel_light_estimator_data estimator = g_SurfelsLightEstimatorData[surfelId];
-
-    const vec3 mean =
-        MultiscaleMeanEstimator(irradiance, g_InSurfelsLighting[surfelId].irradiance, estimator, shortWindowBlend);
-
     surfel_lighting_data result;
-    result.irradiance = mean;
+
+    const surfel_lighting_data lightData = g_InSurfelsLighting[surfelId];
+
+    if (lightData.numSamples < linearInterpolationThreshold)
+    {
+        const uint newSamplesCount = lightData.numSamples + numRays;
+        result.irradiance = (lightData.irradiance * lightData.numSamples + irradianceSum) / newSamplesCount;
+        result.numSamples = newSamplesCount;
+    }
+    else
+    {
+        const vec3 irradianceAvg = irradianceSum / numRays;
+
+        surfel_light_estimator_data estimator = g_SurfelsLightEstimatorData[surfelId];
+        const vec3 mean = MultiscaleMeanEstimator(irradianceAvg, lightData.irradiance, estimator, shortWindowBlend);
+        result.irradiance = mean;
+        g_SurfelsLightEstimatorData[surfelId] = estimator;
+    }
 
     g_OutSurfelsLighting[surfelId] = result;
-    g_SurfelsLightEstimatorData[surfelId] = estimator;
 }

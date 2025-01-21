@@ -9,7 +9,7 @@ const float NO_SURFELS_NEEDED = 1e6;
 const float SURFEL_CONTRIBUTION_THRESHOLD = 2;
 const float SURFEL_CONTRIBUTION_THRESHOLD_SQR = SURFEL_CONTRIBUTION_THRESHOLD * SURFEL_CONTRIBUTION_THRESHOLD;
 
-const uint SURFEL_MAX_RAYS_PER_SURFEL = 64;
+const uint SURFEL_MAX_RAYS_PER_SURFEL = 128;
 
 struct surfel_spawn_data
 {
@@ -64,7 +64,7 @@ struct surfel_tile_data
 struct surfel_lighting_data
 {
     vec3 irradiance;
-    float _padding;
+    uint numSamples;
 };
 
 struct surfel_light_estimator_data
@@ -178,6 +178,7 @@ surfel_lighting_data surfel_lighting_data_new()
 {
     surfel_lighting_data r;
     r.irradiance = vec3(0);
+    r.numSamples = 0;
     return r;
 }
 
@@ -187,7 +188,7 @@ surfel_light_estimator_data surfel_light_estimator_data_new()
     r.shortTermMean = vec3(0);
     r.varianceBasedBlendReduction = 0;
     r.variance = vec3(0);
-    r.inconsistency = 1;
+    r.inconsistency = 0;
     return r;
 }
 
