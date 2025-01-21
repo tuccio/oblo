@@ -112,31 +112,6 @@ namespace oblo::vk
         void execute(const frame_graph_execute_context& ctx);
     };
 
-    /// @brief Once a frame, clear the grid before refilling it.
-    struct surfel_grid_clear
-    {
-        resource<buffer> inOutSurfelsGrid;
-        resource<buffer> inOutSurfelsGridData;
-
-        resource<buffer> outGridFillBuffer;
-
-        data<aabb> inGridBounds;
-        data<f32> inGridCellSize;
-        data<vec3u> inCellsCount;
-        data<u32> inMaxSurfels;
-
-        data_sink<camera_buffer> inCameras;
-        data<vec3> outCameraCentroid;
-
-        h32<compute_pass> initGridPass;
-
-        void init(const frame_graph_init_context& ctx);
-
-        void build(const frame_graph_build_context& ctx);
-
-        void execute(const frame_graph_execute_context& ctx);
-    };
-
     /// @brief Fills the grid from the currently alive surfels, updates surfels that moved, and frees unused one.
     struct surfel_update
     {
@@ -145,7 +120,7 @@ namespace oblo::vk
         resource<buffer> inOutSurfelsGrid;
         resource<buffer> inOutSurfelsGridData;
         resource<buffer> inOutSurfelsLastUsage;
-        resource<buffer> inGridFillBuffer;
+        resource<buffer> outGridFillBuffer;
 
         resource<buffer> inOutSurfelsData;
         resource<buffer> inSurfelsLightEstimatorData;
@@ -156,14 +131,19 @@ namespace oblo::vk
 
         resource<buffer> inEntitySetBuffer;
 
-        data<u32> inMaxSurfels;
+        data<aabb> inGridBounds;
+        data<f32> inGridCellSize;
         data<vec3u> inCellsCount;
-        data<vec3> inCameraCentroid;
+        data<u32> inMaxSurfels;
 
+        data_sink<camera_buffer> inCameras;
+
+        h32<compute_pass> clearPass;
         h32<compute_pass> updatePass;
         h32<compute_pass> allocatePass;
         h32<compute_pass> fillPass;
 
+        h32<frame_graph_pass> clearFgPass;
         h32<frame_graph_pass> updateFgPass;
         h32<frame_graph_pass> allocateFgPass;
         h32<frame_graph_pass> fillFgPass;

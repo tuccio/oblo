@@ -521,7 +521,6 @@ namespace oblo::vk::surfels_gi
 
         const auto initializer = graph.add_node<surfel_initializer>();
         const auto spawner = graph.add_node<surfel_spawner>();
-        const auto clear = graph.add_node<surfel_grid_clear>();
         const auto update = graph.add_node<surfel_update>();
         const auto accumulateRays = graph.add_node<surfel_accumulate_raycount>();
         const auto rayTracing = graph.add_node<surfel_raytracing>();
@@ -568,19 +567,8 @@ namespace oblo::vk::surfels_gi
             spawner,
             &surfel_spawner::inOutLastFrameSurfelsLightingData);
 
-        // Clear grid setup
-        graph.make_input(clear, &surfel_grid_clear::inCameras, InCameraDataSink);
-        graph.connect(initializer, &surfel_initializer::inMaxSurfels, clear, &surfel_grid_clear::inMaxSurfels);
-        graph.connect(initializer, &surfel_initializer::inGridBounds, clear, &surfel_grid_clear::inGridBounds);
-        graph.connect(initializer, &surfel_initializer::inGridCellSize, clear, &surfel_grid_clear::inGridCellSize);
-        graph.connect(initializer, &surfel_initializer::outCellsCount, clear, &surfel_grid_clear::inCellsCount);
-        graph.connect(initializer, &surfel_initializer::outSurfelsGrid, clear, &surfel_grid_clear::inOutSurfelsGrid);
-        graph.connect(initializer,
-            &surfel_initializer::outSurfelsGridData,
-            clear,
-            &surfel_grid_clear::inOutSurfelsGridData);
-
         // Update setup
+        graph.make_input(update, &surfel_update::inCameras, InCameraDataSink);
         graph.make_input(update, &surfel_update::inInstanceTables, InInstanceTables);
         graph.make_input(update, &surfel_update::inInstanceBuffers, InInstanceBuffers);
         graph.make_input(update, &surfel_update::inMeshDatabase, InMeshDatabase);
@@ -588,13 +576,16 @@ namespace oblo::vk::surfels_gi
 
         graph.connect(initializer, &surfel_initializer::inMaxSurfels, update, &surfel_update::inMaxSurfels);
         graph.connect(initializer, &surfel_initializer::outCellsCount, update, &surfel_update::inCellsCount);
+        graph.connect(initializer, &surfel_initializer::inGridBounds, update, &surfel_update::inGridBounds);
+        graph.connect(initializer, &surfel_initializer::inGridCellSize, update, &surfel_update::inGridCellSize);
         graph.connect(spawner, &surfel_spawner::inOutSurfelsData, update, &surfel_update::inOutSurfelsData);
         graph.connect(spawner, &surfel_spawner::inOutSurfelsStack, update, &surfel_update::inOutSurfelsStack);
         graph.connect(spawner, &surfel_spawner::inOutSurfelsSpawnData, update, &surfel_update::inOutSurfelsSpawnData);
-        graph.connect(clear, &surfel_grid_clear::inOutSurfelsGrid, update, &surfel_update::inOutSurfelsGrid);
-        graph.connect(clear, &surfel_grid_clear::inOutSurfelsGridData, update, &surfel_update::inOutSurfelsGridData);
-        graph.connect(clear, &surfel_grid_clear::outGridFillBuffer, update, &surfel_update::inGridFillBuffer);
-        graph.connect(clear, &surfel_grid_clear::outCameraCentroid, update, &surfel_update::inCameraCentroid);
+        graph.connect(initializer, &surfel_initializer::outSurfelsGrid, update, &surfel_update::inOutSurfelsGrid);
+        graph.connect(initializer,
+            &surfel_initializer::outSurfelsGridData,
+            update,
+            &surfel_update::inOutSurfelsGridData);
         graph.connect(initializer,
             &surfel_initializer::outSurfelsLightEstimatorData,
             update,
@@ -712,7 +703,6 @@ namespace oblo::vk
         registry.register_node<surfel_initializer>();
         registry.register_node<surfel_tiling>();
         registry.register_node<surfel_spawner>();
-        registry.register_node<surfel_grid_clear>();
         registry.register_node<surfel_update>();
         registry.register_node<surfel_accumulate_raycount>();
         registry.register_node<surfel_raytracing>();
