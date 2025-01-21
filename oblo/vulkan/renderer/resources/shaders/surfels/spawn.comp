@@ -66,8 +66,7 @@ void main()
 
                 g_SurfelLastUsage[newSurfelId] = g_Constants.currentTimestamp;
 
-                g_InSurfelsLighting[newSurfelId].irradiance =
-                    vec3(tile.irradianceInit[0], tile.irradianceInit[1], tile.irradianceInit[2]);
+                g_InSurfelsLighting[newSurfelId] = surfel_lighting_data_new();
             }
 
             // Maybe if we failed to allocate we should try to free some space somewhere else

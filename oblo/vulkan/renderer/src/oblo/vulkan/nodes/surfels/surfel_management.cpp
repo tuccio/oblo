@@ -67,7 +67,6 @@ namespace oblo::vk
         struct surfel_tile_data
         {
             f32 worstPixelCoverage;
-            f32 irradianceInit[3];
             surfel_spawn_data spawnData;
         };
 
