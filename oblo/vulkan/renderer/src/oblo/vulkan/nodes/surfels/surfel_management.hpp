@@ -60,6 +60,7 @@ namespace oblo::vk
         resource<buffer> inSurfelsGrid;
         resource<buffer> inSurfelsGridData;
         resource<buffer> inSurfelsData;
+        resource<buffer> inOutSurfelsLastUsage;
 
         data<camera_buffer> inCameraData;
         resource<buffer> inCameraBuffer;
@@ -203,7 +204,6 @@ namespace oblo::vk
         resource<buffer> inOutSurfelsGrid;
         resource<buffer> inOutSurfelsData;
         resource<buffer> inOutSurfelsGridData;
-        resource<buffer> inOutSurfelsLastUsage;
 
         resource<buffer> inSurfelsLightingData0;
         resource<buffer> inSurfelsLightingData1;
