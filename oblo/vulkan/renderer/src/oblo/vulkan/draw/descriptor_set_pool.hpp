@@ -25,6 +25,7 @@ namespace oblo::vk
         u32 binding;
         VkDescriptorType descriptorType;
         VkShaderStageFlags stageFlags;
+        bool readOnly;
     };
 
     class descriptor_set_pool

@@ -40,6 +40,7 @@ namespace oblo::vk
     struct compute_pass_initializer;
     struct compute_pipeline;
     struct compute_pipeline_initializer;
+    struct descriptor_binding;
     struct raytracing_pass;
     struct raytracing_pass_initializer;
     struct raytracing_pipeline;
@@ -60,7 +61,7 @@ namespace oblo::vk
     class pass_manager
     {
     public:
-        using locate_binding_fn = function_ref<bindable_object(h32<string> name)>;
+        using locate_binding_fn = function_ref<bindable_object(const descriptor_binding&)>;
 
     public:
         pass_manager();
@@ -142,7 +143,7 @@ namespace oblo::vk
         void bind_descriptor_sets(VkCommandBuffer commandBuffer,
             VkPipelineBindPoint bindPoint,
             const base_pipeline& pipeline,
-            function_ref<bindable_object(h32<string> name)> locateBinding) const;
+            locate_binding_fn locateBinding) const;
 
         void bind_descriptor_sets(const raytracing_pass_context& ctx,
             std::span<const binding_table* const> bindingTables) const;

@@ -230,6 +230,7 @@ namespace oblo::vk
             u32 location;
             u32 binding;
             resource_kind kind;
+            bool readOnly;
             VkShaderStageFlags stageFlags;
         };
 
@@ -831,6 +832,7 @@ namespace oblo::vk
                 shader_resource_sorting::from(newPipeline.resources[next]))
             {
                 newPipeline.resources[current].stageFlags |= newPipeline.resources[next].stageFlags;
+                newPipeline.resources[current].readOnly |= newPipeline.resources[next].readOnly;
 
                 // Remove the next but keep the order
                 newPipeline.resources.erase(newPipeline.resources.begin() + next);
@@ -882,6 +884,7 @@ namespace oblo::vk
                 .binding = resource.binding,
                 .descriptorType = descriptorType,
                 .stageFlags = resource.stageFlags,
+                .readOnly = resource.readOnly,
             });
         }
 
@@ -998,12 +1001,14 @@ namespace oblo::vk
             const auto name = interner->get_or_add(storageBuffer.name);
             const auto location = compiler.get_decoration(storageBuffer.id, spv::DecorationLocation);
             const auto binding = compiler.get_decoration(storageBuffer.id, spv::DecorationBinding);
+            const auto readOnly = compiler.get_decoration(storageBuffer.id, spv::DecorationNonWritable) != 0;
 
             newPipeline.resources.push_back({
                 .name = name,
                 .location = location,
                 .binding = binding,
                 .kind = resource_kind::storage_buffer,
+                .readOnly = readOnly,
                 .stageFlags = VkShaderStageFlags(vkStage),
             });
 
@@ -1231,11 +1236,11 @@ namespace oblo::vk
     {
         return create_descriptor_set(descriptorSetLayout,
             pipeline,
-            [&bindingTables](const h32<string> name) -> bindable_object
+            [&bindingTables](const descriptor_binding& binding) -> bindable_object
             {
                 for (const auto& bindingTable : bindingTables)
                 {
-                    if (auto* const o = bindingTable->try_find(name))
+                    if (auto* const o = bindingTable->try_find(binding.name))
                     {
                         return *o;
                     }
@@ -1355,7 +1360,7 @@ namespace oblo::vk
 
         for (const auto& binding : pipeline.descriptorSetBindings)
         {
-            const auto bindableObject = locateBinding(binding.name);
+            const auto bindableObject = locateBinding(binding);
 
             switch (bindableObject.kind)
             {
@@ -2906,7 +2911,7 @@ namespace oblo::vk
     void pass_manager::bind_descriptor_sets(VkCommandBuffer commandBuffer,
         VkPipelineBindPoint bindPoint,
         const base_pipeline& pipeline,
-        function_ref<bindable_object(h32<string> name)> locateBinding) const
+        function_ref<bindable_object(const descriptor_binding&)> locateBinding) const
     {
         if (const auto descriptorSetLayout = pipeline.descriptorSetLayout)
         {

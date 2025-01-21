@@ -4,6 +4,7 @@
 #include <oblo/core/unreachable.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
+#include <oblo/vulkan/draw/descriptor_set_pool.hpp>
 #include <oblo/vulkan/draw/shader_stage_utils.hpp>
 #include <oblo/vulkan/graph/frame_graph_impl.hpp>
 #include <oblo/vulkan/graph/resource_pool.hpp>
@@ -174,48 +175,69 @@ namespace oblo::vk
             }
         }
 
-        void bind_descriptor_sets(pass_manager& pm,
+        template <typename R>
+        h32<frame_graph_pin_storage> as_storage_handle(resource<R> h)
+        {
+            return h32<frame_graph_pin_storage>{h.value};
+        }
+
+        template <typename R>
+        const R& access_storage(const frame_graph_impl& frameGraph, resource<R> h)
+        {
+            const auto storage = as_storage_handle(h);
+            const auto* ptr = static_cast<R*>(frameGraph.access_storage(storage));
+            OBLO_ASSERT(ptr);
+            return *ptr;
+        }
+
+        void bind_descriptor_sets(const frame_graph_impl& frameGraph,
+            pass_manager& pm,
             VkCommandBuffer commandBuffer,
             VkPipelineBindPoint bindPoint,
             const base_pipeline& pipeline,
             const string_interner& interner,
-            const frame_graph_execute_context& ctx,
             const image_layout_tracker& imageLayoutTracker,
             const binding_tables_span& bindingTables)
         {
             pm.bind_descriptor_sets(commandBuffer,
                 bindPoint,
                 pipeline,
-                [&ctx, bindingTables = bindingTables.span(), &interner, &imageLayoutTracker](
-                    h32<string> name) -> bindable_object
+                [&frameGraph, bindingTables = bindingTables.span(), &interner, &imageLayoutTracker](
+                    const descriptor_binding& binding) -> bindable_object
                 {
-                    const hashed_string_view str = hashed_string_view{interner.str(name)};
+                    const hashed_string_view str = hashed_string_view{interner.str(binding.name)};
 
                     for (const auto& bindingTable : bindingTables)
                     {
-                        if (auto* const r = bindingTable->try_find(str))
+                        auto* const r = bindingTable->try_find(str);
+
+                        if (!r)
                         {
-                            switch (r->kind)
-                            {
-                            case bindable_resource_kind::buffer:
-                                return make_bindable_object(ctx.access(r->buffer));
+                            continue;
+                        }
 
-                            case bindable_resource_kind::texture: {
-                                const auto& t = ctx.access(r->texture);
+                        switch (r->kind)
+                        {
+                        case bindable_resource_kind::buffer: {
+                            const buffer& b = access_storage(frameGraph, r->buffer);
+                            return make_bindable_object(b);
+                        }
 
-                                // The frame graph converts the pin storage handle to texture handle to use when keeping
-                                // track of textures
-                                const auto storage = h32<frame_graph_pin_storage>{r->texture.value};
+                        case bindable_resource_kind::texture: {
+                            const texture& t = access_storage(frameGraph, r->texture);
 
-                                const auto layout = imageLayoutTracker.try_get_layout(storage);
-                                layout.assert_value();
+                            // The frame graph converts the pin storage handle to texture handle to use when keeping
+                            // track of textures
+                            const auto storage = as_storage_handle(r->texture);
 
-                                return make_bindable_object(t.view, layout.value_or(VK_IMAGE_LAYOUT_UNDEFINED));
-                            }
+                            const auto layout = imageLayoutTracker.try_get_layout(storage);
+                            layout.assert_value();
 
-                            default:
-                                unreachable();
-                            }
+                            return make_bindable_object(t.view, layout.value_or(VK_IMAGE_LAYOUT_UNDEFINED));
+                        }
+
+                        default:
+                            unreachable();
                         }
                     }
 
@@ -531,12 +553,12 @@ namespace oblo::vk
         m_state.computeCtx = *computeCtx;
         m_state.basePipeline = pm.get_base_pipeline(computeCtx->internalPipeline);
 
-        bind_descriptor_sets(pm,
+        bind_descriptor_sets(m_frameGraph,
+            pm,
             m_commandBuffer,
             bindPoint,
             *m_state.basePipeline,
             m_renderer.get_string_interner(),
-            *this,
             m_state.imageLayoutTracker,
             bindingTables);
 
