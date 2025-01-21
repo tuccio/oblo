@@ -90,7 +90,9 @@ namespace oblo
                 .add_enumerator("motion_vectors", viewport_mode::motion_vectors)
                 .add_enumerator("raytracing_debug", viewport_mode::raytracing_debug)
                 .add_enumerator("gi_surfels", viewport_mode::gi_surfels)
-                .add_enumerator("gi_surfels_lighting", viewport_mode::gi_surfels_lighting);
+                .add_enumerator("gi_surfels_lighting", viewport_mode::gi_surfels_lighting)
+                .add_enumerator("gi_surfels_raycount", viewport_mode::gi_surfels_raycount)
+                .add_enumerator("gi_surfels_inconsistency", viewport_mode::gi_surfels_inconsistency);
 
             reg.add_class<skybox_component>()
                 .add_field(&skybox_component::texture, "texture")

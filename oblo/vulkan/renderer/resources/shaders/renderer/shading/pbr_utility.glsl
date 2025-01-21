@@ -17,7 +17,7 @@ pbr_material pbr_extract_parameters(in gpu_material material, in vec2 uv0, in ve
     if (material.albedoTexture != 0)
     {
         const vec3 albedo =
-            texture_sample_2d_grad(material.albedoTexture, OBLO_SAMPLER_LINEAR, uv0, uv0DDX, uv0DDY).xyz;
+            texture_sample_2d_grad(material.albedoTexture, OBLO_SAMPLER_ANISOTROPIC, uv0, uv0DDX, uv0DDY).xyz;
 
         pbr.albedo *= albedo;
     }
@@ -25,7 +25,7 @@ pbr_material pbr_extract_parameters(in gpu_material material, in vec2 uv0, in ve
     if (material.metalnessRoughnessTexture != 0)
     {
         const vec4 metalnessRoughness =
-            texture_sample_2d_grad(material.metalnessRoughnessTexture, OBLO_SAMPLER_LINEAR, uv0, uv0DDX, uv0DDY);
+            texture_sample_2d_grad(material.metalnessRoughnessTexture, OBLO_SAMPLER_ANISOTROPIC, uv0, uv0DDX, uv0DDY);
 
         pbr.metalness *= metalnessRoughness.x;
         pbr.roughness *= metalnessRoughness.y;

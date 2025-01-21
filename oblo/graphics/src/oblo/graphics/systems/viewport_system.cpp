@@ -556,6 +556,14 @@ namespace oblo
                 frameGraph.set_output_state(subgraph, vk::main_view::OutGiSurfelsLightingImage, true);
                 break;
 
+            case viewport_mode::gi_surfels_raycount:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutGiSurfelsRayCount, true);
+                break;
+
+            case viewport_mode::gi_surfels_inconsistency:
+                frameGraph.set_output_state(subgraph, vk::main_view::OutGiSurfelsInconsistency, true);
+                break;
+
             default:
                 frameGraph.set_output_state(subgraph, vk::main_view::OutLitImage, true);
                 unreachable();

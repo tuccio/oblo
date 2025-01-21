@@ -173,7 +173,7 @@ namespace oblo::vk
                     if (!resolveInclude(includePath, m_builder))
                     {
                         m_hasError = true;
-                        m_builder.format("Failed to resolve include: {}", includePath);
+                        m_builder.clear().format("Failed to resolve include: {}", includePath);
                         return false;
                     }
 
@@ -294,12 +294,12 @@ namespace oblo::vk
 
         auto& sourceFile = m_sourceFiles.emplace_back(m_memoryResource.get_allocator());
 
-        const auto r = filesystem::load_text_file_into_memory(sourceFile.content, path);
+        const auto r = filesystem::load_text_file_into_memory(sourceFile.content, it->first);
 
         if (!r)
         {
             m_hasError = true;
-            m_builder.clear().format("Failed to read file: {}", path);
+            m_builder.clear().format("Failed to read file: {}", it->first);
             return nullptr;
         }
 
@@ -320,7 +320,7 @@ namespace oblo::vk
 
     cstring_view glsl_preprocessor::get_error() const
     {
-        OBLO_ASSERT(!m_hasError);
+        OBLO_ASSERT(m_hasError);
         return m_builder;
     }
 

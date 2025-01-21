@@ -16,6 +16,8 @@ namespace oblo::vk
         {
             surfel_grid_id,
             surfel_lighting,
+            surfel_raycount,
+            surfel_inconsistency,
             enum_max,
         };
 
@@ -30,6 +32,7 @@ namespace oblo::vk
         resource<buffer> inSurfelsGrid;
         resource<buffer> inSurfelsGridData;
         resource<buffer> inSurfelsLightingData;
+        resource<buffer> inSurfelsLightEstimatorData;
 
         resource<texture> inVisibilityBuffer;
         resource<buffer> inMeshDatabase;

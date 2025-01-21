@@ -14,14 +14,75 @@
 
 layout(binding = 11) uniform accelerationStructureEXT u_SceneTLAS;
 
+layout(std430, binding = 12) restrict buffer b_TotalRayCount
+{
+    uint g_TotalRayCount;
+};
+
+layout(std430, binding = SURFEL_LIGHT_ESTIMATOR_DATA_BINDING) restrict buffer b_OutSurfelsLightEstimator
+{
+    surfel_light_estimator_data g_SurfelsLightEstimatorData[];
+};
+
 layout(location = 0) rayPayloadEXT vec3 r_HitColor;
 
 layout(push_constant) uniform c_PushConstants
 {
+    uint maxRayPaths;
     uint randomSeed;
     float giMultiplier;
 }
 g_Constants;
+
+// Adapted from
+// https://github.com/Apress/ray-tracing-gems/blob/master/Ch_25_Hybrid_Rendering_for_Real-Time_Ray_Tracing/MultiscaleMeanEstimator.hlsl
+vec3 MultiscaleMeanEstimator(vec3 y, in vec3 mean, inout surfel_light_estimator_data data, float shortWindowBlend)
+{
+    vec3 shortMean = data.shortTermMean;
+    float vbbr = data.varianceBasedBlendReduction;
+    vec3 variance = data.variance;
+    float inconsistency = data.inconsistency;
+
+    // Suppress fireflies.
+    {
+        vec3 dev = sqrt(max(vec3(1e-5), variance));
+        vec3 highThreshold = 0.1 + shortMean + dev * 8;
+        vec3 overflow = max(vec3(0), y - highThreshold);
+        y -= overflow;
+    }
+
+    vec3 delta = y - shortMean;
+    shortMean = mix(shortMean, y, shortWindowBlend);
+    vec3 delta2 = y - shortMean;
+
+    // This should be a longer window than shortWindowBlend to avoid bias
+    // from the variance getting smaller when the short-term mean does.
+    float varianceBlend = shortWindowBlend * 0.5;
+    variance = mix(variance, delta * delta2, varianceBlend);
+    vec3 dev = sqrt(max(vec3(1e-5), variance));
+
+    vec3 shortDiff = mean - shortMean;
+
+    float relativeDiff = dot(vec3(0.299, 0.587, 0.114), abs(shortDiff) / max(vec3(1e-5), dev));
+    inconsistency = mix(inconsistency, relativeDiff, 0.08);
+
+    float varianceBasedBlendReduction =
+        clamp(dot(vec3(0.299, 0.587, 0.114), 0.5 * shortMean / max(vec3(1e-5), dev)), 1.0 / 32, 1);
+
+    vec3 catchUpBlend = clamp(smoothstep(0, 1, relativeDiff * max(vec3(0.02), inconsistency - 0.2)), 1.0 / 256, 1);
+    catchUpBlend *= vbbr;
+
+    vbbr = mix(vbbr, varianceBasedBlendReduction, 0.1);
+    mean = mix(mean, y, saturate(catchUpBlend));
+
+    // Output
+    data.shortTermMean = shortMean;
+    data.varianceBasedBlendReduction = vbbr;
+    data.variance = variance;
+    data.inconsistency = inconsistency;
+
+    return mean;
+}
 
 void main()
 {
@@ -36,20 +97,29 @@ void main()
 
     uint randomSeed = random_seed(g_Constants.randomSeed, surfelId);
 
-    surfel_sh r, g, b;
+    uint numRays = surfel.requestedRays;
 
-    r = g_InSurfelsLighting[surfelId].shRed;
-    g = g_InSurfelsLighting[surfelId].shGreen;
-    b = g_InSurfelsLighting[surfelId].shBlue;
+    if (g_TotalRayCount > g_Constants.maxRayPaths && g_TotalRayCount > 0)
+    {
+        const float numRaysFloat = float(numRays * g_Constants.maxRayPaths) / g_TotalRayCount;
+        // Give it a chance to shoot a ray when we have a remainder in the division
+        const bool extraRay = random_uniform_1d(randomSeed) < mod(numRaysFloat, 1.f);
+        numRays = uint(numRaysFloat) + (extraRay ? 1 : 0);
+    }
+
+    if (numRays == 0)
+    {
+        return;
+    }
+
+    vec3 irradianceSum = vec3(0);
 
     const vec3 origin = surfel_data_world_position(surfel);
     const vec3 N = surfel_data_world_normal(surfel);
 
-    const uint numRays = 4;
-
     for (uint i = 0; i < numRays; ++i)
     {
-        const vec3 direction = random_sample_uniform_hemisphere(N, random_uniform_2d(randomSeed));
+        const vec3 direction = random_sample_cosine_hemisphere(N, random_uniform_2d(randomSeed));
 
         const float tMin = 1e-2f;
         const float tMax = 1e6f;
@@ -67,16 +137,35 @@ void main()
             0 // payload location
         );
 
-        surfel_sh shDirection;
-        sh_eval(shDirection, direction);
+        const vec3 rayContribution = g_Constants.giMultiplier * r_HitColor;
 
-        r = sh_add(sh_mul(shDirection, g_Constants.giMultiplier * r_HitColor.r), r);
-        g = sh_add(sh_mul(shDirection, g_Constants.giMultiplier * r_HitColor.g), g);
-        b = sh_add(sh_mul(shDirection, g_Constants.giMultiplier * r_HitColor.b), b);
+        const float sampleProbability = max(1e-2, dot(direction, N));
+        irradianceSum += rayContribution / sampleProbability;
     }
 
-    g_OutSurfelsLighting[surfelId].shRed = r;
-    g_OutSurfelsLighting[surfelId].shGreen = g;
-    g_OutSurfelsLighting[surfelId].shBlue = b;
-    g_OutSurfelsLighting[surfelId].numSamples = g_InSurfelsLighting[surfelId].numSamples + 1;
+    // We interpolate the first N samples linearly
+    const uint linearInterpolationThreshold = 32;
+    const float shortWindowBlend = 0.08f;
+
+    surfel_lighting_data result;
+
+    const surfel_lighting_data lightData = g_InSurfelsLighting[surfelId];
+
+    if (lightData.numSamples < linearInterpolationThreshold)
+    {
+        const uint newSamplesCount = lightData.numSamples + numRays;
+        result.irradiance = (lightData.irradiance * lightData.numSamples + irradianceSum) / newSamplesCount;
+        result.numSamples = newSamplesCount;
+    }
+    else
+    {
+        const vec3 irradianceAvg = irradianceSum / numRays;
+
+        surfel_light_estimator_data estimator = g_SurfelsLightEstimatorData[surfelId];
+        const vec3 mean = MultiscaleMeanEstimator(irradianceAvg, lightData.irradiance, estimator, shortWindowBlend);
+        result.irradiance = mean;
+        g_SurfelsLightEstimatorData[surfelId] = estimator;
+    }
+
+    g_OutSurfelsLighting[surfelId] = result;
 }

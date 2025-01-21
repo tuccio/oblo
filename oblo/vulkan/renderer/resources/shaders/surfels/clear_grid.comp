@@ -30,7 +30,10 @@ void main()
         g_SurfelGridCellDataIndex = 0;
     }
 
-    if (gl_GlobalInvocationID.x >= g_Constants.gridHeader.cellsCountLinearized)
+    const uint cellsCountLinearized =
+        g_Constants.gridHeader.cellsCount.x * g_Constants.gridHeader.cellsCount.y * g_Constants.gridHeader.cellsCount.z;
+
+    if (gl_GlobalInvocationID.x >= cellsCountLinearized)
     {
         return;
     }

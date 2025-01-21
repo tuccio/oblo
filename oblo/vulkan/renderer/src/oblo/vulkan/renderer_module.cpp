@@ -163,6 +163,7 @@ namespace oblo::vk
                     .features =
                         {
                             .multiDrawIndirect = true,
+                            .samplerAnisotropy = true,
                             .shaderInt64 = true,
                             .shaderInt16 = true,
                         },

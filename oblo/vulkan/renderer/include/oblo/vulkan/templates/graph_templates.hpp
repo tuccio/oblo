@@ -20,10 +20,13 @@ namespace oblo::vk::main_view
     constexpr string_view InLastFrameSurfelsGrid{"LastFrameSurfelsGrid"};
     constexpr string_view InLastFrameSurfelsGridData{"LastFrameSurfelsGridData"};
     constexpr string_view InLastFrameSurfelData{"LastFrameSurfelData"};
+    constexpr string_view InLastFrameSurfelsLightingData{"LastFrameSurfelsLightingData"};
     constexpr string_view InUpdatedSurfelsGrid{"UpdatedSurfelsGrid"};
     constexpr string_view InUpdatedSurfelsGridData{"UpdatedSurfelsGridData"};
     constexpr string_view InUpdatedSurfelsData{"UpdatedSurfelsData"};
     constexpr string_view InUpdatedSurfelsLightingData{"UpdatedSurfelsLightingData"};
+    constexpr string_view InUpdatedSurfelsLightEstimatorData{"UpdatedSurfelsLightEstimatorData"};
+    constexpr string_view InSurfelsLastUsage{"SurfelsLastUsage"};
     constexpr string_view InShadowSink{"ShadowSink"};
     constexpr string_view InSkyboxSettingsBuffer{"SkyboxSettingsBuffer"};
 
@@ -38,6 +41,8 @@ namespace oblo::vk::main_view
     constexpr string_view OutDebugImage{"DebugOutput"};
     constexpr string_view OutGISurfelsImage{"DebugGISurfelsOutput"};
     constexpr string_view OutGiSurfelsLightingImage{"DebugGITileCoverageOutput"};
+    constexpr string_view OutGiSurfelsRayCount{"DebugtGiSurfelsRayCount"};
+    constexpr string_view OutGiSurfelsInconsistency{"DebugtGiSurfelsInconsistency"};
     constexpr string_view OutRTDebugImage{"DebugRTOutput"};
     constexpr string_view OutSurfelsTileCoverageSink{"SurfelsGITileOutput"};
 
@@ -97,6 +102,7 @@ namespace oblo::vk::surfels_gi
     constexpr string_view InGridBounds{"GridBounds"};
     constexpr string_view InGridCellSize{"GridCellSize"};
     constexpr string_view InMaxSurfels{"MaxSurfels"};
+    constexpr string_view InMaxRayPaths{"MaxRayPaths"};
     constexpr string_view InGIMultiplier{"GIMultiplier"};
     constexpr string_view InTileCoverageSink{"TileCoverageSink"};
     constexpr string_view InEcsEntitySetBuffer{"EcsEntitySetBuffer"};
@@ -110,10 +116,13 @@ namespace oblo::vk::surfels_gi
     constexpr string_view OutLastFrameGrid{"LastGrid"};
     constexpr string_view OutLastFrameGridData{"LastGridData"};
     constexpr string_view OutLastFrameSurfelData{"LastSurfelData"};
+    constexpr string_view OutLastFrameSurfelsLightingData{"LastFrameSurfelsLightingData"};
     constexpr string_view OutUpdatedSurfelGrid{"UpdatedSurfelGrid"};
     constexpr string_view OutUpdatedSurfelGridData{"UpdatedSurfelGridData"};
     constexpr string_view OutUpdatedSurfelData{"UpdatedSurfelData"};
     constexpr string_view OutUpdatedSurfelLightingData{"UpdatedSurfelLightingData"};
+    constexpr string_view OutUpdatedSurfelLightEstimatorData{"UpdatedSurfelLightEstimatorData"};
+    constexpr string_view OutSurfelsLastUsage{"SurfelsLastUsage"};
 
     frame_graph_template create(const frame_graph_registry& registry);
 }

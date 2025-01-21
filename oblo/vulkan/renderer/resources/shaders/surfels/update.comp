@@ -18,8 +18,22 @@
 #include <surfels/buffers/surfel_grid_rw>
 #include <surfels/buffers/surfel_spawn_data_rw>
 #include <surfels/buffers/surfel_stack_rw>
+#include <surfels/grid_utils>
 #include <surfels/surfel_data>
 #include <visibility/visibility_buffer>
+
+// After a number of frames where the surfel is not used, we kill it
+const uint g_InactiveFramesKillThreshold = 200;
+
+layout(std430, binding = SURFEL_LIGHT_ESTIMATOR_DATA_BINDING) restrict buffer readonly b_SurfelsLightEstimator
+{
+    surfel_light_estimator_data g_SurfelsLightEstimatorData[];
+};
+
+layout(std430, binding = SURFEL_LAST_USAGE_BINDING) restrict readonly buffer b_SurfelsLastUsage
+{
+    uint g_SurfelLastUsage[];
+};
 
 layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
@@ -34,7 +48,10 @@ g_Constants;
 void surfel_kill(in uint surfelId)
 {
 #if OBLO_DEBUG_PRINTF
-    debugPrintfEXT("[UPDATE] Killed surfel: %u\n", surfelId);
+    debugPrintfEXT("[UPDATE] Killed surfel: %u (now: %u last usage: %u)\n",
+        surfelId,
+        g_Constants.currentTimestamp,
+        g_SurfelLastUsage[surfelId]);
 #endif
 
     g_SurfelData[surfelId] = surfel_data_invalid();
@@ -54,7 +71,7 @@ void main()
 #if OBLO_DEBUG_PRINTF
     if (gl_GlobalInvocationID.x == 0)
     {
-        debugPrintfEXT("[UPDATE] Surfels alive: %u\n", g_Constants.maxSurfels - g_SurfelStackHeader.available);
+        // debugPrintfEXT("[UPDATE] Surfels alive: %u\n", g_Constants.maxSurfels - g_SurfelStackHeader.available);
     }
 #endif
 
@@ -75,6 +92,14 @@ void main()
     ecs_entity_set_entry entitySetEntry;
 
     if (!ecs_entity_set_try_find(surfel.entity, entitySetEntry))
+    {
+        surfel_kill(surfelId);
+        return;
+    }
+
+    const uint lastUsage = g_SurfelLastUsage[surfelId];
+
+    if (g_Constants.currentTimestamp - lastUsage > g_InactiveFramesKillThreshold)
     {
         surfel_kill(surfelId);
         return;
@@ -130,41 +155,51 @@ void main()
 
     surfel_data updatedData;
     updatedData.positionWS = positionWS;
-    updatedData.normalWS = normalWS;
     updatedData.radius = radius;
+    surfel_data_set_world_normal(updatedData, normalWS);
+
+    // Surfels that just spawned will ask for maxRays, then going down to 0 after a fixed amount of warm up frames
+    // Surfels that moved or changed orientation will ask for more rays
+    // All other surfels will ask for 1 ray
+    const uint maxRays = SURFEL_MAX_RAYS_PER_SURFEL;
+    const uint warmupFrames = 1;
+
+    uint numRequestedRays;
+
+    const uint framesAlive = g_Constants.currentTimestamp - surfel.spawnTimestamp;
+
+    if (framesAlive < warmupFrames)
+    {
+        numRequestedRays = maxRays;
+    }
+    else
+    {
+        // We might instead choose a number randomly, but we want to sample every now and then at least
+        const uint minRays = 1;
+
+        const vec3 previousNormal = surfel_data_world_normal(g_SurfelData[surfelId]);
+        const float cosAngle = dot(normalWS, previousNormal);
+
+        const float orientationFactor = (1 - cosAngle) * .5f;
+        const uint numRaysOrientation = uint(orientationFactor * maxRays);
+
+        const vec3 previousPosition = surfel_data_world_position(g_SurfelData[surfelId]);
+
+        const vec3 dx = previousPosition - positionWS;
+
+        const float distance2 = dot(dx, dx);
+        const float translationFactor = min(1.f, sqrt(distance2));
+        const uint numRaysTranslation = uint(translationFactor * maxRays);
+
+        const float inconsistencyFactor = max(0, g_SurfelsLightEstimatorData[surfelId].inconsistency - 0.15);
+        const uint numRaysInconsistency = uint(inconsistencyFactor * maxRays);
+
+        numRequestedRays = min(maxRays, max(minRays, numRaysOrientation + numRaysTranslation + numRaysInconsistency));
+    }
+
+    updatedData.requestedRays = numRequestedRays;
 
     g_SurfelData[surfelId] = updatedData;
 
-    if (surfel_grid_has_cell(gridHeader, cell))
-    {
-        const uint cellIndex = surfel_grid_cell_index(gridHeader, cell);
-        surfel_commit_to_grid(surfelId, cellIndex);
-    }
-
-    // Search neighboring cells and accumulate overlapping surfels
-    [[unroll]] for (int x = -1; x <= 1; ++x)
-    {
-        [[unroll]] for (int y = -1; y <= 1; ++y)
-        {
-            [[unroll]] for (int z = -1; z <= 1; ++z)
-            {
-                if (x == 0 && y == 0 && z == 0)
-                {
-                    // Skip the cell we already dealt with
-                    continue;
-                }
-
-                const vec3 delta = vec3(radius) * vec3(x, y, z);
-                const vec3 posOnSurface = positionWS + delta;
-
-                const ivec3 neighboringCell = surfel_grid_find_cell(gridHeader, posOnSurface);
-
-                if (neighboringCell != cell)
-                {
-                    const uint neighboringCellIndex = surfel_grid_cell_index(gridHeader, neighboringCell);
-                    surfel_commit_to_grid(surfelId, neighboringCellIndex);
-                }
-            }
-        }
-    }
+    surfel_scatter_to_grid(gridHeader, cell, surfelId, positionWS, radius);
 }

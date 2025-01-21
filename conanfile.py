@@ -74,6 +74,7 @@ class ObloConanRecipe(ConanFile):
             tracy = self.options["tracy/*"]
             tracy.enable = True
             tracy.shared = True
+            tracy.on_demand = True
 
     def generate(self):
         imgui = self.dependencies["imgui"]

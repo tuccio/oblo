@@ -6,7 +6,6 @@
 #include <renderer/random/random>
 #include <surfels/buffers/surfel_data_w>
 #include <surfels/buffers/surfel_lighting_data_in_w>
-#include <surfels/buffers/surfel_lighting_data_out_w>
 #include <surfels/buffers/surfel_spawn_data_w>
 #include <surfels/buffers/surfel_stack_rw>
 
@@ -15,12 +14,18 @@ layout(std430, binding = 0) restrict readonly buffer b_TileCoverage
     surfel_tile_data g_TileData[];
 };
 
+layout(std430, binding = SURFEL_LAST_USAGE_BINDING) restrict writeonly buffer b_SurfelsLastUsage
+{
+    uint g_SurfelLastUsage[];
+};
+
 layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
 layout(push_constant) uniform c_PushConstants
 {
     uint srcElements;
     uint randomSeed;
+    uint currentTimestamp;
 }
 g_Constants;
 
@@ -35,36 +40,36 @@ void main()
     }
 
     // This should really depend on the coverage
-    const float skipProbability = 0.f;
+    const float skipProbability = 0.2f;
 
     if (random_uniform_1d(randomSeed) < skipProbability)
     {
         return;
     }
 
-    // We could consider a random threshold instead
-    const float spawnThreshold = NO_SURFELS_NEEDED;
+    // We don't spawn anything if the coverage is already high
+    const float maxCoverageThreshold = 0.9;
 
     const surfel_tile_data tile = g_TileData[globalIndex];
 
-    if (ecs_entity_is_valid(tile.spawnData.entity) && tile.worstPixelCoverage < 0.15)
+    if (tile.worstPixelCoverage < 0.75)
     {
-        uint newSurfelId;
-        const bool allocated = surfel_stack_allocate(newSurfelId);
-
-        if (allocated)
+        if (ecs_entity_is_valid(tile.spawnData.entity) && tile.worstPixelCoverage < maxCoverageThreshold)
         {
-            g_SurfelSpawnData[newSurfelId] = tile.spawnData;
+            uint newSurfelId;
+            const bool allocated = surfel_stack_allocate(newSurfelId);
 
-            // This might not be necessary because we reset in the rgen shader on dead surfels
-            g_InSurfelsLighting[newSurfelId] = surfel_lighting_data_new();
-            g_OutSurfelsLighting[newSurfelId] = surfel_lighting_data_new();
-        }
-        else
-        {
-#if OBLO_DEBUG_PRINTF
-            // debugPrintfEXT("[SPAWN] Failed to allocate surfel\n");
-#endif
+            if (allocated)
+            {
+                g_SurfelSpawnData[newSurfelId] = tile.spawnData;
+                g_SurfelSpawnData[newSurfelId].spawnTimestamp = g_Constants.currentTimestamp;
+
+                g_SurfelLastUsage[newSurfelId] = g_Constants.currentTimestamp;
+
+                g_InSurfelsLighting[newSurfelId] = surfel_lighting_data_new();
+            }
+
+            // Maybe if we failed to allocate we should try to free some space somewhere else
         }
     }
 }

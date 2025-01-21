@@ -91,6 +91,11 @@ namespace oblo
                 vk::main_view::InLastFrameSurfelData);
 
             g.connect(surfelsGIGlobal,
+                vk::surfels_gi::OutLastFrameSurfelsLightingData,
+                mainView,
+                vk::main_view::InLastFrameSurfelsLightingData);
+
+            g.connect(surfelsGIGlobal,
                 vk::surfels_gi::OutUpdatedSurfelGrid,
                 mainView,
                 vk::main_view::InUpdatedSurfelsGrid);
@@ -109,6 +114,16 @@ namespace oblo
                 vk::surfels_gi::OutUpdatedSurfelLightingData,
                 mainView,
                 vk::main_view::InUpdatedSurfelsLightingData);
+
+            g.connect(surfelsGIGlobal,
+                vk::surfels_gi::OutUpdatedSurfelLightEstimatorData,
+                mainView,
+                vk::main_view::InUpdatedSurfelsLightEstimatorData);
+
+            g.connect(surfelsGIGlobal,
+                vk::surfels_gi::OutSurfelsLastUsage,
+                mainView,
+                vk::main_view::InSurfelsLastUsage);
 
             g.connect(mainView,
                 vk::main_view::OutSurfelsTileCoverageSink,
@@ -176,6 +191,7 @@ namespace oblo
         const aabb gridBounds{.min = -halfExtents, .max = halfExtents};
 
         m_frameGraph.set_input(m_surfelsGI, vk::surfels_gi::InMaxSurfels, giConfig.maxSurfels).assert_value();
+        m_frameGraph.set_input(m_surfelsGI, vk::surfels_gi::InMaxRayPaths, giConfig.rayBudget).assert_value();
         m_frameGraph.set_input(m_surfelsGI, vk::surfels_gi::InGridCellSize, giConfig.gridCellSize).assert_value();
         m_frameGraph.set_input(m_surfelsGI, vk::surfels_gi::InGridBounds, gridBounds).assert_value();
         m_frameGraph.set_input(m_surfelsGI, vk::surfels_gi::InGIMultiplier, giConfig.multiplier).assert_value();

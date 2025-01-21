@@ -45,6 +45,7 @@ namespace oblo::vk
         ctx.acquire(inSurfelsGrid, buffer_usage::storage_read);
         ctx.acquire(inSurfelsGridData, buffer_usage::storage_read);
         ctx.acquire(inSurfelsLightingData, buffer_usage::storage_read);
+        ctx.acquire(inSurfelsLightEstimatorData, buffer_usage::storage_read);
 
         ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
 
@@ -69,6 +70,14 @@ namespace oblo::vk
             define = "MODE_SURFEL_LIGHTING"_hsv;
             break;
 
+        case mode::surfel_raycount:
+            define = "MODE_SURFEL_RAYCOUNT"_hsv;
+            break;
+
+        case mode::surfel_inconsistency:
+            define = "MODE_SURFEL_INCONSISTENCY"_hsv;
+            break;
+
         default:
             unreachable();
         }
@@ -89,6 +98,7 @@ namespace oblo::vk
                     {"b_InstanceTables", inInstanceTables},
                     {"b_MeshTables", inMeshDatabase},
                     {"b_CameraBuffer", inCameraBuffer},
+                    {"b_SurfelsLightEstimator", inSurfelsLightEstimatorData},
                 });
 
             ctx.bind_textures(bindingTable,

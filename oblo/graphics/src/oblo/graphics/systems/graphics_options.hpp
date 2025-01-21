@@ -16,8 +16,22 @@ namespace oblo
             .id = "230f65b2-3049-455a-aefd-fee4a6567d75"_uuid,
             .name = "Max Surfels",
             .category = "Graphics/GI",
-            .defaultValue = property_value_wrapper{1u << 16},
+            .defaultValue = property_value_wrapper{1u << 18},
             .minValue = property_value_wrapper{1u},
+        };
+    };
+
+    template <>
+    struct option_traits<"r.gi.rayBudget">
+    {
+        using type = u32;
+
+        static constexpr option_descriptor descriptor{
+            .kind = property_kind::u32,
+            .id = "d624c991-1f79-4c75-9c40-c342ee97be7e"_uuid,
+            .name = "Ray Budget",
+            .category = "Graphics/GI",
+            .defaultValue = property_value_wrapper{1u << 19},
         };
     };
 
@@ -104,6 +118,7 @@ namespace oblo
     struct surfels_gi_options
     {
         option_proxy<"r.gi.maxSurfels"> maxSurfels;
+        option_proxy<"r.gi.rayBudget"> rayBudget;
         option_proxy<"r.gi.gridCellSize"> gridCellSize;
         option_proxy<"r.gi.gridSizeX"> gridSizeX;
         option_proxy<"r.gi.gridSizeY"> gridSizeY;
@@ -114,6 +129,7 @@ namespace oblo
     struct surfels_gi_config
     {
         u32 maxSurfels;
+        u32 rayBudget;
         f32 gridCellSize;
         f32 gridSizeX;
         f32 gridSizeY;

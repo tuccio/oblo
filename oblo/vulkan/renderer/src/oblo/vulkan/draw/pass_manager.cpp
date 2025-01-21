@@ -280,6 +280,7 @@ namespace oblo::vk
         {
             linear,
             nearest,
+            anisotropic,
             enum_max
         };
 
@@ -667,8 +668,9 @@ namespace oblo::vk
         watch_listener watchListener;
         std::optional<efsw::FileWatcher> fileWatcher;
 
-        bool enableShaderOptimizations{};
-        bool emitDebugInfo{};
+        bool enableShaderOptimizations{false};
+        bool emitDebugInfo{false};
+        bool emitLineDirectives{true};
         bool enableProfiling{true};
         bool enableProfilingThisFrame{false};
         bool globallyEnablePrintf{false};
@@ -804,10 +806,15 @@ namespace oblo::vk
             preambleBuilder.format("#define {}\n", define);
         }
 
+        const shader_preprocessor_options preprocessorOptions = {
+            .emitLineDirectives = emitLineDirectives,
+            .preamble = preambleBuilder.as<string_view>(),
+        };
+
         result = shaderCache.find_or_compile(frameAllocator,
             filePath,
             from_vk_shader_stage(vkStage),
-            preambleBuilder.as<string_view>(),
+            preprocessorOptions,
             compilerOptions,
             debugName);
 
@@ -1512,6 +1519,32 @@ namespace oblo::vk
                 &samplerInfo,
                 vkContext.get_allocator().get_allocation_callbacks(),
                 &m_impl->samplers[u32(sampler::nearest)]);
+        }
+
+        {
+            const VkSamplerCreateInfo samplerInfo{
+                .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+                .magFilter = VK_FILTER_LINEAR,
+                .minFilter = VK_FILTER_LINEAR,
+                .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+                .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                .mipLodBias = 0.0f,
+                .anisotropyEnable = true,
+                .maxAnisotropy = 16,
+                .compareEnable = false,
+                .compareOp = VK_COMPARE_OP_ALWAYS,
+                .minLod = 0.0f,
+                .maxLod = VK_LOD_CLAMP_NONE,
+                .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+                .unnormalizedCoordinates = false,
+            };
+
+            vkCreateSampler(vkContext.get_device(),
+                &samplerInfo,
+                vkContext.get_allocator().get_allocation_callbacks(),
+                &m_impl->samplers[u32(sampler::anisotropic)]);
         }
 
         {
@@ -2544,6 +2577,7 @@ namespace oblo::vk
             const bool anyChange = m_impl->enableShaderOptimizations != shaderCompilerConfig.optimizeShaders ||
                 m_impl->emitDebugInfo != shaderCompilerConfig.emitDebugInfo ||
                 m_impl->globallyEnablePrintf != shaderCompilerConfig.enablePrintf ||
+                m_impl->emitLineDirectives != shaderCompilerConfig.emitLineDirectives ||
                 chosenCompiler != m_impl->shaderCache.get_glsl_compiler();
 
             if (anyChange)
@@ -2553,6 +2587,7 @@ namespace oblo::vk
                 m_impl->enableShaderOptimizations = shaderCompilerConfig.optimizeShaders;
                 m_impl->emitDebugInfo = shaderCompilerConfig.emitDebugInfo;
                 m_impl->globallyEnablePrintf = shaderCompilerConfig.enablePrintf;
+                m_impl->emitLineDirectives = shaderCompilerConfig.emitLineDirectives;
 
                 m_impl->invalidate_all_passes();
             }

@@ -1,0 +1,70 @@
+#version 460
+
+const uint g_GroupSize = OBLO_SUBGROUP_SIZE * OBLO_SUBGROUP_SIZE;
+
+#extension GL_KHR_shader_subgroup_arithmetic : require
+#extension GL_KHR_shader_subgroup_basic : require
+
+#ifdef READ_SURFELS
+    #include <surfels/buffers/surfel_data_r>
+#else
+layout(std430, binding = 0) restrict readonly buffer b_InBuffer
+{
+    uint g_InRayCount[];
+};
+#endif
+
+layout(std430, binding = 1) restrict writeonly buffer b_OutBuffer
+{
+    uint g_OutRayCount[];
+};
+
+shared uint g_SubgroupsRayCount[g_GroupSize / OBLO_SUBGROUP_SIZE];
+
+layout(local_size_x = g_GroupSize, local_size_y = 1, local_size_z = 1) in;
+
+layout(push_constant) uniform c_PushConstants
+{
+    uint inElements;
+}
+g_Constants;
+
+void main()
+{
+    const uint globalIndex = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationIndex;
+
+    if (globalIndex >= g_Constants.inElements)
+    {
+        return;
+    }
+
+#ifdef READ_SURFELS
+    const uint self = g_SurfelData[globalIndex].requestedRays;
+#else
+    const uint self = g_InRayCount[globalIndex];
+#endif
+
+    const uint thisSubgroup = subgroupAdd(self);
+
+    if (subgroupElect())
+    {
+        g_SubgroupsRayCount[gl_SubgroupID] = thisSubgroup;
+    }
+
+    memoryBarrierShared();
+    barrier();
+
+    if (gl_LocalInvocationIndex > OBLO_SUBGROUP_SIZE)
+    {
+        return;
+    }
+
+    const uint nthSubgroup = g_SubgroupsRayCount[gl_SubgroupInvocationID];
+    const uint finalRayCount = subgroupAdd(nthSubgroup);
+
+    if (gl_LocalInvocationIndex == 0)
+    {
+        const uint outputIndex = gl_WorkGroupID.x;
+        g_OutRayCount[outputIndex] = finalRayCount;
+    }
+}

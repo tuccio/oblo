@@ -3,13 +3,13 @@
 
 #include <ecs/entity>
 #include <renderer/constants>
-#include <renderer/math/spherical_harmonics>
 
 // Used as a coverage value for surfel_tile_data when no geometry is present
 const float NO_SURFELS_NEEDED = 1e6;
+const float SURFEL_CONTRIBUTION_THRESHOLD = 2;
+const float SURFEL_CONTRIBUTION_THRESHOLD_SQR = SURFEL_CONTRIBUTION_THRESHOLD * SURFEL_CONTRIBUTION_THRESHOLD;
 
-// The spherical harmonics type used with surfels
-#define surfel_sh sh3
+const uint SURFEL_MAX_RAYS_PER_SURFEL = 128;
 
 struct surfel_spawn_data
 {
@@ -17,6 +17,7 @@ struct surfel_spawn_data
     uint packedMeshletAndTriangleId;
     float barycentricU;
     float barycentricV;
+    uint spawnTimestamp;
 };
 
 struct surfel_data
@@ -24,7 +25,7 @@ struct surfel_data
     vec3 positionWS;
     float radius;
     vec3 normalWS;
-    uint globalInstanceId;
+    uint requestedRays;
 };
 
 struct surfel_grid_header
@@ -34,7 +35,7 @@ struct surfel_grid_header
     vec3 boundsMax;
     uint maxSurfels;
     ivec3 cellsCount;
-    uint cellsCountLinearized;
+    uint currentTimestamp;
 };
 
 struct surfel_grid_cell
@@ -61,10 +62,16 @@ struct surfel_tile_data
 
 struct surfel_lighting_data
 {
-    surfel_sh shRed;
-    surfel_sh shGreen;
-    surfel_sh shBlue;
+    vec3 irradiance;
     uint numSamples;
+};
+
+struct surfel_light_estimator_data
+{
+    vec3 shortTermMean;
+    float varianceBasedBlendReduction;
+    vec3 variance;
+    float inconsistency;
 };
 
 ivec3 surfel_grid_cells_count(in surfel_grid_header h)
@@ -104,6 +111,11 @@ vec3 surfel_data_world_normal(in surfel_data surfel)
     return surfel.normalWS;
 }
 
+void surfel_data_set_world_normal(inout surfel_data surfel, in vec3 normalWS)
+{
+    surfel.normalWS = normalWS;
+}
+
 float surfel_data_world_radius(in surfel_data surfel)
 {
     return surfel.radius;
@@ -130,13 +142,20 @@ surfel_data surfel_data_invalid()
     surfelData.positionWS = vec3(float_positive_infinity());
     surfelData.normalWS = vec3(float_positive_infinity());
     surfelData.radius = 0.f;
-    surfelData.globalInstanceId = ~0u;
+    surfelData.requestedRays = 0u;
     return surfelData;
 }
 
 bool surfel_data_is_alive(in surfel_data surfelData)
 {
     return !isinf(surfelData.positionWS.x);
+}
+
+float surfel_max_radius(in surfel_grid_header gridHeader)
+{
+    const float gridCellSize = surfel_grid_cell_size(gridHeader);
+    const float maxRadius = .25f * gridCellSize;
+    return maxRadius;
 }
 
 float surfel_estimate_radius(in surfel_grid_header gridHeader, in vec3 cameraPosition, in vec3 surfelPosition)
@@ -147,9 +166,9 @@ float surfel_estimate_radius(in surfel_grid_header gridHeader, in vec3 cameraPos
     const float gridCellSize = surfel_grid_cell_size(gridHeader);
     const float surfelScalingFactor = 0.03;
 
-    const float maxRadius = .5f * gridCellSize - .01f;
+    const float maxRadius = surfel_max_radius(gridHeader);
 
-    const float radius = min(max(0.f, maxRadius), surfelScalingFactor * sqrt(cameraDistance2));
+    const float radius = min(maxRadius, surfelScalingFactor * sqrt(cameraDistance2));
 
     return radius;
 }
@@ -157,10 +176,18 @@ float surfel_estimate_radius(in surfel_grid_header gridHeader, in vec3 cameraPos
 surfel_lighting_data surfel_lighting_data_new()
 {
     surfel_lighting_data r;
-    sh_zero(r.shRed);
-    sh_zero(r.shGreen);
-    sh_zero(r.shBlue);
+    r.irradiance = vec3(0);
     r.numSamples = 0;
+    return r;
+}
+
+surfel_light_estimator_data surfel_light_estimator_data_new()
+{
+    surfel_light_estimator_data r;
+    r.shortTermMean = vec3(0);
+    r.varianceBasedBlendReduction = 0;
+    r.variance = vec3(0);
+    r.inconsistency = 0;
     return r;
 }
 

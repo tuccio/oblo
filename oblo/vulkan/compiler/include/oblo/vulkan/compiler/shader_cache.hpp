@@ -27,8 +27,8 @@ namespace oblo::vk
         VK_COMPILER_API shader_compiler::result find_or_compile(frame_allocator& allocator,
             cstring_view filePath,
             shader_stage stage,
-            string_view preamble,
-            const shader_compiler_options& options,
+            const shader_preprocessor_options& preprocessorOptions,
+            const shader_compiler_options& compilerOptions,
             string_view debugName);
 
     private:

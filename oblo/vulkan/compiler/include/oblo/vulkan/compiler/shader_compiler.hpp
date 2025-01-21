@@ -30,9 +30,21 @@ namespace oblo::vk
 
     class result;
 
+    struct shader_preprocessor_options
+    {
+        /// @brief It can be used to skip emitting line directives, which might confuse SPIR-V tooling in some cases
+        bool emitLineDirectives{true};
+
+        /// @brief An optional preamble that will be added at the top of the shader, right after the version directive
+        string_view preamble;
+    };
+
     struct shader_compiler_options
     {
+        /// @brief Optimize the SPIR-V shader
         bool codeOptimization{false};
+
+        /// @brief Add source-level debug info to the SPIR-V
         bool generateDebugInfo{false};
 
         /// @brief Path to the source file, allows the SPIR-V output to reference the file correctly when including
@@ -56,8 +68,10 @@ namespace oblo::vk
 
         virtual void init(const shader_compiler_config& config) = 0;
 
-        virtual result preprocess_from_file(
-            allocator& allocator, cstring_view path, shader_stage stage, string_view preamble) = 0;
+        virtual result preprocess_from_file(allocator& allocator,
+            cstring_view path,
+            shader_stage stage,
+            const shader_preprocessor_options& options) = 0;
 
         virtual result compile(result r, const shader_compiler_options& options) = 0;
     };

@@ -12,6 +12,8 @@ namespace oblo::vk
 {
     class vulkan_context;
 
+    enum class buffer_access_kind : u8;
+
     struct lifetime_range
     {
         u32 begin;
@@ -53,10 +55,22 @@ namespace oblo::vk
         texture get_transient_texture(h32<transient_texture_resource> id) const;
         buffer get_transient_buffer(h32<transient_buffer_resource> id) const;
 
+        bool is_stable(h32<transient_buffer_resource> id) const;
+
         u32 get_frames_alive_count(h32<transient_texture_resource> id) const;
         u32 get_frames_alive_count(h32<transient_buffer_resource> id) const;
 
         const image_initializer& get_initializer(h32<transient_texture_resource> id) const;
+
+        void fetch_buffer_tracking(h32<transient_buffer_resource> id,
+            VkPipelineStageFlags2* stages,
+            VkAccessFlags2* access,
+            buffer_access_kind* accessKind) const;
+
+        void store_buffer_tracking(h32<transient_buffer_resource> id,
+            VkPipelineStageFlags2 stages,
+            VkAccessFlags2 access,
+            buffer_access_kind accessKind);
 
     private:
         struct buffer_resource;
