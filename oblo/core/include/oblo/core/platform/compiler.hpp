@@ -6,8 +6,10 @@
 
     #ifndef __clang__
         #define OBLO_INTRINSIC [[msvc::intrinsic]]
+        #define OBLO_LAMBDA_FORCEINLINE [[msvc::forceinline]]
     #else
         #define OBLO_INTRINSIC
+        #define OBLO_LAMBDA_FORCEINLINE
     #endif
 
 #endif
