@@ -422,7 +422,7 @@ namespace oblo::vk
         return m_frameGraph.begin_pass_build(m_state, kind);
     }
 
-    h32<frame_graph_compute_pass> frame_graph_build_context::new_pass(h32<compute_pass> pass,
+    h32<frame_graph_compute_pass> frame_graph_build_context::compute_pass(h32<compute_pass> pass,
         const compute_pipeline_initializer& initializer) const
     {
         const auto h = m_frameGraph.begin_pass_build(m_state, pass_kind::compute);

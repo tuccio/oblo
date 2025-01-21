@@ -533,7 +533,7 @@ namespace oblo::vk
     void surfel_update::build(const frame_graph_build_context& ctx)
     {
         {
-            overcoverageFgPass = ctx.new_pass(overcoveragePass, {});
+            overcoverageFgPass = ctx.compute_pass(overcoveragePass, {});
             ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_read);
             ctx.acquire(inOutSurfelsGridData, buffer_usage::storage_read);
             ctx.acquire(inOutSurfelsData, buffer_usage::storage_read);
@@ -541,7 +541,7 @@ namespace oblo::vk
         }
 
         {
-            clearFgPass = ctx.new_pass(clearPass, {});
+            clearFgPass = ctx.compute_pass(clearPass, {});
             ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_write);
             ctx.acquire(inOutSurfelsGridData, buffer_usage::storage_write);
 
@@ -560,7 +560,7 @@ namespace oblo::vk
         }
 
         {
-            updateFgPass = ctx.new_pass(updatePass, {});
+            updateFgPass = ctx.compute_pass(updatePass, {});
 
             ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_write);
             ctx.acquire(inOutSurfelsSpawnData, buffer_usage::storage_write);
@@ -580,14 +580,14 @@ namespace oblo::vk
 
             const hashed_string_view defines[] = {multiplicityDefine.as<hashed_string_view>()};
 
-            allocateFgPass = ctx.new_pass(allocatePass, {.defines = defines});
+            allocateFgPass = ctx.compute_pass(allocatePass, {.defines = defines});
 
             ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_write);
             ctx.acquire(inOutSurfelsGridData, buffer_usage::storage_write);
         }
 
         {
-            fillFgPass = ctx.new_pass(fillPass, {});
+            fillFgPass = ctx.compute_pass(fillPass, {});
 
             ctx.acquire(inOutSurfelsData, buffer_usage::storage_read);
             ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_read);

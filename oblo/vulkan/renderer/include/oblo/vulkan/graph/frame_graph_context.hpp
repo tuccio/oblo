@@ -158,7 +158,7 @@ namespace oblo::vk
 
         h32<frame_graph_pass> begin_pass(pass_kind kind) const;
 
-        h32<frame_graph_compute_pass> new_pass(h32<compute_pass> pass,
+        h32<frame_graph_compute_pass> compute_pass(h32<compute_pass> pass,
             const compute_pipeline_initializer& initializer) const;
 
         void create(
