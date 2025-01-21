@@ -16,7 +16,7 @@ namespace oblo
             .id = "230f65b2-3049-455a-aefd-fee4a6567d75"_uuid,
             .name = "Max Surfels",
             .category = "Graphics/GI",
-            .defaultValue = property_value_wrapper{1u << 16},
+            .defaultValue = property_value_wrapper{1u << 18},
             .minValue = property_value_wrapper{1u},
         };
     };
@@ -31,7 +31,7 @@ namespace oblo
             .id = "d624c991-1f79-4c75-9c40-c342ee97be7e"_uuid,
             .name = "Ray Budget",
             .category = "Graphics/GI",
-            .defaultValue = property_value_wrapper{1u << 20},
+            .defaultValue = property_value_wrapper{1u << 19},
         };
     };
 

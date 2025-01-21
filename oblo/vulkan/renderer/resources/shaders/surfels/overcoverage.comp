@@ -1,0 +1,103 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_buffer_reference : require
+#extension GL_ARB_gpu_shader_int64 : require
+#extension GL_EXT_control_flow_attributes : require
+
+#include <surfels/buffers/surfel_data_r>
+#include <surfels/buffers/surfel_grid_data_r>
+#include <surfels/buffers/surfel_grid_r>
+#include <surfels/grid_utils>
+#include <surfels/surfel_data>
+
+layout(std430, binding = SURFEL_LAST_USAGE_BINDING) restrict writeonly buffer b_SurfelsLastUsage
+{
+    uint g_SurfelLastUsage[];
+};
+
+layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
+
+void surfel_kill(in uint surfelId)
+{
+#if OBLO_DEBUG_PRINTF
+    debugPrintfEXT("[OVERCOVERAGE] Marked surfel: %u\n", surfelId);
+#endif
+
+    g_SurfelLastUsage[surfelId] = 0;
+}
+
+void main()
+{
+    const uint surfelId = gl_GlobalInvocationID.x;
+
+    if (surfelId >= g_SurfelGridHeader.maxSurfels)
+    {
+        return;
+    }
+
+    const surfel_data surfel = g_SurfelData[surfelId];
+
+    if (!surfel_data_is_alive(surfel))
+    {
+        return;
+    }
+
+    const vec3 position = surfel_data_world_position(surfel);
+    const vec3 normal = surfel_data_world_normal(surfel);
+    const float radius = surfel_data_world_radius(surfel);
+    const float radius2 = radius * radius;
+
+    const ivec3 cell = surfel_grid_find_cell(g_SurfelGridHeader, position);
+
+    if (!surfel_grid_has_cell(g_SurfelGridHeader, cell))
+    {
+        return;
+    }
+
+    const uint cellIndex = surfel_grid_cell_index(g_SurfelGridHeader, cell);
+
+    const surfel_grid_cell gridCell = g_SurfelGridCells[cellIndex];
+
+    for (surfel_grid_cell_iterator cellIt = surfel_grid_cell_iterator_begin(gridCell);
+         surfel_grid_cell_iterator_has_next(cellIt);
+         surfel_grid_cell_iterator_advance(cellIt))
+    {
+        const uint otherSurfelId = surfel_grid_cell_iterator_get(cellIt);
+
+        // The algorithm is quadratic since every surfel goes over all other surfels in its cell
+        // For the sake of only freeing 1, we use the surfel id to determine whether or not an overlap should be treated
+        if (otherSurfelId <= surfelId)
+        {
+            continue;
+        }
+
+        const surfel_data other = g_SurfelData[otherSurfelId];
+
+        const vec3 otherNormal = surfel_data_world_normal(other);
+        const float cosAngle = dot(normal, otherNormal);
+        const float cosTolerance = .75f;
+
+        if (cosAngle < cosTolerance)
+        {
+            continue;
+        }
+
+        const vec3 otherPosition = surfel_data_world_position(other);
+        const float otherRadius = surfel_data_world_radius(other);
+        const float otherRadius2 = otherRadius * otherRadius;
+
+        const vec3 pToS = otherPosition - position;
+        const float distance2 = dot(pToS, pToS);
+
+        // TODO: Should we consider the normal too?
+
+        const float tolerance = 1.5f;
+
+        if (distance2 * tolerance < min(radius2, otherRadius2))
+        {
+            surfel_kill(surfelId);
+            return;
+        }
+    }
+}

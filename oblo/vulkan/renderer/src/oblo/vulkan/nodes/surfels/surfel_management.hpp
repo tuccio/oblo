@@ -138,11 +138,13 @@ namespace oblo::vk
 
         data_sink<camera_buffer> inCameras;
 
+        h32<compute_pass> overcoveragePass;
         h32<compute_pass> clearPass;
         h32<compute_pass> updatePass;
         h32<compute_pass> allocatePass;
         h32<compute_pass> fillPass;
 
+        h32<frame_graph_pass> overcoverageFgPass;
         h32<frame_graph_pass> clearFgPass;
         h32<frame_graph_pass> updateFgPass;
         h32<frame_graph_pass> allocateFgPass;
