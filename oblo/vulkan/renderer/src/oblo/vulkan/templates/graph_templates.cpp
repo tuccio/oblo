@@ -278,6 +278,9 @@ namespace oblo::vk::main_view
             graph.make_input(surfelsTiling, &surfel_tiling::inSurfelsData, InLastFrameSurfelData);
             graph.make_output(surfelsTiling, &surfel_tiling::outTileCoverageSink, OutSurfelsTileCoverageSink);
             graph.make_input(surfelsTiling, &surfel_tiling::inOutSurfelsLastUsage, InSurfelsLastUsage);
+            graph.make_input(surfelsTiling,
+                &surfel_tiling::inLastFrameSurfelsLightingData,
+                InLastFrameSurfelsLightingData);
 
             graph.make_input(visibilityLighting, &visibility_lighting::inSurfelsGrid, InUpdatedSurfelsGrid);
             graph.make_input(visibilityLighting, &visibility_lighting::inSurfelsGridData, InUpdatedSurfelsGridData);
@@ -542,6 +545,9 @@ namespace oblo::vk::surfels_gi
         graph.make_output(initializer, &surfel_initializer::outSurfelsGridData, OutLastFrameGridData);
         graph.make_output(initializer, &surfel_initializer::outSurfelsData, OutLastFrameSurfelData);
         graph.make_output(initializer, &surfel_initializer::outSurfelsLastUsage, OutSurfelsLastUsage);
+        graph.make_output(initializer,
+            &surfel_initializer::outLastFrameSurfelsLightingData,
+            OutLastFrameSurfelsLightingData);
 
         graph.bind(initializer, &surfel_initializer::inGridCellSize, .5f);
         graph.bind(initializer, &surfel_initializer::inMaxSurfels, 1u << 16);
@@ -557,6 +563,10 @@ namespace oblo::vk::surfels_gi
             &surfel_initializer::outSurfelsLastUsage,
             spawner,
             &surfel_spawner::inOutSurfelsLastUsage);
+        graph.connect(initializer,
+            &surfel_initializer::outLastFrameSurfelsLightingData,
+            spawner,
+            &surfel_spawner::inOutLastFrameSurfelsLightingData);
 
         // Clear grid setup
         graph.make_input(clear, &surfel_grid_clear::inCameras, InCameraDataSink);
@@ -631,8 +641,8 @@ namespace oblo::vk::surfels_gi
             rayTracing,
             &surfel_raytracing::inOutSurfelsLightEstimatorData);
 
-        graph.connect(initializer,
-            &surfel_initializer::outLastFrameSurfelsLightingData,
+        graph.connect(spawner,
+            &surfel_spawner::inOutLastFrameSurfelsLightingData,
             rayTracing,
             &surfel_raytracing::inLastFrameSurfelsLightingData);
 

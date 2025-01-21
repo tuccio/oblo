@@ -67,6 +67,7 @@ namespace oblo::vk
         struct surfel_tile_data
         {
             f32 worstPixelCoverage;
+            f32 irradianceInit[3];
             surfel_spawn_data spawnData;
         };
 
@@ -317,6 +318,7 @@ namespace oblo::vk
             ctx.acquire(inSurfelsData, buffer_usage::storage_read);
             ctx.acquire(inSurfelsGridData, buffer_usage::storage_read);
             ctx.acquire(inOutSurfelsLastUsage, buffer_usage::storage_write);
+            ctx.acquire(inLastFrameSurfelsLightingData, buffer_usage::storage_read);
         }
 
         ctx.push(outTileCoverageSink,
@@ -368,6 +370,7 @@ namespace oblo::vk
                     {"b_SurfelsData", inSurfelsData},
                     {"b_OutTileCoverage", outFullTileCoverage},
                     {"b_SurfelsLastUsage", inOutSurfelsLastUsage},
+                    {"b_InSurfelsLighting", inLastFrameSurfelsLightingData},
                 });
 
             ctx.bind_textures(bindingTable,
@@ -416,6 +419,7 @@ namespace oblo::vk
         ctx.acquire(inOutSurfelsData, buffer_usage::storage_write);
         ctx.acquire(inOutSurfelsStack, buffer_usage::storage_write);
         ctx.acquire(inOutSurfelsLastUsage, buffer_usage::storage_write);
+        ctx.acquire(inOutLastFrameSurfelsLightingData, buffer_usage::storage_write);
 
         randomSeed = ctx.get_random_generator().generate();
     }
@@ -440,6 +444,7 @@ namespace oblo::vk
                 {"b_SurfelsData", inOutSurfelsData},
                 {"b_SurfelsStack", inOutSurfelsStack},
                 {"b_SurfelsLastUsage", inOutSurfelsLastUsage},
+                {"b_InSurfelsLighting", inOutLastFrameSurfelsLightingData},
             });
 
         const auto commandBuffer = ctx.get_command_buffer();

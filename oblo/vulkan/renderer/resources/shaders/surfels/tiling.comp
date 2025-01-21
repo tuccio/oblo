@@ -23,6 +23,7 @@
 #include <surfels/buffers/surfel_data_r>
 #include <surfels/buffers/surfel_grid_data_r>
 #include <surfels/buffers/surfel_grid_r>
+#include <surfels/buffers/surfel_lighting_data_in_r>
 #include <surfels/reduction>
 #include <visibility/visibility_buffer>
 #include <visibility/visibility_utils>
@@ -135,8 +136,9 @@ bool read_spawn_data(
     return all(greaterThanEqual(bc.lambda, vec3(0)));
 }
 
-float gather_coverage_from_grid(in vec3 position, in vec3 normal)
+float gather_coverage_from_grid(in vec3 position, in vec3 normal, out vec3 gridAverageIrradiance)
 {
+    gridAverageIrradiance = vec3(0);
     float weightSum = 0;
 
     const ivec3 cell = surfel_grid_find_cell(g_SurfelGridHeader, position);
@@ -154,6 +156,8 @@ float gather_coverage_from_grid(in vec3 position, in vec3 normal)
         {
             const uint surfelId = surfel_grid_cell_iterator_get(cellIt);
             const surfel_data surfel = g_SurfelData[surfelId];
+
+            gridAverageIrradiance += g_InSurfelsLighting[surfelId].irradiance;
 
             const vec3 surfelPosition = surfel_data_world_position(surfel);
             const vec3 surfelNormal = surfel_data_world_normal(surfel);
@@ -176,6 +180,8 @@ float gather_coverage_from_grid(in vec3 position, in vec3 normal)
                 g_SurfelLastUsage[surfelId] = currentTimestamp;
             }
         }
+
+        gridAverageIrradiance /= max(1, surfel_grid_cell_iterator_count(cellIt));
     }
 
     return weightSum;
@@ -193,6 +199,7 @@ void main()
     float weightSum = 0;
     vec3 positionWS;
     vec3 normalWS;
+    vec3 gridAverageIrradiance = vec3(0);
 
     surfel_spawn_data spawnData;
 
@@ -206,7 +213,7 @@ void main()
     }
     else
     {
-        weightSum = gather_coverage_from_grid(positionWS, normalWS);
+        weightSum = gather_coverage_from_grid(positionWS, normalWS, gridAverageIrradiance);
     }
 
     const float selfSum = subgroupAdd(weightSum);
@@ -228,6 +235,9 @@ void main()
         {
             surfel_tile_data tileData;
             tileData.worstPixelCoverage = weightSum;
+            tileData.irradianceInit[0] = gridAverageIrradiance.x;
+            tileData.irradianceInit[1] = gridAverageIrradiance.y;
+            tileData.irradianceInit[2] = gridAverageIrradiance.z;
             tileData.spawnData = spawnData;
 
             g_GroupCandidates[subgroupOutIndex] = tileData;
@@ -261,6 +271,9 @@ void main()
         surfel_tile_data outputTile;
 
         outputTile.worstPixelCoverage = result.worstPixelCoverage;
+        outputTile.irradianceInit[0] = result.irradianceInit[0];
+        outputTile.irradianceInit[1] = result.irradianceInit[1];
+        outputTile.irradianceInit[2] = result.irradianceInit[2];
         outputTile.spawnData = result.spawnData;
 
         if (subgroupElect())

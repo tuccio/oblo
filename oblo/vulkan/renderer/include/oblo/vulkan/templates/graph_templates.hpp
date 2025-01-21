@@ -20,6 +20,7 @@ namespace oblo::vk::main_view
     constexpr string_view InLastFrameSurfelsGrid{"LastFrameSurfelsGrid"};
     constexpr string_view InLastFrameSurfelsGridData{"LastFrameSurfelsGridData"};
     constexpr string_view InLastFrameSurfelData{"LastFrameSurfelData"};
+    constexpr string_view InLastFrameSurfelsLightingData{"LastFrameSurfelsLightingData"};
     constexpr string_view InUpdatedSurfelsGrid{"UpdatedSurfelsGrid"};
     constexpr string_view InUpdatedSurfelsGridData{"UpdatedSurfelsGridData"};
     constexpr string_view InUpdatedSurfelsData{"UpdatedSurfelsData"};
@@ -115,6 +116,7 @@ namespace oblo::vk::surfels_gi
     constexpr string_view OutLastFrameGrid{"LastGrid"};
     constexpr string_view OutLastFrameGridData{"LastGridData"};
     constexpr string_view OutLastFrameSurfelData{"LastSurfelData"};
+    constexpr string_view OutLastFrameSurfelsLightingData{"LastFrameSurfelsLightingData"};
     constexpr string_view OutUpdatedSurfelGrid{"UpdatedSurfelGrid"};
     constexpr string_view OutUpdatedSurfelGridData{"UpdatedSurfelGridData"};
     constexpr string_view OutUpdatedSurfelData{"UpdatedSurfelData"};

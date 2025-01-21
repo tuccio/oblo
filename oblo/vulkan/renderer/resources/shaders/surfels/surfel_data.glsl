@@ -57,6 +57,7 @@ struct surfel_stack_entry
 struct surfel_tile_data
 {
     float worstPixelCoverage;
+    float irradianceInit[3];
     surfel_spawn_data spawnData;
 };
 

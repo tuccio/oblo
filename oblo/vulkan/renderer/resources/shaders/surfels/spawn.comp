@@ -5,6 +5,7 @@
 #include <renderer/debug/printf>
 #include <renderer/random/random>
 #include <surfels/buffers/surfel_data_w>
+#include <surfels/buffers/surfel_lighting_data_in_w>
 #include <surfels/buffers/surfel_spawn_data_w>
 #include <surfels/buffers/surfel_stack_rw>
 
@@ -64,6 +65,9 @@ void main()
                 g_SurfelSpawnData[newSurfelId].spawnTimestamp = g_Constants.currentTimestamp;
 
                 g_SurfelLastUsage[newSurfelId] = g_Constants.currentTimestamp;
+
+                g_InSurfelsLighting[newSurfelId].irradiance =
+                    vec3(tile.irradianceInit[0], tile.irradianceInit[1], tile.irradianceInit[2]);
             }
 
             // Maybe if we failed to allocate we should try to free some space somewhere else
