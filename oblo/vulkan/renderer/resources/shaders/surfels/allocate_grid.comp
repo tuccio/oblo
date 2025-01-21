@@ -14,7 +14,8 @@ void main()
     const surfel_grid_header gridHeader = g_SurfelGridHeader;
     const uint cellIndex = gl_GlobalInvocationID.x;
 
-    if (gl_GlobalInvocationID.x >= gridHeader.cellsCountLinearized)
+    const uint cellsCountLinearized = gridHeader.cellsCount.x * gridHeader.cellsCount.y * gridHeader.cellsCount.z;
+    if (gl_GlobalInvocationID.x >= cellsCountLinearized)
     {
         return;
     }

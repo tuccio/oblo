@@ -163,8 +163,9 @@ float gather_coverage_from_grid(in vec3 position, in vec3 normal)
 
             if (distance2 <= threshold)
             {
-                const float weight = 1 - distance2 / threshold;
-                weightSum += weight * max(dot(surfelNormal, normal), 0);
+                const float angleWeight = max(dot(surfelNormal, normal), 0);
+                const float weight = angleWeight * (1 - distance2 / threshold);
+                weightSum += weight;
             }
         }
     }

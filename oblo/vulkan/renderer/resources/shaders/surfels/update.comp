@@ -22,9 +22,17 @@
 #include <surfels/surfel_data>
 #include <visibility/visibility_buffer>
 
+// After a number of frames where the surfel is not used, we kill it
+const uint g_InactiveFramesKillThreshold = 200;
+
 layout(std430, binding = SURFEL_LIGHT_ESTIMATOR_DATA_BINDING) restrict buffer readonly b_SurfelsLightEstimator
 {
     surfel_light_estimator_data g_SurfelsLightEstimatorData[];
+};
+
+layout(std430, binding = SURFEL_LAST_USAGE_BINDING) restrict readonly buffer b_SurfelsLastUsage
+{
+    uint g_SurfelLastUsage[];
 };
 
 layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
@@ -40,7 +48,10 @@ g_Constants;
 void surfel_kill(in uint surfelId)
 {
 #if OBLO_DEBUG_PRINTF
-    debugPrintfEXT("[UPDATE] Killed surfel: %u\n", surfelId);
+    debugPrintfEXT("[UPDATE] Killed surfel: %u (now: %u last usage: %u)\n",
+        surfelId,
+        g_Constants.currentTimestamp,
+        g_SurfelLastUsage[surfelId]);
 #endif
 
     g_SurfelData[surfelId] = surfel_data_invalid();
@@ -81,6 +92,14 @@ void main()
     ecs_entity_set_entry entitySetEntry;
 
     if (!ecs_entity_set_try_find(surfel.entity, entitySetEntry))
+    {
+        surfel_kill(surfelId);
+        return;
+    }
+
+    const uint lastUsage = g_SurfelLastUsage[surfelId];
+
+    if (g_Constants.currentTimestamp - lastUsage > g_InactiveFramesKillThreshold)
     {
         surfel_kill(surfelId);
         return;

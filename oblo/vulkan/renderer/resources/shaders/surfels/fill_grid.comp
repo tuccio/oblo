@@ -27,11 +27,19 @@ void surfel_commit_to_grid(in uint surfelId, in uint cellIndex)
     const uint surfelsBegin = g_SurfelGridCells[cellIndex].surfelsBegin;
     const uint surfelIndex = atomicAdd(g_SurfelGridCellNextSurfelIndex[cellIndex], 1);
 
-    debug_assert(surfelIndex < g_SurfelGridCells[cellIndex].surfelsCount);
+    // debug_assert(surfelIndex < g_SurfelGridCells[cellIndex].surfelsCount);
 
     if (surfelIndex < g_SurfelGridCells[cellIndex].surfelsCount)
     {
         g_SurfelGridCellData[surfelsBegin + surfelIndex] = surfelId;
+    }
+    else
+    {
+#if OBLO_DEBUG_PRINTF
+        debugPrintfEXT("surfelIndex >= g_SurfelGridCells[cellIndex].surfelsCount -> [%u %u]",
+            surfelIndex,
+            g_SurfelGridCells[cellIndex].surfelsCount);
+#endif
     }
 }
 

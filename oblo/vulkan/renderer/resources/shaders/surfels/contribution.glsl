@@ -6,6 +6,11 @@
 #include <surfels/buffers/surfel_grid_r>
 #include <surfels/buffers/surfel_lighting_data_in_r>
 
+layout(std430, binding = SURFEL_LAST_USAGE_BINDING) restrict writeonly buffer b_SurfelsLastUsage
+{
+    uint g_SurfelLastUsage[];
+};
+
 vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
 {
     vec3 irradiance = vec3(0);
@@ -23,13 +28,14 @@ vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
 
         surfel_grid_cell_iterator cellIt = surfel_grid_cell_iterator_begin(gridCell);
 
+        const uint currentTimestamp = g_SurfelGridHeader.currentTimestamp;
+
         for (; surfel_grid_cell_iterator_has_next(cellIt); surfel_grid_cell_iterator_advance(cellIt))
         {
             const uint surfelId = surfel_grid_cell_iterator_get(cellIt);
             const surfel_data surfel = g_SurfelData[surfelId];
 
             const surfel_lighting_data surfelLight = g_InSurfelsLighting[surfelId];
-
 
             const vec3 surfelPosition = surfel_data_world_position(surfel);
             const vec3 surfelNormal = surfel_data_world_normal(surfel);
@@ -43,15 +49,18 @@ vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
             // We allow influences up to this distance
             const float threshold = SURFEL_CONTRIBUTION_THRESHOLD_SQR * radius2;
 
-            const vec3 surfelContribution = max(dot(surfelNormal, normal), 0) * surfelLight.irradiance;
+            const float angleWeight = max(dot(surfelNormal, normal), 0);
+            const vec3 surfelContribution = angleWeight * surfelLight.irradiance;
             allSum += surfelContribution;
 
             if (distance2 <= threshold)
             {
-                const float weight = 1 - distance2 / threshold;
+                const float weight = angleWeight * (1 - distance2 / threshold);
                 weightSum += weight;
 
                 irradiance += weight * surfelContribution;
+
+                g_SurfelLastUsage[surfelId] = currentTimestamp;
             }
         }
 

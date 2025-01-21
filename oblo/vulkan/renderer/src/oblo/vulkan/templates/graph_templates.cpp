@@ -287,6 +287,7 @@ namespace oblo::vk::main_view
             graph.make_input(visibilityLighting,
                 &visibility_lighting::inSurfelsLightEstimatorData,
                 InUpdatedSurfelsLightEstimatorData);
+            graph.make_input(visibilityLighting, &visibility_lighting::inOutSurfelsLastUsage, InSurfelsLastUsage);
 
             graph.connect(viewBuffers,
                 &view_buffers_node::outCameraBuffer,
@@ -551,6 +552,10 @@ namespace oblo::vk::surfels_gi
             &surfel_spawner::inOutSurfelsSpawnData);
         graph.connect(initializer, &surfel_initializer::outSurfelsData, spawner, &surfel_spawner::inOutSurfelsData);
         graph.connect(initializer, &surfel_initializer::outSurfelsStack, spawner, &surfel_spawner::inOutSurfelsStack);
+        graph.connect(initializer,
+            &surfel_initializer::outSurfelsLastUsage,
+            spawner,
+            &surfel_spawner::inOutSurfelsLastUsage);
 
         graph.connect(initializer,
             &surfel_initializer::outSurfelsLightingData0,
@@ -593,6 +598,7 @@ namespace oblo::vk::surfels_gi
             &surfel_initializer::outSurfelsLightEstimatorData,
             update,
             &surfel_update::inSurfelsLightEstimatorData);
+        graph.connect(spawner, &surfel_spawner::inOutSurfelsLastUsage, update, &surfel_update::inOutSurfelsLastUsage);
 
         graph.make_output(update, &surfel_update::inOutSurfelsData, OutUpdatedSurfelData);
         graph.make_output(update, &surfel_update::inOutSurfelsGrid, OutUpdatedSurfelGrid);
@@ -644,6 +650,11 @@ namespace oblo::vk::surfels_gi
             rayTracing,
             &surfel_raytracing::inSurfelsLightingData1);
 
+        graph.connect(update,
+            &surfel_update::inOutSurfelsLastUsage,
+            rayTracing,
+            &surfel_raytracing::inOutSurfelsLastUsage);
+
         graph.connect(accumulateRays,
             &surfel_accumulate_raycount::outTotalRayCount,
             rayTracing,
@@ -653,6 +664,7 @@ namespace oblo::vk::surfels_gi
         graph.make_output(rayTracing,
             &surfel_raytracing::inOutSurfelsLightEstimatorData,
             OutUpdatedSurfelLightEstimatorData);
+        graph.make_output(rayTracing, &surfel_raytracing::inOutSurfelsLastUsage, OutSurfelsLastUsage);
 
         return graph;
     }

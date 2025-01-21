@@ -25,6 +25,7 @@ namespace oblo::vk::main_view
     constexpr string_view InUpdatedSurfelsData{"UpdatedSurfelsData"};
     constexpr string_view InUpdatedSurfelsLightingData{"UpdatedSurfelsLightingData"};
     constexpr string_view InUpdatedSurfelsLightEstimatorData{"UpdatedSurfelsLightEstimatorData"};
+    constexpr string_view InSurfelsLastUsage{"SurfelsLastUsage"};
     constexpr string_view InShadowSink{"ShadowSink"};
     constexpr string_view InSkyboxSettingsBuffer{"SkyboxSettingsBuffer"};
 
@@ -119,6 +120,7 @@ namespace oblo::vk::surfels_gi
     constexpr string_view OutUpdatedSurfelData{"UpdatedSurfelData"};
     constexpr string_view OutUpdatedSurfelLightingData{"UpdatedSurfelLightingData"};
     constexpr string_view OutUpdatedSurfelLightEstimatorData{"UpdatedSurfelLightEstimatorData"};
+    constexpr string_view OutSurfelsLastUsage{"SurfelsLastUsage"};
 
     frame_graph_template create(const frame_graph_registry& registry);
 }

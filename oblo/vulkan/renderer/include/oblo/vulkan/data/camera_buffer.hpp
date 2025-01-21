@@ -16,5 +16,6 @@ namespace oblo::vk
         mat4 lastFrameViewProjection;
         frustum frustum;
         vec3 position;
+        float _padding;
     };
 }

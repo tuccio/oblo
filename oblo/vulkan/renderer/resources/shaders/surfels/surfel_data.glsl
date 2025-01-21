@@ -35,7 +35,7 @@ struct surfel_grid_header
     vec3 boundsMax;
     uint maxSurfels;
     ivec3 cellsCount;
-    uint cellsCountLinearized;
+    uint currentTimestamp;
 };
 
 struct surfel_grid_cell

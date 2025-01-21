@@ -54,6 +54,7 @@ namespace oblo::vk
             ctx.acquire(inSurfelsGridData, buffer_usage::storage_read);
             ctx.acquire(inSurfelsData, buffer_usage::storage_read);
             ctx.acquire(inSurfelsLightingData, buffer_usage::storage_read);
+            ctx.acquire(inOutSurfelsLastUsage, buffer_usage::storage_write);
         }
 
         acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
@@ -110,6 +111,7 @@ namespace oblo::vk
                     {"b_SurfelsGridData", inSurfelsGridData},
                     {"b_SurfelsData", inSurfelsData},
                     {"b_InSurfelsLighting", inSurfelsLightingData},
+                    {"b_SurfelsLastUsage", inOutSurfelsLastUsage},
                 });
 
             defines.emplace_back("SURFELS_GI");

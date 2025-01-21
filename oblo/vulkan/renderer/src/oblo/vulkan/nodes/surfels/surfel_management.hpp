@@ -25,6 +25,7 @@ namespace oblo::vk
         resource<buffer> outSurfelsLightingData0;
         resource<buffer> outSurfelsLightingData1;
         resource<buffer> outSurfelsLightEstimatorData;
+        resource<buffer> outSurfelsLastUsage;
 
         data<u32> inMaxSurfels;
         data<aabb> inGridBounds;
@@ -91,6 +92,7 @@ namespace oblo::vk
         resource<buffer> inOutSurfelsStack;
         resource<buffer> inOutSurfelsSpawnData;
         resource<buffer> inOutSurfelsData;
+        resource<buffer> inOutSurfelsLastUsage;
 
         resource<buffer> inOutSurfelsLightingData0;
         resource<buffer> inOutSurfelsLightingData1;
@@ -138,6 +140,7 @@ namespace oblo::vk
         resource<buffer> inOutSurfelsStack;
         resource<buffer> inOutSurfelsGrid;
         resource<buffer> inOutSurfelsGridData;
+        resource<buffer> inOutSurfelsLastUsage;
         resource<buffer> inGridFillBuffer;
 
         resource<buffer> inOutSurfelsData;
@@ -200,6 +203,7 @@ namespace oblo::vk
         resource<buffer> inOutSurfelsGrid;
         resource<buffer> inOutSurfelsData;
         resource<buffer> inOutSurfelsGridData;
+        resource<buffer> inOutSurfelsLastUsage;
 
         resource<buffer> inSurfelsLightingData0;
         resource<buffer> inSurfelsLightingData1;

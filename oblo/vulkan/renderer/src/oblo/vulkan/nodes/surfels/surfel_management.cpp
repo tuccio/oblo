@@ -50,7 +50,7 @@ namespace oblo::vk
             u32 cellsCountX;
             u32 cellsCountY;
             u32 cellsCountZ;
-            u32 cellsCountLinearized;
+            u32 currentTimestamp;
         };
 
         struct surfel_grid_cell
@@ -136,6 +136,7 @@ namespace oblo::vk
         const u32 surfelsLightEstimatorgDataSize = sizeof(surfel_light_estimator_data) * maxSurfels;
         const u32 surfelsGridSize = u32(sizeof(surfel_grid_header) + sizeof(surfel_grid_cell) * cellsCountLinearized);
         const u32 surfelsGridDataSize = u32((1 + g_MaxSurfelMultiplicity * maxSurfels) * sizeof(u32));
+        const u32 surfelsLastUsageBufferSize = u32((maxSurfels) * sizeof(u32));
 
         // TODO: After creation and initialization happened, the usage could be none to avoid any useless memory barrier
         ctx.create(outSurfelsStack,
@@ -155,6 +156,13 @@ namespace oblo::vk
         ctx.create(outSurfelsData,
             buffer_resource_initializer{
                 .size = surfelsDataSize,
+                .isStable = true,
+            },
+            buffer_usage::storage_write);
+
+        ctx.create(outSurfelsLastUsage,
+            buffer_resource_initializer{
+                .size = surfelsLastUsageBufferSize,
                 .isStable = true,
             },
             buffer_usage::storage_write);
@@ -394,6 +402,7 @@ namespace oblo::vk
         ctx.acquire(inOutSurfelsStack, buffer_usage::storage_write);
         ctx.acquire(inOutSurfelsLightingData0, buffer_usage::storage_write);
         ctx.acquire(inOutSurfelsLightingData1, buffer_usage::storage_write);
+        ctx.acquire(inOutSurfelsLastUsage, buffer_usage::storage_write);
 
         randomSeed = ctx.get_random_generator().generate();
     }
@@ -419,6 +428,7 @@ namespace oblo::vk
                 {"b_SurfelsStack", inOutSurfelsStack},
                 {"b_InSurfelsLighting", inOutSurfelsLightingData0},
                 {"b_OutSurfelsLighting", inOutSurfelsLightingData1},
+                {"b_SurfelsLastUsage", inOutSurfelsLastUsage},
             });
 
         const auto commandBuffer = ctx.get_command_buffer();
@@ -539,7 +549,7 @@ namespace oblo::vk
                 .cellsCountX = cellsCount.x,
                 .cellsCountY = cellsCount.y,
                 .cellsCountZ = cellsCount.z,
-                .cellsCountLinearized = cellsCountLinearized,
+                .currentTimestamp = ctx.get_current_frames_count(),
             };
 
             const auto subgroupSize = pm.get_subgroup_size();
@@ -586,6 +596,7 @@ namespace oblo::vk
             ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_write);
             ctx.acquire(inOutSurfelsSpawnData, buffer_usage::storage_write);
             ctx.acquire(inOutSurfelsData, buffer_usage::storage_write);
+            ctx.acquire(inOutSurfelsLastUsage, buffer_usage::storage_read);
 
             ctx.acquire(inEntitySetBuffer, buffer_usage::storage_read);
 
@@ -624,6 +635,7 @@ namespace oblo::vk
                 {"b_SurfelsGridFill", inGridFillBuffer},
                 {"b_SurfelsSpawnData", inOutSurfelsSpawnData},
                 {"b_SurfelsData", inOutSurfelsData},
+                {"b_SurfelsLastUsage", inOutSurfelsLastUsage},
                 {"b_SurfelsLightEstimator", inSurfelsLightEstimatorData},
                 {"b_SurfelsStack", inOutSurfelsStack},
                 {"b_InstanceTables", inInstanceTables},
@@ -923,6 +935,8 @@ namespace oblo::vk
         ctx.acquire(outSurfelsLightingData, buffer_usage::storage_write);
         ctx.acquire(inOutSurfelsLightEstimatorData, buffer_usage::storage_write);
 
+        ctx.acquire(inOutSurfelsLastUsage, buffer_usage::storage_write);
+
         ctx.acquire(inLightConfig, buffer_usage::uniform);
         ctx.acquire(inLightBuffer, buffer_usage::storage_read);
 
@@ -954,6 +968,7 @@ namespace oblo::vk
                 {"b_SurfelsGrid", inOutSurfelsGrid},
                 {"b_SurfelsGridData", inOutSurfelsGridData},
                 {"b_SurfelsData", inOutSurfelsData},
+                {"b_SurfelsLastUsage", inOutSurfelsLastUsage},
                 {"b_InSurfelsLighting", lastFrameSurfelsLightingData},
                 {"b_OutSurfelsLighting", outSurfelsLightingData},
                 {"b_OutSurfelsLightEstimator", inOutSurfelsLightEstimatorData},
