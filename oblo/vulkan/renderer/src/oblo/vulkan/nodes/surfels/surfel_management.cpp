@@ -95,7 +95,6 @@ namespace oblo::vk
 
             return c / f32(cameras.size());
         }
-
     }
 
     void surfel_initializer::init(const frame_graph_init_context& ctx)
@@ -108,6 +107,8 @@ namespace oblo::vk
         });
 
         OBLO_ASSERT(initStackPass);
+
+        outputSelector = 0;
     }
 
     void surfel_initializer::build(const frame_graph_build_context& ctx)
@@ -203,6 +204,18 @@ namespace oblo::vk
                 .isStable = true,
             },
             buffer_usage::storage_write);
+
+        // Ping-ping the light buffers: last frame output becomes the input
+        const auto inputSelector = outputSelector;
+        outputSelector = 1 - outputSelector;
+
+        const resource<buffer> lightingDataBuffers[] = {
+            outSurfelsLightingData0,
+            outSurfelsLightingData1,
+        };
+
+        ctx.reroute(lightingDataBuffers[inputSelector], outLastFrameSurfelsLightingData);
+        ctx.reroute(lightingDataBuffers[outputSelector], outSurfelsLightingData);
     }
 
     void surfel_initializer::execute(const frame_graph_execute_context& ctx)
@@ -402,8 +415,6 @@ namespace oblo::vk
         ctx.acquire(inOutSurfelsSpawnData, buffer_usage::storage_write);
         ctx.acquire(inOutSurfelsData, buffer_usage::storage_write);
         ctx.acquire(inOutSurfelsStack, buffer_usage::storage_write);
-        ctx.acquire(inOutSurfelsLightingData0, buffer_usage::storage_write);
-        ctx.acquire(inOutSurfelsLightingData1, buffer_usage::storage_write);
         ctx.acquire(inOutSurfelsLastUsage, buffer_usage::storage_write);
 
         randomSeed = ctx.get_random_generator().generate();
@@ -428,8 +439,6 @@ namespace oblo::vk
                 {"b_SurfelsSpawnData", inOutSurfelsSpawnData},
                 {"b_SurfelsData", inOutSurfelsData},
                 {"b_SurfelsStack", inOutSurfelsStack},
-                {"b_InSurfelsLighting", inOutSurfelsLightingData0},
-                {"b_OutSurfelsLighting", inOutSurfelsLightingData1},
                 {"b_SurfelsLastUsage", inOutSurfelsLastUsage},
             });
 
@@ -909,32 +918,18 @@ namespace oblo::vk
                     },
                 },
         });
-
-        outputSelector = 0;
     }
 
     void surfel_raytracing::build(const frame_graph_build_context& ctx)
     {
-        // Last frame output becomes the input
-        const auto inputSelector = outputSelector;
-        outputSelector = 1 - outputSelector;
-
         ctx.begin_pass(pass_kind::raytracing);
 
         ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_read);
         ctx.acquire(inOutSurfelsGridData, buffer_usage::storage_read);
         ctx.acquire(inOutSurfelsData, buffer_usage::storage_read);
 
-        const resource<buffer> lightingDataBuffers[] = {
-            inSurfelsLightingData0,
-            inSurfelsLightingData1,
-        };
-
-        ctx.reroute(lightingDataBuffers[inputSelector], lastFrameSurfelsLightingData);
-        ctx.reroute(lightingDataBuffers[outputSelector], outSurfelsLightingData);
-
-        ctx.acquire(lastFrameSurfelsLightingData, buffer_usage::storage_read);
-        ctx.acquire(outSurfelsLightingData, buffer_usage::storage_write);
+        ctx.acquire(inLastFrameSurfelsLightingData, buffer_usage::storage_read);
+        ctx.acquire(inOutSurfelsLightingData, buffer_usage::storage_write);
         ctx.acquire(inOutSurfelsLightEstimatorData, buffer_usage::storage_write);
 
         ctx.acquire(inLightConfig, buffer_usage::uniform);
@@ -968,8 +963,8 @@ namespace oblo::vk
                 {"b_SurfelsGrid", inOutSurfelsGrid},
                 {"b_SurfelsGridData", inOutSurfelsGridData},
                 {"b_SurfelsData", inOutSurfelsData},
-                {"b_InSurfelsLighting", lastFrameSurfelsLightingData},
-                {"b_OutSurfelsLighting", outSurfelsLightingData},
+                {"b_InSurfelsLighting", inLastFrameSurfelsLightingData},
+                {"b_OutSurfelsLighting", inOutSurfelsLightingData},
                 {"b_OutSurfelsLightEstimator", inOutSurfelsLightEstimatorData},
                 {"b_TotalRayCount", ctx.access(inTotalRayCount)},
             });

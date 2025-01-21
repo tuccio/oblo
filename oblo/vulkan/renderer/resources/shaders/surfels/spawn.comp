@@ -5,8 +5,6 @@
 #include <renderer/debug/printf>
 #include <renderer/random/random>
 #include <surfels/buffers/surfel_data_w>
-#include <surfels/buffers/surfel_lighting_data_in_w>
-#include <surfels/buffers/surfel_lighting_data_out_w>
 #include <surfels/buffers/surfel_spawn_data_w>
 #include <surfels/buffers/surfel_stack_rw>
 
@@ -64,10 +62,6 @@ void main()
             {
                 g_SurfelSpawnData[newSurfelId] = tile.spawnData;
                 g_SurfelSpawnData[newSurfelId].spawnTimestamp = g_Constants.currentTimestamp;
-
-                // This might not be necessary because we reset in the rgen shader on dead surfels
-                g_InSurfelsLighting[newSurfelId] = surfel_lighting_data_new();
-                g_OutSurfelsLighting[newSurfelId] = surfel_lighting_data_new();
 
                 g_SurfelLastUsage[newSurfelId] = g_Constants.currentTimestamp;
             }

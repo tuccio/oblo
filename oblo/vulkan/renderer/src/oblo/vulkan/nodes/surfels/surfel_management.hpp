@@ -27,6 +27,9 @@ namespace oblo::vk
         resource<buffer> outSurfelsLightEstimatorData;
         resource<buffer> outSurfelsLastUsage;
 
+        resource<buffer> outLastFrameSurfelsLightingData;
+        resource<buffer> outSurfelsLightingData;
+
         data<u32> inMaxSurfels;
         data<aabb> inGridBounds;
         data<f32> inGridCellSize;
@@ -34,6 +37,8 @@ namespace oblo::vk
         data<vec3u> outCellsCount;
 
         h32<compute_pass> initStackPass;
+
+        u8 outputSelector;
 
         void init(const frame_graph_init_context& ctx);
 
@@ -94,9 +99,6 @@ namespace oblo::vk
         resource<buffer> inOutSurfelsSpawnData;
         resource<buffer> inOutSurfelsData;
         resource<buffer> inOutSurfelsLastUsage;
-
-        resource<buffer> inOutSurfelsLightingData0;
-        resource<buffer> inOutSurfelsLightingData1;
 
         h32<compute_pass> spawnPass;
 
@@ -205,12 +207,10 @@ namespace oblo::vk
         resource<buffer> inOutSurfelsData;
         resource<buffer> inOutSurfelsGridData;
 
-        resource<buffer> inSurfelsLightingData0;
-        resource<buffer> inSurfelsLightingData1;
-
-        resource<buffer> lastFrameSurfelsLightingData;
-        resource<buffer> outSurfelsLightingData;
         resource<buffer> inOutSurfelsLightEstimatorData;
+
+        resource<buffer> inLastFrameSurfelsLightingData;
+        resource<buffer> inOutSurfelsLightingData;
 
         resource<buffer> inLightBuffer;
         resource<buffer> inLightConfig;
@@ -227,7 +227,6 @@ namespace oblo::vk
         h32<raytracing_pass> rtPass;
 
         u32 randomSeed;
-        u8 outputSelector;
 
         void init(const frame_graph_init_context& ctx);
 

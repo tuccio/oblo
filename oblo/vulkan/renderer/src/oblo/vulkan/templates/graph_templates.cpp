@@ -558,16 +558,6 @@ namespace oblo::vk::surfels_gi
             spawner,
             &surfel_spawner::inOutSurfelsLastUsage);
 
-        graph.connect(initializer,
-            &surfel_initializer::outSurfelsLightingData0,
-            spawner,
-            &surfel_spawner::inOutSurfelsLightingData0);
-
-        graph.connect(initializer,
-            &surfel_initializer::outSurfelsLightingData1,
-            spawner,
-            &surfel_spawner::inOutSurfelsLightingData1);
-
         // Clear grid setup
         graph.make_input(clear, &surfel_grid_clear::inCameras, InCameraDataSink);
         graph.connect(initializer, &surfel_initializer::inMaxSurfels, clear, &surfel_grid_clear::inMaxSurfels);
@@ -641,22 +631,22 @@ namespace oblo::vk::surfels_gi
             rayTracing,
             &surfel_raytracing::inOutSurfelsLightEstimatorData);
 
-        graph.connect(spawner,
-            &surfel_spawner::inOutSurfelsLightingData0,
+        graph.connect(initializer,
+            &surfel_initializer::outLastFrameSurfelsLightingData,
             rayTracing,
-            &surfel_raytracing::inSurfelsLightingData0);
+            &surfel_raytracing::inLastFrameSurfelsLightingData);
 
-        graph.connect(spawner,
-            &surfel_spawner::inOutSurfelsLightingData1,
+        graph.connect(initializer,
+            &surfel_initializer::outSurfelsLightingData,
             rayTracing,
-            &surfel_raytracing::inSurfelsLightingData1);
+            &surfel_raytracing::inOutSurfelsLightingData);
 
         graph.connect(accumulateRays,
             &surfel_accumulate_raycount::outTotalRayCount,
             rayTracing,
             &surfel_raytracing::inTotalRayCount);
 
-        graph.make_output(rayTracing, &surfel_raytracing::outSurfelsLightingData, OutUpdatedSurfelLightingData);
+        graph.make_output(rayTracing, &surfel_raytracing::inOutSurfelsLightingData, OutUpdatedSurfelLightingData);
         graph.make_output(rayTracing,
             &surfel_raytracing::inOutSurfelsLightEstimatorData,
             OutUpdatedSurfelLightEstimatorData);
