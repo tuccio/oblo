@@ -197,7 +197,7 @@ namespace oblo::vk
         u32 bufferBarriersEnd;
 
         union {
-            h32<compute_pass> computePass;
+            h32<compute_pipeline> computePipeline;
         };
     };
 

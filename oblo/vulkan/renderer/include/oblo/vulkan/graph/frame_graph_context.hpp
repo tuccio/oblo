@@ -157,7 +157,9 @@ namespace oblo::vk
             resource_pool& resourcePool);
 
         h32<frame_graph_pass> begin_pass(pass_kind kind) const;
-        h32<frame_graph_compute_pass> new_pass(h32<compute_pass> pass) const;
+
+        h32<frame_graph_compute_pass> new_pass(h32<compute_pass> pass,
+            const compute_pipeline_initializer& initializer) const;
 
         void create(
             resource<texture> texture, const texture_resource_initializer& initializer, texture_usage usage) const;
@@ -254,9 +256,7 @@ namespace oblo::vk
 
         void begin_pass(h32<frame_graph_pass> handle) const;
 
-        expected<> begin_pass(h32<frame_graph_compute_pass> handle,
-            const compute_pipeline_initializer& initializer,
-            binding_tables_span bindingTables) const;
+        expected<> begin_pass(h32<frame_graph_compute_pass> handle, binding_tables_span bindingTables) const;
 
         void end_pass() const;
 

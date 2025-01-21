@@ -533,7 +533,7 @@ namespace oblo::vk
     void surfel_update::build(const frame_graph_build_context& ctx)
     {
         {
-            overcoverageFgPass = ctx.new_pass(overcoveragePass);
+            overcoverageFgPass = ctx.new_pass(overcoveragePass, {});
             ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_read);
             ctx.acquire(inOutSurfelsGridData, buffer_usage::storage_read);
             ctx.acquire(inOutSurfelsData, buffer_usage::storage_read);
@@ -541,7 +541,7 @@ namespace oblo::vk
         }
 
         {
-            clearFgPass = ctx.new_pass(clearPass);
+            clearFgPass = ctx.new_pass(clearPass, {});
             ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_write);
             ctx.acquire(inOutSurfelsGridData, buffer_usage::storage_write);
 
@@ -560,7 +560,7 @@ namespace oblo::vk
         }
 
         {
-            updateFgPass = ctx.new_pass(updatePass);
+            updateFgPass = ctx.new_pass(updatePass, {});
 
             ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_write);
             ctx.acquire(inOutSurfelsSpawnData, buffer_usage::storage_write);
@@ -575,14 +575,19 @@ namespace oblo::vk
         }
 
         {
-            allocateFgPass = ctx.new_pass(allocatePass);
+            string_builder multiplicityDefine;
+            multiplicityDefine.format("SURFEL_MAX_MULTIPLICITY {}", g_MaxSurfelMultiplicity);
+
+            const hashed_string_view defines[] = {multiplicityDefine.as<hashed_string_view>()};
+
+            allocateFgPass = ctx.new_pass(allocatePass, {.defines = defines});
 
             ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_write);
             ctx.acquire(inOutSurfelsGridData, buffer_usage::storage_write);
         }
 
         {
-            fillFgPass = ctx.new_pass(fillPass);
+            fillFgPass = ctx.new_pass(fillPass, {});
 
             ctx.acquire(inOutSurfelsData, buffer_usage::storage_read);
             ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_read);
@@ -619,7 +624,7 @@ namespace oblo::vk
         const auto cellsCount = ctx.access(inCellsCount);
         const auto cellsCountLinearized = cellsCount.x * cellsCount.y * cellsCount.z;
 
-        if (ctx.begin_pass(overcoverageFgPass, {}, bindingTable))
+        if (ctx.begin_pass(overcoverageFgPass, bindingTable))
         {
             const u32 groupsX = round_up_div(maxSurfels, subgroupSize);
             ctx.dispatch_compute(groupsX, 1, 1);
@@ -627,7 +632,7 @@ namespace oblo::vk
             ctx.end_pass();
         }
 
-        if (ctx.begin_pass(clearFgPass, {}, bindingTable))
+        if (ctx.begin_pass(clearFgPass, bindingTable))
         {
             const auto gridBounds = ctx.access(inGridBounds);
             const auto gridCellSize = ctx.access(inGridCellSize);
@@ -657,7 +662,7 @@ namespace oblo::vk
             ctx.end_pass();
         }
 
-        if (ctx.begin_pass(updateFgPass, {}, bindingTable))
+        if (ctx.begin_pass(updateFgPass, bindingTable))
         {
             struct push_constants
             {
@@ -680,11 +685,7 @@ namespace oblo::vk
             ctx.end_pass();
         }
 
-        string_builder multiplicityDefine;
-        multiplicityDefine.format("SURFEL_MAX_MULTIPLICITY {}", g_MaxSurfelMultiplicity);
-
-        if (const hashed_string_view defines[] = {multiplicityDefine.as<hashed_string_view>()};
-            ctx.begin_pass(allocateFgPass, {.defines = defines}, bindingTable))
+        if (ctx.begin_pass(allocateFgPass, bindingTable))
         {
             const auto groupsX = round_up_div(cellsCountLinearized, subgroupSize);
             ctx.dispatch_compute(groupsX, 1, 1);
@@ -692,7 +693,7 @@ namespace oblo::vk
             ctx.end_pass();
         }
 
-        if (ctx.begin_pass(fillFgPass, {}, bindingTable))
+        if (ctx.begin_pass(fillFgPass, bindingTable))
         {
             const u32 groupsX = round_up_div(maxSurfels, subgroupSize);
             ctx.dispatch_compute(groupsX, 1, 1);

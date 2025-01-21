@@ -422,10 +422,13 @@ namespace oblo::vk
         return m_frameGraph.begin_pass_build(m_state, kind);
     }
 
-    h32<frame_graph_compute_pass> frame_graph_build_context::new_pass(h32<compute_pass> pass) const
+    h32<frame_graph_compute_pass> frame_graph_build_context::new_pass(h32<compute_pass> pass,
+        const compute_pipeline_initializer& initializer) const
     {
         const auto h = m_frameGraph.begin_pass_build(m_state, pass_kind::compute);
-        m_frameGraph.passes[h.value].computePass = pass;
+        auto& pm = m_renderer.get_pass_manager();
+        m_frameGraph.passes[h.value].computePipeline = pm.get_or_create_pipeline(pass, initializer);
+
         return h32<frame_graph_compute_pass>{h.value};
     }
 
@@ -453,7 +456,6 @@ namespace oblo::vk
     }
 
     expected<> frame_graph_execute_context::begin_pass(h32<frame_graph_compute_pass> handle,
-        const compute_pipeline_initializer& initializer,
         binding_tables_span bindingTables) const
     {
         OBLO_ASSERT(handle);
@@ -463,8 +465,8 @@ namespace oblo::vk
         m_frameGraph.begin_pass_execution(passHandle, m_commandBuffer, m_state);
 
         auto& pm = get_pass_manager();
-        const auto pipeline = pm.get_or_create_pipeline(m_frameGraph.passes[handle.value].computePass, initializer);
 
+        const auto pipeline = m_frameGraph.passes[handle.value].computePipeline;
         const auto computeCtx = pm.begin_compute_pass(m_commandBuffer, pipeline);
 
         if (!computeCtx)

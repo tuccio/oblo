@@ -85,6 +85,7 @@ namespace oblo::vk
 
         void begin_frame(VkCommandBuffer commandBuffer);
         void end_frame();
+        void update_global_descriptor_sets();
 
         void update_instance_data_defines(string_view defines);
 
