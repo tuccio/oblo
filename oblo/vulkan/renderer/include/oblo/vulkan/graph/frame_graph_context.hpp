@@ -55,6 +55,7 @@ namespace oblo::vk
     struct resident_texture;
     struct staging_buffer_span;
 
+    struct compute_pass_initializer;
     struct compute_pipeline_initializer;
 
     using binding_table = flat_dense_map<h32<string>, bindable_object>;
@@ -142,6 +143,8 @@ namespace oblo::vk
         pass_manager& get_pass_manager() const;
 
         string_interner& get_string_interner() const;
+
+        h32<compute_pass> register_compute_pass(const compute_pass_initializer& initializer) const;
 
     private:
         frame_graph_impl& m_frameGraph;

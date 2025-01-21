@@ -497,29 +497,27 @@ namespace oblo::vk
 
     void surfel_update::init(const frame_graph_init_context& ctx)
     {
-        auto& pm = ctx.get_pass_manager();
-
-        overcoveragePass = pm.register_compute_pass({
+        overcoveragePass = ctx.register_compute_pass({
             .name = "Surfels Overcoverage Check",
             .shaderSourcePath = "./vulkan/shaders/surfels/overcoverage.comp",
         });
 
-        clearPass = pm.register_compute_pass({
+        clearPass = ctx.register_compute_pass({
             .name = "Clear Surfels Grid",
             .shaderSourcePath = "./vulkan/shaders/surfels/clear_grid.comp",
         });
 
-        updatePass = pm.register_compute_pass({
+        updatePass = ctx.register_compute_pass({
             .name = "Surfel Update",
             .shaderSourcePath = "./vulkan/shaders/surfels/update.comp",
         });
 
-        allocatePass = pm.register_compute_pass({
+        allocatePass = ctx.register_compute_pass({
             .name = "Surfel Grid Allocate",
             .shaderSourcePath = "./vulkan/shaders/surfels/allocate_grid.comp",
         });
 
-        fillPass = pm.register_compute_pass({
+        fillPass = ctx.register_compute_pass({
             .name = "Surfel Grid Fill",
             .shaderSourcePath = "./vulkan/shaders/surfels/fill_grid.comp",
         });
