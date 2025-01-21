@@ -90,8 +90,6 @@ void main()
         const vec3 pToS = otherPosition - position;
         const float distance2 = dot(pToS, pToS);
 
-        // TODO: Should we consider the normal too?
-
         const float tolerance = 1.5f;
 
         if (distance2 * tolerance < min(radius2, otherRadius2))
