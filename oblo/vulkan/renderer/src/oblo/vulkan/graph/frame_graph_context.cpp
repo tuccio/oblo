@@ -173,6 +173,55 @@ namespace oblo::vk
                 break;
             }
         }
+
+        void bind_descriptor_sets(pass_manager& pm,
+            VkCommandBuffer commandBuffer,
+            VkPipelineBindPoint bindPoint,
+            const base_pipeline& pipeline,
+            const string_interner& interner,
+            const frame_graph_execute_context& ctx,
+            const image_layout_tracker& imageLayoutTracker,
+            const binding_tables_span& bindingTables)
+        {
+            pm.bind_descriptor_sets(commandBuffer,
+                bindPoint,
+                pipeline,
+                [&ctx, bindingTables = bindingTables.span(), &interner, &imageLayoutTracker](
+                    h32<string> name) -> bindable_object
+                {
+                    const hashed_string_view str = hashed_string_view{interner.str(name)};
+
+                    for (const auto& bindingTable : bindingTables)
+                    {
+                        if (auto* const r = bindingTable->try_find(str))
+                        {
+                            switch (r->kind)
+                            {
+                            case bindable_resource_kind::buffer:
+                                return make_bindable_object(ctx.access(r->buffer));
+
+                            case bindable_resource_kind::texture: {
+                                const auto& t = ctx.access(r->texture);
+
+                                // The frame graph converts the pin storage handle to texture handle to use when keeping
+                                // track of textures
+                                const auto storage = h32<frame_graph_pin_storage>{r->texture.value};
+
+                                const auto layout = imageLayoutTracker.try_get_layout(storage);
+                                layout.assert_value();
+
+                                return make_bindable_object(t.view, layout.value_or(VK_IMAGE_LAYOUT_UNDEFINED));
+                            }
+
+                            default:
+                                unreachable();
+                            }
+                        }
+                    }
+
+                    return {};
+                });
+        }
     }
 
     void frame_graph_build_context::create(
@@ -477,45 +526,19 @@ namespace oblo::vk
             return unspecified_error;
         }
 
-        pm.bind_descriptor_sets(*computeCtx,
-            [this, bindingTables = bindingTables.span(), &interner = m_renderer.get_string_interner()](
-                h32<string> name) -> bindable_object
-            {
-                const hashed_string_view str = hashed_string_view{interner.str(name)};
-
-                for (const auto& bindingTable : bindingTables)
-                {
-                    if (auto* const r = bindingTable->try_find(str))
-                    {
-                        switch (r->kind)
-                        {
-                        case bindable_resource_kind::buffer:
-                            return make_bindable_object(access(r->buffer));
-
-                        case bindable_resource_kind::texture: {
-                            const auto& t = access(r->texture);
-
-                            // The frame graph converts the pin storage handle to texture handle to use when keeping
-                            // track of textures
-                            const auto storage = h32<frame_graph_pin_storage>{r->texture.value};
-
-                            const auto layout = m_state.imageLayoutTracker.try_get_layout(storage);
-                            layout.assert_value();
-
-                            return make_bindable_object(t.view, layout.value_or(VK_IMAGE_LAYOUT_UNDEFINED));
-                        }
-
-                        default:
-                            unreachable();
-                        }
-                    }
-                }
-
-                return {};
-            });
-
+        constexpr auto bindPoint = VK_PIPELINE_BIND_POINT_COMPUTE;
         m_state.passKind = pass_kind::compute;
         m_state.computeCtx = *computeCtx;
+        m_state.basePipeline = pm.get_base_pipeline(computeCtx->internalPipeline);
+
+        bind_descriptor_sets(pm,
+            m_commandBuffer,
+            bindPoint,
+            *m_state.basePipeline,
+            m_renderer.get_string_interner(),
+            *this,
+            m_state.imageLayoutTracker,
+            bindingTables);
 
         return no_error;
     }
@@ -676,17 +699,7 @@ namespace oblo::vk
     void frame_graph_execute_context::push_constants(shader_stage stage, u32 offset, std::span<const byte> bytes) const
     {
         auto& pm = get_pass_manager();
-
-        switch (m_state.passKind)
-        {
-        case pass_kind::compute:
-            pm.push_constants(m_state.computeCtx, to_vk_shader_stage(stage), offset, bytes);
-            break;
-
-        default:
-            OBLO_ASSERT(false);
-            break;
-        }
+        pm.push_constants(m_commandBuffer, *m_state.basePipeline, to_vk_shader_stage(stage), offset, bytes);
     }
 
     void frame_graph_execute_context::dispatch_compute(u32 groupsX, u32 groupsY, u32 groupsZ) const

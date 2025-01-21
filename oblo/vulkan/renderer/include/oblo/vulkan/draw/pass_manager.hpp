@@ -32,6 +32,7 @@ namespace oblo::vk
     class resource_manager;
     class texture_registry;
     class vulkan_context;
+    struct base_pipeline;
     struct buffer;
     struct bindable_object;
     struct batch_draw_data;
@@ -126,19 +127,29 @@ namespace oblo::vk
             u32 offset,
             std::span<const byte> data) const;
 
+        void push_constants(VkCommandBuffer commandBuffer,
+            const base_pipeline& pipeline,
+            VkShaderStageFlags stages,
+            u32 offset,
+            std::span<const byte> data) const;
+
         void bind_descriptor_sets(const render_pass_context& ctx,
             std::span<const binding_table* const> bindingTables) const;
 
         void bind_descriptor_sets(const compute_pass_context& ctx,
             std::span<const binding_table* const> bindingTables) const;
 
-        void bind_descriptor_sets(const compute_pass_context& ctx,
+        void bind_descriptor_sets(VkCommandBuffer commandBuffer,
+            VkPipelineBindPoint bindPoint,
+            const base_pipeline& pipeline,
             function_ref<bindable_object(h32<string> name)> locateBinding) const;
 
         void bind_descriptor_sets(const raytracing_pass_context& ctx,
             std::span<const binding_table* const> bindingTables) const;
 
         void trace_rays(const raytracing_pass_context& ctx, u32 width, u32 height, u32 depth) const;
+
+        const base_pipeline* get_base_pipeline(const compute_pipeline* pipeline) const;
 
     private:
         struct impl;

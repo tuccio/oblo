@@ -2852,6 +2852,15 @@ namespace oblo::vk
             data.data());
     }
 
+    void pass_manager::push_constants(VkCommandBuffer commandBuffer,
+        const base_pipeline& pipeline,
+        VkShaderStageFlags stages,
+        u32 offset,
+        std::span<const byte> data) const
+    {
+        vkCmdPushConstants(commandBuffer, pipeline.pipelineLayout, stages, offset, u32(data.size()), data.data());
+    }
+
     void pass_manager::bind_descriptor_sets(const render_pass_context& ctx,
         std::span<const binding_table* const> bindingTables) const
     {
@@ -2894,19 +2903,19 @@ namespace oblo::vk
         }
     }
 
-    void pass_manager::bind_descriptor_sets(const compute_pass_context& ctx,
+    void pass_manager::bind_descriptor_sets(VkCommandBuffer commandBuffer,
+        VkPipelineBindPoint bindPoint,
+        const base_pipeline& pipeline,
         function_ref<bindable_object(h32<string> name)> locateBinding) const
     {
-        auto* const pipeline = ctx.internalPipeline;
-
-        if (const auto descriptorSetLayout = pipeline->descriptorSetLayout)
+        if (const auto descriptorSetLayout = pipeline.descriptorSetLayout)
         {
             const VkDescriptorSet descriptorSet =
-                m_impl->create_descriptor_set(descriptorSetLayout, *pipeline, locateBinding);
+                m_impl->create_descriptor_set(descriptorSetLayout, pipeline, locateBinding);
 
-            vkCmdBindDescriptorSets(ctx.commandBuffer,
-                VK_PIPELINE_BIND_POINT_COMPUTE,
-                pipeline->pipelineLayout,
+            vkCmdBindDescriptorSets(commandBuffer,
+                bindPoint,
+                pipeline.pipelineLayout,
                 0,
                 1,
                 &descriptorSet,
@@ -2950,5 +2959,9 @@ namespace oblo::vk
             width,
             height,
             depth);
+    }
+    const base_pipeline* pass_manager::get_base_pipeline(const compute_pipeline* pipeline) const
+    {
+        return pipeline;
     }
 }

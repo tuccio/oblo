@@ -323,6 +323,7 @@ namespace oblo::vk
         h32<frame_graph_pass> currentPass;
         image_layout_tracker imageLayoutTracker;
         pass_kind passKind;
+        const base_pipeline* basePipeline{};
 
         union {
             compute_pass_context computeCtx;
