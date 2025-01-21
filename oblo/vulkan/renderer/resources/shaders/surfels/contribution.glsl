@@ -6,21 +6,25 @@
 #include <surfels/buffers/surfel_grid_r>
 #include <surfels/buffers/surfel_lighting_data_in_r>
 
+#ifndef SURFEL_CONTRIBUTION_NO_USAGE_TRACKING
+
 layout(std430, binding = SURFEL_LAST_USAGE_BINDING) restrict writeonly buffer b_SurfelsLastUsage
 {
     uint g_SurfelLastUsage[];
 };
 
-vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
+#endif
+
+vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal, out float weightSum)
 {
     vec3 irradiance = vec3(0);
+    weightSum = 0;
 
     const ivec3 cell = surfel_grid_find_cell(g_SurfelGridHeader, position);
 
     if (surfel_grid_has_cell(g_SurfelGridHeader, cell))
     {
         vec3 allSum = vec3(0);
-        float weightSum = 0;
 
         const uint cellIndex = surfel_grid_cell_index(g_SurfelGridHeader, cell);
 
@@ -28,7 +32,9 @@ vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
 
         surfel_grid_cell_iterator cellIt = surfel_grid_cell_iterator_begin(gridCell);
 
+#ifndef SURFEL_CONTRIBUTION_NO_USAGE_TRACKING
         const uint currentTimestamp = g_SurfelGridHeader.currentTimestamp;
+#endif
 
         for (; surfel_grid_cell_iterator_has_next(cellIt); surfel_grid_cell_iterator_advance(cellIt))
         {
@@ -60,7 +66,9 @@ vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
 
                 irradiance += weight * surfelContribution;
 
+#ifndef SURFEL_CONTRIBUTION_NO_USAGE_TRACKING
                 g_SurfelLastUsage[surfelId] = currentTimestamp;
+#endif
             }
         }
 
@@ -78,6 +86,12 @@ vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
     }
 
     return irradiance;
+}
+
+vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
+{
+    float weightSum;
+    return surfel_calculate_contribution(position, normal, weightSum);
 }
 
 #endif
