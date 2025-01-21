@@ -152,6 +152,8 @@ namespace oblo::vk
 
         const base_pipeline* get_base_pipeline(const compute_pipeline* pipeline) const;
 
+        string_view get_pass_name(const base_pipeline& pipeline) const;
+
     private:
         struct impl;
 

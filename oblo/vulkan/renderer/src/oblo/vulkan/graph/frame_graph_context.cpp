@@ -2,6 +2,7 @@
 
 #include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/core/unreachable.hpp>
+#include <oblo/log/log.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/descriptor_set_pool.hpp>
@@ -190,8 +191,33 @@ namespace oblo::vk
             return *ptr;
         }
 
+        [[maybe_unused]] bool check_buffer_usage(const frame_graph_impl& frameGraph,
+            h32<frame_graph_pass> currentPass,
+            h32<frame_graph_pin_storage> h,
+            bool isReadOnly)
+        {
+            const auto& p = frameGraph.passes[currentPass.value];
+
+            for (u32 i = p.bufferUsageBegin; i < p.bufferUsageEnd; ++i)
+            {
+                const auto& bufferUsage = frameGraph.bufferUsages[i];
+
+                if (bufferUsage.pinStorage != h)
+                {
+                    continue;
+                }
+
+                const auto readOnlyAccess = bufferUsage.accessKind == buffer_access_kind::read;
+
+                return readOnlyAccess == isReadOnly;
+            }
+
+            return false;
+        }
+
         void bind_descriptor_sets(const frame_graph_impl& frameGraph,
-            pass_manager& pm,
+            [[maybe_unused]] h32<frame_graph_pass> currentPass,
+            const pass_manager& pm,
             VkCommandBuffer commandBuffer,
             VkPipelineBindPoint bindPoint,
             const base_pipeline& pipeline,
@@ -202,8 +228,13 @@ namespace oblo::vk
             pm.bind_descriptor_sets(commandBuffer,
                 bindPoint,
                 pipeline,
-                [&frameGraph, bindingTables = bindingTables.span(), &interner, &imageLayoutTracker](
-                    const descriptor_binding& binding) -> bindable_object
+                [&frameGraph,
+                    &pm,
+                    &pipeline,
+                    currentPass,
+                    bindingTables = bindingTables.span(),
+                    &interner,
+                    &imageLayoutTracker](const descriptor_binding& binding) -> bindable_object
                 {
                     const hashed_string_view str = hashed_string_view{interner.str(binding.name)};
 
@@ -220,6 +251,19 @@ namespace oblo::vk
                         {
                         case bindable_resource_kind::buffer: {
                             const buffer& b = access_storage(frameGraph, r->buffer);
+
+#if OBLO_DEBUG
+                            if (!check_buffer_usage(frameGraph,
+                                    currentPass,
+                                    as_storage_handle(r->buffer),
+                                    binding.readOnly))
+                            {
+                                log::error("[{}] Missing or mismatching acquire for buffer {}",
+                                    pm.get_pass_name(pipeline),
+                                    str);
+                            }
+
+#endif
                             return make_bindable_object(b);
                         }
 
@@ -554,6 +598,7 @@ namespace oblo::vk
         m_state.basePipeline = pm.get_base_pipeline(computeCtx->internalPipeline);
 
         bind_descriptor_sets(m_frameGraph,
+            m_state.currentPass,
             pm,
             m_commandBuffer,
             bindPoint,

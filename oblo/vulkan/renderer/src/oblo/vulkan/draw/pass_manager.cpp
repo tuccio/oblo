@@ -2969,4 +2969,9 @@ namespace oblo::vk
     {
         return pipeline;
     }
+
+    string_view pass_manager::get_pass_name(const base_pipeline& pipeline) const
+    {
+        return pipeline.label;
+    }
 }

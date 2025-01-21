@@ -565,6 +565,7 @@ namespace oblo::vk
             ctx.acquire(inOutSurfelsData, buffer_usage::storage_write);
             ctx.acquire(inOutSurfelsLastUsage, buffer_usage::storage_read);
             ctx.acquire(inOutSurfelsStack, buffer_usage::storage_write);
+            ctx.acquire(inSurfelsLightEstimatorData, buffer_usage::storage_read);
 
             ctx.acquire(inEntitySetBuffer, buffer_usage::storage_read);
 
