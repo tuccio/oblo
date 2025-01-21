@@ -144,11 +144,11 @@ namespace oblo::vk
         h32<compute_pass> allocatePass;
         h32<compute_pass> fillPass;
 
-        h32<frame_graph_pass> overcoverageFgPass;
-        h32<frame_graph_pass> clearFgPass;
-        h32<frame_graph_pass> updateFgPass;
-        h32<frame_graph_pass> allocateFgPass;
-        h32<frame_graph_pass> fillFgPass;
+        h32<frame_graph_compute_pass> overcoverageFgPass;
+        h32<frame_graph_compute_pass> clearFgPass;
+        h32<frame_graph_compute_pass> updateFgPass;
+        h32<frame_graph_compute_pass> allocateFgPass;
+        h32<frame_graph_compute_pass> fillFgPass;
 
         void init(const frame_graph_init_context& ctx);
 

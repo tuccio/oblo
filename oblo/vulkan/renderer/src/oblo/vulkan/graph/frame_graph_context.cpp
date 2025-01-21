@@ -3,6 +3,7 @@
 #include <oblo/core/unreachable.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
+#include <oblo/vulkan/draw/shader_stage_utils.hpp>
 #include <oblo/vulkan/graph/frame_graph_impl.hpp>
 #include <oblo/vulkan/graph/resource_pool.hpp>
 #include <oblo/vulkan/renderer.hpp>
@@ -176,7 +177,7 @@ namespace oblo::vk
     void frame_graph_build_context::create(
         resource<texture> texture, const texture_resource_initializer& initializer, texture_usage usage) const
     {
-        OBLO_ASSERT(m_frameGraph.currentPass);
+        OBLO_ASSERT(m_state.currentPass);
 
         const image_initializer imageInitializer{
             .imageType = VK_IMAGE_TYPE_2D,
@@ -214,7 +215,7 @@ namespace oblo::vk
     void frame_graph_build_context::create(
         resource<buffer> buffer, const buffer_resource_initializer& initializer, buffer_usage usage) const
     {
-        OBLO_ASSERT(m_frameGraph.currentPass);
+        OBLO_ASSERT(m_state.currentPass);
 
         auto vkUsage = convert_buffer_usage(usage);
 
@@ -255,7 +256,7 @@ namespace oblo::vk
 
         m_frameGraph.add_transient_buffer(buffer, poolIndex, stagedDataPtr);
 
-        const auto& currentPass = m_frameGraph.passes[m_frameGraph.currentPass.value];
+        const auto& currentPass = m_frameGraph.passes[m_state.currentPass.value];
 
         const auto [pipelineStage, access, accessKind] = convert_for_sync2(currentPass.kind, usage);
         m_frameGraph.set_buffer_access(buffer, pipelineStage, access, accessKind, upload);
@@ -264,7 +265,7 @@ namespace oblo::vk
     void frame_graph_build_context::create(
         resource<buffer> buffer, const staging_buffer_span& stagedData, buffer_usage usage) const
     {
-        OBLO_ASSERT(m_frameGraph.currentPass);
+        OBLO_ASSERT(m_state.currentPass);
 
         auto vkUsage = convert_buffer_usage(usage);
 
@@ -283,7 +284,7 @@ namespace oblo::vk
 
         m_frameGraph.add_transient_buffer(buffer, poolIndex, &stagedData);
 
-        const auto& currentPass = m_frameGraph.passes[m_frameGraph.currentPass.value];
+        const auto& currentPass = m_frameGraph.passes[m_state.currentPass.value];
 
         const auto [pipelineStage, access, accessKind] = convert_for_sync2(currentPass.kind, usage);
         m_frameGraph.set_buffer_access(buffer, pipelineStage, access, accessKind, stagedDataSize != 0);
@@ -291,7 +292,7 @@ namespace oblo::vk
 
     void frame_graph_build_context::acquire(resource<texture> texture, texture_usage usage) const
     {
-        OBLO_ASSERT(m_frameGraph.currentPass);
+        OBLO_ASSERT(m_state.currentPass);
 
         m_frameGraph.add_resource_transition(texture, usage);
         add_texture_usages(m_resourcePool, m_frameGraph, texture, usage);
@@ -300,7 +301,7 @@ namespace oblo::vk
     h32<resident_texture> frame_graph_build_context::acquire_bindless(resource<texture> texture,
         texture_usage usage) const
     {
-        OBLO_ASSERT(m_frameGraph.currentPass);
+        OBLO_ASSERT(m_state.currentPass);
 
         m_frameGraph.add_resource_transition(texture, usage);
         add_texture_usages(m_resourcePool, m_frameGraph, texture, usage);
@@ -318,13 +319,13 @@ namespace oblo::vk
 
     void frame_graph_build_context::acquire(resource<buffer> buffer, buffer_usage usage) const
     {
-        OBLO_ASSERT(m_frameGraph.currentPass);
+        OBLO_ASSERT(m_state.currentPass);
 
         const auto poolIndex = m_frameGraph.find_pool_index(buffer);
         OBLO_ASSERT(poolIndex, "The buffer might not have an input connected, or needs to be created");
         m_resourcePool.add_transient_buffer_usage(poolIndex, convert_buffer_usage(usage));
 
-        const auto& currentPass = m_frameGraph.passes[m_frameGraph.currentPass.value];
+        const auto& currentPass = m_frameGraph.passes[m_state.currentPass.value];
         const auto [pipelineStage, access, accessKind] = convert_for_sync2(currentPass.kind, usage);
 
         m_frameGraph.set_buffer_access(buffer, pipelineStage, access, accessKind, false);
@@ -350,7 +351,7 @@ namespace oblo::vk
     resource<buffer> frame_graph_build_context::create_dynamic_buffer(const buffer_resource_initializer& initializer,
         buffer_usage usage) const
     {
-        OBLO_ASSERT(m_frameGraph.currentPass);
+        OBLO_ASSERT(m_state.currentPass);
 
         const auto pinHandle = m_frameGraph.allocate_dynamic_resource_pin();
 
@@ -363,7 +364,7 @@ namespace oblo::vk
     resource<buffer> frame_graph_build_context::create_dynamic_buffer(const staging_buffer_span& stagedData,
         buffer_usage usage) const
     {
-        OBLO_ASSERT(m_frameGraph.currentPass);
+        OBLO_ASSERT(m_state.currentPass);
 
         const auto pinHandle = m_frameGraph.allocate_dynamic_resource_pin();
 
@@ -410,15 +411,22 @@ namespace oblo::vk
         return m_renderer.get_staging_buffer().stage(data).value();
     }
 
-    frame_graph_build_context::frame_graph_build_context(frame_graph_impl& frameGraph,
-        renderer& renderer,
-        resource_pool& resourcePool) : m_frameGraph{frameGraph}, m_renderer{renderer}, m_resourcePool{resourcePool}
+    frame_graph_build_context::frame_graph_build_context(
+        frame_graph_impl& frameGraph, frame_graph_build_state& state, renderer& renderer, resource_pool& resourcePool) :
+        m_frameGraph{frameGraph}, m_state{state}, m_renderer{renderer}, m_resourcePool{resourcePool}
     {
     }
 
     h32<frame_graph_pass> frame_graph_build_context::begin_pass(pass_kind kind) const
     {
-        return m_frameGraph.begin_pass_build(kind);
+        return m_frameGraph.begin_pass_build(m_state, kind);
+    }
+
+    h32<frame_graph_compute_pass> frame_graph_build_context::new_pass(h32<compute_pass> pass) const
+    {
+        const auto h = m_frameGraph.begin_pass_build(m_state, pass_kind::compute);
+        m_frameGraph.passes[h.value].computePass = pass;
+        return h32<frame_graph_compute_pass>{h.value};
     }
 
     void* frame_graph_build_context::access_storage(h32<frame_graph_pin_storage> handle) const
@@ -431,15 +439,63 @@ namespace oblo::vk
         return m_frameGraph.emptyEvents.contains(type);
     }
 
-    frame_graph_execute_context::frame_graph_execute_context(frame_graph_impl& frameGraph,
+    frame_graph_execute_context::frame_graph_execute_context(const frame_graph_impl& frameGraph,
+        frame_graph_execution_state& executeCtx,
         renderer& renderer,
-        VkCommandBuffer commandBuffer) : m_frameGraph{frameGraph}, m_renderer{renderer}, m_commandBuffer{commandBuffer}
+        VkCommandBuffer commandBuffer) :
+        m_frameGraph{frameGraph}, m_state{executeCtx}, m_renderer{renderer}, m_commandBuffer{commandBuffer}
     {
     }
 
     void frame_graph_execute_context::begin_pass(h32<frame_graph_pass> handle) const
     {
-        m_frameGraph.begin_pass_execution(handle, m_commandBuffer);
+        m_frameGraph.begin_pass_execution(handle, m_commandBuffer, m_state);
+    }
+
+    expected<> frame_graph_execute_context::begin_pass(h32<frame_graph_compute_pass> handle,
+        const compute_pipeline_initializer& initializer,
+        binding_tables_span bindingTables) const
+    {
+        OBLO_ASSERT(handle);
+        OBLO_ASSERT(m_frameGraph.passes[handle.value].kind == pass_kind::compute);
+
+        const auto passHandle = h32<frame_graph_pass>{handle.value};
+        m_frameGraph.begin_pass_execution(passHandle, m_commandBuffer, m_state);
+
+        auto& pm = get_pass_manager();
+        const auto pipeline = pm.get_or_create_pipeline(m_frameGraph.passes[handle.value].computePass, initializer);
+
+        const auto computeCtx = pm.begin_compute_pass(m_commandBuffer, pipeline);
+
+        if (!computeCtx)
+        {
+            // Do we need to do anything?
+            m_state.passKind = pass_kind::none;
+            return unspecified_error;
+        }
+
+        pm.bind_descriptor_sets(*computeCtx, bindingTables.span());
+
+        m_state.passKind = pass_kind::compute;
+        m_state.computeCtx = *computeCtx;
+
+        return no_error;
+    }
+
+    void frame_graph_execute_context::end_pass() const
+    {
+        auto& pm = get_pass_manager();
+
+        switch (m_state.passKind)
+        {
+        case pass_kind::compute:
+            pm.end_compute_pass(m_state.computeCtx);
+            break;
+
+        default:
+            OBLO_ASSERT(false);
+            break;
+        }
     }
 
     texture frame_graph_execute_context::access(resource<texture> h) const
@@ -490,8 +546,7 @@ namespace oblo::vk
 
     void frame_graph_execute_context::upload(resource<buffer> h, std::span<const byte> data, u32 bufferOffset) const
     {
-        OBLO_ASSERT(m_frameGraph.currentPass &&
-            m_frameGraph.passes[m_frameGraph.currentPass.value].kind == pass_kind::transfer);
+        OBLO_ASSERT(m_state.currentPass && m_frameGraph.passes[m_state.currentPass.value].kind == pass_kind::transfer);
 
         auto& stagingBuffer = m_renderer.get_staging_buffer();
         const auto stagedData = stagingBuffer.stage(data);
@@ -567,12 +622,38 @@ namespace oblo::vk
             // The frame graph converts the pin storage handle to texture handle to use when keeping track of textures
             const auto storage = h32<frame_graph_pin_storage>{b.resource.value};
 
-            const auto layout = m_frameGraph.imageLayoutTracker.try_get_layout(storage);
+            const auto layout = m_state.imageLayoutTracker.try_get_layout(storage);
             layout.assert_value();
 
             table.emplace(interner.get_or_add(b.name),
                 make_bindable_object(texture.view, layout.value_or(VK_IMAGE_LAYOUT_UNDEFINED)));
         }
+    }
+
+    const gpu_info& frame_graph_execute_context::get_gpu_info() const
+    {
+        return m_frameGraph.gpuInfo;
+    }
+
+    void frame_graph_execute_context::push_constants(shader_stage stage, u32 offset, std::span<const byte> bytes) const
+    {
+        auto& pm = get_pass_manager();
+
+        switch (m_state.passKind)
+        {
+        case pass_kind::compute:
+            pm.push_constants(m_state.computeCtx, to_vk_shader_stage(stage), offset, bytes);
+            break;
+
+        default:
+            OBLO_ASSERT(false);
+            break;
+        }
+    }
+
+    void frame_graph_execute_context::dispatch_compute(u32 groupsX, u32 groupsY, u32 groupsZ) const
+    {
+        vkCmdDispatch(m_commandBuffer, groupsX, groupsY, groupsZ);
     }
 
     void* frame_graph_execute_context::access_storage(h32<frame_graph_pin_storage> handle) const

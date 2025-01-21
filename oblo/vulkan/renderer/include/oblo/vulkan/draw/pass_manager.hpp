@@ -4,10 +4,10 @@
 #include <oblo/core/flat_dense_forward.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/string/string_view.hpp>
+#include <oblo/core/unique_ptr.hpp>
 
 #include <vulkan/vulkan.h>
 
-#include <memory>
 #include <span>
 
 namespace oblo
@@ -134,7 +134,7 @@ namespace oblo::vk
         struct impl;
 
     private:
-        std::unique_ptr<impl> m_impl;
+        unique_ptr<impl> m_impl;
     };
 
     struct render_pass_context

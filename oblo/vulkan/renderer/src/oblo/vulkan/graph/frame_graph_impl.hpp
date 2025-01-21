@@ -7,6 +7,7 @@
 #include <oblo/core/hash.hpp>
 #include <oblo/core/random_generator.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/vulkan/draw/pass_manager.hpp>
 #include <oblo/vulkan/graph/frame_graph_node_desc.hpp>
 #include <oblo/vulkan/graph/frame_graph_template.hpp>
 #include <oblo/vulkan/graph/frame_graph_vertex_kind.hpp>
@@ -194,6 +195,10 @@ namespace oblo::vk
 
         u32 bufferBarriersBegin;
         u32 bufferBarriersEnd;
+
+        union {
+            h32<compute_pass> computePass;
+        };
     };
 
     struct frame_graph_passes_per_node
@@ -228,8 +233,7 @@ namespace oblo::vk
     public: // Runtime
         frame_allocator dynamicAllocator;
         resource_manager* resourceManager{};
-
-        image_layout_tracker imageLayoutTracker;
+        gpu_info gpuInfo;
 
         dynamic_array<frame_graph_node_to_execute> sortedNodes;
 
@@ -255,7 +259,6 @@ namespace oblo::vk
 
         frame_graph_barriers* barriers{};
         frame_graph_node* currentNode{};
-        h32<frame_graph_pass> currentPass{};
 
         random_generator rng;
 
@@ -298,14 +301,31 @@ namespace oblo::vk
         frame_graph_vertex add_transient_node(const type_id& nodeType);
         void connect(frame_graph_vertex srcNode, u32 srcOffset, frame_graph_vertex dstNode, u32 dstOffset);
 
-        h32<frame_graph_pass> begin_pass_build(pass_kind passKind);
-        void end_pass_build();
+        h32<frame_graph_pass> begin_pass_build(frame_graph_build_state& state, pass_kind passKind);
+        void end_pass_build(frame_graph_build_state& state);
 
-        void begin_pass_execution(h32<frame_graph_pass> pass, VkCommandBuffer commandBuffer);
+        void begin_pass_execution(
+            h32<frame_graph_pass> pass, VkCommandBuffer commandBuffer, frame_graph_execution_state& state) const;
 
     public: // Utility
         void free_pin_storage(const frame_graph_pin_storage& storage, bool isFrameAllocated);
 
         [[maybe_unused]] void write_dot(std::ostream& os) const;
+    };
+
+    struct frame_graph_build_state
+    {
+        h32<frame_graph_pass> currentPass;
+    };
+
+    struct frame_graph_execution_state
+    {
+        h32<frame_graph_pass> currentPass;
+        image_layout_tracker imageLayoutTracker;
+        pass_kind passKind;
+
+        union {
+            compute_pass_context computeCtx;
+        };
     };
 }

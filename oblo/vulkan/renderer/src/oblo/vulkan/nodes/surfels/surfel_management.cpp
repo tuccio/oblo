@@ -533,7 +533,7 @@ namespace oblo::vk
     void surfel_update::build(const frame_graph_build_context& ctx)
     {
         {
-            overcoverageFgPass = ctx.begin_pass(pass_kind::compute);
+            overcoverageFgPass = ctx.new_pass(overcoveragePass);
             ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_read);
             ctx.acquire(inOutSurfelsGridData, buffer_usage::storage_read);
             ctx.acquire(inOutSurfelsData, buffer_usage::storage_read);
@@ -541,7 +541,7 @@ namespace oblo::vk
         }
 
         {
-            clearFgPass = ctx.begin_pass(pass_kind::compute);
+            clearFgPass = ctx.new_pass(clearPass);
             ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_write);
             ctx.acquire(inOutSurfelsGridData, buffer_usage::storage_write);
 
@@ -560,7 +560,7 @@ namespace oblo::vk
         }
 
         {
-            updateFgPass = ctx.begin_pass(pass_kind::compute);
+            updateFgPass = ctx.new_pass(updatePass);
 
             ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_write);
             ctx.acquire(inOutSurfelsSpawnData, buffer_usage::storage_write);
@@ -575,14 +575,14 @@ namespace oblo::vk
         }
 
         {
-            allocateFgPass = ctx.begin_pass(pass_kind::compute);
+            allocateFgPass = ctx.new_pass(allocatePass);
 
             ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_write);
             ctx.acquire(inOutSurfelsGridData, buffer_usage::storage_write);
         }
 
         {
-            fillFgPass = ctx.begin_pass(pass_kind::compute);
+            fillFgPass = ctx.new_pass(fillPass);
 
             ctx.acquire(inOutSurfelsData, buffer_usage::storage_read);
             ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_read);
@@ -594,8 +594,6 @@ namespace oblo::vk
 
     void surfel_update::execute(const frame_graph_execute_context& ctx)
     {
-        auto& pm = ctx.get_pass_manager();
-
         binding_table bindingTable;
 
         ctx.bind_buffers(bindingTable,
@@ -613,7 +611,7 @@ namespace oblo::vk
                 {"b_EcsEntitySet", inEntitySetBuffer},
             });
 
-        const auto commandBuffer = ctx.get_command_buffer();
+        const auto subgroupSize = ctx.get_gpu_info().subgroupSize;
 
         const auto maxSurfels = ctx.access(inMaxSurfels);
         const auto centroid = calculate_centroid(ctx.access(inCameras));
@@ -621,156 +619,85 @@ namespace oblo::vk
         const auto cellsCount = ctx.access(inCellsCount);
         const auto cellsCountLinearized = cellsCount.x * cellsCount.y * cellsCount.z;
 
+        if (ctx.begin_pass(overcoverageFgPass, {}, bindingTable))
         {
-            ctx.begin_pass(overcoverageFgPass);
+            const u32 groupsX = round_up_div(maxSurfels, subgroupSize);
+            ctx.dispatch_compute(groupsX, 1, 1);
 
-            const auto pipeline = pm.get_or_create_pipeline(overcoveragePass, {});
-
-            if (const auto pass = pm.begin_compute_pass(commandBuffer, pipeline))
-            {
-                const auto subgroupSize = pm.get_subgroup_size();
-
-                const binding_table* bindingTables[] = {
-                    &bindingTable,
-                };
-
-                pm.bind_descriptor_sets(*pass, bindingTables);
-
-                const u32 groupsX = round_up_div(maxSurfels, subgroupSize);
-                vkCmdDispatch(ctx.get_command_buffer(), groupsX, 1, 1);
-
-                pm.end_compute_pass(*pass);
-            }
+            ctx.end_pass();
         }
 
+        if (ctx.begin_pass(clearFgPass, {}, bindingTable))
         {
-            ctx.begin_pass(clearFgPass);
+            const auto gridBounds = ctx.access(inGridBounds);
+            const auto gridCellSize = ctx.access(inGridCellSize);
 
-            const auto pipeline = pm.get_or_create_pipeline(clearPass, {});
-
-            if (const auto pass = pm.begin_compute_pass(ctx.get_command_buffer(), pipeline))
+            const struct push_constants
             {
-                const binding_table* bindingTables[] = {
-                    &bindingTable,
-                };
+                surfel_grid_header header;
+            } constants{
+                .header =
+                    {
+                        .boundsMin = gridBounds.min + centroid,
+                        .cellSize = gridCellSize,
+                        .boundsMax = gridBounds.max + centroid,
+                        .maxSurfels = maxSurfels,
+                        .cellsCountX = cellsCount.x,
+                        .cellsCountY = cellsCount.y,
+                        .cellsCountZ = cellsCount.z,
+                        .currentTimestamp = ctx.get_current_frames_count(),
+                    },
+            };
 
-                pm.bind_descriptor_sets(*pass, bindingTables);
+            const auto groupsX = round_up_div(cellsCountLinearized, subgroupSize);
 
-                const auto gridBounds = ctx.access(inGridBounds);
-                const auto gridCellSize = ctx.access(inGridCellSize);
+            ctx.push_constants(shader_stage::compute, 0, as_bytes(std::span(&constants, 1)));
+            ctx.dispatch_compute(groupsX, 1, 1);
 
-                const struct push_constants
-                {
-                    surfel_grid_header header;
-                } constants{
-                    .header =
-                        {
-                            .boundsMin = gridBounds.min + centroid,
-                            .cellSize = gridCellSize,
-                            .boundsMax = gridBounds.max + centroid,
-                            .maxSurfels = maxSurfels,
-                            .cellsCountX = cellsCount.x,
-                            .cellsCountY = cellsCount.y,
-                            .cellsCountZ = cellsCount.z,
-                            .currentTimestamp = ctx.get_current_frames_count(),
-                        },
-                };
-
-                const auto subgroupSize = pm.get_subgroup_size();
-
-                const auto groupsX = round_up_div(cellsCountLinearized, subgroupSize);
-
-                pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span(&constants, 1)));
-
-                vkCmdDispatch(ctx.get_command_buffer(), groupsX, 1, 1);
-
-                pm.end_compute_pass(*pass);
-            }
+            ctx.end_pass();
         }
 
+        if (ctx.begin_pass(updateFgPass, {}, bindingTable))
         {
-            ctx.begin_pass(updateFgPass);
-
-            const auto pipeline = pm.get_or_create_pipeline(updatePass, {});
-
-            if (const auto pass = pm.begin_compute_pass(commandBuffer, pipeline))
+            struct push_constants
             {
-                const auto subgroupSize = pm.get_subgroup_size();
+                vec3 cameraCentroid;
+                u32 maxSurfels;
+                u32 currentTimestamp;
+            };
 
-                struct push_constants
-                {
-                    vec3 cameraCentroid;
-                    u32 maxSurfels;
-                    u32 currentTimestamp;
-                };
+            const push_constants constants{
+                .cameraCentroid = centroid,
+                .maxSurfels = maxSurfels,
+                .currentTimestamp = ctx.get_current_frames_count(),
+            };
 
-                const push_constants constants{
-                    .cameraCentroid = centroid,
-                    .maxSurfels = maxSurfels,
-                    .currentTimestamp = ctx.get_current_frames_count(),
-                };
+            ctx.push_constants(shader_stage::compute, 0, as_bytes(std::span(&constants, 1)));
 
-                const binding_table* bindingTables[] = {
-                    &bindingTable,
-                };
+            const u32 groupsX = round_up_div(maxSurfels, subgroupSize);
+            ctx.dispatch_compute(groupsX, 1, 1);
 
-                pm.bind_descriptor_sets(*pass, bindingTables);
-                pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&constants, 1}));
-
-                const u32 groupsX = round_up_div(maxSurfels, subgroupSize);
-                vkCmdDispatch(ctx.get_command_buffer(), groupsX, 1, 1);
-
-                pm.end_compute_pass(*pass);
-            }
+            ctx.end_pass();
         }
 
+        string_builder multiplicityDefine;
+        multiplicityDefine.format("SURFEL_MAX_MULTIPLICITY {}", g_MaxSurfelMultiplicity);
+
+        if (const hashed_string_view defines[] = {multiplicityDefine.as<hashed_string_view>()};
+            ctx.begin_pass(allocateFgPass, {.defines = defines}, bindingTable))
         {
-            ctx.begin_pass(allocateFgPass);
+            const auto groupsX = round_up_div(cellsCountLinearized, subgroupSize);
+            ctx.dispatch_compute(groupsX, 1, 1);
 
-            string_builder multiplicityDefine;
-            multiplicityDefine.format("SURFEL_MAX_MULTIPLICITY {}", g_MaxSurfelMultiplicity);
-
-            const hashed_string_view defines[] = {multiplicityDefine.as<hashed_string_view>()};
-
-            const auto pipeline = pm.get_or_create_pipeline(allocatePass, {.defines = defines});
-
-            if (const auto pass = pm.begin_compute_pass(commandBuffer, pipeline))
-            {
-                const auto subgroupSize = pm.get_subgroup_size();
-
-                const binding_table* bindingTables[] = {
-                    &bindingTable,
-                };
-
-                pm.bind_descriptor_sets(*pass, bindingTables);
-
-                const auto groupsX = round_up_div(cellsCountLinearized, subgroupSize);
-                vkCmdDispatch(ctx.get_command_buffer(), groupsX, 1, 1);
-
-                pm.end_compute_pass(*pass);
-            }
+            ctx.end_pass();
         }
 
+        if (ctx.begin_pass(fillFgPass, {}, bindingTable))
         {
-            ctx.begin_pass(fillFgPass);
+            const u32 groupsX = round_up_div(maxSurfels, subgroupSize);
+            ctx.dispatch_compute(groupsX, 1, 1);
 
-            const auto pipeline = pm.get_or_create_pipeline(fillPass, {});
-
-            if (const auto pass = pm.begin_compute_pass(commandBuffer, pipeline))
-            {
-                const auto subgroupSize = pm.get_subgroup_size();
-
-                const binding_table* bindingTables[] = {
-                    &bindingTable,
-                };
-
-                pm.bind_descriptor_sets(*pass, bindingTables);
-
-                const u32 groupsX = round_up_div(maxSurfels, subgroupSize);
-                vkCmdDispatch(ctx.get_command_buffer(), groupsX, 1, 1);
-
-                pm.end_compute_pass(*pass);
-            }
+            ctx.end_pass();
         }
     }
 

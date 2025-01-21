@@ -16,6 +16,7 @@
 #include <oblo/vulkan/graph/frame_graph_template.hpp>
 #include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/stateful_command_buffer.hpp>
+#include <oblo/vulkan/vulkan_context.hpp>
 
 #include <iosfwd>
 
@@ -479,8 +480,11 @@ namespace oblo::vk
         // Just arbitrary fixed size for now
         constexpr u32 maxAllocationSize{64u << 20};
 
-        m_impl = std::make_unique<frame_graph_impl>();
+        m_impl = allocate_unique<frame_graph_impl>();
         m_impl->rng.seed(42);
+
+        const auto subgroupProperties = ctx.get_physical_device_subgroup_properties();
+        m_impl->gpuInfo.subgroupSize = subgroupProperties.subgroupSize;
 
         return m_impl->dynamicAllocator.init(maxAllocationSize) && m_impl->resourcePool.init(ctx);
     }
@@ -529,7 +533,8 @@ namespace oblo::vk
         // We use pass with index 0 as invalid
         m_impl->passes.assign_default(1);
 
-        const frame_graph_build_context buildCtx{*m_impl, renderer, m_impl->resourcePool};
+        frame_graph_build_state buildState;
+        const frame_graph_build_context buildCtx{*m_impl, buildState, renderer, m_impl->resourcePool};
 
         // Clearing these is required for certain operations that query created textures during the build process (e.g.
         // get_texture_initializer).
@@ -550,7 +555,7 @@ namespace oblo::vk
             auto* const node = m_impl->nodes.try_find(nodeHandle);
 
             m_impl->currentNode = node;
-            m_impl->currentPass = {};
+            buildState.currentPass = {};
 
             m_impl->passesPerNode.push_back({
                 .passesBegin = u32(m_impl->passes.size()),
@@ -567,7 +572,7 @@ namespace oblo::vk
                 node->build(ptr, buildCtx);
 
                 // Close the last pass build (if any)
-                m_impl->end_pass_build();
+                m_impl->end_pass_build(buildState);
             }
         }
 
@@ -595,8 +600,6 @@ namespace oblo::vk
         auto& commandBuffer = renderer.get_active_command_buffer();
         auto& resourcePool = m_impl->resourcePool;
 
-        const frame_graph_execute_context executeCtx{*m_impl, renderer, commandBuffer.get()};
-
         for (const auto [storage, poolIndex] : m_impl->transientBuffers)
         {
             const buffer buf = resourcePool.get_transient_buffer(poolIndex);
@@ -617,8 +620,10 @@ namespace oblo::vk
             m_impl->flush_uploads(commandBuffer.get(), renderer.get_staging_buffer());
         }
 
-        auto& imageLayoutTracker = m_impl->imageLayoutTracker;
-        imageLayoutTracker.clear();
+        frame_graph_execution_state executionState;
+        const frame_graph_execute_context executeCtx{*m_impl, executionState, renderer, commandBuffer.get()};
+
+        auto& imageLayoutTracker = executionState.imageLayoutTracker;
 
         for (const auto [resource, poolIndex] : m_impl->transientTextures)
         {
@@ -668,12 +673,14 @@ namespace oblo::vk
             auto* const node = m_impl->nodes.try_find(nodeHandle);
 
             m_impl->currentNode = node;
-            m_impl->currentPass = {};
+            executionState.currentPass = {};
 
             if (passesPerNode.passesBegin < passesPerNode.passesEnd)
             {
                 // We automatically start the first pass
-                m_impl->begin_pass_execution(h32<frame_graph_pass>{passesPerNode.passesBegin}, commandBuffer.get());
+                m_impl->begin_pass_execution(h32<frame_graph_pass>{passesPerNode.passesBegin},
+                    commandBuffer.get(),
+                    executionState);
             }
 
             auto* const ptr = node->ptr;
@@ -688,12 +695,11 @@ namespace oblo::vk
             // We want every node to execute all passes in order, the order check is in the begin_pass_execution call
             // Here we check that we got to the last pass
             OBLO_ASSERT(passesPerNode.passesBegin == passesPerNode.passesEnd ||
-                m_impl->currentPass.value == passesPerNode.passesEnd - 1)
+                executionState.currentPass.value == passesPerNode.passesEnd - 1)
         }
 
         m_impl->barriers = {};
         m_impl->currentNode = {};
-        m_impl->currentPass = {};
 
         auto& textureRegistry = renderer.get_texture_registry();
 
@@ -707,9 +713,9 @@ namespace oblo::vk
         m_impl->finish_frame();
     }
 
-    h32<frame_graph_pass> frame_graph_impl::begin_pass_build(pass_kind passKind)
+    h32<frame_graph_pass> frame_graph_impl::begin_pass_build(frame_graph_build_state& state, pass_kind passKind)
     {
-        end_pass_build();
+        end_pass_build(state);
 
         const auto i = u32(passes.size());
         const h32<frame_graph_pass> passId{i};
@@ -720,29 +726,32 @@ namespace oblo::vk
             .bufferUsageBegin = u32(bufferUsages.size()),
         });
 
-        currentPass = passId;
+        state.currentPass = passId;
         passesPerNode.back().passesEnd = i + 1;
 
         return passId;
     }
 
-    void frame_graph_impl::end_pass_build()
+    void frame_graph_impl::end_pass_build(frame_graph_build_state& state)
     {
-        if (!currentPass)
+        if (!state.currentPass)
         {
             return;
         }
 
-        auto& pass = passes[currentPass.value];
+        auto& pass = passes[state.currentPass.value];
         pass.textureTransitionEnd = u32(textureTransitions.size());
         pass.bufferUsageEnd = u32(bufferUsages.size());
 
-        currentPass = {};
+        state.currentPass = {};
     }
 
-    void frame_graph_impl::begin_pass_execution(h32<frame_graph_pass> passId, VkCommandBuffer commandBuffer)
+    void frame_graph_impl::begin_pass_execution(
+        h32<frame_graph_pass> passId, VkCommandBuffer commandBuffer, frame_graph_execution_state& state) const
     {
         OBLO_ASSERT(passId);
+
+        const auto currentPass = state.currentPass;
 
         if (currentPass == passId)
         {
@@ -753,14 +762,15 @@ namespace oblo::vk
 
         const auto& pass = passes[passId.value];
 
-        buffered_array<VkImageMemoryBarrier2, 32> imageBarriers{&dynamicAllocator};
+        // TODO: Can we also prepare these in advance?
+        buffered_array<VkImageMemoryBarrier2, 32> imageBarriers;
         imageBarriers.reserve(pass.textureTransitionEnd - pass.textureTransitionBegin);
 
         for (u32 i = pass.textureTransitionBegin; i != pass.textureTransitionEnd; ++i)
         {
             const auto& textureTransition = textureTransitions[i];
 
-            if (!imageLayoutTracker.add_transition(imageBarriers.push_back_default(),
+            if (!state.imageLayoutTracker.add_transition(imageBarriers.push_back_default(),
                     textureTransition.texture,
                     pass.kind,
                     textureTransition.usage))
@@ -787,7 +797,7 @@ namespace oblo::vk
             vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
         }
 
-        currentPass = passId;
+        state.currentPass = passId;
     }
 
     void frame_graph::write_dot(std::ostream& os) const

@@ -27,6 +27,7 @@
 #include <oblo/vulkan/draw/mesh_table.hpp>
 #include <oblo/vulkan/draw/raytracing_pass_initializer.hpp>
 #include <oblo/vulkan/draw/render_pass_initializer.hpp>
+#include <oblo/vulkan/draw/shader_stage_utils.hpp>
 #include <oblo/vulkan/draw/texture_registry.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/texture.hpp>
@@ -113,43 +114,6 @@ namespace oblo::vk
             case raytracing_stage::callable:
                 return VK_SHADER_STAGE_CALLABLE_BIT_KHR;
 
-            default:
-                unreachable();
-            }
-        }
-
-        shader_stage from_vk_shader_stage(VkShaderStageFlagBits vkStage)
-        {
-            switch (vkStage)
-            {
-            case VK_SHADER_STAGE_VERTEX_BIT:
-                return shader_stage::vertex;
-            case VK_SHADER_STAGE_GEOMETRY_BIT:
-                return shader_stage::geometry;
-            case VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT:
-                return shader_stage::tessellation_control;
-            case VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT:
-                return shader_stage::tessellation_evaluation;
-            case VK_SHADER_STAGE_FRAGMENT_BIT:
-                return shader_stage::fragment;
-            case VK_SHADER_STAGE_COMPUTE_BIT:
-                return shader_stage::compute;
-            case VK_SHADER_STAGE_RAYGEN_BIT_KHR:
-                return shader_stage::raygen;
-            case VK_SHADER_STAGE_INTERSECTION_BIT_KHR:
-                return shader_stage::intersection;
-            case VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR:
-                return shader_stage::closest_hit;
-            case VK_SHADER_STAGE_ANY_HIT_BIT_KHR:
-                return shader_stage::any_hit;
-            case VK_SHADER_STAGE_MISS_BIT_KHR:
-                return shader_stage::miss;
-            case VK_SHADER_STAGE_CALLABLE_BIT_KHR:
-                return shader_stage::callable;
-            case VK_SHADER_STAGE_TASK_BIT_EXT:
-                return shader_stage::task;
-            case VK_SHADER_STAGE_MESH_BIT_EXT:
-                return shader_stage::mesh;
             default:
                 unreachable();
             }
@@ -1279,11 +1243,10 @@ namespace oblo::vk
         VkWriteDescriptorSet descriptorSetWrites[MaxWrites];
         VkWriteDescriptorSetAccelerationStructureKHR asSetWrites[MaxWrites];
 
-        auto writeBufferToDescriptorSet = [descriptorSet,
-                                              &bufferInfo,
-                                              &descriptorSetWrites,
-                                              &buffersCount,
-                                              &writesCount](const descriptor_binding& binding, const buffer& buffer)
+        auto writeBufferToDescriptorSet =
+            [descriptorSet, &bufferInfo, &descriptorSetWrites, &buffersCount, &writesCount](
+                const descriptor_binding& binding,
+                const bindable_buffer& buffer)
         {
             OBLO_ASSERT(buffersCount < MaxWrites);
             OBLO_ASSERT(writesCount < MaxWrites);
@@ -1452,7 +1415,7 @@ namespace oblo::vk
         const buffer& dummy,
         const texture_registry& textureRegistry)
     {
-        m_impl = std::make_unique<impl>();
+        m_impl = allocate_unique<impl>();
 
         m_impl->frameAllocator.init(1u << 22);
 

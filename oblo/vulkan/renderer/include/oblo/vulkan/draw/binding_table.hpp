@@ -19,6 +19,13 @@ namespace oblo::vk
         acceleration_structure,
     };
 
+    struct bindable_buffer
+    {
+        VkBuffer buffer;
+        VkDeviceSize offset;
+        VkDeviceSize size;
+    };
+
     struct bindable_texture
     {
         VkImageView view;
@@ -35,7 +42,7 @@ namespace oblo::vk
         bindable_object_kind kind;
 
         union {
-            buffer buffer;
+            bindable_buffer buffer;
             bindable_texture texture;
             bindable_acceleration_structure accelerationStructure;
         };
@@ -43,7 +50,7 @@ namespace oblo::vk
 
     constexpr bindable_object make_bindable_object(const vk::buffer& b)
     {
-        return {.kind = bindable_object_kind::buffer, .buffer = b};
+        return {.kind = bindable_object_kind::buffer, .buffer = {b.buffer, b.offset, b.size}};
     }
 
     constexpr bindable_object make_bindable_object(VkImageView view, VkImageLayout layout)

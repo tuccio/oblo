@@ -7,6 +7,7 @@
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/frame_graph_resources.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 
@@ -46,10 +47,15 @@ namespace oblo::vk
 
     struct loaded_functions;
     struct frame_graph_impl;
+    struct frame_graph_build_state;
+    struct frame_graph_execution_state;
     struct frame_graph_pin_storage;
     struct frame_graph_pass;
+    struct frame_graph_compute_pass;
     struct resident_texture;
     struct staging_buffer_span;
+
+    struct compute_pipeline_initializer;
 
     using binding_table = flat_dense_map<h32<string>, bindable_object>;
 
@@ -85,6 +91,49 @@ namespace oblo::vk
         enum_max,
     };
 
+    struct buffer_binding_desc
+    {
+        string_view name;
+        resource<buffer> resource;
+    };
+
+    struct texture_binding_desc
+    {
+        string_view name;
+        resource<texture> resource;
+    };
+
+    struct gpu_info
+    {
+        u32 subgroupSize;
+    };
+
+    class binding_tables_span
+    {
+    public:
+        binding_tables_span(const binding_table& t) : m_table{&t}, m_count{1} {}
+
+        binding_tables_span(std::span<const binding_table* const> tables) :
+            m_array{tables.data()}, m_count{tables.size()}
+        {
+            if (m_count == 1)
+            {
+                m_table = m_array[0];
+            }
+        }
+
+        std::span<const binding_table* const> span() const&
+        {
+            auto* const array = m_count == 1 ? &m_table : m_array;
+            return std::span<const binding_table* const>{array, m_count};
+        }
+
+    private:
+        const binding_table* m_table{};
+        const binding_table* const* m_array{};
+        usize m_count{};
+    };
+
     class frame_graph_init_context
     {
     public:
@@ -102,10 +151,13 @@ namespace oblo::vk
     class frame_graph_build_context
     {
     public:
-        explicit frame_graph_build_context(
-            frame_graph_impl& frameGraph, renderer& renderer, resource_pool& resourcePool);
+        explicit frame_graph_build_context(frame_graph_impl& frameGraph,
+            frame_graph_build_state& state,
+            renderer& renderer,
+            resource_pool& resourcePool);
 
         h32<frame_graph_pass> begin_pass(pass_kind kind) const;
+        h32<frame_graph_compute_pass> new_pass(h32<compute_pass> pass) const;
 
         void create(
             resource<texture> texture, const texture_resource_initializer& initializer, texture_usage usage) const;
@@ -187,29 +239,26 @@ namespace oblo::vk
 
     private:
         frame_graph_impl& m_frameGraph;
+        frame_graph_build_state& m_state;
         renderer& m_renderer;
         resource_pool& m_resourcePool;
-    };
-
-    struct buffer_binding_desc
-    {
-        string_view name;
-        resource<buffer> resource;
-    };
-
-    struct texture_binding_desc
-    {
-        string_view name;
-        resource<texture> resource;
     };
 
     class frame_graph_execute_context
     {
     public:
-        explicit frame_graph_execute_context(
-            frame_graph_impl& frameGraph, renderer& renderer, VkCommandBuffer commandBuffer);
+        explicit frame_graph_execute_context(const frame_graph_impl& frameGraph,
+            frame_graph_execution_state& executeCtx,
+            renderer& renderer,
+            VkCommandBuffer commandBuffer);
 
         void begin_pass(h32<frame_graph_pass> handle) const;
+
+        expected<> begin_pass(h32<frame_graph_compute_pass> handle,
+            const compute_pipeline_initializer& initializer,
+            binding_tables_span bindingTables) const;
+
+        void end_pass() const;
 
         template <typename T>
         T& access(data<T> data) const
@@ -274,13 +323,19 @@ namespace oblo::vk
             return has_event_impl(get_type_id<T>());
         }
 
+        const gpu_info& get_gpu_info() const;
+
+        void push_constants(shader_stage stage, u32 offset, std::span<const byte> bytes) const;
+        void dispatch_compute(u32 groupsX, u32 groupsY, u32 groupsZ) const;
+
     private:
         void* access_storage(h32<frame_graph_pin_storage> handle) const;
 
         bool has_event_impl(const type_id& type) const;
 
     private:
-        frame_graph_impl& m_frameGraph;
+        const frame_graph_impl& m_frameGraph;
+        frame_graph_execution_state& m_state;
         renderer& m_renderer;
         VkCommandBuffer m_commandBuffer;
     };
