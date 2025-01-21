@@ -6,6 +6,11 @@
 #include <surfels/buffers/surfel_grid_r>
 #include <surfels/buffers/surfel_lighting_data_in_r>
 
+layout(std430, binding = SURFEL_LAST_USAGE_BINDING) restrict writeonly buffer b_SurfelsLastUsage
+{
+    uint g_SurfelLastUsage[];
+};
+
 vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
 {
     vec3 irradiance = vec3(0);
@@ -22,6 +27,8 @@ vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
         const surfel_grid_cell gridCell = g_SurfelGridCells[cellIndex];
 
         surfel_grid_cell_iterator cellIt = surfel_grid_cell_iterator_begin(gridCell);
+
+        const uint currentTimestamp = g_SurfelGridHeader.currentTimestamp;
 
         for (; surfel_grid_cell_iterator_has_next(cellIt); surfel_grid_cell_iterator_advance(cellIt))
         {
@@ -52,6 +59,8 @@ vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
                 weightSum += weight;
 
                 irradiance += weight * surfelContribution;
+
+                g_SurfelLastUsage[surfelId] = currentTimestamp;
             }
         }
 

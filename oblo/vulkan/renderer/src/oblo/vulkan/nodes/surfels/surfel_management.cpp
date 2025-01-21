@@ -317,7 +317,6 @@ namespace oblo::vk
             ctx.acquire(inSurfelsGrid, buffer_usage::storage_read);
             ctx.acquire(inSurfelsData, buffer_usage::storage_read);
             ctx.acquire(inSurfelsGridData, buffer_usage::storage_read);
-            ctx.acquire(inOutSurfelsLastUsage, buffer_usage::storage_write);
             ctx.acquire(inLastFrameSurfelsLightingData, buffer_usage::storage_read);
         }
 
@@ -368,9 +367,8 @@ namespace oblo::vk
                     {"b_SurfelsGrid", inSurfelsGrid},
                     {"b_SurfelsGridData", inSurfelsGridData},
                     {"b_SurfelsData", inSurfelsData},
-                    {"b_OutTileCoverage", outFullTileCoverage},
-                    {"b_SurfelsLastUsage", inOutSurfelsLastUsage},
                     {"b_InSurfelsLighting", inLastFrameSurfelsLightingData},
+                    {"b_OutTileCoverage", outFullTileCoverage},
                 });
 
             ctx.bind_textures(bindingTable,
@@ -937,6 +935,8 @@ namespace oblo::vk
         ctx.acquire(inOutSurfelsLightingData, buffer_usage::storage_write);
         ctx.acquire(inOutSurfelsLightEstimatorData, buffer_usage::storage_write);
 
+        ctx.acquire(inOutSurfelsLastUsage, buffer_usage::storage_write);
+
         ctx.acquire(inLightConfig, buffer_usage::uniform);
         ctx.acquire(inLightBuffer, buffer_usage::storage_read);
 
@@ -971,6 +971,7 @@ namespace oblo::vk
                 {"b_InSurfelsLighting", inLastFrameSurfelsLightingData},
                 {"b_OutSurfelsLighting", inOutSurfelsLightingData},
                 {"b_OutSurfelsLightEstimator", inOutSurfelsLightEstimatorData},
+                {"b_SurfelsLastUsage", inOutSurfelsLastUsage},
                 {"b_TotalRayCount", ctx.access(inTotalRayCount)},
             });
 

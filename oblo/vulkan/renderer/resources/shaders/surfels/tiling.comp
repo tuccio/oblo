@@ -43,11 +43,6 @@ layout(std430, binding = 0) restrict writeonly buffer b_OutTileCoverage
 
 layout(binding = 10, rg32ui) uniform restrict readonly uimage2D t_InVisibilityBuffer;
 
-layout(std430, binding = SURFEL_LAST_USAGE_BINDING) restrict writeonly buffer b_SurfelsLastUsage
-{
-    uint g_SurfelLastUsage[];
-};
-
 layout(binding = 16) uniform b_CameraBuffer
 {
     camera_buffer g_Camera;
@@ -145,7 +140,6 @@ float gather_coverage_from_grid(in vec3 position, in vec3 normal, out vec3 gridA
 
     if (surfel_grid_has_cell(g_SurfelGridHeader, cell))
     {
-        const uint currentTimestamp = g_SurfelGridHeader.currentTimestamp;
         const uint cellIndex = surfel_grid_cell_index(g_SurfelGridHeader, cell);
 
         const surfel_grid_cell gridCell = g_SurfelGridCells[cellIndex];
@@ -176,8 +170,6 @@ float gather_coverage_from_grid(in vec3 position, in vec3 normal, out vec3 gridA
                 const float angleWeight = max(dot(surfelNormal, normal), 0);
                 const float weight = angleWeight * (1 - distance2 / threshold);
                 weightSum += weight;
-
-                g_SurfelLastUsage[surfelId] = currentTimestamp;
             }
         }
 
