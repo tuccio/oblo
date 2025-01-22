@@ -144,11 +144,11 @@ namespace oblo::vk
         h32<compute_pass> allocatePass;
         h32<compute_pass> fillPass;
 
-        h32<frame_graph_compute_pass> overcoverageFgPass;
-        h32<frame_graph_compute_pass> clearFgPass;
-        h32<frame_graph_compute_pass> updateFgPass;
-        h32<frame_graph_compute_pass> allocateFgPass;
-        h32<frame_graph_compute_pass> fillFgPass;
+        h32<compute_pass_instance> overcoverageFgPass;
+        h32<compute_pass_instance> clearFgPass;
+        h32<compute_pass_instance> updateFgPass;
+        h32<compute_pass_instance> allocateFgPass;
+        h32<compute_pass_instance> fillFgPass;
 
         void init(const frame_graph_init_context& ctx);
 
@@ -209,6 +209,7 @@ namespace oblo::vk
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
         h32<raytracing_pass> rtPass;
+        h32<raytracing_pass_instance> rtPassInstance;
 
         u32 randomSeed;
 

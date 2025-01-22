@@ -866,9 +866,7 @@ namespace oblo::vk
 
     void surfel_raytracing::init(const frame_graph_init_context& ctx)
     {
-        auto& passManager = ctx.get_pass_manager();
-
-        rtPass = passManager.register_raytracing_pass({
+        rtPass = ctx.register_raytracing_pass({
             .name = "Surfel Ray-Tracing",
             .generation = "./vulkan/shaders/surfels/surfel_raygen.rgen",
             .miss =
@@ -888,7 +886,7 @@ namespace oblo::vk
 
     void surfel_raytracing::build(const frame_graph_build_context& ctx)
     {
-        ctx.begin_pass(pass_kind::raytracing);
+        rtPassInstance = ctx.raytracing_pass(rtPass, {});
 
         ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_read);
         ctx.acquire(inOutSurfelsGridData, buffer_usage::storage_read);
@@ -917,41 +915,29 @@ namespace oblo::vk
 
     void surfel_raytracing::execute(const frame_graph_execute_context& ctx)
     {
-        auto& pm = ctx.get_pass_manager();
+        if (ctx.begin_pass(rtPassInstance))
+        {
+            binding_table2 bindingTable;
 
-        binding_table bindingTable;
-
-        ctx.bind_buffers(bindingTable,
-            {
-                {"b_MeshTables", inMeshDatabase},
-                {"b_InstanceTables", inInstanceTables},
-                {"b_LightConfig", inLightConfig},
-                {"b_LightData", inLightBuffer},
-                {"b_SkyboxSettings", inSkyboxSettingsBuffer},
-                {"b_SurfelsGrid", inOutSurfelsGrid},
-                {"b_SurfelsGridData", inOutSurfelsGridData},
-                {"b_SurfelsData", inOutSurfelsData},
-                {"b_InSurfelsLighting", inLastFrameSurfelsLightingData},
-                {"b_OutSurfelsLighting", inOutSurfelsLightingData},
-                {"b_OutSurfelsLightEstimator", inOutSurfelsLightEstimatorData},
-                {"b_SurfelsLastUsage", inOutSurfelsLastUsage},
-                {"b_TotalRayCount", ctx.access(inTotalRayCount)},
+            bindingTable.bind_buffers({
+                {"b_MeshTables"_hsv, inMeshDatabase},
+                {"b_InstanceTables"_hsv, inInstanceTables},
+                {"b_LightConfig"_hsv, inLightConfig},
+                {"b_LightData"_hsv, inLightBuffer},
+                {"b_SkyboxSettings"_hsv, inSkyboxSettingsBuffer},
+                {"b_SurfelsGrid"_hsv, inOutSurfelsGrid},
+                {"b_SurfelsGridData"_hsv, inOutSurfelsGridData},
+                {"b_SurfelsData"_hsv, inOutSurfelsData},
+                {"b_InSurfelsLighting"_hsv, inLastFrameSurfelsLightingData},
+                {"b_OutSurfelsLighting"_hsv, inOutSurfelsLightingData},
+                {"b_OutSurfelsLightEstimator"_hsv, inOutSurfelsLightEstimatorData},
+                {"b_SurfelsLastUsage"_hsv, inOutSurfelsLastUsage},
+                {"b_TotalRayCount"_hsv, ctx.access(inTotalRayCount)},
             });
 
-        bindingTable.emplace(ctx.get_string_interner().get_or_add("u_SceneTLAS"),
-            make_bindable_object(ctx.get_draw_registry().get_tlas()));
+            bindingTable.bind("u_SceneTLAS"_hsv, ctx.get_global_tlas());
 
-        const auto commandBuffer = ctx.get_command_buffer();
-
-        const auto pipeline = pm.get_or_create_pipeline(rtPass, {.maxPipelineRayRecursionDepth = 2});
-
-        if (const auto pass = pm.begin_raytracing_pass(commandBuffer, pipeline))
-        {
             const auto maxSurfels = ctx.access(inMaxSurfels);
-
-            const binding_table* bindingTables[] = {
-                &bindingTable,
-            };
 
             const struct push_constants
             {
@@ -964,12 +950,12 @@ namespace oblo::vk
                 .giMultiplier = ctx.access(inGIMultiplier),
             };
 
-            pm.bind_descriptor_sets(*pass, bindingTables);
-            pm.push_constants(*pass, VK_SHADER_STAGE_RAYGEN_BIT_KHR, 0, as_bytes(std::span{&constants, 1}));
+            ctx.bind_descriptor_sets(bindingTable);
+            ctx.push_constants(shader_stage::raygen, 0, as_bytes(std::span{&constants, 1}));
 
-            pm.trace_rays(*pass, maxSurfels, 1, 1);
+            ctx.trace_rays(maxSurfels, 1, 1);
 
-            pm.end_raytracing_pass(*pass);
+            ctx.end_pass();
         }
     }
 }

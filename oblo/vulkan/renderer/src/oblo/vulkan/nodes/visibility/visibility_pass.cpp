@@ -22,9 +22,7 @@ namespace oblo::vk
 
     void visibility_pass::init(const frame_graph_init_context& ctx)
     {
-        auto& passManager = ctx.get_pass_manager();
-
-        renderPass = passManager.register_render_pass({
+        renderPass = ctx.register_render_pass({
             .name = "Visibility Pass",
             .stages =
                 {

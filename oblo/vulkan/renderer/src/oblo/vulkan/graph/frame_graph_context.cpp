@@ -18,6 +18,9 @@ namespace oblo::vk
 {
     namespace
     {
+        // We only support the global TLAS for now, acceleration structures are not proper resources yet
+        constexpr resource<acceleration_structure> g_globalTLAS{1u};
+
         VkImageUsageFlags convert_usage(texture_usage usage)
         {
             switch (usage)
@@ -216,20 +219,24 @@ namespace oblo::vk
         }
 
         void bind_descriptor_sets(const frame_graph_impl& frameGraph,
-            [[maybe_unused]] h32<frame_graph_pass> currentPass,
-            const pass_manager& pm,
+            renderer& renderer,
             VkCommandBuffer commandBuffer,
             VkPipelineBindPoint bindPoint,
+            [[maybe_unused]] h32<frame_graph_pass> currentPass,
             const base_pipeline& pipeline,
-            const string_interner& interner,
             const image_layout_tracker& imageLayoutTracker,
             const binding_tables_span& bindingTables)
         {
+            const auto& pm = renderer.get_pass_manager();
+            const auto& drawRegistry = renderer.get_draw_registry();
+            const auto& interner = renderer.get_string_interner();
+
             pm.bind_descriptor_sets(commandBuffer,
                 bindPoint,
                 pipeline,
                 [&frameGraph,
                     &pm,
+                    &drawRegistry,
                     &pipeline,
                     currentPass,
                     bindingTables = bindingTables.span(),
@@ -249,6 +256,13 @@ namespace oblo::vk
 
                         switch (r->kind)
                         {
+                        case bindable_resource_kind::acceleration_structure: {
+                            OBLO_ASSERT(r->accelerationStructure == g_globalTLAS,
+                                "Only the global TLAS is supported at the moment");
+
+                            return make_bindable_object(drawRegistry.get_tlas());
+                        }
+
                         case bindable_resource_kind::buffer: {
                             const buffer& b = access_storage(frameGraph, r->buffer);
 
@@ -541,34 +555,34 @@ namespace oblo::vk
         return m_frameGraph.begin_pass_build(m_state, kind);
     }
 
-    h32<frame_graph_compute_pass> frame_graph_build_context::compute_pass(h32<vk::compute_pass> pass,
+    h32<compute_pass_instance> frame_graph_build_context::compute_pass(h32<vk::compute_pass> pass,
         const compute_pipeline_initializer& initializer) const
     {
         const auto h = m_frameGraph.begin_pass_build(m_state, pass_kind::compute);
         auto& pm = m_renderer.get_pass_manager();
         m_frameGraph.passes[h.value].computePipeline = pm.get_or_create_pipeline(pass, initializer);
 
-        return h32<frame_graph_compute_pass>{h.value};
+        return h32<compute_pass_instance>{h.value};
     }
 
-    h32<frame_graph_render_pass> frame_graph_build_context::render_pass(h32<vk::render_pass> pass,
+    h32<render_pass_instance> frame_graph_build_context::render_pass(h32<vk::render_pass> pass,
         const render_pipeline_initializer& initializer) const
     {
         const auto h = m_frameGraph.begin_pass_build(m_state, pass_kind::graphics);
         auto& pm = m_renderer.get_pass_manager();
         m_frameGraph.passes[h.value].renderPipeline = pm.get_or_create_pipeline(pass, initializer);
 
-        return h32<frame_graph_render_pass>{h.value};
+        return h32<render_pass_instance>{h.value};
     }
 
-    h32<frame_graph_raytracing_pass> frame_graph_build_context::raytracing_pass(h32<vk::raytracing_pass> pass,
+    h32<raytracing_pass_instance> frame_graph_build_context::raytracing_pass(h32<vk::raytracing_pass> pass,
         const raytracing_pipeline_initializer& initializer) const
     {
         const auto h = m_frameGraph.begin_pass_build(m_state, pass_kind::raytracing);
         auto& pm = m_renderer.get_pass_manager();
         m_frameGraph.passes[h.value].raytracingPipeline = pm.get_or_create_pipeline(pass, initializer);
 
-        return h32<frame_graph_raytracing_pass>{h.value};
+        return h32<raytracing_pass_instance>{h.value};
     }
 
     void* frame_graph_build_context::access_storage(h32<frame_graph_pin_storage> handle) const
@@ -594,7 +608,7 @@ namespace oblo::vk
         m_frameGraph.begin_pass_execution(handle, m_commandBuffer, m_state);
     }
 
-    expected<> frame_graph_execute_context::begin_pass(h32<frame_graph_compute_pass> handle) const
+    expected<> frame_graph_execute_context::begin_pass(h32<compute_pass_instance> handle) const
     {
         OBLO_ASSERT(handle);
         OBLO_ASSERT(m_frameGraph.passes[handle.value].kind == pass_kind::compute);
@@ -621,7 +635,7 @@ namespace oblo::vk
         return no_error;
     }
 
-    expected<> frame_graph_execute_context::begin_pass(h32<frame_graph_render_pass> handle,
+    expected<> frame_graph_execute_context::begin_pass(h32<render_pass_instance> handle,
         const VkRenderingInfo& renderingInfo) const
     {
         OBLO_ASSERT(handle);
@@ -649,7 +663,7 @@ namespace oblo::vk
         return no_error;
     }
 
-    expected<> frame_graph_execute_context::begin_pass(h32<frame_graph_raytracing_pass> handle) const
+    expected<> frame_graph_execute_context::begin_pass(h32<raytracing_pass_instance> handle) const
     {
         OBLO_ASSERT(handle);
         OBLO_ASSERT(m_frameGraph.passes[handle.value].kind == pass_kind::raytracing);
@@ -720,12 +734,11 @@ namespace oblo::vk
         }
 
         vk::bind_descriptor_sets(m_frameGraph,
-            m_state.currentPass,
-            get_pass_manager(),
+            m_renderer,
             m_commandBuffer,
             bindPoint,
+            m_state.currentPass,
             *m_state.basePipeline,
-            m_renderer.get_string_interner(),
             m_state.imageLayoutTracker,
             bindingTables);
     }
@@ -738,6 +751,11 @@ namespace oblo::vk
     buffer frame_graph_execute_context::access(resource<buffer> h) const
     {
         return vk::access_storage(m_frameGraph, h);
+    }
+
+    resource<acceleration_structure> frame_graph_execute_context::get_global_tlas() const
+    {
+        return g_globalTLAS;
     }
 
     bool frame_graph_execute_context::has_source(resource<buffer> buffer) const
@@ -870,7 +888,14 @@ namespace oblo::vk
 
     void frame_graph_execute_context::dispatch_compute(u32 groupsX, u32 groupsY, u32 groupsZ) const
     {
+        OBLO_ASSERT(m_state.passKind == pass_kind::compute);
         vkCmdDispatch(m_commandBuffer, groupsX, groupsY, groupsZ);
+    }
+
+    void frame_graph_execute_context::trace_rays(u32 x, u32 y, u32 z) const
+    {
+        OBLO_ASSERT(m_state.passKind == pass_kind::raytracing);
+        get_pass_manager().trace_rays(m_state.rtCtx, x, y, z);
     }
 
     void* frame_graph_execute_context::access_storage(h32<frame_graph_pin_storage> handle) const
@@ -901,5 +926,16 @@ namespace oblo::vk
     h32<compute_pass> frame_graph_init_context::register_compute_pass(const compute_pass_initializer& initializer) const
     {
         return m_renderer.get_pass_manager().register_compute_pass(initializer);
+    }
+
+    h32<render_pass> frame_graph_init_context::register_render_pass(const render_pass_initializer& initializer) const
+    {
+        return m_renderer.get_pass_manager().register_render_pass(initializer);
+    }
+
+    h32<raytracing_pass> frame_graph_init_context::register_raytracing_pass(
+        const raytracing_pass_initializer& initializer) const
+    {
+        return m_renderer.get_pass_manager().register_raytracing_pass(initializer);
     }
 }

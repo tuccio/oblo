@@ -51,7 +51,7 @@ namespace oblo::vk
     struct frame_graph_execution_state;
     struct frame_graph_pin_storage;
     struct frame_graph_pass;
-    struct frame_graph_compute_pass;
+    struct compute_pass_instance;
     struct resident_texture;
     struct staging_buffer_span;
 
@@ -127,6 +127,7 @@ namespace oblo::vk
 
         h32<compute_pass> register_compute_pass(const compute_pass_initializer& initializer) const;
         h32<render_pass> register_render_pass(const render_pass_initializer& initializer) const;
+        h32<raytracing_pass> register_raytracing_pass(const raytracing_pass_initializer& initializer) const;
 
     private:
         frame_graph_impl& m_frameGraph;
@@ -143,13 +144,13 @@ namespace oblo::vk
 
         h32<frame_graph_pass> begin_pass(pass_kind kind) const;
 
-        h32<frame_graph_compute_pass> compute_pass(h32<compute_pass> pass,
+        h32<compute_pass_instance> compute_pass(h32<compute_pass> pass,
             const compute_pipeline_initializer& initializer) const;
 
-        h32<frame_graph_render_pass> render_pass(h32<render_pass> pass,
+        h32<render_pass_instance> render_pass(h32<render_pass> pass,
             const render_pipeline_initializer& initializer) const;
 
-        h32<frame_graph_raytracing_pass> raytracing_pass(h32<raytracing_pass> pass,
+        h32<raytracing_pass_instance> raytracing_pass(h32<raytracing_pass> pass,
             const raytracing_pipeline_initializer& initializer) const;
 
         void create(
@@ -247,11 +248,11 @@ namespace oblo::vk
 
         void begin_pass(h32<frame_graph_pass> handle) const;
 
-        expected<> begin_pass(h32<frame_graph_compute_pass> handle) const;
+        expected<> begin_pass(h32<compute_pass_instance> handle) const;
 
-        expected<> begin_pass(h32<frame_graph_render_pass> handle, const VkRenderingInfo& renderingInfo) const;
+        expected<> begin_pass(h32<render_pass_instance> handle, const VkRenderingInfo& renderingInfo) const;
 
-        expected<> begin_pass(h32<frame_graph_raytracing_pass> handle) const;
+        expected<> begin_pass(h32<raytracing_pass_instance> handle) const;
 
         void end_pass() const;
 
@@ -272,6 +273,8 @@ namespace oblo::vk
         texture access(resource<texture> h) const;
 
         buffer access(resource<buffer> h) const;
+
+        resource<acceleration_structure> get_global_tlas() const;
 
         /// @brief Determines whether the pin has an incoming edge.
         bool has_source(resource<buffer> buffer) const;
@@ -324,6 +327,7 @@ namespace oblo::vk
 
         void push_constants(shader_stage stage, u32 offset, std::span<const byte> bytes) const;
         void dispatch_compute(u32 groupsX, u32 groupsY, u32 groupsZ) const;
+        void trace_rays(u32 x, u32 y, u32 z) const;
 
     private:
         void* access_storage(h32<frame_graph_pin_storage> handle) const;

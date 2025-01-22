@@ -6,6 +6,7 @@
 #include <oblo/core/pair.hpp>
 #include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/vulkan/buffer.hpp>
+#include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 #include <oblo/vulkan/texture.hpp>
 
@@ -81,6 +82,7 @@ namespace oblo::vk
         union {
             resource<buffer> buffer;
             resource<texture> texture;
+            resource<acceleration_structure> accelerationStructure;
         };
     };
 
@@ -95,6 +97,12 @@ namespace oblo::vk
         void bind(hashed_string_view name, resource<texture> r)
         {
             m_kv.emplace_back(name, bindable_resource{.kind = bindable_resource_kind::texture, .texture = r});
+        }
+
+        void bind(hashed_string_view name, resource<acceleration_structure> r)
+        {
+            m_kv.emplace_back(name,
+                bindable_resource{.kind = bindable_resource_kind::acceleration_structure, .accelerationStructure = r});
         }
 
         void bind_buffers(std::initializer_list<pair<hashed_string_view, resource<buffer>>> list)
