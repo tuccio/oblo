@@ -7,6 +7,7 @@
 #include <oblo/core/iterator/reverse_iterator.hpp>
 #include <oblo/core/platform/compiler.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/core/utility.hpp>
 
 namespace oblo
 {
@@ -93,6 +94,11 @@ namespace oblo
         OBLO_FORCEINLINE constexpr usize size() const noexcept
         {
             return m_size;
+        }
+
+        OBLO_FORCEINLINE constexpr u32 size32() const noexcept
+        {
+            return narrow_cast<u32>(m_size);
         }
 
         OBLO_FORCEINLINE constexpr bool empty() const noexcept
