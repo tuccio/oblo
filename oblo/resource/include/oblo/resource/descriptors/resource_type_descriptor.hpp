@@ -11,7 +11,7 @@ namespace oblo
     using load_resource_fn = bool (*)(void* resource, cstring_view source);
     using save_resource_fn = bool (*)(const void* resource, cstring_view destination);
 
-    struct resource_type_desc
+    struct resource_type_descriptor
     {
         type_id type;
         create_resource_fn create;

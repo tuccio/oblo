@@ -2,7 +2,7 @@
 
 #include <oblo/asset/any_asset.hpp>
 #include <oblo/asset/asset_meta.hpp>
-#include <oblo/asset/asset_type_desc.hpp>
+#include <oblo/asset/descriptors/asset_type_descriptor.hpp>
 #include <oblo/asset/import_artifact.hpp>
 #include <oblo/asset/import_preview.hpp>
 #include <oblo/asset/importer.hpp>
@@ -25,7 +25,7 @@ namespace oblo
 {
     namespace
     {
-        struct asset_type_info : asset_type_desc
+        struct asset_type_info : asset_type_descriptor
         {
         };
 
@@ -321,7 +321,7 @@ namespace oblo
         m_impl.reset();
     }
 
-    void asset_registry::register_type(const asset_type_desc& desc)
+    void asset_registry::register_type(const asset_type_descriptor& desc)
     {
         m_impl->assetTypes.emplace(desc.type, desc);
     }

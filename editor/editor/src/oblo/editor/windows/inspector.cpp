@@ -23,7 +23,7 @@
 #include <oblo/properties/property_tree.hpp>
 #include <oblo/properties/visit.hpp>
 #include <oblo/reflection/reflection_registry.hpp>
-#include <oblo/resource/resource_ref_desc.hpp>
+#include <oblo/resource/descriptors/resource_ref_descriptor.hpp>
 
 #include <format>
 
@@ -191,7 +191,8 @@ namespace oblo::editor
                         case property_kind::uuid: {
                             const auto parentType = ctx.reflection.find_type(tree.nodes[property.parent].type);
 
-                            if (const auto resourceRef = ctx.reflection.find_concept<resource_ref_desc>(parentType))
+                            if (const auto resourceRef =
+                                    ctx.reflection.find_concept<resource_ref_descriptor>(parentType))
                             {
                                 auto& currentValue = *reinterpret_cast<uuid*>(propertyPtr);
 

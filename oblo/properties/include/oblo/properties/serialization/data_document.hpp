@@ -107,7 +107,7 @@ namespace oblo
     };
 
     template <typename T>
-        requires std::is_fundamental_v<T>
+        requires std::is_pod_v<T>
     constexpr std::span<const byte> as_bytes(const T& value)
     {
         return as_bytes(std::span{&value, 1});

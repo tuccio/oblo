@@ -2,7 +2,7 @@
 
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/importers/importers_module.hpp>
-#include <oblo/asset/registration.hpp>
+#include <oblo/asset/utility/registration.hpp>
 #include <oblo/core/platform/core.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/time/clock.hpp>
@@ -35,8 +35,8 @@
 #include <oblo/properties/serialization/data_document.hpp>
 #include <oblo/properties/serialization/json.hpp>
 #include <oblo/reflection/reflection_module.hpp>
-#include <oblo/resource/registration.hpp>
 #include <oblo/resource/resource_registry.hpp>
+#include <oblo/resource/utility/registration.hpp>
 #include <oblo/runtime/runtime_module.hpp>
 #include <oblo/sandbox/context.hpp>
 #include <oblo/thread/job_manager.hpp>

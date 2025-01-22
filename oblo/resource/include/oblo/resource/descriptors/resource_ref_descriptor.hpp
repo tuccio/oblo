@@ -4,7 +4,7 @@
 
 namespace oblo
 {
-    struct resource_ref_desc
+    struct resource_ref_descriptor
     {
         type_id resourceType;
     };

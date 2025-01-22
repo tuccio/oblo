@@ -9,9 +9,9 @@
 #include <oblo/reflection/reflection_module.hpp>
 #include <oblo/reflection/reflection_registry.hpp>
 #include <oblo/reflection/registration/registrant.hpp>
+#include <oblo/resource/descriptors/resource_ref_descriptor.hpp>
+#include <oblo/resource/providers/resource_types_provider.hpp>
 #include <oblo/resource/resource_ref.hpp>
-#include <oblo/resource/resource_ref_desc.hpp>
-#include <oblo/resource/resource_types_provider.hpp>
 #include <oblo/scene/assets/material.hpp>
 #include <oblo/scene/assets/mesh.hpp>
 #include <oblo/scene/assets/registration.hpp>
@@ -39,7 +39,7 @@ namespace oblo
         void register_resource_ref_reflection(reflection::reflection_registry::registrant reg)
         {
             reg.add_class<resource_ref<T>>()
-                .add_concept(resource_ref_desc{.resourceType = get_type_id<T>()})
+                .add_concept(resource_ref_descriptor{.resourceType = get_type_id<T>()})
                 .add_field(&resource_ref<T>::id, "id");
         }
 
@@ -79,7 +79,7 @@ namespace oblo
 
         class scene_resources_provider final : public resource_types_provider
         {
-            void fetch_resource_types(dynamic_array<resource_type_desc>& outResourceTypes) const override
+            void fetch_resource_types(deque<resource_type_descriptor>& outResourceTypes) const override
             {
                 fetch_scene_resource_types(outResourceTypes);
             }

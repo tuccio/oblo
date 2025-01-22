@@ -1,17 +1,17 @@
-#include <oblo/asset/registration.hpp>
+#include <oblo/asset/utility/registration.hpp>
 
 #include <oblo/asset/asset_registry.hpp>
-#include <oblo/asset/asset_type_desc.hpp>
+#include <oblo/asset/descriptors/asset_type_descriptor.hpp>
 #include <oblo/asset/file_importers_provider.hpp>
 #include <oblo/asset/importer.hpp>
-#include <oblo/resource/resource_types_provider.hpp>
+#include <oblo/resource/descriptors/resource_type_descriptor.hpp>
+#include <oblo/resource/providers/resource_types_provider.hpp>
 
 namespace oblo
 {
     void register_asset_types(asset_registry& registry, std::span<const resource_types_provider* const> providers)
     {
-        dynamic_array<resource_type_desc> resourceTypes;
-        resourceTypes.reserve(128);
+        deque<resource_type_descriptor> resourceTypes;
 
         for (auto* const provider : providers)
         {
@@ -20,7 +20,7 @@ namespace oblo
 
             for (const auto& resourceType : resourceTypes)
             {
-                registry.register_type(asset_type_desc{resourceType});
+                registry.register_type(asset_type_descriptor{resourceType});
             }
         }
     }

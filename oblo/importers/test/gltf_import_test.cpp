@@ -57,7 +57,7 @@ namespace oblo::importers
 
         ASSERT_TRUE(registry.initialize(assetsDir, artifactsDir, sourceFilesDir));
 
-        dynamic_array<resource_type_desc> resourceTypes;
+        dynamic_array<resource_type_descriptor> resourceTypes;
         fetch_scene_resource_types(resourceTypes);
 
         for (const auto& type : resourceTypes)

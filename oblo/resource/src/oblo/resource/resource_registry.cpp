@@ -1,9 +1,9 @@
 #include <oblo/resource/resource_registry.hpp>
 
 #include <oblo/core/string/string.hpp>
+#include <oblo/resource/descriptors/resource_type_descriptor.hpp>
 #include <oblo/resource/resource.hpp>
 #include <oblo/resource/resource_ptr.hpp>
-#include <oblo/resource/type_desc.hpp>
 
 #include <algorithm>
 
@@ -25,7 +25,7 @@ namespace oblo
 
     resource_registry::~resource_registry() = default;
 
-    void resource_registry::register_type(const resource_type_desc& typeDesc)
+    void resource_registry::register_type(const resource_type_descriptor& typeDesc)
     {
         m_resourceTypes[typeDesc.type] = typeDesc;
     }

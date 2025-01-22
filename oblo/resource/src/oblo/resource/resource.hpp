@@ -4,7 +4,7 @@
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/uuid.hpp>
-#include <oblo/resource/type_desc.hpp>
+#include <oblo/resource/descriptors/resource_type_descriptor.hpp>
 
 #include <atomic>
 
