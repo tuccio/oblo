@@ -20,8 +20,8 @@ namespace oblo::vk
         constexpr u32 g_tileSize{32};
 
         // A single surfel might be inserted in a few neighboring cells in the grid, if it's big enough
-        // We are overestimating here, since the radius is limited to the grid cell size
-        constexpr u32 g_MaxSurfelMultiplicity = 27;
+        // The radius is limited to 1/4 of the cell size, so this can be limited to 8
+        constexpr u32 g_MaxSurfelMultiplicity = 8;
 
         struct surfel_spawn_data
         {
