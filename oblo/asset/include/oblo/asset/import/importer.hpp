@@ -1,12 +1,12 @@
 #pragma once
 
+#include <oblo/asset/import/import_config.hpp>
 #include <oblo/asset/import/import_preview.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/string/string.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/uuid.hpp>
-#include <oblo/properties/serialization/data_document.hpp>
 
 #include <memory>
 #include <span>
@@ -21,12 +21,6 @@ namespace oblo
     struct artifact_meta;
     struct import_artifact;
 
-    struct importer_config
-    {
-        string sourceFile;
-        data_document settings;
-    };
-
     struct file_import_results
     {
         std::span<import_artifact> artifacts;
@@ -39,7 +33,7 @@ namespace oblo
     public:
         virtual ~file_importer() = default;
 
-        virtual bool init(const importer_config& config, import_preview& preview) = 0;
+        virtual bool init(const import_config& config, import_preview& preview) = 0;
         virtual bool import(import_context context) = 0;
         virtual file_import_results get_results() = 0;
     };
@@ -47,13 +41,16 @@ namespace oblo
     class importer
     {
     public:
+        struct file_import_data;
+
+    public:
         importer();
 
         importer(const importer&) = delete;
         importer(importer&&) noexcept;
 
         importer(uuid importUuid,
-            importer_config config,
+            import_config config,
             const type_id& importerType,
             std::unique_ptr<file_importer> fileImporter);
 
@@ -62,26 +59,23 @@ namespace oblo
         importer& operator=(const importer&) = delete;
         importer& operator=(importer&&) noexcept;
 
-        bool init();
+        bool init(const asset_registry& registry);
 
         bool execute(const data_document& importSettings);
         bool finalize(asset_registry& registry, string_view destination);
 
         bool is_valid() const noexcept;
 
-        const importer_config& get_config() const;
+        const import_config& get_config() const;
 
         uuid get_import_id() const;
 
     private:
-        bool begin_import(std::span<import_node_config> importNodesConfig);
-        bool write_source_files(asset_registry& registry, std::span<const string> sourceFiles);
+        bool begin_import();
+        bool write_source_files(asset_registry& registry, const deque<cstring_view>& sourceFiles);
 
     private:
-        importer_config m_config;
-        std::unique_ptr<file_importer> m_importer;
-        import_preview m_preview;
-        dynamic_array<import_node_config> m_importNodesConfig;
+        deque<file_import_data> m_fileImports;
         std::unordered_map<uuid, artifact_meta> m_artifacts;
         uuid m_importId{};
         type_id m_importerType{};

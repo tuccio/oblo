@@ -2,7 +2,7 @@
 
 #include <oblo/asset/asset_meta.hpp>
 #include <oblo/asset/asset_registry.hpp>
-#include <oblo/asset/importer.hpp>
+#include <oblo/asset/import/importer.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/platform/shell.hpp>
 #include <oblo/core/service_registry.hpp>
@@ -45,12 +45,15 @@ namespace oblo::editor
                     {
                         auto importer = m_registry->create_importer(file);
 
-                        if (importer.is_valid() && importer.init())
+                        if (importer.is_valid() && importer.init(*m_registry))
                         {
                             const data_document defaultImportSettings;
 
                             const auto timeBegin = clock::now();
-                            const auto success = importer.execute(m_current.view(), defaultImportSettings);
+
+                            const auto success = importer.execute(defaultImportSettings) &&
+                                importer.finalize(*m_registry, m_current.view());
+
                             const auto timeEnd = clock::now();
                             const f32 executionTime = to_f32_seconds(timeEnd - timeBegin);
 

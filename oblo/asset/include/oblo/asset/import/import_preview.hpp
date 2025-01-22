@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/asset/import/import_config.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/string/string.hpp>
 #include <oblo/core/type_id.hpp>
@@ -23,5 +24,6 @@ namespace oblo
     struct import_preview
     {
         dynamic_array<import_node> nodes;
+        dynamic_array<import_config> children;
     };
 }

@@ -4,6 +4,7 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/core/platform/compiler.hpp>
 #include <oblo/core/rotate.hpp>
+#include <oblo/core/utility.hpp>
 #include <oblo/math/power_of_two.hpp>
 
 #include <initializer_list>
@@ -72,6 +73,7 @@ namespace oblo
         T* end();
 
         usize size() const;
+        u32 size32() const;
         usize size_bytes() const;
         usize capacity() const;
 
@@ -366,6 +368,12 @@ namespace oblo
     OBLO_FORCEINLINE usize dynamic_array<T>::size() const
     {
         return m_size;
+    }
+
+    template <typename T>
+    OBLO_FORCEINLINE u32 dynamic_array<T>::size32() const
+    {
+        return narrow_cast<u32>(m_size);
     }
 
     template <typename T>

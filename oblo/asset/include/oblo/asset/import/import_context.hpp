@@ -21,7 +21,9 @@ namespace oblo
         cstring_view get_output_path(const uuid& id, string_builder& outPath) const;
 
         std::span<const import_node> get_import_nodes() const;
+        std::span<const import_node> get_child_import_nodes(usize i) const;
         std::span<const import_node_config> get_import_node_configs() const;
+        std::span<const import_node_config> get_child_import_node_configs(usize index) const;
 
         uuid get_import_uuid() const;
 

@@ -22,7 +22,7 @@ namespace oblo
     {
         constexpr string_view ImportConfigFilename{"import.json"};
 
-        bool write_import_config(const importer_config& config, const type_id& importer, cstring_view destination)
+        bool write_import_config(const import_config& config, const type_id& importer, cstring_view destination)
         {
             nlohmann::ordered_json json;
 
@@ -52,7 +52,19 @@ namespace oblo
         std::span<const import_node_config> importNodesConfig;
         uuid importUuid;
         const data_document& settings;
-        string_builder temporaryPath;
+        cstring_view temporaryPath;
+        const importer::file_import_data* fileImportData;
+        const deque<importer::file_import_data>* allImporters;
+    };
+
+    struct importer::file_import_data
+    {
+        std::unique_ptr<file_importer> importer;
+        import_config config;
+        import_preview preview;
+        dynamic_array<import_node_config> nodeConfigs;
+        usize firstChild;
+        usize childrenCount;
     };
 
     importer::importer() = default;
@@ -60,59 +72,86 @@ namespace oblo
     importer::importer(importer&&) noexcept = default;
 
     importer::importer(uuid importUuid,
-        importer_config config,
+        import_config config,
         const type_id& importerType,
-        std::unique_ptr<file_importer> fileImporter) :
-        m_importId{importUuid}, m_config{std::move(config)}, m_importer{std::move(fileImporter)},
-        m_importerType{importerType}
+        std::unique_ptr<file_importer> fileImporter) : m_importId{importUuid}, m_importerType{importerType}
     {
+        auto& root = m_fileImports.emplace_back();
+        root.importer = std::move(fileImporter);
+        root.config = std::move(config);
     }
 
     importer::~importer() = default;
 
     importer& importer::operator=(importer&&) noexcept = default;
 
-    bool importer::init()
+    bool importer::init(const asset_registry& registry)
     {
-        if (!m_importer)
+        if (m_fileImports.size() != 1)
         {
             return false;
         }
 
-        if (!m_importer->init(m_config, m_preview))
+        for (usize i = 0; i < m_fileImports.size(); ++i)
         {
-            return false;
+            auto& fi = m_fileImports[i];
+
+            if (!fi.importer || !fi.importer->init(fi.config, fi.preview))
+            {
+                return false;
+            }
+
+            fi.nodeConfigs.assign(fi.preview.nodes.size(), {.enabled = true});
+
+            fi.firstChild = m_fileImports.size();
+            fi.childrenCount = fi.preview.children.size();
+
+            if (!fi.preview.children.empty())
+            {
+                for (auto& child : fi.preview.children)
+                {
+                    auto& newChild = m_fileImports.emplace_back();
+                    newChild.config = std::move(child);
+                    newChild.importer = registry.create_file_importer(newChild.config.sourceFile);
+                }
+            }
         }
 
-        m_importNodesConfig.assign(m_preview.nodes.size(), {.enabled = true});
         return true;
     }
 
     bool importer::execute(const data_document& importSettings)
     {
-        if (!begin_import(m_importNodesConfig))
+        if (!begin_import())
         {
             return false;
         }
 
-        import_context_impl contextImpl{
-            .nodes = m_preview.nodes,
-            .importNodesConfig = m_importNodesConfig,
-            .importUuid = m_importId,
-            .settings = importSettings,
-        };
+        string_builder temporaryPath;
+        temporaryPath.format("./.asset_import/{}", m_importId);
 
-        contextImpl.temporaryPath.format("./.asset_import/{}", m_importId);
+        filesystem::create_directories(temporaryPath).assert_value();
 
-        filesystem::create_directories(contextImpl.temporaryPath).assert_value();
-
-        import_context context;
-        context.m_impl = &contextImpl;
-
-        if (!m_importer->import(context))
+        for (auto& fi : m_fileImports)
         {
-            // TODO: Cleanup
-            return false;
+            const import_context_impl contextImpl{
+                .nodes = fi.preview.nodes,
+                .importNodesConfig = fi.nodeConfigs,
+                .importUuid = m_importId,
+                .settings = importSettings,
+                .temporaryPath = temporaryPath,
+                .fileImportData = &fi,
+                .allImporters = &m_fileImports,
+            };
+
+            import_context context;
+            context.m_impl = &contextImpl;
+
+            if (!fi.importer->import(context))
+            {
+                // TODO: Cleanup
+                return false;
+            }
         }
 
         return true;
@@ -127,108 +166,121 @@ namespace oblo
 
         bool allSucceeded = true;
 
-        const auto results = m_importer->get_results();
+        deque<uuid> importedArtifacts;
+        deque<cstring_view> sourceFiles;
 
         asset_meta assetMeta{
             .id = m_importId,
             .isImported = true,
         };
 
-        buffered_array<uuid, 8> importedArtifacts;
-        importedArtifacts.reserve(results.artifacts.size());
-
-        for (const import_artifact& artifact : results.artifacts)
+        for (auto& fid : m_fileImports)
         {
-            if (artifact.id.is_nil())
+            const auto results = fid.importer->get_results();
+
+            sourceFiles.append(results.sourceFiles.begin(), results.sourceFiles.end());
+
+            for (const import_artifact& artifact : results.artifacts)
             {
-                log::error("Artifact '{}' will be skipped due to invalid UUID (this may signal a bug in "
-                           "the importer)",
-                    artifact.name);
-                allSucceeded = false;
-                continue;
-            }
+                if (artifact.id.is_nil())
+                {
+                    log::error("Artifact '{}' will be skipped due to invalid UUID (this may signal a bug in "
+                               "the importer)",
+                        artifact.name);
+                    allSucceeded = false;
+                    continue;
+                }
 
-            if (artifact.path.empty())
-            {
-                log::error("Artifact '{}' will be skipped because no output was produced (this may signal a bug in "
-                           "the importer)",
-                    artifact.name);
-                allSucceeded = false;
-                continue;
-            }
+                if (artifact.path.empty())
+                {
+                    log::error("Artifact '{}' will be skipped because no output was produced (this may signal a bug in "
+                               "the importer)",
+                        artifact.name);
+                    allSucceeded = false;
+                    continue;
+                }
 
-            const auto artifactIt = m_artifacts.find(artifact.id);
+                const auto artifactIt = m_artifacts.find(artifact.id);
 
-            if (artifactIt == m_artifacts.end())
-            {
-                log::error("Artifact '{}' ({}) will be skipped due to a UUID collision", artifact.name, artifact.id);
-                allSucceeded = false;
-                continue;
-            }
+                if (artifactIt == m_artifacts.end())
+                {
+                    log::error("Artifact '{}' ({}) will be skipped due to a UUID collision",
+                        artifact.name,
+                        artifact.id);
+                    allSucceeded = false;
+                    continue;
+                }
 
-            const artifact_meta meta{
-                .id = artifact.id,
-                .type = artifact.type,
-                .importId = m_importId,
-                .importName = artifact.name,
-            };
+                const artifact_meta meta{
+                    .id = artifact.id,
+                    .type = artifact.type,
+                    .importId = m_importId,
+                    .importName = artifact.name,
+                };
 
-            if (!registry.save_artifact(artifact.id, artifact.type, artifact.path, meta))
-            {
-                log::error("Artifact '{}' ({}) will be skipped due to an error occurring while saving to disk",
-                    artifact.name,
-                    artifact.id);
+                if (!registry.save_artifact(artifact.id, artifact.type, artifact.path, meta))
+                {
+                    log::error("Artifact '{}' ({}) will be skipped due to an error occurring while saving to disk",
+                        artifact.name,
+                        artifact.id);
 
-                allSucceeded = false;
-                continue;
-            }
+                    allSucceeded = false;
+                    continue;
+                }
 
-            importedArtifacts.emplace_back(artifact.id);
+                importedArtifacts.emplace_back(artifact.id);
 
-            if (artifact.id == results.mainArtifactHint)
-            {
-                assetMeta.mainArtifactHint = artifact.id;
-                assetMeta.typeHint = meta.type;
+                if (&fid == &m_fileImports.front() && artifact.id == results.mainArtifactHint)
+                {
+                    assetMeta.mainArtifactHint = artifact.id;
+                    assetMeta.typeHint = meta.type;
+                }
             }
         }
 
-        const auto assetFileName = filesystem::stem(m_config.sourceFile);
+        const auto assetFileName = filesystem::stem(m_fileImports.front().config.sourceFile);
 
         allSucceeded &= registry.save_asset(destination, assetFileName, std::move(assetMeta), importedArtifacts);
-        allSucceeded &= write_source_files(registry, results.sourceFiles);
+        allSucceeded &= write_source_files(registry, sourceFiles);
 
         // TODO: We might have to clean up on failure
 
         return allSucceeded;
     }
 
-    bool importer::begin_import(std::span<import_node_config> importNodesConfig)
+    bool importer::begin_import()
     {
-        if (importNodesConfig.size() != m_preview.nodes.size())
+        for (auto& imports : m_fileImports)
         {
-            return false;
-        }
+            auto& importNodesConfig = imports.nodeConfigs;
+            auto& nodes = imports.preview.nodes;
 
-        const auto uuidGenerator = uuid_namespace_generator{m_importId};
+            if (importNodesConfig.size() != nodes.size())
+            {
+                return false;
+            }
 
-        for (usize i = 0; i < importNodesConfig.size(); ++i)
-        {
-            const auto& node = m_preview.nodes[i];
+            const auto uuidGenerator = uuid_namespace_generator{m_importId};
 
-            // TODO: Ensure that names are unique
-            auto& config = importNodesConfig[i];
-            const auto h = hash_all<hash>(node.name, node.type, i);
-            config.id = uuidGenerator.generate(std::as_bytes(std::span{&h, sizeof(h)}));
+            for (usize i = 0; i < importNodesConfig.size(); ++i)
+            {
+                const auto& node = nodes[i];
 
-            const auto [artifactIt, artifactInserted] = m_artifacts.emplace(config.id,
-                artifact_meta{
-                    .id = config.id,
-                    .type = node.type,
-                    .importId = m_importId,
-                    .importName = node.name,
-                });
+                // TODO: Ensure that names are unique
+                auto& config = importNodesConfig[i];
+                const auto h = hash_all<hash>(node.name, node.type, i);
+                config.id = uuidGenerator.generate(std::as_bytes(std::span{&h, sizeof(h)}));
 
-            OBLO_ASSERT(artifactInserted);
+                const auto [artifactIt, artifactInserted] = m_artifacts.emplace(config.id,
+                    artifact_meta{
+                        .id = config.id,
+                        .type = node.type,
+                        .importId = m_importId,
+                        .importName = node.name,
+                    });
+
+                OBLO_ASSERT(artifactInserted);
+            }
         }
 
         return true;
@@ -236,12 +288,12 @@ namespace oblo
 
     bool importer::is_valid() const noexcept
     {
-        return m_importer != nullptr;
+        return !m_fileImports.empty();
     }
 
-    const importer_config& importer::get_config() const
+    const import_config& importer::get_config() const
     {
-        return m_config;
+        return m_fileImports.front().config;
     }
 
     uuid importer::get_import_id() const
@@ -249,7 +301,7 @@ namespace oblo
         return m_importId;
     }
 
-    bool importer::write_source_files(asset_registry& registry, std::span<const string> sourceFiles)
+    bool importer::write_source_files(asset_registry& registry, const deque<cstring_view>& sourceFiles)
     {
         string_builder importDir;
 
@@ -269,7 +321,7 @@ namespace oblo
         }
 
         pathBuilder.clear().append(importDir).append(ImportConfigFilename);
-        allSucceeded &= write_import_config(m_config, m_importerType, pathBuilder);
+        allSucceeded &= write_import_config(get_config(), m_importerType, pathBuilder);
 
         return allSucceeded;
     }
@@ -286,9 +338,23 @@ namespace oblo
         return m_impl->nodes;
     }
 
+    std::span<const import_node> import_context::get_child_import_nodes(usize i) const
+    {
+        OBLO_ASSERT(i < m_impl->fileImportData->childrenCount);
+        const auto index = m_impl->fileImportData->firstChild + i;
+        return m_impl->allImporters->at(index).preview.nodes;
+    }
+
     std::span<const import_node_config> import_context::get_import_node_configs() const
     {
         return m_impl->importNodesConfig;
+    }
+
+    std::span<const import_node_config> import_context::get_child_import_node_configs(usize i) const
+    {
+        OBLO_ASSERT(i < m_impl->fileImportData->childrenCount);
+        const auto index = m_impl->fileImportData->firstChild + i;
+        return m_impl->allImporters->at(index).nodeConfigs;
     }
 
     uuid import_context::get_import_uuid() const

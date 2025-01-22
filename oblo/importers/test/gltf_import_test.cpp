@@ -93,7 +93,7 @@ namespace oblo::importers
 
             ASSERT_TRUE(importer.is_valid());
 
-            ASSERT_TRUE(importer.init());
+            ASSERT_TRUE(importer.init(registry));
             ASSERT_TRUE(importer.execute(importSettings));
             ASSERT_TRUE(importer.finalize(registry, dirName));
 

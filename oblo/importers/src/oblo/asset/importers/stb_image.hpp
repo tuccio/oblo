@@ -15,7 +15,7 @@ namespace oblo::importers
     class stb_image final : public file_importer
     {
     public:
-        bool init(const importer_config& config, import_preview& preview);
+        bool init(const import_config& config, import_preview& preview);
         bool import(import_context context);
         file_import_results get_results();
 

@@ -169,6 +169,8 @@ namespace oblo::importers
                             }
                         });
                 }
+
+                out = std::move(withAlpha);
             }
             else if (vkFormat == VK_FORMAT_R32G32B32_SFLOAT)
             {
@@ -235,7 +237,7 @@ namespace oblo::importers
         }
     }
 
-    bool stb_image::init(const importer_config& config, import_preview& preview)
+    bool stb_image::init(const import_config& config, import_preview& preview)
     {
         m_source = config.sourceFile;
         auto& node = preview.nodes.emplace_back();

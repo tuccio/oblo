@@ -109,7 +109,7 @@ namespace oblo
             return true;
         }
 
-        bool save_asset_meta(const asset_meta& meta, std::span<const uuid> artifacts, cstring_view destination)
+        bool save_asset_meta(const asset_meta& meta, const deque<uuid>& artifacts, cstring_view destination)
         {
             char uuidBuffer[36];
 
@@ -377,12 +377,30 @@ namespace oblo
                 {
                     return importer{
                         generate_uuid(),
-                        importer_config{
+                        import_config{
                             .sourceFile = sourceFile.as<string>(),
                         },
                         type,
                         assetImporter.create(),
                     };
+                }
+            }
+        }
+
+        return {};
+    }
+
+    std::unique_ptr<file_importer> asset_registry::create_file_importer(cstring_view sourceFile) const
+    {
+        const auto ext = filesystem::extension(sourceFile);
+
+        for (auto& [type, assetImporter] : m_impl->importers)
+        {
+            for (const auto& importerExt : assetImporter.extensions)
+            {
+                if (importerExt == ext)
+                {
+                    return assetImporter.create();
                 }
             }
         }
@@ -435,7 +453,7 @@ namespace oblo
     bool asset_registry::save_asset(string_view destination,
         string_view assetName,
         const asset_meta& meta,
-        std::span<const uuid> artifacts,
+        const deque<uuid>& artifacts,
         write_policy policy)
     {
         const auto [assetIt, insertedAsset] = m_impl->assets.emplace(meta.id,

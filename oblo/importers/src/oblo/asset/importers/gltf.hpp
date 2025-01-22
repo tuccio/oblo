@@ -24,7 +24,7 @@ namespace oblo::importers
         gltf& operator=(gltf&&) noexcept = delete;
         ~gltf();
 
-        bool init(const importer_config& config, import_preview& preview);
+        bool init(const import_config& config, import_preview& preview);
         bool import(import_context context);
         file_import_results get_results();
 

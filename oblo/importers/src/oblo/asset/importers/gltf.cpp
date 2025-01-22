@@ -58,11 +58,8 @@ namespace oblo::importers
 
     struct gltf::import_image
     {
-        u32 nodeIndex;
-        std::unique_ptr<file_importer> importer;
-        // This is only set after importing is done
+        usize subImportIndex;
         uuid id;
-        bool isOcclusionMetalnessRoughness;
     };
 
     namespace
@@ -99,7 +96,7 @@ namespace oblo::importers
 
     gltf::~gltf() = default;
 
-    bool gltf::init(const importer_config& config, import_preview& preview)
+    bool gltf::init(const import_config& config, import_preview& preview)
     {
         // Seems like TinyGLTF wants std::string
         const auto sourceFileStr = config.sourceFile.as<std::string>();
@@ -164,8 +161,6 @@ namespace oblo::importers
             }
         }
 
-        import_preview imagePreview;
-
         m_importImages.reserve(m_model.images.size());
 
         std::string stdStringBuf;
@@ -190,30 +185,14 @@ namespace oblo::importers
                 continue;
             }
 
-            name.clear().append(stdStringBuf.c_str());
+            importImage.subImportIndex = preview.children.size();
+            auto& subImport = preview.children.emplace_back();
 
-            const u32 nodeIndex = u32(preview.nodes.size());
+            name.clear().append(stdStringBuf.c_str());
             preview.nodes.emplace_back(get_type_id<texture>(), name.as<string>());
 
-            // TODO: Look for the best registered image importer instead
-            auto importer = std::make_unique<stb_image>();
-
-            imagePreview.nodes.clear();
-
-            const bool ok = importer->init(
-                {
-                    .sourceFile = string_builder{}.append(m_sourceFileDir).append_path(name).as<string>(),
-                },
-                imagePreview);
-
-            if (!ok || imagePreview.nodes.size() != 1 || imagePreview.nodes[0].type != get_type_id<texture>())
-            {
-                log::warn("Texture {} skipped due to incompatible image importer", gltfImage.uri);
-                continue;
-            }
-
-            importImage.nodeIndex = nodeIndex;
-            importImage.importer = std::move(importer);
+            name.clear().append(m_sourceFileDir).append_path(stdStringBuf.c_str());
+            subImport.sourceFile = name.as<string>();
         }
 
         m_importMaterials.reserve(m_model.materials.size());
@@ -228,7 +207,16 @@ namespace oblo::importers
 
             if (metallicRoughness >= 0 && metallicRoughness == gltfMaterial.occlusionTexture.index)
             {
-                m_importImages[metallicRoughness].isOcclusionMetalnessRoughness = true;
+                auto& subImport = preview.children[m_importImages[metallicRoughness].subImportIndex];
+                auto& settings = subImport.settings;
+
+                // When the texture is an ORM map, we drop the occlusion and swap roughness and metalness back
+                settings.init();
+
+                const u32 swizzle = settings.child_array(settings.get_root(), "swizzle");
+
+                settings.child_value(swizzle, {}, property_kind::u32, as_bytes(u32{2}));
+                settings.child_value(swizzle, {}, property_kind::u32, as_bytes(u32{1}));
             }
         }
 
@@ -259,73 +247,15 @@ namespace oblo::importers
         const std::span importNodeConfigs = ctx.get_import_node_configs();
         const std::span importNodes = ctx.get_import_nodes();
 
-        parallel_for(
-            [&](job_range range)
-            {
-                for (u32 i = range.begin; i < range.end; ++i)
-                {
-                    auto& image = m_importImages[i];
-
-                    if (!image.importer || !importNodeConfigs[image.nodeIndex].enabled)
-                    {
-                        continue;
-                    }
-
-                    data_document settings;
-
-                    if (image.isOcclusionMetalnessRoughness)
-                    {
-                        // When the texture is an ORM map, we drop the occlusion and swap roughness and metalness back
-                        settings.init();
-
-                        const u32 swizzle = settings.child_array(settings.get_root(), "swizzle");
-
-                        settings.child_value(swizzle, {}, property_kind::u32, as_bytes(u32{2}));
-                        settings.child_value(swizzle, {}, property_kind::u32, as_bytes(u32{1}));
-                    }
-
-                    // TODO: Find a way to do sub-imports
-                    // const auto imageContext = import_context{
-                    //    .registry = ctx.registry,
-                    //    .nodes = importNodes.subspan(image.nodeIndex, 1),
-                    //    .importNodesConfig = importNodeConfigs.subspan(image.nodeIndex, 1),
-                    //    .importUuid = ctx.importUuid,
-                    //    .settings = settings,
-                    //};
-
-                    // if (image.importer->import(imageContext))
-                    //{
-                    //     OBLO_ASSERT(image.id.is_nil());
-                    //     image.id = imageContext.importNodesConfig[0].id;
-                    // }
-                }
-            },
-            job_range{0, u32(m_importImages.size())},
-            1);
-
-        for (auto& image : m_importImages)
+        for (usize i = 0; i < m_importImages.size(); ++i)
         {
-            if (!image.importer || !importNodeConfigs[image.nodeIndex].enabled)
-            {
-                continue;
-            }
+            const std::span childNodes = ctx.get_child_import_nodes(i);
+            const std::span childNodeConfigs = ctx.get_child_import_node_configs(i);
 
-            if (image.id.is_nil())
+            if (childNodes.size() == 1 && childNodeConfigs[0].enabled && childNodes[0].type == get_type_id<texture>())
             {
-                log::error("Failed to import image {}", importNodes[image.nodeIndex].name);
-                continue;
-            }
-            else
-            {
-                const auto results = image.importer->get_results();
-                m_sourceFiles.insert(m_sourceFiles.end(), results.sourceFiles.begin(), results.sourceFiles.end());
-
-                OBLO_ASSERT(results.artifacts.size() == 1, "Not sure how this would be more than atm");
-
-                for (auto& artifact : results.artifacts)
-                {
-                    m_artifacts.emplace_back(std::move(artifact));
-                }
+                auto& image = m_importImages[i];
+                image.id = childNodeConfigs[0].id;
             }
         }
 

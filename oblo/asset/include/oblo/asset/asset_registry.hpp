@@ -1,6 +1,5 @@
 #pragma once
 
-#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/type_id.hpp>
 
@@ -9,9 +8,16 @@
 
 namespace oblo
 {
+    class file_importer;
     class importer;
     class string_builder;
     class string;
+
+    template <typename T>
+    class deque;
+
+    template <typename T>
+    class dynamic_array;
 
     template <typename T>
     class function_ref;
@@ -50,6 +56,7 @@ namespace oblo
         bool create_directories(string_view directory);
 
         [[nodiscard]] importer create_importer(cstring_view sourceFile);
+        [[nodiscard]] std::unique_ptr<file_importer> create_file_importer(cstring_view sourceFile) const;
 
         bool find_asset_by_id(const uuid& id, asset_meta& assetMeta) const;
         bool find_asset_by_path(cstring_view path, uuid& id, asset_meta& assetMeta) const;
@@ -90,7 +97,7 @@ namespace oblo
         bool save_asset(string_view destination,
             string_view fileName,
             const asset_meta& meta,
-            std::span<const uuid> artifacts,
+            const deque<uuid>& artifacts,
             write_policy policy = write_policy::no_overwrite);
 
         bool create_source_files_dir(string_builder& dir, uuid importId);
