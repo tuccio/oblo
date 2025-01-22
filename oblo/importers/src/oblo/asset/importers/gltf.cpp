@@ -202,7 +202,6 @@ namespace oblo::importers
 
             const bool ok = importer->init(
                 {
-                    .registry = config.registry,
                     .sourceFile = string_builder{}.append(m_sourceFileDir).append_path(name).as<string>(),
                 },
                 imagePreview);

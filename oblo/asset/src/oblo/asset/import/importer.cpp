@@ -48,7 +48,6 @@ namespace oblo
 
     struct import_context_impl
     {
-        asset_registry& registry;
         std::span<const import_node> nodes;
         std::span<const import_node_config> importNodesConfig;
         uuid importUuid;
@@ -60,9 +59,12 @@ namespace oblo
 
     importer::importer(importer&&) noexcept = default;
 
-    importer::importer(
-        importer_config config, const type_id& importerType, std::unique_ptr<file_importer> fileImporter) :
-        m_config{std::move(config)}, m_importer{std::move(fileImporter)}, m_importerType{importerType}
+    importer::importer(uuid importUuid,
+        importer_config config,
+        const type_id& importerType,
+        std::unique_ptr<file_importer> fileImporter) :
+        m_importId{importUuid}, m_config{std::move(config)}, m_importer{std::move(fileImporter)},
+        m_importerType{importerType}
     {
     }
 
@@ -86,24 +88,21 @@ namespace oblo
         return true;
     }
 
-    bool importer::execute(string_view destinationDir, const data_document& importSettings)
+    bool importer::execute(const data_document& importSettings)
     {
-        if (!begin_import(*m_config.registry, m_importNodesConfig))
+        if (!begin_import(m_importNodesConfig))
         {
             return false;
         }
 
-        const auto importUuid = m_config.registry->generate_uuid();
-
         import_context_impl contextImpl{
-            .registry = *m_config.registry,
             .nodes = m_preview.nodes,
             .importNodesConfig = m_importNodesConfig,
-            .importUuid = importUuid,
+            .importUuid = m_importId,
             .settings = importSettings,
         };
 
-        contextImpl.temporaryPath.format("./.asset_import/{}", importUuid);
+        contextImpl.temporaryPath.format("./.asset_import/{}", m_importId);
 
         filesystem::create_directories(contextImpl.temporaryPath).assert_value();
 
@@ -116,51 +115,10 @@ namespace oblo
             return false;
         }
 
-        // TODO: Cleanup if finalize_import fails too, e.g. remove the saved artifacts, if any
-        return finalize_import(*m_config.registry, destinationDir);
-    }
-
-    bool importer::begin_import(asset_registry& registry, std::span<import_node_config> importNodesConfig)
-    {
-        // TODO: Could maybe create the folder here to ensure it's unique
-        m_importId = registry.generate_uuid();
-
-        if (importNodesConfig.size() != m_preview.nodes.size())
-        {
-            return false;
-        }
-
-        const auto uuidGenerator = uuid_namespace_generator{m_importId};
-
-        for (usize i = 0; i < importNodesConfig.size(); ++i)
-        {
-            const auto& node = m_preview.nodes[i];
-
-            if (!registry.has_asset_type(node.type))
-            {
-                return false;
-            }
-
-            // TODO: Ensure that names are unique
-            auto& config = importNodesConfig[i];
-            const auto h = hash_all<hash>(node.name, node.type, i);
-            config.id = uuidGenerator.generate(std::as_bytes(std::span{&h, sizeof(h)}));
-
-            const auto [artifactIt, artifactInserted] = m_artifacts.emplace(config.id,
-                artifact_meta{
-                    .id = config.id,
-                    .type = node.type,
-                    .importId = m_importId,
-                    .importName = node.name,
-                });
-
-            OBLO_ASSERT(artifactInserted);
-        }
-
         return true;
     }
 
-    bool importer::finalize_import(asset_registry& registry, string_view destination)
+    bool importer::finalize(asset_registry& registry, string_view destination)
     {
         if (!registry.create_directories(destination))
         {
@@ -176,7 +134,7 @@ namespace oblo
             .isImported = true,
         };
 
-        std::vector<uuid> importedArtifacts;
+        buffered_array<uuid, 8> importedArtifacts;
         importedArtifacts.reserve(results.artifacts.size());
 
         for (const import_artifact& artifact : results.artifacts)
@@ -237,9 +195,43 @@ namespace oblo
         const auto assetFileName = filesystem::stem(m_config.sourceFile);
 
         allSucceeded &= registry.save_asset(destination, assetFileName, std::move(assetMeta), importedArtifacts);
-        allSucceeded &= write_source_files(results.sourceFiles);
+        allSucceeded &= write_source_files(registry, results.sourceFiles);
+
+        // TODO: We might have to clean up on failure
 
         return allSucceeded;
+    }
+
+    bool importer::begin_import(std::span<import_node_config> importNodesConfig)
+    {
+        if (importNodesConfig.size() != m_preview.nodes.size())
+        {
+            return false;
+        }
+
+        const auto uuidGenerator = uuid_namespace_generator{m_importId};
+
+        for (usize i = 0; i < importNodesConfig.size(); ++i)
+        {
+            const auto& node = m_preview.nodes[i];
+
+            // TODO: Ensure that names are unique
+            auto& config = importNodesConfig[i];
+            const auto h = hash_all<hash>(node.name, node.type, i);
+            config.id = uuidGenerator.generate(std::as_bytes(std::span{&h, sizeof(h)}));
+
+            const auto [artifactIt, artifactInserted] = m_artifacts.emplace(config.id,
+                artifact_meta{
+                    .id = config.id,
+                    .type = node.type,
+                    .importId = m_importId,
+                    .importName = node.name,
+                });
+
+            OBLO_ASSERT(artifactInserted);
+        }
+
+        return true;
     }
 
     bool importer::is_valid() const noexcept
@@ -257,11 +249,11 @@ namespace oblo
         return m_importId;
     }
 
-    bool importer::write_source_files(std::span<const string> sourceFiles)
+    bool importer::write_source_files(asset_registry& registry, std::span<const string> sourceFiles)
     {
         string_builder importDir;
 
-        if (!m_config.registry->create_source_files_dir(importDir, m_importId))
+        if (!registry.create_source_files_dir(importDir, m_importId))
         {
             return false;
         }

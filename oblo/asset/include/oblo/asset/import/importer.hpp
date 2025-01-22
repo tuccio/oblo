@@ -23,7 +23,6 @@ namespace oblo
 
     struct importer_config
     {
-        asset_registry* registry;
         string sourceFile;
         data_document settings;
     };
@@ -53,7 +52,10 @@ namespace oblo
         importer(const importer&) = delete;
         importer(importer&&) noexcept;
 
-        importer(importer_config config, const type_id& importerType, std::unique_ptr<file_importer> fileImporter);
+        importer(uuid importUuid,
+            importer_config config,
+            const type_id& importerType,
+            std::unique_ptr<file_importer> fileImporter);
 
         ~importer();
 
@@ -62,7 +64,8 @@ namespace oblo
 
         bool init();
 
-        bool execute(string_view destinationDir, const data_document& importSettings);
+        bool execute(const data_document& importSettings);
+        bool finalize(asset_registry& registry, string_view destination);
 
         bool is_valid() const noexcept;
 
@@ -71,9 +74,8 @@ namespace oblo
         uuid get_import_id() const;
 
     private:
-        bool begin_import(asset_registry& registry, std::span<import_node_config> importNodesConfig);
-        bool finalize_import(asset_registry& registry, string_view destinationDir);
-        bool write_source_files(std::span<const string> sourceFiles);
+        bool begin_import(std::span<import_node_config> importNodesConfig);
+        bool write_source_files(asset_registry& registry, std::span<const string> sourceFiles);
 
     private:
         importer_config m_config;

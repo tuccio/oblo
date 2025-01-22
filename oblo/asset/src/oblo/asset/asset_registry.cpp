@@ -376,8 +376,8 @@ namespace oblo
                 if (importerExt == ext)
                 {
                     return importer{
+                        generate_uuid(),
                         importer_config{
-                            .registry = this,
                             .sourceFile = sourceFile.as<string>(),
                         },
                         type,
