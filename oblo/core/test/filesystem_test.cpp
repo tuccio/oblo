@@ -111,5 +111,76 @@ namespace oblo
             ASSERT_EQ(modifiedEvents, 1);
             ASSERT_EQ(eventsCount, 1);
         }
+
+        {
+            EXPECT_TRUE(filesystem::create_directories("./directory_watcher_test/bar"));
+
+            u32 createdEvents{};
+            u32 eventsCount{};
+
+            EXPECT_TRUE(w.process(
+                [&](const filesystem::directory_watcher_event& evt) OBLO_NOINLINE
+                {
+                    ++eventsCount;
+                    createdEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::created};
+
+                    EXPECT_TRUE(filesystem::is_directory(evt.path));
+                    EXPECT_EQ(filesystem::filename(evt.path), "bar");
+                }));
+
+            ASSERT_EQ(createdEvents, 1);
+            ASSERT_EQ(eventsCount, 1);
+        }
+
+        {
+            // Since it's not recursive, we should not get an event here
+            EXPECT_TRUE(write_text_file("./directory_watcher_test/bar/b.foo", "B"));
+
+            u32 eventsCount{};
+
+            EXPECT_TRUE(w.process([&](const filesystem::directory_watcher_event&) OBLO_NOINLINE { ++eventsCount; }));
+
+            ASSERT_EQ(eventsCount, 0);
+        }
+
+        {
+            EXPECT_TRUE(filesystem::rename("./directory_watcher_test/bar", "./directory_watcher_test/baz"));
+
+            u32 modifiedEvents{};
+            u32 renameOld{};
+            u32 renameNew{};
+            u32 eventsCount{};
+
+            EXPECT_TRUE(w.process(
+                [&](const filesystem::directory_watcher_event& evt) OBLO_NOINLINE
+                {
+                    ++eventsCount;
+                    modifiedEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::modified};
+                    renameOld += u32{evt.eventKind == filesystem::directory_watcher_event_kind::renamed_old_name};
+                    renameNew += u32{evt.eventKind == filesystem::directory_watcher_event_kind::renamed_new_name};
+
+                    if (evt.eventKind == filesystem::directory_watcher_event_kind::renamed_old_name)
+                    {
+                        ASSERT_EQ(filesystem::filename(evt.path), "bar");
+                    }
+
+                    if (evt.eventKind == filesystem::directory_watcher_event_kind::renamed_new_name)
+                    {
+                        ASSERT_EQ(filesystem::filename(evt.path), "baz");
+                    }
+
+                    // At least on Windows we also get a modified event for the directory itself (but not for the
+                    // parent)
+                    if (evt.eventKind == filesystem::directory_watcher_event_kind::modified)
+                    {
+                        ASSERT_EQ(filesystem::filename(evt.path), "baz");
+                    }
+                }));
+
+            ASSERT_EQ(modifiedEvents, 1);
+            ASSERT_EQ(renameOld, 1);
+            ASSERT_EQ(renameNew, 1);
+            ASSERT_EQ(eventsCount, 3);
+        }
     }
 }

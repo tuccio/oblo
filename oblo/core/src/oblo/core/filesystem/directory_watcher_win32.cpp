@@ -199,7 +199,6 @@ namespace oblo::filesystem
                 else
                 {
                     string_builder builder;
-                    builder = m_impl->path;
 
                     DWORD offset = 0;
 
@@ -239,8 +238,12 @@ namespace oblo::filesystem
 
                         if (!skip)
                         {
-                            builder.resize(m_impl->path.size());
-                            builder.append_path_separator().append(fi->FileName, fi->FileName + fi->FileNameLength);
+                            builder = m_impl->path;
+
+                            auto* const fileNameBegin = fi->FileName;
+                            auto* const fileNameEnd = fi->FileName + fi->FileNameLength / sizeof(wchar_t);
+
+                            builder.append_path_separator().append(fileNameBegin, fileNameEnd);
 
                             bool alreadySent = false;
 
@@ -248,7 +251,7 @@ namespace oblo::filesystem
                             if (eventKind == directory_watcher_event_kind::modified)
                             {
                                 m_impl->nativePathBuffer = m_impl->nativePath;
-                                m_impl->nativePathBuffer.append(std::wstring_view{fi->FileName, fi->FileNameLength});
+                                m_impl->nativePathBuffer.append(std::wstring_view{fileNameBegin, fileNameEnd});
 
                                 const auto newModification = modification_tracker::make(m_impl->nativePathBuffer);
 
