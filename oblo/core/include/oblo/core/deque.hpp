@@ -79,6 +79,7 @@ namespace oblo
         iterator end();
 
         usize size() const;
+        u32 size32() const;
         usize capacity() const;
         usize elements_per_chunk() const;
         usize chunks_count() const;
@@ -562,6 +563,12 @@ namespace oblo
     OBLO_FORCEINLINE usize deque<T>::size() const
     {
         return m_size;
+    }
+
+    template <typename T>
+    OBLO_FORCEINLINE u32 deque<T>::size32() const
+    {
+        return narrow_cast<u32>(m_size);
     }
 
     template <typename T>

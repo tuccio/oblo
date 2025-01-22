@@ -11,6 +11,7 @@
 #include <oblo/core/uuid.hpp>
 #include <oblo/core/uuid_generator.hpp>
 #include <oblo/log/log.hpp>
+#include <oblo/thread/parallel_for.hpp>
 
 #include <nlohmann/json.hpp>
 
@@ -65,6 +66,7 @@ namespace oblo
         dynamic_array<import_node_config> nodeConfigs;
         usize firstChild;
         usize childrenCount;
+        bool success;
     };
 
     importer::importer() = default;
@@ -132,24 +134,36 @@ namespace oblo
 
         filesystem::create_directories(temporaryPath).assert_value();
 
-        for (auto& fi : m_fileImports)
-        {
-            const import_context_impl contextImpl{
-                .nodes = fi.preview.nodes,
-                .importNodesConfig = fi.nodeConfigs,
-                .importUuid = m_importId,
-                .settings = importSettings,
-                .temporaryPath = temporaryPath,
-                .fileImportData = &fi,
-                .allImporters = &m_fileImports,
-            };
-
-            import_context context;
-            context.m_impl = &contextImpl;
-
-            if (!fi.importer->import(context))
+        parallel_for(
+            [this, &importSettings, &temporaryPath](const job_range& r)
             {
-                // TODO: Cleanup
+                for (u32 i = r.begin; i < r.end; ++i)
+                {
+                    auto& fi = m_fileImports[i];
+
+                    const import_context_impl contextImpl{
+                        .nodes = fi.preview.nodes,
+                        .importNodesConfig = fi.nodeConfigs,
+                        .importUuid = m_importId,
+                        .settings = i == 0 ? importSettings : fi.config.settings,
+                        .temporaryPath = temporaryPath,
+                        .fileImportData = &fi,
+                        .allImporters = &m_fileImports,
+                    };
+
+                    import_context context;
+                    context.m_impl = &contextImpl;
+
+                    fi.success = fi.importer->import(context);
+                }
+            },
+            job_range{0, m_fileImports.size32()},
+            1u);
+
+        for (const auto& fi : m_fileImports)
+        {
+            if (!fi.success)
+            {
                 return false;
             }
         }
