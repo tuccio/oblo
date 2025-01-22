@@ -17,8 +17,7 @@ namespace oblo::filesystem
         created,
         modified,
         removed,
-        renamed_old_name,
-        renamed_new_name,
+        renamed,
         enum_max,
     };
 
@@ -59,6 +58,9 @@ namespace oblo::filesystem
     {
         cstring_view path;
         directory_watcher_event_kind eventKind;
+
+        /// @brief The previous name in a rename event.
+        cstring_view previousName;
     };
 
 }

@@ -147,8 +147,7 @@ namespace oblo
             EXPECT_TRUE(filesystem::rename("./directory_watcher_test/bar", "./directory_watcher_test/baz"));
 
             u32 modifiedEvents{};
-            u32 renameOld{};
-            u32 renameNew{};
+            u32 renameEvents{};
             u32 eventsCount{};
 
             EXPECT_TRUE(w.process(
@@ -156,17 +155,12 @@ namespace oblo
                 {
                     ++eventsCount;
                     modifiedEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::modified};
-                    renameOld += u32{evt.eventKind == filesystem::directory_watcher_event_kind::renamed_old_name};
-                    renameNew += u32{evt.eventKind == filesystem::directory_watcher_event_kind::renamed_new_name};
+                    renameEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::renamed};
 
-                    if (evt.eventKind == filesystem::directory_watcher_event_kind::renamed_old_name)
-                    {
-                        ASSERT_EQ(filesystem::filename(evt.path), "bar");
-                    }
-
-                    if (evt.eventKind == filesystem::directory_watcher_event_kind::renamed_new_name)
+                    if (evt.eventKind == filesystem::directory_watcher_event_kind::renamed)
                     {
                         ASSERT_EQ(filesystem::filename(evt.path), "baz");
+                        ASSERT_EQ(filesystem::filename(evt.previousName), "bar");
                     }
 
                     // At least on Windows we also get a modified event for the directory itself (but not for the
@@ -178,9 +172,8 @@ namespace oblo
                 }));
 
             ASSERT_EQ(modifiedEvents, 1);
-            ASSERT_EQ(renameOld, 1);
-            ASSERT_EQ(renameNew, 1);
-            ASSERT_EQ(eventsCount, 3);
+            ASSERT_EQ(renameEvents, 1);
+            ASSERT_EQ(eventsCount, 2);
         }
     }
 }

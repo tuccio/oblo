@@ -104,6 +104,8 @@ namespace oblo::filesystem
         std::filesystem::path nativePath;
         std::filesystem::path nativePathBuffer;
 
+        bool isExpectingRenameNewName{};
+
         alignas(void*) u8 buffer[1024];
     };
 
@@ -180,6 +182,9 @@ namespace oblo::filesystem
     {
         modification_tracker lastModification{};
 
+        string_builder builder;
+        string_builder auxBuilder;
+
         while (true)
         {
             constexpr DWORD timeoutMs = 0;
@@ -198,8 +203,6 @@ namespace oblo::filesystem
                 }
                 else
                 {
-                    string_builder builder;
-
                     DWORD offset = 0;
 
                     do
@@ -219,12 +222,19 @@ namespace oblo::filesystem
                             eventKind = directory_watcher_event_kind::removed;
                             break;
 
-                        case FILE_ACTION_RENAMED_OLD_NAME:
-                            eventKind = directory_watcher_event_kind::renamed_old_name;
-                            break;
+                        case FILE_ACTION_RENAMED_OLD_NAME: {
+                            auto* const fileNameBegin = fi->FileName;
+                            auto* const fileNameEnd = fi->FileName + fi->FileNameLength / sizeof(wchar_t);
+                            m_impl->nativePathBuffer = std::wstring_view{fileNameBegin, fileNameEnd};
+
+                            skip = true;
+                        }
+                        break;
 
                         case FILE_ACTION_RENAMED_NEW_NAME:
-                            eventKind = directory_watcher_event_kind::renamed_new_name;
+                            OBLO_ASSERT(m_impl->isExpectingRenameNewName);
+                            eventKind = directory_watcher_event_kind::renamed;
+                            skip = !m_impl->isExpectingRenameNewName;
                             break;
 
                         case FILE_ACTION_MODIFIED:
@@ -236,6 +246,8 @@ namespace oblo::filesystem
                             break;
                         }
 
+                        m_impl->isExpectingRenameNewName = fi->Action == FILE_ACTION_RENAMED_OLD_NAME;
+
                         if (!skip)
                         {
                             builder = m_impl->path;
@@ -245,7 +257,12 @@ namespace oblo::filesystem
 
                             builder.append_path_separator().append(fileNameBegin, fileNameEnd);
 
-                            bool alreadySent = false;
+                            directory_watcher_event evt{
+                                .path = builder,
+                                .eventKind = eventKind,
+                            };
+
+                            bool sendEvent = true;
 
                             // Try to reduce the spam of modified events a little bit
                             if (eventKind == directory_watcher_event_kind::modified)
@@ -255,20 +272,26 @@ namespace oblo::filesystem
 
                                 const auto newModification = modification_tracker::make(m_impl->nativePathBuffer);
 
-                                alreadySent = newModification == lastModification;
+                                sendEvent = newModification != lastModification;
 
-                                if (!alreadySent)
+                                if (sendEvent)
                                 {
                                     lastModification = newModification;
                                 }
                             }
-
-                            if (!alreadySent)
+                            else if (eventKind == directory_watcher_event_kind::renamed)
                             {
-                                callback({
-                                    .path = builder,
-                                    .eventKind = eventKind,
-                                });
+                                auxBuilder = m_impl->path;
+
+                                auxBuilder.append_path_separator().append(m_impl->nativePathBuffer.native().c_str(),
+                                    m_impl->nativePathBuffer.c_str() + m_impl->nativePathBuffer.native().size());
+
+                                evt.previousName = auxBuilder;
+                            }
+
+                            if (sendEvent)
+                            {
+                                callback(evt);
                             }
                         }
 
