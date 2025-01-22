@@ -5,9 +5,9 @@
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/core/unique_ptr.hpp>
 
 #include <iosfwd>
-#include <memory>
 #include <utility>
 
 namespace oblo
@@ -69,7 +69,7 @@ namespace oblo::vk
         bool has_event_impl(const type_id& type) const;
 
     private:
-        std::unique_ptr<frame_graph_impl> m_impl;
+        unique_ptr<frame_graph_impl> m_impl;
     };
 
     template <typename T>

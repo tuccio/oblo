@@ -4,10 +4,10 @@
 #include <oblo/core/flat_dense_forward.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/string/string_view.hpp>
+#include <oblo/core/unique_ptr.hpp>
 
 #include <vulkan/vulkan.h>
 
-#include <memory>
 #include <span>
 
 namespace oblo
@@ -20,6 +20,9 @@ namespace oblo
 
     template <typename Key, typename Value, typename KeyExtractor>
     class flat_dense_map;
+
+    template <typename>
+    class function_ref;
 }
 
 namespace oblo::vk
@@ -29,6 +32,7 @@ namespace oblo::vk
     class resource_manager;
     class texture_registry;
     class vulkan_context;
+    struct base_pipeline;
     struct buffer;
     struct bindable_object;
     struct batch_draw_data;
@@ -36,6 +40,7 @@ namespace oblo::vk
     struct compute_pass_initializer;
     struct compute_pipeline;
     struct compute_pipeline_initializer;
+    struct descriptor_binding;
     struct raytracing_pass;
     struct raytracing_pass_initializer;
     struct raytracing_pipeline;
@@ -55,6 +60,9 @@ namespace oblo::vk
 
     class pass_manager
     {
+    public:
+        using locate_binding_fn = function_ref<bindable_object(const descriptor_binding&)>;
+
     public:
         pass_manager();
         pass_manager(const pass_manager&) = delete;
@@ -85,6 +93,7 @@ namespace oblo::vk
 
         void begin_frame(VkCommandBuffer commandBuffer);
         void end_frame();
+        void update_global_descriptor_sets();
 
         void update_instance_data_defines(string_view defines);
 
@@ -119,22 +128,39 @@ namespace oblo::vk
             u32 offset,
             std::span<const byte> data) const;
 
+        void push_constants(VkCommandBuffer commandBuffer,
+            const base_pipeline& pipeline,
+            VkShaderStageFlags stages,
+            u32 offset,
+            std::span<const byte> data) const;
+
         void bind_descriptor_sets(const render_pass_context& ctx,
             std::span<const binding_table* const> bindingTables) const;
 
         void bind_descriptor_sets(const compute_pass_context& ctx,
             std::span<const binding_table* const> bindingTables) const;
 
+        void bind_descriptor_sets(VkCommandBuffer commandBuffer,
+            VkPipelineBindPoint bindPoint,
+            const base_pipeline& pipeline,
+            locate_binding_fn locateBinding) const;
+
         void bind_descriptor_sets(const raytracing_pass_context& ctx,
             std::span<const binding_table* const> bindingTables) const;
 
         void trace_rays(const raytracing_pass_context& ctx, u32 width, u32 height, u32 depth) const;
 
+        const base_pipeline* get_base_pipeline(const compute_pipeline* pipeline) const;
+        const base_pipeline* get_base_pipeline(const render_pipeline* pipeline) const;
+        const base_pipeline* get_base_pipeline(const raytracing_pipeline* pipeline) const;
+
+        string_view get_pass_name(const base_pipeline& pipeline) const;
+
     private:
         struct impl;
 
     private:
-        std::unique_ptr<impl> m_impl;
+        unique_ptr<impl> m_impl;
     };
 
     struct render_pass_context

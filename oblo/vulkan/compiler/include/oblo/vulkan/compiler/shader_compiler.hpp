@@ -5,29 +5,12 @@
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/unique_ptr.hpp>
+#include <oblo/vulkan/compiler/shader_stage.hpp>
 
 #include <span>
 
 namespace oblo::vk
 {
-    enum class shader_stage : u8
-    {
-        mesh,
-        task,
-        compute,
-        vertex,
-        geometry,
-        tessellation_control,
-        tessellation_evaluation,
-        fragment,
-        raygen,
-        intersection,
-        closest_hit,
-        any_hit,
-        miss,
-        callable,
-    };
-
     class result;
 
     struct shader_preprocessor_options

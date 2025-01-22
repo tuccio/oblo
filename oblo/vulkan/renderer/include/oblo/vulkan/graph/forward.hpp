@@ -15,11 +15,16 @@ namespace oblo::vk
     struct raytracing_pass;
 
     struct frame_graph_pass;
+    struct compute_pass_instance;
+    struct raytracing_pass_instance;
+    struct render_pass_instance;
 
+    struct acceleration_structure;
     struct buffer;
     struct texture;
 
     enum class texture_usage : u8;
     enum class buffer_usage : u8;
     enum class pass_kind : u8;
+    enum class shader_stage : u8;
 }

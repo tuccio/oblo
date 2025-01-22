@@ -154,6 +154,7 @@ bool surfel_data_is_alive(in surfel_data surfelData)
 float surfel_max_radius(in surfel_grid_header gridHeader)
 {
     const float gridCellSize = surfel_grid_cell_size(gridHeader);
+    // If this limit is changed, g_MaxSurfelMultiplicity has to be changed on the C++ side
     const float maxRadius = .25f * gridCellSize;
     return maxRadius;
 }

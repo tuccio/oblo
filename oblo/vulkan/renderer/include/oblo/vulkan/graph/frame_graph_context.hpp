@@ -7,6 +7,7 @@
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/frame_graph_resources.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 
@@ -24,6 +25,9 @@ namespace oblo
 
     template <typename>
     class resource_ptr;
+
+    template <typename E, u32 Size>
+    struct flags;
 
     namespace ecs
     {
@@ -46,12 +50,23 @@ namespace oblo::vk
 
     struct loaded_functions;
     struct frame_graph_impl;
+    struct frame_graph_build_state;
+    struct frame_graph_execution_state;
     struct frame_graph_pin_storage;
     struct frame_graph_pass;
+    struct compute_pass_instance;
     struct resident_texture;
     struct staging_buffer_span;
 
+    struct compute_pass_initializer;
+    struct render_pass_initializer;
+    struct raytracing_pass_initializer;
+    struct compute_pipeline_initializer;
+    struct render_pipeline_initializer;
+    struct raytracing_pipeline_initializer;
+
     using binding_table = flat_dense_map<h32<string>, bindable_object>;
+    class binding_table2;
 
     enum class pass_kind : u8
     {
@@ -85,6 +100,25 @@ namespace oblo::vk
         enum_max,
     };
 
+    struct texture_binding_desc
+    {
+        string_view name;
+        resource<texture> resource;
+    };
+
+    struct buffer_binding_desc
+    {
+        string_view name;
+        resource<buffer> resource;
+    };
+
+    struct gpu_info
+    {
+        u32 subgroupSize;
+    };
+
+    class binding_tables_span;
+
     class frame_graph_init_context
     {
     public:
@@ -94,6 +128,10 @@ namespace oblo::vk
 
         string_interner& get_string_interner() const;
 
+        h32<compute_pass> register_compute_pass(const compute_pass_initializer& initializer) const;
+        h32<render_pass> register_render_pass(const render_pass_initializer& initializer) const;
+        h32<raytracing_pass> register_raytracing_pass(const raytracing_pass_initializer& initializer) const;
+
     private:
         frame_graph_impl& m_frameGraph;
         renderer& m_renderer;
@@ -102,10 +140,21 @@ namespace oblo::vk
     class frame_graph_build_context
     {
     public:
-        explicit frame_graph_build_context(
-            frame_graph_impl& frameGraph, renderer& renderer, resource_pool& resourcePool);
+        explicit frame_graph_build_context(frame_graph_impl& frameGraph,
+            frame_graph_build_state& state,
+            renderer& renderer,
+            resource_pool& resourcePool);
 
         h32<frame_graph_pass> begin_pass(pass_kind kind) const;
+
+        [[nodiscard]] h32<compute_pass_instance> compute_pass(h32<compute_pass> pass,
+            const compute_pipeline_initializer& initializer) const;
+
+        [[nodiscard]] h32<render_pass_instance> render_pass(h32<render_pass> pass,
+            const render_pipeline_initializer& initializer) const;
+
+        [[nodiscard]] h32<raytracing_pass_instance> raytracing_pass(h32<raytracing_pass> pass,
+            const raytracing_pipeline_initializer& initializer) const;
 
         void create(
             resource<texture> texture, const texture_resource_initializer& initializer, texture_usage usage) const;
@@ -187,29 +236,30 @@ namespace oblo::vk
 
     private:
         frame_graph_impl& m_frameGraph;
+        frame_graph_build_state& m_state;
         renderer& m_renderer;
         resource_pool& m_resourcePool;
-    };
-
-    struct buffer_binding_desc
-    {
-        string_view name;
-        resource<buffer> resource;
-    };
-
-    struct texture_binding_desc
-    {
-        string_view name;
-        resource<texture> resource;
     };
 
     class frame_graph_execute_context
     {
     public:
-        explicit frame_graph_execute_context(
-            frame_graph_impl& frameGraph, renderer& renderer, VkCommandBuffer commandBuffer);
+        explicit frame_graph_execute_context(const frame_graph_impl& frameGraph,
+            frame_graph_execution_state& executeCtx,
+            renderer& renderer,
+            VkCommandBuffer commandBuffer);
 
         void begin_pass(h32<frame_graph_pass> handle) const;
+
+        expected<> begin_pass(h32<compute_pass_instance> handle) const;
+
+        expected<> begin_pass(h32<render_pass_instance> handle, const VkRenderingInfo& renderingInfo) const;
+
+        expected<> begin_pass(h32<raytracing_pass_instance> handle) const;
+
+        void end_pass() const;
+
+        void bind_descriptor_sets(binding_tables_span bindingTables) const;
 
         template <typename T>
         T& access(data<T> data) const
@@ -226,6 +276,8 @@ namespace oblo::vk
         texture access(resource<texture> h) const;
 
         buffer access(resource<buffer> h) const;
+
+        resource<acceleration_structure> get_global_tlas() const;
 
         /// @brief Determines whether the pin has an incoming edge.
         bool has_source(resource<buffer> buffer) const;
@@ -274,13 +326,20 @@ namespace oblo::vk
             return has_event_impl(get_type_id<T>());
         }
 
+        const gpu_info& get_gpu_info() const;
+
+        void push_constants(flags<shader_stage, 14> stages, u32 offset, std::span<const byte> bytes) const;
+        void dispatch_compute(u32 groupsX, u32 groupsY, u32 groupsZ) const;
+        void trace_rays(u32 x, u32 y, u32 z) const;
+
     private:
         void* access_storage(h32<frame_graph_pin_storage> handle) const;
 
         bool has_event_impl(const type_id& type) const;
 
     private:
-        frame_graph_impl& m_frameGraph;
+        const frame_graph_impl& m_frameGraph;
+        frame_graph_execution_state& m_state;
         renderer& m_renderer;
         VkCommandBuffer m_commandBuffer;
     };

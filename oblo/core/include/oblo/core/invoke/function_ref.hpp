@@ -1,5 +1,7 @@
 #pragma once
 
+#include <oblo/core/platform/compiler.hpp>
+
 #include <type_traits>
 #include <utility>
 
@@ -8,28 +10,44 @@ namespace oblo
     template <typename>
     class function_ref;
 
+    template <typename T>
+    struct is_function_ref : std::bool_constant<false>
+    {
+    };
+
+    template <typename T>
+    struct is_function_ref<function_ref<T>> : std::bool_constant<true>
+    {
+    };
+
     template <typename R, typename... Args>
     class function_ref<R(Args...)>
     {
     public:
-        function_ref() = default;
-        function_ref(const function_ref&) = default;
-        function_ref& operator=(const function_ref&) = default;
+        constexpr function_ref() = default;
+        constexpr function_ref(const function_ref&) = default;
+        constexpr function_ref(function_ref&&) noexcept = default;
+        constexpr function_ref& operator=(const function_ref&) = default;
+        constexpr function_ref& operator=(function_ref&&) noexcept = default;
 
         template <typename F>
-        function_ref(F&& f) : m_userdata{&f}
+            requires(!is_function_ref<std::decay_t<F>>::value)
+        constexpr function_ref(F&& f) : m_userdata{&f}
         {
-            m_invoke = [](void* userdata, Args... args)
-            { return (*static_cast<std::add_pointer_t<F>>(userdata))(args...); };
+            m_invoke = [](void* userdata, Args... args) -> R
+            {
+                auto&& f = (*static_cast<std::add_pointer_t<F>>(userdata));
+                return f(args...);
+            };
         }
 
         template <typename... T>
-        R operator()(T&&... args) const
+        OBLO_FORCEINLINE constexpr R operator()(T&&... args) const
         {
             return m_invoke(m_userdata, std::forward<T>(args)...);
         }
 
-        explicit operator bool() const noexcept
+        OBLO_FORCEINLINE constexpr explicit operator bool() const noexcept
         {
             return m_invoke != nullptr;
         }

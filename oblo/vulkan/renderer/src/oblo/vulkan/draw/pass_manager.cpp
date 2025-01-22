@@ -7,6 +7,7 @@
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/core/hash.hpp>
+#include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/core/iterator/enum_range.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/string/string_builder.hpp>
@@ -27,6 +28,7 @@
 #include <oblo/vulkan/draw/mesh_table.hpp>
 #include <oblo/vulkan/draw/raytracing_pass_initializer.hpp>
 #include <oblo/vulkan/draw/render_pass_initializer.hpp>
+#include <oblo/vulkan/draw/shader_stage_utils.hpp>
 #include <oblo/vulkan/draw/texture_registry.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/texture.hpp>
@@ -113,43 +115,6 @@ namespace oblo::vk
             case raytracing_stage::callable:
                 return VK_SHADER_STAGE_CALLABLE_BIT_KHR;
 
-            default:
-                unreachable();
-            }
-        }
-
-        shader_stage from_vk_shader_stage(VkShaderStageFlagBits vkStage)
-        {
-            switch (vkStage)
-            {
-            case VK_SHADER_STAGE_VERTEX_BIT:
-                return shader_stage::vertex;
-            case VK_SHADER_STAGE_GEOMETRY_BIT:
-                return shader_stage::geometry;
-            case VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT:
-                return shader_stage::tessellation_control;
-            case VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT:
-                return shader_stage::tessellation_evaluation;
-            case VK_SHADER_STAGE_FRAGMENT_BIT:
-                return shader_stage::fragment;
-            case VK_SHADER_STAGE_COMPUTE_BIT:
-                return shader_stage::compute;
-            case VK_SHADER_STAGE_RAYGEN_BIT_KHR:
-                return shader_stage::raygen;
-            case VK_SHADER_STAGE_INTERSECTION_BIT_KHR:
-                return shader_stage::intersection;
-            case VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR:
-                return shader_stage::closest_hit;
-            case VK_SHADER_STAGE_ANY_HIT_BIT_KHR:
-                return shader_stage::any_hit;
-            case VK_SHADER_STAGE_MISS_BIT_KHR:
-                return shader_stage::miss;
-            case VK_SHADER_STAGE_CALLABLE_BIT_KHR:
-                return shader_stage::callable;
-            case VK_SHADER_STAGE_TASK_BIT_EXT:
-                return shader_stage::task;
-            case VK_SHADER_STAGE_MESH_BIT_EXT:
-                return shader_stage::mesh;
             default:
                 unreachable();
             }
@@ -265,6 +230,7 @@ namespace oblo::vk
             u32 location;
             u32 binding;
             resource_kind kind;
+            bool readOnly;
             VkShaderStageFlags stageFlags;
         };
 
@@ -707,6 +673,9 @@ namespace oblo::vk
             const base_pipeline& pipeline,
             std::span<const binding_table* const> bindingTables);
 
+        VkDescriptorSet create_descriptor_set(
+            VkDescriptorSetLayout descriptorSetLayout, const base_pipeline& pipeline, locate_binding_fn findBinding);
+
         shader_compiler_options make_compiler_options();
 
         template <typename Filter = decltype([](auto&&) { return true; })>
@@ -863,6 +832,7 @@ namespace oblo::vk
                 shader_resource_sorting::from(newPipeline.resources[next]))
             {
                 newPipeline.resources[current].stageFlags |= newPipeline.resources[next].stageFlags;
+                newPipeline.resources[current].readOnly |= newPipeline.resources[next].readOnly;
 
                 // Remove the next but keep the order
                 newPipeline.resources.erase(newPipeline.resources.begin() + next);
@@ -914,6 +884,7 @@ namespace oblo::vk
                 .binding = resource.binding,
                 .descriptorType = descriptorType,
                 .stageFlags = resource.stageFlags,
+                .readOnly = resource.readOnly,
             });
         }
 
@@ -1030,12 +1001,14 @@ namespace oblo::vk
             const auto name = interner->get_or_add(storageBuffer.name);
             const auto location = compiler.get_decoration(storageBuffer.id, spv::DecorationLocation);
             const auto binding = compiler.get_decoration(storageBuffer.id, spv::DecorationBinding);
+            const auto readOnly = compiler.get_decoration(storageBuffer.id, spv::DecorationNonWritable) != 0;
 
             newPipeline.resources.push_back({
                 .name = name,
                 .location = location,
                 .binding = binding,
                 .kind = resource_kind::storage_buffer,
+                .readOnly = readOnly,
                 .stageFlags = VkShaderStageFlags(vkStage),
             });
 
@@ -1261,6 +1234,25 @@ namespace oblo::vk
         const base_pipeline& pipeline,
         std::span<const binding_table* const> bindingTables)
     {
+        return create_descriptor_set(descriptorSetLayout,
+            pipeline,
+            [&bindingTables](const descriptor_binding& binding) -> bindable_object
+            {
+                for (const auto& bindingTable : bindingTables)
+                {
+                    if (auto* const o = bindingTable->try_find(binding.name))
+                    {
+                        return *o;
+                    }
+                }
+
+                return {};
+            });
+    }
+
+    VkDescriptorSet pass_manager::impl::create_descriptor_set(
+        VkDescriptorSetLayout descriptorSetLayout, const base_pipeline& pipeline, locate_binding_fn locateBinding)
+    {
         const VkDescriptorSet descriptorSet = descriptorSetPool.acquire(descriptorSetLayout);
 
         vkCtx->get_debug_utils_object().set_object_name(device,
@@ -1279,11 +1271,10 @@ namespace oblo::vk
         VkWriteDescriptorSet descriptorSetWrites[MaxWrites];
         VkWriteDescriptorSetAccelerationStructureKHR asSetWrites[MaxWrites];
 
-        auto writeBufferToDescriptorSet = [descriptorSet,
-                                              &bufferInfo,
-                                              &descriptorSetWrites,
-                                              &buffersCount,
-                                              &writesCount](const descriptor_binding& binding, const buffer& buffer)
+        auto writeBufferToDescriptorSet =
+            [descriptorSet, &bufferInfo, &descriptorSetWrites, &buffersCount, &writesCount](
+                const descriptor_binding& binding,
+                const bindable_buffer& buffer)
         {
             OBLO_ASSERT(buffersCount < MaxWrites);
             OBLO_ASSERT(writesCount < MaxWrites);
@@ -1369,71 +1360,61 @@ namespace oblo::vk
 
         for (const auto& binding : pipeline.descriptorSetBindings)
         {
-            bool found = false;
+            const auto bindableObject = locateBinding(binding);
 
-            for (const auto* const table : bindingTables)
+            switch (bindableObject.kind)
             {
-                auto* const bindableObject = table->try_find(binding.name);
-
-                if (bindableObject)
+            case bindable_resource_kind::buffer:
+                if (is_buffer_binding(binding))
                 {
-                    switch (bindableObject->kind)
-                    {
-                    case bindable_object_kind::buffer:
-                        if (is_buffer_binding(binding))
-                        {
-                            writeBufferToDescriptorSet(binding, bindableObject->buffer);
-                        }
-                        else
-                        {
-                            log::debug("[{}] A binding for {} was found, but it's not a buffer as expected",
-                                pipeline.label,
-                                interner->str(binding.name));
-                        }
-
-                        break;
-                    case bindable_object_kind::texture:
-                        if (is_image_binding(binding))
-                        {
-                            writeImageToDescriptorSet(binding, bindableObject->texture);
-                        }
-                        else
-                        {
-                            log::debug("[{}] A binding for {} was found, but it's not a texture as expected",
-                                pipeline.label,
-                                interner->str(binding.name));
-                        }
-
-                        break;
-                    case bindable_object_kind::acceleration_structure:
-                        if (binding.descriptorType == VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR)
-                        {
-                            writeAccelerationStructureToDescriptorSet(binding, bindableObject->accelerationStructure);
-                        }
-                        else
-                        {
-                            log::debug("[{}] A binding for {} was found, but it's not an acceleration structure as "
-                                       "expected",
-                                pipeline.label,
-                                interner->str(binding.name));
-                        }
-
-                        break;
-                    }
-
-                    found = true;
-                    break;
+                    writeBufferToDescriptorSet(binding, bindableObject.buffer);
                 }
-            }
+                else
+                {
+                    log::debug("[{}] A binding for {} was found, but it's not a buffer as expected",
+                        pipeline.label,
+                        interner->str(binding.name));
+                }
 
-            if (found)
-            {
-                continue;
-            }
+                break;
+            case bindable_resource_kind::texture:
+                if (is_image_binding(binding))
+                {
+                    writeImageToDescriptorSet(binding, bindableObject.texture);
+                }
+                else
+                {
+                    log::debug("[{}] A binding for {} was found, but it's not a texture as expected",
+                        pipeline.label,
+                        interner->str(binding.name));
+                }
 
-            log::debug("[{}] Unable to find matching buffer for binding {}",
-                pipeline.label,
-                interner->str(binding.name));
+                break;
+            case bindable_resource_kind::acceleration_structure:
+                if (binding.descriptorType == VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR)
+                {
+                    writeAccelerationStructureToDescriptorSet(binding, bindableObject.accelerationStructure);
+                }
+                else
+                {
+                    log::debug("[{}] A binding for {} was found, but it's not an acceleration structure as "
+                               "expected",
+                        pipeline.label,
+                        interner->str(binding.name));
+                }
+
+                break;
+
+            case bindable_resource_kind::none:
+                log::debug("[{}] Unable to find matching buffer for binding {}",
+                    pipeline.label,
+                    interner->str(binding.name));
+
+                break;
+
+            default:
+                unreachable();
+            }
         }
 
         if (writesCount > 0)
@@ -1452,7 +1433,7 @@ namespace oblo::vk
         const buffer& dummy,
         const texture_registry& textureRegistry)
     {
-        m_impl = std::make_unique<impl>();
+        m_impl = allocate_unique<impl>();
 
         m_impl->frameAllocator.init(1u << 22);
 
@@ -2595,56 +2576,6 @@ namespace oblo::vk
             m_impl->shaderCache.set_cache_enabled(shaderCompilerConfig.enableSpirvCache);
         }
 
-        m_impl->descriptorSetPool.begin_frame();
-        m_impl->texturesDescriptorSetPool.begin_frame();
-
-        const auto debugUtils = m_impl->vkCtx->get_debug_utils_object();
-
-        const std::span textures2DInfo = m_impl->textureRegistry->get_textures2d_info();
-
-        if (textures2DInfo.empty())
-        {
-            m_impl->currentTextures2DDescriptor = {};
-            return;
-        }
-
-        // Update the Texture 2D descriptor set
-        const u32 maxTextureDescriptorId = u32(textures2DInfo.size());
-
-        VkDescriptorSetVariableDescriptorCountAllocateInfoEXT countInfo{
-            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO_EXT,
-            .descriptorSetCount = 1,
-            .pDescriptorCounts = &maxTextureDescriptorId,
-        };
-
-        const VkDescriptorSet texture2dDescriptorSet =
-            m_impl->texturesDescriptorSetPool.acquire(m_impl->textures2DSetLayout, &countInfo);
-
-        debugUtils.set_object_name(m_impl->device, texture2dDescriptorSet, "Textures 2D Descriptor Set");
-
-        const VkWriteDescriptorSet descriptorSetWrites[] = {
-            {
-                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                .dstSet = texture2dDescriptorSet,
-                .dstBinding = Textures2DBinding,
-                .dstArrayElement = 0,
-                .descriptorCount = u32(textures2DInfo.size()),
-                .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-                .pImageInfo = textures2DInfo.data(),
-            },
-        };
-
-        vkUpdateDescriptorSets(m_impl->device, array_size(descriptorSetWrites), descriptorSetWrites, 0, nullptr);
-
-        // Sampler descriptors are immutable and require no update
-        const VkDescriptorSet samplerDescriptorSet =
-            m_impl->texturesDescriptorSetPool.acquire(m_impl->samplersSetLayout);
-
-        debugUtils.set_object_name(m_impl->device, samplerDescriptorSet, "Sampler Descriptor Set");
-
-        m_impl->currentTextures2DDescriptor = texture2dDescriptorSet;
-        m_impl->currentSamplersDescriptor = samplerDescriptorSet;
-
         m_impl->propagate_pipeline_invalidation();
 
 #ifdef TRACY_ENABLE
@@ -2655,12 +2586,67 @@ namespace oblo::vk
 
         m_impl->enableProfilingThisFrame = m_impl->enableProfiling && tracy::GetProfiler().IsConnected();
 #endif
+
+        m_impl->descriptorSetPool.begin_frame();
+        m_impl->texturesDescriptorSetPool.begin_frame();
     }
 
     void pass_manager::end_frame()
     {
         m_impl->descriptorSetPool.end_frame();
         m_impl->texturesDescriptorSetPool.end_frame();
+    }
+
+    void pass_manager::update_global_descriptor_sets()
+    {
+        const auto debugUtils = m_impl->vkCtx->get_debug_utils_object();
+
+        const std::span textures2DInfo = m_impl->textureRegistry->get_textures2d_info();
+
+        if (!textures2DInfo.empty())
+        {
+            // Update the Texture 2D descriptor set
+            const u32 maxTextureDescriptorId = u32(textures2DInfo.size());
+
+            VkDescriptorSetVariableDescriptorCountAllocateInfoEXT countInfo{
+                .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO_EXT,
+                .descriptorSetCount = 1,
+                .pDescriptorCounts = &maxTextureDescriptorId,
+            };
+
+            const VkDescriptorSet texture2dDescriptorSet =
+                m_impl->texturesDescriptorSetPool.acquire(m_impl->textures2DSetLayout, &countInfo);
+
+            debugUtils.set_object_name(m_impl->device, texture2dDescriptorSet, "Textures 2D Descriptor Set");
+
+            const VkWriteDescriptorSet descriptorSetWrites[] = {
+                {
+                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                    .dstSet = texture2dDescriptorSet,
+                    .dstBinding = Textures2DBinding,
+                    .dstArrayElement = 0,
+                    .descriptorCount = u32(textures2DInfo.size()),
+                    .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+                    .pImageInfo = textures2DInfo.data(),
+                },
+            };
+
+            vkUpdateDescriptorSets(m_impl->device, array_size(descriptorSetWrites), descriptorSetWrites, 0, nullptr);
+
+            m_impl->currentTextures2DDescriptor = texture2dDescriptorSet;
+        }
+        else
+        {
+            m_impl->currentTextures2DDescriptor = nullptr;
+        }
+
+        // Sampler descriptors are immutable and require no update
+        const VkDescriptorSet samplerDescriptorSet =
+            m_impl->texturesDescriptorSetPool.acquire(m_impl->samplersSetLayout);
+
+        debugUtils.set_object_name(m_impl->device, samplerDescriptorSet, "Sampler Descriptor Set");
+
+        m_impl->currentSamplersDescriptor = samplerDescriptorSet;
     }
 
     void pass_manager::update_instance_data_defines(string_view defines)
@@ -2871,6 +2857,15 @@ namespace oblo::vk
             data.data());
     }
 
+    void pass_manager::push_constants(VkCommandBuffer commandBuffer,
+        const base_pipeline& pipeline,
+        VkShaderStageFlags stages,
+        u32 offset,
+        std::span<const byte> data) const
+    {
+        vkCmdPushConstants(commandBuffer, pipeline.pipelineLayout, stages, offset, u32(data.size()), data.data());
+    }
+
     void pass_manager::bind_descriptor_sets(const render_pass_context& ctx,
         std::span<const binding_table* const> bindingTables) const
     {
@@ -2905,6 +2900,27 @@ namespace oblo::vk
             vkCmdBindDescriptorSets(ctx.commandBuffer,
                 VK_PIPELINE_BIND_POINT_COMPUTE,
                 pipeline->pipelineLayout,
+                0,
+                1,
+                &descriptorSet,
+                0,
+                nullptr);
+        }
+    }
+
+    void pass_manager::bind_descriptor_sets(VkCommandBuffer commandBuffer,
+        VkPipelineBindPoint bindPoint,
+        const base_pipeline& pipeline,
+        function_ref<bindable_object(const descriptor_binding&)> locateBinding) const
+    {
+        if (const auto descriptorSetLayout = pipeline.descriptorSetLayout)
+        {
+            const VkDescriptorSet descriptorSet =
+                m_impl->create_descriptor_set(descriptorSetLayout, pipeline, locateBinding);
+
+            vkCmdBindDescriptorSets(commandBuffer,
+                bindPoint,
+                pipeline.pipelineLayout,
                 0,
                 1,
                 &descriptorSet,
@@ -2948,5 +2964,25 @@ namespace oblo::vk
             width,
             height,
             depth);
+    }
+
+    const base_pipeline* pass_manager::get_base_pipeline(const compute_pipeline* pipeline) const
+    {
+        return pipeline;
+    }
+
+    const base_pipeline* pass_manager::get_base_pipeline(const render_pipeline* pipeline) const
+    {
+        return pipeline;
+    }
+
+    const base_pipeline* pass_manager::get_base_pipeline(const raytracing_pipeline* pipeline) const
+    {
+        return pipeline;
+    }
+
+    string_view pass_manager::get_pass_name(const base_pipeline& pipeline) const
+    {
+        return pipeline.label;
     }
 }

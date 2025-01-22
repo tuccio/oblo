@@ -14,7 +14,7 @@
 
 layout(binding = 11) uniform accelerationStructureEXT u_SceneTLAS;
 
-layout(std430, binding = 12) restrict buffer b_TotalRayCount
+layout(std430, binding = 12) restrict readonly buffer b_TotalRayCount
 {
     uint g_TotalRayCount;
 };
