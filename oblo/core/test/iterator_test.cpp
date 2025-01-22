@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/iterator/flags_range.hpp>
 #include <oblo/core/iterator/reverse_iterator.hpp>
 #include <oblo/core/iterator/reverse_range.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
@@ -173,5 +174,66 @@ namespace oblo
         }
 
         ASSERT_EQ(i, N);
+    }
+
+    enum class my_enum
+    {
+        a,
+        b,
+        c,
+        d,
+        e,
+        enum_max,
+    };
+
+    TEST(flags_range, simple)
+    {
+        {
+            const flags<my_enum> empty{};
+
+            dynamic_array<my_enum> result;
+
+            for (const my_enum e : flags_range{empty})
+            {
+                result.push_back(e);
+            }
+
+            ASSERT_TRUE(result.empty());
+        }
+
+        {
+            const flags<my_enum> acd = my_enum::a | my_enum::c | my_enum::d;
+            constexpr std::array expected = {my_enum::a, my_enum::c, my_enum::d};
+
+            dynamic_array<my_enum> result;
+
+            for (const my_enum e : flags_range{acd})
+            {
+                result.push_back(e);
+            }
+
+            ASSERT_EQ(result, expected);
+        }
+
+        {
+            const flags<my_enum> all = my_enum::a | my_enum::b | my_enum::c | my_enum::d | my_enum::e;
+
+            constexpr std::array expected = {
+                my_enum::a,
+                my_enum::b,
+                my_enum::c,
+                my_enum::d,
+                my_enum::e,
+            };
+
+            dynamic_array<my_enum> result;
+
+            for (const my_enum e : flags_range{all})
+            {
+                result.push_back(e);
+            }
+
+            ASSERT_EQ(result, expected);
+        }
     }
 }

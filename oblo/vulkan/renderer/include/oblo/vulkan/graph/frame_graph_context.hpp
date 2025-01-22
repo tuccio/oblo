@@ -26,6 +26,9 @@ namespace oblo
     template <typename>
     class resource_ptr;
 
+    template <typename E, u32 Size>
+    struct flags;
+
     namespace ecs
     {
         class entity_registry;
@@ -325,7 +328,7 @@ namespace oblo::vk
 
         const gpu_info& get_gpu_info() const;
 
-        void push_constants(shader_stage stage, u32 offset, std::span<const byte> bytes) const;
+        void push_constants(flags<shader_stage, 14> stages, u32 offset, std::span<const byte> bytes) const;
         void dispatch_compute(u32 groupsX, u32 groupsY, u32 groupsZ) const;
         void trace_rays(u32 x, u32 y, u32 z) const;
 

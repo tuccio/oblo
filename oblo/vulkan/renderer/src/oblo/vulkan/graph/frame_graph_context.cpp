@@ -1,6 +1,8 @@
 #include <oblo/vulkan/graph/frame_graph_context.hpp>
 
+#include <oblo/core/flags.hpp>
 #include <oblo/core/invoke/function_ref.hpp>
+#include <oblo/core/iterator/flags_range.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/vulkan/buffer.hpp>
@@ -880,10 +882,19 @@ namespace oblo::vk
         return m_frameGraph.gpuInfo;
     }
 
-    void frame_graph_execute_context::push_constants(shader_stage stage, u32 offset, std::span<const byte> bytes) const
+    void frame_graph_execute_context::push_constants(
+        flags<shader_stage> stages, u32 offset, std::span<const byte> bytes) const
     {
         auto& pm = get_pass_manager();
-        pm.push_constants(m_commandBuffer, *m_state.basePipeline, to_vk_shader_stage(stage), offset, bytes);
+
+        VkShaderStageFlags vkShaderFlags{};
+
+        for (const auto flag : flags_range{stages})
+        {
+            vkShaderFlags |= to_vk_shader_stage(flag);
+        }
+
+        pm.push_constants(m_commandBuffer, *m_state.basePipeline, vkShaderFlags, offset, bytes);
     }
 
     void frame_graph_execute_context::dispatch_compute(u32 groupsX, u32 groupsY, u32 groupsZ) const

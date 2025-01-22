@@ -20,5 +20,6 @@ namespace oblo::vk
         any_hit,
         miss,
         callable,
+        enum_max,
     };
 }
