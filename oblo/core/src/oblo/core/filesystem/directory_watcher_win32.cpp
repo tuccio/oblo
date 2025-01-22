@@ -52,14 +52,6 @@ namespace oblo::filesystem
                 };
             }
         };
-
-        u64 do_hash(u64* out, const std::filesystem::path& p)
-        {
-            const auto& str = p.native();
-            const u64 r = hash_xxh64(str.c_str(), str.size());
-            *out = r;
-            return r;
-        }
     }
 
     struct directory_watcher::impl
