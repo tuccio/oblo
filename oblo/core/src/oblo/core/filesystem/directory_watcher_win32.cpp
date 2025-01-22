@@ -111,6 +111,10 @@ namespace oblo::filesystem
 
     directory_watcher::directory_watcher() = default;
 
+    directory_watcher::directory_watcher(directory_watcher&&) noexcept = default;
+
+    directory_watcher& directory_watcher::operator=(directory_watcher&&) noexcept = default;
+
     directory_watcher::~directory_watcher() = default;
 
     expected<> directory_watcher::init(const directory_watcher_initializer& initializer)
@@ -120,11 +124,11 @@ namespace oblo::filesystem
         m_impl = allocate_unique<impl>();
         m_impl->isRecursive = initializer.isRecursive;
 
-        const cstring_view directory = initializer.path;
+        const string_view directory = initializer.path;
 
         wchar_t path[MAX_PATH + 1];
 
-        const int pathLen = MultiByteToWideChar(CP_UTF8, 0, directory.c_str(), directory.size32(), path, MAX_PATH);
+        const int pathLen = MultiByteToWideChar(CP_UTF8, 0, directory.data(), directory.size32(), path, MAX_PATH);
 
         if (pathLen < 0)
         {
@@ -136,10 +140,12 @@ namespace oblo::filesystem
         std::error_code ec;
         m_impl->nativePath = std::filesystem::absolute(path, ec);
 
-        if (ec || !filesystem::absolute(directory, m_impl->path))
+        if (ec)
         {
             return unspecified_error;
         }
+
+        m_impl->path.append(m_impl->nativePath.c_str());
 
         m_impl->hDirectory = CreateFileW(m_impl->nativePath.c_str(),
             GENERIC_READ,
@@ -180,6 +186,11 @@ namespace oblo::filesystem
 
     expected<> directory_watcher::process(callback_fn callback) const
     {
+        if (!m_impl)
+        {
+            return unspecified_error;
+        }
+
         modification_tracker lastModification{};
 
         string_builder builder;
@@ -315,6 +326,16 @@ namespace oblo::filesystem
         }
 
         return no_error;
+    }
+
+    cstring_view directory_watcher::get_directory() const
+    {
+        if (!m_impl)
+        {
+            return {};
+        }
+
+        return m_impl->path;
     }
 }
 

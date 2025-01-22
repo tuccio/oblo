@@ -320,8 +320,7 @@ namespace oblo::filesystem
             return unspecified_error;
         }
 
-        const auto ru8 = r.u8string();
-        out = reinterpret_cast<const char*>(ru8.c_str());
+        out.append(p.c_str());
 
         return no_error;
     }

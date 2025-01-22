@@ -23,7 +23,7 @@ namespace oblo::filesystem
 
     struct directory_watcher_initializer
     {
-        cstring_view path;
+        string_view path;
         bool isRecursive = false;
     };
 
@@ -37,10 +37,10 @@ namespace oblo::filesystem
     public:
         directory_watcher();
         directory_watcher(const directory_watcher&) = delete;
-        directory_watcher(directory_watcher&&) noexcept = delete;
+        directory_watcher(directory_watcher&&) noexcept;
 
         directory_watcher& operator=(const directory_watcher&) = delete;
-        directory_watcher& operator=(directory_watcher&&) noexcept = delete;
+        directory_watcher& operator=(directory_watcher&&) noexcept;
 
         ~directory_watcher();
 
@@ -48,6 +48,8 @@ namespace oblo::filesystem
         void shutdown();
 
         expected<> process(callback_fn callback) const;
+
+        cstring_view get_directory() const;
 
     private:
         struct impl;
