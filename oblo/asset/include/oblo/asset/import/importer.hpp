@@ -1,6 +1,6 @@
 #pragma once
 
-#include <oblo/asset/import_preview.hpp>
+#include <oblo/asset/import/import_preview.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/string/string.hpp>
 #include <oblo/core/string/string_view.hpp>

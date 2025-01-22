@@ -351,7 +351,7 @@ namespace oblo::importers
 
         m_result.id = modelNodeConfig.id;
         m_result.name = ctx.nodes[0].name;
-        m_result.data = any_asset{std::move(t)};
+        m_result.data = any_artifact{std::move(t)};
 
         return true;
     }

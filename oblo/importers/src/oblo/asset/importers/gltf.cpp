@@ -3,9 +3,9 @@
 
 #include <oblo/asset/importers/gltf.hpp>
 
-#include <oblo/asset/any_asset.hpp>
 #include <oblo/asset/asset_registry.hpp>
-#include <oblo/asset/import_artifact.hpp>
+#include <oblo/asset/import/any_artifact.hpp>
+#include <oblo/asset/import/import_artifact.hpp>
 #include <oblo/asset/importers/stb_image.hpp>
 #include <oblo/asset/processing/mesh_processing.hpp>
 #include <oblo/core/debug.hpp>
@@ -372,7 +372,7 @@ namespace oblo::importers
 
             m_artifacts.push_back({
                 .id = nodeConfig.id,
-                .data = any_asset{std::move(materialArtifact)},
+                .data = any_artifact{std::move(materialArtifact)},
                 .name = name.empty() ? nameBuffer.as<string>() : name,
             });
 
@@ -492,14 +492,14 @@ namespace oblo::importers
 
                 m_artifacts.push_back({
                     .id = meshNodeConfig.id,
-                    .data = any_asset{std::move(outMesh)},
+                    .data = any_artifact{std::move(outMesh)},
                     .name = ctx.nodes[mesh.nodeIndex].name,
                 });
             }
 
             m_artifacts.push_back({
                 .id = modelNodeConfig.id,
-                .data = any_asset{std::move(modelAsset)},
+                .data = any_artifact{std::move(modelAsset)},
                 .name = ctx.nodes[model.nodeIndex].name,
             });
 

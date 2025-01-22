@@ -18,7 +18,7 @@ namespace oblo
 
     struct artifact_meta;
     struct asset_meta;
-    struct asset_type_descriptor;
+    struct artifact_type_descriptor;
     struct file_importer_desc;
     struct import_preview;
     struct import_node_config;
@@ -40,7 +40,7 @@ namespace oblo
 
         void discover_assets();
 
-        void register_type(const asset_type_descriptor& desc);
+        void register_type(const artifact_type_descriptor& desc);
         void unregister_type(type_id type);
         bool has_asset_type(type_id type) const;
 

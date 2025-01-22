@@ -4,7 +4,7 @@
 
 namespace oblo
 {
-    struct asset_type_descriptor : resource_type_descriptor
+    struct artifact_type_descriptor : resource_type_descriptor
     {
     };
 }

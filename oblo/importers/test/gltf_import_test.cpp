@@ -2,8 +2,8 @@
 
 #include <oblo/asset/asset_meta.hpp>
 #include <oblo/asset/asset_registry.hpp>
-#include <oblo/asset/asset_type_desc.hpp>
-#include <oblo/asset/importer.hpp>
+#include <oblo/asset/descriptors/artifact_type_descriptor.hpp>
+#include <oblo/asset/import/importer.hpp>
 #include <oblo/asset/importers/registration.hpp>
 #include <oblo/core/data_format.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
@@ -57,13 +57,13 @@ namespace oblo::importers
 
         ASSERT_TRUE(registry.initialize(assetsDir, artifactsDir, sourceFilesDir));
 
-        dynamic_array<resource_type_descriptor> resourceTypes;
+        deque<resource_type_descriptor> resourceTypes;
         fetch_scene_resource_types(resourceTypes);
 
         for (const auto& type : resourceTypes)
         {
             resources.register_type(type);
-            registry.register_type(asset_type_desc{type});
+            registry.register_type(artifact_type_descriptor{type});
         }
 
         register_gltf_importer(registry);

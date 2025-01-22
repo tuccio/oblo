@@ -1,8 +1,8 @@
-#include <oblo/asset/importer.hpp>
+#include <oblo/asset/import/importer.hpp>
 
 #include <oblo/asset/asset_meta.hpp>
 #include <oblo/asset/asset_registry.hpp>
-#include <oblo/asset/import_artifact.hpp>
+#include <oblo/asset/import/import_artifact.hpp>
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/formatters/uuid_formatter.hpp>

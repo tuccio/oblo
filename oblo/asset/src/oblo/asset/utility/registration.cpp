@@ -1,9 +1,9 @@
 #include <oblo/asset/utility/registration.hpp>
 
 #include <oblo/asset/asset_registry.hpp>
-#include <oblo/asset/descriptors/asset_type_descriptor.hpp>
-#include <oblo/asset/file_importers_provider.hpp>
-#include <oblo/asset/importer.hpp>
+#include <oblo/asset/descriptors/artifact_type_descriptor.hpp>
+#include <oblo/asset/import/file_importers_provider.hpp>
+#include <oblo/asset/import/importer.hpp>
 #include <oblo/resource/descriptors/resource_type_descriptor.hpp>
 #include <oblo/resource/providers/resource_types_provider.hpp>
 
@@ -20,7 +20,7 @@ namespace oblo
 
             for (const auto& resourceType : resourceTypes)
             {
-                registry.register_type(asset_type_descriptor{resourceType});
+                registry.register_type(artifact_type_descriptor{resourceType});
             }
         }
     }

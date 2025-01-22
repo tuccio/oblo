@@ -6,26 +6,26 @@
 
 namespace oblo
 {
-    class any_asset
+    class any_artifact
     {
     public:
-        any_asset() = default;
-        any_asset(const any_asset&) = delete;
-        any_asset(any_asset&& other) noexcept
+        any_artifact() = default;
+        any_artifact(const any_artifact&) = delete;
+        any_artifact(any_artifact&& other) noexcept
         {
             m_wrapper = other.m_wrapper;
             other.m_wrapper = nullptr;
         }
 
         template <typename T>
-        explicit any_asset(T&& value)
+        explicit any_artifact(T&& value)
         {
             m_wrapper = new wrapper<std::decay_t<T>>{std::forward<T>(value)};
         }
 
-        any_asset& operator=(const any_asset&) = delete;
+        any_artifact& operator=(const any_artifact&) = delete;
 
-        any_asset& operator=(any_asset&& other) noexcept
+        any_artifact& operator=(any_artifact&& other) noexcept
         {
             delete m_wrapper;
             m_wrapper = other.m_wrapper;
@@ -33,7 +33,7 @@ namespace oblo
             return *this;
         }
 
-        ~any_asset()
+        ~any_artifact()
         {
             delete m_wrapper;
         }
