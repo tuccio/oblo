@@ -579,6 +579,31 @@ namespace oblo::vk
             h32_flat_extpool_dense_map<render_pass, bool> renderPasses;
             h32_flat_extpool_dense_map<raytracing_pass, bool> raytracingPasses;
         };
+
+        struct transparent_string_hash
+        {
+            using is_transparent = void;
+
+            usize operator()(cstring_view str) const
+            {
+                return hash<cstring_view>{}(str);
+            }
+
+            usize operator()(string_view str) const
+            {
+                return hash<string_view>{}(str);
+            }
+
+            usize operator()(const string& str) const
+            {
+                return hash<string>{}(str);
+            }
+
+            usize operator()(const string_builder& str) const
+            {
+                return hash<string_view>{}(str.as<string_view>());
+            }
+        };
     }
 
     struct pass_manager::impl
@@ -626,7 +651,7 @@ namespace oblo::vk
         bool globallyEnablePrintf{false};
         bool isRayTracingEnabled{true};
 
-        std::unordered_map<string, watching_passes, hash<string>> fileToPassList;
+        std::unordered_map<string, watching_passes, transparent_string_hash, std::equal_to<>> fileToPassList;
 
         VkPhysicalDeviceRayTracingPipelinePropertiesKHR rtPipelineProperties{};
 
@@ -1188,8 +1213,7 @@ namespace oblo::vk
                 {
                     if (evt.eventKind == filesystem::directory_watcher_event_kind::modified)
                     {
-                        // TODO: Transparent lookup
-                        const auto it = fileToPassList.find(evt.path.as<string>());
+                        const auto it = fileToPassList.find(evt.path);
 
                         if (it == fileToPassList.end())
                         {

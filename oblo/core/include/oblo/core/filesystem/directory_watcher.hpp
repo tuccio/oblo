@@ -64,5 +64,4 @@ namespace oblo::filesystem
         /// @brief The previous name in a rename event.
         cstring_view previousName;
     };
-
 }
