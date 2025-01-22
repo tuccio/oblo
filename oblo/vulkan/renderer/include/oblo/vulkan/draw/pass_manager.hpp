@@ -151,6 +151,8 @@ namespace oblo::vk
         void trace_rays(const raytracing_pass_context& ctx, u32 width, u32 height, u32 depth) const;
 
         const base_pipeline* get_base_pipeline(const compute_pipeline* pipeline) const;
+        const base_pipeline* get_base_pipeline(const render_pipeline* pipeline) const;
+        const base_pipeline* get_base_pipeline(const raytracing_pipeline* pipeline) const;
 
         string_view get_pass_name(const base_pipeline& pipeline) const;
 

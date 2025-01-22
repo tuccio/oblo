@@ -243,6 +243,14 @@ namespace oblo
             return m_hasValue ? *reinterpret_cast<const T*>(m_buffer) : std::forward<U>(fallback);
         }
 
+        T assert_value_or(const T& fallback,
+            const char* message = "Unexpected failure",
+            const std::source_location& src = std::source_location::current()) const noexcept
+        {
+            assert_value(message, src);
+            return m_hasValue ? *reinterpret_cast<const T*>(m_buffer) : fallback;
+        }
+
         template <typename U>
         T assert_value_or(U&& fallback,
             const char* message = "Unexpected failure",

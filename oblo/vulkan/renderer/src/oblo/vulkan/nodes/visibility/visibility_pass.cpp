@@ -42,7 +42,28 @@ namespace oblo::vk
 
     void visibility_pass::build(const frame_graph_build_context& ctx)
     {
-        ctx.begin_pass(pass_kind::graphics);
+        constexpr auto visibilityBufferFormat = VK_FORMAT_R32G32_UINT;
+
+        passInstance = ctx.render_pass(renderPass,
+            {
+                .renderTargets =
+                    {
+                        .colorAttachmentFormats = {visibilityBufferFormat},
+                        .depthFormat = VK_FORMAT_D24_UNORM_S8_UINT,
+                    },
+                .depthStencilState =
+                    {
+                        .depthTestEnable = true,
+                        .depthWriteEnable = true,
+                        .depthCompareOp = VK_COMPARE_OP_GREATER, // We use reverse depth
+                    },
+                .rasterizationState =
+                    {
+                        .polygonMode = VK_POLYGON_MODE_FILL,
+                        .cullMode = VK_CULL_MODE_NONE,
+                        .lineWidth = 1.f,
+                    },
+            });
 
         const auto resolution = ctx.access(inResolution);
 
@@ -50,7 +71,7 @@ namespace oblo::vk
             {
                 .width = resolution.x,
                 .height = resolution.y,
-                .format = VK_FORMAT_R32G32_UINT,
+                .format = visibilityBufferFormat,
                 .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
             },
             texture_usage::render_target_write);
@@ -83,32 +104,19 @@ namespace oblo::vk
 
     void visibility_pass::execute(const frame_graph_execute_context& ctx)
     {
+        binding_table2 perDrawBindingTable;
+        binding_table2 passBindingTable;
+
+        passBindingTable.bind_buffers({
+            {"b_CameraBuffer"_hsv, inCameraBuffer},
+            {"b_MeshTables"_hsv, inMeshDatabase},
+            {"b_InstanceTables"_hsv, inInstanceTables},
+        });
+
         const std::span drawData = ctx.access(inDrawData);
 
         const auto visibilityBuffer = ctx.access(outVisibilityBuffer);
         const auto depthBuffer = ctx.access(outDepthBuffer);
-
-        auto& pm = ctx.get_pass_manager();
-
-        const render_pipeline_initializer pipelineInitializer{
-            .renderTargets =
-                {
-                    .colorAttachmentFormats = {visibilityBuffer.initializer.format},
-                    .depthFormat = VK_FORMAT_D24_UNORM_S8_UINT,
-                },
-            .depthStencilState =
-                {
-                    .depthTestEnable = true,
-                    .depthWriteEnable = true,
-                    .depthCompareOp = VK_COMPARE_OP_GREATER, // We use reverse depthccccc
-                },
-            .rasterizationState =
-                {
-                    .polygonMode = VK_POLYGON_MODE_FILL,
-                    .cullMode = VK_CULL_MODE_NONE,
-                    .lineWidth = 1.f,
-                },
-        };
 
         const VkRenderingAttachmentInfo colorAttachments[] = {
             {
@@ -132,71 +140,66 @@ namespace oblo::vk
 
         const VkRenderingInfo renderInfo{
             .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-            .renderArea = {.extent{.width = renderWidth, .height = renderHeight}},
+            .renderArea =
+                {
+                    .extent{
+                        .width = renderWidth,
+                        .height = renderHeight,
+                    },
+                },
             .layerCount = 1,
             .colorAttachmentCount = array_size(colorAttachments),
             .pColorAttachments = colorAttachments,
             .pDepthAttachment = &depthAttachment,
         };
 
-        const auto pipeline = pm.get_or_create_pipeline(renderPass, pipelineInitializer);
+        if (!ctx.begin_pass(passInstance, renderInfo))
+        {
+            return;
+        }
 
         const VkCommandBuffer commandBuffer = ctx.get_command_buffer();
 
         setup_viewport_scissor(commandBuffer, renderWidth, renderHeight);
 
-        binding_table perDrawBindingTable;
-        binding_table passBindingTable;
-
-        ctx.bind_buffers(passBindingTable,
-            {
-                {"b_CameraBuffer", inCameraBuffer},
-                {"b_MeshTables", inMeshDatabase},
-                {"b_InstanceTables", inInstanceTables},
-            });
-
-        const binding_table* bindingTables[] = {
+        const binding_table2* bindingTables[] = {
             &perDrawBindingTable,
             &passBindingTable,
         };
 
-        if (const auto pass = pm.begin_render_pass(commandBuffer, pipeline, renderInfo))
+        const auto drawMeshIndirectCount = ctx.get_loaded_functions().vkCmdDrawMeshTasksIndirectCountEXT;
+
+        const auto drawCallBufferSpan = ctx.access(inDrawCallBuffer);
+
+        for (usize drawCallIndex = 0; drawCallIndex < drawData.size(); ++drawCallIndex)
         {
-            const auto drawMeshIndirectCount = ctx.get_loaded_functions().vkCmdDrawMeshTasksIndirectCountEXT;
+            const auto& culledDraw = drawData[drawCallIndex];
 
-            const auto drawCallBufferSpan = ctx.access(inDrawCallBuffer);
+            const auto drawCallBuffer = ctx.access(drawCallBufferSpan[drawCallIndex]);
+            const auto drawCallCountBuffer = ctx.access(culledDraw.drawCallCountBuffer);
 
-            for (usize drawCallIndex = 0; drawCallIndex < drawData.size(); ++drawCallIndex)
-            {
-                const auto& culledDraw = drawData[drawCallIndex];
+            perDrawBindingTable.clear();
 
-                const auto drawCallBuffer = ctx.access(drawCallBufferSpan[drawCallIndex]);
-                const auto drawCallCountBuffer = ctx.access(culledDraw.drawCallCountBuffer);
+            perDrawBindingTable.bind_buffers({
+                {"b_PreCullingIdMap"_hsv, culledDraw.preCullingIdMap},
+            });
 
-                perDrawBindingTable.clear();
+            const visibility_pass_push_constants pushConstants{
+                .instanceTableId = culledDraw.sourceData.instanceTableId,
+            };
 
-                ctx.bind_buffers(perDrawBindingTable,
-                    {
-                        {"b_PreCullingIdMap", culledDraw.preCullingIdMap},
-                    });
+            ctx.bind_descriptor_sets(bindingTables);
+            ctx.push_constants(shader_stage::mesh, 0, as_bytes(std::span{&pushConstants, 1}));
 
-                const visibility_pass_push_constants pushConstants{
-                    .instanceTableId = culledDraw.sourceData.instanceTableId,
-                };
-
-                pm.bind_descriptor_sets(*pass, bindingTables);
-                pm.push_constants(*pass, VK_SHADER_STAGE_MESH_BIT_EXT, 0, as_bytes(std::span{&pushConstants, 1}));
-
-                drawMeshIndirectCount(commandBuffer,
-                    drawCallBuffer.buffer,
-                    drawCallBuffer.offset,
-                    drawCallCountBuffer.buffer,
-                    drawCallCountBuffer.offset,
-                    culledDraw.sourceData.numInstances,
-                    sizeof(VkDrawMeshTasksIndirectCommandEXT));
-            }
-
-            pm.end_render_pass(*pass);
+            drawMeshIndirectCount(commandBuffer,
+                drawCallBuffer.buffer,
+                drawCallBuffer.offset,
+                drawCallCountBuffer.buffer,
+                drawCallCountBuffer.offset,
+                culledDraw.sourceData.numInstances,
+                sizeof(VkDrawMeshTasksIndirectCommandEXT));
         }
+
+        ctx.end_pass();
     }
 }

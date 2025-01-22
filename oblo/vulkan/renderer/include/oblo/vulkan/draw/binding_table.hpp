@@ -145,6 +145,8 @@ namespace oblo::vk
     class binding_tables_span
     {
     public:
+        binding_tables_span() = default;
+        binding_tables_span(const binding_tables_span&) = default;
         binding_tables_span(const binding_table2& t) : m_table{&t}, m_count{1} {}
 
         binding_tables_span(std::span<const binding_table2* const> tables) :
@@ -154,6 +156,11 @@ namespace oblo::vk
             {
                 m_table = m_array[0];
             }
+        }
+
+        template <usize N>
+        binding_tables_span(const binding_table2* (&array)[N]) : binding_tables_span{std::span{array}}
+        {
         }
 
         std::span<const binding_table2* const> span() const&

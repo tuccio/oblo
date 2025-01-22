@@ -56,7 +56,11 @@ namespace oblo::vk
     struct staging_buffer_span;
 
     struct compute_pass_initializer;
+    struct render_pass_initializer;
+    struct raytracing_pass_initializer;
     struct compute_pipeline_initializer;
+    struct render_pipeline_initializer;
+    struct raytracing_pipeline_initializer;
 
     using binding_table = flat_dense_map<h32<string>, bindable_object>;
     class binding_table2;
@@ -122,6 +126,7 @@ namespace oblo::vk
         string_interner& get_string_interner() const;
 
         h32<compute_pass> register_compute_pass(const compute_pass_initializer& initializer) const;
+        h32<render_pass> register_render_pass(const render_pass_initializer& initializer) const;
 
     private:
         frame_graph_impl& m_frameGraph;
@@ -140,6 +145,12 @@ namespace oblo::vk
 
         h32<frame_graph_compute_pass> compute_pass(h32<compute_pass> pass,
             const compute_pipeline_initializer& initializer) const;
+
+        h32<frame_graph_render_pass> render_pass(h32<render_pass> pass,
+            const render_pipeline_initializer& initializer) const;
+
+        h32<frame_graph_raytracing_pass> raytracing_pass(h32<raytracing_pass> pass,
+            const raytracing_pipeline_initializer& initializer) const;
 
         void create(
             resource<texture> texture, const texture_resource_initializer& initializer, texture_usage usage) const;
@@ -236,9 +247,15 @@ namespace oblo::vk
 
         void begin_pass(h32<frame_graph_pass> handle) const;
 
-        expected<> begin_pass(h32<frame_graph_compute_pass> handle, binding_tables_span bindingTables) const;
+        expected<> begin_pass(h32<frame_graph_compute_pass> handle) const;
+
+        expected<> begin_pass(h32<frame_graph_render_pass> handle, const VkRenderingInfo& renderingInfo) const;
+
+        expected<> begin_pass(h32<frame_graph_raytracing_pass> handle) const;
 
         void end_pass() const;
+
+        void bind_descriptor_sets(binding_tables_span bindingTables) const;
 
         template <typename T>
         T& access(data<T> data) const

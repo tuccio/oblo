@@ -622,17 +622,22 @@ namespace oblo::vk
         const auto cellsCount = ctx.access(inCellsCount);
         const auto cellsCountLinearized = cellsCount.x * cellsCount.y * cellsCount.z;
 
-        if (ctx.begin_pass(overcoverageFgPass, bindingTable))
+        if (ctx.begin_pass(overcoverageFgPass))
         {
+            ctx.bind_descriptor_sets(bindingTable);
+
             const u32 groupsX = round_up_div(maxSurfels, subgroupSize);
             ctx.dispatch_compute(groupsX, 1, 1);
 
             ctx.end_pass();
         }
 
-        if (ctx.begin_pass(clearFgPass, bindingTable))
+        if (ctx.begin_pass(clearFgPass))
         {
+            ctx.bind_descriptor_sets(bindingTable);
+
             const auto gridBounds = ctx.access(inGridBounds);
+
             const auto gridCellSize = ctx.access(inGridCellSize);
 
             const struct push_constants
@@ -660,8 +665,10 @@ namespace oblo::vk
             ctx.end_pass();
         }
 
-        if (ctx.begin_pass(updateFgPass, bindingTable))
+        if (ctx.begin_pass(updateFgPass))
         {
+            ctx.bind_descriptor_sets(bindingTable);
+
             struct push_constants
             {
                 vec3 cameraCentroid;
@@ -683,16 +690,20 @@ namespace oblo::vk
             ctx.end_pass();
         }
 
-        if (ctx.begin_pass(allocateFgPass, bindingTable))
+        if (ctx.begin_pass(allocateFgPass))
         {
+            ctx.bind_descriptor_sets(bindingTable);
+
             const auto groupsX = round_up_div(cellsCountLinearized, subgroupSize);
             ctx.dispatch_compute(groupsX, 1, 1);
 
             ctx.end_pass();
         }
 
-        if (ctx.begin_pass(fillFgPass, bindingTable))
+        if (ctx.begin_pass(fillFgPass))
         {
+            ctx.bind_descriptor_sets(bindingTable);
+
             const u32 groupsX = round_up_div(maxSurfels, subgroupSize);
             ctx.dispatch_compute(groupsX, 1, 1);
 

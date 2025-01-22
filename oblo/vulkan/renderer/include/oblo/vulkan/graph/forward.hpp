@@ -16,6 +16,8 @@ namespace oblo::vk
 
     struct frame_graph_pass;
     struct frame_graph_compute_pass;
+    struct frame_graph_raytracing_pass;
+    struct frame_graph_render_pass;
 
     struct buffer;
     struct texture;

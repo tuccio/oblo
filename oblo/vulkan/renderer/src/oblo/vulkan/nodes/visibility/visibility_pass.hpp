@@ -27,6 +27,7 @@ namespace oblo::vk
         resource<texture> outDepthBuffer;
 
         h32<render_pass> renderPass;
+        h32<frame_graph_render_pass> passInstance;
 
         void init(const frame_graph_init_context& context);
 

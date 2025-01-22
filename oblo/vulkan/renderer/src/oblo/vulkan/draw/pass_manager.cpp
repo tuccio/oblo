@@ -2965,7 +2965,18 @@ namespace oblo::vk
             height,
             depth);
     }
+
     const base_pipeline* pass_manager::get_base_pipeline(const compute_pipeline* pipeline) const
+    {
+        return pipeline;
+    }
+
+    const base_pipeline* pass_manager::get_base_pipeline(const render_pipeline* pipeline) const
+    {
+        return pipeline;
+    }
+
+    const base_pipeline* pass_manager::get_base_pipeline(const raytracing_pipeline* pipeline) const
     {
         return pipeline;
     }

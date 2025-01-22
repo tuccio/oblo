@@ -198,6 +198,8 @@ namespace oblo::vk
 
         union {
             h32<compute_pipeline> computePipeline;
+            h32<render_pipeline> renderPipeline;
+            h32<raytracing_pipeline> raytracingPipeline;
         };
     };
 
@@ -327,6 +329,8 @@ namespace oblo::vk
 
         union {
             compute_pass_context computeCtx;
+            render_pass_context renderCtx;
+            raytracing_pass_context rtCtx;
         };
     };
 }

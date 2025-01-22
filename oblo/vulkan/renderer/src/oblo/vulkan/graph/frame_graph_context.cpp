@@ -253,10 +253,13 @@ namespace oblo::vk
                             const buffer& b = access_storage(frameGraph, r->buffer);
 
 #if OBLO_DEBUG
+                            const bool isReadOnlyBuffer =
+                                binding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER || binding.readOnly;
+
                             if (!check_buffer_usage(frameGraph,
                                     currentPass,
                                     as_storage_handle(r->buffer),
-                                    binding.readOnly))
+                                    isReadOnlyBuffer))
                             {
                                 log::error("[{}] Missing or mismatching acquire for buffer {}",
                                     pm.get_pass_name(pipeline),
@@ -548,6 +551,26 @@ namespace oblo::vk
         return h32<frame_graph_compute_pass>{h.value};
     }
 
+    h32<frame_graph_render_pass> frame_graph_build_context::render_pass(h32<vk::render_pass> pass,
+        const render_pipeline_initializer& initializer) const
+    {
+        const auto h = m_frameGraph.begin_pass_build(m_state, pass_kind::graphics);
+        auto& pm = m_renderer.get_pass_manager();
+        m_frameGraph.passes[h.value].renderPipeline = pm.get_or_create_pipeline(pass, initializer);
+
+        return h32<frame_graph_render_pass>{h.value};
+    }
+
+    h32<frame_graph_raytracing_pass> frame_graph_build_context::raytracing_pass(h32<vk::raytracing_pass> pass,
+        const raytracing_pipeline_initializer& initializer) const
+    {
+        const auto h = m_frameGraph.begin_pass_build(m_state, pass_kind::raytracing);
+        auto& pm = m_renderer.get_pass_manager();
+        m_frameGraph.passes[h.value].raytracingPipeline = pm.get_or_create_pipeline(pass, initializer);
+
+        return h32<frame_graph_raytracing_pass>{h.value};
+    }
+
     void* frame_graph_build_context::access_storage(h32<frame_graph_pin_storage> handle) const
     {
         return m_frameGraph.access_storage(handle);
@@ -571,8 +594,7 @@ namespace oblo::vk
         m_frameGraph.begin_pass_execution(handle, m_commandBuffer, m_state);
     }
 
-    expected<> frame_graph_execute_context::begin_pass(h32<frame_graph_compute_pass> handle,
-        binding_tables_span bindingTables) const
+    expected<> frame_graph_execute_context::begin_pass(h32<frame_graph_compute_pass> handle) const
     {
         OBLO_ASSERT(handle);
         OBLO_ASSERT(m_frameGraph.passes[handle.value].kind == pass_kind::compute);
@@ -592,20 +614,64 @@ namespace oblo::vk
             return unspecified_error;
         }
 
-        constexpr auto bindPoint = VK_PIPELINE_BIND_POINT_COMPUTE;
         m_state.passKind = pass_kind::compute;
         m_state.computeCtx = *computeCtx;
         m_state.basePipeline = pm.get_base_pipeline(computeCtx->internalPipeline);
 
-        bind_descriptor_sets(m_frameGraph,
-            m_state.currentPass,
-            pm,
-            m_commandBuffer,
-            bindPoint,
-            *m_state.basePipeline,
-            m_renderer.get_string_interner(),
-            m_state.imageLayoutTracker,
-            bindingTables);
+        return no_error;
+    }
+
+    expected<> frame_graph_execute_context::begin_pass(h32<frame_graph_render_pass> handle,
+        const VkRenderingInfo& renderingInfo) const
+    {
+        OBLO_ASSERT(handle);
+        OBLO_ASSERT(m_frameGraph.passes[handle.value].kind == pass_kind::graphics);
+
+        const auto passHandle = h32<frame_graph_pass>{handle.value};
+        m_frameGraph.begin_pass_execution(passHandle, m_commandBuffer, m_state);
+
+        auto& pm = get_pass_manager();
+
+        const auto pipeline = m_frameGraph.passes[handle.value].renderPipeline;
+        const auto renderCtx = pm.begin_render_pass(m_commandBuffer, pipeline, renderingInfo);
+
+        if (!renderCtx)
+        {
+            // Do we need to do anything?
+            m_state.passKind = pass_kind::none;
+            return unspecified_error;
+        }
+
+        m_state.passKind = pass_kind::graphics;
+        m_state.renderCtx = *renderCtx;
+        m_state.basePipeline = pm.get_base_pipeline(renderCtx->internalPipeline);
+
+        return no_error;
+    }
+
+    expected<> frame_graph_execute_context::begin_pass(h32<frame_graph_raytracing_pass> handle) const
+    {
+        OBLO_ASSERT(handle);
+        OBLO_ASSERT(m_frameGraph.passes[handle.value].kind == pass_kind::raytracing);
+
+        const auto passHandle = h32<frame_graph_pass>{handle.value};
+        m_frameGraph.begin_pass_execution(passHandle, m_commandBuffer, m_state);
+
+        auto& pm = get_pass_manager();
+
+        const auto pipeline = m_frameGraph.passes[handle.value].raytracingPipeline;
+        const auto rtCtx = pm.begin_raytracing_pass(m_commandBuffer, pipeline);
+
+        if (!rtCtx)
+        {
+            // Do we need to do anything?
+            m_state.passKind = pass_kind::none;
+            return unspecified_error;
+        }
+
+        m_state.passKind = pass_kind::raytracing;
+        m_state.rtCtx = *rtCtx;
+        m_state.basePipeline = pm.get_base_pipeline(rtCtx->internalPipeline);
 
         return no_error;
     }
@@ -620,25 +686,58 @@ namespace oblo::vk
             pm.end_compute_pass(m_state.computeCtx);
             break;
 
+        case pass_kind::graphics:
+            pm.end_render_pass(m_state.renderCtx);
+            break;
+
+        case pass_kind::raytracing:
+            pm.end_raytracing_pass(m_state.rtCtx);
+            break;
+
         default:
             OBLO_ASSERT(false);
             break;
         }
     }
 
+    void frame_graph_execute_context::bind_descriptor_sets(binding_tables_span bindingTables) const
+    {
+        VkPipelineBindPoint bindPoint;
+
+        switch (m_state.passKind)
+        {
+        case pass_kind::raytracing:
+            bindPoint = VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR;
+            break;
+        case pass_kind::graphics:
+            bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+            break;
+        case pass_kind::compute:
+            bindPoint = VK_PIPELINE_BIND_POINT_COMPUTE;
+            break;
+        default:
+            unreachable();
+        }
+
+        vk::bind_descriptor_sets(m_frameGraph,
+            m_state.currentPass,
+            get_pass_manager(),
+            m_commandBuffer,
+            bindPoint,
+            *m_state.basePipeline,
+            m_renderer.get_string_interner(),
+            m_state.imageLayoutTracker,
+            bindingTables);
+    }
+
     texture frame_graph_execute_context::access(resource<texture> h) const
     {
-        const auto storage = h32<frame_graph_pin_storage>{h.value};
-        const auto* texturePtr = static_cast<texture*>(m_frameGraph.access_storage(storage));
-
-        OBLO_ASSERT(texturePtr);
-        return *texturePtr;
+        return vk::access_storage(m_frameGraph, h);
     }
 
     buffer frame_graph_execute_context::access(resource<buffer> h) const
     {
-        const auto storage = h32<frame_graph_pin_storage>{h.value};
-        return *static_cast<buffer*>(m_frameGraph.access_storage(storage));
+        return vk::access_storage(m_frameGraph, h);
     }
 
     bool frame_graph_execute_context::has_source(resource<buffer> buffer) const
