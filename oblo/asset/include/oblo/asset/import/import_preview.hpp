@@ -6,13 +6,8 @@
 #include <oblo/core/types.hpp>
 #include <oblo/core/uuid.hpp>
 
-#include <span>
-
 namespace oblo
 {
-    class asset_registry;
-    class data_document;
-
     struct import_node
     {
         type_id type;
@@ -28,14 +23,5 @@ namespace oblo
     struct import_preview
     {
         dynamic_array<import_node> nodes;
-    };
-
-    struct import_context
-    {
-        asset_registry& registry;
-        std::span<const import_node> nodes;
-        std::span<const import_node_config> importNodesConfig;
-        uuid importUuid;
-        const data_document& settings;
     };
 }

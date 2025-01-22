@@ -25,7 +25,7 @@ namespace oblo::importers
         ~gltf();
 
         bool init(const importer_config& config, import_preview& preview);
-        bool import(const import_context& context);
+        bool import(import_context context);
         file_import_results get_results();
 
     private:

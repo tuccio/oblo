@@ -3,6 +3,7 @@
 #include <oblo/asset/asset_meta.hpp>
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/import/import_artifact.hpp>
+#include <oblo/asset/import/import_context.hpp>
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/formatters/uuid_formatter.hpp>
@@ -45,6 +46,16 @@ namespace oblo
         }
     }
 
+    struct import_context_impl
+    {
+        asset_registry& registry;
+        std::span<const import_node> nodes;
+        std::span<const import_node_config> importNodesConfig;
+        uuid importUuid;
+        const data_document& settings;
+        string_builder temporaryPath;
+    };
+
     importer::importer() = default;
 
     importer::importer(importer&&) noexcept = default;
@@ -84,13 +95,20 @@ namespace oblo
 
         const auto importUuid = m_config.registry->generate_uuid();
 
-        const import_context context{
+        import_context_impl contextImpl{
             .registry = *m_config.registry,
             .nodes = m_preview.nodes,
             .importNodesConfig = m_importNodesConfig,
             .importUuid = importUuid,
             .settings = importSettings,
         };
+
+        contextImpl.temporaryPath.format("./.asset_import/{}", importUuid);
+
+        filesystem::create_directories(contextImpl.temporaryPath).assert_value();
+
+        import_context context;
+        context.m_impl = &contextImpl;
 
         if (!m_importer->import(context))
         {
@@ -172,6 +190,15 @@ namespace oblo
                 continue;
             }
 
+            if (artifact.path.empty())
+            {
+                log::error("Artifact '{}' will be skipped because no output was produced (this may signal a bug in "
+                           "the importer)",
+                    artifact.name);
+                allSucceeded = false;
+                continue;
+            }
+
             const auto artifactIt = m_artifacts.find(artifact.id);
 
             if (artifactIt == m_artifacts.end())
@@ -181,27 +208,14 @@ namespace oblo
                 continue;
             }
 
-            auto* const artifactPtr = artifact.data.try_get();
-
-            if (!artifactPtr)
-            {
-                log::error("Artifact '{}' ({}) will be skipped due to missing imported data (this may signal a bug in "
-                           "the importer)",
-                    artifact.name,
-                    artifact.id);
-
-                allSucceeded = false;
-                continue;
-            }
-
             const artifact_meta meta{
                 .id = artifact.id,
-                .type = artifact.data.get_type(),
+                .type = artifact.type,
                 .importId = m_importId,
                 .importName = artifact.name,
             };
 
-            if (!registry.save_artifact(artifact.id, artifact.data.get_type(), artifactPtr, meta))
+            if (!registry.save_artifact(artifact.id, artifact.type, artifact.path, meta))
             {
                 log::error("Artifact '{}' ({}) will be skipped due to an error occurring while saving to disk",
                     artifact.name,
@@ -266,5 +280,32 @@ namespace oblo
         allSucceeded &= write_import_config(m_config, m_importerType, pathBuilder);
 
         return allSucceeded;
+    }
+
+    cstring_view import_context::get_output_path(const uuid& id, string_builder& outPath) const
+    {
+        outPath = m_impl->temporaryPath;
+        outPath.append_path_separator().format("{}", id);
+        return outPath;
+    }
+
+    std::span<const import_node> import_context::get_import_nodes() const
+    {
+        return m_impl->nodes;
+    }
+
+    std::span<const import_node_config> import_context::get_import_node_configs() const
+    {
+        return m_impl->importNodesConfig;
+    }
+
+    uuid import_context::get_import_uuid() const
+    {
+        return m_impl->importUuid;
+    }
+
+    const data_document& import_context::get_settings() const
+    {
+        return m_impl->settings;
     }
 }

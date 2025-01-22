@@ -4,8 +4,8 @@
 #include <oblo/asset/importers/gltf.hpp>
 
 #include <oblo/asset/asset_registry.hpp>
-#include <oblo/asset/import/any_artifact.hpp>
 #include <oblo/asset/import/import_artifact.hpp>
+#include <oblo/asset/import/import_context.hpp>
 #include <oblo/asset/importers/stb_image.hpp>
 #include <oblo/asset/processing/mesh_processing.hpp>
 #include <oblo/core/debug.hpp>
@@ -23,6 +23,7 @@
 #include <oblo/scene/assets/model.hpp>
 #include <oblo/scene/assets/pbr_properties.hpp>
 #include <oblo/scene/serialization/mesh_file.hpp>
+#include <oblo/scene/serialization/model_file.hpp>
 #include <oblo/thread/parallel_for.hpp>
 
 #include <format>
@@ -235,14 +236,16 @@ namespace oblo::importers
         return true;
     }
 
-    bool gltf::import(const import_context& ctx)
+    bool gltf::import(import_context ctx)
     {
         gltf_import_config cfg{};
 
-        if (const auto generateMeshlets = ctx.settings.find_child(ctx.settings.get_root(), "generateMeshlets");
+        const auto& settings = ctx.get_settings();
+
+        if (const auto generateMeshlets = settings.find_child(settings.get_root(), "generateMeshlets");
             generateMeshlets != data_node::Invalid)
         {
-            cfg.generateMeshlets = ctx.settings.read_bool(generateMeshlets).value_or(true);
+            cfg.generateMeshlets = settings.read_bool(generateMeshlets).value_or(true);
         }
 
         dynamic_array<mesh_attribute> attributes;
@@ -254,6 +257,9 @@ namespace oblo::importers
         dynamic_array<bool> usedBuffer;
         usedBuffer.resize(m_model.buffers.size());
 
+        const std::span importNodeConfigs = ctx.get_import_node_configs();
+        const std::span importNodes = ctx.get_import_nodes();
+
         parallel_for(
             [&](job_range range)
             {
@@ -261,7 +267,7 @@ namespace oblo::importers
                 {
                     auto& image = m_importImages[i];
 
-                    if (!image.importer || !ctx.importNodesConfig[image.nodeIndex].enabled)
+                    if (!image.importer || !importNodeConfigs[image.nodeIndex].enabled)
                     {
                         continue;
                     }
@@ -279,19 +285,20 @@ namespace oblo::importers
                         settings.child_value(swizzle, {}, property_kind::u32, as_bytes(u32{1}));
                     }
 
-                    const auto imageContext = import_context{
-                        .registry = ctx.registry,
-                        .nodes = ctx.nodes.subspan(image.nodeIndex, 1),
-                        .importNodesConfig = ctx.importNodesConfig.subspan(image.nodeIndex, 1),
-                        .importUuid = ctx.importUuid,
-                        .settings = settings,
-                    };
+                    // TODO: Find a way to do sub-imports
+                    // const auto imageContext = import_context{
+                    //    .registry = ctx.registry,
+                    //    .nodes = importNodes.subspan(image.nodeIndex, 1),
+                    //    .importNodesConfig = importNodeConfigs.subspan(image.nodeIndex, 1),
+                    //    .importUuid = ctx.importUuid,
+                    //    .settings = settings,
+                    //};
 
-                    if (image.importer->import(imageContext))
-                    {
-                        OBLO_ASSERT(image.id.is_nil());
-                        image.id = imageContext.importNodesConfig[0].id;
-                    }
+                    // if (image.importer->import(imageContext))
+                    //{
+                    //     OBLO_ASSERT(image.id.is_nil());
+                    //     image.id = imageContext.importNodesConfig[0].id;
+                    // }
                 }
             },
             job_range{0, u32(m_importImages.size())},
@@ -299,14 +306,14 @@ namespace oblo::importers
 
         for (auto& image : m_importImages)
         {
-            if (!image.importer || !ctx.importNodesConfig[image.nodeIndex].enabled)
+            if (!image.importer || !importNodeConfigs[image.nodeIndex].enabled)
             {
                 continue;
             }
 
             if (image.id.is_nil())
             {
-                log::error("Failed to import image {}", ctx.nodes[image.nodeIndex].name);
+                log::error("Failed to import image {}", importNodes[image.nodeIndex].name);
                 continue;
             }
             else
@@ -325,7 +332,7 @@ namespace oblo::importers
 
         for (auto& material : m_importMaterials)
         {
-            const auto& nodeConfig = ctx.importNodesConfig[material.nodeIndex];
+            const auto& nodeConfig = importNodeConfigs[material.nodeIndex];
 
             if (!nodeConfig.enabled)
             {
@@ -361,19 +368,27 @@ namespace oblo::importers
 
             materialArtifact.set_property(pbr::IndexOfRefraction, ior);
 
-            const auto& name = ctx.nodes[material.nodeIndex].name;
+            string name = importNodes[material.nodeIndex].name;
 
-            string_builder nameBuffer;
+            string_builder buffer;
 
             if (name.empty())
             {
-                nameBuffer.format("Material#{}", materialIndex);
+                buffer.clear().format("Material#{}", materialIndex);
+                name = buffer.as<string>();
+            }
+
+            if (const auto path = ctx.get_output_path(nodeConfig.id, buffer); !materialArtifact.save(path))
+            {
+                log::error("Failed to save material to {}", path);
+                continue;
             }
 
             m_artifacts.push_back({
                 .id = nodeConfig.id,
-                .data = any_artifact{std::move(materialArtifact)},
-                .name = name.empty() ? nameBuffer.as<string>() : name,
+                .type = get_type_id<oblo::material>(),
+                .name = std::move(name),
+                .path = buffer.as<string>(),
             });
 
             material.id = nodeConfig.id;
@@ -418,7 +433,7 @@ namespace oblo::importers
 
         for (const auto& model : m_importModels)
         {
-            const auto& modelNodeConfig = ctx.importNodesConfig[model.nodeIndex];
+            const auto& modelNodeConfig = importNodeConfigs[model.nodeIndex];
 
             if (!modelNodeConfig.enabled)
             {
@@ -436,7 +451,7 @@ namespace oblo::importers
             for (u32 meshIndex = model.primitiveBegin; meshIndex < model.primitiveBegin + numPrimitives; ++meshIndex)
             {
                 const auto& mesh = m_importMeshes[meshIndex];
-                const auto& meshNodeConfig = ctx.importNodesConfig[mesh.nodeIndex];
+                const auto& meshNodeConfig = importNodeConfigs[mesh.nodeIndex];
 
                 if (!meshNodeConfig.enabled)
                 {
@@ -490,17 +505,35 @@ namespace oblo::importers
                 modelAsset.materials.emplace_back(
                     primitive.material >= 0 ? m_importMaterials[primitive.material].id : uuid{});
 
+                string_builder outputPath;
+
+                if (!save_mesh(outMesh, ctx.get_output_path(meshNodeConfig.id, outputPath)))
+                {
+                    log::error("Failed to save mesh");
+                    continue;
+                }
+
                 m_artifacts.push_back({
                     .id = meshNodeConfig.id,
-                    .data = any_artifact{std::move(outMesh)},
-                    .name = ctx.nodes[mesh.nodeIndex].name,
+                    .type = get_type_id<oblo::mesh>(),
+                    .name = importNodes[mesh.nodeIndex].name,
+                    .path = outputPath.as<string>(),
                 });
+            }
+
+            string_builder outputPath;
+
+            if (!save_model_json(modelAsset, ctx.get_output_path(modelNodeConfig.id, outputPath)))
+            {
+                log::error("Failed to save mesh");
+                continue;
             }
 
             m_artifacts.push_back({
                 .id = modelNodeConfig.id,
-                .data = any_artifact{std::move(modelAsset)},
-                .name = ctx.nodes[model.nodeIndex].name,
+                .type = get_type_id<oblo::model>(),
+                .name = importNodes[model.nodeIndex].name,
+                .path = outputPath.as<string>(),
             });
 
             if (m_importModels.size() == 1)

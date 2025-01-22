@@ -83,7 +83,7 @@ namespace oblo
 
         bool save_artifact(const uuid& id,
             const type_id& type,
-            const void* dataPtr,
+            const cstring_view path,
             const artifact_meta& meta,
             write_policy policy = write_policy::no_overwrite);
 

@@ -16,10 +16,10 @@ namespace oblo
 {
     class asset_registry;
     class importer;
+    class import_context;
 
     struct artifact_meta;
     struct import_artifact;
-    struct import_context;
 
     struct importer_config
     {
@@ -41,7 +41,7 @@ namespace oblo
         virtual ~file_importer() = default;
 
         virtual bool init(const importer_config& config, import_preview& preview) = 0;
-        virtual bool import(const import_context& context) = 0;
+        virtual bool import(import_context context) = 0;
         virtual file_import_results get_results() = 0;
     };
 

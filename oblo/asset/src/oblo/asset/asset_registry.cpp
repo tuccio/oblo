@@ -2,7 +2,6 @@
 
 #include <oblo/asset/asset_meta.hpp>
 #include <oblo/asset/descriptors/artifact_type_descriptor.hpp>
-#include <oblo/asset/import/any_artifact.hpp>
 #include <oblo/asset/import/import_artifact.hpp>
 #include <oblo/asset/import/import_preview.hpp>
 #include <oblo/asset/import/importer.hpp>
@@ -398,7 +397,7 @@ namespace oblo
 
     bool asset_registry::save_artifact(const uuid& artifactId,
         const type_id& type,
-        const void* dataPtr,
+        const cstring_view srcArtifact,
         const artifact_meta& meta,
         write_policy policy)
     {
@@ -416,18 +415,21 @@ namespace oblo
 
         artifactPath.append_path(artifactId.format_to(uuidBuffer));
 
-        std::error_code ec;
-
-        if (policy == write_policy::no_overwrite && filesystem::exists(artifactPath).value_or(true))
+        if (const auto exists = filesystem::exists(artifactPath).value_or(true);
+            exists && policy == write_policy::no_overwrite)
         {
             return false;
+        }
+        else if (exists)
+        {
+            filesystem::remove(artifactPath).assert_value();
         }
 
         auto artifactMetaPath = artifactPath;
         artifactMetaPath.append(ArtifactMetaExtension);
 
-        const auto saveFunction = typeIt->second.save;
-        return saveFunction(dataPtr, artifactPath) && save_artifact_meta(meta, artifactMetaPath);
+        return filesystem::rename(srcArtifact, artifactPath).value_or(false) &&
+            save_artifact_meta(meta, artifactMetaPath);
     }
 
     bool asset_registry::save_asset(string_view destination,
