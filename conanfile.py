@@ -21,12 +21,9 @@ class ObloConanRecipe(ConanFile):
     }
 
     def requirements(self):
-        self._install_required_recipes()
-
         self.requires("assimp/5.0.1")
         self.requires("concurrentqueue/1.0.4")
         self.requires("cxxopts/2.2.1")
-        self.requires("efsw/1.3.1")
         self.requires("glew/2.1.0")
         self.requires("glslang/1.3.268.0")
         self.requires("gtest/1.10.0")
@@ -54,7 +51,6 @@ class ObloConanRecipe(ConanFile):
             self.requires("tracy/0.10")
 
     def configure(self):
-        self.options["efsw/*"].shared = False
         self.options["eigen/*"].MPL2_only = True
 
         tinygltf = self.options["tinygltf/*"]
@@ -105,10 +101,3 @@ class ObloConanRecipe(ConanFile):
                     if path.isabs(bin_dir):
                         copy(self, "*.dylib", bin_dir, out_dir)
                         copy(self, "*.dll", bin_dir, out_dir)
-
-    def _install_required_recipes(self):
-        conan_api = ConanAPI()
-        conan_cli = Cli(conan_api)
-
-        if not conan_api.search.recipes("efsw/1.3.1"):
-            conan_cli.run(["export", f"{self.recipe_folder}/conan/recipes/efsw"])

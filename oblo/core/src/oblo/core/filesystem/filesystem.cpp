@@ -245,6 +245,22 @@ namespace oblo::filesystem
         return r;
     }
 
+    expected<bool> rename(cstring_view from, cstring_view to)
+    {
+        std::filesystem::path f{std::u8string_view{from.u8data(), from.size()}};
+        std::filesystem::path t{std::u8string_view{to.u8data(), to.size()}};
+        std::error_code ec;
+
+        std::filesystem::rename(f, t, ec);
+
+        if (ec)
+        {
+            return unspecified_error;
+        }
+
+        return true;
+    }
+
     expected<bool> copy_file(cstring_view source, cstring_view destination)
     {
         std::filesystem::path p1{std::u8string_view{source.u8data(), source.size()}};
@@ -304,8 +320,7 @@ namespace oblo::filesystem
             return unspecified_error;
         }
 
-        const auto ru8 = r.u8string();
-        out = reinterpret_cast<const char*>(ru8.c_str());
+        out.append(p.c_str());
 
         return no_error;
     }

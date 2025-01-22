@@ -17,7 +17,6 @@ oblo_init()
 
 find_package(assimp REQUIRED)
 find_package(cxxopts REQUIRED)
-find_package(efsw REQUIRED)
 find_package(iconfontcppheaders REQUIRED)
 find_package(ktx REQUIRED)
 find_package(nlohmann_json REQUIRED)

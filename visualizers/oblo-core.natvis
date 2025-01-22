@@ -101,6 +101,15 @@
     </Expand>
 </Type>
 
+<Type Name="oblo::unique_ptr&lt;*&gt;">
+    <SmartPointer Usage="Minimal">m_ptr</SmartPointer>
+    <DisplayString Condition="m_ptr == 0">empty</DisplayString>
+    <DisplayString Condition="m_ptr != 0">unique_ptr {*m_ptr}</DisplayString>
+    <Expand>
+        <Item Condition="m_ptr != 0" Name="[ptr]">m_ptr</Item>
+    </Expand>
+</Type>
+
 <Type Name="oblo::compressed_pointer_with_flags&lt;*&gt;">
     <DisplayString>{{ {($T1*) (buffer &amp; ~((1 &lt;&lt; max_flags) - 1))} }}</DisplayString>
     <Expand>
@@ -111,6 +120,5 @@
         </IndexListItems>
     </Expand>
 </Type>
-
 
 </AutoVisualizer>

@@ -18,6 +18,8 @@ namespace oblo::filesystem
 
     expected<bool> remove_all(cstring_view path);
 
+    expected<bool> rename(cstring_view from, cstring_view to);
+
     expected<bool> copy_file(cstring_view source, cstring_view destination);
 
     expected<bool> create_directories(cstring_view path);

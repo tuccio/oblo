@@ -2,6 +2,7 @@
 
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/array_size.hpp>
+#include <oblo/core/filesystem/directory_watcher.hpp>
 #include <oblo/core/filesystem/file.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/frame_allocator.hpp>
@@ -34,7 +35,6 @@
 #include <oblo/vulkan/texture.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
 
-#include <efsw/efsw.hpp>
 #include <spirv_cross/spirv_cross.hpp>
 
 #ifdef TRACY_ENABLE
@@ -284,21 +284,6 @@ namespace oblo::vk
         {
             return type.columns * type.vecsize * type.width / 8;
         }
-
-        struct watch_listener final : efsw::FileWatchListener
-        {
-            void handleFileAction(
-                efsw::WatchID, const std::string& dir, const std::string& filename, efsw::Action, std::string)
-            {
-                std::lock_guard lock{mutex};
-                builder.clear().append(dir).append_path(filename);
-                touchedFiles.insert(builder.as<string>());
-            }
-
-            std::mutex mutex;
-            string_builder builder;
-            std::unordered_set<string, hash<string>> touchedFiles;
-        };
 
         struct vertex_inputs_reflection
         {
@@ -594,6 +579,31 @@ namespace oblo::vk
             h32_flat_extpool_dense_map<render_pass, bool> renderPasses;
             h32_flat_extpool_dense_map<raytracing_pass, bool> raytracingPasses;
         };
+
+        struct transparent_string_hash
+        {
+            using is_transparent = void;
+
+            usize operator()(cstring_view str) const
+            {
+                return hash<cstring_view>{}(str);
+            }
+
+            usize operator()(string_view str) const
+            {
+                return hash<string_view>{}(str);
+            }
+
+            usize operator()(const string& str) const
+            {
+                return hash<string>{}(str);
+            }
+
+            usize operator()(const string_builder& str) const
+            {
+                return hash<string_view>{}(str.as<string_view>());
+            }
+        };
     }
 
     struct pass_manager::impl
@@ -631,8 +641,7 @@ namespace oblo::vk
 
         string_builder instanceDataDefines;
 
-        watch_listener watchListener;
-        std::optional<efsw::FileWatcher> fileWatcher;
+        dynamic_array<filesystem::directory_watcher> watchers;
 
         bool enableShaderOptimizations{false};
         bool emitDebugInfo{false};
@@ -642,7 +651,7 @@ namespace oblo::vk
         bool globallyEnablePrintf{false};
         bool isRayTracingEnabled{true};
 
-        std::unordered_map<string, watching_passes, hash<string>> fileToPassList;
+        std::unordered_map<string, watching_passes, transparent_string_hash, std::equal_to<>> fileToPassList;
 
         VkPhysicalDeviceRayTracingPipelinePropertiesKHR rtPipelineProperties{};
 
@@ -719,7 +728,6 @@ namespace oblo::vk
 
         auto& watches = fileToPassList[abs.as<string>()];
         watches.computePasses.emplace(pass);
-        fileWatcher->addWatch(filesystem::parent_path(abs.view()).as<std::string>(), &watchListener);
     }
 
     void pass_manager::impl::add_watch(string_view file, h32<render_pass> pass)
@@ -729,7 +737,6 @@ namespace oblo::vk
 
         auto& watches = fileToPassList[abs.as<string>()];
         watches.renderPasses.emplace(pass);
-        fileWatcher->addWatch(filesystem::parent_path(abs.view()).as<std::string>(), &watchListener);
     }
 
     void pass_manager::impl::add_watch(string_view file, h32<raytracing_pass> pass)
@@ -739,7 +746,6 @@ namespace oblo::vk
 
         auto& watches = fileToPassList[abs.as<string>()];
         watches.raytracingPasses.emplace(pass);
-        fileWatcher->addWatch(filesystem::parent_path(abs.view()).as<std::string>(), &watchListener);
     }
 
     VkShaderModule pass_manager::impl::create_shader_module(VkShaderStageFlagBits vkStage,
@@ -1200,34 +1206,42 @@ namespace oblo::vk
 
     void pass_manager::impl::propagate_pipeline_invalidation()
     {
-        std::lock_guard lock{watchListener.mutex};
-
-        for (const auto& f : watchListener.touchedFiles)
+        for (auto& watcher : watchers)
         {
-            const auto it = fileToPassList.find(f);
+            const auto r = watcher.process(
+                [this](const filesystem::directory_watcher_event evt)
+                {
+                    if (evt.eventKind == filesystem::directory_watcher_event_kind::modified)
+                    {
+                        const auto it = fileToPassList.find(evt.path);
 
-            if (it == fileToPassList.end())
-            {
-                continue;
-            }
+                        if (it == fileToPassList.end())
+                        {
+                            return;
+                        }
 
-            for (const auto& r : it->second.renderPasses.keys())
-            {
-                renderPasses.at(r).shouldRecompile = true;
-            }
+                        for (const auto& r : it->second.renderPasses.keys())
+                        {
+                            renderPasses.at(r).shouldRecompile = true;
+                        }
 
-            for (const auto& c : it->second.computePasses.keys())
-            {
-                computePasses.at(c).shouldRecompile = true;
-            }
+                        for (const auto& c : it->second.computePasses.keys())
+                        {
+                            computePasses.at(c).shouldRecompile = true;
+                        }
 
-            for (const auto& c : it->second.raytracingPasses.keys())
+                        for (const auto& c : it->second.raytracingPasses.keys())
+                        {
+                            raytracingPasses.at(c).shouldRecompile = true;
+                        }
+                    }
+                });
+
+            if (!r)
             {
-                raytracingPasses.at(c).shouldRecompile = true;
+                log::debug("Processing of directory watcher {} failed", watcher.get_directory());
             }
         }
-
-        watchListener.touchedFiles.clear();
     }
 
     VkDescriptorSet pass_manager::impl::create_descriptor_set(VkDescriptorSetLayout descriptorSetLayout,
@@ -1612,9 +1626,6 @@ namespace oblo::vk
                 &m_impl->textures2DSetLayout);
         }
 
-        auto& watcher = m_impl->fileWatcher.emplace();
-        watcher.watch();
-
         const auto subgroupProperties = vkContext.get_physical_device_subgroup_properties();
         m_impl->subgroupSize = subgroupProperties.subgroupSize;
 
@@ -1702,6 +1713,23 @@ namespace oblo::vk
             m_impl->glslangCompiler->init({
                 .includeDirectories = paths,
             });
+        }
+
+        m_impl->watchers.clear();
+        m_impl->watchers.reserve(paths.size());
+
+        for (auto& p : paths)
+        {
+            auto& w = m_impl->watchers.emplace_back();
+
+            if (!w.init({.path = p, .isRecursive = true}))
+            {
+                log::debug(
+                    "Failed to initialize directory watch on {}. Shader hot-reloading might not work as intended.",
+                    p);
+
+                m_impl->watchers.pop_back();
+            }
         }
     }
 
