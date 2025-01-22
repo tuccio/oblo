@@ -49,131 +49,148 @@ namespace oblo
         }
     }
 
-    TEST(directory_watcher, files_non_recursive)
+    TEST(directory_watcher, watch_directory)
     {
-        EXPECT_TRUE(make_clear_directory("./directory_watcher_test/"));
-
-        filesystem::directory_watcher w;
-
-        EXPECT_TRUE(w.init({
-            .path = "./directory_watcher_test",
-            .isRecursive = false,
-        }));
-
-        string_builder buffer;
-
+        for (bool isRecursive : {false, true})
         {
-            EXPECT_TRUE(write_text_file("./directory_watcher_test/a.foo", "A"));
+            EXPECT_TRUE(make_clear_directory("./directory_watcher_test/"));
 
-            u32 createdEvents{};
-            u32 modifiedEvents{};
-            u32 eventsCount{};
+            filesystem::directory_watcher w;
 
-            EXPECT_TRUE(w.process(
-                [&](const filesystem::directory_watcher_event& evt) OBLO_NOINLINE
-                {
-                    ++eventsCount;
-                    createdEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::created};
-                    modifiedEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::modified};
+            EXPECT_TRUE(w.init({
+                .path = "./directory_watcher_test",
+                .isRecursive = isRecursive,
+            }));
 
-                    buffer.clear();
-                    const auto content = filesystem::load_text_file_into_memory(buffer, evt.path);
-                    ASSERT_TRUE(content);
-                    ASSERT_EQ(*content, string_view{"A"});
-                }));
+            string_builder buffer;
 
-            ASSERT_EQ(createdEvents, 1);
-            ASSERT_EQ(modifiedEvents, 1);
-            ASSERT_EQ(eventsCount, 2);
-        }
+            {
+                EXPECT_TRUE(write_text_file("./directory_watcher_test/a.foo", "A"));
 
-        {
-            EXPECT_TRUE(write_text_file("./directory_watcher_test/a.foo", "B"));
+                u32 createdEvents{};
+                u32 modifiedEvents{};
+                u32 eventsCount{};
 
-            u32 createdEvents{};
-            u32 modifiedEvents{};
-            u32 eventsCount{};
-
-            EXPECT_TRUE(w.process(
-                [&](const filesystem::directory_watcher_event& evt) OBLO_NOINLINE
-                {
-                    ++eventsCount;
-                    createdEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::created};
-                    modifiedEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::modified};
-
-                    buffer.clear();
-                    const auto content = filesystem::load_text_file_into_memory(buffer, evt.path);
-                    ASSERT_TRUE(content);
-                    ASSERT_EQ(*content, string_view{"B"});
-                }));
-
-            ASSERT_EQ(createdEvents, 0);
-            ASSERT_EQ(modifiedEvents, 1);
-            ASSERT_EQ(eventsCount, 1);
-        }
-
-        {
-            EXPECT_TRUE(filesystem::create_directories("./directory_watcher_test/bar"));
-
-            u32 createdEvents{};
-            u32 eventsCount{};
-
-            EXPECT_TRUE(w.process(
-                [&](const filesystem::directory_watcher_event& evt) OBLO_NOINLINE
-                {
-                    ++eventsCount;
-                    createdEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::created};
-
-                    EXPECT_TRUE(filesystem::is_directory(evt.path));
-                    EXPECT_EQ(filesystem::filename(evt.path), "bar");
-                }));
-
-            ASSERT_EQ(createdEvents, 1);
-            ASSERT_EQ(eventsCount, 1);
-        }
-
-        {
-            // Since it's not recursive, we should not get an event here
-            EXPECT_TRUE(write_text_file("./directory_watcher_test/bar/b.foo", "B"));
-
-            u32 eventsCount{};
-
-            EXPECT_TRUE(w.process([&](const filesystem::directory_watcher_event&) OBLO_NOINLINE { ++eventsCount; }));
-
-            ASSERT_EQ(eventsCount, 0);
-        }
-
-        {
-            EXPECT_TRUE(filesystem::rename("./directory_watcher_test/bar", "./directory_watcher_test/baz"));
-
-            u32 modifiedEvents{};
-            u32 renameEvents{};
-            u32 eventsCount{};
-
-            EXPECT_TRUE(w.process(
-                [&](const filesystem::directory_watcher_event& evt) OBLO_NOINLINE
-                {
-                    ++eventsCount;
-                    modifiedEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::modified};
-                    renameEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::renamed};
-
-                    if (evt.eventKind == filesystem::directory_watcher_event_kind::renamed)
+                EXPECT_TRUE(w.process(
+                    [&](const filesystem::directory_watcher_event& evt) OBLO_NOINLINE
                     {
-                        ASSERT_EQ(filesystem::filename(evt.path), "baz");
-                        ASSERT_EQ(filesystem::filename(evt.previousName), "bar");
-                    }
+                        ++eventsCount;
+                        createdEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::created};
+                        modifiedEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::modified};
 
-                    // At least on Windows we also get a modified event for the directory itself (but not for the
-                    // parent)
-                    if (evt.eventKind == filesystem::directory_watcher_event_kind::modified)
+                        buffer.clear();
+                        const auto content = filesystem::load_text_file_into_memory(buffer, evt.path);
+                        ASSERT_TRUE(content);
+                        ASSERT_EQ(*content, string_view{"A"});
+                    }));
+
+                ASSERT_EQ(createdEvents, 1);
+                ASSERT_EQ(modifiedEvents, 1);
+                ASSERT_EQ(eventsCount, 2);
+            }
+
+            {
+                EXPECT_TRUE(write_text_file("./directory_watcher_test/a.foo", "B"));
+
+                u32 createdEvents{};
+                u32 modifiedEvents{};
+                u32 eventsCount{};
+
+                EXPECT_TRUE(w.process(
+                    [&](const filesystem::directory_watcher_event& evt) OBLO_NOINLINE
                     {
-                        ASSERT_EQ(filesystem::filename(evt.path), "baz");
-                    }
-                }));
+                        ++eventsCount;
+                        createdEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::created};
+                        modifiedEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::modified};
 
-            ASSERT_EQ(modifiedEvents, 1);
-            ASSERT_EQ(renameEvents, 1);
-            ASSERT_EQ(eventsCount, 2);
+                        buffer.clear();
+                        const auto content = filesystem::load_text_file_into_memory(buffer, evt.path);
+                        ASSERT_TRUE(content);
+                        ASSERT_EQ(*content, string_view{"B"});
+                    }));
+
+                ASSERT_EQ(createdEvents, 0);
+                ASSERT_EQ(modifiedEvents, 1);
+                ASSERT_EQ(eventsCount, 1);
+            }
+
+            {
+                EXPECT_TRUE(filesystem::create_directories("./directory_watcher_test/bar"));
+
+                u32 createdEvents{};
+                u32 eventsCount{};
+
+                EXPECT_TRUE(w.process(
+                    [&](const filesystem::directory_watcher_event& evt) OBLO_NOINLINE
+                    {
+                        ++eventsCount;
+                        createdEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::created};
+
+                        EXPECT_TRUE(filesystem::is_directory(evt.path));
+                        EXPECT_EQ(filesystem::filename(evt.path), "bar");
+                    }));
+
+                ASSERT_EQ(createdEvents, 1);
+                ASSERT_EQ(eventsCount, 1);
+            }
+
+            {
+                EXPECT_TRUE(write_text_file("./directory_watcher_test/bar/b.foo", "B"));
+
+                u32 createEvents{};
+                u32 eventsCount{};
+
+                EXPECT_TRUE(w.process(
+                    [&](const filesystem::directory_watcher_event& evt) OBLO_NOINLINE
+                    {
+                        ++eventsCount;
+                        createEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::created};
+                    }));
+
+                if (!isRecursive)
+                {
+                    // Since it's not recursive, we should not get an event here
+                    ASSERT_EQ(eventsCount, 0);
+                    ASSERT_EQ(createEvents, 0);
+                }
+                else
+                {
+                    ASSERT_EQ(eventsCount, 3);
+                    ASSERT_EQ(createEvents, 1);
+                }
+            }
+
+            {
+                EXPECT_TRUE(filesystem::rename("./directory_watcher_test/bar", "./directory_watcher_test/baz"));
+
+                u32 modifiedEvents{};
+                u32 renameEvents{};
+                u32 eventsCount{};
+
+                EXPECT_TRUE(w.process(
+                    [&](const filesystem::directory_watcher_event& evt) OBLO_NOINLINE
+                    {
+                        ++eventsCount;
+                        modifiedEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::modified};
+                        renameEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::renamed};
+
+                        if (evt.eventKind == filesystem::directory_watcher_event_kind::renamed)
+                        {
+                            ASSERT_EQ(filesystem::filename(evt.path), "baz");
+                            ASSERT_EQ(filesystem::filename(evt.previousName), "bar");
+                        }
+
+                        // At least on Windows we also get a modified event when set as non-recursive
+                        if (evt.eventKind == filesystem::directory_watcher_event_kind::modified)
+                        {
+                            ASSERT_EQ(filesystem::filename(evt.path), "baz");
+                        }
+                    }));
+
+                ASSERT_EQ(modifiedEvents, isRecursive ? 0 : 1);
+                ASSERT_EQ(renameEvents, 1);
+                ASSERT_EQ(eventsCount, renameEvents + modifiedEvents);
+            }
         }
     }
 }
