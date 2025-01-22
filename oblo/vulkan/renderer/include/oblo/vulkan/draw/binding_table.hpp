@@ -113,7 +113,7 @@ namespace oblo::vk
             }
         }
 
-        void bind_texture(std::initializer_list<pair<hashed_string_view, resource<texture>>> list)
+        void bind_textures(std::initializer_list<pair<hashed_string_view, resource<texture>>> list)
         {
             for (const auto& [k, v] : list)
             {

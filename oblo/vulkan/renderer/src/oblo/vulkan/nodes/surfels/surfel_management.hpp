@@ -37,6 +37,7 @@ namespace oblo::vk
         data<vec3u> outCellsCount;
 
         h32<compute_pass> initStackPass;
+        h32<compute_pass_instance> initPassInstance;
 
         u8 outputSelector;
 
@@ -77,6 +78,7 @@ namespace oblo::vk
         resource<buffer> inMeshDatabase;
 
         h32<compute_pass> tilingPass;
+        h32<compute_pass_instance> tilingPassInstance;
 
         u32 randomSeed;
 
@@ -102,6 +104,7 @@ namespace oblo::vk
         resource<buffer> inOutLastFrameSurfelsLightingData;
 
         h32<compute_pass> spawnPass;
+        h32<compute_pass_instance> spawnPassInstance;
 
         u32 randomSeed;
 

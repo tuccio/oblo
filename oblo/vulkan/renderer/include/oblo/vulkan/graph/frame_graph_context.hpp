@@ -144,13 +144,13 @@ namespace oblo::vk
 
         h32<frame_graph_pass> begin_pass(pass_kind kind) const;
 
-        h32<compute_pass_instance> compute_pass(h32<compute_pass> pass,
+        [[nodiscard]] h32<compute_pass_instance> compute_pass(h32<compute_pass> pass,
             const compute_pipeline_initializer& initializer) const;
 
-        h32<render_pass_instance> render_pass(h32<render_pass> pass,
+        [[nodiscard]] h32<render_pass_instance> render_pass(h32<render_pass> pass,
             const render_pipeline_initializer& initializer) const;
 
-        h32<raytracing_pass_instance> raytracing_pass(h32<raytracing_pass> pass,
+        [[nodiscard]] h32<raytracing_pass_instance> raytracing_pass(h32<raytracing_pass> pass,
             const raytracing_pipeline_initializer& initializer) const;
 
         void create(
