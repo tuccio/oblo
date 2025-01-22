@@ -41,10 +41,9 @@ namespace oblo
             };
         }
 
-        template <typename... T>
-        OBLO_FORCEINLINE constexpr R operator()(T&&... args) const
+        OBLO_FORCEINLINE constexpr R operator()(Args... args) const
         {
-            return m_invoke(m_userdata, std::forward<T>(args)...);
+            return m_invoke(m_userdata, std::forward<Args>(args)...);
         }
 
         OBLO_FORCEINLINE constexpr explicit operator bool() const noexcept
