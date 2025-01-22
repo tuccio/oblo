@@ -11,7 +11,6 @@ target_link_libraries(
     oblo::log
     oblo::resource
     oblo::scene
-    efsw::efsw
     spirv-cross::spirv-cross
 )
 
