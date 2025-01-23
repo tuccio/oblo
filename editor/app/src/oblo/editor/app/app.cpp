@@ -265,7 +265,6 @@ namespace oblo::editor
         auto& propertyRegistry = m_runtimeRegistry.get_property_registry();
         auto& resourceRegistry = m_runtimeRegistry.get_resource_registry();
 
-        register_asset_types(m_assetRegistry, mm.find_services<resource_types_provider>());
         register_file_importers(m_assetRegistry, mm.find_services<file_importers_provider>());
         register_resource_types(resourceRegistry, mm.find_services<resource_types_provider>());
 

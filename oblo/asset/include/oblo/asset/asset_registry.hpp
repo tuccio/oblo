@@ -46,10 +46,6 @@ namespace oblo
 
         void discover_assets();
 
-        void register_type(const artifact_type_descriptor& desc);
-        void unregister_type(const uuid& type);
-        bool has_asset_type(const uuid& type) const;
-
         void register_file_importer(const file_importer_desc& desc);
         void unregister_file_importer(type_id type);
 
@@ -89,7 +85,6 @@ namespace oblo
         uuid generate_uuid();
 
         bool save_artifact(const uuid& id,
-            const uuid& type,
             const cstring_view path,
             const artifact_meta& meta,
             write_policy policy = write_policy::no_overwrite);

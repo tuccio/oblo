@@ -232,7 +232,7 @@ namespace oblo
                     .importName = artifact.name,
                 };
 
-                if (!registry.save_artifact(artifact.id, artifact.type, artifact.path, meta))
+                if (!registry.save_artifact(artifact.id, artifact.path, meta))
                 {
                     log::error("Artifact '{}' ({}) will be skipped due to an error occurring while saving to disk",
                         artifact.name,

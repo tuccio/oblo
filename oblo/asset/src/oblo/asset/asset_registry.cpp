@@ -1,7 +1,6 @@
 #include <oblo/asset/asset_registry.hpp>
 
 #include <oblo/asset/asset_meta.hpp>
-#include <oblo/asset/descriptors/artifact_type_descriptor.hpp>
 #include <oblo/asset/import/import_artifact.hpp>
 #include <oblo/asset/import/import_preview.hpp>
 #include <oblo/asset/import/importer.hpp>
@@ -24,17 +23,11 @@ namespace oblo
 {
     namespace
     {
-        struct asset_type_info : artifact_type_descriptor
-        {
-        };
-
         struct file_importer_info
         {
             create_file_importer_fn create;
             dynamic_array<string> extensions;
         };
-
-        using asset_types_map = std::unordered_map<type_id, asset_type_info>;
 
         bool load_asset_meta(asset_meta& meta, std::vector<uuid>& artifacts, const std::filesystem::path& path)
         {
@@ -259,7 +252,6 @@ namespace oblo
     {
         random_generator rng;
         uuid_random_generator uuidGenerator{rng};
-        std::unordered_map<uuid, asset_type_info> assetTypes;
         std::unordered_map<type_id, file_importer_info> importers;
         std::unordered_map<uuid, asset_entry> assets;
         string_builder assetsDir;
@@ -307,21 +299,6 @@ namespace oblo
     void asset_registry::shutdown()
     {
         m_impl.reset();
-    }
-
-    void asset_registry::register_type(const artifact_type_descriptor& desc)
-    {
-        m_impl->assetTypes.emplace(desc.typeUuid, desc);
-    }
-
-    void asset_registry::unregister_type(const uuid& type)
-    {
-        m_impl->assetTypes.erase(type);
-    }
-
-    bool asset_registry::has_asset_type(const uuid& type) const
-    {
-        return m_impl->assetTypes.contains(type);
     }
 
     bool asset_registry::create_directories(string_view directory)
@@ -403,18 +380,10 @@ namespace oblo
     }
 
     bool asset_registry::save_artifact(const uuid& artifactId,
-        const uuid& type,
         const cstring_view srcArtifact,
         const artifact_meta& meta,
         write_policy policy)
     {
-        const auto typeIt = m_impl->assetTypes.find(type);
-
-        if (typeIt == m_impl->assetTypes.end())
-        {
-            return false;
-        }
-
         char uuidBuffer[36];
 
         auto artifactPath = m_impl->artifactsDir;
