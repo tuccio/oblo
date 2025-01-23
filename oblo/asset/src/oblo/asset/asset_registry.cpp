@@ -7,6 +7,7 @@
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
+#include <oblo/core/formatters/uuid_formatter.hpp>
 #include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/uuid.hpp>
@@ -29,7 +30,7 @@ namespace oblo
             dynamic_array<string> extensions;
         };
 
-        bool load_asset_meta(asset_meta& meta, std::vector<uuid>& artifacts, const std::filesystem::path& path)
+        bool load_asset_meta(asset_meta& meta, const std::filesystem::path& path)
         {
             std::ifstream in{path};
 
@@ -96,23 +97,10 @@ namespace oblo
                 meta.isImported = isImported->get<bool>();
             }
 
-            const auto artifactsJson = json.find("artifacts");
-
-            if (artifactsJson != json.end())
-            {
-                for (auto& artifact : *artifactsJson)
-                {
-                    if (const auto parsed = uuid::parse(artifact.get<std::string_view>()))
-                    {
-                        artifacts.emplace_back(*parsed);
-                    }
-                }
-            }
-
             return true;
         }
 
-        bool save_asset_meta(const asset_meta& meta, const deque<uuid>& artifacts, cstring_view destination)
+        bool save_asset_meta(const asset_meta& meta, cstring_view destination)
         {
             char uuidBuffer[36];
 
@@ -123,13 +111,6 @@ namespace oblo
             json["mainArtifactHint"] = meta.mainArtifactHint.format_to(uuidBuffer).as<std::string_view>();
             json["typeHint"] = meta.typeHint.format_to(uuidBuffer).as<std::string_view>();
             json["isImported"] = meta.isImported;
-
-            auto&& artifactsJson = json["artifacts"];
-
-            for (const auto& uuid : artifacts)
-            {
-                artifactsJson.push_back(uuid.format_to(uuidBuffer).as<std::string_view>());
-            }
 
             std::ofstream ofs{destination.as<std::string>()};
 
@@ -434,23 +415,19 @@ namespace oblo
             return false;
         }
 
-        return save_asset_meta(assetIt->second.meta, artifacts, fullPath);
+        return save_asset_meta(assetIt->second.meta, fullPath);
     }
 
-    bool asset_registry::create_source_files_dir(string_builder& importDir, uuid importId)
+    bool asset_registry::create_source_files_dir(string_builder& importDir, uuid sourceFileId)
     {
-        char uuidBuffer[36];
+        importDir.clear().append(m_impl->sourceFilesDir).append_path_separator().format("{}", sourceFileId);
+        return ensure_directories(importDir);
+    }
 
-        importDir.clear()
-            .append(m_impl->sourceFilesDir)
-            .append_path(importId.format_to(uuidBuffer).as<std::string_view>());
-
-        if (!ensure_directories(importDir))
-        {
-            return false;
-        }
-
-        return true;
+    bool asset_registry::create_temporary_files_dir(string_builder& dir, uuid assetId) const
+    {
+        dir.clear().append(m_impl->artifactsDir).append_path(".workdir").append_path_separator().format("{}", assetId);
+        return ensure_directories(dir);
     }
 
     bool asset_registry::find_asset_by_id(const uuid& id, asset_meta& assetMeta) const
@@ -585,14 +562,42 @@ namespace oblo
             const auto& p = entry.path();
 
             asset_meta meta{};
-            std::vector<uuid> artifacts;
 
-            if (load_asset_meta(meta, artifacts, p))
+            if (load_asset_meta(meta, p))
             {
                 OBLO_ASSERT(!meta.assetId.is_nil());
-                [[maybe_unused]] auto [it, ok] =
-                    m_impl->assets.emplace(meta.assetId, asset_entry{meta, std::move(artifacts)});
+                [[maybe_unused]] auto [it, ok] = m_impl->assets.emplace(meta.assetId, asset_entry{meta});
                 OBLO_ASSERT(ok);
+            }
+            else
+            {
+                log::warn("Failed to load asset meta {}", p.string());
+            }
+        }
+
+        string_builder builder;
+
+        for (auto&& entry : std::filesystem::directory_iterator{m_impl->artifactsDir.view().as<std::string>(), ec})
+        {
+            const auto& p = entry.path();
+
+            if (p.extension() != ArtifactMetaExtension)
+            {
+                continue;
+            }
+
+            artifact_meta meta{};
+
+            builder.clear().format("{}", p.string());
+
+            if (oblo::load_artifact_meta(builder, meta))
+            {
+                const auto it = m_impl->assets.find(meta.assetId);
+
+                if (it != m_impl->assets.end())
+                {
+                    it->second.artifacts.emplace_back(meta.artifactId);
+                }
             }
             else
             {

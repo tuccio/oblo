@@ -84,7 +84,6 @@ namespace oblo
     private:
         static uuid generate_uuid();
 
-    private:
         bool save_artifact(const uuid& id,
             const cstring_view path,
             const artifact_meta& meta,
@@ -96,7 +95,9 @@ namespace oblo
             const deque<uuid>& artifacts,
             write_policy policy = write_policy::no_overwrite);
 
-        bool create_source_files_dir(string_builder& dir, uuid importId);
+        bool create_source_files_dir(string_builder& dir, uuid sourceFileId);
+
+        bool create_temporary_files_dir(string_builder& dir, uuid assetId) const;
 
     private:
         std::unique_ptr<impl> m_impl;

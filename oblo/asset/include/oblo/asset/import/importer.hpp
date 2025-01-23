@@ -4,6 +4,7 @@
 #include <oblo/asset/import/import_preview.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/string/string.hpp>
+#include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/uuid.hpp>
@@ -23,7 +24,7 @@ namespace oblo
 
     struct file_import_results
     {
-        std::span<import_artifact> artifacts;
+        std::span<const import_artifact> artifacts;
         std::span<const string> sourceFiles;
         uuid mainArtifactHint;
     };
@@ -71,6 +72,7 @@ namespace oblo
 
     private:
         deque<file_import_data> m_fileImports;
+        string_builder m_temporaryPath;
         std::unordered_map<uuid, artifact_meta> m_artifacts;
         uuid m_assetId{};
         type_id m_importerType{};

@@ -118,7 +118,7 @@ namespace oblo
             }
         }
 
-        return true;
+        return registry.create_temporary_files_dir(m_temporaryPath, m_assetId);
     }
 
     bool importer::execute(const data_document& importSettings)
@@ -128,13 +128,8 @@ namespace oblo
             return false;
         }
 
-        string_builder temporaryPath;
-        temporaryPath.format("./.asset_import/{}", m_assetId);
-
-        filesystem::create_directories(temporaryPath).assert_value();
-
         parallel_for(
-            [this, &importSettings, &temporaryPath](const job_range& r)
+            [this, &importSettings](const job_range& r)
             {
                 for (u32 i = r.begin; i < r.end; ++i)
                 {
@@ -144,7 +139,7 @@ namespace oblo
                         .nodes = fi.preview.nodes,
                         .importNodesConfig = fi.nodeConfigs,
                         .settings = i == 0 ? importSettings : fi.config.settings,
-                        .temporaryPath = temporaryPath,
+                        .temporaryPath = m_temporaryPath,
                         .fileImportData = &fi,
                         .allImporters = &m_fileImports,
                     };
