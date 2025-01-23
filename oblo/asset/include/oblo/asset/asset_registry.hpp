@@ -54,9 +54,9 @@ namespace oblo
 
         bool create_directories(string_view directory);
 
-        expected<> import(cstring_view sourceFile, cstring_view destination, data_document settings);
+        expected<> import(string_view sourceFile, string_view destination, data_document settings);
 
-        [[nodiscard]] unique_ptr<file_importer> create_file_importer(cstring_view sourceFile) const;
+        [[nodiscard]] unique_ptr<file_importer> create_file_importer(string_view sourceFile) const;
 
         bool find_asset_by_id(const uuid& id, asset_meta& assetMeta) const;
         bool find_asset_by_path(cstring_view path, uuid& id, asset_meta& assetMeta) const;
@@ -70,6 +70,8 @@ namespace oblo
             function_ref<bool(const uuid& assetId, const uuid& artifactId)> callback) const;
 
         cstring_view get_asset_directory() const;
+
+        u32 get_running_imports_count() const;
 
     public:
         static bool find_artifact_resource(

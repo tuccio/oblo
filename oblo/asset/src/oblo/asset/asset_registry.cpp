@@ -14,8 +14,7 @@
 #include <oblo/core/uuid.hpp>
 #include <oblo/core/uuid_generator.hpp>
 #include <oblo/log/log.hpp>
-#include <oblo/properties/serialization/data_document.hpp>
-#include <oblo/properties/serialization/json.hpp>
+#include <oblo/properties/serialization/common.hpp>
 #include <oblo/thread/job_manager.hpp>
 
 #include <nlohmann/json.hpp>
@@ -291,7 +290,7 @@ namespace oblo
             for (const uuid& id : info.artifacts)
             {
                 const auto e = doc.array_push_back(artifacts);
-                doc.make_uuid(e, id);
+                doc.make_value(e, property_value_wrapper{id});
             }
 
             return json::write(doc, destination).has_value();
@@ -346,7 +345,7 @@ namespace oblo
                 .append(g_assetProcessExtension);
         }
 
-        importer create_importer(cstring_view sourceFile) const
+        importer create_importer(string_view sourceFile) const
         {
             const auto ext = filesystem::extension(sourceFile);
 
@@ -396,7 +395,15 @@ namespace oblo
 
     void asset_registry::shutdown()
     {
-        m_impl.reset();
+        if (m_impl)
+        {
+            while (get_running_imports_count() > 0)
+            {
+                update();
+            }
+
+            m_impl.reset();
+        }
     }
 
     bool asset_registry::create_directories(string_view directory)
@@ -407,7 +414,7 @@ namespace oblo
         return ensure_directories(sb);
     }
 
-    expected<> asset_registry::import(cstring_view sourceFile, cstring_view destination, data_document settings)
+    expected<> asset_registry::import(string_view sourceFile, string_view destination, data_document settings)
     {
         auto importer = m_impl->create_importer(sourceFile);
 
@@ -428,7 +435,9 @@ namespace oblo
         importProcess->destination = destination.as<string>();
         importProcess->startTime = clock::now();
 
-        const auto job = job_manager::get()->push_waitable(
+        auto* jm = job_manager::get();
+
+        const auto job = jm->push_waitable(
             [importProcess = importProcess.get()]
             {
                 const auto r = importProcess->importer.execute(importProcess->settings);
@@ -462,7 +471,7 @@ namespace oblo
         m_impl->importers.erase(type);
     }
 
-    unique_ptr<file_importer> asset_registry::create_file_importer(cstring_view sourceFile) const
+    unique_ptr<file_importer> asset_registry::create_file_importer(string_view sourceFile) const
     {
         const auto ext = filesystem::extension(sourceFile);
 
@@ -651,6 +660,11 @@ namespace oblo
         return m_impl->assetsDir;
     }
 
+    u32 asset_registry::get_running_imports_count() const
+    {
+        return m_impl->currentImports.size32();
+    }
+
     bool asset_registry::find_artifact_resource(
         const uuid& id, uuid& outType, string& outName, string& outPath, const void* userdata)
     {
@@ -731,13 +745,13 @@ namespace oblo
 
     void asset_registry::update()
     {
-        auto* jobs = job_manager::get();
+        auto* jm = job_manager::get();
 
         for (auto it = m_impl->currentImports.begin(); it != m_impl->currentImports.end();)
         {
             auto& importProcess = **it;
 
-            if (!jobs->try_wait(importProcess.job))
+            if (!jm->try_wait(importProcess.job))
             {
                 ++it;
                 continue;

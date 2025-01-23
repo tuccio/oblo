@@ -316,9 +316,9 @@ namespace oblo
         newValue.value = {.data = newData};
     }
 
-    void data_document::make_uuid(u32 node, const uuid& value)
+    void data_document::make_value(u32 node, const property_value_wrapper& w)
     {
-        make_value(node, property_kind::uuid, as_bytes(value));
+        make_value(node, w.get_kind(), w.get_bytes());
     }
 
     void* data_document::allocate(usize size, usize alignment)

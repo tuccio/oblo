@@ -2,21 +2,23 @@
 
 #include <oblo/asset/asset_meta.hpp>
 #include <oblo/asset/asset_registry.hpp>
-#include <oblo/asset/descriptors/artifact_type_descriptor.hpp>
-#include <oblo/asset/import/importer.hpp>
 #include <oblo/asset/importers/registration.hpp>
 #include <oblo/core/data_format.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
+#include <oblo/core/finally.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_manager.hpp>
-#include <oblo/properties/property_kind.hpp>
+#include <oblo/properties/serialization/common.hpp>
+#include <oblo/resource/descriptors/resource_type_descriptor.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/assets/mesh.hpp>
 #include <oblo/scene/assets/model.hpp>
 #include <oblo/scene/assets/registration.hpp>
+#include <oblo/scene/assets/traits.hpp>
 #include <oblo/scene/scene_module.hpp>
+#include <oblo/thread/job_manager.hpp>
 
 namespace oblo::importers
 {
@@ -41,6 +43,11 @@ namespace oblo::importers
 
     TEST(gltf_importer, box)
     {
+        job_manager jm;
+        jm.init();
+
+        const auto cleanUp = finally([&] { jm.shutdown(); });
+
         module_manager mm;
         mm.load<scene_module>();
 
@@ -63,7 +70,6 @@ namespace oblo::importers
         for (const auto& type : resourceTypes)
         {
             resources.register_type(type);
-            registry.register_type(artifact_type_descriptor{type});
         }
 
         register_gltf_importer(registry);
@@ -78,24 +84,24 @@ namespace oblo::importers
             child_path(gltfSampleModels, "Models", "Box", "glTF-Binary", "Box.glb"),
         };
 
-        data_document importSettings;
-        importSettings.init();
-        importSettings.child_value(importSettings.get_root(),
-            "generateMeshlets",
-            property_kind::boolean,
-            as_bytes(false));
-
         for (const auto& file : files)
         {
-            auto importer = registry.create_importer(file);
-
             const auto dirName = filesystem::filename(filesystem::parent_path(file));
 
-            ASSERT_TRUE(importer.is_valid());
+            data_document importSettings;
+            importSettings.init();
+            importSettings.child_value(importSettings.get_root(),
+                "generateMeshlets"_hsv,
+                property_value_wrapper{false});
 
-            ASSERT_TRUE(importer.init(registry));
-            ASSERT_TRUE(importer.execute(importSettings));
-            ASSERT_TRUE(importer.finalize(registry, dirName));
+            const auto importResult = registry.import(file, dirName, std::move(importSettings));
+
+            ASSERT_TRUE(importResult);
+
+            while (registry.get_running_imports_count() > 0)
+            {
+                registry.update();
+            }
 
             uuid meshId;
 
@@ -108,7 +114,7 @@ namespace oblo::importers
             ASSERT_TRUE(registry.find_asset_by_path(assetPath, meshId, modelMeta));
 
             ASSERT_NE(modelMeta.mainArtifactHint, uuid{});
-            ASSERT_EQ(modelMeta.typeHint, get_type_id<model>());
+            ASSERT_EQ(modelMeta.typeHint, resource_type<model>);
 
             const auto modelResource = resources.get_resource(modelMeta.mainArtifactHint).as<model>();
             ASSERT_TRUE(modelResource);

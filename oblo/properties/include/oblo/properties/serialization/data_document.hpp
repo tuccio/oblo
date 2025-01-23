@@ -62,8 +62,7 @@ namespace oblo
         void make_array(u32 node);
         void make_object(u32 node);
         void make_value(u32 node, property_kind kind, std::span<const byte> data);
-
-        void make_uuid(u32 node, const uuid& value);
+        void make_value(u32 node, const property_value_wrapper& w);
 
         const deque<data_node>& get_nodes() const;
 
