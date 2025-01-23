@@ -760,7 +760,7 @@ namespace oblo
 
         if (it != backIt)
         {
-            std::swap(*it, *backIt);
+            *it = std::move(*backIt);
         }
 
         pop_back();

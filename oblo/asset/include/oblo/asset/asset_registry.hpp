@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/expected.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/unique_ptr.hpp>
@@ -8,8 +9,8 @@
 
 namespace oblo
 {
+    class data_document;
     class file_importer;
-    class importer;
     class string_builder;
     class string;
 
@@ -46,12 +47,15 @@ namespace oblo
 
         void discover_assets();
 
+        void update();
+
         void register_file_importer(const file_importer_desc& desc);
         void unregister_file_importer(type_id type);
 
         bool create_directories(string_view directory);
 
-        [[nodiscard]] importer create_importer(cstring_view sourceFile) const;
+        expected<> import(cstring_view sourceFile, cstring_view destination, data_document settings);
+
         [[nodiscard]] unique_ptr<file_importer> create_file_importer(cstring_view sourceFile) const;
 
         bool find_asset_by_id(const uuid& id, asset_meta& assetMeta) const;

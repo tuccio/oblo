@@ -43,24 +43,11 @@ namespace oblo::editor
 
                     if (platform::open_file_dialog(file))
                     {
-                        auto importer = m_registry->create_importer(file);
+                        const auto r = m_registry->import(file, m_current, data_document{});
 
-                        if (importer.is_valid() && importer.init(*m_registry))
+                        if (!r)
                         {
-                            const data_document defaultImportSettings;
-
-                            const auto timeBegin = clock::now();
-
-                            const auto success = importer.execute(defaultImportSettings) &&
-                                importer.finalize(*m_registry, m_current.view());
-
-                            const auto timeEnd = clock::now();
-                            const f32 executionTime = to_f32_seconds(timeEnd - timeBegin);
-
-                            log::info("Import of '{}' {}. Execution time: {:.2f}s",
-                                file,
-                                success ? "succeeded" : "failed",
-                                executionTime);
+                            log::error("No importer was found for {}", file);
                         }
                     }
                 }

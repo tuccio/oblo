@@ -92,6 +92,12 @@ namespace oblo
         /// @param job The job to wait for.
         THREAD_API void wait(job_handle job);
 
+        /// @brief Checks whether a job is finished, and if so waits it, but doesn't block or pick up other jobs.
+        /// Jobs with a reference count (i.e. waitable jobs or jobs with manually increased reference) have to be waited
+        /// exactly once per reference.
+        /// @param job The job to wait for.
+        THREAD_API bool try_wait(job_handle job);
+
         /// @brief Creates a waitable child job, that will be destroyed once the execution of its children is completed
         /// and the job is waited for.
         /// @tparam F A job functor that satisfied callable_job.

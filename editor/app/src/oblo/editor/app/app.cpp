@@ -347,8 +347,9 @@ namespace oblo::editor
 
     void app::update_imgui(const vk::sandbox_update_imgui_context&)
     {
+        m_assetRegistry.update();
+
         m_windowManager.update();
         m_editorModule->update();
     }
-
 }

@@ -15,9 +15,11 @@
 #include <oblo/log/log.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
 #include <oblo/properties/serialization/json.hpp>
+#include <oblo/thread/job_manager.hpp>
 
 #include <nlohmann/json.hpp>
 
+#include <atomic>
 #include <fstream>
 #include <unordered_map>
 
@@ -25,6 +27,9 @@ namespace oblo
 {
     namespace
     {
+        constexpr std::string_view g_artifactMetaExtension{".oartifact"};
+        constexpr string_view g_assetProcessExtension{".oproc"};
+
         struct file_importer_info
         {
             create_file_importer_fn create;
@@ -41,6 +46,16 @@ namespace oblo
             {
                 artifacts.clear();
             }
+        };
+
+        struct import_process
+        {
+            importer importer;
+            data_document settings;
+            string destination;
+            time startTime;
+            job_handle job{};
+            std::atomic<bool> success{};
         };
 
         bool load_asset_meta(asset_meta& meta, const std::filesystem::path& path)
@@ -297,17 +312,18 @@ namespace oblo
             dynamic_array<uuid> artifacts;
         };
 
-        constexpr std::string_view g_artifactMetaExtension{".oartifact"};
-        constexpr string_view g_assetProcessExtension{".oproc"};
     }
 
     struct asset_registry::impl
     {
         std::unordered_map<type_id, file_importer_info> importers;
         std::unordered_map<uuid, asset_entry> assets;
+
         string_builder assetsDir;
         string_builder artifactsDir;
         string_builder sourceFilesDir;
+
+        deque<unique_ptr<import_process>> currentImports;
 
         string_builder& make_asset_path(string_builder& out, string_view directory)
         {
@@ -327,6 +343,30 @@ namespace oblo
                 .append_path_separator()
                 .format("{}", assetId)
                 .append(g_assetProcessExtension);
+        }
+
+        importer create_importer(cstring_view sourceFile) const
+        {
+            const auto ext = filesystem::extension(sourceFile);
+
+            for (auto& [type, assetImporter] : importers)
+            {
+                for (const auto& importerExt : assetImporter.extensions)
+                {
+                    if (importerExt == ext)
+                    {
+                        return importer{
+                            import_config{
+                                .sourceFile = sourceFile.as<string>(),
+                            },
+                            type,
+                            assetImporter.create(),
+                        };
+                    }
+                }
+            }
+
+            return {};
         }
     };
 
@@ -366,6 +406,39 @@ namespace oblo
         return ensure_directories(sb);
     }
 
+    expected<> asset_registry::import(cstring_view sourceFile, cstring_view destination, data_document settings)
+    {
+        auto importer = m_impl->create_importer(sourceFile);
+
+        if (!importer.is_valid())
+        {
+            return unspecified_error;
+        }
+
+        if (!importer.init(*this))
+        {
+            return unspecified_error;
+        }
+
+        auto& importProcess = m_impl->currentImports.emplace_back(allocate_unique<import_process>());
+
+        importProcess->importer = std::move(importer);
+        importProcess->settings = std::move(settings);
+        importProcess->destination = destination.as<string>();
+        importProcess->startTime = clock::now();
+
+        const auto job = job_manager::get()->push_waitable(
+            [importProcess = importProcess.get()]
+            {
+                const auto r = importProcess->importer.execute(importProcess->settings);
+                importProcess->success.store(r);
+            });
+
+        importProcess->job = job;
+
+        return no_error;
+    }
+
     void asset_registry::register_file_importer(const file_importer_desc& desc)
     {
         const auto [it, inserted] = m_impl->importers.emplace(desc.type, file_importer_info{});
@@ -386,30 +459,6 @@ namespace oblo
     void asset_registry::unregister_file_importer(type_id type)
     {
         m_impl->importers.erase(type);
-    }
-
-    importer asset_registry::create_importer(cstring_view sourceFile) const
-    {
-        const auto ext = filesystem::extension(sourceFile);
-
-        for (auto& [type, assetImporter] : m_impl->importers)
-        {
-            for (const auto& importerExt : assetImporter.extensions)
-            {
-                if (importerExt == ext)
-                {
-                    return importer{
-                        import_config{
-                            .sourceFile = sourceFile.as<string>(),
-                        },
-                        type,
-                        assetImporter.create(),
-                    };
-                }
-            }
-        }
-
-        return {};
     }
 
     unique_ptr<file_importer> asset_registry::create_file_importer(cstring_view sourceFile) const
@@ -676,6 +725,52 @@ namespace oblo
             {
                 log::warn("Failed to load asset meta {}", p.string());
             }
+        }
+    }
+
+    void asset_registry::update()
+    {
+        auto* jobs = job_manager::get();
+
+        for (auto it = m_impl->currentImports.begin(); it != m_impl->currentImports.end();)
+        {
+            auto& importProcess = **it;
+
+            if (!jobs->try_wait(importProcess.job))
+            {
+                ++it;
+                continue;
+            }
+
+            bool success = importProcess.success.load();
+
+            if (!success)
+            {
+                log::debug("Import execution of {} failed", importProcess.importer.get_config().sourceFile);
+            }
+            else
+            {
+                const auto result = importProcess.importer.finalize(*this, importProcess.destination);
+
+                if (!result)
+                {
+                    log::debug("Import finalization of {} failed", importProcess.importer.get_config().sourceFile);
+                }
+
+                success = result;
+            }
+
+            const auto finishTime = clock::now();
+
+            const f32 executionTime = to_f32_seconds(finishTime - importProcess.startTime);
+
+            log::generic(success ? log::severity::info : log::severity::error,
+                "Import of '{}' {}. Execution time: {:.2f}s",
+                importProcess.importer.get_config().sourceFile,
+                success ? "succeeded" : "failed",
+                executionTime);
+
+            it = m_impl->currentImports.erase_unordered(it);
         }
     }
 }

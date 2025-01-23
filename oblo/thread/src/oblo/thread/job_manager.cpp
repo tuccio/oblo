@@ -393,6 +393,24 @@ namespace oblo
         oblo::decrease_reference(impl);
     }
 
+    bool job_manager::try_wait(job_handle job)
+    {
+        if (!job)
+        {
+            return false;
+        }
+
+        auto* const impl = as_job_impl(job);
+
+        if (impl->unfinishedJobs.load() == 0)
+        {
+            oblo::decrease_reference(impl);
+            return true;
+        }
+
+        return false;
+    }
+
     void job_manager::increase_reference(job_handle job)
     {
         oblo::increase_reference(as_job_impl(job));
