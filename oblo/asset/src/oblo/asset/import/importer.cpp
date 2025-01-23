@@ -11,39 +11,30 @@
 #include <oblo/core/uuid.hpp>
 #include <oblo/core/uuid_generator.hpp>
 #include <oblo/log/log.hpp>
+#include <oblo/properties/property_value_wrapper.hpp>
+#include <oblo/properties/serialization/data_document.hpp>
+#include <oblo/properties/serialization/json.hpp>
 #include <oblo/thread/parallel_for.hpp>
-
-#include <nlohmann/json.hpp>
-
-#include <fstream>
 
 namespace oblo
 {
     namespace
     {
-        constexpr string_view ImportConfigFilename{"import.json"};
+        constexpr string_view g_importConfigName{"config.oimport"};
 
         bool write_import_config(const import_config& config, const type_id& importer, cstring_view destination)
         {
-            nlohmann::ordered_json json;
+            data_document doc;
 
-            if (!importer.name.empty())
-            {
-                json["importer"] = importer.name;
-            }
+            doc.init();
 
-            json["filename"] = filesystem::filename(config.sourceFile).as<std::string_view>();
-            json["source"] = config.sourceFile.as<std::string_view>();
+            doc.child_value(doc.get_root(), "importer"_hsv, property_value_wrapper{importer.name});
+            doc.child_value(doc.get_root(), "source"_hsv, property_value_wrapper{config.sourceFile});
 
-            std::ofstream ofs{destination.as<std::string>()};
+            const auto filename = property_value_wrapper{filesystem::filename(config.sourceFile)};
+            doc.child_value(doc.get_root(), "filename"_hsv, filename);
 
-            if (!ofs)
-            {
-                return false;
-            }
-
-            ofs << json.dump(1, '\t');
-            return !ofs.bad();
+            return json::write(doc, destination).has_value();
         }
     }
 
@@ -321,11 +312,11 @@ namespace oblo
 
         for (const auto& sourceFile : sourceFiles)
         {
-            pathBuilder.clear().append(importDir).append(filesystem::filename(sourceFile));
+            pathBuilder.clear().append(importDir).append_path(filesystem::filename(sourceFile));
             allSucceeded &= filesystem::copy_file(sourceFile, pathBuilder).value_or(false);
         }
 
-        pathBuilder.clear().append(importDir).append(ImportConfigFilename);
+        pathBuilder.clear().append(importDir).append_path(g_importConfigName);
         allSucceeded &= write_import_config(get_config(), m_importerType, pathBuilder);
 
         return allSucceeded;
