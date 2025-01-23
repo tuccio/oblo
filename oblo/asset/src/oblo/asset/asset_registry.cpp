@@ -36,10 +36,7 @@ namespace oblo
 
         using asset_types_map = std::unordered_map<type_id, asset_type_info>;
 
-        bool load_asset_meta(asset_meta& meta,
-            std::vector<uuid>& artifacts,
-            const asset_types_map& assetTypes,
-            const std::filesystem::path& path)
+        bool load_asset_meta(asset_meta& meta, std::vector<uuid>& artifacts, const std::filesystem::path& path)
         {
             std::ifstream in{path};
 
@@ -66,13 +63,15 @@ namespace oblo
                 return false;
             }
 
-            const hashed_string_view type{json["typeHint"].get<std::string_view>()};
+            const std::string_view type = json["typeHint"].get<std::string_view>();
 
-            const auto typeIt = assetTypes.find(type_id{type});
-
-            if (typeIt != assetTypes.end())
+            if (auto parsed = uuid::parse(type))
             {
-                meta.typeHint = typeIt->first;
+                meta.typeHint = *parsed;
+            }
+            else
+            {
+                return false;
             }
 
             const std::string_view mainArtifactHint = json["mainArtifactHint"].get<std::string_view>();
@@ -117,7 +116,7 @@ namespace oblo
 
             json["id"] = meta.id.format_to(uuidBuffer).as<std::string_view>();
             json["mainArtifactHint"] = meta.mainArtifactHint.format_to(uuidBuffer).as<std::string_view>();
-            json["typeHint"] = meta.typeHint.name.as<std::string_view>();
+            json["typeHint"] = meta.typeHint.format_to(uuidBuffer).as<std::string_view>();
             json["isImported"] = meta.isImported;
 
             auto&& artifactsJson = json["artifacts"];
@@ -172,7 +171,7 @@ namespace oblo
             nlohmann::json json;
 
             json["id"] = artifact.id.format_to(uuidBuffer).as<std::string_view>();
-            json["type"] = artifact.type.name.as<std::string_view>();
+            json["type"] = artifact.type.format_to(uuidBuffer).as<std::string_view>();
 
             if (!artifact.importId.is_nil())
             {
@@ -195,9 +194,7 @@ namespace oblo
             return !ofs.bad();
         }
 
-        bool load_artifact_meta(cstring_view source,
-            const std::unordered_map<type_id, asset_type_info>& assetTypes,
-            artifact_meta& artifact)
+        bool load_artifact_meta(cstring_view source, artifact_meta& artifact)
         {
             std::ifstream ifs{source.as<std::string>()};
 
@@ -221,16 +218,8 @@ namespace oblo
 
             if (const auto it = json.find("type"); it != json.end())
             {
-                const auto type = hashed_string_view{it->get<std::string_view>()};
-
-                if (const auto typeIt = assetTypes.find(type_id{type}); typeIt == assetTypes.end())
-                {
-                    return false;
-                }
-                else
-                {
-                    artifact.type = typeIt->first;
-                }
+                const auto type = uuid::parse(it->get<std::string_view>());
+                artifact.type = type ? *type : uuid{};
             }
 
             if (const auto it = json.find("name"); it != json.end())
@@ -270,7 +259,7 @@ namespace oblo
     {
         random_generator rng;
         uuid_random_generator uuidGenerator{rng};
-        std::unordered_map<type_id, asset_type_info> assetTypes;
+        std::unordered_map<uuid, asset_type_info> assetTypes;
         std::unordered_map<type_id, file_importer_info> importers;
         std::unordered_map<uuid, asset_entry> assets;
         string_builder assetsDir;
@@ -322,15 +311,15 @@ namespace oblo
 
     void asset_registry::register_type(const artifact_type_descriptor& desc)
     {
-        m_impl->assetTypes.emplace(desc.type, desc);
+        m_impl->assetTypes.emplace(desc.typeUuid, desc);
     }
 
-    void asset_registry::unregister_type(type_id type)
+    void asset_registry::unregister_type(const uuid& type)
     {
         m_impl->assetTypes.erase(type);
     }
 
-    bool asset_registry::has_asset_type(type_id type) const
+    bool asset_registry::has_asset_type(const uuid& type) const
     {
         return m_impl->assetTypes.contains(type);
     }
@@ -414,7 +403,7 @@ namespace oblo
     }
 
     bool asset_registry::save_artifact(const uuid& artifactId,
-        const type_id& type,
+        const uuid& type,
         const cstring_view srcArtifact,
         const artifact_meta& meta,
         write_policy policy)
@@ -552,10 +541,10 @@ namespace oblo
         auto resourceMeta = resourceFile;
         resourceMeta.append(ArtifactMetaExtension);
 
-        return oblo::load_artifact_meta(resourceMeta, m_impl->assetTypes, artifact);
+        return oblo::load_artifact_meta(resourceMeta, artifact);
     }
 
-    void asset_registry::iterate_artifacts_by_type(type_id type,
+    void asset_registry::iterate_artifacts_by_type(const uuid& type,
         function_ref<bool(const uuid& assetId, const uuid& artifactId)> callback) const
     {
         artifact_meta meta{};
@@ -581,7 +570,7 @@ namespace oblo
     }
 
     bool asset_registry::find_artifact_resource(
-        const uuid& id, type_id& outType, string& outName, string& outPath, const void* userdata)
+        const uuid& id, uuid& outType, string& outName, string& outPath, const void* userdata)
     {
         char uuidBuffer[36];
 
@@ -601,7 +590,7 @@ namespace oblo
 
         artifact_meta meta;
 
-        if (!oblo::load_artifact_meta(resourceMeta, self->m_impl->assetTypes, meta))
+        if (!oblo::load_artifact_meta(resourceMeta, meta))
         {
             return false;
         }
@@ -625,7 +614,7 @@ namespace oblo
             asset_meta meta{};
             std::vector<uuid> artifacts;
 
-            if (load_asset_meta(meta, artifacts, m_impl->assetTypes, p))
+            if (load_asset_meta(meta, artifacts, p))
             {
                 m_impl->assets.emplace(meta.id, asset_entry{meta, std::move(artifacts)});
             }

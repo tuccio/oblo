@@ -196,7 +196,7 @@ namespace oblo::editor
                             {
                                 auto& currentValue = *reinterpret_cast<uuid*>(propertyPtr);
 
-                                if (ctx.artifactPicker.draw(makeId(), resourceRef->resourceType, currentValue))
+                                if (ctx.artifactPicker.draw(makeId(), resourceRef->typeUuid, currentValue))
                                 {
                                     currentValue = ctx.artifactPicker.get_current_ref();
                                 }

@@ -9,7 +9,7 @@ namespace oblo
     struct import_artifact
     {
         uuid id;
-        type_id type;
+        uuid type;
         string name;
         string path;
     };

@@ -22,7 +22,7 @@ namespace oblo
     struct resource_type_descriptor;
 
     using find_resource_fn = bool (*)(
-        const uuid& id, type_id& outType, string& outName, string& outPath, const void* userdata);
+        const uuid& id, uuid& outType, string& outName, string& outPath, const void* userdata);
 
     class resource_registry
     {
@@ -36,7 +36,7 @@ namespace oblo
         resource_registry& operator=(resource_registry&&) noexcept = delete;
 
         void register_type(const resource_type_descriptor& typeDesc);
-        void unregister_type(const type_id& type);
+        void unregister_type(const uuid& type);
 
         void register_provider(find_resource_fn provider, const void* userdata);
         void unregister_provider(find_resource_fn provider);
@@ -48,7 +48,7 @@ namespace oblo
         struct provider_storage;
 
     private:
-        std::unordered_map<type_id, resource_type_descriptor> m_resourceTypes;
+        std::unordered_map<uuid, resource_type_descriptor> m_resourceTypes;
         std::unordered_map<uuid, resource_storage> m_resources;
         dynamic_array<provider_storage> m_providers;
     };

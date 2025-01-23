@@ -47,8 +47,8 @@ namespace oblo
         void discover_assets();
 
         void register_type(const artifact_type_descriptor& desc);
-        void unregister_type(type_id type);
-        bool has_asset_type(type_id type) const;
+        void unregister_type(const uuid& type);
+        bool has_asset_type(const uuid& type) const;
 
         void register_file_importer(const file_importer_desc& desc);
         void unregister_file_importer(type_id type);
@@ -66,14 +66,14 @@ namespace oblo
 
         bool load_artifact_meta(const uuid& artifactId, artifact_meta& artifact) const;
 
-        void iterate_artifacts_by_type(type_id type,
+        void iterate_artifacts_by_type(const uuid& type,
             function_ref<bool(const uuid& assetId, const uuid& artifactId)> callback) const;
 
         cstring_view get_asset_directory() const;
 
     public:
         static bool find_artifact_resource(
-            const uuid& id, type_id& outType, string& outName, string& outPath, const void* userdata);
+            const uuid& id, uuid& outType, string& outName, string& outPath, const void* userdata);
 
     private:
         struct impl;
@@ -89,7 +89,7 @@ namespace oblo
         uuid generate_uuid();
 
         bool save_artifact(const uuid& id,
-            const type_id& type,
+            const uuid& type,
             const cstring_view path,
             const artifact_meta& meta,
             write_policy policy = write_policy::no_overwrite);

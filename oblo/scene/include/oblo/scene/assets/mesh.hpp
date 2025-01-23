@@ -5,6 +5,7 @@
 #include <oblo/core/flags.hpp>
 #include <oblo/core/lifetime.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/core/uuid.hpp>
 #include <oblo/math/aabb.hpp>
 
 #include <span>

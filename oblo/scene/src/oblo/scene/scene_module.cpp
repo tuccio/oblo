@@ -16,6 +16,7 @@
 #include <oblo/scene/assets/mesh.hpp>
 #include <oblo/scene/assets/registration.hpp>
 #include <oblo/scene/assets/texture.hpp>
+#include <oblo/scene/assets/traits.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/scene/components/name_component.hpp>
 #include <oblo/scene/components/position_component.hpp>
@@ -39,7 +40,10 @@ namespace oblo
         void register_resource_ref_reflection(reflection::reflection_registry::registrant reg)
         {
             reg.add_class<resource_ref<T>>()
-                .add_concept(resource_ref_descriptor{.resourceType = get_type_id<T>()})
+                .add_concept(resource_ref_descriptor{
+                    .typeId = get_type_id<T>(),
+                    .typeUuid = resource_type<T>,
+                })
                 .add_field(&resource_ref<T>::id, "id");
         }
 

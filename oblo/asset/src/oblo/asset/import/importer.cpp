@@ -282,13 +282,13 @@ namespace oblo
 
                 // TODO: Ensure that names are unique
                 auto& config = importNodesConfig[i];
-                const auto h = hash_all<hash>(node.name, node.type, i);
+                const auto h = hash_all<hash>(node.name, node.artifactType, i);
                 config.id = uuidGenerator.generate(std::as_bytes(std::span{&h, sizeof(h)}));
 
                 const auto [artifactIt, artifactInserted] = m_artifacts.emplace(config.id,
                     artifact_meta{
                         .id = config.id,
-                        .type = node.type,
+                        .type = node.artifactType,
                         .importId = m_importId,
                         .importName = node.name,
                     });

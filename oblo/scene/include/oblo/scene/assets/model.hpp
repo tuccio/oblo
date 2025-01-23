@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/uuid.hpp>
 #include <oblo/resource/resource_ref.hpp>
 
 namespace oblo

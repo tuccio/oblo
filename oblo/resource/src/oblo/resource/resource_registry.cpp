@@ -27,10 +27,10 @@ namespace oblo
 
     void resource_registry::register_type(const resource_type_descriptor& typeDesc)
     {
-        m_resourceTypes[typeDesc.type] = typeDesc;
+        m_resourceTypes[typeDesc.typeUuid] = typeDesc;
     }
 
-    void resource_registry::unregister_type(const type_id& type)
+    void resource_registry::unregister_type(const uuid& type)
     {
         m_resourceTypes.erase(type);
     }
@@ -59,7 +59,7 @@ namespace oblo
 
         if (it == m_resources.end())
         {
-            type_id type;
+            uuid type;
             string path;
             string name;
             bool anyFound{false};
@@ -93,7 +93,9 @@ namespace oblo
                 return {};
             }
 
-            auto* const resource = detail::resource_create(data, type, id, name, typeIt->second.destroy);
+            auto* const resource =
+                detail::resource_create(data, typeIt->second.typeId, id, name, typeIt->second.destroy);
+
             resource_ptr<void> handle{resource};
             m_resources.emplace(id, resource_storage{.resource = resource, .handle = handle});
             return handle;

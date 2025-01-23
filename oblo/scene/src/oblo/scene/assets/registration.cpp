@@ -6,6 +6,7 @@
 #include <oblo/scene/assets/mesh.hpp>
 #include <oblo/scene/assets/model.hpp>
 #include <oblo/scene/assets/texture.hpp>
+#include <oblo/scene/assets/traits.hpp>
 #include <oblo/scene/serialization/mesh_file.hpp>
 #include <oblo/scene/serialization/model_file.hpp>
 
@@ -21,6 +22,7 @@ namespace oblo
         template <>
         struct meta<model>
         {
+
             static bool load(model& model, cstring_view source)
             {
                 return load_model(model, source);
@@ -48,7 +50,6 @@ namespace oblo
         template <>
         struct meta<material>
         {
-
             static bool load(material& material, cstring_view source)
             {
                 return material.load(source);
@@ -60,7 +61,8 @@ namespace oblo
     resource_type_descriptor make_resource_type_desc()
     {
         return {
-            .type = get_type_id<T>(),
+            .typeId = get_type_id<T>(),
+            .typeUuid = resource_type<T>,
             .create = []() -> void* { return new T{}; },
             .destroy = [](void* ptr) { delete static_cast<T*>(ptr); },
             .load = [](void* ptr, cstring_view source) { return meta<T>::load(*static_cast<T*>(ptr), source); },

@@ -17,7 +17,7 @@ namespace oblo::editor
     public:
         explicit artifact_picker(asset_registry& registry);
 
-        bool draw(int uiId, const type_id& type, const uuid& ref);
+        bool draw(int uiId, const uuid& type, const uuid& ref);
 
         uuid get_current_ref() const;
 

@@ -11,6 +11,7 @@
 #include <oblo/math/float.hpp>
 #include <oblo/math/power_of_two.hpp>
 #include <oblo/scene/assets/texture.hpp>
+#include <oblo/scene/assets/traits.hpp>
 
 #include <vulkan/vulkan_core.h>
 
@@ -242,7 +243,7 @@ namespace oblo::importers
         m_source = config.sourceFile;
         auto& node = preview.nodes.emplace_back();
         node.name = filesystem::stem(config.sourceFile).as<string>();
-        node.type = get_type_id<texture>();
+        node.artifactType = resource_type<texture>;
 
         return true;
     }
@@ -362,7 +363,7 @@ namespace oblo::importers
         }
 
         m_result.id = modelNodeConfig.id;
-        m_result.type = get_type_id<texture>();
+        m_result.type = resource_traits<texture>::uuid;
         m_result.name = ctx.get_import_nodes()[0].name;
         m_result.path = outPath.as<string>();
 

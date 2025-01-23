@@ -11,7 +11,7 @@ namespace oblo
 {
     struct import_node
     {
-        type_id type;
+        uuid artifactType;
         string name;
     };
 

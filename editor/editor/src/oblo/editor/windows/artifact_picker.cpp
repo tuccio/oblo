@@ -14,7 +14,7 @@ namespace oblo::editor
 {
     artifact_picker::artifact_picker(asset_registry& registry) : m_assetRegistry{registry} {}
 
-    bool artifact_picker::draw(int uiId, const type_id& type, const uuid& ref)
+    bool artifact_picker::draw(int uiId, const uuid& type, const uuid& ref)
     {
         m_currentRef = ref;
 

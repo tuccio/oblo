@@ -22,6 +22,7 @@
 #include <oblo/scene/assets/mesh.hpp>
 #include <oblo/scene/assets/model.hpp>
 #include <oblo/scene/assets/pbr_properties.hpp>
+#include <oblo/scene/assets/traits.hpp>
 #include <oblo/scene/serialization/mesh_file.hpp>
 #include <oblo/scene/serialization/model_file.hpp>
 #include <oblo/thread/parallel_for.hpp>
@@ -145,7 +146,7 @@ namespace oblo::importers
                 .primitiveBegin = u32(m_importMeshes.size()),
             });
 
-            preview.nodes.emplace_back(get_type_id<model>(), name.as<string>());
+            preview.nodes.emplace_back(resource_type<model>, name.as<string>());
 
             for (u32 primitiveIndex = 0; primitiveIndex < gltfMesh.primitives.size(); ++primitiveIndex)
             {
@@ -157,7 +158,7 @@ namespace oblo::importers
                     .nodeIndex = u32(preview.nodes.size()),
                 });
 
-                preview.nodes.emplace_back(get_type_id<mesh>(), name.as<string>());
+                preview.nodes.emplace_back(resource_type<mesh>, name.as<string>());
             }
         }
 
@@ -189,7 +190,7 @@ namespace oblo::importers
             auto& subImport = preview.children.emplace_back();
 
             name.clear().append(stdStringBuf.c_str());
-            preview.nodes.emplace_back(get_type_id<texture>(), name.as<string>());
+            preview.nodes.emplace_back(resource_type<texture>, name.as<string>());
 
             name.clear().append(m_sourceFileDir).append_path(stdStringBuf.c_str());
             subImport.sourceFile = name.as<string>();
@@ -201,7 +202,7 @@ namespace oblo::importers
         {
             auto& gltfMaterial = m_model.materials[materialIndex];
             m_importMaterials.emplace_back(u32(preview.nodes.size()));
-            preview.nodes.emplace_back(get_type_id<material>(), string{gltfMaterial.name.c_str()});
+            preview.nodes.emplace_back(resource_type<material>, string{gltfMaterial.name.c_str()});
 
             const auto metallicRoughness = gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index;
 
@@ -252,7 +253,8 @@ namespace oblo::importers
             const std::span childNodes = ctx.get_child_import_nodes(i);
             const std::span childNodeConfigs = ctx.get_child_import_node_configs(i);
 
-            if (childNodes.size() == 1 && childNodeConfigs[0].enabled && childNodes[0].type == get_type_id<texture>())
+            if (childNodes.size() == 1 && childNodeConfigs[0].enabled &&
+                childNodes[0].artifactType == resource_type<texture>)
             {
                 auto& image = m_importImages[i];
                 image.id = childNodeConfigs[0].id;
@@ -315,7 +317,7 @@ namespace oblo::importers
 
             m_artifacts.push_back({
                 .id = nodeConfig.id,
-                .type = get_type_id<oblo::material>(),
+                .type = resource_type<oblo::material>,
                 .name = std::move(name),
                 .path = buffer.as<string>(),
             });
@@ -444,7 +446,7 @@ namespace oblo::importers
 
                 m_artifacts.push_back({
                     .id = meshNodeConfig.id,
-                    .type = get_type_id<oblo::mesh>(),
+                    .type = resource_type<oblo::mesh>,
                     .name = importNodes[mesh.nodeIndex].name,
                     .path = outputPath.as<string>(),
                 });
@@ -460,7 +462,7 @@ namespace oblo::importers
 
             m_artifacts.push_back({
                 .id = modelNodeConfig.id,
-                .type = get_type_id<oblo::model>(),
+                .type = resource_type<oblo::model>,
                 .name = importNodes[model.nodeIndex].name,
                 .path = outputPath.as<string>(),
             });
