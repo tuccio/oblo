@@ -54,7 +54,7 @@ namespace oblo
 
         bool create_directories(string_view directory);
 
-        expected<> import(string_view sourceFile, string_view destination, data_document settings);
+        expected<uuid> import(string_view sourceFile, string_view destination, data_document settings);
 
         /// @brief Triggers an asynchronous processing of a previously created asset.
         /// Imported assets will be reimported from the stored source files.

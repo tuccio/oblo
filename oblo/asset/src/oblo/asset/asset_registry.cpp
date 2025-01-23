@@ -398,7 +398,7 @@ namespace oblo
         return ensure_directories(sb);
     }
 
-    expected<> asset_registry::import(string_view sourceFile, string_view destination, data_document settings)
+    expected<uuid> asset_registry::import(string_view sourceFile, string_view destination, data_document settings)
     {
         auto importer = m_impl->create_importer(sourceFile);
 
@@ -423,7 +423,7 @@ namespace oblo
 
         m_impl->push_import_process(std::move(importer), std::move(settings), destination);
 
-        return no_error;
+        return assetId;
     }
 
     void asset_registry::register_file_importer(const file_importer_desc& desc)
