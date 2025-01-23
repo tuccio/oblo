@@ -13,6 +13,7 @@ namespace oblo::editor
 
     log_queue::log_queue() :
         m_stringAllocator{get_global_allocator(), deque_config{.elementsPerChunk = MessagesPerDequeChunk}},
+        m_pushQueue{get_global_allocator(), deque_config{.elementsPerChunk = MessagesPerDequeChunk}},
         m_messages{get_global_allocator(), deque_config{.elementsPerChunk = MessagesPerDequeChunk}}
     {
     }
@@ -24,6 +25,14 @@ namespace oblo::editor
         auto& newMessage = m_stringAllocator.push_back_default();
         std::memcpy(newMessage.data, message.data(), message.size() + 1);
 
-        m_messages.emplace_back(severity, timestamp, cstring_view{newMessage.data, message.size()});
+        std::scoped_lock lock{m_mutex};
+        m_pushQueue.emplace_back(severity, timestamp, cstring_view{newMessage.data, message.size()});
+    }
+
+    void log_queue::flush()
+    {
+        std::scoped_lock lock{m_mutex};
+        m_messages.append(m_pushQueue.begin(), m_pushQueue.end());
+        m_pushQueue.clear();
     }
 }

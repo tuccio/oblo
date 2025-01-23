@@ -4,6 +4,8 @@
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/time/time.hpp>
 
+#include <mutex>
+
 namespace oblo::log
 {
     enum class severity : u8;
@@ -33,6 +35,8 @@ namespace oblo::editor
 
         void push(log::severity severity, time timestamp, cstring_view message);
 
+        void flush();
+
         const deque<message>& get_messages() const
         {
             return m_messages;
@@ -43,6 +47,8 @@ namespace oblo::editor
 
     private:
         deque<buffer> m_stringAllocator;
+        deque<message> m_pushQueue;
         deque<message> m_messages;
+        std::mutex m_mutex;
     };
 }

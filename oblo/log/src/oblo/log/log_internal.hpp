@@ -11,9 +11,9 @@ namespace oblo::log
     struct sink_storage
     {
         unique_ptr<log_sink> sink;
-        std::mutex mutex;
     };
 
+    inline bool g_isAsync;
     inline deque<sink_storage> g_logSinks;
 
     constexpr cstring_view g_severityStrings[]{

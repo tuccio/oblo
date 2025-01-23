@@ -70,7 +70,7 @@ namespace oblo::editor
             time m_baseTime{};
         };
 
-        const log_queue* init_log(time bootTime)
+        log_queue* init_log(time bootTime)
         {
             auto& mm = module_manager::get();
 
@@ -225,6 +225,8 @@ namespace oblo::editor
 
     bool app::init()
     {
+        const auto bootTime = clock::now();
+
         if (!platform::init())
         {
             return false;
@@ -232,10 +234,9 @@ namespace oblo::editor
 
         debug_assert_hook_install();
 
-        const auto bootTime = clock::now();
-        m_logQueue = init_log(bootTime);
-
         m_jobManager.init();
+
+        m_logQueue = init_log(bootTime);
 
         auto& mm = module_manager::get();
         m_editorModule = mm.load<editor_app_module>();
@@ -329,6 +330,8 @@ namespace oblo::editor
         m_runtime.shutdown();
         platform::shutdown();
 
+        module_manager::get().shutdown();
+
         m_jobManager.shutdown();
 
         debug_assert_hook_remove();
@@ -348,6 +351,7 @@ namespace oblo::editor
     void app::update_imgui(const vk::sandbox_update_imgui_context&)
     {
         m_assetRegistry.update();
+        m_logQueue->flush();
 
         m_windowManager.update();
         m_editorModule->update();

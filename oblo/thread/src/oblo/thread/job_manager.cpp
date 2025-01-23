@@ -75,6 +75,7 @@ namespace oblo
             }
 
         private:
+            static_assert(moodycamel::ConcurrentQueue<job_impl*>::is_lock_free());
             moodycamel::ConcurrentQueue<job_impl*> m_jobs;
         };
 
