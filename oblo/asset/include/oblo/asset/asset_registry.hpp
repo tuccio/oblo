@@ -56,6 +56,13 @@ namespace oblo
 
         expected<> import(string_view sourceFile, string_view destination, data_document settings);
 
+        /// @brief Triggers an asynchronous processing of a previously created asset.
+        /// Imported assets will be reimported from the stored source files.
+        /// @param asset A previously created asset.
+        /// @param optSettings Optional settings for the processing, that will replace the previous.
+        /// @return An error if processing failed to start.
+        expected<> process(uuid asset, data_document* optSettings = nullptr);
+
         [[nodiscard]] unique_ptr<file_importer> create_file_importer(string_view sourceFile) const;
 
         bool find_asset_by_id(const uuid& id, asset_meta& assetMeta) const;
@@ -71,7 +78,7 @@ namespace oblo
 
         cstring_view get_asset_directory() const;
 
-        u32 get_running_imports_count() const;
+        u32 get_ongoing_process_count() const;
 
     public:
         static bool find_artifact_resource(
@@ -90,18 +97,16 @@ namespace oblo
     private:
         static uuid generate_uuid();
 
-        bool save_artifact(const uuid& id,
-            const cstring_view path,
-            const artifact_meta& meta,
-            write_policy policy = write_policy::no_overwrite);
+        bool save_artifact(const uuid& id, const cstring_view path, const artifact_meta& meta, write_policy policy);
 
         bool save_asset(string_view destination,
             string_view fileName,
             const asset_meta& meta,
             const deque<uuid>& artifacts,
-            write_policy policy = write_policy::no_overwrite);
+            write_policy policy);
 
         bool create_source_files_dir(string_builder& dir, uuid sourceFileId);
+        string_builder& make_source_files_dir_path(string_builder& dir, uuid sourceFileId) const;
 
         bool create_temporary_files_dir(string_builder& dir, uuid assetId) const;
 

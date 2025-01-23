@@ -96,7 +96,7 @@ namespace oblo
         /// Jobs with a reference count (i.e. waitable jobs or jobs with manually increased reference) have to be waited
         /// exactly once per reference.
         /// @param job The job to wait for.
-        THREAD_API bool try_wait(job_handle job);
+        THREAD_API [[nodiscard]] bool try_wait(job_handle job);
 
         /// @brief Creates a waitable child job, that will be destroyed once the execution of its children is completed
         /// and the job is waited for.

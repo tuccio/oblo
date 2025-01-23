@@ -9,7 +9,6 @@ namespace oblo
     {
         uuid artifactId;
         uuid type;
-        uuid sourceFileId;
         uuid assetId;
         string importName;
     };
@@ -17,7 +16,6 @@ namespace oblo
     struct asset_meta
     {
         uuid assetId;
-        uuid sourceFileId;
         uuid mainArtifactHint;
         uuid typeHint;
         bool isImported;

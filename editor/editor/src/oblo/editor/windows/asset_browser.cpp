@@ -3,6 +3,7 @@
 #include <oblo/asset/asset_meta.hpp>
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/core/debug.hpp>
+#include <oblo/core/formatters/uuid_formatter.hpp>
 #include <oblo/core/platform/shell.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/time/clock.hpp>
@@ -98,15 +99,15 @@ namespace oblo::editor
                     const auto file = p.filename();
                     const auto& str = file.u8string();
 
-                    uuid uuid;
+                    uuid assetId;
                     asset_meta meta;
 
                     string_builder assetPath;
                     assetPath.append(p.native().c_str());
 
-                    if (m_registry->find_asset_by_meta_path(assetPath, uuid, meta))
+                    if (m_registry->find_asset_by_meta_path(assetPath, assetId, meta))
                     {
-                        ImGui::PushID(int(hash_all<std::hash>(uuid)));
+                        ImGui::PushID(int(hash_all<std::hash>(assetId)));
 
                         if (ImGui::Button(reinterpret_cast<const char*>(str.c_str())))
                         {
@@ -117,6 +118,19 @@ namespace oblo::editor
                             const auto payload = payloads::pack_uuid(meta.mainArtifactHint);
                             ImGui::SetDragDropPayload(payloads::Resource, &payload, sizeof(drag_and_drop_payload));
                             ImGui::EndDragDropSource();
+                        }
+
+                        if (ImGui::BeginPopupContextItem("##assetctx"))
+                        {
+                            if (ImGui::MenuItem("Reimport"))
+                            {
+                                if (!m_registry->process(assetId))
+                                {
+                                    log::error("Failed to reimport {}", assetId);
+                                }
+                            }
+
+                            ImGui::EndPopup();
                         }
 
                         ImGui::PopID();

@@ -54,6 +54,7 @@ namespace oblo
             data_document settings;
             string destination;
             time startTime;
+            bool isReimport;
             job_handle job{};
             std::atomic<bool> success{};
         };
@@ -79,17 +80,6 @@ namespace oblo
             if (auto parsed = uuid::parse(assetId))
             {
                 meta.assetId = *parsed;
-            }
-            else
-            {
-                return false;
-            }
-
-            const std::string_view sourceFileId = json["sourceFileId"].get<std::string_view>();
-
-            if (auto parsed = uuid::parse(sourceFileId))
-            {
-                meta.sourceFileId = *parsed;
             }
             else
             {
@@ -135,7 +125,6 @@ namespace oblo
             nlohmann::ordered_json json;
 
             json["assetId"] = meta.assetId.format_to(uuidBuffer).as<std::string_view>();
-            json["sourceFileId"] = meta.sourceFileId.format_to(uuidBuffer).as<std::string_view>();
             json["mainArtifactHint"] = meta.mainArtifactHint.format_to(uuidBuffer).as<std::string_view>();
             json["typeHint"] = meta.typeHint.format_to(uuidBuffer).as<std::string_view>();
             json["isImported"] = meta.isImported;
@@ -185,7 +174,6 @@ namespace oblo
             nlohmann::json json;
 
             json["artifactId"] = artifact.artifactId.format_to(uuidBuffer).as<std::string_view>();
-            json["sourceFileId"] = artifact.sourceFileId.format_to(uuidBuffer).as<std::string_view>();
             json["assetId"] = artifact.assetId.format_to(uuidBuffer).as<std::string_view>();
             json["type"] = artifact.type.format_to(uuidBuffer).as<std::string_view>();
             json["name"] = artifact.importName.as<std::string>();
@@ -238,12 +226,6 @@ namespace oblo
             {
                 const auto id = uuid::parse(it->get<std::string_view>());
                 artifact.assetId = id ? *id : uuid{};
-            }
-
-            if (const auto it = json.find("sourceFileId"); it != json.end())
-            {
-                const auto id = uuid::parse(it->get<std::string_view>());
-                artifact.sourceFileId = id ? *id : uuid{};
             }
 
             return true;
@@ -368,6 +350,8 @@ namespace oblo
 
             return {};
         }
+
+        void push_import_process(importer&& importer, data_document&& settings, string_view destination);
     };
 
     asset_registry::asset_registry() = default;
@@ -397,7 +381,7 @@ namespace oblo
     {
         if (m_impl)
         {
-            while (get_running_imports_count() > 0)
+            while (get_ongoing_process_count() > 0)
             {
                 update();
             }
@@ -423,28 +407,21 @@ namespace oblo
             return unspecified_error;
         }
 
-        if (!importer.init(*this))
+        const uuid assetId = generate_uuid();
+
+        string_builder workDir;
+
+        if (!create_temporary_files_dir(workDir, assetId))
         {
             return unspecified_error;
         }
 
-        auto& importProcess = m_impl->currentImports.emplace_back(allocate_unique<import_process>());
+        if (!importer.init(*this, assetId, workDir, false))
+        {
+            return unspecified_error;
+        }
 
-        importProcess->importer = std::move(importer);
-        importProcess->settings = std::move(settings);
-        importProcess->destination = destination.as<string>();
-        importProcess->startTime = clock::now();
-
-        auto* jm = job_manager::get();
-
-        const auto job = jm->push_waitable(
-            [importProcess = importProcess.get()]
-            {
-                const auto r = importProcess->importer.execute(importProcess->settings);
-                importProcess->success.store(r);
-            });
-
-        importProcess->job = job;
+        m_impl->push_import_process(std::move(importer), std::move(settings), destination);
 
         return no_error;
     }
@@ -469,6 +446,53 @@ namespace oblo
     void asset_registry::unregister_file_importer(type_id type)
     {
         m_impl->importers.erase(type);
+    }
+
+    expected<> asset_registry::process(uuid asset, data_document* optSettings)
+    {
+        const auto it = m_impl->assets.find(asset);
+
+        if (it == m_impl->assets.end())
+        {
+            return unspecified_error;
+        }
+
+        // TODO: Maybe check if it's being reprocessed
+        const auto& meta = it->second.meta;
+
+        if (meta.isImported)
+        {
+            // This means it requires a reimport
+            string_builder fileSourcePath;
+            importer::read_source_file_path(*this, meta.assetId, fileSourcePath);
+
+            auto importer = m_impl->create_importer(fileSourcePath.view());
+
+            string_builder workDir;
+
+            if (!create_temporary_files_dir(workDir, generate_uuid()))
+            {
+                return unspecified_error;
+            }
+
+            if (!importer.init(*this, meta.assetId, workDir, true))
+            {
+                return unspecified_error;
+            }
+
+            // TODO: Read previous settings
+            data_document settings;
+
+            if (optSettings)
+            {
+                settings = std::move(*optSettings);
+            }
+
+            m_impl->push_import_process(std::move(importer), std::move(settings), {});
+            return no_error;
+        }
+
+        return unspecified_error;
     }
 
     unique_ptr<file_importer> asset_registry::create_file_importer(string_view sourceFile) const
@@ -530,9 +554,13 @@ namespace oblo
         // Maybe don't do this and let the registry discover the import instead
         const auto [assetIt, insertedAsset] = m_impl->assets.emplace(meta.assetId, asset_entry{});
 
-        if (!insertedAsset)
+        if (!insertedAsset && policy != write_policy::overwrite)
         {
             return false;
+        }
+        else if (!insertedAsset)
+        {
+            assetIt->second.artifacts.clear();
         }
 
         assetIt->second.meta = meta;
@@ -559,10 +587,14 @@ namespace oblo
         return save_asset_meta(assetIt->second.meta, fullPath);
     }
 
-    bool asset_registry::create_source_files_dir(string_builder& importDir, uuid sourceFileId)
+    bool asset_registry::create_source_files_dir(string_builder& dir, uuid sourceFileId)
     {
-        importDir.clear().append(m_impl->sourceFilesDir).append_path_separator().format("{}", sourceFileId);
-        return ensure_directories(importDir);
+        return ensure_directories(make_source_files_dir_path(dir, sourceFileId));
+    }
+
+    string_builder& asset_registry::make_source_files_dir_path(string_builder& dir, uuid sourceFileId) const
+    {
+        return dir.clear().append(m_impl->sourceFilesDir).append_path_separator().format("{}", sourceFileId);
     }
 
     bool asset_registry::create_temporary_files_dir(string_builder& dir, uuid assetId) const
@@ -660,7 +692,7 @@ namespace oblo
         return m_impl->assetsDir;
     }
 
-    u32 asset_registry::get_running_imports_count() const
+    u32 asset_registry::get_ongoing_process_count() const
     {
         return m_impl->currentImports.size32();
     }
@@ -765,6 +797,10 @@ namespace oblo
             }
             else
             {
+                // TODO: get the actual asset directory
+                string_view destination =
+                    importProcess.importer.is_reimport() ? get_asset_directory() : importProcess.destination;
+
                 const auto result = importProcess.importer.finalize(*this, importProcess.destination);
 
                 if (!result)
@@ -787,5 +823,27 @@ namespace oblo
 
             it = m_impl->currentImports.erase_unordered(it);
         }
+    }
+
+    void asset_registry::impl::push_import_process(
+        importer&& importer, data_document&& settings, string_view destination)
+    {
+        auto& importProcess = currentImports.emplace_back(allocate_unique<import_process>());
+
+        importProcess->importer = std::move(importer);
+        importProcess->settings = std::move(settings);
+        importProcess->destination = destination.as<string>();
+        importProcess->startTime = clock::now();
+
+        auto* jm = job_manager::get();
+
+        const auto job = jm->push_waitable(
+            [importProcess = importProcess.get()]
+            {
+                const auto r = importProcess->importer.execute(importProcess->settings);
+                importProcess->success.store(r);
+            });
+
+        importProcess->job = job;
     }
 }

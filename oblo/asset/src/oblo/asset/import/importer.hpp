@@ -25,6 +25,9 @@ namespace oblo
         struct file_import_data;
 
     public:
+        static bool read_source_file_path(const asset_registry& registry, uuid sourceFileId, string_builder& out);
+
+    public:
         importer();
 
         importer(const importer&) = delete;
@@ -37,12 +40,13 @@ namespace oblo
         importer& operator=(const importer&) = delete;
         importer& operator=(importer&&) noexcept;
 
-        bool init(const asset_registry& registry);
+        bool init(const asset_registry& registry, uuid assetId, cstring_view workDir, bool isReimport);
 
         bool execute(const data_document& importSettings);
         bool finalize(asset_registry& registry, string_view destination);
 
         bool is_valid() const noexcept;
+        bool is_reimport() const noexcept;
 
         const import_config& get_config() const;
 
@@ -56,5 +60,6 @@ namespace oblo
         std::unordered_map<uuid, artifact_meta> m_artifacts;
         uuid m_assetId{};
         type_id m_importerType{};
+        bool m_isReimport{};
     };
 }

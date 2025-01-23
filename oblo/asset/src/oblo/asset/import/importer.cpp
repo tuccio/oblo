@@ -60,6 +60,33 @@ namespace oblo
         bool success;
     };
 
+    bool importer::read_source_file_path(const asset_registry& registry, uuid assetId, string_builder& out)
+    {
+        registry.make_source_files_dir_path(out, assetId).append_path(g_importConfigName);
+
+        data_document doc;
+
+        if (!json::read(doc, out))
+        {
+            return false;
+        }
+
+        const auto c = doc.find_child(doc.get_root(), "filename"_hsv);
+
+        if (c == data_node::Invalid)
+        {
+            return false;
+        }
+
+        if (auto r = doc.read_string(c))
+        {
+            registry.make_source_files_dir_path(out, assetId).append_path(r->str());
+            return true;
+        }
+
+        return false;
+    }
+
     importer::importer() = default;
 
     importer::importer(importer&&) noexcept = default;
@@ -76,14 +103,15 @@ namespace oblo
 
     importer& importer::operator=(importer&&) noexcept = default;
 
-    bool importer::init(const asset_registry& registry)
+    bool importer::init(const asset_registry& registry, uuid assetId, cstring_view workDir, bool isReimport)
     {
         if (m_fileImports.size() != 1)
         {
             return false;
         }
 
-        m_assetId = asset_registry::generate_uuid();
+        m_assetId = assetId;
+        m_isReimport = isReimport;
 
         for (usize i = 0; i < m_fileImports.size(); ++i)
         {
@@ -110,7 +138,8 @@ namespace oblo
             }
         }
 
-        return registry.create_temporary_files_dir(m_temporaryPath, m_assetId);
+        m_temporaryPath = workDir;
+        return true;
     }
 
     bool importer::execute(const data_document& importSettings)
@@ -158,10 +187,14 @@ namespace oblo
 
     bool importer::finalize(asset_registry& registry, string_view destination)
     {
+        using write_policy = asset_registry::write_policy;
+
         if (!registry.create_directories(destination))
         {
             return false;
         }
+
+        const write_policy writePolicy = m_isReimport ? write_policy::overwrite : write_policy::no_overwrite;
 
         bool allSucceeded = true;
 
@@ -170,7 +203,6 @@ namespace oblo
 
         asset_meta assetMeta{
             .assetId = m_assetId,
-            .sourceFileId = m_assetId,
             .isImported = true,
         };
 
@@ -214,12 +246,11 @@ namespace oblo
                 const artifact_meta meta{
                     .artifactId = artifact.id,
                     .type = artifact.type,
-                    .sourceFileId = m_assetId,
                     .assetId = m_assetId,
                     .importName = artifact.name,
                 };
 
-                if (!registry.save_artifact(artifact.id, artifact.path, meta))
+                if (!registry.save_artifact(artifact.id, artifact.path, meta, writePolicy))
                 {
                     log::error("Artifact '{}' ({}) will be skipped due to an error occurring while saving to disk",
                         artifact.name,
@@ -241,7 +272,8 @@ namespace oblo
 
         const auto assetFileName = filesystem::stem(m_fileImports.front().config.sourceFile);
 
-        allSucceeded &= registry.save_asset(destination, assetFileName, std::move(assetMeta), importedArtifacts);
+        allSucceeded &=
+            registry.save_asset(destination, assetFileName, std::move(assetMeta), importedArtifacts, writePolicy);
         allSucceeded &= write_source_files(registry, sourceFiles);
 
         // TODO: We might have to clean up on failure
@@ -276,7 +308,6 @@ namespace oblo
                     artifact_meta{
                         .artifactId = config.id,
                         .type = node.artifactType,
-                        .sourceFileId = m_assetId,
                         .assetId = m_assetId,
                         .importName = node.name,
                     });
@@ -291,6 +322,11 @@ namespace oblo
     bool importer::is_valid() const noexcept
     {
         return !m_fileImports.empty();
+    }
+
+    bool importer::is_reimport() const noexcept
+    {
+        return m_isReimport;
     }
 
     const import_config& importer::get_config() const
@@ -313,6 +349,11 @@ namespace oblo
 
         for (const auto& sourceFile : sourceFiles)
         {
+            if (sourceFile.starts_with(importDir.view()))
+            {
+                continue;
+            }
+
             pathBuilder.clear().append(importDir).append_path(filesystem::filename(sourceFile));
             allSucceeded &= filesystem::copy_file(sourceFile, pathBuilder).value_or(false);
         }

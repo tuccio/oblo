@@ -98,7 +98,7 @@ namespace oblo::importers
 
             ASSERT_TRUE(importResult);
 
-            while (registry.get_running_imports_count() > 0)
+            while (registry.get_ongoing_process_count() > 0)
             {
                 registry.update();
             }
