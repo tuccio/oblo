@@ -1,9 +1,6 @@
 #pragma once
 
-#include <oblo/asset/import/import_config.hpp>
-#include <oblo/asset/import/import_preview.hpp>
-#include <oblo/core/dynamic_array.hpp>
-#include <oblo/core/string/string.hpp>
+#include <oblo/core/deque.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/type_id.hpp>
@@ -16,28 +13,11 @@
 namespace oblo
 {
     class asset_registry;
-    class importer;
-    class import_context;
+    class data_document;
+    class file_importer;
 
     struct artifact_meta;
-    struct import_artifact;
-
-    struct file_import_results
-    {
-        std::span<const import_artifact> artifacts;
-        std::span<const string> sourceFiles;
-        uuid mainArtifactHint;
-    };
-
-    class file_importer
-    {
-    public:
-        virtual ~file_importer() = default;
-
-        virtual bool init(const import_config& config, import_preview& preview) = 0;
-        virtual bool import(import_context context) = 0;
-        virtual file_import_results get_results() = 0;
-    };
+    struct import_config;
 
     class importer
     {
@@ -76,14 +56,5 @@ namespace oblo
         std::unordered_map<uuid, artifact_meta> m_artifacts;
         uuid m_assetId{};
         type_id m_importerType{};
-    };
-
-    using create_file_importer_fn = unique_ptr<file_importer> (*)();
-
-    struct file_importer_desc
-    {
-        type_id type;
-        create_file_importer_fn create;
-        std::span<const string_view> extensions;
     };
 }

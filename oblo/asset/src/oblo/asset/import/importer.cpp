@@ -2,6 +2,7 @@
 
 #include <oblo/asset/asset_meta.hpp>
 #include <oblo/asset/asset_registry.hpp>
+#include <oblo/asset/import/file_importer.hpp>
 #include <oblo/asset/import/import_artifact.hpp>
 #include <oblo/asset/import/import_context.hpp>
 #include <oblo/core/array_size.hpp>

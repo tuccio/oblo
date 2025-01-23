@@ -2,7 +2,6 @@
 
 #include <oblo/asset/asset_meta.hpp>
 #include <oblo/asset/asset_registry.hpp>
-#include <oblo/asset/import/importer.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/platform/shell.hpp>
 #include <oblo/core/service_registry.hpp>
@@ -11,6 +10,7 @@
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/log/log.hpp>
+#include <oblo/properties/serialization/data_document.hpp>
 
 #include <imgui.h>
 

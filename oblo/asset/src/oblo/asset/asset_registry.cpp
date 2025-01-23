@@ -1,6 +1,7 @@
 #include <oblo/asset/asset_registry.hpp>
 
 #include <oblo/asset/asset_meta.hpp>
+#include <oblo/asset/import/file_importer.hpp>
 #include <oblo/asset/import/import_artifact.hpp>
 #include <oblo/asset/import/import_preview.hpp>
 #include <oblo/asset/import/importer.hpp>
