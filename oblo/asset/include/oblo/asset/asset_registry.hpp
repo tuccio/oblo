@@ -2,8 +2,8 @@
 
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/type_id.hpp>
+#include <oblo/core/unique_ptr.hpp>
 
-#include <memory>
 #include <span>
 
 namespace oblo
@@ -52,7 +52,7 @@ namespace oblo
         bool create_directories(string_view directory);
 
         [[nodiscard]] importer create_importer(cstring_view sourceFile) const;
-        [[nodiscard]] std::unique_ptr<file_importer> create_file_importer(cstring_view sourceFile) const;
+        [[nodiscard]] unique_ptr<file_importer> create_file_importer(cstring_view sourceFile) const;
 
         bool find_asset_by_id(const uuid& id, asset_meta& assetMeta) const;
         bool find_asset_by_path(cstring_view path, uuid& id, asset_meta& assetMeta) const;
@@ -100,7 +100,7 @@ namespace oblo
         bool create_temporary_files_dir(string_builder& dir, uuid assetId) const;
 
     private:
-        std::unique_ptr<impl> m_impl;
+        unique_ptr<impl> m_impl;
     };
 
     inline const cstring_view AssetMetaExtension{".oasset"};

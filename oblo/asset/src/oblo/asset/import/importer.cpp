@@ -50,7 +50,7 @@ namespace oblo
 
     struct importer::file_import_data
     {
-        std::unique_ptr<file_importer> importer;
+        unique_ptr<file_importer> importer;
         import_config config;
         import_preview preview;
         dynamic_array<import_node_config> nodeConfigs;
@@ -63,7 +63,7 @@ namespace oblo
 
     importer::importer(importer&&) noexcept = default;
 
-    importer::importer(import_config config, const type_id& importerType, std::unique_ptr<file_importer> fileImporter) :
+    importer::importer(import_config config, const type_id& importerType, unique_ptr<file_importer> fileImporter) :
         m_importerType{importerType}
     {
         auto& root = m_fileImports.emplace_back();

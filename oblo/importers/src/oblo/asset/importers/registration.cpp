@@ -13,7 +13,7 @@ namespace oblo::importers
         {
             return file_importer_desc{
                 .type = get_type_id<T>(),
-                .create = []() -> std::unique_ptr<file_importer> { return std::make_unique<T>(); },
+                .create = []() -> unique_ptr<file_importer> { return allocate_unique<T>(); },
                 .extensions = extensions,
             };
         }

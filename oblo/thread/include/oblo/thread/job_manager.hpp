@@ -1,8 +1,7 @@
 #pragma once
 
 #include <oblo/core/handle.hpp>
-
-#include <memory>
+#include <oblo/core/unique_ptr.hpp>
 
 namespace oblo
 {
@@ -17,16 +16,12 @@ namespace oblo
 
     template <typename F>
     concept callable_job_ctx = requires(F& f, const job_context& ctx) {
-        {
-            f(ctx)
-        };
+        { f(ctx) };
     };
 
     template <typename F>
     concept callable_job_no_ctx = requires(F& f) {
-        {
-            f()
-        };
+        { f() };
     };
 
     template <typename F>
@@ -186,7 +181,7 @@ namespace oblo
         static void job_callback(const job_context& ctx);
 
     private:
-        std::unique_ptr<impl> m_impl;
+        unique_ptr<impl> m_impl;
     };
 
     struct job_context

@@ -3,10 +3,10 @@
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/type_id.hpp>
+#include <oblo/core/unique_ptr.hpp>
 #include <oblo/reflection/handles.hpp>
 #include <oblo/reflection/reflection_data.hpp>
 
-#include <memory>
 #include <optional>
 #include <span>
 
@@ -78,7 +78,7 @@ namespace oblo::reflection
         friend class registrant;
 
     private:
-        std::unique_ptr<reflection_registry_impl> m_impl;
+        unique_ptr<reflection_registry_impl> m_impl;
     };
 
     template <typename T>

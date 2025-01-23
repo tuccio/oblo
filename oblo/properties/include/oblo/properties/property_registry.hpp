@@ -2,8 +2,7 @@
 
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/type_id.hpp>
-
-#include <memory>
+#include <oblo/core/unique_ptr.hpp>
 
 namespace oblo::reflection
 {
@@ -44,6 +43,6 @@ namespace oblo
 
     private:
         struct impl;
-        std::unique_ptr<impl> m_impl;
+        unique_ptr<impl> m_impl;
     };
 }

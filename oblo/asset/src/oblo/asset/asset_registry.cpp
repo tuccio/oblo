@@ -344,7 +344,7 @@ namespace oblo
             return false;
         }
 
-        m_impl = std::make_unique<impl>();
+        m_impl = allocate_unique<impl>();
 
         m_impl->assetsDir.append(assetsDir).make_absolute_path();
         m_impl->artifactsDir.append(artifactsDir).make_absolute_path();
@@ -412,7 +412,7 @@ namespace oblo
         return {};
     }
 
-    std::unique_ptr<file_importer> asset_registry::create_file_importer(cstring_view sourceFile) const
+    unique_ptr<file_importer> asset_registry::create_file_importer(cstring_view sourceFile) const
     {
         const auto ext = filesystem::extension(sourceFile);
 

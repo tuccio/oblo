@@ -77,19 +77,19 @@ namespace oblo::editor
             auto* const logModule = mm.load<oblo::log::log_module>();
 
             {
-                auto fileSink = std::make_unique<log::file_sink>(stderr);
+                auto fileSink = allocate_unique<log::file_sink>(stderr);
                 fileSink->set_base_time(bootTime);
                 logModule->add_sink(std::move(fileSink));
             }
 
             if constexpr (platform::is_windows())
             {
-                auto win32Sink = std::make_unique<log::win32_debug_sink>();
+                auto win32Sink = allocate_unique<log::win32_debug_sink>();
                 win32Sink->set_base_time(bootTime);
                 logModule->add_sink(std::move(win32Sink));
             }
 
-            auto logSink = std::make_unique<editor_log_sink>();
+            auto logSink = allocate_unique<editor_log_sink>();
             logSink->set_base_time(bootTime);
             auto& queue = logSink->get_log_queue();
             logModule->add_sink(std::move(logSink));

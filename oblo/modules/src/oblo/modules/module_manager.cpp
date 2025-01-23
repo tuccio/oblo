@@ -71,7 +71,7 @@ namespace oblo
 
     struct module_manager::module_storage
     {
-        std::unique_ptr<module_interface> ptr;
+        unique_ptr<module_interface> ptr;
         service_registry services;
         u32 loadOrder{};
     };
@@ -151,7 +151,7 @@ namespace oblo
         return it->second.ptr.get();
     }
 
-    bool module_manager::load(const type_id& id, std::unique_ptr<module_interface> module)
+    bool module_manager::load(const type_id& id, unique_ptr<module_interface> module)
     {
         OBLO_ASSERT(m_state <= state::loading);
 

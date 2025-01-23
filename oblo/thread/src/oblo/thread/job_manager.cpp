@@ -303,7 +303,7 @@ namespace oblo
             return false;
         }
 
-        m_impl = std::make_unique<impl>(cfg.numThreads);
+        m_impl = allocate_unique<impl>(cfg.numThreads);
 
         for (u32 i = 1; i < cfg.numThreads; ++i)
         {

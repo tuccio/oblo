@@ -7,9 +7,9 @@
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/type_id.hpp>
+#include <oblo/core/unique_ptr.hpp>
 #include <oblo/core/uuid.hpp>
 
-#include <memory>
 #include <span>
 #include <unordered_map>
 
@@ -50,7 +50,7 @@ namespace oblo
         importer(const importer&) = delete;
         importer(importer&&) noexcept;
 
-        importer(import_config config, const type_id& importerType, std::unique_ptr<file_importer> fileImporter);
+        importer(import_config config, const type_id& importerType, unique_ptr<file_importer> fileImporter);
 
         ~importer();
 
@@ -78,7 +78,7 @@ namespace oblo
         type_id m_importerType{};
     };
 
-    using create_file_importer_fn = std::unique_ptr<file_importer> (*)();
+    using create_file_importer_fn = unique_ptr<file_importer> (*)();
 
     struct file_importer_desc
     {

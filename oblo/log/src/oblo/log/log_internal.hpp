@@ -1,13 +1,12 @@
 #pragma once
 
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/unique_ptr.hpp>
 #include <oblo/log/log_sink.hpp>
-
-#include <memory>
 
 namespace oblo::log
 {
-    inline dynamic_array<std::unique_ptr<log_sink>> g_logSinks;
+    inline dynamic_array<unique_ptr<log_sink>> g_logSinks;
 
     constexpr cstring_view g_severityStrings[]{
         "[DEBUG] ",

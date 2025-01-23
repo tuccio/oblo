@@ -7,7 +7,7 @@
 
 namespace oblo::reflection
 {
-    reflection_registry::reflection_registry() : m_impl{std::make_unique<reflection_registry_impl>()}
+    reflection_registry::reflection_registry() : m_impl{allocate_unique<reflection_registry_impl>()}
     {
         m_impl->typesRegistry.register_component(ecs::make_component_type_desc<type_data>());
         m_impl->typesRegistry.register_component(ecs::make_component_type_desc<class_data>());
