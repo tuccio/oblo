@@ -25,8 +25,6 @@ namespace oblo
         std::span<const import_node_config> get_import_node_configs() const;
         std::span<const import_node_config> get_child_import_node_configs(usize index) const;
 
-        uuid get_import_uuid() const;
-
         const data_document& get_settings() const;
 
     private:

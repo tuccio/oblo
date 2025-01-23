@@ -45,22 +45,22 @@ namespace oblo
                 return false;
             }
 
-            const std::string_view id = json["id"].get<std::string_view>();
+            const std::string_view assetId = json["assetId"].get<std::string_view>();
 
-            if (auto parsed = uuid::parse(id))
+            if (auto parsed = uuid::parse(assetId))
             {
-                meta.id = *parsed;
+                meta.assetId = *parsed;
             }
             else
             {
                 return false;
             }
 
-            const std::string_view type = json["typeHint"].get<std::string_view>();
+            const std::string_view sourceFileId = json["sourceFileId"].get<std::string_view>();
 
-            if (auto parsed = uuid::parse(type))
+            if (auto parsed = uuid::parse(sourceFileId))
             {
-                meta.typeHint = *parsed;
+                meta.sourceFileId = *parsed;
             }
             else
             {
@@ -72,6 +72,17 @@ namespace oblo
             if (auto parsed = uuid::parse(mainArtifactHint))
             {
                 meta.mainArtifactHint = *parsed;
+            }
+            else
+            {
+                return false;
+            }
+
+            const std::string_view type = json["typeHint"].get<std::string_view>();
+
+            if (auto parsed = uuid::parse(type))
+            {
+                meta.typeHint = *parsed;
             }
             else
             {
@@ -107,7 +118,8 @@ namespace oblo
 
             nlohmann::ordered_json json;
 
-            json["id"] = meta.id.format_to(uuidBuffer).as<std::string_view>();
+            json["assetId"] = meta.assetId.format_to(uuidBuffer).as<std::string_view>();
+            json["sourceFileId"] = meta.sourceFileId.format_to(uuidBuffer).as<std::string_view>();
             json["mainArtifactHint"] = meta.mainArtifactHint.format_to(uuidBuffer).as<std::string_view>();
             json["typeHint"] = meta.typeHint.format_to(uuidBuffer).as<std::string_view>();
             json["isImported"] = meta.isImported;
@@ -147,7 +159,7 @@ namespace oblo
                 return false;
             }
 
-            const auto it = json.find("id");
+            const auto it = json.find("assetId");
 
             if (it == json.end())
             {
@@ -163,18 +175,11 @@ namespace oblo
 
             nlohmann::json json;
 
-            json["id"] = artifact.id.format_to(uuidBuffer).as<std::string_view>();
+            json["artifactId"] = artifact.artifactId.format_to(uuidBuffer).as<std::string_view>();
+            json["sourceFileId"] = artifact.sourceFileId.format_to(uuidBuffer).as<std::string_view>();
+            json["assetId"] = artifact.assetId.format_to(uuidBuffer).as<std::string_view>();
             json["type"] = artifact.type.format_to(uuidBuffer).as<std::string_view>();
-
-            if (!artifact.importId.is_nil())
-            {
-                json["importId"] = artifact.importId.format_to(uuidBuffer).as<std::string_view>();
-            }
-
-            if (!artifact.importName.empty())
-            {
-                json["name"] = artifact.importName.as<std::string>();
-            }
+            json["name"] = artifact.importName.as<std::string>();
 
             std::ofstream ofs{destination.as<std::string>()};
 
@@ -203,10 +208,10 @@ namespace oblo
                 return false;
             }
 
-            if (const auto it = json.find("id"); it != json.end())
+            if (const auto it = json.find("artifactId"); it != json.end())
             {
                 const auto id = uuid::parse(it->get<std::string_view>());
-                artifact.id = id ? *id : uuid{};
+                artifact.artifactId = id ? *id : uuid{};
             }
 
             if (const auto it = json.find("type"); it != json.end())
@@ -220,10 +225,16 @@ namespace oblo
                 artifact.importName = it->get<std::string>();
             }
 
-            if (const auto it = json.find("importId"); it != json.end())
+            if (const auto it = json.find("assetId"); it != json.end())
             {
                 const auto id = uuid::parse(it->get<std::string_view>());
-                artifact.id = id ? *id : uuid{};
+                artifact.assetId = id ? *id : uuid{};
+            }
+
+            if (const auto it = json.find("sourceFileId"); it != json.end())
+            {
+                const auto id = uuid::parse(it->get<std::string_view>());
+                artifact.sourceFileId = id ? *id : uuid{};
             }
 
             return true;
@@ -331,7 +342,7 @@ namespace oblo
         m_impl->importers.erase(type);
     }
 
-    importer asset_registry::create_importer(cstring_view sourceFile)
+    importer asset_registry::create_importer(cstring_view sourceFile) const
     {
         const auto ext = filesystem::extension(sourceFile);
 
@@ -342,7 +353,6 @@ namespace oblo
                 if (importerExt == ext)
                 {
                     return importer{
-                        generate_uuid(),
                         import_config{
                             .sourceFile = sourceFile.as<string>(),
                         },
@@ -379,10 +389,8 @@ namespace oblo
         return m_impl->uuidGenerator.generate();
     }
 
-    bool asset_registry::save_artifact(const uuid& artifactId,
-        const cstring_view srcArtifact,
-        const artifact_meta& meta,
-        write_policy policy)
+    bool asset_registry::save_artifact(
+        const uuid& artifactId, const cstring_view srcArtifact, const artifact_meta& meta, write_policy policy)
     {
         char uuidBuffer[36];
 
@@ -414,7 +422,7 @@ namespace oblo
         const deque<uuid>& artifacts,
         write_policy policy)
     {
-        const auto [assetIt, insertedAsset] = m_impl->assets.emplace(meta.id,
+        const auto [assetIt, insertedAsset] = m_impl->assets.emplace(meta.assetId,
             asset_entry{std::move(meta), std::vector<uuid>{artifacts.begin(), artifacts.end()}});
 
         if (!insertedAsset)
@@ -585,7 +593,10 @@ namespace oblo
 
             if (load_asset_meta(meta, artifacts, p))
             {
-                m_impl->assets.emplace(meta.id, asset_entry{meta, std::move(artifacts)});
+                OBLO_ASSERT(!meta.assetId.is_nil());
+                [[maybe_unused]] auto [it, ok] =
+                    m_impl->assets.emplace(meta.assetId, asset_entry{meta, std::move(artifacts)});
+                OBLO_ASSERT(ok);
             }
             else
             {

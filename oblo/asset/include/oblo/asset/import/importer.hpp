@@ -49,17 +49,14 @@ namespace oblo
         importer(const importer&) = delete;
         importer(importer&&) noexcept;
 
-        importer(uuid importUuid,
-            import_config config,
-            const type_id& importerType,
-            std::unique_ptr<file_importer> fileImporter);
+        importer(import_config config, const type_id& importerType, std::unique_ptr<file_importer> fileImporter);
 
         ~importer();
 
         importer& operator=(const importer&) = delete;
         importer& operator=(importer&&) noexcept;
 
-        bool init(const asset_registry& registry);
+        bool init(asset_registry& registry);
 
         bool execute(const data_document& importSettings);
         bool finalize(asset_registry& registry, string_view destination);
@@ -68,8 +65,6 @@ namespace oblo
 
         const import_config& get_config() const;
 
-        uuid get_import_id() const;
-
     private:
         bool begin_import();
         bool write_source_files(asset_registry& registry, const deque<cstring_view>& sourceFiles);
@@ -77,7 +72,7 @@ namespace oblo
     private:
         deque<file_import_data> m_fileImports;
         std::unordered_map<uuid, artifact_meta> m_artifacts;
-        uuid m_importId{};
+        uuid m_assetId{};
         type_id m_importerType{};
     };
 

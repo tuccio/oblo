@@ -123,7 +123,7 @@ namespace oblo::editor
 
                         if (ImGui::Button(reinterpret_cast<const char*>(str.c_str())))
                         {
-                            m_expandedAsset = m_expandedAsset == meta.id ? oblo::uuid{} : meta.id;
+                            m_expandedAsset = m_expandedAsset == meta.assetId ? oblo::uuid{} : meta.assetId;
                         }
                         else if (!meta.mainArtifactHint.is_nil() && ImGui::BeginDragDropSource())
                         {
@@ -134,11 +134,11 @@ namespace oblo::editor
 
                         ImGui::PopID();
 
-                        if (m_expandedAsset == meta.id)
+                        if (m_expandedAsset == meta.assetId)
                         {
                             dynamic_array<oblo::uuid> artifacts;
 
-                            if (m_registry->find_asset_artifacts(meta.id, artifacts))
+                            if (m_registry->find_asset_artifacts(meta.assetId, artifacts))
                             {
                                 for (const auto& artifact : artifacts)
                                 {

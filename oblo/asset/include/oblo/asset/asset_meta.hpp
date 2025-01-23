@@ -7,15 +7,17 @@ namespace oblo
 {
     struct artifact_meta
     {
-        uuid id;
+        uuid artifactId;
         uuid type;
-        uuid importId;
+        uuid sourceFileId;
+        uuid assetId;
         string importName;
     };
 
     struct asset_meta
     {
-        uuid id;
+        uuid assetId;
+        uuid sourceFileId;
         uuid mainArtifactHint;
         uuid typeHint;
         bool isImported;

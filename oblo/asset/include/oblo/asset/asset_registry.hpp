@@ -51,7 +51,7 @@ namespace oblo
 
         bool create_directories(string_view directory);
 
-        [[nodiscard]] importer create_importer(cstring_view sourceFile);
+        [[nodiscard]] importer create_importer(cstring_view sourceFile) const;
         [[nodiscard]] std::unique_ptr<file_importer> create_file_importer(cstring_view sourceFile) const;
 
         bool find_asset_by_id(const uuid& id, asset_meta& assetMeta) const;

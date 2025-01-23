@@ -51,7 +51,6 @@ namespace oblo
     {
         std::span<const import_node> nodes;
         std::span<const import_node_config> importNodesConfig;
-        uuid importUuid;
         const data_document& settings;
         cstring_view temporaryPath;
         const importer::file_import_data* fileImportData;
@@ -73,10 +72,8 @@ namespace oblo
 
     importer::importer(importer&&) noexcept = default;
 
-    importer::importer(uuid importUuid,
-        import_config config,
-        const type_id& importerType,
-        std::unique_ptr<file_importer> fileImporter) : m_importId{importUuid}, m_importerType{importerType}
+    importer::importer(import_config config, const type_id& importerType, std::unique_ptr<file_importer> fileImporter) :
+        m_importerType{importerType}
     {
         auto& root = m_fileImports.emplace_back();
         root.importer = std::move(fileImporter);
@@ -87,12 +84,14 @@ namespace oblo
 
     importer& importer::operator=(importer&&) noexcept = default;
 
-    bool importer::init(const asset_registry& registry)
+    bool importer::init(asset_registry& registry)
     {
         if (m_fileImports.size() != 1)
         {
             return false;
         }
+
+        m_assetId = registry.generate_uuid();
 
         for (usize i = 0; i < m_fileImports.size(); ++i)
         {
@@ -130,7 +129,7 @@ namespace oblo
         }
 
         string_builder temporaryPath;
-        temporaryPath.format("./.asset_import/{}", m_importId);
+        temporaryPath.format("./.asset_import/{}", m_assetId);
 
         filesystem::create_directories(temporaryPath).assert_value();
 
@@ -144,7 +143,6 @@ namespace oblo
                     const import_context_impl contextImpl{
                         .nodes = fi.preview.nodes,
                         .importNodesConfig = fi.nodeConfigs,
-                        .importUuid = m_importId,
                         .settings = i == 0 ? importSettings : fi.config.settings,
                         .temporaryPath = temporaryPath,
                         .fileImportData = &fi,
@@ -184,7 +182,8 @@ namespace oblo
         deque<cstring_view> sourceFiles;
 
         asset_meta assetMeta{
-            .id = m_importId,
+            .assetId = m_assetId,
+            .sourceFileId = m_assetId,
             .isImported = true,
         };
 
@@ -226,9 +225,10 @@ namespace oblo
                 }
 
                 const artifact_meta meta{
-                    .id = artifact.id,
+                    .artifactId = artifact.id,
                     .type = artifact.type,
-                    .importId = m_importId,
+                    .sourceFileId = m_assetId,
+                    .assetId = m_assetId,
                     .importName = artifact.name,
                 };
 
@@ -274,7 +274,7 @@ namespace oblo
                 return false;
             }
 
-            const auto uuidGenerator = uuid_namespace_generator{m_importId};
+            const auto uuidGenerator = uuid_namespace_generator{m_assetId};
 
             for (usize i = 0; i < importNodesConfig.size(); ++i)
             {
@@ -287,9 +287,10 @@ namespace oblo
 
                 const auto [artifactIt, artifactInserted] = m_artifacts.emplace(config.id,
                     artifact_meta{
-                        .id = config.id,
+                        .artifactId = config.id,
                         .type = node.artifactType,
-                        .importId = m_importId,
+                        .sourceFileId = m_assetId,
+                        .assetId = m_assetId,
                         .importName = node.name,
                     });
 
@@ -310,16 +311,11 @@ namespace oblo
         return m_fileImports.front().config;
     }
 
-    uuid importer::get_import_id() const
-    {
-        return m_importId;
-    }
-
     bool importer::write_source_files(asset_registry& registry, const deque<cstring_view>& sourceFiles)
     {
         string_builder importDir;
 
-        if (!registry.create_source_files_dir(importDir, m_importId))
+        if (!registry.create_source_files_dir(importDir, m_assetId))
         {
             return false;
         }
@@ -369,11 +365,6 @@ namespace oblo
         OBLO_ASSERT(i < m_impl->fileImportData->childrenCount);
         const auto index = m_impl->fileImportData->firstChild + i;
         return m_impl->allImporters->at(index).nodeConfigs;
-    }
-
-    uuid import_context::get_import_uuid() const
-    {
-        return m_impl->importUuid;
     }
 
     const data_document& import_context::get_settings() const
