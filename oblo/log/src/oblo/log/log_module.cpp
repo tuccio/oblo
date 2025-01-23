@@ -1,5 +1,6 @@
 #include <oblo/log/log_module.hpp>
 
+#include <oblo/core/array_size.hpp>
 #include <oblo/core/platform/core.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/utility.hpp>
@@ -17,28 +18,37 @@ namespace oblo::log
     {
         struct message_buffer
         {
-            static message_buffer* allocate()
-            {
-                // It might make allocations faster to use a multiple of the page size
-                static_assert(sizeof(message_buffer) == 1024);
-                return new message_buffer;
-            }
-
-            static void deallocate(message_buffer* b)
-            {
-                delete b;
-            }
-
             time time;
             u16 len;
             severity severity;
             char data[detail::MaxLogMessageLength];
         };
 
+        struct message_buffer_chunk
+        {
+            message_buffer buffers[32];
+        };
+
+        struct message_buffer_chunk_deleter
+        {
+            void operator()(message_buffer_chunk* ptr) const
+            {
+                delete ptr;
+            }
+        };
+
+        using message_buffer_chunk_ptr = unique_ptr<message_buffer_chunk, message_buffer_chunk_deleter>;
+
+        message_buffer_chunk_ptr message_buffer_chunk_allocate()
+        {
+            return message_buffer_chunk_ptr{new message_buffer_chunk};
+        }
+
         struct async_queues
         {
             async_queues() = default;
 
+            moodycamel::ConcurrentQueue<message_buffer_chunk_ptr> allocations;
             moodycamel::ConcurrentQueue<message_buffer*> buffers;
             moodycamel::ConcurrentQueue<message_buffer*> logs;
         };
@@ -112,20 +122,7 @@ namespace oblo::log
             job_manager::get()->wait(g_flushJob);
             g_flushJob = {};
 
-            if (g_asyncQueues)
-            {
-                for (auto* const queue : {&g_asyncQueues->buffers, &g_asyncQueues->logs})
-                {
-                    message_buffer* buf;
-
-                    while (queue->try_dequeue(buf))
-                    {
-                        message_buffer::deallocate(buf);
-                    }
-                }
-
-                g_asyncQueues.reset();
-            }
+            g_asyncQueues.reset();
         }
 
         g_logSinks.clear();
@@ -146,9 +143,28 @@ namespace oblo::log
             {
                 message_buffer* buf;
 
+                // Try to get a buffer from the buffer queue first
                 if (!g_asyncQueues->buffers.try_dequeue(buf))
                 {
-                    buf = message_buffer::allocate();
+                    // Allocate a new chunk, the the first for ourselves and push the rest to the buffers queue
+                    auto chunk = message_buffer_chunk_allocate();
+                    buf = chunk->buffers;
+
+                    constexpr usize buffersCount = array_size(message_buffer_chunk{}.buffers);
+                    static_assert(buffersCount > 2, "This code is a little silly at best with low numbers");
+
+                    // We skip the first, because we take that for ourselves
+                    constexpr usize buffersToPush = buffersCount - 1;
+
+                    message_buffer* newBuffers[buffersToPush];
+
+                    for (u32 i = 0; i < buffersToPush; ++i)
+                    {
+                        newBuffers[i] = &chunk->buffers[i + 1];
+                    }
+
+                    g_asyncQueues->buffers.enqueue_bulk(newBuffers, buffersToPush);
+                    g_asyncQueues->allocations.enqueue(std::move(chunk));
                 }
 
                 const auto len = min(detail::MaxLogMessageLength, n);
