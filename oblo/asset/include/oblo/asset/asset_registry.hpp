@@ -82,8 +82,9 @@ namespace oblo
         };
 
     private:
-        uuid generate_uuid();
+        static uuid generate_uuid();
 
+    private:
         bool save_artifact(const uuid& id,
             const cstring_view path,
             const artifact_meta& meta,

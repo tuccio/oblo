@@ -84,14 +84,14 @@ namespace oblo
 
     importer& importer::operator=(importer&&) noexcept = default;
 
-    bool importer::init(asset_registry& registry)
+    bool importer::init(const asset_registry& registry)
     {
         if (m_fileImports.size() != 1)
         {
             return false;
         }
 
-        m_assetId = registry.generate_uuid();
+        m_assetId = asset_registry::generate_uuid();
 
         for (usize i = 0; i < m_fileImports.size(); ++i)
         {

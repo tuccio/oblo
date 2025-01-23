@@ -56,7 +56,7 @@ namespace oblo
         importer& operator=(const importer&) = delete;
         importer& operator=(importer&&) noexcept;
 
-        bool init(asset_registry& registry);
+        bool init(const asset_registry& registry);
 
         bool execute(const data_document& importSettings);
         bool finalize(asset_registry& registry, string_view destination);

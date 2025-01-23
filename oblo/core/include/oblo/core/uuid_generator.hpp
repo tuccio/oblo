@@ -32,6 +32,12 @@ namespace oblo
         random_generator* m_rng;
     };
 
+    class uuid_system_generator
+    {
+    public:
+        uuid generate() const;
+    };
+
     class uuid_namespace_generator
     {
     public:
