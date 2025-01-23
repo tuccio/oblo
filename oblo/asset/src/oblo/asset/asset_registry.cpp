@@ -13,12 +13,13 @@
 #include <oblo/core/uuid.hpp>
 #include <oblo/core/uuid_generator.hpp>
 #include <oblo/log/log.hpp>
+#include <oblo/properties/serialization/data_document.hpp>
+#include <oblo/properties/serialization/json.hpp>
 
 #include <nlohmann/json.hpp>
 
 #include <fstream>
 #include <unordered_map>
-#include <vector>
 
 namespace oblo
 {
@@ -28,6 +29,18 @@ namespace oblo
         {
             create_file_importer_fn create;
             dynamic_array<string> extensions;
+        };
+
+        struct asset_process_info
+        {
+            // Could maybe include a hash of settings or timestamps to determine when to re-run an importer or a
+            // processor
+            deque<uuid> artifacts;
+
+            void clear()
+            {
+                artifacts.clear();
+            }
         };
 
         bool load_asset_meta(asset_meta& meta, const std::filesystem::path& path)
@@ -221,6 +234,53 @@ namespace oblo
             return true;
         }
 
+        bool load_asset_process_info(cstring_view source, asset_process_info& info)
+        {
+            data_document doc;
+
+            if (!json::read(doc, source))
+            {
+                return false;
+            }
+
+            const auto artifacts = doc.find_child(doc.get_root(), "artifacts"_hsv);
+
+            if (artifacts == data_node::Invalid || !doc.is_array(artifacts))
+            {
+                return false;
+            }
+
+            for (const u32 child : doc.children(artifacts))
+            {
+                const auto uuid = doc.read_uuid(child);
+
+                if (!uuid)
+                {
+                    return false;
+                }
+
+                info.artifacts.emplace_back(*uuid);
+            }
+
+            return true;
+        }
+
+        bool save_asset_process_info(const asset_process_info& info, cstring_view destination)
+        {
+            data_document doc;
+            doc.init();
+
+            const auto artifacts = doc.child_array(doc.get_root(), "artifacts"_hsv);
+
+            for (const uuid& id : info.artifacts)
+            {
+                const auto e = doc.array_push_back(artifacts);
+                doc.make_uuid(e, id);
+            }
+
+            return json::write(doc, destination).has_value();
+        }
+
         bool ensure_directories(cstring_view directory)
         {
             if (!filesystem::create_directories(directory))
@@ -234,10 +294,11 @@ namespace oblo
         struct asset_entry
         {
             asset_meta meta;
-            std::vector<uuid> artifacts;
+            dynamic_array<uuid> artifacts;
         };
 
-        constexpr std::string_view ArtifactMetaExtension{".oartifact"};
+        constexpr std::string_view g_artifactMetaExtension{".oartifact"};
+        constexpr string_view g_assetProcessExtension{".oproc"};
     }
 
     struct asset_registry::impl
@@ -258,6 +319,14 @@ namespace oblo
 
             out.append(directory);
             return out;
+        }
+
+        string_builder& make_asset_process_path(string_builder& out, uuid assetId)
+        {
+            return out.append(artifactsDir)
+                .append_path_separator()
+                .format("{}", assetId)
+                .append(g_assetProcessExtension);
         }
     };
 
@@ -387,7 +456,7 @@ namespace oblo
         }
 
         auto artifactMetaPath = artifactPath;
-        artifactMetaPath.append(ArtifactMetaExtension);
+        artifactMetaPath.append(g_artifactMetaExtension);
 
         return filesystem::rename(srcArtifact, artifactPath).value_or(false) &&
             save_artifact_meta(meta, artifactMetaPath);
@@ -399,15 +468,28 @@ namespace oblo
         const deque<uuid>& artifacts,
         write_policy policy)
     {
-        const auto [assetIt, insertedAsset] = m_impl->assets.emplace(meta.assetId,
-            asset_entry{std::move(meta), std::vector<uuid>{artifacts.begin(), artifacts.end()}});
+        // Maybe don't do this and let the registry discover the import instead
+        const auto [assetIt, insertedAsset] = m_impl->assets.emplace(meta.assetId, asset_entry{});
 
         if (!insertedAsset)
         {
             return false;
         }
 
+        assetIt->second.meta = meta;
+        assetIt->second.artifacts.append(artifacts.begin(), artifacts.end());
+
         string_builder fullPath;
+
+        m_impl->make_asset_process_path(fullPath, meta.assetId);
+
+        if (!save_asset_process_info(asset_process_info{.artifacts = artifacts}, fullPath))
+        {
+            // Not a big issue, it can always be rebuilt, maybe we should log
+            log::warn("Saved to file asset process info to {}, re-processing might be required", fullPath);
+        }
+
+        fullPath.clear();
         m_impl->make_asset_path(fullPath, destination).append_path(assetName).append(AssetMetaExtension);
 
         if (policy == write_policy::no_overwrite && filesystem::exists(fullPath).value_or(true))
@@ -489,7 +571,7 @@ namespace oblo
         }
 
         auto resourceMeta = resourceFile;
-        resourceMeta.append(ArtifactMetaExtension);
+        resourceMeta.append(g_artifactMetaExtension);
 
         return oblo::load_artifact_meta(resourceMeta, artifact);
     }
@@ -536,7 +618,7 @@ namespace oblo
         }
 
         auto resourceMeta = resourceFile;
-        resourceMeta.append(ArtifactMetaExtension);
+        resourceMeta.append(g_artifactMetaExtension);
 
         artifact_meta meta;
 
@@ -556,6 +638,10 @@ namespace oblo
     {
         std::error_code ec;
 
+        asset_process_info processInfo;
+
+        string_builder builder;
+
         for (auto&& entry :
             std::filesystem::recursive_directory_iterator{m_impl->assetsDir.view().as<std::string>(), ec})
         {
@@ -565,38 +651,25 @@ namespace oblo
 
             if (load_asset_meta(meta, p))
             {
+                processInfo.clear();
+                m_impl->make_asset_process_path(builder.clear(), meta.assetId);
+
                 OBLO_ASSERT(!meta.assetId.is_nil());
-                [[maybe_unused]] auto [it, ok] = m_impl->assets.emplace(meta.assetId, asset_entry{meta});
-                OBLO_ASSERT(ok);
-            }
-            else
-            {
-                log::warn("Failed to load asset meta {}", p.string());
-            }
-        }
+                auto [it, ok] = m_impl->assets.emplace(meta.assetId, asset_entry{meta});
 
-        string_builder builder;
-
-        for (auto&& entry : std::filesystem::directory_iterator{m_impl->artifactsDir.view().as<std::string>(), ec})
-        {
-            const auto& p = entry.path();
-
-            if (p.extension() != ArtifactMetaExtension)
-            {
-                continue;
-            }
-
-            artifact_meta meta{};
-
-            builder.clear().format("{}", p.string());
-
-            if (oblo::load_artifact_meta(builder, meta))
-            {
-                const auto it = m_impl->assets.find(meta.assetId);
-
-                if (it != m_impl->assets.end())
+                if (!ok)
                 {
-                    it->second.artifacts.emplace_back(meta.artifactId);
+                    log::error("An asset id conflict was detected with {}", meta.assetId);
+                    continue;
+                }
+
+                if (!load_asset_process_info(builder, processInfo))
+                {
+                    log::warn("Failed to load asset build info for asset {}", meta.assetId);
+                }
+                else
+                {
+                    it->second.artifacts.append(processInfo.artifacts.begin(), processInfo.artifacts.end());
                 }
             }
             else

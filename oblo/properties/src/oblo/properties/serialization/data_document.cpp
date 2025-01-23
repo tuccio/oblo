@@ -265,6 +265,14 @@ namespace oblo
         return node.objectOrArray.childrenCount;
     }
 
+    iterator_range<data_document::children_iterator> data_document::children(u32 objectOrArray) const
+    {
+        return {
+            children_iterator{*this, objectOrArray, child_next(objectOrArray, data_node::Invalid)},
+            children_iterator{*this, objectOrArray, data_node::Invalid},
+        };
+    }
+
     void data_document::make_array(u32 node)
     {
         auto& n = m_nodes[node];
@@ -306,6 +314,11 @@ namespace oblo
         newValue.kind = data_node_kind::value;
         newValue.valueKind = kind;
         newValue.value = {.data = newData};
+    }
+
+    void data_document::make_uuid(u32 node, const uuid& value)
+    {
+        make_value(node, property_kind::uuid, as_bytes(value));
     }
 
     void* data_document::allocate(usize size, usize alignment)

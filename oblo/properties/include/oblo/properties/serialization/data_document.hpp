@@ -2,6 +2,7 @@
 
 #include <oblo/core/deque.hpp>
 #include <oblo/core/expected.hpp>
+#include <oblo/core/iterator/iterator_range.hpp>
 #include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
@@ -24,6 +25,8 @@ namespace oblo
     {
     public:
         enum class error : u8;
+
+        class children_iterator;
 
     public:
         data_document();
@@ -51,12 +54,16 @@ namespace oblo
         u32 child_next(u32 objectOrArray, u32 previous) const;
         u32 children_count(u32 objectOrArray) const;
 
+        iterator_range<children_iterator> children(u32 objectOrArray) const;
+
         u32 child_array(u32 parent, hashed_string_view key, u32 size = 0);
         u32 array_push_back(u32 array);
 
         void make_array(u32 node);
         void make_object(u32 node);
         void make_value(u32 node, property_kind kind, std::span<const byte> data);
+
+        void make_uuid(u32 node, const uuid& value);
 
         const deque<data_node>& get_nodes() const;
 
@@ -117,4 +124,43 @@ namespace oblo
     {
         return as_bytes(std::span{&value, 1});
     }
+
+    class data_document::children_iterator
+    {
+    public:
+        children_iterator() = default;
+
+        children_iterator(const data_document& doc, u32 node, u32 current) :
+            m_doc{&doc}, m_node{node}, m_current{current}
+        {
+        }
+
+        children_iterator(const children_iterator&) = default;
+        children_iterator& operator=(const children_iterator&) = default;
+
+        bool operator==(const children_iterator&) const = default;
+
+        OBLO_FORCEINLINE u32 operator*() const
+        {
+            return m_current;
+        }
+
+        OBLO_FORCEINLINE children_iterator operator++()
+        {
+            m_current = m_doc->child_next(m_node, m_current);
+            return *this;
+        }
+
+        OBLO_FORCEINLINE children_iterator operator++(int)
+        {
+            auto tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+    private:
+        const data_document* m_doc{};
+        u32 m_node{data_node::Invalid};
+        u32 m_current{data_node::Invalid};
+    };
 }
