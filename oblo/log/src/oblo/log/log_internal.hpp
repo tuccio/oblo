@@ -1,12 +1,20 @@
 #pragma once
 
-#include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/deque.hpp>
 #include <oblo/core/unique_ptr.hpp>
 #include <oblo/log/log_sink.hpp>
 
+#include <mutex>
+
 namespace oblo::log
 {
-    inline dynamic_array<unique_ptr<log_sink>> g_logSinks;
+    struct sink_storage
+    {
+        unique_ptr<log_sink> sink;
+        std::mutex mutex;
+    };
+
+    inline deque<sink_storage> g_logSinks;
 
     constexpr cstring_view g_severityStrings[]{
         "[DEBUG] ",

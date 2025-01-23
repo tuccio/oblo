@@ -17,6 +17,7 @@ namespace oblo::log
 
     void log_module::add_sink(unique_ptr<log_sink> sink)
     {
-        g_logSinks.push_back(std::move(sink));
+        auto& storage = g_logSinks.emplace_back();
+        storage.sink = std::move(sink);
     }
 }

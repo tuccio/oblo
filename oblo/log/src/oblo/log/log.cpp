@@ -17,9 +17,10 @@ namespace oblo::log::detail
 
         const cstring_view message{str, last};
 
-        for (const auto& sink : g_logSinks)
+        for (auto& storage : g_logSinks)
         {
-            sink->sink(severity, t, message);
+            std::scoped_lock lock{storage.mutex};
+            storage.sink->sink(severity, t, message);
         }
     }
 }
