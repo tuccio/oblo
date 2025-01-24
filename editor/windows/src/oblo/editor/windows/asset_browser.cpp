@@ -3,10 +3,15 @@
 #include <oblo/asset/asset_meta.hpp>
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/core/debug.hpp>
+#include <oblo/core/deque.hpp>
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/formatters/uuid_formatter.hpp>
 #include <oblo/core/platform/shell.hpp>
 #include <oblo/core/service_registry.hpp>
+#include <oblo/core/string/string.hpp>
+#include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/time/clock.hpp>
+#include <oblo/core/uuid.hpp>
 #include <oblo/editor/data/drag_and_drop_payload.hpp>
 #include <oblo/editor/providers/asset_create_provider.hpp>
 #include <oblo/editor/service_context.hpp>
@@ -21,10 +26,27 @@
 
 namespace oblo::editor
 {
-    struct asset_browser::create_menu_item
+    namespace
     {
-        cstring_view name;
-        asset_create_fn create{};
+        struct create_menu_item
+        {
+            cstring_view name;
+            asset_create_fn create{};
+        };
+    }
+
+    struct asset_browser::impl
+    {
+        asset_registry* registry{};
+        string_builder path;
+        string_builder current;
+        uuid expandedAsset{};
+        dynamic_array<string> breadcrumbs;
+        deque<create_menu_item> createMenu;
+
+        void populate_create_menu();
+        void draw_popup_menu();
+        void reset_path();
     };
 
     asset_browser::asset_browser() = default;
@@ -32,15 +54,17 @@ namespace oblo::editor
 
     void asset_browser::init(const window_update_context& ctx)
     {
-        m_registry = ctx.services.find<asset_registry>();
-        OBLO_ASSERT(m_registry);
+        m_impl = allocate_unique<impl>();
 
-        m_path = m_registry->get_asset_directory();
-        m_path.make_canonical_path();
+        m_impl->registry = ctx.services.find<asset_registry>();
+        OBLO_ASSERT(m_impl->registry);
 
-        m_current = m_path;
+        m_impl->path = m_impl->registry->get_asset_directory();
+        m_impl->path.make_canonical_path();
 
-        populate_create_menu();
+        m_impl->current = m_impl->path;
+
+        m_impl->populate_create_menu();
     }
 
     bool asset_browser::update(const window_update_context&)
@@ -49,44 +73,19 @@ namespace oblo::editor
 
         if (ImGui::Begin("Asset Browser", &open))
         {
-            if (ImGui::BeginPopupContextWindow())
-            {
-                if (ImGui::MenuItem("Import"))
-                {
-                    string_builder file;
+            m_impl->draw_popup_menu();
 
-                    if (platform::open_file_dialog(file))
-                    {
-                        const auto r = m_registry->import(file, m_current, data_document{});
-
-                        if (!r)
-                        {
-                            log::error("No importer was found for {}", file);
-                        }
-                    }
-                }
-
-                draw_create_menu();
-
-                if (ImGui::MenuItem("Open in Explorer"))
-                {
-                    platform::open_folder(m_current.view());
-                }
-
-                ImGui::EndPopup();
-            }
-
-            if (m_current != m_path)
+            if (m_impl->current != m_impl->path)
             {
                 if (ImGui::Button(".."))
                 {
                     std::error_code ec;
-                    m_current.append_path("..").make_canonical_path();
-                    m_breadcrumbs.pop_back();
+                    m_impl->current.append_path("..").make_canonical_path();
+                    m_impl->breadcrumbs.pop_back();
 
                     if (ec)
                     {
-                        reset_path();
+                        m_impl->reset_path();
                     }
                 }
             }
@@ -95,7 +94,7 @@ namespace oblo::editor
 
             string_builder directoryName;
 
-            for (auto&& entry : std::filesystem::directory_iterator{m_current.as<std::string>(), ec})
+            for (auto&& entry : std::filesystem::directory_iterator{m_impl->current.as<std::string>(), ec})
             {
                 const auto& p = entry.path();
                 if (std::filesystem::is_directory(p))
@@ -105,8 +104,8 @@ namespace oblo::editor
 
                     if (ImGui::Button(directoryName.c_str()))
                     {
-                        m_current.clear().append(p.native().c_str()).make_canonical_path();
-                        m_breadcrumbs.emplace_back(directoryName.as<string>());
+                        m_impl->current.clear().append(p.native().c_str()).make_canonical_path();
+                        m_impl->breadcrumbs.emplace_back(directoryName.as<string>());
                     }
                 }
                 else if (p.extension() == AssetMetaExtension.c_str())
@@ -120,13 +119,13 @@ namespace oblo::editor
                     string_builder assetPath;
                     assetPath.append(p.native().c_str());
 
-                    if (m_registry->find_asset_by_meta_path(assetPath, assetId, meta))
+                    if (m_impl->registry->find_asset_by_meta_path(assetPath, assetId, meta))
                     {
                         ImGui::PushID(int(hash_all<std::hash>(assetId)));
 
                         if (ImGui::Button(reinterpret_cast<const char*>(str.c_str())))
                         {
-                            m_expandedAsset = m_expandedAsset == meta.assetId ? oblo::uuid{} : meta.assetId;
+                            m_impl->expandedAsset = m_impl->expandedAsset == meta.assetId ? oblo::uuid{} : meta.assetId;
                         }
                         else if (!meta.mainArtifactHint.is_nil() && ImGui::BeginDragDropSource())
                         {
@@ -139,7 +138,7 @@ namespace oblo::editor
                         {
                             if (ImGui::MenuItem("Reimport"))
                             {
-                                if (!m_registry->process(assetId))
+                                if (!m_impl->registry->process(assetId))
                                 {
                                     log::error("Failed to reimport {}", assetId);
                                 }
@@ -150,17 +149,17 @@ namespace oblo::editor
 
                         ImGui::PopID();
 
-                        if (m_expandedAsset == meta.assetId)
+                        if (m_impl->expandedAsset == meta.assetId)
                         {
                             dynamic_array<oblo::uuid> artifacts;
 
-                            if (m_registry->find_asset_artifacts(meta.assetId, artifacts))
+                            if (m_impl->registry->find_asset_artifacts(meta.assetId, artifacts))
                             {
                                 for (const auto& artifact : artifacts)
                                 {
                                     artifact_meta artifactMeta;
 
-                                    if (m_registry->load_artifact_meta(artifact, artifactMeta))
+                                    if (m_impl->registry->load_artifact_meta(artifact, artifactMeta))
                                     {
                                         ImGui::PushID(int(hash_all<std::hash>(artifact)));
 
@@ -190,7 +189,7 @@ namespace oblo::editor
 
             if (ec)
             {
-                reset_path();
+                m_impl->reset_path();
             }
 
             ImGui::End();
@@ -199,13 +198,13 @@ namespace oblo::editor
         return open;
     }
 
-    void asset_browser::reset_path()
+    void asset_browser::impl::reset_path()
     {
-        m_current = m_path;
-        m_breadcrumbs.clear();
+        current = path;
+        breadcrumbs.clear();
     }
 
-    void asset_browser::populate_create_menu()
+    void asset_browser::impl::populate_create_menu()
     {
         auto& mm = module_manager::get();
 
@@ -219,34 +218,55 @@ namespace oblo::editor
             for (const auto& desc : createDescs)
             {
                 // Ignoring category for now
-                m_createMenu.emplace_back(desc.name, desc.create);
+                createMenu.emplace_back(desc.name, desc.create);
             }
         }
     }
 
-    void asset_browser::draw_create_menu()
+    void asset_browser::impl::draw_popup_menu()
     {
-        if (m_createMenu.empty())
+        if (ImGui::BeginPopupContextWindow())
         {
-            return;
-        }
-
-        if (ImGui::BeginMenu("Create"))
-        {
-            for (const auto& item : m_createMenu)
+            if (ImGui::MenuItem("Import"))
             {
-                if (ImGui::MenuItem(item.name.c_str()))
+                string_builder file;
+
+                if (platform::open_file_dialog(file))
                 {
-                    const auto r = m_registry->create_asset(item.create(), m_current, "New Asset");
+                    const auto r = registry->import(file, current, data_document{});
 
                     if (!r)
                     {
-                        log::error("Failed to create new asset {}", item.name);
+                        log::error("No importer was found for {}", file);
                     }
                 }
             }
 
-            ImGui::EndMenu();
+            if (!createMenu.empty() && ImGui::BeginMenu("Create"))
+            {
+                for (const auto& item : createMenu)
+                {
+                    if (ImGui::MenuItem(item.name.c_str()))
+                    {
+                        // TODO: Need to find a suitable and available name instead
+                        const auto r = registry->create_asset(item.create(), current, "New Asset");
+
+                        if (!r)
+                        {
+                            log::error("Failed to create new asset {}", item.name);
+                        }
+                    }
+                }
+
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::MenuItem("Open in Explorer"))
+            {
+                platform::open_folder(current.view());
+            }
+
+            ImGui::EndPopup();
         }
     }
 }
