@@ -2,9 +2,11 @@
 
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/expected.hpp>
+#include <oblo/core/flags.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/string/string.hpp>
+#include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/uuid.hpp>
 
@@ -13,6 +15,12 @@
 
 namespace oblo
 {
+    enum class material_type_tag
+    {
+        none,
+        linear_color,
+    };
+
     class property_registry;
     class texture;
 
@@ -35,6 +43,7 @@ namespace oblo
         vec3,
         vec4,
         texture,
+        linear_color_rgb_f32,
     };
 
     enum class material_error : u8
@@ -44,16 +53,19 @@ namespace oblo
 
     struct material_property
     {
+
         hashed_string_view name;
         material_property_type type;
         material_data_storage storage;
 
         template <typename T>
         expected<T, material_error> as() const;
+
+        SCENE_API type_id get_property_type_id() const;
     };
 
-    template <typename T>
-    constexpr material_property_type get_material_property_type();
+    template <typename T, material_type_tag Tag>
+    material_property_type get_material_property_type();
 
     class material
     {
@@ -75,12 +87,18 @@ namespace oblo
 
         SCENE_API std::span<const material_property> get_properties() const;
 
-        template <typename T>
+        template <material_type_tag Tag, typename T>
         void set_property(hashed_string_view name, const T& value)
         {
             material_data_storage storage;
             new (storage.buffer) T{value};
-            set_property(name, get_material_property_type<T>(), storage);
+            set_property(name, get_material_property_type<T, Tag>(), storage);
+        }
+
+        template <typename T>
+        void set_property(hashed_string_view name, const T& value)
+        {
+            set_property<material_type_tag::none, T>(name, value);
         }
 
         SCENE_API bool save(cstring_view destination) const;
@@ -130,44 +148,11 @@ namespace oblo
     template <typename T>
     expected<T, material_error> material_property::as() const
     {
-        if (type != get_material_property_type<T>())
+        if (get_property_type_id() != get_type_id<T>())
         {
             return material_error::type_mismatch;
         }
 
         return *reinterpret_cast<const T*>(storage.buffer);
-    }
-
-    template <typename T>
-    constexpr material_property_type get_material_property_type();
-
-    template <>
-    constexpr material_property_type get_material_property_type<f32>()
-    {
-        return material_property_type::f32;
-    }
-
-    template <>
-    constexpr material_property_type get_material_property_type<vec2>()
-    {
-        return material_property_type::vec2;
-    }
-
-    template <>
-    constexpr material_property_type get_material_property_type<vec3>()
-    {
-        return material_property_type::vec3;
-    }
-
-    template <>
-    constexpr material_property_type get_material_property_type<vec4>()
-    {
-        return material_property_type::vec4;
-    }
-
-    template <>
-    constexpr material_property_type get_material_property_type<resource_ref<texture>>()
-    {
-        return material_property_type::texture;
     }
 }

@@ -13,9 +13,9 @@
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_ref.hpp>
 #include <oblo/resource/resource_registry.hpp>
+#include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/scene/resources/material.hpp>
 #include <oblo/scene/resources/pbr_properties.hpp>
-#include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/vulkan/draw/draw_registry.hpp>
 #include <oblo/vulkan/draw/resource_cache.hpp>
 #include <oblo/vulkan/renderer.hpp>
@@ -69,6 +69,11 @@ namespace oblo
             if (auto* const emissive = m->get_property(pbr::Emissive))
             {
                 out.emissive = emissive->as<vec3>().value_or({});
+            }
+
+            if (auto* const emissiveMultiplier = m->get_property(pbr::EmissiveMultiplier))
+            {
+                out.emissive = out.emissive * emissiveMultiplier->as<f32>().value_or(1.f);
             }
 
             if (auto* const albedoTexture = m->get_property(pbr::AlbedoTexture))

@@ -282,12 +282,28 @@ namespace oblo::importers
             set_texture(materialArtifact, pbr::NormalMapTexture, gltfMaterial.normalTexture.index);
             set_texture(materialArtifact, pbr::EmissiveTexture, gltfMaterial.emissiveTexture.index);
 
-            materialArtifact.set_property(pbr::Albedo, get_vec3_or(pbr.baseColorFactor, vec3::splat(1.f)));
+            materialArtifact.set_property<material_type_tag::linear_color>(pbr::Albedo,
+                get_vec3_or(pbr.baseColorFactor, vec3::splat(1.f)));
 
             materialArtifact.set_property(pbr::Metalness, f32(pbr.metallicFactor));
             materialArtifact.set_property(pbr::Roughness, f32(pbr.roughnessFactor));
 
-            materialArtifact.set_property(pbr::Emissive, get_vec3_or(gltfMaterial.emissiveFactor, vec3::splat(0.f)));
+            {
+                auto emissiveFactor = get_vec3_or(gltfMaterial.emissiveFactor, vec3::splat(0.f));
+                const auto [r, g, b] = emissiveFactor;
+                const auto highest = max(r, g, b);
+
+                f32 emissiveMultiplier = 1.f;
+
+                if (highest > 1.f)
+                {
+                    emissiveFactor = emissiveFactor / highest;
+                    emissiveMultiplier = highest;
+                }
+
+                materialArtifact.set_property<material_type_tag::linear_color>(pbr::Emissive, emissiveFactor);
+                materialArtifact.set_property(pbr::EmissiveMultiplier, emissiveMultiplier);
+            }
 
             f32 ior{1.5f};
 

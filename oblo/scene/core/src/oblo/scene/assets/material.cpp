@@ -233,4 +233,67 @@ namespace oblo
 
         return true;
     }
+
+    type_id material_property::get_property_type_id() const
+    {
+        switch (type)
+        {
+        case material_property_type::f32:
+            return get_type_id<f32>();
+
+        case material_property_type::vec2:
+            return get_type_id<vec2>();
+
+        case material_property_type::vec3:
+            return get_type_id<vec3>();
+
+        case material_property_type::vec4:
+            return get_type_id<vec4>();
+
+        case material_property_type::linear_color_rgb_f32:
+            return get_type_id<vec3>();
+
+        case material_property_type::texture:
+            return get_type_id<resource_ref<texture>>();
+
+        default:
+            unreachable();
+        }
+    }
+
+    template <>
+    SCENE_API material_property_type get_material_property_type<f32, material_type_tag::none>()
+    {
+        return material_property_type::f32;
+    }
+
+    template <>
+    SCENE_API material_property_type get_material_property_type<vec2, material_type_tag::none>()
+    {
+        return material_property_type::vec2;
+    }
+
+    template <>
+    SCENE_API material_property_type get_material_property_type<vec3, material_type_tag::none>()
+    {
+        return material_property_type::vec3;
+    }
+
+    template <>
+    SCENE_API material_property_type get_material_property_type<vec3, material_type_tag::linear_color>()
+    {
+        return material_property_type::linear_color_rgb_f32;
+    }
+
+    template <>
+    SCENE_API material_property_type get_material_property_type<vec4, material_type_tag::none>()
+    {
+        return material_property_type::vec4;
+    }
+
+    template <>
+    SCENE_API material_property_type get_material_property_type<resource_ref<texture>, material_type_tag::none>()
+    {
+        return material_property_type::texture;
+    }
 }
