@@ -501,6 +501,42 @@ namespace oblo
         return assetId;
     }
 
+    expected<any_asset> asset_registry::load_asset(uuid assetId)
+    {
+        const auto it = m_impl->assets.find(assetId);
+
+        if (it == m_impl->assets.end())
+        {
+            return unspecified_error;
+        }
+
+        // TODO: Actual support for native assets
+        const uuid& type = it->second.meta.typeHint;
+
+        const auto typeIt = m_impl->nativeAssetTypes.find(type);
+
+        if (typeIt == m_impl->nativeAssetTypes.end())
+        {
+            return unspecified_error;
+        }
+
+        string_builder sourceFilePath;
+
+        if (!importer::read_source_file_path(*m_impl, assetId, sourceFilePath))
+        {
+            return unspecified_error;
+        }
+
+        any_asset asset;
+
+        if (!typeIt->second.load(asset, sourceFilePath))
+        {
+            return unspecified_error;
+        }
+
+        return asset;
+    }
+
     unique_ptr<file_importer> asset_registry_impl::create_file_importer(string_view sourceFile) const
     {
         const auto ext = filesystem::extension(sourceFile);
@@ -627,6 +663,12 @@ namespace oblo
     cstring_view asset_registry::get_asset_directory() const
     {
         return m_impl->assetsDir;
+    }
+
+    bool asset_registry::get_source_directory(const uuid& assetId, string_builder& outPath) const
+    {
+        m_impl->make_source_files_dir_path(outPath, assetId);
+        return true;
     }
 
     u32 asset_registry::get_ongoing_process_count() const

@@ -30,24 +30,25 @@ namespace oblo
         ~any_asset() = default;
 
         template <typename T, typename... Args>
-        void emplace(Args&&... args)
+        T& emplace(Args&&... args)
         {
             using W = wrapper<std::decay_t<T>>;
             m_wrapper = allocate_unique<W>(std::forward<Args>(args)...);
+            return *as<T>();
         }
 
-        void* try_get() noexcept
+        void* as() noexcept
         {
             return m_wrapper ? m_wrapper->get() : nullptr;
         }
 
-        const void* try_get() const noexcept
+        const void* as() const noexcept
         {
             return m_wrapper ? m_wrapper->get() : nullptr;
         }
 
         template <typename T>
-        T* try_get() noexcept
+        T* as() noexcept
         {
             if (is<T>())
             {
@@ -58,7 +59,7 @@ namespace oblo
         }
 
         template <typename T>
-        const T* try_get() const noexcept
+        const T* as() const noexcept
         {
             if (is<T>())
             {

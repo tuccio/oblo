@@ -91,19 +91,13 @@ namespace oblo
                     .load =
                         [](any_asset& asset, cstring_view source)
                     {
-                        auto* const m = asset.try_get<material>();
-
-                        if (!m)
-                        {
-                            return false;
-                        }
-
-                        return m->load(source);
+                        auto& m = asset.emplace<material>();
+                        return m.load(source);
                     },
                     .save =
                         [](const any_asset& asset, cstring_view destination, cstring_view)
                     {
-                        auto* const m = asset.try_get<material>();
+                        auto* const m = asset.as<material>();
 
                         if (!m)
                         {
@@ -134,8 +128,9 @@ namespace oblo
                         m.set_property(pbr::Albedo, vec3::splat(1.f));
                         return any_asset{std::move(m)};
                     },
-                    .openEditorWindow = [](editor::window_manager& windowManager, editor::window_handle parent)
-                    { return windowManager.create_child_window<editor::material_editor>(parent); },
+                    .openEditorWindow =
+                        [](editor::window_manager& windowManager, editor::window_handle parent, uuid assetId)
+                    { return windowManager.create_child_window<editor::material_editor>(parent, {}, assetId); },
                 });
             }
         };

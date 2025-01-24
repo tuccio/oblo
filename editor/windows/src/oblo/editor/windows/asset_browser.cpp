@@ -132,7 +132,9 @@ namespace oblo::editor
                                 it != m_impl->editorsLookup.end())
                             {
                                 const asset_editor_create_fn createWindow = it->second;
-                                createWindow(ctx.windowManager, ctx.windowHandle);
+                                createWindow(ctx.windowManager,
+                                    ctx.windowManager.get_parent(ctx.windowHandle),
+                                    assetId);
                             }
                             else
                             {
@@ -153,6 +155,15 @@ namespace oblo::editor
                                 if (!m_impl->registry->process(assetId))
                                 {
                                     log::error("Failed to reimport {}", assetId);
+                                }
+                            }
+
+                            if (ImGui::MenuItem("Open Source in Explorer"))
+                            {
+                                string_builder sourcePath;
+                                if (m_impl->registry->get_source_directory(assetId, sourcePath))
+                                {
+                                    platform::open_folder(sourcePath.view());
                                 }
                             }
 

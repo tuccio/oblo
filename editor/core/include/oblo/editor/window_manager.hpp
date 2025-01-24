@@ -48,7 +48,10 @@ namespace oblo::editor
         window_handle create_window(service_registry&& services);
 
         template <typename T>
-        window_handle create_child_window(window_handle parent, flags<window_flags> flags = {});
+        window_handle create_child_window(window_handle parent);
+
+        template <typename T, typename... Args>
+        window_handle create_child_window(window_handle parent, flags<window_flags> flags, Args&&... args);
 
         template <typename T>
         bool has_child(window_handle parent, bool recursive) const;
@@ -76,8 +79,8 @@ namespace oblo::editor
         using destroy_fn = void (*)(memory_pool& pool, u8*);
 
     private:
-        template <typename T>
-        window_handle create_window_impl(window_entry* parent, service_registry* overrideCtx);
+        template <typename T, typename... Args>
+        window_handle create_window_impl(window_entry* parent, service_registry* overrideCtx, Args&&... args);
 
         window_handle create_window_impl(window_entry* parent,
             const type_id& type,
@@ -111,7 +114,13 @@ namespace oblo::editor
     }
 
     template <typename T>
-    window_handle window_manager::create_child_window(window_handle parent, flags<window_flags> flags)
+    window_handle window_manager::create_child_window(window_handle parent)
+    {
+        return create_child_window<T>(parent, flags<window_flags>{});
+    }
+
+    template <typename T, typename... Args>
+    window_handle window_manager::create_child_window(window_handle parent, flags<window_flags> flags, Args&&... args)
     {
         if (flags.contains(window_flags::unique_sibling) && has_child<T>(parent, false))
         {
@@ -119,7 +128,7 @@ namespace oblo::editor
         }
 
         auto* const parentEntry = reinterpret_cast<window_entry*>(parent.value);
-        return create_window_impl<T>(parentEntry, nullptr);
+        return create_window_impl<T>(parentEntry, nullptr, std::forward<Args>(args)...);
     }
 
     template <typename T>
@@ -135,10 +144,11 @@ namespace oblo::editor
         return find_child_impl(parentEntry, get_type_id<T>(), recursive);
     }
 
-    template <typename T>
-    window_handle window_manager::create_window_impl(window_entry* parentEntry, service_registry* overrideCtx)
+    template <typename T, typename... Args>
+    window_handle window_manager::create_window_impl(
+        window_entry* parentEntry, service_registry* overrideCtx, Args&&... args)
     {
-        T* const window = new (m_pool.allocate(sizeof(T), alignof(T))) T{};
+        T* const window = new (m_pool.allocate(sizeof(T), alignof(T))) T{std::forward<Args>(args)...};
         u8* const ptr = reinterpret_cast<u8*>(window);
 
         const update_fn update = [](u8* ptr, const window_update_context& ctx)
@@ -157,7 +167,14 @@ namespace oblo::editor
             },
             get_type_id<T>().name);
 
-        if constexpr (requires(T& w, const window_update_context& ctx) { w.init(ctx); })
+        if constexpr (requires(T& w, const window_update_context& ctx, bool b) { b = w.init(ctx); })
+        {
+            if (!window->init(make_window_update_context(newHandle)))
+            {
+                destroy_window(newHandle);
+            }
+        }
+        else if constexpr (requires(T& w, const window_update_context& ctx) { w.init(ctx); })
         {
             window->init(make_window_update_context(newHandle));
         }
