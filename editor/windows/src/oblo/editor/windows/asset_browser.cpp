@@ -8,9 +8,11 @@
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/time/clock.hpp>
 #include <oblo/editor/data/drag_and_drop_payload.hpp>
+#include <oblo/editor/providers/asset_create_provider.hpp>
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/log/log.hpp>
+#include <oblo/modules/module_manager.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
 
 #include <imgui.h>
@@ -19,6 +21,15 @@
 
 namespace oblo::editor
 {
+    struct asset_browser::create_menu_item
+    {
+        cstring_view name;
+        asset_create_fn create{};
+    };
+
+    asset_browser::asset_browser() = default;
+    asset_browser::~asset_browser() = default;
+
     void asset_browser::init(const window_update_context& ctx)
     {
         m_registry = ctx.services.find<asset_registry>();
@@ -28,6 +39,8 @@ namespace oblo::editor
         m_path.make_canonical_path();
 
         m_current = m_path;
+
+        populate_create_menu();
     }
 
     bool asset_browser::update(const window_update_context&)
@@ -52,6 +65,8 @@ namespace oblo::editor
                         }
                     }
                 }
+
+                draw_create_menu();
 
                 if (ImGui::MenuItem("Open in Explorer"))
                 {
@@ -188,5 +203,50 @@ namespace oblo::editor
     {
         m_current = m_path;
         m_breadcrumbs.clear();
+    }
+
+    void asset_browser::populate_create_menu()
+    {
+        auto& mm = module_manager::get();
+
+        deque<asset_create_descriptor> createDescs;
+
+        for (auto* const createProvider : mm.find_services<asset_create_provider>())
+        {
+            createDescs.clear();
+            createProvider->fetch(createDescs);
+
+            for (const auto& desc : createDescs)
+            {
+                // Ignoring category for now
+                m_createMenu.emplace_back(desc.name, desc.create);
+            }
+        }
+    }
+
+    void asset_browser::draw_create_menu()
+    {
+        if (m_createMenu.empty())
+        {
+            return;
+        }
+
+        if (ImGui::BeginMenu("Create"))
+        {
+            for (const auto& item : m_createMenu)
+            {
+                if (ImGui::MenuItem(item.name.c_str()))
+                {
+                    const auto r = m_registry->create_asset(item.create(), m_current, "New Asset");
+
+                    if (!r)
+                    {
+                        log::error("Failed to create new asset {}", item.name);
+                    }
+                }
+            }
+
+            ImGui::EndMenu();
+        }
     }
 }

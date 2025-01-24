@@ -443,7 +443,7 @@ namespace oblo
         return unspecified_error;
     }
 
-    expected<uuid> asset_registry::create_asset(const any_asset& asset, cstring_view destination)
+    expected<uuid> asset_registry::create_asset(const any_asset& asset, cstring_view destination, cstring_view name)
     {
         if (!asset)
         {
@@ -476,7 +476,7 @@ namespace oblo
         }
 
         string_builder sourceFile = workDir;
-        sourceFile.append_path("asset");
+        sourceFile.append_path(name);
         sourceFile.append(desc.fileExtension);
 
         if (!desc.save(asset, sourceFile, workDir))

@@ -101,6 +101,12 @@ endfunction(oblo_setup_source_groups)
 
 function(oblo_setup_include_dirs target)
     target_include_directories(
+        ${target} INTERFACE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+    )
+
+    target_include_directories(
         ${target} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
