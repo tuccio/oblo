@@ -53,7 +53,6 @@ namespace oblo
 
     struct material_property
     {
-
         hashed_string_view name;
         material_property_type type;
         material_data_storage storage;
@@ -154,5 +153,14 @@ namespace oblo
         }
 
         return *reinterpret_cast<const T*>(storage.buffer);
+    }
+
+    template <typename T>
+        requires std::is_trivially_copyable_v<T>
+    material_data_storage make_material_data_storage(const T& value)
+    {
+        material_data_storage storage;
+        new (storage.buffer) T{value};
+        return storage;
     }
 }

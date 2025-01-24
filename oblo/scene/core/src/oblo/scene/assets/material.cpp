@@ -56,9 +56,11 @@ namespace oblo
 
         const u32 root = doc.get_root();
 
+        const u32 properties = doc.child_object(root, "properties"_hsv);
+
         for (const auto& property : m_properties)
         {
-            const auto propertyNode = doc.child_object(root, property.name);
+            const auto propertyNode = doc.child_object(properties, property.name);
 
             doc.child_value(propertyNode, "type", property_kind::u8, std::as_bytes(std::span{&property.type, 1}));
 
@@ -80,6 +82,8 @@ namespace oblo
             }
             break;
 
+            case material_property_type::linear_color_rgb_f32:
+                [[fallthrough]];
             case material_property_type::vec3: {
                 auto* const v = reinterpret_cast<const float*>(property.storage.buffer);
 
@@ -124,13 +128,18 @@ namespace oblo
             return false;
         }
 
-        const auto& nodes = doc.get_nodes();
         const auto root = doc.get_root();
 
-        for (u32 index = nodes[root].objectOrArray.firstChild; index != data_node::Invalid;
-             index = nodes[index].nextSibling)
+        const u32 properties = doc.find_child(root, "properties"_hsv);
+
+        if (!doc.is_object(properties))
         {
-            if (nodes[index].kind != data_node_kind::object)
+            return false;
+        }
+
+        for (const auto index : doc.children(properties))
+        {
+            if (!doc.is_object(index))
             {
                 continue;
             }
@@ -144,14 +153,18 @@ namespace oblo
             }
 
             // TODO: Check if type matches (should do the same in the switch below)
-            const auto type = material_property_type(*reinterpret_cast<const u32*>(nodes[typeIndex].value.data));
+            const auto type = doc.read_u32(typeIndex);
+
+            if (!type)
+            {
+                continue;
+            }
+
             const auto key = doc.get_node_name(index);
 
             constexpr auto any_invalid = [](auto... n) { return ((n == data_node::Invalid) || ...); };
 
-            auto* const value = nodes[valueIndex].value.data;
-
-            switch (type)
+            switch (material_property_type(*type))
             {
             case material_property_type::f32:
                 set_property(key, doc.read_f32(valueIndex).value_or(0.f));
@@ -175,6 +188,8 @@ namespace oblo
             }
             break;
 
+            case material_property_type::linear_color_rgb_f32:
+                [[fallthrough]];
             case material_property_type::vec3: {
                 const auto x = doc.find_child(valueIndex, "x");
                 const auto y = doc.find_child(valueIndex, "y");
@@ -218,13 +233,11 @@ namespace oblo
             break;
 
             case material_property_type::texture: {
-                resource_ref<texture> texture;
 
-                const auto dataStr = reinterpret_cast<const data_string*>(value);
-
-                if (texture.id.parse_from(dataStr->str()))
+                const auto uuid = doc.read_uuid(valueIndex);
+                if (uuid && !uuid->is_nil())
                 {
-                    set_property(key, texture);
+                    set_property(key, resource_ref<texture>{*uuid});
                 }
             }
             break;
