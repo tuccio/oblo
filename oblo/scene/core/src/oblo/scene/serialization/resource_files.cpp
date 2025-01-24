@@ -4,7 +4,7 @@
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
 #include <oblo/properties/serialization/json.hpp>
-#include <oblo/scene/assets/model.hpp>
+#include <oblo/scene/resources/model.hpp>
 
 namespace oblo
 {

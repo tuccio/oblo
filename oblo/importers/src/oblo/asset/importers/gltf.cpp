@@ -18,10 +18,10 @@
 #include <oblo/math/vec3.hpp>
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
-#include <oblo/scene/assets/material.hpp>
-#include <oblo/scene/assets/mesh.hpp>
-#include <oblo/scene/assets/model.hpp>
-#include <oblo/scene/assets/pbr_properties.hpp>
+#include <oblo/scene/resources/material.hpp>
+#include <oblo/scene/resources/mesh.hpp>
+#include <oblo/scene/resources/model.hpp>
+#include <oblo/scene/resources/pbr_properties.hpp>
 #include <oblo/scene/resources/traits.hpp>
 #include <oblo/scene/serialization/mesh_file.hpp>
 #include <oblo/scene/serialization/model_file.hpp>

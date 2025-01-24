@@ -1,11 +1,11 @@
-#include <oblo/scene/assets/registration.hpp>
+#include <oblo/scene/resources/registration.hpp>
 
 #include <oblo/resource/descriptors/resource_type_descriptor.hpp>
 #include <oblo/resource/resource_registry.hpp>
-#include <oblo/scene/assets/material.hpp>
-#include <oblo/scene/assets/mesh.hpp>
-#include <oblo/scene/assets/model.hpp>
-#include <oblo/scene/assets/texture.hpp>
+#include <oblo/scene/resources/material.hpp>
+#include <oblo/scene/resources/mesh.hpp>
+#include <oblo/scene/resources/model.hpp>
+#include <oblo/scene/resources/texture.hpp>
 #include <oblo/scene/resources/traits.hpp>
 #include <oblo/scene/serialization/mesh_file.hpp>
 #include <oblo/scene/serialization/model_file.hpp>

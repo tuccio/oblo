@@ -8,7 +8,7 @@
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/math/vec4.hpp>
-#include <oblo/scene/assets/mesh.hpp>
+#include <oblo/scene/resources/mesh.hpp>
 
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION

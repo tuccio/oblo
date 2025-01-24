@@ -1,4 +1,4 @@
-#include <oblo/scene/assets/texture.hpp>
+#include <oblo/scene/resources/texture.hpp>
 
 #include <oblo/core/debug.hpp>
 #include <oblo/core/filesystem/file.hpp>

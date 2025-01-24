@@ -1,4 +1,4 @@
-#include <oblo/scene/assets/material.hpp>
+#include <oblo/scene/resources/material.hpp>
 
 #include <oblo/core/overload.hpp>
 #include <oblo/core/uuid.hpp>

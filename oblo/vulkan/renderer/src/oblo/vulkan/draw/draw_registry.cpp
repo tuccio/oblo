@@ -17,7 +17,7 @@
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_ref.hpp>
 #include <oblo/resource/resource_registry.hpp>
-#include <oblo/scene/assets/mesh.hpp>
+#include <oblo/scene/resources/mesh.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/buffer.hpp>

@@ -13,8 +13,8 @@
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_ref.hpp>
 #include <oblo/resource/resource_registry.hpp>
-#include <oblo/scene/assets/material.hpp>
-#include <oblo/scene/assets/pbr_properties.hpp>
+#include <oblo/scene/resources/material.hpp>
+#include <oblo/scene/resources/pbr_properties.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/vulkan/draw/draw_registry.hpp>
 #include <oblo/vulkan/draw/resource_cache.hpp>

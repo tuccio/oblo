@@ -10,8 +10,8 @@
 #include <oblo/math/color.hpp>
 #include <oblo/math/float.hpp>
 #include <oblo/math/power_of_two.hpp>
-#include <oblo/scene/assets/texture.hpp>
-#include <oblo/scene/assets/traits.hpp>
+#include <oblo/scene/resources/texture.hpp>
+#include <oblo/scene/resources/traits.hpp>
 
 #include <vulkan/vulkan_core.h>
 

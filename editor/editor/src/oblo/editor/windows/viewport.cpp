@@ -20,8 +20,8 @@
 #include <oblo/reflection/reflection_registry.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
-#include <oblo/scene/assets/model.hpp>
-#include <oblo/scene/assets/texture.hpp>
+#include <oblo/scene/resources/model.hpp>
+#include <oblo/scene/resources/texture.hpp>
 #include <oblo/scene/components/position_component.hpp>
 #include <oblo/scene/components/rotation_component.hpp>
 #include <oblo/scene/components/tags.hpp>

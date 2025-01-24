@@ -12,10 +12,10 @@
 #include <oblo/resource/descriptors/resource_ref_descriptor.hpp>
 #include <oblo/resource/providers/resource_types_provider.hpp>
 #include <oblo/resource/resource_ref.hpp>
-#include <oblo/scene/assets/material.hpp>
-#include <oblo/scene/assets/mesh.hpp>
-#include <oblo/scene/assets/registration.hpp>
-#include <oblo/scene/assets/texture.hpp>
+#include <oblo/scene/resources/material.hpp>
+#include <oblo/scene/resources/mesh.hpp>
+#include <oblo/scene/resources/registration.hpp>
+#include <oblo/scene/resources/texture.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/scene/components/name_component.hpp>
 #include <oblo/scene/components/position_component.hpp>

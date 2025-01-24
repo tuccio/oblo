@@ -13,10 +13,10 @@
 #include <oblo/resource/descriptors/resource_type_descriptor.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
-#include <oblo/scene/assets/mesh.hpp>
-#include <oblo/scene/assets/model.hpp>
-#include <oblo/scene/assets/registration.hpp>
-#include <oblo/scene/assets/traits.hpp>
+#include <oblo/scene/resources/mesh.hpp>
+#include <oblo/scene/resources/model.hpp>
+#include <oblo/scene/resources/registration.hpp>
+#include <oblo/scene/resources/traits.hpp>
 #include <oblo/scene/scene_module.hpp>
 #include <oblo/thread/job_manager.hpp>
 

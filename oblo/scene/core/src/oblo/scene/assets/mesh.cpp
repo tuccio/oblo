@@ -1,4 +1,4 @@
-#include <oblo/scene/assets/mesh.hpp>
+#include <oblo/scene/resources/mesh.hpp>
 
 #include <oblo/core/data_format.hpp>
 

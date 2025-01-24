@@ -4,8 +4,8 @@
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/resource/resource_ref.hpp>
-#include <oblo/scene/assets/material.hpp>
-#include <oblo/scene/assets/pbr_properties.hpp>
+#include <oblo/scene/resources/material.hpp>
+#include <oblo/scene/resources/pbr_properties.hpp>
 
 namespace oblo
 {

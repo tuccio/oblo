@@ -11,8 +11,8 @@
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_manager.hpp>
-#include <oblo/scene/assets/material.hpp>
 #include <oblo/scene/assets/traits.hpp>
+#include <oblo/scene/resources/material.hpp>
 
 namespace oblo
 {
