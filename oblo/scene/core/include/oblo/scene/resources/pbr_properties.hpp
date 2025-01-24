@@ -41,5 +41,53 @@ namespace oblo::pbr
             .type = material_property_type::texture,
             .defaultValue = make_material_data_storage(resource_ref<texture>{}),
         };
+
+        material_property_descriptor roughness{
+            .name = Roughness,
+            .type = material_property_type::f32,
+            .defaultValue = make_material_data_storage(1.f),
+        };
+
+        material_property_descriptor metalness{
+            .name = Metalness,
+            .type = material_property_type::f32,
+            .defaultValue = make_material_data_storage(0.f),
+        };
+
+        material_property_descriptor metalnessRoughnessTexture{
+            .name = MetalnessRoughnessTexture,
+            .type = material_property_type::texture,
+            .defaultValue = make_material_data_storage(resource_ref<texture>{}),
+        };
+
+        material_property_descriptor emissive{
+            .name = Emissive,
+            .type = material_property_type::linear_color_rgb_f32,
+            .defaultValue = make_material_data_storage(vec3::splat(0.f)),
+        };
+
+        material_property_descriptor emissiveMultiplier{
+            .name = EmissiveMultiplier,
+            .type = material_property_type::f32,
+            .defaultValue = make_material_data_storage(1.f),
+        };
+
+        material_property_descriptor emissiveTexture{
+            .name = EmissiveTexture,
+            .type = material_property_type::texture,
+            .defaultValue = make_material_data_storage(resource_ref<texture>{}),
+        };
+
+        material_property_descriptor normalMapTexture{
+            .name = NormalMapTexture,
+            .type = material_property_type::texture,
+            .defaultValue = make_material_data_storage(resource_ref<texture>{}),
+        };
+
+        material_property_descriptor indexOfRefraction{
+            .name = IndexOfRefraction,
+            .type = material_property_type::f32,
+            .defaultValue = make_material_data_storage(1.5f),
+        };
     };
 }

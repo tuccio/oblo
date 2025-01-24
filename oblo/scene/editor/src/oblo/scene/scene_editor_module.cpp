@@ -9,6 +9,7 @@
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/core/struct_apply.hpp>
 #include <oblo/editor/providers/asset_editor_provider.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_initializer.hpp>
@@ -123,9 +124,15 @@ namespace oblo
                     .create =
                         []
                     {
-                        // TODO: Set all properties
                         material m;
-                        m.set_property(pbr::Albedo, vec3::splat(1.f));
+
+                        // TODO: Set all properties
+                        pbr::properties properties;
+
+                        struct_apply([&m](auto&... descs)
+                            { (m.set_property(descs.name, descs.type, descs.defaultValue), ...); },
+                            properties);
+
                         return any_asset{std::move(m)};
                     },
                     .openEditorWindow =
