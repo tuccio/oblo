@@ -10,8 +10,6 @@
 
 #include <bit>
 
-#include <imgui.h>
-
 namespace oblo::editor
 {
     window_manager::window_manager() = default;

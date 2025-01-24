@@ -8,6 +8,7 @@ target_link_libraries(
     oblo::asset
     oblo::core
     oblo::ecs
+    oblo::editor_core
     PRIVATE
     oblo::graphics
     oblo::input
