@@ -235,7 +235,8 @@ namespace oblo
             case material_property_type::texture: {
 
                 const auto uuid = doc.read_uuid(valueIndex);
-                if (uuid && !uuid->is_nil())
+
+                if (uuid)
                 {
                     set_property(key, resource_ref<texture>{*uuid});
                 }

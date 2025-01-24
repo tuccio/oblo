@@ -62,36 +62,87 @@ namespace oblo::editor
         {
             auto* const m = m_asset.as<material>();
 
+            constexpr f32 rowHeight = 28.f;
+
             if (m)
             {
+                bool modified = false;
+
                 string_builder builder;
 
-                // TODO: Draw material editor
-                for (const auto& property : m->get_properties())
+                if (ImGui::BeginTable("#logs",
+                        2,
+                        ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_ScrollY))
                 {
-                    builder.clear().format("{}", property.name);
-                    ImGui::TextUnformatted(builder.c_str());
+                    ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed);
+                    ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 
-                    const auto propertyIt = m_propertyEditor.find(property.name);
-
-                    if (propertyIt != m_propertyEditor.end())
+                    for (const auto& property : m->get_properties())
                     {
-                        switch (propertyIt->second.type)
+                        builder.clear().format("{}", property.name);
+
+                        ImGui::PushID(std::bit_cast<void*>(property.name.hash()));
+
+                        ImGui::TableNextRow();
+
+                        ImGui::TableSetColumnIndex(0);
+
+                        ImGui::Dummy({0, rowHeight});
+                        ImGui::SameLine();
+
+                        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (rowHeight - ImGui::GetTextLineHeight()) * .5f);
+
+                        ImGui::TextUnformatted(builder.c_str());
+
+                        ImGui::TableSetColumnIndex(1);
+
+                        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+
+                        const auto propertyIt = m_propertyEditor.find(property.name);
+
+                        bool isCorrectType = false;
+
+                        if (propertyIt != m_propertyEditor.end())
                         {
-                        case material_property_type::linear_color_rgb_f32: {
-                            auto r = property.as<vec3>();
-
-                            if (r)
+                            switch (propertyIt->second.type)
                             {
-                                ImGui::ColorEdit3("", &r->x);
-                                continue;
-                            }
-                        }
-                        default:
-                            break;
-                        }
+                            case material_property_type::f32: {
+                                auto r = property.as<f32>();
 
-                        // TODO: Maybe still handle ?
+                                if (r)
+                                {
+                                    modified |= ImGui::DragFloat("", &*r);
+                                    isCorrectType = true;
+                                }
+                            }
+                            break;
+
+                            case material_property_type::linear_color_rgb_f32: {
+                                auto r = property.as<vec3>();
+
+                                if (r)
+                                {
+                                    modified |= ImGui::ColorEdit3("", &r->x);
+                                    isCorrectType = true;
+                                }
+                            }
+                            break;
+
+                            default:
+                                break;
+                            }
+
+                            // TODO: Maybe still handle if the type is not correct?
+
+                            ImGui::PopID();
+                        }
+                    }
+
+                    ImGui::EndTable();
+
+                    if (modified)
+                    {
+                        // TODO: Should save here
                     }
                 }
             }
