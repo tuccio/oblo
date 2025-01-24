@@ -1,7 +1,6 @@
 #pragma once
 
 #include <oblo/core/type_id.hpp>
-#include <oblo/core/unique_ptr.hpp>
 #include <oblo/core/uuid.hpp>
 
 #include <span>
@@ -30,14 +29,5 @@ namespace oblo
         virtual bool init(const import_config& config, import_preview& preview) = 0;
         virtual bool import(import_context context) = 0;
         virtual file_import_results get_results() = 0;
-    };
-
-    using create_file_importer_fn = unique_ptr<file_importer> (*)();
-
-    struct file_importer_desc
-    {
-        type_id type;
-        create_file_importer_fn create;
-        std::span<const string_view> extensions;
     };
 }

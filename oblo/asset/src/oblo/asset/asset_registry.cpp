@@ -2,6 +2,7 @@
 
 #include <oblo/asset/asset_meta.hpp>
 #include <oblo/asset/asset_registry_impl.hpp>
+#include <oblo/asset/descriptors/file_importer_descriptor.hpp>
 #include <oblo/asset/import/file_importer.hpp>
 #include <oblo/asset/import/import_artifact.hpp>
 #include <oblo/asset/import/import_preview.hpp>
@@ -361,7 +362,7 @@ namespace oblo
         return assetId;
     }
 
-    void asset_registry::register_file_importer(const file_importer_desc& desc)
+    void asset_registry::register_file_importer(const file_importer_descriptor& desc)
     {
         const auto [it, inserted] = m_impl->importers.emplace(desc.type, file_importer_info{});
 

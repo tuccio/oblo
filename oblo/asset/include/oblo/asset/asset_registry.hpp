@@ -27,7 +27,7 @@ namespace oblo
     struct artifact_meta;
     struct asset_meta;
     struct artifact_type_descriptor;
-    struct file_importer_desc;
+    struct file_importer_descriptor;
     struct uuid;
 
     class asset_registry
@@ -48,7 +48,7 @@ namespace oblo
 
         void discover_assets();
 
-        void register_file_importer(const file_importer_desc& desc);
+        void register_file_importer(const file_importer_descriptor& desc);
         void unregister_file_importer(type_id type);
 
         /// @brief Starts an asynchronous import process for a new asset.

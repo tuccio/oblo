@@ -1,6 +1,7 @@
 #include <oblo/asset/importers/registration.hpp>
 
 #include <oblo/asset/asset_registry.hpp>
+#include <oblo/asset/descriptors/file_importer_descriptor.hpp>
 #include <oblo/asset/importers/gltf.hpp>
 #include <oblo/asset/importers/stb_image.hpp>
 
@@ -9,9 +10,9 @@ namespace oblo::importers
     namespace
     {
         template <typename T>
-        file_importer_desc make_file_importer_desc(std::span<const string_view> extensions)
+        file_importer_descriptor make_file_importer_desc(std::span<const string_view> extensions)
         {
-            return file_importer_desc{
+            return file_importer_descriptor{
                 .type = get_type_id<T>(),
                 .create = []() -> unique_ptr<file_importer> { return allocate_unique<T>(); },
                 .extensions = extensions,
@@ -42,7 +43,7 @@ namespace oblo::importers
         registry.unregister_file_importer(get_type_id<stb_image>());
     }
 
-    void fetch_importers(dynamic_array<file_importer_desc>& outResourceTypes)
+    void fetch_importers(dynamic_array<file_importer_descriptor>& outResourceTypes)
     {
         outResourceTypes.emplace_back(make_file_importer_desc<gltf>(g_gltfExtensions));
         outResourceTypes.emplace_back(make_file_importer_desc<stb_image>(g_stbExtensions));
