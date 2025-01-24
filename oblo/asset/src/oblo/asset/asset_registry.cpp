@@ -1,8 +1,10 @@
 #include <oblo/asset/asset_registry.hpp>
 
+#include <oblo/asset/any_asset.hpp>
 #include <oblo/asset/asset_meta.hpp>
 #include <oblo/asset/asset_registry_impl.hpp>
 #include <oblo/asset/descriptors/file_importer_descriptor.hpp>
+#include <oblo/asset/descriptors/native_asset_descriptor.hpp>
 #include <oblo/asset/import/file_importer.hpp>
 #include <oblo/asset/import/import_artifact.hpp>
 #include <oblo/asset/import/import_preview.hpp>
@@ -384,6 +386,16 @@ namespace oblo
         m_impl->importers.erase(type);
     }
 
+    void asset_registry::register_native_asset_type(const native_asset_descriptor& desc)
+    {
+        m_impl->nativeAssetTypes.emplace(desc.typeUuid, desc);
+    }
+
+    void asset_registry::unregister_native_asset_type(uuid type)
+    {
+        m_impl->nativeAssetTypes.erase(type);
+    }
+
     expected<> asset_registry::process(uuid asset, data_document* optSettings)
     {
         const auto it = m_impl->assets.find(asset);
@@ -429,6 +441,64 @@ namespace oblo
         }
 
         return unspecified_error;
+    }
+
+    expected<uuid> asset_registry::create_asset(const any_asset& asset, cstring_view destination)
+    {
+        if (!asset)
+        {
+            return unspecified_error;
+        }
+
+        // Find native_asset_descriptor
+        const auto it = m_impl->nativeAssetTypes.find(asset.get_type_uuid());
+
+        if (it == m_impl->nativeAssetTypes.end())
+        {
+            return unspecified_error;
+        }
+
+        const auto& desc = it->second;
+
+        // Create temporary directory
+
+        string_builder workDir;
+        if (!m_impl->create_temporary_files_dir(workDir, asset_registry_impl::generate_uuid()))
+        {
+            return unspecified_error;
+        }
+
+        auto fileImporter = desc.createImporter();
+
+        if (!fileImporter)
+        {
+            return unspecified_error;
+        }
+
+        string_builder sourceFile = workDir;
+        sourceFile.append_path("asset");
+        sourceFile.append(desc.fileExtension);
+
+        if (!desc.save(asset, sourceFile, workDir))
+        {
+            return unspecified_error;
+        }
+
+        const auto assetId = asset_registry_impl::generate_uuid();
+
+        import_config config;
+        config.sourceFile = sourceFile.as<string>(); // Determine the source file to import
+
+        importer importer(std::move(config), std::move(fileImporter));
+
+        if (!importer.init(*m_impl, assetId, workDir, false))
+        {
+            return unspecified_error;
+        }
+
+        m_impl->push_import_process(std::move(importer), {}, destination);
+
+        return assetId;
     }
 
     unique_ptr<file_importer> asset_registry_impl::create_file_importer(string_view sourceFile) const
@@ -814,7 +884,6 @@ namespace oblo
                         import_config{
                             .sourceFile = sourceFile.as<string>(),
                         },
-                        type,
                         assetImporter.create(),
                     };
                 }

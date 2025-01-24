@@ -23,13 +23,12 @@ namespace oblo
     {
         constexpr string_view g_importConfigName{"config.oimport"};
 
-        bool write_import_config(const import_config& config, const type_id& importer, cstring_view destination)
+        bool write_import_config(const import_config& config, cstring_view destination)
         {
             data_document doc;
 
             doc.init();
 
-            doc.child_value(doc.get_root(), "importer"_hsv, property_value_wrapper{importer.name});
             doc.child_value(doc.get_root(), "source"_hsv, property_value_wrapper{config.sourceFile});
 
             const auto filename = property_value_wrapper{filesystem::filename(config.sourceFile)};
@@ -91,8 +90,7 @@ namespace oblo
 
     importer::importer(importer&&) noexcept = default;
 
-    importer::importer(import_config config, const type_id& importerType, unique_ptr<file_importer> fileImporter) :
-        m_importerType{importerType}
+    importer::importer(import_config config, unique_ptr<file_importer> fileImporter)
     {
         auto& root = m_fileImports.emplace_back();
         root.importer = std::move(fileImporter);
@@ -359,7 +357,7 @@ namespace oblo
         }
 
         pathBuilder.clear().append(importDir).append_path(g_importConfigName);
-        allSucceeded &= write_import_config(get_config(), m_importerType, pathBuilder);
+        allSucceeded &= write_import_config(get_config(), pathBuilder);
 
         return allSucceeded;
     }

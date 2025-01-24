@@ -9,7 +9,9 @@
 
 namespace oblo
 {
+    class any_asset;
     class asset_registry_impl;
+    class asset_writer;
     class data_document;
     class file_importer;
     class string_builder;
@@ -26,7 +28,7 @@ namespace oblo
 
     struct artifact_meta;
     struct asset_meta;
-    struct artifact_type_descriptor;
+    struct native_asset_descriptor;
     struct file_importer_descriptor;
     struct uuid;
 
@@ -51,6 +53,9 @@ namespace oblo
         void register_file_importer(const file_importer_descriptor& desc);
         void unregister_file_importer(type_id type);
 
+        void register_native_asset_type(const native_asset_descriptor& desc);
+        void unregister_native_asset_type(uuid type);
+
         /// @brief Starts an asynchronous import process for a new asset.
         /// This function will look for a suitable importer among the ones registered and start the process.
         /// The asynchronous import will be finalized on the thread calling update, that updates the registry.
@@ -61,11 +66,17 @@ namespace oblo
         expected<uuid> import(string_view sourceFile, string_view destination, data_document settings);
 
         /// @brief Triggers an asynchronous processing of a previously created asset.
-        /// Imported assets will be reimported from the stored source files.
+        /// Imported and native assets will be reprocessed from the stored source files.
         /// @param asset A previously created asset.
         /// @param optSettings Optional settings for the processing, that will replace the previous.
         /// @return An error if processing failed to start.
         expected<> process(uuid asset, data_document* optSettings = nullptr);
+
+        expected<uuid> create_asset(const any_asset& asset, cstring_view destination);
+
+        expected<any_asset> load_asset(uuid assetId);
+
+        expected<> save_asset(const any_asset& asset, uuid assetId);
 
         bool find_asset_by_id(const uuid& id, asset_meta& assetMeta) const;
         bool find_asset_by_path(cstring_view path, uuid& id, asset_meta& assetMeta) const;

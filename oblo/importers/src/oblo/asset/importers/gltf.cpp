@@ -22,7 +22,7 @@
 #include <oblo/scene/assets/mesh.hpp>
 #include <oblo/scene/assets/model.hpp>
 #include <oblo/scene/assets/pbr_properties.hpp>
-#include <oblo/scene/assets/traits.hpp>
+#include <oblo/scene/resources/traits.hpp>
 #include <oblo/scene/serialization/mesh_file.hpp>
 #include <oblo/scene/serialization/model_file.hpp>
 #include <oblo/thread/parallel_for.hpp>

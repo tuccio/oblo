@@ -2,6 +2,7 @@
 
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/importers/importers_module.hpp>
+#include <oblo/asset/providers/native_asset_provider.hpp>
 #include <oblo/asset/utility/registration.hpp>
 #include <oblo/core/platform/core.hpp>
 #include <oblo/core/service_registry.hpp>
@@ -39,6 +40,7 @@
 #include <oblo/resource/utility/registration.hpp>
 #include <oblo/runtime/runtime_module.hpp>
 #include <oblo/sandbox/context.hpp>
+#include <oblo/scene/scene_editor_module.hpp>
 #include <oblo/thread/job_manager.hpp>
 #include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/required_features.hpp>
@@ -180,6 +182,7 @@ namespace oblo::editor
             mm.load<reflection::reflection_module>();
             mm.load<importers::importers_module>();
             mm.load<editor_module>();
+            mm.load<scene_editor_module>();
 
             initializer.services->add<options_layer_provider>().externally_owned(&m_editorOptions);
 
@@ -266,6 +269,7 @@ namespace oblo::editor
         auto& propertyRegistry = m_runtimeRegistry.get_property_registry();
         auto& resourceRegistry = m_runtimeRegistry.get_resource_registry();
 
+        register_native_asset_types(m_assetRegistry, mm.find_services<native_asset_provider>());
         register_file_importers(m_assetRegistry, mm.find_services<file_importers_provider>());
         register_resource_types(resourceRegistry, mm.find_services<resource_types_provider>());
 

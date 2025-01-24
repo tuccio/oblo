@@ -14,6 +14,7 @@ target_link_libraries(
     oblo::options
     oblo::sandbox
     oblo::scene
+    oblo::scene_editor
     oblo::thread
     iconfontcppheaders::iconfontcppheaders
     SDL2::SDL2

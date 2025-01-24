@@ -25,6 +25,7 @@ namespace oblo
 
     struct asset_entry;
     struct file_importer_info;
+    struct native_asset_descriptor;
     struct import_process;
 
     class asset_registry_impl
@@ -41,6 +42,7 @@ namespace oblo
 
     public:
         std::unordered_map<type_id, file_importer_info> importers;
+        std::unordered_map<uuid, native_asset_descriptor> nativeAssetTypes;
         std::unordered_map<uuid, asset_entry> assets;
 
         string_builder assetsDir;

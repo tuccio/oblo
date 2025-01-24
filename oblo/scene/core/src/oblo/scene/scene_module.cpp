@@ -16,13 +16,13 @@
 #include <oblo/scene/assets/mesh.hpp>
 #include <oblo/scene/assets/registration.hpp>
 #include <oblo/scene/assets/texture.hpp>
-#include <oblo/scene/assets/traits.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/scene/components/name_component.hpp>
 #include <oblo/scene/components/position_component.hpp>
 #include <oblo/scene/components/rotation_component.hpp>
 #include <oblo/scene/components/scale_component.hpp>
 #include <oblo/scene/components/tags.hpp>
+#include <oblo/scene/resources/traits.hpp>
 #include <oblo/scene/systems/barriers.hpp>
 #include <oblo/scene/systems/transform_system.hpp>
 

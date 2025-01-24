@@ -33,7 +33,7 @@ namespace oblo
         importer(const importer&) = delete;
         importer(importer&&) noexcept;
 
-        importer(import_config config, const type_id& importerType, unique_ptr<file_importer> fileImporter);
+        importer(import_config config, unique_ptr<file_importer> fileImporter);
 
         ~importer();
 
@@ -59,7 +59,6 @@ namespace oblo
         string_builder m_temporaryPath;
         std::unordered_map<uuid, artifact_meta> m_artifacts;
         uuid m_assetId{};
-        type_id m_importerType{};
         bool m_isReimport{};
     };
 }
