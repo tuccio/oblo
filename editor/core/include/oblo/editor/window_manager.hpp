@@ -4,6 +4,7 @@
 #include <oblo/core/flags.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/core/unique_ptr.hpp>
 #include <oblo/editor/window_handle.hpp>
 #include <oblo/editor/window_update_context.hpp>
 
@@ -100,7 +101,7 @@ namespace oblo::editor
     private:
         memory_pool m_pool;
         window_entry* m_root{};
-        dynamic_array<std::unique_ptr<window_module>> m_windowModules;
+        dynamic_array<unique_ptr<window_module>> m_windowModules;
     };
 
     template <typename T>

@@ -13,8 +13,9 @@
 #include <oblo/core/time/clock.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/editor/data/drag_and_drop_payload.hpp>
-#include <oblo/editor/providers/asset_create_provider.hpp>
+#include <oblo/editor/providers/asset_editor_provider.hpp>
 #include <oblo/editor/service_context.hpp>
+#include <oblo/editor/window_manager.hpp>
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/modules/module_manager.hpp>
@@ -23,6 +24,7 @@
 #include <imgui.h>
 
 #include <filesystem>
+#include <unordered_map>
 
 namespace oblo::editor
 {
@@ -43,8 +45,9 @@ namespace oblo::editor
         uuid expandedAsset{};
         dynamic_array<string> breadcrumbs;
         deque<create_menu_item> createMenu;
+        std::unordered_map<uuid, asset_editor_create_fn> editorsLookup;
 
-        void populate_create_menu();
+        void populate_asset_editors();
         void draw_popup_menu();
         void reset_path();
     };
@@ -64,10 +67,10 @@ namespace oblo::editor
 
         m_impl->current = m_impl->path;
 
-        m_impl->populate_create_menu();
+        m_impl->populate_asset_editors();
     }
 
-    bool asset_browser::update(const window_update_context&)
+    bool asset_browser::update(const window_update_context& ctx)
     {
         bool open{true};
 
@@ -125,7 +128,16 @@ namespace oblo::editor
 
                         if (ImGui::Button(reinterpret_cast<const char*>(str.c_str())))
                         {
-                            m_impl->expandedAsset = m_impl->expandedAsset == meta.assetId ? oblo::uuid{} : meta.assetId;
+                            if (const auto it = m_impl->editorsLookup.find(meta.typeHint);
+                                it != m_impl->editorsLookup.end())
+                            {
+                                const asset_editor_create_fn createWindow = it->second;
+                                createWindow(ctx.windowManager, ctx.windowHandle);
+                            }
+                            else
+                            {
+                                m_impl->expandedAsset == meta.assetId ? oblo::uuid{} : meta.assetId;
+                            }
                         }
                         else if (!meta.mainArtifactHint.is_nil() && ImGui::BeginDragDropSource())
                         {
@@ -204,19 +216,21 @@ namespace oblo::editor
         breadcrumbs.clear();
     }
 
-    void asset_browser::impl::populate_create_menu()
+    void asset_browser::impl::populate_asset_editors()
     {
         auto& mm = module_manager::get();
 
-        deque<asset_create_descriptor> createDescs;
+        deque<asset_editor_descriptor> createDescs;
 
-        for (auto* const createProvider : mm.find_services<asset_create_provider>())
+        for (auto* const createProvider : mm.find_services<asset_editor_provider>())
         {
             createDescs.clear();
             createProvider->fetch(createDescs);
 
             for (const auto& desc : createDescs)
             {
+                editorsLookup.emplace(desc.assetType, desc.openEditorWindow);
+
                 // Ignoring category for now
                 createMenu.emplace_back(desc.name, desc.create);
             }

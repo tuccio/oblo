@@ -8,3 +8,5 @@ target_link_libraries(
     oblo::modules
     oblo::core
 )
+
+add_library(oblo::editor::core ALIAS oblo_editor_core)

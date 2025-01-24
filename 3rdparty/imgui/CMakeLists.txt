@@ -23,3 +23,9 @@ target_link_libraries(
 
 set_target_properties(imgui_sdl_vk PROPERTIES FOLDER ${OBLO_FOLDER_THIRDPARTY})
 set_target_properties(imgui_sdl_gl3 PROPERTIES FOLDER ${OBLO_FOLDER_THIRDPARTY})
+
+target_compile_definitions(imgui_sdl_vk INTERFACE "IMGUI_IMPL_API=")
+target_compile_definitions(imgui_sdl_vk PRIVATE "IMGUI_IMPL_API=")
+
+target_compile_definitions(imgui_sdl_gl3 INTERFACE "IMGUI_IMPL_API=")
+target_compile_definitions(imgui_sdl_gl3 PRIVATE "IMGUI_IMPL_API=")

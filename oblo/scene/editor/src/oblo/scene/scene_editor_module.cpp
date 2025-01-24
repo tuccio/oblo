@@ -9,13 +9,14 @@
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string_builder.hpp>
-#include <oblo/editor/providers/asset_create_provider.hpp>
+#include <oblo/editor/providers/asset_editor_provider.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/scene/assets/traits.hpp>
 #include <oblo/scene/resources/material.hpp>
 #include <oblo/scene/resources/pbr_properties.hpp>
+#include <oblo/scene/windows/material_editor.hpp>
 
 namespace oblo
 {
@@ -117,11 +118,12 @@ namespace oblo
             }
         };
 
-        class scene_asset_create_provider final : public editor::asset_create_provider
+        class scene_asset_editor_provider final : public editor::asset_editor_provider
         {
-            void fetch(deque<editor::asset_create_descriptor>& out) const override
+            void fetch(deque<editor::asset_editor_descriptor>& out) const override
             {
-                out.push_back(editor::asset_create_descriptor{
+                out.push_back(editor::asset_editor_descriptor{
+                    .assetType = asset_type<material>,
                     .category = "Material",
                     .name = "PBR",
                     .create =
@@ -132,6 +134,8 @@ namespace oblo
                         m.set_property(pbr::Albedo, vec3::splat(1.f));
                         return any_asset{std::move(m)};
                     },
+                    .openEditorWindow = [](editor::window_manager& windowManager, editor::window_handle parent)
+                    { return windowManager.create_child_window<editor::material_editor>(parent); },
                 });
             }
         };
@@ -140,7 +144,7 @@ namespace oblo
     bool scene_editor_module::startup(const module_initializer& initializer)
     {
         initializer.services->add<scene_asset_provider>().as<native_asset_provider>().unique();
-        initializer.services->add<scene_asset_create_provider>().as<editor::asset_create_provider>().unique();
+        initializer.services->add<scene_asset_editor_provider>().as<editor::asset_editor_provider>().unique();
         return true;
     }
 

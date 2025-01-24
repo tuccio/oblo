@@ -251,8 +251,6 @@ namespace oblo::editor
 
     bool app::startup(const vk::sandbox_startup_context& ctx)
     {
-        init_ui_style();
-
         auto& mm = module_manager::get();
         auto* const reflection = mm.find<oblo::reflection::reflection_module>();
         auto* const runtime = mm.find<oblo::runtime_module>();
@@ -291,6 +289,7 @@ namespace oblo::editor
         auto& renderer = m_runtime.get_renderer();
 
         m_windowManager.init();
+        init_ui();
 
         {
             auto& globalRegistry = m_windowManager.get_global_service_registry();

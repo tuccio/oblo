@@ -1,4 +1,4 @@
-oblo_add_library(scene_editor MODULE)
+oblo_add_library(scene_editor)
 
 target_link_libraries(
     oblo_scene_editor
@@ -7,5 +7,9 @@ target_link_libraries(
     oblo::modules
     oblo::scene
     PRIVATE
-    oblo::editor_core
+    oblo::editor::core
+    imgui::imgui
+    iconfontcppheaders::iconfontcppheaders
 )
+
+add_library(oblo::scene::editor ALIAS oblo_scene_editor)

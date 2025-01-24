@@ -1,8 +1,7 @@
 #pragma once
 
 #include <oblo/core/dynamic_array.hpp>
-
-#include <memory>
+#include <oblo/core/unique_ptr.hpp>
 
 namespace oblo::editor
 {
@@ -20,6 +19,6 @@ namespace oblo::editor
     public:
         virtual ~window_modules_provider() = default;
 
-        virtual void fetch_window_modules(dynamic_array<std::unique_ptr<window_module>>& outWindowModules) const = 0;
+        virtual void fetch_window_modules(dynamic_array<unique_ptr<window_module>>& outWindowModules) const = 0;
     };
 }
