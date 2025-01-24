@@ -1,6 +1,7 @@
 #include <oblo/asset/asset_registry.hpp>
 
 #include <oblo/asset/asset_meta.hpp>
+#include <oblo/asset/asset_registry_impl.hpp>
 #include <oblo/asset/import/file_importer.hpp>
 #include <oblo/asset/import/import_artifact.hpp>
 #include <oblo/asset/import/import_preview.hpp>
@@ -10,6 +11,7 @@
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/formatters/uuid_formatter.hpp>
 #include <oblo/core/invoke/function_ref.hpp>
+#include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/core/uuid_generator.hpp>
@@ -25,39 +27,45 @@
 
 namespace oblo
 {
+    struct asset_entry
+    {
+        asset_meta meta;
+        dynamic_array<uuid> artifacts;
+    };
+
+    struct file_importer_info
+    {
+        create_file_importer_fn create;
+        dynamic_array<string> extensions;
+    };
+
+    struct asset_process_info
+    {
+        // Could maybe include a hash of settings or timestamps to determine when to re-run an importer or a
+        // processor
+        deque<uuid> artifacts;
+
+        void clear()
+        {
+            artifacts.clear();
+        }
+    };
+
+    struct import_process
+    {
+        importer importer;
+        data_document settings;
+        string destination;
+        time startTime;
+        bool isReimport;
+        job_handle job{};
+        std::atomic<bool> success{};
+    };
+
     namespace
     {
         constexpr std::string_view g_artifactMetaExtension{".oartifact"};
         constexpr string_view g_assetProcessExtension{".oproc"};
-
-        struct file_importer_info
-        {
-            create_file_importer_fn create;
-            dynamic_array<string> extensions;
-        };
-
-        struct asset_process_info
-        {
-            // Could maybe include a hash of settings or timestamps to determine when to re-run an importer or a
-            // processor
-            deque<uuid> artifacts;
-
-            void clear()
-            {
-                artifacts.clear();
-            }
-        };
-
-        struct import_process
-        {
-            importer importer;
-            data_document settings;
-            string destination;
-            time startTime;
-            bool isReimport;
-            job_handle job{};
-            std::atomic<bool> success{};
-        };
 
         bool load_asset_meta(asset_meta& meta, const std::filesystem::path& path)
         {
@@ -287,72 +295,7 @@ namespace oblo
 
             return filesystem::is_directory(directory).value_or(false);
         }
-
-        struct asset_entry
-        {
-            asset_meta meta;
-            dynamic_array<uuid> artifacts;
-        };
-
     }
-
-    struct asset_registry::impl
-    {
-        std::unordered_map<type_id, file_importer_info> importers;
-        std::unordered_map<uuid, asset_entry> assets;
-
-        string_builder assetsDir;
-        string_builder artifactsDir;
-        string_builder sourceFilesDir;
-
-        deque<unique_ptr<import_process>> currentImports;
-
-        string_builder& make_asset_path(string_builder& out, string_view directory)
-        {
-            if (filesystem::is_relative(directory))
-            {
-                out.append(assetsDir);
-                out.append_path_separator();
-            }
-
-            out.append(directory);
-            return out;
-        }
-
-        string_builder& make_asset_process_path(string_builder& out, uuid assetId)
-        {
-            return out.append(artifactsDir)
-                .append_path_separator()
-                .format("{}", assetId)
-                .append(g_assetProcessExtension);
-        }
-
-        importer create_importer(string_view sourceFile) const
-        {
-            const auto ext = filesystem::extension(sourceFile);
-
-            for (auto& [type, assetImporter] : importers)
-            {
-                for (const auto& importerExt : assetImporter.extensions)
-                {
-                    if (importerExt == ext)
-                    {
-                        return importer{
-                            import_config{
-                                .sourceFile = sourceFile.as<string>(),
-                            },
-                            type,
-                            assetImporter.create(),
-                        };
-                    }
-                }
-            }
-
-            return {};
-        }
-
-        void push_import_process(importer&& importer, data_document&& settings, string_view destination);
-    };
 
     asset_registry::asset_registry() = default;
 
@@ -368,7 +311,7 @@ namespace oblo
             return false;
         }
 
-        m_impl = allocate_unique<impl>();
+        m_impl = allocate_unique<asset_registry_impl>();
 
         m_impl->assetsDir.append(assetsDir).make_absolute_path();
         m_impl->artifactsDir.append(artifactsDir).make_absolute_path();
@@ -390,14 +333,6 @@ namespace oblo
         }
     }
 
-    bool asset_registry::create_directories(string_view directory)
-    {
-        string_builder sb;
-        m_impl->make_asset_path(sb, directory);
-
-        return ensure_directories(sb);
-    }
-
     expected<uuid> asset_registry::import(string_view sourceFile, string_view destination, data_document settings)
     {
         auto importer = m_impl->create_importer(sourceFile);
@@ -407,16 +342,16 @@ namespace oblo
             return unspecified_error;
         }
 
-        const uuid assetId = generate_uuid();
+        const uuid assetId = asset_registry_impl::generate_uuid();
 
         string_builder workDir;
 
-        if (!create_temporary_files_dir(workDir, assetId))
+        if (!m_impl->create_temporary_files_dir(workDir, assetId))
         {
             return unspecified_error;
         }
 
-        if (!importer.init(*this, assetId, workDir, false))
+        if (!importer.init(*m_impl, assetId, workDir, false))
         {
             return unspecified_error;
         }
@@ -464,18 +399,18 @@ namespace oblo
         {
             // This means it requires a reimport
             string_builder fileSourcePath;
-            importer::read_source_file_path(*this, meta.assetId, fileSourcePath);
+            importer::read_source_file_path(*m_impl, meta.assetId, fileSourcePath);
 
             auto importer = m_impl->create_importer(fileSourcePath.view());
 
             string_builder workDir;
 
-            if (!create_temporary_files_dir(workDir, generate_uuid()))
+            if (!m_impl->create_temporary_files_dir(workDir, asset_registry_impl::generate_uuid()))
             {
                 return unspecified_error;
             }
 
-            if (!importer.init(*this, meta.assetId, workDir, true))
+            if (!importer.init(*m_impl, meta.assetId, workDir, true))
             {
                 return unspecified_error;
             }
@@ -495,11 +430,11 @@ namespace oblo
         return unspecified_error;
     }
 
-    unique_ptr<file_importer> asset_registry::create_file_importer(string_view sourceFile) const
+    unique_ptr<file_importer> asset_registry_impl::create_file_importer(string_view sourceFile) const
     {
         const auto ext = filesystem::extension(sourceFile);
 
-        for (auto& [type, assetImporter] : m_impl->importers)
+        for (auto& [type, assetImporter] : importers)
         {
             for (const auto& importerExt : assetImporter.extensions)
             {
@@ -513,93 +448,24 @@ namespace oblo
         return {};
     }
 
-    uuid asset_registry::generate_uuid()
+    uuid asset_registry_impl::generate_uuid()
     {
         return uuid_system_generator{}.generate();
     }
 
-    bool asset_registry::save_artifact(
-        const uuid& artifactId, const cstring_view srcArtifact, const artifact_meta& meta, write_policy policy)
-    {
-        char uuidBuffer[36];
-
-        auto artifactPath = m_impl->artifactsDir;
-        ensure_directories(artifactPath);
-
-        artifactPath.append_path(artifactId.format_to(uuidBuffer));
-
-        if (const auto exists = filesystem::exists(artifactPath).value_or(true);
-            exists && policy == write_policy::no_overwrite)
-        {
-            return false;
-        }
-        else if (exists)
-        {
-            filesystem::remove(artifactPath).assert_value();
-        }
-
-        auto artifactMetaPath = artifactPath;
-        artifactMetaPath.append(g_artifactMetaExtension);
-
-        return filesystem::rename(srcArtifact, artifactPath).value_or(false) &&
-            save_artifact_meta(meta, artifactMetaPath);
-    }
-
-    bool asset_registry::save_asset(string_view destination,
-        string_view assetName,
-        const asset_meta& meta,
-        const deque<uuid>& artifacts,
-        write_policy policy)
-    {
-        // Maybe don't do this and let the registry discover the import instead
-        const auto [assetIt, insertedAsset] = m_impl->assets.emplace(meta.assetId, asset_entry{});
-
-        if (!insertedAsset && policy != write_policy::overwrite)
-        {
-            return false;
-        }
-        else if (!insertedAsset)
-        {
-            assetIt->second.artifacts.clear();
-        }
-
-        assetIt->second.meta = meta;
-        assetIt->second.artifacts.append(artifacts.begin(), artifacts.end());
-
-        string_builder fullPath;
-
-        m_impl->make_asset_process_path(fullPath, meta.assetId);
-
-        if (!save_asset_process_info(asset_process_info{.artifacts = artifacts}, fullPath))
-        {
-            // Not a big issue, it can always be rebuilt, maybe we should log
-            log::warn("Saved to file asset process info to {}, re-processing might be required", fullPath);
-        }
-
-        fullPath.clear();
-        m_impl->make_asset_path(fullPath, destination).append_path(assetName).append(AssetMetaExtension);
-
-        if (policy == write_policy::no_overwrite && filesystem::exists(fullPath).value_or(true))
-        {
-            return false;
-        }
-
-        return save_asset_meta(assetIt->second.meta, fullPath);
-    }
-
-    bool asset_registry::create_source_files_dir(string_builder& dir, uuid sourceFileId)
+    bool asset_registry_impl::create_source_files_dir(string_builder& dir, uuid sourceFileId)
     {
         return ensure_directories(make_source_files_dir_path(dir, sourceFileId));
     }
 
-    string_builder& asset_registry::make_source_files_dir_path(string_builder& dir, uuid sourceFileId) const
+    string_builder& asset_registry_impl::make_source_files_dir_path(string_builder& dir, uuid sourceFileId) const
     {
-        return dir.clear().append(m_impl->sourceFilesDir).append_path_separator().format("{}", sourceFileId);
+        return dir.clear().append(sourceFilesDir).append_path_separator().format("{}", sourceFileId);
     }
 
-    bool asset_registry::create_temporary_files_dir(string_builder& dir, uuid assetId) const
+    bool asset_registry_impl::create_temporary_files_dir(string_builder& dir, uuid assetId) const
     {
-        dir.clear().append(m_impl->artifactsDir).append_path(".workdir").append_path_separator().format("{}", assetId);
+        dir.clear().append(artifactsDir).append_path(".workdir").append_path_separator().format("{}", assetId);
         return ensure_directories(dir);
     }
 
@@ -801,7 +667,7 @@ namespace oblo
                 string_view destination =
                     importProcess.importer.is_reimport() ? get_asset_directory() : importProcess.destination;
 
-                const auto result = importProcess.importer.finalize(*this, importProcess.destination);
+                const auto result = importProcess.importer.finalize(*m_impl, importProcess.destination);
 
                 if (!result)
                 {
@@ -825,7 +691,7 @@ namespace oblo
         }
     }
 
-    void asset_registry::impl::push_import_process(
+    void asset_registry_impl::push_import_process(
         importer&& importer, data_document&& settings, string_view destination)
     {
         auto& importProcess = currentImports.emplace_back(allocate_unique<import_process>());
@@ -845,5 +711,122 @@ namespace oblo
             });
 
         importProcess->job = job;
+    }
+
+    bool asset_registry_impl::save_artifact(
+        const uuid& artifactId, const cstring_view srcArtifact, const artifact_meta& meta, write_policy policy)
+    {
+        char uuidBuffer[36];
+
+        auto artifactPath = artifactsDir;
+        ensure_directories(artifactPath);
+
+        artifactPath.append_path(artifactId.format_to(uuidBuffer));
+
+        if (const auto exists = filesystem::exists(artifactPath).value_or(true);
+            exists && policy == write_policy::no_overwrite)
+        {
+            return false;
+        }
+        else if (exists)
+        {
+            filesystem::remove(artifactPath).assert_value();
+        }
+
+        auto artifactMetaPath = artifactPath;
+        artifactMetaPath.append(g_artifactMetaExtension);
+
+        return filesystem::rename(srcArtifact, artifactPath).value_or(false) &&
+            save_artifact_meta(meta, artifactMetaPath);
+    }
+
+    bool asset_registry_impl::save_asset(string_view destination,
+        string_view assetName,
+        const asset_meta& meta,
+        const deque<uuid>& artifacts,
+        write_policy policy)
+    {
+        // Maybe don't do this and let the registry discover the import instead
+        const auto [assetIt, insertedAsset] = assets.emplace(meta.assetId, asset_entry{});
+
+        if (!insertedAsset && policy != write_policy::overwrite)
+        {
+            return false;
+        }
+        else if (!insertedAsset)
+        {
+            assetIt->second.artifacts.clear();
+        }
+
+        assetIt->second.meta = meta;
+        assetIt->second.artifacts.append(artifacts.begin(), artifacts.end());
+
+        string_builder fullPath;
+
+        make_asset_process_path(fullPath, meta.assetId);
+
+        if (!save_asset_process_info(asset_process_info{.artifacts = artifacts}, fullPath))
+        {
+            // Not a big issue, it can always be rebuilt, maybe we should log
+            log::warn("Saved to file asset process info to {}, re-processing might be required", fullPath);
+        }
+
+        fullPath.clear();
+        make_asset_path(fullPath, destination).append_path(assetName).append(AssetMetaExtension);
+
+        if (policy == write_policy::no_overwrite && filesystem::exists(fullPath).value_or(true))
+        {
+            return false;
+        }
+
+        return save_asset_meta(assetIt->second.meta, fullPath);
+    }
+
+    string_builder& asset_registry_impl::make_asset_path(string_builder& out, string_view directory)
+    {
+        if (filesystem::is_relative(directory))
+        {
+            out.append(assetsDir);
+            out.append_path_separator();
+        }
+
+        out.append(directory);
+        return out;
+    }
+
+    string_builder& asset_registry_impl::make_asset_process_path(string_builder& out, uuid assetId)
+    {
+        return out.append(artifactsDir).append_path_separator().format("{}", assetId).append(g_assetProcessExtension);
+    }
+
+    importer asset_registry_impl::create_importer(string_view sourceFile) const
+    {
+        const auto ext = filesystem::extension(sourceFile);
+
+        for (auto& [type, assetImporter] : importers)
+        {
+            for (const auto& importerExt : assetImporter.extensions)
+            {
+                if (importerExt == ext)
+                {
+                    return importer{
+                        import_config{
+                            .sourceFile = sourceFile.as<string>(),
+                        },
+                        type,
+                        assetImporter.create(),
+                    };
+                }
+            }
+        }
+
+        return {};
+    }
+
+    bool asset_registry_impl::create_directories(string_view directory)
+    {
+        string_builder sb;
+        make_asset_path(sb, directory);
+        return ensure_directories(sb);
     }
 }

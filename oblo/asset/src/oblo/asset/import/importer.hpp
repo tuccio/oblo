@@ -12,7 +12,7 @@
 
 namespace oblo
 {
-    class asset_registry;
+    class asset_registry_impl;
     class data_document;
     class file_importer;
 
@@ -25,7 +25,7 @@ namespace oblo
         struct file_import_data;
 
     public:
-        static bool read_source_file_path(const asset_registry& registry, uuid sourceFileId, string_builder& out);
+        static bool read_source_file_path(const asset_registry_impl& registry, uuid sourceFileId, string_builder& out);
 
     public:
         importer();
@@ -40,10 +40,10 @@ namespace oblo
         importer& operator=(const importer&) = delete;
         importer& operator=(importer&&) noexcept;
 
-        bool init(const asset_registry& registry, uuid assetId, cstring_view workDir, bool isReimport);
+        bool init(const asset_registry_impl& registry, uuid assetId, cstring_view workDir, bool isReimport);
 
         bool execute(const data_document& importSettings);
-        bool finalize(asset_registry& registry, string_view destination);
+        bool finalize(asset_registry_impl& registry, string_view destination);
 
         bool is_valid() const noexcept;
         bool is_reimport() const noexcept;
@@ -52,7 +52,7 @@ namespace oblo
 
     private:
         bool begin_import();
-        bool write_source_files(asset_registry& registry, const deque<cstring_view>& sourceFiles);
+        bool write_source_files(asset_registry_impl& registry, const deque<cstring_view>& sourceFiles);
 
     private:
         deque<file_import_data> m_fileImports;

@@ -9,6 +9,7 @@
 
 namespace oblo
 {
+    class asset_registry_impl;
     class data_document;
     class file_importer;
     class string_builder;
@@ -27,8 +28,6 @@ namespace oblo
     struct asset_meta;
     struct artifact_type_descriptor;
     struct file_importer_desc;
-    struct import_preview;
-    struct import_node_config;
     struct uuid;
 
     class asset_registry
@@ -45,15 +44,20 @@ namespace oblo
 
         void shutdown();
 
-        void discover_assets();
-
         void update();
+
+        void discover_assets();
 
         void register_file_importer(const file_importer_desc& desc);
         void unregister_file_importer(type_id type);
 
-        bool create_directories(string_view directory);
-
+        /// @brief Starts an asynchronous import process for a new asset.
+        /// This function will look for a suitable importer among the ones registered and start the process.
+        /// The asynchronous import will be finalized on the thread calling update, that updates the registry.
+        /// @param sourceFile The file to import.
+        /// @param destination The asset directory to import into.
+        /// @param settings The settings for the importer.
+        /// @return The uuid of the asset that will be created, or an error if the import failed to start.
         expected<uuid> import(string_view sourceFile, string_view destination, data_document settings);
 
         /// @brief Triggers an asynchronous processing of a previously created asset.
@@ -62,8 +66,6 @@ namespace oblo
         /// @param optSettings Optional settings for the processing, that will replace the previous.
         /// @return An error if processing failed to start.
         expected<> process(uuid asset, data_document* optSettings = nullptr);
-
-        [[nodiscard]] unique_ptr<file_importer> create_file_importer(string_view sourceFile) const;
 
         bool find_asset_by_id(const uuid& id, asset_meta& assetMeta) const;
         bool find_asset_by_path(cstring_view path, uuid& id, asset_meta& assetMeta) const;
@@ -85,33 +87,7 @@ namespace oblo
             const uuid& id, uuid& outType, string& outName, string& outPath, const void* userdata);
 
     private:
-        struct impl;
-        friend class importer;
-
-        enum class write_policy
-        {
-            no_overwrite,
-            overwrite,
-        };
-
-    private:
-        static uuid generate_uuid();
-
-        bool save_artifact(const uuid& id, const cstring_view path, const artifact_meta& meta, write_policy policy);
-
-        bool save_asset(string_view destination,
-            string_view fileName,
-            const asset_meta& meta,
-            const deque<uuid>& artifacts,
-            write_policy policy);
-
-        bool create_source_files_dir(string_builder& dir, uuid sourceFileId);
-        string_builder& make_source_files_dir_path(string_builder& dir, uuid sourceFileId) const;
-
-        bool create_temporary_files_dir(string_builder& dir, uuid assetId) const;
-
-    private:
-        unique_ptr<impl> m_impl;
+        unique_ptr<asset_registry_impl> m_impl;
     };
 
     inline const cstring_view AssetMetaExtension{".oasset"};

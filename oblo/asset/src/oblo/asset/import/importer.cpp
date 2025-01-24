@@ -1,7 +1,7 @@
 #include <oblo/asset/import/importer.hpp>
 
 #include <oblo/asset/asset_meta.hpp>
-#include <oblo/asset/asset_registry.hpp>
+#include <oblo/asset/asset_registry_impl.hpp>
 #include <oblo/asset/import/file_importer.hpp>
 #include <oblo/asset/import/import_artifact.hpp>
 #include <oblo/asset/import/import_context.hpp>
@@ -60,7 +60,7 @@ namespace oblo
         bool success;
     };
 
-    bool importer::read_source_file_path(const asset_registry& registry, uuid assetId, string_builder& out)
+    bool importer::read_source_file_path(const asset_registry_impl& registry, uuid assetId, string_builder& out)
     {
         registry.make_source_files_dir_path(out, assetId).append_path(g_importConfigName);
 
@@ -103,7 +103,7 @@ namespace oblo
 
     importer& importer::operator=(importer&&) noexcept = default;
 
-    bool importer::init(const asset_registry& registry, uuid assetId, cstring_view workDir, bool isReimport)
+    bool importer::init(const asset_registry_impl& registry, uuid assetId, cstring_view workDir, bool isReimport)
     {
         if (m_fileImports.size() != 1)
         {
@@ -185,9 +185,9 @@ namespace oblo
         return true;
     }
 
-    bool importer::finalize(asset_registry& registry, string_view destination)
+    bool importer::finalize(asset_registry_impl& registry, string_view destination)
     {
-        using write_policy = asset_registry::write_policy;
+        using write_policy = asset_registry_impl::write_policy;
 
         if (!registry.create_directories(destination))
         {
@@ -334,7 +334,7 @@ namespace oblo
         return m_fileImports.front().config;
     }
 
-    bool importer::write_source_files(asset_registry& registry, const deque<cstring_view>& sourceFiles)
+    bool importer::write_source_files(asset_registry_impl& registry, const deque<cstring_view>& sourceFiles)
     {
         string_builder importDir;
 
