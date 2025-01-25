@@ -8,6 +8,7 @@ target_link_libraries(
     oblo::scene
     PRIVATE
     oblo::editor::core
+    oblo::editor::common
     imgui::imgui
     iconfontcppheaders::iconfontcppheaders
 )

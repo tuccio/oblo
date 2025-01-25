@@ -1,16 +1,17 @@
-oblo_add_library(editor)
+oblo_add_library(editor_windows)
 
 find_package(imguizmo REQUIRED)
 
 target_link_libraries(
-    oblo_editor
+    oblo_editor_windows
     PUBLIC
     oblo::asset
     oblo::core
     oblo::ecs
-    oblo::editor_core
+    oblo::editor::core
     oblo::modules
     PRIVATE
+    oblo::editor::common
     oblo::graphics
     oblo::input
     oblo::options
@@ -22,3 +23,5 @@ target_link_libraries(
     iconfontcppheaders::iconfontcppheaders
     imguizmo::imguizmo
 )
+
+add_library(oblo::editor::windows ALIAS oblo_editor_windows)
