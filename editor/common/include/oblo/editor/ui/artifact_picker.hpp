@@ -10,7 +10,7 @@ namespace oblo
     class asset_registry;
 }
 
-namespace oblo::editor
+namespace oblo::editor::ui
 {
     class artifact_picker
     {

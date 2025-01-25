@@ -19,9 +19,13 @@ namespace oblo::reflection
 
 namespace oblo::editor
 {
-    class artifact_picker;
     class component_factory;
     class selected_entities;
+
+    namespace ui
+    {
+        class artifact_picker;
+    }
 
     struct window_update_context;
 
@@ -45,6 +49,6 @@ namespace oblo::editor
         ecs::entity_registry* m_registry{};
         const selected_entities* m_selection{};
         const component_factory* m_factory{};
-        std::unique_ptr<artifact_picker> m_artifactPicker;
+        std::unique_ptr<ui::artifact_picker> m_artifactPicker;
     };
 }

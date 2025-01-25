@@ -5,7 +5,7 @@ target_link_libraries(
     PRIVATE
     oblo::asset
     oblo::editor::core
-    oblo::editor
+    oblo::editor::windows
     oblo::runtime
     oblo::ecs
     oblo::graphics

@@ -12,10 +12,10 @@
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/services/component_factory.hpp>
 #include <oblo/editor/services/selected_entities.hpp>
-#include <oblo/editor/ui/widgets.hpp>
+#include <oblo/editor/ui/artifact_picker.hpp>
+#include <oblo/editor/ui/property_table.hpp>
 #include <oblo/editor/utility/entity_utility.hpp>
 #include <oblo/editor/window_update_context.hpp>
-#include <oblo/editor/windows/artifact_picker.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/properties/attributes.hpp>
 #include <oblo/properties/property_kind.hpp>
@@ -43,46 +43,35 @@ namespace oblo::editor
         struct inspector_context
         {
             const reflection::reflection_registry& reflection;
-            artifact_picker& artifactPicker;
+            ui::artifact_picker& artifactPicker;
         };
 
         void build_quaternion_editor(const property_node& node, std::byte* const data)
         {
             auto* const q = new (data) quaternion;
-            auto [z, y, x] = quaternion::to_euler_zyx_intrinsic(degrees_tag{}, *q);
-
-            float values[] = {x, y, z};
-
-            bool anyChange{false};
-
-            ImGui::PushID(int(hash_mix(node.offset, 0)));
-            anyChange |= ui::dragfloat_n_xyz(node.name.c_str(), values, 3, .1f);
-            ImGui::PopID();
-
-            if (anyChange)
-            {
-                *q = quaternion::from_euler_zyx_intrinsic(degrees_tag{}, {values[2], values[1], values[0]});
-            }
+            ui::property_table::add(int(hash_mix(node.offset, 0)), node.name, *q);
         }
 
         void build_vec3_editor(const property_node& node, std::byte* const data)
         {
             auto* const v = new (data) vec3;
-
-            ImGui::PushID(int(hash_mix(node.offset, 0)));
-            ui::dragfloat_n_xyz(node.name.c_str(), &v->x, 3, .1f);
-            ImGui::PopID();
+            ui::property_table::add(int(hash_mix(node.offset, 0)), node.name, *v);
         }
 
         void build_linear_color_editor(const property_node& node, std::byte* const data)
         {
             auto* const v = new (data) vec3;
-            ImGui::ColorEdit3(node.name.c_str(), &v->x);
+            ui::property_table::add_color(int(hash_mix(node.offset, 0)), node.name, *v);
         }
 
-        void build_property_grid(const inspector_context& ctx, const property_tree& tree, std::byte* const data)
+        void build_property_table(const inspector_context& ctx, const property_tree& tree, std::byte* const data)
         {
             auto* ptr = data;
+
+            if (!ui::property_table::begin())
+            {
+                return;
+            }
 
             visit(tree,
                 overload{
@@ -102,7 +91,6 @@ namespace oblo::editor
                             return visit_result::sibling;
                         }
 
-                        ImGui::TextUnformatted(node.name.c_str());
 
                         if (node.type == get_type_id<quaternion>())
                         {
@@ -171,21 +159,15 @@ namespace oblo::editor
                         switch (property.kind)
                         {
                         case property_kind::f32:
-                            ImGui::PushID(makeId());
-                            ImGui::DragFloat(property.name.c_str(), reinterpret_cast<float*>(propertyPtr), 0.1f);
-                            ImGui::PopID();
+                            ui::property_table::add(makeId(), property.name, *new (propertyPtr) f32);
                             break;
 
                         case property_kind::u32:
-                            ImGui::PushID(makeId());
-                            ImGui::DragScalar(property.name.c_str(), ImGuiDataType_U32, propertyPtr);
-                            ImGui::PopID();
+                            ui::property_table::add(makeId(), property.name, *new (propertyPtr) u32);
                             break;
 
                         case property_kind::boolean:
-                            ImGui::PushID(makeId());
-                            ImGui::Checkbox(property.name.c_str(), reinterpret_cast<bool*>(propertyPtr));
-                            ImGui::PopID();
+                            ui::property_table::add(makeId(), property.name, *new (propertyPtr) bool);
                             break;
 
                         case property_kind::uuid: {
@@ -194,37 +176,30 @@ namespace oblo::editor
                             if (const auto resourceRef =
                                     ctx.reflection.find_concept<resource_ref_descriptor>(parentType))
                             {
-                                auto& currentValue = *reinterpret_cast<uuid*>(propertyPtr);
-
-                                if (ctx.artifactPicker.draw(makeId(), resourceRef->typeUuid, currentValue))
-                                {
-                                    currentValue = ctx.artifactPicker.get_current_ref();
-                                }
+                                ui::property_table::add(makeId(),
+                                    property.name,
+                                    *new (propertyPtr) uuid,
+                                    ctx.artifactPicker,
+                                    resourceRef->typeUuid);
                             }
                             else
                             {
-                                ImGui::PushID(makeId());
-
-                                char buf[36];
-                                const auto& v = *reinterpret_cast<uuid*>(propertyPtr);
-                                v.format_to(buf);
-
-                                ImGui::TextUnformatted(buf, buf + array_size(buf));
-
-                                ImGui::PopID();
+                                ui::property_table::add(makeId(), property.name, *new (propertyPtr) uuid);
                             }
                         }
 
                         break;
 
                         default:
-                            ImGui::TextUnformatted(property.name.c_str());
+                            ui::property_table::add_empty(property.name);
                             break;
                         }
 
                         return visit_result::recurse;
                     },
                 });
+
+            ui::property_table::end();
         }
     }
 
@@ -241,7 +216,7 @@ namespace oblo::editor
         m_factory = ctx.services.find<component_factory>();
 
         auto* assetRegistry = ctx.services.find<asset_registry>();
-        m_artifactPicker = std::make_unique<artifact_picker>(*assetRegistry);
+        m_artifactPicker = std::make_unique<ui::artifact_picker>(*assetRegistry);
     }
 
     bool inspector::update(const window_update_context&)
@@ -358,7 +333,7 @@ namespace oblo::editor
                                 auto* const data = m_registry->try_get(e, type);
 
                                 ImGui::PushID(int(type.value));
-                                build_property_grid(inspectorContext, *propertyTree, data);
+                                build_property_table(inspectorContext, *propertyTree, data);
                                 ImGui::PopID();
                             }
                         }

@@ -1,4 +1,4 @@
-#include <oblo/editor/windows/artifact_picker.hpp>
+#include <oblo/editor/ui/artifact_picker.hpp>
 
 #include <oblo/asset/asset_meta.hpp>
 #include <oblo/asset/asset_registry.hpp>
@@ -10,7 +10,7 @@
 
 #include <imgui.h>
 
-namespace oblo::editor
+namespace oblo::editor::ui
 {
     artifact_picker::artifact_picker(asset_registry& registry) : m_assetRegistry{registry} {}
 
