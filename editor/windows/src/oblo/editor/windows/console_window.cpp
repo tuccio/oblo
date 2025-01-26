@@ -389,10 +389,6 @@ namespace oblo::editor
 
                             ImGui::EndPopup();
                         }
-
-                        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{});
-
-                        ImGui::PopStyleVar();
                     }
                 }
 

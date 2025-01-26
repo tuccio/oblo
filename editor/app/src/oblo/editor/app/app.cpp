@@ -8,8 +8,8 @@
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/time/clock.hpp>
 #include <oblo/core/uuid.hpp>
-#include <oblo/editor/app/commands.hpp>
 #include <oblo/editor/editor_module.hpp>
+#include <oblo/editor/providers/service_provider.hpp>
 #include <oblo/editor/services/component_factory.hpp>
 #include <oblo/editor/services/log_queue.hpp>
 #include <oblo/editor/services/registered_commands.hpp>
@@ -305,9 +305,7 @@ namespace oblo::editor
             globalRegistry.add<const time_stats>().externally_owned(&m_timeStats);
             globalRegistry.add<const log_queue>().externally_owned(m_logQueue);
             globalRegistry.add<options_manager>().externally_owned(&options->manager());
-
-            auto* const registeredCommands = globalRegistry.add<registered_commands>().unique();
-            fill_commands(*registeredCommands);
+            globalRegistry.add<registered_commands>().unique();
 
             service_registry sceneRegistry{};
             sceneRegistry.add<ecs::entity_registry>().externally_owned(&m_runtime.get_entity_registry());
@@ -320,6 +318,19 @@ namespace oblo::editor
             m_windowManager.create_child_window<scene_hierarchy>(sceneEditingWindow);
             m_windowManager.create_child_window<viewport>(sceneEditingWindow);
             m_windowManager.create_child_window<console_window>(sceneEditingWindow);
+
+            deque<service_provider_descriptor> serviceRegistrants;
+
+            for (auto* const provider : module_manager::get().find_services<service_provider>())
+            {
+                serviceRegistrants.clear();
+                provider->fetch(serviceRegistrants);
+
+                for (const auto& serviceRegistrant : serviceRegistrants)
+                {
+                    serviceRegistrant.registerServices(globalRegistry);
+                }
+            }
         }
 
         m_lastFrameTime = clock::now();

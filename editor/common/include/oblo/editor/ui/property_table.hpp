@@ -10,6 +10,13 @@ namespace oblo
     struct vec3;
     struct vec4;
     struct uuid;
+
+    struct type_id;
+
+    namespace reflection
+    {
+        class reflection_registry;
+    }
 }
 
 namespace oblo::editor::ui
@@ -39,5 +46,11 @@ namespace oblo::editor::ui
 
         bool add(id_t id, cstring_view name, uuid& anyUuid);
         bool add(id_t id, cstring_view name, uuid& artifactId, artifact_picker& picker, const uuid& typeUuid);
+
+        bool add_enum(id_t id,
+            cstring_view name,
+            void* v,
+            const type_id& typeId,
+            const reflection::reflection_registry& reflection);
     };
 }

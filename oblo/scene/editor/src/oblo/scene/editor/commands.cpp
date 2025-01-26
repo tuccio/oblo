@@ -1,5 +1,6 @@
-#include <oblo/editor/app/commands.hpp>
+#include <oblo/scene/editor/commands.hpp>
 
+#include <oblo/core/service_registry.hpp>
 #include <oblo/core/string/fixed_string.hpp>
 #include <oblo/editor/services/registered_commands.hpp>
 #include <oblo/graphics/components/light_component.hpp>
@@ -10,7 +11,7 @@
 
 #include <IconsFontAwesome6.h>
 
-namespace oblo::editor
+namespace oblo
 {
     namespace
     {
@@ -34,10 +35,10 @@ namespace oblo::editor
         }
 
         template <typename T, typename Init, fixed_string Name>
-        spawn_entity_command make_spawn_command(const char* icon)
+        editor::spawn_entity_command make_spawn_command(const char* icon)
         {
-            return spawn_entity_command{
-                command{
+            return editor::spawn_entity_command{
+                editor::command{
                     .icon = icon,
                     .name = Name.string,
                 },
@@ -70,7 +71,7 @@ namespace oblo::editor
         };
     }
 
-    void fill_commands(registered_commands& commands)
+    void fill_spawn_commands(service_registry& registry)
     {
         using PointLightInit = decltype(
             [](ecs::entity_registry& reg, ecs::entity e) {
@@ -98,16 +99,23 @@ namespace oblo::editor
 
         using SkyboxInit = decltype([](ecs::entity_registry& reg, ecs::entity e) { auto& skybox = reg.get<skybox_component>(e); skybox.tint = vec3::splat(1.f); skybox.multiplier = 1.f; } );
 
-        commands.spawnEntityCommands.push_back(
+        auto* commands = registry.find<editor::registered_commands>();
+
+        if (!commands)
+        {
+            return;
+        }
+
+        commands->spawnEntityCommands.push_back(
             make_spawn_command<light_component, PointLightInit, "Point Light">(ICON_FA_LIGHTBULB));
 
-        commands.spawnEntityCommands.push_back(
+        commands->spawnEntityCommands.push_back(
             make_spawn_command<light_component, SpotLightInit, "Spot Light">(ICON_FA_VOLUME_OFF));
 
-        commands.spawnEntityCommands.push_back(
+        commands->spawnEntityCommands.push_back(
             make_spawn_command<light_component, DirectionalLightInit, "Directional Light">(ICON_FA_SUN));
 
-        commands.spawnEntityCommands.push_back(
+        commands->spawnEntityCommands.push_back(
             make_spawn_command<skybox_component, SkyboxInit, "Skybox">(ICON_FA_CLOUD_MOON));
     }
 }

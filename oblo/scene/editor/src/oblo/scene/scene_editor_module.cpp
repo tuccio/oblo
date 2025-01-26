@@ -11,13 +11,15 @@
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/struct_apply.hpp>
 #include <oblo/editor/providers/asset_editor_provider.hpp>
+#include <oblo/editor/providers/service_provider.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/scene/assets/traits.hpp>
+#include <oblo/scene/editor/commands.hpp>
+#include <oblo/scene/editor/material_editor.hpp>
 #include <oblo/scene/resources/material.hpp>
 #include <oblo/scene/resources/pbr_properties.hpp>
-#include <oblo/scene/windows/material_editor.hpp>
 
 namespace oblo
 {
@@ -141,12 +143,23 @@ namespace oblo
                 });
             }
         };
+
+        class editor_service_registrant final : public editor::service_provider
+        {
+            void fetch(deque<editor::service_provider_descriptor>& out) const override
+            {
+                out.push_back(editor::service_provider_descriptor{
+                    .registerServices = [](service_registry& registry) { fill_spawn_commands(registry); }});
+            }
+        };
     }
 
     bool scene_editor_module::startup(const module_initializer& initializer)
     {
         initializer.services->add<scene_asset_provider>().as<native_asset_provider>().unique();
         initializer.services->add<scene_asset_editor_provider>().as<editor::asset_editor_provider>().unique();
+        initializer.services->add<editor_service_registrant>().as<editor::service_provider>().unique();
+
         return true;
     }
 

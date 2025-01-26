@@ -4,6 +4,7 @@ target_link_libraries(
     oblo
     PRIVATE
     oblo::asset
+    oblo::editor::common
     oblo::editor::core
     oblo::editor::windows
     oblo::runtime

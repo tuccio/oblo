@@ -68,138 +68,103 @@ namespace oblo::editor
         {
             auto* ptr = data;
 
-            if (!ui::property_table::begin())
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2());
+
+            if (ui::property_table::begin())
             {
-                return;
-            }
-
-            visit(tree,
-                overload{
-                    [&ptr, &tree](const property_node& node, const property_node_start)
-                    {
-                        ptr += node.offset;
-
-                        if (node.type == get_type_id<vec3>())
+                visit(tree,
+                    overload{
+                        [&ptr, &tree](const property_node& node, const property_node_start)
                         {
-                            if (find_attribute<linear_color_tag>(tree, node))
+                            ptr += node.offset;
+
+                            if (node.type == get_type_id<vec3>())
                             {
-                                build_linear_color_editor(node, ptr);
+                                if (find_attribute<linear_color_tag>(tree, node))
+                                {
+                                    build_linear_color_editor(node, ptr);
+                                    return visit_result::sibling;
+                                }
+
+                                build_vec3_editor(node, ptr);
                                 return visit_result::sibling;
                             }
 
-                            build_vec3_editor(node, ptr);
-                            return visit_result::sibling;
-                        }
-
-
-                        if (node.type == get_type_id<quaternion>())
-                        {
-                            build_quaternion_editor(node, ptr);
-                            return visit_result::sibling;
-                        }
-
-                        return visit_result::recurse;
-                    },
-                    [&ptr](const property_node& node, const property_node_finish) { ptr -= node.offset; },
-                    [](const property_node&, const property_array&, auto&&) { return visit_result::sibling; },
-                    [&ptr, &ctx, &tree](const property& property)
-                    {
-                        const auto makeId = [&property] { return (int(hash_mix(property.offset, property.parent))); };
-
-                        byte* const propertyPtr = ptr + property.offset;
-
-                        if (property.isEnum)
-                        {
-                            const auto e = ctx.reflection.find_enum(property.type);
-
-                            if (e)
+                            if (node.type == get_type_id<quaternion>())
                             {
-                                const auto names = ctx.reflection.get_enumerator_names(e);
-                                const auto values = ctx.reflection.get_enumerator_values(e);
+                                build_quaternion_editor(node, ptr);
+                                return visit_result::sibling;
+                            }
 
-                                const u32 size = ctx.reflection.get_type_data(e).size;
+                            return visit_result::recurse;
+                        },
+                        [&ptr](const property_node& node, const property_node_finish) { ptr -= node.offset; },
+                        [](const property_node&, const property_array&, auto&&) { return visit_result::sibling; },
+                        [&ptr, &ctx, &tree](const property& property)
+                        {
+                            const auto makeId = [&property]
+                            { return (int(hash_mix(property.offset, property.parent))); };
 
-                                const char* preview = "<Undefined>";
+                            byte* const propertyPtr = ptr + property.offset;
 
-                                for (usize i = 0; i < names.size(); ++i)
-                                {
-                                    const auto it = values.begin() + i * size;
-
-                                    if (std::equal(it, it + size, propertyPtr))
-                                    {
-                                        preview = names[i].data();
-                                        break;
-                                    }
-                                }
-
-                                ImGui::PushID(makeId());
-
-                                if (ImGui::BeginCombo(property.name.c_str(), preview))
-                                {
-                                    for (usize i = 0; i < names.size(); ++i)
-                                    {
-                                        bool selected{};
-
-                                        if (ImGui::Selectable(names[i].data(), &selected) && selected)
-                                        {
-                                            const auto it = values.begin() + i * size;
-                                            std::memcpy(propertyPtr, &*it, size);
-                                        }
-                                    }
-
-                                    ImGui::EndCombo();
-                                }
-
-                                ImGui::PopID();
+                            if (property.isEnum)
+                            {
+                                ui::property_table::add_enum(makeId(),
+                                    property.name,
+                                    propertyPtr,
+                                    property.type,
+                                    ctx.reflection);
 
                                 return visit_result::recurse;
                             }
-                        }
 
-                        switch (property.kind)
-                        {
-                        case property_kind::f32:
-                            ui::property_table::add(makeId(), property.name, *new (propertyPtr) f32);
-                            break;
-
-                        case property_kind::u32:
-                            ui::property_table::add(makeId(), property.name, *new (propertyPtr) u32);
-                            break;
-
-                        case property_kind::boolean:
-                            ui::property_table::add(makeId(), property.name, *new (propertyPtr) bool);
-                            break;
-
-                        case property_kind::uuid: {
-                            const auto parentType = ctx.reflection.find_type(tree.nodes[property.parent].type);
-
-                            if (const auto resourceRef =
-                                    ctx.reflection.find_concept<resource_ref_descriptor>(parentType))
+                            switch (property.kind)
                             {
-                                ui::property_table::add(makeId(),
-                                    property.name,
-                                    *new (propertyPtr) uuid,
-                                    ctx.artifactPicker,
-                                    resourceRef->typeUuid);
-                            }
-                            else
-                            {
-                                ui::property_table::add(makeId(), property.name, *new (propertyPtr) uuid);
-                            }
-                        }
+                            case property_kind::f32:
+                                ui::property_table::add(makeId(), property.name, *new (propertyPtr) f32);
+                                break;
 
-                        break;
+                            case property_kind::u32:
+                                ui::property_table::add(makeId(), property.name, *new (propertyPtr) u32);
+                                break;
 
-                        default:
-                            ui::property_table::add_empty(property.name);
+                            case property_kind::boolean:
+                                ui::property_table::add(makeId(), property.name, *new (propertyPtr) bool);
+                                break;
+
+                            case property_kind::uuid: {
+                                const auto parentType = ctx.reflection.find_type(tree.nodes[property.parent].type);
+
+                                if (const auto resourceRef =
+                                        ctx.reflection.find_concept<resource_ref_descriptor>(parentType))
+                                {
+                                    ui::property_table::add(makeId(),
+                                        property.name,
+                                        *new (propertyPtr) uuid,
+                                        ctx.artifactPicker,
+                                        resourceRef->typeUuid);
+                                }
+                                else
+                                {
+                                    ui::property_table::add(makeId(), property.name, *new (propertyPtr) uuid);
+                                }
+                            }
+
                             break;
-                        }
 
-                        return visit_result::recurse;
-                    },
-                });
+                            default:
+                                ui::property_table::add_empty(property.name);
+                                break;
+                            }
 
-            ui::property_table::end();
+                            return visit_result::recurse;
+                        },
+                    });
+
+                ui::property_table::end();
+            }
+
+            ImGui::PopStyleVar(1);
         }
     }
 

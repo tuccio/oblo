@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/asset/any_asset.hpp>
+#include <oblo/core/unique_ptr.hpp>
 #include <oblo/core/uuid.hpp>
 
 #include <unordered_map>
@@ -14,6 +15,11 @@ namespace oblo
 
 namespace oblo::editor
 {
+    namespace ui
+    {
+        class artifact_picker;
+    }
+
     struct window_update_context;
 
     class material_editor final
@@ -30,5 +36,6 @@ namespace oblo::editor
         uuid m_assetId{};
         any_asset m_asset;
         std::unordered_map<hashed_string_view, material_property_descriptor, hash<hashed_string_view>> m_propertyEditor;
+        unique_ptr<ui::artifact_picker> m_artifactPicker;
     };
 }

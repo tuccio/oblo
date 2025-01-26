@@ -6,6 +6,7 @@
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/math/vec4.hpp>
+#include <oblo/reflection/reflection_registry.hpp>
 
 namespace oblo::editor::ui
 {
@@ -34,9 +35,7 @@ namespace oblo::editor::ui
 
     bool property_table::begin()
     {
-        if (ImGui::BeginTable("#property_table",
-                2,
-                ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_ScrollY))
+        if (ImGui::BeginTable("#property_table", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders))
         {
             ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed);
             ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
@@ -175,5 +174,59 @@ namespace oblo::editor::ui
         }
 
         return false;
+    }
+
+    bool property_table::add_enum(
+        id_t id, cstring_view name, void* v, const type_id& typeId, const reflection::reflection_registry& reflection)
+    {
+        bool modified = false;
+
+        setup_property(name);
+
+        const auto e = reflection.find_enum(typeId);
+
+        if (e)
+        {
+            const auto names = reflection.get_enumerator_names(e);
+            const auto values = reflection.get_enumerator_values(e);
+
+            const u32 size = reflection.get_type_data(e).size;
+
+            const char* preview = "<Undefined>";
+
+            for (usize i = 0; i < names.size(); ++i)
+            {
+                const auto it = values.begin() + i * size;
+
+                if (std::memcmp(&*it, v, size) == 0)
+                {
+                    preview = names[i].data();
+                    break;
+                }
+            }
+
+            ImGui::PushID(id);
+
+            if (ImGui::BeginCombo("", preview))
+            {
+                for (usize i = 0; i < names.size(); ++i)
+                {
+                    bool selected{};
+
+                    if (ImGui::Selectable(names[i].data(), &selected) && selected)
+                    {
+                        const auto it = values.begin() + i * size;
+                        std::memcpy(v, &*it, size);
+                        modified = true;
+                    }
+                }
+
+                ImGui::EndCombo();
+            }
+
+            ImGui::PopID();
+        }
+
+        return modified;
     }
 }
