@@ -546,7 +546,7 @@ namespace oblo
     void asset_registry_impl::on_artifact_removed(uuid artifactId)
     {
         const auto count = artifactsMap.erase(artifactId);
-        OBLO_ASSERT(count > 1);
+        OBLO_ASSERT(count > 0);
 
         if (resourceProvider)
         {

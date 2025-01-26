@@ -200,5 +200,16 @@ namespace oblo
             pickingId.entityId = e;
             meshComponent.mesh = mesh;
         }
+
+        // Update materials every frame for now, until we have an invalidation mechanism
+        for (const auto [entities, meshComponents, gpuMaterials, gpuMeshes] :
+            ctx.entities->range<static_mesh_component, gpu_material, vk::draw_mesh_component>())
+        {
+            for (auto&& [mesh, gpuMaterial] : zip_range(meshComponents, gpuMaterials))
+            {
+                gpuMaterial =
+                    convert(*m_resourceCache, m_resourceRegistry->get_resource(mesh.material.id).as<material>());
+            }
+        }
     }
 }
