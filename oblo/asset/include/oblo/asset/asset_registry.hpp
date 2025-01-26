@@ -14,6 +14,7 @@ namespace oblo
     class asset_writer;
     class data_document;
     class file_importer;
+    class resource_provider;
     class string_builder;
     class string;
 
@@ -49,6 +50,8 @@ namespace oblo
         void update();
 
         void discover_assets();
+
+        resource_provider* initialize_resource_provider();
 
         void register_file_importer(const file_importer_descriptor& desc);
         void unregister_file_importer(type_id type);

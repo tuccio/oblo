@@ -36,6 +36,9 @@ namespace oblo::vk
             return {};
         }
 
+        // TODO: Let it load asynchronously instead
+        resource.load_sync();
+
         const auto handle = m_textureRegistry->add(*resource.get(), resource.get_name());
 
         if (handle)
@@ -60,10 +63,8 @@ namespace oblo::vk
             return it->second.handle;
         }
 
-        if (!resource)
-        {
-            return {};
-        }
+        // TODO: We shouldn't block here, but it's good enough for now
+        resource.load_sync();
 
         const auto handle = m_textureRegistry->add(*resource.get(), resource.get_name());
 

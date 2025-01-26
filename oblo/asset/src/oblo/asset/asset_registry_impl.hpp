@@ -25,10 +25,13 @@ namespace oblo
     template <typename>
     class deque;
 
+    struct artifact_entry;
     struct asset_entry;
     struct file_importer_info;
     struct native_asset_descriptor;
     struct import_process;
+
+    class artifact_resource_provider;
 
     class asset_registry_impl
     {
@@ -46,6 +49,7 @@ namespace oblo
         std::unordered_map<type_id, file_importer_info> importers;
         std::unordered_map<uuid, native_asset_descriptor> nativeAssetTypes;
         std::unordered_map<uuid, asset_entry> assets;
+        std::unordered_map<uuid, artifact_entry> artifactsMap;
 
         string_builder assetsDir;
         string_builder artifactsDir;
@@ -53,10 +57,13 @@ namespace oblo
 
         deque<unique_ptr<import_process>> currentImports;
 
-    public:
-        string_builder& make_asset_path(string_builder& out, string_view directory);
+        unique_ptr<artifact_resource_provider> resourceProvider;
 
-        string_builder& make_asset_process_path(string_builder& out, uuid assetId);
+    public:
+        string_builder& make_asset_path(string_builder& out, string_view directory) const;
+        string_builder& make_artifact_path(string_builder& out, uuid artifactId) const;
+
+        string_builder& make_asset_process_path(string_builder& out, uuid assetId) const;
 
         void push_import_process(importer&& importer, data_document&& settings, string_view destination);
 
@@ -84,5 +91,8 @@ namespace oblo
             cstring_view optSource,
             cstring_view destination,
             string_view optName);
+
+        void on_artifact_added(artifact_meta meta);
+        void on_artifact_removed(uuid artifactId);
     };
 }

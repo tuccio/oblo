@@ -4,6 +4,7 @@
 #include <oblo/core/handle.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/uuid.hpp>
+#include <oblo/resource/providers/resource_provider.hpp>
 
 #include <unordered_map>
 
@@ -21,9 +22,6 @@ namespace oblo
     struct resource;
     struct resource_type_descriptor;
 
-    using find_resource_fn = bool (*)(
-        const uuid& id, uuid& outType, string& outName, string& outPath, const void* userdata);
-
     class resource_registry
     {
     public:
@@ -38,10 +36,12 @@ namespace oblo
         void register_type(const resource_type_descriptor& typeDesc);
         void unregister_type(const uuid& type);
 
-        void register_provider(find_resource_fn provider, const void* userdata);
-        void unregister_provider(find_resource_fn provider);
+        void register_provider(resource_provider* provider);
+        void unregister_provider(resource_provider* provider);
 
-        resource_ptr<void> get_resource(const uuid& id);
+        resource_ptr<void> get_resource(const uuid& id) const;
+
+        void update();
 
     private:
         struct resource_storage;

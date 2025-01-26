@@ -16,10 +16,12 @@
 #include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/core/unreachable.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/core/uuid_generator.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/properties/serialization/common.hpp>
+#include <oblo/resource/providers/resource_provider.hpp>
 #include <oblo/thread/job_manager.hpp>
 
 #include <atomic>
@@ -61,6 +63,11 @@ namespace oblo
         bool isReimport;
         job_handle job{};
         std::atomic<bool> success{};
+    };
+
+    struct artifact_entry
+    {
+        artifact_meta meta;
     };
 
     namespace
@@ -219,6 +226,88 @@ namespace oblo
             return filesystem::is_directory(directory).value_or(false);
         }
     }
+
+    class artifact_resource_provider final : public resource_provider
+    {
+    public:
+        explicit artifact_resource_provider(const asset_registry_impl& impl) : m_impl{impl} {}
+
+        void iterate_resource_events(on_add_fn onAdd, on_remove_fn onRemove)
+        {
+            string_builder path;
+
+            for (const auto& e : m_events)
+            {
+
+                switch (e.kind)
+                {
+                case event_kind::add: {
+                    auto it = m_impl.artifactsMap.find(e.artifactId);
+
+                    if (it == m_impl.artifactsMap.end())
+                    {
+                        continue;
+                    }
+
+                    m_impl.make_artifact_path(path, e.artifactId);
+
+                    const resource_added_event resourceEvent{
+                        .id = e.artifactId,
+                        .typeUuid = it->second.meta.type,
+                        .name = it->second.meta.name,
+                        .path = path,
+                    };
+
+                    onAdd(resourceEvent);
+                }
+
+                break;
+
+                case event_kind::remove: {
+                    const resource_removed_event resourceEvent{
+                        .id = e.artifactId,
+                    };
+
+                    onRemove(resourceEvent);
+                }
+
+                break;
+
+                default:
+                    unreachable();
+                }
+            }
+
+            m_events.clear();
+        }
+
+        void push_removed_artifact(uuid artifactId)
+        {
+            m_events.emplace_back(event_kind::remove, artifactId);
+        }
+
+        void push_added_artifact(uuid artifactId)
+        {
+            m_events.emplace_back(event_kind::add, artifactId);
+        }
+
+    private:
+        enum class event_kind : u8
+        {
+            add,
+            remove,
+        };
+
+        struct artifact_event
+        {
+            event_kind kind;
+            uuid artifactId;
+        };
+
+    private:
+        const asset_registry_impl& m_impl{};
+        deque<artifact_event> m_events;
+    };
 
     asset_registry::asset_registry() = default;
 
@@ -439,6 +528,30 @@ namespace oblo
         push_import_process(std::move(importer), {}, destination);
 
         return no_error;
+    }
+
+    void asset_registry_impl::on_artifact_added(artifact_meta meta)
+    {
+        const auto [it, inserted] = artifactsMap.emplace(meta.artifactId, artifact_entry{});
+        OBLO_ASSERT(inserted);
+
+        it->second.meta = std::move(meta);
+
+        if (resourceProvider)
+        {
+            resourceProvider->push_added_artifact(meta.artifactId);
+        }
+    }
+
+    void asset_registry_impl::on_artifact_removed(uuid artifactId)
+    {
+        const auto count = artifactsMap.erase(artifactId);
+        OBLO_ASSERT(count > 1);
+
+        if (resourceProvider)
+        {
+            resourceProvider->push_removed_artifact(artifactId);
+        }
     }
 
     expected<uuid> asset_registry::create_asset(const any_asset& asset, cstring_view destination, cstring_view name)
@@ -713,6 +826,17 @@ namespace oblo
                 else
                 {
                     it->second.artifacts.append(processInfo.artifacts.begin(), processInfo.artifacts.end());
+
+                    for (const auto& artifactId : it->second.artifacts)
+                    {
+                        artifact_meta artifactMeta;
+                        m_impl->make_artifact_path(builder, artifactId).append(g_artifactMetaExtension);
+
+                        if (oblo::load_artifact_meta(builder, artifactMeta))
+                        {
+                            m_impl->on_artifact_added(artifactMeta);
+                        }
+                    }
                 }
             }
             else
@@ -720,6 +844,21 @@ namespace oblo
                 log::warn("Failed to load asset meta {}", p.string());
             }
         }
+    }
+
+    resource_provider* asset_registry::initialize_resource_provider()
+    {
+        m_impl->resourceProvider = allocate_unique<artifact_resource_provider>(*m_impl);
+
+        if (!m_impl->artifactsMap.empty())
+        {
+            for (auto& [id, meta] : m_impl->artifactsMap)
+            {
+                m_impl->resourceProvider->push_added_artifact(id);
+            }
+        }
+
+        return m_impl->resourceProvider.get();
     }
 
     void asset_registry::update()
@@ -836,6 +975,11 @@ namespace oblo
         }
         else if (!insertedAsset)
         {
+            for (auto& artifact : assetIt->second.artifacts)
+            {
+                on_artifact_removed(artifact);
+            }
+
             assetIt->second.artifacts.clear();
         }
 
@@ -843,7 +987,6 @@ namespace oblo
         assetIt->second.artifacts.append(artifacts.begin(), artifacts.end());
 
         string_builder fullPath;
-
         make_asset_process_path(fullPath, meta.assetId);
 
         if (!save_asset_process_info(asset_process_info{.artifacts = artifacts}, fullPath))
@@ -860,10 +1003,26 @@ namespace oblo
             return false;
         }
 
-        return save_asset_meta(assetIt->second.meta, fullPath);
+        if (!save_asset_meta(assetIt->second.meta, fullPath))
+        {
+            return false;
+        }
+
+        for (const uuid& artifactId : assetIt->second.artifacts)
+        {
+            artifact_meta artifactMeta;
+            make_artifact_path(fullPath, artifactId).append(g_artifactMetaExtension);
+
+            if (load_artifact_meta(fullPath, artifactMeta))
+            {
+                on_artifact_added(artifactMeta);
+            }
+        }
+
+        return true;
     }
 
-    string_builder& asset_registry_impl::make_asset_path(string_builder& out, string_view directory)
+    string_builder& asset_registry_impl::make_asset_path(string_builder& out, string_view directory) const
     {
         if (filesystem::is_relative(directory))
         {
@@ -875,7 +1034,12 @@ namespace oblo
         return out;
     }
 
-    string_builder& asset_registry_impl::make_asset_process_path(string_builder& out, uuid assetId)
+    string_builder& asset_registry_impl::make_artifact_path(string_builder& out, uuid artifactId) const
+    {
+        return out.clear().append(artifactsDir).append_path_separator().format("{}", artifactId);
+    }
+
+    string_builder& asset_registry_impl::make_asset_process_path(string_builder& out, uuid assetId) const
     {
         return out.append(artifactsDir).append_path_separator().format("{}", assetId).append(g_assetProcessExtension);
     }

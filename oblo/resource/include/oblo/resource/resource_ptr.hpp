@@ -17,6 +17,9 @@ namespace oblo
         type_id resource_type(resource* resource);
         string_view resource_name(resource* resource);
         uuid resource_uuid(resource* resource);
+        void resource_start_loading(resource* resource);
+        bool resource_is_loaded(resource* resource);
+        void resource_load_sync(resource* resource);
     }
 
     template <typename T = void>
@@ -27,7 +30,6 @@ namespace oblo
 
         resource_ptr(const resource_ptr& other)
         {
-            m_ptr = other.m_ptr;
             m_resource = other.m_resource;
 
             if (m_resource)
@@ -38,10 +40,7 @@ namespace oblo
 
         resource_ptr(resource_ptr&& other) noexcept
         {
-            m_ptr = other.m_ptr;
             m_resource = other.m_resource;
-
-            other.m_ptr = nullptr;
             other.m_resource = nullptr;
         }
 
@@ -51,7 +50,6 @@ namespace oblo
             {
                 detail::resource_acquire(resource);
                 m_resource = resource;
-                m_ptr = detail::resource_data(resource);
             }
         }
 
@@ -64,7 +62,6 @@ namespace oblo
         {
             reset();
 
-            m_ptr = other.m_ptr;
             m_resource = other.m_resource;
 
             if (m_resource)
@@ -78,10 +75,8 @@ namespace oblo
         resource_ptr& operator=(resource_ptr&& other) noexcept
         {
             reset();
-            m_ptr = other.m_ptr;
             m_resource = other.m_resource;
 
-            other.m_ptr = nullptr;
             other.m_resource = nullptr;
             return *this;
         }
@@ -93,11 +88,10 @@ namespace oblo
                 detail::resource_release(m_resource);
             }
 
-            m_ptr = nullptr;
             m_resource = nullptr;
         }
 
-        type_id get_type() const noexcept
+        type_id get_type_id() const noexcept
         {
             return detail::resource_type(m_resource);
         }
@@ -114,17 +108,19 @@ namespace oblo
 
         const T* get() const noexcept
         {
-            return m_ptr;
+            return static_cast<const T*>(detail::resource_data(m_resource));
         }
 
         const T* operator->() const noexcept
         {
-            return m_ptr;
+            auto* const ptr = get();
+            OBLO_ASSERT(ptr, "The resource is not loaded");
+            return ptr;
         }
 
         explicit operator bool() const noexcept
         {
-            return m_ptr != nullptr;
+            return m_resource != nullptr;
         }
 
         template <typename U>
@@ -132,11 +128,9 @@ namespace oblo
         {
             resource_ptr<U> other;
 
-            if (m_resource && get_type_id<U>() == get_type())
+            if (m_resource && oblo::get_type_id<U>() == get_type_id())
             {
-                other.m_ptr = static_cast<const U*>(m_ptr);
                 other.m_resource = m_resource;
-                m_ptr = nullptr;
                 m_resource = nullptr;
             }
 
@@ -148,9 +142,8 @@ namespace oblo
         {
             resource_ptr<U> other;
 
-            if (m_resource && get_type_id<U>() == get_type())
+            if (m_resource && oblo::get_type_id<U>() == get_type_id())
             {
-                other.m_ptr = static_cast<const U*>(m_ptr);
                 other.m_resource = m_resource;
                 detail::resource_acquire(m_resource);
             }
@@ -168,12 +161,37 @@ namespace oblo
             return {};
         }
 
+        void load_start_async() const noexcept
+        {
+            if (m_resource)
+            {
+                detail::resource_start_loading(m_resource);
+            }
+        }
+
+        void load_sync() const noexcept
+        {
+            if (m_resource)
+            {
+                detail::resource_load_sync(m_resource);
+            }
+        }
+
+        bool is_loaded() const noexcept
+        {
+            if (m_resource)
+            {
+                return detail::resource_is_loaded(m_resource);
+            }
+
+            return false;
+        }
+
     private:
         template <typename>
         friend class resource_ptr;
 
     private:
-        const T* m_ptr{};
         resource* m_resource{};
     };
 }

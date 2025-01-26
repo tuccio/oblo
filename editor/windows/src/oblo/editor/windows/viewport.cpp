@@ -20,11 +20,11 @@
 #include <oblo/reflection/reflection_registry.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
-#include <oblo/scene/resources/model.hpp>
-#include <oblo/scene/resources/texture.hpp>
 #include <oblo/scene/components/position_component.hpp>
 #include <oblo/scene/components/rotation_component.hpp>
 #include <oblo/scene/components/tags.hpp>
+#include <oblo/scene/resources/model.hpp>
+#include <oblo/scene/resources/texture.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
 
 #include <imgui.h>
@@ -226,6 +226,9 @@ namespace oblo::editor
 
                         if (const resource_ptr modelRes = resource.as<model>())
                         {
+                            // TODO: This is not how we want to spawn stuff, rather create a component with a reference
+                            modelRes.load_sync();
+
                             for (const auto& [mesh, material] : zip_range(modelRes->meshes, modelRes->materials))
                             {
                                 if (const resource_ptr meshRes = m_resources->get_resource(mesh.id))

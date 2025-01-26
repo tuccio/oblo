@@ -51,6 +51,9 @@ namespace oblo
                 return out;
             }
 
+            // TODO: We should not block here
+            m.load_sync();
+
             if (auto* const albedo = m->get_property(pbr::Albedo))
             {
                 out.albedo = albedo->as<vec3>().value_or({});
