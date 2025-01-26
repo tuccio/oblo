@@ -153,7 +153,7 @@ namespace oblo::editor
                                         ctx.reflection.find_concept<resource_ref_descriptor>(parentType))
                                 {
                                     ui::property_table::add(makeId(),
-                                        property.name,
+                                        tree.nodes[property.parent].name,
                                         *new (propertyPtr) uuid,
                                         ctx.artifactPicker,
                                         resourceRef->typeUuid);
@@ -238,6 +238,8 @@ namespace oblo::editor
             {
                 if (e && m_registry->contains(e))
                 {
+                    const f32 availableWidth = ImGui::GetContentRegionAvail().x;
+
                     auto* const entityName = entity_utility::get_name_cstr(*m_registry, e);
                     ImGui::TextUnformatted(entityName);
 
@@ -247,8 +249,7 @@ namespace oblo::editor
 
                     ImGui::SameLine();
 
-                    ImGui::SetCursorPosX(
-                        ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(builder.begin(), builder.end()).x);
+                    ImGui::SetCursorPosX(availableWidth - ImGui::CalcTextSize(builder.begin(), builder.end()).x);
 
                     ImGui::TextUnformatted(builder.c_str());
 
