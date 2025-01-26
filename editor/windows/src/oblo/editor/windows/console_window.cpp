@@ -297,6 +297,8 @@ namespace oblo::editor
 
     bool console_window::update(const window_update_context&)
     {
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2());
+
         bool open{true};
 
         if (ImGui::Begin("Console", &open, ImGuiWindowFlags_NoScrollbar))
@@ -402,6 +404,8 @@ namespace oblo::editor
         }
 
         ImGui::End();
+
+        ImGui::PopStyleVar(1);
 
         return open;
     }

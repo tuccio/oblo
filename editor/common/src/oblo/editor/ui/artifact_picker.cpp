@@ -12,6 +12,26 @@
 
 namespace oblo::editor::ui
 {
+    namespace
+    {
+        void make_artifact_name(
+            string_builder& builder, const uuid& id, artifact_meta& meta, const asset_registry& registry)
+        {
+            if (id.is_nil())
+            {
+                builder.append("None");
+            }
+            else if (registry.load_artifact_meta(id, meta))
+            {
+                builder.format("{}", meta.importName);
+            }
+            else
+            {
+                builder.format("{}", id);
+            }
+        }
+    }
+
     artifact_picker::artifact_picker(asset_registry& registry) : m_assetRegistry{registry} {}
 
     bool artifact_picker::draw(int uiId, const uuid& type, const uuid& ref)
@@ -20,13 +40,19 @@ namespace oblo::editor::ui
 
         ImGui::PushID(uiId);
 
+        artifact_meta meta;
+
         string_builder builder;
-        builder.format("{}", m_currentRef);
+        make_artifact_name(builder, m_currentRef, meta, m_assetRegistry);
 
         bool selectionChanged{};
 
         if (ImGui::BeginCombo("", builder.c_str()))
         {
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 8));
+
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+
             if (ImGui::InputTextWithHint("##search",
                     "Filter ... " ICON_FA_MAGNIFYING_GLASS,
                     m_textFilter.InputBuf,
@@ -36,20 +62,11 @@ namespace oblo::editor::ui
             }
 
             m_assetRegistry.iterate_artifacts_by_type(type,
-                [this, &builder, &selectionChanged](const uuid&, const uuid& artifactId)
+                [this, &builder, &selectionChanged, &meta](const uuid&, const uuid& artifactId)
                 {
                     builder.clear();
 
-                    artifact_meta meta;
-
-                    if (m_assetRegistry.load_artifact_meta(artifactId, meta))
-                    {
-                        builder.format("{}", meta.importName);
-                    }
-                    else
-                    {
-                        builder.format("{}", artifactId);
-                    }
+                    make_artifact_name(builder, artifactId, meta, m_assetRegistry);
 
                     if (!m_textFilter.PassFilter(builder.begin(), builder.end()))
                     {
@@ -64,6 +81,8 @@ namespace oblo::editor::ui
 
                     return true;
                 });
+
+            ImGui::PopStyleVar();
 
             ImGui::EndCombo();
         }

@@ -2,6 +2,7 @@
 
 #include <oblo/editor/ui/artifact_picker.hpp>
 #include <oblo/editor/ui/widgets.hpp>
+#include <oblo/math/angle.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec3.hpp>
@@ -60,7 +61,7 @@ namespace oblo::editor::ui
         setup_property(name);
 
         ImGui::PushID(id);
-        bool r = ImGui::Checkbox("", &v);
+        const bool r = ImGui::Checkbox("", &v);
         ImGui::PopID();
         return r;
     }
@@ -70,7 +71,7 @@ namespace oblo::editor::ui
         setup_property(name);
 
         ImGui::PushID(id);
-        bool r = ImGui::DragScalar("", ImGuiDataType_U32, &v);
+        const bool r = ImGui::DragScalar("", ImGuiDataType_U32, &v);
         ImGui::PopID();
         return r;
     }
@@ -80,7 +81,7 @@ namespace oblo::editor::ui
         setup_property(name);
 
         ImGui::PushID(id);
-        bool r = ImGui::DragFloat("", &v, 0.1f);
+        const bool r = ImGui::DragFloat("", &v, 0.1f);
         ImGui::PopID();
         return r;
     }
@@ -90,7 +91,7 @@ namespace oblo::editor::ui
         setup_property(name);
 
         ImGui::PushID(id);
-        bool r = ui::dragfloat_n_xyz("", &v.x, 2, .1f);
+        const bool r = ui::dragfloat_n_xyz("", &v.x, 2, .1f);
         ImGui::PopID();
         return r;
     }
@@ -100,7 +101,7 @@ namespace oblo::editor::ui
         setup_property(name);
 
         ImGui::PushID(id);
-        bool r = ui::dragfloat_n_xyz("", &v.x, 3, .1f);
+        const bool r = ui::dragfloat_n_xyz("", &v.x, 3, .1f);
         ImGui::PopID();
         return r;
     }
@@ -110,7 +111,7 @@ namespace oblo::editor::ui
         setup_property(name);
 
         ImGui::PushID(id);
-        bool r = ui::dragfloat_n_xyz("", &v.x, 4, .1f);
+        const bool r = ui::dragfloat_n_xyz("", &v.x, 4, .1f);
         ImGui::PopID();
         return r;
     }
@@ -137,12 +138,30 @@ namespace oblo::editor::ui
         return anyChange;
     }
 
+    bool property_table::add(id_t id, cstring_view name, degrees& v)
+    {
+        return add(id, name, v.value);
+    }
+
+    bool property_table::add(id_t id, cstring_view name, radians& v)
+    {
+        degrees d{v};
+        const bool r = add(id, name, d);
+
+        if (r)
+        {
+            v = radians{d};
+        }
+
+        return r;
+    }
+
     bool property_table::add_color(id_t id, cstring_view name, vec3& v)
     {
         setup_property(name);
 
         ImGui::PushID(id);
-        bool r = ImGui::ColorEdit3("", &v.x);
+        const bool r = ImGui::ColorEdit3("", &v.x);
         ImGui::PopID();
         return r;
     }

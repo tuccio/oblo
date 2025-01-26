@@ -61,6 +61,9 @@ namespace oblo::editor
 
     bool material_editor::update(const window_update_context&)
     {
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2, 2));
+
         ImGui::PushID(this);
 
         bool isOpen{true};
@@ -163,6 +166,8 @@ namespace oblo::editor
         ImGui::End();
 
         ImGui::PopID();
+
+        ImGui::PopStyleVar(2);
 
         return isOpen;
     }

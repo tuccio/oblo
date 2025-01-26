@@ -68,7 +68,7 @@ namespace oblo::editor
         {
             auto* ptr = data;
 
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2());
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 
             if (ui::property_table::begin())
             {
@@ -93,6 +93,20 @@ namespace oblo::editor
                             if (node.type == get_type_id<quaternion>())
                             {
                                 build_quaternion_editor(node, ptr);
+                                return visit_result::sibling;
+                            }
+
+                            if (node.type == get_type_id<radians>())
+                            {
+                                auto* const r = new (ptr) radians;
+                                ui::property_table::add(int(hash_mix(node.offset, 0)), node.name, *r);
+                                return visit_result::sibling;
+                            }
+
+                            if (node.type == get_type_id<degrees>())
+                            {
+                                auto* const r = new (ptr) degrees;
+                                ui::property_table::add(int(hash_mix(node.offset, 0)), node.name, *r);
                                 return visit_result::sibling;
                             }
 
@@ -163,8 +177,6 @@ namespace oblo::editor
 
                 ui::property_table::end();
             }
-
-            ImGui::PopStyleVar(1);
         }
     }
 
@@ -189,6 +201,8 @@ namespace oblo::editor
         string_builder builder;
 
         bool open{true};
+
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2());
 
         if (ImGui::Begin("Inspector", &open))
         {
@@ -232,6 +246,10 @@ namespace oblo::editor
                     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
 
                     ImGui::SameLine();
+
+                    ImGui::SetCursorPosX(
+                        ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(builder.begin(), builder.end()).x);
+
                     ImGui::TextUnformatted(builder.c_str());
 
                     ImGui::PopStyleColor();
@@ -242,6 +260,8 @@ namespace oblo::editor
                         .reflection = *m_reflection,
                         .artifactPicker = *m_artifactPicker,
                     };
+
+                    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2, 2));
 
                     for (const ecs::component_type type : components)
                     {
@@ -306,10 +326,14 @@ namespace oblo::editor
                         ImGui::PopID();
                     }
 
+                    ImGui::PopStyleVar(1);
+
                     // Just pick the first entity for now
                     break;
                 }
             }
+
+            ImGui::PopStyleVar(1);
 
             ImGui::End();
         }

@@ -11,6 +11,15 @@ namespace oblo
     struct vec4;
     struct uuid;
 
+    struct degrees_tag;
+    struct radians_tag;
+
+    template <typename Tag>
+    struct angle;
+
+    using degrees = angle<degrees_tag>;
+    using radians = angle<radians_tag>;
+
     struct type_id;
 
     namespace reflection
@@ -41,6 +50,9 @@ namespace oblo::editor::ui
         bool add(id_t id, cstring_view name, vec4& v);
 
         bool add(id_t id, cstring_view name, quaternion& v);
+
+        bool add(id_t id, cstring_view name, degrees& v);
+        bool add(id_t id, cstring_view name, radians& v);
 
         bool add_color(id_t id, cstring_view name, vec3& v);
 
