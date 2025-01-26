@@ -23,7 +23,13 @@ namespace oblo::editor::ui
             }
             else if (registry.load_artifact_meta(id, meta))
             {
-                builder.format("{}", meta.name);
+                if (!registry.get_asset_name(meta.assetId, builder))
+                {
+                    OBLO_ASSERT(false);
+                    builder.format("Unknown Asset");
+                }
+
+                builder.format("/{}", meta.name);
             }
             else
             {

@@ -34,6 +34,7 @@ namespace oblo
     {
         asset_meta meta;
         dynamic_array<uuid> artifacts;
+        string_builder path;
     };
 
     struct file_importer_info
@@ -752,6 +753,19 @@ namespace oblo
         return true;
     }
 
+    bool asset_registry::get_asset_name(const uuid& assetId, string_builder& outName) const
+    {
+        const auto it = m_impl->assets.find(assetId);
+
+        if (it == m_impl->assets.end())
+        {
+            return false;
+        }
+
+        outName.append(filesystem::filename(it->second.path));
+        return true;
+    }
+
     u32 asset_registry::get_ongoing_process_count() const
     {
         return m_impl->currentImports.size32();
@@ -826,6 +840,7 @@ namespace oblo
                 else
                 {
                     it->second.artifacts.append(processInfo.artifacts.begin(), processInfo.artifacts.end());
+                    it->second.path.clear().append(p.parent_path().string()).append_path(p.stem().string());
 
                     for (const auto& artifactId : it->second.artifacts)
                     {
@@ -985,6 +1000,7 @@ namespace oblo
 
         assetIt->second.meta = meta;
         assetIt->second.artifacts.append(artifacts.begin(), artifacts.end());
+        assetIt->second.path.clear().append(destination).append_path(assetName);
 
         string_builder fullPath;
         make_asset_process_path(fullPath, meta.assetId);
