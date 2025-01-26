@@ -18,6 +18,6 @@ namespace oblo
         uuid assetId;
         uuid mainArtifactHint;
         uuid typeHint;
-        bool isImported;
+        uuid nativeAssetType;
     };
 }

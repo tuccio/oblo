@@ -82,7 +82,7 @@ namespace oblo
             meta.assetId = doc.read_uuid(doc.find_child(root, "assetId"_hsv)).value_or(uuid{});
             meta.mainArtifactHint = doc.read_uuid(doc.find_child(root, "mainArtifactHint"_hsv)).value_or(uuid{});
             meta.typeHint = doc.read_uuid(doc.find_child(root, "typeHint"_hsv)).value_or(uuid{});
-            meta.isImported = doc.read_bool(doc.find_child(root, "isImported"_hsv)).value_or(true);
+            meta.nativeAssetType = doc.read_uuid(doc.find_child(root, "nativeAssetType"_hsv)).value_or(uuid{});
 
             return true;
         }
@@ -97,7 +97,11 @@ namespace oblo
             doc.child_value(root, "assetId"_hsv, property_value_wrapper{meta.assetId});
             doc.child_value(root, "mainArtifactHint"_hsv, property_value_wrapper{meta.mainArtifactHint});
             doc.child_value(root, "typeHint"_hsv, property_value_wrapper{meta.typeHint});
-            doc.child_value(root, "isImported"_hsv, property_value_wrapper{meta.isImported});
+
+            if (!meta.nativeAssetType.is_nil())
+            {
+                doc.child_value(root, "nativeAssetType"_hsv, property_value_wrapper{meta.nativeAssetType});
+            }
 
             return json::write(doc, destination).has_value();
         }
@@ -324,39 +328,55 @@ namespace oblo
         // TODO: Maybe check if it's being reprocessed
         const auto& meta = it->second.meta;
 
-        if (meta.isImported)
+        // This means it requires a reimport
+        string_builder fileSourcePath;
+
+        if (!importer::read_source_file_path(*m_impl, meta.assetId, fileSourcePath))
         {
-            // This means it requires a reimport
-            string_builder fileSourcePath;
-            importer::read_source_file_path(*m_impl, meta.assetId, fileSourcePath);
-
-            auto importer = m_impl->create_importer(fileSourcePath.view());
-
-            string_builder workDir;
-
-            if (!m_impl->create_temporary_files_dir(workDir, asset_registry_impl::generate_uuid()))
-            {
-                return unspecified_error;
-            }
-
-            if (!importer.init(*m_impl, meta.assetId, workDir, true))
-            {
-                return unspecified_error;
-            }
-
-            // TODO: Read previous settings
-            data_document settings;
-
-            if (optSettings)
-            {
-                settings = std::move(*optSettings);
-            }
-
-            m_impl->push_import_process(std::move(importer), std::move(settings), {});
-            return no_error;
+            return unspecified_error;
         }
 
-        return unspecified_error;
+        oblo::importer importer;
+
+        if (const auto nativeAssetIt = m_impl->nativeAssetTypes.find(meta.nativeAssetType);
+            nativeAssetIt != m_impl->nativeAssetTypes.end())
+        {
+            importer = oblo::importer{
+                import_config{
+                    .sourceFile = fileSourcePath.as<string>(),
+                },
+                nativeAssetIt->second.createImporter(),
+            };
+
+            importer.set_native_asset_type(meta.nativeAssetType);
+        }
+        else
+        {
+            importer = m_impl->create_importer(fileSourcePath.view());
+        }
+
+        string_builder workDir;
+
+        if (!m_impl->create_temporary_files_dir(workDir, asset_registry_impl::generate_uuid()))
+        {
+            return unspecified_error;
+        }
+
+        if (!importer.init(*m_impl, meta.assetId, workDir, true))
+        {
+            return unspecified_error;
+        }
+
+        // TODO: Read previous settings
+        data_document settings;
+
+        if (optSettings)
+        {
+            settings = std::move(*optSettings);
+        }
+
+        m_impl->push_import_process(std::move(importer), std::move(settings), {});
+        return no_error;
     }
 
     expected<uuid> asset_registry::create_asset(const any_asset& asset, cstring_view destination, cstring_view name)
@@ -406,6 +426,8 @@ namespace oblo
         config.sourceFile = sourceFile.as<string>(); // Determine the source file to import
 
         importer importer(std::move(config), std::move(fileImporter));
+
+        importer.set_native_asset_type(asset.get_type_uuid());
 
         if (!importer.init(*m_impl, assetId, workDir, false))
         {
@@ -828,7 +850,7 @@ namespace oblo
         return out.append(artifactsDir).append_path_separator().format("{}", assetId).append(g_assetProcessExtension);
     }
 
-    importer asset_registry_impl::create_importer(string_view sourceFile) const
+    oblo::importer asset_registry_impl::create_importer(string_view sourceFile) const
     {
         const auto ext = filesystem::extension(sourceFile);
 

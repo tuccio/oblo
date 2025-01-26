@@ -42,6 +42,8 @@ namespace oblo
 
         bool init(const asset_registry_impl& registry, uuid assetId, cstring_view workDir, bool isReimport);
 
+        void set_native_asset_type(uuid nativeAssetType);
+
         bool execute(const data_document& importSettings);
         bool finalize(asset_registry_impl& registry, string_view destination);
 
@@ -59,6 +61,7 @@ namespace oblo
         string_builder m_temporaryPath;
         std::unordered_map<uuid, artifact_meta> m_artifacts;
         uuid m_assetId{};
+        uuid m_nativeAssetType{};
         bool m_isReimport{};
     };
 }

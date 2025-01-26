@@ -140,6 +140,11 @@ namespace oblo
         return true;
     }
 
+    void importer::set_native_asset_type(uuid nativeAssetType)
+    {
+        m_nativeAssetType = nativeAssetType;
+    }
+
     bool importer::execute(const data_document& importSettings)
     {
         if (!begin_import())
@@ -201,7 +206,7 @@ namespace oblo
 
         asset_meta assetMeta{
             .assetId = m_assetId,
-            .isImported = true,
+            .nativeAssetType = m_nativeAssetType,
         };
 
         for (auto& fid : m_fileImports)
