@@ -419,6 +419,11 @@ namespace oblo
 
     expected<data_string, data_document::error> data_document::read_string(u32 node) const
     {
+        if (node >= m_nodes.size())
+        {
+            return error::node_invalid;
+        }
+
         auto& n = m_nodes[node];
 
         if (n.kind != data_node_kind::value)
@@ -436,6 +441,11 @@ namespace oblo
 
     expected<bool, data_document::error> data_document::read_bool(u32 node) const
     {
+        if (node >= m_nodes.size())
+        {
+            return error::node_invalid;
+        }
+
         auto& n = m_nodes[node];
 
         if (n.kind != data_node_kind::value)
@@ -453,6 +463,11 @@ namespace oblo
 
     expected<f32, data_document::error> data_document::read_f32(u32 node) const
     {
+        if (node >= m_nodes.size())
+        {
+            return error::node_invalid;
+        }
+
         auto& n = m_nodes[node];
 
         if (n.kind != data_node_kind::value)
@@ -475,6 +490,11 @@ namespace oblo
 
     expected<u32, data_document::error> data_document::read_u32(u32 node) const
     {
+        if (node >= m_nodes.size())
+        {
+            return error::node_invalid;
+        }
+
         auto& n = m_nodes[node];
 
         if (n.kind != data_node_kind::value)
@@ -502,6 +522,11 @@ namespace oblo
 
     expected<uuid, data_document::error> data_document::read_uuid(u32 node) const
     {
+        if (node >= m_nodes.size())
+        {
+            return error::node_invalid;
+        }
+
         auto& n = m_nodes[node];
 
         if (n.kind != data_node_kind::value)

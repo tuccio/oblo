@@ -22,10 +22,8 @@
 #include <oblo/properties/serialization/common.hpp>
 #include <oblo/thread/job_manager.hpp>
 
-#include <nlohmann/json.hpp>
-
 #include <atomic>
-#include <fstream>
+#include <filesystem>
 #include <unordered_map>
 
 namespace oblo
@@ -72,172 +70,90 @@ namespace oblo
 
         bool load_asset_meta(asset_meta& meta, const std::filesystem::path& path)
         {
-            std::ifstream in{path};
+            data_document doc;
 
-            if (!in)
+            if (!json::read(doc, path.string().c_str()))
             {
                 return false;
             }
 
-            const auto json = nlohmann::json::parse(in, nullptr, false);
+            const auto root = doc.get_root();
 
-            if (json.is_discarded())
-            {
-                return false;
-            }
-
-            const std::string_view assetId = json["assetId"].get<std::string_view>();
-
-            if (auto parsed = uuid::parse(assetId))
-            {
-                meta.assetId = *parsed;
-            }
-            else
-            {
-                return false;
-            }
-
-            const std::string_view mainArtifactHint = json["mainArtifactHint"].get<std::string_view>();
-
-            if (auto parsed = uuid::parse(mainArtifactHint))
-            {
-                meta.mainArtifactHint = *parsed;
-            }
-            else
-            {
-                return false;
-            }
-
-            const std::string_view type = json["typeHint"].get<std::string_view>();
-
-            if (auto parsed = uuid::parse(type))
-            {
-                meta.typeHint = *parsed;
-            }
-            else
-            {
-                return false;
-            }
-
-            const auto isImported = json.find("isImported");
-
-            if (isImported != json.end())
-            {
-                meta.isImported = isImported->get<bool>();
-            }
+            meta.assetId = doc.read_uuid(doc.find_child(root, "assetId"_hsv)).value_or(uuid{});
+            meta.mainArtifactHint = doc.read_uuid(doc.find_child(root, "mainArtifactHint"_hsv)).value_or(uuid{});
+            meta.typeHint = doc.read_uuid(doc.find_child(root, "typeHint"_hsv)).value_or(uuid{});
+            meta.isImported = doc.read_bool(doc.find_child(root, "isImported"_hsv)).value_or(true);
 
             return true;
         }
 
         bool save_asset_meta(const asset_meta& meta, cstring_view destination)
         {
-            char uuidBuffer[36];
+            data_document doc;
+            doc.init();
 
-            nlohmann::ordered_json json;
+            const auto root = doc.get_root();
 
-            json["assetId"] = meta.assetId.format_to(uuidBuffer).as<std::string_view>();
-            json["mainArtifactHint"] = meta.mainArtifactHint.format_to(uuidBuffer).as<std::string_view>();
-            json["typeHint"] = meta.typeHint.format_to(uuidBuffer).as<std::string_view>();
-            json["isImported"] = meta.isImported;
+            doc.child_value(root, "assetId"_hsv, property_value_wrapper{meta.assetId});
+            doc.child_value(root, "mainArtifactHint"_hsv, property_value_wrapper{meta.mainArtifactHint});
+            doc.child_value(root, "typeHint"_hsv, property_value_wrapper{meta.typeHint});
+            doc.child_value(root, "isImported"_hsv, property_value_wrapper{meta.isImported});
 
-            std::ofstream ofs{destination.as<std::string>()};
-
-            if (!ofs)
-            {
-                return false;
-            }
-
-            ofs << json.dump(1, '\t');
-            return !ofs.bad();
+            return json::write(doc, destination).has_value();
         }
 
         // TODO: Need to read the full meta instead
-        bool load_asset_id_from_meta(string_view path, uuid& id)
+        bool load_asset_id_from_meta(cstring_view path, uuid& id)
         {
-            std::ifstream in{path.as<std::string>()};
+            data_document doc;
 
-            if (!in)
+            if (!json::read(doc, path))
             {
                 return false;
             }
 
-            const auto json = nlohmann::json::parse(in, nullptr, false);
+            const auto root = doc.get_root();
 
-            if (json.is_discarded())
+            const auto assetId = doc.read_uuid(doc.find_child(root, "assetId"_hsv));
+
+            if (assetId)
             {
-                return false;
+                id = *assetId;
             }
 
-            const auto it = json.find("assetId");
-
-            if (it == json.end())
-            {
-                return false;
-            }
-
-            return id.parse_from(it->get<std::string_view>());
+            return assetId.has_value();
         }
 
-        bool save_artifact_meta(const artifact_meta& artifact, cstring_view destination)
+        bool save_artifact_meta(const artifact_meta& meta, cstring_view destination)
         {
-            char uuidBuffer[36];
+            data_document doc;
+            doc.init();
 
-            nlohmann::json json;
+            const auto root = doc.get_root();
 
-            json["artifactId"] = artifact.artifactId.format_to(uuidBuffer).as<std::string_view>();
-            json["assetId"] = artifact.assetId.format_to(uuidBuffer).as<std::string_view>();
-            json["type"] = artifact.type.format_to(uuidBuffer).as<std::string_view>();
-            json["name"] = artifact.importName.as<std::string>();
+            doc.child_value(root, "artifactId"_hsv, property_value_wrapper{meta.artifactId});
+            doc.child_value(root, "type"_hsv, property_value_wrapper{meta.type});
+            doc.child_value(root, "assetId"_hsv, property_value_wrapper{meta.assetId});
+            doc.child_value(root, "name"_hsv, property_value_wrapper{meta.name});
 
-            std::ofstream ofs{destination.as<std::string>()};
-
-            if (!ofs)
-            {
-                return false;
-            }
-
-            ofs << json.dump(1, '\t');
-            return !ofs.bad();
+            return json::write(doc, destination).has_value();
         }
 
-        bool load_artifact_meta(cstring_view source, artifact_meta& artifact)
+        bool load_artifact_meta(cstring_view source, artifact_meta& meta)
         {
-            std::ifstream ifs{source.as<std::string>()};
+            data_document doc;
 
-            if (!ifs)
+            if (!json::read(doc, source))
             {
                 return false;
             }
 
-            const auto json = nlohmann::json::parse(ifs, nullptr, false);
+            const auto root = doc.get_root();
 
-            if (json.empty())
-            {
-                return false;
-            }
-
-            if (const auto it = json.find("artifactId"); it != json.end())
-            {
-                const auto id = uuid::parse(it->get<std::string_view>());
-                artifact.artifactId = id ? *id : uuid{};
-            }
-
-            if (const auto it = json.find("type"); it != json.end())
-            {
-                const auto type = uuid::parse(it->get<std::string_view>());
-                artifact.type = type ? *type : uuid{};
-            }
-
-            if (const auto it = json.find("name"); it != json.end())
-            {
-                artifact.importName = it->get<std::string>();
-            }
-
-            if (const auto it = json.find("assetId"); it != json.end())
-            {
-                const auto id = uuid::parse(it->get<std::string_view>());
-                artifact.assetId = id ? *id : uuid{};
-            }
+            meta.artifactId = doc.read_uuid(doc.find_child(root, "artifactId"_hsv)).value_or(uuid{});
+            meta.type = doc.read_uuid(doc.find_child(root, "type"_hsv)).value_or(uuid{});
+            meta.assetId = doc.read_uuid(doc.find_child(root, "assetId"_hsv)).value_or(uuid{});
+            meta.name = doc.read_string(doc.find_child(root, "name"_hsv)).value_or({}).str();
 
             return true;
         }
@@ -704,7 +620,7 @@ namespace oblo
 
         outType = meta.type;
         outPath = resourceFile.as<string>();
-        outName = std::move(meta.importName);
+        outName = std::move(meta.name);
 
         return true;
     }

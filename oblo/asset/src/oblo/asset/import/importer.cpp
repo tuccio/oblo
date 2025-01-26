@@ -245,7 +245,7 @@ namespace oblo
                     .artifactId = artifact.id,
                     .type = artifact.type,
                     .assetId = m_assetId,
-                    .importName = artifact.name,
+                    .name = artifact.name,
                 };
 
                 if (!registry.save_artifact(artifact.id, artifact.path, meta, writePolicy))
@@ -307,7 +307,7 @@ namespace oblo
                         .artifactId = config.id,
                         .type = node.artifactType,
                         .assetId = m_assetId,
-                        .importName = node.name,
+                        .name = node.name,
                     });
 
                 OBLO_ASSERT(artifactInserted);

@@ -186,9 +186,9 @@ namespace oblo::editor
                                     {
                                         ImGui::PushID(int(hash_all<std::hash>(artifact)));
 
-                                        ImGui::Button(artifactMeta.importName.empty()
+                                        ImGui::Button(artifactMeta.name.empty()
                                                 ? "Unnamed Artifact"
-                                                : artifactMeta.importName.c_str());
+                                                : artifactMeta.name.c_str());
 
                                         ImGui::PopID();
 

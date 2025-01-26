@@ -96,6 +96,7 @@ namespace oblo
 
     enum class data_document::error : u8
     {
+        node_invalid,
         node_kind_mismatch,
         value_kind_mismatch,
     };

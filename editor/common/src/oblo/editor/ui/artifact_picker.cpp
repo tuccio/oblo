@@ -23,7 +23,7 @@ namespace oblo::editor::ui
             }
             else if (registry.load_artifact_meta(id, meta))
             {
-                builder.format("{}", meta.importName);
+                builder.format("{}", meta.name);
             }
             else
             {

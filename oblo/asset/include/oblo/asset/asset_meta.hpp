@@ -10,7 +10,7 @@ namespace oblo
         uuid artifactId;
         uuid type;
         uuid assetId;
-        string importName;
+        string name;
     };
 
     struct asset_meta
