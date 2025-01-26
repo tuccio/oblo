@@ -98,7 +98,12 @@ namespace oblo::editor
 
                             if (r)
                             {
-                                modified |= ui::property_table::add(id, propertyName, *r);
+                                if (ui::property_table::add(id, propertyName, *r))
+                                {
+                                    modified = true;
+                                    m->set_property<material_type_tag::none>(property.name, *r);
+                                }
+
                                 isCorrectType = true;
                             }
                         }
@@ -109,7 +114,12 @@ namespace oblo::editor
 
                             if (r)
                             {
-                                modified |= ui::property_table::add_color(id, propertyName, *r);
+                                if (ui::property_table::add_color(id, propertyName, *r))
+                                {
+                                    modified = true;
+                                    m->set_property<material_type_tag::linear_color>(property.name, *r);
+                                }
+
                                 isCorrectType = true;
                             }
                         }
@@ -120,7 +130,12 @@ namespace oblo::editor
 
                             if (r)
                             {
-                                modified |= ui::property_table::add(id, propertyName, *r);
+                                if (ui::property_table::add(id, propertyName, *r))
+                                {
+                                    modified = true;
+                                    m->set_property<material_type_tag::none>(property.name, *r);
+                                }
+
                                 isCorrectType = true;
                             }
                         }
@@ -131,7 +146,12 @@ namespace oblo::editor
 
                             if (r)
                             {
-                                modified |= ui::property_table::add(id, propertyName, *r);
+                                if (ui::property_table::add(id, propertyName, *r))
+                                {
+                                    modified = true;
+                                    m->set_property<material_type_tag::none>(property.name, *r);
+                                }
+
                                 isCorrectType = true;
                             }
                         }
@@ -142,11 +162,15 @@ namespace oblo::editor
 
                             if (r)
                             {
-                                modified |= ui::property_table::add(id,
-                                    propertyName,
-                                    r->id,
-                                    *m_artifactPicker,
-                                    resource_type<texture>);
+                                if (ui::property_table::add(id,
+                                        propertyName,
+                                        r->id,
+                                        *m_artifactPicker,
+                                        resource_type<texture>))
+                                {
+                                    modified = true;
+                                    m->set_property<material_type_tag::none>(property.name, *r);
+                                }
 
                                 isCorrectType = true;
                             }
