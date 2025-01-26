@@ -2,6 +2,7 @@
 
 #include <oblo/asset/asset_meta.hpp>
 #include <oblo/core/deque.hpp>
+#include <oblo/core/expected.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/unique_ptr.hpp>
@@ -11,6 +12,7 @@
 
 namespace oblo
 {
+    class any_asset;
     class importer;
     class cstring_view;
     class string_view;
@@ -76,5 +78,11 @@ namespace oblo
         bool create_temporary_files_dir(string_builder& dir, uuid assetId) const;
 
         bool create_directories(string_view directory);
+
+        expected<> create_or_save_asset(const any_asset& asset,
+            uuid assetId,
+            cstring_view optSource,
+            cstring_view destination,
+            string_view optName);
     };
 }

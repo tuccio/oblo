@@ -379,17 +379,13 @@ namespace oblo
         return no_error;
     }
 
-    expected<uuid> asset_registry::create_asset(const any_asset& asset, cstring_view destination, cstring_view name)
+    expected<> asset_registry_impl::create_or_save_asset(
+        const any_asset& asset, uuid assetId, cstring_view optSource, cstring_view destination, string_view optName)
     {
-        if (!asset)
-        {
-            return unspecified_error;
-        }
-
         // Find native_asset_descriptor
-        const auto it = m_impl->nativeAssetTypes.find(asset.get_type_uuid());
+        const auto it = nativeAssetTypes.find(asset.get_type_uuid());
 
-        if (it == m_impl->nativeAssetTypes.end())
+        if (it == nativeAssetTypes.end())
         {
             return unspecified_error;
         }
@@ -399,7 +395,7 @@ namespace oblo
         // Create temporary directory
 
         string_builder workDir;
-        if (!m_impl->create_temporary_files_dir(workDir, asset_registry_impl::generate_uuid()))
+        if (!create_temporary_files_dir(workDir, generate_uuid()))
         {
             return unspecified_error;
         }
@@ -411,30 +407,53 @@ namespace oblo
             return unspecified_error;
         }
 
-        string_builder sourceFile = workDir;
-        sourceFile.append_path(name);
-        sourceFile.append(desc.fileExtension);
+        string_builder sourceFile;
+        const bool isReimport = !optSource.empty();
 
-        if (!desc.save(asset, sourceFile, workDir))
+        if (optSource.empty())
+        {
+            sourceFile = workDir;
+            sourceFile.append_path(optName);
+            sourceFile.append(desc.fileExtension);
+        }
+
+        cstring_view source = optSource.empty() ? sourceFile : optSource;
+
+        if (!desc.save(asset, source, workDir))
+        {
+            return unspecified_error;
+        }
+
+        import_config config;
+        config.sourceFile = source.as<string>(); // Determine the source file to import
+
+        importer importer(std::move(config), std::move(fileImporter));
+
+        importer.set_native_asset_type(asset.get_type_uuid());
+
+        if (!importer.init(*this, assetId, workDir, isReimport))
+        {
+            return unspecified_error;
+        }
+
+        push_import_process(std::move(importer), {}, destination);
+
+        return no_error;
+    }
+
+    expected<uuid> asset_registry::create_asset(const any_asset& asset, cstring_view destination, cstring_view name)
+    {
+        if (!asset)
         {
             return unspecified_error;
         }
 
         const auto assetId = asset_registry_impl::generate_uuid();
 
-        import_config config;
-        config.sourceFile = sourceFile.as<string>(); // Determine the source file to import
-
-        importer importer(std::move(config), std::move(fileImporter));
-
-        importer.set_native_asset_type(asset.get_type_uuid());
-
-        if (!importer.init(*m_impl, assetId, workDir, false))
+        if (!m_impl->create_or_save_asset(asset, assetId, {}, destination, name))
         {
             return unspecified_error;
         }
-
-        m_impl->push_import_process(std::move(importer), {}, destination);
 
         return assetId;
     }
@@ -448,8 +467,7 @@ namespace oblo
             return unspecified_error;
         }
 
-        // TODO: Actual support for native assets
-        const uuid& type = it->second.meta.typeHint;
+        const uuid& type = it->second.meta.nativeAssetType;
 
         const auto typeIt = m_impl->nativeAssetTypes.find(type);
 
@@ -473,6 +491,18 @@ namespace oblo
         }
 
         return asset;
+    }
+
+    expected<> asset_registry::save_asset(const any_asset& asset, uuid assetId)
+    {
+        string_builder sourceFilePath;
+
+        if (!importer::read_source_file_path(*m_impl, assetId, sourceFilePath))
+        {
+            return unspecified_error;
+        }
+
+        return m_impl->create_or_save_asset(asset, assetId, sourceFilePath, {}, {});
     }
 
     unique_ptr<file_importer> asset_registry_impl::create_file_importer(string_view sourceFile) const

@@ -1,6 +1,7 @@
 #include <oblo/scene/editor/material_editor.hpp>
 
 #include <oblo/asset/asset_registry.hpp>
+#include <oblo/core/formatters/uuid_formatter.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/struct_apply.hpp>
@@ -8,6 +9,7 @@
 #include <oblo/editor/ui/artifact_picker.hpp>
 #include <oblo/editor/ui/property_table.hpp>
 #include <oblo/editor/window_update_context.hpp>
+#include <oblo/log/log.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/math/vec4.hpp>
@@ -184,6 +186,14 @@ namespace oblo::editor
                 }
 
                 ui::property_table::end();
+
+                if (modified)
+                {
+                    if (!m_assetRegistry->save_asset(m_asset, m_assetId))
+                    {
+                        log::error("Failed to save material {}", m_assetId);
+                    }
+                }
             }
         }
 
