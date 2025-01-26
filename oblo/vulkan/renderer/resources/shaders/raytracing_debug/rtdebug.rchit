@@ -127,5 +127,5 @@ void main()
         reflected += visibility * contribution * brdf;
     }
 
-    r_HitColor = reflected;
+    r_HitColor = reflected + pbr.emissive;
 }
