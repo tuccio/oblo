@@ -2,6 +2,7 @@
 
 #include <oblo/asset/asset_meta.hpp>
 #include <oblo/asset/asset_registry.hpp>
+#include <oblo/core/array_size.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/deque.hpp>
 #include <oblo/core/dynamic_array.hpp>
@@ -69,8 +70,22 @@ namespace oblo::editor
             asset_create_fn create{};
         };
 
-        bool big_icon_button(
-            ImFont* bigIcons, const char* icon, const char* text, ImGuiID selectableId, bool* isSelected)
+        constexpr u32 g_DirectoryColor = 0xFF7CC9E6; // Yellow
+
+        constexpr u32 g_Colors[5] = {
+            0xFF8DAAFC,
+            0xFF83CDFC,
+            0xFFDCEEFE,
+            0xFFF5BEB7,
+            0xFFA9F9DC,
+        };
+
+        bool big_icon_button(ImFont* bigIcons,
+            ImU32 iconColor,
+            const char* icon,
+            const char* text,
+            ImGuiID selectableId,
+            bool* isSelected)
         {
             bool pressed = false;
 
@@ -98,6 +113,7 @@ namespace oblo::editor
                 ImGui::PushClipRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), true);
 
                 ImGui::PushFont(bigIcons);
+                ImGui::PushStyleColor(ImGuiCol_Text, iconColor);
 
                 const f32 textWidth = ImGui::CalcTextSize(icon).x;
 
@@ -107,7 +123,7 @@ namespace oblo::editor
                 ImGui::SetCursorPosX(textPosition);
                 ImGui::TextUnformatted(icon);
 
-                // bool pressed = ImGui::Button(icon);
+                ImGui::PopStyleColor();
                 ImGui::PopFont();
 
                 ImGui::TextUnformatted(text);
@@ -502,6 +518,7 @@ namespace oblo::editor
                 ImGui::TableNextColumn();
 
                 if (bool isSelected = false; big_icon_button(bigIconsFont,
+                        g_DirectoryColor,
                         ICON_FA_CIRCLE_CHEVRON_UP,
                         "Back",
                         ImGui::GetID("##back"),
@@ -537,6 +554,7 @@ namespace oblo::editor
                         builder.clear().format("##{}", entry.path);
 
                         if (bool isSelected = false; big_icon_button(bigIconsFont,
+                                g_DirectoryColor,
                                 ICON_FA_FOLDER,
                                 entry.name.c_str(),
                                 ImGui::GetID(builder.c_str()),
@@ -553,7 +571,14 @@ namespace oblo::editor
 
                         builder.clear().format("##{}", entry.path);
 
+                        const auto typeHash = hash_all<hash>(meta.nativeAssetType, meta.typeHint);
+                        const auto colorId = typeHash % array_size(g_Colors);
+                        const auto color = g_Colors[colorId];
+                        // const auto color = 0xFFFFA07A;
+                        // const auto color = g_Colors[10];
+
                         if (bool isSelected = false; big_icon_button(bigIconsFont,
+                                color,
                                 ICON_FA_FILE,
                                 entry.name.c_str(),
                                 ImGui::GetID(builder.c_str()),
