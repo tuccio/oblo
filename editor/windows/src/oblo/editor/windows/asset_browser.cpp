@@ -24,6 +24,9 @@
 #include <oblo/properties/serialization/data_document.hpp>
 
 #include <imgui.h>
+#include <imgui_internal.h>
+
+#include <IconsFontAwesome6.h>
 
 #include <filesystem>
 #include <unordered_map>
@@ -57,6 +60,7 @@ namespace oblo::editor
         struct asset_browser_directory
         {
             deque<asset_browser_entry> entries;
+            bool isRoot;
         };
 
         struct create_menu_item
@@ -64,6 +68,70 @@ namespace oblo::editor
             cstring_view name;
             asset_create_fn create{};
         };
+
+        bool big_icon_button(
+            ImFont* bigIcons, const char* icon, const char* text, ImGuiID selectableId, bool* isSelected)
+        {
+            bool pressed = false;
+
+            const auto cursorPosition = ImGui::GetCursorPos();
+
+            const f32 fontSize = bigIcons->FontSize;
+            // const auto selectableSize = ImGui::GetContentRegionAvail();
+            const auto selectableSize =
+                ImVec2(ImGui::GetContentRegionAvail().x, fontSize + ImGui::GetTextLineHeightWithSpacing());
+
+            ImGui::PushID(selectableId);
+
+            ImGui::BeginGroup();
+
+            pressed = ImGui::Selectable("##select",
+                isSelected,
+                ImGuiSelectableFlags_AllowOverlap | ImGuiSelectableFlags_AllowDoubleClick,
+                selectableSize);
+
+            const auto selectableItem = ImGui::GetCurrentContext()->LastItemData;
+
+            ImGui::SetCursorPos(cursorPosition);
+
+            {
+                ImGui::PushClipRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), true);
+
+                ImGui::PushFont(bigIcons);
+
+                const f32 textWidth = ImGui::CalcTextSize(icon).x;
+
+                const auto textPosition = cursorPosition.x + (selectableSize.x - textWidth) * .5f;
+
+                // Align the icon to the center of the button
+                ImGui::SetCursorPosX(textPosition);
+                ImGui::TextUnformatted(icon);
+
+                // bool pressed = ImGui::Button(icon);
+                ImGui::PopFont();
+
+                ImGui::TextUnformatted(text);
+
+                ImGui::SameLine();
+
+                ImGui::PopClipRect();
+            }
+
+            ImGui::SetCursorPos(cursorPosition);
+
+            ImGui::EndGroup();
+
+            ImGui::SetLastItemData(selectableItem.ID,
+                selectableItem.InFlags,
+                selectableItem.StatusFlags,
+                selectableItem.Rect);
+
+            ImGui::PopID();
+
+            pressed = pressed && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
+
+            return pressed;
+        }
     }
 
     struct asset_browser::impl
@@ -72,7 +140,6 @@ namespace oblo::editor
         string_builder path;
         string_builder current;
         uuid expandedAsset{};
-        dynamic_array<string> breadcrumbs;
         deque<create_menu_item> createMenu;
 
         filesystem::directory_watcher assetDirWatcher;
@@ -82,11 +149,13 @@ namespace oblo::editor
         std::unordered_map<string_builder, asset_browser_directory, hash<string_builder>> assetBrowserEntries;
         deque<directory_tree_entry> directoryTree;
 
+        ImFont* bigIconsFont{};
+
         u64 lastVersionId;
 
         void populate_asset_editors();
         void draw_popup_menu();
-        void reset_path();
+        void reset_path(cstring_view path);
 
         void build_directory_tree();
         asset_browser_directory& get_or_build(const string_builder& p);
@@ -119,6 +188,10 @@ namespace oblo::editor
         {
             log::debug("Asset browser failed to start watch on '{}'", m_impl->path);
         }
+
+        auto& fonts = ImGui::GetIO().Fonts;
+
+        m_impl->bigIconsFont = fonts->Fonts.back();
     }
 
     bool asset_browser::update(const window_update_context& ctx)
@@ -167,12 +240,6 @@ namespace oblo::editor
         return open;
     }
 
-    void asset_browser::impl::reset_path()
-    {
-        current = path;
-        breadcrumbs.clear();
-    }
-
     void asset_browser::impl::build_directory_tree()
     {
         directoryTree.clear();
@@ -219,12 +286,19 @@ namespace oblo::editor
     {
         std::error_code ec;
 
+        // TODO: if it's not in the asset directory, maybe reutrn the root
+
         const auto [it, isNew] = assetBrowserEntries.emplace(assetDir, asset_browser_directory{});
         auto& abDir = it->second;
 
         if (!isNew)
         {
             return abDir;
+        }
+
+        if (assetDir == path)
+        {
+            abDir.isRoot = true;
         }
 
         dynamic_array<uuid> artifacts;
@@ -382,91 +456,176 @@ namespace oblo::editor
 
         draw_popup_menu();
 
+        string_builder builder;
+
         const asset_browser_directory& dir = get_or_build(current);
 
-        for (auto&& entry : dir.entries)
+        const f32 entryWidth = bigIconsFont->FontSize + 4.f * ImGui::GetStyle().ItemSpacing.x;
+
+        u32 columns = max(u32(ImGui::GetContentRegionAvail().x / entryWidth), 1u);
+
+        if (ImGui::BeginTable("#grid", columns, ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders))
         {
-            switch (entry.kind)
+            for (u32 i = 0; i < columns; ++i)
             {
-            case asset_browser_entry_kind::directory:
-                if (ImGui::Button(entry.name.c_str()))
+                builder.format("##col{}", i);
+                ImGui::TableSetupColumn(builder.c_str());
+            }
+
+            usize entryIndex{};
+
+            u32 currentColumnIndex = 0;
+
+            if (!dir.isRoot)
+            {
+                ImGui::TableNextRow();
+
+                ImGui::TableNextColumn();
+
+                if (bool isSelected = false; big_icon_button(bigIconsFont,
+                        ICON_FA_CIRCLE_CHEVRON_UP,
+                        "Back",
+                        ImGui::GetID("##back"),
+                        &isSelected))
                 {
-                    current.clear().append(entry.path).make_canonical_path();
-                    breadcrumbs.emplace_back(entry.name.as<string>());
+                    current.append_path("..").make_canonical_path();
                 }
 
-                break;
-            case asset_browser_entry_kind::asset: {
-                const asset_meta& meta = entry.meta;
+                currentColumnIndex = 1;
+            }
 
-                ImGui::PushID(int(hash_all<std::hash>(meta.assetId)));
-
-                if (ImGui::Button(entry.name.c_str()))
+            while (entryIndex < dir.entries.size())
+            {
+                if (currentColumnIndex == 0)
                 {
-                    if (const auto it = editorsLookup.find(meta.nativeAssetType); it != editorsLookup.end())
+                    ImGui::TableNextRow();
+                }
+
+                for (; currentColumnIndex < columns; ++currentColumnIndex)
+                {
+                    ImGui::TableNextColumn();
+
+                    if (entryIndex >= dir.entries.size())
                     {
-                        const asset_editor_create_fn createWindow = it->second;
-                        createWindow(ctx.windowManager, ctx.windowManager.get_parent(ctx.windowHandle), meta.assetId);
+                        break;
                     }
-                    else
-                    {
-                        expandedAsset = expandedAsset == meta.assetId ? uuid{} : meta.assetId;
-                    }
-                }
-                else if (!meta.mainArtifactHint.is_nil() && ImGui::BeginDragDropSource())
-                {
-                    const auto payload = payloads::pack_uuid(meta.mainArtifactHint);
-                    ImGui::SetDragDropPayload(payloads::Resource, &payload, sizeof(drag_and_drop_payload));
-                    ImGui::EndDragDropSource();
-                }
 
-                if (ImGui::BeginPopupContextItem("##assetctx"))
-                {
-                    if (ImGui::MenuItem("Reimport"))
+                    auto& entry = dir.entries[entryIndex];
+
+                    switch (entry.kind)
                     {
-                        if (!registry->process(meta.assetId))
+                    case asset_browser_entry_kind::directory:
+                        builder.clear().format("##{}", entry.path);
+
+                        if (bool isSelected = false; big_icon_button(bigIconsFont,
+                                ICON_FA_FOLDER,
+                                entry.name.c_str(),
+                                ImGui::GetID(builder.c_str()),
+                                &isSelected))
                         {
-                            log::error("Failed to reimport {}", meta.assetId);
+                            current.clear().append(entry.path).make_canonical_path();
                         }
-                    }
 
-                    if (ImGui::MenuItem("Open Source in Explorer"))
-                    {
-                        string_builder sourcePath;
-                        if (registry->get_source_directory(meta.assetId, sourcePath))
+                        break;
+                    case asset_browser_entry_kind::asset: {
+                        const asset_meta& meta = entry.meta;
+
+                        ImGui::PushID(int(hash_all<std::hash>(meta.assetId)));
+
+                        builder.clear().format("##{}", entry.path);
+
+                        if (bool isSelected = false; big_icon_button(bigIconsFont,
+                                ICON_FA_FILE,
+                                entry.name.c_str(),
+                                ImGui::GetID(builder.c_str()),
+                                &isSelected))
                         {
-                            platform::open_folder(sourcePath.view());
+                            if (const auto it = editorsLookup.find(meta.nativeAssetType); it != editorsLookup.end())
+                            {
+                                const asset_editor_create_fn createWindow = it->second;
+                                createWindow(ctx.windowManager,
+                                    ctx.windowManager.get_parent(ctx.windowHandle),
+                                    meta.assetId);
+                            }
+                            else
+                            {
+                                // expandedAsset = expandedAsset == meta.assetId ? uuid{} : meta.assetId;
+                            }
                         }
-                    }
+                        else if (!meta.mainArtifactHint.is_nil() && ImGui::BeginDragDropSource())
+                        {
+                            const auto payload = payloads::pack_uuid(meta.mainArtifactHint);
+                            ImGui::SetDragDropPayload(payloads::Resource, &payload, sizeof(drag_and_drop_payload));
+                            ImGui::EndDragDropSource();
+                        }
 
-                    ImGui::EndPopup();
-                }
+                        if (ImGui::BeginPopupContextItem("##assetctx"))
+                        {
+                            if (ImGui::MenuItem("Reimport"))
+                            {
+                                if (!registry->process(meta.assetId))
+                                {
+                                    log::error("Failed to reimport {}", meta.assetId);
+                                }
+                            }
 
-                ImGui::PopID();
+                            if (ImGui::MenuItem("Open Source in Explorer"))
+                            {
+                                string_builder sourcePath;
+                                if (registry->get_source_directory(meta.assetId, sourcePath))
+                                {
+                                    platform::open_folder(sourcePath.view());
+                                }
+                            }
 
-                if (expandedAsset == meta.assetId)
-                {
-                    for (const auto& artifactMeta : entry.artifacts)
-                    {
-                        ImGui::PushID(int(hash_all<std::hash>(artifactMeta.artifactId)));
-
-                        ImGui::Button(artifactMeta.name.empty() ? "Unnamed Artifact" : artifactMeta.name.c_str());
+                            ImGui::EndPopup();
+                        }
 
                         ImGui::PopID();
 
-                        if (ImGui::BeginDragDropSource())
+                        if (expandedAsset == meta.assetId)
                         {
-                            const auto payload = payloads::pack_uuid(artifactMeta.artifactId);
+                            for (const auto& artifactMeta : entry.artifacts)
+                            {
+                                ImGui::PushID(int(hash_all<std::hash>(artifactMeta.artifactId)));
 
-                            ImGui::SetDragDropPayload(payloads::Resource, &payload, sizeof(drag_and_drop_payload));
+                                ImGui::Button(
+                                    artifactMeta.name.empty() ? "Unnamed Artifact" : artifactMeta.name.c_str());
 
-                            ImGui::EndDragDropSource();
+                                ImGui::PopID();
+
+                                if (ImGui::BeginDragDropSource())
+                                {
+                                    const auto payload = payloads::pack_uuid(artifactMeta.artifactId);
+
+                                    ImGui::SetDragDropPayload(payloads::Resource,
+                                        &payload,
+                                        sizeof(drag_and_drop_payload));
+
+                                    ImGui::EndDragDropSource();
+                                }
+                            }
                         }
                     }
+                    break;
+                    }
+
+                    ++entryIndex;
                 }
+
+                currentColumnIndex = currentColumnIndex % columns;
             }
-            break;
-            }
+
+            // Finish the last row
+            // for (; currentColumnIndex < columns; ++currentColumnIndex)
+            //{
+            //    ImGui::Dummy({});
+            //    ImGui::TableNextColumn();
+            //}
+
+            //    ImGui::TableNextRow();
+
+            ImGui::EndTable();
         }
 
         ImGui::EndChild();
