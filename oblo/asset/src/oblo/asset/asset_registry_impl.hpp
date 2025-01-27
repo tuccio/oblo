@@ -59,6 +59,8 @@ namespace oblo
 
         unique_ptr<artifact_resource_provider> resourceProvider;
 
+        u64 versionId{};
+
     public:
         string_builder& make_asset_path(string_builder& out, string_view directory) const;
         string_builder& make_artifact_path(string_builder& out, uuid artifactId) const;

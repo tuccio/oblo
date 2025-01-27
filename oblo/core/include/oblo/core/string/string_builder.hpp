@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/buffered_array.hpp>
+#include <oblo/core/hash.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/format.hpp>
 #include <oblo/core/string/string_view.hpp>
@@ -244,6 +245,8 @@ namespace oblo
         m_buffer.resize_default(size);
         ensure_null_termination();
     }
+
+    hash_type hash_value(const string_builder& sb);
 }
 
 template <>

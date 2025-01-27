@@ -85,6 +85,8 @@ namespace oblo
         bool find_asset_by_path(cstring_view path, uuid& id, asset_meta& assetMeta) const;
         bool find_asset_by_meta_path(cstring_view path, uuid& id, asset_meta& assetMeta) const;
 
+        bool find_artifact_by_id(const uuid& id, artifact_meta& artifactMeta) const;
+
         bool find_asset_artifacts(const uuid& id, dynamic_array<uuid>& artifacts) const;
 
         bool load_artifact_meta(const uuid& artifactId, artifact_meta& artifact) const;
@@ -99,9 +101,7 @@ namespace oblo
 
         u32 get_ongoing_process_count() const;
 
-    public:
-        static bool find_artifact_resource(
-            const uuid& id, uuid& outType, string& outName, string& outPath, const void* userdata);
+        u64 get_version_id() const;
 
     private:
         unique_ptr<asset_registry_impl> m_impl;

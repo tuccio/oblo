@@ -141,7 +141,7 @@ namespace oblo::editor
                 switch (v.picking.state)
                 {
                 case picking_request::state::none:
-                    if (hasFocus && !gizmoActive && ImGui::IsItemClicked())
+                    if (!gizmoActive && ImGui::IsItemClicked())
                     {
                         const auto [viewportX, viewportY] = ImGui::GetItemRectMin();
                         const auto [mouseX, mouseY] = ImGui::GetMousePos();
@@ -202,6 +202,11 @@ namespace oblo::editor
                             {
                                 m_gizmoHandler.set_operation(gizmo_handler::operation::scale);
                             }
+                        }
+
+                        if (ImGui::IsKeyPressed(ImGuiKey_Escape))
+                        {
+                            m_selection->clear();
                         }
                     }
 

@@ -540,8 +540,10 @@ namespace oblo
 
         if (resourceProvider)
         {
-            resourceProvider->push_added_artifact(meta.artifactId);
+            resourceProvider->push_added_artifact(it->first);
         }
+
+        ++versionId;
     }
 
     void asset_registry_impl::on_artifact_removed(uuid artifactId)
@@ -553,6 +555,8 @@ namespace oblo
         {
             resourceProvider->push_removed_artifact(artifactId);
         }
+
+        ++versionId;
     }
 
     expected<uuid> asset_registry::create_asset(const any_asset& asset, cstring_view destination, cstring_view name)
@@ -689,6 +693,19 @@ namespace oblo
         return find_asset_by_id(id, assetMeta);
     }
 
+    bool asset_registry::find_artifact_by_id(const uuid& id, artifact_meta& artifactMeta) const
+    {
+        const auto it = m_impl->artifactsMap.find(id);
+        const bool r = it != m_impl->artifactsMap.end();
+
+        if (r)
+        {
+            artifactMeta = it->second.meta;
+        }
+
+        return r;
+    }
+
     bool asset_registry::find_asset_artifacts(const uuid& id, dynamic_array<uuid>& artifacts) const
     {
         const auto it = m_impl->assets.find(id);
@@ -771,37 +788,9 @@ namespace oblo
         return m_impl->currentImports.size32();
     }
 
-    bool asset_registry::find_artifact_resource(
-        const uuid& id, uuid& outType, string& outName, string& outPath, const void* userdata)
+    u64 asset_registry::get_version_id() const
     {
-        char uuidBuffer[36];
-
-        auto* const self = static_cast<const asset_registry*>(userdata);
-        const auto& artifactsDir = self->m_impl->artifactsDir;
-
-        string_builder resourceFile;
-        resourceFile.append(artifactsDir).append_path(id.format_to(uuidBuffer));
-
-        if (!filesystem::exists(resourceFile).value_or(false))
-        {
-            return false;
-        }
-
-        auto resourceMeta = resourceFile;
-        resourceMeta.append(g_artifactMetaExtension);
-
-        artifact_meta meta;
-
-        if (!oblo::load_artifact_meta(resourceMeta, meta))
-        {
-            return false;
-        }
-
-        outType = meta.type;
-        outPath = resourceFile.as<string>();
-        outName = std::move(meta.name);
-
-        return true;
+        return m_impl->versionId;
     }
 
     void asset_registry::discover_assets()

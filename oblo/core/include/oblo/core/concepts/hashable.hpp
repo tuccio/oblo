@@ -2,6 +2,7 @@
 
 #include <oblo/core/types.hpp>
 
+#include <concepts>
 #include <type_traits>
 
 namespace oblo
@@ -13,4 +14,9 @@ namespace oblo
 
     template <typename T>
     concept hashable = requires(T v, hash_type h) { h = hash<T>{}(v); };
+
+    template <typename T>
+    concept has_hash_value = requires(T v) {
+        { hash_value(v) } -> std::same_as<hash_type>;
+    };
 }

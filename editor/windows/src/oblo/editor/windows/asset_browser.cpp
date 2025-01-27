@@ -5,6 +5,7 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/core/deque.hpp>
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/filesystem/directory_watcher.hpp>
 #include <oblo/core/formatters/uuid_formatter.hpp>
 #include <oblo/core/platform/shell.hpp>
 #include <oblo/core/service_registry.hpp>
@@ -30,6 +31,26 @@ namespace oblo::editor
 {
     namespace
     {
+        enum class asset_browser_entry_kind : u8
+        {
+            asset,
+            directory,
+        };
+
+        struct asset_browser_entry
+        {
+            asset_browser_entry_kind kind;
+            asset_meta meta;
+            deque<artifact_meta> artifacts;
+            string_builder path;
+            string_builder name;
+        };
+
+        struct asset_browser_directory
+        {
+            deque<asset_browser_entry> entries;
+        };
+
         struct create_menu_item
         {
             cstring_view name;
@@ -45,11 +66,18 @@ namespace oblo::editor
         uuid expandedAsset{};
         dynamic_array<string> breadcrumbs;
         deque<create_menu_item> createMenu;
+
+        filesystem::directory_watcher assetDirWatcher;
+
+        std::unordered_map<string_builder, asset_browser_directory, hash<string_builder>> assetBrowserEntries;
         std::unordered_map<uuid, asset_editor_create_fn> editorsLookup;
+
+        u64 lastVersionId;
 
         void populate_asset_editors();
         void draw_popup_menu();
         void reset_path();
+        asset_browser_directory& get_or_build(const string_builder& p);
     };
 
     asset_browser::asset_browser() = default;
@@ -68,6 +96,14 @@ namespace oblo::editor
         m_impl->current = m_impl->path;
 
         m_impl->populate_asset_editors();
+
+        if (!m_impl->assetDirWatcher.init({
+                .path = m_impl->path.view(),
+                .isRecursive = true,
+            }))
+        {
+            log::debug("Asset browser failed to start watch on '{}'", m_impl->path);
+        }
     }
 
     bool asset_browser::update(const window_update_context& ctx)
@@ -76,6 +112,19 @@ namespace oblo::editor
 
         if (ImGui::Begin("Asset Browser", &open))
         {
+            bool requiresRefresh{};
+
+            if (!m_impl->assetDirWatcher.process([&](auto&&) { requiresRefresh = true; }))
+            {
+                log::debug("Asset browser watch processing on '{}' failed", m_impl->path);
+            }
+
+            if (const auto vId = m_impl->registry->get_version_id(); requiresRefresh || m_impl->lastVersionId != vId)
+            {
+                m_impl->assetBrowserEntries.clear();
+                m_impl->lastVersionId = vId;
+            }
+
             m_impl->draw_popup_menu();
 
             if (m_impl->current != m_impl->path)
@@ -95,128 +144,103 @@ namespace oblo::editor
 
             std::error_code ec;
 
-            string_builder directoryName;
+            const asset_browser_directory& dir = m_impl->get_or_build(m_impl->current);
 
-            for (auto&& entry : std::filesystem::directory_iterator{m_impl->current.as<std::string>(), ec})
+            for (auto&& entry : dir.entries)
             {
-                const auto& p = entry.path();
-                if (std::filesystem::is_directory(p))
+                switch (entry.kind)
                 {
-                    auto dir = p.filename();
-                    directoryName.clear().append(dir.native().c_str());
-
-                    if (ImGui::Button(directoryName.c_str()))
+                case asset_browser_entry_kind::directory:
+                    if (ImGui::Button(entry.name.c_str()))
                     {
-                        m_impl->current.clear().append(p.native().c_str()).make_canonical_path();
-                        m_impl->breadcrumbs.emplace_back(directoryName.as<string>());
+                        m_impl->current.clear().append(entry.path).make_canonical_path();
+                        m_impl->breadcrumbs.emplace_back(entry.name.as<string>());
                     }
-                }
-                else if (p.extension() == AssetMetaExtension.c_str())
-                {
-                    const auto file = p.filename();
-                    const auto& str = file.u8string();
 
-                    uuid assetId;
-                    asset_meta meta;
+                    break;
+                case asset_browser_entry_kind::asset: {
+                    const asset_meta& meta = entry.meta;
 
-                    string_builder assetPath;
-                    assetPath.append(p.native().c_str());
+                    ImGui::PushID(int(hash_all<std::hash>(meta.assetId)));
 
-                    if (m_impl->registry->find_asset_by_meta_path(assetPath, assetId, meta))
+                    if (ImGui::Button(entry.name.c_str()))
                     {
-                        ImGui::PushID(int(hash_all<std::hash>(assetId)));
-
-                        if (ImGui::Button(reinterpret_cast<const char*>(str.c_str())))
+                        if (const auto it = m_impl->editorsLookup.find(meta.typeHint);
+                            it != m_impl->editorsLookup.end())
                         {
-                            if (const auto it = m_impl->editorsLookup.find(meta.typeHint);
-                                it != m_impl->editorsLookup.end())
+                            const asset_editor_create_fn createWindow = it->second;
+                            createWindow(ctx.windowManager,
+                                ctx.windowManager.get_parent(ctx.windowHandle),
+                                meta.assetId);
+                        }
+                        else
+                        {
+                            m_impl->expandedAsset = m_impl->expandedAsset == meta.assetId ? uuid{} : meta.assetId;
+                        }
+                    }
+                    else if (!meta.mainArtifactHint.is_nil() && ImGui::BeginDragDropSource())
+                    {
+                        const auto payload = payloads::pack_uuid(meta.mainArtifactHint);
+                        ImGui::SetDragDropPayload(payloads::Resource, &payload, sizeof(drag_and_drop_payload));
+                        ImGui::EndDragDropSource();
+                    }
+
+                    if (ImGui::BeginPopupContextItem("##assetctx"))
+                    {
+                        if (ImGui::MenuItem("Reimport"))
+                        {
+                            if (!m_impl->registry->process(meta.assetId))
                             {
-                                const asset_editor_create_fn createWindow = it->second;
-                                createWindow(ctx.windowManager,
-                                    ctx.windowManager.get_parent(ctx.windowHandle),
-                                    assetId);
-                            }
-                            else
-                            {
-                                m_impl->expandedAsset == meta.assetId ? oblo::uuid{} : meta.assetId;
+                                log::error("Failed to reimport {}", meta.assetId);
                             }
                         }
-                        else if (!meta.mainArtifactHint.is_nil() && ImGui::BeginDragDropSource())
+
+                        if (ImGui::MenuItem("Open Source in Explorer"))
                         {
-                            const auto payload = payloads::pack_uuid(meta.mainArtifactHint);
-                            ImGui::SetDragDropPayload(payloads::Resource, &payload, sizeof(drag_and_drop_payload));
-                            ImGui::EndDragDropSource();
+                            string_builder sourcePath;
+                            if (m_impl->registry->get_source_directory(meta.assetId, sourcePath))
+                            {
+                                platform::open_folder(sourcePath.view());
+                            }
                         }
 
-                        if (ImGui::BeginPopupContextItem("##assetctx"))
+                        ImGui::EndPopup();
+                    }
+
+                    ImGui::PopID();
+
+                    if (m_impl->expandedAsset == meta.assetId)
+                    {
+                        for (const auto& artifactMeta : entry.artifacts)
                         {
-                            if (ImGui::MenuItem("Reimport"))
+                            ImGui::PushID(int(hash_all<std::hash>(artifactMeta.artifactId)));
+
+                            ImGui::Button(artifactMeta.name.empty() ? "Unnamed Artifact" : artifactMeta.name.c_str());
+
+                            ImGui::PopID();
+
+                            if (ImGui::BeginDragDropSource())
                             {
-                                if (!m_impl->registry->process(assetId))
-                                {
-                                    log::error("Failed to reimport {}", assetId);
-                                }
-                            }
+                                const auto payload = payloads::pack_uuid(artifactMeta.artifactId);
 
-                            if (ImGui::MenuItem("Open Source in Explorer"))
-                            {
-                                string_builder sourcePath;
-                                if (m_impl->registry->get_source_directory(assetId, sourcePath))
-                                {
-                                    platform::open_folder(sourcePath.view());
-                                }
-                            }
+                                ImGui::SetDragDropPayload(payloads::Resource, &payload, sizeof(drag_and_drop_payload));
 
-                            ImGui::EndPopup();
-                        }
-
-                        ImGui::PopID();
-
-                        if (m_impl->expandedAsset == meta.assetId)
-                        {
-                            dynamic_array<oblo::uuid> artifacts;
-
-                            if (m_impl->registry->find_asset_artifacts(meta.assetId, artifacts))
-                            {
-                                for (const auto& artifact : artifacts)
-                                {
-                                    artifact_meta artifactMeta;
-
-                                    if (m_impl->registry->load_artifact_meta(artifact, artifactMeta))
-                                    {
-                                        ImGui::PushID(int(hash_all<std::hash>(artifact)));
-
-                                        ImGui::Button(artifactMeta.name.empty()
-                                                ? "Unnamed Artifact"
-                                                : artifactMeta.name.c_str());
-
-                                        ImGui::PopID();
-
-                                        if (ImGui::BeginDragDropSource())
-                                        {
-                                            const auto payload = payloads::pack_uuid(artifact);
-
-                                            ImGui::SetDragDropPayload(payloads::Resource,
-                                                &payload,
-                                                sizeof(drag_and_drop_payload));
-
-                                            ImGui::EndDragDropSource();
-                                        }
-                                    }
-                                }
+                                ImGui::EndDragDropSource();
                             }
                         }
                     }
                 }
-            }
+                break;
+                }
 
-            if (ec)
-            {
-                m_impl->reset_path();
+                if (ec)
+                {
+                    m_impl->reset_path();
+                }
             }
-
-            ImGui::End();
         }
+
+        ImGui::End();
 
         return open;
     }
@@ -225,6 +249,70 @@ namespace oblo::editor
     {
         current = path;
         breadcrumbs.clear();
+    }
+
+    asset_browser_directory& asset_browser::impl::get_or_build(const string_builder& assetDir)
+    {
+        std::error_code ec;
+
+        const auto [it, isNew] = assetBrowserEntries.emplace(assetDir, asset_browser_directory{});
+        auto& abDir = it->second;
+
+        if (!isNew)
+        {
+            return abDir;
+        }
+
+        dynamic_array<uuid> artifacts;
+        artifacts.reserve(128);
+
+        for (auto&& fsEntry : std::filesystem::directory_iterator{assetDir.as<std::string>(), ec})
+        {
+            const auto& p = fsEntry.path();
+
+            if (std::filesystem::is_directory(p))
+            {
+                auto name = p.filename();
+
+                auto& e = abDir.entries.emplace_back();
+                e.kind = asset_browser_entry_kind::directory;
+                e.path.append(p.native().c_str());
+                e.name.append(name.native().c_str());
+            }
+            else if (p.extension() == AssetMetaExtension.c_str())
+            {
+                auto name = p.filename();
+
+                auto& e = abDir.entries.emplace_back();
+                e.kind = asset_browser_entry_kind::asset;
+                e.path.append(p.native().c_str());
+                e.name.append(name.native().c_str());
+
+                uuid assetId;
+
+                if (!registry->find_asset_by_meta_path(e.path, assetId, e.meta))
+                {
+                    OBLO_ASSERT(false);
+                    abDir.entries.pop_back();
+                    continue;
+                }
+
+                if (registry->find_asset_artifacts(e.meta.assetId, artifacts))
+                {
+                    for (const auto& artifactId : artifacts)
+                    {
+                        auto& artifactEntry = e.artifacts.emplace_back();
+
+                        if (!registry->find_artifact_by_id(artifactId, artifactEntry))
+                        {
+                            e.artifacts.pop_back();
+                        }
+                    }
+                }
+            }
+        }
+
+        return abDir;
     }
 
     void asset_browser::impl::populate_asset_editors()

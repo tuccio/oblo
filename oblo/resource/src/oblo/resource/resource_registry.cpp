@@ -61,7 +61,6 @@ namespace oblo
         if (it != m_resources.end())
         {
             r = it->second.handle;
-            r.load_start_async();
         }
 
         return r;
