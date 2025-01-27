@@ -20,6 +20,7 @@
 #include <oblo/scene/editor/material_editor.hpp>
 #include <oblo/scene/resources/material.hpp>
 #include <oblo/scene/resources/pbr_properties.hpp>
+#include <oblo/scene/resources/traits.hpp>
 
 namespace oblo
 {
@@ -28,8 +29,8 @@ namespace oblo
         class copy_importer final : public file_importer
         {
         public:
-            explicit copy_importer(uuid typeUuid, string artifactName) :
-                m_typeUuid{typeUuid}, m_artifactName{artifactName}
+            explicit copy_importer(uuid artifactType, string artifactName) :
+                m_artifactType{artifactType}, m_artifactName{artifactName}
             {
             }
 
@@ -38,7 +39,7 @@ namespace oblo
                 m_source = config.sourceFile;
 
                 auto& n = preview.nodes.emplace_back();
-                n.artifactType = m_typeUuid;
+                n.artifactType = m_artifactType;
                 n.name = m_artifactName;
 
                 return true;
@@ -62,7 +63,7 @@ namespace oblo
                 m_artifact.id = nodeConfig.id;
                 m_artifact.name = m_artifactName;
                 m_artifact.path = destination.as<string>();
-                m_artifact.type = m_typeUuid;
+                m_artifact.type = m_artifactType;
 
                 return filesystem::copy_file(m_source, destination).value_or(false);
             }
@@ -77,7 +78,7 @@ namespace oblo
             }
 
         private:
-            uuid m_typeUuid;
+            uuid m_artifactType;
             string m_artifactName;
             import_artifact m_artifact;
             string m_source;
@@ -110,7 +111,7 @@ namespace oblo
                         return m->save(destination);
                     },
                     .createImporter = []() -> unique_ptr<file_importer>
-                    { return allocate_unique<copy_importer>(asset_type<material>, "material"); },
+                    { return allocate_unique<copy_importer>(resource_type<material>, "material"); },
                 });
             }
         };

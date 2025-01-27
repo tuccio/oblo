@@ -165,7 +165,7 @@ namespace oblo::editor
 
                     if (ImGui::Button(entry.name.c_str()))
                     {
-                        if (const auto it = m_impl->editorsLookup.find(meta.typeHint);
+                        if (const auto it = m_impl->editorsLookup.find(meta.nativeAssetType);
                             it != m_impl->editorsLookup.end())
                         {
                             const asset_editor_create_fn createWindow = it->second;
