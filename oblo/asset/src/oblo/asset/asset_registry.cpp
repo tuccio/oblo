@@ -823,6 +823,11 @@ namespace oblo
         {
             const auto& p = entry.path();
 
+            if (!is_regular_file(p))
+            {
+                continue;
+            }
+
             asset_meta meta{};
 
             if (load_asset_meta(meta, p))

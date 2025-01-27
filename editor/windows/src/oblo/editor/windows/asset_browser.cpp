@@ -6,6 +6,7 @@
 #include <oblo/core/deque.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/filesystem/directory_watcher.hpp>
+#include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/formatters/uuid_formatter.hpp>
 #include <oblo/core/platform/shell.hpp>
 #include <oblo/core/service_registry.hpp>
@@ -33,8 +34,8 @@ namespace oblo::editor
     {
         enum class asset_browser_entry_kind : u8
         {
-            asset,
             directory,
+            asset,
         };
 
         struct asset_browser_entry
@@ -44,6 +45,13 @@ namespace oblo::editor
             deque<artifact_meta> artifacts;
             string_builder path;
             string_builder name;
+        };
+
+        struct directory_tree_entry
+        {
+            string_builder path;
+            u32 firstChild{};
+            u32 lastChild{};
         };
 
         struct asset_browser_directory
@@ -69,15 +77,22 @@ namespace oblo::editor
 
         filesystem::directory_watcher assetDirWatcher;
 
-        std::unordered_map<string_builder, asset_browser_directory, hash<string_builder>> assetBrowserEntries;
         std::unordered_map<uuid, asset_editor_create_fn> editorsLookup;
+
+        std::unordered_map<string_builder, asset_browser_directory, hash<string_builder>> assetBrowserEntries;
+        deque<directory_tree_entry> directoryTree;
 
         u64 lastVersionId;
 
         void populate_asset_editors();
         void draw_popup_menu();
         void reset_path();
+
+        void build_directory_tree();
         asset_browser_directory& get_or_build(const string_builder& p);
+
+        void draw_directory_tree_panel();
+        void draw_main_panel(const window_update_context& ctx);
     };
 
     asset_browser::asset_browser() = default;
@@ -110,13 +125,26 @@ namespace oblo::editor
     {
         bool open{true};
 
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+
+        i32 varsToPop = 1;
+
         if (ImGui::Begin("Asset Browser", &open))
         {
+            ImGui::PopStyleVar(varsToPop);
+
+            --varsToPop;
+
             bool requiresRefresh{};
 
             if (!m_impl->assetDirWatcher.process([&](auto&&) { requiresRefresh = true; }))
             {
                 log::debug("Asset browser watch processing on '{}' failed", m_impl->path);
+            }
+
+            if (m_impl->directoryTree.empty() || requiresRefresh)
+            {
+                m_impl->build_directory_tree();
             }
 
             if (const auto vId = m_impl->registry->get_version_id(); requiresRefresh || m_impl->lastVersionId != vId)
@@ -125,122 +153,16 @@ namespace oblo::editor
                 m_impl->lastVersionId = vId;
             }
 
-            m_impl->draw_popup_menu();
+            m_impl->draw_directory_tree_panel();
 
-            if (m_impl->current != m_impl->path)
-            {
-                if (ImGui::Button(".."))
-                {
-                    std::error_code ec;
-                    m_impl->current.append_path("..").make_canonical_path();
-                    m_impl->breadcrumbs.pop_back();
+            ImGui::SameLine();
 
-                    if (ec)
-                    {
-                        m_impl->reset_path();
-                    }
-                }
-            }
-
-            std::error_code ec;
-
-            const asset_browser_directory& dir = m_impl->get_or_build(m_impl->current);
-
-            for (auto&& entry : dir.entries)
-            {
-                switch (entry.kind)
-                {
-                case asset_browser_entry_kind::directory:
-                    if (ImGui::Button(entry.name.c_str()))
-                    {
-                        m_impl->current.clear().append(entry.path).make_canonical_path();
-                        m_impl->breadcrumbs.emplace_back(entry.name.as<string>());
-                    }
-
-                    break;
-                case asset_browser_entry_kind::asset: {
-                    const asset_meta& meta = entry.meta;
-
-                    ImGui::PushID(int(hash_all<std::hash>(meta.assetId)));
-
-                    if (ImGui::Button(entry.name.c_str()))
-                    {
-                        if (const auto it = m_impl->editorsLookup.find(meta.nativeAssetType);
-                            it != m_impl->editorsLookup.end())
-                        {
-                            const asset_editor_create_fn createWindow = it->second;
-                            createWindow(ctx.windowManager,
-                                ctx.windowManager.get_parent(ctx.windowHandle),
-                                meta.assetId);
-                        }
-                        else
-                        {
-                            m_impl->expandedAsset = m_impl->expandedAsset == meta.assetId ? uuid{} : meta.assetId;
-                        }
-                    }
-                    else if (!meta.mainArtifactHint.is_nil() && ImGui::BeginDragDropSource())
-                    {
-                        const auto payload = payloads::pack_uuid(meta.mainArtifactHint);
-                        ImGui::SetDragDropPayload(payloads::Resource, &payload, sizeof(drag_and_drop_payload));
-                        ImGui::EndDragDropSource();
-                    }
-
-                    if (ImGui::BeginPopupContextItem("##assetctx"))
-                    {
-                        if (ImGui::MenuItem("Reimport"))
-                        {
-                            if (!m_impl->registry->process(meta.assetId))
-                            {
-                                log::error("Failed to reimport {}", meta.assetId);
-                            }
-                        }
-
-                        if (ImGui::MenuItem("Open Source in Explorer"))
-                        {
-                            string_builder sourcePath;
-                            if (m_impl->registry->get_source_directory(meta.assetId, sourcePath))
-                            {
-                                platform::open_folder(sourcePath.view());
-                            }
-                        }
-
-                        ImGui::EndPopup();
-                    }
-
-                    ImGui::PopID();
-
-                    if (m_impl->expandedAsset == meta.assetId)
-                    {
-                        for (const auto& artifactMeta : entry.artifacts)
-                        {
-                            ImGui::PushID(int(hash_all<std::hash>(artifactMeta.artifactId)));
-
-                            ImGui::Button(artifactMeta.name.empty() ? "Unnamed Artifact" : artifactMeta.name.c_str());
-
-                            ImGui::PopID();
-
-                            if (ImGui::BeginDragDropSource())
-                            {
-                                const auto payload = payloads::pack_uuid(artifactMeta.artifactId);
-
-                                ImGui::SetDragDropPayload(payloads::Resource, &payload, sizeof(drag_and_drop_payload));
-
-                                ImGui::EndDragDropSource();
-                            }
-                        }
-                    }
-                }
-                break;
-                }
-
-                if (ec)
-                {
-                    m_impl->reset_path();
-                }
-            }
+            m_impl->draw_main_panel(ctx);
         }
 
         ImGui::End();
+
+        ImGui::PopStyleVar(varsToPop);
 
         return open;
     }
@@ -249,6 +171,48 @@ namespace oblo::editor
     {
         current = path;
         breadcrumbs.clear();
+    }
+
+    void asset_browser::impl::build_directory_tree()
+    {
+        directoryTree.clear();
+
+        std::error_code ec;
+
+        struct queue_item
+        {
+            std::filesystem::path path;
+            i64 parent{-1};
+        };
+
+        deque<queue_item> queue;
+        queue.emplace_back(path.as<std::string>(), -1);
+
+        while (!queue.empty())
+        {
+            auto& dir = queue.front();
+
+            const u32 entryIdx = directoryTree.size32();
+
+            auto& entry = directoryTree.emplace_back();
+            entry.path.append(dir.path.native().c_str());
+
+            entry.firstChild = directoryTree.size32() + queue.size32() - 1;
+
+            for (auto&& fsEntry : std::filesystem::directory_iterator{dir.path, ec})
+            {
+                const auto& p = fsEntry.path();
+
+                if (std::filesystem::is_directory(p))
+                {
+                    queue.emplace_back(p, entryIdx);
+                }
+            }
+
+            entry.lastChild = directoryTree.size32() + queue.size32() - 1;
+
+            queue.pop_front();
+        }
     }
 
     asset_browser_directory& asset_browser::impl::get_or_build(const string_builder& assetDir)
@@ -313,6 +277,160 @@ namespace oblo::editor
         }
 
         return abDir;
+    }
+
+    void asset_browser::impl::draw_directory_tree_panel()
+    {
+        if (!ImGui::BeginChild("#tree_panel", ImVec2{150, 0}))
+        {
+            ImGui::EndChild();
+            return;
+        }
+
+        string_builder b;
+
+        auto drawNode = [this, &b](auto&& recurse, usize index) -> void
+        {
+            const auto& e = directoryTree[index];
+
+            const auto dirName = filesystem::filename(e.path.view());
+            b.clear().format("{}##{}", dirName, e.path);
+
+            i32 nodeFlags = ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_OpenOnArrow |
+                (index == 0 ? ImGuiTreeNodeFlags_DefaultOpen : 0);
+
+            if (e.firstChild == e.lastChild)
+            {
+                nodeFlags |= ImGuiTreeNodeFlags_Leaf;
+            }
+
+            if (e.path == current)
+            {
+                nodeFlags |= ImGuiTreeNodeFlags_Selected;
+            }
+
+            const bool expanded = ImGui::TreeNodeEx(b.c_str(), nodeFlags);
+
+            if (ImGui::IsItemActivated())
+            {
+                current = e.path;
+            }
+
+            if (expanded)
+            {
+
+                for (u32 i = e.firstChild; i != e.lastChild; ++i)
+                {
+                    recurse(recurse, i);
+                }
+
+                ImGui::TreePop();
+            }
+        };
+
+        drawNode(drawNode, 0);
+
+        ImGui::EndChild();
+    }
+
+    void asset_browser::impl::draw_main_panel(const window_update_context& ctx)
+    {
+        if (!ImGui::BeginChild("#main_panel"))
+        {
+            ImGui::EndChild();
+            return;
+        }
+
+        draw_popup_menu();
+
+        const asset_browser_directory& dir = get_or_build(current);
+
+        for (auto&& entry : dir.entries)
+        {
+            switch (entry.kind)
+            {
+            case asset_browser_entry_kind::directory:
+                if (ImGui::Button(entry.name.c_str()))
+                {
+                    current.clear().append(entry.path).make_canonical_path();
+                    breadcrumbs.emplace_back(entry.name.as<string>());
+                }
+
+                break;
+            case asset_browser_entry_kind::asset: {
+                const asset_meta& meta = entry.meta;
+
+                ImGui::PushID(int(hash_all<std::hash>(meta.assetId)));
+
+                if (ImGui::Button(entry.name.c_str()))
+                {
+                    if (const auto it = editorsLookup.find(meta.nativeAssetType); it != editorsLookup.end())
+                    {
+                        const asset_editor_create_fn createWindow = it->second;
+                        createWindow(ctx.windowManager, ctx.windowManager.get_parent(ctx.windowHandle), meta.assetId);
+                    }
+                    else
+                    {
+                        expandedAsset = expandedAsset == meta.assetId ? uuid{} : meta.assetId;
+                    }
+                }
+                else if (!meta.mainArtifactHint.is_nil() && ImGui::BeginDragDropSource())
+                {
+                    const auto payload = payloads::pack_uuid(meta.mainArtifactHint);
+                    ImGui::SetDragDropPayload(payloads::Resource, &payload, sizeof(drag_and_drop_payload));
+                    ImGui::EndDragDropSource();
+                }
+
+                if (ImGui::BeginPopupContextItem("##assetctx"))
+                {
+                    if (ImGui::MenuItem("Reimport"))
+                    {
+                        if (!registry->process(meta.assetId))
+                        {
+                            log::error("Failed to reimport {}", meta.assetId);
+                        }
+                    }
+
+                    if (ImGui::MenuItem("Open Source in Explorer"))
+                    {
+                        string_builder sourcePath;
+                        if (registry->get_source_directory(meta.assetId, sourcePath))
+                        {
+                            platform::open_folder(sourcePath.view());
+                        }
+                    }
+
+                    ImGui::EndPopup();
+                }
+
+                ImGui::PopID();
+
+                if (expandedAsset == meta.assetId)
+                {
+                    for (const auto& artifactMeta : entry.artifacts)
+                    {
+                        ImGui::PushID(int(hash_all<std::hash>(artifactMeta.artifactId)));
+
+                        ImGui::Button(artifactMeta.name.empty() ? "Unnamed Artifact" : artifactMeta.name.c_str());
+
+                        ImGui::PopID();
+
+                        if (ImGui::BeginDragDropSource())
+                        {
+                            const auto payload = payloads::pack_uuid(artifactMeta.artifactId);
+
+                            ImGui::SetDragDropPayload(payloads::Resource, &payload, sizeof(drag_and_drop_payload));
+
+                            ImGui::EndDragDropSource();
+                        }
+                    }
+                }
+            }
+            break;
+            }
+        }
+
+        ImGui::EndChild();
     }
 
     void asset_browser::impl::populate_asset_editors()
