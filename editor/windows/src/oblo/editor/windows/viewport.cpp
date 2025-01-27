@@ -8,6 +8,7 @@
 #include <oblo/ecs/type_set.hpp>
 #include <oblo/editor/data/drag_and_drop_payload.hpp>
 #include <oblo/editor/service_context.hpp>
+#include <oblo/editor/services/incremental_id_pool.hpp>
 #include <oblo/editor/services/selected_entities.hpp>
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
@@ -33,16 +34,12 @@ namespace oblo::editor
 {
     namespace
     {
-        u32 s_viewportInstances{};
-
         constexpr f32 SpawnDistance{1.f};
     }
 
     viewport::~viewport()
     {
         on_close();
-
-        --s_viewportInstances;
     }
 
     void viewport::init(const window_update_context& ctx)
@@ -62,7 +59,9 @@ namespace oblo::editor
         m_timeStats = ctx.services.find<const time_stats>();
         OBLO_ASSERT(m_timeStats);
 
-        m_viewportId = s_viewportInstances++;
+        m_idPool = ctx.services.find<incremental_id_pool>();
+        OBLO_ASSERT(m_idPool);
+        m_viewportId = m_idPool->acquire<viewport>();
 
         auto* const reflection = ctx.services.find<const reflection::reflection_registry>();
         const auto viewportMode = reflection->find_enum<viewport_mode>();
@@ -118,8 +117,8 @@ namespace oblo::editor
 
             auto& v = m_entities->get<viewport_component>(m_entity);
 
-            v.width = u32(max(0.f, windowSize.x));
-            v.height = u32(max(0.f, windowSize.y));
+            v.width = u32(max(1.f, windowSize.x));
+            v.height = u32(max(1.f, windowSize.y));
 
             const auto topLeft = ImGui::GetCursorPos();
 
@@ -345,6 +344,12 @@ namespace oblo::editor
         {
             m_entities->destroy(m_entity);
             m_entity = {};
+        }
+
+        if (m_idPool)
+        {
+            m_idPool->release<viewport>(m_viewportId);
+            m_idPool = {};
         }
     }
 }

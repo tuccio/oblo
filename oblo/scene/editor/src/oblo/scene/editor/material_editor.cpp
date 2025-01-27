@@ -6,6 +6,7 @@
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/struct_apply.hpp>
 #include <oblo/editor/service_context.hpp>
+#include <oblo/editor/services/incremental_id_pool.hpp>
 #include <oblo/editor/ui/artifact_picker.hpp>
 #include <oblo/editor/ui/property_table.hpp>
 #include <oblo/editor/window_update_context.hpp>
@@ -24,7 +25,13 @@ namespace oblo::editor
 {
     material_editor::material_editor(uuid assetId) : m_assetId{assetId} {}
 
-    material_editor::~material_editor() = default;
+    material_editor::~material_editor()
+    {
+        if (m_idPool)
+        {
+            m_idPool->release<material_editor>(m_id);
+        }
+    }
 
     bool material_editor::init(const window_update_context& ctx)
     {
@@ -34,6 +41,15 @@ namespace oblo::editor
         {
             return false;
         }
+
+        m_idPool = ctx.services.find<incremental_id_pool>();
+
+        if (!m_idPool)
+        {
+            return false;
+        }
+
+        m_id = m_idPool->acquire<material_editor>();
 
         auto asset = m_assetRegistry->load_asset(m_assetId);
 
@@ -66,19 +82,18 @@ namespace oblo::editor
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2, 2));
 
-        ImGui::PushID(this);
-
         bool isOpen{true};
 
-        if (ImGui::Begin("Material Editor", &isOpen))
+        string_builder builder;
+        builder.format("Material Editor##{}", uintptr(this));
+
+        if (ImGui::Begin(builder.c_str(), &isOpen))
         {
             auto* const m = m_asset.as<material>();
 
             if (m && ui::property_table::begin())
             {
                 bool modified = false;
-
-                string_builder builder;
 
                 for (const auto& property : m->get_properties())
                 {
@@ -198,8 +213,6 @@ namespace oblo::editor
         }
 
         ImGui::End();
-
-        ImGui::PopID();
 
         ImGui::PopStyleVar(2);
 

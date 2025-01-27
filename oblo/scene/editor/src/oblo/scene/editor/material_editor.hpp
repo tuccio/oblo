@@ -20,6 +20,7 @@ namespace oblo::editor
         class artifact_picker;
     }
 
+    class incremental_id_pool;
     struct window_update_context;
 
     class material_editor final
@@ -33,6 +34,8 @@ namespace oblo::editor
 
     private:
         asset_registry* m_assetRegistry{};
+        incremental_id_pool* m_idPool{};
+        u32 m_id{};
         uuid m_assetId{};
         any_asset m_asset;
         std::unordered_map<hashed_string_view, material_property_descriptor, hash<hashed_string_view>> m_propertyEditor;

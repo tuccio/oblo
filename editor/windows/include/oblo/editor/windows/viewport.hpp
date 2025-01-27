@@ -16,6 +16,7 @@ namespace oblo
 
 namespace oblo::editor
 {
+    class incremental_id_pool;
     class selected_entities;
     struct window_update_context;
 
@@ -36,6 +37,7 @@ namespace oblo::editor
         resource_registry* m_resources{};
         ecs::entity_registry* m_entities{};
         selected_entities* m_selection{};
+        incremental_id_pool* m_idPool{};
         const input_queue* m_inputQueue{};
         ecs::entity m_entity{};
         fps_camera_controller m_cameraController;

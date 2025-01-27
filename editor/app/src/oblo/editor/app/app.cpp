@@ -11,6 +11,7 @@
 #include <oblo/editor/editor_module.hpp>
 #include <oblo/editor/providers/service_provider.hpp>
 #include <oblo/editor/services/component_factory.hpp>
+#include <oblo/editor/services/incremental_id_pool.hpp>
 #include <oblo/editor/services/log_queue.hpp>
 #include <oblo/editor/services/registered_commands.hpp>
 #include <oblo/editor/ui/style.hpp>
@@ -306,6 +307,7 @@ namespace oblo::editor
             globalRegistry.add<const log_queue>().externally_owned(m_logQueue);
             globalRegistry.add<options_manager>().externally_owned(&options->manager());
             globalRegistry.add<registered_commands>().unique();
+            globalRegistry.add<incremental_id_pool>().unique();
 
             service_registry sceneRegistry{};
             sceneRegistry.add<ecs::entity_registry>().externally_owned(&m_runtime.get_entity_registry());
