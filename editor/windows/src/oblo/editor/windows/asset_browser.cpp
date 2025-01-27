@@ -355,7 +355,7 @@ namespace oblo::editor
 
     void asset_browser::impl::draw_directory_tree_panel()
     {
-        if (!ImGui::BeginChild("#tree_panel", ImVec2{150, 0}))
+        if (!ImGui::BeginChild("#tree_panel", ImVec2{150, 0}, true))
         {
             ImGui::EndChild();
             return;
@@ -446,6 +446,21 @@ namespace oblo::editor
         ImGui::EndChild();
     }
 
+    namespace
+    {
+        i32 setup_table_style()
+        {
+            const ImVec4 windowColor = ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
+
+            ImGui::PushStyleColor(ImGuiCol_TableRowBg, windowColor);
+            ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, windowColor);
+            ImGui::PushStyleColor(ImGuiCol_TableBorderLight, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+            ImGui::PushStyleColor(ImGuiCol_TableBorderStrong, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+
+            return 4;
+        }
+    }
+
     void asset_browser::impl::draw_main_panel(const window_update_context& ctx)
     {
         if (!ImGui::BeginChild("#main_panel"))
@@ -463,6 +478,8 @@ namespace oblo::editor
         const f32 entryWidth = bigIconsFont->FontSize + 4.f * ImGui::GetStyle().ItemSpacing.x;
 
         u32 columns = max(u32(ImGui::GetContentRegionAvail().x / entryWidth), 1u);
+
+        const i32 styleVars = setup_table_style();
 
         if (ImGui::BeginTable("#grid", columns, ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders))
         {
@@ -627,6 +644,8 @@ namespace oblo::editor
 
             ImGui::EndTable();
         }
+
+        ImGui::PopStyleColor(styleVars);
 
         ImGui::EndChild();
     }
