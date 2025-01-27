@@ -93,7 +93,7 @@ namespace oblo
             const any_asset& asset,
             uuid assetId,
             cstring_view optSource,
-            cstring_view destination,
+            string_view destination,
             string_view optName);
 
         void on_artifact_added(artifact_meta meta);

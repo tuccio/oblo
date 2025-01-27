@@ -331,6 +331,24 @@ namespace oblo::filesystem
         return p.is_relative();
     }
 
+    expected<> relative(string_view path, string_view basePath, string_builder& out)
+    {
+        std::filesystem::path b{std::u8string_view{basePath.u8data(), basePath.size()}};
+        std::filesystem::path p{std::u8string_view{path.u8data(), path.size()}};
+
+        std::error_code ec;
+
+        if (ec)
+        {
+            return unspecified_error;
+        }
+
+        const auto r = std::filesystem::relative(p, b, ec);
+        out.append(r.native().c_str());
+
+        return no_error;
+    }
+
     string_view extension(string_view path)
     {
         std::filesystem::path p{std::u8string_view{path.u8data(), path.size()}};

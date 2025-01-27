@@ -479,7 +479,7 @@ namespace oblo
         const any_asset& asset,
         uuid assetId,
         cstring_view optSource,
-        cstring_view destination,
+        string_view destination,
         string_view optName)
     {
         // Find native_asset_descriptor
@@ -569,7 +569,7 @@ namespace oblo
         ++versionId;
     }
 
-    expected<uuid> asset_registry::create_asset(const any_asset& asset, cstring_view destination, cstring_view name)
+    expected<uuid> asset_registry::create_asset(const any_asset& asset, string_view destination, string_view name)
     {
         if (!asset)
         {

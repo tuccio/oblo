@@ -30,6 +30,8 @@ namespace oblo::filesystem
 
     bool is_relative(string_view path);
 
+    expected<> relative(string_view path, string_view basePath, string_builder& out);
+
     string_view extension(string_view path);
 
     string_view stem(string_view path);

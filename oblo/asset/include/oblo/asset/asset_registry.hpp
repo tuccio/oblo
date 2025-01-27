@@ -75,7 +75,7 @@ namespace oblo
         /// @return An error if processing failed to start.
         expected<> process(uuid asset, data_document* optSettings = nullptr);
 
-        expected<uuid> create_asset(const any_asset& asset, cstring_view destination, cstring_view name);
+        expected<uuid> create_asset(const any_asset& asset, string_view destination, string_view name);
 
         expected<any_asset> load_asset(uuid assetId);
 

@@ -162,6 +162,8 @@ namespace oblo::editor
 
         void draw_directory_tree_panel();
         void draw_main_panel(const window_update_context& ctx);
+
+        void find_first_available(string_builder& builder, string_view extension);
     };
 
     asset_browser::asset_browser() = default;
@@ -650,6 +652,29 @@ namespace oblo::editor
         ImGui::EndChild();
     }
 
+    void asset_browser::impl::find_first_available(string_builder& builder, string_view extension)
+    {
+        constexpr u32 maxTries = 100;
+
+        const auto currentSize = builder.size();
+
+        u32 count = 0;
+
+        do
+        {
+            builder.append(extension);
+
+            if (!filesystem::exists(builder).value_or(true))
+            {
+                break;
+            }
+
+            builder.resize(currentSize);
+            builder.format(" {}", ++count);
+
+        } while (count < maxTries);
+    }
+
     void asset_browser::impl::populate_asset_editors()
     {
         auto& mm = module_manager::get();
@@ -690,20 +715,44 @@ namespace oblo::editor
                 }
             }
 
-            if (!createMenu.empty() && ImGui::BeginMenu("Create"))
+            if (!createMenu.empty() && ImGui::BeginMenu("New"))
             {
-                for (const auto& item : createMenu)
+                if (ImGui::MenuItem("Folder"))
                 {
-                    if (ImGui::MenuItem(item.name.c_str()))
-                    {
-                        // TODO: Need to find a suitable and available name instead
-                        const auto r = registry->create_asset(item.create(), current, "New Asset");
+                    string_builder directory = current;
+                    directory.append_path("New Folder");
 
-                        if (!r)
+                    find_first_available(directory, "");
+
+                    if (!filesystem::create_directories(directory))
+                    {
+                        log::error("Failed to create new directory {}", directory);
+                    }
+                }
+
+                if (ImGui::BeginMenu("Asset"))
+                {
+                    for (const auto& item : createMenu)
+                    {
+                        if (ImGui::MenuItem(item.name.c_str()))
                         {
-                            log::error("Failed to create new asset {}", item.name);
+                            string_builder assetPath = current;
+                            assetPath.append_path("New ").append(item.name);
+
+                            find_first_available(assetPath, AssetMetaExtension);
+
+                            const auto r = registry->create_asset(item.create(),
+                                current,
+                                filesystem::stem(filesystem::filename(assetPath.view())));
+
+                            if (!r)
+                            {
+                                log::error("Failed to create new asset {}", item.name);
+                            }
                         }
                     }
+
+                    ImGui::EndMenu();
                 }
 
                 ImGui::EndMenu();
