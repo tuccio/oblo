@@ -289,17 +289,38 @@ namespace oblo::editor
 
         string_builder b;
 
-        auto drawNode = [this, &b](auto&& recurse, usize index) -> void
+        struct draw_node_info
         {
-            const auto& e = directoryTree[index];
+            usize index;
+            u32 ancestorsToPop;
+        };
+
+        deque<draw_node_info> stack;
+
+        if (!directoryTree.empty())
+        {
+            stack.push_back_default() = {
+                .index = 0,
+                .ancestorsToPop = 0,
+            };
+        }
+
+        while (!stack.empty())
+        {
+            const draw_node_info info = stack.back();
+            stack.pop_back();
+
+            const auto& e = directoryTree[info.index];
 
             const auto dirName = filesystem::filename(e.path.view());
             b.clear().format("{}##{}", dirName, e.path);
 
             i32 nodeFlags = ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_OpenOnArrow |
-                (index == 0 ? ImGuiTreeNodeFlags_DefaultOpen : 0);
+                (info.index == 0 ? ImGuiTreeNodeFlags_DefaultOpen : 0);
 
-            if (e.firstChild == e.lastChild)
+            const bool isLeaf = e.firstChild == e.lastChild;
+
+            if (isLeaf)
             {
                 nodeFlags |= ImGuiTreeNodeFlags_Leaf;
             }
@@ -316,19 +337,37 @@ namespace oblo::editor
                 current = e.path;
             }
 
+            u32 nodesToPop = info.ancestorsToPop;
+
             if (expanded)
             {
+                ++nodesToPop;
 
-                for (u32 i = e.firstChild; i != e.lastChild; ++i)
+                const auto firstChildIdx = stack.size();
+
+                const u32 childrenCount = e.lastChild - e.firstChild;
+
+                for (u32 i = 1; i <= childrenCount; ++i)
                 {
-                    recurse(recurse, i);
+                    const u32 reverseIndex = e.lastChild - i;
+                    stack.emplace_back(reverseIndex);
                 }
 
-                ImGui::TreePop();
+                // The first will be processed last
+                if (firstChildIdx != stack.size())
+                {
+                    stack[firstChildIdx].ancestorsToPop = nodesToPop;
+                }
             }
-        };
 
-        drawNode(drawNode, 0);
+            if (isLeaf || !expanded)
+            {
+                for (u32 i = 0; i < nodesToPop; ++i)
+                {
+                    ImGui::TreePop();
+                }
+            }
+        }
 
         ImGui::EndChild();
     }
