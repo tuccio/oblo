@@ -52,6 +52,8 @@ namespace oblo
 
         const import_config& get_config() const;
 
+        uuid get_asset_id() const;
+
     private:
         bool begin_import();
         bool write_source_files(asset_registry_impl& registry, const deque<cstring_view>& sourceFiles);

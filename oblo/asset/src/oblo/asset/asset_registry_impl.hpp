@@ -67,7 +67,8 @@ namespace oblo
 
         string_builder& make_asset_process_path(string_builder& out, uuid assetId) const;
 
-        void push_import_process(importer&& importer, data_document&& settings, string_view destination);
+        void push_import_process(
+            asset_entry* optEntry, importer&& importer, data_document&& settings, string_view destination);
 
         bool save_artifact(const uuid& id, const cstring_view path, const artifact_meta& meta, write_policy policy);
 
@@ -88,7 +89,8 @@ namespace oblo
 
         bool create_directories(string_view directory);
 
-        expected<> create_or_save_asset(const any_asset& asset,
+        expected<> create_or_save_asset(asset_entry* optAssetEntry,
+            const any_asset& asset,
             uuid assetId,
             cstring_view optSource,
             cstring_view destination,

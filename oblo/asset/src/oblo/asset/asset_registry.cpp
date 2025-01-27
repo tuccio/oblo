@@ -35,6 +35,7 @@ namespace oblo
         asset_meta meta;
         dynamic_array<uuid> artifacts;
         string_builder path;
+        bool isProcessing{};
     };
 
     struct file_importer_info
@@ -369,7 +370,7 @@ namespace oblo
             return unspecified_error;
         }
 
-        m_impl->push_import_process(std::move(importer), std::move(settings), destination);
+        m_impl->push_import_process(nullptr, std::move(importer), std::move(settings), destination);
 
         return assetId;
     }
@@ -411,6 +412,11 @@ namespace oblo
         const auto it = m_impl->assets.find(asset);
 
         if (it == m_impl->assets.end())
+        {
+            return unspecified_error;
+        }
+
+        if (it->second.isProcessing)
         {
             return unspecified_error;
         }
@@ -465,12 +471,16 @@ namespace oblo
             settings = std::move(*optSettings);
         }
 
-        m_impl->push_import_process(std::move(importer), std::move(settings), {});
+        m_impl->push_import_process(&it->second, std::move(importer), std::move(settings), {});
         return no_error;
     }
 
-    expected<> asset_registry_impl::create_or_save_asset(
-        const any_asset& asset, uuid assetId, cstring_view optSource, cstring_view destination, string_view optName)
+    expected<> asset_registry_impl::create_or_save_asset(asset_entry* optAssetEntry,
+        const any_asset& asset,
+        uuid assetId,
+        cstring_view optSource,
+        cstring_view destination,
+        string_view optName)
     {
         // Find native_asset_descriptor
         const auto it = nativeAssetTypes.find(asset.get_type_uuid());
@@ -498,7 +508,7 @@ namespace oblo
         }
 
         string_builder sourceFile;
-        const bool isReimport = !optSource.empty();
+        const bool isReimport = optAssetEntry != nullptr;
 
         if (optSource.empty())
         {
@@ -526,7 +536,7 @@ namespace oblo
             return unspecified_error;
         }
 
-        push_import_process(std::move(importer), {}, destination);
+        push_import_process(optAssetEntry, std::move(importer), {}, destination);
 
         return no_error;
     }
@@ -568,7 +578,7 @@ namespace oblo
 
         const auto assetId = asset_registry_impl::generate_uuid();
 
-        if (!m_impl->create_or_save_asset(asset, assetId, {}, destination, name))
+        if (!m_impl->create_or_save_asset(nullptr, asset, assetId, {}, destination, name))
         {
             return unspecified_error;
         }
@@ -613,6 +623,13 @@ namespace oblo
 
     expected<> asset_registry::save_asset(const any_asset& asset, uuid assetId)
     {
+        const auto it = m_impl->assets.find(assetId);
+
+        if (it == m_impl->assets.end())
+        {
+            return unspecified_error;
+        }
+
         string_builder sourceFilePath;
 
         if (!importer::read_source_file_path(*m_impl, assetId, sourceFilePath))
@@ -620,7 +637,7 @@ namespace oblo
             return unspecified_error;
         }
 
-        return m_impl->create_or_save_asset(asset, assetId, sourceFilePath, {}, {});
+        return m_impl->create_or_save_asset(&it->second, asset, assetId, sourceFilePath, {}, {});
     }
 
     unique_ptr<file_importer> asset_registry_impl::create_file_importer(string_view sourceFile) const
@@ -887,9 +904,29 @@ namespace oblo
             }
             else
             {
-                // TODO: get the actual asset directory
-                string_view destination =
-                    importProcess.importer.is_reimport() ? get_asset_directory() : importProcess.destination;
+                string_view destination;
+
+                if (importProcess.importer.is_reimport())
+                {
+                    const auto assetIt = m_impl->assets.find(importProcess.importer.get_asset_id());
+
+                    if (assetIt == m_impl->assets.end())
+                    {
+                        log::debug("An import execution terminated, but asset {} was not found, maybe it was deleted?",
+                            importProcess.importer.get_asset_id());
+
+                        continue;
+                    }
+
+                    destination = filesystem::parent_path(assetIt->second.path.view());
+
+                    OBLO_ASSERT(assetIt->second.isProcessing);
+                    assetIt->second.isProcessing = false;
+                }
+                else
+                {
+                    destination = importProcess.destination.as<string_view>();
+                }
 
                 const auto result = importProcess.importer.finalize(*m_impl, importProcess.destination);
 
@@ -916,7 +953,7 @@ namespace oblo
     }
 
     void asset_registry_impl::push_import_process(
-        importer&& importer, data_document&& settings, string_view destination)
+        asset_entry* optEntry, importer&& importer, data_document&& settings, string_view destination)
     {
         auto& importProcess = currentImports.emplace_back(allocate_unique<import_process>());
 
@@ -935,6 +972,12 @@ namespace oblo
             });
 
         importProcess->job = job;
+
+        if (optEntry)
+        {
+            OBLO_ASSERT(!optEntry->isProcessing);
+            optEntry->isProcessing = true;
+        }
     }
 
     bool asset_registry_impl::save_artifact(

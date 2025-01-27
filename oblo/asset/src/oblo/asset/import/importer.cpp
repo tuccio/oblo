@@ -337,6 +337,11 @@ namespace oblo
         return m_fileImports.front().config;
     }
 
+    uuid importer::get_asset_id() const
+    {
+        return m_assetId;
+    }
+
     bool importer::write_source_files(asset_registry_impl& registry, const deque<cstring_view>& sourceFiles)
     {
         string_builder importDir;
@@ -358,7 +363,7 @@ namespace oblo
             }
 
             pathBuilder.clear().append(importDir).append_path(filesystem::filename(sourceFile));
-            allSucceeded &= filesystem::copy_file(sourceFile, pathBuilder).value_or(false);
+            allSucceeded &= filesystem::copy_file(sourceFile, pathBuilder).assert_value_or(false);
         }
 
         pathBuilder.clear().append(importDir).append_path(g_importConfigName);
