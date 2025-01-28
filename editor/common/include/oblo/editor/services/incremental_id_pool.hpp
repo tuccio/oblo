@@ -24,7 +24,7 @@ namespace oblo::editor
         }
 
     private:
-        using pool_t = handle_pool<u32, 0>;
+        using pool_t = handle_pool<u32, 0, handle_pool_policy::lifo>;
 
         std::unordered_map<hashed_string_view, pool_t, hash<hashed_string_view>> m_pools;
     };

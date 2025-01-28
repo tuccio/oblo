@@ -5,7 +5,13 @@
 
 namespace oblo
 {
-    template <typename T, u32 GenBits>
+    enum class handle_pool_policy
+    {
+        fifo,
+        lifo,
+    };
+
+    template <typename T, u32 GenBits, handle_pool_policy Policy = handle_pool_policy::fifo>
     class handle_pool
     {
     public:
@@ -46,37 +52,46 @@ namespace oblo
         T m_lastHandle{};
     };
 
-    template <typename T, u32 GenBits>
-    T handle_pool<T, GenBits>::acquire()
+    template <typename T, u32 GenBits, handle_pool_policy Policy>
+    T handle_pool<T, GenBits, Policy>::acquire()
     {
         if (m_handles.empty())
         {
             return ++m_lastHandle;
         }
 
-        const auto h = m_handles.front();
-        m_handles.pop_front();
-        return h;
+        if constexpr (Policy == handle_pool_policy::fifo)
+        {
+            const auto h = m_handles.front();
+            m_handles.pop_front();
+            return h;
+        }
+        else
+        {
+            const auto h = m_handles.back();
+            m_handles.pop_back();
+            return h;
+        }
     }
 
-    template <typename T, u32 GenBits>
-    void handle_pool<T, GenBits>::release(T value)
+    template <typename T, u32 GenBits, handle_pool_policy Policy>
+    void handle_pool<T, GenBits, Policy>::release(T value)
     {
         m_handles.push_back(increment_gen(value));
     }
 
-    template <typename T, u32 GenBits>
-    constexpr T handle_pool<T, GenBits>::get_index(T value)
+    template <typename T, u32 GenBits, handle_pool_policy Policy>
+    constexpr T handle_pool<T, GenBits, Policy>::get_index(T value)
     {
         return value & ~GenMask;
     }
 
-    template <typename T, u32 GenBits>
-    constexpr T handle_pool<T, GenBits>::increment_gen(T value)
+    template <typename T, u32 GenBits, handle_pool_policy Policy>
+    constexpr T handle_pool<T, GenBits, Policy>::increment_gen(T value)
     {
         if constexpr (GenBits == 0)
         {
-            return 0;
+            return value;
         }
         else
         {

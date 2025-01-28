@@ -85,7 +85,7 @@ namespace oblo::editor
         bool isOpen{true};
 
         string_builder builder;
-        builder.format("Material Editor##{}", uintptr(this));
+        builder.format("Material Editor##{}", m_id);
 
         if (ImGui::Begin(builder.c_str(), &isOpen))
         {
