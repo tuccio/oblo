@@ -119,9 +119,9 @@ namespace oblo::smoke
                 register_file_importers(assetRegistry, mm.find_services<file_importers_provider>());
                 register_resource_types(resourceRegistry, mm.find_services<resource_types_provider>());
 
-                assetRegistry.discover_assets();
+                assetRegistry.discover_assets({});
 
-                resourceRegistry.register_provider(&asset_registry::find_artifact_resource, &assetRegistry);
+                resourceRegistry.register_provider(assetRegistry.initialize_resource_provider());
 
                 if (!runtime.init({
                         .reflectionRegistry = &reflectionModule->get_registry(),

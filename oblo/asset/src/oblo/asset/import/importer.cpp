@@ -209,6 +209,17 @@ namespace oblo
             .nativeAssetType = m_nativeAssetType,
         };
 
+        string_builder artifactsPath;
+        registry.make_artifacts_directory_path(artifactsPath, m_assetId);
+
+        filesystem::remove_all(artifactsPath).assert_value();
+
+        if (!filesystem::create_directories(artifactsPath).value_or(false))
+        {
+            log::error("Failed to create artifacts directory {}", artifactsPath);
+            return false;
+        }
+
         for (auto& fid : m_fileImports)
         {
             const auto results = fid.importer->get_results();
@@ -253,7 +264,7 @@ namespace oblo
                     .name = artifact.name,
                 };
 
-                if (!registry.save_artifact(artifact.id, artifact.path, meta, writePolicy))
+                if (!registry.save_artifact(artifact.path, meta, writePolicy))
                 {
                     log::error("Artifact '{}' ({}) will be skipped due to an error occurring while saving to disk",
                         artifact.name,

@@ -272,7 +272,7 @@ namespace oblo::editor
         register_file_importers(m_assetRegistry, mm.find_services<file_importers_provider>());
         register_resource_types(resourceRegistry, mm.find_services<resource_types_provider>());
 
-        m_assetRegistry.discover_assets();
+        m_assetRegistry.discover_assets(asset_discovery_flags::reprocess_dirty);
 
         resourceRegistry.register_provider(m_assetRegistry.initialize_resource_provider());
 

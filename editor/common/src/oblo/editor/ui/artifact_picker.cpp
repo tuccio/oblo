@@ -21,7 +21,7 @@ namespace oblo::editor::ui
             {
                 builder.append("None");
             }
-            else if (registry.load_artifact_meta(id, meta))
+            else if (registry.find_artifact_by_id(id, meta))
             {
                 if (!registry.get_asset_name(meta.assetId, builder))
                 {

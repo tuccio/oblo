@@ -63,14 +63,15 @@ namespace oblo
 
     public:
         string_builder& make_asset_path(string_builder& out, string_view directory) const;
-        string_builder& make_artifact_path(string_builder& out, uuid artifactId) const;
 
-        string_builder& make_asset_process_path(string_builder& out, uuid assetId) const;
+        string_builder& make_artifact_path(string_builder& out, uuid assetId, uuid artifactId) const;
+        string_builder& make_artifacts_process_path(string_builder& out, uuid assetId) const;
+        string_builder& make_artifacts_directory_path(string_builder& out, uuid assetId) const;
 
         void push_import_process(
             asset_entry* optEntry, importer&& importer, data_document&& settings, string_view destination);
 
-        bool save_artifact(const uuid& id, const cstring_view path, const artifact_meta& meta, write_policy policy);
+        bool save_artifact(const cstring_view path, const artifact_meta& meta, write_policy policy);
 
         bool save_asset(string_view destination,
             string_view fileName,

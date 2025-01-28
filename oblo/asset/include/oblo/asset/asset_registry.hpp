@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/expected.hpp>
+#include <oblo/core/flags.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/unique_ptr.hpp>
@@ -33,6 +34,12 @@ namespace oblo
     struct file_importer_descriptor;
     struct uuid;
 
+    enum class asset_discovery_flags
+    {
+        reprocess_dirty,
+        enum_max,
+    };
+
     class asset_registry
     {
     public:
@@ -49,7 +56,7 @@ namespace oblo
 
         void update();
 
-        void discover_assets();
+        void discover_assets(flags<asset_discovery_flags> flags);
 
         resource_provider* initialize_resource_provider();
 
@@ -88,8 +95,6 @@ namespace oblo
         bool find_artifact_by_id(const uuid& id, artifact_meta& artifactMeta) const;
 
         bool find_asset_artifacts(const uuid& id, dynamic_array<uuid>& artifacts) const;
-
-        bool load_artifact_meta(const uuid& artifactId, artifact_meta& artifact) const;
 
         void iterate_artifacts_by_type(const uuid& type,
             function_ref<bool(const uuid& assetId, const uuid& artifactId)> callback) const;
