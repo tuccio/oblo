@@ -167,10 +167,9 @@ namespace oblo::editor
                 selectableItem.StatusFlags,
                 selectableItem.Rect);
 
-            ImGui::PopID();
-
             isPressed = isPressed && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
-            *isSelected = *isSelected || (ImGui::IsMouseClicked(ImGuiMouseButton_Right) && ImGui::IsItemHovered());
+
+            ImGui::PopID();
 
             return isPressed;
         }
@@ -764,6 +763,13 @@ namespace oblo::editor
 
                     if (ImGui::BeginPopupContextItem("##assetctx"))
                     {
+                        // The popup actually refers to the asset we release right click on, make it clear through
+                        // selection
+                        if (selectedEntry != &entry)
+                        {
+                            selectedEntry = &entry;
+                        }
+
                         if (ImGui::MenuItem("Reimport"))
                         {
                             if (!registry->process(meta.assetId))
