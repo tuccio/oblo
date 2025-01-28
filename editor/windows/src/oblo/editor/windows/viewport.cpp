@@ -223,9 +223,9 @@ namespace oblo::editor
 
                 if (ImGui::BeginDragDropTarget())
                 {
-                    if (auto* const payload = ImGui::AcceptDragDropPayload(payloads::Resource))
+                    if (auto* const payload = ImGui::AcceptDragDropPayload(payloads::Artifact))
                     {
-                        const uuid id = payloads::parse_uuid(payload->Data);
+                        const uuid id = payloads::parse_artifact(payload->Data);
                         const auto resource = m_resources->get_resource(id);
 
                         if (const resource_ptr modelRes = resource.as<model>())
@@ -284,6 +284,8 @@ namespace oblo::editor
                             }
                         }
                     }
+
+                    ImGui::EndDragDropTarget();
                 }
             }
 

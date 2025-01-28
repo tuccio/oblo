@@ -71,9 +71,11 @@ namespace oblo
         /// The asynchronous import will be finalized on the thread calling update, that updates the registry.
         /// @param sourceFile The file to import.
         /// @param destination The asset directory to import into.
+        /// @param assetName The name of the asset that will be created.
         /// @param settings The settings for the importer.
         /// @return The uuid of the asset that will be created, or an error if the import failed to start.
-        expected<uuid> import(string_view sourceFile, string_view destination, data_document settings);
+        expected<uuid> import(
+            string_view sourceFile, string_view destination, string_view assetName, data_document settings);
 
         /// @brief Triggers an asynchronous processing of a previously created asset.
         /// Imported and native assets will be reprocessed from the stored source files.

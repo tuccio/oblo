@@ -12,23 +12,43 @@ namespace oblo::editor
 
     namespace payloads
     {
-        constexpr const char* Resource{"oblo::resource"};
+        constexpr const char* Artifact{"oblo::artifact"};
+        constexpr const char* Asset{"oblo::asset"};
 
-        inline drag_and_drop_payload pack_uuid(const uuid& id)
+        namespace detail
         {
-            drag_and_drop_payload p;
-            *start_lifetime_as<uuid>(p.data) = id;
-            return p;
+            inline drag_and_drop_payload pack_uuid(const uuid& id)
+            {
+                drag_and_drop_payload p;
+                *start_lifetime_as<uuid>(p.data) = id;
+                return p;
+            }
+
+            inline uuid parse_uuid(const drag_and_drop_payload& payload)
+            {
+                return *start_lifetime_as<uuid>(payload.data);
+            }
+
         }
 
-        inline uuid parse_uuid(const drag_and_drop_payload& payload)
+        inline drag_and_drop_payload pack_asset(const uuid& id)
         {
-            return *start_lifetime_as<uuid>(payload.data);
+            return detail::pack_uuid(id);
         }
 
-        inline uuid parse_uuid(const void* payload)
+        inline drag_and_drop_payload pack_artifact(const uuid& id)
         {
-            return parse_uuid(*start_lifetime_as<drag_and_drop_payload>(payload));
+            return detail::pack_uuid(id);
+        }
+
+        inline uuid parse_artifact(const void* payload)
+        {
+            return detail::parse_uuid(*start_lifetime_as<drag_and_drop_payload>(payload));
+        }
+
+        inline uuid parse_asset(const void* payload)
+        {
+            return detail::parse_uuid(*start_lifetime_as<drag_and_drop_payload>(payload));
         }
     }
 }

@@ -5,6 +5,7 @@
 #include <oblo/core/formatters/uuid_formatter.hpp>
 #include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/editor/data/drag_and_drop_payload.hpp>
 
 #include <IconsFontAwesome6.h>
 
@@ -91,6 +92,24 @@ namespace oblo::editor::ui
             ImGui::PopStyleVar();
 
             ImGui::EndCombo();
+        }
+
+        if (ImGui::BeginDragDropTarget())
+        {
+            if (auto* const payload = ImGui::AcceptDragDropPayload(payloads::Artifact))
+            {
+                const uuid id = payloads::parse_artifact(payload->Data);
+
+                artifact_meta dndMeta;
+
+                if (m_assetRegistry.find_artifact_by_id(id, dndMeta) && meta.type == type)
+                {
+                    m_currentRef = id;
+                    selectionChanged = true;
+                }
+            }
+
+            ImGui::EndDragDropTarget();
         }
 
         ImGui::PopID();

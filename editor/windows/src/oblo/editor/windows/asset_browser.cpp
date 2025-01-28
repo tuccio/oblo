@@ -542,13 +542,19 @@ namespace oblo::editor
 
                 if (bool isSelected = false; big_icon_button(bigIconsFont,
                         g_DirectoryColor,
-                        ICON_FA_CIRCLE_CHEVRON_UP,
+                        ICON_FA_ARROW_LEFT,
                         g_Transparent,
                         "Back",
                         ImGui::GetID("##back"),
                         &isSelected))
                 {
                     current.append_path("..").make_canonical_path();
+                }
+
+                if (ImGui::BeginItemTooltip())
+                {
+                    ImGui::TextUnformatted("Back to parent folder");
+                    ImGui::EndTooltip();
                 }
 
                 currentColumnIndex = 1;
@@ -588,6 +594,12 @@ namespace oblo::editor
                             current.clear().append(entry.path).make_canonical_path();
                         }
 
+                        if (ImGui::BeginItemTooltip())
+                        {
+                            ImGui::TextUnformatted(entry.name.c_str());
+                            ImGui::EndTooltip();
+                        }
+
                         break;
                     case asset_browser_entry_kind::asset: {
                         const asset_meta& meta = entry.meta;
@@ -600,13 +612,23 @@ namespace oblo::editor
                         const auto colorId = typeHash % array_size(g_Colors);
                         const auto accentColor = g_Colors[colorId];
 
-                        if (bool isSelected = false; big_icon_button(bigIconsFont,
-                                g_FileColor,
-                                ICON_FA_FILE,
-                                accentColor,
-                                entry.name.c_str(),
-                                ImGui::GetID(builder.c_str()),
-                                &isSelected))
+                        bool isSelected = false;
+
+                        const bool isPressed = big_icon_button(bigIconsFont,
+                            g_FileColor,
+                            ICON_FA_FILE,
+                            accentColor,
+                            entry.name.c_str(),
+                            ImGui::GetID(builder.c_str()),
+                            &isSelected);
+
+                        if (ImGui::BeginItemTooltip())
+                        {
+                            ImGui::TextUnformatted(entry.name.c_str());
+                            ImGui::EndTooltip();
+                        }
+
+                        if (isPressed)
                         {
                             if (const auto it = editorsLookup.find(meta.nativeAssetType); it != editorsLookup.end())
                             {
@@ -622,8 +644,8 @@ namespace oblo::editor
                         }
                         else if (!meta.mainArtifactHint.is_nil() && ImGui::BeginDragDropSource())
                         {
-                            const auto payload = payloads::pack_uuid(meta.mainArtifactHint);
-                            ImGui::SetDragDropPayload(payloads::Resource, &payload, sizeof(drag_and_drop_payload));
+                            const auto payload = payloads::pack_artifact(meta.mainArtifactHint);
+                            ImGui::SetDragDropPayload(payloads::Artifact, &payload, sizeof(drag_and_drop_payload));
                             ImGui::EndDragDropSource();
                         }
 
@@ -664,9 +686,9 @@ namespace oblo::editor
 
                                 if (ImGui::BeginDragDropSource())
                                 {
-                                    const auto payload = payloads::pack_uuid(artifactMeta.artifactId);
+                                    const auto payload = payloads::pack_artifact(artifactMeta.artifactId);
 
-                                    ImGui::SetDragDropPayload(payloads::Resource,
+                                    ImGui::SetDragDropPayload(payloads::Artifact,
                                         &payload,
                                         sizeof(drag_and_drop_payload));
 
@@ -755,7 +777,16 @@ namespace oblo::editor
 
                 if (platform::open_file_dialog(file))
                 {
-                    const auto r = registry->import(file, current, data_document{});
+                    const auto filename = filesystem::stem(filesystem::filename(file.view()));
+
+                    string_builder available = current;
+                    available.append_path(filename);
+                    find_first_available(available, AssetMetaExtension);
+
+                    const auto r = registry->import(file,
+                        current,
+                        filesystem::stem(filesystem::filename(available)),
+                        data_document{});
 
                     if (!r)
                     {

@@ -43,6 +43,7 @@ namespace oblo
         bool init(const asset_registry_impl& registry, uuid assetId, cstring_view workDir, bool isReimport);
 
         void set_native_asset_type(uuid nativeAssetType);
+        void set_asset_name(string_view assetName);
 
         bool execute(const data_document& importSettings);
         bool finalize(asset_registry_impl& registry, string_view destination);
@@ -61,6 +62,7 @@ namespace oblo
     private:
         deque<file_import_data> m_fileImports;
         string_builder m_temporaryPath;
+        string m_assetName;
         std::unordered_map<uuid, artifact_meta> m_artifacts;
         uuid m_assetId{};
         uuid m_nativeAssetType{};

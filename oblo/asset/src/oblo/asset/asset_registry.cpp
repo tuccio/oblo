@@ -348,7 +348,8 @@ namespace oblo
         }
     }
 
-    expected<uuid> asset_registry::import(string_view sourceFile, string_view destination, data_document settings)
+    expected<uuid> asset_registry::import(
+        string_view sourceFile, string_view destination, string_view assetName, data_document settings)
     {
         auto importer = m_impl->create_importer(sourceFile);
 
@@ -369,6 +370,11 @@ namespace oblo
         if (!importer.init(*m_impl, assetId, workDir, false))
         {
             return unspecified_error;
+        }
+
+        if (!assetName.empty())
+        {
+            importer.set_asset_name(assetName);
         }
 
         m_impl->push_import_process(nullptr, std::move(importer), std::move(settings), destination);

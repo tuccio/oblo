@@ -145,6 +145,11 @@ namespace oblo
         m_nativeAssetType = nativeAssetType;
     }
 
+    void importer::set_asset_name(string_view assetName)
+    {
+        m_assetName = assetName;
+    }
+
     bool importer::execute(const data_document& importSettings)
     {
         if (!begin_import())
@@ -284,7 +289,8 @@ namespace oblo
             }
         }
 
-        const auto assetFileName = filesystem::stem(m_fileImports.front().config.sourceFile);
+        const auto assetFileName =
+            m_assetName.empty() ? filesystem::stem(m_fileImports.front().config.sourceFile) : m_assetName;
 
         allSucceeded &=
             registry.save_asset(destination, assetFileName, std::move(assetMeta), importedArtifacts, writePolicy);
