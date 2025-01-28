@@ -884,6 +884,41 @@ namespace oblo
                 log::warn("Failed to load asset meta {}", p.string());
             }
         }
+
+        if (flags.contains(asset_discovery_flags::garbage_collect))
+        {
+            deque<string_builder> pathsToRemove;
+
+            auto readUuidFromFileName = [](cstring_view filename, uuid& id) { return id.parse_from(filename); };
+
+            for (const cstring_view cleanupDir : {m_impl->sourceFilesDir.view(), m_impl->artifactsDir.view()})
+            {
+                for (auto&& entry : std::filesystem::directory_iterator{cleanupDir.as<std::string>(), ec})
+                {
+                    if (std::filesystem::is_directory(entry.path()) &&
+                        entry.path().filename().string().starts_with("."))
+                    {
+                        pathsToRemove.emplace_back().append(entry.path().c_str());
+                        continue;
+                    }
+
+                    builder.clear().append(entry.path().filename().stem().c_str());
+
+                    uuid assetId;
+
+                    if (readUuidFromFileName(builder, assetId) && !m_impl->assets.contains(assetId))
+                    {
+                        pathsToRemove.emplace_back().append(entry.path().c_str());
+                    }
+                }
+            }
+
+            for (auto& path : pathsToRemove)
+            {
+                log::debug("Garbage collecting {}", path.c_str());
+                filesystem::remove_all(path).assert_value();
+            }
+        }
     }
 
     resource_provider* asset_registry::initialize_resource_provider()

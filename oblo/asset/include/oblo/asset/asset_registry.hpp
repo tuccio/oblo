@@ -37,6 +37,7 @@ namespace oblo
     enum class asset_discovery_flags
     {
         reprocess_dirty,
+        garbage_collect,
         enum_max,
     };
 
