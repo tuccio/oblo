@@ -100,6 +100,12 @@ namespace oblo
             m_string.reserve(size);
         }
 
+        OBLO_FORCEINLINE void clear()
+        {
+            m_string.clear();
+            ensure_null_termination();
+        }
+
         OBLO_FORCEINLINE operator cstring_view() const noexcept
         {
             return {data(), size()};

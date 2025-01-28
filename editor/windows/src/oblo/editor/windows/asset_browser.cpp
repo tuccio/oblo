@@ -93,7 +93,7 @@ namespace oblo::editor
             ImGuiID selectableId,
             bool* isSelected)
         {
-            bool pressed = false;
+            bool isPressed = false;
 
             const auto cursorPosition = ImGui::GetCursorScreenPos();
 
@@ -105,7 +105,7 @@ namespace oblo::editor
 
             ImGui::BeginGroup();
 
-            pressed = ImGui::Selectable("##select",
+            isPressed = ImGui::Selectable("##select",
                 isSelected,
                 ImGuiSelectableFlags_AllowOverlap | ImGuiSelectableFlags_AllowDoubleClick,
                 selectableSize);
@@ -169,9 +169,10 @@ namespace oblo::editor
 
             ImGui::PopID();
 
-            pressed = pressed && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
+            isPressed = isPressed && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
+            *isSelected = *isSelected || (ImGui::IsMouseClicked(ImGuiMouseButton_Right) && ImGui::IsItemHovered());
 
-            return pressed;
+            return isPressed;
         }
     }
 
@@ -194,16 +195,23 @@ namespace oblo::editor
 
         u64 lastVersionId;
 
+        const asset_browser_entry* selectedEntry{};
+
+        string requestedDelete;
+
         void populate_asset_editors();
         void draw_popup_menu();
 
         void build_directory_tree();
         asset_browser_directory& get_or_build(const string_builder& p);
 
+        void draw_modals();
         void draw_directory_tree_panel();
         void draw_main_panel(const window_update_context& ctx);
 
         void find_first_available(string_builder& builder, string_view extension);
+
+        void delete_entry(const asset_browser_entry& entry);
     };
 
     asset_browser::asset_browser() = default;
@@ -248,6 +256,8 @@ namespace oblo::editor
         {
             ImGui::PopStyleVar(varsToPop);
 
+            m_impl->draw_modals();
+
             --varsToPop;
 
             bool requiresRefresh{};
@@ -284,6 +294,7 @@ namespace oblo::editor
 
     void asset_browser::impl::build_directory_tree()
     {
+        selectedEntry = nullptr;
         directoryTree.clear();
 
         std::error_code ec;
@@ -393,6 +404,58 @@ namespace oblo::editor
         }
 
         return abDir;
+    }
+
+    void asset_browser::impl::draw_modals()
+    {
+        if (!requestedDelete.empty())
+        {
+            constexpr const char* deletePopup = "Delete";
+
+            bool isOpen = true;
+
+            if (!ImGui::IsPopupOpen(deletePopup))
+            {
+                ImGui::OpenPopup(deletePopup);
+            }
+
+            if (ImGui::BeginPopupModal(deletePopup, &isOpen, ImGuiWindowFlags_AlwaysAutoResize))
+            {
+                string_builder builder;
+                builder.format("Are you sure you want to delete '{}'?", filesystem::filename(requestedDelete));
+
+                ImGui::TextUnformatted(builder.c_str());
+                ImGui::Dummy(ImVec2{0, 8});
+
+                if (ImGui::IsWindowAppearing())
+                {
+                    ImGui::SetKeyboardFocusHere();
+                }
+
+                ImGui::SetItemDefaultFocus();
+
+                if (ImGui::Button("Yes", ImVec2(120, 0)))
+                {
+                    if (!filesystem::remove_all(requestedDelete).value_or(false))
+                    {
+                        log::error("Failed to delete {}", requestedDelete);
+                    }
+
+                    ImGui::CloseCurrentPopup();
+                    requestedDelete.clear();
+                }
+
+                ImGui::SameLine();
+
+                if (ImGui::Button("No", ImVec2(120, 0)))
+                {
+                    requestedDelete.clear();
+                    ImGui::CloseCurrentPopup();
+                }
+
+                ImGui::EndPopup();
+            }
+        }
     }
 
     void asset_browser::impl::draw_directory_tree_panel()
@@ -539,6 +602,8 @@ namespace oblo::editor
             return;
         }
 
+        const bool hasFocus = ImGui::IsWindowFocused();
+
         draw_popup_menu();
 
         string_builder builder;
@@ -590,12 +655,14 @@ namespace oblo::editor
 
                 switch (entry.kind)
                 {
-                case asset_browser_entry_kind::directory:
+                case asset_browser_entry_kind::directory: {
                     builder.clear().format("##{}", entry.path);
 
                     ImGui::PushID(builder.c_str());
 
-                    if (bool isSelected = false; big_icon_button(bigIconsFont,
+                    bool isSelected = selectedEntry == &entry;
+
+                    if (big_icon_button(bigIconsFont,
                             g_DirectoryColor,
                             ICON_FA_FOLDER,
                             g_Transparent,
@@ -606,15 +673,16 @@ namespace oblo::editor
                         current.clear().append(entry.path).make_canonical_path();
                     }
 
+                    if (isSelected)
+                    {
+                        selectedEntry = &entry;
+                    }
+
                     if (ImGui::BeginPopupContextItem("##dirctx"))
                     {
-                        if (ImGui::MenuItem("Delete"))
+                        if (selectedEntry && ImGui::MenuItem("Delete"))
                         {
-                            // Should probably ask to confirm
-                            if (!filesystem::remove_all(entry.path))
-                            {
-                                log::error("Failed to delete {}", entry.path);
-                            }
+                            delete_entry(*selectedEntry);
                         }
 
                         if (ImGui::MenuItem("Open in Explorer"))
@@ -632,8 +700,9 @@ namespace oblo::editor
                     }
 
                     ImGui::PopID();
+                }
 
-                    break;
+                break;
                 case asset_browser_entry_kind::asset: {
                     const asset_meta& meta = entry.meta;
 
@@ -645,7 +714,7 @@ namespace oblo::editor
                         hash_all<hash>(meta.nativeAssetType, meta.typeHint) % array_size(g_Colors);
                     const auto assetColor = g_Colors[assetColorId];
 
-                    bool isSelected = false;
+                    bool isSelected = selectedEntry == &entry;
 
                     const bool isPressed = big_icon_button(bigIconsFont,
                         g_FileColor,
@@ -665,6 +734,11 @@ namespace oblo::editor
                         ImGui::TextDisabled("%s", uuidStr.c_str());
 
                         ImGui::EndTooltip();
+                    }
+
+                    if (isSelected)
+                    {
+                        selectedEntry = &entry;
                     }
 
                     if (isPressed)
@@ -700,10 +774,7 @@ namespace oblo::editor
 
                         if (ImGui::MenuItem("Delete"))
                         {
-                            if (!filesystem::remove(entry.path))
-                            {
-                                log::error("Failed to delete {}", entry.path);
-                            }
+                            delete_entry(entry);
                         }
 
                         if (ImGui::MenuItem("Open Source in Explorer"))
@@ -792,6 +863,14 @@ namespace oblo::editor
 
         ImGui::PopStyleColor(styleVars);
 
+        if (hasFocus)
+        {
+            if (ImGui::IsKeyPressed(ImGuiKey_Delete) && selectedEntry)
+            {
+                delete_entry(*selectedEntry);
+            }
+        }
+
         ImGui::EndChild();
     }
 
@@ -816,6 +895,11 @@ namespace oblo::editor
             builder.format(" {}", ++count);
 
         } while (count < maxTries);
+    }
+
+    void asset_browser::impl::delete_entry(const asset_browser_entry& entry)
+    {
+        requestedDelete = entry.path.as<string_view>();
     }
 
     void asset_browser::impl::populate_asset_editors()
