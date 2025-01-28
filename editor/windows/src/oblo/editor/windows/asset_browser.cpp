@@ -211,6 +211,9 @@ namespace oblo::editor
         void find_first_available(string_builder& builder, string_view extension);
 
         void delete_entry(const asset_browser_entry& entry);
+
+        bool is_selected(const asset_browser_entry* other) const;
+        void replace_selection(const asset_browser_entry* newSelection);
     };
 
     asset_browser::asset_browser() = default;
@@ -293,7 +296,7 @@ namespace oblo::editor
 
     void asset_browser::impl::build_directory_tree()
     {
-        selectedEntry = nullptr;
+        replace_selection(nullptr);
         directoryTree.clear();
 
         std::error_code ec;
@@ -659,7 +662,7 @@ namespace oblo::editor
 
                     ImGui::PushID(builder.c_str());
 
-                    bool isSelected = selectedEntry == &entry;
+                    bool isSelected = is_selected(&entry);
 
                     if (big_icon_button(bigIconsFont,
                             g_DirectoryColor,
@@ -674,7 +677,7 @@ namespace oblo::editor
 
                     if (isSelected)
                     {
-                        selectedEntry = &entry;
+                        replace_selection(&entry);
                     }
 
                     if (ImGui::BeginPopupContextItem("##dirctx"))
@@ -686,7 +689,7 @@ namespace oblo::editor
 
                         if (ImGui::MenuItem("Open in Explorer"))
                         {
-                            platform::open_folder(entry.path);
+                            platform::open_folder(entry.path.view());
                         }
 
                         ImGui::EndPopup();
@@ -713,7 +716,7 @@ namespace oblo::editor
                         hash_all<hash>(meta.nativeAssetType, meta.typeHint) % array_size(g_Colors);
                     const auto assetColor = g_Colors[assetColorId];
 
-                    bool isSelected = selectedEntry == &entry;
+                    bool isSelected = is_selected(&entry);
 
                     const bool isPressed = big_icon_button(bigIconsFont,
                         g_FileColor,
@@ -737,7 +740,7 @@ namespace oblo::editor
 
                     if (isSelected)
                     {
-                        selectedEntry = &entry;
+                        replace_selection(&entry);
                     }
 
                     if (isPressed)
@@ -908,6 +911,19 @@ namespace oblo::editor
         requestedDelete = entry.path.as<string_view>();
     }
 
+    bool asset_browser::impl::is_selected(const asset_browser_entry* other) const
+    {
+        return selectedEntry == other;
+    }
+
+    void asset_browser::impl::replace_selection(const asset_browser_entry* newSelection)
+    {
+        if (selectedEntry != newSelection)
+        {
+            selectedEntry = newSelection;
+        }
+    }
+
     void asset_browser::impl::populate_asset_editors()
     {
         auto& mm = module_manager::get();
@@ -945,9 +961,9 @@ namespace oblo::editor
                     available.append_path(filename);
                     find_first_available(available, AssetMetaExtension);
 
-                    const auto r = registry->import(file,
-                        current,
-                        filesystem::stem(filesystem::filename(available)),
+                    const auto r = registry->import(file.view(),
+                        current.view(),
+                        filesystem::stem(filesystem::filename(available.view())),
                         data_document{});
 
                     if (!r)
@@ -984,7 +1000,7 @@ namespace oblo::editor
                             find_first_available(assetPath, AssetMetaExtension);
 
                             const auto r = registry->create_asset(item.create(),
-                                current,
+                                current.view(),
                                 filesystem::stem(filesystem::filename(assetPath.view())));
 
                             if (!r)
