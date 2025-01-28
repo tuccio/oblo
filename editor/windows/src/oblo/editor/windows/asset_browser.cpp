@@ -95,10 +95,9 @@ namespace oblo::editor
         {
             bool pressed = false;
 
-            const auto cursorPosition = ImGui::GetCursorPos();
+            const auto cursorPosition = ImGui::GetCursorScreenPos();
 
             const f32 fontSize = bigIcons->FontSize;
-            // const auto selectableSize = ImGui::GetContentRegionAvail();
             const auto selectableSize =
                 ImVec2(ImGui::GetContentRegionAvail().x, fontSize + ImGui::GetTextLineHeightWithSpacing());
 
@@ -113,12 +112,11 @@ namespace oblo::editor
 
             const auto selectableItem = ImGui::GetCurrentContext()->LastItemData;
 
-            ImGui::SetCursorPos(cursorPosition);
+            ImGui::SetCursorScreenPos(cursorPosition);
 
             {
-                const auto windowPos = ImGui::GetWindowPos();
-                const f32 itemPosX = windowPos.x + cursorPosition.x;
-                const f32 itemPosY = windowPos.y + cursorPosition.y;
+                const f32 itemPosX = cursorPosition.x;
+                const f32 itemPosY = cursorPosition.y;
 
                 ImGui::PushClipRect(ImVec2{itemPosX, itemPosY},
                     {itemPosX + selectableSize.x, itemPosY + selectableSize.y},
@@ -132,7 +130,7 @@ namespace oblo::editor
                 const f32 iconTextPosition = cursorPosition.x + (selectableSize.x - iconTextWidth) * .5f;
 
                 // Align the icon to the center of the button
-                ImGui::SetCursorPosX(iconTextPosition);
+                ImGui::SetCursorScreenPos({iconTextPosition, ImGui::GetCursorScreenPos().y});
                 ImGui::TextUnformatted(icon);
 
                 ImGui::PopStyleColor();
@@ -144,7 +142,7 @@ namespace oblo::editor
                     ? cursorPosition.x
                     : cursorPosition.x + (selectableSize.x - labelTextWidth) * .5f;
 
-                ImGui::SetCursorPosX(labelTextPosition);
+                ImGui::SetCursorScreenPos({labelTextPosition, ImGui::GetCursorScreenPos().y});
                 ImGui::TextUnformatted(text);
 
                 ImDrawList* const drawList = ImGui::GetWindowDrawList();
@@ -160,7 +158,7 @@ namespace oblo::editor
                 ImGui::PopClipRect();
             }
 
-            ImGui::SetCursorPos(cursorPosition);
+            ImGui::SetCursorScreenPos(cursorPosition);
 
             ImGui::EndGroup();
 
@@ -660,6 +658,12 @@ namespace oblo::editor
                     if (ImGui::BeginItemTooltip())
                     {
                         ImGui::TextUnformatted(entry.name.c_str());
+
+                        string_builder uuidStr;
+                        uuidStr.format("{}", meta.assetId);
+
+                        ImGui::TextDisabled("%s", uuidStr.c_str());
+
                         ImGui::EndTooltip();
                     }
 
@@ -722,6 +726,9 @@ namespace oblo::editor
                         {
                             layout.next_element();
 
+                            ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg,
+                                ImGui::GetColorU32(ImGuiCol_FrameBgActive));
+
                             ImGui::PushID(int(hash_all<std::hash>(artifactMeta.artifactId)));
 
                             const auto artifactName =
@@ -748,7 +755,28 @@ namespace oblo::editor
                             if (ImGui::BeginItemTooltip())
                             {
                                 ImGui::TextUnformatted(artifactName);
+
+                                string_builder uuidStr;
+                                uuidStr.format("{}", artifactMeta.artifactId);
+
+                                ImGui::TextDisabled("%s", uuidStr.c_str());
+
                                 ImGui::EndTooltip();
+                            }
+
+                            if (ImGui::BeginPopupContextItem("##ctx"))
+                            {
+                                if (ImGui::MenuItem("Open Artifact in Explorer"))
+                                {
+                                    string_builder artifactPath;
+                                    if (registry->get_artifact_path(artifactMeta.artifactId, artifactPath))
+                                    {
+                                        artifactPath.parent_path();
+                                        platform::open_folder(artifactPath.view());
+                                    }
+                                }
+
+                                ImGui::EndPopup();
                             }
 
                             ImGui::PopID();
@@ -758,15 +786,6 @@ namespace oblo::editor
                 break;
                 }
             }
-
-            // Finish the last row
-            // for (; currentColumnIndex < columns; ++currentColumnIndex)
-            //{
-            //    ImGui::Dummy({});
-            //    ImGui::TableNextColumn();
-            //}
-
-            //    ImGui::TableNextRow();
 
             ImGui::EndTable();
         }

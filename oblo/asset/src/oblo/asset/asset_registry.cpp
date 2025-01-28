@@ -781,6 +781,20 @@ namespace oblo
         return true;
     }
 
+    bool asset_registry::get_artifact_path(const uuid& artifactId, string_builder& outPath) const
+    {
+        const auto it = m_impl->artifactsMap.find(artifactId);
+
+        if (it == m_impl->artifactsMap.end())
+        {
+            return false;
+        }
+
+        m_impl->make_artifact_path(outPath, it->second.meta.assetId, artifactId);
+
+        return true;
+    }
+
     bool asset_registry::get_asset_name(const uuid& assetId, string_builder& outName) const
     {
         const auto it = m_impl->assets.find(assetId);

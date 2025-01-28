@@ -106,6 +106,8 @@ namespace oblo
         cstring_view get_asset_directory() const;
 
         bool get_source_directory(const uuid& assetId, string_builder& outPath) const;
+        bool get_artifact_path(const uuid& artifactId, string_builder& outPath) const;
+
         bool get_asset_name(const uuid& assetId, string_builder& outName) const;
 
         u32 get_ongoing_process_count() const;

@@ -117,6 +117,15 @@ namespace oblo
         return clear().append(p.native().data(), p.native().data() + p.native().size());
     }
 
+    string_builder& string_builder::parent_path()
+    {
+        const auto sv = view();
+
+        auto p = std::filesystem::path(std::u8string_view{sv.u8data(), sv.size()}).parent_path();
+
+        return clear().append(p.native().data(), p.native().data() + p.native().size());
+    }
+
     string_builder& string_builder::trim_end()
     {
         utf8::unchecked::iterator it{m_buffer.end() - 1};
