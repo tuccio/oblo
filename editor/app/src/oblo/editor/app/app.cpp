@@ -274,7 +274,15 @@ namespace oblo::editor
 
         m_assetRegistry.discover_assets(asset_discovery_flags::reprocess_dirty);
 
-        resourceRegistry.register_provider(m_assetRegistry.initialize_resource_provider());
+        if (!m_assetRegistry.initialize_directory_watcher())
+        {
+            log::warn(
+                "Failed to start watch on asset directory, renaming or deleting assets might not work as intended");
+        }
+
+        auto* const resourceProvider = m_assetRegistry.initialize_resource_provider();
+
+        resourceRegistry.register_provider(resourceProvider);
 
         if (!m_runtime.init({
                 .reflectionRegistry = &reflection->get_registry(),

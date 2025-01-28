@@ -124,24 +124,27 @@ namespace oblo::editor
                     {itemPosX + selectableSize.x, itemPosY + selectableSize.y},
                     true);
 
-                // const auto itemRectMin = ImGui::GetItemRectMin();
-                // const auto itemRectMax = ImGui::GetItemRectMax();
-                // ImGui::PushClipRect(itemRectMin, itemRectMax, true);
-
                 ImGui::PushFont(bigIcons);
                 ImGui::PushStyleColor(ImGuiCol_Text, iconColor);
 
-                const f32 textWidth = ImGui::CalcTextSize(icon).x;
+                const f32 iconTextWidth = ImGui::CalcTextSize(icon).x;
 
-                const f32 textPosition = cursorPosition.x + (selectableSize.x - textWidth) * .5f;
+                const f32 iconTextPosition = cursorPosition.x + (selectableSize.x - iconTextWidth) * .5f;
 
                 // Align the icon to the center of the button
-                ImGui::SetCursorPosX(textPosition);
+                ImGui::SetCursorPosX(iconTextPosition);
                 ImGui::TextUnformatted(icon);
 
                 ImGui::PopStyleColor();
                 ImGui::PopFont();
 
+                // Center align the label as well, unless the text is too big, then let it clip on the right
+                const f32 labelTextWidth = ImGui::CalcTextSize(text).x;
+                const f32 labelTextPosition = labelTextWidth > selectableSize.x
+                    ? cursorPosition.x
+                    : cursorPosition.x + (selectableSize.x - labelTextWidth) * .5f;
+
+                ImGui::SetCursorPosX(labelTextPosition);
                 ImGui::TextUnformatted(text);
 
                 ImDrawList* const drawList = ImGui::GetWindowDrawList();
@@ -351,7 +354,7 @@ namespace oblo::editor
 
             if (std::filesystem::is_directory(p))
             {
-                auto name = p.filename();
+                auto name = p.filename().stem();
 
                 auto& e = abDir.entries.emplace_back();
                 e.kind = asset_browser_entry_kind::directory;
@@ -360,7 +363,7 @@ namespace oblo::editor
             }
             else if (p.extension() == AssetMetaExtension.c_str())
             {
-                auto name = p.filename();
+                auto name = p.filename().stem();
 
                 auto& e = abDir.entries.emplace_back();
                 e.kind = asset_browser_entry_kind::asset;

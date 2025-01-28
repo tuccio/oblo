@@ -33,6 +33,11 @@ namespace oblo
 
     class artifact_resource_provider;
 
+    namespace filesystem
+    {
+        class directory_watcher;
+    }
+
     class asset_registry_impl
     {
     public:
@@ -58,6 +63,7 @@ namespace oblo
         deque<unique_ptr<import_process>> currentImports;
 
         unique_ptr<artifact_resource_provider> resourceProvider;
+        unique_ptr<filesystem::directory_watcher> watcher;
 
         u64 versionId{};
 

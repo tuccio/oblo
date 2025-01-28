@@ -11,6 +11,7 @@
 #include <oblo/asset/import/importer.hpp>
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/debug.hpp>
+#include <oblo/core/filesystem/directory_watcher.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/formatters/uuid_formatter.hpp>
 #include <oblo/core/invoke/function_ref.hpp>
@@ -77,11 +78,11 @@ namespace oblo
         constexpr std::string_view g_artifactMetaExtension{".oartifact"};
         constexpr string_view g_assetProcessExtension{".oproc"};
 
-        bool load_asset_meta(asset_meta& meta, const std::filesystem::path& path)
+        bool load_asset_meta(asset_meta& meta, cstring_view path)
         {
             data_document doc;
 
-            if (!json::read(doc, path.string().c_str()))
+            if (!json::read(doc, path))
             {
                 return false;
             }
@@ -94,6 +95,11 @@ namespace oblo
             meta.nativeAssetType = doc.read_uuid(doc.find_child(root, "nativeAssetType"_hsv)).value_or(uuid{});
 
             return true;
+        }
+
+        bool load_asset_meta(asset_meta& meta, const std::filesystem::path& path)
+        {
+            return load_asset_meta(meta, cstring_view{path.string().c_str()});
         }
 
         bool save_asset_meta(const asset_meta& meta, cstring_view destination)
@@ -895,6 +901,12 @@ namespace oblo
         return m_impl->resourceProvider.get();
     }
 
+    expected<> asset_registry::initialize_directory_watcher()
+    {
+        m_impl->watcher = allocate_unique<filesystem::directory_watcher>();
+        return m_impl->watcher->init({.path = m_impl->assetsDir.view(), .isRecursive = true});
+    }
+
     void asset_registry::update()
     {
         auto* jm = job_manager::get();
@@ -962,6 +974,74 @@ namespace oblo
                 executionTime);
 
             it = m_impl->currentImports.erase_unordered(it);
+        }
+
+        if (m_impl->watcher)
+        {
+            asset_meta meta;
+
+            m_impl->watcher
+                ->process(
+                    [this, &meta](const filesystem::directory_watcher_event& e)
+                    {
+                        switch (e.eventKind)
+                        {
+                        case filesystem::directory_watcher_event_kind::created:
+                            // We should check if the asset is in our map, and add it in case it is not
+                            if (e.path.ends_with(AssetMetaExtension) && load_asset_meta(meta, e.path))
+                            {
+                                const auto it = m_impl->assets.find(meta.assetId);
+
+                                if (it == m_impl->assets.end())
+                                {
+                                    // TODO: Discover artifacts
+                                }
+                            }
+                            break;
+
+                        case filesystem::directory_watcher_event_kind::removed:
+                            // We can remove it from the map, if it's non-atomic rename it should be re-added later
+                            if (e.path.ends_with(AssetMetaExtension) && load_asset_meta(meta, e.path))
+                            {
+                                const auto it = m_impl->assets.find(meta.assetId);
+
+                                if (it != m_impl->assets.end())
+                                {
+                                    for (const auto& artifact : it->second.artifacts)
+                                    {
+                                        m_impl->on_artifact_removed(artifact);
+                                    }
+
+                                    m_impl->assets.erase(it);
+                                }
+                            }
+
+                            break;
+
+                        case filesystem::directory_watcher_event_kind::renamed:
+                            // We need to update the asset entry path
+                            if (e.path.ends_with(AssetMetaExtension) && load_asset_meta(meta, e.path))
+                            {
+                                const auto it = m_impl->assets.find(meta.assetId);
+
+                                if (it != m_impl->assets.end())
+                                {
+                                    it->second.path = e.path;
+                                }
+                            }
+
+                            // We need to update the asset_entry::path
+                            break;
+
+                        case filesystem::directory_watcher_event_kind::modified:
+                            // We don't really care if it was modified, it should be reprocessed manually if necessary
+                            break;
+
+                        default:
+                            break;
+                        }
+                    })
+                .assert_value();
         }
     }
 
