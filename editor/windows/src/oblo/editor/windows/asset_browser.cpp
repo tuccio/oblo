@@ -70,6 +70,31 @@ namespace oblo::editor
             asset_create_fn create{};
         };
 
+        struct rename_context
+        {
+            char buffer[255];
+
+            bool isAppearing;
+
+            const asset_browser_entry* activeRenameEntry;
+
+            bool is_renaming() const;
+            bool is_renaming(const asset_browser_entry* other) const;
+            void start_renaming(const asset_browser_entry* other);
+            void stop_renaming(bool apply);
+
+            void init(string_view str)
+            {
+                constexpr auto maxLen = array_size(rename_context{}.buffer) - 1;
+                const auto len = min<usize>(str.size(), maxLen);
+
+                std::memcpy(buffer, str.data(), len);
+                buffer[len] = '\0';
+
+                isAppearing = true;
+            }
+        };
+
         constexpr u32 g_Transparent = 0x00000000;
         constexpr u32 g_DirectoryColor = 0xFF7CC9E6;
         constexpr u32 g_FileColor = 0xFFDCEEEE;
@@ -85,21 +110,25 @@ namespace oblo::editor
             0xFFF79302,
         };
 
-        bool big_icon_button(ImFont* bigIcons,
+        bool big_icon_widget(ImFont* bigIcons,
             ImU32 iconColor,
             const char* icon,
             ImU32 accentColor,
             const char* text,
             ImGuiID selectableId,
-            bool* isSelected)
+            bool* isSelected,
+            rename_context* renameCtx = nullptr)
         {
             bool isPressed = false;
 
             const auto cursorPosition = ImGui::GetCursorScreenPos();
 
+            const auto& style = ImGui::GetStyle();
+
             const f32 fontSize = bigIcons->FontSize;
-            const auto selectableSize =
-                ImVec2(ImGui::GetContentRegionAvail().x, fontSize + ImGui::GetTextLineHeightWithSpacing());
+
+            const auto selectableSize = ImVec2(ImGui::GetContentRegionAvail().x,
+                fontSize + ImGui::GetTextLineHeightWithSpacing() + style.ItemInnerSpacing.y * 2);
 
             ImGui::PushID(selectableId);
 
@@ -136,14 +165,41 @@ namespace oblo::editor
                 ImGui::PopStyleColor();
                 ImGui::PopFont();
 
-                // Center align the label as well, unless the text is too big, then let it clip on the right
-                const f32 labelTextWidth = ImGui::CalcTextSize(text).x;
-                const f32 labelTextPosition = labelTextWidth > selectableSize.x
-                    ? cursorPosition.x
-                    : cursorPosition.x + (selectableSize.x - labelTextWidth) * .5f;
+                if (!renameCtx)
+                {
+                    // Center align the label as well, unless the text is too big, then let it clip on the right
+                    const f32 labelTextWidth = ImGui::CalcTextSize(text).x;
+                    const f32 labelTextPosition = labelTextWidth > selectableSize.x
+                        ? cursorPosition.x
+                        : cursorPosition.x + (selectableSize.x - labelTextWidth) * .5f;
 
-                ImGui::SetCursorScreenPos({labelTextPosition, ImGui::GetCursorScreenPos().y});
-                ImGui::TextUnformatted(text);
+                    ImGui::SetCursorScreenPos({labelTextPosition, ImGui::GetCursorScreenPos().y});
+                    ImGui::TextUnformatted(text);
+                }
+                else
+                {
+                    if (renameCtx->isAppearing)
+                    {
+                        ImGui::SetKeyboardFocusHere();
+                        ImGui::SetScrollHereY();
+                        renameCtx->isAppearing = false;
+                    }
+
+                    ImGui::SetNextItemWidth(selectableSize.x);
+
+                    if (ImGui::InputText("##renameCtx",
+                            renameCtx->buffer,
+                            array_size(renameCtx->buffer),
+                            ImGuiInputTextFlags_EnterReturnsTrue))
+                    {
+                        renameCtx->stop_renaming(true);
+                    }
+                    else if (ImGui::IsItemFocused() && ImGui::IsKeyPressed(ImGuiKey_Escape) ||
+                        ImGui::IsItemDeactivated())
+                    {
+                        renameCtx->stop_renaming(false);
+                    }
+                }
 
                 ImDrawList* const drawList = ImGui::GetWindowDrawList();
 
@@ -195,8 +251,11 @@ namespace oblo::editor
         u64 lastVersionId;
 
         const asset_browser_entry* selectedEntry{};
+        const asset_browser_entry* activeRenameEntry{};
 
         string requestedDelete;
+
+        rename_context renameCtx;
 
         void populate_asset_editors();
         void draw_popup_menu();
@@ -296,6 +355,7 @@ namespace oblo::editor
 
     void asset_browser::impl::build_directory_tree()
     {
+        renameCtx.stop_renaming(false);
         replace_selection(nullptr);
         directoryTree.clear();
 
@@ -424,7 +484,8 @@ namespace oblo::editor
             if (ImGui::BeginPopupModal(deletePopup, &isOpen, ImGuiWindowFlags_AlwaysAutoResize))
             {
                 string_builder builder;
-                builder.format("Are you sure you want to delete '{}'?", filesystem::filename(requestedDelete));
+                builder.format("Are you sure you want to delete '{}'?",
+                    filesystem::filename(requestedDelete.as<cstring_view>()));
 
                 ImGui::TextUnformatted(builder.c_str());
                 ImGui::Dummy(ImVec2{0, 8});
@@ -633,7 +694,7 @@ namespace oblo::editor
             {
                 layout.next_element();
 
-                if (bool isSelected = false; big_icon_button(bigIconsFont,
+                if (bool isSelected = false; big_icon_widget(bigIconsFont,
                         g_DirectoryColor,
                         ICON_FA_ARROW_LEFT,
                         g_Transparent,
@@ -664,13 +725,16 @@ namespace oblo::editor
 
                     bool isSelected = is_selected(&entry);
 
-                    if (big_icon_button(bigIconsFont,
+                    auto* const entryRename = renameCtx.is_renaming(&entry) ? &renameCtx : nullptr;
+
+                    if (big_icon_widget(bigIconsFont,
                             g_DirectoryColor,
                             ICON_FA_FOLDER,
                             g_Transparent,
                             entry.name.c_str(),
                             ImGui::GetID("##dir"),
-                            &isSelected))
+                            &isSelected,
+                            entryRename))
                     {
                         current.clear().append(entry.path).make_canonical_path();
                     }
@@ -682,7 +746,16 @@ namespace oblo::editor
 
                     if (ImGui::BeginPopupContextItem("##dirctx"))
                     {
-                        if (selectedEntry && ImGui::MenuItem("Delete"))
+                        // The popup actually refers to the asset we release right click on, make it clear through
+                        // selection
+                        replace_selection(&entry);
+
+                        if (ImGui::MenuItem("Rename"))
+                        {
+                            renameCtx.start_renaming(&entry);
+                        }
+
+                        if (ImGui::MenuItem("Delete"))
                         {
                             delete_entry(*selectedEntry);
                         }
@@ -718,7 +791,7 @@ namespace oblo::editor
 
                     bool isSelected = is_selected(&entry);
 
-                    const bool isPressed = big_icon_button(bigIconsFont,
+                    const bool isPressed = big_icon_widget(bigIconsFont,
                         g_FileColor,
                         ICON_FA_FILE,
                         assetColor,
@@ -768,9 +841,16 @@ namespace oblo::editor
                     {
                         // The popup actually refers to the asset we release right click on, make it clear through
                         // selection
-                        if (selectedEntry != &entry)
+                        replace_selection(&entry);
+
+                        if (ImGui::MenuItem("Rename"))
                         {
-                            selectedEntry = &entry;
+                            renameCtx.start_renaming(&entry);
+                        }
+
+                        if (ImGui::MenuItem("Delete"))
+                        {
+                            delete_entry(entry);
                         }
 
                         if (ImGui::MenuItem("Reimport"))
@@ -779,11 +859,6 @@ namespace oblo::editor
                             {
                                 log::error("Failed to reimport {}", meta.assetId);
                             }
-                        }
-
-                        if (ImGui::MenuItem("Delete"))
-                        {
-                            delete_entry(entry);
                         }
 
                         if (ImGui::MenuItem("Open Source in Explorer"))
@@ -817,7 +892,7 @@ namespace oblo::editor
                             const auto artifactColorId = hash_all<hash>(artifactMeta.type) % array_size(g_Colors);
                             const auto artifactColor = g_Colors[artifactColorId];
 
-                            big_icon_button(bigIconsFont,
+                            big_icon_widget(bigIconsFont,
                                 g_FileColor,
                                 ICON_FA_FILE_LINES,
                                 artifactColor,
@@ -874,9 +949,17 @@ namespace oblo::editor
 
         if (hasFocus)
         {
-            if (ImGui::IsKeyPressed(ImGuiKey_Delete) && selectedEntry)
+            if (selectedEntry)
             {
-                delete_entry(*selectedEntry);
+                if (ImGui::IsKeyPressed(ImGuiKey_Delete))
+                {
+                    delete_entry(*selectedEntry);
+                }
+
+                if (ImGui::IsKeyPressed(ImGuiKey_F2))
+                {
+                    renameCtx.start_renaming(selectedEntry);
+                }
             }
         }
 
@@ -922,6 +1005,57 @@ namespace oblo::editor
         {
             selectedEntry = newSelection;
         }
+    }
+
+    bool rename_context::is_renaming() const
+    {
+        return activeRenameEntry == nullptr;
+    }
+
+    bool rename_context::is_renaming(const asset_browser_entry* other) const
+    {
+        return activeRenameEntry == other;
+    }
+
+    void rename_context::start_renaming(const asset_browser_entry* other)
+    {
+        if (is_renaming())
+        {
+            stop_renaming(false);
+
+            activeRenameEntry = other;
+
+            if (activeRenameEntry)
+            {
+                init(activeRenameEntry->name.view());
+            }
+        }
+    }
+
+    void rename_context::stop_renaming(bool apply)
+    {
+        if (!activeRenameEntry)
+        {
+            return;
+        }
+
+        if (apply)
+        {
+            string_builder newName = activeRenameEntry->path;
+            newName.parent_path().append_path(buffer);
+
+            if (activeRenameEntry->kind == asset_browser_entry_kind::asset)
+            {
+                newName.append(AssetMetaExtension);
+            }
+
+            if (!filesystem::rename(activeRenameEntry->path, newName).value_or(false))
+            {
+                log::debug("Failed to renameCtx {} to {}", activeRenameEntry->path, newName);
+            }
+        }
+
+        activeRenameEntry = nullptr;
     }
 
     void asset_browser::impl::populate_asset_editors()

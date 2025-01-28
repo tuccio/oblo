@@ -372,6 +372,13 @@ namespace oblo::filesystem
         return path.substr(0, n);
     }
 
+    cstring_view filename(cstring_view path)
+    {
+        std::filesystem::path p{std::u8string_view{path.u8data(), path.size()}};
+        const auto n = p.filename().u8string().size();
+        return path.substr(path.size() - n);
+    }
+
     string_view filename(string_view path)
     {
         std::filesystem::path p{std::u8string_view{path.u8data(), path.size()}};
