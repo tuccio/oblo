@@ -96,15 +96,29 @@ namespace oblo::editor::ui
 
         if (ImGui::BeginDragDropTarget())
         {
-            if (auto* const payload = ImGui::AcceptDragDropPayload(payloads::Artifact))
+            if (auto* const artifactPayload = ImGui::AcceptDragDropPayload(payloads::Artifact))
             {
-                const uuid id = payloads::parse_artifact(payload->Data);
+                const uuid id = payloads::unpack_artifact(artifactPayload->Data);
 
                 artifact_meta dndMeta;
 
                 if (m_assetRegistry.find_artifact_by_id(id, dndMeta) && meta.type == type)
                 {
                     m_currentRef = id;
+                    selectionChanged = true;
+                }
+            }
+            else if (auto* const assetPayload = ImGui::AcceptDragDropPayload(payloads::Asset))
+            {
+                const uuid id = payloads::unpack_asset(assetPayload->Data);
+
+                asset_meta assetMeta;
+                artifact_meta artifactMeta;
+
+                if (m_assetRegistry.find_asset_by_id(id, assetMeta) &&
+                    m_assetRegistry.find_artifact_by_id(assetMeta.mainArtifactHint, artifactMeta) && meta.type == type)
+                {
+                    m_currentRef = artifactMeta.artifactId;
                     selectionChanged = true;
                 }
             }

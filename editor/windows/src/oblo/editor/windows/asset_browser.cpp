@@ -832,8 +832,8 @@ namespace oblo::editor
                     }
                     else if (!meta.mainArtifactHint.is_nil() && ImGui::BeginDragDropSource())
                     {
-                        const auto payload = payloads::pack_artifact(meta.mainArtifactHint);
-                        ImGui::SetDragDropPayload(payloads::Artifact, &payload, sizeof(drag_and_drop_payload));
+                        const auto payload = payloads::pack_artifact(meta.assetId);
+                        ImGui::SetDragDropPayload(payloads::Asset, &payload, sizeof(drag_and_drop_payload));
                         ImGui::EndDragDropSource();
                     }
 

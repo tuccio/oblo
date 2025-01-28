@@ -17,38 +17,41 @@ namespace oblo::editor
 
         namespace detail
         {
-            inline drag_and_drop_payload pack_uuid(const uuid& id)
+            template <typename T>
+                requires((alignof(T) <= alignof(drag_and_drop_payload)) && std::is_trivially_copyable_v<T>)
+            inline drag_and_drop_payload pack(const T& v)
             {
                 drag_and_drop_payload p;
-                *start_lifetime_as<uuid>(p.data) = id;
+                new (p.data) T{v};
                 return p;
             }
 
-            inline uuid parse_uuid(const drag_and_drop_payload& payload)
+            template <typename T>
+                requires((alignof(T) <= alignof(drag_and_drop_payload)) && std::is_trivially_copyable_v<T>)
+            inline uuid unpack(const drag_and_drop_payload& payload)
             {
-                return *start_lifetime_as<uuid>(payload.data);
+                return *start_lifetime_as<T>(payload.data);
             }
-
         }
 
         inline drag_and_drop_payload pack_asset(const uuid& id)
         {
-            return detail::pack_uuid(id);
+            return detail::pack(id);
         }
 
         inline drag_and_drop_payload pack_artifact(const uuid& id)
         {
-            return detail::pack_uuid(id);
+            return detail::pack(id);
         }
 
-        inline uuid parse_artifact(const void* payload)
+        inline uuid unpack_artifact(const void* payload)
         {
-            return detail::parse_uuid(*start_lifetime_as<drag_and_drop_payload>(payload));
+            return detail::unpack<uuid>(*start_lifetime_as<drag_and_drop_payload>(payload));
         }
 
-        inline uuid parse_asset(const void* payload)
+        inline uuid unpack_asset(const void* payload)
         {
-            return detail::parse_uuid(*start_lifetime_as<drag_and_drop_payload>(payload));
+            return detail::unpack<uuid>(*start_lifetime_as<drag_and_drop_payload>(payload));
         }
     }
 }

@@ -12,6 +12,7 @@ namespace oblo
 {
     class input_queue;
     class resource_registry;
+    struct uuid;
 }
 
 namespace oblo::editor
@@ -32,6 +33,8 @@ namespace oblo::editor
 
     private:
         void on_close();
+
+        void spawn_artifact(const window_update_context& ctx, uuid id);
 
     private:
         resource_registry* m_resources{};

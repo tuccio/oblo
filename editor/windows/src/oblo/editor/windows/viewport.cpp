@@ -1,5 +1,7 @@
 #include <oblo/editor/windows/viewport.hpp>
 
+#include <oblo/asset/asset_meta.hpp>
+#include <oblo/asset/asset_registry.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/utility.hpp>
@@ -223,64 +225,24 @@ namespace oblo::editor
 
                 if (ImGui::BeginDragDropTarget())
                 {
-                    if (auto* const payload = ImGui::AcceptDragDropPayload(payloads::Artifact))
+                    if (auto* const artifactPayload = ImGui::AcceptDragDropPayload(payloads::Artifact))
                     {
-                        const uuid id = payloads::parse_artifact(payload->Data);
-                        const auto resource = m_resources->get_resource(id);
+                        const uuid id = payloads::unpack_artifact(artifactPayload->Data);
+                        spawn_artifact(ctx, id);
+                    }
+                    else if (auto* const assetPayload = ImGui::AcceptDragDropPayload(payloads::Asset))
+                    {
+                        const uuid id = payloads::unpack_asset(assetPayload->Data);
 
-                        if (const resource_ptr modelRes = resource.as<model>())
+                        asset_meta assetMeta;
+                        artifact_meta artifactMeta;
+
+                        if (auto* assets = ctx.services.find<asset_registry>())
                         {
-                            // TODO: This is not how we want to spawn stuff, rather create a component with a reference
-                            modelRes.load_sync();
-
-                            for (const auto& [mesh, material] : zip_range(modelRes->meshes, modelRes->materials))
+                            if (assets->find_asset_by_id(id, assetMeta) &&
+                                assets->find_artifact_by_id(assetMeta.mainArtifactHint, artifactMeta))
                             {
-                                if (const resource_ptr meshRes = m_resources->get_resource(mesh.id))
-                                {
-                                    const auto name = meshRes.get_name();
-
-                                    const auto e =
-                                        ecs_utility::create_named_physical_entity<static_mesh_component>(*m_entities,
-                                            name.empty() ? "New Mesh" : name,
-                                            vec3{},
-                                            quaternion::identity(),
-                                            vec3::splat(1));
-
-                                    auto& sm = m_entities->get<static_mesh_component>(e);
-                                    sm.mesh = mesh;
-                                    sm.material = material;
-
-                                    auto* const selected = ctx.services.find<selected_entities>();
-
-                                    if (selected)
-                                    {
-                                        selected->clear();
-                                        selected->add({&e, 1});
-                                    }
-                                }
-                            }
-                        }
-                        else if (const resource_ptr textureRes = resource.as<texture>())
-                        {
-                            const auto name = textureRes.get_name();
-
-                            const auto e = ecs_utility::create_named_physical_entity<skybox_component>(*m_entities,
-                                name.empty() ? "New Skybox" : name,
-                                vec3{},
-                                quaternion::identity(),
-                                vec3::splat(1));
-
-                            auto& sm = m_entities->get<skybox_component>(e);
-                            sm.texture = textureRes.as_ref();
-                            sm.multiplier = 1.f;
-                            sm.tint = vec3::splat(1.f);
-
-                            auto* const selected = ctx.services.find<selected_entities>();
-
-                            if (selected)
-                            {
-                                selected->clear();
-                                selected->add({&e, 1});
+                                spawn_artifact(ctx, artifactMeta.artifactId);
                             }
                         }
                     }
@@ -352,6 +314,66 @@ namespace oblo::editor
         {
             m_idPool->release<viewport>(m_viewportId);
             m_idPool = {};
+        }
+    }
+
+    void viewport::spawn_artifact(const window_update_context& ctx, uuid id)
+    {
+        const auto resource = m_resources->get_resource(id);
+
+        if (const resource_ptr modelRes = resource.as<model>())
+        {
+            // TODO: This is not how we want to spawn stuff, rather create a component with a reference
+            modelRes.load_sync();
+
+            for (const auto& [mesh, material] : zip_range(modelRes->meshes, modelRes->materials))
+            {
+                if (const resource_ptr meshRes = m_resources->get_resource(mesh.id))
+                {
+                    const auto name = meshRes.get_name();
+
+                    const auto e = ecs_utility::create_named_physical_entity<static_mesh_component>(*m_entities,
+                        name.empty() ? "New Mesh" : name,
+                        vec3{},
+                        quaternion::identity(),
+                        vec3::splat(1));
+
+                    auto& sm = m_entities->get<static_mesh_component>(e);
+                    sm.mesh = mesh;
+                    sm.material = material;
+
+                    auto* const selected = ctx.services.find<selected_entities>();
+
+                    if (selected)
+                    {
+                        selected->clear();
+                        selected->add({&e, 1});
+                    }
+                }
+            }
+        }
+        else if (const resource_ptr textureRes = resource.as<texture>())
+        {
+            const auto name = textureRes.get_name();
+
+            const auto e = ecs_utility::create_named_physical_entity<skybox_component>(*m_entities,
+                name.empty() ? "New Skybox" : name,
+                vec3{},
+                quaternion::identity(),
+                vec3::splat(1));
+
+            auto& sm = m_entities->get<skybox_component>(e);
+            sm.texture = textureRes.as_ref();
+            sm.multiplier = 1.f;
+            sm.tint = vec3::splat(1.f);
+
+            auto* const selected = ctx.services.find<selected_entities>();
+
+            if (selected)
+            {
+                selected->clear();
+                selected->add({&e, 1});
+            }
         }
     }
 }
