@@ -586,15 +586,36 @@ namespace oblo::editor
                     case asset_browser_entry_kind::directory:
                         builder.clear().format("##{}", entry.path);
 
+                        ImGui::PushID(builder.c_str());
+
                         if (bool isSelected = false; big_icon_button(bigIconsFont,
                                 g_DirectoryColor,
                                 ICON_FA_FOLDER,
                                 g_Transparent,
                                 entry.name.c_str(),
-                                ImGui::GetID(builder.c_str()),
+                                ImGui::GetID("##dir"),
                                 &isSelected))
                         {
                             current.clear().append(entry.path).make_canonical_path();
+                        }
+
+                        if (ImGui::BeginPopupContextItem("##dirctx"))
+                        {
+                            if (ImGui::MenuItem("Delete"))
+                            {
+                                // Should probably ask to confirm
+                                if (!filesystem::remove_all(entry.path))
+                                {
+                                    log::error("Failed to delete {}", entry.path);
+                                }
+                            }
+
+                            if (ImGui::MenuItem("Open in Explorer"))
+                            {
+                                platform::open_folder(entry.path);
+                            }
+
+                            ImGui::EndPopup();
                         }
 
                         if (ImGui::BeginItemTooltip())
@@ -602,6 +623,8 @@ namespace oblo::editor
                             ImGui::TextUnformatted(entry.name.c_str());
                             ImGui::EndTooltip();
                         }
+
+                        ImGui::PopID();
 
                         break;
                     case asset_browser_entry_kind::asset: {
@@ -659,6 +682,14 @@ namespace oblo::editor
                                 if (!registry->process(meta.assetId))
                                 {
                                     log::error("Failed to reimport {}", meta.assetId);
+                                }
+                            }
+
+                            if (ImGui::MenuItem("Delete"))
+                            {
+                                if (!filesystem::remove(entry.path))
+                                {
+                                    log::error("Failed to delete {}", entry.path);
                                 }
                             }
 
