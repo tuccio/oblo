@@ -70,19 +70,25 @@ namespace oblo::editor
             asset_create_fn create{};
         };
 
-        constexpr u32 g_DirectoryColor = 0xFF7CC9E6; // Yellow
+        constexpr u32 g_Transparent = 0x00000000;
+        constexpr u32 g_DirectoryColor = 0xFF7CC9E6;
+        constexpr u32 g_FileColor = 0xFFDCEEEE;
 
-        constexpr u32 g_Colors[5] = {
-            0xFF8DAAFC,
-            0xFF83CDFC,
-            0xFFDCEEFE,
-            0xFFF5BEB7,
-            0xFFA9F9DC,
+        constexpr u32 g_Colors[] = {
+            0xFF82DC59,
+            0xFFF87574,
+            0xFF58B5E1,
+            0xFF2CC0A1,
+            0xFFF4BB8F,
+            0xFFEBC30E,
+            0xFFBF83F8,
+            0xFFF79302,
         };
 
         bool big_icon_button(ImFont* bigIcons,
             ImU32 iconColor,
             const char* icon,
+            ImU32 accentColor,
             const char* text,
             ImGuiID selectableId,
             bool* isSelected)
@@ -110,14 +116,24 @@ namespace oblo::editor
             ImGui::SetCursorPos(cursorPosition);
 
             {
-                ImGui::PushClipRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), true);
+                const auto windowPos = ImGui::GetWindowPos();
+                const f32 itemPosX = windowPos.x + cursorPosition.x;
+                const f32 itemPosY = windowPos.y + cursorPosition.y;
+
+                ImGui::PushClipRect(ImVec2{itemPosX, itemPosY},
+                    {itemPosX + selectableSize.x, itemPosY + selectableSize.y},
+                    true);
+
+                // const auto itemRectMin = ImGui::GetItemRectMin();
+                // const auto itemRectMax = ImGui::GetItemRectMax();
+                // ImGui::PushClipRect(itemRectMin, itemRectMax, true);
 
                 ImGui::PushFont(bigIcons);
                 ImGui::PushStyleColor(ImGuiCol_Text, iconColor);
 
                 const f32 textWidth = ImGui::CalcTextSize(icon).x;
 
-                const auto textPosition = cursorPosition.x + (selectableSize.x - textWidth) * .5f;
+                const f32 textPosition = cursorPosition.x + (selectableSize.x - textWidth) * .5f;
 
                 // Align the icon to the center of the button
                 ImGui::SetCursorPosX(textPosition);
@@ -128,7 +144,15 @@ namespace oblo::editor
 
                 ImGui::TextUnformatted(text);
 
-                ImGui::SameLine();
+                ImDrawList* const drawList = ImGui::GetWindowDrawList();
+
+                const f32 triangleSize = 5.f;
+
+                const ImVec2 v1{itemPosX + selectableSize.x - triangleSize, itemPosY};
+                const ImVec2 v2{itemPosX + selectableSize.x, itemPosY};
+                const ImVec2 v3{itemPosX + selectableSize.x, itemPosY + triangleSize};
+
+                drawList->AddTriangleFilled(v1, v2, v3, accentColor);
 
                 ImGui::PopClipRect();
             }
@@ -171,7 +195,6 @@ namespace oblo::editor
 
         void populate_asset_editors();
         void draw_popup_menu();
-        void reset_path(cstring_view path);
 
         void build_directory_tree();
         asset_browser_directory& get_or_build(const string_builder& p);
@@ -520,6 +543,7 @@ namespace oblo::editor
                 if (bool isSelected = false; big_icon_button(bigIconsFont,
                         g_DirectoryColor,
                         ICON_FA_CIRCLE_CHEVRON_UP,
+                        g_Transparent,
                         "Back",
                         ImGui::GetID("##back"),
                         &isSelected))
@@ -556,6 +580,7 @@ namespace oblo::editor
                         if (bool isSelected = false; big_icon_button(bigIconsFont,
                                 g_DirectoryColor,
                                 ICON_FA_FOLDER,
+                                g_Transparent,
                                 entry.name.c_str(),
                                 ImGui::GetID(builder.c_str()),
                                 &isSelected))
@@ -573,13 +598,12 @@ namespace oblo::editor
 
                         const auto typeHash = hash_all<hash>(meta.nativeAssetType, meta.typeHint);
                         const auto colorId = typeHash % array_size(g_Colors);
-                        const auto color = g_Colors[colorId];
-                        // const auto color = 0xFFFFA07A;
-                        // const auto color = g_Colors[10];
+                        const auto accentColor = g_Colors[colorId];
 
                         if (bool isSelected = false; big_icon_button(bigIconsFont,
-                                color,
+                                g_FileColor,
                                 ICON_FA_FILE,
+                                accentColor,
                                 entry.name.c_str(),
                                 ImGui::GetID(builder.c_str()),
                                 &isSelected))
