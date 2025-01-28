@@ -505,6 +505,34 @@ namespace oblo::editor
         }
     }
 
+    namespace
+    {
+        struct dynamic_table_layout
+        {
+            u32 columns;
+
+            u32 currentColumnIndex;
+
+            void init(u32 cols)
+            {
+                columns = cols;
+                currentColumnIndex = cols - 1;
+            }
+
+            void next_element()
+            {
+                if (++currentColumnIndex == columns)
+                {
+                    currentColumnIndex = 0;
+
+                    ImGui::TableNextRow();
+                }
+
+                ImGui::TableNextColumn();
+            }
+        };
+    }
+
     void asset_browser::impl::draw_main_panel(const window_update_context& ctx)
     {
         if (!ImGui::BeginChild("#main_panel"))
@@ -533,15 +561,12 @@ namespace oblo::editor
                 ImGui::TableSetupColumn(builder.c_str());
             }
 
-            usize entryIndex{};
-
-            u32 currentColumnIndex = 0;
+            dynamic_table_layout layout;
+            layout.init(columns);
 
             if (!dir.isRoot)
             {
-                ImGui::TableNextRow();
-
-                ImGui::TableNextColumn();
+                layout.next_element();
 
                 if (bool isSelected = false; big_icon_button(bigIconsFont,
                         g_DirectoryColor,
@@ -559,185 +584,179 @@ namespace oblo::editor
                     ImGui::TextUnformatted("Back to parent folder");
                     ImGui::EndTooltip();
                 }
-
-                currentColumnIndex = 1;
             }
 
-            while (entryIndex < dir.entries.size())
+            for (const auto& entry : dir.entries)
             {
-                if (currentColumnIndex == 0)
+                layout.next_element();
+
+                switch (entry.kind)
                 {
-                    ImGui::TableNextRow();
-                }
+                case asset_browser_entry_kind::directory:
+                    builder.clear().format("##{}", entry.path);
 
-                for (; currentColumnIndex < columns; ++currentColumnIndex)
-                {
-                    ImGui::TableNextColumn();
+                    ImGui::PushID(builder.c_str());
 
-                    if (entryIndex >= dir.entries.size())
-                    {
-                        break;
-                    }
-
-                    auto& entry = dir.entries[entryIndex];
-
-                    switch (entry.kind)
-                    {
-                    case asset_browser_entry_kind::directory:
-                        builder.clear().format("##{}", entry.path);
-
-                        ImGui::PushID(builder.c_str());
-
-                        if (bool isSelected = false; big_icon_button(bigIconsFont,
-                                g_DirectoryColor,
-                                ICON_FA_FOLDER,
-                                g_Transparent,
-                                entry.name.c_str(),
-                                ImGui::GetID("##dir"),
-                                &isSelected))
-                        {
-                            current.clear().append(entry.path).make_canonical_path();
-                        }
-
-                        if (ImGui::BeginPopupContextItem("##dirctx"))
-                        {
-                            if (ImGui::MenuItem("Delete"))
-                            {
-                                // Should probably ask to confirm
-                                if (!filesystem::remove_all(entry.path))
-                                {
-                                    log::error("Failed to delete {}", entry.path);
-                                }
-                            }
-
-                            if (ImGui::MenuItem("Open in Explorer"))
-                            {
-                                platform::open_folder(entry.path);
-                            }
-
-                            ImGui::EndPopup();
-                        }
-
-                        if (ImGui::BeginItemTooltip())
-                        {
-                            ImGui::TextUnformatted(entry.name.c_str());
-                            ImGui::EndTooltip();
-                        }
-
-                        ImGui::PopID();
-
-                        break;
-                    case asset_browser_entry_kind::asset: {
-                        const asset_meta& meta = entry.meta;
-
-                        ImGui::PushID(int(hash_all<std::hash>(meta.assetId)));
-
-                        builder.clear().format("##{}", entry.path);
-
-                        const auto typeHash = hash_all<hash>(meta.nativeAssetType, meta.typeHint);
-                        const auto colorId = typeHash % array_size(g_Colors);
-                        const auto accentColor = g_Colors[colorId];
-
-                        bool isSelected = false;
-
-                        const bool isPressed = big_icon_button(bigIconsFont,
-                            g_FileColor,
-                            ICON_FA_FILE,
-                            accentColor,
+                    if (bool isSelected = false; big_icon_button(bigIconsFont,
+                            g_DirectoryColor,
+                            ICON_FA_FOLDER,
+                            g_Transparent,
                             entry.name.c_str(),
-                            ImGui::GetID(builder.c_str()),
-                            &isSelected);
-
-                        if (ImGui::BeginItemTooltip())
-                        {
-                            ImGui::TextUnformatted(entry.name.c_str());
-                            ImGui::EndTooltip();
-                        }
-
-                        if (isPressed)
-                        {
-                            if (const auto it = editorsLookup.find(meta.nativeAssetType); it != editorsLookup.end())
-                            {
-                                const asset_editor_create_fn createWindow = it->second;
-                                createWindow(ctx.windowManager,
-                                    ctx.windowManager.get_parent(ctx.windowHandle),
-                                    meta.assetId);
-                            }
-                            else
-                            {
-                                // expandedAsset = expandedAsset == meta.assetId ? uuid{} : meta.assetId;
-                            }
-                        }
-                        else if (!meta.mainArtifactHint.is_nil() && ImGui::BeginDragDropSource())
-                        {
-                            const auto payload = payloads::pack_artifact(meta.mainArtifactHint);
-                            ImGui::SetDragDropPayload(payloads::Artifact, &payload, sizeof(drag_and_drop_payload));
-                            ImGui::EndDragDropSource();
-                        }
-
-                        if (ImGui::BeginPopupContextItem("##assetctx"))
-                        {
-                            if (ImGui::MenuItem("Reimport"))
-                            {
-                                if (!registry->process(meta.assetId))
-                                {
-                                    log::error("Failed to reimport {}", meta.assetId);
-                                }
-                            }
-
-                            if (ImGui::MenuItem("Delete"))
-                            {
-                                if (!filesystem::remove(entry.path))
-                                {
-                                    log::error("Failed to delete {}", entry.path);
-                                }
-                            }
-
-                            if (ImGui::MenuItem("Open Source in Explorer"))
-                            {
-                                string_builder sourcePath;
-                                if (registry->get_source_directory(meta.assetId, sourcePath))
-                                {
-                                    platform::open_folder(sourcePath.view());
-                                }
-                            }
-
-                            ImGui::EndPopup();
-                        }
-
-                        ImGui::PopID();
-
-                        if (expandedAsset == meta.assetId)
-                        {
-                            for (const auto& artifactMeta : entry.artifacts)
-                            {
-                                ImGui::PushID(int(hash_all<std::hash>(artifactMeta.artifactId)));
-
-                                ImGui::Button(
-                                    artifactMeta.name.empty() ? "Unnamed Artifact" : artifactMeta.name.c_str());
-
-                                ImGui::PopID();
-
-                                if (ImGui::BeginDragDropSource())
-                                {
-                                    const auto payload = payloads::pack_artifact(artifactMeta.artifactId);
-
-                                    ImGui::SetDragDropPayload(payloads::Artifact,
-                                        &payload,
-                                        sizeof(drag_and_drop_payload));
-
-                                    ImGui::EndDragDropSource();
-                                }
-                            }
-                        }
+                            ImGui::GetID("##dir"),
+                            &isSelected))
+                    {
+                        current.clear().append(entry.path).make_canonical_path();
                     }
+
+                    if (ImGui::BeginPopupContextItem("##dirctx"))
+                    {
+                        if (ImGui::MenuItem("Delete"))
+                        {
+                            // Should probably ask to confirm
+                            if (!filesystem::remove_all(entry.path))
+                            {
+                                log::error("Failed to delete {}", entry.path);
+                            }
+                        }
+
+                        if (ImGui::MenuItem("Open in Explorer"))
+                        {
+                            platform::open_folder(entry.path);
+                        }
+
+                        ImGui::EndPopup();
+                    }
+
+                    if (ImGui::BeginItemTooltip())
+                    {
+                        ImGui::TextUnformatted(entry.name.c_str());
+                        ImGui::EndTooltip();
+                    }
+
+                    ImGui::PopID();
+
                     break;
+                case asset_browser_entry_kind::asset: {
+                    const asset_meta& meta = entry.meta;
+
+                    ImGui::PushID(int(hash_all<std::hash>(meta.assetId)));
+
+                    builder.clear().format("##{}", entry.path);
+
+                    const auto assetColorId =
+                        hash_all<hash>(meta.nativeAssetType, meta.typeHint) % array_size(g_Colors);
+                    const auto assetColor = g_Colors[assetColorId];
+
+                    bool isSelected = false;
+
+                    const bool isPressed = big_icon_button(bigIconsFont,
+                        g_FileColor,
+                        ICON_FA_FILE,
+                        assetColor,
+                        entry.name.c_str(),
+                        ImGui::GetID(builder.c_str()),
+                        &isSelected);
+
+                    if (ImGui::BeginItemTooltip())
+                    {
+                        ImGui::TextUnformatted(entry.name.c_str());
+                        ImGui::EndTooltip();
                     }
 
-                    ++entryIndex;
-                }
+                    if (isPressed)
+                    {
+                        if (const auto it = editorsLookup.find(meta.nativeAssetType); it != editorsLookup.end())
+                        {
+                            const asset_editor_create_fn createWindow = it->second;
+                            createWindow(ctx.windowManager,
+                                ctx.windowManager.get_parent(ctx.windowHandle),
+                                meta.assetId);
+                        }
+                        else
+                        {
+                            expandedAsset = expandedAsset == meta.assetId ? uuid{} : meta.assetId;
+                        }
+                    }
+                    else if (!meta.mainArtifactHint.is_nil() && ImGui::BeginDragDropSource())
+                    {
+                        const auto payload = payloads::pack_artifact(meta.mainArtifactHint);
+                        ImGui::SetDragDropPayload(payloads::Artifact, &payload, sizeof(drag_and_drop_payload));
+                        ImGui::EndDragDropSource();
+                    }
 
-                currentColumnIndex = currentColumnIndex % columns;
+                    if (ImGui::BeginPopupContextItem("##assetctx"))
+                    {
+                        if (ImGui::MenuItem("Reimport"))
+                        {
+                            if (!registry->process(meta.assetId))
+                            {
+                                log::error("Failed to reimport {}", meta.assetId);
+                            }
+                        }
+
+                        if (ImGui::MenuItem("Delete"))
+                        {
+                            if (!filesystem::remove(entry.path))
+                            {
+                                log::error("Failed to delete {}", entry.path);
+                            }
+                        }
+
+                        if (ImGui::MenuItem("Open Source in Explorer"))
+                        {
+                            string_builder sourcePath;
+                            if (registry->get_source_directory(meta.assetId, sourcePath))
+                            {
+                                platform::open_folder(sourcePath.view());
+                            }
+                        }
+
+                        ImGui::EndPopup();
+                    }
+
+                    ImGui::PopID();
+
+                    if (expandedAsset == meta.assetId)
+                    {
+                        for (const auto& artifactMeta : entry.artifacts)
+                        {
+                            layout.next_element();
+
+                            ImGui::PushID(int(hash_all<std::hash>(artifactMeta.artifactId)));
+
+                            const auto artifactName =
+                                artifactMeta.name.empty() ? "Unnamed Artifact" : artifactMeta.name.c_str();
+
+                            const auto artifactColorId = hash_all<hash>(artifactMeta.type) % array_size(g_Colors);
+                            const auto artifactColor = g_Colors[artifactColorId];
+
+                            big_icon_button(bigIconsFont,
+                                g_FileColor,
+                                ICON_FA_FILE_LINES,
+                                artifactColor,
+                                artifactName,
+                                ImGui::GetID(builder.c_str()),
+                                &isSelected);
+
+                            if (!artifactMeta.artifactId.is_nil() && ImGui::BeginDragDropSource())
+                            {
+                                const auto payload = payloads::pack_artifact(artifactMeta.artifactId);
+                                ImGui::SetDragDropPayload(payloads::Artifact, &payload, sizeof(drag_and_drop_payload));
+                                ImGui::EndDragDropSource();
+                            }
+
+                            if (ImGui::BeginItemTooltip())
+                            {
+                                ImGui::TextUnformatted(artifactName);
+                                ImGui::EndTooltip();
+                            }
+
+                            ImGui::PopID();
+                        }
+                    }
+                }
+                break;
+                }
             }
 
             // Finish the last row
