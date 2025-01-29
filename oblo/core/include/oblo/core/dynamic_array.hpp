@@ -124,7 +124,7 @@ namespace oblo
         iterator append(OtherIt begin, OtherIt end);
 
         template <typename Iterator>
-            requires std::contiguous_iterator<Iterator>
+            requires std::forward_iterator<Iterator>
         void assign(Iterator first, Iterator last) noexcept;
 
         void assign(usize count, const T& value) noexcept;
@@ -531,7 +531,7 @@ namespace oblo
 
     template <typename T>
     template <typename Iterator>
-        requires std::contiguous_iterator<Iterator>
+        requires std::forward_iterator<Iterator>
     void dynamic_array<T>::assign(Iterator first, Iterator last) noexcept
     {
         clear();

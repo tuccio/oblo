@@ -851,46 +851,49 @@ namespace oblo
         return m_impl->versionId;
     }
 
-    void asset_registry_impl::discover_artifacts(string_builder& builder,
-        const asset_meta& assetMeta,
-        asset_entry& entry,
-        asset_process_info& processInfo,
-        bool& outNeedsReprocessing)
+    bool asset_registry_impl::on_new_artifact_discovered(
+        string_builder& builder, const uuid& artifactId, const uuid& assetId)
     {
-        outNeedsReprocessing = false;
+        artifact_meta artifactMeta;
+        make_artifact_path(builder, assetId, artifactId).append(g_artifactMetaExtension);
 
-        make_artifacts_process_path(builder.clear(), assetMeta.assetId);
-
-        if (!load_asset_process_info(builder, processInfo))
+        if (load_artifact_meta(builder, artifactMeta))
         {
-            log::debug("Failed to load asset build info for asset {}", assetMeta.assetId);
-            outNeedsReprocessing = true;
+            on_artifact_added(artifactMeta);
+            return true;
         }
-        else
+
+        return false;
+    }
+
+    bool asset_registry_impl::on_new_asset_discovered(
+        string_builder& builder, const uuid& assetId, deque<uuid>& artifacts)
+    {
+        bool allSuccessful = true;
+
+        for (auto artifactIt = artifacts.begin(); artifactIt != artifacts.end();)
         {
-            entry.artifacts.append(processInfo.artifacts.begin(), processInfo.artifacts.end());
+            const auto artifactId = *artifactIt;
 
-            auto& artifacts = entry.artifacts;
+            artifact_meta artifactMeta;
+            make_artifact_path(builder, assetId, artifactId).append(g_artifactMetaExtension);
 
-            for (auto artifactIt = artifacts.begin(); artifactIt != artifacts.end();)
+            if (load_artifact_meta(builder, artifactMeta))
             {
-                const auto artifactId = *artifactIt;
-
-                artifact_meta artifactMeta;
-                make_artifact_path(builder, assetMeta.assetId, artifactId).append(g_artifactMetaExtension);
-
-                if (load_artifact_meta(builder, artifactMeta))
-                {
-                    on_artifact_added(artifactMeta);
-                    ++artifactIt;
-                }
-                else
-                {
-                    outNeedsReprocessing = true;
-                    artifactIt = artifacts.erase_unordered(artifactIt);
-                }
+                on_artifact_added(artifactMeta);
+                ++artifactIt;
+            }
+            else
+            {
+                allSuccessful = false;
+                artifactIt = artifacts.erase_unordered(artifactIt);
             }
         }
+
+        // We keep artifacts sorted for consistency and easier comparisons
+        std::sort(artifacts.begin(), artifacts.end());
+
+        return allSuccessful;
     }
 
     void asset_registry::discover_assets(flags<asset_discovery_flags> flags)
@@ -900,6 +903,8 @@ namespace oblo
         asset_process_info processInfo;
 
         string_builder builder;
+
+        deque<uuid> assetsToReprocess;
 
         for (auto&& entry :
             std::filesystem::recursive_directory_iterator{m_impl->assetsDir.view().as<std::string>(), ec})
@@ -934,14 +939,24 @@ namespace oblo
 
                 it->second.path.clear().append(p.parent_path().string()).append_path(p.stem().string());
 
-                bool needsReprocessing;
+                bool needsReprocessing = false;
 
-                m_impl->discover_artifacts(builder, assetMeta, it->second, processInfo, needsReprocessing);
+                m_impl->make_artifacts_process_path(builder.clear(), assetMeta.assetId);
 
-                if (needsReprocessing && flags.contains(asset_discovery_flags::reprocess_dirty) &&
-                    !process(assetMeta.assetId))
+                if (!load_asset_process_info(builder, processInfo))
                 {
-                    log::debug("Failed to reprocess asset {} on discover", assetMeta.assetId);
+                    log::debug("Failed to load asset process info for {}", assetMeta.assetId);
+                    needsReprocessing = true;
+                }
+                else
+                {
+                    needsReprocessing =
+                        !m_impl->on_new_asset_discovered(builder, assetMeta.assetId, processInfo.artifacts);
+                }
+
+                if (needsReprocessing && flags.contains(asset_discovery_flags::reprocess_dirty))
+                {
+                    assetsToReprocess.push_back(assetMeta.assetId);
                 }
             }
             else
@@ -982,6 +997,14 @@ namespace oblo
             {
                 log::debug("Garbage collecting {}", path.c_str());
                 filesystem::remove_all(path).assert_value();
+            }
+        }
+
+        for (const auto& assetId : assetsToReprocess)
+        {
+            if (!process(assetId))
+            {
+                log::debug("Failed to reprocess asset {}", assetId);
             }
         }
     }
@@ -1037,13 +1060,16 @@ namespace oblo
 
                     if (assetIt == m_impl->assets.end())
                     {
-                        log::debug("An import execution terminated, but asset {} was not found, maybe it was deleted?",
+                        log::debug("An import execution terminated, but asset {} was not found, maybe "
+                                   "probablyInvalidIt was deleted?",
                             importProcess.importer.get_asset_id());
 
+                        it = m_impl->currentImports.erase_unordered(it);
                         continue;
                     }
 
                     destination = filesystem::parent_path(assetIt->second.path.view());
+                    importProcess.importer.set_asset_name(filesystem::filename(assetIt->second.path));
 
                     OBLO_ASSERT(assetIt->second.isProcessing);
                     assetIt->second.isProcessing = false;
@@ -1091,31 +1117,40 @@ namespace oblo
                             // We should check if the asset is in our map, and add it in case it is not
                             if (e.path.ends_with(AssetMetaExtension) && load_asset_meta(meta, e.path))
                             {
-                                const auto it = m_impl->assets.find(meta.assetId);
+                                const auto probablyInvalidIt = m_impl->assets.find(meta.assetId);
 
                                 [[maybe_unused]] const auto [fileIt, fileInserted] =
                                     m_impl->assetFileMap.emplace(string{e.path.c_str()}, meta.assetId);
                                 OBLO_ASSERT(fileInserted);
 
-                                if (it == m_impl->assets.end())
+                                if (probablyInvalidIt == m_impl->assets.end())
                                 {
                                     const auto [newAssetIt, inserted] =
                                         m_impl->assets.emplace(meta.assetId, asset_entry{});
 
-                                    bool needsReprocessing;
+                                    auto& newEntry = newAssetIt->second;
+
+                                    m_impl->make_artifacts_process_path(builder.clear(), meta.assetId);
+
                                     asset_process_info processInfo;
 
-                                    m_impl->discover_artifacts(builder,
-                                        meta,
-                                        newAssetIt->second,
-                                        processInfo,
-                                        needsReprocessing);
+                                    if (!load_asset_process_info(builder, processInfo))
+                                    {
+                                        log::debug("Failed to load asset process info for {}", meta.assetId);
+                                        m_impl->assets.erase(probablyInvalidIt);
+                                        m_impl->assetFileMap.erase(fileIt);
+                                        return;
+                                    }
+
+                                    m_impl->on_new_asset_discovered(builder, meta.assetId, processInfo.artifacts);
 
                                     string_view assetPath{e.path};
                                     assetPath.remove_suffix(AssetMetaExtension.size());
 
-                                    newAssetIt->second.path.append(assetPath);
-                                    newAssetIt->second.meta = meta;
+                                    newEntry.path.append(assetPath);
+                                    newEntry.meta = meta;
+                                    newEntry.artifacts.assign(processInfo.artifacts.begin(),
+                                        processInfo.artifacts.end());
                                 }
                             }
                             break;
@@ -1172,7 +1207,74 @@ namespace oblo
                             break;
 
                         case filesystem::directory_watcher_event_kind::modified:
-                            // We don't really care if it was modified, it should be reprocessed manually if necessary
+                            // Maybe it was reprocessed
+                            if (e.path.ends_with(AssetMetaExtension) && load_asset_meta(meta, e.path))
+                            {
+                                const auto it = m_impl->assets.find(meta.assetId);
+                                const auto fileIt = m_impl->assetFileMap.find(e.path);
+
+                                if (it != m_impl->assets.end() && fileIt != m_impl->assetFileMap.end())
+                                {
+                                    // We track this asset, check if something has changed
+                                    asset_process_info processInfo;
+
+                                    m_impl->make_artifacts_process_path(builder.clear(), meta.assetId);
+
+                                    if (!load_asset_process_info(builder, processInfo))
+                                    {
+                                        log::debug("Failed to load asset process info for {}", meta.assetId);
+                                        return;
+                                    }
+
+                                    std::sort(processInfo.artifacts.begin(), processInfo.artifacts.end());
+
+                                    auto& oldEntry = it->second;
+                                    OBLO_ASSERT(std::is_sorted(oldEntry.artifacts.begin(), oldEntry.artifacts.end()));
+
+                                    usize oldIndex = 0, newIndex = 0;
+
+                                    while (
+                                        oldIndex < oldEntry.artifacts.size() && newIndex < processInfo.artifacts.size())
+                                    {
+                                        const auto& o = oldEntry.artifacts[oldIndex];
+                                        const auto& n = processInfo.artifacts[newIndex];
+
+                                        if (o < n)
+                                        {
+                                            m_impl->on_artifact_removed(o);
+                                            ++oldIndex;
+                                        }
+                                        else if (o > n)
+                                        {
+                                            if (!m_impl->on_new_artifact_discovered(builder, n, meta.assetId))
+                                            {
+                                                // Failed to load the artifact, should we remove it?
+                                                OBLO_ASSERT(false);
+                                            }
+                                        }
+                                    }
+
+                                    for (; oldIndex < oldEntry.artifacts.size(); ++oldIndex)
+                                    {
+                                        const auto& o = oldEntry.artifacts[oldIndex];
+                                        m_impl->on_artifact_removed(o);
+                                    }
+
+                                    for (; newIndex < processInfo.artifacts.size(); ++newIndex)
+                                    {
+                                        const auto& n = processInfo.artifacts[newIndex];
+
+                                        if (!m_impl->on_new_artifact_discovered(builder, n, meta.assetId))
+                                        {
+                                            // Failed to load the artifact, should we remove it?
+                                            OBLO_ASSERT(false);
+                                        }
+                                    }
+
+                                    oldEntry.artifacts.assign(processInfo.artifacts.begin(),
+                                        processInfo.artifacts.end());
+                                }
+                            }
                             break;
 
                         default:

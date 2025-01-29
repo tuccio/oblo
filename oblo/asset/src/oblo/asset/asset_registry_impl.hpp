@@ -112,10 +112,7 @@ namespace oblo
 
         const string_builder* get_asset_path(const uuid& id);
 
-        void discover_artifacts(string_builder& builder,
-            const asset_meta& assetMeta,
-            asset_entry& entry,
-            asset_process_info& processInfo,
-            bool& outNeedsReprocessing);
+        bool on_new_artifact_discovered(string_builder& builder, const uuid& artifactId, const uuid& assetId);
+        bool on_new_asset_discovered(string_builder& builder, const uuid& assetId, deque<uuid>& artifacts);
     };
 }
