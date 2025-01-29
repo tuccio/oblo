@@ -218,6 +218,8 @@ namespace oblo
                     deferred.add<gpu_material, entity_id_component, vk::draw_mesh_component, vk::draw_raytraced_tag>(
                         entity);
 
+                deferred.remove<mesh_resources>(entity);
+
                 gpuMaterial = convert(*m_resourceCache, *materialRes);
 
                 pickingId.entityId = entity;
