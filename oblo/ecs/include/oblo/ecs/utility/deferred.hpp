@@ -19,6 +19,9 @@ namespace oblo::ecs
         deferred& operator=(deferred&&) noexcept = default;
 
         template <typename... ComponentsOrTags>
+        decltype(auto) create();
+
+        template <typename... ComponentsOrTags>
         decltype(auto) add(entity e);
 
         template <typename... ComponentsOrTags>
@@ -31,6 +34,9 @@ namespace oblo::ecs
     private:
         template <typename T>
         T* allocate_storage();
+
+        template <bool Create, typename... ComponentsOrTags>
+        decltype(auto) add_or_create(entity e);
 
     private:
         struct command
@@ -53,7 +59,45 @@ namespace oblo::ecs
     deferred::deferred(allocator* a) : m_storage{a}, m_commands{a} {}
 
     template <typename... ComponentsOrTags>
+    decltype(auto) deferred::create()
+    {
+        return add_or_create<true, ComponentsOrTags...>({});
+    }
+
+    template <typename... ComponentsOrTags>
     decltype(auto) deferred::add(entity e)
+    {
+        return add_or_create<false, ComponentsOrTags...>(e);
+    }
+
+    template <typename T>
+    T* deferred::allocate_storage()
+    {
+        static_assert(sizeof(T) < storage::size);
+
+        constexpr usize size = sizeof(T);
+        constexpr usize alignment = alignof(T) < storage::alignment ? storage::alignment : alignof(T);
+
+        if (m_storage.empty())
+        {
+            m_storage.emplace_back();
+        }
+
+        auto* ptr = m_storage.back().allocate(size, alignment);
+
+        if (ptr == nullptr)
+        {
+            m_storage.emplace_back();
+            ptr = m_storage.back().allocate(size, alignment);
+        }
+
+        OBLO_ASSERT(ptr);
+
+        return new (ptr) T;
+    }
+
+    template <bool Create, typename... ComponentsOrTags>
+    inline decltype(auto) deferred::add_or_create(entity e)
     {
         using tuple_t = filter_components<ComponentsOrTags...>::tuple;
         tuple_t components;
@@ -76,6 +120,11 @@ namespace oblo::ecs
                 [](entity_registry& registry, void* userdata)
             {
                 add_command_data* const data = static_cast<add_command_data*>(userdata);
+
+                if constexpr (Create)
+                {
+                    data->e = registry.create();
+                }
 
                 if constexpr (std::tuple_size_v<tuple_t> == 0)
                 {
@@ -128,32 +177,6 @@ namespace oblo::ecs
             return std::apply([]<typename... T>(T*... component) { return std::tuple<T&...>{*component...}; },
                 components);
         }
-    }
-
-    template <typename T>
-    T* deferred::allocate_storage()
-    {
-        static_assert(sizeof(T) < storage::size);
-
-        constexpr usize size = sizeof(T);
-        constexpr usize alignment = alignof(T) < storage::alignment ? storage::alignment : alignof(T);
-
-        if (m_storage.empty())
-        {
-            m_storage.emplace_back();
-        }
-
-        auto* ptr = m_storage.back().allocate(size, alignment);
-
-        if (ptr == nullptr)
-        {
-            m_storage.emplace_back();
-            ptr = m_storage.back().allocate(size, alignment);
-        }
-
-        OBLO_ASSERT(ptr);
-
-        return new (ptr) T;
     }
 
     template <typename... ComponentsOrTags>

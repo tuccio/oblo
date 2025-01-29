@@ -2,6 +2,7 @@
 
 #include <oblo/core/string/string.hpp>
 #include <oblo/ecs/entity_registry.hpp>
+#include <oblo/ecs/range.hpp>
 #include <oblo/ecs/utility/deferred.hpp>
 #include <oblo/ecs/utility/registration.hpp>
 
@@ -14,6 +15,10 @@ namespace oblo::ecs
         };
 
         struct tag_b
+        {
+        };
+
+        struct tag_c
         {
         };
 
@@ -32,6 +37,7 @@ namespace oblo::ecs
 
         types.get_or_register_tag(make_tag_type_desc<tag_a>());
         types.get_or_register_tag(make_tag_type_desc<tag_b>());
+        types.get_or_register_tag(make_tag_type_desc<tag_c>());
         types.get_or_register_component(make_component_type_desc<string>());
         types.get_or_register_component(make_component_type_desc<aligned_uvec4>());
 
@@ -82,5 +88,24 @@ namespace oblo::ecs
         d.apply(reg);
 
         ASSERT_FALSE(reg.contains(e1));
+
+        {
+            // Create new entity with unique tag_c (so we can recognize it)
+            auto&& e4String = d.create<string, tag_c>();
+            e4String = "e4";
+        }
+
+        d.apply(reg);
+
+        {
+            auto e4Range = reg.range<string>().with<tag_c>();
+            ASSERT_EQ(e4Range.count(), 1);
+
+            const entity e4 = std::get<0>(*e4Range.begin())[0];
+            ASSERT_TRUE(reg.contains(e4));
+            ASSERT_TRUE(reg.has<string>(e4));
+
+            ASSERT_EQ(reg.get<string>(e4), "e4");
+        }
     }
 }
