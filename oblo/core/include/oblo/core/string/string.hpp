@@ -67,6 +67,12 @@ namespace oblo
         string& operator=(const string&) = default;
         string& operator=(string&&) noexcept = default;
 
+        OBLO_FORCEINLINE string& operator=(const char* cstr)
+        {
+            *this = cstring_view{cstr};
+            return *this;
+        }
+
         OBLO_FORCEINLINE string& operator=(const string_view& sv)
         {
             m_string.assign(sv.begin(), sv.end());
