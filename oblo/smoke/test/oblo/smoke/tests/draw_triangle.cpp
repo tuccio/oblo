@@ -10,11 +10,11 @@
 #include <oblo/properties/serialization/common.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
-#include <oblo/scene/resources/model.hpp>
-#include <oblo/scene/resources/traits.hpp>
 #include <oblo/scene/components/position_component.hpp>
 #include <oblo/scene/components/rotation_component.hpp>
 #include <oblo/scene/components/scale_component.hpp>
+#include <oblo/scene/resources/model.hpp>
+#include <oblo/scene/resources/traits.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
 
 #include <gtest/gtest.h>
@@ -28,9 +28,8 @@ namespace oblo::smoke
             resource_registry& resourceRegistry, const asset_registry& assetRegistry, uuid assetId)
         {
             asset_meta assetMeta;
-            assetRegistry.find_asset_by_id(assetId, assetMeta);
 
-            if (assetMeta.typeHint != resource_type<T>)
+            if (!assetRegistry.find_asset_by_id(assetId, assetMeta) || assetMeta.typeHint != resource_type<T>)
             {
                 return {};
             }
@@ -40,10 +39,10 @@ namespace oblo::smoke
 
         test_task wait_for_asset_processing(const test_context& ctx, const asset_registry& assetRegistry)
         {
-            while (assetRegistry.get_running_import_count() > 0)
+            do
             {
                 co_await ctx.next_frame();
-            }
+            } while (assetRegistry.get_running_import_count() > 0);
 
             co_return;
         }
@@ -60,7 +59,7 @@ namespace oblo::smoke
             constexpr cstring_view sourceFile =
                 OBLO_GLTF_SAMPLE_MODELS "/Models/SimpleMaterial/glTF-Embedded/SimpleMaterial.gltf";
 
-            const auto assetId = assetRegistry.import(sourceFile, ".", {});
+            const auto assetId = assetRegistry.import(sourceFile, ".", "SimpleMaterial", {});
 
             OBLO_SMOKE_TRUE(assetId);
 
@@ -69,6 +68,8 @@ namespace oblo::smoke
             const auto triangle = get_resource_from_asset<model>(resourceRegistry, assetRegistry, *assetId);
 
             OBLO_SMOKE_TRUE(triangle);
+            triangle.load_sync();
+
             OBLO_SMOKE_EQ(triangle->materials.size(), 1);
             OBLO_SMOKE_EQ(triangle->meshes.size(), 1);
 
@@ -101,7 +102,7 @@ namespace oblo::smoke
             constexpr cstring_view sourceFile =
                 OBLO_GLTF_SAMPLE_MODELS "/Models/SimpleMaterial/glTF-Embedded/SimpleMaterial.gltf";
 
-            const auto assetId = assetRegistry.import(sourceFile, ".", {});
+            const auto assetId = assetRegistry.import(sourceFile, ".", "SimpleMaterial", {});
 
             OBLO_SMOKE_TRUE(assetId);
 
@@ -110,6 +111,8 @@ namespace oblo::smoke
             const auto triangle = get_resource_from_asset<model>(resourceRegistry, assetRegistry, *assetId);
 
             OBLO_SMOKE_TRUE(triangle);
+            triangle.load_sync();
+
             OBLO_SMOKE_EQ(triangle->materials.size(), 1);
             OBLO_SMOKE_EQ(triangle->meshes.size(), 1);
 

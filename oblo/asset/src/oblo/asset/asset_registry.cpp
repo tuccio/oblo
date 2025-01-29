@@ -341,7 +341,8 @@ namespace oblo
         m_impl->artifactsDir.append(artifactsDir).make_absolute_path();
         m_impl->sourceFilesDir.append(sourceFilesDir).make_absolute_path();
 
-        return true;
+        m_impl->watcher = allocate_unique<filesystem::directory_watcher>();
+        return m_impl->watcher->init({.path = m_impl->assetsDir.view(), .isRecursive = true}).has_value();
     }
 
     void asset_registry::shutdown()
@@ -1023,13 +1024,6 @@ namespace oblo
 
         return m_impl->resourceProvider.get();
     }
-
-    expected<> asset_registry::initialize_directory_watcher()
-    {
-        m_impl->watcher = allocate_unique<filesystem::directory_watcher>();
-        return m_impl->watcher->init({.path = m_impl->assetsDir.view(), .isRecursive = true});
-    }
-
     void asset_registry::update()
     {
         auto* jm = job_manager::get();
@@ -1251,6 +1245,13 @@ namespace oblo
                                                 // Failed to load the artifact, should we remove it?
                                                 OBLO_ASSERT(false);
                                             }
+
+                                            ++newIndex;
+                                        }
+                                        else
+                                        {
+                                            ++oldIndex;
+                                            ++newIndex;
                                         }
                                     }
 

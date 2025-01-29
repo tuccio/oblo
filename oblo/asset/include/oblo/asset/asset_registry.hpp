@@ -60,7 +60,6 @@ namespace oblo
         void discover_assets(flags<asset_discovery_flags> flags);
 
         resource_provider* initialize_resource_provider();
-        expected<> initialize_directory_watcher();
 
         void register_file_importer(const file_importer_descriptor& desc);
         void unregister_file_importer(type_id type);

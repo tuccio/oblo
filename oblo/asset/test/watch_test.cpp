@@ -158,7 +158,6 @@ namespace oblo
         registry.register_native_asset_type(make_text_asset_desc());
 
         registry.discover_assets({});
-        ASSERT_TRUE(registry.initialize_directory_watcher());
 
         uuid assetA;
 
@@ -281,7 +280,6 @@ namespace oblo
             });
 
             registry.discover_assets({});
-            ASSERT_TRUE(registry.initialize_directory_watcher());
 
             constexpr string_view content = "Content of the file";
             write_file(file, content);

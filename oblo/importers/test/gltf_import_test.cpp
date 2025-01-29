@@ -63,7 +63,6 @@ namespace oblo::importers
         clear_directory(testDir);
 
         ASSERT_TRUE(registry.initialize(assetsDir, artifactsDir, sourceFilesDir));
-        ASSERT_TRUE(registry.initialize_directory_watcher());
 
         deque<resource_type_descriptor> resourceTypes;
         fetch_scene_resource_types(resourceTypes);

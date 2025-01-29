@@ -149,6 +149,7 @@ namespace oblo::smoke
                 handle_renderdoc_captures();
 
                 assetRegistry.update();
+                runtimeRegistry.get_resource_registry().update();
 
                 auto& viewport = runtime.get_entity_registry().get<viewport_component>(cameraEntity);
                 viewport.width = ctx.width;
