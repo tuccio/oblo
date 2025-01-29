@@ -9,7 +9,7 @@
 namespace oblo::editor
 {
     using asset_create_fn = any_asset (*)();
-    using asset_editor_create_fn = window_handle (*)(window_manager& window, window_handle parent, uuid assetId);
+    using asset_editor_create_fn = window_handle (*)(window_manager& window, uuid assetId);
 
     struct asset_editor_descriptor
     {

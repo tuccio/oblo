@@ -47,6 +47,9 @@ namespace oblo::editor
         template <typename T>
         window_handle create_window(service_registry&& services);
 
+        template <typename T, typename... Args>
+        window_handle create_window(service_registry&& services, flags<window_flags> flags, Args&&... args);
+
         template <typename T>
         window_handle create_child_window(window_handle parent);
 
@@ -111,6 +114,17 @@ namespace oblo::editor
     window_handle window_manager::create_window(service_registry&& services)
     {
         return create_window_impl<T>(m_root, create_new_registry(std::move(services)));
+    }
+
+    template <typename T, typename... Args>
+    window_handle window_manager::create_window(service_registry&& services, flags<window_flags> flags, Args&&... args)
+    {
+        if (flags.contains(window_flags::unique_sibling) && find_child_impl(m_root, get_type_id<T>(), false))
+        {
+            return {};
+        }
+
+        return create_window_impl<T>(m_root, create_new_registry(std::move(services)), std::forward<Args>(args)...);
     }
 
     template <typename T>

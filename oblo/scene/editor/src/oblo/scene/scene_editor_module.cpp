@@ -77,9 +77,8 @@ namespace oblo
 
                         return any_asset{std::move(m)};
                     },
-                    .openEditorWindow =
-                        [](editor::window_manager& windowManager, editor::window_handle parent, uuid assetId)
-                    { return windowManager.create_child_window<editor::material_editor>(parent, {}, assetId); },
+                    .openEditorWindow = [](editor::window_manager& windowManager, uuid assetId)
+                    { return windowManager.create_window<editor::material_editor>({}, {}, assetId); },
                 });
             }
         };

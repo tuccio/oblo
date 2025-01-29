@@ -18,6 +18,7 @@
 #include <oblo/editor/data/drag_and_drop_payload.hpp>
 #include <oblo/editor/providers/asset_editor_provider.hpp>
 #include <oblo/editor/service_context.hpp>
+#include <oblo/editor/services/asset_editor_manager.hpp>
 #include <oblo/editor/window_manager.hpp>
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/log/log.hpp>
@@ -234,14 +235,13 @@ namespace oblo::editor
     struct asset_browser::impl
     {
         asset_registry* registry{};
+        asset_editor_manager* assetEditors{};
         string_builder path;
         string_builder current;
         uuid expandedAsset{};
         deque<create_menu_item> createMenu;
 
         filesystem::directory_watcher assetDirWatcher;
-
-        std::unordered_map<uuid, asset_editor_create_fn> editorsLookup;
 
         std::unordered_map<string_builder, asset_browser_directory, hash<string_builder>> assetBrowserEntries;
         deque<directory_tree_entry> directoryTree;
@@ -286,6 +286,9 @@ namespace oblo::editor
 
         m_impl->registry = ctx.services.find<asset_registry>();
         OBLO_ASSERT(m_impl->registry);
+
+        m_impl->assetEditors = ctx.services.find<asset_editor_manager>();
+        OBLO_ASSERT(m_impl->assetEditors);
 
         m_impl->path = m_impl->registry->get_asset_directory();
         m_impl->path.make_canonical_path();
@@ -842,14 +845,18 @@ namespace oblo::editor
 
                     if (isPressed)
                     {
-                        if (const auto it = editorsLookup.find(meta.nativeAssetType); it != editorsLookup.end())
+                        bool shouldExpandAsset = true;
+
+                        if (!meta.nativeAssetType.is_nil())
                         {
-                            const asset_editor_create_fn createWindow = it->second;
-                            createWindow(ctx.windowManager,
-                                ctx.windowManager.get_parent(ctx.windowHandle),
-                                meta.assetId);
+                            const auto r =
+                                assetEditors->open_editor(ctx.windowManager, meta.assetId, meta.nativeAssetType);
+
+                            shouldExpandAsset =
+                                !r.has_value() && r.error() == asset_editor_manager::open_error::no_such_type;
                         }
-                        else
+
+                        if (shouldExpandAsset)
                         {
                             expandedAsset = expandedAsset == meta.assetId ? uuid{} : meta.assetId;
                         }
@@ -1117,8 +1124,6 @@ namespace oblo::editor
 
             for (const auto& desc : createDescs)
             {
-                editorsLookup.emplace(desc.assetType, desc.openEditorWindow);
-
                 // Ignoring category for now
                 createMenu.emplace_back(desc.name, desc.create);
             }
