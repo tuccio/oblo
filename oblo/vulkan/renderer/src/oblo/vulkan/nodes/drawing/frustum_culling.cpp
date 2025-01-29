@@ -26,9 +26,7 @@ namespace oblo::vk
 
     void frustum_culling::init(const frame_graph_init_context& ctx)
     {
-        auto& pm = ctx.get_pass_manager();
-
-        cullPass = pm.register_compute_pass({
+        cullPass = ctx.register_compute_pass({
             .name = "Frustum Culling",
             .shaderSourcePath = "./vulkan/shaders/frustum_culling/cull.comp",
         });
@@ -38,7 +36,7 @@ namespace oblo::vk
 
     void frustum_culling::build(const frame_graph_build_context& ctx)
     {
-        ctx.begin_pass(pass_kind::compute);
+        cullPassInstance = ctx.compute_pass(cullPass, {});
 
         auto& allocator = ctx.get_frame_allocator();
         auto& drawBufferData = ctx.access(outDrawBufferData);
@@ -82,49 +80,38 @@ namespace oblo::vk
 
     void frustum_culling::execute(const frame_graph_execute_context& ctx)
     {
-        auto& pm = ctx.get_pass_manager();
+        binding_table2 bindingTable;
 
-        binding_table bindingTable;
-
-        const auto pipeline = pm.get_or_create_pipeline(cullPass, {});
-
-        if (const auto pass = pm.begin_compute_pass(ctx.get_command_buffer(), pipeline))
+        if (const auto pass = ctx.begin_pass(cullPassInstance))
         {
             const std::span drawData = ctx.access(outDrawBufferData);
 
-            const auto subgroupSize = pm.get_subgroup_size();
+            const auto subgroupSize = ctx.get_gpu_info().subgroupSize;
 
             for (const auto& currentDraw : drawData)
             {
                 bindingTable.clear();
 
-                ctx.bind_buffers(bindingTable,
-                    {
-                        {"b_CameraBuffer", inCameraBuffer},
-                        {"b_MeshTables", inMeshDatabase},
-                        {"b_InstanceTables", inInstanceTables},
-                        {"b_PreCullingIdMap", currentDraw.preCullingIdMap},
-                        {"b_OutDrawCount", currentDraw.drawCallCountBuffer},
-                    });
+                bindingTable.bind_buffers({
+                    {"b_CameraBuffer"_hsv, inCameraBuffer},
+                    {"b_MeshTables"_hsv, inMeshDatabase},
+                    {"b_InstanceTables"_hsv, inInstanceTables},
+                    {"b_PreCullingIdMap"_hsv, currentDraw.preCullingIdMap},
+                    {"b_OutDrawCount"_hsv, currentDraw.drawCallCountBuffer},
+                });
 
                 const u32 count = currentDraw.sourceData.numInstances;
-
-                const binding_table* bindingTables[] = {
-                    &bindingTable,
-                };
 
                 const frustum_culling_push_constants pcData{
                     .instanceTableId = currentDraw.sourceData.instanceTableId,
                     .numberOfDraws = count,
                 };
 
-                pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&pcData, 1}));
-                pm.bind_descriptor_sets(*pass, bindingTables);
+                ctx.bind_descriptor_sets(bindingTable);
+                ctx.push_constants(shader_stage::compute, 0, as_bytes(std::span{&pcData, 1}));
 
-                vkCmdDispatch(ctx.get_command_buffer(), round_up_div(count, subgroupSize), 1, 1);
+                ctx.dispatch_compute(round_up_div(count, subgroupSize), 1, 1);
             }
-
-            pm.end_compute_pass(*pass);
         }
     }
 }

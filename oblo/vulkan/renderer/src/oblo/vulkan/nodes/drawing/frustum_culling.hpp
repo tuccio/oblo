@@ -13,6 +13,7 @@ namespace oblo::vk
     struct frustum_culling
     {
         h32<compute_pass> cullPass;
+        h32<compute_pass_instance> cullPassInstance;
 
         data<std::span<draw_buffer_data>> outDrawBufferData;
 
