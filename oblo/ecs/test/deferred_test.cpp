@@ -42,17 +42,14 @@ namespace oblo::ecs
         deferred d;
 
         {
-            const auto [stringPtr] = d.add<string>(e1);
-
-            ASSERT_TRUE(stringPtr);
-            *stringPtr = "e1";
+            auto& stringRef = d.add<string>(e1);
+            stringRef = "e1";
         }
 
         {
-            const auto [stringPtr, uvec4Ptr] = d.add<string, aligned_uvec4, tag_b>(e2);
-            ASSERT_TRUE(uvec4Ptr);
-            *stringPtr = "e2";
-            *uvec4Ptr = aligned_uvec4{{1, 2, 3, 4}};
+            auto&& [stringRef, uvec4Ref] = d.add<string, aligned_uvec4, tag_b>(e2);
+            stringRef = "e2";
+            uvec4Ref = aligned_uvec4{{1, 2, 3, 4}};
         }
 
         {

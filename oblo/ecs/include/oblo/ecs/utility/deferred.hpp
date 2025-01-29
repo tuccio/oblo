@@ -115,7 +115,19 @@ namespace oblo::ecs
             },
         };
 
-        return components;
+        if constexpr (std::tuple_size_v<tuple_t> == 0)
+        {
+            return;
+        }
+        else if constexpr (std::tuple_size_v<tuple_t> == 1)
+        {
+            return *std::get<0>(components);
+        }
+        else
+        {
+            return std::apply([]<typename... T>(T*... component) { return std::tuple<T&...>{*component...}; },
+                components);
+        }
     }
 
     template <typename T>
