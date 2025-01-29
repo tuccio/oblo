@@ -67,8 +67,6 @@ namespace oblo::vk
     {
         auto& pm = ctx.get_pass_manager();
 
-        usize nextIndex = 0;
-
         auto& interner = ctx.get_string_interner();
 
         const auto inMeshTableName = interner.get_or_add("b_MeshTables");
@@ -90,9 +88,10 @@ namespace oblo::vk
 
             const auto subgroupSize = pm.get_subgroup_size();
 
-            for (const auto& currentDraw : drawData)
+            for (usize drawCallIndex = 0; drawCallIndex < drawData.size(); ++drawCallIndex)
             {
-                const buffer outDrawCallsBuffer = ctx.access(drawCallBuffers[nextIndex]);
+                const draw_buffer_data& currentDraw = drawData[drawCallIndex];
+                const buffer outDrawCallsBuffer = ctx.access(drawCallBuffers[drawCallIndex]);
 
                 bindingTable.clear();
 
