@@ -5,5 +5,6 @@ target_link_libraries(
     PUBLIC
     oblo::core
     PRIVATE
+    oblo::thread
     nlohmann_json::nlohmann_json
 )

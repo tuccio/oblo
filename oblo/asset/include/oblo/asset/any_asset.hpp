@@ -1,6 +1,9 @@
 #pragma once
 
+#include <oblo/asset/asset_traits.hpp>
 #include <oblo/core/type_id.hpp>
+#include <oblo/core/unique_ptr.hpp>
+#include <oblo/core/uuid.hpp>
 
 #include <type_traits>
 
@@ -11,84 +14,94 @@ namespace oblo
     public:
         any_asset() = default;
         any_asset(const any_asset&) = delete;
-        any_asset(any_asset&& other) noexcept
-        {
-            m_wrapper = other.m_wrapper;
-            other.m_wrapper = nullptr;
-        }
+        any_asset(any_asset&& other) noexcept = default;
 
         template <typename T>
         explicit any_asset(T&& value)
         {
-            m_wrapper = new wrapper<std::decay_t<T>>{std::forward<T>(value)};
+            using W = wrapper<std::decay_t<T>>;
+            m_wrapper = allocate_unique<W>(std::forward<T>(value));
         }
 
         any_asset& operator=(const any_asset&) = delete;
 
-        any_asset& operator=(any_asset&& other) noexcept
-        {
-            delete m_wrapper;
-            m_wrapper = other.m_wrapper;
-            other.m_wrapper = nullptr;
-            return *this;
-        }
+        any_asset& operator=(any_asset&& other) noexcept = default;
 
-        ~any_asset()
-        {
-            delete m_wrapper;
-        }
+        ~any_asset() = default;
 
         template <typename T, typename... Args>
-        void emplace(Args&&... args)
+        T& emplace(Args&&... args)
         {
-            delete m_wrapper;
-            m_wrapper = new wrapper<T>{std::forward<T>(args)...};
+            using W = wrapper<std::decay_t<T>>;
+            m_wrapper = allocate_unique<W>(std::forward<Args>(args)...);
+            return *as<T>();
         }
 
-        void* try_get()
+        void* as() noexcept
         {
             return m_wrapper ? m_wrapper->get() : nullptr;
         }
 
-        const void* try_get() const
+        const void* as() const noexcept
         {
             return m_wrapper ? m_wrapper->get() : nullptr;
         }
 
         template <typename T>
-        T* try_get()
+        T* as() noexcept
         {
-            if (m_wrapper->get_type() == get_type_id<T>())
+            if (is<T>())
             {
                 return static_cast<T*>(m_wrapper->get());
             }
+
+            return nullptr;
         }
 
         template <typename T>
-        const T* try_get() const
+        const T* as() const noexcept
         {
-            if (m_wrapper->get_type() == get_type_id<T>())
+            if (is<T>())
             {
                 return static_cast<const T*>(m_wrapper->get());
             }
+
+            return nullptr;
         }
 
-        bool empty() const
+        bool empty() const noexcept
         {
             return m_wrapper == nullptr;
         }
 
-        type_id get_type() const
+        type_id get_type_id() const noexcept
         {
-            return m_wrapper->get_type();
+            return m_wrapper->get_type_id();
+        }
+
+        uuid get_type_uuid() const noexcept
+        {
+            return m_wrapper->get_type_uuid();
+        }
+
+        template <typename T>
+        bool is() const noexcept
+        {
+            return !empty() && m_wrapper->get_type_id() == oblo::get_type_id<T>();
+        }
+
+        explicit operator bool() const noexcept
+        {
+            return bool{m_wrapper};
         }
 
     private:
         struct any_wrapper
         {
             virtual ~any_wrapper() = default;
-            virtual type_id get_type() const = 0;
-            virtual void* get() = 0;
+            virtual type_id get_type_id() const noexcept = 0;
+            virtual uuid get_type_uuid() const noexcept = 0;
+            virtual void* get() noexcept = 0;
         };
 
         template <typename T>
@@ -99,12 +112,17 @@ namespace oblo
             {
             }
 
-            type_id get_type() const
+            type_id get_type_id() const noexcept
             {
-                return get_type_id<T>();
+                return oblo::get_type_id<T>();
             }
 
-            void* get()
+            uuid get_type_uuid() const noexcept
+            {
+                return asset_type<T>;
+            }
+
+            void* get() noexcept
             {
                 return &asset;
             }
@@ -113,6 +131,6 @@ namespace oblo
         };
 
     private:
-        any_wrapper* m_wrapper{};
+        unique_ptr<any_wrapper> m_wrapper{};
     };
 }

@@ -60,6 +60,18 @@ namespace oblo::filesystem
         {
             if (hDirectory)
             {
+                if (hEvent)
+                {
+                    const bool cancelResult = CancelIoEx(hDirectory, &overlapped);
+
+                    DWORD bytes{};
+
+                    [[maybe_unused]] const BOOL ovelappedResult =
+                        cancelResult && GetOverlappedResultEx(hDirectory, &overlapped, &bytes, INFINITE, FALSE);
+
+                    OBLO_ASSERT(ovelappedResult || GetLastError() == ERROR_OPERATION_ABORTED);
+                }
+
                 CloseHandle(hDirectory);
             }
 
@@ -298,8 +310,13 @@ namespace oblo::filesystem
                             }
                         }
 
-                        offset = fi->NextEntryOffset;
-                    } while (offset > 0);
+                        if (fi->NextEntryOffset == 0)
+                        {
+                            break;
+                        }
+
+                        offset += fi->NextEntryOffset;
+                    } while (true);
                 }
 
                 if (!m_impl->read_changes())

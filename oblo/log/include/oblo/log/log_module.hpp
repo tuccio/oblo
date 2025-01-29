@@ -1,8 +1,7 @@
 #pragma once
 
+#include <oblo/core/unique_ptr.hpp>
 #include <oblo/modules/module_interface.hpp>
-
-#include <memory>
 
 namespace oblo::log
 {
@@ -15,6 +14,6 @@ namespace oblo::log
         LOG_API void shutdown() override;
         void finalize() override {}
 
-        LOG_API void add_sink(std::unique_ptr<log_sink> sink);
+        LOG_API void add_sink(unique_ptr<log_sink> sink);
     };
 }

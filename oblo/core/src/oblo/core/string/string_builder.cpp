@@ -1,5 +1,6 @@
 #include <oblo/core/string/string_builder.hpp>
 
+#include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/string/string.hpp>
 
 #include <utf8cpp/utf8/unchecked.h>
@@ -116,6 +117,15 @@ namespace oblo
         return clear().append(p.native().data(), p.native().data() + p.native().size());
     }
 
+    string_builder& string_builder::parent_path()
+    {
+        const auto sv = view();
+
+        auto p = std::filesystem::path(std::u8string_view{sv.u8data(), sv.size()}).parent_path();
+
+        return clear().append(p.native().data(), p.native().data() + p.native().size());
+    }
+
     string_builder& string_builder::trim_end()
     {
         utf8::unchecked::iterator it{m_buffer.end() - 1};
@@ -143,5 +153,10 @@ namespace oblo
     bool string_builder::operator==(const string_builder& other) const noexcept
     {
         return view() == other.view();
+    }
+
+    hash_type hash_value(const string_builder& sb)
+    {
+        return sb.as<hashed_string_view>().hash();
     }
 }

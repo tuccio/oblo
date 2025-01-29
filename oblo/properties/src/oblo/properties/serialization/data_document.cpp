@@ -265,6 +265,14 @@ namespace oblo
         return node.objectOrArray.childrenCount;
     }
 
+    iterator_range<data_document::children_iterator> data_document::children(u32 objectOrArray) const
+    {
+        return {
+            children_iterator{*this, objectOrArray, child_next(objectOrArray, data_node::Invalid)},
+            children_iterator{*this, objectOrArray, data_node::Invalid},
+        };
+    }
+
     void data_document::make_array(u32 node)
     {
         auto& n = m_nodes[node];
@@ -306,6 +314,11 @@ namespace oblo
         newValue.kind = data_node_kind::value;
         newValue.valueKind = kind;
         newValue.value = {.data = newData};
+    }
+
+    void data_document::make_value(u32 node, const property_value_wrapper& w)
+    {
+        make_value(node, w.get_kind(), w.get_bytes());
     }
 
     void* data_document::allocate(usize size, usize alignment)
@@ -406,6 +419,11 @@ namespace oblo
 
     expected<data_string, data_document::error> data_document::read_string(u32 node) const
     {
+        if (node >= m_nodes.size())
+        {
+            return error::node_invalid;
+        }
+
         auto& n = m_nodes[node];
 
         if (n.kind != data_node_kind::value)
@@ -423,6 +441,11 @@ namespace oblo
 
     expected<bool, data_document::error> data_document::read_bool(u32 node) const
     {
+        if (node >= m_nodes.size())
+        {
+            return error::node_invalid;
+        }
+
         auto& n = m_nodes[node];
 
         if (n.kind != data_node_kind::value)
@@ -440,6 +463,11 @@ namespace oblo
 
     expected<f32, data_document::error> data_document::read_f32(u32 node) const
     {
+        if (node >= m_nodes.size())
+        {
+            return error::node_invalid;
+        }
+
         auto& n = m_nodes[node];
 
         if (n.kind != data_node_kind::value)
@@ -462,6 +490,11 @@ namespace oblo
 
     expected<u32, data_document::error> data_document::read_u32(u32 node) const
     {
+        if (node >= m_nodes.size())
+        {
+            return error::node_invalid;
+        }
+
         auto& n = m_nodes[node];
 
         if (n.kind != data_node_kind::value)
@@ -489,6 +522,11 @@ namespace oblo
 
     expected<uuid, data_document::error> data_document::read_uuid(u32 node) const
     {
+        if (node >= m_nodes.size())
+        {
+            return error::node_invalid;
+        }
+
         auto& n = m_nodes[node];
 
         if (n.kind != data_node_kind::value)

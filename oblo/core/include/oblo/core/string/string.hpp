@@ -74,6 +74,13 @@ namespace oblo
             return *this;
         }
 
+        OBLO_FORCEINLINE string& operator=(const cstring_view& sv)
+        {
+            m_string.assign(sv.begin(), sv.end());
+            ensure_null_termination();
+            return *this;
+        }
+
         OBLO_FORCEINLINE const_pointer c_str() const noexcept
         {
             return m_string.data();
@@ -98,6 +105,12 @@ namespace oblo
         OBLO_FORCEINLINE void reserve(usize size)
         {
             m_string.reserve(size);
+        }
+
+        OBLO_FORCEINLINE void clear()
+        {
+            m_string.clear();
+            ensure_null_termination();
         }
 
         OBLO_FORCEINLINE operator cstring_view() const noexcept

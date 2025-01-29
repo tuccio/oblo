@@ -2,14 +2,17 @@
 
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/importers/importers_module.hpp>
-#include <oblo/asset/registration.hpp>
+#include <oblo/asset/providers/native_asset_provider.hpp>
+#include <oblo/asset/utility/registration.hpp>
 #include <oblo/core/platform/core.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/time/clock.hpp>
 #include <oblo/core/uuid.hpp>
-#include <oblo/editor/app/commands.hpp>
 #include <oblo/editor/editor_module.hpp>
+#include <oblo/editor/providers/service_provider.hpp>
+#include <oblo/editor/services/asset_editor_manager.hpp>
 #include <oblo/editor/services/component_factory.hpp>
+#include <oblo/editor/services/incremental_id_pool.hpp>
 #include <oblo/editor/services/log_queue.hpp>
 #include <oblo/editor/services/registered_commands.hpp>
 #include <oblo/editor/ui/style.hpp>
@@ -35,10 +38,11 @@
 #include <oblo/properties/serialization/data_document.hpp>
 #include <oblo/properties/serialization/json.hpp>
 #include <oblo/reflection/reflection_module.hpp>
-#include <oblo/resource/registration.hpp>
 #include <oblo/resource/resource_registry.hpp>
+#include <oblo/resource/utility/registration.hpp>
 #include <oblo/runtime/runtime_module.hpp>
 #include <oblo/sandbox/context.hpp>
+#include <oblo/scene/scene_editor_module.hpp>
 #include <oblo/thread/job_manager.hpp>
 #include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/required_features.hpp>
@@ -70,26 +74,26 @@ namespace oblo::editor
             time m_baseTime{};
         };
 
-        const log_queue* init_log(time bootTime)
+        log_queue* init_log(time bootTime)
         {
             auto& mm = module_manager::get();
 
             auto* const logModule = mm.load<oblo::log::log_module>();
 
             {
-                auto fileSink = std::make_unique<log::file_sink>(stderr);
+                auto fileSink = allocate_unique<log::file_sink>(stderr);
                 fileSink->set_base_time(bootTime);
                 logModule->add_sink(std::move(fileSink));
             }
 
             if constexpr (platform::is_windows())
             {
-                auto win32Sink = std::make_unique<log::win32_debug_sink>();
+                auto win32Sink = allocate_unique<log::win32_debug_sink>();
                 win32Sink->set_base_time(bootTime);
                 logModule->add_sink(std::move(win32Sink));
             }
 
-            auto logSink = std::make_unique<editor_log_sink>();
+            auto logSink = allocate_unique<editor_log_sink>();
             logSink->set_base_time(bootTime);
             auto& queue = logSink->get_log_queue();
             logModule->add_sink(std::move(logSink));
@@ -180,6 +184,7 @@ namespace oblo::editor
             mm.load<reflection::reflection_module>();
             mm.load<importers::importers_module>();
             mm.load<editor_module>();
+            mm.load<scene_editor_module>();
 
             initializer.services->add<options_layer_provider>().externally_owned(&m_editorOptions);
 
@@ -225,6 +230,8 @@ namespace oblo::editor
 
     bool app::init()
     {
+        const auto bootTime = clock::now();
+
         if (!platform::init())
         {
             return false;
@@ -232,10 +239,9 @@ namespace oblo::editor
 
         debug_assert_hook_install();
 
-        const auto bootTime = clock::now();
-        m_logQueue = init_log(bootTime);
-
         m_jobManager.init();
+
+        m_logQueue = init_log(bootTime);
 
         auto& mm = module_manager::get();
         m_editorModule = mm.load<editor_app_module>();
@@ -247,8 +253,6 @@ namespace oblo::editor
 
     bool app::startup(const vk::sandbox_startup_context& ctx)
     {
-        init_ui_style();
-
         auto& mm = module_manager::get();
         auto* const reflection = mm.find<oblo::reflection::reflection_module>();
         auto* const runtime = mm.find<oblo::runtime_module>();
@@ -265,13 +269,16 @@ namespace oblo::editor
         auto& propertyRegistry = m_runtimeRegistry.get_property_registry();
         auto& resourceRegistry = m_runtimeRegistry.get_resource_registry();
 
-        register_asset_types(m_assetRegistry, mm.find_services<resource_types_provider>());
+        register_native_asset_types(m_assetRegistry, mm.find_services<native_asset_provider>());
         register_file_importers(m_assetRegistry, mm.find_services<file_importers_provider>());
         register_resource_types(resourceRegistry, mm.find_services<resource_types_provider>());
 
-        m_assetRegistry.discover_assets();
+        m_assetRegistry.discover_assets(
+            asset_discovery_flags::reprocess_dirty | asset_discovery_flags::garbage_collect);
 
-        resourceRegistry.register_provider(&asset_registry::find_artifact_resource, &m_assetRegistry);
+        auto* const resourceProvider = m_assetRegistry.initialize_resource_provider();
+
+        resourceRegistry.register_provider(resourceProvider);
 
         if (!m_runtime.init({
                 .reflectionRegistry = &reflection->get_registry(),
@@ -287,6 +294,7 @@ namespace oblo::editor
         auto& renderer = m_runtime.get_renderer();
 
         m_windowManager.init();
+        init_ui();
 
         {
             auto& globalRegistry = m_windowManager.get_global_service_registry();
@@ -302,9 +310,9 @@ namespace oblo::editor
             globalRegistry.add<const time_stats>().externally_owned(&m_timeStats);
             globalRegistry.add<const log_queue>().externally_owned(m_logQueue);
             globalRegistry.add<options_manager>().externally_owned(&options->manager());
-
-            auto* const registeredCommands = globalRegistry.add<registered_commands>().unique();
-            fill_commands(*registeredCommands);
+            globalRegistry.add<registered_commands>().unique();
+            globalRegistry.add<incremental_id_pool>().unique();
+            globalRegistry.add<asset_editor_manager>().unique();
 
             service_registry sceneRegistry{};
             sceneRegistry.add<ecs::entity_registry>().externally_owned(&m_runtime.get_entity_registry());
@@ -317,6 +325,19 @@ namespace oblo::editor
             m_windowManager.create_child_window<scene_hierarchy>(sceneEditingWindow);
             m_windowManager.create_child_window<viewport>(sceneEditingWindow);
             m_windowManager.create_child_window<console_window>(sceneEditingWindow);
+
+            deque<service_provider_descriptor> serviceRegistrants;
+
+            for (auto* const provider : module_manager::get().find_services<service_provider>())
+            {
+                serviceRegistrants.clear();
+                provider->fetch(serviceRegistrants);
+
+                for (const auto& serviceRegistrant : serviceRegistrants)
+                {
+                    serviceRegistrant.registerServices(globalRegistry);
+                }
+            }
         }
 
         m_lastFrameTime = clock::now();
@@ -329,6 +350,8 @@ namespace oblo::editor
         m_windowManager.shutdown();
         m_runtime.shutdown();
         platform::shutdown();
+
+        module_manager::get().shutdown();
 
         m_jobManager.shutdown();
 
@@ -348,8 +371,12 @@ namespace oblo::editor
 
     void app::update_imgui(const vk::sandbox_update_imgui_context&)
     {
+        m_assetRegistry.update();
+        m_runtimeRegistry.get_resource_registry().update();
+
+        m_logQueue->flush();
+
         m_windowManager.update();
         m_editorModule->update();
     }
-
 }

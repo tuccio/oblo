@@ -4,6 +4,7 @@
 #include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/core/stl/memory_resource_adapter.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/core/string/transparent_string_hash.hpp>
 
 #include <span>
 #include <unordered_map>
@@ -45,27 +46,6 @@ namespace oblo::vk
 
     private:
         source_file* add_or_get_file(const string_builder& path);
-
-    private:
-        struct transparent_string_hash
-        {
-            using is_transparent = void;
-
-            usize operator()(string_view str) const
-            {
-                return hash<string_view>{}(str);
-            }
-
-            usize operator()(cstring_view str) const
-            {
-                return hash<cstring_view>{}(str);
-            }
-
-            usize operator()(const string_builder& str) const
-            {
-                return hash<string_view>{}(str.as<string_view>());
-            }
-        };
 
     private:
         bool m_hasError{};

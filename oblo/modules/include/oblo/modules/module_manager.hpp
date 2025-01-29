@@ -3,8 +3,8 @@
 #include <oblo/core/lifetime.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/core/unique_ptr.hpp>
 
-#include <memory>
 #include <span>
 #include <unordered_map>
 
@@ -42,7 +42,7 @@ namespace oblo
 
     private:
         MODULES_API module_interface* find(const type_id& id) const;
-        [[nodiscard]] MODULES_API bool load(const type_id& id, std::unique_ptr<module_interface> module);
+        [[nodiscard]] MODULES_API bool load(const type_id& id, unique_ptr<module_interface> module);
 
         MODULES_API std::span<void* const> find_services(const type_id& type) const;
 
@@ -79,7 +79,7 @@ namespace oblo
             return static_cast<T*>(m);
         }
 
-        auto m = std::make_unique<T>();
+        auto m = allocate_unique<T>();
         T* const ptr = m.get();
 
         if (!load(id, std::move(m)))

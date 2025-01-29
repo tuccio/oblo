@@ -7,6 +7,7 @@
     #include <oblo/core/platform/platform_win32.hpp>
     #include <oblo/core/platform/process.hpp>
     #include <oblo/core/platform/shell.hpp>
+    #include <oblo/core/uuid_generator.hpp>
 
     #include <utf8cpp/utf8.h>
 
@@ -323,6 +324,43 @@ namespace oblo::platform
     void* file::get_native_handle() const noexcept
     {
         return m_handle;
+    }
+}
+
+namespace oblo
+{
+    uuid uuid_system_generator::generate() const
+    {
+        GUID guid;
+
+        if (CoCreateGuid(&guid) != RPC_S_OK)
+        {
+            return {};
+        }
+
+        uuid uuid;
+
+        uuid.data[0] = u8(guid.Data1 >> 24);
+        uuid.data[1] = u8(guid.Data1 >> 16);
+        uuid.data[2] = u8(guid.Data1 >> 8);
+        uuid.data[3] = u8(guid.Data1 >> 0);
+
+        uuid.data[4] = u8(guid.Data2 >> 8);
+        uuid.data[5] = u8(guid.Data2 >> 0);
+
+        uuid.data[6] = u8(guid.Data3 >> 8);
+        uuid.data[7] = u8(guid.Data3 >> 0);
+
+        uuid.data[8] = guid.Data4[0];
+        uuid.data[9] = guid.Data4[1];
+        uuid.data[10] = guid.Data4[2];
+        uuid.data[11] = guid.Data4[3];
+        uuid.data[12] = guid.Data4[4];
+        uuid.data[13] = guid.Data4[5];
+        uuid.data[14] = guid.Data4[6];
+        uuid.data[15] = guid.Data4[7];
+
+        return uuid;
     }
 }
 

@@ -47,7 +47,7 @@ namespace oblo::editor
         void update_imgui(const vk::sandbox_update_imgui_context& context);
 
     private:
-        const log_queue* m_logQueue{};
+        log_queue* m_logQueue{};
         job_manager m_jobManager;
         window_manager m_windowManager;
         runtime_registry m_runtimeRegistry;

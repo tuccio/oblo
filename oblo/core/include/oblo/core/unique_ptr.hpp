@@ -337,6 +337,17 @@ namespace oblo
         return r;
     }
 
+    template <typename T, typename... Args>
+    unique_ptr<T> allocate_unique_default()
+        requires(!std::is_array_v<T>)
+    {
+        unique_ptr<T> r;
+        auto* const allocator = r.get_deleter().get_allocator();
+        T* const ptr = new (allocator->allocate(sizeof(T), alignof(T))) T;
+        r.reset(ptr);
+        return r;
+    }
+
     template <typename T>
     unique_ptr<T> allocate_unique(usize count)
         requires(std::is_array_v<T>)

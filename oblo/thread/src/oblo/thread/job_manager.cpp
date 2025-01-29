@@ -75,6 +75,7 @@ namespace oblo
             }
 
         private:
+            static_assert(moodycamel::ConcurrentQueue<job_impl*>::is_lock_free());
             moodycamel::ConcurrentQueue<job_impl*> m_jobs;
         };
 
@@ -303,7 +304,7 @@ namespace oblo
             return false;
         }
 
-        m_impl = std::make_unique<impl>(cfg.numThreads);
+        m_impl = allocate_unique<impl>(cfg.numThreads);
 
         for (u32 i = 1; i < cfg.numThreads; ++i)
         {
@@ -391,6 +392,24 @@ namespace oblo
         }
 
         oblo::decrease_reference(impl);
+    }
+
+    bool job_manager::try_wait(job_handle job)
+    {
+        if (!job)
+        {
+            return false;
+        }
+
+        auto* const impl = as_job_impl(job);
+
+        if (impl->unfinishedJobs.load() == 0)
+        {
+            oblo::decrease_reference(impl);
+            return true;
+        }
+
+        return false;
     }
 
     void job_manager::increase_reference(job_handle job)

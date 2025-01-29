@@ -5,7 +5,7 @@
 namespace oblo
 {
     template <typename T>
-    class final_act
+    class [[nodiscard]] final_act
     {
     public:
         template <typename U>

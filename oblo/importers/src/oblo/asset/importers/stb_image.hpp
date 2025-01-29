@@ -1,7 +1,7 @@
 #pragma once
 
-#include <oblo/asset/import_artifact.hpp>
-#include <oblo/asset/importer.hpp>
+#include <oblo/asset/import/file_importer.hpp>
+#include <oblo/asset/import/import_artifact.hpp>
 
 #include <span>
 
@@ -15,8 +15,8 @@ namespace oblo::importers
     class stb_image final : public file_importer
     {
     public:
-        bool init(const importer_config& config, import_preview& preview);
-        bool import(const import_context& context);
+        bool init(const import_config& config, import_preview& preview);
+        bool import(import_context context);
         file_import_results get_results();
 
     private:

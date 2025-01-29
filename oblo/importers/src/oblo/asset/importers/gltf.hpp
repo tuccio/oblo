@@ -1,6 +1,6 @@
 #pragma once
 
-#include <oblo/asset/importer.hpp>
+#include <oblo/asset/import/file_importer.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/string/string.hpp>
@@ -24,8 +24,8 @@ namespace oblo::importers
         gltf& operator=(gltf&&) noexcept = delete;
         ~gltf();
 
-        bool init(const importer_config& config, import_preview& preview);
-        bool import(const import_context& context);
+        bool init(const import_config& config, import_preview& preview);
+        bool import(import_context context);
         file_import_results get_results();
 
     private:

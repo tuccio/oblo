@@ -1,9 +1,9 @@
 #include <oblo/resource/resource_registry.hpp>
 
 #include <oblo/core/string/string.hpp>
+#include <oblo/resource/descriptors/resource_type_descriptor.hpp>
 #include <oblo/resource/resource.hpp>
 #include <oblo/resource/resource_ptr.hpp>
-#include <oblo/resource/type_desc.hpp>
 
 #include <algorithm>
 
@@ -17,34 +17,33 @@ namespace oblo
 
     struct resource_registry::provider_storage
     {
-        find_resource_fn find;
-        const void* userdata;
+        resource_provider* provider;
     };
 
     resource_registry::resource_registry() = default;
 
     resource_registry::~resource_registry() = default;
 
-    void resource_registry::register_type(const resource_type_desc& typeDesc)
+    void resource_registry::register_type(const resource_type_descriptor& typeDesc)
     {
-        m_resourceTypes[typeDesc.type] = typeDesc;
+        m_resourceTypes[typeDesc.typeUuid] = typeDesc;
     }
 
-    void resource_registry::unregister_type(const type_id& type)
+    void resource_registry::unregister_type(const uuid& type)
     {
         m_resourceTypes.erase(type);
     }
 
-    void resource_registry::register_provider(find_resource_fn provider, const void* userdata)
+    void resource_registry::register_provider(resource_provider* provider)
     {
-        m_providers.emplace_back(provider, userdata);
+        m_providers.emplace_back(provider);
     }
 
-    void resource_registry::unregister_provider(find_resource_fn provider)
+    void resource_registry::unregister_provider(resource_provider* provider)
     {
         const auto it = std::find_if(m_providers.begin(),
             m_providers.end(),
-            [provider](const provider_storage& storage) { return storage.find == provider; });
+            [provider](const provider_storage& storage) { return storage.provider == provider; });
 
         if (it != m_providers.end())
         {
@@ -53,52 +52,40 @@ namespace oblo
         }
     }
 
-    resource_ptr<void> resource_registry::get_resource(const uuid& id)
+    resource_ptr<void> resource_registry::get_resource(const uuid& id) const
     {
+        resource_ptr<void> r;
+
         const auto it = m_resources.find(id);
 
-        if (it == m_resources.end())
+        if (it != m_resources.end())
         {
-            type_id type;
-            string path;
-            string name;
-            bool anyFound{false};
-
-            for (const auto [find, userdata] : m_providers)
-            {
-                if (find(id, type, name, path, userdata))
-                {
-                    anyFound = true;
-                    break;
-                }
-            }
-
-            if (!anyFound)
-            {
-                return {};
-            }
-
-            const auto typeIt = m_resourceTypes.find(type);
-
-            if (typeIt == m_resourceTypes.end())
-            {
-                return {};
-            }
-
-            void* const data = typeIt->second.create();
-
-            if (!typeIt->second.load(data, path))
-            {
-                typeIt->second.destroy(data);
-                return {};
-            }
-
-            auto* const resource = detail::resource_create(data, type, id, name, typeIt->second.destroy);
-            resource_ptr<void> handle{resource};
-            m_resources.emplace(id, resource_storage{.resource = resource, .handle = handle});
-            return handle;
+            r = it->second.handle;
         }
 
-        return it->second.handle;
+        return r;
+    }
+
+    void resource_registry::update()
+    {
+        for (auto& provider : m_providers)
+        {
+            provider.provider->iterate_resource_events(
+                [this](const resource_added_event& e)
+                {
+                    const auto typeIt = m_resourceTypes.find(e.typeUuid);
+
+                    if (typeIt == m_resourceTypes.end())
+                    {
+                        return;
+                    }
+
+                    auto* const resource = detail::resource_create(&typeIt->second, e.id, e.name, e.path);
+
+                    m_resources.emplace(e.id,
+                        resource_storage{.resource = resource, .handle = resource_ptr<void>{resource}});
+                },
+                [this](const resource_removed_event& e) { m_resources.erase(e.id); });
+        }
     }
 }

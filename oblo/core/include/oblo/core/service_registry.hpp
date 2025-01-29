@@ -51,7 +51,7 @@ namespace oblo
     };
 
     template <typename T, typename... Bases>
-    class service_registry::builder
+    class [[nodiscard]] service_registry::builder
     {
     public:
         template <typename... Args>

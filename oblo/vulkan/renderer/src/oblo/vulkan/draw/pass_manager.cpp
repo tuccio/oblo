@@ -13,6 +13,7 @@
 #include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/string/string_interner.hpp>
+#include <oblo/core/string/transparent_string_hash.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/modules/module_manager.hpp>
@@ -578,31 +579,6 @@ namespace oblo::vk
             h32_flat_extpool_dense_map<compute_pass, bool> computePasses;
             h32_flat_extpool_dense_map<render_pass, bool> renderPasses;
             h32_flat_extpool_dense_map<raytracing_pass, bool> raytracingPasses;
-        };
-
-        struct transparent_string_hash
-        {
-            using is_transparent = void;
-
-            usize operator()(cstring_view str) const
-            {
-                return hash<cstring_view>{}(str);
-            }
-
-            usize operator()(string_view str) const
-            {
-                return hash<string_view>{}(str);
-            }
-
-            usize operator()(const string& str) const
-            {
-                return hash<string>{}(str);
-            }
-
-            usize operator()(const string_builder& str) const
-            {
-                return hash<string_view>{}(str.as<string_view>());
-            }
         };
     }
 

@@ -2,7 +2,7 @@
 
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/importers/importers_module.hpp>
-#include <oblo/asset/registration.hpp>
+#include <oblo/asset/utility/registration.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/platform/shared_library.hpp>
 #include <oblo/core/platform/shell.hpp>
@@ -17,8 +17,8 @@
 #include <oblo/options/options_module.hpp>
 #include <oblo/reflection/reflection_module.hpp>
 #include <oblo/renderdoc/renderdoc_module.hpp>
-#include <oblo/resource/registration.hpp>
 #include <oblo/resource/resource_registry.hpp>
+#include <oblo/resource/utility/registration.hpp>
 #include <oblo/runtime/runtime.hpp>
 #include <oblo/runtime/runtime_module.hpp>
 #include <oblo/runtime/runtime_registry.hpp>
@@ -31,6 +31,7 @@
 #include <oblo/smoke/framework/test_context.hpp>
 #include <oblo/smoke/framework/test_context_impl.hpp>
 #include <oblo/smoke/framework/test_task.hpp>
+#include <oblo/thread/job_manager.hpp>
 #include <oblo/vulkan/required_features.hpp>
 
 #include <imgui.h>
@@ -115,13 +116,12 @@ namespace oblo::smoke
                 auto& propertyRegistry = runtimeRegistry.get_property_registry();
                 auto& resourceRegistry = runtimeRegistry.get_resource_registry();
 
-                register_asset_types(assetRegistry, mm.find_services<resource_types_provider>());
                 register_file_importers(assetRegistry, mm.find_services<file_importers_provider>());
                 register_resource_types(resourceRegistry, mm.find_services<resource_types_provider>());
 
-                assetRegistry.discover_assets();
+                assetRegistry.discover_assets({});
 
-                resourceRegistry.register_provider(&asset_registry::find_artifact_resource, &assetRegistry);
+                resourceRegistry.register_provider(assetRegistry.initialize_resource_provider());
 
                 if (!runtime.init({
                         .reflectionRegistry = &reflectionModule->get_registry(),
@@ -147,6 +147,9 @@ namespace oblo::smoke
             void update(const vk::sandbox_render_context& ctx)
             {
                 handle_renderdoc_captures();
+
+                assetRegistry.update();
+                runtimeRegistry.get_resource_registry().update();
 
                 auto& viewport = runtime.get_entity_registry().get<viewport_component>(cameraEntity);
                 viewport.width = ctx.width;
@@ -243,12 +246,20 @@ namespace oblo::smoke
 
     struct test_fixture::impl
     {
+        job_manager jobManager;
         oblo::module_manager moduleManager;
         vk::sandbox_app<test_app> app;
+
+        impl()
+        {
+            jobManager.init();
+        }
 
         ~impl()
         {
             app.shutdown();
+            module_manager::get().shutdown();
+            jobManager.shutdown();
         }
     };
 

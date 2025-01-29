@@ -1,7 +1,7 @@
 #include <oblo/vulkan/nodes/providers/skybox_provider.hpp>
 
 #include <oblo/resource/resource_ptr.hpp>
-#include <oblo/scene/assets/texture.hpp>
+#include <oblo/scene/resources/texture.hpp>
 #include <oblo/vulkan/graph/node_common.hpp>
 
 namespace oblo::vk

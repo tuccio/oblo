@@ -2,250 +2,229 @@
 
 #include <oblo/asset/any_asset.hpp>
 #include <oblo/asset/asset_meta.hpp>
-#include <oblo/asset/asset_type_desc.hpp>
-#include <oblo/asset/import_artifact.hpp>
-#include <oblo/asset/import_preview.hpp>
-#include <oblo/asset/importer.hpp>
+#include <oblo/asset/asset_registry_impl.hpp>
+#include <oblo/asset/descriptors/file_importer_descriptor.hpp>
+#include <oblo/asset/descriptors/native_asset_descriptor.hpp>
+#include <oblo/asset/import/file_importer.hpp>
+#include <oblo/asset/import/import_artifact.hpp>
+#include <oblo/asset/import/import_preview.hpp>
+#include <oblo/asset/import/importer.hpp>
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/debug.hpp>
+#include <oblo/core/filesystem/directory_watcher.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
+#include <oblo/core/formatters/uuid_formatter.hpp>
 #include <oblo/core/invoke/function_ref.hpp>
+#include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/core/unreachable.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/core/uuid_generator.hpp>
 #include <oblo/log/log.hpp>
+#include <oblo/properties/serialization/common.hpp>
+#include <oblo/resource/providers/resource_provider.hpp>
+#include <oblo/thread/job_manager.hpp>
 
-#include <nlohmann/json.hpp>
-
-#include <fstream>
+#include <atomic>
+#include <filesystem>
 #include <unordered_map>
-#include <vector>
 
 namespace oblo
 {
+    struct asset_entry
+    {
+        asset_meta meta;
+        dynamic_array<uuid> artifacts;
+
+        /// @brief The asset path is the full path without the file extension
+        string_builder path;
+
+        bool isProcessing{};
+    };
+
+    struct file_importer_info
+    {
+        create_file_importer_fn create;
+        dynamic_array<string> extensions;
+    };
+
+    struct asset_process_info
+    {
+        // Could maybe include a hash of settings or timestamps to determine when to re-run an importer or a
+        // processor
+        deque<uuid> artifacts;
+
+        void clear()
+        {
+            artifacts.clear();
+        }
+    };
+
+    struct import_process
+    {
+        importer importer;
+        data_document settings;
+        string destination;
+        time startTime;
+        bool isReimport;
+        job_handle job{};
+        std::atomic<bool> success{};
+    };
+
+    struct artifact_entry
+    {
+        artifact_meta meta;
+    };
+
     namespace
     {
-        struct asset_type_info : asset_type_desc
+        constexpr std::string_view g_artifactMetaExtension{".oartifact"};
+        constexpr string_view g_assetProcessExtension{".oproc"};
+
+        bool load_asset_meta(asset_meta& meta, cstring_view path)
         {
-        };
+            data_document doc;
 
-        struct file_importer_info
-        {
-            create_file_importer_fn create;
-            dynamic_array<string> extensions;
-        };
-
-        using asset_types_map = std::unordered_map<type_id, asset_type_info>;
-
-        bool load_asset_meta(asset_meta& meta,
-            std::vector<uuid>& artifacts,
-            const asset_types_map& assetTypes,
-            const std::filesystem::path& path)
-        {
-            std::ifstream in{path};
-
-            if (!in)
+            if (!json::read(doc, path))
             {
                 return false;
             }
 
-            const auto json = nlohmann::json::parse(in, nullptr, false);
+            const auto root = doc.get_root();
 
-            if (json.is_discarded())
-            {
-                return false;
-            }
-
-            const std::string_view id = json["id"].get<std::string_view>();
-
-            if (auto parsed = uuid::parse(id))
-            {
-                meta.id = *parsed;
-            }
-            else
-            {
-                return false;
-            }
-
-            const hashed_string_view type{json["typeHint"].get<std::string_view>()};
-
-            const auto typeIt = assetTypes.find(type_id{type});
-
-            if (typeIt != assetTypes.end())
-            {
-                meta.typeHint = typeIt->first;
-            }
-
-            const std::string_view mainArtifactHint = json["mainArtifactHint"].get<std::string_view>();
-
-            if (auto parsed = uuid::parse(mainArtifactHint))
-            {
-                meta.mainArtifactHint = *parsed;
-            }
-            else
-            {
-                return false;
-            }
-
-            const auto isImported = json.find("isImported");
-
-            if (isImported != json.end())
-            {
-                meta.isImported = isImported->get<bool>();
-            }
-
-            const auto artifactsJson = json.find("artifacts");
-
-            if (artifactsJson != json.end())
-            {
-                for (auto& artifact : *artifactsJson)
-                {
-                    if (const auto parsed = uuid::parse(artifact.get<std::string_view>()))
-                    {
-                        artifacts.emplace_back(*parsed);
-                    }
-                }
-            }
+            meta.assetId = doc.read_uuid(doc.find_child(root, "assetId"_hsv)).value_or(uuid{});
+            meta.mainArtifactHint = doc.read_uuid(doc.find_child(root, "mainArtifactHint"_hsv)).value_or(uuid{});
+            meta.typeHint = doc.read_uuid(doc.find_child(root, "typeHint"_hsv)).value_or(uuid{});
+            meta.nativeAssetType = doc.read_uuid(doc.find_child(root, "nativeAssetType"_hsv)).value_or(uuid{});
 
             return true;
         }
 
-        bool save_asset_meta(const asset_meta& meta, std::span<const uuid> artifacts, cstring_view destination)
+        bool load_asset_meta(asset_meta& meta, const std::filesystem::path& path)
         {
-            char uuidBuffer[36];
+            return load_asset_meta(meta, cstring_view{path.string().c_str()});
+        }
 
-            nlohmann::ordered_json json;
+        bool save_asset_meta(const asset_meta& meta, cstring_view destination)
+        {
+            data_document doc;
+            doc.init();
 
-            json["id"] = meta.id.format_to(uuidBuffer).as<std::string_view>();
-            json["mainArtifactHint"] = meta.mainArtifactHint.format_to(uuidBuffer).as<std::string_view>();
-            json["typeHint"] = meta.typeHint.name.as<std::string_view>();
-            json["isImported"] = meta.isImported;
+            const auto root = doc.get_root();
 
-            auto&& artifactsJson = json["artifacts"];
+            doc.child_value(root, "assetId"_hsv, property_value_wrapper{meta.assetId});
+            doc.child_value(root, "mainArtifactHint"_hsv, property_value_wrapper{meta.mainArtifactHint});
+            doc.child_value(root, "typeHint"_hsv, property_value_wrapper{meta.typeHint});
 
-            for (const auto& uuid : artifacts)
+            if (!meta.nativeAssetType.is_nil())
             {
-                artifactsJson.push_back(uuid.format_to(uuidBuffer).as<std::string_view>());
+                doc.child_value(root, "nativeAssetType"_hsv, property_value_wrapper{meta.nativeAssetType});
             }
 
-            std::ofstream ofs{destination.as<std::string>()};
-
-            if (!ofs)
-            {
-                return false;
-            }
-
-            ofs << json.dump(1, '\t');
-            return !ofs.bad();
+            return json::write(doc, destination).has_value();
         }
 
         // TODO: Need to read the full meta instead
-        bool load_asset_id_from_meta(string_view path, uuid& id)
+        bool load_asset_id_from_meta(cstring_view path, uuid& id)
         {
-            std::ifstream in{path.as<std::string>()};
+            data_document doc;
 
-            if (!in)
+            if (!json::read(doc, path))
             {
                 return false;
             }
 
-            const auto json = nlohmann::json::parse(in, nullptr, false);
+            const auto root = doc.get_root();
 
-            if (json.is_discarded())
+            const auto assetId = doc.read_uuid(doc.find_child(root, "assetId"_hsv));
+
+            if (assetId)
             {
-                return false;
+                id = *assetId;
             }
 
-            const auto it = json.find("id");
-
-            if (it == json.end())
-            {
-                return false;
-            }
-
-            return id.parse_from(it->get<std::string_view>());
+            return assetId.has_value();
         }
 
-        bool save_artifact_meta(const artifact_meta& artifact, cstring_view destination)
+        bool save_artifact_meta(const artifact_meta& meta, cstring_view destination)
         {
-            char uuidBuffer[36];
+            data_document doc;
+            doc.init();
 
-            nlohmann::json json;
+            const auto root = doc.get_root();
 
-            json["id"] = artifact.id.format_to(uuidBuffer).as<std::string_view>();
-            json["type"] = artifact.type.name.as<std::string_view>();
+            doc.child_value(root, "artifactId"_hsv, property_value_wrapper{meta.artifactId});
+            doc.child_value(root, "type"_hsv, property_value_wrapper{meta.type});
+            doc.child_value(root, "assetId"_hsv, property_value_wrapper{meta.assetId});
+            doc.child_value(root, "name"_hsv, property_value_wrapper{meta.name});
 
-            if (!artifact.importId.is_nil())
-            {
-                json["importId"] = artifact.importId.format_to(uuidBuffer).as<std::string_view>();
-            }
-
-            if (!artifact.importName.empty())
-            {
-                json["name"] = artifact.importName.as<std::string>();
-            }
-
-            std::ofstream ofs{destination.as<std::string>()};
-
-            if (!ofs)
-            {
-                return false;
-            }
-
-            ofs << json.dump(1, '\t');
-            return !ofs.bad();
+            return json::write(doc, destination).has_value();
         }
 
-        bool load_artifact_meta(cstring_view source,
-            const std::unordered_map<type_id, asset_type_info>& assetTypes,
-            artifact_meta& artifact)
+        bool load_artifact_meta(cstring_view source, artifact_meta& meta)
         {
-            std::ifstream ifs{source.as<std::string>()};
+            data_document doc;
 
-            if (!ifs)
+            if (!json::read(doc, source))
             {
                 return false;
             }
 
-            const auto json = nlohmann::json::parse(ifs, nullptr, false);
+            const auto root = doc.get_root();
 
-            if (json.empty())
+            meta.artifactId = doc.read_uuid(doc.find_child(root, "artifactId"_hsv)).value_or(uuid{});
+            meta.type = doc.read_uuid(doc.find_child(root, "type"_hsv)).value_or(uuid{});
+            meta.assetId = doc.read_uuid(doc.find_child(root, "assetId"_hsv)).value_or(uuid{});
+            meta.name = doc.read_string(doc.find_child(root, "name"_hsv)).value_or({}).str();
+
+            return true;
+        }
+
+        bool load_asset_process_info(cstring_view source, asset_process_info& info)
+        {
+            data_document doc;
+
+            if (!json::read(doc, source))
             {
                 return false;
             }
 
-            if (const auto it = json.find("id"); it != json.end())
+            const auto artifacts = doc.find_child(doc.get_root(), "artifacts"_hsv);
+
+            if (artifacts == data_node::Invalid || !doc.is_array(artifacts))
             {
-                const auto id = uuid::parse(it->get<std::string_view>());
-                artifact.id = id ? *id : uuid{};
+                return false;
             }
 
-            if (const auto it = json.find("type"); it != json.end())
+            for (const u32 child : doc.children(artifacts))
             {
-                const auto type = hashed_string_view{it->get<std::string_view>()};
+                const auto uuid = doc.read_uuid(child);
 
-                if (const auto typeIt = assetTypes.find(type_id{type}); typeIt == assetTypes.end())
+                if (!uuid)
                 {
                     return false;
                 }
-                else
-                {
-                    artifact.type = typeIt->first;
-                }
-            }
 
-            if (const auto it = json.find("name"); it != json.end())
-            {
-                artifact.importName = it->get<std::string>();
-            }
-
-            if (const auto it = json.find("importId"); it != json.end())
-            {
-                const auto id = uuid::parse(it->get<std::string_view>());
-                artifact.id = id ? *id : uuid{};
+                info.artifacts.emplace_back(*uuid);
             }
 
             return true;
+        }
+
+        bool save_asset_process_info(const asset_process_info& info, cstring_view destination)
+        {
+            data_document doc;
+            doc.init();
+
+            const auto artifacts = doc.child_array(doc.get_root(), "artifacts"_hsv);
+
+            for (const uuid& id : info.artifacts)
+            {
+                const auto e = doc.array_push_back(artifacts);
+                doc.make_value(e, property_value_wrapper{id});
+            }
+
+            return json::write(doc, destination).has_value();
         }
 
         bool ensure_directories(cstring_view directory)
@@ -257,38 +236,89 @@ namespace oblo
 
             return filesystem::is_directory(directory).value_or(false);
         }
-
-        struct asset_entry
-        {
-            asset_meta meta;
-            std::vector<uuid> artifacts;
-        };
-
-        constexpr std::string_view ArtifactMetaExtension{".oartifact"};
     }
 
-    struct asset_registry::impl
+    class artifact_resource_provider final : public resource_provider
     {
-        random_generator rng;
-        uuid_random_generator uuidGenerator{rng};
-        std::unordered_map<type_id, asset_type_info> assetTypes;
-        std::unordered_map<type_id, file_importer_info> importers;
-        std::unordered_map<uuid, asset_entry> assets;
-        string_builder assetsDir;
-        string_builder artifactsDir;
-        string_builder sourceFilesDir;
+    public:
+        explicit artifact_resource_provider(const asset_registry_impl& impl) : m_impl{impl} {}
 
-        string_builder& make_asset_path(string_builder& out, string_view directory)
+        void iterate_resource_events(on_add_fn onAdd, on_remove_fn onRemove)
         {
-            if (filesystem::is_relative(directory))
+            string_builder path;
+
+            for (const auto& e : m_events)
             {
-                out.append(assetsDir);
-                out.append_path_separator();
+
+                switch (e.kind)
+                {
+                case event_kind::add: {
+                    auto it = m_impl.artifactsMap.find(e.artifactId);
+
+                    if (it == m_impl.artifactsMap.end())
+                    {
+                        continue;
+                    }
+
+                    m_impl.make_artifact_path(path, e.assetId, e.artifactId);
+
+                    const resource_added_event resourceEvent{
+                        .id = e.artifactId,
+                        .typeUuid = it->second.meta.type,
+                        .name = it->second.meta.name,
+                        .path = path,
+                    };
+
+                    onAdd(resourceEvent);
+                }
+
+                break;
+
+                case event_kind::remove: {
+                    const resource_removed_event resourceEvent{
+                        .id = e.artifactId,
+                    };
+
+                    onRemove(resourceEvent);
+                }
+
+                break;
+
+                default:
+                    unreachable();
+                }
             }
 
-            out.append(directory);
-            return out;
+            m_events.clear();
         }
+
+        void push_removed_artifact(uuid artifactId)
+        {
+            m_events.emplace_back(event_kind::remove, artifactId);
+        }
+
+        void push_added_artifact(uuid assetId, uuid artifactId)
+        {
+            m_events.emplace_back(event_kind::add, assetId, artifactId);
+        }
+
+    private:
+        enum class event_kind : u8
+        {
+            add,
+            remove,
+        };
+
+        struct artifact_event
+        {
+            event_kind kind;
+            uuid assetId;
+            uuid artifactId;
+        };
+
+    private:
+        const asset_registry_impl& m_impl{};
+        deque<artifact_event> m_events;
     };
 
     asset_registry::asset_registry() = default;
@@ -305,46 +335,64 @@ namespace oblo
             return false;
         }
 
-        m_impl = std::make_unique<impl>();
+        m_impl = allocate_unique<asset_registry_impl>();
 
         m_impl->assetsDir.append(assetsDir).make_absolute_path();
         m_impl->artifactsDir.append(artifactsDir).make_absolute_path();
         m_impl->sourceFilesDir.append(sourceFilesDir).make_absolute_path();
 
-        m_impl->rng.seed();
-
-        return true;
+        m_impl->watcher = allocate_unique<filesystem::directory_watcher>();
+        return m_impl->watcher->init({.path = m_impl->assetsDir.view(), .isRecursive = true}).has_value();
     }
 
     void asset_registry::shutdown()
     {
-        m_impl.reset();
+        if (m_impl)
+        {
+            while (get_running_import_count() > 0)
+            {
+                update();
+            }
+
+            m_impl.reset();
+        }
     }
 
-    void asset_registry::register_type(const asset_type_desc& desc)
+    expected<uuid> asset_registry::import(
+        string_view sourceFile, string_view destination, string_view assetName, data_document settings)
     {
-        m_impl->assetTypes.emplace(desc.type, desc);
+        auto importer = m_impl->create_importer(sourceFile);
+
+        if (!importer.is_valid())
+        {
+            return unspecified_error;
+        }
+
+        const uuid assetId = asset_registry_impl::generate_uuid();
+
+        string_builder workDir;
+
+        if (!m_impl->create_temporary_files_dir(workDir, assetId))
+        {
+            return unspecified_error;
+        }
+
+        if (!importer.init(*m_impl, assetId, workDir, false))
+        {
+            return unspecified_error;
+        }
+
+        if (!assetName.empty())
+        {
+            importer.set_asset_name(assetName);
+        }
+
+        m_impl->push_import_process(nullptr, std::move(importer), std::move(settings), destination);
+
+        return assetId;
     }
 
-    void asset_registry::unregister_type(type_id type)
-    {
-        m_impl->assetTypes.erase(type);
-    }
-
-    bool asset_registry::has_asset_type(type_id type) const
-    {
-        return m_impl->assetTypes.contains(type);
-    }
-
-    bool asset_registry::create_directories(string_view directory)
-    {
-        string_builder sb;
-        m_impl->make_asset_path(sb, directory);
-
-        return ensure_directories(sb);
-    }
-
-    void asset_registry::register_file_importer(const file_importer_desc& desc)
+    void asset_registry::register_file_importer(const file_importer_descriptor& desc)
     {
         const auto [it, inserted] = m_impl->importers.emplace(desc.type, file_importer_info{});
 
@@ -366,24 +414,278 @@ namespace oblo
         m_impl->importers.erase(type);
     }
 
-    importer asset_registry::create_importer(cstring_view sourceFile)
+    void asset_registry::register_native_asset_type(const native_asset_descriptor& desc)
+    {
+        m_impl->nativeAssetTypes.emplace(desc.typeUuid, desc);
+    }
+
+    void asset_registry::unregister_native_asset_type(uuid type)
+    {
+        m_impl->nativeAssetTypes.erase(type);
+    }
+
+    expected<> asset_registry::process(uuid asset, data_document* optSettings)
+    {
+        const auto it = m_impl->assets.find(asset);
+
+        if (it == m_impl->assets.end())
+        {
+            return unspecified_error;
+        }
+
+        if (it->second.isProcessing)
+        {
+            return unspecified_error;
+        }
+
+        // TODO: Maybe check if it's being reprocessed
+        const auto& meta = it->second.meta;
+
+        // This means it requires a reimport
+        string_builder fileSourcePath;
+
+        if (!importer::read_source_file_path(*m_impl, meta.assetId, fileSourcePath))
+        {
+            return unspecified_error;
+        }
+
+        oblo::importer importer;
+
+        if (const auto nativeAssetIt = m_impl->nativeAssetTypes.find(meta.nativeAssetType);
+            nativeAssetIt != m_impl->nativeAssetTypes.end())
+        {
+            importer = oblo::importer{
+                import_config{
+                    .sourceFile = fileSourcePath.as<string>(),
+                },
+                nativeAssetIt->second.createImporter(),
+            };
+
+            importer.set_native_asset_type(meta.nativeAssetType);
+        }
+        else
+        {
+            importer = m_impl->create_importer(fileSourcePath.view());
+        }
+
+        string_builder workDir;
+
+        if (!m_impl->create_temporary_files_dir(workDir, asset_registry_impl::generate_uuid()))
+        {
+            return unspecified_error;
+        }
+
+        if (!importer.init(*m_impl, meta.assetId, workDir, true))
+        {
+            return unspecified_error;
+        }
+
+        // TODO: Read previous settings
+        data_document settings;
+
+        if (optSettings)
+        {
+            settings = std::move(*optSettings);
+        }
+
+        m_impl->push_import_process(&it->second, std::move(importer), std::move(settings), {});
+        return no_error;
+    }
+
+    expected<> asset_registry_impl::create_or_save_asset(asset_entry* optAssetEntry,
+        const any_asset& asset,
+        uuid assetId,
+        cstring_view optSource,
+        string_view destination,
+        string_view optName)
+    {
+        // Find native_asset_descriptor
+        const auto it = nativeAssetTypes.find(asset.get_type_uuid());
+
+        if (it == nativeAssetTypes.end())
+        {
+            return unspecified_error;
+        }
+
+        const auto& desc = it->second;
+
+        // Create temporary directory
+
+        string_builder workDir;
+        if (!create_temporary_files_dir(workDir, generate_uuid()))
+        {
+            return unspecified_error;
+        }
+
+        if (!desc.createImporter)
+        {
+            return unspecified_error;
+        }
+
+        auto fileImporter = desc.createImporter();
+
+        if (!fileImporter)
+        {
+            return unspecified_error;
+        }
+
+        string_builder sourceFile;
+        const bool isReimport = optAssetEntry != nullptr;
+
+        if (optSource.empty())
+        {
+            sourceFile = workDir;
+            sourceFile.append_path(optName);
+            sourceFile.append(desc.fileExtension);
+        }
+
+        cstring_view source = optSource.empty() ? sourceFile : optSource;
+
+        if (!desc.save(asset, source, workDir))
+        {
+            return unspecified_error;
+        }
+
+        import_config config;
+        config.sourceFile = source.as<string>(); // Determine the source file to import
+
+        importer importer(std::move(config), std::move(fileImporter));
+
+        importer.set_native_asset_type(asset.get_type_uuid());
+
+        if (!importer.init(*this, assetId, workDir, isReimport))
+        {
+            return unspecified_error;
+        }
+
+        push_import_process(optAssetEntry, std::move(importer), {}, destination);
+
+        return no_error;
+    }
+
+    void asset_registry_impl::on_artifact_added(artifact_meta meta)
+    {
+        const auto [it, inserted] = artifactsMap.emplace(meta.artifactId, artifact_entry{});
+        OBLO_ASSERT(inserted);
+
+        auto& outMeta = it->second.meta;
+        outMeta = std::move(meta);
+
+        if (resourceProvider)
+        {
+            resourceProvider->push_added_artifact(outMeta.assetId, outMeta.artifactId);
+        }
+
+        ++versionId;
+    }
+
+    void asset_registry_impl::on_artifact_removed(uuid artifactId)
+    {
+        const auto count = artifactsMap.erase(artifactId);
+        OBLO_ASSERT(count > 0);
+
+        if (resourceProvider)
+        {
+            resourceProvider->push_removed_artifact(artifactId);
+        }
+
+        ++versionId;
+    }
+
+    const string_builder* asset_registry_impl::get_asset_path(const uuid& id)
+    {
+        const auto it = assets.find(id);
+
+        if (it == assets.end())
+        {
+            return nullptr;
+        }
+
+        return &it->second.path;
+    }
+
+    expected<uuid> asset_registry::create_asset(const any_asset& asset, string_view destination, string_view name)
+    {
+        if (!asset)
+        {
+            return unspecified_error;
+        }
+
+        const auto assetId = asset_registry_impl::generate_uuid();
+
+        if (!m_impl->create_or_save_asset(nullptr, asset, assetId, {}, destination, name))
+        {
+            return unspecified_error;
+        }
+
+        return assetId;
+    }
+
+    expected<any_asset> asset_registry::load_asset(uuid assetId)
+    {
+        const auto it = m_impl->assets.find(assetId);
+
+        if (it == m_impl->assets.end())
+        {
+            return unspecified_error;
+        }
+
+        const uuid& type = it->second.meta.nativeAssetType;
+
+        const auto typeIt = m_impl->nativeAssetTypes.find(type);
+
+        if (typeIt == m_impl->nativeAssetTypes.end())
+        {
+            return unspecified_error;
+        }
+
+        string_builder sourceFilePath;
+
+        if (!importer::read_source_file_path(*m_impl, assetId, sourceFilePath))
+        {
+            return unspecified_error;
+        }
+
+        any_asset asset;
+
+        if (!typeIt->second.load(asset, sourceFilePath))
+        {
+            return unspecified_error;
+        }
+
+        return asset;
+    }
+
+    expected<> asset_registry::save_asset(const any_asset& asset, uuid assetId)
+    {
+        const auto it = m_impl->assets.find(assetId);
+
+        if (it == m_impl->assets.end())
+        {
+            return unspecified_error;
+        }
+
+        string_builder sourceFilePath;
+
+        if (!importer::read_source_file_path(*m_impl, assetId, sourceFilePath))
+        {
+            return unspecified_error;
+        }
+
+        return m_impl->create_or_save_asset(&it->second, asset, assetId, sourceFilePath, {}, {});
+    }
+
+    unique_ptr<file_importer> asset_registry_impl::create_file_importer(string_view sourceFile) const
     {
         const auto ext = filesystem::extension(sourceFile);
 
-        for (auto& [type, assetImporter] : m_impl->importers)
+        for (auto& [type, assetImporter] : importers)
         {
             for (const auto& importerExt : assetImporter.extensions)
             {
                 if (importerExt == ext)
                 {
-                    return importer{
-                        importer_config{
-                            .registry = this,
-                            .sourceFile = sourceFile.as<string>(),
-                        },
-                        type,
-                        assetImporter.create(),
-                    };
+                    return assetImporter.create();
                 }
             }
         }
@@ -391,84 +693,25 @@ namespace oblo
         return {};
     }
 
-    uuid asset_registry::generate_uuid()
+    uuid asset_registry_impl::generate_uuid()
     {
-        return m_impl->uuidGenerator.generate();
+        return uuid_system_generator{}.generate();
     }
 
-    bool asset_registry::save_artifact(const uuid& artifactId,
-        const type_id& type,
-        const void* dataPtr,
-        const artifact_meta& meta,
-        write_policy policy)
+    bool asset_registry_impl::create_source_files_dir(string_builder& dir, uuid sourceFileId)
     {
-        const auto typeIt = m_impl->assetTypes.find(type);
-
-        if (typeIt == m_impl->assetTypes.end())
-        {
-            return false;
-        }
-
-        char uuidBuffer[36];
-
-        auto artifactPath = m_impl->artifactsDir;
-        ensure_directories(artifactPath);
-
-        artifactPath.append_path(artifactId.format_to(uuidBuffer));
-
-        std::error_code ec;
-
-        if (policy == write_policy::no_overwrite && filesystem::exists(artifactPath).value_or(true))
-        {
-            return false;
-        }
-
-        auto artifactMetaPath = artifactPath;
-        artifactMetaPath.append(ArtifactMetaExtension);
-
-        const auto saveFunction = typeIt->second.save;
-        return saveFunction(dataPtr, artifactPath) && save_artifact_meta(meta, artifactMetaPath);
+        return ensure_directories(make_source_files_dir_path(dir, sourceFileId));
     }
 
-    bool asset_registry::save_asset(string_view destination,
-        string_view assetName,
-        const asset_meta& meta,
-        std::span<const uuid> artifacts,
-        write_policy policy)
+    string_builder& asset_registry_impl::make_source_files_dir_path(string_builder& dir, uuid sourceFileId) const
     {
-        const auto [assetIt, insertedAsset] = m_impl->assets.emplace(meta.id,
-            asset_entry{std::move(meta), std::vector<uuid>{artifacts.begin(), artifacts.end()}});
-
-        if (!insertedAsset)
-        {
-            return false;
-        }
-
-        string_builder fullPath;
-        m_impl->make_asset_path(fullPath, destination).append_path(assetName).append(AssetMetaExtension);
-
-        if (policy == write_policy::no_overwrite && filesystem::exists(fullPath).value_or(true))
-        {
-            return false;
-        }
-
-        return save_asset_meta(assetIt->second.meta, artifacts, fullPath);
+        return dir.clear().append(sourceFilesDir).append_path_separator().format("{}", sourceFileId);
     }
 
-    bool asset_registry::create_source_files_dir(string_builder& importDir, uuid importId)
+    bool asset_registry_impl::create_temporary_files_dir(string_builder& dir, uuid assetId) const
     {
-        char uuidBuffer[36];
-
-        importDir.clear()
-            .append(m_impl->sourceFilesDir)
-            .append_path(importId.format_to(uuidBuffer).as<std::string_view>());
-
-        if (!ensure_directories(importDir))
-        {
-            return false;
-        }
-
-        return true;
+        dir.clear().append(artifactsDir).append_path(".workdir").append_path_separator().format("{}", assetId);
+        return ensure_directories(dir);
     }
 
     bool asset_registry::find_asset_by_id(const uuid& id, asset_meta& assetMeta) const
@@ -502,6 +745,19 @@ namespace oblo
         return find_asset_by_id(id, assetMeta);
     }
 
+    bool asset_registry::find_artifact_by_id(const uuid& id, artifact_meta& artifactMeta) const
+    {
+        const auto it = m_impl->artifactsMap.find(id);
+        const bool r = it != m_impl->artifactsMap.end();
+
+        if (r)
+        {
+            artifactMeta = it->second.meta;
+        }
+
+        return r;
+    }
+
     bool asset_registry::find_asset_artifacts(const uuid& id, dynamic_array<uuid>& artifacts) const
     {
         const auto it = m_impl->assets.find(id);
@@ -515,27 +771,7 @@ namespace oblo
         return true;
     }
 
-    bool asset_registry::load_artifact_meta(const uuid& id, artifact_meta& artifact) const
-    {
-        char uuidBuffer[36];
-
-        const auto& artifactsDir = m_impl->artifactsDir;
-
-        string_builder resourceFile;
-        resourceFile.append(artifactsDir).append_path(id.format_to(uuidBuffer));
-
-        if (!filesystem::exists(resourceFile).value_or(false))
-        {
-            return false;
-        }
-
-        auto resourceMeta = resourceFile;
-        resourceMeta.append(ArtifactMetaExtension);
-
-        return oblo::load_artifact_meta(resourceMeta, m_impl->assetTypes, artifact);
-    }
-
-    void asset_registry::iterate_artifacts_by_type(type_id type,
+    void asset_registry::iterate_artifacts_by_type(const uuid& type,
         function_ref<bool(const uuid& assetId, const uuid& artifactId)> callback) const
     {
         artifact_meta meta{};
@@ -544,7 +780,7 @@ namespace oblo
         {
             for (const auto& artifactId : asset.artifacts)
             {
-                if (load_artifact_meta(artifactId, meta) && meta.type == type)
+                if (find_artifact_by_id(artifactId, meta) && meta.type == type)
                 {
                     if (!callback(id, artifactId))
                     {
@@ -560,59 +796,648 @@ namespace oblo
         return m_impl->assetsDir;
     }
 
-    bool asset_registry::find_artifact_resource(
-        const uuid& id, type_id& outType, string& outName, string& outPath, const void* userdata)
+    bool asset_registry::get_source_directory(const uuid& assetId, string_builder& outPath) const
     {
-        char uuidBuffer[36];
+        m_impl->make_source_files_dir_path(outPath, assetId);
+        return true;
+    }
 
-        auto* const self = static_cast<const asset_registry*>(userdata);
-        const auto& artifactsDir = self->m_impl->artifactsDir;
+    bool asset_registry::get_artifact_path(const uuid& artifactId, string_builder& outPath) const
+    {
+        const auto it = m_impl->artifactsMap.find(artifactId);
 
-        string_builder resourceFile;
-        resourceFile.append(artifactsDir).append_path(id.format_to(uuidBuffer));
-
-        if (!filesystem::exists(resourceFile).value_or(false))
+        if (it == m_impl->artifactsMap.end())
         {
             return false;
         }
 
-        auto resourceMeta = resourceFile;
-        resourceMeta.append(ArtifactMetaExtension);
-
-        artifact_meta meta;
-
-        if (!oblo::load_artifact_meta(resourceMeta, self->m_impl->assetTypes, meta))
-        {
-            return false;
-        }
-
-        outType = meta.type;
-        outPath = resourceFile.as<string>();
-        outName = std::move(meta.importName);
+        m_impl->make_artifact_path(outPath, it->second.meta.assetId, artifactId);
 
         return true;
     }
 
-    void asset_registry::discover_assets()
+    bool asset_registry::get_asset_name(const uuid& assetId, string_builder& outName) const
+    {
+        auto* const path = m_impl->get_asset_path(assetId);
+
+        if (!path)
+        {
+            return false;
+        }
+
+        outName.append(filesystem::filename(*path));
+        return true;
+    }
+
+    bool asset_registry::get_asset_directory(const uuid& assetId, string_builder& outPath) const
+    {
+        auto* const path = m_impl->get_asset_path(assetId);
+
+        if (!path)
+        {
+            return false;
+        }
+
+        outPath.append(*path).parent_path();
+        return true;
+    }
+
+    u32 asset_registry::get_running_import_count() const
+    {
+        return m_impl->currentImports.size32();
+    }
+
+    u64 asset_registry::get_version_id() const
+    {
+        return m_impl->versionId;
+    }
+
+    bool asset_registry_impl::on_new_artifact_discovered(
+        string_builder& builder, const uuid& artifactId, const uuid& assetId)
+    {
+        artifact_meta artifactMeta;
+        make_artifact_path(builder, assetId, artifactId).append(g_artifactMetaExtension);
+
+        if (load_artifact_meta(builder, artifactMeta))
+        {
+            on_artifact_added(artifactMeta);
+            return true;
+        }
+
+        return false;
+    }
+
+    bool asset_registry_impl::on_new_asset_discovered(
+        string_builder& builder, const uuid& assetId, deque<uuid>& artifacts)
+    {
+        bool allSuccessful = true;
+
+        for (auto artifactIt = artifacts.begin(); artifactIt != artifacts.end();)
+        {
+            const auto artifactId = *artifactIt;
+
+            artifact_meta artifactMeta;
+            make_artifact_path(builder, assetId, artifactId).append(g_artifactMetaExtension);
+
+            if (load_artifact_meta(builder, artifactMeta))
+            {
+                on_artifact_added(artifactMeta);
+                ++artifactIt;
+            }
+            else
+            {
+                allSuccessful = false;
+                artifactIt = artifacts.erase_unordered(artifactIt);
+            }
+        }
+
+        // We keep artifacts sorted for consistency and easier comparisons
+        std::sort(artifacts.begin(), artifacts.end());
+
+        return allSuccessful;
+    }
+
+    void asset_registry::discover_assets(flags<asset_discovery_flags> flags)
     {
         std::error_code ec;
+
+        asset_process_info processInfo;
+
+        string_builder builder;
+
+        deque<uuid> assetsToReprocess;
 
         for (auto&& entry :
             std::filesystem::recursive_directory_iterator{m_impl->assetsDir.view().as<std::string>(), ec})
         {
             const auto& p = entry.path();
 
-            asset_meta meta{};
-            std::vector<uuid> artifacts;
-
-            if (load_asset_meta(meta, artifacts, m_impl->assetTypes, p))
+            if (!is_regular_file(p))
             {
-                m_impl->assets.emplace(meta.id, asset_entry{meta, std::move(artifacts)});
+                continue;
+            }
+
+            asset_meta assetMeta{};
+
+            if (load_asset_meta(assetMeta, p))
+            {
+                [[maybe_unused]] const auto [fileIt, fileInserted] =
+                    m_impl->assetFileMap.emplace(builder.clear().append(p.native().c_str()).as<string>(),
+                        assetMeta.assetId);
+
+                OBLO_ASSERT(fileInserted);
+
+                processInfo.clear();
+
+                OBLO_ASSERT(!assetMeta.assetId.is_nil());
+                auto [it, ok] = m_impl->assets.emplace(assetMeta.assetId,
+                    asset_entry{
+                        .meta = assetMeta,
+                    });
+
+                if (!ok)
+                {
+                    log::error("An asset id conflict was detected with {}", assetMeta.assetId);
+                    continue;
+                }
+
+                it->second.path.clear().append(p.parent_path().string()).append_path(p.stem().string());
+
+                bool needsReprocessing = false;
+
+                m_impl->make_artifacts_process_path(builder.clear(), assetMeta.assetId);
+
+                if (!load_asset_process_info(builder, processInfo))
+                {
+                    log::debug("Failed to load asset process info for {}", assetMeta.assetId);
+                    needsReprocessing = true;
+                }
+                else
+                {
+                    needsReprocessing =
+                        !m_impl->on_new_asset_discovered(builder, assetMeta.assetId, processInfo.artifacts);
+                }
+
+                if (needsReprocessing && flags.contains(asset_discovery_flags::reprocess_dirty))
+                {
+                    assetsToReprocess.push_back(assetMeta.assetId);
+                }
             }
             else
             {
                 log::warn("Failed to load asset meta {}", p.string());
             }
         }
+
+        if (flags.contains(asset_discovery_flags::garbage_collect))
+        {
+            deque<string_builder> pathsToRemove;
+
+            auto readUuidFromFileName = [](cstring_view filename, uuid& id) { return id.parse_from(filename); };
+
+            for (const cstring_view cleanupDir : {m_impl->sourceFilesDir.view(), m_impl->artifactsDir.view()})
+            {
+                for (auto&& entry : std::filesystem::directory_iterator{cleanupDir.as<std::string>(), ec})
+                {
+                    if (std::filesystem::is_directory(entry.path()) &&
+                        entry.path().filename().string().starts_with("."))
+                    {
+                        pathsToRemove.emplace_back().append(entry.path().c_str());
+                        continue;
+                    }
+
+                    builder.clear().append(entry.path().filename().stem().c_str());
+
+                    uuid assetId;
+
+                    if (readUuidFromFileName(builder, assetId) && !m_impl->assets.contains(assetId))
+                    {
+                        pathsToRemove.emplace_back().append(entry.path().c_str());
+                    }
+                }
+            }
+
+            for (auto& path : pathsToRemove)
+            {
+                log::debug("Garbage collecting {}", path.c_str());
+                filesystem::remove_all(path).assert_value();
+            }
+        }
+
+        for (const auto& assetId : assetsToReprocess)
+        {
+            if (!process(assetId))
+            {
+                log::debug("Failed to reprocess asset {}", assetId);
+            }
+        }
+    }
+
+    resource_provider* asset_registry::initialize_resource_provider()
+    {
+        m_impl->resourceProvider = allocate_unique<artifact_resource_provider>(*m_impl);
+
+        if (!m_impl->artifactsMap.empty())
+        {
+            for (auto& [id, entry] : m_impl->artifactsMap)
+            {
+                m_impl->resourceProvider->push_added_artifact(entry.meta.assetId, id);
+            }
+        }
+
+        return m_impl->resourceProvider.get();
+    }
+    void asset_registry::update()
+    {
+        auto* jm = job_manager::get();
+
+        for (auto it = m_impl->currentImports.begin(); it != m_impl->currentImports.end();)
+        {
+            auto& importProcess = **it;
+
+            if (!jm->try_wait(importProcess.job))
+            {
+                ++it;
+                continue;
+            }
+
+            bool success = importProcess.success.load();
+
+            if (!success)
+            {
+                log::debug("Import execution of {} failed", importProcess.importer.get_config().sourceFile);
+            }
+            else
+            {
+                string_view destination;
+
+                if (importProcess.importer.is_reimport())
+                {
+                    const auto assetIt = m_impl->assets.find(importProcess.importer.get_asset_id());
+
+                    if (assetIt == m_impl->assets.end())
+                    {
+                        log::debug("An import execution terminated, but asset {} was not found, maybe "
+                                   "probablyInvalidIt was deleted?",
+                            importProcess.importer.get_asset_id());
+
+                        it = m_impl->currentImports.erase_unordered(it);
+                        continue;
+                    }
+
+                    destination = filesystem::parent_path(assetIt->second.path.view());
+                    importProcess.importer.set_asset_name(filesystem::filename(assetIt->second.path));
+
+                    OBLO_ASSERT(assetIt->second.isProcessing);
+                    assetIt->second.isProcessing = false;
+                }
+                else
+                {
+                    destination = importProcess.destination.as<string_view>();
+                }
+
+                const auto result = importProcess.importer.finalize(*m_impl, importProcess.destination);
+
+                if (!result)
+                {
+                    log::debug("Import finalization of {} failed", importProcess.importer.get_config().sourceFile);
+                }
+
+                success = result;
+            }
+
+            const auto finishTime = clock::now();
+
+            const f32 executionTime = to_f32_seconds(finishTime - importProcess.startTime);
+
+            log::generic(success ? log::severity::info : log::severity::error,
+                "Import of '{}' {}. Execution time: {:.2f}s",
+                importProcess.importer.get_config().sourceFile,
+                success ? "succeeded" : "failed",
+                executionTime);
+
+            it = m_impl->currentImports.erase_unordered(it);
+        }
+
+        if (m_impl->watcher)
+        {
+            asset_meta meta;
+            string_builder builder;
+
+            m_impl->watcher
+                ->process(
+                    [this, &builder, &meta](const filesystem::directory_watcher_event& e)
+                    {
+                        switch (e.eventKind)
+                        {
+                        case filesystem::directory_watcher_event_kind::created:
+                            // We should check if the asset is in our map, and add it in case it is not
+                            if (e.path.ends_with(AssetMetaExtension) && load_asset_meta(meta, e.path))
+                            {
+                                const auto probablyInvalidIt = m_impl->assets.find(meta.assetId);
+
+                                [[maybe_unused]] const auto [fileIt, fileInserted] =
+                                    m_impl->assetFileMap.emplace(string{e.path.c_str()}, meta.assetId);
+                                OBLO_ASSERT(fileInserted);
+
+                                if (probablyInvalidIt == m_impl->assets.end())
+                                {
+                                    const auto [newAssetIt, inserted] =
+                                        m_impl->assets.emplace(meta.assetId, asset_entry{});
+
+                                    auto& newEntry = newAssetIt->second;
+
+                                    m_impl->make_artifacts_process_path(builder.clear(), meta.assetId);
+
+                                    asset_process_info processInfo;
+
+                                    if (!load_asset_process_info(builder, processInfo))
+                                    {
+                                        log::debug("Failed to load asset process info for {}", meta.assetId);
+                                        m_impl->assets.erase(probablyInvalidIt);
+                                        m_impl->assetFileMap.erase(fileIt);
+                                        return;
+                                    }
+
+                                    m_impl->on_new_asset_discovered(builder, meta.assetId, processInfo.artifacts);
+
+                                    string_view assetPath{e.path};
+                                    assetPath.remove_suffix(AssetMetaExtension.size());
+
+                                    newEntry.path.append(assetPath);
+                                    newEntry.meta = meta;
+                                    newEntry.artifacts.assign(processInfo.artifacts.begin(),
+                                        processInfo.artifacts.end());
+                                }
+                            }
+                            break;
+
+                        case filesystem::directory_watcher_event_kind::removed:
+                            // We can remove it from the map, if it's non-atomic rename it should be re-added later
+                            if (e.path.ends_with(AssetMetaExtension))
+                            {
+                                const auto fileIt = m_impl->assetFileMap.find(e.path);
+
+                                if (fileIt != m_impl->assetFileMap.end())
+                                {
+                                    const auto it = m_impl->assets.find(fileIt->second);
+
+                                    if (it != m_impl->assets.end())
+                                    {
+                                        for (const auto& artifact : it->second.artifacts)
+                                        {
+                                            m_impl->on_artifact_removed(artifact);
+                                        }
+
+                                        m_impl->assets.erase(it);
+                                    }
+
+                                    m_impl->assetFileMap.erase(fileIt);
+                                }
+                            }
+
+                            break;
+
+                        case filesystem::directory_watcher_event_kind::renamed:
+                            // We need to update the asset entry path
+                            if (e.path.ends_with(AssetMetaExtension) && load_asset_meta(meta, e.path))
+                            {
+                                const auto it = m_impl->assets.find(meta.assetId);
+
+                                if (it != m_impl->assets.end())
+                                {
+                                    it->second.path = e.path;
+                                }
+
+                                auto fileIt = m_impl->assetFileMap.find(e.previousName);
+
+                                if (fileIt != m_impl->assetFileMap.end())
+                                {
+                                    auto n = m_impl->assetFileMap.extract(fileIt);
+                                    n.key() = e.path;
+                                    n.mapped() = meta.assetId;
+                                    m_impl->assetFileMap.insert(std::move(n));
+                                }
+                            }
+
+                            // We need to update the asset_entry::path
+                            break;
+
+                        case filesystem::directory_watcher_event_kind::modified:
+                            // Maybe it was reprocessed
+                            if (e.path.ends_with(AssetMetaExtension) && load_asset_meta(meta, e.path))
+                            {
+                                const auto it = m_impl->assets.find(meta.assetId);
+                                const auto fileIt = m_impl->assetFileMap.find(e.path);
+
+                                if (it != m_impl->assets.end() && fileIt != m_impl->assetFileMap.end())
+                                {
+                                    // We track this asset, check if something has changed
+                                    asset_process_info processInfo;
+
+                                    m_impl->make_artifacts_process_path(builder.clear(), meta.assetId);
+
+                                    if (!load_asset_process_info(builder, processInfo))
+                                    {
+                                        log::debug("Failed to load asset process info for {}", meta.assetId);
+                                        return;
+                                    }
+
+                                    std::sort(processInfo.artifacts.begin(), processInfo.artifacts.end());
+
+                                    auto& oldEntry = it->second;
+                                    OBLO_ASSERT(std::is_sorted(oldEntry.artifacts.begin(), oldEntry.artifacts.end()));
+
+                                    usize oldIndex = 0, newIndex = 0;
+
+                                    while (
+                                        oldIndex < oldEntry.artifacts.size() && newIndex < processInfo.artifacts.size())
+                                    {
+                                        const auto& o = oldEntry.artifacts[oldIndex];
+                                        const auto& n = processInfo.artifacts[newIndex];
+
+                                        if (o < n)
+                                        {
+                                            m_impl->on_artifact_removed(o);
+                                            ++oldIndex;
+                                        }
+                                        else if (o > n)
+                                        {
+                                            if (!m_impl->on_new_artifact_discovered(builder, n, meta.assetId))
+                                            {
+                                                // Failed to load the artifact, should we remove it?
+                                                OBLO_ASSERT(false);
+                                            }
+
+                                            ++newIndex;
+                                        }
+                                        else
+                                        {
+                                            ++oldIndex;
+                                            ++newIndex;
+                                        }
+                                    }
+
+                                    for (; oldIndex < oldEntry.artifacts.size(); ++oldIndex)
+                                    {
+                                        const auto& o = oldEntry.artifacts[oldIndex];
+                                        m_impl->on_artifact_removed(o);
+                                    }
+
+                                    for (; newIndex < processInfo.artifacts.size(); ++newIndex)
+                                    {
+                                        const auto& n = processInfo.artifacts[newIndex];
+
+                                        if (!m_impl->on_new_artifact_discovered(builder, n, meta.assetId))
+                                        {
+                                            // Failed to load the artifact, should we remove it?
+                                            OBLO_ASSERT(false);
+                                        }
+                                    }
+
+                                    oldEntry.artifacts.assign(processInfo.artifacts.begin(),
+                                        processInfo.artifacts.end());
+                                }
+                            }
+                            break;
+
+                        default:
+                            break;
+                        }
+                    })
+                .assert_value();
+        }
+    }
+
+    void asset_registry_impl::push_import_process(
+        asset_entry* optEntry, importer&& importer, data_document&& settings, string_view destination)
+    {
+        auto& importProcess = currentImports.emplace_back(allocate_unique<import_process>());
+
+        importProcess->importer = std::move(importer);
+        importProcess->settings = std::move(settings);
+        importProcess->destination = destination.as<string>();
+        importProcess->startTime = clock::now();
+
+        auto* jm = job_manager::get();
+
+        const auto job = jm->push_waitable(
+            [importProcess = importProcess.get()]
+            {
+                const auto r = importProcess->importer.execute(importProcess->settings);
+                importProcess->success.store(r);
+            });
+
+        importProcess->job = job;
+
+        if (optEntry)
+        {
+            OBLO_ASSERT(!optEntry->isProcessing);
+            optEntry->isProcessing = true;
+        }
+    }
+
+    bool asset_registry_impl::save_artifact(
+        const cstring_view srcArtifact, const artifact_meta& meta, write_policy policy)
+    {
+        string_builder artifactPath;
+        make_artifact_path(artifactPath, meta.assetId, meta.artifactId);
+
+        if (const auto exists = filesystem::exists(artifactPath).value_or(true);
+            exists && policy == write_policy::no_overwrite)
+        {
+            return false;
+        }
+        else if (exists)
+        {
+            filesystem::remove(artifactPath).assert_value();
+        }
+
+        auto artifactMetaPath = artifactPath;
+        artifactMetaPath.append(g_artifactMetaExtension);
+
+        return filesystem::rename(srcArtifact, artifactPath).value_or(false) &&
+            save_artifact_meta(meta, artifactMetaPath);
+    }
+
+    bool asset_registry_impl::save_asset(string_view destination,
+        string_view assetName,
+        const asset_meta& meta,
+        const deque<uuid>& artifacts,
+        write_policy policy)
+    {
+        string_builder fullPath;
+
+        make_artifacts_directory_path(fullPath.clear(), meta.assetId);
+
+        if (!ensure_directories(fullPath))
+        {
+            log::warn("Failed to create artifact directory {}", fullPath);
+            return false;
+        }
+
+        make_artifacts_process_path(fullPath.clear(), meta.assetId);
+
+        if (!save_asset_process_info(asset_process_info{.artifacts = artifacts}, fullPath))
+        {
+            // Not a big issue, it can always be rebuilt, maybe we should log
+            log::warn("Saved to file asset process info to {}, re-processing might be required", fullPath);
+        }
+
+        make_asset_path(fullPath.clear(), destination).append_path(assetName).append(AssetMetaExtension);
+
+        if (policy == write_policy::no_overwrite && filesystem::exists(fullPath).value_or(true))
+        {
+            return false;
+        }
+
+        if (!save_asset_meta(meta, fullPath))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    string_builder& asset_registry_impl::make_asset_path(string_builder& out, string_view directory) const
+    {
+        if (filesystem::is_relative(directory))
+        {
+            out.append(assetsDir);
+            out.append_path_separator();
+        }
+
+        out.append(directory);
+        return out;
+    }
+
+    string_builder& asset_registry_impl::make_artifact_path(string_builder& out, uuid assetId, uuid artifactId) const
+    {
+        return out.clear()
+            .append(artifactsDir)
+            .append_path_separator()
+            .format("{}", assetId)
+            .append_path_separator()
+            .format("{}", artifactId);
+    }
+
+    string_builder& asset_registry_impl::make_artifacts_process_path(string_builder& out, uuid assetId) const
+    {
+        return out.append(artifactsDir).append_path_separator().format("{}", assetId).append(g_assetProcessExtension);
+    }
+
+    string_builder& asset_registry_impl::make_artifacts_directory_path(string_builder& out, uuid assetId) const
+    {
+        return out.append(artifactsDir).append_path_separator().format("{}", assetId);
+    }
+
+    oblo::importer asset_registry_impl::create_importer(string_view sourceFile) const
+    {
+        const auto ext = filesystem::extension(sourceFile);
+
+        for (auto& [type, assetImporter] : importers)
+        {
+            for (const auto& importerExt : assetImporter.extensions)
+            {
+                if (importerExt == ext)
+                {
+                    return importer{
+                        import_config{
+                            .sourceFile = sourceFile.as<string>(),
+                        },
+                        assetImporter.create(),
+                    };
+                }
+            }
+        }
+
+        return {};
+    }
+
+    bool asset_registry_impl::create_directories(string_view directory)
+    {
+        string_builder sb;
+        make_asset_path(sb, directory);
+        return ensure_directories(sb);
     }
 }

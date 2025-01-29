@@ -280,7 +280,7 @@ namespace oblo
 
     void property_registry::init(const reflection::reflection_registry& reflection)
     {
-        m_impl = std::make_unique<impl>();
+        m_impl = allocate_unique<impl>();
         m_impl->init(&reflection);
     }
 

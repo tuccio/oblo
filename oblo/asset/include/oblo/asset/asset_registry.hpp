@@ -1,28 +1,45 @@
 #pragma once
 
-#include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/expected.hpp>
+#include <oblo/core/flags.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/type_id.hpp>
+#include <oblo/core/unique_ptr.hpp>
 
-#include <memory>
 #include <span>
 
 namespace oblo
 {
-    class importer;
+    class any_asset;
+    class asset_registry_impl;
+    class asset_writer;
+    class data_document;
+    class file_importer;
+    class resource_provider;
     class string_builder;
     class string;
+
+    template <typename T>
+    class deque;
+
+    template <typename T>
+    class dynamic_array;
 
     template <typename T>
     class function_ref;
 
     struct artifact_meta;
     struct asset_meta;
-    struct asset_type_desc;
-    struct file_importer_desc;
-    struct import_preview;
-    struct import_node_config;
+    struct native_asset_descriptor;
+    struct file_importer_descriptor;
     struct uuid;
+
+    enum class asset_discovery_flags
+    {
+        reprocess_dirty,
+        garbage_collect,
+        enum_max,
+    };
 
     class asset_registry
     {
@@ -38,65 +55,67 @@ namespace oblo
 
         void shutdown();
 
-        void discover_assets();
+        void update();
 
-        void register_type(const asset_type_desc& desc);
-        void unregister_type(type_id type);
-        bool has_asset_type(type_id type) const;
+        void discover_assets(flags<asset_discovery_flags> flags);
 
-        void register_file_importer(const file_importer_desc& desc);
+        resource_provider* initialize_resource_provider();
+
+        void register_file_importer(const file_importer_descriptor& desc);
         void unregister_file_importer(type_id type);
 
-        bool create_directories(string_view directory);
+        void register_native_asset_type(const native_asset_descriptor& desc);
+        void unregister_native_asset_type(uuid type);
 
-        [[nodiscard]] importer create_importer(cstring_view sourceFile);
+        /// @brief Starts an asynchronous import process for a new asset.
+        /// This function will look for a suitable importer among the ones registered and start the process.
+        /// The asynchronous import will be finalized on the thread calling update, that updates the registry.
+        /// @param sourceFile The file to import.
+        /// @param destination The asset directory to import into.
+        /// @param assetName The name of the asset that will be created.
+        /// @param settings The settings for the importer.
+        /// @return The uuid of the asset that will be created, or an error if the import failed to start.
+        expected<uuid> import(
+            string_view sourceFile, string_view destination, string_view assetName, data_document settings);
+
+        /// @brief Triggers an asynchronous processing of a previously created asset.
+        /// Imported and native assets will be reprocessed from the stored source files.
+        /// @param asset A previously created asset.
+        /// @param optSettings Optional settings for the processing, that will replace the previous.
+        /// @return An error if processing failed to start.
+        expected<> process(uuid asset, data_document* optSettings = nullptr);
+
+        expected<uuid> create_asset(const any_asset& asset, string_view destination, string_view name);
+
+        expected<any_asset> load_asset(uuid assetId);
+
+        expected<> save_asset(const any_asset& asset, uuid assetId);
 
         bool find_asset_by_id(const uuid& id, asset_meta& assetMeta) const;
         bool find_asset_by_path(cstring_view path, uuid& id, asset_meta& assetMeta) const;
         bool find_asset_by_meta_path(cstring_view path, uuid& id, asset_meta& assetMeta) const;
 
+        bool find_artifact_by_id(const uuid& id, artifact_meta& artifactMeta) const;
+
         bool find_asset_artifacts(const uuid& id, dynamic_array<uuid>& artifacts) const;
 
-        bool load_artifact_meta(const uuid& artifactId, artifact_meta& artifact) const;
-
-        void iterate_artifacts_by_type(type_id type,
+        void iterate_artifacts_by_type(const uuid& type,
             function_ref<bool(const uuid& assetId, const uuid& artifactId)> callback) const;
 
         cstring_view get_asset_directory() const;
 
-    public:
-        static bool find_artifact_resource(
-            const uuid& id, type_id& outType, string& outName, string& outPath, const void* userdata);
+        bool get_source_directory(const uuid& assetId, string_builder& outPath) const;
+        bool get_artifact_path(const uuid& artifactId, string_builder& outPath) const;
+
+        bool get_asset_name(const uuid& assetId, string_builder& outName) const;
+        bool get_asset_directory(const uuid& assetId, string_builder& outPath) const;
+
+        u32 get_running_import_count() const;
+
+        u64 get_version_id() const;
 
     private:
-        struct impl;
-        friend class importer;
-
-        enum class write_policy
-        {
-            no_overwrite,
-            overwrite,
-        };
-
-    private:
-        uuid generate_uuid();
-
-        bool save_artifact(const uuid& id,
-            const type_id& type,
-            const void* dataPtr,
-            const artifact_meta& meta,
-            write_policy policy = write_policy::no_overwrite);
-
-        bool save_asset(string_view destination,
-            string_view fileName,
-            const asset_meta& meta,
-            std::span<const uuid> artifacts,
-            write_policy policy = write_policy::no_overwrite);
-
-        bool create_source_files_dir(string_builder& dir, uuid importId);
-
-    private:
-        std::unique_ptr<impl> m_impl;
+        unique_ptr<asset_registry_impl> m_impl;
     };
 
     inline const cstring_view AssetMetaExtension{".oasset"};

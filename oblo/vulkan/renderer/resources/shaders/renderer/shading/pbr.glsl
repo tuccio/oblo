@@ -10,6 +10,7 @@ struct pbr_material
     float metalness;
     float roughness;
     float ior;
+    vec3 emissive;
 };
 
 float pbr_distribution_ggx(in float NdotH, float alpha2)

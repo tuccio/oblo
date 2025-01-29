@@ -200,7 +200,7 @@ namespace oblo::json
                         std::as_bytes(std::span{&sv, 1}));
 
                     m_lastString.clear();
-                    m_state = state::name_or_object_end;
+                    m_state = next_state_from_stack();
                 }
 
                     return true;

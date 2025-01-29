@@ -4,6 +4,7 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/core/platform/compiler.hpp>
 #include <oblo/core/rotate.hpp>
+#include <oblo/core/utility.hpp>
 #include <oblo/math/power_of_two.hpp>
 
 #include <initializer_list>
@@ -72,6 +73,7 @@ namespace oblo
         T* end();
 
         usize size() const;
+        u32 size32() const;
         usize size_bytes() const;
         usize capacity() const;
 
@@ -122,7 +124,7 @@ namespace oblo
         iterator append(OtherIt begin, OtherIt end);
 
         template <typename Iterator>
-            requires std::contiguous_iterator<Iterator>
+            requires std::forward_iterator<Iterator>
         void assign(Iterator first, Iterator last) noexcept;
 
         void assign(usize count, const T& value) noexcept;
@@ -369,6 +371,12 @@ namespace oblo
     }
 
     template <typename T>
+    OBLO_FORCEINLINE u32 dynamic_array<T>::size32() const
+    {
+        return narrow_cast<u32>(m_size);
+    }
+
+    template <typename T>
     OBLO_FORCEINLINE usize dynamic_array<T>::size_bytes() const
     {
         return m_size * sizeof(T);
@@ -523,7 +531,7 @@ namespace oblo
 
     template <typename T>
     template <typename Iterator>
-        requires std::contiguous_iterator<Iterator>
+        requires std::forward_iterator<Iterator>
     void dynamic_array<T>::assign(Iterator first, Iterator last) noexcept
     {
         clear();

@@ -6,6 +6,7 @@
 #include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/core/hash.hpp>
 #include <oblo/core/random_generator.hpp>
+#include <oblo/core/string/transparent_string_hash.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/draw/pass_manager.hpp>
 #include <oblo/vulkan/graph/frame_graph_node_desc.hpp>
@@ -144,21 +145,6 @@ namespace oblo::vk
     {
         h32<frame_graph_pin_storage> buffer;
         staging_buffer_span source;
-    };
-
-    struct transparent_string_hash
-    {
-        using is_transparent = void;
-
-        usize operator()(string_view str) const
-        {
-            return hash<string_view>{}(str);
-        }
-
-        usize operator()(const string& str) const
-        {
-            return hash<string>{}(str);
-        }
     };
 
     using name_to_vertex_map =

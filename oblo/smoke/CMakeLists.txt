@@ -11,6 +11,7 @@ target_link_libraries(
     oblo::runtime
     oblo::sandbox
     oblo::scene
+    oblo::thread
     PRIVATE
     oblo::renderdoc
     imgui::imgui

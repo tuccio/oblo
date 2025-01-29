@@ -79,6 +79,7 @@ namespace oblo
         iterator end();
 
         usize size() const;
+        u32 size32() const;
         usize capacity() const;
         usize elements_per_chunk() const;
         usize chunks_count() const;
@@ -565,6 +566,12 @@ namespace oblo
     }
 
     template <typename T>
+    OBLO_FORCEINLINE u32 deque<T>::size32() const
+    {
+        return narrow_cast<u32>(m_size);
+    }
+
+    template <typename T>
     OBLO_FORCEINLINE usize deque<T>::chunks_count() const
     {
         // Equivalent to round_up_div(m_start + m_size - 1, m_elementsPerChunk)
@@ -753,7 +760,7 @@ namespace oblo
 
         if (it != backIt)
         {
-            std::swap(*it, *backIt);
+            *it = std::move(*backIt);
         }
 
         pop_back();

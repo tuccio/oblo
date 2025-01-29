@@ -2,7 +2,7 @@
 
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/dynamic_array.hpp>
-#include <oblo/scene/assets/texture.hpp>
+#include <oblo/scene/resources/texture.hpp>
 #include <oblo/vulkan/staging_buffer.hpp>
 #include <oblo/vulkan/utility/pipeline_barrier.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>

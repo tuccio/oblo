@@ -2,18 +2,19 @@
 
 #include <oblo/asset/asset_meta.hpp>
 #include <oblo/asset/asset_registry.hpp>
-#include <oblo/asset/importer.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
+#include <oblo/properties/serialization/common.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
-#include <oblo/scene/assets/model.hpp>
 #include <oblo/scene/components/position_component.hpp>
 #include <oblo/scene/components/rotation_component.hpp>
 #include <oblo/scene/components/scale_component.hpp>
+#include <oblo/scene/resources/model.hpp>
+#include <oblo/scene/resources/traits.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
 
 #include <gtest/gtest.h>
@@ -23,29 +24,27 @@ namespace oblo::smoke
     namespace
     {
         template <typename T>
-        resource_ptr<T> import_as_resource(asset_registry& assetRegistry,
-            resource_registry& resourceRegistry,
-            cstring_view source,
-            const data_document& importSettings = {})
+        resource_ptr<T> get_resource_from_asset(
+            resource_registry& resourceRegistry, const asset_registry& assetRegistry, uuid assetId)
         {
-            importer assetImporter = assetRegistry.create_importer(source);
-
-            if (!assetImporter.is_valid() || !assetImporter.init() || !assetImporter.execute(".", importSettings))
-            {
-                return {};
-            }
-
-            const uuid assetUuid = assetImporter.get_import_id();
-
             asset_meta assetMeta;
-            assetRegistry.find_asset_by_id(assetUuid, assetMeta);
 
-            if (assetMeta.typeHint != get_type_id<T>())
+            if (!assetRegistry.find_asset_by_id(assetId, assetMeta) || assetMeta.typeHint != resource_type<T>)
             {
                 return {};
             }
 
             return resourceRegistry.get_resource(assetMeta.mainArtifactHint).as<T>();
+        }
+
+        test_task wait_for_asset_processing(const test_context& ctx, const asset_registry& assetRegistry)
+        {
+            do
+            {
+                co_await ctx.next_frame();
+            } while (assetRegistry.get_running_import_count() > 0);
+
+            co_return;
         }
     }
 
@@ -57,11 +56,20 @@ namespace oblo::smoke
             auto& assetRegistry = ctx.get_asset_registry();
             auto& resourceRegistry = ctx.get_resource_registry();
 
-            const auto triangle = import_as_resource<model>(assetRegistry,
-                resourceRegistry,
-                OBLO_GLTF_SAMPLE_MODELS "/Models/SimpleMaterial/glTF-Embedded/SimpleMaterial.gltf");
+            constexpr cstring_view sourceFile =
+                OBLO_GLTF_SAMPLE_MODELS "/Models/SimpleMaterial/glTF-Embedded/SimpleMaterial.gltf";
+
+            const auto assetId = assetRegistry.import(sourceFile, ".", "SimpleMaterial", {});
+
+            OBLO_SMOKE_TRUE(assetId);
+
+            co_await wait_for_asset_processing(ctx, assetRegistry);
+
+            const auto triangle = get_resource_from_asset<model>(resourceRegistry, assetRegistry, *assetId);
 
             OBLO_SMOKE_TRUE(triangle);
+            triangle.load_sync();
+
             OBLO_SMOKE_EQ(triangle->materials.size(), 1);
             OBLO_SMOKE_EQ(triangle->meshes.size(), 1);
 
@@ -91,11 +99,20 @@ namespace oblo::smoke
             auto& assetRegistry = ctx.get_asset_registry();
             auto& resourceRegistry = ctx.get_resource_registry();
 
-            const auto triangle = import_as_resource<model>(assetRegistry,
-                resourceRegistry,
-                OBLO_GLTF_SAMPLE_MODELS "/Models/SimpleMaterial/glTF-Embedded/SimpleMaterial.gltf");
+            constexpr cstring_view sourceFile =
+                OBLO_GLTF_SAMPLE_MODELS "/Models/SimpleMaterial/glTF-Embedded/SimpleMaterial.gltf";
+
+            const auto assetId = assetRegistry.import(sourceFile, ".", "SimpleMaterial", {});
+
+            OBLO_SMOKE_TRUE(assetId);
+
+            co_await wait_for_asset_processing(ctx, assetRegistry);
+
+            const auto triangle = get_resource_from_asset<model>(resourceRegistry, assetRegistry, *assetId);
 
             OBLO_SMOKE_TRUE(triangle);
+            triangle.load_sync();
+
             OBLO_SMOKE_EQ(triangle->materials.size(), 1);
             OBLO_SMOKE_EQ(triangle->meshes.size(), 1);
 

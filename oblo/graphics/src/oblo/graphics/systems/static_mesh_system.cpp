@@ -13,9 +13,9 @@
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_ref.hpp>
 #include <oblo/resource/resource_registry.hpp>
-#include <oblo/scene/assets/material.hpp>
-#include <oblo/scene/assets/pbr_properties.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
+#include <oblo/scene/resources/material.hpp>
+#include <oblo/scene/resources/pbr_properties.hpp>
 #include <oblo/vulkan/draw/draw_registry.hpp>
 #include <oblo/vulkan/draw/resource_cache.hpp>
 #include <oblo/vulkan/renderer.hpp>
@@ -51,6 +51,9 @@ namespace oblo
                 return out;
             }
 
+            // TODO: We should not block here
+            m.load_sync();
+
             if (auto* const albedo = m->get_property(pbr::Albedo))
             {
                 out.albedo = albedo->as<vec3>().value_or({});
@@ -69,6 +72,11 @@ namespace oblo
             if (auto* const emissive = m->get_property(pbr::Emissive))
             {
                 out.emissive = emissive->as<vec3>().value_or({});
+            }
+
+            if (auto* const emissiveMultiplier = m->get_property(pbr::EmissiveMultiplier))
+            {
+                out.emissive = out.emissive * emissiveMultiplier->as<f32>().value_or(1.f);
             }
 
             if (auto* const albedoTexture = m->get_property(pbr::AlbedoTexture))
@@ -191,6 +199,17 @@ namespace oblo
             gpuMaterial = convert(*m_resourceCache, m_resourceRegistry->get_resource(materialRef.id).as<material>());
             pickingId.entityId = e;
             meshComponent.mesh = mesh;
+        }
+
+        // Update materials every frame for now, until we have an invalidation mechanism
+        for (const auto [entities, meshComponents, gpuMaterials, gpuMeshes] :
+            ctx.entities->range<static_mesh_component, gpu_material, vk::draw_mesh_component>())
+        {
+            for (auto&& [mesh, gpuMaterial] : zip_range(meshComponents, gpuMaterials))
+            {
+                gpuMaterial =
+                    convert(*m_resourceCache, m_resourceRegistry->get_resource(mesh.material.id).as<material>());
+            }
         }
     }
 }

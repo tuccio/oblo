@@ -70,4 +70,14 @@ namespace oblo
             return hash_xxhz(v.data(), sizeof(*v.data()) * v.size());
         }
     };
+
+    template <typename T>
+        requires has_hash_value<T>
+    struct hash<T>
+    {
+        hash_type operator()(const T& v) const noexcept
+        {
+            return hash_value(v);
+        }
+    };
 }

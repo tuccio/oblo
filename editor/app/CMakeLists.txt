@@ -4,7 +4,9 @@ target_link_libraries(
     oblo
     PRIVATE
     oblo::asset
-    oblo::editor
+    oblo::editor::common
+    oblo::editor::core
+    oblo::editor::windows
     oblo::runtime
     oblo::ecs
     oblo::graphics
@@ -14,6 +16,7 @@ target_link_libraries(
     oblo::options
     oblo::sandbox
     oblo::scene
+    oblo::scene::editor
     oblo::thread
     iconfontcppheaders::iconfontcppheaders
     SDL2::SDL2

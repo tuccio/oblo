@@ -8,5 +8,12 @@ target_link_libraries(
     oblo::properties
     oblo::resource
     PRIVATE
+    oblo::thread
     nlohmann_json::nlohmann_json
+)
+
+target_link_libraries(
+    oblo_test_asset
+    PRIVATE
+    oblo::thread
 )

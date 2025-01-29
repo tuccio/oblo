@@ -4,7 +4,7 @@
 #include <oblo/core/data_format.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/core/utility.hpp>
-#include <oblo/scene/assets/mesh.hpp>
+#include <oblo/scene/resources/mesh.hpp>
 
 namespace oblo::importers::mesh_processing
 {

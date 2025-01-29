@@ -26,16 +26,30 @@ namespace oblo::vk
 
         void init_fonts(ImGuiIO& io)
         {
-            constexpr f32 pixels{14.f};
+            constexpr f32 textPixels{14.f};
+            constexpr f32 bigIconsPixels{48.f};
+
             ImFontConfig config{};
 
             config.FontDataOwnedByAtlas = false;
 
-            io.Fonts->AddFontFromMemoryTTF(Archivo_Regular_ttf, Archivo_Regular_ttf_len, pixels, &config);
+            io.Fonts->AddFontFromMemoryTTF(Archivo_Regular_ttf, Archivo_Regular_ttf_len, textPixels, &config);
 
             config.MergeMode = true;
 
-            io.Fonts->AddFontFromMemoryTTF(fa_solid_900_ttf, fa_solid_900_ttf_len, pixels, &config, FontAwesome6Ranges);
+            io.Fonts->AddFontFromMemoryTTF(fa_solid_900_ttf,
+                fa_solid_900_ttf_len,
+                textPixels,
+                &config,
+                FontAwesome6Ranges);
+
+            config.MergeMode = false;
+
+            io.Fonts->AddFontFromMemoryTTF(fa_solid_900_ttf,
+                fa_solid_900_ttf_len,
+                bigIconsPixels,
+                &config,
+                FontAwesome6Ranges);
         }
     }
 

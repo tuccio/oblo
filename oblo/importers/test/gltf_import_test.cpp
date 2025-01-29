@@ -2,21 +2,23 @@
 
 #include <oblo/asset/asset_meta.hpp>
 #include <oblo/asset/asset_registry.hpp>
-#include <oblo/asset/asset_type_desc.hpp>
-#include <oblo/asset/importer.hpp>
 #include <oblo/asset/importers/registration.hpp>
 #include <oblo/core/data_format.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
+#include <oblo/core/finally.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_manager.hpp>
-#include <oblo/properties/property_kind.hpp>
+#include <oblo/properties/serialization/common.hpp>
+#include <oblo/resource/descriptors/resource_type_descriptor.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
-#include <oblo/scene/assets/mesh.hpp>
-#include <oblo/scene/assets/model.hpp>
-#include <oblo/scene/assets/registration.hpp>
+#include <oblo/scene/resources/mesh.hpp>
+#include <oblo/scene/resources/model.hpp>
+#include <oblo/scene/resources/registration.hpp>
+#include <oblo/scene/resources/traits.hpp>
 #include <oblo/scene/scene_module.hpp>
+#include <oblo/thread/job_manager.hpp>
 
 namespace oblo::importers
 {
@@ -41,6 +43,11 @@ namespace oblo::importers
 
     TEST(gltf_importer, box)
     {
+        job_manager jm;
+        jm.init();
+
+        const auto cleanUp = finally([&] { jm.shutdown(); });
+
         module_manager mm;
         mm.load<scene_module>();
 
@@ -57,18 +64,17 @@ namespace oblo::importers
 
         ASSERT_TRUE(registry.initialize(assetsDir, artifactsDir, sourceFilesDir));
 
-        dynamic_array<resource_type_desc> resourceTypes;
+        deque<resource_type_descriptor> resourceTypes;
         fetch_scene_resource_types(resourceTypes);
 
         for (const auto& type : resourceTypes)
         {
             resources.register_type(type);
-            registry.register_type(asset_type_desc{type});
         }
 
         register_gltf_importer(registry);
 
-        resources.register_provider(&asset_registry::find_artifact_resource, &registry);
+        resources.register_provider(registry.initialize_resource_provider());
 
         const string gltfSampleModels{OBLO_GLTF_SAMPLE_MODELS};
 
@@ -78,23 +84,26 @@ namespace oblo::importers
             child_path(gltfSampleModels, "Models", "Box", "glTF-Binary", "Box.glb"),
         };
 
-        data_document importSettings;
-        importSettings.init();
-        importSettings.child_value(importSettings.get_root(),
-            "generateMeshlets",
-            property_kind::boolean,
-            as_bytes(false));
-
         for (const auto& file : files)
         {
-            auto importer = registry.create_importer(file);
-
             const auto dirName = filesystem::filename(filesystem::parent_path(file));
 
-            ASSERT_TRUE(importer.is_valid());
+            data_document importSettings;
+            importSettings.init();
+            importSettings.child_value(importSettings.get_root(),
+                "generateMeshlets"_hsv,
+                property_value_wrapper{false});
 
-            ASSERT_TRUE(importer.init());
-            ASSERT_TRUE(importer.execute(dirName, importSettings));
+            const auto importResult = registry.import(file, dirName, "Box", std::move(importSettings));
+
+            ASSERT_TRUE(importResult);
+
+            while (registry.get_running_import_count() > 0)
+            {
+                registry.update();
+            }
+
+            resources.update();
 
             uuid meshId;
 
@@ -107,10 +116,12 @@ namespace oblo::importers
             ASSERT_TRUE(registry.find_asset_by_path(assetPath, meshId, modelMeta));
 
             ASSERT_NE(modelMeta.mainArtifactHint, uuid{});
-            ASSERT_EQ(modelMeta.typeHint, get_type_id<model>());
+            ASSERT_EQ(modelMeta.typeHint, resource_type<model>);
 
             const auto modelResource = resources.get_resource(modelMeta.mainArtifactHint).as<model>();
             ASSERT_TRUE(modelResource);
+
+            modelResource.load_sync();
 
             ASSERT_EQ(modelResource->meshes.size(), 1);
 
@@ -119,6 +130,8 @@ namespace oblo::importers
 
             const auto meshResource = resources.get_resource(meshRef.id).as<mesh>();
             ASSERT_TRUE(meshResource);
+
+            meshResource.load_sync();
 
             constexpr auto expectedVertexCount{24};
             constexpr auto expectedIndexCount{36};

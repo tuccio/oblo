@@ -31,6 +31,18 @@ pbr_material pbr_extract_parameters(in gpu_material material, in vec2 uv0, in ve
         pbr.roughness *= metalnessRoughness.y;
     }
 
+    vec3 emitted = material.emissive;
+
+    if (material.emissiveTexture != 0)
+    {
+        const vec3 emissive =
+            texture_sample_2d_grad(material.emissiveTexture, OBLO_SAMPLER_ANISOTROPIC, uv0, uv0DDX, uv0DDY).xyz;
+
+        emitted *= emissive;
+    }
+
+    pbr.emissive = emitted;
+
     return pbr;
 }
 

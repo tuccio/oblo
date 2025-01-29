@@ -1,5 +1,6 @@
 #include <oblo/asset/importers/stb_image.hpp>
 
+#include <oblo/asset/import/import_context.hpp>
 #include <oblo/asset/importers/image_processing.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/finally.hpp>
@@ -9,7 +10,8 @@
 #include <oblo/math/color.hpp>
 #include <oblo/math/float.hpp>
 #include <oblo/math/power_of_two.hpp>
-#include <oblo/scene/assets/texture.hpp>
+#include <oblo/scene/resources/texture.hpp>
+#include <oblo/scene/resources/traits.hpp>
 
 #include <vulkan/vulkan_core.h>
 
@@ -168,6 +170,8 @@ namespace oblo::importers
                             }
                         });
                 }
+
+                out = std::move(withAlpha);
             }
             else if (vkFormat == VK_FORMAT_R32G32B32_SFLOAT)
             {
@@ -234,19 +238,19 @@ namespace oblo::importers
         }
     }
 
-    bool stb_image::init(const importer_config& config, import_preview& preview)
+    bool stb_image::init(const import_config& config, import_preview& preview)
     {
         m_source = config.sourceFile;
         auto& node = preview.nodes.emplace_back();
         node.name = filesystem::stem(config.sourceFile).as<string>();
-        node.type = get_type_id<texture>();
+        node.artifactType = resource_type<texture>;
 
         return true;
     }
 
-    bool stb_image::import(const import_context& ctx)
+    bool stb_image::import(import_context ctx)
     {
-        const auto& modelNodeConfig = ctx.importNodesConfig[0];
+        const auto& modelNodeConfig = ctx.get_import_node_configs()[0];
 
         if (!modelNodeConfig.enabled)
         {
@@ -271,10 +275,12 @@ namespace oblo::importers
             return false;
         }
 
-        if (const auto swizzle = ctx.settings.find_child(ctx.settings.get_root(), "swizzle");
-            swizzle != data_node::Invalid && ctx.settings.is_array(swizzle))
+        const auto& settings = ctx.get_settings();
+
+        if (const auto swizzle = settings.find_child(settings.get_root(), "swizzle");
+            swizzle != data_node::Invalid && settings.is_array(swizzle))
         {
-            const auto swizzleCount = ctx.settings.children_count(swizzle);
+            const auto swizzleCount = settings.children_count(swizzle);
 
             if (swizzleCount == 0 || swizzleCount > 4)
             {
@@ -287,10 +293,10 @@ namespace oblo::importers
 
             for (u32 i = 0; i < swizzleCount; ++i)
             {
-                previousElement = ctx.settings.child_next(swizzle, previousElement);
+                previousElement = settings.child_next(swizzle, previousElement);
 
                 const auto e = previousElement;
-                const auto c = ctx.settings.read_u32(e);
+                const auto c = settings.read_u32(e);
 
                 if (!c || *c >= u32(channels))
                 {
@@ -349,9 +355,17 @@ namespace oblo::importers
             return false;
         }
 
+        string_builder outPath;
+
+        if (!t.save(ctx.get_output_path(modelNodeConfig.id, outPath)))
+        {
+            return false;
+        }
+
         m_result.id = modelNodeConfig.id;
-        m_result.name = ctx.nodes[0].name;
-        m_result.data = any_asset{std::move(t)};
+        m_result.type = resource_traits<texture>::uuid;
+        m_result.name = ctx.get_import_nodes()[0].name;
+        m_result.path = outPath.as<string>();
 
         return true;
     }

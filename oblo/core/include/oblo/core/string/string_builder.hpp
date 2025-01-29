@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/buffered_array.hpp>
+#include <oblo/core/hash.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/format.hpp>
 #include <oblo/core/string/string_view.hpp>
@@ -23,6 +24,15 @@ namespace oblo
 
         string_builder& operator=(const string_builder&) = default;
         string_builder& operator=(string_builder&&) noexcept = default;
+
+        string_builder& operator=(const char* cstr) noexcept;
+        string_builder& operator=(const wchar_t* cstr) noexcept;
+        string_builder& operator=(const char8_t* cstr) noexcept;
+        string_builder& operator=(const char16_t* cstr) noexcept;
+
+        string_builder& operator=(cstring_view view) noexcept;
+        string_builder& operator=(string_view view) noexcept;
+        string_builder& operator=(const string& str) noexcept;
 
         string_builder& append(char c);
         string_builder& append(const string& str);
@@ -49,6 +59,8 @@ namespace oblo
         string_builder& make_absolute_path();
         string_builder& make_canonical_path();
 
+        string_builder& parent_path();
+
         string_builder& trim_end();
 
         string_builder& clear();
@@ -68,8 +80,6 @@ namespace oblo
 
         explicit operator string_view() const;
         operator cstring_view() const;
-
-        string_builder& operator=(string_view str);
 
         void reserve(usize size);
         void resize(usize size);
@@ -100,6 +110,41 @@ namespace oblo
     {
         m_buffer.insert(m_buffer.end(), content.begin(), content.end());
         m_buffer.emplace_back('\0');
+    }
+
+    OBLO_FORCEINLINE string_builder& string_builder::operator=(const char* cstr) noexcept
+    {
+        return clear().append(cstr);
+    }
+
+    OBLO_FORCEINLINE string_builder& string_builder::operator=(const wchar_t* cstr) noexcept
+    {
+        return clear().append(cstr);
+    }
+
+    OBLO_FORCEINLINE string_builder& string_builder::operator=(const char8_t* cstr) noexcept
+    {
+        return clear().append(cstr);
+    }
+
+    OBLO_FORCEINLINE string_builder& string_builder::operator=(const char16_t* cstr) noexcept
+    {
+        return clear().append(cstr);
+    }
+
+    OBLO_FORCEINLINE string_builder& string_builder::operator=(cstring_view view) noexcept
+    {
+        return clear().append(view);
+    }
+
+    OBLO_FORCEINLINE string_builder& string_builder::operator=(string_view view) noexcept
+    {
+        return clear().append(view);
+    }
+
+    OBLO_FORCEINLINE string_builder& string_builder::operator=(const string& str) noexcept
+    {
+        return clear().append(str);
     }
 
     OBLO_FORCEINLINE string_builder& string_builder::append(char c)
@@ -226,13 +271,6 @@ namespace oblo
         return cstring_view{m_buffer.data(), size()};
     }
 
-    OBLO_FORCEINLINE string_builder& string_builder::operator=(string_view str)
-    {
-        m_buffer.assign(str.begin(), str.end());
-        ensure_null_termination();
-        return *this;
-    }
-
     OBLO_FORCEINLINE void string_builder::reserve(usize size)
     {
         m_buffer.reserve(size);
@@ -244,6 +282,8 @@ namespace oblo
         m_buffer.resize_default(size);
         ensure_null_termination();
     }
+
+    hash_type hash_value(const string_builder& sb);
 }
 
 template <>

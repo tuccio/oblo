@@ -1,24 +1,23 @@
 #pragma once
 
 #include <oblo/core/string/string.hpp>
-#include <oblo/core/type_id.hpp>
 #include <oblo/core/uuid.hpp>
 
 namespace oblo
 {
     struct artifact_meta
     {
-        uuid id;
-        type_id type;
-        uuid importId;
-        string importName;
+        uuid artifactId;
+        uuid type;
+        uuid assetId;
+        string name;
     };
 
     struct asset_meta
     {
-        uuid id;
+        uuid assetId;
         uuid mainArtifactHint;
-        type_id typeHint;
-        bool isImported;
+        uuid typeHint;
+        uuid nativeAssetType;
     };
 }

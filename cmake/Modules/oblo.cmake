@@ -101,6 +101,12 @@ endfunction(oblo_setup_source_groups)
 
 function(oblo_setup_include_dirs target)
     target_include_directories(
+        ${target} INTERFACE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+    )
+
+    target_include_directories(
         ${target} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
@@ -177,10 +183,10 @@ function(oblo_add_library name)
         oblo_add_source_files(${_target})
         oblo_setup_include_dirs(${_target})
 
-        if(OBLO_LIB_MODULE)
-            string(TOUPPER ${name} _upper_name)
-            set(_api_define "${_upper_name}_API")
+        string(TOUPPER ${name} _upper_name)
+        set(_api_define "${_upper_name}_API")
 
+        if(OBLO_LIB_MODULE)
             if(MSVC)
                 target_compile_definitions(${_target} INTERFACE "${_api_define}=__declspec(dllimport)")
                 target_compile_definitions(${_target} PRIVATE "${_api_define}=__declspec(dllexport)")
@@ -188,6 +194,9 @@ function(oblo_add_library name)
                 target_compile_definitions(${_target} INTERFACE "${_api_define}=")
                 target_compile_definitions(${_target} PRIVATE "${_api_define}=")
             endif()
+        else()
+            target_compile_definitions(${_target} INTERFACE "${_api_define}=")
+            target_compile_definitions(${_target} PRIVATE "${_api_define}=")
         endif()
     endif()
 
