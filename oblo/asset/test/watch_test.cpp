@@ -10,6 +10,7 @@
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/finally.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/properties/serialization/common.hpp>
 #include <oblo/thread/job_manager.hpp>
 
 namespace oblo
@@ -22,7 +23,8 @@ namespace oblo
 
         native_asset_descriptor make_text_asset_desc()
         {
-            return {.typeUuid = "9902b14d-32f6-4bf3-943c-8b6622591b33"_uuid,
+            return {
+                .typeUuid = "9902b14d-32f6-4bf3-943c-8b6622591b33"_uuid,
                 .typeId = get_type_id<string_builder>(),
                 .fileExtension = ".txt",
                 .load =
@@ -44,7 +46,8 @@ namespace oblo
                     return filesystem::write_file(destination, as_bytes(std::span{*b}), {}).has_value();
                 },
                 .createImporter = []() -> unique_ptr<file_importer>
-                { return allocate_unique<copy_importer>("3c06e01d-fb44-442d-8f62-3e6e4d14f74d"_uuid, "text"); }};
+                { return allocate_unique<copy_importer>("3c06e01d-fb44-442d-8f62-3e6e4d14f74d"_uuid, "text"); },
+            };
         }
 
         bool check_text_asset_content(asset_registry& registry, uuid assetId, string_view expected)
@@ -64,6 +67,37 @@ namespace oblo
             }
 
             return b->view() == expected;
+        }
+
+        bool find_artifact_path(asset_registry& registry, uuid assetId, string_builder& artifactPath)
+        {
+            dynamic_array<uuid> artifacts;
+
+            if (!registry.find_asset_artifacts(assetId, artifacts) || artifacts.size() != 1)
+            {
+                return false;
+            }
+
+            return registry.get_artifact_path(artifacts[0], artifactPath);
+        }
+
+        bool check_text_artifact_content(asset_registry& registry, uuid assetId, string_view expected)
+        {
+            string_builder artifactPath;
+
+            if (!find_artifact_path(registry, assetId, artifactPath))
+            {
+                return false;
+            }
+
+            string_builder content;
+
+            if (!filesystem::load_text_file_into_memory(content, artifactPath))
+            {
+                return false;
+            }
+
+            return content.view() == expected;
         }
 
         bool setup_registry(asset_registry& registry, cstring_view directory)
@@ -220,5 +254,107 @@ namespace oblo
         }
 
         ASSERT_TRUE(check_text_asset_content(registry, assetA, "A"));
+    }
+
+    class asset_registry_import : public ::testing::Test
+    {
+    protected:
+        void SetUp() override
+        {
+            jm.init();
+
+            constexpr cstring_view dir = "./import";
+            constexpr cstring_view assetsDir = "./import/assets";
+            constexpr cstring_view file = "./import/file.txt";
+
+            constexpr string_view extensions[]{".txt"};
+
+            filesystem::remove_all(dir).assert_value();
+
+            ASSERT_TRUE(setup_registry(registry, dir));
+
+            registry.register_file_importer({
+                .type = get_type_id<mock_test_asset>(),
+                .create = []() -> unique_ptr<file_importer>
+                { return allocate_unique<copy_importer>("3c06e01d-fb44-442d-8f62-3e6e4d14f74d"_uuid, "text"); },
+                .extensions = extensions,
+            });
+
+            registry.discover_assets({});
+            ASSERT_TRUE(registry.initialize_directory_watcher());
+
+            constexpr string_view content = "Content of the file";
+            write_file(file, content);
+
+            {
+                const auto id = registry.import(file, ".", "A", {});
+
+                ASSERT_TRUE(id);
+                assetA = *id;
+            }
+
+            wait_processing(registry);
+
+            ASSERT_TRUE(check_text_artifact_content(registry, assetA, content));
+
+            {
+                string_builder expectedPath;
+                expectedPath.append(registry.get_asset_directory());
+
+                string_builder assetPath;
+                ASSERT_TRUE(registry.get_asset_directory(assetA, assetPath));
+                ASSERT_EQ(assetPath, expectedPath);
+
+                string_builder assetName;
+                ASSERT_TRUE(registry.get_asset_name(assetA, assetName));
+                ASSERT_EQ(assetName.view(), "A");
+            }
+        }
+
+        void TearDown() override
+        {
+            jm.shutdown();
+        }
+
+        void write_file(cstring_view file, string_view content)
+        {
+            ASSERT_TRUE(filesystem::write_file(file, as_bytes(std::span{content.data(), content.size()}), {}));
+        }
+
+        job_manager jm;
+        asset_registry registry;
+        uuid assetA{};
+    };
+
+    TEST_F(asset_registry_import, basic) {}
+
+    TEST_F(asset_registry_import, reimport_same_artifacts)
+    {
+        string_builder sourcePath;
+
+        ASSERT_TRUE(registry.get_source_directory(assetA, sourcePath));
+        sourcePath.append_path("file.txt");
+
+        constexpr string_view newContent = "New content";
+        write_file(sourcePath.view(), newContent);
+
+        ASSERT_TRUE(registry.process(assetA));
+
+        wait_processing(registry);
+
+        ASSERT_TRUE(check_text_artifact_content(registry, assetA, newContent));
+
+        {
+            string_builder expectedPath;
+            expectedPath.append(registry.get_asset_directory());
+
+            string_builder assetPath;
+            ASSERT_TRUE(registry.get_asset_directory(assetA, assetPath));
+            ASSERT_EQ(assetPath, expectedPath);
+
+            string_builder assetName;
+            ASSERT_TRUE(registry.get_asset_name(assetA, assetName));
+            ASSERT_EQ(assetName.view(), "A");
+        }
     }
 }
