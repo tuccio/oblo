@@ -40,7 +40,7 @@ namespace oblo::smoke
 
         test_task wait_for_asset_processing(const test_context& ctx, const asset_registry& assetRegistry)
         {
-            while (assetRegistry.get_ongoing_process_count() > 0)
+            while (assetRegistry.get_running_import_count() > 0)
             {
                 co_await ctx.next_frame();
             }

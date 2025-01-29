@@ -63,6 +63,7 @@ namespace oblo::importers
         clear_directory(testDir);
 
         ASSERT_TRUE(registry.initialize(assetsDir, artifactsDir, sourceFilesDir));
+        ASSERT_TRUE(registry.initialize_directory_watcher());
 
         deque<resource_type_descriptor> resourceTypes;
         fetch_scene_resource_types(resourceTypes);
@@ -74,7 +75,7 @@ namespace oblo::importers
 
         register_gltf_importer(registry);
 
-        resources.register_provider(&asset_registry::find_artifact_resource, &registry);
+        resources.register_provider(registry.initialize_resource_provider());
 
         const string gltfSampleModels{OBLO_GLTF_SAMPLE_MODELS};
 
@@ -94,14 +95,16 @@ namespace oblo::importers
                 "generateMeshlets"_hsv,
                 property_value_wrapper{false});
 
-            const auto importResult = registry.import(file, dirName, std::move(importSettings));
+            const auto importResult = registry.import(file, dirName, "Box", std::move(importSettings));
 
             ASSERT_TRUE(importResult);
 
-            while (registry.get_ongoing_process_count() > 0)
+            while (registry.get_running_import_count() > 0)
             {
                 registry.update();
             }
+
+            resources.update();
 
             uuid meshId;
 
@@ -119,6 +122,8 @@ namespace oblo::importers
             const auto modelResource = resources.get_resource(modelMeta.mainArtifactHint).as<model>();
             ASSERT_TRUE(modelResource);
 
+            modelResource.load_sync();
+
             ASSERT_EQ(modelResource->meshes.size(), 1);
 
             const resource_ref meshRef = modelResource->meshes[0];
@@ -126,6 +131,8 @@ namespace oblo::importers
 
             const auto meshResource = resources.get_resource(meshRef.id).as<mesh>();
             ASSERT_TRUE(meshResource);
+
+            meshResource.load_sync();
 
             constexpr auto expectedVertexCount{24};
             constexpr auto expectedIndexCount{36};

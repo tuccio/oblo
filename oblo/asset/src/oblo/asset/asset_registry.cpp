@@ -348,7 +348,7 @@ namespace oblo
     {
         if (m_impl)
         {
-            while (get_ongoing_process_count() > 0)
+            while (get_running_import_count() > 0)
             {
                 update();
             }
@@ -841,7 +841,7 @@ namespace oblo
         return true;
     }
 
-    u32 asset_registry::get_ongoing_process_count() const
+    u32 asset_registry::get_running_import_count() const
     {
         return m_impl->currentImports.size32();
     }
@@ -1240,40 +1240,6 @@ namespace oblo
         const deque<uuid>& artifacts,
         write_policy policy)
     {
-        // Maybe don't do this and let the registry discover the import instead
-        const auto [assetIt, insertedAsset] = assets.emplace(meta.assetId, asset_entry{});
-
-        if (!insertedAsset && policy != write_policy::overwrite)
-        {
-            return false;
-        }
-        else if (!insertedAsset)
-        {
-            for (auto& artifact : assetIt->second.artifacts)
-            {
-                on_artifact_removed(artifact);
-            }
-
-            assetIt->second.artifacts.clear();
-        }
-
-        assetIt->second.meta = meta;
-        assetIt->second.artifacts.append(artifacts.begin(), artifacts.end());
-
-        assetIt->second.path.clear();
-
-        if (filesystem::is_relative(destination))
-        {
-            make_asset_path(assetIt->second.path, destination).make_canonical_path();
-        }
-        else
-        {
-            assetIt->second.path = destination;
-            assetIt->second.path.make_canonical_path();
-        }
-
-        assetIt->second.path.append_path(assetName);
-
         string_builder fullPath;
 
         make_artifacts_directory_path(fullPath.clear(), meta.assetId);
@@ -1299,20 +1265,9 @@ namespace oblo
             return false;
         }
 
-        if (!save_asset_meta(assetIt->second.meta, fullPath))
+        if (!save_asset_meta(meta, fullPath))
         {
             return false;
-        }
-
-        for (const uuid& artifactId : assetIt->second.artifacts)
-        {
-            artifact_meta artifactMeta;
-            make_artifact_path(fullPath, meta.assetId, artifactId).append(g_artifactMetaExtension);
-
-            if (load_artifact_meta(fullPath, artifactMeta))
-            {
-                on_artifact_added(artifactMeta);
-            }
         }
 
         return true;

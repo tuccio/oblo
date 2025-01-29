@@ -111,7 +111,7 @@ namespace oblo
         bool get_asset_name(const uuid& assetId, string_builder& outName) const;
         bool get_asset_directory(const uuid& assetId, string_builder& outPath) const;
 
-        u32 get_ongoing_process_count() const;
+        u32 get_running_import_count() const;
 
         u64 get_version_id() const;
 
