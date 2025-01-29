@@ -134,6 +134,20 @@ namespace oblo::vk
         set_texture(h, resident_texture{.imageView = imageView}, layout);
     }
 
+    bool texture_registry::set_texture(
+        h32<resident_texture> h, const texture_resource& texture, const debug_label& debugName)
+    {
+        resident_texture residentTexture;
+
+        if (!create(texture, residentTexture, debugName))
+        {
+            return false;
+        }
+
+        set_texture(h, residentTexture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        return true;
+    }
+
     void texture_registry::set_texture(
         h32<resident_texture> h, const resident_texture& residentTexture, VkImageLayout layout)
     {
@@ -151,6 +165,9 @@ namespace oblo::vk
             m_imageInfo.resize(newSize);
             m_textures.resize(newSize);
         }
+
+        OBLO_ASSERT(m_imageInfo[index].imageView == m_imageInfo[0].imageView || m_imageInfo[index].imageView == nullptr,
+            "Replacing a different texture here would require destroying it");
 
         m_imageInfo[index] = {
             .imageView = residentTexture.imageView,

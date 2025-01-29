@@ -92,6 +92,8 @@ namespace oblo::vk
 
         auto& commandBuffer = m_vkContext->get_active_command_buffer();
 
+        m_resourceCache.update();
+
         m_stagingBuffer.notify_finished_frames(m_vkContext->get_last_finished_submit());
 
         m_stagingBuffer.begin_frame(m_vkContext->get_submit_index());

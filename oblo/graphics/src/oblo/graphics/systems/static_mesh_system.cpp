@@ -44,44 +44,36 @@ namespace oblo
 
         static_assert(sizeof(gpu_material) % 16 == 0);
 
-        gpu_material convert(vk::resource_cache& cache, resource_ptr<material> m)
+        gpu_material convert(vk::resource_cache& cache, const material& m)
         {
             gpu_material out{};
 
-            if (!m)
-            {
-                return out;
-            }
-
-            // TODO: We should not block here
-            m.load_sync();
-
-            if (auto* const albedo = m->get_property(pbr::Albedo))
+            if (auto* const albedo = m.get_property(pbr::Albedo))
             {
                 out.albedo = albedo->as<vec3>().value_or({});
             }
 
-            if (auto* const metalness = m->get_property(pbr::Metalness))
+            if (auto* const metalness = m.get_property(pbr::Metalness))
             {
                 out.metalness = metalness->as<f32>().value_or({});
             }
 
-            if (auto* const roughness = m->get_property(pbr::Roughness))
+            if (auto* const roughness = m.get_property(pbr::Roughness))
             {
                 out.roughness = roughness->as<f32>().value_or({});
             }
 
-            if (auto* const emissive = m->get_property(pbr::Emissive))
+            if (auto* const emissive = m.get_property(pbr::Emissive))
             {
                 out.emissive = emissive->as<vec3>().value_or({});
             }
 
-            if (auto* const emissiveMultiplier = m->get_property(pbr::EmissiveMultiplier))
+            if (auto* const emissiveMultiplier = m.get_property(pbr::EmissiveMultiplier))
             {
                 out.emissive = out.emissive * emissiveMultiplier->as<f32>().value_or(1.f);
             }
 
-            if (auto* const albedoTexture = m->get_property(pbr::AlbedoTexture))
+            if (auto* const albedoTexture = m.get_property(pbr::AlbedoTexture))
             {
                 const auto t = albedoTexture->as<resource_ref<texture>>().value_or({});
 
@@ -91,7 +83,7 @@ namespace oblo
                 }
             }
 
-            if (auto* const normalMapTexture = m->get_property(pbr::NormalMapTexture))
+            if (auto* const normalMapTexture = m.get_property(pbr::NormalMapTexture))
             {
                 const auto t = normalMapTexture->as<resource_ref<texture>>().value_or({});
 
@@ -101,7 +93,7 @@ namespace oblo
                 }
             }
 
-            if (auto* const metalnessRoughnessTexture = m->get_property(pbr::MetalnessRoughnessTexture))
+            if (auto* const metalnessRoughnessTexture = m.get_property(pbr::MetalnessRoughnessTexture))
             {
                 const auto t = metalnessRoughnessTexture->as<resource_ref<texture>>().value_or({});
 
@@ -111,7 +103,7 @@ namespace oblo
                 }
             }
 
-            if (auto* const emissiveTexture = m->get_property(pbr::EmissiveTexture))
+            if (auto* const emissiveTexture = m.get_property(pbr::EmissiveTexture))
             {
                 const auto t = emissiveTexture->as<resource_ref<texture>>().value_or({});
 
@@ -127,6 +119,12 @@ namespace oblo
         struct entity_id_component
         {
             ecs::entity entityId;
+        };
+
+        struct mesh_resources
+        {
+            resource_ptr<material> material;
+            resource_ptr<mesh> mesh;
         };
     }
 
@@ -149,6 +147,8 @@ namespace oblo
         const auto gpuMaterial = typeRegistry.register_component(ecs::make_component_type_desc<gpu_material>());
         const auto entityId = typeRegistry.register_component(ecs::make_component_type_desc<entity_id_component>());
 
+        ecs::register_type<mesh_resources>(typeRegistry);
+
         drawRegistry.register_instance_data(gpuTransform, "i_TransformBuffer");
         drawRegistry.register_instance_data(gpuMaterial, "i_MaterialBuffer");
         drawRegistry.register_instance_data(entityId, "i_EntityIdBuffer");
@@ -168,19 +168,57 @@ namespace oblo
             for (auto&& [entity, meshComponent, globalTransform] :
                 zip_range(entities, meshComponents, globalTransforms))
             {
-                const auto mesh = drawRegistry.get_or_create_mesh(meshComponent.mesh);
+                auto materialRes = m_resourceRegistry->get_resource(meshComponent.material.id).as<material>();
+                auto meshRes = m_resourceRegistry->get_resource(meshComponent.mesh.id).as<mesh>();
+
+                if (!meshRes || !materialRes)
+                {
+                    // Maybe we should add a tag to avoid re-processing every frame
+                    continue;
+                }
+
+                bool stillLoading = false;
+
+                if (!materialRes.is_loaded())
+                {
+                    materialRes.load_start_async();
+                    stillLoading = true;
+                }
+
+                // If the mesh is already on GPU we don't car about loading the resource
+                auto mesh = drawRegistry.try_get_mesh(meshComponent.mesh);
+
+                if (!mesh && !meshRes.is_loaded())
+                {
+                    meshRes.load_start_async();
+                    stillLoading = true;
+                }
+
+                if (stillLoading)
+                {
+                    deferred.add<mesh_resources>(entity) = {
+                        .material = std::move(materialRes),
+                        .mesh = std::move(meshRes),
+                    };
+
+                    continue;
+                }
 
                 if (!mesh)
                 {
-                    continue;
+                    mesh = drawRegistry.get_or_create_mesh(meshComponent.mesh);
+
+                    if (!mesh)
+                    {
+                        continue;
+                    }
                 }
 
                 auto&& [gpuMaterial, pickingId, gpuMeshComponent] =
                     deferred.add<gpu_material, entity_id_component, vk::draw_mesh_component, vk::draw_raytraced_tag>(
                         entity);
 
-                gpuMaterial = convert(*m_resourceCache,
-                    m_resourceRegistry->get_resource(meshComponent.material.id).as<material>());
+                gpuMaterial = convert(*m_resourceCache, *materialRes);
 
                 pickingId.entityId = entity;
 
@@ -189,16 +227,5 @@ namespace oblo
         }
 
         deferred.apply(*ctx.entities);
-
-        // Update materials every frame for now, until we have an invalidation mechanism
-        for (const auto [entities, meshComponents, gpuMaterials, gpuMeshes] :
-            ctx.entities->range<static_mesh_component, gpu_material, vk::draw_mesh_component>())
-        {
-            for (auto&& [mesh, gpuMaterial] : zip_range(meshComponents, gpuMaterials))
-            {
-                gpuMaterial =
-                    convert(*m_resourceCache, m_resourceRegistry->get_resource(mesh.material.id).as<material>());
-            }
-        }
     }
 }

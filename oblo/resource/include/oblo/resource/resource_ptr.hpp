@@ -113,9 +113,17 @@ namespace oblo
 
         const T* operator->() const noexcept
         {
-            auto* const ptr = get();
+            const T* const ptr = get();
             OBLO_ASSERT(ptr, "The resource is not loaded");
             return ptr;
+        }
+
+        decltype(auto) operator*() const noexcept
+            requires(!std::is_void_v<T>)
+        {
+            const T* const ptr = get();
+            OBLO_ASSERT(ptr, "The resource is not loaded");
+            return *ptr;
         }
 
         explicit operator bool() const noexcept
