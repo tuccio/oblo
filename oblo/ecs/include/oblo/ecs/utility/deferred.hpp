@@ -147,14 +147,46 @@ namespace oblo::ecs
     template <typename... ComponentsOrTags>
     void deferred::remove(entity e)
     {
-        // TODO
-        (void) e;
+        struct remove_command_data
+        {
+            entity e;
+        };
+
+        remove_command_data* const data = allocate_storage<remove_command_data>();
+        data->e = e;
+
+        m_commands.push_back_default() = {
+            .userdata = data,
+            .apply =
+                [](entity_registry& registry, void* userdata)
+            {
+                remove_command_data* const data = static_cast<remove_command_data*>(userdata);
+                registry.remove<ComponentsOrTags...>(data->e);
+                data->~remove_command_data();
+            },
+        };
     }
 
     void deferred::destroy(entity e)
     {
-        // TODO
-        (void) e;
+        struct destroy_command_data
+        {
+            entity e;
+        };
+
+        destroy_command_data* const data = allocate_storage<destroy_command_data>();
+        data->e = e;
+
+        m_commands.push_back_default() = {
+            .userdata = data,
+            .apply =
+                [](entity_registry& registry, void* userdata)
+            {
+                destroy_command_data* const data = static_cast<destroy_command_data*>(userdata);
+                registry.destroy(data->e);
+                data->~destroy_command_data();
+            },
+        };
     }
 
     void deferred::apply(entity_registry& reg)

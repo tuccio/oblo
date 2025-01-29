@@ -72,5 +72,18 @@ namespace oblo::ecs
         ASSERT_EQ(reg.get<string>(e1), "e1");
         ASSERT_EQ(reg.get<string>(e2), "e2");
         ASSERT_EQ(reg.get<aligned_uvec4>(e2), (aligned_uvec4{{1, 2, 3, 4}}));
+
+        // Remove string from e2
+        d.remove<string>(e2);
+        d.apply(reg);
+
+        ASSERT_FALSE(reg.has<string>(e2));
+        ASSERT_TRUE(reg.has<aligned_uvec4>(e2));
+
+        // Destroy e1
+        d.destroy(e1);
+        d.apply(reg);
+
+        ASSERT_FALSE(reg.contains(e1));
     }
 }
