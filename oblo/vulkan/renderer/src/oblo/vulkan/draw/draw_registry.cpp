@@ -12,6 +12,7 @@
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/range.hpp>
 #include <oblo/ecs/type_set.hpp>
+#include <oblo/ecs/utility/deferred.hpp>
 #include <oblo/ecs/utility/registration.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/resource/resource_ptr.hpp>
@@ -461,60 +462,53 @@ namespace oblo::vk
 
     void draw_registry::create_instances()
     {
-        // Just gather entities and create after the iteration for now, should do something better after fixing #7
-        struct deferred_creation
-        {
-            ecs::entity entity;
-            h32<draw_mesh> mesh;
-        };
-
-        dynamic_array<deferred_creation> entitiesToUpdate;
+        ecs::deferred deferred;
 
         for (const auto [entities, meshes] :
             m_entities->range<draw_mesh_component>().exclude<draw_instance_component>())
         {
             for (const auto [entity, mesh] : zip_range(entities, meshes))
             {
-                entitiesToUpdate.emplace_back(entity, mesh.mesh);
+                const auto meshHandle = mesh.mesh;
+
+                if (!meshHandle)
+                {
+                    continue;
+                }
+
+                ecs::component_and_tag_sets sets{};
+
+                // We add tags for different index types, because we won't be able to draw these meshes together
+                switch (m_meshes.get_index_type({meshHandle.value}))
+                {
+                case mesh_index_type::none:
+                    sets.tags.add(m_indexNoneTag);
+                    break;
+                case mesh_index_type::u8:
+                    sets.tags.add(m_indexU8Tag);
+                    break;
+                case mesh_index_type::u16:
+                    sets.tags.add(m_indexU16Tag);
+                    break;
+                case mesh_index_type::u32:
+                    sets.tags.add(m_indexU32Tag);
+                    break;
+                default:
+                    unreachable();
+                }
+
+                sets.components.add(m_instanceComponent);
+                sets.components.add(m_instanceIdComponent);
+
+                deferred.add(entity, sets);
+
+                // This is not a real add, the component was added in the erased version
+                auto& instance = deferred.add<draw_instance_component>(entity);
+                instance.mesh = mesh_handle{meshHandle.value};
             }
         }
 
-        for (const auto [entity, mesh] : entitiesToUpdate)
-        {
-            if (!mesh)
-            {
-                continue;
-            }
-
-            ecs::component_and_tag_sets sets{};
-
-            // We add tags for different index types, because we won't be able to draw these meshes together
-            switch (m_meshes.get_index_type({mesh.value}))
-            {
-            case mesh_index_type::none:
-                sets.tags.add(m_indexNoneTag);
-                break;
-            case mesh_index_type::u8:
-                sets.tags.add(m_indexU8Tag);
-                break;
-            case mesh_index_type::u16:
-                sets.tags.add(m_indexU16Tag);
-                break;
-            case mesh_index_type::u32:
-                sets.tags.add(m_indexU32Tag);
-                break;
-            default:
-                unreachable();
-            }
-
-            sets.components.add(m_instanceComponent);
-            sets.components.add(m_instanceIdComponent);
-
-            m_entities->add(entity, sets);
-
-            auto& instance = m_entities->get<draw_instance_component>(entity);
-            instance.mesh = mesh_handle{mesh.value};
-        }
+        deferred.apply(*m_entities);
     }
 
     void draw_registry::defer_upload(const std::span<const byte> data, const buffer& b)

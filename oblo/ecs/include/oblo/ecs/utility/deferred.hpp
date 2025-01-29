@@ -24,6 +24,8 @@ namespace oblo::ecs
         template <typename... ComponentsOrTags>
         decltype(auto) add(entity e);
 
+        void add(entity e, const component_and_tag_sets& types);
+
         template <typename... ComponentsOrTags>
         void remove(entity e);
 
@@ -54,9 +56,9 @@ namespace oblo::ecs
         deque<command> m_commands;
     };
 
-    deferred::deferred() : deferred{get_global_allocator()} {}
+    inline deferred::deferred() : deferred{get_global_allocator()} {}
 
-    deferred::deferred(allocator* a) : m_storage{a}, m_commands{a} {}
+    inline deferred::deferred(allocator* a) : m_storage{a}, m_commands{a} {}
 
     template <typename... ComponentsOrTags>
     decltype(auto) deferred::create()
@@ -216,7 +218,30 @@ namespace oblo::ecs
         };
     }
 
-    void deferred::destroy(entity e)
+    inline void deferred::add(entity e, const component_and_tag_sets& types)
+    {
+        struct erased_add_data
+        {
+            entity e;
+            component_and_tag_sets types;
+        };
+
+        erased_add_data* const data = allocate_storage<erased_add_data>();
+        data->e = e;
+        data->types = types;
+
+        m_commands.push_back_default() = {
+            .userdata = data,
+            .apply =
+                [](entity_registry& registry, void* userdata)
+            {
+                erased_add_data* const data = static_cast<erased_add_data*>(userdata);
+                registry.add(data->e, data->types);
+            },
+        };
+    }
+
+    inline void deferred::destroy(entity e)
     {
         struct destroy_command_data
         {
@@ -238,7 +263,7 @@ namespace oblo::ecs
         };
     }
 
-    void deferred::apply(entity_registry& reg)
+    inline void deferred::apply(entity_registry& reg)
     {
         for (auto& command : m_commands)
         {
