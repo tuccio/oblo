@@ -99,10 +99,7 @@ namespace oblo::ecs
     template <bool Create, typename... ComponentsOrTags>
     inline decltype(auto) deferred::add_or_create(entity e)
     {
-        using tuple_t = filter_components<ComponentsOrTags...>::tuple;
-        tuple_t components;
-
-        std::apply([this]<typename... T>(T*&... component) { ((component = allocate_storage<T>()), ...); }, components);
+        using tuple_t = filter_components<ComponentsOrTags...>::value_tuple;
 
         struct add_command_data
         {
@@ -112,7 +109,6 @@ namespace oblo::ecs
 
         add_command_data* const data = allocate_storage<add_command_data>();
         data->e = e;
-        data->components = components;
 
         m_commands.push_back_default() = {
             .userdata = data,
@@ -138,28 +134,23 @@ namespace oblo::ecs
                     auto& newComponent = registry.add<ComponentsOrTags...>(data->e);
 
                     // Move component over
-                    auto* const srcComponent = std::get<0>(data->components);
-                    newComponent = std::move(*srcComponent);
-
-                    // Cleanup
-                    std::destroy_at(srcComponent);
+                    auto& srcComponent = std::get<0>(data->components);
+                    newComponent = std::move(srcComponent);
                 }
                 else
                 {
                     auto&& components = registry.add<ComponentsOrTags...>(data->e);
 
                     std::apply(
-                        [&components]<typename... T>(T*... component)
+                        [&components]<typename... T>(T&... component)
                         {
                             // Move component over
-                            ((std::get<T&>(components) = std::move(*component)), ...);
-
-                            // Cleanup
-                            ((component->~T()), ...);
+                            ((std::get<T&>(components) = std::move(component)), ...);
                         },
                         data->components);
                 }
 
+                // Cleanup
                 data->~add_command_data();
             },
         };
@@ -170,12 +161,12 @@ namespace oblo::ecs
         }
         else if constexpr (std::tuple_size_v<tuple_t> == 1)
         {
-            return *std::get<0>(components);
+            return std::get<0>(data->components);
         }
         else
         {
-            return std::apply([]<typename... T>(T*... component) { return std::tuple<T&...>{*component...}; },
-                components);
+            return std::apply([]<typename... T>(T&... component) { return std::tuple<T&...>{component...}; },
+                data->components);
         }
     }
 

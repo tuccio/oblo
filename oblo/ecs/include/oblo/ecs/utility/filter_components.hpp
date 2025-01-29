@@ -10,5 +10,8 @@ namespace oblo::ecs
     {
         using tuple = decltype(std::tuple_cat(
             std::conditional_t<!std::is_empty_v<ComponentOrTags>, std::tuple<ComponentOrTags*>, std::tuple<>>{}...));
+
+        using value_tuple = decltype(std::tuple_cat(
+            std::conditional_t<!std::is_empty_v<ComponentOrTags>, std::tuple<ComponentOrTags>, std::tuple<>>{}...));
     };
 }
