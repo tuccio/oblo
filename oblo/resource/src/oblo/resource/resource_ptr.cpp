@@ -5,6 +5,7 @@
 #include <oblo/resource/descriptors/resource_type_descriptor.hpp>
 #include <oblo/resource/resource.hpp>
 #include <oblo/thread/job_manager.hpp>
+#include <oblo/trace/profile.hpp>
 
 namespace oblo::detail
 {
@@ -78,6 +79,9 @@ namespace oblo::detail
             resource->loadJob = job_manager::get()->push_waitable(
                 [resource]
                 {
+                    OBLO_PROFILE_SCOPE_NAMED(profScope, "Resource Load");
+                    OBLO_PROFILE_TAG_NAMED(profScope, resource->name);
+
                     OBLO_ASSERT(!resource->data);
                     resource->data = resource->descriptor->create();
 
