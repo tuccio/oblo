@@ -956,6 +956,8 @@ namespace oblo
                 {
                     needsReprocessing =
                         !m_impl->on_new_asset_discovered(builder, assetMeta.assetId, processInfo.artifacts);
+
+                    it->second.artifacts.assign(processInfo.artifacts.begin(), processInfo.artifacts.end());
                 }
 
                 if (needsReprocessing && flags.contains(asset_discovery_flags::reprocess_dirty))
