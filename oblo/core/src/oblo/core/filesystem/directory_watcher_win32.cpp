@@ -310,8 +310,13 @@ namespace oblo::filesystem
                             }
                         }
 
-                        offset = fi->NextEntryOffset;
-                    } while (offset > 0 && offset < bytes);
+                        if (fi->NextEntryOffset == 0)
+                        {
+                            break;
+                        }
+
+                        offset += fi->NextEntryOffset;
+                    } while (true);
                 }
 
                 if (!m_impl->read_changes())

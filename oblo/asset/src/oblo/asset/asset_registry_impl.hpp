@@ -4,6 +4,7 @@
 #include <oblo/core/deque.hpp>
 #include <oblo/core/expected.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/core/string/transparent_string_hash.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/unique_ptr.hpp>
 #include <oblo/core/uuid.hpp>
@@ -27,6 +28,7 @@ namespace oblo
 
     struct artifact_entry;
     struct asset_entry;
+    struct asset_process_info;
     struct file_importer_info;
     struct native_asset_descriptor;
     struct import_process;
@@ -55,6 +57,8 @@ namespace oblo
         std::unordered_map<uuid, native_asset_descriptor> nativeAssetTypes;
         std::unordered_map<uuid, asset_entry> assets;
         std::unordered_map<uuid, artifact_entry> artifactsMap;
+
+        std::unordered_map<string, uuid, transparent_string_hash, std::equal_to<>> assetFileMap;
 
         string_builder assetsDir;
         string_builder artifactsDir;
@@ -105,5 +109,13 @@ namespace oblo
 
         void on_artifact_added(artifact_meta meta);
         void on_artifact_removed(uuid artifactId);
+
+        const string_builder* get_asset_path(const uuid& id);
+
+        void discover_artifacts(string_builder& builder,
+            const asset_meta& assetMeta,
+            asset_entry& entry,
+            asset_process_info& processInfo,
+            bool& outNeedsReprocessing);
     };
 }

@@ -204,6 +204,23 @@ namespace oblo
 
         const write_policy writePolicy = m_isReimport ? write_policy::overwrite : write_policy::no_overwrite;
 
+        string_builder destinationDir;
+
+        if (m_isReimport)
+        {
+            OBLO_ASSERT(destination.empty());
+
+            auto* const assetPath = registry.get_asset_path(m_assetId);
+
+            if (!assetPath)
+            {
+                return false;
+            }
+
+            destinationDir.append(*assetPath).parent_path();
+            destination = destinationDir.as<string_view>();
+        }
+
         bool allSucceeded = true;
 
         deque<uuid> importedArtifacts;

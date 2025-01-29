@@ -109,6 +109,7 @@ namespace oblo
         bool get_artifact_path(const uuid& artifactId, string_builder& outPath) const;
 
         bool get_asset_name(const uuid& assetId, string_builder& outName) const;
+        bool get_asset_directory(const uuid& assetId, string_builder& outPath) const;
 
         u32 get_ongoing_process_count() const;
 

@@ -273,6 +273,8 @@ namespace oblo::editor
 
         bool is_selected(const asset_browser_entry* other) const;
         void replace_selection(const asset_browser_entry* newSelection);
+
+        void move_asset_to_directory(const uuid assetId, cstring_view directory);
     };
 
     asset_browser::asset_browser() = default;
@@ -579,6 +581,17 @@ namespace oblo::editor
                 current = e.path;
             }
 
+            if (ImGui::BeginDragDropTarget())
+            {
+                if (auto* const assetPayload = ImGui::AcceptDragDropPayload(payloads::Asset))
+                {
+                    const uuid id = payloads::unpack_asset(assetPayload->Data);
+                    move_asset_to_directory(id, e.path);
+                }
+
+                ImGui::EndDragDropTarget();
+            }
+
             u32 nodesToPop = info.ancestorsToPop;
 
             if (expanded)
@@ -742,6 +755,17 @@ namespace oblo::editor
                     if (isSelected)
                     {
                         replace_selection(&entry);
+                    }
+
+                    if (ImGui::BeginDragDropTarget())
+                    {
+                        if (auto* const assetPayload = ImGui::AcceptDragDropPayload(payloads::Asset))
+                        {
+                            const uuid id = payloads::unpack_asset(assetPayload->Data);
+                            move_asset_to_directory(id, entry.path);
+                        }
+
+                        ImGui::EndDragDropTarget();
                     }
 
                     if (ImGui::BeginPopupContextItem("##dirctx"))
@@ -1004,6 +1028,28 @@ namespace oblo::editor
         if (selectedEntry != newSelection)
         {
             selectedEntry = newSelection;
+        }
+    }
+
+    void asset_browser::impl::move_asset_to_directory(const uuid assetId, cstring_view directory)
+    {
+        asset_meta assetMeta;
+
+        if (registry->find_asset_by_id(assetId, assetMeta))
+        {
+            string_builder oldPath;
+
+            string_builder newPath;
+            newPath.append(directory).append_path_separator();
+
+            if (registry->get_asset_name(assetId, newPath) && registry->get_asset_directory(assetId, oldPath) &&
+                registry->get_asset_name(assetId, oldPath.append_path_separator()))
+            {
+                oldPath.append(AssetMetaExtension);
+                newPath.append(AssetMetaExtension);
+
+                filesystem::rename(oldPath, newPath).assert_value();
+            }
         }
     }
 
