@@ -930,7 +930,10 @@ namespace oblo
                 processInfo.clear();
 
                 OBLO_ASSERT(!assetMeta.assetId.is_nil());
-                auto [it, ok] = m_impl->assets.emplace(assetMeta.assetId, asset_entry{assetMeta});
+                auto [it, ok] = m_impl->assets.emplace(assetMeta.assetId,
+                    asset_entry{
+                        .meta = assetMeta,
+                    });
 
                 if (!ok)
                 {
@@ -1191,7 +1194,7 @@ namespace oblo
                                 if (fileIt != m_impl->assetFileMap.end())
                                 {
                                     auto n = m_impl->assetFileMap.extract(fileIt);
-                                    n.key() = e.path.c_str();
+                                    n.key() = e.path;
                                     n.mapped() = meta.assetId;
                                     m_impl->assetFileMap.insert(std::move(n));
                                 }

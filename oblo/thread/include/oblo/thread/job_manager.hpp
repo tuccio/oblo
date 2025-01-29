@@ -16,12 +16,16 @@ namespace oblo
 
     template <typename F>
     concept callable_job_ctx = requires(F& f, const job_context& ctx) {
-        { f(ctx) };
+        {
+            f(ctx)
+        };
     };
 
     template <typename F>
     concept callable_job_no_ctx = requires(F& f) {
-        { f() };
+        {
+            f()
+        };
     };
 
     template <typename F>
@@ -96,7 +100,7 @@ namespace oblo
         /// Jobs with a reference count (i.e. waitable jobs or jobs with manually increased reference) have to be waited
         /// exactly once per reference.
         /// @param job The job to wait for.
-        THREAD_API [[nodiscard]] bool try_wait(job_handle job);
+        [[nodiscard]] THREAD_API bool try_wait(job_handle job);
 
         /// @brief Creates a waitable child job, that will be destroyed once the execution of its children is completed
         /// and the job is waited for.

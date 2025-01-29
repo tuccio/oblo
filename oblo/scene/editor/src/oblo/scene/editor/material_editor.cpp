@@ -103,7 +103,7 @@ namespace oblo::editor
 
                     const auto propertyIt = m_propertyEditor.find(property.name);
 
-                    bool isCorrectType = false;
+                    [[maybe_unused]] bool isCorrectType = false;
 
                     if (propertyIt != m_propertyEditor.end())
                     {
@@ -197,6 +197,8 @@ namespace oblo::editor
                         default:
                             break;
                         }
+
+                        OBLO_ASSERT(isCorrectType);
                     }
                 }
 

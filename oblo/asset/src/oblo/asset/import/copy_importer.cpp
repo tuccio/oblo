@@ -27,7 +27,6 @@ namespace oblo
     bool copy_importer::import(import_context ctx)
     {
         const std::span configs = ctx.get_import_node_configs();
-        const std::span nodes = ctx.get_import_nodes();
 
         const auto& nodeConfig = configs[0];
 

@@ -1,5 +1,3 @@
-#pragma once
-
 #include <gtest/gtest.h>
 
 #include <oblo/asset/any_asset.hpp>
@@ -263,7 +261,6 @@ namespace oblo
             jm.init();
 
             constexpr cstring_view dir = "./import";
-            constexpr cstring_view assetsDir = "./import/assets";
             constexpr cstring_view file = "./import/file.txt";
 
             constexpr string_view extensions[]{".txt"};
