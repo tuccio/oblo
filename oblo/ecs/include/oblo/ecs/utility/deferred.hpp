@@ -101,37 +101,60 @@ namespace oblo::ecs
     {
         using tuple_t = filter_components<ComponentsOrTags...>::value_tuple;
 
+        // This is used when the command is an add
         struct add_command_data
         {
             entity e;
             tuple_t components;
+
+            void set_entity(entity entity)
+            {
+                e = entity;
+            }
+
+            entity get_or_create_entity(entity_registry&) const
+            {
+                return e;
+            }
         };
 
-        add_command_data* const data = allocate_storage<add_command_data>();
-        data->e = e;
+        // This is used when the command is a create
+        struct create_command_data
+        {
+            tuple_t components;
+
+            void set_entity(entity) const {}
+
+            entity get_or_create_entity(entity_registry& registry) const
+            {
+                return registry.create<ComponentsOrTags...>();
+            }
+        };
+
+        using add_or_create_command_data = std::conditional_t<Create, create_command_data, add_command_data>;
+
+        add_or_create_command_data* const data = allocate_storage<add_or_create_command_data>();
+        data->set_entity(e);
 
         m_commands.push_back_default() = {
             .userdata = data,
             .apply =
                 [](entity_registry& registry, void* userdata)
             {
-                add_command_data* const data = static_cast<add_command_data*>(userdata);
+                add_or_create_command_data* const data = static_cast<add_or_create_command_data*>(userdata);
 
-                if constexpr (Create)
-                {
-                    data->e = registry.create();
-                }
+                const entity e = data->get_or_create_entity(registry);
 
                 if constexpr (std::tuple_size_v<tuple_t> == 0)
                 {
                     // When no components are added (e.g. only tags) entity_registry::add returns void
                     // Nothing to do here
-                    registry.add<ComponentsOrTags...>(data->e);
+                    registry.add<ComponentsOrTags...>(e);
                 }
                 else if constexpr (std::tuple_size_v<tuple_t> == 1)
                 {
                     // When we only have 1 component, entity_registry::add returns a reference to it
-                    auto& newComponent = registry.add<ComponentsOrTags...>(data->e);
+                    auto& newComponent = registry.add<ComponentsOrTags...>(e);
 
                     // Move component over
                     auto& srcComponent = std::get<0>(data->components);
@@ -139,7 +162,7 @@ namespace oblo::ecs
                 }
                 else
                 {
-                    auto&& components = registry.add<ComponentsOrTags...>(data->e);
+                    auto&& components = registry.add<ComponentsOrTags...>(e);
 
                     std::apply(
                         [&components]<typename... T>(T&... component)
@@ -151,7 +174,7 @@ namespace oblo::ecs
                 }
 
                 // Cleanup
-                data->~add_command_data();
+                data->~add_or_create_command_data();
             },
         };
 
