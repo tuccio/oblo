@@ -35,17 +35,21 @@ namespace oblo
     class stack_only_allocator final : public allocator
     {
     public:
+        static constexpr usize size = Size;
+        static constexpr usize alignment = Alignment;
+
+    public:
         stack_only_allocator() = default;
         stack_only_allocator(const stack_only_allocator&) = delete;
         stack_only_allocator(stack_only_allocator&&) = delete;
         stack_only_allocator& operator=(const stack_only_allocator&) = delete;
         stack_only_allocator& operator=(stack_only_allocator&&) = delete;
 
-        byte* allocate(usize count, usize alignment) noexcept override
+        byte* allocate(usize count, usize align) noexcept override
         {
-            OBLO_ASSERT(is_power_of_two(alignment));
+            OBLO_ASSERT(is_power_of_two(align));
 
-            auto* const ptr = reinterpret_cast<byte*>(align_power_of_two(uintptr(m_next), alignment));
+            auto* const ptr = reinterpret_cast<byte*>(align_power_of_two(uintptr(m_next), align));
             auto* const newNext = ptr + count;
 
             if (newNext > m_buffer + Size)
@@ -83,7 +87,7 @@ namespace oblo
     class stack_fallback_allocator final : public allocator
     {
     public:
-        explicit stack_fallback_allocator(allocator* fallback) : m_fallback(fallback){};
+        explicit stack_fallback_allocator(allocator* fallback) : m_fallback(fallback) {};
 
         stack_fallback_allocator() : m_fallback{select_global_allocator<Alignment>()} {}
 
