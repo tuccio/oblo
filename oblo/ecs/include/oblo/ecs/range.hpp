@@ -278,9 +278,9 @@ namespace oblo::ecs
         u32 count{};
 
         for_each_chunk(
-            [&count](auto&&... spans)
+            [&count](auto&& entities, auto&&...)
             {
-                count += (u32(spans.size()) + ...);
+                count += u32(entities.size());
                 return count;
             });
 

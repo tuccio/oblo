@@ -6,6 +6,7 @@
 #include <oblo/ecs/handles.hpp>
 #include <oblo/ecs/traits.hpp>
 #include <oblo/ecs/type_set.hpp>
+#include <oblo/ecs/utility/filter_components.hpp>
 
 #include <memory>
 #include <tuple>
@@ -114,13 +115,6 @@ namespace oblo::ecs
         struct entity_data;
 
         using entities_map = h32_flat_pool_dense_map<entity_handle, entity_data>;
-
-        template <typename... ComponentOrTags>
-        struct filter_components
-        {
-            using tuple = decltype(std::tuple_cat(std::
-                    conditional_t<!std::is_empty_v<ComponentOrTags>, std::tuple<ComponentOrTags*>, std::tuple<>>{}...));
-        };
 
     public:
         using entity_extractor_type = entities_map::extractor_type;
@@ -264,10 +258,19 @@ namespace oblo::ecs
         const auto sets = make_type_sets<ComponentsOrTags...>(*m_typeRegistry);
         add(e, sets);
 
-        const auto getComponents = [this, e]<typename... Components>(std::tuple<Components*...>) -> decltype(auto)
-        { return this->get<Components...>(e); };
+        using tuple_t = typename filter_components<ComponentsOrTags...>::tuple;
 
-        return getComponents(typename filter_components<ComponentsOrTags...>::tuple{});
+        if constexpr (std::tuple_size_v<tuple_t> == 0)
+        {
+            return;
+        }
+        else
+        {
+            const auto getComponents = [this, e]<typename... Components>(std::tuple<Components*...>) -> decltype(auto)
+            { return this->get<Components...>(e); };
+
+            return getComponents(tuple_t{});
+        }
     }
 
     template <typename... ComponentsOrTags>

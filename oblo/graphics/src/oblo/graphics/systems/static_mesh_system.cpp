@@ -2,11 +2,13 @@
 
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/debug.hpp>
+#include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/ecs/range.hpp>
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/ecs/type_registry.hpp>
+#include <oblo/ecs/utility/deferred.hpp>
 #include <oblo/ecs/utility/registration.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/math/vec3.hpp>
@@ -158,15 +160,7 @@ namespace oblo
     {
         auto& drawRegistry = m_renderer->get_draw_registry();
 
-        struct deferred_creation
-        {
-            ecs::entity e;
-            h32<vk::draw_mesh> mesh;
-            resource_ref<material> material;
-        };
-
-        // TODO: (#7) Implement a way to create components while iterating, or deferring
-        dynamic_array<deferred_creation> deferred;
+        ecs::deferred deferred{ctx.frameAllocator};
 
         for (const auto [entities, meshComponents, globalTransforms] :
             ctx.entities->range<static_mesh_component, global_transform_component>().exclude<vk::draw_mesh_component>())
@@ -181,25 +175,20 @@ namespace oblo
                     continue;
                 }
 
-                deferred.push_back_default() = {
-                    .e = entity,
-                    .mesh = mesh,
-                    .material = meshComponent.material,
-                };
+                auto&& [gpuMaterial, pickingId, gpuMeshComponent] =
+                    deferred.add<gpu_material, entity_id_component, vk::draw_mesh_component, vk::draw_raytraced_tag>(
+                        entity);
+
+                gpuMaterial = convert(*m_resourceCache,
+                    m_resourceRegistry->get_resource(meshComponent.material.id).as<material>());
+
+                pickingId.entityId = entity;
+
+                gpuMeshComponent.mesh = mesh;
             }
         }
 
-        // Finally create components if necessary
-        for (const auto& [e, mesh, materialRef] : deferred)
-        {
-            auto&& [gpuMaterial, pickingId, meshComponent] =
-                ctx.entities->add<gpu_material, entity_id_component, vk::draw_mesh_component, vk::draw_raytraced_tag>(
-                    e);
-
-            gpuMaterial = convert(*m_resourceCache, m_resourceRegistry->get_resource(materialRef.id).as<material>());
-            pickingId.entityId = e;
-            meshComponent.mesh = mesh;
-        }
+        deferred.apply(*ctx.entities);
 
         // Update materials every frame for now, until we have an invalidation mechanism
         for (const auto [entities, meshComponents, gpuMaterials, gpuMeshes] :
