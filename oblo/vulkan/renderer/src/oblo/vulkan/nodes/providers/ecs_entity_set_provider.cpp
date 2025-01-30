@@ -2,7 +2,6 @@
 #include <oblo/core/deque.hpp>
 #include <oblo/core/iterator/deque_chunk_iterator.hpp>
 #include <oblo/core/iterator/deque_chunk_range.hpp>
-#include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/range.hpp>
 #include <oblo/vulkan/data/components.hpp>
@@ -36,9 +35,9 @@ namespace oblo::vk
         // We always keep entity 0, we will store the number of entries in there
         entities.emplace_back();
 
-        for (const auto [entityIds, instanceIds] : reg.range<draw_instance_id_component>())
+        for (auto&& chunk : reg.range<const draw_instance_id_component>())
         {
-            for (const auto [e, id] : zip_range(entityIds, instanceIds))
+            for (const auto [e, id] : chunk.zip<ecs::entity, draw_instance_id_component>())
             {
                 const u32 entityIndex = reg.extract_entity_index(e);
 

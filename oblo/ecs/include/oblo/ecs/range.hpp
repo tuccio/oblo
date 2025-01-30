@@ -64,20 +64,21 @@ namespace oblo::ecs
         template <typename T>
         OBLO_FORCEINLINE auto get() const
         {
-            using wrapper = const detail::pointer_wrapper<T>;
-            using mutable_wrapper = const detail::pointer_wrapper<std::remove_const_t<T>>;
+            using wrapper = detail::pointer_wrapper<T>;
+            using mutable_wrapper = detail::pointer_wrapper<std::remove_const_t<T>>;
+            using const_wrapper = detail::pointer_wrapper<const T>;
 
             if constexpr (std::is_base_of_v<wrapper, chunk>)
             {
-                return std::span<T>{(static_cast<wrapper*>(this))->pointer, m_numEntities};
+                return std::span<T>{(static_cast<const wrapper*>(this))->pointer, m_numEntities};
             }
             else if constexpr (std::is_base_of_v<mutable_wrapper, chunk>)
             {
-                return std::span<T>{(static_cast<mutable_wrapper*>(this))->pointer, m_numEntities};
+                return std::span<T>{(static_cast<const mutable_wrapper*>(this))->pointer, m_numEntities};
             }
-            else if constexpr (std::is_same_v<T, entity>)
+            else if constexpr (std::is_base_of_v<const_wrapper, chunk>)
             {
-                return get<const entity>();
+                return std::span<const T>{(static_cast<const const_wrapper*>(this))->pointer, m_numEntities};
             }
         }
 
@@ -216,7 +217,7 @@ namespace oblo::ecs
         typed_range<Components...> res;
         res.m_registry = this;
 
-        constexpr type_id types[] = {get_type_id<Components>()...};
+        constexpr type_id types[] = {get_type_id<std::remove_const_t<Components>>()...};
         find_component_types(types, res.m_targets);
 
         u8 inverseMapping[numComponents];
@@ -227,7 +228,7 @@ namespace oblo::ecs
             res.m_mapping[inverseMapping[i]] = i;
         }
 
-        res.m_include = make_type_sets<Components...>(*m_typeRegistry);
+        res.m_include = make_type_sets<std::remove_const_t<Components>...>(*m_typeRegistry);
         res.m_exclude = {};
 
         return res;
@@ -257,14 +258,14 @@ namespace oblo::ecs
     template <typename... ComponentOrTags>
     entity_registry::typed_range<Components...>& entity_registry::typed_range<Components...>::with()
     {
-        return with(make_type_sets<ComponentOrTags...>(*m_registry->m_typeRegistry));
+        return with(make_type_sets<std::remove_const_t<ComponentOrTags>...>(*m_registry->m_typeRegistry));
     }
 
     template <typename... Components>
     template <typename... ComponentOrTags>
     entity_registry::typed_range<Components...>& entity_registry::typed_range<Components...>::exclude()
     {
-        return exclude(make_type_sets<ComponentOrTags...>(*m_registry->m_typeRegistry));
+        return exclude(make_type_sets<std::remove_const_t<ComponentOrTags>...>(*m_registry->m_typeRegistry));
     }
 
     template <typename... Components>

@@ -14,9 +14,9 @@ namespace oblo
 {
     void transform_system::update(const ecs::system_update_context& ctx)
     {
-        for (const auto [entities, globalTransforms] : ctx.entities->range<global_transform_component>())
+        for (auto&& chunk : ctx.entities->range<global_transform_component>())
         {
-            for (auto&& [e, globalTransform] : zip_range(entities, globalTransforms))
+            for (auto&& [e, globalTransform] : chunk.zip<ecs::entity, global_transform_component>())
             {
                 auto* const position = ctx.entities->try_get<position_component>(e);
                 auto* const rotation = ctx.entities->try_get<rotation_component>(e);

@@ -165,10 +165,10 @@ namespace oblo
         if (!m_resourceRegistry->get_updated_events<material>().empty())
         {
             // Just invalidate all entities
-            for (const auto [entities, meshComponents, globalTransforms, meshComponnets] :
+            for (auto&& chunk :
                 ctx.entities->range<static_mesh_component, global_transform_component, vk::draw_mesh_component>())
             {
-                for (const ecs::entity e : entities)
+                for (const ecs::entity e : chunk.get<ecs::entity>())
                 {
                     deferred.remove<vk::draw_mesh_component>(e);
                 }
@@ -177,11 +177,11 @@ namespace oblo
             deferred.apply(*ctx.entities);
         }
 
-        for (const auto [entities, meshComponents, globalTransforms] :
+        for (auto&& chunk :
             ctx.entities->range<static_mesh_component, global_transform_component>().exclude<vk::draw_mesh_component>())
         {
             for (auto&& [entity, meshComponent, globalTransform] :
-                zip_range(entities, meshComponents, globalTransforms))
+                chunk.zip<ecs::entity, static_mesh_component, global_transform_component>())
             {
                 auto materialRes = m_resourceRegistry->get_resource(meshComponent.material.id).as<material>();
                 auto meshRes = m_resourceRegistry->get_resource(meshComponent.mesh.id).as<mesh>();

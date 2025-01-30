@@ -94,9 +94,10 @@ namespace oblo
             shadow.lightIndex = -1;
         }
 
-        for (const auto [entities, lights, transforms] : lightsRange)
+        for (auto&& chunk : lightsRange)
         {
-            for (const auto& [e, light, transform] : zip_range(entities, lights, transforms))
+            for (const auto& [e, light, transform] :
+                chunk.zip<ecs::entity, const light_component, const global_transform_component>())
             {
                 const vec4 position = transform.localToWorld.columns[3];
                 const vec4 direction = normalize(transform.localToWorld * vec4{.z = -1.f});
