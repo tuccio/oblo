@@ -474,10 +474,9 @@ namespace oblo::vk
     {
         ecs::deferred deferred;
 
-        for (const auto [entities, meshes] :
-            m_entities->range<draw_mesh_component>().exclude<draw_instance_component>())
+        for (auto&& chunk : m_entities->range<const draw_mesh_component>().exclude<draw_instance_component>())
         {
-            for (const auto [entity, mesh] : zip_range(entities, meshes))
+            for (const auto [entity, mesh] : chunk.zip<ecs::entity, const draw_mesh_component>())
             {
                 const auto meshHandle = mesh.mesh;
 
@@ -767,9 +766,11 @@ namespace oblo::vk
 
         const auto firstBlasUpload = m_pendingMeshUploads.size();
 
-        for (auto&& [entities, meshes, drawInstanceIds, transforms] : entityRange)
+        for (auto&& chunk : entityRange)
         {
-            for (const auto&& [mesh, drawInstanceId, transform] : zip_range(meshes, drawInstanceIds, transforms))
+            for (const auto&& [mesh, drawInstanceId, transform] : chunk.zip<const draw_mesh_component,
+                                                                  const draw_instance_id_component,
+                                                                  const global_transform_component>())
             {
                 auto* const blas = m_meshToBlas.try_find(mesh.mesh);
 

@@ -211,16 +211,16 @@ namespace oblo::editor
                         }
                     }
 
-                    auto& p = m_entities->get<position_component>(m_entity);
-                    auto& r = m_entities->get<rotation_component>(m_entity);
+                    auto&& [p, r] = m_entities->get<position_component, rotation_component>(m_entity);
 
                     const auto [w, h] = ImGui::GetItemRectSize();
                     m_cameraController.set_screen_size({w, h});
                     m_cameraController.process(m_inputQueue->get_events(), m_timeStats->dt);
 
                     p.value = m_cameraController.get_position();
-
                     r.value = m_cameraController.get_orientation();
+
+                    m_entities->notify(m_entity);
                 }
 
                 if (ImGui::BeginDragDropTarget())

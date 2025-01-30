@@ -151,7 +151,8 @@ namespace oblo::editor
             default:
                 unreachable();
             }
-            // We are only transforming the position for now
+
+            reg.notify(e);
         }
 
         return interacting || ImGuizmo::IsUsing();

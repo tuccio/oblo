@@ -46,26 +46,28 @@ namespace oblo::editor
             ui::artifact_picker& artifactPicker;
         };
 
-        void build_quaternion_editor(const property_node& node, std::byte* const data)
+        bool build_quaternion_editor(const property_node& node, std::byte* const data)
         {
             auto* const q = new (data) quaternion;
-            ui::property_table::add(int(hash_mix(node.offset, 0)), node.name, *q);
+            return ui::property_table::add(int(hash_mix(node.offset, 0)), node.name, *q);
         }
 
-        void build_vec3_editor(const property_node& node, std::byte* const data)
+        bool build_vec3_editor(const property_node& node, std::byte* const data)
         {
             auto* const v = new (data) vec3;
-            ui::property_table::add(int(hash_mix(node.offset, 0)), node.name, *v);
+            return ui::property_table::add(int(hash_mix(node.offset, 0)), node.name, *v);
         }
 
-        void build_linear_color_editor(const property_node& node, std::byte* const data)
+        bool build_linear_color_editor(const property_node& node, std::byte* const data)
         {
             auto* const v = new (data) vec3;
-            ui::property_table::add_color(int(hash_mix(node.offset, 0)), node.name, *v);
+            return ui::property_table::add_color(int(hash_mix(node.offset, 0)), node.name, *v);
         }
 
-        void build_property_table(const inspector_context& ctx, const property_tree& tree, std::byte* const data)
+        bool build_property_table(const inspector_context& ctx, const property_tree& tree, std::byte* const data)
         {
+            bool modified = false;
+
             auto* ptr = data;
 
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
@@ -74,7 +76,7 @@ namespace oblo::editor
             {
                 visit(tree,
                     overload{
-                        [&ptr, &tree](const property_node& node, const property_node_start)
+                        [&ptr, &tree, &modified](const property_node& node, const property_node_start)
                         {
                             ptr += node.offset;
 
@@ -82,31 +84,31 @@ namespace oblo::editor
                             {
                                 if (find_attribute<linear_color_tag>(tree, node))
                                 {
-                                    build_linear_color_editor(node, ptr);
+                                    modified |= build_linear_color_editor(node, ptr);
                                     return visit_result::sibling;
                                 }
 
-                                build_vec3_editor(node, ptr);
+                                modified |= build_vec3_editor(node, ptr);
                                 return visit_result::sibling;
                             }
 
                             if (node.type == get_type_id<quaternion>())
                             {
-                                build_quaternion_editor(node, ptr);
+                                modified |= build_quaternion_editor(node, ptr);
                                 return visit_result::sibling;
                             }
 
                             if (node.type == get_type_id<radians>())
                             {
                                 auto* const r = new (ptr) radians;
-                                ui::property_table::add(int(hash_mix(node.offset, 0)), node.name, *r);
+                                modified |= ui::property_table::add(int(hash_mix(node.offset, 0)), node.name, *r);
                                 return visit_result::sibling;
                             }
 
                             if (node.type == get_type_id<degrees>())
                             {
                                 auto* const r = new (ptr) degrees;
-                                ui::property_table::add(int(hash_mix(node.offset, 0)), node.name, *r);
+                                modified |= ui::property_table::add(int(hash_mix(node.offset, 0)), node.name, *r);
                                 return visit_result::sibling;
                             }
 
@@ -114,7 +116,7 @@ namespace oblo::editor
                         },
                         [&ptr](const property_node& node, const property_node_finish) { ptr -= node.offset; },
                         [](const property_node&, const property_array&, auto&&) { return visit_result::sibling; },
-                        [&ptr, &ctx, &tree](const property& property)
+                        [&ptr, &ctx, &tree, &modified](const property& property)
                         {
                             const auto makeId = [&property]
                             { return (int(hash_mix(property.offset, property.parent))); };
@@ -123,7 +125,7 @@ namespace oblo::editor
 
                             if (property.isEnum)
                             {
-                                ui::property_table::add_enum(makeId(),
+                                modified |= ui::property_table::add_enum(makeId(),
                                     property.name,
                                     propertyPtr,
                                     property.type,
@@ -135,15 +137,15 @@ namespace oblo::editor
                             switch (property.kind)
                             {
                             case property_kind::f32:
-                                ui::property_table::add(makeId(), property.name, *new (propertyPtr) f32);
+                                modified |= ui::property_table::add(makeId(), property.name, *new (propertyPtr) f32);
                                 break;
 
                             case property_kind::u32:
-                                ui::property_table::add(makeId(), property.name, *new (propertyPtr) u32);
+                                modified |= ui::property_table::add(makeId(), property.name, *new (propertyPtr) u32);
                                 break;
 
                             case property_kind::boolean:
-                                ui::property_table::add(makeId(), property.name, *new (propertyPtr) bool);
+                                modified |= ui::property_table::add(makeId(), property.name, *new (propertyPtr) bool);
                                 break;
 
                             case property_kind::uuid: {
@@ -152,7 +154,7 @@ namespace oblo::editor
                                 if (const auto resourceRef =
                                         ctx.reflection.find_concept<resource_ref_descriptor>(parentType))
                                 {
-                                    ui::property_table::add(makeId(),
+                                    modified |= ui::property_table::add(makeId(),
                                         tree.nodes[property.parent].name,
                                         *new (propertyPtr) uuid,
                                         ctx.artifactPicker,
@@ -160,7 +162,8 @@ namespace oblo::editor
                                 }
                                 else
                                 {
-                                    ui::property_table::add(makeId(), property.name, *new (propertyPtr) uuid);
+                                    modified |=
+                                        ui::property_table::add(makeId(), property.name, *new (propertyPtr) uuid);
                                 }
                             }
 
@@ -177,6 +180,8 @@ namespace oblo::editor
 
                 ui::property_table::end();
             }
+
+            return modified;
         }
     }
 
@@ -295,6 +300,8 @@ namespace oblo::editor
 
                                 typeDesc.destroy(ptr, 1);
                                 typeDesc.create(ptr, 1);
+
+                                m_registry->notify(e);
                             }
 
                             if (ImGui::MenuItem("Delete"))
@@ -319,7 +326,12 @@ namespace oblo::editor
                                 auto* const data = m_registry->try_get(e, type);
 
                                 ImGui::PushID(int(type.value));
-                                build_property_table(inspectorContext, *propertyTree, data);
+
+                                if (build_property_table(inspectorContext, *propertyTree, data))
+                                {
+                                    m_registry->notify(e);
+                                }
+
                                 ImGui::PopID();
                             }
                         }

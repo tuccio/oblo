@@ -162,11 +162,12 @@ namespace oblo::ecs
         std::vector<entity> entities;
         entities.reserve(Iterations * N);
 
-        for (auto&& [chunkEntities, ics] : reg.range<instance_counted>())
+        for (auto&& chunk : reg.range<instance_counted>())
         {
+            std::span chunkEntities = chunk.get<entity>();
             entities.insert(entities.end(), chunkEntities.begin(), chunkEntities.end());
 
-            for (auto&& [e, ic] : zip_range(chunkEntities, ics))
+            for (auto&& [e, ic] : chunk.zip<entity, const instance_counted>())
             {
                 ASSERT_EQ(e.value, u32(ic.value));
             }
@@ -202,11 +203,12 @@ namespace oblo::ecs
         std::vector<entity> entities;
         entities.reserve(Iterations * N);
 
-        for (auto&& [chunkEntities, ics] : reg.range<instance_counted>())
+        for (auto&& chunk : reg.range<instance_counted>())
         {
+            std::span chunkEntities = chunk.get<const entity>();
             entities.insert(entities.end(), chunkEntities.begin(), chunkEntities.end());
 
-            for (auto&& [e, ic] : zip_range(chunkEntities, ics))
+            for (auto&& [e, ic] : chunk.zip<const entity, instance_counted>())
             {
                 ASSERT_EQ(e.value, u32(ic.value));
             }

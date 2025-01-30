@@ -17,11 +17,9 @@ namespace oblo
     {
         const skybox_component* find_skybox(ecs::entity_registry& reg)
         {
-            const auto skyboxRange = reg.range<skybox_component>();
-
-            for (const auto [entities, skyboxes] : skyboxRange)
+            for (auto&& chunk : reg.range<const skybox_component>())
             {
-                for (const auto& skybox : skyboxes)
+                for (const auto& skybox : chunk.get<const skybox_component>())
                 {
                     if (skybox.texture)
                     {

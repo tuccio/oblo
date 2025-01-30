@@ -22,8 +22,10 @@ namespace oblo::ecs
     static constexpr u32 ChunkSize{ChunkWithHeaderSize - PageAlignment};
     static constexpr u8 InvalidComponentIndex{MaxComponentTypes + 1};
 
+    /// @brief The whole thing is value initialized on creation
     struct chunk_header
     {
+        u32 modificationId;
         u32 numEntities;
     };
 
@@ -97,6 +99,7 @@ namespace oblo::ecs
         u32 entityTagsOffset;
         u8 numComponents;
         u8 numTags;
+        u32 modificationId;
 #if OBLO_DEBUG
         type_id* typeIds;
 #endif

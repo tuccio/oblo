@@ -130,11 +130,13 @@ namespace oblo::ecs
             }
 
             (*chunk)->header.numEntities += numEntitiesToCreate;
+            (*chunk)->header.modificationId = m_modificationId;
 
             numRemainingEntities -= numEntitiesToCreate;
         }
 
         archetype->numCurrentEntities = newCount;
+        archetype->modificationId = m_modificationId;
     }
 
     void entity_registry::destroy(entity e)
@@ -296,6 +298,32 @@ namespace oblo::ecs
     std::span<const archetype_storage> entity_registry::get_archetypes() const
     {
         return m_componentsStorage;
+    }
+
+    void entity_registry::set_modification_id(u32 modificationId)
+    {
+        m_modificationId = modificationId;
+    }
+
+    u32 entity_registry::get_modification_id() const
+    {
+        return m_modificationId;
+    }
+
+    void entity_registry::notify(entity e)
+    {
+        const entity_data* entityData = m_entities.try_find(e);
+
+        if (!entityData)
+        {
+            return;
+        }
+
+        archetype_impl* const archetype = entityData->archetype;
+
+        const auto [chunkIndex, _] = get_entity_location(*archetype, entityData->archetypeIndex);
+        archetype->modificationId = m_modificationId;
+        archetype->chunks[chunkIndex]->header.modificationId = m_modificationId;
     }
 
     u32 entity_registry::extract_entity_index(ecs::entity e) const
@@ -519,24 +547,28 @@ namespace oblo::ecs
             }
 
             --lastEntityChunk->header.numEntities;
+            lastEntityChunk->header.modificationId = m_modificationId;
         }
         else
         {
             // The entity is the last, all we need to do is popping it
+            OBLO_ASSERT(lastEntityChunkIndex == chunkIndex);
+
             chunk* const removedEntityChunk = archetype.chunks[chunkIndex];
-            chunk* const lastEntityChunk = archetype.chunks[lastEntityChunkIndex];
 
             for (u8 componentIndex = 0; componentIndex < archetype.numComponents; ++componentIndex)
             {
-                auto* src = get_component_pointer(lastEntityChunk->data, archetype, componentIndex, chunkOffset);
+                auto* src = get_component_pointer(removedEntityChunk->data, archetype, componentIndex, chunkOffset);
                 archetype.fnTables[componentIndex].do_destroy(src, 1);
             }
 
             --removedEntityChunk->header.numEntities;
+            removedEntityChunk->header.modificationId = m_modificationId;
         }
 
         // TODO: Could free pages if not used
         --archetype.numCurrentEntities;
+        archetype.modificationId = m_modificationId;
     }
 
     component_and_tag_sets entity_registry::get_type_sets(entity e) const
@@ -626,5 +658,11 @@ namespace oblo::ecs
         // Update new chunk counters
         ++newChunk->header.numEntities;
         ++newArchetype.numCurrentEntities;
+
+        // Notify modifications
+        newArchetype.modificationId = m_modificationId;
+        newChunk->header.modificationId = m_modificationId;
+        oldArchetype.modificationId = m_modificationId;
+        oldChunk->header.modificationId = m_modificationId;
     }
 }

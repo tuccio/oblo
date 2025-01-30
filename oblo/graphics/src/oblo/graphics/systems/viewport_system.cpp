@@ -226,10 +226,10 @@ namespace oblo
             renderGraphData.isAlive = false;
         }
 
-        for (const auto [entities, transforms, cameras, viewports] :
-            ctx.entities->range<global_transform_component, camera_component, viewport_component>())
+        for (auto&& chunk : ctx.entities->range<global_transform_component, camera_component, viewport_component>())
         {
-            for (auto&& [entity, transform, camera, viewport] : zip_range(entities, transforms, cameras, viewports))
+            for (auto&& [entity, transform, camera, viewport] :
+                chunk.zip<ecs::entity, global_transform_component, camera_component, viewport_component>())
             {
                 auto* renderGraphData = m_renderGraphs.try_find(entity);
 

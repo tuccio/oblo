@@ -28,6 +28,9 @@ namespace oblo::ecs
     u32 get_entities_count(const archetype_storage& storage);
     u32 get_entities_count_in_chunk(const archetype_storage& storage, u32 chunkIndex);
 
+    u32* access_archetype_modification_id(const archetype_storage& storage);
+    u32* access_chunk_modification_id(const archetype_storage& storage, u32 chunkIndex);
+
     void fetch_component_offsets(
         const archetype_storage& storage, std::span<const component_type> componentTypes, std::span<u32> offsets);
 

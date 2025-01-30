@@ -126,6 +126,90 @@ namespace oblo
             resource_ptr<material> material;
             resource_ptr<mesh> mesh;
         };
+
+        struct processed_mesh_resources
+        {
+            static processed_mesh_resources from(const static_mesh_component& c)
+            {
+                return {c.material, c.mesh};
+            }
+
+            resource_ref<material> material;
+            resource_ref<mesh> mesh;
+
+            bool operator==(const processed_mesh_resources&) const = default;
+        };
+
+        void add_mesh(resource_registry* resourceRegistry,
+            vk::resource_cache* resourceCache,
+            vk::draw_registry& drawRegistry,
+            ecs::entity entity,
+            const static_mesh_component& meshComponent,
+            ecs::deferred& deferred)
+        {
+            auto materialRes = resourceRegistry->get_resource(meshComponent.material.id).as<material>();
+            auto meshRes = resourceRegistry->get_resource(meshComponent.mesh.id).as<mesh>();
+
+            if (!meshRes || !materialRes)
+            {
+                // Maybe we should add a tag to avoid re-processing every frame
+                return;
+            }
+
+            bool stillLoading = false;
+
+            if (!materialRes.is_loaded())
+            {
+                materialRes.load_start_async();
+                stillLoading = true;
+            }
+
+            // If the mesh is already on GPU we don't care about loading the resource
+            auto mesh = drawRegistry.try_get_mesh(meshComponent.mesh);
+
+            if (!mesh && !meshRes.is_loaded())
+            {
+                meshRes.load_start_async();
+                stillLoading = true;
+            }
+
+            if (stillLoading)
+            {
+                deferred.add<mesh_resources>(entity) = {
+                    .material = std::move(materialRes),
+                    .mesh = std::move(meshRes),
+                };
+
+                return;
+            }
+
+            if (!mesh)
+            {
+                mesh = drawRegistry.get_or_create_mesh(meshComponent.mesh);
+
+                if (!mesh)
+                {
+                    return;
+                }
+            }
+
+            auto&& [gpuMaterial, pickingId, cachedRefs, gpuMeshComponent] = deferred.add<gpu_material,
+                entity_id_component,
+                processed_mesh_resources,
+                vk::draw_mesh_component,
+                vk::draw_raytraced_tag>(entity);
+
+            deferred.remove<mesh_resources>(entity);
+
+            gpuMaterial = convert(*resourceCache, *materialRes);
+
+            pickingId.entityId = entity;
+
+            gpuMeshComponent.mesh = mesh;
+
+            // Store a checksum so we can determine whether or not we want to re-process it
+            cachedRefs = processed_mesh_resources::from(meshComponent);
+        }
     }
 
     void static_mesh_system::first_update(const ecs::system_update_context& ctx)
@@ -148,6 +232,7 @@ namespace oblo
         const auto entityId = typeRegistry.register_component(ecs::make_component_type_desc<entity_id_component>());
 
         ecs::register_type<mesh_resources>(typeRegistry);
+        ecs::register_type<processed_mesh_resources>(typeRegistry);
 
         drawRegistry.register_instance_data(gpuTransform, "i_TransformBuffer");
         drawRegistry.register_instance_data(gpuMaterial, "i_MaterialBuffer");
@@ -164,82 +249,43 @@ namespace oblo
 
         if (!m_resourceRegistry->get_updated_events<material>().empty())
         {
-            // Just invalidate all entities
-            for (const auto [entities, meshComponents, globalTransforms, meshComponnets] :
-                ctx.entities->range<static_mesh_component, global_transform_component, vk::draw_mesh_component>())
+            // Just invalidate all entities that we already processed, instead of trying to figure which one use the
+            // resources that were invalidated
+            for (auto&& chunk : ctx.entities->range<const static_mesh_component>()
+                                    .with<global_transform_component, vk::draw_mesh_component>())
             {
-                for (const ecs::entity e : entities)
+                for (auto&& e : chunk.get<ecs::entity>())
                 {
                     deferred.remove<vk::draw_mesh_component>(e);
                 }
             }
-
-            deferred.apply(*ctx.entities);
         }
 
-        for (const auto [entities, meshComponents, globalTransforms] :
-            ctx.entities->range<static_mesh_component, global_transform_component>().exclude<vk::draw_mesh_component>())
+        // Process entities we already processed, in order to react to changes
+        for (auto&& chunk : ctx.entities->range<const processed_mesh_resources, const static_mesh_component>()
+                                .with<vk::draw_mesh_component>()
+                                .notified())
         {
-            for (auto&& [entity, meshComponent, globalTransform] :
-                zip_range(entities, meshComponents, globalTransforms))
+            for (auto&& [e, cachedRefs, meshComponent] :
+                chunk.zip<ecs::entity, processed_mesh_resources, static_mesh_component>())
             {
-                auto materialRes = m_resourceRegistry->get_resource(meshComponent.material.id).as<material>();
-                auto meshRes = m_resourceRegistry->get_resource(meshComponent.mesh.id).as<mesh>();
-
-                if (!meshRes || !materialRes)
+                if (processed_mesh_resources::from(meshComponent) != cachedRefs)
                 {
-                    // Maybe we should add a tag to avoid re-processing every frame
-                    continue;
+                    deferred.remove<vk::draw_mesh_component>(e);
                 }
+            }
+        }
 
-                bool stillLoading = false;
+        deferred.apply(*ctx.entities);
 
-                if (!materialRes.is_loaded())
-                {
-                    materialRes.load_start_async();
-                    stillLoading = true;
-                }
-
-                // If the mesh is already on GPU we don't care about loading the resource
-                auto mesh = drawRegistry.try_get_mesh(meshComponent.mesh);
-
-                if (!mesh && !meshRes.is_loaded())
-                {
-                    meshRes.load_start_async();
-                    stillLoading = true;
-                }
-
-                if (stillLoading)
-                {
-                    deferred.add<mesh_resources>(entity) = {
-                        .material = std::move(materialRes),
-                        .mesh = std::move(meshRes),
-                    };
-
-                    continue;
-                }
-
-                if (!mesh)
-                {
-                    mesh = drawRegistry.get_or_create_mesh(meshComponent.mesh);
-
-                    if (!mesh)
-                    {
-                        continue;
-                    }
-                }
-
-                auto&& [gpuMaterial, pickingId, gpuMeshComponent] =
-                    deferred.add<gpu_material, entity_id_component, vk::draw_mesh_component, vk::draw_raytraced_tag>(
-                        entity);
-
-                deferred.remove<mesh_resources>(entity);
-
-                gpuMaterial = convert(*m_resourceCache, *materialRes);
-
-                pickingId.entityId = entity;
-
-                gpuMeshComponent.mesh = mesh;
+        // Process entities that we didn't process yet or we just invalidated
+        for (auto&& chunk : ctx.entities->range<const static_mesh_component>()
+                                .with<global_transform_component>()
+                                .exclude<vk::draw_mesh_component>())
+        {
+            for (auto&& [e, meshComponent] : chunk.zip<ecs::entity, static_mesh_component>())
+            {
+                add_mesh(m_resourceRegistry, m_resourceCache, drawRegistry, e, meshComponent, deferred);
             }
         }
 
