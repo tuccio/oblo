@@ -298,6 +298,16 @@ namespace oblo::ecs
         return m_componentsStorage;
     }
 
+    void entity_registry::set_modification_id(u32 modificationId)
+    {
+        m_modificationId = modificationId;
+    }
+
+    u32 entity_registry::get_modification_id() const
+    {
+        return m_modificationId;
+    }
+
     u32 entity_registry::extract_entity_index(ecs::entity e) const
     {
         return decltype(m_entities)::extractor_type{}.extract_key(e);
@@ -306,13 +316,15 @@ namespace oblo::ecs
     const archetype_storage* entity_registry::find_first_match(const archetype_storage* begin,
         usize increment,
         const component_and_tag_sets& includes,
-        const component_and_tag_sets& excludes)
+        const component_and_tag_sets& excludes,
+        bool notifiedOnly)
     {
         auto* const end = m_componentsStorage.data() + m_componentsStorage.size();
 
         for (auto* it = begin + increment; it != end; ++it)
         {
-            if (it->archetype->numCurrentEntities == 0)
+            if (it->archetype->numCurrentEntities == 0 ||
+                notifiedOnly && it->archetype->modificationId != m_modificationId)
             {
                 continue;
             }

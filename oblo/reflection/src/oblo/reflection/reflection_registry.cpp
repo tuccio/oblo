@@ -135,9 +135,9 @@ namespace oblo::reflection
         sets.tags.add(tagType);
 
         // TODO: (#10) A component is necessary here
-        for (const auto [entities, _] : m_impl->registry.range<type_data>().with(sets))
+        for (auto&& chunk : m_impl->registry.range<type_data>().with(sets))
         {
-            for (const auto e : entities)
+            for (const auto e : chunk.get<ecs::entity>())
             {
                 types.emplace_back(e.value);
             }

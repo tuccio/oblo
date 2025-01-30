@@ -29,6 +29,8 @@ namespace oblo::ecs
         template <typename... ComponentOrTags>
         typed_range& exclude();
 
+        typed_range& notified();
+
         template <typename F>
         void for_each_chunk(F&& f) const;
 
@@ -43,6 +45,7 @@ namespace oblo::ecs
         component_and_tag_sets m_exclude;
         component_type m_targets[sizeof...(Components)];
         u8 m_mapping[sizeof...(Components)];
+        bool m_onlyNotified = false;
         entity_registry* m_registry;
     };
 
@@ -88,10 +91,28 @@ namespace oblo::ecs
             return zip_range(get<T>()...);
         }
 
+        void notify(bool notifyArchetype = false) const
+        {
+            const auto latestId = m_registry->get_modification_id();
+            u32* const chunkModificationId = access_chunk_modification_id(m_archetype, m_chunkIndex);
+
+            *chunkModificationId = latestId;
+
+            // This is only here because we don't have a nice API to iterate archetypes yet
+            if (notifyArchetype)
+            {
+                u32* const archetypeModificationId = access_archetype_modification_id(m_archetype);
+                *archetypeModificationId = latestId;
+            }
+        }
+
     private:
         friend class entity_registry::typed_range<Components...>::iterator;
 
     private:
+        const entity_registry* m_registry;
+        archetype_storage m_archetype;
+        u32 m_chunkIndex;
         u32 m_numEntities;
     };
 
@@ -132,7 +153,9 @@ namespace oblo::ecs
             const u32 numEntities = fetch_chunk_data(*m_it, m_chunkIndex, m_offsets, &entities, componentsData);
 
             chunk c;
-
+            c.m_archetype = *m_it;
+            c.m_registry = m_range->m_registry;
+            c.m_chunkIndex = m_chunkIndex;
             c.m_numEntities = numEntities;
 
             setPointers(c,
@@ -146,16 +169,34 @@ namespace oblo::ecs
 
         iterator& operator++()
         {
-            if (++m_chunkIndex == m_numChunks)
-            {
-                m_it = m_range->m_registry->find_first_match(m_it, 1, m_range->m_include, m_range->m_exclude);
-                m_chunkIndex = 0;
+            auto* const registry = m_range->m_registry;
 
-                if (!m_it || !update_iterator_data())
+            do
+            {
+                if (++m_chunkIndex == m_numChunks)
                 {
-                    *this = {};
+                    m_it = registry->find_first_match(m_it,
+                        1,
+                        m_range->m_include,
+                        m_range->m_exclude,
+                        m_range->m_onlyNotified);
+
+                    m_chunkIndex = 0;
+
+                    if (!m_it || !update_iterator_data())
+                    {
+                        *this = {};
+                        break;
+                    }
                 }
-            }
+
+                if (!m_range->m_onlyNotified ||
+                    *access_chunk_modification_id(*m_it, m_chunkIndex) == registry->get_modification_id())
+                {
+                    break;
+                }
+
+            } while (true);
 
             return *this;
         }
@@ -276,8 +317,8 @@ namespace oblo::ecs
 
         auto* const begin = m_registry->m_componentsStorage.data();
 
-        for (auto* it = m_registry->find_first_match(begin, 0, m_include, m_exclude); it != nullptr;
-             it = m_registry->find_first_match(it, 1, m_include, m_exclude))
+        for (auto* it = m_registry->find_first_match(begin, 0, m_include, m_exclude, m_onlyNotified); it != nullptr;
+             it = m_registry->find_first_match(it, 1, m_include, m_exclude, m_onlyNotified))
         {
             u32 offsets[numComponents];
 
@@ -320,10 +361,17 @@ namespace oblo::ecs
     }
 
     template <typename... Components>
+    entity_registry::typed_range<Components...>& entity_registry::typed_range<Components...>::notified()
+    {
+        m_onlyNotified = true;
+        return *this;
+    }
+
+    template <typename... Components>
     entity_registry::typed_range<Components...>::iterator entity_registry::typed_range<Components...>::begin() const
     {
         auto* const begin = m_registry->m_componentsStorage.data();
-        return {this, m_registry->find_first_match(begin, 0, m_include, m_exclude)};
+        return {this, m_registry->find_first_match(begin, 0, m_include, m_exclude, m_onlyNotified)};
     }
 
     template <typename... Components>

@@ -52,7 +52,6 @@ namespace oblo::ecs
     archetype_impl* create_archetype_impl(
         memory_pool& pool, const type_registry& typeRegistry, const component_and_tag_sets& types)
     {
-
         component_type componentTypeHandlesArray[MaxComponentTypes];
         tag_type tagTypeHandlesArray[MaxTagTypes];
 
@@ -270,6 +269,16 @@ namespace oblo::ecs
     u32 get_entities_count_in_chunk(const archetype_storage& storage, u32 chunkIndex)
     {
         return storage.archetype->chunks[chunkIndex]->header.numEntities;
+    }
+
+    u32* access_archetype_modification_id(const archetype_storage& storage)
+    {
+        return &storage.archetype->modificationId;
+    }
+
+    u32* access_chunk_modification_id(const archetype_storage& storage, u32 chunkIndex)
+    {
+        return &storage.archetype->chunks[chunkIndex]->header.modificationId;
     }
 
     void fetch_component_offsets(

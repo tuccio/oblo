@@ -104,6 +104,15 @@ namespace oblo::ecs
 
         std::span<const archetype_storage> get_archetypes() const;
 
+        /// @brief Sets the modification id that will be applied when creating entities or calling notify on entity
+        /// ranges.
+        /// @remarks This can be set with the granularity the user wants to detect changes with.
+        void set_modification_id(u32 modificationId);
+
+        /// @brief Retrieves the last modification id set.
+        /// @see set_modification_id
+        u32 get_modification_id() const;
+
         /// @brief Extracts the entity index.
         /// @remarks Entity handles are composed of a number of generation bits, while te rest is an index in an array.
         /// This function allows extracting the index part of the handle.
@@ -123,7 +132,8 @@ namespace oblo::ecs
         const archetype_storage* find_first_match(const archetype_storage* begin,
             usize increment,
             const component_and_tag_sets& includes,
-            const component_and_tag_sets& excludes);
+            const component_and_tag_sets& excludes,
+            bool notifiedOnly);
 
         static void sort_and_map(std::span<component_type> componentTypes, std::span<u8> mapping);
 
@@ -154,6 +164,7 @@ namespace oblo::ecs
         std::unique_ptr<memory_pool> m_pool;
         entities_map m_entities;
         std::vector<archetype_storage> m_componentsStorage;
+        u32 m_modificationId{};
     };
 
     template <typename... ComponentsOrTags>
