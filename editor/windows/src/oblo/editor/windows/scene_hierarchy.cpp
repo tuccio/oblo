@@ -26,6 +26,8 @@ namespace oblo::editor
 
         if (ImGui::Begin("Hierarchy", &open))
         {
+            const auto hasFocus = ImGui::IsWindowFocused();
+
             if (ImGui::IsMouseReleased(ImGuiMouseButton_Right) && ImGui::IsWindowHovered())
             {
                 ImGui::OpenPopup("##context");
@@ -65,7 +67,7 @@ namespace oblo::editor
             }
             else
             {
-                if (ImGui::IsKeyPressed(ImGuiKey_Delete, false))
+                if (hasFocus && ImGui::IsKeyPressed(ImGuiKey_Delete, false))
                 {
                     for (const auto e : m_selection->get())
                     {
