@@ -113,6 +113,9 @@ namespace oblo::ecs
         /// @see set_modification_id
         u32 get_modification_id() const;
 
+        /// @brief Applies the current modification id to the entity.
+        void notify(entity e);
+
         /// @brief Extracts the entity index.
         /// @remarks Entity handles are composed of a number of generation bits, while te rest is an index in an array.
         /// This function allows extracting the index part of the handle.

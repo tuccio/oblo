@@ -130,11 +130,13 @@ namespace oblo::ecs
             }
 
             (*chunk)->header.numEntities += numEntitiesToCreate;
+            (*chunk)->header.modificationId = m_modificationId;
 
             numRemainingEntities -= numEntitiesToCreate;
         }
 
         archetype->numCurrentEntities = newCount;
+        archetype->modificationId = m_modificationId;
     }
 
     void entity_registry::destroy(entity e)
@@ -306,6 +308,22 @@ namespace oblo::ecs
     u32 entity_registry::get_modification_id() const
     {
         return m_modificationId;
+    }
+
+    void entity_registry::notify(entity e)
+    {
+        const entity_data* entityData = m_entities.try_find(e);
+
+        if (!entityData)
+        {
+            return;
+        }
+
+        archetype_impl* const archetype = entityData->archetype;
+
+        const auto [chunkIndex, _] = get_entity_location(*archetype, entityData->archetypeIndex);
+        archetype->modificationId = m_modificationId;
+        archetype->chunks[chunkIndex]->header.modificationId = m_modificationId;
     }
 
     u32 entity_registry::extract_entity_index(ecs::entity e) const
@@ -531,6 +549,7 @@ namespace oblo::ecs
             }
 
             --lastEntityChunk->header.numEntities;
+            lastEntityChunk->header.modificationId = m_modificationId;
         }
         else
         {
@@ -549,6 +568,7 @@ namespace oblo::ecs
 
         // TODO: Could free pages if not used
         --archetype.numCurrentEntities;
+        archetype.modificationId = m_modificationId;
     }
 
     component_and_tag_sets entity_registry::get_type_sets(entity e) const
@@ -638,5 +658,11 @@ namespace oblo::ecs
         // Update new chunk counters
         ++newChunk->header.numEntities;
         ++newArchetype.numCurrentEntities;
+
+        // Notify modifications
+        newArchetype.modificationId = m_modificationId;
+        newChunk->header.modificationId = m_modificationId;
+        oldArchetype.modificationId = m_modificationId;
+        oldChunk->header.modificationId = m_modificationId;
     }
 }
