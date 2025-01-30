@@ -1231,6 +1231,7 @@ namespace oblo::vk
         transientBuffers.clear();
         dynamicPins.clear();
         emptyEvents.clear();
+        rerouteStash.clear();
 
         ++frameCounter;
     }
