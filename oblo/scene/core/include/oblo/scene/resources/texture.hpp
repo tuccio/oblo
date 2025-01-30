@@ -3,6 +3,7 @@
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/uuid.hpp>
+#include <oblo/scene/resources/traits.hpp>
 
 #include <span>
 

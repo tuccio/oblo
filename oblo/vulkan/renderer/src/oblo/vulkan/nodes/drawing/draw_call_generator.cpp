@@ -17,9 +17,7 @@ namespace oblo::vk
 
     void draw_call_generator::init(const frame_graph_init_context& ctx)
     {
-        auto& pm = ctx.get_pass_manager();
-
-        drawCallGeneratorPass = pm.register_compute_pass({
+        drawCallGeneratorPass = ctx.register_compute_pass({
             .name = "Draw Call Generator",
             .shaderSourcePath = "./vulkan/shaders/draw_call_generator/draw_call_generator.comp",
         });
@@ -29,7 +27,8 @@ namespace oblo::vk
 
     void draw_call_generator::build(const frame_graph_build_context& ctx)
     {
-        ctx.begin_pass(pass_kind::compute);
+        drawCallGeneratorPassInstance = ctx.compute_pass(drawCallGeneratorPass, {});
+
         auto& drawBufferData = ctx.access(inDrawBufferData);
         auto& drawCallBuffer = ctx.access(outDrawCallBuffer);
 
@@ -54,74 +53,56 @@ namespace oblo::vk
             drawCallBuffer[i] = ctx.create_dynamic_buffer(
                 {
                     .size = u32(draw.sourceData.numInstances * sizeof(VkDrawMeshTasksIndirectCommandEXT)),
-
                 },
 
                 buffer_usage::storage_write);
         }
+
+        ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
 
         acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
     }
 
     void draw_call_generator::execute(const frame_graph_execute_context& ctx)
     {
-        auto& pm = ctx.get_pass_manager();
-
-        usize nextIndex = 0;
-
-        auto& interner = ctx.get_string_interner();
-
-        const auto inMeshTableName = interner.get_or_add("b_MeshTables");
-        const auto inDrawCountBufferName = interner.get_or_add("b_InDrawCount");
-        const auto inPreCullingIdMapBufferName = interner.get_or_add("b_PreCullingIdMap");
-        const auto outDrawCallsBufferName = interner.get_or_add("b_OutDrawCallsBuffer");
-        const auto inInstanceTablesName = interner.get_or_add("b_InstanceTables");
-
-        binding_table bindingTable;
-
-        const buffer inInstanceTablesBuffer = ctx.access(inInstanceTables);
-
-        const auto pipeline = pm.get_or_create_pipeline(drawCallGeneratorPass, {});
-
-        if (const auto pass = pm.begin_compute_pass(ctx.get_command_buffer(), pipeline))
+        if (const auto pass = ctx.begin_pass(drawCallGeneratorPassInstance))
         {
             const std::span drawData = ctx.access(inDrawBufferData);
             const std::span drawCallBuffers = ctx.access(outDrawCallBuffer);
 
-            const auto subgroupSize = pm.get_subgroup_size();
+            const auto subgroupSize = ctx.get_gpu_info().subgroupSize;
 
-            for (const auto& currentDraw : drawData)
+            binding_table2 bindingTable;
+
+            for (usize drawCallIndex = 0; drawCallIndex < drawData.size(); ++drawCallIndex)
             {
-                const buffer outDrawCallsBuffer = ctx.access(drawCallBuffers[nextIndex]);
+                const draw_buffer_data& currentDraw = drawData[drawCallIndex];
 
                 bindingTable.clear();
 
-                bindingTable.emplace(inMeshTableName, make_bindable_object(ctx.access(inMeshDatabase)));
-                bindingTable.emplace(inDrawCountBufferName,
-                    make_bindable_object(ctx.access(currentDraw.drawCallCountBuffer)));
-                bindingTable.emplace(inPreCullingIdMapBufferName,
-                    make_bindable_object(ctx.access(currentDraw.preCullingIdMap)));
-                bindingTable.emplace(outDrawCallsBufferName, make_bindable_object(outDrawCallsBuffer));
-                bindingTable.emplace(inInstanceTablesName, make_bindable_object(inInstanceTablesBuffer));
+                bindingTable.bind_buffers({
+                    {"b_MeshTables"_hsv, inMeshDatabase},
+                    {"b_InstanceTables"_hsv, inInstanceTables},
+                    {"b_InDrawCount"_hsv, currentDraw.drawCallCountBuffer},
+                    {"b_PreCullingIdMap"_hsv, currentDraw.preCullingIdMap},
+                    {"b_OutDrawCallsBuffer"_hsv, drawCallBuffers[drawCallIndex]},
+                });
 
-                const u32 count = currentDraw.sourceData.numInstances;
-
-                const binding_table* bindingTables[] = {
-                    &bindingTable,
-                };
+                const u32 maxInstances = currentDraw.sourceData.numInstances;
 
                 const draw_call_generator_push_constants pcData{
-                    .instanceTableId = currentDraw.sourceData.instanceTableId};
+                    .instanceTableId = currentDraw.sourceData.instanceTableId,
+                };
 
-                pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&pcData, 1}));
-                pm.bind_descriptor_sets(*pass, bindingTables);
+                ctx.bind_descriptor_sets(bindingTable);
+                ctx.push_constants(shader_stage::compute, 0, as_bytes(std::span{&pcData, 1}));
 
                 // We could also use the draw count to dispatch indirect here, it may be more efficient when many
                 // objects are culled
-                vkCmdDispatch(ctx.get_command_buffer(), round_up_div(count, subgroupSize), 1, 1);
+                ctx.dispatch_compute(round_up_div(maxInstances, subgroupSize), 1, 1);
             }
 
-            pm.end_compute_pass(*pass);
+            ctx.end_pass();
         }
     }
 }

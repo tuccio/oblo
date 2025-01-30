@@ -818,13 +818,16 @@ namespace oblo::editor
 
                     bool isSelected = is_selected(&entry);
 
+                    auto* const entryRename = renameCtx.is_renaming(&entry) ? &renameCtx : nullptr;
+
                     const bool isPressed = big_icon_widget(bigIconsFont,
                         g_FileColor,
                         ICON_FA_FILE,
                         assetColor,
                         entry.name.c_str(),
                         ImGui::GetID(builder.c_str()),
-                        &isSelected);
+                        &isSelected,
+                        entryRename);
 
                     if (ImGui::BeginItemTooltip())
                     {
@@ -1062,7 +1065,7 @@ namespace oblo::editor
 
     bool rename_context::is_renaming() const
     {
-        return activeRenameEntry == nullptr;
+        return activeRenameEntry != nullptr;
     }
 
     bool rename_context::is_renaming(const asset_browser_entry* other) const
@@ -1075,13 +1078,13 @@ namespace oblo::editor
         if (is_renaming())
         {
             stop_renaming(false);
+        }
 
-            activeRenameEntry = other;
+        activeRenameEntry = other;
 
-            if (activeRenameEntry)
-            {
-                init(activeRenameEntry->name.view());
-            }
+        if (activeRenameEntry)
+        {
+            init(activeRenameEntry->name.view());
         }
     }
 
@@ -1104,7 +1107,7 @@ namespace oblo::editor
 
             if (!filesystem::rename(activeRenameEntry->path, newName).value_or(false))
             {
-                log::debug("Failed to renameCtx {} to {}", activeRenameEntry->path, newName);
+                log::debug("Failed to rename {} to {}", activeRenameEntry->path, newName);
             }
         }
 

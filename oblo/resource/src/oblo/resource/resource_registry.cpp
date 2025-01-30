@@ -11,13 +11,17 @@ namespace oblo
 {
     struct resource_registry::resource_storage
     {
-        resource* resource{nullptr};
         resource_ptr<void> handle;
     };
 
     struct resource_registry::provider_storage
     {
         resource_provider* provider;
+    };
+
+    struct resource_registry::events_storage
+    {
+        deque<uuid> updatedEvents;
     };
 
     resource_registry::resource_registry() = default;
@@ -68,6 +72,8 @@ namespace oblo
 
     void resource_registry::update()
     {
+        m_events.clear();
+
         for (auto& provider : m_providers)
         {
             provider.provider->iterate_resource_events(
@@ -83,9 +89,45 @@ namespace oblo
                     auto* const resource = detail::resource_create(&typeIt->second, e.id, e.name, e.path);
 
                     m_resources.emplace(e.id,
-                        resource_storage{.resource = resource, .handle = resource_ptr<void>{resource}});
+                        resource_storage{
+                            .handle = resource_ptr<void>{resource},
+                        });
                 },
-                [this](const resource_removed_event& e) { m_resources.erase(e.id); });
+                [this](const resource_removed_event& e) { m_resources.erase(e.id); },
+                [this](const resource_updated_event& e)
+                {
+                    const auto typeIt = m_resourceTypes.find(e.typeUuid);
+
+                    if (typeIt == m_resourceTypes.end())
+                    {
+                        return;
+                    }
+
+                    if (!m_resources.contains(e.id))
+                    {
+                        return;
+                    }
+
+                    auto* const resource = detail::resource_create(&typeIt->second, e.id, e.name, e.path);
+
+                    m_resources[e.id] = resource_storage{
+                        .handle = resource_ptr<void>{resource},
+                    };
+
+                    m_events[e.typeUuid].updatedEvents.push_back(e.id);
+                });
         }
+    }
+
+    const deque<uuid>& resource_registry::get_updated_events(const uuid& eventType) const
+    {
+        const auto it = m_events.find(eventType);
+
+        if (it == m_events.end())
+        {
+            return m_noEvents;
+        }
+
+        return it->second.updatedEvents;
     }
 }

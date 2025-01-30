@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/deque.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/uuid.hpp>
@@ -38,15 +39,19 @@ namespace oblo::vk
 
         void init(resource_registry& resources, texture_registry& textureRegistry);
 
+        void update();
+
         h32<resident_texture> get_or_add(const texture_resource_ref& t);
         h32<resident_texture> get_or_add(const texture_resource_ptr& t);
 
     private:
+        struct async_load;
         struct cached_texture;
 
     private:
         resource_registry* m_resources{};
         texture_registry* m_textureRegistry{};
         std::unordered_map<uuid, cached_texture> m_textures;
+        deque<async_load> m_asyncLoads;
     };
 }

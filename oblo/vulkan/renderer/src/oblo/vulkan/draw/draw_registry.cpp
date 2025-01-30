@@ -325,6 +325,16 @@ namespace oblo::vk
         m_drawDataCount = 0;
     }
 
+    h32<draw_mesh> draw_registry::try_get_mesh(const resource_ref<mesh>& resourceId) const
+    {
+        if (const auto it = m_cachedMeshes.find(resourceId.id); it != m_cachedMeshes.end())
+        {
+            return it->second;
+        }
+
+        return {};
+    }
+
     h32<draw_mesh> draw_registry::get_or_create_mesh(const resource_ref<mesh>& resourceId)
     {
         if (const auto it = m_cachedMeshes.find(resourceId.id); it != m_cachedMeshes.end())

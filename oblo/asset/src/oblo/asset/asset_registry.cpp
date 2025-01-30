@@ -53,6 +53,7 @@ namespace oblo
         // Could maybe include a hash of settings or timestamps to determine when to re-run an importer or a
         // processor
         deque<uuid> artifacts;
+        uuid processId;
 
         void clear()
         {
@@ -74,6 +75,7 @@ namespace oblo
     struct artifact_entry
     {
         artifact_meta meta;
+        uuid processId;
     };
 
     namespace
@@ -189,6 +191,22 @@ namespace oblo
                 return false;
             }
 
+            const auto processId = doc.find_child(doc.get_root(), "processId"_hsv);
+
+            if (processId == data_node::Invalid)
+            {
+                return false;
+            }
+
+            if (const auto r = doc.read_uuid(processId); !r)
+            {
+                return false;
+            }
+            else
+            {
+                info.processId = *r;
+            }
+
             const auto artifacts = doc.find_child(doc.get_root(), "artifacts"_hsv);
 
             if (artifacts == data_node::Invalid || !doc.is_array(artifacts))
@@ -215,6 +233,8 @@ namespace oblo
         {
             data_document doc;
             doc.init();
+
+            doc.child_value(doc.get_root(), "processId"_hsv, property_value_wrapper{info.processId});
 
             const auto artifacts = doc.child_array(doc.get_root(), "artifacts"_hsv);
 
@@ -243,13 +263,12 @@ namespace oblo
     public:
         explicit artifact_resource_provider(const asset_registry_impl& impl) : m_impl{impl} {}
 
-        void iterate_resource_events(on_add_fn onAdd, on_remove_fn onRemove)
+        void iterate_resource_events(on_add_fn onAdd, on_remove_fn onRemove, on_update_fn onUpdate)
         {
             string_builder path;
 
             for (const auto& e : m_events)
             {
-
                 switch (e.kind)
                 {
                 case event_kind::add: {
@@ -260,7 +279,7 @@ namespace oblo
                         continue;
                     }
 
-                    m_impl.make_artifact_path(path, e.assetId, e.artifactId);
+                    m_impl.make_artifact_path(path, e.assetId, it->second.processId, e.artifactId);
 
                     const resource_added_event resourceEvent{
                         .id = e.artifactId,
@@ -284,6 +303,28 @@ namespace oblo
 
                 break;
 
+                case event_kind::update: {
+                    auto it = m_impl.artifactsMap.find(e.artifactId);
+
+                    if (it == m_impl.artifactsMap.end())
+                    {
+                        continue;
+                    }
+
+                    m_impl.make_artifact_path(path, e.assetId, it->second.processId, e.artifactId);
+
+                    const resource_updated_event resourceEvent{
+                        .id = e.artifactId,
+                        .typeUuid = it->second.meta.type,
+                        .name = it->second.meta.name,
+                        .path = path,
+                    };
+
+                    onUpdate(resourceEvent);
+                }
+
+                break;
+
                 default:
                     unreachable();
                 }
@@ -294,12 +335,28 @@ namespace oblo
 
         void push_removed_artifact(uuid artifactId)
         {
-            m_events.emplace_back(event_kind::remove, artifactId);
+            m_events.push_back_default() = {
+                .kind = event_kind::remove,
+                .artifactId = artifactId,
+            };
         }
 
         void push_added_artifact(uuid assetId, uuid artifactId)
         {
-            m_events.emplace_back(event_kind::add, assetId, artifactId);
+            m_events.push_back_default() = {
+                .kind = event_kind::add,
+                .assetId = assetId,
+                .artifactId = artifactId,
+            };
+        }
+
+        void push_modified_artifact(uuid assetId, uuid artifactId)
+        {
+            m_events.push_back_default() = {
+                .kind = event_kind::update,
+                .assetId = assetId,
+                .artifactId = artifactId,
+            };
         }
 
     private:
@@ -307,6 +364,7 @@ namespace oblo
         {
             add,
             remove,
+            update,
         };
 
         struct artifact_event
@@ -563,17 +621,18 @@ namespace oblo
         return no_error;
     }
 
-    void asset_registry_impl::on_artifact_added(artifact_meta meta)
+    void asset_registry_impl::on_artifact_added(artifact_meta meta, const uuid& processId)
     {
-        const auto [it, inserted] = artifactsMap.emplace(meta.artifactId, artifact_entry{});
+        const auto [it, inserted] = artifactsMap.emplace(meta.artifactId,
+            artifact_entry{
+                .meta = meta,
+                .processId = processId,
+            });
         OBLO_ASSERT(inserted);
-
-        auto& outMeta = it->second.meta;
-        outMeta = std::move(meta);
 
         if (resourceProvider)
         {
-            resourceProvider->push_added_artifact(outMeta.assetId, outMeta.artifactId);
+            resourceProvider->push_added_artifact(meta.assetId, meta.artifactId);
         }
 
         ++versionId;
@@ -587,6 +646,23 @@ namespace oblo
         if (resourceProvider)
         {
             resourceProvider->push_removed_artifact(artifactId);
+        }
+
+        ++versionId;
+    }
+
+    void asset_registry_impl::on_artifact_modified(uuid assetId, uuid processId, uuid artifactId)
+    {
+        const auto it = artifactsMap.find(artifactId);
+
+        if (it != artifactsMap.end())
+        {
+            it->second.processId = processId;
+        }
+
+        if (resourceProvider)
+        {
+            resourceProvider->push_modified_artifact(assetId, artifactId);
         }
 
         ++versionId;
@@ -811,7 +887,7 @@ namespace oblo
             return false;
         }
 
-        m_impl->make_artifact_path(outPath, it->second.meta.assetId, artifactId);
+        m_impl->make_artifact_path(outPath, it->second.meta.assetId, it->second.processId, artifactId);
 
         return true;
     }
@@ -853,14 +929,14 @@ namespace oblo
     }
 
     bool asset_registry_impl::on_new_artifact_discovered(
-        string_builder& builder, const uuid& artifactId, const uuid& assetId)
+        string_builder& builder, const uuid& artifactId, const uuid& assetId, const uuid& processId)
     {
         artifact_meta artifactMeta;
-        make_artifact_path(builder, assetId, artifactId).append(g_artifactMetaExtension);
+        make_artifact_path(builder, assetId, processId, artifactId).append(g_artifactMetaExtension);
 
         if (load_artifact_meta(builder, artifactMeta))
         {
-            on_artifact_added(artifactMeta);
+            on_artifact_added(artifactMeta, processId);
             return true;
         }
 
@@ -868,7 +944,7 @@ namespace oblo
     }
 
     bool asset_registry_impl::on_new_asset_discovered(
-        string_builder& builder, const uuid& assetId, deque<uuid>& artifacts)
+        string_builder& builder, const uuid& assetId, const uuid& processId, deque<uuid>& artifacts)
     {
         bool allSuccessful = true;
 
@@ -877,11 +953,11 @@ namespace oblo
             const auto artifactId = *artifactIt;
 
             artifact_meta artifactMeta;
-            make_artifact_path(builder, assetId, artifactId).append(g_artifactMetaExtension);
+            make_artifact_path(builder, assetId, processId, artifactId).append(g_artifactMetaExtension);
 
             if (load_artifact_meta(builder, artifactMeta))
             {
-                on_artifact_added(artifactMeta);
+                on_artifact_added(artifactMeta, processId);
                 ++artifactIt;
             }
             else
@@ -954,8 +1030,12 @@ namespace oblo
                 }
                 else
                 {
-                    needsReprocessing =
-                        !m_impl->on_new_asset_discovered(builder, assetMeta.assetId, processInfo.artifacts);
+                    needsReprocessing = !m_impl->on_new_asset_discovered(builder,
+                        assetMeta.assetId,
+                        processInfo.processId,
+                        processInfo.artifacts);
+
+                    it->second.artifacts.assign(processInfo.artifacts.begin(), processInfo.artifacts.end());
                 }
 
                 if (needsReprocessing && flags.contains(asset_discovery_flags::reprocess_dirty))
@@ -1134,12 +1214,15 @@ namespace oblo
                                     if (!load_asset_process_info(builder, processInfo))
                                     {
                                         log::debug("Failed to load asset process info for {}", meta.assetId);
-                                        m_impl->assets.erase(probablyInvalidIt);
+                                        m_impl->assets.erase(newAssetIt);
                                         m_impl->assetFileMap.erase(fileIt);
                                         return;
                                     }
 
-                                    m_impl->on_new_asset_discovered(builder, meta.assetId, processInfo.artifacts);
+                                    m_impl->on_new_asset_discovered(builder,
+                                        meta.assetId,
+                                        processInfo.processId,
+                                        processInfo.artifacts);
 
                                     string_view assetPath{e.path};
                                     assetPath.remove_suffix(AssetMetaExtension.size());
@@ -1243,7 +1326,10 @@ namespace oblo
                                         }
                                         else if (o > n)
                                         {
-                                            if (!m_impl->on_new_artifact_discovered(builder, n, meta.assetId))
+                                            if (!m_impl->on_new_artifact_discovered(builder,
+                                                    n,
+                                                    meta.assetId,
+                                                    processInfo.processId))
                                             {
                                                 // Failed to load the artifact, should we remove it?
                                                 OBLO_ASSERT(false);
@@ -1255,6 +1341,8 @@ namespace oblo
                                         {
                                             ++oldIndex;
                                             ++newIndex;
+
+                                            m_impl->on_artifact_modified(meta.assetId, processInfo.processId, o);
                                         }
                                     }
 
@@ -1268,7 +1356,10 @@ namespace oblo
                                     {
                                         const auto& n = processInfo.artifacts[newIndex];
 
-                                        if (!m_impl->on_new_artifact_discovered(builder, n, meta.assetId))
+                                        if (!m_impl->on_new_artifact_discovered(builder,
+                                                n,
+                                                meta.assetId,
+                                                processInfo.processId))
                                         {
                                             // Failed to load the artifact, should we remove it?
                                             OBLO_ASSERT(false);
@@ -1318,10 +1409,10 @@ namespace oblo
     }
 
     bool asset_registry_impl::save_artifact(
-        const cstring_view srcArtifact, const artifact_meta& meta, write_policy policy)
+        const cstring_view srcArtifact, const artifact_meta& meta, const uuid& processId, write_policy policy)
     {
         string_builder artifactPath;
-        make_artifact_path(artifactPath, meta.assetId, meta.artifactId);
+        make_artifact_path(artifactPath, meta.assetId, processId, meta.artifactId);
 
         if (const auto exists = filesystem::exists(artifactPath).value_or(true);
             exists && policy == write_policy::no_overwrite)
@@ -1343,12 +1434,13 @@ namespace oblo
     bool asset_registry_impl::save_asset(string_view destination,
         string_view assetName,
         const asset_meta& meta,
+        const uuid& processId,
         const deque<uuid>& artifacts,
         write_policy policy)
     {
         string_builder fullPath;
 
-        make_artifacts_directory_path(fullPath.clear(), meta.assetId);
+        make_artifacts_directory_path(fullPath.clear(), meta.assetId, processId);
 
         if (!ensure_directories(fullPath))
         {
@@ -1358,7 +1450,12 @@ namespace oblo
 
         make_artifacts_process_path(fullPath.clear(), meta.assetId);
 
-        if (!save_asset_process_info(asset_process_info{.artifacts = artifacts}, fullPath))
+        if (!save_asset_process_info(
+                asset_process_info{
+                    .artifacts = artifacts,
+                    .processId = processId,
+                },
+                fullPath))
         {
             // Not a big issue, it can always be rebuilt, maybe we should log
             log::warn("Saved to file asset process info to {}, re-processing might be required", fullPath);
@@ -1391,12 +1488,15 @@ namespace oblo
         return out;
     }
 
-    string_builder& asset_registry_impl::make_artifact_path(string_builder& out, uuid assetId, uuid artifactId) const
+    string_builder& asset_registry_impl::make_artifact_path(
+        string_builder& out, uuid assetId, uuid processId, uuid artifactId) const
     {
         return out.clear()
             .append(artifactsDir)
             .append_path_separator()
             .format("{}", assetId)
+            .append_path_separator()
+            .format("{}", processId)
             .append_path_separator()
             .format("{}", artifactId);
     }
@@ -1406,9 +1506,14 @@ namespace oblo
         return out.append(artifactsDir).append_path_separator().format("{}", assetId).append(g_assetProcessExtension);
     }
 
-    string_builder& asset_registry_impl::make_artifacts_directory_path(string_builder& out, uuid assetId) const
+    string_builder& asset_registry_impl::make_artifacts_directory_path(
+        string_builder& out, uuid assetId, uuid processId) const
     {
-        return out.append(artifactsDir).append_path_separator().format("{}", assetId);
+        return out.append(artifactsDir)
+            .append_path_separator()
+            .format("{}", assetId)
+            .append_path_separator()
+            .format("{}", processId);
     }
 
     oblo::importer asset_registry_impl::create_importer(string_view sourceFile) const

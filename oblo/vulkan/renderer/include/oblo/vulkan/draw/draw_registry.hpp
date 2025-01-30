@@ -99,6 +99,7 @@ namespace oblo::vk
 
         void end_frame();
 
+        h32<draw_mesh> try_get_mesh(const resource_ref<mesh>& resourceId) const;
         h32<draw_mesh> get_or_create_mesh(const resource_ref<mesh>& resourceId);
 
         void flush_uploads(VkCommandBuffer commandBuffer);

@@ -12,14 +12,6 @@
 
 namespace oblo::vk
 {
-    namespace
-    {
-        struct visibility_pass_push_constants
-        {
-            u32 instanceTableId;
-        };
-    }
-
     void visibility_pass::init(const frame_graph_init_context& ctx)
     {
         renderPass = ctx.register_render_pass({
@@ -181,6 +173,11 @@ namespace oblo::vk
             perDrawBindingTable.bind_buffers({
                 {"b_PreCullingIdMap"_hsv, culledDraw.preCullingIdMap},
             });
+
+            struct visibility_pass_push_constants
+            {
+                u32 instanceTableId;
+            };
 
             const visibility_pass_push_constants pushConstants{
                 .instanceTableId = culledDraw.sourceData.instanceTableId,

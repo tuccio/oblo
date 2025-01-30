@@ -40,6 +40,7 @@ namespace oblo::vk
 
         h32<resident_texture> acquire();
         void set_texture(h32<resident_texture> h, VkImageView imageView, VkImageLayout layout);
+        bool set_texture(h32<resident_texture> h, const texture_resource& texture, const debug_label& debugName);
 
         h32<resident_texture> add(const texture_resource& texture, const debug_label& debugName);
         void remove(h32<resident_texture> texture);

@@ -1,10 +1,12 @@
 #pragma once
 
+#include <oblo/core/deque.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/resource/providers/resource_provider.hpp>
+#include <oblo/resource/resource_traits.hpp>
 
 #include <unordered_map>
 
@@ -41,15 +43,29 @@ namespace oblo
 
         resource_ptr<void> get_resource(const uuid& id) const;
 
+        const deque<uuid>& get_updated_events(const uuid& eventType) const;
+
+        template <typename T>
+        const deque<uuid>& get_updated_events() const;
+
         void update();
 
     private:
         struct resource_storage;
         struct provider_storage;
+        struct events_storage;
 
     private:
         std::unordered_map<uuid, resource_type_descriptor> m_resourceTypes;
         std::unordered_map<uuid, resource_storage> m_resources;
+        std::unordered_map<uuid, events_storage> m_events;
         dynamic_array<provider_storage> m_providers;
+        deque<uuid> m_noEvents;
     };
+
+    template <typename T>
+    const deque<uuid>& resource_registry::get_updated_events() const
+    {
+        return get_updated_events(resource_type<T>);
+    }
 }

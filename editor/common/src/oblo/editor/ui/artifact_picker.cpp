@@ -116,7 +116,8 @@ namespace oblo::editor::ui
                 artifact_meta artifactMeta;
 
                 if (m_assetRegistry.find_asset_by_id(id, assetMeta) &&
-                    m_assetRegistry.find_artifact_by_id(assetMeta.mainArtifactHint, artifactMeta) && meta.type == type)
+                    m_assetRegistry.find_artifact_by_id(assetMeta.mainArtifactHint, artifactMeta) &&
+                    artifactMeta.type == type)
                 {
                     m_currentRef = artifactMeta.artifactId;
                     selectionChanged = true;
