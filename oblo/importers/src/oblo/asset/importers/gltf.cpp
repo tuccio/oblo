@@ -207,7 +207,7 @@ namespace oblo::importers
             const auto metallicRoughness = gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index;
 
             if (metallicRoughness >= 0 && metallicRoughness == gltfMaterial.occlusionTexture.index &&
-                metallicRoughness < m_importImages.size())
+                usize(metallicRoughness) < m_importImages.size())
             {
                 auto& subImport = preview.children[m_importImages[metallicRoughness].subImportIndex];
                 auto& settings = subImport.settings;
