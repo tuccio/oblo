@@ -31,6 +31,8 @@ namespace oblo::ecs
 
         typed_range& notified();
 
+        typed_range& notified(u32 modificationId);
+
         template <typename F>
         void for_each_chunk(F&& f) const;
 
@@ -46,6 +48,7 @@ namespace oblo::ecs
         component_type m_targets[sizeof...(Components)];
         u8 m_mapping[sizeof...(Components)];
         bool m_onlyNotified = false;
+        u32 m_modificationIdCheck;
         entity_registry* m_registry;
     };
 
@@ -170,16 +173,13 @@ namespace oblo::ecs
         iterator& operator++()
         {
             auto* const registry = m_range->m_registry;
+            auto* const modificationId = m_range->m_onlyNotified ? &m_range->m_modificationIdCheck : nullptr;
 
             do
             {
                 if (++m_chunkIndex == m_numChunks)
                 {
-                    m_it = registry->find_first_match(m_it,
-                        1,
-                        m_range->m_include,
-                        m_range->m_exclude,
-                        m_range->m_onlyNotified);
+                    m_it = registry->find_first_match(m_it, 1, m_range->m_include, m_range->m_exclude, modificationId);
 
                     m_chunkIndex = 0;
 
@@ -191,7 +191,7 @@ namespace oblo::ecs
                 }
 
                 if (!m_range->m_onlyNotified ||
-                    *access_chunk_modification_id(*m_it, m_chunkIndex) == registry->get_modification_id())
+                    *access_chunk_modification_id(*m_it, m_chunkIndex) >= m_range->m_modificationIdCheck)
                 {
                     break;
                 }
@@ -316,9 +316,10 @@ namespace oblo::ecs
         constexpr auto numComponents = sizeof...(Components);
 
         auto* const begin = m_registry->m_componentsStorage.data();
+        auto* const modificationId = m_onlyNotified ? &m_modificationIdCheck : nullptr;
 
-        for (auto* it = m_registry->find_first_match(begin, 0, m_include, m_exclude, m_onlyNotified); it != nullptr;
-             it = m_registry->find_first_match(it, 1, m_include, m_exclude, m_onlyNotified))
+        for (auto* it = m_registry->find_first_match(begin, 0, m_include, m_exclude, modificationId); it != nullptr;
+             it = m_registry->find_first_match(it, 1, m_include, m_exclude, modificationId))
         {
             u32 offsets[numComponents];
 
@@ -363,7 +364,15 @@ namespace oblo::ecs
     template <typename... Components>
     entity_registry::typed_range<Components...>& entity_registry::typed_range<Components...>::notified()
     {
+        return notified(m_registry->get_modification_id());
+    }
+
+    template <typename... Components>
+    entity_registry::typed_range<Components...>& entity_registry::typed_range<Components...>::notified(
+        u32 modificationId)
+    {
         m_onlyNotified = true;
+        m_modificationIdCheck = modificationId;
         return *this;
     }
 
@@ -371,7 +380,8 @@ namespace oblo::ecs
     entity_registry::typed_range<Components...>::iterator entity_registry::typed_range<Components...>::begin() const
     {
         auto* const begin = m_registry->m_componentsStorage.data();
-        return {this, m_registry->find_first_match(begin, 0, m_include, m_exclude, m_onlyNotified)};
+        auto* const modificationId = m_onlyNotified ? &m_modificationIdCheck : nullptr;
+        return {this, m_registry->find_first_match(begin, 0, m_include, m_exclude, modificationId)};
     }
 
     template <typename... Components>

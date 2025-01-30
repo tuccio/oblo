@@ -136,7 +136,7 @@ namespace oblo::ecs
             usize increment,
             const component_and_tag_sets& includes,
             const component_and_tag_sets& excludes,
-            bool notifiedOnly);
+            const u32* modificationIdCheck);
 
         static void sort_and_map(std::span<component_type> componentTypes, std::span<u8> mapping);
 

@@ -335,14 +335,14 @@ namespace oblo::ecs
         usize increment,
         const component_and_tag_sets& includes,
         const component_and_tag_sets& excludes,
-        bool notifiedOnly)
+        const u32* modificationIdCheck)
     {
         auto* const end = m_componentsStorage.data() + m_componentsStorage.size();
 
         for (auto* it = begin + increment; it != end; ++it)
         {
             if (it->archetype->numCurrentEntities == 0 ||
-                notifiedOnly && it->archetype->modificationId != m_modificationId)
+                modificationIdCheck && it->archetype->modificationId < *modificationIdCheck)
             {
                 continue;
             }

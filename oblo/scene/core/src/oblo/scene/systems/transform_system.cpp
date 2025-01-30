@@ -14,7 +14,11 @@ namespace oblo
 {
     void transform_system::update(const ecs::system_update_context& ctx)
     {
-        for (auto&& chunk : ctx.entities->range<global_transform_component>())
+        // We are interested in the modifications the last 2 frames, since we update the last frame transform here
+        const auto currentModificationId = ctx.entities->get_modification_id();
+        const auto lastFrameId = currentModificationId == 0 ? currentModificationId : currentModificationId - 1;
+
+        for (auto&& chunk : ctx.entities->range<global_transform_component>().notified(lastFrameId))
         {
             for (auto&& [e, globalTransform] : chunk.zip<ecs::entity, global_transform_component>())
             {

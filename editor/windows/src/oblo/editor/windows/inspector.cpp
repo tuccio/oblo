@@ -300,6 +300,8 @@ namespace oblo::editor
 
                                 typeDesc.destroy(ptr, 1);
                                 typeDesc.create(ptr, 1);
+
+                                m_registry->notify(e);
                             }
 
                             if (ImGui::MenuItem("Delete"))
