@@ -162,6 +162,21 @@ namespace oblo
 
         ecs::deferred deferred{ctx.frameAllocator};
 
+        if (!m_resourceRegistry->get_updated_events<material>().empty())
+        {
+            // Just invalidate all entities
+            for (const auto [entities, meshComponents, globalTransforms, meshComponnets] :
+                ctx.entities->range<static_mesh_component, global_transform_component, vk::draw_mesh_component>())
+            {
+                for (const ecs::entity e : entities)
+                {
+                    deferred.remove<vk::draw_mesh_component>(e);
+                }
+            }
+
+            deferred.apply(*ctx.entities);
+        }
+
         for (const auto [entities, meshComponents, globalTransforms] :
             ctx.entities->range<static_mesh_component, global_transform_component>().exclude<vk::draw_mesh_component>())
         {
@@ -185,7 +200,7 @@ namespace oblo
                     stillLoading = true;
                 }
 
-                // If the mesh is already on GPU we don't car about loading the resource
+                // If the mesh is already on GPU we don't care about loading the resource
                 auto mesh = drawRegistry.try_get_mesh(meshComponent.mesh);
 
                 if (!mesh && !meshRes.is_loaded())

@@ -74,18 +74,20 @@ namespace oblo
     public:
         string_builder& make_asset_path(string_builder& out, string_view directory) const;
 
-        string_builder& make_artifact_path(string_builder& out, uuid assetId, uuid artifactId) const;
+        string_builder& make_artifact_path(string_builder& out, uuid assetId, uuid processId, uuid artifactId) const;
         string_builder& make_artifacts_process_path(string_builder& out, uuid assetId) const;
-        string_builder& make_artifacts_directory_path(string_builder& out, uuid assetId) const;
+        string_builder& make_artifacts_directory_path(string_builder& out, uuid assetId, uuid processId) const;
 
         void push_import_process(
             asset_entry* optEntry, importer&& importer, data_document&& settings, string_view destination);
 
-        bool save_artifact(const cstring_view path, const artifact_meta& meta, write_policy policy);
+        bool save_artifact(
+            const cstring_view path, const artifact_meta& meta, const uuid& processId, write_policy policy);
 
         bool save_asset(string_view destination,
             string_view fileName,
             const asset_meta& meta,
+            const uuid& processId,
             const deque<uuid>& artifacts,
             write_policy policy);
 
@@ -107,12 +109,16 @@ namespace oblo
             string_view destination,
             string_view optName);
 
-        void on_artifact_added(artifact_meta meta);
+        void on_artifact_added(artifact_meta meta, const uuid& processId);
         void on_artifact_removed(uuid artifactId);
+        void on_artifact_modified(uuid assetId, uuid processId, uuid artifactId);
 
         const string_builder* get_asset_path(const uuid& id);
 
-        bool on_new_artifact_discovered(string_builder& builder, const uuid& artifactId, const uuid& assetId);
-        bool on_new_asset_discovered(string_builder& builder, const uuid& assetId, deque<uuid>& artifacts);
+        bool on_new_artifact_discovered(
+            string_builder& builder, const uuid& artifactId, const uuid& assetId, const uuid& processId);
+
+        bool on_new_asset_discovered(
+            string_builder& builder, const uuid& assetId, const uuid& processId, deque<uuid>& artifacts);
     };
 }

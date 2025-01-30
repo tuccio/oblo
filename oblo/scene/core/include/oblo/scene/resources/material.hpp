@@ -9,6 +9,7 @@
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/uuid.hpp>
+#include <oblo/scene/resources/traits.hpp>
 
 #include <span>
 #include <unordered_map>

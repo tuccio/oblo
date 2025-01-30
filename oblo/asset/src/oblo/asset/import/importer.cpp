@@ -231,8 +231,10 @@ namespace oblo
             .nativeAssetType = m_nativeAssetType,
         };
 
+        const uuid processId = asset_registry_impl::generate_uuid();
+
         string_builder artifactsPath;
-        registry.make_artifacts_directory_path(artifactsPath, m_assetId);
+        registry.make_artifacts_directory_path(artifactsPath, m_assetId, processId);
 
         filesystem::remove_all(artifactsPath).assert_value();
 
@@ -286,7 +288,7 @@ namespace oblo
                     .name = artifact.name,
                 };
 
-                if (!registry.save_artifact(artifact.path, meta, writePolicy))
+                if (!registry.save_artifact(artifact.path, meta, processId, writePolicy))
                 {
                     log::error("Artifact '{}' ({}) will be skipped due to an error occurring while saving to disk",
                         artifact.name,
@@ -309,8 +311,12 @@ namespace oblo
         const auto assetFileName =
             m_assetName.empty() ? filesystem::stem(m_fileImports.front().config.sourceFile) : m_assetName;
 
-        allSucceeded &=
-            registry.save_asset(destination, assetFileName, std::move(assetMeta), importedArtifacts, writePolicy);
+        allSucceeded &= registry.save_asset(destination,
+            assetFileName,
+            std::move(assetMeta),
+            processId,
+            importedArtifacts,
+            writePolicy);
         allSucceeded &= write_source_files(registry, sourceFiles);
 
         // TODO: We might have to clean up on failure

@@ -7,6 +7,7 @@
 #include <oblo/core/types.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/math/aabb.hpp>
+#include <oblo/scene/resources/traits.hpp>
 
 #include <span>
 

@@ -3,6 +3,7 @@
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/resource/resource_ref.hpp>
+#include <oblo/scene/resources/traits.hpp>
 
 namespace oblo
 {
