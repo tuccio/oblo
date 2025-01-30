@@ -31,7 +31,7 @@ namespace oblo::vk
         };
     };
 
-    class binding_table2
+    class binding_table
     {
     public:
         void bind(hashed_string_view name, resource<buffer> r)
@@ -100,9 +100,9 @@ namespace oblo::vk
     public:
         binding_tables_span() = default;
         binding_tables_span(const binding_tables_span&) = default;
-        binding_tables_span(const binding_table2& t) : m_table{&t}, m_count{1} {}
+        binding_tables_span(const binding_table& t) : m_table{&t}, m_count{1} {}
 
-        binding_tables_span(std::span<const binding_table2* const> tables) :
+        binding_tables_span(std::span<const binding_table* const> tables) :
             m_array{tables.data()}, m_count{tables.size()}
         {
             if (m_count == 1)
@@ -112,19 +112,19 @@ namespace oblo::vk
         }
 
         template <usize N>
-        binding_tables_span(const binding_table2* (&array)[N]) : binding_tables_span{std::span{array}}
+        binding_tables_span(const binding_table* (&array)[N]) : binding_tables_span{std::span{array}}
         {
         }
 
-        std::span<const binding_table2* const> span() const&
+        std::span<const binding_table* const> span() const&
         {
             auto* const array = m_count == 1 ? &m_table : m_array;
-            return std::span<const binding_table2* const>{array, m_count};
+            return std::span<const binding_table* const>{array, m_count};
         }
 
     private:
-        const binding_table2* m_table{};
-        const binding_table2* const* m_array{};
+        const binding_table* m_table{};
+        const binding_table* const* m_array{};
         usize m_count{};
     };
 }

@@ -94,8 +94,8 @@ namespace oblo::vk
 
     void visibility_pass::execute(const frame_graph_execute_context& ctx)
     {
-        binding_table2 perDrawBindingTable;
-        binding_table2 passBindingTable;
+        binding_table perDrawBindingTable;
+        binding_table passBindingTable;
 
         passBindingTable.bind_buffers({
             {"b_CameraBuffer"_hsv, inCameraBuffer},
@@ -152,7 +152,7 @@ namespace oblo::vk
 
         setup_viewport_scissor(commandBuffer, renderWidth, renderHeight);
 
-        const binding_table2* bindingTables[] = {
+        const binding_table* bindingTables[] = {
             &perDrawBindingTable,
             &passBindingTable,
         };

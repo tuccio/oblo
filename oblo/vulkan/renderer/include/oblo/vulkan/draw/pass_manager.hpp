@@ -18,9 +18,6 @@ namespace oblo
     template <typename T>
     struct flat_key_extractor;
 
-    template <typename Key, typename Value, typename KeyExtractor>
-    class flat_dense_map;
-
     template <typename>
     class function_ref;
 }
@@ -49,8 +46,6 @@ namespace oblo::vk
     struct render_pass_initializer;
     struct render_pipeline;
     struct render_pipeline_initializer;
-
-    using binding_table = flat_dense_map<h32<string>, bindable_object>;
 
     enum class pipeline_stages : u8;
 
@@ -134,19 +129,10 @@ namespace oblo::vk
             u32 offset,
             std::span<const byte> data) const;
 
-        void bind_descriptor_sets(const render_pass_context& ctx,
-            std::span<const binding_table* const> bindingTables) const;
-
-        void bind_descriptor_sets(const compute_pass_context& ctx,
-            std::span<const binding_table* const> bindingTables) const;
-
         void bind_descriptor_sets(VkCommandBuffer commandBuffer,
             VkPipelineBindPoint bindPoint,
             const base_pipeline& pipeline,
             locate_binding_fn locateBinding) const;
-
-        void bind_descriptor_sets(const raytracing_pass_context& ctx,
-            std::span<const binding_table* const> bindingTables) const;
 
         void trace_rays(const raytracing_pass_context& ctx, u32 width, u32 height, u32 depth) const;
 

@@ -78,7 +78,7 @@ namespace oblo::vk
     {
         if (const auto pass = ctx.begin_pass(debugPassInstance))
         {
-            binding_table2 bindingTable;
+            binding_table bindingTable;
 
             bindingTable.bind_buffers({
                 {"b_CameraBuffer"_hsv, inCameraBuffer},

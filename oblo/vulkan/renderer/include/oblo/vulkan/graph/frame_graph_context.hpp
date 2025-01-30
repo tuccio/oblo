@@ -62,7 +62,7 @@ namespace oblo::vk
     struct render_pipeline_initializer;
     struct raytracing_pipeline_initializer;
 
-    class binding_table2;
+    class binding_table;
 
     enum class pass_kind : u8
     {

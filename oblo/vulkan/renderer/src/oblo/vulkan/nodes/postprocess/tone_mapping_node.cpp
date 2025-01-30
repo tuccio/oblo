@@ -36,7 +36,7 @@ namespace oblo::vk
 
     void tone_mapping_node::execute(const frame_graph_execute_context& ctx)
     {
-        binding_table2 bindingTable;
+        binding_table bindingTable;
 
         bindingTable.bind_textures({
             {"t_InHDR"_hsv, inHDR},

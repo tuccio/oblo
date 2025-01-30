@@ -63,7 +63,7 @@ namespace oblo::vk
 
     void raytracing_debug::execute(const frame_graph_execute_context& ctx)
     {
-        binding_table2 bindingTable;
+        binding_table bindingTable;
 
         bindingTable.bind_buffers({
             {"b_InstanceTables"_hsv, inInstanceTables},

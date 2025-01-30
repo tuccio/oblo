@@ -101,7 +101,7 @@ namespace oblo::vk
             const auto& sourceTexture = ctx.access(inSource);
             const vec2u resolution{sourceTexture.initializer.extent.width, sourceTexture.initializer.extent.height};
 
-            binding_table2 bindingTable;
+            binding_table bindingTable;
 
             bindingTable.bind_buffers({
                 //{"b_InstanceTables", inInstanceTables},

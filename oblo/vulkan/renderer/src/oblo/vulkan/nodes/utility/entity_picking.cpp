@@ -39,7 +39,7 @@ namespace oblo::vk
     {
         const auto& pickingConfiguration = ctx.access(inPickingConfiguration);
 
-        binding_table2 bindingTable;
+        binding_table bindingTable;
 
         bindingTable.bind_textures({
             {"t_InVisibilityBuffer"_hsv, inVisibilityBuffer},
