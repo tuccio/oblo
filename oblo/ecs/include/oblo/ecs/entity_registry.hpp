@@ -135,8 +135,7 @@ namespace oblo::ecs
         const archetype_storage* find_first_match(const archetype_storage* begin,
             usize increment,
             const component_and_tag_sets& includes,
-            const component_and_tag_sets& excludes,
-            const u32* modificationIdCheck);
+            const component_and_tag_sets& excludes);
 
         static void sort_and_map(std::span<component_type> componentTypes, std::span<u8> mapping);
 

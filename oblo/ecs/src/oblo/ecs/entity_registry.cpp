@@ -334,15 +334,13 @@ namespace oblo::ecs
     const archetype_storage* entity_registry::find_first_match(const archetype_storage* begin,
         usize increment,
         const component_and_tag_sets& includes,
-        const component_and_tag_sets& excludes,
-        const u32* modificationIdCheck)
+        const component_and_tag_sets& excludes)
     {
         auto* const end = m_componentsStorage.data() + m_componentsStorage.size();
 
         for (auto* it = begin + increment; it != end; ++it)
         {
-            if (it->archetype->numCurrentEntities == 0 ||
-                modificationIdCheck && it->archetype->modificationId < *modificationIdCheck)
+            if (it->archetype->numCurrentEntities == 0)
             {
                 continue;
             }

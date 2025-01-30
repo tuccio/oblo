@@ -173,13 +173,12 @@ namespace oblo::ecs
         iterator& operator++()
         {
             auto* const registry = m_range->m_registry;
-            auto* const modificationId = m_range->m_onlyNotified ? &m_range->m_modificationIdCheck : nullptr;
 
             do
             {
                 if (++m_chunkIndex == m_numChunks)
                 {
-                    m_it = registry->find_first_match(m_it, 1, m_range->m_include, m_range->m_exclude, modificationId);
+                    m_it = registry->find_first_match(m_it, 1, m_range->m_include, m_range->m_exclude);
 
                     m_chunkIndex = 0;
 
@@ -190,8 +189,7 @@ namespace oblo::ecs
                     }
                 }
 
-                if (!m_range->m_onlyNotified ||
-                    *access_chunk_modification_id(*m_it, m_chunkIndex) >= m_range->m_modificationIdCheck)
+                if (!m_range->m_onlyNotified || is_notified())
                 {
                     break;
                 }
@@ -229,7 +227,7 @@ namespace oblo::ecs
             {
                 *this = {};
             }
-        };
+        }
 
         bool update_iterator_data()
         {
@@ -240,6 +238,11 @@ namespace oblo::ecs
 
             m_numChunks = get_used_chunks_count(*m_it);
             return true;
+        }
+
+        bool is_notified()
+        {
+            return *access_chunk_modification_id(*m_it, m_chunkIndex) >= m_range->m_modificationIdCheck;
         }
 
     private:
@@ -316,10 +319,9 @@ namespace oblo::ecs
         constexpr auto numComponents = sizeof...(Components);
 
         auto* const begin = m_registry->m_componentsStorage.data();
-        auto* const modificationId = m_onlyNotified ? &m_modificationIdCheck : nullptr;
 
-        for (auto* it = m_registry->find_first_match(begin, 0, m_include, m_exclude, modificationId); it != nullptr;
-             it = m_registry->find_first_match(it, 1, m_include, m_exclude, modificationId))
+        for (auto* it = m_registry->find_first_match(begin, 0, m_include, m_exclude); it != nullptr;
+             it = m_registry->find_first_match(it, 1, m_include, m_exclude))
         {
             u32 offsets[numComponents];
 
@@ -332,6 +334,11 @@ namespace oblo::ecs
 
             for (u32 chunkIndex = 0; chunkIndex < numChunks; ++chunkIndex)
             {
+                if (m_onlyNotified && *access_chunk_modification_id(*it, chunkIndex) < m_modificationIdCheck)
+                {
+                    continue;
+                }
+
                 const entity* entities;
                 std::byte* componentsData[numComponents];
 
@@ -380,8 +387,18 @@ namespace oblo::ecs
     entity_registry::typed_range<Components...>::iterator entity_registry::typed_range<Components...>::begin() const
     {
         auto* const begin = m_registry->m_componentsStorage.data();
-        auto* const modificationId = m_onlyNotified ? &m_modificationIdCheck : nullptr;
-        return {this, m_registry->find_first_match(begin, 0, m_include, m_exclude, modificationId)};
+
+        iterator it = {this, m_registry->find_first_match(begin, 0, m_include, m_exclude)};
+
+        if (m_onlyNotified)
+        {
+            while (it != end() && !it.is_notified())
+            {
+                ++it;
+            }
+        }
+
+        return it;
     }
 
     template <typename... Components>
