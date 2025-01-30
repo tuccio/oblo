@@ -127,6 +127,20 @@ namespace oblo
             resource_ptr<mesh> mesh;
         };
 
+        struct mesh_resources_checksum
+        {
+            u32 value;
+
+            bool operator==(const mesh_resources_checksum&) const = default;
+        };
+
+        mesh_resources_checksum calculate_checksum(const static_mesh_component& meshComponent)
+        {
+            auto h = hash_xxh32(&meshComponent.material, sizeof(meshComponent.material));
+            h = hash_xxh32(&meshComponent.mesh, sizeof(meshComponent.mesh), h);
+            return mesh_resources_checksum{h};
+        }
+
         void add_mesh(resource_registry* resourceRegistry,
             vk::resource_cache* resourceCache,
             vk::draw_registry& drawRegistry,
@@ -180,9 +194,11 @@ namespace oblo
                 }
             }
 
-            auto&& [gpuMaterial, pickingId, gpuMeshComponent] =
-                deferred.add<gpu_material, entity_id_component, vk::draw_mesh_component, vk::draw_raytraced_tag>(
-                    entity);
+            auto&& [gpuMaterial, pickingId, checksum, gpuMeshComponent] = deferred.add<gpu_material,
+                entity_id_component,
+                mesh_resources_checksum,
+                vk::draw_mesh_component,
+                vk::draw_raytraced_tag>(entity);
 
             deferred.remove<mesh_resources>(entity);
 
@@ -191,6 +207,9 @@ namespace oblo
             pickingId.entityId = entity;
 
             gpuMeshComponent.mesh = mesh;
+
+            // Store a checksum so we can determine whether or not we want to re-process it
+            checksum = calculate_checksum(meshComponent);
         }
     }
 
@@ -214,6 +233,7 @@ namespace oblo
         const auto entityId = typeRegistry.register_component(ecs::make_component_type_desc<entity_id_component>());
 
         ecs::register_type<mesh_resources>(typeRegistry);
+        ecs::register_type<mesh_resources_checksum>(typeRegistry);
 
         drawRegistry.register_instance_data(gpuTransform, "i_TransformBuffer");
         drawRegistry.register_instance_data(gpuMaterial, "i_MaterialBuffer");
@@ -243,13 +263,17 @@ namespace oblo
         }
 
         // Process entities we already processed, in order to react to changes
-        for (auto&& chunk : ctx.entities->range<static_mesh_component>()
-                                .with<global_transform_component, vk::draw_mesh_component>()
+        for (auto&& chunk : ctx.entities->range<const mesh_resources_checksum, const static_mesh_component>()
+                                .with<vk::draw_mesh_component>()
                                 .notified())
         {
-            for (auto&& [e, meshComponent] : chunk.zip<ecs::entity, static_mesh_component>())
+            for (auto&& [e, checksum, meshComponent] :
+                chunk.zip<ecs::entity, mesh_resources_checksum, static_mesh_component>())
             {
-                deferred.remove<vk::draw_mesh_component>(e);
+                if (calculate_checksum(meshComponent) != checksum)
+                {
+                    deferred.remove<vk::draw_mesh_component>(e);
+                }
             }
         }
 

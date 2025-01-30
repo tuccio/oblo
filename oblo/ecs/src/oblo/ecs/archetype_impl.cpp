@@ -117,6 +117,8 @@ namespace oblo::ecs
                 {
                     paddingWorstCase += typeDesc.alignment - previousAlignment;
                 }
+
+                previousAlignment = typeDesc.alignment;
             }
         }
 
