@@ -16,9 +16,9 @@ namespace oblo::ecs
         register_type<string>(types);
         register_type<u32>(types);
 
-        const auto e1 = reg.create<string>();
-        const auto e2 = reg.create<string, u32>();
-        const auto e3 = reg.create<u32>();
+        [[maybe_unused]] const auto e1 = reg.create<string>();
+        [[maybe_unused]] const auto e2 = reg.create<string, u32>();
+        [[maybe_unused]] const auto e3 = reg.create<u32>();
 
         reg.set_modification_id(1u);
 
