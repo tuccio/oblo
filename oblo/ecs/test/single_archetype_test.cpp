@@ -164,10 +164,10 @@ namespace oblo::ecs
 
         for (auto&& chunk : reg.range<instance_counted>())
         {
-            std::span chunkEntities = chunk.get<const entity>();
+            std::span chunkEntities = chunk.get<entity>();
             entities.insert(entities.end(), chunkEntities.begin(), chunkEntities.end());
 
-            for (auto&& [e, ic] : chunk.zip<const entity, instance_counted>())
+            for (auto&& [e, ic] : chunk.zip<entity, const instance_counted>())
             {
                 ASSERT_EQ(e.value, u32(ic.value));
             }

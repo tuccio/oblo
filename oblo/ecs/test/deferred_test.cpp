@@ -101,7 +101,7 @@ namespace oblo::ecs
             auto e4Range = reg.range<string>().with<tag_c>();
             ASSERT_EQ(e4Range.count(), 1);
 
-            const std::span entities = (*e4Range.begin()).get<const entity>();
+            const std::span entities = (*e4Range.begin()).get<entity>();
             ASSERT_EQ(entities.size(), 1);
 
             const entity e4 = entities[0];

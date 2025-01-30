@@ -46,14 +46,39 @@ namespace oblo::ecs
         entity_registry* m_registry;
     };
 
+    namespace detail
+    {
+        template <typename T>
+        struct pointer_wrapper
+        {
+            T* pointer;
+        };
+    }
+
     template <typename... Components>
-    class entity_registry::typed_range<Components...>::chunk
+    class entity_registry::typed_range<Components...>::chunk :
+        detail::pointer_wrapper<const entity>,
+        detail::pointer_wrapper<Components>...
     {
     public:
         template <typename T>
-        auto get() const
+        OBLO_FORCEINLINE auto get() const
         {
-            return std::span<T>{std::get<T*>(m_pointers), m_numEntities};
+            using wrapper = const detail::pointer_wrapper<T>;
+            using mutable_wrapper = const detail::pointer_wrapper<std::remove_const_t<T>>;
+
+            if constexpr (std::is_base_of_v<wrapper, chunk>)
+            {
+                return std::span<T>{(static_cast<wrapper*>(this))->pointer, m_numEntities};
+            }
+            else if constexpr (std::is_base_of_v<mutable_wrapper, chunk>)
+            {
+                return std::span<T>{(static_cast<mutable_wrapper*>(this))->pointer, m_numEntities};
+            }
+            else if constexpr (std::is_same_v<T, entity>)
+            {
+                return get<const entity>();
+            }
         }
 
         template <typename... T>
@@ -66,7 +91,6 @@ namespace oblo::ecs
         friend class entity_registry::typed_range<Components...>::iterator;
 
     private:
-        std::tuple<const entity*, Components*...> m_pointers;
         u32 m_numEntities;
     };
 
@@ -88,13 +112,17 @@ namespace oblo::ecs
 
         reference operator*() const
         {
-            constexpr auto makeTuple = []<std::size_t... I>(const entity* entities,
-                                           std::byte** componentsData,
-                                           const u8* mapping,
-                                           std::index_sequence<I...>)
+            constexpr auto setPointers = []<std::size_t... I>(chunk& c,
+                                             const entity* entities,
+                                             std::byte** componentsData,
+                                             const u8* mapping,
+                                             std::index_sequence<I...>)
             {
-                return std::tuple<const entity*, Components*...>{entities,
-                    reinterpret_cast<Components*>(componentsData[mapping[I]])...};
+                static_cast<detail::pointer_wrapper<const entity>&>(c).pointer = entities;
+
+                ((static_cast<detail::pointer_wrapper<Components>&>(c).pointer =
+                         reinterpret_cast<Components*>(componentsData[mapping[I]])),
+                    ...);
             };
 
             byte* componentsData[sizeof...(Components)];
@@ -105,7 +133,9 @@ namespace oblo::ecs
             chunk c;
 
             c.m_numEntities = numEntities;
-            c.m_pointers = makeTuple(entities,
+
+            setPointers(c,
+                entities,
                 componentsData,
                 m_range->m_mapping,
                 std::make_index_sequence<sizeof...(Components)>());
