@@ -554,16 +554,18 @@ namespace oblo::ecs
         else
         {
             // The entity is the last, all we need to do is popping it
+            OBLO_ASSERT(lastEntityChunkIndex == chunkIndex);
+
             chunk* const removedEntityChunk = archetype.chunks[chunkIndex];
-            chunk* const lastEntityChunk = archetype.chunks[lastEntityChunkIndex];
 
             for (u8 componentIndex = 0; componentIndex < archetype.numComponents; ++componentIndex)
             {
-                auto* src = get_component_pointer(lastEntityChunk->data, archetype, componentIndex, chunkOffset);
+                auto* src = get_component_pointer(removedEntityChunk->data, archetype, componentIndex, chunkOffset);
                 archetype.fnTables[componentIndex].do_destroy(src, 1);
             }
 
             --removedEntityChunk->header.numEntities;
+            removedEntityChunk->header.modificationId = m_modificationId;
         }
 
         // TODO: Could free pages if not used
