@@ -14,5 +14,7 @@ namespace oblo
         {
             return !id.is_nil();
         }
+
+        bool operator==(const resource_ref&) const = default;
     };
 }
