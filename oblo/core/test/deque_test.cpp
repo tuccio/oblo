@@ -431,4 +431,23 @@ namespace oblo
             ASSERT_EQ(queue[i], i + 1);
         }
     }
+
+    TEST(deque, deque_append_many)
+    {
+        deque<u32> queue{get_global_allocator(), {.elementsPerChunk = 32}};
+
+        const u32 n = 1u << 10;
+
+        for (u32 i = 0; i < n; ++i)
+        {
+            queue.append(&i, &i + 1);
+        }
+
+        ASSERT_EQ(queue.size(), n);
+
+        for (u32 i = 0; i < n; ++i)
+        {
+            ASSERT_EQ(queue[i], i);
+        }
+    }
 }

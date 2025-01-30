@@ -474,8 +474,7 @@ namespace oblo
             reserve(newSize);
 
             const usize lastOldElement = m_start + m_size;
-            const usize firstNewElement = lastOldElement + 1;
-            const usize firstChunk = firstNewElement / m_elementsPerChunk;
+            const usize firstChunk = lastOldElement / m_elementsPerChunk;
 
             // Deal with the first chunk, where we might need to apply an offset
             {
