@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/ecs/archetype_storage.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/type_set.hpp>
@@ -16,6 +17,7 @@ namespace oblo::ecs
 
     public:
         class iterator;
+        class chunk;
 
     public:
         typed_range& with(const component_and_tag_sets& sets);
@@ -45,11 +47,35 @@ namespace oblo::ecs
     };
 
     template <typename... Components>
+    class entity_registry::typed_range<Components...>::chunk
+    {
+    public:
+        template <typename T>
+        auto get() const
+        {
+            return std::span<T>{std::get<T*>(m_pointers), m_numEntities};
+        }
+
+        template <typename... T>
+        auto zip() const
+        {
+            return zip_range(get<T>()...);
+        }
+
+    private:
+        friend class entity_registry::typed_range<Components...>::iterator;
+
+    private:
+        std::tuple<const entity*, Components*...> m_pointers;
+        u32 m_numEntities;
+    };
+
+    template <typename... Components>
     class entity_registry::typed_range<Components...>::iterator
     {
     public:
         using iterator_category = std::forward_iterator_tag;
-        using value_type = std::tuple<std::span<const entity>, std::span<Components>...>;
+        using value_type = chunk;
         using reference = value_type;
         using pointer = value_type*;
         using difference_type = std::ptrdiff_t;
@@ -62,26 +88,29 @@ namespace oblo::ecs
 
         reference operator*() const
         {
-            const entity* entities;
-            std::byte* componentsData[sizeof...(Components)];
-
-            const u32 numEntities = fetch_chunk_data(*m_it, m_chunkIndex, m_offsets, &entities, componentsData);
-
-            constexpr auto makeTuple = []<std::size_t... I>(u32 numEntities,
-                                           const entity* entities,
+            constexpr auto makeTuple = []<std::size_t... I>(const entity* entities,
                                            std::byte** componentsData,
                                            const u8* mapping,
                                            std::index_sequence<I...>)
             {
-                return value_type{std::span{entities, numEntities},
-                    std::span<Components>{reinterpret_cast<Components*>(componentsData[mapping[I]]), numEntities}...};
+                return std::tuple<const entity*, Components*...>{entities,
+                    reinterpret_cast<Components*>(componentsData[mapping[I]])...};
             };
 
-            return makeTuple(numEntities,
-                entities,
+            byte* componentsData[sizeof...(Components)];
+            const ecs::entity* entities;
+
+            const u32 numEntities = fetch_chunk_data(*m_it, m_chunkIndex, m_offsets, &entities, componentsData);
+
+            chunk c;
+
+            c.m_numEntities = numEntities;
+            c.m_pointers = makeTuple(entities,
                 componentsData,
                 m_range->m_mapping,
                 std::make_index_sequence<sizeof...(Components)>());
+
+            return c;
         }
 
         iterator& operator++()

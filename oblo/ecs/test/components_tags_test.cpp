@@ -112,10 +112,10 @@ namespace oblo::ecs
             std::array<bool, 255> entitiesSet = {};
             u32 count{};
 
-            for (auto&& [entitiesRange, nameRange, spriteRange] :
-                reg.range<mock_name_component, mock_sprite_component>())
+            for (auto&& chunk : reg.range<mock_name_component, mock_sprite_component>())
             {
-                for (auto&& [e, name, sprite] : zip_range(entitiesRange, nameRange, spriteRange))
+                for (auto&& [e, name, sprite] :
+                    chunk.zip<const ecs::entity, mock_name_component, mock_sprite_component>())
                 {
                     ASSERT_EQ(e, nameToEntityMap[name.name]);
                     ASSERT_EQ(~u32(name.name), sprite.resourceId);
