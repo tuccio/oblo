@@ -124,7 +124,12 @@ namespace oblo::vk
         OBLO_ASSERT(res.value != 0);
 
         // Initialize to dummy texture to make it easier to debug
-        set_texture(res, m_textures[0], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        resident_texture texture = m_textures[0];
+
+        // We give out a non-owning reference, to make sure it's not double-deleted
+        texture.image.allocation = nullptr;
+
+        set_texture(res, texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         return res;
     }
