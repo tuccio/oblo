@@ -6,6 +6,7 @@
 #include <oblo/core/unreachable.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/vulkan/buffer.hpp>
+#include <oblo/vulkan/draw/bindable_object.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/descriptor_set_pool.hpp>
 #include <oblo/vulkan/draw/shader_stage_utils.hpp>
@@ -862,45 +863,9 @@ namespace oblo::vk
         return m_renderer.get_draw_registry();
     }
 
-    string_interner& frame_graph_execute_context::get_string_interner() const
-    {
-        return m_renderer.get_string_interner();
-    }
-
     const loaded_functions& frame_graph_execute_context::get_loaded_functions() const
     {
         return m_renderer.get_vulkan_context().get_loaded_functions();
-    }
-
-    void frame_graph_execute_context::bind_buffers(binding_table& table,
-        std::initializer_list<buffer_binding_desc> bindings) const
-    {
-        auto& interner = get_string_interner();
-
-        for (const auto& b : bindings)
-        {
-            table.emplace(interner.get_or_add(b.name), make_bindable_object(access(b.resource)));
-        }
-    }
-
-    void frame_graph_execute_context::bind_textures(binding_table& table,
-        std::initializer_list<texture_binding_desc> bindings) const
-    {
-        auto& interner = get_string_interner();
-
-        for (const auto& b : bindings)
-        {
-            const auto& texture = access(b.resource);
-
-            // The frame graph converts the pin storage handle to texture handle to use when keeping track of textures
-            const auto storage = h32<frame_graph_pin_storage>{b.resource.value};
-
-            const auto layout = m_state.imageLayoutTracker.try_get_layout(storage);
-            layout.assert_value();
-
-            table.emplace(interner.get_or_add(b.name),
-                make_bindable_object(texture.view, layout.value_or(VK_IMAGE_LAYOUT_UNDEFINED)));
-        }
     }
 
     const gpu_info& frame_graph_execute_context::get_gpu_info() const
@@ -949,11 +914,6 @@ namespace oblo::vk
     frame_graph_init_context::frame_graph_init_context(frame_graph_impl& frameGraph, renderer& renderer) :
         m_frameGraph{frameGraph}, m_renderer{renderer}
     {
-    }
-
-    string_interner& frame_graph_init_context::get_string_interner() const
-    {
-        return m_renderer.get_string_interner();
     }
 
     h32<compute_pass> frame_graph_init_context::register_compute_pass(const compute_pass_initializer& initializer) const

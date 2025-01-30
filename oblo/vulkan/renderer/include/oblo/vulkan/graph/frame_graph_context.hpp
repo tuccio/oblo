@@ -19,8 +19,6 @@ namespace oblo
 {
     class frame_allocator;
     class random_generator;
-    class string_interner;
-    class string;
     class texture;
 
     template <typename>
@@ -64,7 +62,6 @@ namespace oblo::vk
     struct render_pipeline_initializer;
     struct raytracing_pipeline_initializer;
 
-    using binding_table = flat_dense_map<h32<string>, bindable_object>;
     class binding_table2;
 
     enum class pass_kind : u8
@@ -122,8 +119,6 @@ namespace oblo::vk
     {
     public:
         explicit frame_graph_init_context(frame_graph_impl& frameGraph, renderer& renderer);
-
-        string_interner& get_string_interner() const;
 
         h32<compute_pass> register_compute_pass(const compute_pass_initializer& initializer) const;
         h32<render_pass> register_render_pass(const render_pass_initializer& initializer) const;
@@ -316,12 +311,7 @@ namespace oblo::vk
 
         draw_registry& get_draw_registry() const;
 
-        string_interner& get_string_interner() const;
-
         const loaded_functions& get_loaded_functions() const;
-
-        void bind_buffers(binding_table& table, std::initializer_list<buffer_binding_desc> bindings) const;
-        void bind_textures(binding_table& table, std::initializer_list<texture_binding_desc> bindings) const;
 
         template <typename T>
         bool has_event() const

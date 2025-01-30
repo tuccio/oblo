@@ -1,22 +1,14 @@
 #pragma once
 
 #include <oblo/core/deque.hpp>
-#include <oblo/core/flat_dense_map.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/pair.hpp>
 #include <oblo/core/string/hashed_string_view.hpp>
-#include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
-#include <oblo/vulkan/texture.hpp>
 
 #include <initializer_list>
 #include <span>
-
-namespace oblo
-{
-    class string;
-}
 
 namespace oblo::vk
 {
@@ -27,53 +19,6 @@ namespace oblo::vk
         texture,
         acceleration_structure,
     };
-
-    struct bindable_buffer
-    {
-        VkBuffer buffer;
-        VkDeviceSize offset;
-        VkDeviceSize size;
-    };
-
-    struct bindable_texture
-    {
-        VkImageView view;
-        VkImageLayout layout;
-    };
-
-    struct bindable_acceleration_structure
-    {
-        VkAccelerationStructureKHR handle;
-    };
-
-    struct bindable_object
-    {
-        bindable_resource_kind kind;
-
-        union {
-            bindable_buffer buffer;
-            bindable_texture texture;
-            bindable_acceleration_structure accelerationStructure;
-        };
-    };
-
-    constexpr bindable_object make_bindable_object(const vk::buffer& b)
-    {
-        return {.kind = bindable_resource_kind::buffer, .buffer = {b.buffer, b.offset, b.size}};
-    }
-
-    constexpr bindable_object make_bindable_object(VkImageView view, VkImageLayout layout)
-    {
-        return {.kind = bindable_resource_kind::texture, .texture = {view, layout}};
-    }
-
-    constexpr bindable_object make_bindable_object(VkAccelerationStructureKHR accelerationStructure)
-    {
-        return {.kind = bindable_resource_kind::acceleration_structure,
-            .accelerationStructure = {accelerationStructure}};
-    }
-
-    using binding_table = flat_dense_map<h32<string>, bindable_object>;
 
     struct bindable_resource
     {

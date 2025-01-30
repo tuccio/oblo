@@ -22,6 +22,7 @@
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/compiler/compiler_module.hpp>
 #include <oblo/vulkan/compiler/shader_cache.hpp>
+#include <oblo/vulkan/draw/bindable_object.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/compute_pass_initializer.hpp>
 #include <oblo/vulkan/draw/descriptor_set_pool.hpp>
