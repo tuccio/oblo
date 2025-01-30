@@ -552,11 +552,6 @@ namespace oblo::vk
     {
     }
 
-    h32<frame_graph_pass> frame_graph_build_context::begin_pass(pass_kind kind) const
-    {
-        return m_frameGraph.begin_pass_build(m_state, kind);
-    }
-
     h32<compute_pass_instance> frame_graph_build_context::compute_pass(h32<vk::compute_pass> pass,
         const compute_pipeline_initializer& initializer) const
     {
@@ -585,6 +580,23 @@ namespace oblo::vk
         m_frameGraph.passes[h.value].raytracingPipeline = pm.get_or_create_pipeline(pass, initializer);
 
         return h32<raytracing_pass_instance>{h.value};
+    }
+
+    h32<transfer_pass_instance> frame_graph_build_context::transfer_pass() const
+    {
+        const auto h = m_frameGraph.begin_pass_build(m_state, pass_kind::transfer);
+        return h32<transfer_pass_instance>{h.value};
+    }
+
+    h32<empty_pass_instance> frame_graph_build_context::empty_pass() const
+    {
+        const auto h = m_frameGraph.begin_pass_build(m_state, pass_kind::none);
+        return h32<empty_pass_instance>{h.value};
+    }
+
+    const gpu_info& frame_graph_build_context::get_gpu_info() const
+    {
+        return m_frameGraph.gpuInfo;
     }
 
     void* frame_graph_build_context::access_storage(h32<frame_graph_pin_storage> handle) const
@@ -618,7 +630,7 @@ namespace oblo::vk
         const auto passHandle = h32<frame_graph_pass>{handle.value};
         m_frameGraph.begin_pass_execution(passHandle, m_commandBuffer, m_state);
 
-        auto& pm = get_pass_manager();
+        auto& pm = m_renderer.get_pass_manager();
 
         const auto pipeline = m_frameGraph.passes[handle.value].computePipeline;
         const auto computeCtx = pm.begin_compute_pass(m_commandBuffer, pipeline);
@@ -646,7 +658,7 @@ namespace oblo::vk
         const auto passHandle = h32<frame_graph_pass>{handle.value};
         m_frameGraph.begin_pass_execution(passHandle, m_commandBuffer, m_state);
 
-        auto& pm = get_pass_manager();
+        auto& pm = m_renderer.get_pass_manager();
 
         const auto pipeline = m_frameGraph.passes[handle.value].renderPipeline;
         const auto renderCtx = pm.begin_render_pass(m_commandBuffer, pipeline, renderingInfo);
@@ -673,7 +685,7 @@ namespace oblo::vk
         const auto passHandle = h32<frame_graph_pass>{handle.value};
         m_frameGraph.begin_pass_execution(passHandle, m_commandBuffer, m_state);
 
-        auto& pm = get_pass_manager();
+        auto& pm = m_renderer.get_pass_manager();
 
         const auto pipeline = m_frameGraph.passes[handle.value].raytracingPipeline;
         const auto rtCtx = pm.begin_raytracing_pass(m_commandBuffer, pipeline);
@@ -692,9 +704,22 @@ namespace oblo::vk
         return no_error;
     }
 
+    expected<> frame_graph_execute_context::begin_pass(h32<transfer_pass_instance> handle) const
+    {
+        OBLO_ASSERT(handle);
+        OBLO_ASSERT(m_frameGraph.passes[handle.value].kind == pass_kind::transfer);
+
+        const auto passHandle = h32<frame_graph_pass>{handle.value};
+        m_frameGraph.begin_pass_execution(passHandle, m_commandBuffer, m_state);
+
+        m_state.passKind = pass_kind::transfer;
+
+        return no_error;
+    }
+
     void frame_graph_execute_context::end_pass() const
     {
-        auto& pm = get_pass_manager();
+        auto& pm = m_renderer.get_pass_manager();
 
         switch (m_state.passKind)
         {
@@ -708,6 +733,12 @@ namespace oblo::vk
 
         case pass_kind::raytracing:
             pm.end_raytracing_pass(m_state.rtCtx);
+            break;
+
+        case pass_kind::transfer:
+            break;
+
+        case pass_kind::none:
             break;
 
         default:
@@ -826,11 +857,6 @@ namespace oblo::vk
         return m_renderer.get_vulkan_context().get_device();
     }
 
-    pass_manager& frame_graph_execute_context::get_pass_manager() const
-    {
-        return m_renderer.get_pass_manager();
-    }
-
     draw_registry& frame_graph_execute_context::get_draw_registry() const
     {
         return m_renderer.get_draw_registry();
@@ -885,7 +911,7 @@ namespace oblo::vk
     void frame_graph_execute_context::push_constants(
         flags<shader_stage> stages, u32 offset, std::span<const byte> bytes) const
     {
-        auto& pm = get_pass_manager();
+        auto& pm = m_renderer.get_pass_manager();
 
         VkShaderStageFlags vkShaderFlags{};
 
@@ -906,7 +932,8 @@ namespace oblo::vk
     void frame_graph_execute_context::trace_rays(u32 x, u32 y, u32 z) const
     {
         OBLO_ASSERT(m_state.passKind == pass_kind::raytracing);
-        get_pass_manager().trace_rays(m_state.rtCtx, x, y, z);
+        auto& pm = m_renderer.get_pass_manager();
+        pm.trace_rays(m_state.rtCtx, x, y, z);
     }
 
     void* frame_graph_execute_context::access_storage(h32<frame_graph_pin_storage> handle) const
@@ -922,11 +949,6 @@ namespace oblo::vk
     frame_graph_init_context::frame_graph_init_context(frame_graph_impl& frameGraph, renderer& renderer) :
         m_frameGraph{frameGraph}, m_renderer{renderer}
     {
-    }
-
-    pass_manager& frame_graph_init_context::get_pass_manager() const
-    {
-        return m_renderer.get_pass_manager();
     }
 
     string_interner& frame_graph_init_context::get_string_interner() const
@@ -948,5 +970,10 @@ namespace oblo::vk
         const raytracing_pass_initializer& initializer) const
     {
         return m_renderer.get_pass_manager().register_raytracing_pass(initializer);
+    }
+
+    const gpu_info& frame_graph_init_context::get_gpu_info() const
+    {
+        return m_frameGraph.gpuInfo;
     }
 }

@@ -17,7 +17,7 @@ namespace oblo::vk
 
     void skybox_provider::build(const frame_graph_build_context& ctx)
     {
-        ctx.begin_pass(pass_kind::none);
+        ctx.empty_pass();
 
         const auto& texturePtr = ctx.access(inSkyboxResource);
         const auto& settings = ctx.access(inSkyboxSettings);

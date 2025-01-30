@@ -681,14 +681,12 @@ namespace oblo::vk
 
     void surfel_accumulate_raycount::init(const frame_graph_init_context& ctx)
     {
-        auto& passManager = ctx.get_pass_manager();
-
-        reducePass = passManager.register_compute_pass({
+        reducePass = ctx.register_compute_pass({
             .name = "Surfel Accumulate Ray Count",
             .shaderSourcePath = "./vulkan/shaders/surfels/surfel_raycount.comp",
         });
 
-        const u32 subgroupSize = ctx.get_pass_manager().get_subgroup_size();
+        const u32 subgroupSize = ctx.get_gpu_info().subgroupSize;
         reductionGroupSize = subgroupSize * subgroupSize;
     }
 
@@ -701,6 +699,7 @@ namespace oblo::vk
 
     void surfel_accumulate_raycount::build(const frame_graph_build_context& ctx)
     {
+
         const u32 maxSurfels = ctx.access(inMaxSurfels);
 
         const u32 reductionPassesCount = max(1u,

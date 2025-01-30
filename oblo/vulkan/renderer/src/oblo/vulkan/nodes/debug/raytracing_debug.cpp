@@ -16,9 +16,7 @@ namespace oblo::vk
 {
     void raytracing_debug::init(const frame_graph_init_context& ctx)
     {
-        auto& passManager = ctx.get_pass_manager();
-
-        rtDebugPass = passManager.register_raytracing_pass({
+        rtDebugPass = ctx.register_raytracing_pass({
             .name = "Ray-Tracing Debug Pass",
             .generation = "./vulkan/shaders/raytracing_debug/rtdebug.rgen",
             .miss =
@@ -38,7 +36,7 @@ namespace oblo::vk
 
     void raytracing_debug::build(const frame_graph_build_context& ctx)
     {
-        ctx.begin_pass(pass_kind::raytracing);
+        rtDebugPassInstance = ctx.raytracing_pass(rtDebugPass, {});
 
         const auto resolution = ctx.access(inResolution);
 
@@ -65,45 +63,32 @@ namespace oblo::vk
 
     void raytracing_debug::execute(const frame_graph_execute_context& ctx)
     {
-        auto& pm = ctx.get_pass_manager();
+        binding_table2 bindingTable;
 
-        binding_table bindingTable;
+        bindingTable.bind_buffers({
+            {"b_InstanceTables"_hsv, inInstanceTables},
+            {"b_MeshTables"_hsv, inMeshDatabase},
+            {"b_CameraBuffer"_hsv, inCameraBuffer},
+            {"b_LightConfig"_hsv, inLightConfig},
+            {"b_LightData"_hsv, inLightBuffer},
+            {"b_SkyboxSettings"_hsv, inSkyboxSettingsBuffer},
+        });
 
-        ctx.bind_buffers(bindingTable,
-            {
-                {"b_InstanceTables", inInstanceTables},
-                {"b_MeshTables", inMeshDatabase},
-                {"b_CameraBuffer", inCameraBuffer},
-                {"b_LightConfig", inLightConfig},
-                {"b_LightData", inLightBuffer},
-                {"b_SkyboxSettings", inSkyboxSettingsBuffer},
-            });
+        bindingTable.bind_textures({
+            {"t_OutShadedImage"_hsv, outShadedImage},
+        });
 
-        ctx.bind_textures(bindingTable,
-            {
-                {"t_OutShadedImage", outShadedImage},
-            });
+        bindingTable.bind("u_SceneTLAS"_hsv, ctx.get_global_tlas());
 
-        bindingTable.emplace(ctx.get_string_interner().get_or_add("u_SceneTLAS"),
-            make_bindable_object(ctx.get_draw_registry().get_tlas()));
-
-        const auto commandBuffer = ctx.get_command_buffer();
-
-        const auto pipeline = pm.get_or_create_pipeline(rtDebugPass, {.maxPipelineRayRecursionDepth = 2});
-
-        if (const auto pass = pm.begin_raytracing_pass(commandBuffer, pipeline))
+        if (const auto pass = ctx.begin_pass(rtDebugPassInstance))
         {
             const auto resolution = ctx.access(inResolution);
 
-            const binding_table* bindingTables[] = {
-                &bindingTable,
-            };
+            ctx.bind_descriptor_sets(bindingTable);
 
-            pm.bind_descriptor_sets(*pass, bindingTables);
+            ctx.trace_rays(resolution.x, resolution.y, 1);
 
-            pm.trace_rays(*pass, resolution.x, resolution.y, 1);
-
-            pm.end_raytracing_pass(*pass);
+            ctx.end_pass();
         }
     }
 }

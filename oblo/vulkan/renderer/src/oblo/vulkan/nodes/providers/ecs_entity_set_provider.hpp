@@ -8,6 +8,7 @@ namespace oblo::vk
     struct ecs_entity_set_provider
     {
         resource<buffer> outEntitySet;
+        h32<transfer_pass_instance> uploadPass;
 
         std::span<const staging_buffer_span> stagedData;
 

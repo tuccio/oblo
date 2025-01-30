@@ -12,17 +12,23 @@ namespace oblo::vk
     struct copy_texture_node
     {
         data<copy_texture_info> inTarget;
+        h32<transfer_pass_instance> copyPassInstance;
 
         resource<texture> inSource;
 
         void build(const frame_graph_build_context& ctx)
         {
-            ctx.begin_pass(pass_kind::transfer);
+            copyPassInstance = ctx.transfer_pass();
             ctx.acquire(inSource, texture_usage::transfer_source);
         }
 
         void execute(const frame_graph_execute_context& ctx)
         {
+            if (!ctx.begin_pass(copyPassInstance))
+            {
+                return;
+            }
+
             const auto targetInfo = ctx.access(inTarget);
 
             const texture sourceTex = ctx.access(inSource);
@@ -72,6 +78,8 @@ namespace oblo::vk
                     sourceTex.initializer.arrayLayers,
                     sourceTex.initializer.mipLevels);
             }
+
+            ctx.end_pass();
         }
     };
 }

@@ -13,12 +13,8 @@ namespace oblo::vk
 {
     template <typename T>
     concept separable_blur_config = requires(T cfg, dynamic_array<f32>& a) {
-        {
-            make_separable_blur_kernel(cfg, a)
-        };
-        {
-            string_view{T::get_shader_name()}
-        };
+        { make_separable_blur_kernel(cfg, a) };
+        { string_view{T::get_shader_name()} };
     };
 
     enum class separable_blur_pass
@@ -30,6 +26,8 @@ namespace oblo::vk
     template <separable_blur_config Config, separable_blur_pass Pass>
     struct separable_blur
     {
+        static constexpr u32 groupSize = 64;
+
         resource<texture> inSource;
 
         resource<texture> outBlurred;
@@ -37,6 +35,7 @@ namespace oblo::vk
         data<Config> inConfig;
 
         h32<compute_pass> blurPass;
+        h32<compute_pass_instance> blurPassInstance;
 
         std::span<const f32> kernel;
 

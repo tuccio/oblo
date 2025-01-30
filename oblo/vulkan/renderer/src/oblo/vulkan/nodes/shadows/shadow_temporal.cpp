@@ -11,9 +11,7 @@ namespace oblo::vk
 {
     void shadow_temporal::init(const frame_graph_init_context& ctx)
     {
-        auto& pm = ctx.get_pass_manager();
-
-        temporalPass = pm.register_compute_pass({
+        temporalPass = ctx.register_compute_pass({
             .name = "Shadow Temporal Pass",
             .shaderSourcePath = "./vulkan/shaders/shadows/shadow_temporal.comp",
         });
@@ -21,7 +19,7 @@ namespace oblo::vk
 
     void shadow_temporal::build(const frame_graph_build_context& ctx)
     {
-        ctx.begin_pass(pass_kind::compute);
+        temporalPassInstance = ctx.compute_pass(temporalPass, {});
 
         ctx.acquire(inShadow, texture_usage::storage_read);
         ctx.acquire(inMoments, texture_usage::storage_read);
@@ -67,45 +65,33 @@ namespace oblo::vk
 
     void shadow_temporal::execute(const frame_graph_execute_context& ctx)
     {
-        auto& pm = ctx.get_pass_manager();
-
-        const auto commandBuffer = ctx.get_command_buffer();
-
-        const auto pipeline = pm.get_or_create_pipeline(temporalPass, {});
-
-        if (const auto pass = pm.begin_compute_pass(commandBuffer, pipeline))
+        if (const auto pass = ctx.begin_pass(temporalPassInstance))
         {
             const auto& sourceTexture = ctx.access(inShadow);
             const vec2u resolution{sourceTexture.initializer.extent.width, sourceTexture.initializer.extent.height};
 
-            binding_table bindingTable;
+            binding_table2 bindingTable;
 
-            ctx.bind_buffers(bindingTable,
-                {
-                    {"b_InstanceTables", inInstanceTables},
-                    {"b_MeshTables", inMeshDatabase},
-                    {"b_CameraBuffer", inCameraBuffer},
-                });
+            bindingTable.bind_buffers({
+                {"b_InstanceTables", inInstanceTables},
+                {"b_MeshTables", inMeshDatabase},
+                {"b_CameraBuffer", inCameraBuffer},
+            });
 
-            ctx.bind_textures(bindingTable,
-                {
-                    {"t_InShadow", inShadow},
-                    {"t_InMoments", inMoments},
-                    {"t_InHistory", inHistory},
-                    {"t_OutFiltered", outFiltered},
-                    {"t_InOutHistorySamplesCount", inOutHistorySamplesCount},
-                    {"t_InVisibilityBuffer", inVisibilityBuffer},
-                });
+            bindingTable.bind_textures({
+                {"t_InShadow", inShadow},
+                {"t_InMoments", inMoments},
+                {"t_InHistory", inHistory},
+                {"t_OutFiltered", outFiltered},
+                {"t_InOutHistorySamplesCount", inOutHistorySamplesCount},
+                {"t_InVisibilityBuffer", inVisibilityBuffer},
+            });
 
-            const binding_table* bindingTables[] = {
-                &bindingTable,
-            };
+            ctx.bind_descriptor_sets(bindingTable);
 
-            pm.bind_descriptor_sets(*pass, bindingTables);
+            ctx.dispatch_compute(round_up_div(resolution.x, 8u), round_up_div(resolution.x, 8u), 1);
 
-            vkCmdDispatch(ctx.get_command_buffer(), round_up_div(resolution.x, 8u), round_up_div(resolution.x, 8u), 1);
-
-            pm.end_compute_pass(*pass);
+            ctx.end_pass();
         }
     }
 }

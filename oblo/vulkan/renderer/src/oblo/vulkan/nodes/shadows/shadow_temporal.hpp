@@ -26,6 +26,7 @@ namespace oblo::vk
         resource<texture> outFiltered;
 
         h32<compute_pass> temporalPass;
+        h32<compute_pass_instance> temporalPassInstance;
 
         void init(const frame_graph_init_context& ctx);
 

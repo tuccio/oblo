@@ -25,10 +25,12 @@ namespace oblo::vk
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
         resource<texture> inVisibilityBuffer;
+        resource<buffer> outPickingId;
 
         data<bool> outDummyOut;
 
         h32<compute_pass> pickingPass;
+        h32<compute_pass_instance> pickingPassInstance;
 
         void init(const frame_graph_init_context& context);
 

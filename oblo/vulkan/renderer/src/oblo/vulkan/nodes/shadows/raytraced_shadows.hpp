@@ -20,6 +20,7 @@ namespace oblo::vk
         resource<texture> outShadow;
 
         h32<raytracing_pass> shadowPass;
+        h32<raytracing_pass_instance> shadowPassInstance;
 
         u32 randomSeed;
 

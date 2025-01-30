@@ -18,6 +18,8 @@ namespace oblo::vk
     struct compute_pass_instance;
     struct raytracing_pass_instance;
     struct render_pass_instance;
+    struct transfer_pass_instance;
+    struct empty_pass_instance;
 
     struct acceleration_structure;
     struct buffer;

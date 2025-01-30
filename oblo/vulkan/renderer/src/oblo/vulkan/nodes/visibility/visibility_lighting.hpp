@@ -56,6 +56,7 @@ namespace oblo::vk
         resource<buffer> outShadowMaps;
 
         h32<compute_pass> lightingPass;
+        h32<compute_pass_instance> lightingPassInstance;
 
         void init(const frame_graph_init_context& ctx);
 
@@ -81,7 +82,8 @@ namespace oblo::vk
         resource<texture> inVisibilityBuffer;
         resource<texture> outShadedImage;
 
-        h32<compute_pass> albedoPass;
+        h32<compute_pass> debugPass;
+        h32<compute_pass_instance> debugPassInstance;
 
         void init(const frame_graph_init_context& ctx);
 

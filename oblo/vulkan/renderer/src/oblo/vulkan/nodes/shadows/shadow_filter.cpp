@@ -11,9 +11,7 @@ namespace oblo::vk
 {
     void shadow_filter::init(const frame_graph_init_context& ctx)
     {
-        auto& pm = ctx.get_pass_manager();
-
-        filterPass = pm.register_compute_pass({
+        filterPass = ctx.register_compute_pass({
             .name = string_builder{}.format("Shadow filter #{}", passIndex).view(),
             .shaderSourcePath = "./vulkan/shaders/shadows/shadow_filter.comp",
         });
@@ -21,7 +19,13 @@ namespace oblo::vk
 
     void shadow_filter::build(const frame_graph_build_context& ctx)
     {
-        ctx.begin_pass(pass_kind::compute);
+        filterPassInstance = ctx.compute_pass(filterPass,
+            {
+                .defines = {{
+                    {string_builder{}.format("SHADOW_FILTER_PASS_INDEX {}", passIndex).as<hashed_string_view>()},
+                }},
+            });
+
         ctx.acquire(inSource, texture_usage::storage_read);
         // ctx.acquire(inMoments, texture_usage::storage_read);
 
@@ -92,40 +96,27 @@ namespace oblo::vk
 
     void shadow_filter::execute(const frame_graph_execute_context& ctx)
     {
-        auto& pm = ctx.get_pass_manager();
-
-        const auto commandBuffer = ctx.get_command_buffer();
-
-        const auto pipeline = pm.get_or_create_pipeline(filterPass,
-            {
-                .defines = {{
-                    {string_builder{}.format("SHADOW_FILTER_PASS_INDEX {}", passIndex).as<hashed_string_view>()},
-                }},
-            });
-
-        if (const auto pass = pm.begin_compute_pass(commandBuffer, pipeline))
+        if (const auto pass = ctx.begin_pass(filterPassInstance))
         {
             const auto& sourceTexture = ctx.access(inSource);
             const vec2u resolution{sourceTexture.initializer.extent.width, sourceTexture.initializer.extent.height};
 
-            binding_table bindingTable;
+            binding_table2 bindingTable;
 
-            ctx.bind_buffers(bindingTable,
-                {
-                    //{"b_InstanceTables", inInstanceTables},
-                    //{"b_MeshTables", inMeshDatabase},
-                    {"b_CameraBuffer", inCameraBuffer},
-                });
+            bindingTable.bind_buffers({
+                //{"b_InstanceTables", inInstanceTables},
+                //{"b_MeshTables", inMeshDatabase},
+                {"b_CameraBuffer", inCameraBuffer},
+            });
 
-            ctx.bind_textures(bindingTable,
-                {
-                    {"t_InSource", inSource},
-                    //{"t_InMoments", inMoments},
-                    //{"t_InVisibilityBuffer", inVisibilityBuffer},
-                    {"t_OutFiltered", outFiltered},
-                    //{"t_TransientHistory", transientHistory},
-                    //{"t_HistorySamples", historySamples},
-                });
+            bindingTable.bind_textures({
+                {"t_InSource", inSource},
+                //{"t_InMoments", inMoments},
+                //{"t_InVisibilityBuffer", inVisibilityBuffer},
+                {"t_OutFiltered", outFiltered},
+                //{"t_TransientHistory", transientHistory},
+                //{"t_HistorySamples", historySamples},
+            });
 
             // if (passIndex == 0)
             //{
@@ -138,15 +129,11 @@ namespace oblo::vk
             //         });
             // }
 
-            const binding_table* bindingTables[] = {
-                &bindingTable,
-            };
+            ctx.bind_descriptor_sets(bindingTable);
 
-            pm.bind_descriptor_sets(*pass, bindingTables);
+            ctx.dispatch_compute(round_up_div(resolution.x, 8u), round_up_div(resolution.x, 8u), 1);
 
-            vkCmdDispatch(ctx.get_command_buffer(), round_up_div(resolution.x, 8u), round_up_div(resolution.x, 8u), 1);
-
-            pm.end_compute_pass(*pass);
+            ctx.end_pass();
         }
     }
 }

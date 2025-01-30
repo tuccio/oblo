@@ -40,6 +40,7 @@ namespace oblo::vk
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
         h32<compute_pass> debugPass;
+        h32<compute_pass_instance> debugPassInstance;
 
         dynamic_array<f32> sphereGeometryData;
 

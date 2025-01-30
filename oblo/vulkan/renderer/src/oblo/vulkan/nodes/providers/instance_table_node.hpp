@@ -25,6 +25,8 @@ namespace oblo::vk
 
         std::span<instance_data_table> instanceTableArray;
 
+        h32<transfer_pass_instance> uploadPass;
+
         void build(const frame_graph_build_context& ctx);
         void execute(const frame_graph_execute_context& ctx);
     };

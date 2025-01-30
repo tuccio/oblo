@@ -13,9 +13,7 @@ namespace oblo::vk
 {
     void entity_picking::init(const frame_graph_init_context& ctx)
     {
-        auto& passManager = ctx.get_pass_manager();
-
-        pickingPass = passManager.register_compute_pass({
+        pickingPass = ctx.register_compute_pass({
             .name = "Entity Picking Pass",
             .shaderSourcePath = "./vulkan/shaders/entity_picking/entity_picking.comp",
         });
@@ -23,52 +21,47 @@ namespace oblo::vk
 
     void entity_picking::build(const frame_graph_build_context& ctx)
     {
-        ctx.begin_pass(pass_kind::compute);
+        pickingPassInstance = ctx.compute_pass(pickingPass, {});
         ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
 
+        ctx.create(outPickingId,
+            {
+                .size = u32(sizeof(u32)),
+            },
+            buffer_usage::storage_write);
+
         acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
+
+        // TODO: Add transfer pass to download the id
     }
 
     void entity_picking::execute(const frame_graph_execute_context& ctx)
     {
-        auto& pm = ctx.get_pass_manager();
         const auto& pickingConfiguration = ctx.access(inPickingConfiguration);
 
-        binding_table bindingTable;
+        binding_table2 bindingTable;
 
-        ctx.bind_textures(bindingTable,
-            {
-                {"t_InVisibilityBuffer", inVisibilityBuffer},
-            });
+        bindingTable.bind_textures({
+            {"t_InVisibilityBuffer"_hsv, inVisibilityBuffer},
+        });
 
-        ctx.bind_buffers(bindingTable,
-            {
-                {"b_InstanceTables", inInstanceTables},
-            });
+        bindingTable.bind_buffers({
+            {"b_InstanceTables"_hsv, inInstanceTables},
+            {"b_OutPickingId"_hsv, outPickingId},
+        });
 
-        bindingTable.emplace(ctx.get_string_interner().get_or_add("b_OutPickingId"),
-            make_bindable_object(pickingConfiguration.outputBuffer));
-
-        const auto commandBuffer = ctx.get_command_buffer();
-
-        const auto lightingPipeline = pm.get_or_create_pipeline(pickingPass, {});
-
-        if (const auto pass = pm.begin_compute_pass(commandBuffer, lightingPipeline))
+        if (const auto pass = ctx.begin_pass(pickingPassInstance))
         {
             const vec2u screenPosition{u32(pickingConfiguration.coordinates.x + .5f),
                 u32(pickingConfiguration.coordinates.y + .5f)};
 
-            pm.push_constants(*pass, VK_SHADER_STAGE_COMPUTE_BIT, 0, as_bytes(std::span{&screenPosition, 1}));
+            ctx.push_constants(shader_stage::compute, 0, as_bytes(std::span{&screenPosition, 1}));
 
-            const binding_table* bindingTables[] = {
-                &bindingTable,
-            };
+            ctx.bind_descriptor_sets(bindingTable);
 
-            pm.bind_descriptor_sets(*pass, bindingTables);
+            ctx.dispatch_compute(1, 1, 1);
 
-            vkCmdDispatch(ctx.get_command_buffer(), 1, 1, 1);
-
-            pm.end_compute_pass(*pass);
+            ctx.end_pass();
         }
     }
 }

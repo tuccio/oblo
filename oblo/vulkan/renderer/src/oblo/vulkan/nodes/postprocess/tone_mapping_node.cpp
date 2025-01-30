@@ -10,9 +10,7 @@ namespace oblo::vk
 {
     void tone_mapping_node::init(const frame_graph_init_context& ctx)
     {
-        auto& pm = ctx.get_pass_manager();
-
-        toneMappingPass = pm.register_compute_pass({
+        toneMappingPass = ctx.register_compute_pass({
             .name = "Tone-Mapping Pass",
             .shaderSourcePath = "./vulkan/shaders/tone_mapping/tone_mapping.comp",
         });
@@ -20,7 +18,7 @@ namespace oblo::vk
 
     void tone_mapping_node::build(const frame_graph_build_context& ctx)
     {
-        ctx.begin_pass(pass_kind::compute);
+        toneMappingPassInstance = ctx.compute_pass(toneMappingPass, {});
 
         const auto hdrInit = ctx.get_current_initializer(inHDR).value_or(image_initializer{});
 
@@ -38,36 +36,22 @@ namespace oblo::vk
 
     void tone_mapping_node::execute(const frame_graph_execute_context& ctx)
     {
-        auto& pm = ctx.get_pass_manager();
+        binding_table2 bindingTable;
 
-        binding_table bindingTable;
+        bindingTable.bind_textures({
+            {"t_InHDR"_hsv, inHDR},
+            {"t_OutLDR"_hsv, outLDR},
+        });
 
-        ctx.bind_textures(bindingTable,
-            {
-                {"t_InHDR", inHDR},
-                {"t_OutLDR", outLDR},
-            });
-
-        const auto commandBuffer = ctx.get_command_buffer();
-
-        const auto pipeline = pm.get_or_create_pipeline(toneMappingPass, {});
-
-        if (const auto pass = pm.begin_compute_pass(commandBuffer, pipeline))
+        if (const auto pass = ctx.begin_pass(toneMappingPassInstance))
         {
             const auto& extents = ctx.access(outLDR).initializer.extent;
 
-            const binding_table* bindingTables[] = {
-                &bindingTable,
-            };
+            ctx.bind_descriptor_sets(bindingTable);
 
-            pm.bind_descriptor_sets(*pass, bindingTables);
+            ctx.dispatch_compute(round_up_div(extents.width, ctx.get_gpu_info().subgroupSize), extents.height, 1);
 
-            vkCmdDispatch(ctx.get_command_buffer(),
-                round_up_div(extents.width, pm.get_subgroup_size()),
-                extents.height,
-                1);
-
-            pm.end_compute_pass(*pass);
+            ctx.end_pass();
         }
     }
 }
