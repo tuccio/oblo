@@ -38,9 +38,6 @@ namespace oblo
 {
     namespace
     {
-        // Actually a u32, but the buffer requires alignment
-        constexpr u32 PickingResultSize{16};
-
         void apply_viewport_mode(
             vk::frame_graph& frameGraph, h32<vk::frame_graph_subgraph> subgraph, viewport_mode mode);
     }
