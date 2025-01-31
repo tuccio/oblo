@@ -240,7 +240,7 @@ namespace oblo::vk
             return;
         }
 
-        binding_table2 bindings;
+        binding_table bindings;
 
         bindings.bind_buffers({
             {"b_SurfelsStack"_hsv, outSurfelsStack},
@@ -331,7 +331,7 @@ namespace oblo::vk
     {
         if (ctx.begin_pass(tilingPassInstance))
         {
-            binding_table2 bindingTable;
+            binding_table bindingTable;
 
             const auto resolution = ctx.access(inVisibilityBuffer).initializer.extent;
 
@@ -414,8 +414,8 @@ namespace oblo::vk
 
         const auto subgroupSize = ctx.get_gpu_info().subgroupSize;
 
-        binding_table2 bindingTable;
-        binding_table2 perDispatchBindingTable;
+        binding_table bindingTable;
+        binding_table perDispatchBindingTable;
 
         bindingTable.bind_buffers({
             {"b_SurfelsSpawnData", inOutSurfelsSpawnData},
@@ -433,7 +433,7 @@ namespace oblo::vk
                 {"b_TileCoverage", tileCoverage.buffer},
             });
 
-            const binding_table2* bindingTables[] = {
+            const binding_table* bindingTables[] = {
                 &bindingTable,
                 &perDispatchBindingTable,
             };
@@ -566,7 +566,7 @@ namespace oblo::vk
 
     void surfel_update::execute(const frame_graph_execute_context& ctx)
     {
-        binding_table2 bindingTable;
+        binding_table bindingTable;
 
         bindingTable.bind_buffers({
             {"b_SurfelsGrid"_hsv, inOutSurfelsGrid},
@@ -681,14 +681,12 @@ namespace oblo::vk
 
     void surfel_accumulate_raycount::init(const frame_graph_init_context& ctx)
     {
-        auto& passManager = ctx.get_pass_manager();
-
-        reducePass = passManager.register_compute_pass({
+        reducePass = ctx.register_compute_pass({
             .name = "Surfel Accumulate Ray Count",
             .shaderSourcePath = "./vulkan/shaders/surfels/surfel_raycount.comp",
         });
 
-        const u32 subgroupSize = ctx.get_pass_manager().get_subgroup_size();
+        const u32 subgroupSize = ctx.get_gpu_info().subgroupSize;
         reductionGroupSize = subgroupSize * subgroupSize;
     }
 
@@ -701,6 +699,7 @@ namespace oblo::vk
 
     void surfel_accumulate_raycount::build(const frame_graph_build_context& ctx)
     {
+
         const u32 maxSurfels = ctx.access(inMaxSurfels);
 
         const u32 reductionPassesCount = max(1u,
@@ -751,7 +750,7 @@ namespace oblo::vk
     {
         OBLO_ASSERT(!subpasses.empty());
 
-        binding_table2 bindingTable;
+        binding_table bindingTable;
 
         if (ctx.begin_pass(subpasses[0].id))
         {
@@ -872,7 +871,7 @@ namespace oblo::vk
     {
         if (ctx.begin_pass(rtPassInstance))
         {
-            binding_table2 bindingTable;
+            binding_table bindingTable;
 
             bindingTable.bind_buffers({
                 {"b_MeshTables"_hsv, inMeshDatabase},

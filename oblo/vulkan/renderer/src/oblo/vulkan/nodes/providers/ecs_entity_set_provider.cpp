@@ -21,7 +21,7 @@ namespace oblo::vk
 
     void ecs_entity_set_provider::build(const frame_graph_build_context& ctx)
     {
-        ctx.begin_pass(pass_kind::transfer);
+        uploadPass = ctx.transfer_pass();
 
         ecs::entity_registry& reg = ctx.get_entity_registry();
 
@@ -76,6 +76,11 @@ namespace oblo::vk
 
     void ecs_entity_set_provider::execute(const frame_graph_execute_context& ctx)
     {
+        if (!ctx.begin_pass(uploadPass))
+        {
+            return;
+        }
+
         for (u32 offset = 0, index = 0; index < stagedData.size(); ++index)
         {
             const auto& stagedSpan = stagedData[index];
@@ -87,5 +92,7 @@ namespace oblo::vk
 
             offset += bytesCount;
         }
+
+        ctx.end_pass();
     }
 }

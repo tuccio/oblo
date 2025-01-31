@@ -56,8 +56,8 @@ namespace oblo
         u32 height;
         viewport_image_id imageId;
 
-        picking_request picking;
-
         viewport_mode mode;
+
+        picking_request picking;
     };
 }

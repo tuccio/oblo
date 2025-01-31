@@ -321,17 +321,17 @@ namespace oblo::vk
     }
 
     void staging_buffer::download(
-        VkCommandBuffer commandBuffer, VkBuffer buffer, u32 bufferOffset, staging_buffer_span source)
+        VkCommandBuffer commandBuffer, VkBuffer buffer, u32 bufferOffset, staging_buffer_span destination)
     {
         OBLO_ASSERT(m_impl.nextTimelineId != InvalidTimelineId);
-        OBLO_ASSERT(calculate_size(source) > 0);
+        OBLO_ASSERT(calculate_size(destination) > 0);
 
         VkBufferCopy copyRegions[2];
         u32 regionsCount{0u};
 
         u32 segmentOffset{0u};
 
-        for (const auto& segment : source.segments)
+        for (const auto& segment : destination.segments)
         {
             if (segment.begin != segment.end)
             {
@@ -351,6 +351,11 @@ namespace oblo::vk
         }
 
         vkCmdCopyBuffer(commandBuffer, buffer, m_impl.buffer, regionsCount, copyRegions);
+    }
+
+    void staging_buffer::invalidate_memory_ranges()
+    {
+        OBLO_VK_PANIC(m_impl.allocator->invalidate_mapped_memory_ranges({&m_impl.allocation, 1}));
     }
 
     void staging_buffer::free_submissions(u64 timelineId)

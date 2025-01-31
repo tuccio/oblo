@@ -17,10 +17,9 @@
 
 namespace oblo
 {
+    class async_download;
     class frame_allocator;
     class random_generator;
-    class string_interner;
-    class string;
     class texture;
 
     template <typename>
@@ -38,7 +37,6 @@ namespace oblo
 namespace oblo::vk
 {
     class draw_registry;
-    class pass_manager;
     class renderer;
     class resource_manager;
     class resource_pool;
@@ -65,8 +63,7 @@ namespace oblo::vk
     struct render_pipeline_initializer;
     struct raytracing_pipeline_initializer;
 
-    using binding_table = flat_dense_map<h32<string>, bindable_object>;
-    class binding_table2;
+    class binding_table;
 
     enum class pass_kind : u8
     {
@@ -85,7 +82,7 @@ namespace oblo::vk
         shader_read,
         storage_read,
         storage_write,
-        transfer_source,
+        download,
         transfer_destination,
     };
 
@@ -97,6 +94,7 @@ namespace oblo::vk
         storage_upload,
         uniform,
         indirect,
+        download,
         enum_max,
     };
 
@@ -124,13 +122,11 @@ namespace oblo::vk
     public:
         explicit frame_graph_init_context(frame_graph_impl& frameGraph, renderer& renderer);
 
-        pass_manager& get_pass_manager() const;
-
-        string_interner& get_string_interner() const;
-
         h32<compute_pass> register_compute_pass(const compute_pass_initializer& initializer) const;
         h32<render_pass> register_render_pass(const render_pass_initializer& initializer) const;
         h32<raytracing_pass> register_raytracing_pass(const raytracing_pass_initializer& initializer) const;
+
+        const gpu_info& get_gpu_info() const;
 
     private:
         frame_graph_impl& m_frameGraph;
@@ -145,8 +141,6 @@ namespace oblo::vk
             renderer& renderer,
             resource_pool& resourcePool);
 
-        h32<frame_graph_pass> begin_pass(pass_kind kind) const;
-
         [[nodiscard]] h32<compute_pass_instance> compute_pass(h32<compute_pass> pass,
             const compute_pipeline_initializer& initializer) const;
 
@@ -155,6 +149,10 @@ namespace oblo::vk
 
         [[nodiscard]] h32<raytracing_pass_instance> raytracing_pass(h32<raytracing_pass> pass,
             const raytracing_pipeline_initializer& initializer) const;
+
+        [[nodiscard]] h32<transfer_pass_instance> transfer_pass() const;
+
+        h32<empty_pass_instance> empty_pass() const;
 
         void create(
             resource<texture> texture, const texture_resource_initializer& initializer, texture_usage usage) const;
@@ -229,6 +227,8 @@ namespace oblo::vk
             return has_event_impl(get_type_id<T>());
         }
 
+        const gpu_info& get_gpu_info() const;
+
     private:
         void* access_storage(h32<frame_graph_pin_storage> handle) const;
 
@@ -256,6 +256,8 @@ namespace oblo::vk
         expected<> begin_pass(h32<render_pass_instance> handle, const VkRenderingInfo& renderingInfo) const;
 
         expected<> begin_pass(h32<raytracing_pass_instance> handle) const;
+
+        expected<> begin_pass(h32<transfer_pass_instance> handle) const;
 
         void end_pass() const;
 
@@ -305,20 +307,15 @@ namespace oblo::vk
 
         void upload(resource<buffer> h, const staging_buffer_span& data, u32 bufferOffset = 0) const;
 
+        async_download download(resource<buffer> h) const;
+
         VkCommandBuffer get_command_buffer() const;
 
         VkDevice get_device() const;
 
-        pass_manager& get_pass_manager() const;
-
         draw_registry& get_draw_registry() const;
 
-        string_interner& get_string_interner() const;
-
         const loaded_functions& get_loaded_functions() const;
-
-        void bind_buffers(binding_table& table, std::initializer_list<buffer_binding_desc> bindings) const;
-        void bind_textures(binding_table& table, std::initializer_list<texture_binding_desc> bindings) const;
 
         template <typename T>
         bool has_event() const

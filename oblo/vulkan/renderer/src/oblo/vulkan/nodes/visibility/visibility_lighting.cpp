@@ -16,9 +16,7 @@ namespace oblo::vk
 {
     void visibility_lighting::init(const frame_graph_init_context& ctx)
     {
-        auto& passManager = ctx.get_pass_manager();
-
-        lightingPass = passManager.register_compute_pass({
+        lightingPass = ctx.register_compute_pass({
             .name = "Lighting Pass",
             .shaderSourcePath = "./vulkan/shaders/visibility/visibility_lighting.comp",
         });
@@ -26,7 +24,16 @@ namespace oblo::vk
 
     void visibility_lighting::build(const frame_graph_build_context& ctx)
     {
-        ctx.begin_pass(pass_kind::compute);
+        const bool withGI = ctx.has_source(inSurfelsGrid);
+
+        buffered_array<hashed_string_view, 1> defines;
+
+        if (withGI)
+        {
+            defines.emplace_back("SURFELS_GI"_hsv);
+        }
+
+        lightingPassInstance = ctx.compute_pass(lightingPass, {.defines = defines});
 
         ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
 
@@ -48,7 +55,7 @@ namespace oblo::vk
 
         ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
 
-        if (ctx.has_source(inSurfelsGrid))
+        if (withGI)
         {
             ctx.acquire(inSurfelsGrid, buffer_usage::storage_read);
             ctx.acquire(inSurfelsGridData, buffer_usage::storage_read);
@@ -80,68 +87,49 @@ namespace oblo::vk
 
     void visibility_lighting::execute(const frame_graph_execute_context& ctx)
     {
-        auto& pm = ctx.get_pass_manager();
-
         binding_table bindingTable;
 
-        ctx.bind_buffers(bindingTable,
-            {
-                {"b_LightData", inLightBuffer},
-                {"b_LightConfig", inLightConfig},
-                {"b_InstanceTables", inInstanceTables},
-                {"b_MeshTables", inMeshDatabase},
-                {"b_CameraBuffer", inCameraBuffer},
-                {"b_ShadowMaps", outShadowMaps},
-                {"b_SkyboxSettings", inSkyboxSettingsBuffer},
-            });
+        bindingTable.bind_buffers({
+            {"b_LightData"_hsv, inLightBuffer},
+            {"b_LightConfig"_hsv, inLightConfig},
+            {"b_InstanceTables"_hsv, inInstanceTables},
+            {"b_MeshTables"_hsv, inMeshDatabase},
+            {"b_CameraBuffer"_hsv, inCameraBuffer},
+            {"b_ShadowMaps"_hsv, outShadowMaps},
+            {"b_SkyboxSettings"_hsv, inSkyboxSettingsBuffer},
+        });
 
-        ctx.bind_textures(bindingTable,
-            {
-                {"t_InVisibilityBuffer", inVisibilityBuffer},
-                {"t_OutShadedImage", outShadedImage},
-            });
-
-        buffered_array<hashed_string_view, 1> defines;
+        bindingTable.bind_textures({
+            {"t_InVisibilityBuffer"_hsv, inVisibilityBuffer},
+            {"t_OutShadedImage"_hsv, outShadedImage},
+        });
 
         if (ctx.has_source(inSurfelsGrid))
         {
-            ctx.bind_buffers(bindingTable,
-                {
-                    {"b_SurfelsGrid", inSurfelsGrid},
-                    {"b_SurfelsGridData", inSurfelsGridData},
-                    {"b_SurfelsData", inSurfelsData},
-                    {"b_InSurfelsLighting", inSurfelsLightingData},
-                    {"b_SurfelsLastUsage", inOutSurfelsLastUsage},
-                });
-
-            defines.emplace_back("SURFELS_GI");
+            bindingTable.bind_buffers({
+                {"b_SurfelsGrid"_hsv, inSurfelsGrid},
+                {"b_SurfelsGridData"_hsv, inSurfelsGridData},
+                {"b_SurfelsData"_hsv, inSurfelsData},
+                {"b_InSurfelsLighting"_hsv, inSurfelsLightingData},
+                {"b_SurfelsLastUsage"_hsv, inOutSurfelsLastUsage},
+            });
         }
 
-        const auto commandBuffer = ctx.get_command_buffer();
-
-        const auto lightingPipeline = pm.get_or_create_pipeline(lightingPass, {.defines = defines});
-
-        if (const auto pass = pm.begin_compute_pass(commandBuffer, lightingPipeline))
+        if (const auto pass = ctx.begin_pass(lightingPassInstance))
         {
             const auto resolution = ctx.access(inResolution);
 
-            const binding_table* bindingTables[] = {
-                &bindingTable,
-            };
+            ctx.bind_descriptor_sets(bindingTable);
 
-            pm.bind_descriptor_sets(*pass, bindingTables);
+            ctx.dispatch_compute(round_up_div(resolution.x, 8u), round_up_div(resolution.y, 8u), 1);
 
-            vkCmdDispatch(ctx.get_command_buffer(), round_up_div(resolution.x, 8u), round_up_div(resolution.y, 8u), 1);
-
-            pm.end_compute_pass(*pass);
+            ctx.end_pass();
         }
     }
 
     void visibility_debug::init(const frame_graph_init_context& ctx)
     {
-        auto& passManager = ctx.get_pass_manager();
-
-        albedoPass = passManager.register_compute_pass({
+        debugPass = ctx.register_compute_pass({
             .name = "Debug Pass",
             .shaderSourcePath = "./vulkan/shaders/visibility/visibility_debug.comp",
         });
@@ -149,47 +137,6 @@ namespace oblo::vk
 
     void visibility_debug::build(const frame_graph_build_context& ctx)
     {
-        ctx.begin_pass(pass_kind::compute);
-
-        const auto resolution = ctx.access(inResolution);
-
-        ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
-
-        ctx.create(outShadedImage,
-            {
-                .width = resolution.x,
-                .height = resolution.y,
-                .format = VK_FORMAT_R8G8B8A8_UNORM,
-                .usage = VK_IMAGE_USAGE_STORAGE_BIT,
-            },
-            texture_usage::storage_write);
-
-        ctx.acquire(inCameraBuffer, buffer_usage::uniform);
-
-        ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
-
-        acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
-    }
-
-    void visibility_debug::execute(const frame_graph_execute_context& ctx)
-    {
-        auto& pm = ctx.get_pass_manager();
-
-        binding_table bindingTable;
-
-        ctx.bind_buffers(bindingTable,
-            {
-                {"b_InstanceTables", inInstanceTables},
-                {"b_MeshTables", inMeshDatabase},
-                {"b_CameraBuffer", inCameraBuffer},
-            });
-
-        ctx.bind_textures(bindingTable,
-            {
-                {"t_InVisibilityBuffer", inVisibilityBuffer},
-                {"t_OutShadedImage", outShadedImage},
-            });
-
         hashed_string_view define{};
 
         const auto debugMode = ctx.access(inDebugMode);
@@ -235,23 +182,52 @@ namespace oblo::vk
 
         OBLO_ASSERT(!define.empty());
 
-        const auto commandBuffer = ctx.get_command_buffer();
+        debugPassInstance = ctx.compute_pass(debugPass, {.defines = {&define, 1}});
 
-        const auto lightingPipeline = pm.get_or_create_pipeline(albedoPass, {.defines = {&define, 1}});
+        const auto resolution = ctx.access(inResolution);
 
-        if (const auto pass = pm.begin_compute_pass(commandBuffer, lightingPipeline))
+        ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
+
+        ctx.create(outShadedImage,
+            {
+                .width = resolution.x,
+                .height = resolution.y,
+                .format = VK_FORMAT_R8G8B8A8_UNORM,
+                .usage = VK_IMAGE_USAGE_STORAGE_BIT,
+            },
+            texture_usage::storage_write);
+
+        ctx.acquire(inCameraBuffer, buffer_usage::uniform);
+
+        ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
+
+        acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
+    }
+
+    void visibility_debug::execute(const frame_graph_execute_context& ctx)
+    {
+        binding_table bindingTable;
+
+        bindingTable.bind_buffers({
+            {"b_InstanceTables"_hsv, inInstanceTables},
+            {"b_MeshTables"_hsv, inMeshDatabase},
+            {"b_CameraBuffer"_hsv, inCameraBuffer},
+        });
+
+        bindingTable.bind_textures({
+            {"t_InVisibilityBuffer"_hsv, inVisibilityBuffer},
+            {"t_OutShadedImage"_hsv, outShadedImage},
+        });
+
+        if (const auto pass = ctx.begin_pass(debugPassInstance))
         {
             const auto resolution = ctx.access(inResolution);
 
-            const binding_table* bindingTables[] = {
-                &bindingTable,
-            };
+            ctx.bind_descriptor_sets(bindingTable);
 
-            pm.bind_descriptor_sets(*pass, bindingTables);
+            ctx.dispatch_compute(round_up_div(resolution.x, 8u), round_up_div(resolution.y, 8u), 1);
 
-            vkCmdDispatch(ctx.get_command_buffer(), round_up_div(resolution.x, 8u), round_up_div(resolution.y, 8u), 1);
-
-            pm.end_compute_pass(*pass);
+            ctx.end_pass();
         }
     }
 }

@@ -80,7 +80,7 @@ namespace oblo::vk
 
     void frustum_culling::execute(const frame_graph_execute_context& ctx)
     {
-        binding_table2 bindingTable;
+        binding_table bindingTable;
 
         if (const auto pass = ctx.begin_pass(cullPassInstance))
         {

@@ -17,9 +17,7 @@ namespace oblo::vk
 {
     void raytraced_shadows::init(const frame_graph_init_context& ctx)
     {
-        auto& passManager = ctx.get_pass_manager();
-
-        shadowPass = passManager.register_raytracing_pass({
+        shadowPass = ctx.register_raytracing_pass({
             .name = "Ray-Traced Shadows",
             .generation = "./vulkan/shaders/shadows/rtshadows.rgen",
             .miss = {"./vulkan/shaders/shadows/rtshadows.rmiss"},
@@ -35,7 +33,17 @@ namespace oblo::vk
 
     void raytraced_shadows::build(const frame_graph_build_context& ctx)
     {
-        ctx.begin_pass(pass_kind::raytracing);
+        const auto& cfg = ctx.access(inConfig);
+
+        string_builder shadowType;
+        shadowType.format("SHADOW_TYPE {}", u32(cfg.type));
+
+        string_builder shadowHard;
+        shadowHard.format("SHADOW_HARD {}", u32{cfg.hardShadows});
+
+        const hashed_string_view defines[] = {shadowType.as<hashed_string_view>(), shadowHard.as<hashed_string_view>()};
+
+        shadowPassInstance = ctx.raytracing_pass(shadowPass, {.defines = defines});
 
         const auto resolution = ctx.access(inResolution);
 
@@ -58,45 +66,24 @@ namespace oblo::vk
 
     void raytraced_shadows::execute(const frame_graph_execute_context& ctx)
     {
-        auto& pm = ctx.get_pass_manager();
-
         binding_table bindingTable;
 
-        ctx.bind_buffers(bindingTable,
-            {
-                {"b_CameraBuffer", inCameraBuffer},
-                {"b_LightData", inLightBuffer},
-            });
+        bindingTable.bind_buffers({
+            {"b_CameraBuffer", inCameraBuffer},
+            {"b_LightData", inLightBuffer},
+        });
 
-        ctx.bind_textures(bindingTable,
-            {
-                {"t_InDepthBuffer", inDepthBuffer},
-                {"t_OutShadow", outShadow},
-            });
+        bindingTable.bind_textures({
+            {"t_InDepthBuffer", inDepthBuffer},
+            {"t_OutShadow", outShadow},
+        });
 
-        bindingTable.emplace(ctx.get_string_interner().get_or_add("u_SceneTLAS"),
-            make_bindable_object(ctx.get_draw_registry().get_tlas()));
+        bindingTable.bind("u_SceneTLAS", ctx.get_global_tlas());
 
-        const auto commandBuffer = ctx.get_command_buffer();
-        const auto& cfg = ctx.access(inConfig);
-
-        string_builder shadowType;
-        shadowType.format("SHADOW_TYPE {}", u32(cfg.type));
-
-        string_builder shadowHard;
-        shadowHard.format("SHADOW_HARD {}", u32{cfg.hardShadows});
-
-        const hashed_string_view defines[] = {shadowType.as<hashed_string_view>(), shadowHard.as<hashed_string_view>()};
-
-        const auto pipeline = pm.get_or_create_pipeline(shadowPass, {.defines = defines});
-
-        if (const auto pass = pm.begin_raytracing_pass(commandBuffer, pipeline))
+        if (const auto pass = ctx.begin_pass(shadowPassInstance))
         {
+            const auto& cfg = ctx.access(inConfig);
             const auto resolution = ctx.access(inResolution);
-
-            const binding_table* bindingTables[] = {
-                &bindingTable,
-            };
 
             struct push_constants
             {
@@ -111,13 +98,13 @@ namespace oblo::vk
                 .punctualLightRadius = cfg.shadowPunctualRadius,
             };
 
-            pm.bind_descriptor_sets(*pass, bindingTables);
+            ctx.bind_descriptor_sets(bindingTable);
 
-            pm.push_constants(*pass, VK_SHADER_STAGE_RAYGEN_BIT_KHR, 0, as_bytes(std::span{&constants, 1}));
+            ctx.push_constants(shader_stage::raygen, 0, as_bytes(std::span{&constants, 1}));
 
-            pm.trace_rays(*pass, resolution.x, resolution.y, 1);
+            ctx.trace_rays(resolution.x, resolution.y, 1);
 
-            pm.end_raytracing_pass(*pass);
+            ctx.end_pass();
         }
     }
 }

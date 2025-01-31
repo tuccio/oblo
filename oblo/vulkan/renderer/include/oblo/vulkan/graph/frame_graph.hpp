@@ -46,6 +46,9 @@ namespace oblo::vk
         template <typename T>
         expected<> set_input(h32<frame_graph_subgraph> graph, string_view name, T&& value);
 
+        template <typename T>
+        expected<T*> get_output(h32<frame_graph_subgraph> graph, string_view name);
+
         void disable_all_outputs(h32<frame_graph_subgraph> graph);
         void set_output_state(h32<frame_graph_subgraph> graph, string_view name, bool enable);
 
@@ -64,6 +67,7 @@ namespace oblo::vk
 
     private:
         void* try_get_input(h32<frame_graph_subgraph> graph, string_view name, const type_id& typeId);
+        void* try_get_output(h32<frame_graph_subgraph> graph, string_view name, const type_id& typeId);
 
         void push_empty_event_impl(const type_id& type);
         bool has_event_impl(const type_id& type) const;
@@ -83,6 +87,21 @@ namespace oblo::vk
         {
             *concrete = std::forward<T>(value);
             return no_error;
+        }
+
+        return unspecified_error;
+    }
+
+    template <typename T>
+    expected<T*> frame_graph::get_output(h32<frame_graph_subgraph> graph, string_view name)
+    {
+        using type = std::decay_t<T>;
+
+        auto* const dst = try_get_output(graph, name, get_type_id<type>());
+
+        if (type* const concrete = static_cast<type*>(dst))
+        {
+            return concrete;
         }
 
         return unspecified_error;

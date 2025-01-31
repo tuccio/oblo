@@ -16,7 +16,7 @@ namespace oblo::vk
 
         void build(const frame_graph_build_context& ctx)
         {
-            ctx.begin_pass(pass_kind::none);
+            ctx.empty_pass();
 
             const std::span lights = ctx.access(inOutLights);
             const u32 lightsCount = u32(lights.size());

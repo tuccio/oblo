@@ -15,7 +15,8 @@ namespace oblo::vk
 
     void instance_table_node::build(const frame_graph_build_context& ctx)
     {
-        ctx.begin_pass(pass_kind::transfer);
+        uploadPass = ctx.transfer_pass();
+
         const auto& drawRegistry = ctx.get_draw_registry();
 
         const std::span meshDatabaseData = drawRegistry.get_mesh_database_data();
@@ -81,6 +82,11 @@ namespace oblo::vk
             return;
         }
 
+        if (!ctx.begin_pass(uploadPass))
+        {
+            return;
+        }
+
         for (usize i = 0; i < instanceBuffers.size(); ++i)
         {
             instanceTableArray[i] = {};
@@ -100,6 +106,8 @@ namespace oblo::vk
         }
 
         ctx.upload(outInstanceTables, as_bytes(instanceTableArray));
+
+        ctx.end_pass();
     }
 
     void acquire_instance_tables(const frame_graph_build_context& ctx,

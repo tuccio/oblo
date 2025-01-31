@@ -7,6 +7,7 @@
 #include <oblo/core/hash.hpp>
 #include <oblo/core/random_generator.hpp>
 #include <oblo/core/string/transparent_string_hash.hpp>
+#include <oblo/core/thread/async_download.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/draw/pass_manager.hpp>
 #include <oblo/vulkan/graph/frame_graph_node_desc.hpp>
@@ -45,6 +46,12 @@ namespace oblo::vk
         VkAccessFlags2 access;
         buffer_access_kind accessKind;
         bool uploadedTo;
+    };
+
+    struct frame_graph_buffer_download
+    {
+        h32<frame_graph_pin_storage> pinStorage;
+        u32 pendingDownloadId;
     };
 
     struct frame_graph_node
@@ -147,6 +154,13 @@ namespace oblo::vk
         staging_buffer_span source;
     };
 
+    struct frame_graph_pending_download
+    {
+        u64 submitIndex;
+        staging_buffer_span stagedSpan;
+        async_download_promise promise;
+    };
+
     using name_to_vertex_map =
         std::unordered_map<string, frame_graph_topology::vertex_handle, transparent_string_hash, std::equal_to<>>;
 
@@ -181,6 +195,9 @@ namespace oblo::vk
 
         u32 bufferBarriersBegin;
         u32 bufferBarriersEnd;
+
+        u32 bufferDownloadBegin;
+        u32 bufferDownloadEnd;
 
         union {
             h32<compute_pipeline> computePipeline;
@@ -223,6 +240,8 @@ namespace oblo::vk
         resource_manager* resourceManager{};
         gpu_info gpuInfo;
 
+        staging_buffer downloadStaging;
+
         dynamic_array<frame_graph_node_to_execute> sortedNodes;
 
         h32_flat_pool_dense_map<frame_graph_texture> textures;
@@ -233,6 +252,7 @@ namespace oblo::vk
         dynamic_array<frame_graph_buffer_usage> bufferUsages;
         dynamic_array<frame_graph_texture> transientTextures;
         dynamic_array<frame_graph_buffer> transientBuffers;
+        deque<frame_graph_buffer_download> bufferDownloads;
         dynamic_array<frame_graph_pending_upload> pendingUploads;
 
         deque<frame_graph_pass> passes;
@@ -240,6 +260,8 @@ namespace oblo::vk
 
         dynamic_array<h32<frame_graph_pin_storage>> dynamicPins;
         dynamic_array<frame_graph_bindless_texture> bindlessTextures;
+
+        deque<frame_graph_pending_download> pendingDownloads;
 
         deque<frame_graph_pin_reroute> rerouteStash;
 
@@ -259,6 +281,8 @@ namespace oblo::vk
         void mark_active_nodes();
         void rebuild_runtime(renderer& renderer);
         void flush_uploads(VkCommandBuffer commandBuffer, staging_buffer& stagingBuffer);
+        void flush_downloads(vulkan_context& vkCtx);
+        void begin_frame();
         void finish_frame();
 
     public: // API for contexts
@@ -278,6 +302,8 @@ namespace oblo::vk
             VkAccessFlags2 access,
             buffer_access_kind,
             bool uploadedTo);
+
+        void add_download(resource<buffer> handle);
 
         h32<frame_graph_pin_storage> allocate_dynamic_resource_pin();
 

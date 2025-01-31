@@ -22,6 +22,7 @@
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/compiler/compiler_module.hpp>
 #include <oblo/vulkan/compiler/shader_cache.hpp>
+#include <oblo/vulkan/draw/bindable_object.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/compute_pass_initializer.hpp>
 #include <oblo/vulkan/draw/descriptor_set_pool.hpp>
@@ -654,10 +655,6 @@ namespace oblo::vk
             std::span<const u32> spirv,
             vertex_inputs_reflection& vertexInputsReflection);
 
-        VkDescriptorSet create_descriptor_set(VkDescriptorSetLayout descriptorSetLayout,
-            const base_pipeline& pipeline,
-            std::span<const binding_table* const> bindingTables);
-
         VkDescriptorSet create_descriptor_set(
             VkDescriptorSetLayout descriptorSetLayout, const base_pipeline& pipeline, locate_binding_fn findBinding);
 
@@ -1218,26 +1215,6 @@ namespace oblo::vk
                 log::debug("Processing of directory watcher {} failed", watcher.get_directory());
             }
         }
-    }
-
-    VkDescriptorSet pass_manager::impl::create_descriptor_set(VkDescriptorSetLayout descriptorSetLayout,
-        const base_pipeline& pipeline,
-        std::span<const binding_table* const> bindingTables)
-    {
-        return create_descriptor_set(descriptorSetLayout,
-            pipeline,
-            [&bindingTables](const descriptor_binding& binding) -> bindable_object
-            {
-                for (const auto& bindingTable : bindingTables)
-                {
-                    if (auto* const o = bindingTable->try_find(binding.name))
-                    {
-                        return *o;
-                    }
-                }
-
-                return {};
-            });
     }
 
     VkDescriptorSet pass_manager::impl::create_descriptor_set(
@@ -2870,48 +2847,6 @@ namespace oblo::vk
         vkCmdPushConstants(commandBuffer, pipeline.pipelineLayout, stages, offset, u32(data.size()), data.data());
     }
 
-    void pass_manager::bind_descriptor_sets(const render_pass_context& ctx,
-        std::span<const binding_table* const> bindingTables) const
-    {
-        const auto* pipeline = ctx.internalPipeline;
-
-        if (const auto descriptorSetLayout = pipeline->descriptorSetLayout)
-        {
-            const VkDescriptorSet descriptorSet =
-                m_impl->create_descriptor_set(descriptorSetLayout, *pipeline, bindingTables);
-
-            vkCmdBindDescriptorSets(ctx.commandBuffer,
-                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                pipeline->pipelineLayout,
-                0,
-                1,
-                &descriptorSet,
-                0,
-                nullptr);
-        }
-    }
-
-    void pass_manager::bind_descriptor_sets(const compute_pass_context& ctx,
-        std::span<const binding_table* const> bindingTables) const
-    {
-        auto* const pipeline = ctx.internalPipeline;
-
-        if (const auto descriptorSetLayout = pipeline->descriptorSetLayout)
-        {
-            const VkDescriptorSet descriptorSet =
-                m_impl->create_descriptor_set(descriptorSetLayout, *pipeline, bindingTables);
-
-            vkCmdBindDescriptorSets(ctx.commandBuffer,
-                VK_PIPELINE_BIND_POINT_COMPUTE,
-                pipeline->pipelineLayout,
-                0,
-                1,
-                &descriptorSet,
-                0,
-                nullptr);
-        }
-    }
-
     void pass_manager::bind_descriptor_sets(VkCommandBuffer commandBuffer,
         VkPipelineBindPoint bindPoint,
         const base_pipeline& pipeline,
@@ -2925,27 +2860,6 @@ namespace oblo::vk
             vkCmdBindDescriptorSets(commandBuffer,
                 bindPoint,
                 pipeline.pipelineLayout,
-                0,
-                1,
-                &descriptorSet,
-                0,
-                nullptr);
-        }
-    }
-
-    void pass_manager::bind_descriptor_sets(const raytracing_pass_context& ctx,
-        std::span<const binding_table* const> bindingTables) const
-    {
-        auto* const pipeline = ctx.internalPipeline;
-
-        if (const auto descriptorSetLayout = pipeline->descriptorSetLayout)
-        {
-            const VkDescriptorSet descriptorSet =
-                m_impl->create_descriptor_set(descriptorSetLayout, *pipeline, bindingTables);
-
-            vkCmdBindDescriptorSets(ctx.commandBuffer,
-                VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
-                pipeline->pipelineLayout,
                 0,
                 1,
                 &descriptorSet,

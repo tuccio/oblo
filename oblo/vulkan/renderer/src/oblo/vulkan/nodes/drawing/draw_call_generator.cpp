@@ -72,7 +72,7 @@ namespace oblo::vk
 
             const auto subgroupSize = ctx.get_gpu_info().subgroupSize;
 
-            binding_table2 bindingTable;
+            binding_table bindingTable;
 
             for (usize drawCallIndex = 0; drawCallIndex < drawData.size(); ++drawCallIndex)
             {

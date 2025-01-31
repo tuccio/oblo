@@ -11,6 +11,7 @@ namespace oblo::vk
         resource<texture> outLDR;
 
         h32<compute_pass> toneMappingPass;
+        h32<compute_pass_instance> toneMappingPassInstance;
 
         void init(const frame_graph_init_context& ctx);
 

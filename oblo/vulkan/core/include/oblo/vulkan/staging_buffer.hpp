@@ -54,6 +54,8 @@ namespace oblo::vk
 
         void download(VkCommandBuffer commandBuffer, VkBuffer buffer, u32 bufferOffset, staging_buffer_span source);
 
+        void invalidate_memory_ranges();
+
     private:
         void free_submissions(u64 timelineId);
 

@@ -12,9 +12,7 @@ namespace oblo::vk
 {
     void surfel_debug::init(const frame_graph_init_context& ctx)
     {
-        auto& passManager = ctx.get_pass_manager();
-
-        debugPass = passManager.register_compute_pass({
+        debugPass = ctx.register_compute_pass({
             .name = "GI Debug Pass",
             .shaderSourcePath = "./vulkan/shaders/surfels/surfel_debug_view.comp",
         });
@@ -22,7 +20,31 @@ namespace oblo::vk
 
     void surfel_debug::build(const frame_graph_build_context& ctx)
     {
-        ctx.begin_pass(pass_kind::graphics);
+        hashed_string_view define;
+
+        switch (ctx.access(inMode))
+        {
+        case mode::surfel_grid_id:
+            define = "MODE_SURFEL_GRID_ID"_hsv;
+            break;
+
+        case mode::surfel_lighting:
+            define = "MODE_SURFEL_LIGHTING"_hsv;
+            break;
+
+        case mode::surfel_raycount:
+            define = "MODE_SURFEL_RAYCOUNT"_hsv;
+            break;
+
+        case mode::surfel_inconsistency:
+            define = "MODE_SURFEL_INCONSISTENCY"_hsv;
+            break;
+
+        default:
+            unreachable();
+        }
+
+        debugPassInstance = ctx.compute_pass(debugPass, {.defines = std::span(&define, 1)});
 
         const auto& visBufferInit = ctx.get_current_initializer(inVisibilityBuffer).value();
         const vec2u resolution = {visBufferInit.extent.width, visBufferInit.extent.height};
@@ -54,72 +76,36 @@ namespace oblo::vk
 
     void surfel_debug::execute(const frame_graph_execute_context& ctx)
     {
-        auto& pm = ctx.get_pass_manager();
-
-        const auto commandBuffer = ctx.get_command_buffer();
-
-        hashed_string_view define;
-
-        switch (ctx.access(inMode))
-        {
-        case mode::surfel_grid_id:
-            define = "MODE_SURFEL_GRID_ID"_hsv;
-            break;
-
-        case mode::surfel_lighting:
-            define = "MODE_SURFEL_LIGHTING"_hsv;
-            break;
-
-        case mode::surfel_raycount:
-            define = "MODE_SURFEL_RAYCOUNT"_hsv;
-            break;
-
-        case mode::surfel_inconsistency:
-            define = "MODE_SURFEL_INCONSISTENCY"_hsv;
-            break;
-
-        default:
-            unreachable();
-        }
-
-        const auto pipeline = pm.get_or_create_pipeline(debugPass, {.defines = std::span(&define, 1)});
-
-        if (const auto pass = pm.begin_compute_pass(commandBuffer, pipeline))
+        if (const auto pass = ctx.begin_pass(debugPassInstance))
         {
             binding_table bindingTable;
 
-            ctx.bind_buffers(bindingTable,
-                {
-                    {"b_CameraBuffer", inCameraBuffer},
-                    {"b_SurfelsData", inSurfelsData},
-                    {"b_SurfelsGrid", inSurfelsGrid},
-                    {"b_SurfelsGridData", inSurfelsGridData},
-                    {"b_InSurfelsLighting", inSurfelsLightingData},
-                    {"b_InstanceTables", inInstanceTables},
-                    {"b_MeshTables", inMeshDatabase},
-                    {"b_CameraBuffer", inCameraBuffer},
-                    {"b_SurfelsLightEstimator", inSurfelsLightEstimatorData},
-                });
+            bindingTable.bind_buffers({
+                {"b_CameraBuffer"_hsv, inCameraBuffer},
+                {"b_SurfelsData"_hsv, inSurfelsData},
+                {"b_SurfelsGrid"_hsv, inSurfelsGrid},
+                {"b_SurfelsGridData"_hsv, inSurfelsGridData},
+                {"b_InSurfelsLighting"_hsv, inSurfelsLightingData},
+                {"b_InstanceTables"_hsv, inInstanceTables},
+                {"b_MeshTables"_hsv, inMeshDatabase},
+                {"b_CameraBuffer"_hsv, inCameraBuffer},
+                {"b_SurfelsLightEstimator"_hsv, inSurfelsLightEstimatorData},
+            });
 
-            ctx.bind_textures(bindingTable,
-                {
-                    {"t_InVisibilityBuffer", inVisibilityBuffer},
-                    {"t_InImage", inImage},
-                    {"t_OutShadedImage", outDebugImage},
-                });
+            bindingTable.bind_textures({
+                {"t_InVisibilityBuffer"_hsv, inVisibilityBuffer},
+                {"t_InImage"_hsv, inImage},
+                {"t_OutShadedImage"_hsv, outDebugImage},
+            });
 
             const auto& visBuffer = ctx.access(inVisibilityBuffer);
             const vec2u resolution = {visBuffer.initializer.extent.width, visBuffer.initializer.extent.height};
 
-            const binding_table* bindingTables[] = {
-                &bindingTable,
-            };
+            ctx.bind_descriptor_sets(bindingTable);
 
-            pm.bind_descriptor_sets(*pass, bindingTables);
+            ctx.dispatch_compute(round_up_div(resolution.x, 8u), round_up_div(resolution.y, 8u), 1);
 
-            vkCmdDispatch(ctx.get_command_buffer(), round_up_div(resolution.x, 8u), round_up_div(resolution.y, 8u), 1);
-
-            pm.end_compute_pass(*pass);
+            ctx.end_pass();
         }
     }
 }

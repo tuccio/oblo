@@ -10,6 +10,5 @@ namespace oblo::vk
     struct picking_configuration
     {
         vec2 coordinates;
-        buffer outputBuffer;
     };
 }

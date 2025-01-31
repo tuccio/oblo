@@ -265,7 +265,7 @@ namespace oblo::vk::main_view
             graph.make_input(entityPicking, &entity_picking::inPickingConfiguration, InPickingConfiguration);
 
             // This is quite awkward admittedly, but if no output is active the node is culled
-            graph.make_output(entityPicking, &entity_picking::outDummyOut, OutPicking);
+            graph.make_output(entityPicking, &entity_picking::outPickingResult, OutPicking);
         }
 
         // Surfels GI
