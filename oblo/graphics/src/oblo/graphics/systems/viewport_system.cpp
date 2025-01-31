@@ -5,6 +5,7 @@
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/service_registry.hpp>
+#include <oblo/core/thread/async_download.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/range.hpp>
@@ -55,9 +56,6 @@ namespace oblo
         VkImage image{};
 
         mat4 lastFrameViewProj;
-
-        vk::allocated_buffer pickingOutputBuffer;
-        u64 lastPickingSubmitIndex{};
     };
 
     viewport_system::viewport_system() = default;
@@ -167,34 +165,6 @@ namespace oblo
             vkCtx.destroy_deferred(renderGraphData.descriptorSet, m_descriptorPool, submitIndex);
             renderGraphData.descriptorSet = {};
         }
-
-        if (renderGraphData.pickingOutputBuffer.buffer)
-        {
-            vkCtx.destroy_deferred(renderGraphData.pickingOutputBuffer.buffer, submitIndex);
-            vkCtx.destroy_deferred(renderGraphData.pickingOutputBuffer.allocation, submitIndex);
-            renderGraphData.pickingOutputBuffer = {};
-        }
-    }
-
-    bool viewport_system::prepare_picking_buffers(render_graph_data& graphData)
-    {
-        auto& allocator = m_renderer->get_allocator();
-
-        if (!graphData.pickingOutputBuffer.buffer &&
-            allocator.create_buffer(
-                {
-                    .size = PickingResultSize,
-                    .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                    .memoryUsage = vk::memory_usage::gpu_to_cpu,
-                },
-                &graphData.pickingOutputBuffer) != VK_SUCCESS)
-        {
-            return false;
-        }
-
-        graphData.lastPickingSubmitIndex = m_renderer->get_vulkan_context().get_submit_index();
-
-        return true;
     }
 
     void viewport_system::first_update(const ecs::system_update_context& ctx)
@@ -381,55 +351,62 @@ namespace oblo
 
                     switch (viewport.picking.state)
                     {
-                    case picking_request::state::requested:
-                        if (prepare_picking_buffers(*renderGraphData))
-                        {
-                            pickingConfig = {
-                                .coordinates = viewport.picking.coordinates,
-                                .outputBuffer =
-                                    {
-                                        .buffer = renderGraphData->pickingOutputBuffer.buffer,
-                                        .size = PickingResultSize,
-                                    },
-                            };
+                    case picking_request::state::requested: {
+                        pickingConfig = {
+                            .coordinates = viewport.picking.coordinates,
+                        };
 
-                            viewport.picking.state = picking_request::state::awaiting;
-                            frameGraph.set_output_state(renderGraphData->subgraph, main_view::OutPicking, true);
-                        }
-                        else
+                        viewport.picking.state = picking_request::state::awaiting;
+                        frameGraph.set_output_state(renderGraphData->subgraph, main_view::OutPicking, true);
+                    }
+
+                    break;
+
+                    case picking_request::state::awaiting: {
+                        const expected asyncDownload =
+                            frameGraph.get_output<async_download>(renderGraphData->subgraph, main_view::OutPicking);
+
+                        if (!asyncDownload)
                         {
                             viewport.picking.state = picking_request::state::failed;
                         }
-
-                        break;
-
-                    case picking_request::state::awaiting:
-
-                        if (m_renderer->get_vulkan_context().is_submit_done(renderGraphData->lastPickingSubmitIndex))
+                        else
                         {
-                            auto& allocator = m_renderer->get_allocator();
+                            const expected downloadResult = (*asyncDownload)->try_get_result();
 
-                            if (void* ptr;
-                                allocator.map(renderGraphData->pickingOutputBuffer.allocation, &ptr) == VK_SUCCESS)
+                            if (downloadResult)
                             {
-                                std::memcpy(&viewport.picking.result, ptr, sizeof(u32));
+                                const std::span bytes = *downloadResult;
+                                std::memcpy(&viewport.picking.result, bytes.data(), min(bytes.size(), sizeof(u32)));
                                 viewport.picking.state = picking_request::state::served;
-
-                                allocator.unmap(renderGraphData->pickingOutputBuffer.allocation);
                             }
                             else
                             {
-                                viewport.picking.state = picking_request::state::failed;
+                                switch (downloadResult.error())
+                                {
+                                case async_download::error::not_ready:
+                                    break;
+                                case async_download::error::uninitialized:
+                                    viewport.picking.state = picking_request::state::failed;
+                                    break;
+                                case async_download::error::broken_promise:
+                                    viewport.picking.state = picking_request::state::failed;
+                                    break;
+                                }
                             }
                         }
+                    }
 
-                        break;
+                    break;
 
                     default:
                         break;
                     }
 
-                    frameGraph.set_input(renderGraphData->subgraph, main_view::InPickingConfiguration, pickingConfig)
+                    frameGraph
+                        .set_input(renderGraphData->subgraph,
+                            main_view::InPickingConfiguration,
+                            std::move(pickingConfig))
                         .assert_value();
                 }
             }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/thread/async_download.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/data/picking_configuration.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
@@ -7,11 +8,6 @@
 #include <oblo/vulkan/nodes/providers/instance_table_node.hpp>
 
 #include <span>
-
-namespace oblo
-{
-    class string;
-}
 
 namespace oblo::vk
 {
@@ -28,9 +24,11 @@ namespace oblo::vk
         resource<buffer> outPickingId;
 
         data<bool> outDummyOut;
+        data<async_download> outPickingResult;
 
         h32<compute_pass> pickingPass;
         h32<compute_pass_instance> pickingPassInstance;
+        h32<transfer_pass_instance> downloadInstance;
 
         void init(const frame_graph_init_context& context);
 

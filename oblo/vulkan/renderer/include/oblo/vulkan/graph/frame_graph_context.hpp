@@ -17,6 +17,7 @@
 
 namespace oblo
 {
+    class async_download;
     class frame_allocator;
     class random_generator;
     class texture;
@@ -81,7 +82,7 @@ namespace oblo::vk
         shader_read,
         storage_read,
         storage_write,
-        transfer_source,
+        download,
         transfer_destination,
     };
 
@@ -93,6 +94,7 @@ namespace oblo::vk
         storage_upload,
         uniform,
         indirect,
+        download,
         enum_max,
     };
 
@@ -304,6 +306,8 @@ namespace oblo::vk
         void upload(resource<buffer> h, std::span<const byte> data, u32 bufferOffset = 0) const;
 
         void upload(resource<buffer> h, const staging_buffer_span& data, u32 bufferOffset = 0) const;
+
+        async_download download(resource<buffer> h) const;
 
         VkCommandBuffer get_command_buffer() const;
 

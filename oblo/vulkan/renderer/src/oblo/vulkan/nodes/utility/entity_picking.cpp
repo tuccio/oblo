@@ -32,7 +32,8 @@ namespace oblo::vk
 
         acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
 
-        // TODO: Add transfer pass to download the id
+        downloadInstance = ctx.transfer_pass();
+        ctx.acquire(outPickingId, buffer_usage::download);
     }
 
     void entity_picking::execute(const frame_graph_execute_context& ctx)
@@ -50,7 +51,7 @@ namespace oblo::vk
             {"b_OutPickingId"_hsv, outPickingId},
         });
 
-        if (const auto pass = ctx.begin_pass(pickingPassInstance))
+        if (ctx.begin_pass(pickingPassInstance))
         {
             const vec2u screenPosition{u32(pickingConfiguration.coordinates.x + .5f),
                 u32(pickingConfiguration.coordinates.y + .5f)};
@@ -61,6 +62,17 @@ namespace oblo::vk
 
             ctx.dispatch_compute(1, 1, 1);
 
+            ctx.end_pass();
+        }
+        else
+        {
+            return;
+        }
+
+        if (ctx.begin_pass(downloadInstance))
+        {
+            auto& pickingResult = ctx.access(outPickingResult);
+            pickingResult = ctx.download(outPickingId);
             ctx.end_pass();
         }
     }

@@ -1,9 +1,11 @@
 #include <oblo/vulkan/graph/frame_graph.hpp>
 
+#include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/graph/dfs_visit.hpp>
 #include <oblo/core/graph/dot.hpp>
+#include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/core/iterator/reverse_range.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/string/string_builder.hpp>
@@ -24,6 +26,9 @@ namespace oblo::vk
 {
     namespace
     {
+        // Pretty limited and fixed size at this time, since we don't need more
+        static constexpr u32 g_downloadStagingSize = 1u << 10;
+
         void write_u32(void* ptr, u32 offset, u32 value)
         {
             std::memcpy(static_cast<u8*>(ptr) + offset, &value, sizeof(u32));
@@ -486,7 +491,8 @@ namespace oblo::vk
         const auto subgroupProperties = ctx.get_physical_device_subgroup_properties();
         m_impl->gpuInfo.subgroupSize = subgroupProperties.subgroupSize;
 
-        return m_impl->dynamicAllocator.init(maxAllocationSize) && m_impl->resourcePool.init(ctx);
+        return m_impl->dynamicAllocator.init(maxAllocationSize) && m_impl->resourcePool.init(ctx),
+               m_impl->downloadStaging.init(ctx.get_allocator(), g_downloadStagingSize);
     }
 
     void frame_graph::shutdown(vulkan_context& ctx)
@@ -600,6 +606,8 @@ namespace oblo::vk
         auto& commandBuffer = renderer.get_active_command_buffer();
         auto& resourcePool = m_impl->resourcePool;
 
+        m_impl->downloadStaging.begin_frame(renderer.get_vulkan_context().get_submit_index());
+
         for (const auto [storage, poolIndex] : m_impl->transientBuffers)
         {
             const buffer buf = resourcePool.get_transient_buffer(poolIndex);
@@ -618,6 +626,28 @@ namespace oblo::vk
         if (!m_impl->pendingUploads.empty())
         {
             m_impl->flush_uploads(commandBuffer.get(), renderer.get_staging_buffer());
+        }
+
+        // Prepare the download buffers
+        for (auto& enqueuedDownload : m_impl->bufferDownloads)
+        {
+            enqueuedDownload.pendingDownloadId = m_impl->pendingDownloads.size32();
+            auto& download = m_impl->pendingDownloads.emplace_back();
+            auto& data = m_impl->pinStorage.at(enqueuedDownload.pinStorage);
+
+            buffer* const b = reinterpret_cast<buffer*>(data.data);
+            auto staging = m_impl->downloadStaging.stage_allocate(b->size);
+
+            if (!staging)
+            {
+                OBLO_ASSERT(staging, "Allocation of download buffer failed");
+                continue;
+            }
+
+            // This only works as long as we submit once per frame
+            download.submitIndex = renderer.get_vulkan_context().get_submit_index();
+            download.stagedSpan = *staging;
+            download.promise.init(get_global_allocator());
         }
 
         frame_graph_execution_state executionState;
@@ -710,6 +740,10 @@ namespace oblo::vk
 
         m_impl->bindlessTextures.clear();
 
+        m_impl->downloadStaging.end_frame();
+
+        m_impl->flush_downloads(renderer.get_vulkan_context());
+
         m_impl->finish_frame();
     }
 
@@ -722,8 +756,9 @@ namespace oblo::vk
 
         passes.push_back({
             .kind = passKind,
-            .textureTransitionBegin = u32(textureTransitions.size()),
-            .bufferUsageBegin = u32(bufferUsages.size()),
+            .textureTransitionBegin = textureTransitions.size32(),
+            .bufferUsageBegin = bufferUsages.size32(),
+            .bufferDownloadBegin = bufferDownloads.size32(),
         });
 
         state.currentPass = passId;
@@ -740,8 +775,9 @@ namespace oblo::vk
         }
 
         auto& pass = passes[state.currentPass.value];
-        pass.textureTransitionEnd = u32(textureTransitions.size());
-        pass.bufferUsageEnd = u32(bufferUsages.size());
+        pass.textureTransitionEnd = textureTransitions.size32();
+        pass.bufferUsageEnd = bufferUsages.size32();
+        pass.bufferDownloadEnd = bufferDownloads.size32(),
 
         state.currentPass = {};
     }
@@ -848,6 +884,52 @@ namespace oblo::vk
         return storage.data;
     }
 
+    void* frame_graph::try_get_output(h32<frame_graph_subgraph> graph, string_view name, const type_id& typeId)
+    {
+        auto* const graphPtr = m_impl->subgraphs.try_find(graph);
+
+        if (!graphPtr)
+        {
+            return nullptr;
+        }
+
+        const auto it = graphPtr->outputs.find(name);
+
+        if (it == graphPtr->outputs.end())
+        {
+            return nullptr;
+        }
+
+        const auto& v = m_impl->graph[it->second];
+
+        if (!v.pin)
+        {
+            return nullptr;
+        }
+
+        //OBLO_ASSERT(m_impl->graph.get_in_edges(it->second).empty(),
+        //    "This doesn't quite work for outputs in the general case");
+
+        const auto& pinData = *m_impl->pins.try_find(v.pin);
+
+        OBLO_ASSERT(pinData.ownedStorage);
+        auto& storage = *m_impl->pinStorage.try_find(pinData.ownedStorage);
+
+        if (storage.typeDesc.typeId != typeId)
+        {
+            return nullptr;
+        }
+
+        if (!storage.data)
+        {
+            void* const dataPtr = m_impl->memoryPool.allocate(storage.typeDesc.size, storage.typeDesc.alignment);
+            storage.typeDesc.construct(dataPtr);
+            storage.data = dataPtr;
+        }
+
+        return storage.data;
+    }
+
     void frame_graph::push_empty_event_impl(const type_id& type)
     {
         m_impl->emptyEvents.emplace(type);
@@ -915,6 +997,12 @@ namespace oblo::vk
             .accessKind = accessKind,
             .uploadedTo = uploadedTo,
         });
+    }
+
+    void frame_graph_impl::add_download(resource<buffer> handle)
+    {
+        auto& bufferDownload = bufferDownloads.emplace_back();
+        bufferDownload.pinStorage = to_storage_handle(handle);
     }
 
     h32<frame_graph_pin_storage> frame_graph_impl::allocate_dynamic_resource_pin()
@@ -1211,6 +1299,42 @@ namespace oblo::vk
         vkCmdPipelineBarrier2(commandBuffer, &afterDependencyInfo);
     }
 
+    void frame_graph_impl::flush_downloads(vulkan_context& vkCtx)
+    {
+        const auto lastFinishedFrame = vkCtx.get_last_finished_submit();
+
+        downloadStaging.notify_finished_frames(lastFinishedFrame);
+
+        bool isFirstDownload = true;
+
+        for (auto it = pendingDownloads.begin(); it != pendingDownloads.end();)
+        {
+            if (lastFinishedFrame < it->submitIndex)
+            {
+                break;
+            }
+
+            if (isFirstDownload)
+            {
+                downloadStaging.invalidate_memory_ranges();
+                isFirstDownload = false;
+            }
+
+            it->promise.populate_data(
+                [this, stagedSpan = it->stagedSpan](allocator* allocator)
+                {
+                    const auto totalSize = (stagedSpan.segments[0].end - stagedSpan.segments[0].begin) +
+                        (stagedSpan.segments[1].end - stagedSpan.segments[1].begin);
+
+                    const auto destination = allocate_n_span<byte>(*allocator, totalSize);
+                    downloadStaging.copy_from(destination, stagedSpan, 0);
+                    return destination;
+                });
+
+            it = pendingDownloads.erase(it);
+        }
+    }
+
     void frame_graph_impl::finish_frame()
     {
         // Re-establish stashed reroutes (in reverse order just in case it matters)
@@ -1232,6 +1356,7 @@ namespace oblo::vk
         dynamicPins.clear();
         emptyEvents.clear();
         rerouteStash.clear();
+        bufferDownloads.clear();
 
         ++frameCounter;
     }

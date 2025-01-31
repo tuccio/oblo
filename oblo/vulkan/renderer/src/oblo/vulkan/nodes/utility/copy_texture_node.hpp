@@ -19,7 +19,7 @@ namespace oblo::vk
         void build(const frame_graph_build_context& ctx)
         {
             copyPassInstance = ctx.transfer_pass();
-            ctx.acquire(inSource, texture_usage::transfer_source);
+            ctx.acquire(inSource, texture_usage::download);
         }
 
         void execute(const frame_graph_execute_context& ctx)

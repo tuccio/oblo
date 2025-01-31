@@ -3,6 +3,7 @@
 #include <oblo/core/flags.hpp>
 #include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/core/iterator/flags_range.hpp>
+#include <oblo/core/thread/async_download.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/vulkan/buffer.hpp>
@@ -70,6 +71,10 @@ namespace oblo::vk
                 result |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
                 break;
 
+            case buffer_usage::download:
+                result |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+                break;
+
             default:
                 unreachable();
             }
@@ -131,6 +136,12 @@ namespace oblo::vk
                 access = VK_ACCESS_2_TRANSFER_WRITE_BIT;
                 accessKind = buffer_access_kind::write;
                 break;
+
+            case buffer_usage::download:
+                access = VK_ACCESS_2_TRANSFER_READ_BIT;
+                accessKind = buffer_access_kind::read;
+                break;
+
             case buffer_usage::uniform:
                 access = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_UNIFORM_READ_BIT;
                 accessKind = buffer_access_kind::read;
@@ -156,7 +167,7 @@ namespace oblo::vk
                     VK_IMAGE_USAGE_TRANSFER_DST_BIT);
                 break;
 
-            case texture_usage::transfer_source:
+            case texture_usage::download:
                 resourcePool.add_transient_texture_usage(frameGraph.find_pool_index(texture),
                     VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
                 break;
@@ -396,6 +407,12 @@ namespace oblo::vk
 
         const auto [pipelineStage, access, accessKind] = convert_for_sync2(currentPass.kind, usage);
         m_frameGraph.set_buffer_access(buffer, pipelineStage, access, accessKind, upload);
+
+        if (usage == buffer_usage::download)
+        {
+            OBLO_ASSERT(currentPass.kind == pass_kind::transfer);
+            m_frameGraph.add_download(buffer);
+        }
     }
 
     void frame_graph_build_context::create(
@@ -424,6 +441,12 @@ namespace oblo::vk
 
         const auto [pipelineStage, access, accessKind] = convert_for_sync2(currentPass.kind, usage);
         m_frameGraph.set_buffer_access(buffer, pipelineStage, access, accessKind, stagedDataSize != 0);
+
+        if (usage == buffer_usage::download)
+        {
+            OBLO_ASSERT(currentPass.kind == pass_kind::transfer);
+            m_frameGraph.add_download(buffer);
+        }
     }
 
     void frame_graph_build_context::acquire(resource<texture> texture, texture_usage usage) const
@@ -465,6 +488,12 @@ namespace oblo::vk
         const auto [pipelineStage, access, accessKind] = convert_for_sync2(currentPass.kind, usage);
 
         m_frameGraph.set_buffer_access(buffer, pipelineStage, access, accessKind, false);
+
+        if (usage == buffer_usage::download)
+        {
+            OBLO_ASSERT(currentPass.kind == pass_kind::transfer);
+            m_frameGraph.add_download(buffer);
+        }
     }
 
     void frame_graph_build_context::reroute(resource<buffer> source, resource<buffer> destination) const
@@ -845,7 +874,39 @@ namespace oblo::vk
     {
         auto& stagingBuffer = m_renderer.get_staging_buffer();
         const auto b = access(h);
+
+        // NOTE: This is also not thread safe, it changes some internal state in the staging buffer
         stagingBuffer.upload(get_command_buffer(), data, b.buffer, b.offset + bufferOffset);
+    }
+
+    async_download frame_graph_execute_context::download(resource<buffer> h) const
+    {
+        OBLO_ASSERT(h);
+        OBLO_ASSERT(m_state.currentPass);
+        OBLO_ASSERT(m_state.passKind == pass_kind::transfer);
+
+        auto& pass = m_frameGraph.passes[m_state.currentPass.value];
+
+        for (u32 i = pass.bufferDownloadBegin; i < pass.bufferDownloadEnd; ++i)
+        {
+            auto& download = m_frameGraph.bufferDownloads[i];
+
+            if (as_storage_handle(h) == download.pinStorage)
+            {
+                auto& pendingDownload = m_frameGraph.pendingDownloads[download.pendingDownloadId];
+
+                const auto b = access(h);
+
+                // NOTE: Not thread safe because download staging does some book-keeping
+                const_cast<frame_graph_impl&>(m_frameGraph)
+                    .downloadStaging.download(m_commandBuffer, b.buffer, b.offset, pendingDownload.stagedSpan);
+
+                return async_download{pendingDownload.promise};
+            }
+        }
+
+        OBLO_ASSERT(false, "The download was not declared in the build process");
+        return async_download{};
     }
 
     VkCommandBuffer frame_graph_execute_context::get_command_buffer() const
