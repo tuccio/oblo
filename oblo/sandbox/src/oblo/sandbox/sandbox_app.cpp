@@ -605,25 +605,13 @@ namespace oblo::vk
 
     bool sandbox_base::init_imgui()
     {
-        m_context.frame_begin(nullptr, nullptr);
-
-        auto& commandBuffer = m_context.get_active_command_buffer();
-
         bool success = m_imgui.fill_init_command_buffer(m_window,
             m_instance.get(),
             m_engine.get_physical_device(),
             m_engine.get_device(),
             m_engine.get_queue(),
-            commandBuffer.get(),
             SwapchainImages,
             m_config);
-
-        m_context.frame_end();
-
-        if (success)
-        {
-            m_imgui.finalize_init(m_engine.get_device());
-        }
 
         return success;
     }

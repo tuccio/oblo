@@ -220,7 +220,7 @@ namespace oblo::editor
             ImGui::EndGroup();
 
             ImGui::SetLastItemData(selectableItem.ID,
-                selectableItem.InFlags,
+                selectableItem.ItemFlags,
                 selectableItem.StatusFlags,
                 selectableItem.Rect);
 

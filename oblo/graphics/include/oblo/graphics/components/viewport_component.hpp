@@ -5,7 +5,7 @@
 
 namespace oblo
 {
-    using viewport_image_id = void*;
+    using viewport_image_id = u64;
 
     struct picking_request
     {

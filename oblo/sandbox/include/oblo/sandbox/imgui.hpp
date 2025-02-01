@@ -20,11 +20,8 @@ namespace oblo::vk
             VkPhysicalDevice physicalDevice,
             VkDevice device,
             VkQueue queue,
-            VkCommandBuffer commandBuffer,
             u32 swapchainImageCount,
             const sandbox_app_config& config);
-
-        void finalize_init(VkDevice device);
 
         void shutdown(VkDevice device);
 
