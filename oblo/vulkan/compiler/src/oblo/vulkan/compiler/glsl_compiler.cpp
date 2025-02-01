@@ -13,6 +13,7 @@
 #include <oblo/vulkan/compiler/glsl_preprocessor.hpp>
 #include <oblo/vulkan/compiler/shader_compiler_result.hpp>
 
+#include <glslang/Public/ShaderLang.h>
 #include <glslang/SPIRV/GlslangToSpv.h>
 
 namespace oblo::vk
@@ -306,19 +307,18 @@ namespace oblo::vk
 
                 glslang::SpvOptions spvOptions{};
                 spvOptions.generateDebugInfo = options.generateDebugInfo;
-                spvOptions.emitNonSemanticShaderDebugInfo = options.generateDebugInfo;
-                spvOptions.emitNonSemanticShaderDebugSource = options.generateDebugInfo;
+                //spvOptions.emitNonSemanticShaderDebugInfo = options.generateDebugInfo;
+                //spvOptions.emitNonSemanticShaderDebugSource = options.generateDebugInfo;
                 spvOptions.disableOptimizer = !options.codeOptimization;
 
-                constexpr bool forceDisableDebugInfo = true;
+                constexpr bool forceDisableDebugInfo = false;
 
                 if constexpr (forceDisableDebugInfo)
                 {
                     // This is failing to generate info with buffer reference types
                     // https://github.com/KhronosGroup/glslang/pull/3617 might fix it
-                    spvOptions.generateDebugInfo = false;
+                    // UPDATE: That PR might have fixed, but spirv-cross does not handle OpExtInstWithForwardRefsKHR yet
                     spvOptions.emitNonSemanticShaderDebugInfo = false;
-                    spvOptions.emitNonSemanticShaderDebugSource = false;
                 }
                 else
                 {
@@ -326,20 +326,6 @@ namespace oblo::vk
                 }
 
                 auto* const intermediate = m_program.getIntermediate(m_language);
-
-                if (!options.sourceCodeFilePath.empty())
-                {
-                    intermediate->setSourceFile(options.sourceCodeFilePath.c_str());
-                }
-
-                if (spvOptions.generateDebugInfo)
-                {
-                    for (const auto& [path, f] : m_preprocessor.get_source_files_map())
-                    {
-                        intermediate->addIncludeText(path.c_str(), path.data(), path.size());
-                    }
-                }
-
                 glslang::GlslangToSpv(*intermediate, m_spirv, &spvOptions);
 
                 m_state = state::compilation_complete;
