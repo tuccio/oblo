@@ -41,7 +41,6 @@ add_library(imgui::sdl_vk ALIAS imgui_sdl_vk)
 add_library(imgui::sdl_gl3 ALIAS imgui_sdl_gl3)
 
 # Finally setup our projects
-add_subdirectory(editor)
 add_subdirectory(oblo)
 add_subdirectory(sandbox)
 add_subdirectory(plugins)
