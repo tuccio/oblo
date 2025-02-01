@@ -21,10 +21,8 @@ class ObloConanRecipe(ConanFile):
     }
 
     def requirements(self):
-        self.requires("assimp/5.0.1")
         self.requires("concurrentqueue/1.0.4")
         self.requires("cxxopts/2.2.1")
-        self.requires("glew/2.1.0")
         self.requires("glslang/1.3.268.0")
         self.requires("gtest/1.10.0")
         self.requires("iconfontcppheaders/cci.20240128")
@@ -32,7 +30,6 @@ class ObloConanRecipe(ConanFile):
         self.requires("imgui/1.89.9-docking", override=True)
         self.requires("imguizmo/cci.20231114")
         self.requires("meshoptimizer/0.20")
-        self.requires("nlohmann_json/3.11.2")
         self.requires("rapidjson/cci.20220822")
         self.requires("vulkan-headers/1.3.268.0", override=True)
         self.requires("vulkan-loader/1.3.268.0")
@@ -76,7 +73,7 @@ class ObloConanRecipe(ConanFile):
         imgui = self.dependencies["imgui"]
         src_dir = f"{imgui.package_folder}/res/bindings/"
 
-        for backend in ["opengl3", "sdl2", "vulkan"]:
+        for backend in ["sdl2", "vulkan"]:
             copy(self, f"imgui_impl_{backend}.h", src_dir, f"{self.recipe_folder}/3rdparty/imgui/{backend}/include")
             copy(self, f"imgui_impl_{backend}_*", src_dir, f"{self.recipe_folder}/3rdparty/imgui/{backend}/src")
             copy(self, f"imgui_impl_{backend}.cpp", src_dir, f"{self.recipe_folder}/3rdparty/imgui/{backend}/src")

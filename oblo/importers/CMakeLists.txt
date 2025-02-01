@@ -1,6 +1,9 @@
 oblo_add_library(importers MODULE)
 
 find_package(meshoptimizer REQUIRED)
+find_package(stb REQUIRED)
+find_package(tinygltf REQUIRED)
+find_package(VulkanHeaders REQUIRED)
 
 target_link_libraries(
     oblo_importers

@@ -1,5 +1,8 @@
 oblo_add_library(sandbox)
 
+find_package(SDL2 REQUIRED)
+find_package(iconfontcppheaders REQUIRED)
+
 target_link_libraries(
     oblo_sandbox
     PUBLIC

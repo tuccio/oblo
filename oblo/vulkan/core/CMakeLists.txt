@@ -1,5 +1,8 @@
 oblo_add_library(vk)
 
+find_package(Vulkan REQUIRED)
+find_package(vulkan-memory-allocator REQUIRED)
+
 target_link_libraries(
     oblo_vk
     PUBLIC

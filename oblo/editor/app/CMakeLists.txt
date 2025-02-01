@@ -1,6 +1,7 @@
 oblo_add_executable(oblo)
 
 find_package(cxxopts REQUIRED)
+find_package(SDL2 REQUIRED)
 
 target_link_libraries(
     oblo
@@ -22,7 +23,6 @@ target_link_libraries(
     oblo::scene::editor
     oblo::thread
     cxxopts::cxxopts
-    iconfontcppheaders::iconfontcppheaders
     SDL2::SDL2
     SDL2::SDL2main
 )

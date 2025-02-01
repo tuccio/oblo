@@ -154,6 +154,11 @@ namespace oblo::vk
 
     void vulkan_context::shutdown()
     {
+        if (!m_engine)
+        {
+            return;
+        }
+
         vkDeviceWaitIdle(m_engine->get_device());
 
         destroy_resources(~u64{});

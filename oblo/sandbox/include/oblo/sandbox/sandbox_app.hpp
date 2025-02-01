@@ -80,8 +80,8 @@ namespace oblo::vk
         static constexpr u32 SwapchainImages{3u};
         static constexpr VkFormat SwapchainFormat{VK_FORMAT_B8G8R8A8_UNORM};
 
-        SDL_Window* m_window;
-        VkSurfaceKHR m_surface{nullptr};
+        SDL_Window* m_window{};
+        VkSurfaceKHR m_surface{};
 
         input_queue m_inputQueue;
 
@@ -150,7 +150,7 @@ namespace oblo::vk
         template <typename... TArgs>
         bool init(TArgs&&... args)
         {
-            //if constexpr (app_has_init<TApp, TArgs...>)
+            // if constexpr (app_has_init<TApp, TArgs...>)
             {
                 if (!TApp::init(std::forward<TArgs>(args)...))
                 {

@@ -108,10 +108,10 @@ namespace oblo::vk
         void dispose(u64 submitIndex, F&& f, T&&... args);
 
     private:
-        VkInstance m_instance;
-        single_queue_engine* m_engine;
-        gpu_allocator* m_allocator;
-        resource_manager* m_resourceManager;
+        VkInstance m_instance{};
+        single_queue_engine* m_engine{};
+        gpu_allocator* m_allocator{};
+        resource_manager* m_resourceManager{};
 
         debug_utils::label m_debugUtilsLabel{};
         debug_utils::object m_debugUtilsObject{};

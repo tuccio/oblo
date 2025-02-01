@@ -1,5 +1,7 @@
 oblo_add_library(editor_windows)
 
+find_package(iconfontcppheaders REQUIRED)
+find_package(ImGui REQUIRED)
 find_package(imguizmo REQUIRED)
 
 target_link_libraries(

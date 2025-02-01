@@ -124,7 +124,12 @@ namespace oblo::vk
 
     void sandbox_base::wait_idle()
     {
-        vkDeviceWaitIdle(m_engine.get_device());
+        auto* const device = m_engine.get_device();
+
+        if (device)
+        {
+            vkDeviceWaitIdle(device);
+        }
     }
 
     namespace

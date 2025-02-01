@@ -1,5 +1,7 @@
 oblo_add_library(smoke TEST_MAIN)
 
+find_package(ImGui REQUIRED)
+
 target_link_libraries(
     oblo_smoke
     PUBLIC

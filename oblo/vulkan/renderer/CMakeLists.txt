@@ -1,5 +1,7 @@
 oblo_add_library(vk_renderer)
 
+find_package(spirv-cross REQUIRED)
+
 target_link_libraries(
     oblo_vk_renderer
     PUBLIC
