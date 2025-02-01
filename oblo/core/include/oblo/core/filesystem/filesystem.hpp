@@ -36,7 +36,7 @@ namespace oblo::filesystem
 
     string_view stem(string_view path);
 
-    string_view parent_path(string_view path);
+    cstring_view parent_path(string_view path, string_builder& out);
 
     cstring_view filename(cstring_view path);
 

@@ -99,7 +99,7 @@ namespace oblo
             meta.typeHint = doc.read_uuid(doc.find_child(root, "typeHint"_hsv)).value_or(uuid{});
             meta.nativeAssetType = doc.read_uuid(doc.find_child(root, "nativeAssetType"_hsv)).value_or(uuid{});
 
-            return true;
+            return !meta.assetId.is_nil();
         }
 
         bool load_asset_meta(asset_meta& meta, const std::filesystem::path& path)
@@ -1111,6 +1111,8 @@ namespace oblo
     {
         auto* jm = job_manager::get();
 
+        string_builder builder;
+
         for (auto it = m_impl->currentImports.begin(); it != m_impl->currentImports.end();)
         {
             auto& importProcess = **it;
@@ -1145,7 +1147,9 @@ namespace oblo
                         continue;
                     }
 
-                    destination = filesystem::parent_path(assetIt->second.path.view());
+                    filesystem::parent_path(assetIt->second.path.view(), builder);
+
+                    destination = builder.make_canonical_path().as<string_view>();
                     importProcess.importer.set_asset_name(filesystem::filename(assetIt->second.path));
 
                     OBLO_ASSERT(assetIt->second.isProcessing);
@@ -1182,7 +1186,6 @@ namespace oblo
         if (m_impl->watcher)
         {
             asset_meta meta;
-            string_builder builder;
 
             m_impl->watcher
                 ->process(

@@ -4,6 +4,7 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/string/cstring_view.hpp>
+#include <oblo/core/string/string_builder.hpp>
 #include <oblo/math/float.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec3.hpp>
@@ -709,7 +710,8 @@ namespace oblo
 
         tinygltf::Model model;
 
-        const auto parentPath = filesystem::parent_path(source).as<std::string>();
+        string_builder builder;
+        const auto parentPath = filesystem::parent_path(source, builder).as<std::string>();
 
         std::string err, warn;
 

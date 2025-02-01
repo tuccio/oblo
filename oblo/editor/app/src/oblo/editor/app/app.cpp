@@ -4,6 +4,7 @@
 #include <oblo/asset/importers/importers_module.hpp>
 #include <oblo/asset/providers/native_asset_provider.hpp>
 #include <oblo/asset/utility/registration.hpp>
+#include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/platform/core.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/time/clock.hpp>
@@ -35,6 +36,7 @@
 #include <oblo/modules/utility/provider_service.hpp>
 #include <oblo/options/options_module.hpp>
 #include <oblo/options/options_provider.hpp>
+#include <oblo/project/project.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
 #include <oblo/properties/serialization/json.hpp>
 #include <oblo/reflection/reflection_module.hpp>
@@ -46,6 +48,13 @@
 #include <oblo/thread/job_manager.hpp>
 #include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/required_features.hpp>
+
+#include <cxxopts.hpp>
+
+namespace oblo
+{
+    std::istream& operator>>(std::istream& is, string_builder& s);
+}
 
 namespace oblo::editor
 {
@@ -204,8 +213,22 @@ namespace oblo::editor
             m_editorOptions.update();
         }
 
+        expected<> parse_cli_options(int argc, char* argv[]);
+
+        const project& get_project() const
+        {
+            return m_project;
+        }
+
+        cstring_view get_project_directory() const
+        {
+            return m_projectDir;
+        }
+
     private:
         options_layer_helper m_editorOptions;
+        project m_project;
+        string_builder m_projectDir;
     };
 
     std::span<const char* const> app::get_required_instance_extensions() const
@@ -228,7 +251,7 @@ namespace oblo::editor
         return module_manager::get().find<runtime_module>()->get_required_renderer_features().deviceExtensions;
     }
 
-    bool app::init()
+    bool app::init(int argc, char* argv[])
     {
         const auto bootTime = clock::now();
 
@@ -246,6 +269,12 @@ namespace oblo::editor
         auto& mm = module_manager::get();
         m_editorModule = mm.load<editor_app_module>();
 
+        if (!m_editorModule->parse_cli_options(argc, argv))
+        {
+            log::error("Failed to parse CLI options");
+            return false;
+        }
+
         mm.finalize();
 
         return true;
@@ -260,8 +289,15 @@ namespace oblo::editor
 
         m_runtimeRegistry = runtime->create_runtime_registry();
 
-        // TODO (#41): Load a project instead
-        if (!m_assetRegistry.initialize("./project/assets", "./project/artifacts", "./project/sources"))
+        const auto& project = m_editorModule->get_project();
+        const auto& projectDir = m_editorModule->get_project_directory();
+
+        string_builder assetsDir, artifactsDir, sourcesDir;
+        assetsDir.append(projectDir).append_path(project.assetsDir);
+        artifactsDir.append(projectDir).append_path(project.artifactsDir);
+        sourcesDir.append(projectDir).append_path(project.sourcesDir);
+
+        if (!m_assetRegistry.initialize(assetsDir, artifactsDir, sourcesDir))
         {
             return false;
         }
@@ -378,5 +414,61 @@ namespace oblo::editor
 
         m_windowManager.update();
         m_editorModule->update();
+    }
+
+    expected<> editor_app_module::parse_cli_options(int argc, char* argv[])
+    {
+        try
+        {
+            cxxopts::Options options("oblo");
+
+            options.add_options()("project", "The path to the project file", cxxopts::value<string_builder>());
+
+            auto r = options.parse(argc, argv);
+
+            if (r.count("project"))
+            {
+                const auto& projectPath = r["project"].as<string_builder>();
+
+                auto p = project_load(projectPath);
+
+                if (!p)
+                {
+                    return unspecified_error;
+                }
+
+                m_project = *std::move(p);
+                filesystem::parent_path(projectPath.view(), m_projectDir);
+            }
+            else
+            {
+                m_project.name = "New Project";
+                m_project.assetsDir = "./assets";
+                m_project.artifactsDir = "./.artifacts";
+                m_project.sourcesDir = "./sources";
+                m_projectDir = "./project";
+            }
+
+            return no_error;
+        }
+        catch (...)
+        {
+            return unspecified_error;
+        }
+    }
+}
+
+namespace oblo
+{
+    std::istream& operator>>(std::istream& is, string_builder& s)
+    {
+        for (int c = is.get(); c != EOF; c = is.get())
+        {
+            s.append(char(c));
+        }
+
+        is.clear();
+
+        return is;
     }
 }

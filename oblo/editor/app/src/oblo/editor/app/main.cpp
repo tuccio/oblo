@@ -17,7 +17,7 @@ namespace oblo
     }
 }
 
-int SDL_main(int, char*[])
+int SDL_main(int argc, char* argv[])
 {
     oblo::module_manager moduleManager;
 
@@ -33,7 +33,7 @@ int SDL_main(int, char*[])
         .vkUseValidationLayers = false,
     });
 
-    if (!app.init())
+    if (!app.init(argc, argv))
     {
         app.shutdown();
         return 1;

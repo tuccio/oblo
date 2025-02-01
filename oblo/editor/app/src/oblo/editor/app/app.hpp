@@ -36,7 +36,7 @@ namespace oblo::editor
 
         std::span<const char* const> get_required_device_extensions() const;
 
-        bool init();
+        bool init(int argc, char* argv[]);
 
         bool startup(const vk::sandbox_startup_context& context);
 

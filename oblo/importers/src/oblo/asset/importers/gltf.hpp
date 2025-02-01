@@ -3,7 +3,7 @@
 #include <oblo/asset/import/file_importer.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/string/hashed_string_view.hpp>
-#include <oblo/core/string/string.hpp>
+#include <oblo/core/string/string_builder.hpp>
 
 #include <tiny_gltf.h>
 
@@ -47,7 +47,7 @@ namespace oblo::importers
 
         dynamic_array<import_artifact> m_artifacts;
         dynamic_array<string> m_sourceFiles;
-        string m_sourceFileDir;
+        string_builder m_sourceFileDir;
         uuid m_mainArtifactHint{};
     };
 }
