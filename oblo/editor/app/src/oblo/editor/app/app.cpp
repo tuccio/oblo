@@ -275,6 +275,14 @@ namespace oblo::editor
             return false;
         }
 
+        for (const auto& module : m_editorModule->get_project().modules)
+        {
+            if (!mm.load(module))
+            {
+                log::error("Failed to load project module: '{}'", module);
+            }
+        }
+
         mm.finalize();
 
         return true;

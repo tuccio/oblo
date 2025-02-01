@@ -1,6 +1,8 @@
 #pragma once
 
+#include <oblo/core/deque.hpp>
 #include <oblo/core/lifetime.hpp>
+#include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/unique_ptr.hpp>
@@ -10,6 +12,7 @@
 
 namespace oblo
 {
+    class string;
     class module_interface;
 
     class module_manager
@@ -30,6 +33,8 @@ namespace oblo
         template <typename T>
         T* load();
 
+        MODULES_API module_interface* load(cstring_view path);
+
         template <typename T>
         T* find() const;
 
@@ -41,13 +46,8 @@ namespace oblo
         std::span<T* const> find_services() const;
 
     private:
-        MODULES_API module_interface* find(const type_id& id) const;
-        [[nodiscard]] MODULES_API bool load(const type_id& id, unique_ptr<module_interface> module);
-
-        MODULES_API std::span<void* const> find_services(const type_id& type) const;
-
-    private:
         struct module_storage;
+        struct scoped_state_change;
         struct service_storage;
 
         enum class state : u8
@@ -58,11 +58,17 @@ namespace oblo
             finalized,
         };
 
-        struct scoped_state_change;
+    private:
+        MODULES_API module_interface* find(const hashed_string_view& id) const;
+        [[nodiscard]] MODULES_API module_storage* load(const hashed_string_view& id,
+            unique_ptr<module_interface> module);
+
+        MODULES_API std::span<void* const> find_services(const type_id& type) const;
 
     private:
-        std::unordered_map<type_id, module_storage> m_modules;
+        std::unordered_map<hashed_string_view, module_storage, hash<hashed_string_view>> m_modules;
         std::unordered_map<type_id, service_storage> m_services;
+        deque<string> m_loadPaths;
         u32 m_nextLoadIndex{};
         state m_state{state::idle};
     };
@@ -74,7 +80,7 @@ namespace oblo
 
         constexpr auto id = get_type_id<T>();
 
-        if (auto* const m = find(id))
+        if (auto* const m = find(id.name))
         {
             return static_cast<T*>(m);
         }
@@ -82,7 +88,7 @@ namespace oblo
         auto m = allocate_unique<T>();
         T* const ptr = m.get();
 
-        if (!load(id, std::move(m)))
+        if (!load(id.name, std::move(m)))
         {
             return nullptr;
         }
@@ -95,7 +101,7 @@ namespace oblo
     {
         constexpr auto id = get_type_id<T>();
 
-        if (auto* const m = find(id))
+        if (auto* const m = find(id.name))
         {
             return static_cast<T*>(m);
         }

@@ -2,9 +2,13 @@
 
 #include <oblo/core/debug.hpp>
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/platform/shared_library.hpp>
 #include <oblo/core/service_registry.hpp>
+#include <oblo/core/string/string.hpp>
+#include <oblo/core/utility.hpp>
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_interface.hpp>
+#include <oblo/modules/utility/registration.hpp>
 
 #include <algorithm>
 #include <iterator>
@@ -18,7 +22,7 @@ namespace oblo
 
         struct sorted_module
         {
-            type_id id;
+            hashed_string_view id;
             u32 loadOrder;
             module_interface* ptr;
         };
@@ -73,6 +77,7 @@ namespace oblo
     {
         unique_ptr<module_interface> ptr;
         service_registry services;
+        platform::shared_library lib;
         u32 loadOrder{};
     };
 
@@ -99,6 +104,50 @@ namespace oblo
 
         OBLO_ASSERT(g_instance == this);
         g_instance = nullptr;
+    }
+
+    module_interface* module_manager::load(cstring_view path)
+    {
+        platform::shared_library lib{path};
+
+        if (!lib)
+        {
+            return nullptr;
+        }
+
+        void* const symbol = lib.symbol(OBLO_STRINGIZE(OBLO_MODULE_INSTANTIATE_SYM));
+
+        if (!symbol)
+        {
+            return nullptr;
+        }
+
+        using module_instantiate_fn = module_interface* (*) (allocator*);
+
+        allocator* const al = get_global_allocator();
+        unique_ptr module{static_cast<module_instantiate_fn>(symbol)(al), al};
+        module_interface* const ptr = module.get();
+
+        if (!module)
+        {
+            return nullptr;
+        }
+
+        // It's quite important that nothing gets moved in this deque, since we give references to the strings (which
+        // have SSO)
+        auto& pathCopy = m_loadPaths.emplace_back(path);
+
+        auto* const moduleEntry = load(pathCopy.as<hashed_string_view>(), std::move(module));
+
+        if (!moduleEntry)
+        {
+            m_loadPaths.pop_back();
+            return nullptr;
+        }
+
+        moduleEntry->lib = std::move(lib);
+
+        return ptr;
     }
 
     void module_manager::finalize()
@@ -140,7 +189,7 @@ namespace oblo
         }
     }
 
-    module_interface* module_manager::find(const type_id& id) const
+    module_interface* module_manager::find(const hashed_string_view& id) const
     {
         const auto it = m_modules.find(id);
         if (it == m_modules.end())
@@ -151,7 +200,8 @@ namespace oblo
         return it->second.ptr.get();
     }
 
-    bool module_manager::load(const type_id& id, unique_ptr<module_interface> module)
+    module_manager::module_storage* module_manager::load(const hashed_string_view& id,
+        unique_ptr<module_interface> module)
     {
         OBLO_ASSERT(m_state <= state::loading);
 
@@ -161,7 +211,7 @@ namespace oblo
 
         if (!inserted)
         {
-            return false;
+            return nullptr;
         }
 
         service_registry services;
@@ -173,13 +223,13 @@ namespace oblo
                 }))
             {
                 m_modules.erase(it);
-                return false;
+                return nullptr;
             }
         }
         catch (const std::exception&)
         {
             m_modules.erase(it);
-            return false;
+            return nullptr;
         }
 
         auto& moduleEntry = it->second;
@@ -196,7 +246,7 @@ namespace oblo
             m_services[service.type].implementations.push_back(service.pointer);
         }
 
-        return true;
+        return &moduleEntry;
     }
 
     std::span<void* const> module_manager::find_services(const type_id& type) const
