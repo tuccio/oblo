@@ -98,7 +98,6 @@ namespace oblo::vk
     {
         OBLO_ASSERT(frameIndex != InvalidTimelineId);
         OBLO_ASSERT(m_impl.nextTimelineId == InvalidTimelineId);
-        OBLO_ASSERT(m_impl.transferredBytes == 0);
 
         m_impl.nextTimelineId = frameIndex;
     }
@@ -114,7 +113,6 @@ namespace oblo::vk
         }
 
         m_impl.pendingBytes = 0;
-        m_impl.transferredBytes = 0;
 
         m_impl.nextTimelineId = InvalidTimelineId;
     }
@@ -268,7 +266,7 @@ namespace oblo::vk
     }
 
     void staging_buffer::upload(
-        VkCommandBuffer commandBuffer, staging_buffer_span source, VkBuffer buffer, u32 bufferOffset)
+        VkCommandBuffer commandBuffer, staging_buffer_span source, VkBuffer buffer, u32 bufferOffset) const
     {
         OBLO_ASSERT(m_impl.nextTimelineId != InvalidTimelineId);
 
@@ -292,8 +290,6 @@ namespace oblo::vk
 
                 segmentOffset += segmentSize;
                 ++regionsCount;
-
-                m_impl.transferredBytes += segmentSize;
             }
         }
 
@@ -303,7 +299,7 @@ namespace oblo::vk
     void staging_buffer::upload(VkCommandBuffer commandBuffer,
         staging_buffer_span source,
         VkImage image,
-        std::span<const VkBufferImageCopy> copies)
+        std::span<const VkBufferImageCopy> copies) const
     {
         OBLO_ASSERT(m_impl.nextTimelineId != InvalidTimelineId);
 
@@ -316,12 +312,10 @@ namespace oblo::vk
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             u32(copies.size()),
             copies.data());
-
-        m_impl.transferredBytes += calculate_size(source);
     }
 
     void staging_buffer::download(
-        VkCommandBuffer commandBuffer, VkBuffer buffer, u32 bufferOffset, staging_buffer_span destination)
+        VkCommandBuffer commandBuffer, VkBuffer buffer, u32 bufferOffset, staging_buffer_span destination) const
     {
         OBLO_ASSERT(m_impl.nextTimelineId != InvalidTimelineId);
         OBLO_ASSERT(calculate_size(destination) > 0);
@@ -345,8 +339,6 @@ namespace oblo::vk
 
                 segmentOffset += segmentSize;
                 ++regionsCount;
-
-                m_impl.transferredBytes += segmentSize;
             }
         }
 

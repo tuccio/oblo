@@ -896,10 +896,7 @@ namespace oblo::vk
                 auto& pendingDownload = m_frameGraph.pendingDownloads[download.pendingDownloadId];
 
                 const auto b = access(h);
-
-                // NOTE: Not thread safe because download staging does some book-keeping
-                const_cast<frame_graph_impl&>(m_frameGraph)
-                    .downloadStaging.download(m_commandBuffer, b.buffer, b.offset, pendingDownload.stagedSpan);
+                m_frameGraph.downloadStaging.download(m_commandBuffer, b.buffer, b.offset, pendingDownload.stagedSpan);
 
                 return async_download{pendingDownload.promise};
             }
