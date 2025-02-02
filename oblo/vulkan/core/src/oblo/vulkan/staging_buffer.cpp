@@ -9,6 +9,8 @@
 #include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/utility/pipeline_barrier.hpp>
 
+#include <numeric>
+
 namespace oblo::vk
 {
     namespace
@@ -112,6 +114,12 @@ namespace oblo::vk
         if (m_impl.pendingBytes != 0)
         {
             m_impl.submittedUploads.push_back({.timelineId = m_impl.nextTimelineId, .size = m_impl.pendingBytes});
+
+            OBLO_ASSERT(m_impl.ring.used_count() ==
+                std::accumulate(m_impl.submittedUploads.begin(),
+                    m_impl.submittedUploads.end(),
+                    0u,
+                    [](u32 v, const auto& upload) { return upload.size + v; }))
         }
 
         m_impl.pendingBytes = 0;
