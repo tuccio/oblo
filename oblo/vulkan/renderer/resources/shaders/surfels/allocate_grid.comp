@@ -29,7 +29,7 @@ void main()
 
     const uint surfelsBegin = atomicAdd(g_SurfelGridCellDataIndex, surfelsCount);
 
-#if OBLO_DEBUG_PRINTF
+#if OBLO_DEBUG_PRINTF && SURFEL_DEBUG_PRINTF
     if (!(surfelsBegin + surfelsCount < SURFEL_MAX_MULTIPLICITY * gridHeader.maxSurfels))
     {
         debugPrintfEXT("Failed to allocate at %u Count: [%u %u] [max: %u]\n",

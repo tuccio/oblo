@@ -20,7 +20,7 @@ layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in
 
 void surfel_kill(in uint surfelId)
 {
-#if OBLO_DEBUG_PRINTF
+#if OBLO_DEBUG_PRINTF && SURFEL_DEBUG_PRINTF
     debugPrintfEXT("[OVERCOVERAGE] Marked surfel: %u\n", surfelId);
 #endif
 
