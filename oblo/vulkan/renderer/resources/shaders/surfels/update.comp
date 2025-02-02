@@ -47,7 +47,7 @@ g_Constants;
 
 void surfel_kill(in uint surfelId)
 {
-#if OBLO_DEBUG_PRINTF
+#if OBLO_DEBUG_PRINTF && SURFEL_DEBUG_PRINTF
     debugPrintfEXT("[UPDATE] Killed surfel: %u (now: %u last usage: %u)\n",
         surfelId,
         g_Constants.currentTimestamp,
@@ -68,7 +68,7 @@ void surfel_commit_to_grid(in uint surfelId, in uint cellIndex)
 
 void main()
 {
-#if OBLO_DEBUG_PRINTF
+#if OBLO_DEBUG_PRINTF && SURFEL_DEBUG_PRINTF
     if (gl_GlobalInvocationID.x == 0)
     {
         // debugPrintfEXT("[UPDATE] Surfels alive: %u\n", g_Constants.maxSurfels - g_SurfelStackHeader.available);

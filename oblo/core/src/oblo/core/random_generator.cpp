@@ -22,13 +22,15 @@ namespace oblo
 
     random_generator::~random_generator() = default;
 
-    void random_generator::seed()
+    u32 random_generator::seed()
     {
         std::random_device dev;
-        seed(dev());
+        const u32 s = dev();
+        seed(s);
+        return s;
     }
 
-    void random_generator::seed(u32 seed)
+    u32 random_generator::seed(u32 seed)
     {
         if (!m_impl)
         {
@@ -36,6 +38,7 @@ namespace oblo
         }
 
         m_impl->seed(seed);
+        return seed;
     }
 
     u32 random_generator::generate()

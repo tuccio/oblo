@@ -153,19 +153,26 @@ namespace oblo::vk
         OBLO_VK_PANIC(vkResetCommandPool(m_device, m_commandPool, 0u));
     }
 
-    VkCommandBuffer command_buffer_pool::fetch_buffer()
+    expected<VkCommandBuffer> command_buffer_pool::fetch_buffer()
     {
         VkCommandBuffer commandBuffer;
-        fetch_buffers({&commandBuffer, 1});
+
+        if (!fetch_buffers({&commandBuffer, 1}))
+        {
+            return unspecified_error;
+        }
+
         return commandBuffer;
     }
 
-    void command_buffer_pool::fetch_buffers(std::span<VkCommandBuffer> outBuffers)
+    expected<> command_buffer_pool::fetch_buffers(std::span<VkCommandBuffer> outBuffers)
     {
         const auto fetchedBuffersCount{outBuffers.size()};
 
-        // TODO: Growth?
-        OBLO_ASSERT(m_commandBuffers.has_available(fetchedBuffersCount));
+        if (!m_commandBuffers.has_available(fetchedBuffersCount))
+        {
+            return unspecified_error;
+        }
 
         const auto fetchResult = m_commandBuffers.fetch(fetchedBuffersCount);
 
@@ -173,6 +180,7 @@ namespace oblo::vk
         std::copy(fetchResult.secondSegmentBegin, fetchResult.secondSegmentEnd, nextIt);
 
         m_trackingInfo.first_used()->count += fetchedBuffersCount;
+        return no_error;
     }
 
     void command_buffer_pool::allocate_buffers(std::size_t count)

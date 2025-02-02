@@ -1,8 +1,9 @@
 #pragma once
 
+#include <oblo/core/debug.hpp>
+
 #include <concepts>
 #include <cstddef>
-#include <oblo/core/debug.hpp>
 
 namespace oblo
 {
@@ -52,7 +53,7 @@ namespace oblo
         {
             OBLO_ASSERT(has_available(count));
 
-            const auto availableFirstSegment = m_size - m_firstUnused;
+            const auto availableFirstSegment = first_segment_available_count();
 
             segmented_span result{};
 
@@ -70,41 +71,6 @@ namespace oblo
             }
 
             m_usedCount += count;
-
-            return result;
-        }
-
-        segmented_span try_fetch_contiguous_aligned(Size count, Size alignment)
-        {
-            segmented_span result{};
-
-            const auto padding = m_firstUnused % alignment;
-            const auto alignedCount = count + padding;
-            const auto newEnd = m_firstUnused + alignedCount;
-
-            if (newEnd > m_size)
-            {
-                // Can't allocate on the first segment, try allocating on the second segment
-                const auto availableSecondSegment = m_firstUnused - m_usedCount;
-
-                // No need to align anymore, we start from 0
-                if (availableSecondSegment >= count)
-                {
-                    const auto availableFirstSegment = m_size - m_firstUnused;
-
-                    m_firstUnused = count;
-                    m_usedCount += availableFirstSegment + count;
-
-                    result.segments[0] = {.begin = 0u, .end = count};
-                }
-            }
-            else
-            {
-                result.segments[0] = {.begin = m_firstUnused + padding, .end = newEnd};
-
-                m_firstUnused = newEnd % m_size;
-                m_usedCount += alignedCount;
-            }
 
             return result;
         }
@@ -128,6 +94,16 @@ namespace oblo
         Size available_count() const
         {
             return m_size - m_usedCount;
+        }
+
+        Size first_unused() const
+        {
+            return m_firstUnused;
+        }
+
+        Size first_segment_available_count() const
+        {
+            return min(m_size - m_firstUnused, available_count());
         }
 
     private:

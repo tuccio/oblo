@@ -142,8 +142,11 @@ namespace oblo::vk
             .submitsInFlight = 2,
         }));
 
+        VkPhysicalDeviceProperties properties;
+        vkGetPhysicalDeviceProperties(sandbox.engine.get_physical_device(), &properties);
+
         staging_buffer staging;
-        ASSERT_TRUE(staging.init(allocator, 1u << 30));
+        ASSERT_TRUE(staging.init(allocator, 1u << 30, properties.limits));
 
         std::vector<u32> cpuData;
         std::vector<u32> downloadedData;

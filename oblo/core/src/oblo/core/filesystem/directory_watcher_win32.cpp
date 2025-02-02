@@ -58,9 +58,9 @@ namespace oblo::filesystem
     {
         ~impl()
         {
-            if (hDirectory)
+            if (hDirectory != INVALID_HANDLE_VALUE)
             {
-                if (hEvent)
+                if (hEvent != INVALID_HANDLE_VALUE)
                 {
                     const bool cancelResult = CancelIoEx(hDirectory, &overlapped);
 
@@ -75,7 +75,7 @@ namespace oblo::filesystem
                 CloseHandle(hDirectory);
             }
 
-            if (hEvent)
+            if (hEvent != INVALID_HANDLE_VALUE)
             {
                 CloseHandle(hEvent);
             }
@@ -99,8 +99,8 @@ namespace oblo::filesystem
 
         bool isRecursive;
 
-        HANDLE hDirectory{};
-        HANDLE hEvent{};
+        HANDLE hDirectory{INVALID_HANDLE_VALUE};
+        HANDLE hEvent{INVALID_HANDLE_VALUE};
 
         OVERLAPPED overlapped{};
 
@@ -159,14 +159,14 @@ namespace oblo::filesystem
             FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED,
             nullptr);
 
-        if (!m_impl->hDirectory)
+        if (m_impl->hDirectory == INVALID_HANDLE_VALUE)
         {
             return unspecified_error;
         }
 
         m_impl->hEvent = CreateEvent(nullptr, FALSE, FALSE, NULL);
 
-        if (!m_impl->hEvent)
+        if (m_impl->hEvent == INVALID_HANDLE_VALUE)
         {
             return unspecified_error;
         }

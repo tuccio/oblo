@@ -28,7 +28,7 @@ namespace oblo::vk
 
         ~staging_buffer();
 
-        bool init(gpu_allocator& allocator, u32 size);
+        bool init(gpu_allocator& allocator, u32 size, const VkPhysicalDeviceLimits& limits);
         void shutdown();
 
         void begin_frame(u64 frameIndex);
@@ -38,25 +38,26 @@ namespace oblo::vk
 
         expected<staging_buffer_span> stage_allocate(u32 size);
 
-        expected<staging_buffer_span> stage(std::span<const std::byte> source);
+        expected<staging_buffer_span> stage(std::span<const byte> source);
 
-        expected<staging_buffer_span> stage_image(std::span<const std::byte> source, VkFormat format);
+        expected<staging_buffer_span> stage_image(std::span<const byte> source, u32 texelSize);
 
-        void copy_to(staging_buffer_span destination, u32 destinationOffset, std::span<const std::byte> source);
-        void copy_from(std::span<std::byte> destination, staging_buffer_span source, u32 sourceOffset);
+        void copy_to(staging_buffer_span destination, u32 destinationOffset, std::span<const byte> source);
+        void copy_from(std::span<byte> destination, staging_buffer_span source, u32 sourceOffset);
 
-        void upload(VkCommandBuffer commandBuffer, staging_buffer_span source, VkBuffer buffer, u32 bufferOffset);
+        void upload(VkCommandBuffer commandBuffer, staging_buffer_span source, VkBuffer buffer, u32 bufferOffset) const;
 
-        void upload(VkCommandBuffer commandBuffer,
-            staging_buffer_span source,
-            VkImage image,
-            std::span<const VkBufferImageCopy> copies);
+        void upload(VkCommandBuffer commandBuffer, VkImage image, std::span<const VkBufferImageCopy> copies) const;
 
-        void download(VkCommandBuffer commandBuffer, VkBuffer buffer, u32 bufferOffset, staging_buffer_span source);
+        void download(
+            VkCommandBuffer commandBuffer, VkBuffer buffer, u32 bufferOffset, staging_buffer_span source) const;
 
         void invalidate_memory_ranges();
 
     private:
+        expected<staging_buffer_span> stage_allocate_internal(u32 size);
+        expected<staging_buffer_span> stage_allocate_contiguous_aligned(u32 size, u32 alignment);
+
         void free_submissions(u64 timelineId);
 
     private:
@@ -71,10 +72,10 @@ namespace oblo::vk
             gpu_allocator* allocator;
             ring_buffer_tracker<u32> ring;
             u32 pendingBytes;
-            u32 transferredBytes;
+            u32 optimalBufferCopyOffsetAlignment;
             VkBuffer buffer;
             VmaAllocation allocation;
-            std::byte* memoryMap;
+            byte* memoryMap;
             deque<submitted_upload> submittedUploads;
             u64 nextTimelineId;
         };

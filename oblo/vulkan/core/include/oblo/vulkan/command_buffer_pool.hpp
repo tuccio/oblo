@@ -2,6 +2,7 @@
 
 #include <vulkan/vulkan.h>
 
+#include <oblo/core/expected.hpp>
 #include <oblo/core/ring_buffer.hpp>
 #include <oblo/core/types.hpp>
 
@@ -29,8 +30,8 @@ namespace oblo::vk
         void reset_buffers(u64 frameIndex);
         void reset_pool();
 
-        VkCommandBuffer fetch_buffer();
-        void fetch_buffers(std::span<VkCommandBuffer> outBuffers);
+        expected<VkCommandBuffer> fetch_buffer();
+        expected<> fetch_buffers(std::span<VkCommandBuffer> outBuffers);
 
         bool is_valid() const;
 

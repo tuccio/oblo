@@ -21,23 +21,22 @@ class ObloConanRecipe(ConanFile):
     }
 
     def requirements(self):
-        self.requires("assimp/5.0.1")
+        self._install_required_recipes()
+
         self.requires("concurrentqueue/1.0.4")
         self.requires("cxxopts/2.2.1")
-        self.requires("glew/2.1.0")
-        self.requires("glslang/1.3.268.0")
+        self.requires("glslang/1.3.296.0")
         self.requires("gtest/1.10.0")
         self.requires("iconfontcppheaders/cci.20240128")
         self.requires("ktx/4.0.0")
-        self.requires("imgui/1.89.9-docking", override=True)
+        self.requires("imgui/1.91.5-docking", override=True)
         self.requires("imguizmo/cci.20231114")
         self.requires("meshoptimizer/0.20")
-        self.requires("nlohmann_json/3.11.2")
         self.requires("rapidjson/cci.20220822")
-        self.requires("vulkan-headers/1.3.268.0", override=True)
-        self.requires("vulkan-loader/1.3.268.0")
+        self.requires("vulkan-headers/1.3.296.0", override=True)
+        self.requires("vulkan-loader/1.3.290.0")
         self.requires("vulkan-memory-allocator/3.0.0")
-        self.requires("spirv-cross/cci.20211113")
+        self.requires("spirv-cross/1.3.296.0")
         self.requires("sdl/2.0.20")
         self.requires("stb/cci.20230920")
         self.requires("tinygltf/2.8.13")
@@ -76,7 +75,7 @@ class ObloConanRecipe(ConanFile):
         imgui = self.dependencies["imgui"]
         src_dir = f"{imgui.package_folder}/res/bindings/"
 
-        for backend in ["opengl3", "sdl2", "vulkan"]:
+        for backend in ["sdl2", "vulkan"]:
             copy(self, f"imgui_impl_{backend}.h", src_dir, f"{self.recipe_folder}/3rdparty/imgui/{backend}/include")
             copy(self, f"imgui_impl_{backend}_*", src_dir, f"{self.recipe_folder}/3rdparty/imgui/{backend}/src")
             copy(self, f"imgui_impl_{backend}.cpp", src_dir, f"{self.recipe_folder}/3rdparty/imgui/{backend}/src")
@@ -101,3 +100,15 @@ class ObloConanRecipe(ConanFile):
                     if path.isabs(bin_dir):
                         copy(self, "*.dylib", bin_dir, out_dir)
                         copy(self, "*.dll", bin_dir, out_dir)
+
+    def _install_required_recipes(self):
+        conan_api = ConanAPI()
+        conan_cli = Cli(conan_api)
+
+        vulkanSdkVersion = "1.3.296.0"
+
+        if not conan_api.search.recipes(f"spirv-tools/{vulkanSdkVersion}"):
+            conan_cli.run(["export", f"{self.recipe_folder}/conan/recipes/spirv-tools", "--version", vulkanSdkVersion])
+
+        if not conan_api.search.recipes(f"glslang/{vulkanSdkVersion}"):
+            conan_cli.run(["export", f"{self.recipe_folder}/conan/recipes/glslang", "--version", vulkanSdkVersion])

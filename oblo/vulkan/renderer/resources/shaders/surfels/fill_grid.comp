@@ -35,7 +35,7 @@ void surfel_commit_to_grid(in uint surfelId, in uint cellIndex)
     }
     else
     {
-#if OBLO_DEBUG_PRINTF
+#if OBLO_DEBUG_PRINTF && SURFEL_DEBUG_PRINTF
         debugPrintfEXT("surfelIndex >= g_SurfelGridCells[cellIndex].surfelsCount -> [%u %u]",
             surfelIndex,
             g_SurfelGridCells[cellIndex].surfelsCount);

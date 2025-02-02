@@ -84,9 +84,11 @@ namespace oblo::importers
             child_path(gltfSampleModels, "Models", "Box", "glTF-Binary", "Box.glb"),
         };
 
+        string_builder dirNameBuilder;
+
         for (const auto& file : files)
         {
-            const auto dirName = filesystem::filename(filesystem::parent_path(file));
+            const auto dirName = filesystem::filename(filesystem::parent_path(file, dirNameBuilder));
 
             data_document importSettings;
             importSettings.init();

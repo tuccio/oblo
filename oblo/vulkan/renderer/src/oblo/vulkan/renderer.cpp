@@ -25,7 +25,10 @@ namespace oblo::vk
         m_vkContext = &initializer.vkContext;
         m_isRayTracingEnabled = module_manager::get().find<renderer_module>()->is_ray_tracing_enabled();
 
-        if (!m_stagingBuffer.init(get_allocator(), StagingBufferSize))
+        VkPhysicalDeviceProperties properties;
+        vkGetPhysicalDeviceProperties(m_vkContext->get_physical_device(), &properties);
+
+        if (!m_stagingBuffer.init(get_allocator(), StagingBufferSize, properties.limits))
         {
             return false;
         }

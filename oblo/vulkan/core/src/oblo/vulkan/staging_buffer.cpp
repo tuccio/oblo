@@ -4,9 +4,12 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/core/ring_buffer_tracker.hpp>
 #include <oblo/core/utility.hpp>
+#include <oblo/math/power_of_two.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/utility/pipeline_barrier.hpp>
+
+#include <numeric>
 
 namespace oblo::vk
 {
@@ -41,7 +44,7 @@ namespace oblo::vk
         shutdown();
     }
 
-    bool staging_buffer::init(gpu_allocator& allocator, u32 size)
+    bool staging_buffer::init(gpu_allocator& allocator, u32 size, const VkPhysicalDeviceLimits& limits)
     {
         OBLO_ASSERT(!m_impl.buffer, "This instance has to be shutdown explicitly");
         OBLO_ASSERT(size > 0);
@@ -65,6 +68,7 @@ namespace oblo::vk
         m_impl.ring.reset(size);
         m_impl.buffer = allocatedBuffer.buffer;
         m_impl.allocation = allocatedBuffer.allocation;
+        m_impl.optimalBufferCopyOffsetAlignment = narrow_cast<u32>(limits.optimalBufferCopyOffsetAlignment);
 
         if (void* memoryMap; allocator.map(m_impl.allocation, &memoryMap) != VK_SUCCESS)
         {
@@ -73,7 +77,7 @@ namespace oblo::vk
         }
         else
         {
-            m_impl.memoryMap = static_cast<std::byte*>(memoryMap);
+            m_impl.memoryMap = static_cast<byte*>(memoryMap);
         }
 
         return true;
@@ -98,7 +102,6 @@ namespace oblo::vk
     {
         OBLO_ASSERT(frameIndex != InvalidTimelineId);
         OBLO_ASSERT(m_impl.nextTimelineId == InvalidTimelineId);
-        OBLO_ASSERT(m_impl.transferredBytes == 0);
 
         m_impl.nextTimelineId = frameIndex;
     }
@@ -111,10 +114,15 @@ namespace oblo::vk
         if (m_impl.pendingBytes != 0)
         {
             m_impl.submittedUploads.push_back({.timelineId = m_impl.nextTimelineId, .size = m_impl.pendingBytes});
+
+            OBLO_ASSERT(m_impl.ring.used_count() ==
+                std::accumulate(m_impl.submittedUploads.begin(),
+                    m_impl.submittedUploads.end(),
+                    0u,
+                    [](u32 v, const auto& upload) { return upload.size + v; }))
         }
 
         m_impl.pendingBytes = 0;
-        m_impl.transferredBytes = 0;
 
         m_impl.nextTimelineId = InvalidTimelineId;
     }
@@ -126,6 +134,27 @@ namespace oblo::vk
 
     expected<staging_buffer_span> staging_buffer::stage_allocate(u32 size)
     {
+        // Workaround for issue #74
+        return stage_allocate_contiguous_aligned(size, 1);
+    }
+
+    expected<staging_buffer_span> staging_buffer::stage_allocate_internal(u32 size)
+    {
+        if (!m_impl.ring.has_available(size))
+        {
+            return unspecified_error;
+        }
+
+        const auto segmentedSpan = m_impl.ring.fetch(size);
+        OBLO_ASSERT(calculate_size({segmentedSpan}) == size);
+
+        m_impl.pendingBytes += size;
+
+        return staging_buffer_span{segmentedSpan};
+    }
+
+    expected<staging_buffer_span> staging_buffer::stage_allocate_contiguous_aligned(u32 size, u32 alignment)
+    {
         const auto available = m_impl.ring.available_count();
 
         if (available < size)
@@ -133,87 +162,81 @@ namespace oblo::vk
             return unspecified_error;
         }
 
-        const auto segmentedSpan = m_impl.ring.fetch(size);
+        OBLO_ASSERT(is_power_of_two(alignment));
 
-        m_impl.pendingBytes += size;
+        const auto firstUnused = m_impl.ring.first_unused();
+        const auto firstAligned = align_power_of_two(firstUnused, alignment);
+        const auto padding = firstAligned - firstUnused;
+        const auto availableFirstSegment = m_impl.ring.first_segment_available_count();
 
-        return staging_buffer_span{segmentedSpan};
-    }
-
-    expected<staging_buffer_span> staging_buffer::stage(std::span<const std::byte> source)
-    {
-        auto* const srcPtr = source.data();
-        const auto srcSize = narrow_cast<u32>(source.size());
-
-        const auto available = m_impl.ring.available_count();
-
-        if (available < srcSize)
+        if (availableFirstSegment >= padding + size)
+        {
+            stage_allocate_internal(padding).assert_value();
+        }
+        else if (available - availableFirstSegment >= padding + size)
+        {
+            stage_allocate_internal(availableFirstSegment).assert_value();
+            OBLO_ASSERT(m_impl.ring.first_unused() == 0);
+        }
+        else
         {
             return unspecified_error;
         }
 
-        const auto segmentedSpan = m_impl.ring.fetch(srcSize);
+        return stage_allocate_internal(size);
+    }
 
-        u32 segmentOffset{0u};
+    expected<staging_buffer_span> staging_buffer::stage(std::span<const byte> source)
+    {
+        const u32 srcSize = narrow_cast<u32>(source.size());
 
-        for (const auto& segment : segmentedSpan.segments)
+        const auto segmentedSpan = stage_allocate(srcSize);
+
+        if (segmentedSpan)
         {
-            if (segment.begin != segment.end)
+            u32 segmentOffset{0u};
+
+            for (const auto& segment : segmentedSpan->segments)
             {
-                const auto segmentSize = segment.end - segment.begin;
-                std::memcpy(m_impl.memoryMap + segment.begin, srcPtr + segmentOffset, segmentSize);
+                if (segment.begin != segment.end)
+                {
+                    const auto segmentSize = segment.end - segment.begin;
+                    std::memcpy(m_impl.memoryMap + segment.begin, source.data() + segmentOffset, segmentSize);
 
-                segmentOffset += segmentSize;
+                    segmentOffset += segmentSize;
+                }
             }
+
+            OBLO_ASSERT(segmentOffset == srcSize);
         }
 
-        m_impl.pendingBytes += srcSize;
-
-        return staging_buffer_span{segmentedSpan};
+        return segmentedSpan;
     }
 
-    expected<staging_buffer_span> staging_buffer::stage_image(std::span<const std::byte> source, VkFormat format)
+    expected<staging_buffer_span> staging_buffer::stage_image(std::span<const byte> source, u32 texelSize)
     {
         auto* const srcPtr = source.data();
         const auto srcSize = narrow_cast<u32>(source.size());
 
-        const auto available = m_impl.ring.available_count();
+        const u32 alignment = max(m_impl.optimalBufferCopyOffsetAlignment, texelSize);
 
-        if (available < srcSize)
+        const auto result = stage_allocate_contiguous_aligned(srcSize, alignment);
+
+        if (result)
         {
-            return unspecified_error;
+            OBLO_ASSERT(result->segments[1].begin == result->segments[1].end,
+                "Images have to be allocated contiguously");
+
+            const auto segment = result->segments[0];
+            OBLO_ASSERT(segment.begin % alignment == 0);
+
+            std::memcpy(m_impl.memoryMap + segment.begin, srcPtr, srcSize);
         }
 
-        (void) format; // TODO: Use the format to determine the alignment instead
-        constexpr u32 maxTexelSize = sizeof(f32) * 4;
-
-        // Segments here should be aligned with the texel size, probably we should also be mindful of not splitting a
-        // texel in 2 different segments
-        const auto segmentedSpan = m_impl.ring.try_fetch_contiguous_aligned(srcSize, maxTexelSize);
-
-        if (segmentedSpan.segments[0].begin == segmentedSpan.segments[0].end)
-        {
-            OBLO_ASSERT(false, "Failed to allocate space to upload");
-            return unspecified_error;
-        }
-
-        if (auto& secondSegment = segmentedSpan.segments[1]; secondSegment.begin != secondSegment.end)
-        {
-            // TODO: Rather than failing, try to extend it
-            OBLO_ASSERT(false,
-                "We don't split the image upload, we could at least make sure we have enough space for it");
-            return unspecified_error;
-        }
-
-        const auto segment = segmentedSpan.segments[0];
-        std::memcpy(m_impl.memoryMap + segment.begin, srcPtr, srcSize);
-
-        m_impl.pendingBytes += srcSize;
-
-        return staging_buffer_span{segmentedSpan};
+        return result;
     }
 
-    void staging_buffer::copy_to(staging_buffer_span destination, u32 offset, std::span<const std::byte> source)
+    void staging_buffer::copy_to(staging_buffer_span destination, u32 offset, std::span<const byte> source)
     {
         // Create a subspan out of the destination
         const staging_buffer_span subspan = make_subspan(destination, offset);
@@ -240,7 +263,7 @@ namespace oblo::vk
         OBLO_ASSERT(remaining == 0);
     }
 
-    void staging_buffer::copy_from(std::span<std::byte> dst, staging_buffer_span source, u32 offset)
+    void staging_buffer::copy_from(std::span<byte> dst, staging_buffer_span source, u32 offset)
     {
         // Create a subspan out of the destination
         const staging_buffer_span subspan = make_subspan(source, offset);
@@ -268,7 +291,7 @@ namespace oblo::vk
     }
 
     void staging_buffer::upload(
-        VkCommandBuffer commandBuffer, staging_buffer_span source, VkBuffer buffer, u32 bufferOffset)
+        VkCommandBuffer commandBuffer, staging_buffer_span source, VkBuffer buffer, u32 bufferOffset) const
     {
         OBLO_ASSERT(m_impl.nextTimelineId != InvalidTimelineId);
 
@@ -292,23 +315,16 @@ namespace oblo::vk
 
                 segmentOffset += segmentSize;
                 ++regionsCount;
-
-                m_impl.transferredBytes += segmentSize;
             }
         }
 
         vkCmdCopyBuffer(commandBuffer, m_impl.buffer, buffer, regionsCount, copyRegions);
     }
 
-    void staging_buffer::upload(VkCommandBuffer commandBuffer,
-        staging_buffer_span source,
-        VkImage image,
-        std::span<const VkBufferImageCopy> copies)
+    void staging_buffer::upload(
+        VkCommandBuffer commandBuffer, VkImage image, std::span<const VkBufferImageCopy> copies) const
     {
         OBLO_ASSERT(m_impl.nextTimelineId != InvalidTimelineId);
-
-        OBLO_ASSERT(calculate_size(source) > 0)
-        OBLO_ASSERT(source.segments[1].begin == source.segments[1].end, "Images need contiguous memory");
 
         vkCmdCopyBufferToImage(commandBuffer,
             m_impl.buffer,
@@ -316,12 +332,10 @@ namespace oblo::vk
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             u32(copies.size()),
             copies.data());
-
-        m_impl.transferredBytes += calculate_size(source);
     }
 
     void staging_buffer::download(
-        VkCommandBuffer commandBuffer, VkBuffer buffer, u32 bufferOffset, staging_buffer_span destination)
+        VkCommandBuffer commandBuffer, VkBuffer buffer, u32 bufferOffset, staging_buffer_span destination) const
     {
         OBLO_ASSERT(m_impl.nextTimelineId != InvalidTimelineId);
         OBLO_ASSERT(calculate_size(destination) > 0);
@@ -345,8 +359,6 @@ namespace oblo::vk
 
                 segmentOffset += segmentSize;
                 ++regionsCount;
-
-                m_impl.transferredBytes += segmentSize;
             }
         }
 

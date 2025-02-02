@@ -152,17 +152,9 @@ namespace oblo
         return ktxTexture_GetRowPitch(to_ktx(m_impl), level);
     }
 
-    u32 texture::get_offset(u32 level, u32 face, u32 layer) const
+    u32 texture::get_element_size() const
     {
-        auto* const t = to_ktx(m_impl);
-
-        ktx_size_t offset;
-        // It looks like the names of the parameters in the macro are wrong: level, layer, face is the correct order
-        [[maybe_unused]] const ktx_error_code_e result = ktxTexture_GetImageOffset(t, level, layer, face, &offset);
-
-        OBLO_ASSERT(result == ktx_error_code_e::KTX_SUCCESS);
-
-        return u32(offset);
+        return ktxTexture_GetElementSize(to_ktx(m_impl));
     }
 
     bool texture::save(cstring_view path) const

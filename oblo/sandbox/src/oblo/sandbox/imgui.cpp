@@ -58,8 +58,8 @@ namespace oblo::vk
         VkPhysicalDevice physicalDevice,
         VkDevice device,
         VkQueue queue,
-        VkCommandBuffer commandBuffer,
         u32 swapchainImageCount,
+        VkFormat swapChainFormat,
         const sandbox_app_config& config)
     {
         OBLO_PROFILE_SCOPE();
@@ -123,6 +123,14 @@ namespace oblo::vk
 
         ImGui_ImplSDL2_InitForVulkan(window);
 
+        const VkFormat colorAttachmentFormats[] = {swapChainFormat};
+
+        const VkPipelineRenderingCreateInfoKHR pipelineCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
+            .colorAttachmentCount = 1,
+            .pColorAttachmentFormats = colorAttachmentFormats,
+        };
+
         ImGui_ImplVulkan_InitInfo initInfo{
             .Instance = instance,
             .PhysicalDevice = physicalDevice,
@@ -133,24 +141,19 @@ namespace oblo::vk
             .ImageCount = swapchainImageCount,
             .MSAASamples = VK_SAMPLE_COUNT_1_BIT,
             .UseDynamicRendering = true,
-            .ColorAttachmentFormat = VK_FORMAT_B8G8R8A8_UNORM,
+            .PipelineRenderingCreateInfo = pipelineCreateInfo,
         };
 
-        return ImGui_ImplVulkan_Init(&initInfo, nullptr) && ImGui_ImplVulkan_CreateFontsTexture(commandBuffer);
-    }
-
-    void imgui::finalize_init(VkDevice device)
-    {
-        OBLO_PROFILE_SCOPE();
-        OBLO_VK_PANIC(vkDeviceWaitIdle(device));
-        ImGui_ImplVulkan_DestroyFontUploadObjects();
+        return ImGui_ImplVulkan_Init(&initInfo) && ImGui_ImplVulkan_CreateFontsTexture();
     }
 
     void imgui::shutdown(VkDevice device)
     {
+
         if (m_context)
         {
             ImGui_ImplVulkan_Shutdown();
+            ImGui_ImplSDL2_Shutdown();
 
             ImGui::DestroyContext(m_context);
             m_context = nullptr;

@@ -124,7 +124,12 @@ namespace oblo::vk
 
     void sandbox_base::wait_idle()
     {
-        vkDeviceWaitIdle(m_engine.get_device());
+        auto* const device = m_engine.get_device();
+
+        if (device)
+        {
+            vkDeviceWaitIdle(device);
+        }
     }
 
     namespace
@@ -501,7 +506,10 @@ namespace oblo::vk
             .pNext = deviceFeaturesList,
             .dynamicRendering = VK_TRUE,
         };
-        VkPhysicalDeviceFeatures2 physicalDeviceFeatures2{};
+
+        VkPhysicalDeviceFeatures2 physicalDeviceFeatures2{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+        };
 
         if (physicalDeviceFeatures)
         {
@@ -600,25 +608,14 @@ namespace oblo::vk
 
     bool sandbox_base::init_imgui()
     {
-        m_context.frame_begin(nullptr, nullptr);
-
-        auto& commandBuffer = m_context.get_active_command_buffer();
-
         bool success = m_imgui.fill_init_command_buffer(m_window,
             m_instance.get(),
             m_engine.get_physical_device(),
             m_engine.get_device(),
             m_engine.get_queue(),
-            commandBuffer.get(),
             SwapchainImages,
+            SwapchainFormat,
             m_config);
-
-        m_context.frame_end();
-
-        if (success)
-        {
-            m_imgui.finalize_init(m_engine.get_device());
-        }
 
         return success;
     }

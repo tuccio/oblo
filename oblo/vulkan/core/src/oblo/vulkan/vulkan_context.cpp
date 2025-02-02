@@ -154,6 +154,11 @@ namespace oblo::vk
 
     void vulkan_context::shutdown()
     {
+        if (!m_engine)
+        {
+            return;
+        }
+
         vkDeviceWaitIdle(m_engine->get_device());
 
         destroy_resources(~u64{});
@@ -218,7 +223,7 @@ namespace oblo::vk
         {
             auto& pool = m_frameInfo[m_poolIndex].pool;
 
-            const VkCommandBuffer cb{pool.fetch_buffer()};
+            const VkCommandBuffer cb{*pool.fetch_buffer()};
 
             constexpr VkCommandBufferBeginInfo commandBufferBeginInfo{
                 .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -245,7 +250,7 @@ namespace oblo::vk
 
         if (m_currentCb.has_incomplete_transitions())
         {
-            preparationCb = currentFrame.pool.fetch_buffer();
+            preparationCb = *currentFrame.pool.fetch_buffer();
 
             constexpr VkCommandBufferBeginInfo commandBufferBeginInfo{
                 .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,

@@ -365,11 +365,12 @@ namespace oblo::filesystem
         return path.substr(0, n);
     }
 
-    string_view parent_path(string_view path)
+    cstring_view parent_path(string_view path, string_builder& out)
     {
         std::filesystem::path p{std::u8string_view{path.u8data(), path.size()}};
-        const auto n = p.parent_path().u8string().size();
-        return path.substr(0, n);
+        std::filesystem::path r = p.parent_path();
+        out = r.native().c_str();
+        return out.view();
     }
 
     cstring_view filename(cstring_view path)

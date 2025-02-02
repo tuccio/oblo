@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <oblo/core/finally.hpp>
+#include <oblo/core/random_generator.hpp>
 #include <oblo/vulkan/command_buffer_pool.hpp>
 #include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/staging_buffer.hpp>
@@ -29,8 +30,11 @@ namespace oblo::vk
                 sandbox.engine.get_physical_device(),
                 sandbox.engine.get_device()));
 
+            VkPhysicalDeviceProperties properties;
+            vkGetPhysicalDeviceProperties(sandbox.engine.get_physical_device(), &properties);
+
             staging_buffer stagingBuffer;
-            ASSERT_TRUE(stagingBuffer.init(allocator, stagingBufferSize));
+            ASSERT_TRUE(stagingBuffer.init(allocator, stagingBufferSize, properties.limits));
 
             command_buffer_pool commandBufferPool;
             commandBufferPool.init(sandbox.engine.get_device(), sandbox.engine.get_queue_family_index(), true, 1, 1);
@@ -113,24 +117,25 @@ namespace oblo::vk
                 ASSERT_FALSE(staged[3]);
 
                 const auto commandBuffer = commandBufferPool.fetch_buffer();
+                ASSERT_TRUE(commandBuffer);
 
                 const VkCommandBufferBeginInfo commandBufferBeginInfo{
                     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
                 };
 
-                vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo);
+                vkBeginCommandBuffer(*commandBuffer, &commandBufferBeginInfo);
 
-                stagingBuffer.upload(commandBuffer, *staged[0], buffers[0].buffer, 0);
-                stagingBuffer.upload(commandBuffer, *staged[1], buffers[1].buffer, 0);
+                stagingBuffer.upload(*commandBuffer, *staged[0], buffers[0].buffer, 0);
+                stagingBuffer.upload(*commandBuffer, *staged[1], buffers[1].buffer, 0);
 
                 stagingBuffer.end_frame();
 
-                vkEndCommandBuffer(commandBuffer);
+                vkEndCommandBuffer(*commandBuffer);
 
                 const VkSubmitInfo submit{
                     .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
                     .commandBufferCount = 1,
-                    .pCommandBuffers = &commandBuffer,
+                    .pCommandBuffers = &*commandBuffer,
                 };
 
                 vkQueueSubmit(sandbox.engine.get_queue(), 1, &submit, fence);
@@ -179,19 +184,19 @@ namespace oblo::vk
                     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
                 };
 
-                vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo);
+                vkBeginCommandBuffer(*commandBuffer, &commandBufferBeginInfo);
 
-                stagingBuffer.upload(commandBuffer, *staged[0], buffers[2].buffer, 0);
-                stagingBuffer.upload(commandBuffer, *staged[1], buffers[3].buffer, 0);
+                stagingBuffer.upload(*commandBuffer, *staged[0], buffers[2].buffer, 0);
+                stagingBuffer.upload(*commandBuffer, *staged[1], buffers[3].buffer, 0);
 
                 stagingBuffer.end_frame();
 
-                vkEndCommandBuffer(commandBuffer);
+                vkEndCommandBuffer(*commandBuffer);
 
                 const VkSubmitInfo submit{
                     .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
                     .commandBufferCount = 1,
-                    .pCommandBuffers = &commandBuffer,
+                    .pCommandBuffers = &*commandBuffer,
                 };
 
                 vkQueueSubmit(sandbox.engine.get_queue(), 1, &submit, fence);
@@ -240,20 +245,20 @@ namespace oblo::vk
                     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
                 };
 
-                vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo);
+                vkBeginCommandBuffer(*commandBuffer, &commandBufferBeginInfo);
 
-                stagingBuffer.upload(commandBuffer, *staged[0], buffers[0].buffer, 0);
-                stagingBuffer.upload(commandBuffer, *staged[1], buffers[1].buffer, 0);
-                stagingBuffer.upload(commandBuffer, *staged[2], buffers[2].buffer, 0);
+                stagingBuffer.upload(*commandBuffer, *staged[0], buffers[0].buffer, 0);
+                stagingBuffer.upload(*commandBuffer, *staged[1], buffers[1].buffer, 0);
+                stagingBuffer.upload(*commandBuffer, *staged[2], buffers[2].buffer, 0);
 
                 stagingBuffer.end_frame();
 
-                vkEndCommandBuffer(commandBuffer);
+                vkEndCommandBuffer(*commandBuffer);
 
                 const VkSubmitInfo submit{
                     .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
                     .commandBufferCount = 1,
-                    .pCommandBuffers = &commandBuffer,
+                    .pCommandBuffers = &*commandBuffer,
                 };
 
                 vkQueueSubmit(sandbox.engine.get_queue(), 1, &submit, fence);
@@ -268,6 +273,138 @@ namespace oblo::vk
             ASSERT_EQ(newExpected, readbackBuffer(mappings[1]));
             ASSERT_EQ(newExpected, readbackBuffer(mappings[2]));
             ASSERT_NE(newExpected, readbackBuffer(mappings[3]));
+        }
+
+        const auto errorsString = validationErrors.str();
+        ASSERT_TRUE(errorsString.empty()) << errorsString;
+    }
+
+    TEST(staging_buffer, randomized)
+    {
+        constexpr u32 bufferSize{1 << 8u};
+        constexpr u32 stagingBufferSize{2 * bufferSize};
+
+        std::stringstream validationErrors;
+
+        {
+            test_sandbox sandbox;
+            ASSERT_TRUE(sandbox.init({}, {}, {}, nullptr, nullptr, &validationErrors));
+
+            gpu_allocator allocator;
+            ASSERT_TRUE(allocator.init(sandbox.instance.get(),
+                sandbox.engine.get_physical_device(),
+                sandbox.engine.get_device()));
+
+            VkPhysicalDeviceProperties properties;
+            vkGetPhysicalDeviceProperties(sandbox.engine.get_physical_device(), &properties);
+
+            staging_buffer stagingBuffer;
+            ASSERT_TRUE(stagingBuffer.init(allocator, stagingBufferSize, properties.limits));
+
+            command_buffer_pool commandBufferPool;
+            commandBufferPool.init(sandbox.engine.get_device(), sandbox.engine.get_queue_family_index(), true, 1, 1);
+
+            VkFence fence{};
+
+            constexpr VkFenceCreateInfo fenceInfo{
+                .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = 0u,
+            };
+
+            ASSERT_EQ(
+                vkCreateFence(sandbox.engine.get_device(), &fenceInfo, allocator.get_allocation_callbacks(), &fence),
+                VK_SUCCESS);
+
+            // Create the buffers
+            allocated_buffer buffer;
+            void* mapping;
+
+            ASSERT_VK_SUCCESS(allocator.create_buffer(
+                {
+                    .size = bufferSize,
+                    .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                    .memoryUsage = memory_usage::gpu_to_cpu,
+                },
+                &buffer));
+
+            ASSERT_VK_SUCCESS(allocator.map(buffer.allocation, &mapping));
+
+            const auto cleanup = finally(
+                [&]
+                {
+                    vkDeviceWaitIdle(sandbox.engine.get_device());
+
+                    commandBufferPool.shutdown();
+
+                    if (fence)
+                    {
+                        vkDestroyFence(sandbox.engine.get_device(), fence, allocator.get_allocation_callbacks());
+                    }
+
+                    allocator.unmap(buffer.allocation);
+                    allocator.destroy(buffer);
+                });
+
+            random_generator rng;
+            const u32 seed = rng.seed();
+
+            dynamic_array<u8> data;
+            data.reserve(bufferSize);
+
+            uniform_distribution<u32> countDist{1, bufferSize};
+            uniform_distribution<u32> valueDist;
+
+            for (u32 frameIndex = 1; frameIndex < 1000; ++frameIndex)
+            {
+                const auto n = countDist(rng);
+
+                data.clear();
+                data.resize_default(n);
+
+                for (u32 j = 0; j < n; ++j)
+                {
+                    data[j] = u8(valueDist(rng));
+                }
+
+                const auto r = stagingBuffer.stage(as_bytes(std::span{data}));
+                ASSERT_TRUE(r) << " [Seed: " << seed << "] [FrameIndex:" << frameIndex << "]";
+
+                commandBufferPool.begin_frame(frameIndex);
+                stagingBuffer.begin_frame(frameIndex);
+
+                const auto commandBuffer = commandBufferPool.fetch_buffer();
+
+                const VkCommandBufferBeginInfo commandBufferBeginInfo{
+                    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+                };
+
+                vkBeginCommandBuffer(*commandBuffer, &commandBufferBeginInfo);
+
+                stagingBuffer.upload(*commandBuffer, *r, buffer.buffer, 0);
+                stagingBuffer.end_frame();
+
+                vkEndCommandBuffer(*commandBuffer);
+
+                const VkSubmitInfo submit{
+                    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                    .commandBufferCount = 1,
+                    .pCommandBuffers = &*commandBuffer,
+                };
+
+                ASSERT_VK_SUCCESS(vkQueueSubmit(sandbox.engine.get_queue(), 1, &submit, fence));
+
+                ASSERT_VK_SUCCESS(vkWaitForFences(sandbox.engine.get_device(), 1, &fence, VK_TRUE, ~u64{}));
+                ASSERT_VK_SUCCESS(vkResetFences(sandbox.engine.get_device(), 1, &fence));
+
+                stagingBuffer.notify_finished_frames(frameIndex);
+                commandBufferPool.reset_buffers(frameIndex + 1);
+
+                ASSERT_VK_SUCCESS(allocator.invalidate_mapped_memory_ranges({&buffer.allocation, 1}));
+
+                ASSERT_EQ(std::memcmp(data.data(), mapping, data.size()), 0)
+                    << " [Seed: " << seed << "] [FrameIndex:" << frameIndex << "]";
+            }
         }
 
         const auto errorsString = validationErrors.str();

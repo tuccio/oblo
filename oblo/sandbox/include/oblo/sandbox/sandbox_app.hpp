@@ -80,8 +80,8 @@ namespace oblo::vk
         static constexpr u32 SwapchainImages{3u};
         static constexpr VkFormat SwapchainFormat{VK_FORMAT_B8G8R8A8_UNORM};
 
-        SDL_Window* m_window;
-        VkSurfaceKHR m_surface{nullptr};
+        SDL_Window* m_window{};
+        VkSurfaceKHR m_surface{};
 
         input_queue m_inputQueue;
 
@@ -115,39 +115,29 @@ namespace oblo::vk
         bool m_processInput{true};
     };
 
-    template <typename TApp>
-    concept app_has_init = requires(TApp app) {
-        {
-            app.init()
-        } -> std::convertible_to<bool>;
+    template <typename TApp, typename... TArgs>
+    concept app_has_init = requires(TApp app, TArgs... args) {
+        { app.init(args...) } -> std::convertible_to<bool>;
     };
 
     template <typename TApp>
     concept app_requiring_instance_extensions = requires(TApp app) {
-        {
-            app.get_required_instance_extensions()
-        } -> std::convertible_to<std::span<const char* const>>;
+        { app.get_required_instance_extensions() } -> std::convertible_to<std::span<const char* const>>;
     };
 
     template <typename TApp>
     concept app_requiring_physical_device_features = requires(TApp app) {
-        {
-            app.get_required_physical_device_features()
-        } -> std::convertible_to<VkPhysicalDeviceFeatures2>;
+        { app.get_required_physical_device_features() } -> std::convertible_to<VkPhysicalDeviceFeatures2>;
     };
 
     template <typename TApp>
     concept app_requiring_device_extensions = requires(TApp app) {
-        {
-            app.get_required_device_extensions()
-        } -> std::convertible_to<std::span<const char* const>>;
+        { app.get_required_device_extensions() } -> std::convertible_to<std::span<const char* const>>;
     };
 
     template <typename TApp>
     concept app_requiring_device_features = requires(TApp app) {
-        {
-            app.get_required_device_features()
-        } -> std::convertible_to<void*>;
+        { app.get_required_device_features() } -> std::convertible_to<void*>;
     };
 
     template <typename TApp>
@@ -157,11 +147,12 @@ namespace oblo::vk
         using sandbox_base::set_config;
 
     public:
-        bool init()
+        template <typename... TArgs>
+        bool init(TArgs&&... args)
         {
-            if constexpr (app_has_init<TApp>)
+            // if constexpr (app_has_init<TApp, TArgs...>)
             {
-                if (!TApp::init())
+                if (!TApp::init(std::forward<TArgs>(args)...))
                 {
                     return false;
                 }

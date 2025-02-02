@@ -105,7 +105,7 @@ namespace oblo::importers
         m_sourceFiles.reserve(1 + m_model.buffers.size() + m_model.images.size());
         m_sourceFiles.emplace_back(config.sourceFile);
 
-        m_sourceFileDir = filesystem::parent_path(m_sourceFiles[0]).as<string>();
+        filesystem::parent_path(m_sourceFiles[0], m_sourceFileDir);
 
         std::string errors;
         std::string warnings;

@@ -284,7 +284,7 @@ namespace oblo
                     renderGraphData->texture = rm.register_texture(*result, VK_IMAGE_LAYOUT_UNDEFINED);
                     renderGraphData->image = result->image;
 
-                    viewport.imageId = renderGraphData->descriptorSet;
+                    viewport.imageId = std::bit_cast<viewport_image_id>(renderGraphData->descriptorSet);
                 }
 
                 frameGraph

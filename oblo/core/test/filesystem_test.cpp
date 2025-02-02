@@ -32,8 +32,9 @@ namespace oblo
 
     TEST(filesystem, parent_path)
     {
+        string_builder parentBuilder;
         cstring_view p = "./path/to/file.ext";
-        EXPECT_EQ(filesystem::parent_path(p), "./path/to");
+        EXPECT_EQ(filesystem::parent_path(p, parentBuilder), "./path/to");
     }
 
     namespace

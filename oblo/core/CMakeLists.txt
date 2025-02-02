@@ -1,6 +1,7 @@
 oblo_add_library(core)
 
 find_package(utf8cpp  REQUIRED)
+find_package(xxHash REQUIRED)
 
 target_link_libraries(
     oblo_core

@@ -64,6 +64,9 @@ namespace oblo
         {
         }
 
+        OBLO_FORCEINLINE explicit string(string_view str) : string{str.data(), str.size()} {}
+        OBLO_FORCEINLINE explicit string(cstring_view str) : string{str.data(), str.size()} {}
+
         string& operator=(const string&) = default;
         string& operator=(string&&) noexcept = default;
 
