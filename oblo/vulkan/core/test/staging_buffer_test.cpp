@@ -30,8 +30,11 @@ namespace oblo::vk
                 sandbox.engine.get_physical_device(),
                 sandbox.engine.get_device()));
 
+            VkPhysicalDeviceProperties properties;
+            vkGetPhysicalDeviceProperties(sandbox.engine.get_physical_device(), &properties);
+
             staging_buffer stagingBuffer;
-            ASSERT_TRUE(stagingBuffer.init(allocator, stagingBufferSize));
+            ASSERT_TRUE(stagingBuffer.init(allocator, stagingBufferSize, properties.limits));
 
             command_buffer_pool commandBufferPool;
             commandBufferPool.init(sandbox.engine.get_device(), sandbox.engine.get_queue_family_index(), true, 1, 1);
@@ -114,24 +117,25 @@ namespace oblo::vk
                 ASSERT_FALSE(staged[3]);
 
                 const auto commandBuffer = commandBufferPool.fetch_buffer();
+                ASSERT_TRUE(commandBuffer);
 
                 const VkCommandBufferBeginInfo commandBufferBeginInfo{
                     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
                 };
 
-                vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo);
+                vkBeginCommandBuffer(*commandBuffer, &commandBufferBeginInfo);
 
-                stagingBuffer.upload(commandBuffer, *staged[0], buffers[0].buffer, 0);
-                stagingBuffer.upload(commandBuffer, *staged[1], buffers[1].buffer, 0);
+                stagingBuffer.upload(*commandBuffer, *staged[0], buffers[0].buffer, 0);
+                stagingBuffer.upload(*commandBuffer, *staged[1], buffers[1].buffer, 0);
 
                 stagingBuffer.end_frame();
 
-                vkEndCommandBuffer(commandBuffer);
+                vkEndCommandBuffer(*commandBuffer);
 
                 const VkSubmitInfo submit{
                     .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
                     .commandBufferCount = 1,
-                    .pCommandBuffers = &commandBuffer,
+                    .pCommandBuffers = &*commandBuffer,
                 };
 
                 vkQueueSubmit(sandbox.engine.get_queue(), 1, &submit, fence);
@@ -180,19 +184,19 @@ namespace oblo::vk
                     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
                 };
 
-                vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo);
+                vkBeginCommandBuffer(*commandBuffer, &commandBufferBeginInfo);
 
-                stagingBuffer.upload(commandBuffer, *staged[0], buffers[2].buffer, 0);
-                stagingBuffer.upload(commandBuffer, *staged[1], buffers[3].buffer, 0);
+                stagingBuffer.upload(*commandBuffer, *staged[0], buffers[2].buffer, 0);
+                stagingBuffer.upload(*commandBuffer, *staged[1], buffers[3].buffer, 0);
 
                 stagingBuffer.end_frame();
 
-                vkEndCommandBuffer(commandBuffer);
+                vkEndCommandBuffer(*commandBuffer);
 
                 const VkSubmitInfo submit{
                     .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
                     .commandBufferCount = 1,
-                    .pCommandBuffers = &commandBuffer,
+                    .pCommandBuffers = &*commandBuffer,
                 };
 
                 vkQueueSubmit(sandbox.engine.get_queue(), 1, &submit, fence);
@@ -241,20 +245,20 @@ namespace oblo::vk
                     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
                 };
 
-                vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo);
+                vkBeginCommandBuffer(*commandBuffer, &commandBufferBeginInfo);
 
-                stagingBuffer.upload(commandBuffer, *staged[0], buffers[0].buffer, 0);
-                stagingBuffer.upload(commandBuffer, *staged[1], buffers[1].buffer, 0);
-                stagingBuffer.upload(commandBuffer, *staged[2], buffers[2].buffer, 0);
+                stagingBuffer.upload(*commandBuffer, *staged[0], buffers[0].buffer, 0);
+                stagingBuffer.upload(*commandBuffer, *staged[1], buffers[1].buffer, 0);
+                stagingBuffer.upload(*commandBuffer, *staged[2], buffers[2].buffer, 0);
 
                 stagingBuffer.end_frame();
 
-                vkEndCommandBuffer(commandBuffer);
+                vkEndCommandBuffer(*commandBuffer);
 
                 const VkSubmitInfo submit{
                     .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
                     .commandBufferCount = 1,
-                    .pCommandBuffers = &commandBuffer,
+                    .pCommandBuffers = &*commandBuffer,
                 };
 
                 vkQueueSubmit(sandbox.engine.get_queue(), 1, &submit, fence);
@@ -291,8 +295,11 @@ namespace oblo::vk
                 sandbox.engine.get_physical_device(),
                 sandbox.engine.get_device()));
 
+            VkPhysicalDeviceProperties properties;
+            vkGetPhysicalDeviceProperties(sandbox.engine.get_physical_device(), &properties);
+
             staging_buffer stagingBuffer;
-            ASSERT_TRUE(stagingBuffer.init(allocator, stagingBufferSize));
+            ASSERT_TRUE(stagingBuffer.init(allocator, stagingBufferSize, properties.limits));
 
             command_buffer_pool commandBufferPool;
             commandBufferPool.init(sandbox.engine.get_device(), sandbox.engine.get_queue_family_index(), true, 1, 1);
@@ -340,7 +347,7 @@ namespace oblo::vk
                 });
 
             random_generator rng;
-            rng.seed();
+            const u32 seed = rng.seed();
 
             dynamic_array<u8> data;
             data.reserve(bufferSize);
@@ -372,17 +379,17 @@ namespace oblo::vk
                     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
                 };
 
-                vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo);
+                vkBeginCommandBuffer(*commandBuffer, &commandBufferBeginInfo);
 
-                stagingBuffer.upload(commandBuffer, *r, buffer.buffer, 0);
+                stagingBuffer.upload(*commandBuffer, *r, buffer.buffer, 0);
                 stagingBuffer.end_frame();
 
-                vkEndCommandBuffer(commandBuffer);
+                vkEndCommandBuffer(*commandBuffer);
 
                 const VkSubmitInfo submit{
                     .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
                     .commandBufferCount = 1,
-                    .pCommandBuffers = &commandBuffer,
+                    .pCommandBuffers = &*commandBuffer,
                 };
 
                 ASSERT_VK_SUCCESS(vkQueueSubmit(sandbox.engine.get_queue(), 1, &submit, fence));
@@ -395,7 +402,8 @@ namespace oblo::vk
 
                 ASSERT_VK_SUCCESS(allocator.invalidate_mapped_memory_ranges({&buffer.allocation, 1}));
 
-                ASSERT_EQ(std::memcmp(data.data(), mapping, data.size()), 0);
+                ASSERT_EQ(std::memcmp(data.data(), mapping, data.size()), 0)
+                    << " [Seed: " << seed << "] [FrameIndex:" << frameIndex << "]";
             }
         }
 

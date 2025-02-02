@@ -21,7 +21,7 @@ namespace oblo
         random_generator& operator=(const random_generator&) = delete;
         random_generator& operator=(random_generator&&) noexcept;
 
-        void seed();
+        u32 seed();
         void seed(u32 seed);
 
         u32 generate();

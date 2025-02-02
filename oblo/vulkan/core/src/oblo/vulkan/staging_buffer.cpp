@@ -41,7 +41,7 @@ namespace oblo::vk
         shutdown();
     }
 
-    bool staging_buffer::init(gpu_allocator& allocator, u32 size)
+    bool staging_buffer::init(gpu_allocator& allocator, u32 size, const VkPhysicalDeviceLimits& limits)
     {
         OBLO_ASSERT(!m_impl.buffer, "This instance has to be shutdown explicitly");
         OBLO_ASSERT(size > 0);
@@ -65,6 +65,7 @@ namespace oblo::vk
         m_impl.ring.reset(size);
         m_impl.buffer = allocatedBuffer.buffer;
         m_impl.allocation = allocatedBuffer.allocation;
+        m_impl.optimalBufferCopyOffsetAlignment = limits.optimalBufferCopyOffsetAlignment;
 
         if (void* memoryMap; allocator.map(m_impl.allocation, &memoryMap) != VK_SUCCESS)
         {
@@ -183,11 +184,11 @@ namespace oblo::vk
         }
 
         (void) format; // TODO: Use the format to determine the alignment instead
-        constexpr u32 maxTexelSize = sizeof(f32) * 4;
 
         // Segments here should be aligned with the texel size, probably we should also be mindful of not splitting a
         // texel in 2 different segments
-        const auto segmentedSpan = m_impl.ring.try_fetch_contiguous_aligned(srcSize, maxTexelSize);
+        const auto segmentedSpan =
+            m_impl.ring.try_fetch_contiguous_aligned(srcSize, u32(m_impl.optimalBufferCopyOffsetAlignment));
 
         if (segmentedSpan.segments[0].begin == segmentedSpan.segments[0].end)
         {

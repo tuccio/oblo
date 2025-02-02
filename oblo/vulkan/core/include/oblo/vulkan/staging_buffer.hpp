@@ -28,7 +28,7 @@ namespace oblo::vk
 
         ~staging_buffer();
 
-        bool init(gpu_allocator& allocator, u32 size);
+        bool init(gpu_allocator& allocator, u32 size, const VkPhysicalDeviceLimits& limits);
         void shutdown();
 
         void begin_frame(u64 frameIndex);
@@ -77,6 +77,7 @@ namespace oblo::vk
             std::byte* memoryMap;
             deque<submitted_upload> submittedUploads;
             u64 nextTimelineId;
+            VkDeviceSize optimalBufferCopyOffsetAlignment;
         };
 
     private:

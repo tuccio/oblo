@@ -491,8 +491,11 @@ namespace oblo::vk
         const auto subgroupProperties = ctx.get_physical_device_subgroup_properties();
         m_impl->gpuInfo.subgroupSize = subgroupProperties.subgroupSize;
 
+        VkPhysicalDeviceProperties properties;
+        vkGetPhysicalDeviceProperties(ctx.get_physical_device(), &properties);
+
         return m_impl->dynamicAllocator.init(maxAllocationSize) && m_impl->resourcePool.init(ctx),
-               m_impl->downloadStaging.init(ctx.get_allocator(), g_downloadStagingSize);
+               m_impl->downloadStaging.init(ctx.get_allocator(), g_downloadStagingSize, properties.limits);
     }
 
     void frame_graph::shutdown(vulkan_context& ctx)
@@ -907,8 +910,8 @@ namespace oblo::vk
             return nullptr;
         }
 
-        //OBLO_ASSERT(m_impl->graph.get_in_edges(it->second).empty(),
-        //    "This doesn't quite work for outputs in the general case");
+        // OBLO_ASSERT(m_impl->graph.get_in_edges(it->second).empty(),
+        //     "This doesn't quite work for outputs in the general case");
 
         const auto& pinData = *m_impl->pins.try_find(v.pin);
 
