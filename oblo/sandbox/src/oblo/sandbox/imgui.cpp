@@ -59,6 +59,7 @@ namespace oblo::vk
         VkDevice device,
         VkQueue queue,
         u32 swapchainImageCount,
+        VkFormat swapChainFormat,
         const sandbox_app_config& config)
     {
         OBLO_PROFILE_SCOPE();
@@ -122,7 +123,7 @@ namespace oblo::vk
 
         ImGui_ImplSDL2_InitForVulkan(window);
 
-        const VkFormat colorAttachmentFormats[] = {VK_FORMAT_R8G8B8A8_UNORM};
+        const VkFormat colorAttachmentFormats[] = {swapChainFormat};
 
         const VkPipelineRenderingCreateInfoKHR pipelineCreateInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,

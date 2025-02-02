@@ -611,6 +611,7 @@ namespace oblo::vk
             m_engine.get_device(),
             m_engine.get_queue(),
             SwapchainImages,
+            SwapchainFormat,
             m_config);
 
         return success;

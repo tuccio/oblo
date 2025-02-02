@@ -21,6 +21,7 @@ namespace oblo::vk
             VkDevice device,
             VkQueue queue,
             u32 swapchainImageCount,
+            VkFormat swapChainFormat,
             const sandbox_app_config& config);
 
         void shutdown(VkDevice device);
