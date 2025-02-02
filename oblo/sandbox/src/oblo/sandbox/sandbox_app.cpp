@@ -506,7 +506,10 @@ namespace oblo::vk
             .pNext = deviceFeaturesList,
             .dynamicRendering = VK_TRUE,
         };
-        VkPhysicalDeviceFeatures2 physicalDeviceFeatures2{};
+
+        VkPhysicalDeviceFeatures2 physicalDeviceFeatures2{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+        };
 
         if (physicalDeviceFeatures)
         {
