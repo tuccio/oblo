@@ -134,6 +134,12 @@ namespace oblo::vk
 
     expected<staging_buffer_span> staging_buffer::stage_allocate(u32 size)
     {
+        // Workaround for issue #74
+        return stage_allocate_contiguous_aligned(size, 1);
+    }
+
+    expected<staging_buffer_span> staging_buffer::stage_allocate_internal(u32 size)
+    {
         if (!m_impl.ring.has_available(size))
         {
             return unspecified_error;
@@ -165,11 +171,11 @@ namespace oblo::vk
 
         if (availableFirstSegment >= padding + size)
         {
-            stage_allocate(padding).assert_value();
+            stage_allocate_internal(padding).assert_value();
         }
         else if (available - availableFirstSegment >= padding + size)
         {
-            stage_allocate(availableFirstSegment).assert_value();
+            stage_allocate_internal(availableFirstSegment).assert_value();
             OBLO_ASSERT(m_impl.ring.first_unused() == 0);
         }
         else
@@ -177,7 +183,7 @@ namespace oblo::vk
             return unspecified_error;
         }
 
-        return stage_allocate(size);
+        return stage_allocate_internal(size);
     }
 
     expected<staging_buffer_span> staging_buffer::stage(std::span<const byte> source)
