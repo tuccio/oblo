@@ -23,7 +23,8 @@ namespace oblo::editor
     void log_queue::push(log::severity severity, time timestamp, cstring_view message)
     {
         auto& newMessage = m_stringAllocator.push_back_default();
-        std::memcpy(newMessage.data, message.data(), message.size() + 1);
+        std::memcpy(newMessage.data, message.data(), message.size());
+        newMessage.data[message.size()] = '\0';
 
         std::scoped_lock lock{m_mutex};
         m_pushQueue.emplace_back(severity, timestamp, cstring_view{newMessage.data, message.size()});
