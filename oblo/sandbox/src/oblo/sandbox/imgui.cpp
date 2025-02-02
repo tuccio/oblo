@@ -148,9 +148,11 @@ namespace oblo::vk
 
     void imgui::shutdown(VkDevice device)
     {
+
         if (m_context)
         {
             ImGui_ImplVulkan_Shutdown();
+            ImGui_ImplSDL2_Shutdown();
 
             ImGui::DestroyContext(m_context);
             m_context = nullptr;
