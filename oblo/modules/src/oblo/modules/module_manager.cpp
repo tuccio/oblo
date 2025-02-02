@@ -125,7 +125,7 @@ namespace oblo
         using module_instantiate_fn = module_interface* (*) (allocator*);
 
         allocator* const al = get_global_allocator();
-        unique_ptr module{static_cast<module_instantiate_fn>(symbol)(al), al};
+        unique_ptr module{reinterpret_cast<module_instantiate_fn>(symbol)(al), al};
         module_interface* const ptr = module.get();
 
         if (!module)
