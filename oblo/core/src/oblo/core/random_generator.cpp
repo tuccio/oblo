@@ -30,7 +30,7 @@ namespace oblo
         return s;
     }
 
-    void random_generator::seed(u32 seed)
+    u32 random_generator::seed(u32 seed)
     {
         if (!m_impl)
         {
@@ -38,6 +38,7 @@ namespace oblo
         }
 
         m_impl->seed(seed);
+        return seed;
     }
 
     u32 random_generator::generate()

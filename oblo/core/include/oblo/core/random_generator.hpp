@@ -22,7 +22,7 @@ namespace oblo
         random_generator& operator=(random_generator&&) noexcept;
 
         u32 seed();
-        void seed(u32 seed);
+        u32 seed(u32 seed);
 
         u32 generate();
 

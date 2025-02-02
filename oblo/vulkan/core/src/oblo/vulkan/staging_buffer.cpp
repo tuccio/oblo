@@ -74,7 +74,7 @@ namespace oblo::vk
         }
         else
         {
-            m_impl.memoryMap = static_cast<std::byte*>(memoryMap);
+            m_impl.memoryMap = static_cast<byte*>(memoryMap);
         }
 
         return true;
@@ -125,53 +125,45 @@ namespace oblo::vk
 
     expected<staging_buffer_span> staging_buffer::stage_allocate(u32 size)
     {
-        const auto available = m_impl.ring.available_count();
+        // Workaround for issue #74
+        const auto segmentedSpan = m_impl.ring.try_fetch_contiguous_aligned(size, 1);
 
-        if (available < size)
+        if (segmentedSpan.segments[0].begin != segmentedSpan.segments[0].end)
         {
-            return unspecified_error;
+            m_impl.pendingBytes += size;
         }
-
-        const auto segmentedSpan = m_impl.ring.fetch(size);
-
-        m_impl.pendingBytes += size;
 
         return staging_buffer_span{segmentedSpan};
     }
 
-    expected<staging_buffer_span> staging_buffer::stage(std::span<const std::byte> source)
+    expected<staging_buffer_span> staging_buffer::stage(std::span<const byte> source)
     {
-        auto* const srcPtr = source.data();
-        const auto srcSize = narrow_cast<u32>(source.size());
+        const u32 srcSize = narrow_cast<u32>(source.size());
 
-        const auto available = m_impl.ring.available_count();
+        const auto segmentedSpan = stage_allocate(srcSize);
 
-        if (available < srcSize)
+        if (segmentedSpan)
         {
-            return unspecified_error;
-        }
+            u32 segmentOffset{0u};
 
-        const auto segmentedSpan = m_impl.ring.fetch(srcSize);
-
-        u32 segmentOffset{0u};
-
-        for (const auto& segment : segmentedSpan.segments)
-        {
-            if (segment.begin != segment.end)
+            for (const auto& segment : segmentedSpan->segments)
             {
-                const auto segmentSize = segment.end - segment.begin;
-                std::memcpy(m_impl.memoryMap + segment.begin, srcPtr + segmentOffset, segmentSize);
+                if (segment.begin != segment.end)
+                {
+                    const auto segmentSize = segment.end - segment.begin;
+                    std::memcpy(m_impl.memoryMap + segment.begin, source.data() + segmentOffset, segmentSize);
 
-                segmentOffset += segmentSize;
+                    segmentOffset += segmentSize;
+                }
             }
+
+            OBLO_ASSERT(segmentOffset == srcSize);
         }
 
-        m_impl.pendingBytes += srcSize;
-
-        return staging_buffer_span{segmentedSpan};
+        return segmentedSpan;
     }
 
-    expected<staging_buffer_span> staging_buffer::stage_image(std::span<const std::byte> source, VkFormat format)
+    expected<staging_buffer_span> staging_buffer::stage_image(std::span<const byte> source, VkFormat format)
     {
         auto* const srcPtr = source.data();
         const auto srcSize = narrow_cast<u32>(source.size());
@@ -212,7 +204,7 @@ namespace oblo::vk
         return staging_buffer_span{segmentedSpan};
     }
 
-    void staging_buffer::copy_to(staging_buffer_span destination, u32 offset, std::span<const std::byte> source)
+    void staging_buffer::copy_to(staging_buffer_span destination, u32 offset, std::span<const byte> source)
     {
         // Create a subspan out of the destination
         const staging_buffer_span subspan = make_subspan(destination, offset);
@@ -239,7 +231,7 @@ namespace oblo::vk
         OBLO_ASSERT(remaining == 0);
     }
 
-    void staging_buffer::copy_from(std::span<std::byte> dst, staging_buffer_span source, u32 offset)
+    void staging_buffer::copy_from(std::span<byte> dst, staging_buffer_span source, u32 offset)
     {
         // Create a subspan out of the destination
         const staging_buffer_span subspan = make_subspan(source, offset);

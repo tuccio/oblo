@@ -38,12 +38,12 @@ namespace oblo::vk
 
         expected<staging_buffer_span> stage_allocate(u32 size);
 
-        expected<staging_buffer_span> stage(std::span<const std::byte> source);
+        expected<staging_buffer_span> stage(std::span<const byte> source);
 
-        expected<staging_buffer_span> stage_image(std::span<const std::byte> source, VkFormat format);
+        expected<staging_buffer_span> stage_image(std::span<const byte> source, VkFormat format);
 
-        void copy_to(staging_buffer_span destination, u32 destinationOffset, std::span<const std::byte> source);
-        void copy_from(std::span<std::byte> destination, staging_buffer_span source, u32 sourceOffset);
+        void copy_to(staging_buffer_span destination, u32 destinationOffset, std::span<const byte> source);
+        void copy_from(std::span<byte> destination, staging_buffer_span source, u32 sourceOffset);
 
         void upload(VkCommandBuffer commandBuffer, staging_buffer_span source, VkBuffer buffer, u32 bufferOffset) const;
 
@@ -74,7 +74,7 @@ namespace oblo::vk
             u32 pendingBytes;
             VkBuffer buffer;
             VmaAllocation allocation;
-            std::byte* memoryMap;
+            byte* memoryMap;
             deque<submitted_upload> submittedUploads;
             u64 nextTimelineId;
             VkDeviceSize optimalBufferCopyOffsetAlignment;
