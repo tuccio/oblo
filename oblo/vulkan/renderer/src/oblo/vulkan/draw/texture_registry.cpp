@@ -2,6 +2,7 @@
 
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/finally.hpp>
 #include <oblo/scene/resources/texture.hpp>
 #include <oblo/vulkan/staging_buffer.hpp>
 #include <oblo/vulkan/utility/pipeline_barrier.hpp>
@@ -28,6 +29,12 @@ namespace oblo::vk
                 return VK_IMAGE_TYPE_MAX_ENUM;
             }
         }
+
+        struct upload_level
+        {
+            using segment = std::decay_t<decltype(staging_buffer_span{}.segments[0])>;
+            segment data;
+        };
     }
 
     struct resident_texture
@@ -40,13 +47,11 @@ namespace oblo::vk
 
     struct texture_registry::pending_texture_upload
     {
-        staging_buffer_span src;
         VkImage image;
         VkFormat format;
         u32 width;
         u32 height;
-        u32 levels;
-        dynamic_array<u32> levelOffsets;
+        dynamic_array<upload_level> levels;
     };
 
     texture_registry::texture_registry() = default;
@@ -234,7 +239,7 @@ namespace oblo::vk
 
     void texture_registry::flush_uploads(VkCommandBuffer commandBuffer)
     {
-        buffered_array<VkBufferImageCopy, 14> copies;
+        buffered_array<VkBufferImageCopy, 16> copies;
 
         constexpr auto initialImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         constexpr auto finalImageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -242,44 +247,40 @@ namespace oblo::vk
 
         for (const auto& upload : m_pendingUploads)
         {
-            const auto& segment = upload.src.segments[0];
-
             copies.clear();
-            copies.reserve(upload.levels);
+            copies.reserve(upload.levels.size());
 
-            for (u32 level = 0; level < upload.levels; ++level)
+            for (u32 levelIndex = 0; levelIndex < upload.levels.size32(); ++levelIndex)
             {
-                const auto bufferOffset = segment.begin + upload.levelOffsets[level];
+                const auto& level = upload.levels[levelIndex];
+                const auto& segment = level.data;
 
-                // Just detecting obvious mistakes, we should actually add the size of the upload
-                OBLO_ASSERT(bufferOffset < segment.end);
-
-                copies.push_back({
-                    .bufferOffset = bufferOffset,
+                copies.push_back(VkBufferImageCopy{
+                    .bufferOffset = segment.begin,
                     .imageSubresource =
                         {
                             .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                            .mipLevel = level,
+                            .mipLevel = levelIndex,
                             .baseArrayLayer = 0,
                             .layerCount = 1,
                         },
                     .imageOffset = VkOffset3D{},
                     .imageExtent =
                         VkExtent3D{
-                            upload.width >> level,
-                            upload.height >> level,
+                            upload.width >> levelIndex,
+                            upload.height >> levelIndex,
                             1,
                         },
                 });
 
                 auto& lastCopy = copies.back();
-                lastCopy.imageSubresource.mipLevel = level;
+                lastCopy.imageSubresource.mipLevel = levelIndex;
             }
 
             const VkImageSubresourceRange pipelineRange{
                 .aspectMask = aspectMask,
                 .baseMipLevel = 0,
-                .levelCount = upload.levels,
+                .levelCount = upload.levels.size32(),
                 .baseArrayLayer = 0,
                 .layerCount = 1,
             };
@@ -291,7 +292,7 @@ namespace oblo::vk
                 upload.format,
                 pipelineRange);
 
-            m_staging->upload(commandBuffer, upload.src, upload.image, copies);
+            m_staging->upload(commandBuffer, upload.image, copies);
 
             add_pipeline_barrier_cmd(commandBuffer,
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -306,19 +307,41 @@ namespace oblo::vk
 
     bool texture_registry::create(const texture_resource& texture, resident_texture& out, const debug_label& debugName)
     {
+        bool success = false;
+
         out = resident_texture{};
 
-        const auto desc = texture.get_description();
-
-        // TODO: Upload texture
         auto& allocator = m_vkCtx->get_allocator();
+
+        const auto cleanup = finally(
+            [&success, &out, &allocator]
+            {
+                if (success)
+                {
+                    return;
+                }
+
+                if (out.image.allocation)
+                {
+                    allocator.destroy(out.image);
+                    out.image = {};
+                }
+
+                if (out.imageView)
+                {
+                    vkDestroyImageView(allocator.get_device(), out.imageView, allocator.get_allocation_callbacks());
+                    out.imageView = {};
+                }
+            });
+
+        const auto desc = texture.get_description();
 
         const auto imageType = deduce_image_type(desc);
 
         // We only support 2d textures for now
         if (imageType != VK_IMAGE_TYPE_2D)
         {
-            return false;
+            return success;
         }
 
         const auto srcFormat = VkFormat(desc.vkFormat);
@@ -340,7 +363,7 @@ namespace oblo::vk
 
         if (allocator.create_image(initializer, &out.image) != VK_SUCCESS)
         {
-            return false;
+            return success;
         }
 
         const VkImageViewCreateInfo imageViewInit{
@@ -367,41 +390,40 @@ namespace oblo::vk
 
         if (imageViewRes != VK_SUCCESS)
         {
-            allocator.destroy(out.image);
-            return false;
+            return success;
         }
 
         out.imageView = newImageView;
 
-        // TOOD: When failing, we should destroy the texture
-
-        const auto data = texture.get_data();
-        const auto staged = m_staging->stage_image(data, format);
-
-        OBLO_ASSERT(staged);
-
-        if (!staged)
-        {
-            return false;
-        }
-
-        m_pendingUploads.push_back({
-            .src = *staged,
+        auto& textureUpload = m_pendingUploads.push_back({
             .image = out.image.image,
             .format = format,
             .width = desc.width,
             .height = desc.height,
-            .levels = desc.numLevels,
         });
 
-        auto& levelOffsets = m_pendingUploads.back().levelOffsets;
-        levelOffsets.reserve(desc.numLevels);
+        textureUpload.levels.reserve(desc.numLevels);
 
-        for (u32 level = 0; level < desc.numLevels; ++level)
+        const u32 texelSize = texture.get_element_size();
+
+        for (u32 i = 0; i < desc.numLevels; ++i)
         {
-            levelOffsets.push_back(texture.get_offset(level, 0, 0));
+            const auto data = texture.get_data(i, 0, 0);
+            const auto staged = m_staging->stage_image(data, texelSize);
+
+            if (!staged)
+            {
+                m_pendingUploads.pop_back();
+                return success;
+            }
+
+            textureUpload.levels.push_back({
+                .data = staged->segments[0],
+            });
         }
 
-        return true;
+        // This is so that the cleanup functor doesn't do anything
+        success = true;
+        return success;
     }
 }

@@ -65,7 +65,7 @@ namespace oblo::vk
         m_impl.ring.reset(size);
         m_impl.buffer = allocatedBuffer.buffer;
         m_impl.allocation = allocatedBuffer.allocation;
-        m_impl.optimalBufferCopyOffsetAlignment = limits.optimalBufferCopyOffsetAlignment;
+        m_impl.optimalBufferCopyOffsetAlignment = narrow_cast<u32>(limits.optimalBufferCopyOffsetAlignment);
 
         if (void* memoryMap; allocator.map(m_impl.allocation, &memoryMap) != VK_SUCCESS)
         {
@@ -128,10 +128,16 @@ namespace oblo::vk
         // Workaround for issue #74
         const auto segmentedSpan = m_impl.ring.try_fetch_contiguous_aligned(size, 1);
 
-        if (segmentedSpan.segments[0].begin != segmentedSpan.segments[0].end)
+        if (segmentedSpan.segments[0].begin == segmentedSpan.segments[0].end)
         {
-            m_impl.pendingBytes += size;
+            OBLO_ASSERT(false, "Failed to allocate space to upload");
+            return unspecified_error;
         }
+
+        OBLO_ASSERT(segmentedSpan.segments[1].begin == segmentedSpan.segments[1].end,
+            "The allocation was split in 2, this can cause issue #74");
+
+        m_impl.pendingBytes += size;
 
         return staging_buffer_span{segmentedSpan};
     }
@@ -163,7 +169,7 @@ namespace oblo::vk
         return segmentedSpan;
     }
 
-    expected<staging_buffer_span> staging_buffer::stage_image(std::span<const byte> source, VkFormat format)
+    expected<staging_buffer_span> staging_buffer::stage_image(std::span<const byte> source, u32 texelSize)
     {
         auto* const srcPtr = source.data();
         const auto srcSize = narrow_cast<u32>(source.size());
@@ -175,12 +181,11 @@ namespace oblo::vk
             return unspecified_error;
         }
 
-        (void) format; // TODO: Use the format to determine the alignment instead
+        const u32 alignment = max(m_impl.optimalBufferCopyOffsetAlignment, texelSize);
 
         // Segments here should be aligned with the texel size, probably we should also be mindful of not splitting a
         // texel in 2 different segments
-        const auto segmentedSpan =
-            m_impl.ring.try_fetch_contiguous_aligned(srcSize, u32(m_impl.optimalBufferCopyOffsetAlignment));
+        const auto segmentedSpan = m_impl.ring.try_fetch_contiguous_aligned(srcSize, alignment);
 
         if (segmentedSpan.segments[0].begin == segmentedSpan.segments[0].end)
         {
@@ -289,15 +294,10 @@ namespace oblo::vk
         vkCmdCopyBuffer(commandBuffer, m_impl.buffer, buffer, regionsCount, copyRegions);
     }
 
-    void staging_buffer::upload(VkCommandBuffer commandBuffer,
-        staging_buffer_span source,
-        VkImage image,
-        std::span<const VkBufferImageCopy> copies) const
+    void staging_buffer::upload(
+        VkCommandBuffer commandBuffer, VkImage image, std::span<const VkBufferImageCopy> copies) const
     {
         OBLO_ASSERT(m_impl.nextTimelineId != InvalidTimelineId);
-
-        OBLO_ASSERT(calculate_size(source) > 0)
-        OBLO_ASSERT(source.segments[1].begin == source.segments[1].end, "Images need contiguous memory");
 
         vkCmdCopyBufferToImage(commandBuffer,
             m_impl.buffer,

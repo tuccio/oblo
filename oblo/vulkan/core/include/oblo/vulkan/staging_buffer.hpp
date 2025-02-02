@@ -40,17 +40,14 @@ namespace oblo::vk
 
         expected<staging_buffer_span> stage(std::span<const byte> source);
 
-        expected<staging_buffer_span> stage_image(std::span<const byte> source, VkFormat format);
+        expected<staging_buffer_span> stage_image(std::span<const byte> source, u32 texelSize);
 
         void copy_to(staging_buffer_span destination, u32 destinationOffset, std::span<const byte> source);
         void copy_from(std::span<byte> destination, staging_buffer_span source, u32 sourceOffset);
 
         void upload(VkCommandBuffer commandBuffer, staging_buffer_span source, VkBuffer buffer, u32 bufferOffset) const;
 
-        void upload(VkCommandBuffer commandBuffer,
-            staging_buffer_span source,
-            VkImage image,
-            std::span<const VkBufferImageCopy> copies) const;
+        void upload(VkCommandBuffer commandBuffer, VkImage image, std::span<const VkBufferImageCopy> copies) const;
 
         void download(
             VkCommandBuffer commandBuffer, VkBuffer buffer, u32 bufferOffset, staging_buffer_span source) const;
@@ -72,12 +69,12 @@ namespace oblo::vk
             gpu_allocator* allocator;
             ring_buffer_tracker<u32> ring;
             u32 pendingBytes;
+            u32 optimalBufferCopyOffsetAlignment;
             VkBuffer buffer;
             VmaAllocation allocation;
             byte* memoryMap;
             deque<submitted_upload> submittedUploads;
             u64 nextTimelineId;
-            VkDeviceSize optimalBufferCopyOffsetAlignment;
         };
 
     private:

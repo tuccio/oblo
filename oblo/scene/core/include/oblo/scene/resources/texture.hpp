@@ -49,7 +49,9 @@ namespace oblo
         std::span<const std::byte> get_data(u32 level, u32 face, u32 layer) const;
 
         u32 get_row_pitch(u32 level) const;
-        u32 get_offset(u32 level, u32 face, u32 layer) const;
+
+        /// @brief Retrieves the element size, i.e. the texel for uncompressed textures, the block otherwise.
+        u32 get_element_size() const;
 
         bool save(cstring_view path) const;
         bool load(cstring_view path);

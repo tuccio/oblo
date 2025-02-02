@@ -1,8 +1,10 @@
 #pragma once
 
+#include <oblo/core/debug.hpp>
+#include <oblo/math/power_of_two.hpp>
+
 #include <concepts>
 #include <cstddef>
-#include <oblo/core/debug.hpp>
 
 namespace oblo
 {
@@ -78,9 +80,10 @@ namespace oblo
         {
             segmented_span result{};
 
-            const auto padding = m_firstUnused % alignment;
-            const auto alignedCount = count + padding;
-            const auto newEnd = m_firstUnused + alignedCount;
+            OBLO_ASSERT(is_power_of_two(alignment));
+            const auto firstAligned = align_power_of_two(m_firstUnused, alignment);
+
+            const auto newEnd = firstAligned + count;
 
             if (newEnd > m_size)
             {
@@ -100,11 +103,14 @@ namespace oblo
             }
             else
             {
-                result.segments[0] = {.begin = m_firstUnused + padding, .end = newEnd};
+                result.segments[0] = {.begin = firstAligned, .end = newEnd};
 
+                const auto alignedCount = newEnd - m_firstUnused;
                 m_firstUnused = newEnd % m_size;
                 m_usedCount += alignedCount;
             }
+
+            OBLO_ASSERT(result.segments[0].begin % alignment == 0);
 
             return result;
         }
