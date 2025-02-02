@@ -28,6 +28,11 @@ namespace oblo::vk::test
 
             mesh_database meshes;
 
+            bool init()
+            {
+                return true;
+            }
+
             bool startup(const vk::sandbox_startup_context& ctx)
             {
                 auto& vkContext = *ctx.vkContext;
