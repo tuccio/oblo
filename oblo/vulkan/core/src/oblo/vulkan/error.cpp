@@ -1,5 +1,7 @@
 #include <oblo/vulkan/error.hpp>
 
+#include <oblo/log/log.hpp>
+
 #include <cstdio>
 #include <exception>
 
@@ -9,7 +11,7 @@ namespace oblo::vk
     {
         void panic_default_handler(const char* file, int line, const char* call, VkResult result, void*)
         {
-            std::fprintf(stderr, "[Vulkan Error] %s:%d %s (%d)", file, line, call, result);
+            log::error("[Vulkan Error] {}:{} {} ({:#x})", file, line, call, i32(result));
         }
 
         void* g_userdata{};
