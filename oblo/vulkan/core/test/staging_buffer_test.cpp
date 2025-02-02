@@ -282,7 +282,7 @@ namespace oblo::vk
     TEST(staging_buffer, randomized)
     {
         constexpr u32 bufferSize{1 << 8u};
-        constexpr u32 stagingBufferSize{bufferSize};
+        constexpr u32 stagingBufferSize{2 * bufferSize};
 
         std::stringstream validationErrors;
 
