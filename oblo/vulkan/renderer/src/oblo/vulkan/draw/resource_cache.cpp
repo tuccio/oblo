@@ -56,8 +56,15 @@ namespace oblo::vk
             }
             else
             {
-                m_textureRegistry->set_texture(it->handle, *it->resource, it->resource.get_name());
-                it = m_asyncLoads.erase_unordered(it);
+                if (m_textureRegistry->set_texture(it->handle, *it->resource, it->resource.get_name()))
+                {
+                    it = m_asyncLoads.erase_unordered(it);
+                }
+                else
+                {
+                    // We assume we are just out of space and we can retry next frame, we should return an error code instead
+                    ++it;
+                }
             }
         }
     }

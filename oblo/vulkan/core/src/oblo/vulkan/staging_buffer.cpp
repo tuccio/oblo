@@ -153,14 +153,16 @@ namespace oblo::vk
         const auto firstUnused = m_impl.ring.first_unused();
         const auto firstAligned = align_power_of_two(firstUnused, alignment);
         const auto padding = firstAligned - firstUnused;
+        const auto availableFirstSegment = m_impl.ring.first_segment_available_count();
 
-        if (const auto availableNext = m_impl.ring.size() - firstAligned; availableNext >= size)
+        if (availableFirstSegment >= padding + size)
         {
             stage_allocate(padding).assert_value();
         }
-        else if (size >= m_impl.ring.available_count() - availableNext)
+        else if (available - availableFirstSegment >= padding + size)
         {
-            stage_allocate(padding + availableNext).assert_value();
+            stage_allocate(availableFirstSegment).assert_value();
+            OBLO_ASSERT(m_impl.ring.first_unused() == 0);
         }
         else
         {

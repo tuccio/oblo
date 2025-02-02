@@ -53,7 +53,7 @@ namespace oblo
         {
             OBLO_ASSERT(has_available(count));
 
-            const auto availableFirstSegment = m_size - m_firstUnused;
+            const auto availableFirstSegment = first_segment_available_count();
 
             segmented_span result{};
 
@@ -99,6 +99,11 @@ namespace oblo
         Size first_unused() const
         {
             return m_firstUnused;
+        }
+
+        Size first_segment_available_count() const
+        {
+            return min(m_size - m_firstUnused, available_count());
         }
 
     private:
