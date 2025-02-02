@@ -1,7 +1,6 @@
 #pragma once
 
 #include <oblo/core/debug.hpp>
-#include <oblo/math/power_of_two.hpp>
 
 #include <concepts>
 #include <cstddef>
@@ -76,45 +75,6 @@ namespace oblo
             return result;
         }
 
-        segmented_span try_fetch_contiguous_aligned(Size count, Size alignment)
-        {
-            segmented_span result{};
-
-            OBLO_ASSERT(is_power_of_two(alignment));
-            const auto firstAligned = align_power_of_two(m_firstUnused, alignment);
-
-            const auto newEnd = firstAligned + count;
-
-            if (newEnd > m_size)
-            {
-                // Can't allocate on the first segment, try allocating on the second segment
-                const auto availableSecondSegment = m_firstUnused - m_usedCount;
-
-                // No need to align anymore, we start from 0
-                if (availableSecondSegment >= count)
-                {
-                    const auto availableFirstSegment = m_size - m_firstUnused;
-
-                    m_firstUnused = count;
-                    m_usedCount += availableFirstSegment + count;
-
-                    result.segments[0] = {.begin = 0u, .end = count};
-                }
-            }
-            else
-            {
-                result.segments[0] = {.begin = firstAligned, .end = newEnd};
-
-                const auto alignedCount = newEnd - m_firstUnused;
-                m_firstUnused = newEnd % m_size;
-                m_usedCount += alignedCount;
-            }
-
-            OBLO_ASSERT(result.segments[0].begin % alignment == 0);
-
-            return result;
-        }
-
         void release(Size count)
         {
             OBLO_ASSERT(count <= m_usedCount);
@@ -134,6 +94,11 @@ namespace oblo
         Size available_count() const
         {
             return m_size - m_usedCount;
+        }
+
+        Size first_unused() const
+        {
+            return m_firstUnused;
         }
 
     private:

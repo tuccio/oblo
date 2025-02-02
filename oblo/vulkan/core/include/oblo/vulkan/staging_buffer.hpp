@@ -55,6 +55,8 @@ namespace oblo::vk
         void invalidate_memory_ranges();
 
     private:
+        expected<staging_buffer_span> stage_allocate_contiguous_aligned(u32 size, u32 alignment);
+
         void free_submissions(u64 timelineId);
 
     private:

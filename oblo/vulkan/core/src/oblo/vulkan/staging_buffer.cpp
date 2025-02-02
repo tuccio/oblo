@@ -4,6 +4,7 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/core/ring_buffer_tracker.hpp>
 #include <oblo/core/utility.hpp>
+#include <oblo/math/power_of_two.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/utility/pipeline_barrier.hpp>
@@ -125,21 +126,48 @@ namespace oblo::vk
 
     expected<staging_buffer_span> staging_buffer::stage_allocate(u32 size)
     {
-        // Workaround for issue #74
-        const auto segmentedSpan = m_impl.ring.try_fetch_contiguous_aligned(size, 1);
-
-        if (segmentedSpan.segments[0].begin == segmentedSpan.segments[0].end)
+        if (!m_impl.ring.has_available(size))
         {
-            OBLO_ASSERT(false, "Failed to allocate space to upload");
             return unspecified_error;
         }
 
-        OBLO_ASSERT(segmentedSpan.segments[1].begin == segmentedSpan.segments[1].end,
-            "The allocation was split in 2, this can cause issue #74");
+        const auto segmentedSpan = m_impl.ring.fetch(size);
+        OBLO_ASSERT(calculate_size({segmentedSpan}) == size);
 
         m_impl.pendingBytes += size;
 
         return staging_buffer_span{segmentedSpan};
+    }
+
+    expected<staging_buffer_span> staging_buffer::stage_allocate_contiguous_aligned(u32 size, u32 alignment)
+    {
+        const auto available = m_impl.ring.available_count();
+
+        if (available < size)
+        {
+            return unspecified_error;
+        }
+
+        OBLO_ASSERT(is_power_of_two(alignment));
+
+        const auto firstUnused = m_impl.ring.first_unused();
+        const auto firstAligned = align_power_of_two(firstUnused, alignment);
+        const auto padding = firstAligned - firstUnused;
+
+        if (const auto availableNext = m_impl.ring.size() - firstAligned; availableNext >= size)
+        {
+            stage_allocate(padding).assert_value();
+        }
+        else if (size >= m_impl.ring.available_count() - availableNext)
+        {
+            stage_allocate(padding + availableNext).assert_value();
+        }
+        else
+        {
+            return unspecified_error;
+        }
+
+        return stage_allocate(size);
     }
 
     expected<staging_buffer_span> staging_buffer::stage(std::span<const byte> source)
@@ -174,39 +202,22 @@ namespace oblo::vk
         auto* const srcPtr = source.data();
         const auto srcSize = narrow_cast<u32>(source.size());
 
-        const auto available = m_impl.ring.available_count();
-
-        if (available < srcSize)
-        {
-            return unspecified_error;
-        }
-
         const u32 alignment = max(m_impl.optimalBufferCopyOffsetAlignment, texelSize);
 
-        // Segments here should be aligned with the texel size, probably we should also be mindful of not splitting a
-        // texel in 2 different segments
-        const auto segmentedSpan = m_impl.ring.try_fetch_contiguous_aligned(srcSize, alignment);
+        const auto result = stage_allocate_contiguous_aligned(srcSize, alignment);
 
-        if (segmentedSpan.segments[0].begin == segmentedSpan.segments[0].end)
+        if (result)
         {
-            OBLO_ASSERT(false, "Failed to allocate space to upload");
-            return unspecified_error;
+            OBLO_ASSERT(result->segments[1].begin == result->segments[1].end,
+                "Images have to be allocated contiguously");
+
+            const auto segment = result->segments[0];
+            OBLO_ASSERT(segment.begin % alignment == 0);
+
+            std::memcpy(m_impl.memoryMap + segment.begin, srcPtr, srcSize);
         }
 
-        if (auto& secondSegment = segmentedSpan.segments[1]; secondSegment.begin != secondSegment.end)
-        {
-            // TODO: Rather than failing, try to extend it
-            OBLO_ASSERT(false,
-                "We don't split the image upload, we could at least make sure we have enough space for it");
-            return unspecified_error;
-        }
-
-        const auto segment = segmentedSpan.segments[0];
-        std::memcpy(m_impl.memoryMap + segment.begin, srcPtr, srcSize);
-
-        m_impl.pendingBytes += srcSize;
-
-        return staging_buffer_span{segmentedSpan};
+        return result;
     }
 
     void staging_buffer::copy_to(staging_buffer_span destination, u32 offset, std::span<const byte> source)

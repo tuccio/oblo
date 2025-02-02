@@ -368,7 +368,7 @@ namespace oblo::vk
                 }
 
                 const auto r = stagingBuffer.stage(as_bytes(std::span{data}));
-                ASSERT_TRUE(r);
+                ASSERT_TRUE(r) << " [Seed: " << seed << "] [FrameIndex:" << frameIndex << "]";
 
                 commandBufferPool.begin_frame(frameIndex);
                 stagingBuffer.begin_frame(frameIndex);
