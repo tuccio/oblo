@@ -4,6 +4,7 @@
 #include <oblo/core/utility.hpp>
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/property_tree.hpp>
+#include <oblo/reflection/concepts/handle_concept.hpp>
 #include <oblo/reflection/concepts/random_access_container.hpp>
 #include <oblo/reflection/reflection_registry.hpp>
 
@@ -67,18 +68,39 @@ namespace oblo
             type_id lookupType = type;
             bool isEnum = false;
 
+            property_kind kind = property_kind::enum_max;
+
             if (const auto e = reflection->find_enum(type))
             {
                 lookupType = reflection->get_underlying_type(e);
                 isEnum = true;
             }
+            else if (const auto typeHandle = reflection->find_type(type); typeHandle)
+            {
+                if (const auto h = reflection->find_concept<reflection::handle_concept>(typeHandle))
+                {
+                    if (h->valueType == get_type_id<u32>())
+                    {
+                        kind = property_kind::h32;
+                    }
+                    else if (h->valueType == get_type_id<u64>())
+                    {
+                        kind = property_kind::h64;
+                    }
+                }
+            }
 
             if (const auto it = kindLookups.find(lookupType); it != kindLookups.end())
+            {
+                kind = it->second;
+            }
+
+            if (kind != property_kind::enum_max)
             {
                 auto& p = tree.properties.push_back({
                     .type = type,
                     .name = name,
-                    .kind = it->second,
+                    .kind = kind,
                     .isEnum = isEnum,
                     .offset = offset,
                     .parent = currentNodeIndex,
@@ -246,7 +268,7 @@ namespace oblo
                 // another child and visit that
                 auto parentNode = newNodeIndex;
 
-                if (!kindLookups.contains(rac->valueType) && !reflection->try_get_enum(valueType))
+                if (!try_add_property(tree, newNodeIndex, rac->valueType, meta_properties::array_element, 0))
                 {
                     parentNode = u32(tree.nodes.size());
 
@@ -259,10 +281,6 @@ namespace oblo
                     });
 
                     try_add_object_or_array(tree, parentNode, valueType);
-                }
-                else
-                {
-                    try_add_property(tree, newNodeIndex, rac->valueType, meta_properties::array_element, 0);
                 }
             }
             else

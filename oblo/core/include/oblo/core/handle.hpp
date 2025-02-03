@@ -9,6 +9,9 @@ namespace oblo
     template <typename Tag, typename Value>
     struct handle
     {
+        using tag_type = Tag;
+        using value_type = Value;
+
         constexpr explicit operator bool() const noexcept
         {
             return value != Value{};

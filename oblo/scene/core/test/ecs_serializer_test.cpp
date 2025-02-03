@@ -15,6 +15,7 @@
 #include <oblo/reflection/registration/registrant.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/scene/components/name_component.hpp>
+#include <oblo/scene/components/parent_component.hpp>
 #include <oblo/scene/components/position_component.hpp>
 #include <oblo/scene/components/rotation_component.hpp>
 #include <oblo/scene/components/scale_component.hpp>
@@ -112,14 +113,20 @@ namespace oblo
                 ecs::entity_registry reg;
                 reg.init(&typeRegistry);
 
-                ecs_utility::create_named_physical_entity(reg, "A", vec3{}, quaternion::identity(), vec3::splat(1.f));
+                ecs_utility::create_named_physical_entity(reg,
+                    "A",
+                    {},
+                    vec3{},
+                    quaternion::identity(),
+                    vec3::splat(1.f));
                 ecs_utility::create_named_physical_entity(reg,
                     "B",
+                    {},
                     vec3::splat(1.f),
                     quaternion::identity(),
                     vec3::splat(3.f));
 
-                ecs_utility::create_named_physical_entity<transient_tag>(reg, "C", {}, quaternion::identity(), {});
+                ecs_utility::create_named_physical_entity<transient_tag>(reg, "C", {}, {}, quaternion::identity(), {});
 
                 data_document doc;
                 doc.init();
@@ -270,8 +277,12 @@ namespace oblo
             ecs::entity_registry reg;
             reg.init(&typeRegistry);
 
-            const auto e =
-                ecs_utility::create_named_physical_entity(reg, "e", vec3{}, quaternion::identity(), vec3::splat(1.f));
+            const auto e = ecs_utility::create_named_physical_entity(reg,
+                "e",
+                {},
+                vec3{},
+                quaternion::identity(),
+                vec3::splat(1.f));
 
             auto& a = reg.add<array_test_component>(e);
             a = expected;
@@ -300,6 +311,149 @@ namespace oblo
             const auto& a = reg.get<array_test_component>(e);
 
             ASSERT_EQ(a, expected);
+        }
+    }
+
+    TEST_F(ecs_serialization_test, json_hierarchy)
+    {
+        register_from_reflection();
+
+        const auto jsonPath = string_builder{}.append(testDir).append_path("json_hierarchy.json");
+
+        {
+            ecs::entity_registry reg;
+            reg.init(&typeRegistry);
+
+            const auto rootEntity1 = ecs_utility::create_named_physical_entity(reg,
+                "rootEntity1",
+                {},
+                vec3{},
+                quaternion::identity(),
+                vec3::splat(1.f));
+
+            const auto childA1 = ecs_utility::create_named_physical_entity(reg,
+                "childA1",
+                rootEntity1,
+                vec3{},
+                quaternion::identity(),
+                vec3::splat(1.f));
+
+            const auto childB1 = ecs_utility::create_named_physical_entity(reg,
+                "childB1",
+                rootEntity1,
+                vec3{},
+                quaternion::identity(),
+                vec3::splat(1.f));
+
+            const auto childAB1 = ecs_utility::create_named_physical_entity(reg,
+                "childAB1",
+                childB1,
+                vec3{},
+                quaternion::identity(),
+                vec3::splat(1.f));
+
+            const auto rootEntity2 = ecs_utility::create_named_physical_entity(reg,
+                "rootEntity2",
+                {},
+                vec3{},
+                quaternion::identity(),
+                vec3::splat(1.f));
+
+            const auto rootEntity3 = ecs_utility::create_named_physical_entity(reg,
+                "rootEntity3",
+                {},
+                vec3{},
+                quaternion::identity(),
+                vec3::splat(1.f));
+
+            const auto childA3 = ecs_utility::create_named_physical_entity(reg,
+                "childA3",
+                rootEntity3,
+                vec3{},
+                quaternion::identity(),
+                vec3::splat(1.f));
+
+            data_document doc;
+            doc.init();
+
+            ASSERT_TRUE(ecs_serializer::write(doc, doc.get_root(), reg, propertyRegistry));
+            ASSERT_TRUE(json::write(doc, jsonPath));
+        }
+
+        {
+            data_document doc;
+
+            ASSERT_TRUE(json::read(doc, jsonPath));
+
+            ecs::entity_registry reg;
+            reg.init(&typeRegistry);
+
+            ASSERT_TRUE(ecs_serializer::read(reg, doc, doc.get_root(), propertyRegistry));
+
+            ASSERT_EQ(reg.entities().size(), 7);
+
+            auto findByName = [&reg](const deque<ecs::entity>& range, string_view name) -> ecs::entity
+            {
+                for (auto e : range)
+                {
+                    if (auto* nc = reg.try_get<name_component>(e); nc)
+                    {
+                        if (nc->value == name)
+                        {
+                            return e;
+                        }
+                    }
+                }
+                return {};
+            };
+
+            auto expectChildren = [&reg, &findByName](ecs::entity e,
+                                      std::initializer_list<string_view> expected,
+                                      deque<ecs::entity>& orderedChildren)
+            {
+                orderedChildren.clear();
+
+                deque<ecs::entity> children;
+                ecs_utility::find_children(reg, e, children);
+
+                ASSERT_EQ(children.size(), expected.size());
+
+                for (auto name : expected)
+                {
+                    const ecs::entity c = findByName(children, name);
+                    ASSERT_TRUE(c);
+
+                    orderedChildren.push_back(c);
+
+                    ASSERT_EQ(ecs_utility::find_parent(reg, c), e);
+                }
+            };
+
+            deque<ecs::entity> roots;
+            ecs_utility::find_roots(reg, roots);
+
+            ASSERT_EQ(roots.size(), 3);
+
+            const auto rootEntity1 = findByName(roots, "rootEntity1");
+            const auto rootEntity2 = findByName(roots, "rootEntity2");
+            const auto rootEntity3 = findByName(roots, "rootEntity3");
+
+            ASSERT_TRUE(rootEntity1);
+            ASSERT_TRUE(rootEntity2);
+            ASSERT_TRUE(rootEntity3);
+
+            deque<ecs::entity> children;
+
+            expectChildren(rootEntity1, {"childA1", "childB1"}, children);
+
+            const auto childA1 = children[0];
+            const auto childB1 = children[1];
+
+            expectChildren(childA1, {}, children);
+            expectChildren(childB1, {"childAB1"}, children);
+
+            expectChildren(rootEntity2, {}, children);
+            expectChildren(rootEntity3, {"childA3"}, children);
         }
     }
 }

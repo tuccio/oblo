@@ -4,6 +4,7 @@
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/reflection/concepts/handle_concept.hpp>
 #include <oblo/reflection/concepts/random_access_container.hpp>
 #include <oblo/reflection/concepts/ranged_type_erasure.hpp>
 #include <oblo/reflection/reflection_registry.hpp>
@@ -251,6 +252,11 @@ namespace oblo::reflection
                 {
                     class_builder<T>{*this, typeId}.add_concept(make_random_access_container<T>());
                     auto_register<typename T::value_type>();
+                }
+
+                if constexpr (requires { make_handle_concept<T>(); })
+                {
+                    class_builder<T>{*this, typeId}.add_concept(make_handle_concept<T>());
                 }
             }
             else if constexpr (std::is_bounded_array_v<T>)

@@ -496,10 +496,14 @@ namespace oblo::json
                     writer.Uint(*static_cast<u16*>(current.value.data));
                     break;
 
+                case property_kind::h32:
+                    [[fallthrough]];
                 case property_kind::u32:
                     writer.Uint(*static_cast<u32*>(current.value.data));
                     break;
 
+                case property_kind::h64:
+                    [[fallthrough]];
                 case property_kind::u64:
                     writer.Uint64(*static_cast<u64*>(current.value.data));
                     break;

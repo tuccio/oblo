@@ -1,5 +1,6 @@
 #include <oblo/scene/serialization/ecs_serializer.hpp>
 
+#include <oblo/core/finally.hpp>
 #include <oblo/core/overload.hpp>
 #include <oblo/core/string/string.hpp>
 #include <oblo/ecs/archetype_storage.hpp>
@@ -20,6 +21,8 @@ namespace oblo::ecs_serializer
         namespace json_strings
         {
             constexpr hashed_string_view entitiesArray = "entities";
+            constexpr hashed_string_view entityId = "id";
+            constexpr hashed_string_view componentsObject = "components";
         }
 
         hashed_string_view sanitize_name(string_view name)
@@ -48,6 +51,39 @@ namespace oblo::ecs_serializer
         deque<u32> nodeStack;
         deque<byte*> ptrStack;
 
+        /*
+        * When deserializing we need to be able to map the file id to the entity id
+        Change the format to be like this :
+
+        // Use 0 as null value for file ids
+        {
+            "entities": [
+                {
+                    "id": 1,
+                    "components": {
+                        "hierarchy_component": { "parent": 0 } ..., // Ignore the other fields, this needs special
+        handling "transform_component": ...,
+                       ....
+                    }
+                }
+            ],
+        }
+
+        When deserializing:
+            - Keep doing what we do: deserialize everything
+                - If a component might have an entity reference:
+                    - Deserialize reading the file id from json
+                    - Push the number of created entities in the archetype, we need to do a post resolve later
+
+            - After regular serialization is done:
+                - For each archetype pushed earlier
+                    - If the component type might have an entity reference:
+                        - Patch using the lookup
+
+
+
+        */
+
         for (const auto& archetype : archetypes)
         {
             const auto componentsAndTags = get_component_and_tag_sets(archetype);
@@ -68,7 +104,8 @@ namespace oblo::ecs_serializer
                 componentTypes,
                 componentOffsets,
                 componentArrays,
-                [&cfg,
+                [&reg,
+                    &cfg,
                     &doc,
                     entitiesArray,
                     &componentTypes,
@@ -76,15 +113,24 @@ namespace oblo::ecs_serializer
                     &typeRegistry,
                     &propertyRegistry,
                     &nodeStack,
-                    &ptrStack](const ecs::entity*, std::span<std::byte*> componentArrays, u32 numEntitiesInChunk)
+                    &ptrStack](const ecs::entity* entities,
+                    std::span<std::byte*> componentArrays,
+                    u32 numEntitiesInChunk)
                 {
                     nodeStack.clear();
                     ptrStack.clear();
 
                     for (u32 i = 0; i < numEntitiesInChunk; ++i)
                     {
-                        const u32 entityNode = doc.array_push_back(entitiesArray);
-                        doc.make_object(entityNode);
+                        const u32 entityObject = doc.array_push_back(entitiesArray);
+                        doc.make_object(entityObject);
+
+                        const ecs::entity entityId = entities[i];
+                        const u32 entityFileId = reg.extract_entity_index(entityId);
+
+                        doc.child_value(entityObject, json_strings::entityId, property_value_wrapper{entityFileId});
+
+                        const u32 componentsObject = doc.child_object(entityObject, json_strings::componentsObject);
 
                         for (u32 j = 0; j < componentTypes.size(); ++j)
                         {
@@ -95,7 +141,7 @@ namespace oblo::ecs_serializer
 
                             const auto& componentTypeDesc = typeRegistry.get_component_type_desc(componentTypes[j]);
 
-                            const auto componentNode = doc.child_object(entityNode, componentTypeDesc.type.name);
+                            const auto componentNode = doc.child_object(componentsObject, componentTypeDesc.type.name);
 
                             auto* const propertyTree = propertyRegistry.try_get(componentTypeDesc.type);
                             OBLO_ASSERT(propertyTree);
@@ -114,16 +160,14 @@ namespace oblo::ecs_serializer
                                 [&doc, &nodeStack, &ptrStack](const property_node& node, const property_node_start)
                                 {
                                     byte* const ptr = ptrStack.back() + node.offset;
-
-                                    ptrStack.push_back(ptr);
-
                                     const auto newNode = doc.child_object(nodeStack.back(), sanitize_name(node.name));
 
+                                    ptrStack.push_back(ptr);
                                     nodeStack.push_back(newNode);
 
                                     return visit_result::recurse;
                                 },
-                                [&nodeStack, &ptrStack](const property_node&, const property_node_finish)
+                                [&doc, &nodeStack, &ptrStack](const property_node&, const property_node_finish)
                                 {
                                     nodeStack.pop_back();
                                     ptrStack.pop_back();
@@ -153,7 +197,7 @@ namespace oblo::ecs_serializer
 
                                     return visit_result::sibling;
                                 },
-                                [&doc, &nodeStack, &ptrStack](const property& property)
+                                [&reg, &doc, &nodeStack, &ptrStack](const property& property)
                                 {
                                     byte* const propertyPtr = ptrStack.back() + property.offset;
 
@@ -169,6 +213,16 @@ namespace oblo::ecs_serializer
                                             sanitize_name(property.name),
                                             property_kind::string,
                                             as_bytes(data_string{.data = str->data(), .length = str->size()}));
+                                    }
+                                    else if (property.kind == property_kind::h32 &&
+                                        property.type == get_type_id<ecs::entity>())
+                                    {
+                                        const auto parent = nodeStack.back();
+                                        auto* const e = reinterpret_cast<const ecs::entity*>(propertyPtr);
+
+                                        doc.child_value(parent,
+                                            sanitize_name(property.name),
+                                            property_value_wrapper{ecs::entity{reg.extract_entity_index(*e)}});
                                     }
                                     else
                                     {
@@ -194,7 +248,8 @@ namespace oblo::ecs_serializer
 
                             if (!cfg.skipTypes.tags.contains(tagType))
                             {
-                                doc.child_object(entityNode, typeRegistry.get_tag_type_desc(tagType).type.name);
+                                const auto& tagDesc = typeRegistry.get_tag_type_desc(tagType);
+                                doc.child_object(componentsObject, tagDesc.type.name);
                             }
                         }
                     }
@@ -227,18 +282,24 @@ namespace oblo::ecs_serializer
         deque<u32> nodeStack;
         deque<byte*> ptrStack;
 
-        for (u32 child = doc.child_next(entities, data_node::Invalid); child != data_node::Invalid;
-             child = doc.child_next(entities, child))
+        struct file_entity_id;
+        h32_flat_extpool_dense_map<file_entity_id, ecs::entity> fileIdToEntityId;
+
+        final_act_queue deferred;
+
+        for (const u32 entityObject : doc.children(entities))
         {
             componentTypes.clear();
             componentPtrs.clear();
 
             ecs::component_and_tag_sets types{};
 
-            for (u32 component = doc.child_next(child, data_node::Invalid); component != data_node::Invalid;
-                 component = doc.child_next(child, component))
+            const u32 componentsObject = doc.find_child(entityObject, json_strings::componentsObject);
+
+            // Iterate a first time to gather the component types
+            for (const u32 componentObject : doc.children(componentsObject))
             {
-                const auto componentType = doc.get_node_name(component);
+                const auto componentType = doc.get_node_name(componentObject);
                 const auto type = type_id{.name = componentType};
 
                 const auto componentTypeId = typeRegistry.find_component(type);
@@ -262,9 +323,16 @@ namespace oblo::ecs_serializer
             reg.create(types, 1, {&entityId, 1});
             reg.get(entityId, componentTypes, componentPtrs);
 
-            for (u32 component = doc.child_next(child, data_node::Invalid), componentIndex = 0;
-                 component != data_node::Invalid;
-                 ++componentIndex, component = doc.child_next(child, component))
+            const expected id = doc.read_u32(doc.find_child(entityObject, json_strings::entityId));
+
+            if (id && *id != 0)
+            {
+                fileIdToEntityId.emplace(h32<file_entity_id>{*id}, entityId);
+            }
+
+            u32 componentIndex = 0;
+
+            for (const u32 component : doc.children(componentsObject))
             {
                 const auto componentTypeId = componentTypes[componentIndex];
                 const auto componentPtr = componentPtrs[componentIndex];
@@ -288,17 +356,16 @@ namespace oblo::ecs_serializer
                                 }
 
                                 byte* const ptr = ptrStack.back() + node.offset;
-
-                                ptrStack.push_back(ptr);
-
                                 const auto newNode = doc.find_child(nodeStack.back(), hashed_string_view{node.name});
+
                                 OBLO_ASSERT(doc.is_object(newNode));
 
+                                ptrStack.push_back(ptr);
                                 nodeStack.push_back(newNode);
 
                                 return visit_result::recurse;
                             },
-                            [&nodeStack, &ptrStack](const property_node& node, const property_node_finish)
+                            [&doc, &nodeStack, &ptrStack](const property_node& node, const property_node_finish)
                             {
                                 if (node.name != meta_properties::array_element)
                                 {
@@ -350,7 +417,7 @@ namespace oblo::ecs_serializer
 
                                 return visit_result::sibling;
                             },
-                            [&doc, &nodeStack, &ptrStack](const property& property)
+                            [&deferred, &fileIdToEntityId, &doc, &nodeStack, &ptrStack](const property& property)
                             {
                                 byte* const propertyPtr = ptrStack.back() + property.offset;
 
@@ -389,6 +456,33 @@ namespace oblo::ecs_serializer
                                         }
                                         break;
 
+                                    case property_kind::h32:
+                                        if (property.type == get_type_id<ecs::entity>())
+                                        {
+                                            const expected fileId = doc.read_u32(valueNode);
+
+                                            if (fileId)
+                                            {
+                                                auto* const entityRef = new (propertyPtr) ecs::entity{*fileId};
+
+                                                // This is currently banking on pointers being stable, which is the
+                                                // case right now but not very future-proof
+                                                deferred.push(
+                                                    [entityRef, &fileIdToEntityId]
+                                                    {
+                                                        ecs::entity* const e = fileIdToEntityId.try_find(
+                                                            h32<file_entity_id>{entityRef->value});
+
+                                                        *entityRef = e ? *e : ecs::entity{};
+                                                    });
+                                            }
+
+                                            break;
+                                        }
+
+                                        // If it's not an entity, treat it like any u32
+                                        [[fallthrough]];
+
                                     case property_kind::u32:
                                         if (const auto value = doc.read_u32(valueNode))
                                         {
@@ -408,6 +502,8 @@ namespace oblo::ecs_serializer
                         visit(*propertyTree, visitor);
                     }
                 }
+
+                ++componentIndex;
             }
         }
 

@@ -11,6 +11,9 @@ namespace oblo
 
     struct quaternion;
     struct vec3;
+
+    template <typename>
+    class deque;
 }
 
 namespace oblo::ecs
@@ -40,6 +43,10 @@ namespace oblo::ecs_utility
         const vec3& scale);
 
     SCENE_API void reparent_entity(ecs::entity_registry& registry, ecs::entity e, ecs::entity parent);
+
+    SCENE_API ecs::entity find_parent(const ecs::entity_registry& registry, ecs::entity e);
+    SCENE_API void find_children(const ecs::entity_registry& registry, ecs::entity e, deque<ecs::entity>& outChildren);
+    SCENE_API void find_roots(ecs::entity_registry& registry, deque<ecs::entity>& outRoots);
 
     template <typename... ComponentsOrTags>
     ecs::entity create_named_physical_entity(ecs::entity_registry& registry,

@@ -187,6 +187,9 @@ namespace oblo::editor
                         {
                             if (auto* const assetPayload = ImGui::AcceptDragDropPayload(payloads::Entity))
                             {
+                                // Make sure the node is expanded after reparenting
+                                ImGui::ActivateItemByID(ImGui::GetItemID());
+
                                 const ecs::entity newChild = payloads::unpack_entity(assetPayload->Data);
 
                                 defer.push(

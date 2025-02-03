@@ -20,6 +20,8 @@ namespace oblo
         f64,
         uuid,
         string,
+        h32,
+        h64,
         enum_max
     };
 
@@ -39,11 +41,13 @@ namespace oblo
         case property_kind::f32:
         case property_kind::i32:
         case property_kind::u32:
+        case property_kind::h32:
             return {4, 4};
 
         case property_kind::f64:
         case property_kind::i64:
         case property_kind::u64:
+        case property_kind::h64:
             return {8, 8};
 
         case property_kind::uuid:

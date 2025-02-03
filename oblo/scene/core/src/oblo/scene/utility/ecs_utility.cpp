@@ -2,6 +2,7 @@
 
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/entity_registry.hpp>
+#include <oblo/ecs/range.hpp>
 #include <oblo/ecs/tag_type_desc.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/log/log.hpp>
@@ -110,13 +111,17 @@ namespace oblo::ecs_utility
 
         void attach_root_entity_to_parent(ecs::entity_registry& registry, ecs::entity e, ecs::entity parent)
         {
-            auto&& entityParent = registry.add<parent_component>(e);
-            OBLO_ASSERT(!entityParent.parent);
+            {
+                auto& entityParent = registry.add<parent_component>(e);
+                OBLO_ASSERT(!entityParent.parent);
 
-            auto&& parentChildren = registry.add<children_component>(parent);
+                entityParent.parent = parent;
+            }
 
-            entityParent.parent = parent;
-            parentChildren.children.emplace_back(e);
+            {
+                auto& parentChildren = registry.add<children_component>(parent);
+                parentChildren.children.emplace_back(e);
+            }
         }
     }
 
@@ -206,6 +211,33 @@ namespace oblo::ecs_utility
 
             entityParent.parent = {};
             attach_root_entity_to_parent(registry, e, parent);
+        }
+    }
+
+    ecs::entity find_parent(const ecs::entity_registry& registry, ecs::entity e)
+    {
+        auto* const pc = registry.try_get<parent_component>(e);
+        return pc ? pc->parent : ecs::entity{};
+    }
+
+    void find_children(const ecs::entity_registry& registry, ecs::entity e, deque<ecs::entity>& outChildren)
+    {
+        auto* const cc = registry.try_get<children_component>(e);
+
+        if (cc)
+        {
+            outChildren.append(cc->children.begin(), cc->children.end());
+        }
+    }
+
+    void find_roots(ecs::entity_registry& registry, deque<ecs::entity>& outRoots)
+    {
+        const auto rootsRange = registry.range<>().exclude<parent_component>();
+
+        for (const auto& chunk : rootsRange)
+        {
+            const auto entities = chunk.get<ecs::entity>();
+            outRoots.append(entities.begin(), entities.end());
         }
     }
 }

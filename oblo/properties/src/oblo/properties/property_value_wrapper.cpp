@@ -26,10 +26,14 @@ namespace oblo
             new (dst) u32{m_u16};
             break;
 
+        case property_kind::h32:
+            [[fallthrough]];
         case property_kind::u32:
             new (dst) u32{m_u32};
             break;
 
+        case property_kind::h64:
+            [[fallthrough]];
         case property_kind::u64:
             new (dst) u64{m_u64};
             break;
