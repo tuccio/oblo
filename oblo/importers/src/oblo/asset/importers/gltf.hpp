@@ -29,6 +29,7 @@ namespace oblo::importers
         file_import_results get_results();
 
     private:
+        struct import_hierarchy;
         struct import_model;
         struct import_mesh;
         struct import_material;
@@ -40,6 +41,7 @@ namespace oblo::importers
     private:
         tinygltf::Model m_model;
         tinygltf::TinyGLTF m_loader;
+        dynamic_array<import_hierarchy> m_importHierarchies;
         dynamic_array<import_model> m_importModels;
         dynamic_array<import_mesh> m_importMeshes;
         dynamic_array<import_material> m_importMaterials;

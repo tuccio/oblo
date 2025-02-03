@@ -6,10 +6,16 @@
 #include <oblo/core/data_format.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/finally.hpp>
+#include <oblo/core/service_registry.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/graphics/graphics_module.hpp>
 #include <oblo/math/vec3.hpp>
+#include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_manager.hpp>
+#include <oblo/properties/property_registry.hpp>
 #include <oblo/properties/serialization/common.hpp>
+#include <oblo/reflection/reflection_module.hpp>
+#include <oblo/reflection/reflection_registry.hpp>
 #include <oblo/resource/descriptors/resource_type_descriptor.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
@@ -18,6 +24,7 @@
 #include <oblo/scene/resources/registration.hpp>
 #include <oblo/scene/resources/traits.hpp>
 #include <oblo/scene/scene_module.hpp>
+#include <oblo/scene/utility/ecs_utility.hpp>
 #include <oblo/thread/job_manager.hpp>
 
 namespace oblo::importers
@@ -39,17 +46,54 @@ namespace oblo::importers
 
             return sb.as<string>();
         }
+
+        class test_module : public module_interface
+        {
+        public:
+            bool startup(const module_initializer& initializer)
+            {
+                m_jobManager.init();
+
+                auto& mm = module_manager::get();
+                mm.load<graphics_module>();
+                mm.load<scene_module>();
+                auto* reflection = mm.load<reflection::reflection_module>();
+                m_propertyRegistry.init(reflection->get_registry());
+
+                initializer.services->add<const reflection::reflection_registry>().externally_owned(
+                    &reflection->get_registry());
+
+                initializer.services->add<const property_registry>().externally_owned(&m_propertyRegistry);
+
+                return true;
+            }
+
+            void finalize()
+            {
+                auto& mm = module_manager::get();
+                auto* reflection = mm.find<reflection::reflection_module>();
+
+                ecs_utility::register_reflected_component_and_tag_types(reflection->get_registry(),
+                    nullptr,
+                    &m_propertyRegistry);
+            }
+
+            void shutdown()
+            {
+                m_jobManager.shutdown();
+            }
+
+        private:
+            job_manager m_jobManager;
+            property_registry m_propertyRegistry;
+        };
     }
 
     TEST(gltf_importer, box)
     {
-        job_manager jm;
-        jm.init();
-
-        const auto cleanUp = finally([&] { jm.shutdown(); });
-
         module_manager mm;
-        mm.load<scene_module>();
+        mm.load<test_module>();
+        mm.finalize();
 
         resource_registry resources;
 

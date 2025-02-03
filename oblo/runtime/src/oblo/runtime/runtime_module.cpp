@@ -1,7 +1,9 @@
 #include <oblo/runtime/runtime_module.hpp>
 
 #include <oblo/core/debug.hpp>
+#include <oblo/core/service_registry.hpp>
 #include <oblo/graphics/graphics_module.hpp>
+#include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/properties/property_registry.hpp>
 #include <oblo/reflection/reflection_module.hpp>
@@ -31,7 +33,7 @@ namespace oblo
 
     runtime_module::~runtime_module() = default;
 
-    bool runtime_module::startup(const module_initializer&)
+    bool runtime_module::startup(const module_initializer& initializer)
     {
         OBLO_ASSERT(!g_instance);
         OBLO_ASSERT(!m_impl);
@@ -47,6 +49,11 @@ namespace oblo
         auto* reflection = mm.load<reflection::reflection_module>();
 
         m_impl->propertyRegistry.init(reflection->get_registry());
+
+        initializer.services->add<const reflection::reflection_registry>().externally_owned(
+            &reflection->get_registry());
+
+        initializer.services->add<const property_registry>().externally_owned(&m_impl->propertyRegistry);
 
         g_instance = this;
         return true;

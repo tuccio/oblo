@@ -1,7 +1,10 @@
 #include <oblo/scene/resources/registration.hpp>
 
+#include <oblo/core/service_registry.hpp>
+#include <oblo/modules/module_manager.hpp>
 #include <oblo/resource/descriptors/resource_type_descriptor.hpp>
 #include <oblo/resource/resource_registry.hpp>
+#include <oblo/scene/resources/entity_hierarchy.hpp>
 #include <oblo/scene/resources/material.hpp>
 #include <oblo/scene/resources/mesh.hpp>
 #include <oblo/scene/resources/model.hpp>
@@ -9,8 +12,6 @@
 #include <oblo/scene/resources/traits.hpp>
 #include <oblo/scene/serialization/mesh_file.hpp>
 #include <oblo/scene/serialization/model_file.hpp>
-
-#include <fstream>
 
 namespace oblo
 {
@@ -20,12 +21,20 @@ namespace oblo
         struct meta;
 
         template <>
-        struct meta<model>
+        struct meta<entity_hierarchy>
         {
-
-            static bool load(model& model, cstring_view source)
+            static bool load(entity_hierarchy& hierarchy, cstring_view source)
             {
-                return load_model(model, source);
+                return hierarchy.load(source).has_value();
+            }
+        };
+
+        template <>
+        struct meta<material>
+        {
+            static bool load(material& material, cstring_view source)
+            {
+                return material.load(source);
             }
         };
 
@@ -39,20 +48,20 @@ namespace oblo
         };
 
         template <>
+        struct meta<model>
+        {
+            static bool load(model& model, cstring_view source)
+            {
+                return load_model(model, source);
+            }
+        };
+
+        template <>
         struct meta<texture>
         {
             static bool load(texture& texture, cstring_view source)
             {
                 return texture.load(source);
-            }
-        };
-
-        template <>
-        struct meta<material>
-        {
-            static bool load(material& material, cstring_view source)
-            {
-                return material.load(source);
             }
         };
     }

@@ -20,6 +20,7 @@
 #include <oblo/scene/components/rotation_component.hpp>
 #include <oblo/scene/components/scale_component.hpp>
 #include <oblo/scene/components/tags.hpp>
+#include <oblo/scene/resources/entity_hierarchy.hpp>
 #include <oblo/scene/resources/material.hpp>
 #include <oblo/scene/resources/mesh.hpp>
 #include <oblo/scene/resources/registration.hpp>
@@ -91,6 +92,7 @@ namespace oblo
             register_resource_ref_reflection<texture>(reg);
             register_resource_ref_reflection<mesh>(reg);
             register_resource_ref_reflection<material>(reg);
+            register_resource_ref_reflection<entity_hierarchy>(reg);
         }
 
         class scene_resources_provider final : public resource_types_provider
