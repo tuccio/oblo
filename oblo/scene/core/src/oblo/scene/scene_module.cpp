@@ -12,16 +12,18 @@
 #include <oblo/resource/descriptors/resource_ref_descriptor.hpp>
 #include <oblo/resource/providers/resource_types_provider.hpp>
 #include <oblo/resource/resource_ref.hpp>
-#include <oblo/scene/resources/material.hpp>
-#include <oblo/scene/resources/mesh.hpp>
-#include <oblo/scene/resources/registration.hpp>
-#include <oblo/scene/resources/texture.hpp>
+#include <oblo/scene/components/children_component.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/scene/components/name_component.hpp>
+#include <oblo/scene/components/parent_component.hpp>
 #include <oblo/scene/components/position_component.hpp>
 #include <oblo/scene/components/rotation_component.hpp>
 #include <oblo/scene/components/scale_component.hpp>
 #include <oblo/scene/components/tags.hpp>
+#include <oblo/scene/resources/material.hpp>
+#include <oblo/scene/resources/mesh.hpp>
+#include <oblo/scene/resources/registration.hpp>
+#include <oblo/scene/resources/texture.hpp>
 #include <oblo/scene/resources/traits.hpp>
 #include <oblo/scene/systems/barriers.hpp>
 #include <oblo/scene/systems/transform_system.hpp>
@@ -49,6 +51,16 @@ namespace oblo
 
         void register_reflection(reflection::reflection_registry::registrant reg)
         {
+            reg.add_class<parent_component>()
+                .add_field(&parent_component::parent, "parent")
+                .add_ranged_type_erasure()
+                .add_tag<ecs::component_type_tag>();
+
+            reg.add_class<children_component>()
+                .add_field(&children_component::children, "children")
+                .add_ranged_type_erasure()
+                .add_tag<ecs::component_type_tag>();
+
             reg.add_class<name_component>()
                 .add_field(&name_component::value, "value")
                 .add_ranged_type_erasure()

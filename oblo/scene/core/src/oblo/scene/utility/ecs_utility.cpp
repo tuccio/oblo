@@ -9,8 +9,10 @@
 #include <oblo/properties/property_registry.hpp>
 #include <oblo/reflection/concepts/ranged_type_erasure.hpp>
 #include <oblo/reflection/reflection_registry.hpp>
+#include <oblo/scene/components/children_component.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/scene/components/name_component.hpp>
+#include <oblo/scene/components/parent_component.hpp>
 #include <oblo/scene/components/position_component.hpp>
 #include <oblo/scene/components/rotation_component.hpp>
 #include <oblo/scene/components/scale_component.hpp>
@@ -105,6 +107,17 @@ namespace oblo::ecs_utility
                 }
             }
         }
+
+        void attach_root_entity_to_parent(ecs::entity_registry& registry, ecs::entity e, ecs::entity parent)
+        {
+            auto&& entityParent = registry.add<parent_component>(e);
+            OBLO_ASSERT(!entityParent.parent);
+
+            auto&& parentChildren = registry.add<children_component>(parent);
+
+            entityParent.parent = parent;
+            parentChildren.children.emplace_back(e);
+        }
     }
 
     void register_reflected_component_and_tag_types(const reflection::reflection_registry& reflection,
@@ -121,15 +134,23 @@ namespace oblo::ecs_utility
     ecs::entity create_named_physical_entity(ecs::entity_registry& registry,
         const ecs::component_and_tag_sets& extraComponentsOrTags,
         string_view name,
+        ecs::entity parent,
         const vec3& position,
         const quaternion& rotation,
         const vec3& scale)
     {
-        const auto builtIn = ecs::make_type_sets<name_component,
+        const auto& types = registry.get_type_registry();
+
+        auto builtIn = ecs::make_type_sets<name_component,
             position_component,
             rotation_component,
             scale_component,
-            global_transform_component>(registry.get_type_registry());
+            global_transform_component>(types);
+
+        if (parent)
+        {
+            builtIn.components.add(types.find_component<parent_component>());
+        }
 
         auto typeSets = extraComponentsOrTags;
         typeSets.components.add(builtIn.components);
@@ -145,6 +166,46 @@ namespace oblo::ecs_utility
         transform.localToWorld = make_transform_matrix(position, rotation, scale);
         transform.lastFrameLocalToWorld = transform.localToWorld;
 
+        if (parent)
+        {
+            attach_root_entity_to_parent(registry, e, parent);
+        }
+
         return e;
+    }
+
+    void reparent_entity(ecs::entity_registry& registry, ecs::entity e, ecs::entity parent)
+    {
+        if (!parent)
+        {
+            auto* const entityParent = registry.try_get<parent_component>(e);
+
+            if (entityParent && entityParent->parent)
+            {
+                // Already had a parent, detach it
+                auto& parentChildren = registry.get<children_component>(entityParent->parent);
+
+                parentChildren.children.erase(
+                    std::remove(parentChildren.children.begin(), parentChildren.children.end(), e));
+            }
+
+            registry.remove<parent_component>(e);
+        }
+        else
+        {
+            auto& entityParent = registry.add<parent_component>(e);
+
+            if (entityParent.parent)
+            {
+                // Already had a parent, detach it
+                auto& parentChildren = registry.get<children_component>(parent);
+
+                parentChildren.children.erase(
+                    std::remove(parentChildren.children.begin(), parentChildren.children.end(), e));
+            }
+
+            entityParent.parent = {};
+            attach_root_entity_to_parent(registry, e, parent);
+        }
     }
 }

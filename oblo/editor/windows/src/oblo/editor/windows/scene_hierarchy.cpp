@@ -1,16 +1,23 @@
 #include <oblo/editor/windows/scene_hierarchy.hpp>
 
+#include <oblo/core/finally.hpp>
+#include <oblo/core/iterator/reverse_range.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/range.hpp>
+#include <oblo/editor/data/drag_and_drop_payload.hpp>
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/services/selected_entities.hpp>
 #include <oblo/editor/utility/entity_utility.hpp>
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
+#include <oblo/scene/components/children_component.hpp>
+#include <oblo/scene/components/parent_component.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
 
 #include <imgui.h>
+
+#include <imgui_internal.h>
 
 namespace oblo::editor
 {
@@ -24,8 +31,23 @@ namespace oblo::editor
     {
         bool open{true};
 
+        final_act_queue defer;
+
         if (ImGui::Begin("Hierarchy", &open))
         {
+            auto* const window = ImGui::GetCurrentWindow();
+
+            if (ImGui::BeginDragDropTargetCustom(window->ContentRegionRect, window->ID))
+            {
+                if (auto* const assetPayload = ImGui::AcceptDragDropPayload(payloads::Entity))
+                {
+                    const ecs::entity newChild = payloads::unpack_entity(assetPayload->Data);
+                    ecs_utility::reparent_entity(*m_registry, newChild, {});
+                }
+
+                ImGui::EndDragDropTarget();
+            }
+
             const auto hasFocus = ImGui::IsWindowFocused();
 
             if (ImGui::IsMouseReleased(ImGuiMouseButton_Right) && ImGui::IsWindowHovered())
@@ -39,6 +61,7 @@ namespace oblo::editor
                 {
                     const auto e = ecs_utility::create_named_physical_entity(*m_registry,
                         "New Entity",
+                        {},
                         {},
                         quaternion::identity(),
                         vec3::splat(1));
@@ -92,35 +115,125 @@ namespace oblo::editor
                 m_lastRefreshEvent = eventId;
             }
 
-            for (const auto e : m_registry->entities())
+            const auto rootsRange = m_registry->range<>().exclude<parent_component>();
+
+            struct entity_stack_entry
             {
-                ImGuiTreeNodeFlags flags{ImGuiTreeNodeFlags_Leaf};
+                ecs::entity id;
+                u32 ancestorsToPop;
+            };
 
-                if (m_selection->contains(e))
+            deque<entity_stack_entry> stack;
+
+            for (const auto& chunk : rootsRange)
+            {
+                for (ecs::entity root : chunk.get<ecs::entity>())
                 {
-                    flags |= ImGuiTreeNodeFlags_Selected;
+                    stack.assign(1,
+                        {
+                            .id = root,
+                            .ancestorsToPop = 0,
+                        });
 
-                    if (e == entityToSelect)
+                    while (!stack.empty())
                     {
-                        ImGui::SetScrollHereY();
+                        const auto info = stack.back();
+                        stack.pop_back();
+
+                        const ecs::entity e = info.id;
+
+                        const children_component* cc = m_registry->try_get<children_component>(e);
+
+                        ImGuiTreeNodeFlags flags{};
+
+                        const bool isLeaf = !cc || cc->children.empty();
+
+                        u32 childrenCount = 0;
+
+                        if (isLeaf)
+                        {
+                            flags |= ImGuiTreeNodeFlags_Leaf;
+                        }
+                        else
+                        {
+                            childrenCount = cc->children.size32();
+                        }
+
+                        if (m_selection->contains(e))
+                        {
+                            flags |= ImGuiTreeNodeFlags_Selected;
+
+                            if (e == entityToSelect)
+                            {
+                                ImGui::SetScrollHereY();
+                            }
+                        }
+
+                        auto* const name = entity_utility::get_name_cstr(*m_registry, e);
+
+                        const bool expanded =
+                            ImGui::TreeNodeEx(reinterpret_cast<void*>(intptr(e.value)), flags, "%s", name);
+
+                        if (ImGui::BeginDragDropSource())
+                        {
+                            ImGui::TextUnformatted(name);
+
+                            const auto payload = payloads::pack_entity(e);
+                            ImGui::SetDragDropPayload(payloads::Entity, &payload, sizeof(drag_and_drop_payload));
+                            ImGui::EndDragDropSource();
+                        }
+
+                        if (ImGui::BeginDragDropTarget())
+                        {
+                            if (auto* const assetPayload = ImGui::AcceptDragDropPayload(payloads::Entity))
+                            {
+                                const ecs::entity newChild = payloads::unpack_entity(assetPayload->Data);
+
+                                defer.push(
+                                    [this, newChild, e] { ecs_utility::reparent_entity(*m_registry, newChild, e); });
+                            }
+
+                            ImGui::EndDragDropTarget();
+                        }
+
+                        if (ImGui::IsItemClicked())
+                        {
+                            if (!ImGui::GetIO().KeyCtrl)
+                            {
+                                m_selection->clear();
+                            }
+
+                            m_selection->add(e);
+                        }
+
+                        u32 nodesToPop = info.ancestorsToPop;
+
+                        if (expanded)
+                        {
+                            ++nodesToPop;
+
+                            if (!isLeaf)
+                            {
+                                const auto firstChildIdx = stack.size();
+
+                                for (const auto child : reverse_range(cc->children))
+                                {
+                                    stack.push_back(entity_stack_entry{.id = child, .ancestorsToPop = 0});
+                                }
+
+                                // The first will be processed last, that one will pop all ancestors
+                                stack[firstChildIdx].ancestorsToPop = nodesToPop;
+                            }
+                        }
+
+                        if (isLeaf || !expanded)
+                        {
+                            for (u32 i = 0; i < nodesToPop; ++i)
+                            {
+                                ImGui::TreePop();
+                            }
+                        }
                     }
-                }
-
-                auto* const name = entity_utility::get_name_cstr(*m_registry, e);
-
-                if (ImGui::TreeNodeEx(reinterpret_cast<void*>(intptr(e.value)), flags, "%s", name))
-                {
-                    ImGui::TreePop();
-                }
-
-                if (ImGui::IsItemClicked())
-                {
-                    if (!ImGui::GetIO().KeyCtrl)
-                    {
-                        m_selection->clear();
-                    }
-
-                    m_selection->add(e);
                 }
             }
 

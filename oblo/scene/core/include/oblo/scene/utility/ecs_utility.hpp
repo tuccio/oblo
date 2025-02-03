@@ -34,13 +34,17 @@ namespace oblo::ecs_utility
     SCENE_API ecs::entity create_named_physical_entity(ecs::entity_registry& registry,
         const ecs::component_and_tag_sets& extraComponentsOrTags,
         string_view name,
+        ecs::entity parent,
         const vec3& position,
         const quaternion& rotation,
         const vec3& scale);
 
+    SCENE_API void reparent_entity(ecs::entity_registry& registry, ecs::entity e, ecs::entity parent);
+
     template <typename... ComponentsOrTags>
     ecs::entity create_named_physical_entity(ecs::entity_registry& registry,
         string_view name,
+        ecs::entity parent,
         const vec3& position,
         const quaternion& rotation,
         const vec3& scale)
@@ -48,6 +52,7 @@ namespace oblo::ecs_utility
         return create_named_physical_entity(registry,
             ecs::make_type_sets<ComponentsOrTags...>(registry.get_type_registry()),
             name,
+            parent,
             position,
             rotation,
             scale);

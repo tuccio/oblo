@@ -43,10 +43,16 @@ namespace oblo::ecs
         u32 count() const;
 
     private:
+        // This is so we can allow empty ranges
+        static constexpr usize s_ArraySize = sizeof...(Components) > 0 ? sizeof...(Components) : 1;
+
+        std::span<const component_type, sizeof...(Components)> get_types() const;
+
+    private:
         component_and_tag_sets m_include;
         component_and_tag_sets m_exclude;
-        component_type m_targets[sizeof...(Components)];
-        u8 m_mapping[sizeof...(Components)];
+        component_type m_targets[s_ArraySize];
+        u8 m_mapping[s_ArraySize];
         bool m_onlyNotified = false;
         u32 m_modificationIdCheck;
         entity_registry* m_registry;
@@ -150,10 +156,19 @@ namespace oblo::ecs
                     ...);
             };
 
-            byte* componentsData[sizeof...(Components)];
+            byte* componentsData[s_ArraySize];
             const ecs::entity* entities;
 
-            const u32 numEntities = fetch_chunk_data(*m_it, m_chunkIndex, m_offsets, &entities, componentsData);
+            std::span<byte*> componentsDataSpan;
+            std::span<const u32> offsetsSpan;
+
+            if constexpr (sizeof...(Components) > 0)
+            {
+                componentsDataSpan = componentsData;
+                offsetsSpan = m_offsets;
+            }
+
+            const u32 numEntities = fetch_chunk_data(*m_it, m_chunkIndex, offsetsSpan, &entities, componentsDataSpan);
 
             chunk c;
             c.m_archetype = *m_it;
@@ -231,7 +246,14 @@ namespace oblo::ecs
 
         bool update_iterator_data()
         {
-            if (!m_it || !fetch_component_offsets(*m_it, m_range->m_targets, m_offsets))
+            std::span<u32> offsetsSpan;
+
+            if constexpr (sizeof...(Components) > 0)
+            {
+                offsetsSpan = m_offsets;
+            }
+
+            if (!m_it || !fetch_component_offsets(*m_it, m_range->get_types(), offsetsSpan))
             {
                 return false;
             }
@@ -250,7 +272,7 @@ namespace oblo::ecs
         const archetype_storage* m_it{nullptr};
         u32 m_chunkIndex{0};
         u32 m_numChunks{0};
-        u32 m_offsets[sizeof...(Components)];
+        u32 m_offsets[s_ArraySize];
     };
 
     template <typename... Components>
@@ -261,15 +283,18 @@ namespace oblo::ecs
         typed_range<Components...> res;
         res.m_registry = this;
 
-        constexpr type_id types[] = {get_type_id<std::remove_const_t<Components>>()...};
-        find_component_types(types, res.m_targets);
-
-        u8 inverseMapping[numComponents];
-        sort_and_map(res.m_targets, inverseMapping);
-
-        for (u8 i = 0; i < numComponents; ++i)
+        if constexpr (numComponents > 0)
         {
-            res.m_mapping[inverseMapping[i]] = i;
+            constexpr type_id types[] = {get_type_id<std::remove_const_t<Components>>()...};
+            find_component_types(types, res.m_targets);
+
+            u8 inverseMapping[numComponents];
+            sort_and_map(res.m_targets, inverseMapping);
+
+            for (u8 i = 0; i < numComponents; ++i)
+            {
+                res.m_mapping[inverseMapping[i]] = i;
+            }
         }
 
         res.m_include = make_type_sets<std::remove_const_t<Components>...>(*m_typeRegistry);
@@ -365,6 +390,20 @@ namespace oblo::ecs
                     m_mapping,
                     std::make_index_sequence<sizeof...(Components)>());
             }
+        }
+    }
+
+    template <typename... Components>
+    std::span<const component_type, sizeof...(Components)> entity_registry::typed_range<Components...>::get_types()
+        const
+    {
+        if constexpr (sizeof...(Components) > 0)
+        {
+            return m_targets;
+        }
+        else
+        {
+            return {};
         }
     }
 

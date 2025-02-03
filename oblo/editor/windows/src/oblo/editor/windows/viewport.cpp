@@ -107,6 +107,7 @@ namespace oblo::editor
                     ecs_utility::create_named_physical_entity<camera_component, viewport_component, transient_tag>(
                         *m_entities,
                         buffer.format("Viewport Camera #{}", m_viewportId).view(),
+                        {},
                         m_cameraController.get_position(),
                         m_cameraController.get_orientation(),
                         vec3::splat(1));
@@ -334,6 +335,7 @@ namespace oblo::editor
 
                     const auto e = ecs_utility::create_named_physical_entity<static_mesh_component>(*m_entities,
                         name.empty() ? "New Mesh" : name,
+                        {},
                         vec3{},
                         quaternion::identity(),
                         vec3::splat(1));
@@ -358,6 +360,7 @@ namespace oblo::editor
 
             const auto e = ecs_utility::create_named_physical_entity<skybox_component>(*m_entities,
                 name.empty() ? "New Skybox" : name,
+                {},
                 vec3{},
                 quaternion::identity(),
                 vec3::splat(1));
