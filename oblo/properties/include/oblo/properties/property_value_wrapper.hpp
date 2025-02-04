@@ -1,7 +1,6 @@
 #pragma once
 
 #include <oblo/core/debug.hpp>
-#include <oblo/core/handle.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/uuid.hpp>
@@ -35,16 +34,6 @@ namespace oblo
         constexpr explicit property_value_wrapper(f64 value) : m_kind{property_kind::f64}, m_f64{value} {}
         constexpr explicit property_value_wrapper(uuid value) : m_kind{property_kind::uuid}, m_uuid{value} {}
         constexpr explicit property_value_wrapper(string_view value) : m_kind{property_kind::string}, m_str{value} {}
-
-        template <typename Tag>
-        constexpr explicit property_value_wrapper(h32<Tag> value) : m_kind{property_kind::h32}, m_h32{value.value}
-        {
-        }
-
-        template <typename Tag>
-        constexpr explicit property_value_wrapper(h64<Tag> value) : m_kind{property_kind::h64}, m_h64{value.value}
-        {
-        }
 
         bool assign_to(property_kind k, void* dst) const;
         bool assign_from(property_kind k, const void* src);
@@ -131,18 +120,6 @@ namespace oblo
             return m_str;
         }
 
-        u32 get_h32() const noexcept
-        {
-            OBLO_ASSERT(m_kind == property_kind::h32);
-            return m_h32;
-        }
-
-        u64 get_h64() const noexcept
-        {
-            OBLO_ASSERT(m_kind == property_kind::h64);
-            return m_h64;
-        }
-
         bool get_bool() const noexcept
         {
             OBLO_ASSERT(m_kind == property_kind::boolean);
@@ -193,8 +170,6 @@ namespace oblo
             uuid m_uuid;
             string_view m_str;
             byte m_bytes[16];
-            u32 m_h32;
-            u64 m_h64;
         };
     };
 }

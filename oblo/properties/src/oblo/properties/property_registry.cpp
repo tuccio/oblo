@@ -4,7 +4,6 @@
 #include <oblo/core/utility.hpp>
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/property_tree.hpp>
-#include <oblo/reflection/concepts/handle_concept.hpp>
 #include <oblo/reflection/concepts/random_access_container.hpp>
 #include <oblo/reflection/reflection_registry.hpp>
 
@@ -74,20 +73,6 @@ namespace oblo
             {
                 lookupType = reflection->get_underlying_type(e);
                 isEnum = true;
-            }
-            else if (const auto typeHandle = reflection->find_type(type); typeHandle)
-            {
-                if (const auto h = reflection->find_concept<reflection::handle_concept>(typeHandle))
-                {
-                    if (h->valueType == get_type_id<u32>())
-                    {
-                        kind = property_kind::h32;
-                    }
-                    else if (h->valueType == get_type_id<u64>())
-                    {
-                        kind = property_kind::h64;
-                    }
-                }
             }
 
             if (const auto it = kindLookups.find(lookupType); it != kindLookups.end())

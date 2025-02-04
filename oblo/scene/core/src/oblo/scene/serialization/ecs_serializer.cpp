@@ -190,16 +190,6 @@ namespace oblo::ecs_serializer
                                         property_kind::string,
                                         as_bytes(data_string{.data = str->data(), .length = str->size()}));
                                 }
-                                else if (property.kind == property_kind::h32 &&
-                                    property.type == get_type_id<ecs::entity>())
-                                {
-                                    const auto parent = nodeStack.back();
-                                    auto* const e = reinterpret_cast<const ecs::entity*>(propertyPtr);
-
-                                    doc.child_value(parent,
-                                        sanitize_name(property.name),
-                                        property_value_wrapper{ecs::entity{reg.extract_entity_index(*e)}});
-                                }
                                 else
                                 {
                                     const auto parent = nodeStack.back();
@@ -480,20 +470,6 @@ namespace oblo::ecs_serializer
                                                 property_value_wrapper{*value}.assign_to(property.kind, propertyPtr);
                                             }
                                             break;
-
-                                        case property_kind::h32:
-                                            if (property.type == get_type_id<ecs::entity>())
-                                            {
-                                                const expected fileId = doc.read_u32(valueNode);
-
-                                                if (fileId)
-                                                {
-                                                    break;
-                                                }
-                                            }
-
-                                            // If it's not an entity, treat it like any u32
-                                            [[fallthrough]];
 
                                         case property_kind::u32:
                                             if (const auto value = doc.read_u32(valueNode))

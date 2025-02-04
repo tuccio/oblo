@@ -286,6 +286,7 @@ namespace oblo::smoke
         app.cameraEntity = ecs_utility::create_named_physical_entity<camera_component, viewport_component>(entities,
             "Camera",
             {},
+            {},
             quaternion::identity(),
             vec3::splat(1));
 

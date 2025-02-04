@@ -514,9 +514,6 @@ namespace oblo
         case property_kind::u32:
             return *reinterpret_cast<const u32*>(n.value.data);
 
-        case property_kind::h32:
-            return *reinterpret_cast<const u32*>(n.value.data);
-
         default:
             break;
         }
