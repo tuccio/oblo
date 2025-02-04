@@ -24,6 +24,7 @@ target_link_libraries(
 target_link_libraries(
     oblo_test_importers
     PRIVATE
+    oblo::graphics
     oblo::thread
     oblo::test::glTF::SampleModels
 )

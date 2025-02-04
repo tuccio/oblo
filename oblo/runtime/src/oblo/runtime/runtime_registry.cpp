@@ -23,12 +23,12 @@ namespace oblo
 
     runtime_registry& runtime_registry::operator=(runtime_registry&&) noexcept = default;
 
-    property_registry& runtime_registry::get_property_registry() const
+    property_registry& runtime_registry::get_property_registry()
     {
         return *m_impl->propertyRegistry;
     }
 
-    resource_registry& runtime_registry::get_resource_registry() const
+    resource_registry& runtime_registry::get_resource_registry()
     {
         return m_impl->resourceRegistry;
     }

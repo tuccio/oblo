@@ -27,7 +27,7 @@ namespace oblo
             buf[sizeof(prefix) + Name.size() - 1] = '\0';
 
             const auto e =
-                ecs_utility::create_named_physical_entity<T>(reg, buf, vec3{}, quaternion{}, vec3::splat(1.f));
+                ecs_utility::create_named_physical_entity<T>(reg, buf, {}, vec3{}, quaternion{}, vec3::splat(1.f));
 
             Init{}(reg, e);
 

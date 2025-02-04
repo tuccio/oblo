@@ -10,7 +10,7 @@
 
 namespace oblo::ecs
 {
-    template <typename... Components>
+    template <bool IsConst, typename... Components>
     class entity_registry::typed_range
     {
         friend class entity_registry;
@@ -31,7 +31,7 @@ namespace oblo::ecs
 
         typed_range& notified();
 
-        typed_range& notified(u32 modificationId);
+        typed_range& notified(u64 modificationId);
 
         template <typename F>
         void for_each_chunk(F&& f) const;
@@ -43,13 +43,21 @@ namespace oblo::ecs
         u32 count() const;
 
     private:
+        // This is so we can allow empty ranges
+        static constexpr usize s_ArraySize = sizeof...(Components) > 0 ? sizeof...(Components) : 1;
+
+        std::span<const component_type, sizeof...(Components)> get_types() const;
+
+        using entity_registry_t = std::conditional_t<IsConst, const entity_registry, entity_registry>;
+
+    private:
         component_and_tag_sets m_include;
         component_and_tag_sets m_exclude;
-        component_type m_targets[sizeof...(Components)];
-        u8 m_mapping[sizeof...(Components)];
+        component_type m_targets[s_ArraySize];
+        u8 m_mapping[s_ArraySize];
         bool m_onlyNotified = false;
-        u32 m_modificationIdCheck;
-        entity_registry* m_registry;
+        u64 m_modificationIdCheck;
+        entity_registry_t* m_registry;
     };
 
     namespace detail
@@ -61,8 +69,8 @@ namespace oblo::ecs
         };
     }
 
-    template <typename... Components>
-    class entity_registry::typed_range<Components...>::chunk :
+    template <bool IsConst, typename... Components>
+    class entity_registry::typed_range<IsConst, Components...>::chunk :
         detail::pointer_wrapper<const entity>,
         detail::pointer_wrapper<Components>...
     {
@@ -97,20 +105,40 @@ namespace oblo::ecs
         void notify(bool notifyArchetype = false) const
         {
             const auto latestId = m_registry->get_modification_id();
-            u32* const chunkModificationId = access_chunk_modification_id(m_archetype, m_chunkIndex);
+            u64* const chunkModificationId = access_chunk_modification_id(m_archetype, m_chunkIndex);
 
             *chunkModificationId = latestId;
 
             // This is only here because we don't have a nice API to iterate archetypes yet
             if (notifyArchetype)
             {
-                u32* const archetypeModificationId = access_archetype_modification_id(m_archetype);
+                u64* const archetypeModificationId = access_archetype_modification_id(m_archetype);
                 *archetypeModificationId = latestId;
             }
         }
 
+        template <typename T>
+        std::span<T> try_get() const
+        {
+            std::span<T> r;
+
+            const entity* entities;
+
+            component_type components[1] = {m_registry->get_type_registry().find_component<std::remove_const_t<T>>()};
+            u32 offsets[1];
+            byte* data[1];
+
+            if (fetch_component_offsets(m_archetype, components, offsets))
+            {
+                fetch_chunk_data(m_archetype, m_chunkIndex, offsets, &entities, data);
+                r = std::span<T>{reinterpret_cast<T*>(data[0]), m_numEntities};
+            }
+
+            return r;
+        }
+
     private:
-        friend class entity_registry::typed_range<Components...>::iterator;
+        friend class entity_registry::typed_range<IsConst, Components...>::iterator;
 
     private:
         const entity_registry* m_registry;
@@ -119,8 +147,8 @@ namespace oblo::ecs
         u32 m_numEntities;
     };
 
-    template <typename... Components>
-    class entity_registry::typed_range<Components...>::iterator
+    template <bool IsConst, typename... Components>
+    class entity_registry::typed_range<IsConst, Components...>::iterator
     {
     public:
         using iterator_category = std::forward_iterator_tag;
@@ -150,10 +178,19 @@ namespace oblo::ecs
                     ...);
             };
 
-            byte* componentsData[sizeof...(Components)];
+            byte* componentsData[s_ArraySize];
             const ecs::entity* entities;
 
-            const u32 numEntities = fetch_chunk_data(*m_it, m_chunkIndex, m_offsets, &entities, componentsData);
+            std::span<byte*> componentsDataSpan;
+            std::span<const u32> offsetsSpan;
+
+            if constexpr (sizeof...(Components) > 0)
+            {
+                componentsDataSpan = componentsData;
+                offsetsSpan = m_offsets;
+            }
+
+            const u32 numEntities = fetch_chunk_data(*m_it, m_chunkIndex, offsetsSpan, &entities, componentsDataSpan);
 
             chunk c;
             c.m_archetype = *m_it;
@@ -217,8 +254,8 @@ namespace oblo::ecs
         };
 
     private:
-        using range_type = typed_range<Components...>;
-        friend class typed_range<Components...>;
+        using range_type = typed_range<IsConst, Components...>;
+        friend class typed_range<IsConst, Components...>;
 
     private:
         iterator(const range_type* range, const archetype_storage* it) : m_range{range}, m_it{it}
@@ -231,7 +268,14 @@ namespace oblo::ecs
 
         bool update_iterator_data()
         {
-            if (!m_it || !fetch_component_offsets(*m_it, m_range->m_targets, m_offsets))
+            std::span<u32> offsetsSpan;
+
+            if constexpr (sizeof...(Components) > 0)
+            {
+                offsetsSpan = m_offsets;
+            }
+
+            if (!m_it || !fetch_component_offsets(*m_it, m_range->get_types(), offsetsSpan))
             {
                 return false;
             }
@@ -250,26 +294,29 @@ namespace oblo::ecs
         const archetype_storage* m_it{nullptr};
         u32 m_chunkIndex{0};
         u32 m_numChunks{0};
-        u32 m_offsets[sizeof...(Components)];
+        u32 m_offsets[s_ArraySize];
     };
 
     template <typename... Components>
-    entity_registry::typed_range<Components...> entity_registry::range()
+    mutable_range<Components...> entity_registry::range()
     {
         constexpr u8 numComponents = sizeof...(Components);
 
-        typed_range<Components...> res;
+        mutable_range<Components...> res;
         res.m_registry = this;
 
-        constexpr type_id types[] = {get_type_id<std::remove_const_t<Components>>()...};
-        find_component_types(types, res.m_targets);
-
-        u8 inverseMapping[numComponents];
-        sort_and_map(res.m_targets, inverseMapping);
-
-        for (u8 i = 0; i < numComponents; ++i)
+        if constexpr (numComponents > 0)
         {
-            res.m_mapping[inverseMapping[i]] = i;
+            constexpr type_id types[] = {get_type_id<std::remove_const_t<Components>>()...};
+            find_component_types(types, res.m_targets);
+
+            u8 inverseMapping[numComponents];
+            sort_and_map(res.m_targets, inverseMapping);
+
+            for (u8 i = 0; i < numComponents; ++i)
+            {
+                res.m_mapping[inverseMapping[i]] = i;
+            }
         }
 
         res.m_include = make_type_sets<std::remove_const_t<Components>...>(*m_typeRegistry);
@@ -279,7 +326,35 @@ namespace oblo::ecs
     }
 
     template <typename... Components>
-    entity_registry::typed_range<Components...>& entity_registry::typed_range<Components...>::with(
+    range<std::add_const_t<Components>...> entity_registry::range() const
+    {
+        constexpr u8 numComponents = sizeof...(Components);
+
+        ecs::range<std::add_const_t<Components>...> res;
+        res.m_registry = this;
+
+        if constexpr (numComponents > 0)
+        {
+            constexpr type_id types[] = {get_type_id<std::remove_const_t<Components>>()...};
+            find_component_types(types, res.m_targets);
+
+            u8 inverseMapping[numComponents];
+            sort_and_map(res.m_targets, inverseMapping);
+
+            for (u8 i = 0; i < numComponents; ++i)
+            {
+                res.m_mapping[inverseMapping[i]] = i;
+            }
+        }
+
+        res.m_include = make_type_sets<std::remove_const_t<Components>...>(*m_typeRegistry);
+        res.m_exclude = {};
+
+        return res;
+    }
+
+    template <bool IsConst, typename... Components>
+    entity_registry::typed_range<IsConst, Components...>& entity_registry::typed_range<IsConst, Components...>::with(
         const component_and_tag_sets& includes)
     {
         m_include.components.add(includes.components);
@@ -288,8 +363,8 @@ namespace oblo::ecs
         return *this;
     }
 
-    template <typename... Components>
-    entity_registry::typed_range<Components...>& entity_registry::typed_range<Components...>::exclude(
+    template <bool IsConst, typename... Components>
+    entity_registry::typed_range<IsConst, Components...>& entity_registry::typed_range<IsConst, Components...>::exclude(
         const component_and_tag_sets& excludes)
     {
         m_exclude.components.add(excludes.components);
@@ -298,23 +373,24 @@ namespace oblo::ecs
         return *this;
     }
 
-    template <typename... Components>
+    template <bool IsConst, typename... Components>
     template <typename... ComponentOrTags>
-    entity_registry::typed_range<Components...>& entity_registry::typed_range<Components...>::with()
+    entity_registry::typed_range<IsConst, Components...>& entity_registry::typed_range<IsConst, Components...>::with()
     {
         return with(make_type_sets<std::remove_const_t<ComponentOrTags>...>(*m_registry->m_typeRegistry));
     }
 
-    template <typename... Components>
+    template <bool IsConst, typename... Components>
     template <typename... ComponentOrTags>
-    entity_registry::typed_range<Components...>& entity_registry::typed_range<Components...>::exclude()
+    entity_registry::typed_range<IsConst, Components...>& entity_registry::typed_range<IsConst,
+        Components...>::exclude()
     {
         return exclude(make_type_sets<std::remove_const_t<ComponentOrTags>...>(*m_registry->m_typeRegistry));
     }
 
-    template <typename... Components>
+    template <bool IsConst, typename... Components>
     template <typename F>
-    void entity_registry::typed_range<Components...>::for_each_chunk(F&& f) const
+    void entity_registry::typed_range<IsConst, Components...>::for_each_chunk(F&& f) const
     {
         constexpr auto numComponents = sizeof...(Components);
 
@@ -368,23 +444,39 @@ namespace oblo::ecs
         }
     }
 
-    template <typename... Components>
-    entity_registry::typed_range<Components...>& entity_registry::typed_range<Components...>::notified()
+    template <bool IsConst, typename... Components>
+    std::span<const component_type, sizeof...(Components)> entity_registry::typed_range<IsConst,
+        Components...>::get_types() const
+    {
+        if constexpr (sizeof...(Components) > 0)
+        {
+            return m_targets;
+        }
+        else
+        {
+            return {};
+        }
+    }
+
+    template <bool IsConst, typename... Components>
+    entity_registry::typed_range<IsConst, Components...>& entity_registry::typed_range<IsConst,
+        Components...>::notified()
     {
         return notified(m_registry->get_modification_id());
     }
 
-    template <typename... Components>
-    entity_registry::typed_range<Components...>& entity_registry::typed_range<Components...>::notified(
-        u32 modificationId)
+    template <bool IsConst, typename... Components>
+    entity_registry::typed_range<IsConst, Components...>& entity_registry::typed_range<IsConst,
+        Components...>::notified(u64 modificationId)
     {
         m_onlyNotified = true;
         m_modificationIdCheck = modificationId;
         return *this;
     }
 
-    template <typename... Components>
-    entity_registry::typed_range<Components...>::iterator entity_registry::typed_range<Components...>::begin() const
+    template <bool IsConst, typename... Components>
+    entity_registry::typed_range<IsConst, Components...>::iterator entity_registry::typed_range<IsConst,
+        Components...>::begin() const
     {
         auto* const begin = m_registry->m_componentsStorage.data();
 
@@ -401,14 +493,15 @@ namespace oblo::ecs
         return it;
     }
 
-    template <typename... Components>
-    entity_registry::typed_range<Components...>::iterator entity_registry::typed_range<Components...>::end() const
+    template <bool IsConst, typename... Components>
+    entity_registry::typed_range<IsConst, Components...>::iterator entity_registry::typed_range<IsConst,
+        Components...>::end() const
     {
         return {};
     }
 
-    template <typename... Components>
-    u32 entity_registry::typed_range<Components...>::count() const
+    template <bool IsConst, typename... Components>
+    u32 entity_registry::typed_range<IsConst, Components...>::count() const
     {
         u32 count{};
 

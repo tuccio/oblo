@@ -6,10 +6,16 @@
 #include <oblo/core/data_format.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/finally.hpp>
+#include <oblo/core/service_registry.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/graphics/graphics_module.hpp>
 #include <oblo/math/vec3.hpp>
+#include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_manager.hpp>
+#include <oblo/properties/property_registry.hpp>
 #include <oblo/properties/serialization/common.hpp>
+#include <oblo/reflection/reflection_module.hpp>
+#include <oblo/reflection/reflection_registry.hpp>
 #include <oblo/resource/descriptors/resource_type_descriptor.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
@@ -18,6 +24,7 @@
 #include <oblo/scene/resources/registration.hpp>
 #include <oblo/scene/resources/traits.hpp>
 #include <oblo/scene/scene_module.hpp>
+#include <oblo/scene/utility/ecs_utility.hpp>
 #include <oblo/thread/job_manager.hpp>
 
 namespace oblo::importers
@@ -39,17 +46,78 @@ namespace oblo::importers
 
             return sb.as<string>();
         }
+
+        class test_module : public module_interface
+        {
+        public:
+            bool startup(const module_initializer& initializer)
+            {
+                m_jobManager.init();
+
+                auto& mm = module_manager::get();
+                mm.load<graphics_module>();
+                mm.load<scene_module>();
+                auto* reflection = mm.load<reflection::reflection_module>();
+                m_propertyRegistry.init(reflection->get_registry());
+
+                initializer.services->add<const reflection::reflection_registry>().externally_owned(
+                    &reflection->get_registry());
+
+                initializer.services->add<const property_registry>().externally_owned(&m_propertyRegistry);
+
+                return true;
+            }
+
+            void finalize()
+            {
+                auto& mm = module_manager::get();
+                auto* reflection = mm.find<reflection::reflection_module>();
+
+                ecs_utility::register_reflected_component_and_tag_types(reflection->get_registry(),
+                    nullptr,
+                    &m_propertyRegistry);
+            }
+
+            void shutdown()
+            {
+                m_jobManager.shutdown();
+            }
+
+        private:
+            job_manager m_jobManager;
+            property_registry m_propertyRegistry;
+        };
+
+        template <typename T>
+        resource_ptr<T> find_first_resource_from_asset(
+            const resource_registry& resourceRegistry, const asset_registry& assetRegistry, uuid assetId)
+        {
+            buffered_array<uuid, 16> artifacts;
+
+            if (!assetRegistry.find_asset_artifacts(assetId, artifacts))
+            {
+                return {};
+            }
+
+            for (auto uuid : artifacts)
+            {
+                artifact_meta meta;
+
+                if (assetRegistry.find_artifact_by_id(uuid, meta) && meta.type == resource_type<T>)
+                {
+                    return resourceRegistry.get_resource(uuid).as<T>();
+                }
+            }
+
+            return {};
+        }
     }
 
     TEST(gltf_importer, box)
     {
-        job_manager jm;
-        jm.init();
-
-        const auto cleanUp = finally([&] { jm.shutdown(); });
-
         module_manager mm;
-        mm.load<scene_module>();
+        mm.load<test_module>();
+        mm.finalize();
 
         resource_registry resources;
 
@@ -109,18 +177,21 @@ namespace oblo::importers
 
             uuid meshId;
 
-            asset_meta modelMeta;
+            asset_meta assetMeta;
 
             string_builder assetPath;
             assetPath.append(dirName);
             assetPath.append_path("Box");
 
-            ASSERT_TRUE(registry.find_asset_by_path(assetPath, meshId, modelMeta));
+            ASSERT_TRUE(registry.find_asset_by_path(assetPath, meshId, assetMeta));
 
-            ASSERT_NE(modelMeta.mainArtifactHint, uuid{});
-            ASSERT_EQ(modelMeta.typeHint, resource_type<model>);
+            ASSERT_NE(assetMeta.mainArtifactHint, uuid{});
+            ASSERT_EQ(assetMeta.typeHint, resource_type<entity_hierarchy>);
 
-            const auto modelResource = resources.get_resource(modelMeta.mainArtifactHint).as<model>();
+            const auto hierarchyResource = resources.get_resource(assetMeta.mainArtifactHint).as<entity_hierarchy>();
+            ASSERT_TRUE(hierarchyResource);
+
+            const auto modelResource = find_first_resource_from_asset<model>(resources, registry, meshId);
             ASSERT_TRUE(modelResource);
 
             modelResource.load_sync();

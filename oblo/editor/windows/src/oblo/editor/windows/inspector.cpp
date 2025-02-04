@@ -191,7 +191,7 @@ namespace oblo::editor
 
     void inspector::init(const window_update_context& ctx)
     {
-        m_propertyRegistry = ctx.services.find<property_registry>();
+        m_propertyRegistry = ctx.services.find<const property_registry>();
         m_reflection = ctx.services.find<const reflection::reflection_registry>();
         m_registry = ctx.services.find<ecs::entity_registry>();
         m_selection = ctx.services.find<selected_entities>();

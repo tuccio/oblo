@@ -27,8 +27,8 @@ namespace oblo
     struct runtime_initializer
     {
         const reflection::reflection_registry* reflectionRegistry;
-        property_registry* propertyRegistry;
-        resource_registry* resourceRegistry;
+        const property_registry* propertyRegistry;
+        const resource_registry* resourceRegistry;
         vk::vulkan_context* vulkanContext;
         std::span<ecs::world_builder* const> worldBuilders;
         usize frameAllocatorMaxSize{1u << 28};

@@ -37,7 +37,7 @@ namespace oblo::vk
         resource_cache& operator=(resource_cache&&) noexcept = delete;
         ~resource_cache();
 
-        void init(resource_registry& resources, texture_registry& textureRegistry);
+        void init(const resource_registry& resources, texture_registry& textureRegistry);
 
         void update();
 
@@ -49,7 +49,7 @@ namespace oblo::vk
         struct cached_texture;
 
     private:
-        resource_registry* m_resources{};
+        const resource_registry* m_resources{};
         texture_registry* m_textureRegistry{};
         std::unordered_map<uuid, cached_texture> m_textures;
         deque<async_load> m_asyncLoads;

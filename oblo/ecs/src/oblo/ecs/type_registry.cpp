@@ -22,6 +22,10 @@ namespace oblo::ecs
 
     type_registry::type_registry() = default;
 
+    type_registry::type_registry(type_registry&&) noexcept = default;
+
+    type_registry& type_registry::operator=(type_registry&&) noexcept = default;
+
     type_registry::~type_registry() = default;
 
     component_type type_registry::register_component(const component_type_desc& desc)

@@ -145,7 +145,7 @@ namespace oblo::vk
         staging_buffer& stagingBuffer,
         string_interner& interner,
         ecs::entity_registry& entities,
-        resource_registry& resourceRegistry)
+        const resource_registry& resourceRegistry)
     {
         m_ctx = &ctx;
         m_stagingBuffer = &stagingBuffer;

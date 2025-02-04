@@ -12,18 +12,23 @@
 #include <oblo/resource/descriptors/resource_ref_descriptor.hpp>
 #include <oblo/resource/providers/resource_types_provider.hpp>
 #include <oblo/resource/resource_ref.hpp>
-#include <oblo/scene/resources/material.hpp>
-#include <oblo/scene/resources/mesh.hpp>
-#include <oblo/scene/resources/registration.hpp>
-#include <oblo/scene/resources/texture.hpp>
+#include <oblo/scene/components/children_component.hpp>
+#include <oblo/scene/components/entity_hierarchy_component.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/scene/components/name_component.hpp>
+#include <oblo/scene/components/parent_component.hpp>
 #include <oblo/scene/components/position_component.hpp>
 #include <oblo/scene/components/rotation_component.hpp>
 #include <oblo/scene/components/scale_component.hpp>
 #include <oblo/scene/components/tags.hpp>
+#include <oblo/scene/resources/entity_hierarchy.hpp>
+#include <oblo/scene/resources/material.hpp>
+#include <oblo/scene/resources/mesh.hpp>
+#include <oblo/scene/resources/registration.hpp>
+#include <oblo/scene/resources/texture.hpp>
 #include <oblo/scene/resources/traits.hpp>
 #include <oblo/scene/systems/barriers.hpp>
+#include <oblo/scene/systems/entity_hierarchy_system.hpp>
 #include <oblo/scene/systems/transform_system.hpp>
 
 namespace oblo::ecs
@@ -49,6 +54,16 @@ namespace oblo
 
         void register_reflection(reflection::reflection_registry::registrant reg)
         {
+            reg.add_class<parent_component>()
+                .add_field(&parent_component::parent, "parent")
+                .add_ranged_type_erasure()
+                .add_tag<ecs::component_type_tag>();
+
+            reg.add_class<children_component>()
+                .add_field(&children_component::children, "children")
+                .add_ranged_type_erasure()
+                .add_tag<ecs::component_type_tag>();
+
             reg.add_class<name_component>()
                 .add_field(&name_component::value, "value")
                 .add_ranged_type_erasure()
@@ -74,11 +89,17 @@ namespace oblo
                 .add_ranged_type_erasure()
                 .add_tag<ecs::component_type_tag>();
 
+            reg.add_class<entity_hierarchy_component>()
+                .add_field(&entity_hierarchy_component::hierarchy, "hierarchy")
+                .add_ranged_type_erasure()
+                .add_tag<ecs::component_type_tag>();
+
             reg.add_class<transient_tag>().add_ranged_type_erasure().add_tag<ecs::tag_type_tag>();
 
             register_resource_ref_reflection<texture>(reg);
             register_resource_ref_reflection<mesh>(reg);
             register_resource_ref_reflection<material>(reg);
+            register_resource_ref_reflection<entity_hierarchy>(reg);
         }
 
         class scene_resources_provider final : public resource_types_provider
@@ -106,6 +127,7 @@ namespace oblo
                 b.add_system<transform_system>().as<barriers::transform_update>();
                 b.add_barrier<barriers::renderer_extract>().after<barriers::transform_update>();
                 b.add_barrier<barriers::renderer_update>().after<barriers::renderer_extract>();
+                b.add_system<entity_hierarchy_system>().before<barriers::transform_update>();
             },
         });
 

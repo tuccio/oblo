@@ -20,9 +20,8 @@ namespace oblo::ecs
 
     class entity_registry final
     {
-
     public:
-        template <typename... Components>
+        template <bool IsConst, typename... Components>
         class typed_range;
 
     public:
@@ -72,6 +71,7 @@ namespace oblo::ecs
         Component* try_get(entity e);
 
         std::byte* try_get(entity e, component_type component);
+        const std::byte* try_get(entity e, component_type component) const;
 
         void get(entity e,
             const std::span<const component_type> components,
@@ -92,13 +92,17 @@ namespace oblo::ecs
 
         // Requires including oblo/ecs/range.hpp
         template <typename... Components>
-        typed_range<Components...> range();
+        typed_range<false, Components...> range();
+
+        template <typename... Components>
+        typed_range<true, std::add_const_t<Components>...> range() const;
 
         archetype_storage get_archetype_storage(entity e) const;
 
         std::span<const entity> entities() const;
 
         std::span<const component_type> get_component_types(entity e) const;
+        std::span<const tag_type> get_tag_types(entity e) const;
 
         type_registry& get_type_registry() const;
 
@@ -107,19 +111,23 @@ namespace oblo::ecs
         /// @brief Sets the modification id that will be applied when creating entities or calling notify on entity
         /// ranges.
         /// @remarks This can be set with the granularity the user wants to detect changes with.
-        void set_modification_id(u32 modificationId);
+        void set_modification_id(u64 modificationId);
 
         /// @brief Retrieves the last modification id set.
         /// @see set_modification_id
-        u32 get_modification_id() const;
+        u64 get_modification_id() const;
 
         /// @brief Applies the current modification id to the entity.
         void notify(entity e);
+
+        bool is_notified(entity e, u64 modificationId) const;
 
         /// @brief Extracts the entity index.
         /// @remarks Entity handles are composed of a number of generation bits, while te rest is an index in an array.
         /// This function allows extracting the index part of the handle.
         u32 extract_entity_index(ecs::entity e) const;
+
+        component_and_tag_sets get_component_and_tag_sets(ecs::entity e) const;
 
     private:
         struct memory_pool;
@@ -135,7 +143,7 @@ namespace oblo::ecs
         const archetype_storage* find_first_match(const archetype_storage* begin,
             usize increment,
             const component_and_tag_sets& includes,
-            const component_and_tag_sets& excludes);
+            const component_and_tag_sets& excludes) const;
 
         static void sort_and_map(std::span<component_type> componentTypes, std::span<u8> mapping);
 
@@ -166,8 +174,14 @@ namespace oblo::ecs
         std::unique_ptr<memory_pool> m_pool;
         entities_map m_entities;
         std::vector<archetype_storage> m_componentsStorage;
-        u32 m_modificationId{};
+        u64 m_modificationId{};
     };
+
+    template <typename... Components>
+    using mutable_range = entity_registry::typed_range<false, Components...>;
+
+    template <typename... Components>
+    using range = entity_registry::typed_range<true, Components...>;
 
     template <typename... ComponentsOrTags>
     entity entity_registry::create()
@@ -208,6 +222,11 @@ namespace oblo::ecs
     template <typename Component>
     const Component* entity_registry::try_get(entity e) const
     {
+        if (!e)
+        {
+            return nullptr;
+        }
+
         constexpr type_id types[] = {get_type_id<Component>()};
         std::byte* pointers[1];
 
@@ -219,6 +238,11 @@ namespace oblo::ecs
     template <typename Component>
     Component* entity_registry::try_get(entity e)
     {
+        if (!e)
+        {
+            return nullptr;
+        }
+
         constexpr type_id types[] = {get_type_id<Component>()};
         std::byte* pointers[1];
 

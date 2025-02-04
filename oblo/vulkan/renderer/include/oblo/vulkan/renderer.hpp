@@ -87,7 +87,7 @@ namespace oblo::vk
         vulkan_context& vkContext;
         frame_allocator& frameAllocator;
         ecs::entity_registry& entities;
-        oblo::resource_registry& resources;
+        const oblo::resource_registry& resources;
     };
 
     inline vulkan_context& renderer::get_vulkan_context()

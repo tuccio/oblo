@@ -1,6 +1,8 @@
 #include <oblo/ecs/systems/system_seq_executor.hpp>
 
+#include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/systems/system_descriptor.hpp>
+#include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/trace/profile.hpp>
 
 namespace oblo::ecs
@@ -24,8 +26,8 @@ namespace oblo::ecs
 
     void system_seq_executor::update(const system_update_context& ctx)
     {
-        const auto updateFunc = m_firstUpdate ? &system_descriptor::firstUpdate : &system_descriptor::update;
-        m_firstUpdate = false;
+        const auto firstUpdate = m_modificationId == 0;
+        const auto updateFunc = firstUpdate ? &system_descriptor::firstUpdate : &system_descriptor::update;
 
         OBLO_PROFILE_SCOPE();
 
@@ -33,6 +35,8 @@ namespace oblo::ecs
         {
             OBLO_PROFILE_SCOPE("Update");
             OBLO_PROFILE_TAG(desc.name)
+
+            ctx.entities->set_modification_id(++m_modificationId);
 
             (desc.*updateFunc)(system, &ctx);
         }

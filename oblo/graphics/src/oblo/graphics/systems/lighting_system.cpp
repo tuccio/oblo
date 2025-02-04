@@ -55,6 +55,7 @@ namespace oblo
         const auto e = ecs_utility::create_named_physical_entity<light_component, transient_tag>(*ctx.entities,
             "Sun",
             {},
+            {},
             quaternion::from_euler_xyz_intrinsic(degrees_tag{}, vec3{.x = -69.f, .y = -29.f, .z = -2.f}),
             vec3::splat(1.f));
 

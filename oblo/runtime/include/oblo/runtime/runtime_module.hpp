@@ -30,7 +30,7 @@ namespace oblo
 
         RUNTIME_API bool startup(const module_initializer& initializer) override;
         RUNTIME_API void shutdown() override;
-        void finalize() override {}
+        void finalize() override;
 
         RUNTIME_API runtime_registry create_runtime_registry() const;
 

@@ -23,9 +23,11 @@
 #include <oblo/reflection/reflection_registry.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
+#include <oblo/scene/components/entity_hierarchy_component.hpp>
 #include <oblo/scene/components/position_component.hpp>
 #include <oblo/scene/components/rotation_component.hpp>
 #include <oblo/scene/components/tags.hpp>
+#include <oblo/scene/resources/entity_hierarchy.hpp>
 #include <oblo/scene/resources/model.hpp>
 #include <oblo/scene/resources/texture.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
@@ -49,7 +51,7 @@ namespace oblo::editor
         m_entities = ctx.services.find<ecs::entity_registry>();
         OBLO_ASSERT(m_entities);
 
-        m_resources = ctx.services.find<resource_registry>();
+        m_resources = ctx.services.find<const resource_registry>();
         OBLO_ASSERT(m_resources);
 
         m_inputQueue = ctx.services.find<const input_queue>();
@@ -107,6 +109,7 @@ namespace oblo::editor
                     ecs_utility::create_named_physical_entity<camera_component, viewport_component, transient_tag>(
                         *m_entities,
                         buffer.format("Viewport Camera #{}", m_viewportId).view(),
+                        {},
                         m_cameraController.get_position(),
                         m_cameraController.get_orientation(),
                         vec3::splat(1));
@@ -159,6 +162,7 @@ namespace oblo::editor
                         selectedEntity && m_entities->contains(selectedEntity))
                     {
                         m_selection->add({&selectedEntity, 1});
+                        m_selection->push_refresh_event();
                     }
 
                     v.picking.state = picking_request::state::none;
@@ -321,7 +325,20 @@ namespace oblo::editor
     {
         const auto resource = m_resources->get_resource(id);
 
-        if (const resource_ptr modelRes = resource.as<model>())
+        if (const resource_ptr hierarchyRes = resource.as<entity_hierarchy>())
+        {
+            const auto name = hierarchyRes.get_name();
+
+            const auto e = ecs_utility::create_named_physical_entity<entity_hierarchy_component>(*m_entities,
+                name.empty() ? "New Hierarchy" : name,
+                {},
+                vec3{},
+                quaternion::identity(),
+                vec3::splat(1));
+
+            m_entities->get<entity_hierarchy_component>(e).hierarchy = hierarchyRes.as_ref();
+        }
+        else if (const resource_ptr modelRes = resource.as<model>())
         {
             // TODO: This is not how we want to spawn stuff, rather create a component with a reference
             modelRes.load_sync();
@@ -334,6 +351,7 @@ namespace oblo::editor
 
                     const auto e = ecs_utility::create_named_physical_entity<static_mesh_component>(*m_entities,
                         name.empty() ? "New Mesh" : name,
+                        {},
                         vec3{},
                         quaternion::identity(),
                         vec3::splat(1));
@@ -358,6 +376,7 @@ namespace oblo::editor
 
             const auto e = ecs_utility::create_named_physical_entity<skybox_component>(*m_entities,
                 name.empty() ? "New Skybox" : name,
+                {},
                 vec3{},
                 quaternion::identity(),
                 vec3::splat(1));

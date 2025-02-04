@@ -13,11 +13,13 @@
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/uuid.hpp>
+#include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
+#include <oblo/scene/resources/entity_hierarchy.hpp>
 #include <oblo/scene/resources/material.hpp>
 #include <oblo/scene/resources/mesh.hpp>
 #include <oblo/scene/resources/model.hpp>
@@ -25,23 +27,24 @@
 #include <oblo/scene/resources/traits.hpp>
 #include <oblo/scene/serialization/mesh_file.hpp>
 #include <oblo/scene/serialization/model_file.hpp>
+#include <oblo/scene/utility/ecs_utility.hpp>
 #include <oblo/thread/parallel_for.hpp>
 
 #include <format>
 
 namespace oblo::importers
 {
+    struct gltf::import_hierarchy
+    {
+        u32 nodeIndex;
+        u32 sceneIndex;
+    };
+
     struct gltf::import_model
     {
         u32 mesh;
         u32 nodeIndex;
         u32 primitiveBegin;
-
-        bool applyTransform;
-
-        vec3 translation;
-        quaternion rotation;
-        vec3 scale;
     };
 
     struct gltf::import_mesh
@@ -201,7 +204,7 @@ namespace oblo::importers
         for (u32 materialIndex = 0; materialIndex < m_model.materials.size(); ++materialIndex)
         {
             auto& gltfMaterial = m_model.materials[materialIndex];
-            m_importMaterials.emplace_back(u32(preview.nodes.size()));
+            m_importMaterials.emplace_back(preview.nodes.size32());
             preview.nodes.emplace_back(resource_type<material>, string{gltfMaterial.name.c_str()});
 
             const auto metallicRoughness = gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index;
@@ -220,6 +223,20 @@ namespace oblo::importers
                 settings.child_value(swizzle, {}, property_kind::u32, as_bytes(u32{2}));
                 settings.child_value(swizzle, {}, property_kind::u32, as_bytes(u32{1}));
             }
+        }
+
+        m_importHierarchies.reserve(m_model.scenes.size());
+
+        for (u32 sceneIndex = 0; sceneIndex < m_model.scenes.size(); ++sceneIndex)
+        {
+            auto& gltfScene = m_model.scenes[sceneIndex];
+
+            m_importHierarchies.push_back({
+                .nodeIndex = preview.nodes.size32(),
+                .sceneIndex = sceneIndex,
+            });
+
+            preview.nodes.emplace_back(resource_type<entity_hierarchy>, string{gltfScene.name.c_str()});
         }
 
         return true;
@@ -342,43 +359,6 @@ namespace oblo::importers
             material.id = nodeConfig.id;
         }
 
-        for (auto& node : m_model.nodes)
-        {
-            if (node.mesh >= 0 && usize(node.mesh) <= m_importModels.size())
-            {
-                vec3 translation = vec3::splat(0.f);
-                quaternion rotation = quaternion::identity();
-                vec3 scale = vec3::splat(1.f);
-
-                if (node.translation.size() == 3)
-                {
-                    translation = {f32(node.translation[0]), f32(node.translation[1]), f32(node.translation[2])};
-                }
-
-                if (node.scale.size() == 3)
-                {
-                    scale = {f32(node.scale[0]), f32(node.scale[1]), f32(node.scale[2])};
-                }
-
-                if (node.rotation.size() == 4)
-                {
-                    rotation = {
-                        f32(node.rotation[0]),
-                        f32(node.rotation[1]),
-                        f32(node.rotation[2]),
-                        f32(node.rotation[3]),
-                    };
-                }
-
-                auto& model = m_importModels[node.mesh];
-
-                model.applyTransform = true;
-                model.translation = translation;
-                model.rotation = rotation;
-                model.scale = scale;
-            }
-        }
-
         for (const auto& model : m_importModels)
         {
             const auto& modelNodeConfig = importNodeConfigs[model.nodeIndex];
@@ -420,16 +400,6 @@ namespace oblo::importers
                 {
                     log::error("Failed to parse mesh");
                     continue;
-                }
-
-                if (model.applyTransform)
-                {
-                    const std::span positions = srcMesh.get_attribute<vec3>(attribute_kind::position);
-
-                    for (auto& p : positions)
-                    {
-                        p = transform(model.rotation, p) * model.scale + model.translation;
-                    }
                 }
 
                 oblo::mesh outMesh;
@@ -487,6 +457,140 @@ namespace oblo::importers
             if (m_importModels.size() == 1)
             {
                 m_mainArtifactHint = modelNodeConfig.id;
+            }
+        }
+
+        for (const auto& hierarchy : m_importHierarchies)
+        {
+            const auto& hierarchyNodeConfig = importNodeConfigs[hierarchy.nodeIndex];
+
+            if (!hierarchyNodeConfig.enabled)
+            {
+                continue;
+            }
+
+            entity_hierarchy h;
+
+            if (!h.init())
+            {
+                log::error("Failed to initialize entity hierarchy");
+                continue;
+            }
+
+            auto& reg = h.get_entity_registry();
+
+            struct stack_info
+            {
+                ecs::entity parent;
+                i32 nodeIndex;
+            };
+
+            deque<stack_info> stack;
+
+            const auto& gltfScene = m_model.scenes[hierarchy.sceneIndex];
+
+            for (auto node : gltfScene.nodes)
+            {
+                stack.push_back({.nodeIndex = node});
+            }
+
+            while (!stack.empty())
+            {
+                const auto [parent, nodeIndex] = stack.back();
+                stack.pop_back();
+
+                auto& node = m_model.nodes[nodeIndex];
+
+                vec3 translation = vec3::splat(0.f);
+                quaternion rotation = quaternion::identity();
+                vec3 scale = vec3::splat(1.f);
+
+                if (node.translation.size() == 3)
+                {
+                    translation = {f32(node.translation[0]), f32(node.translation[1]), f32(node.translation[2])};
+                }
+
+                if (node.scale.size() == 3)
+                {
+                    scale = {f32(node.scale[0]), f32(node.scale[1]), f32(node.scale[2])};
+                }
+
+                if (node.rotation.size() == 4)
+                {
+                    rotation = {
+                        f32(node.rotation[0]),
+                        f32(node.rotation[1]),
+                        f32(node.rotation[2]),
+                        f32(node.rotation[3]),
+                    };
+                }
+
+                const auto e = ecs_utility::create_named_physical_entity(reg,
+                    node.name.c_str(),
+                    parent,
+                    translation,
+                    rotation,
+                    scale);
+
+                if (node.mesh >= 0)
+                {
+                    const usize modelIndex = usize(node.mesh);
+
+                    if (modelIndex < m_importModels.size())
+                    {
+                        auto& model = m_importModels[modelIndex];
+                        auto& gltfMesh = m_model.meshes[model.mesh];
+
+                        const auto numPrimitives = gltfMesh.primitives.size();
+
+                        for (u32 meshIndex = model.primitiveBegin; meshIndex < model.primitiveBegin + numPrimitives;
+                             ++meshIndex)
+                        {
+                            const auto m = ecs_utility::create_named_physical_entity<static_mesh_component>(reg,
+                                node.name.c_str(),
+                                e,
+                                vec3::splat(0.f),
+                                quaternion::identity(),
+                                vec3::splat(1.f));
+
+                            const auto& importMesh = m_importMeshes[meshIndex];
+                            const auto& meshNodeConfig = importNodeConfigs[importMesh.nodeIndex];
+
+                            const auto& primitive = m_model.meshes[importMesh.mesh].primitives[importMesh.primitive];
+
+                            auto& sm = reg.get<static_mesh_component>(m);
+                            sm.mesh = resource_ref<mesh>{meshNodeConfig.id};
+                            sm.material = resource_ref<material>{
+                                primitive.material >= 0 ? m_importMaterials[primitive.material].id : uuid{}};
+                        }
+                    }
+                }
+
+                for (auto child : node.children)
+                {
+                    stack.push_back({.parent = e, .nodeIndex = child});
+                }
+            }
+
+            string_builder outputPath;
+            ctx.get_output_path(hierarchyNodeConfig.id, outputPath);
+
+            if (!h.save(outputPath))
+            {
+                log::error("Failed to save entity hierarchy");
+                continue;
+            }
+
+            m_artifacts.push_back({
+                .id = hierarchyNodeConfig.id,
+                .type = resource_type<oblo::entity_hierarchy>,
+                .name = importNodes[hierarchy.nodeIndex].name,
+                .path = outputPath.as<string>(),
+            });
+
+            if (m_importHierarchies.size() == 1)
+            {
+                m_mainArtifactHint = hierarchyNodeConfig.id;
             }
         }
 

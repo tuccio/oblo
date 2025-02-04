@@ -2,6 +2,7 @@
 
 #include <oblo/core/lifetime.hpp>
 #include <oblo/core/uuid.hpp>
+#include <oblo/ecs/handles.hpp>
 
 namespace oblo::editor
 {
@@ -14,6 +15,7 @@ namespace oblo::editor
     {
         constexpr const char* Artifact{"oblo::artifact"};
         constexpr const char* Asset{"oblo::asset"};
+        constexpr const char* Entity{"oblo::entity"};
 
         namespace detail
         {
@@ -28,7 +30,7 @@ namespace oblo::editor
 
             template <typename T>
                 requires((alignof(T) <= alignof(drag_and_drop_payload)) && std::is_trivially_copyable_v<T>)
-            inline uuid unpack(const drag_and_drop_payload& payload)
+            inline T unpack(const drag_and_drop_payload& payload)
             {
                 return *start_lifetime_as<T>(payload.data);
             }
@@ -44,6 +46,11 @@ namespace oblo::editor
             return detail::pack(id);
         }
 
+        inline drag_and_drop_payload pack_entity(const ecs::entity& id)
+        {
+            return detail::pack(id);
+        }
+
         inline uuid unpack_artifact(const void* payload)
         {
             return detail::unpack<uuid>(*start_lifetime_as<drag_and_drop_payload>(payload));
@@ -52,6 +59,11 @@ namespace oblo::editor
         inline uuid unpack_asset(const void* payload)
         {
             return detail::unpack<uuid>(*start_lifetime_as<drag_and_drop_payload>(payload));
+        }
+
+        inline ecs::entity unpack_entity(const void* payload)
+        {
+            return detail::unpack<ecs::entity>(*start_lifetime_as<drag_and_drop_payload>(payload));
         }
     }
 }

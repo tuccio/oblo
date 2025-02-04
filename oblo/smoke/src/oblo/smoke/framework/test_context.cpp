@@ -11,7 +11,7 @@ namespace oblo::smoke
         return *m_impl->assetRegistry;
     }
 
-    resource_registry& test_context::get_resource_registry() const
+    const resource_registry& test_context::get_resource_registry() const
     {
         return *m_impl->resourceRegistry;
     }

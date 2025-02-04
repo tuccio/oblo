@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/debug.hpp>
 #include <oblo/core/deque.hpp>
 #include <oblo/core/stack_allocator.hpp>
 #include <oblo/ecs/entity_registry.hpp>
@@ -14,6 +15,11 @@ namespace oblo::ecs
         deferred(allocator* a);
         deferred(const deferred&) = delete;
         deferred(deferred&&) noexcept = default;
+
+        ~deferred()
+        {
+            OBLO_ASSERT(m_commands.empty());
+        }
 
         deferred& operator=(const deferred&) = delete;
         deferred& operator=(deferred&&) noexcept = default;
@@ -32,6 +38,7 @@ namespace oblo::ecs
         void destroy(entity e);
 
         void apply(entity_registry& reg);
+        void clear();
 
     private:
         template <typename T>
@@ -270,6 +277,12 @@ namespace oblo::ecs
             command.apply(reg, command.userdata);
         }
 
+        m_commands.clear();
+        m_storage.clear();
+    }
+
+    inline void deferred::clear()
+    {
         m_commands.clear();
         m_storage.clear();
     }

@@ -37,7 +37,7 @@ namespace oblo::editor
         void spawn_artifact(const window_update_context& ctx, uuid id);
 
     private:
-        resource_registry* m_resources{};
+        const resource_registry* m_resources{};
         ecs::entity_registry* m_entities{};
         selected_entities* m_selection{};
         incremental_id_pool* m_idPool{};

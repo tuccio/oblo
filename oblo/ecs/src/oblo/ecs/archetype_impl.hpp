@@ -17,17 +17,17 @@ namespace oblo::ecs
     class type_registry;
     struct type_set;
 
-    static constexpr usize PageAlignment{alignof(std::max_align_t)};
-    static constexpr u32 ChunkWithHeaderSize{1u << 14};
-    static constexpr u32 ChunkSize{ChunkWithHeaderSize - PageAlignment};
-    static constexpr u8 InvalidComponentIndex{MaxComponentTypes + 1};
-
     /// @brief The whole thing is value initialized on creation
     struct chunk_header
     {
-        u32 modificationId;
+        u64 modificationId;
         u32 numEntities;
     };
+
+    static constexpr usize PageAlignment{16};
+    static constexpr u32 ChunkWithHeaderSize{1u << 14};
+    static constexpr u32 ChunkSize{ChunkWithHeaderSize - sizeof(chunk_header)};
+    static constexpr u8 InvalidComponentIndex{MaxComponentTypes + 1};
 
     struct chunk
     {
@@ -99,7 +99,7 @@ namespace oblo::ecs
         u32 entityTagsOffset;
         u8 numComponents;
         u8 numTags;
-        u32 modificationId;
+        u64 modificationId;
 #if OBLO_DEBUG
         type_id* typeIds;
 #endif

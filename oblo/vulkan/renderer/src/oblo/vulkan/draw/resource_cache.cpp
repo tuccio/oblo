@@ -40,7 +40,7 @@ namespace oblo::vk
 
     resource_cache::~resource_cache() = default;
 
-    void resource_cache::init(resource_registry& resources, texture_registry& textureRegistry)
+    void resource_cache::init(const resource_registry& resources, texture_registry& textureRegistry)
     {
         m_resources = &resources;
         m_textureRegistry = &textureRegistry;

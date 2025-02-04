@@ -1,25 +1,21 @@
 #pragma once
 
-#include <oblo/ecs/forward.hpp>
-
-namespace oblo::ecs
-{
-    struct system_update_context;
-}
-
 namespace oblo
 {
-    class resource_registry;
-    class scene_renderer;
+    namespace ecs
+    {
+        struct system_update_context;
+    }
 
-    class skybox_system
+    class resource_registry;
+
+    class entity_hierarchy_system
     {
     public:
         void first_update(const ecs::system_update_context& ctx);
         void update(const ecs::system_update_context& ctx);
 
     private:
-        scene_renderer* m_sceneRenderer{};
         const resource_registry* m_resourceRegistry{};
     };
-};
+}

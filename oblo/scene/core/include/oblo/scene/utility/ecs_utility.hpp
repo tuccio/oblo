@@ -11,6 +11,9 @@ namespace oblo
 
     struct quaternion;
     struct vec3;
+
+    template <typename>
+    class deque;
 }
 
 namespace oblo::ecs
@@ -34,13 +37,23 @@ namespace oblo::ecs_utility
     SCENE_API ecs::entity create_named_physical_entity(ecs::entity_registry& registry,
         const ecs::component_and_tag_sets& extraComponentsOrTags,
         string_view name,
+        ecs::entity parent,
         const vec3& position,
         const quaternion& rotation,
         const vec3& scale);
 
+    SCENE_API void reparent_entity(ecs::entity_registry& registry, ecs::entity e, ecs::entity parent);
+
+    SCENE_API ecs::entity find_parent(const ecs::entity_registry& registry, ecs::entity e);
+    SCENE_API void find_children(const ecs::entity_registry& registry, ecs::entity e, deque<ecs::entity>& outChildren);
+    SCENE_API ecs::entity find_root(const ecs::entity_registry& registry, ecs::entity e);
+    SCENE_API void find_roots(const ecs::entity_registry& registry, deque<ecs::entity>& outRoots);
+    SCENE_API void destroy_hierarchy(ecs::entity_registry& registry, ecs::entity e);
+
     template <typename... ComponentsOrTags>
     ecs::entity create_named_physical_entity(ecs::entity_registry& registry,
         string_view name,
+        ecs::entity parent,
         const vec3& position,
         const quaternion& rotation,
         const vec3& scale)
@@ -48,6 +61,7 @@ namespace oblo::ecs_utility
         return create_named_physical_entity(registry,
             ecs::make_type_sets<ComponentsOrTags...>(registry.get_type_registry()),
             name,
+            parent,
             position,
             rotation,
             scale);

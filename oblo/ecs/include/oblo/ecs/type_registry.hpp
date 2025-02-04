@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/ecs/handles.hpp>
 
@@ -16,9 +17,9 @@ namespace oblo::ecs
     public:
         type_registry();
         type_registry(const type_registry&) = delete;
-        type_registry(type_registry&&) noexcept = default;
+        type_registry(type_registry&&) noexcept;
         type_registry& operator=(const type_registry&) = delete;
-        type_registry& operator=(type_registry&&) noexcept = default;
+        type_registry& operator=(type_registry&&) noexcept;
         ~type_registry();
 
         component_type register_component(const component_type_desc& desc);
@@ -47,8 +48,8 @@ namespace oblo::ecs
 
     private:
         std::unordered_map<type_id, any_type_info> m_types;
-        std::vector<component_type_desc> m_components;
-        std::vector<tag_type_desc> m_tags;
+        dynamic_array<component_type_desc> m_components;
+        dynamic_array<tag_type_desc> m_tags;
     };
 
     template <typename T>
