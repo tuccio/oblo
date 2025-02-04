@@ -55,39 +55,6 @@ namespace oblo::ecs_serializer
         deque<u32> nodeStack;
         deque<const byte*> ptrStack;
 
-        /*
-        * When deserializing we need to be able to map the file id to the entity id
-        Change the format to be like this :
-
-        // Use 0 as null value for file ids
-        {
-            "entities": [
-                {
-                    "id": 1,
-                    "components": {
-                        "hierarchy_component": { "parent": 0 } ..., // Ignore the other fields, this needs special
-        handling "transform_component": ...,
-                       ....
-                    }
-                }
-            ],
-        }
-
-        When deserializing:
-            - Keep doing what we do: deserialize everything
-                - If a component might have an entity reference:
-                    - Deserialize reading the file id from json
-                    - Push the number of created entities in the archetype, we need to do a post resolve later
-
-            - After regular serialization is done:
-                - For each archetype pushed earlier
-                    - If the component type might have an entity reference:
-                        - Patch using the lookup
-
-
-
-        */
-
         struct entity_stack_entry
         {
             ecs::entity id;
@@ -281,8 +248,11 @@ namespace oblo::ecs_serializer
         return success_tag{};
     }
 
-    expected<> read(
-        ecs::entity_registry& reg, const data_document& doc, u32 docRoot, const property_registry& propertyRegistry)
+    expected<> read(ecs::entity_registry& reg,
+        const data_document& doc,
+        u32 docRoot,
+        const property_registry& propertyRegistry,
+        ecs::entity root)
     {
         if (!doc.is_object(docRoot))
         {
@@ -312,16 +282,19 @@ namespace oblo::ecs_serializer
             ecs::entity parent;
         };
 
-        // TODO: Const range
-        const auto rootsRange = const_cast<ecs::entity_registry&>(reg).range<>().exclude<parent_component>();
-
         deque<entity_stack_entry> stack;
+
+        if (root && doc.children_count(entities) > 0)
+        {
+            reg.add<children_component>(root);
+        }
 
         for (const u32 rootEntityObject : doc.children(entities))
         {
             stack.assign(1,
                 {
                     .entityObject = rootEntityObject,
+                    .parent = root,
                 });
 
             while (!stack.empty())

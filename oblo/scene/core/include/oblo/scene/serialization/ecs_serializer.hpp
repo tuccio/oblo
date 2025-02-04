@@ -30,6 +30,7 @@ namespace oblo
         SCENE_API expected<> read(ecs::entity_registry& reg,
             const data_document& doc,
             u32 docRoot,
-            const property_registry& propertyRegistry);
+            const property_registry& propertyRegistry,
+            ecs::entity root = {});
     }
 }

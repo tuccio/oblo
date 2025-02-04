@@ -94,7 +94,7 @@ namespace oblo
                         continue;
                     }
 
-                    if (!ecs_serializer::read(*ctx.entities, doc, doc.get_root(), *propertyRegistry).has_value())
+                    if (!ecs_serializer::read(*ctx.entities, doc, doc.get_root(), *propertyRegistry, e).has_value())
                     {
                         // TODO: Maybe log?
                         continue;
