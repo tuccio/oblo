@@ -208,6 +208,11 @@ namespace oblo::ecs
     template <typename Component>
     const Component* entity_registry::try_get(entity e) const
     {
+        if (!e)
+        {
+            return nullptr;
+        }
+
         constexpr type_id types[] = {get_type_id<Component>()};
         std::byte* pointers[1];
 
@@ -219,6 +224,11 @@ namespace oblo::ecs
     template <typename Component>
     Component* entity_registry::try_get(entity e)
     {
+        if (!e)
+        {
+            return nullptr;
+        }
+
         constexpr type_id types[] = {get_type_id<Component>()};
         std::byte* pointers[1];
 

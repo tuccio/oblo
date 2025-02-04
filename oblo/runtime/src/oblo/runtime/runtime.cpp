@@ -98,6 +98,7 @@ namespace oblo
         m_impl->services.add<vk::vulkan_context>().externally_owned(initializer.vulkanContext);
         m_impl->services.add<vk::renderer>().externally_owned(&m_impl->renderer);
         m_impl->services.add<resource_registry>().externally_owned(initializer.resourceRegistry);
+        m_impl->services.add<property_registry>().externally_owned(initializer.propertyRegistry);
 
         for (const auto* worldBuilder : initializer.worldBuilders)
         {

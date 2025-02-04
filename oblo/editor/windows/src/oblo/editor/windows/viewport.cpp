@@ -23,9 +23,11 @@
 #include <oblo/reflection/reflection_registry.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
+#include <oblo/scene/components/entity_hierarchy_component.hpp>
 #include <oblo/scene/components/position_component.hpp>
 #include <oblo/scene/components/rotation_component.hpp>
 #include <oblo/scene/components/tags.hpp>
+#include <oblo/scene/resources/entity_hierarchy.hpp>
 #include <oblo/scene/resources/model.hpp>
 #include <oblo/scene/resources/texture.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
@@ -322,7 +324,20 @@ namespace oblo::editor
     {
         const auto resource = m_resources->get_resource(id);
 
-        if (const resource_ptr modelRes = resource.as<model>())
+        if (const resource_ptr hierarchyRes = resource.as<entity_hierarchy>())
+        {
+            const auto name = hierarchyRes.get_name();
+
+            const auto e = ecs_utility::create_named_physical_entity<entity_hierarchy_component>(*m_entities,
+                name.empty() ? "New Hierarchy" : name,
+                {},
+                vec3{},
+                quaternion::identity(),
+                vec3::splat(1));
+
+            m_entities->get<entity_hierarchy_component>(e).hierarchy = hierarchyRes.as_ref();
+        }
+        else if (const resource_ptr modelRes = resource.as<model>())
         {
             // TODO: This is not how we want to spawn stuff, rather create a component with a reference
             modelRes.load_sync();

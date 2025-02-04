@@ -13,6 +13,7 @@
 #include <oblo/resource/providers/resource_types_provider.hpp>
 #include <oblo/resource/resource_ref.hpp>
 #include <oblo/scene/components/children_component.hpp>
+#include <oblo/scene/components/entity_hierarchy_component.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/scene/components/name_component.hpp>
 #include <oblo/scene/components/parent_component.hpp>
@@ -27,6 +28,7 @@
 #include <oblo/scene/resources/texture.hpp>
 #include <oblo/scene/resources/traits.hpp>
 #include <oblo/scene/systems/barriers.hpp>
+#include <oblo/scene/systems/entity_hierarchy_system.hpp>
 #include <oblo/scene/systems/transform_system.hpp>
 
 namespace oblo::ecs
@@ -87,6 +89,11 @@ namespace oblo
                 .add_ranged_type_erasure()
                 .add_tag<ecs::component_type_tag>();
 
+            reg.add_class<entity_hierarchy_component>()
+                .add_field(&entity_hierarchy_component::hierarchy, "hierarchy")
+                .add_ranged_type_erasure()
+                .add_tag<ecs::component_type_tag>();
+
             reg.add_class<transient_tag>().add_ranged_type_erasure().add_tag<ecs::tag_type_tag>();
 
             register_resource_ref_reflection<texture>(reg);
@@ -120,6 +127,7 @@ namespace oblo
                 b.add_system<transform_system>().as<barriers::transform_update>();
                 b.add_barrier<barriers::renderer_extract>().after<barriers::transform_update>();
                 b.add_barrier<barriers::renderer_update>().after<barriers::renderer_extract>();
+                b.add_system<entity_hierarchy_system>().before<barriers::transform_update>();
             },
         });
 

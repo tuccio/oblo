@@ -44,7 +44,7 @@ namespace oblo
     {
         for (auto* chunk = m_firstChunk; chunk != nullptr;)
         {
-            auto* const next = chunk = chunk->next;
+            auto* const next = chunk->next;
             delete chunk;
             chunk = next;
         }
@@ -299,6 +299,7 @@ namespace oblo
         if (size != 0)
         {
             newData = allocate(size, alignment);
+            OBLO_ASSERT(data.size() >= size);
             std::memcpy(newData, data.data(), size);
         }
         else if (kind == property_kind::string)
@@ -511,6 +512,9 @@ namespace oblo
             return *reinterpret_cast<const u16*>(n.value.data);
 
         case property_kind::u32:
+            return *reinterpret_cast<const u32*>(n.value.data);
+
+        case property_kind::h32:
             return *reinterpret_cast<const u32*>(n.value.data);
 
         default:

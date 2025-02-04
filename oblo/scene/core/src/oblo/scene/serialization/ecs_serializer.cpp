@@ -433,6 +433,13 @@ namespace oblo::ecs_serializer
 
                                     switch (property.kind)
                                     {
+                                    case property_kind::uuid:
+                                        if (const auto value = doc.read_uuid(valueNode))
+                                        {
+                                            property_value_wrapper{*value}.assign_to(property.kind, propertyPtr);
+                                        }
+                                        break;
+
                                     case property_kind::string:
                                         if (const auto value = doc.read_string(valueNode))
                                         {
