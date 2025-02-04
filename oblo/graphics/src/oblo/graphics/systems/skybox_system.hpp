@@ -20,6 +20,6 @@ namespace oblo
 
     private:
         scene_renderer* m_sceneRenderer{};
-        resource_registry* m_resourceRegistry{};
+        const resource_registry* m_resourceRegistry{};
     };
 };

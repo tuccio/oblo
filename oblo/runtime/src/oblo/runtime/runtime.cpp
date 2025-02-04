@@ -90,14 +90,15 @@ namespace oblo
 
         ecs_utility::register_reflected_component_and_tag_types(*initializer.reflectionRegistry,
             &m_impl->typeRegistry,
-            initializer.propertyRegistry);
+            nullptr);
 
         m_impl->entities.init(&m_impl->typeRegistry);
 
         m_impl->services.add<vk::vulkan_context>().externally_owned(initializer.vulkanContext);
         m_impl->services.add<vk::renderer>().externally_owned(&m_impl->renderer);
-        m_impl->services.add<resource_registry>().externally_owned(initializer.resourceRegistry);
-        m_impl->services.add<property_registry>().externally_owned(initializer.propertyRegistry);
+
+        m_impl->services.add<const resource_registry>().externally_owned(initializer.resourceRegistry);
+        m_impl->services.add<const property_registry>().externally_owned(initializer.propertyRegistry);
 
         for (const auto* worldBuilder : initializer.worldBuilders)
         {

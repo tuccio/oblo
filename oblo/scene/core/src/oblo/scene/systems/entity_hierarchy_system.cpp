@@ -29,7 +29,7 @@ namespace oblo
 
     void entity_hierarchy_system::first_update(const ecs::system_update_context& ctx)
     {
-        m_resourceRegistry = ctx.services->find<resource_registry>();
+        m_resourceRegistry = ctx.services->find<const resource_registry>();
         OBLO_ASSERT(m_resourceRegistry);
 
         auto& typeRegistry = ctx.entities->get_type_registry();
@@ -73,7 +73,7 @@ namespace oblo
             {
                 if (loading.hierarchy.is_loaded())
                 {
-                    auto* const propertyRegistry = ctx.services->find<property_registry>();
+                    auto* const propertyRegistry = ctx.services->find<const property_registry>();
                     OBLO_ASSERT(propertyRegistry);
 
                     if (!propertyRegistry)

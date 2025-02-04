@@ -26,7 +26,7 @@ namespace oblo
 
     private:
         vk::renderer* m_renderer{};
-        resource_registry* m_resourceRegistry;
+        const resource_registry* m_resourceRegistry;
         vk::resource_cache* m_resourceCache;
         h32<vk::draw_buffer> m_transformBuffer{};
         h32<vk::draw_buffer> m_materialsBuffer{};

@@ -45,12 +45,6 @@ namespace oblo::importers
         u32 mesh;
         u32 nodeIndex;
         u32 primitiveBegin;
-
-        bool applyTransform;
-
-        vec3 translation;
-        quaternion rotation;
-        vec3 scale;
     };
 
     struct gltf::import_mesh
@@ -365,43 +359,6 @@ namespace oblo::importers
             material.id = nodeConfig.id;
         }
 
-        // for (auto& node : m_model.nodes)
-        //{
-        //     if (node.mesh >= 0 && usize(node.mesh) <= m_importModels.size())
-        //     {
-        //         vec3 translation = vec3::splat(0.f);
-        //         quaternion rotation = quaternion::identity();
-        //         vec3 scale = vec3::splat(1.f);
-
-        //        if (node.translation.size() == 3)
-        //        {
-        //            translation = {f32(node.translation[0]), f32(node.translation[1]), f32(node.translation[2])};
-        //        }
-
-        //        if (node.scale.size() == 3)
-        //        {
-        //            scale = {f32(node.scale[0]), f32(node.scale[1]), f32(node.scale[2])};
-        //        }
-
-        //        if (node.rotation.size() == 4)
-        //        {
-        //            rotation = {
-        //                f32(node.rotation[0]),
-        //                f32(node.rotation[1]),
-        //                f32(node.rotation[2]),
-        //                f32(node.rotation[3]),
-        //            };
-        //        }
-
-        //        auto& model = m_importModels[node.mesh];
-
-        //        model.applyTransform = true;
-        //        model.translation = translation;
-        //        model.rotation = rotation;
-        //        model.scale = scale;
-        //    }
-        //}
-
         for (const auto& model : m_importModels)
         {
             const auto& modelNodeConfig = importNodeConfigs[model.nodeIndex];
@@ -443,16 +400,6 @@ namespace oblo::importers
                 {
                     log::error("Failed to parse mesh");
                     continue;
-                }
-
-                if (model.applyTransform)
-                {
-                    const std::span positions = srcMesh.get_attribute<vec3>(attribute_kind::position);
-
-                    for (auto& p : positions)
-                    {
-                        p = transform(model.rotation, p) * model.scale + model.translation;
-                    }
                 }
 
                 oblo::mesh outMesh;

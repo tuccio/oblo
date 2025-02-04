@@ -51,7 +51,7 @@ namespace oblo::editor
         m_entities = ctx.services.find<ecs::entity_registry>();
         OBLO_ASSERT(m_entities);
 
-        m_resources = ctx.services.find<resource_registry>();
+        m_resources = ctx.services.find<const resource_registry>();
         OBLO_ASSERT(m_resources);
 
         m_inputQueue = ctx.services.find<const input_queue>();

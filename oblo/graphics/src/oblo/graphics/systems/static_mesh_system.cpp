@@ -140,7 +140,7 @@ namespace oblo
             bool operator==(const processed_mesh_resources&) const = default;
         };
 
-        void add_mesh(resource_registry* resourceRegistry,
+        void add_mesh(const resource_registry* resourceRegistry,
             vk::resource_cache* resourceCache,
             vk::draw_registry& drawRegistry,
             ecs::entity entity,
@@ -217,7 +217,7 @@ namespace oblo
         m_renderer = ctx.services->find<vk::renderer>();
         OBLO_ASSERT(m_renderer);
 
-        m_resourceRegistry = ctx.services->find<resource_registry>();
+        m_resourceRegistry = ctx.services->find<const resource_registry>();
         OBLO_ASSERT(m_resourceRegistry);
 
         m_resourceCache = ctx.services->find<vk::resource_cache>();

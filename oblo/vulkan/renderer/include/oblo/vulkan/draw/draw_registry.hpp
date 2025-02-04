@@ -89,7 +89,7 @@ namespace oblo::vk
             staging_buffer& stagingBuffer,
             string_interner& interner,
             ecs::entity_registry& entities,
-            resource_registry& resourceRegistry);
+            const resource_registry& resourceRegistry);
 
         void shutdown();
 
@@ -143,7 +143,7 @@ namespace oblo::vk
 
         staging_buffer* m_stagingBuffer{};
         string_interner* m_interner{};
-        resource_registry* m_resourceRegistry{};
+        const resource_registry* m_resourceRegistry{};
         mesh_database m_meshes;
         ecs::entity_registry* m_entities{};
         ecs::type_registry* m_typeRegistry{};

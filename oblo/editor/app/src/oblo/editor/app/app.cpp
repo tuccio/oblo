@@ -345,9 +345,9 @@ namespace oblo::editor
 
             globalRegistry.add<vk::vulkan_context>().externally_owned(ctx.vkContext);
             globalRegistry.add<vk::renderer>().externally_owned(&renderer);
-            globalRegistry.add<resource_registry>().externally_owned(&resourceRegistry);
+            globalRegistry.add<const resource_registry>().externally_owned(&resourceRegistry);
             globalRegistry.add<asset_registry>().externally_owned(&m_assetRegistry);
-            globalRegistry.add<property_registry>().externally_owned(&propertyRegistry);
+            globalRegistry.add<const property_registry>().externally_owned(&propertyRegistry);
             globalRegistry.add<const reflection::reflection_registry>().externally_owned(&reflection->get_registry());
             globalRegistry.add<const input_queue>().externally_owned(ctx.inputQueue);
             globalRegistry.add<component_factory>().unique();

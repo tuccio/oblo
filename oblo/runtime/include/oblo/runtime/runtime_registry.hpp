@@ -22,9 +22,9 @@ namespace oblo
         runtime_registry& operator=(const runtime_registry&) = delete;
         RUNTIME_API runtime_registry& operator=(runtime_registry&&) noexcept;
 
-        RUNTIME_API property_registry& get_property_registry() const;
+        RUNTIME_API property_registry& get_property_registry();
 
-        RUNTIME_API resource_registry& get_resource_registry() const;
+        RUNTIME_API resource_registry& get_resource_registry();
 
     private:
         explicit runtime_registry(property_registry* propertyRegistry);
