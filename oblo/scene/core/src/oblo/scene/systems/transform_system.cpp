@@ -64,11 +64,21 @@ namespace oblo
         // Update all the roots
         for (auto&& chunk : reg.range<global_transform_component>().notified(target))
         {
+            std::span positions = chunk.try_get<const position_component>();
+            std::span rotations = chunk.try_get<const rotation_component>();
+            std::span scales = chunk.try_get<const scale_component>();
+
             bool anyChange = false;
 
-            // TODO: Can we get position etc from the chunk?
+            u32 entityIndex{};
+
             for (auto&& [e, globalTransform] : chunk.zip<ecs::entity, global_transform_component>())
             {
+                auto* const position = positions.empty() ? nullptr : positions.data() + entityIndex;
+                auto* const rotation = rotations.empty() ? nullptr : rotations.data() + entityIndex;
+                auto* const scale = scales.empty() ? nullptr : scales.data() + entityIndex;
+                ++entityIndex;
+
                 auto* const parentComponent = reg.try_get<parent_component>(e);
 
                 const global_transform_component* parentTransform =
@@ -79,10 +89,6 @@ namespace oblo
                     // The parent has to be updated first
                     continue;
                 }
-
-                auto* const position = reg.try_get<position_component>(e);
-                auto* const rotation = reg.try_get<rotation_component>(e);
-                auto* const scale = reg.try_get<scale_component>(e);
 
                 const auto oldTransform = globalTransform;
 

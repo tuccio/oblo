@@ -6,6 +6,7 @@
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/ecs/utility/deferred.hpp>
 #include <oblo/ecs/utility/registration.hpp>
+#include <oblo/log/log.hpp>
 #include <oblo/properties/serialization/common.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
@@ -90,13 +91,13 @@ namespace oblo
                             *propertyRegistry)
                              .has_value())
                     {
-                        // TODO: Maybe log?
+                        log::debug("Failed to write {} to data_document", loading.hierarchy.get_name());
                         continue;
                     }
 
                     if (!ecs_serializer::read(*ctx.entities, doc, doc.get_root(), *propertyRegistry, e).has_value())
                     {
-                        // TODO: Maybe log?
+                        log::debug("Failed to read {} from data_document", loading.hierarchy.get_name());
                         continue;
                     }
 

@@ -117,6 +117,26 @@ namespace oblo::ecs
             }
         }
 
+        template <typename T>
+        std::span<T> try_get() const
+        {
+            std::span<T> r;
+
+            const entity* entities;
+
+            component_type components[1] = {m_registry->get_type_registry().find_component<std::remove_const_t<T>>()};
+            u32 offsets[1];
+            byte* data[1];
+
+            if (fetch_component_offsets(m_archetype, components, offsets))
+            {
+                fetch_chunk_data(m_archetype, m_chunkIndex, offsets, &entities, data);
+                r = std::span<T>{reinterpret_cast<T*>(data[0]), m_numEntities};
+            }
+
+            return r;
+        }
+
     private:
         friend class entity_registry::typed_range<IsConst, Components...>::iterator;
 
