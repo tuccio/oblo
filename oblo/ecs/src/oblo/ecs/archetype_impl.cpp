@@ -127,35 +127,34 @@ namespace oblo::ecs
 
         u32 currentOffset = 0;
 
-        // The initial page alignment
-        usize previousAlignment = PageAlignment;
-
-        const auto computePadding = [&previousAlignment](usize newAlignment)
-        { return previousAlignment >= newAlignment ? usize(0) : newAlignment - previousAlignment; };
+        const auto alignOffset = [](u32 currentOffset, usize newAlignment)
+        {
+            OBLO_ASSERT(newAlignment <= PageAlignment);
+            return align_power_of_two(currentOffset, u32(newAlignment));
+        };
 
         // First we have entity ids
-        currentOffset += u32(computePadding(alignof(entity)) + sizeof(entity) * numEntitiesPerChunk);
-        previousAlignment = alignof(entity);
+        currentOffset = alignOffset(currentOffset, alignof(entity));
+        currentOffset += u32(+sizeof(entity) * numEntitiesPerChunk);
 
         // Then we have the tags
         storage->entityTagsOffset = currentOffset;
 
-        currentOffset += u32(computePadding(alignof(entity_tags)) + sizeof(entity_tags) * numEntitiesPerChunk);
-        previousAlignment = alignof(entity_tags);
+        currentOffset = alignOffset(currentOffset, alignof(entity));
+        currentOffset += u32(sizeof(entity_tags) * numEntitiesPerChunk);
 
         for (u8 componentIndex = 0; componentIndex < numComponents; ++componentIndex)
         {
             const auto size = storage->sizes[componentIndex];
             const auto alignment = storage->alignments[componentIndex];
-            const auto padding = computePadding(alignment);
 
-            const u32 startOffset = u32(currentOffset + padding);
+            const u32 startOffset = alignOffset(currentOffset, alignment);
+            OBLO_ASSERT(startOffset % alignment == 0);
+
             storage->offsets[componentIndex] = startOffset;
 
             currentOffset = startOffset + size * numEntitiesPerChunk;
             OBLO_ASSERT(currentOffset <= ChunkSize);
-
-            previousAlignment = alignment;
         }
 
         return storage;
