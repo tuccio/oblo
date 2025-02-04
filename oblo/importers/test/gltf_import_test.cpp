@@ -87,6 +87,30 @@ namespace oblo::importers
             job_manager m_jobManager;
             property_registry m_propertyRegistry;
         };
+
+        template <typename T>
+        resource_ptr<T> find_first_resource_from_asset(
+            const resource_registry& resourceRegistry, const asset_registry& assetRegistry, uuid assetId)
+        {
+            buffered_array<uuid, 16> artifacts;
+
+            if (!assetRegistry.find_asset_artifacts(assetId, artifacts))
+            {
+                return {};
+            }
+
+            for (auto uuid : artifacts)
+            {
+                artifact_meta meta;
+
+                if (assetRegistry.find_artifact_by_id(uuid, meta) && meta.type == resource_type<T>)
+                {
+                    return resourceRegistry.get_resource(uuid).as<T>();
+                }
+            }
+
+            return {};
+        }
     }
 
     TEST(gltf_importer, box)
@@ -153,18 +177,21 @@ namespace oblo::importers
 
             uuid meshId;
 
-            asset_meta modelMeta;
+            asset_meta assetMeta;
 
             string_builder assetPath;
             assetPath.append(dirName);
             assetPath.append_path("Box");
 
-            ASSERT_TRUE(registry.find_asset_by_path(assetPath, meshId, modelMeta));
+            ASSERT_TRUE(registry.find_asset_by_path(assetPath, meshId, assetMeta));
 
-            ASSERT_NE(modelMeta.mainArtifactHint, uuid{});
-            ASSERT_EQ(modelMeta.typeHint, resource_type<model>);
+            ASSERT_NE(assetMeta.mainArtifactHint, uuid{});
+            ASSERT_EQ(assetMeta.typeHint, resource_type<entity_hierarchy>);
 
-            const auto modelResource = resources.get_resource(modelMeta.mainArtifactHint).as<model>();
+            const auto hierarchyResource = resources.get_resource(assetMeta.mainArtifactHint).as<entity_hierarchy>();
+            ASSERT_TRUE(hierarchyResource);
+
+            const auto modelResource = find_first_resource_from_asset<model>(resources, registry, meshId);
             ASSERT_TRUE(modelResource);
 
             modelResource.load_sync();

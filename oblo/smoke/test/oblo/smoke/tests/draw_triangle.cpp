@@ -25,7 +25,7 @@ namespace oblo::smoke
     {
         template <typename T>
         resource_ptr<T> find_first_resource_from_asset(
-            resource_registry& resourceRegistry, const asset_registry& assetRegistry, uuid assetId)
+            const resource_registry& resourceRegistry, const asset_registry& assetRegistry, uuid assetId)
         {
             buffered_array<uuid, 16> artifacts;
 

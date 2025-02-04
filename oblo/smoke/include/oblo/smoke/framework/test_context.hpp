@@ -31,7 +31,7 @@ namespace oblo::smoke
 
         asset_registry& get_asset_registry() const;
 
-        resource_registry& get_resource_registry() const;
+        const resource_registry& get_resource_registry() const;
 
         ecs::entity_registry& get_entity_registry() const;
 
