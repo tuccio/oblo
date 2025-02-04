@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <oblo/core/random_generator.hpp>
+#include <oblo/core/reflection/struct_compare.hpp>
 #include <oblo/core/string/string.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/range.hpp>
