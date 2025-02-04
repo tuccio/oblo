@@ -121,6 +121,7 @@ namespace oblo::editor
             {
                 ecs::entity id;
                 u32 ancestorsToPop;
+                bool forceExpand;
             };
 
             deque<entity_stack_entry> stack;
@@ -129,10 +130,18 @@ namespace oblo::editor
             {
                 for (ecs::entity root : chunk.get<ecs::entity>())
                 {
+                    bool isSelectedEntityInTree = false;
+
+                    if (entityToSelect != ecs::entity{} && ecs_utility::find_root(*m_registry, entityToSelect) == root)
+                    {
+                        isSelectedEntityInTree = true;
+                    }
+
                     stack.assign(1,
                         {
                             .id = root,
                             .ancestorsToPop = 0,
+                            .forceExpand = isSelectedEntityInTree,
                         });
 
                     while (!stack.empty())
@@ -141,10 +150,11 @@ namespace oblo::editor
                         stack.pop_back();
 
                         const ecs::entity e = info.id;
+                        const bool forceExpand = info.forceExpand;
 
                         const children_component* cc = m_registry->try_get<children_component>(e);
 
-                        ImGuiTreeNodeFlags flags{};
+                        ImGuiTreeNodeFlags flags{ImGuiTreeNodeFlags_OpenOnArrow};
 
                         const bool isLeaf = !cc || cc->children.empty();
 
@@ -170,6 +180,11 @@ namespace oblo::editor
                         }
 
                         auto* const name = entity_utility::get_name_cstr(*m_registry, e);
+
+                        if (forceExpand)
+                        {
+                            ImGui::SetNextItemOpen(true);
+                        }
 
                         const bool expanded =
                             ImGui::TreeNodeEx(reinterpret_cast<void*>(intptr(e.value)), flags, "%s", name);
@@ -221,7 +236,12 @@ namespace oblo::editor
 
                                 for (const auto child : reverse_range(cc->children))
                                 {
-                                    stack.push_back(entity_stack_entry{.id = child, .ancestorsToPop = 0});
+                                    stack.push_back(entity_stack_entry{
+                                        .id = child,
+                                        .ancestorsToPop = 0,
+                                        // We can stop expanding once we found our entity
+                                        .forceExpand = forceExpand && entityToSelect != e,
+                                    });
                                 }
 
                                 // The first will be processed last, that one will pop all ancestors

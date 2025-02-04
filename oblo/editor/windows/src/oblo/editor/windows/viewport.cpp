@@ -162,6 +162,7 @@ namespace oblo::editor
                         selectedEntity && m_entities->contains(selectedEntity))
                     {
                         m_selection->add({&selectedEntity, 1});
+                        m_selection->push_refresh_event();
                     }
 
                     v.picking.state = picking_request::state::none;

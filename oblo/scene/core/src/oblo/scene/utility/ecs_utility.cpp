@@ -230,9 +230,23 @@ namespace oblo::ecs_utility
         }
     }
 
-    void find_roots(ecs::entity_registry& registry, deque<ecs::entity>& outRoots)
+    SCENE_API ecs::entity find_root(const ecs::entity_registry& registry, ecs::entity e)
     {
-        const auto rootsRange = registry.range<>().exclude<parent_component>();
+        auto current = e;
+
+        for (auto* pc = registry.try_get<parent_component>(current); pc;)
+        {
+            current = pc->parent;
+            pc = registry.try_get<parent_component>(current);
+        }
+
+        return current;
+    }
+
+    void find_roots(const ecs::entity_registry& registry, deque<ecs::entity>& outRoots)
+    {
+        // TODO: Const range
+        const auto rootsRange = const_cast<ecs::entity_registry&>(registry).range<>().exclude<parent_component>();
 
         for (const auto& chunk : rootsRange)
         {
