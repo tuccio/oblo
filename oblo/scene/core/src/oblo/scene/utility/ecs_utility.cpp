@@ -240,4 +240,28 @@ namespace oblo::ecs_utility
             outRoots.append(entities.begin(), entities.end());
         }
     }
+
+    namespace
+    {
+        void destroy_recursive(ecs::entity_registry& registry, ecs::entity e)
+        {
+            auto* const cc = registry.try_get<children_component>(e);
+
+            if (cc)
+            {
+                for (auto child : cc->children)
+                {
+                    destroy_recursive(registry, child);
+                }
+            }
+
+            registry.destroy(e);
+        }
+    }
+
+    void oblo::ecs_utility::destroy_hierarchy(ecs::entity_registry& registry, ecs::entity e)
+    {
+        reparent_entity(registry, e, {});
+        destroy_recursive(registry, e);
+    }
 }

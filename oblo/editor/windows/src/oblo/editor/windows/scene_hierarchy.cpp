@@ -79,7 +79,7 @@ namespace oblo::editor
                     {
                         for (const auto e : selectedEntities)
                         {
-                            m_registry->destroy(e);
+                            ecs_utility::destroy_hierarchy(*m_registry, e);
                         }
 
                         m_selection->clear();
@@ -94,7 +94,7 @@ namespace oblo::editor
                 {
                     for (const auto e : m_selection->get())
                     {
-                        m_registry->destroy(e);
+                        ecs_utility::destroy_hierarchy(*m_registry, e);
                     }
 
                     m_selection->clear();

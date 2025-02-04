@@ -47,6 +47,7 @@ namespace oblo::ecs_utility
     SCENE_API ecs::entity find_parent(const ecs::entity_registry& registry, ecs::entity e);
     SCENE_API void find_children(const ecs::entity_registry& registry, ecs::entity e, deque<ecs::entity>& outChildren);
     SCENE_API void find_roots(ecs::entity_registry& registry, deque<ecs::entity>& outRoots);
+    SCENE_API void destroy_hierarchy(ecs::entity_registry& registry, ecs::entity e);
 
     template <typename... ComponentsOrTags>
     ecs::entity create_named_physical_entity(ecs::entity_registry& registry,
