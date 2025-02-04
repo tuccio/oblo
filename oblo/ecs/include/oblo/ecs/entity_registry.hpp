@@ -20,10 +20,12 @@ namespace oblo::ecs
 
     class entity_registry final
     {
-
     public:
-        template <typename... Components>
+        template <bool IsConst, typename... Components>
         class typed_range;
+
+        template <typename... Components>
+        using mutable_range = typed_range<false, Components...>;
 
     public:
         entity_registry();
@@ -93,7 +95,7 @@ namespace oblo::ecs
 
         // Requires including oblo/ecs/range.hpp
         template <typename... Components>
-        typed_range<Components...> range();
+        mutable_range<Components...> range();
 
         archetype_storage get_archetype_storage(entity e) const;
 
