@@ -321,15 +321,6 @@ namespace oblo
 
         const auto jsonPath = string_builder{}.append(testDir).append_path("json_hierarchy.json").make_absolute_path();
 
-        auto log = finally(
-            [&jsonPath, this]
-            {
-                if (HasFatalFailure())
-                {
-                    std::cout << "Test failed, files can be found at: " << jsonPath.c_str() << std::endl;
-                }
-            });
-
         {
             ecs::entity_registry reg;
             reg.init(&typeRegistry);
@@ -341,7 +332,7 @@ namespace oblo
                 quaternion::identity(),
                 vec3::splat(1.f));
 
-            const auto childA1 = ecs_utility::create_named_physical_entity(reg,
+            [[maybe_unused]] const auto childA1 = ecs_utility::create_named_physical_entity(reg,
                 "childA1",
                 rootEntity1,
                 vec3{},
@@ -355,14 +346,14 @@ namespace oblo
                 quaternion::identity(),
                 vec3::splat(1.f));
 
-            const auto childAB1 = ecs_utility::create_named_physical_entity(reg,
+            [[maybe_unused]] const auto childAB1 = ecs_utility::create_named_physical_entity(reg,
                 "childAB1",
                 childB1,
                 vec3{},
                 quaternion::identity(),
                 vec3::splat(1.f));
 
-            const auto rootEntity2 = ecs_utility::create_named_physical_entity(reg,
+            [[maybe_unused]] const auto rootEntity2 = ecs_utility::create_named_physical_entity(reg,
                 "rootEntity2",
                 {},
                 vec3{},
@@ -376,7 +367,7 @@ namespace oblo
                 quaternion::identity(),
                 vec3::splat(1.f));
 
-            const auto childA3 = ecs_utility::create_named_physical_entity(reg,
+            [[maybe_unused]] const auto childA3 = ecs_utility::create_named_physical_entity(reg,
                 "childA3",
                 rootEntity3,
                 vec3{},

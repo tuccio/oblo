@@ -158,15 +158,9 @@ namespace oblo::editor
 
                         const bool isLeaf = !cc || cc->children.empty();
 
-                        u32 childrenCount = 0;
-
                         if (isLeaf)
                         {
                             flags |= ImGuiTreeNodeFlags_Leaf;
-                        }
-                        else
-                        {
-                            childrenCount = cc->children.size32();
                         }
 
                         if (m_selection->contains(e))

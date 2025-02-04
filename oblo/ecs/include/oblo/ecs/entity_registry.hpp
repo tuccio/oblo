@@ -24,9 +24,6 @@ namespace oblo::ecs
         template <bool IsConst, typename... Components>
         class typed_range;
 
-        template <typename... Components>
-        using mutable_range = typed_range<false, Components...>;
-
     public:
         entity_registry();
         explicit entity_registry(type_registry* typeRegistry);
@@ -95,7 +92,10 @@ namespace oblo::ecs
 
         // Requires including oblo/ecs/range.hpp
         template <typename... Components>
-        mutable_range<Components...> range();
+        typed_range<false, Components...> range();
+
+        template <typename... Components>
+        typed_range<true, std::add_const_t<Components>...> range() const;
 
         archetype_storage get_archetype_storage(entity e) const;
 
@@ -143,7 +143,7 @@ namespace oblo::ecs
         const archetype_storage* find_first_match(const archetype_storage* begin,
             usize increment,
             const component_and_tag_sets& includes,
-            const component_and_tag_sets& excludes);
+            const component_and_tag_sets& excludes) const;
 
         static void sort_and_map(std::span<component_type> componentTypes, std::span<u8> mapping);
 
@@ -176,6 +176,12 @@ namespace oblo::ecs
         std::vector<archetype_storage> m_componentsStorage;
         u64 m_modificationId{};
     };
+
+    template <typename... Components>
+    using mutable_range = entity_registry::typed_range<false, Components...>;
+
+    template <typename... Components>
+    using range = entity_registry::typed_range<true, Components...>;
 
     template <typename... ComponentsOrTags>
     entity entity_registry::create()

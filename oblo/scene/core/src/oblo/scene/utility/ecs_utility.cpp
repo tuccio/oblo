@@ -245,8 +245,7 @@ namespace oblo::ecs_utility
 
     void find_roots(const ecs::entity_registry& registry, deque<ecs::entity>& outRoots)
     {
-        // TODO: Const range
-        const auto rootsRange = const_cast<ecs::entity_registry&>(registry).range<>().exclude<parent_component>();
+        const auto rootsRange = registry.range<>().exclude<parent_component>();
 
         for (const auto& chunk : rootsRange)
         {
@@ -273,7 +272,7 @@ namespace oblo::ecs_utility
         }
     }
 
-    void oblo::ecs_utility::destroy_hierarchy(ecs::entity_registry& registry, ecs::entity e)
+    void destroy_hierarchy(ecs::entity_registry& registry, ecs::entity e)
     {
         reparent_entity(registry, e, {});
         destroy_recursive(registry, e);

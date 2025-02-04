@@ -48,6 +48,8 @@ namespace oblo::ecs
 
         std::span<const component_type, sizeof...(Components)> get_types() const;
 
+        using entity_registry_t = std::conditional_t<IsConst, const entity_registry, entity_registry>;
+
     private:
         component_and_tag_sets m_include;
         component_and_tag_sets m_exclude;
@@ -55,7 +57,7 @@ namespace oblo::ecs
         u8 m_mapping[s_ArraySize];
         bool m_onlyNotified = false;
         u64 m_modificationIdCheck;
-        entity_registry* m_registry;
+        entity_registry_t* m_registry;
     };
 
     namespace detail
@@ -276,11 +278,39 @@ namespace oblo::ecs
     };
 
     template <typename... Components>
-    entity_registry::mutable_range<Components...> entity_registry::range()
+    mutable_range<Components...> entity_registry::range()
     {
         constexpr u8 numComponents = sizeof...(Components);
 
         mutable_range<Components...> res;
+        res.m_registry = this;
+
+        if constexpr (numComponents > 0)
+        {
+            constexpr type_id types[] = {get_type_id<std::remove_const_t<Components>>()...};
+            find_component_types(types, res.m_targets);
+
+            u8 inverseMapping[numComponents];
+            sort_and_map(res.m_targets, inverseMapping);
+
+            for (u8 i = 0; i < numComponents; ++i)
+            {
+                res.m_mapping[inverseMapping[i]] = i;
+            }
+        }
+
+        res.m_include = make_type_sets<std::remove_const_t<Components>...>(*m_typeRegistry);
+        res.m_exclude = {};
+
+        return res;
+    }
+
+    template <typename... Components>
+    range<std::add_const_t<Components>...> entity_registry::range() const
+    {
+        constexpr u8 numComponents = sizeof...(Components);
+
+        ecs::range<std::add_const_t<Components>...> res;
         res.m_registry = this;
 
         if constexpr (numComponents > 0)

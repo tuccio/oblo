@@ -1,6 +1,5 @@
 #include <oblo/scene/serialization/ecs_serializer.hpp>
 
-#include <oblo/core/finally.hpp>
 #include <oblo/core/overload.hpp>
 #include <oblo/core/string/string.hpp>
 #include <oblo/ecs/archetype_storage.hpp>
@@ -24,7 +23,6 @@ namespace oblo::ecs_serializer
         namespace json_strings
         {
             constexpr hashed_string_view entitiesArray = "entities";
-            constexpr hashed_string_view entityId = "id";
             constexpr hashed_string_view entityChildren = "children";
             constexpr hashed_string_view componentsObject = "components";
         }
@@ -44,7 +42,6 @@ namespace oblo::ecs_serializer
         const u32 entitiesArray = doc.child_array(docRoot, json_strings::entitiesArray);
 
         const auto& typeRegistry = reg.get_type_registry();
-        const std::span archetypes = reg.get_archetypes();
 
         dynamic_array<u32> componentOffsets;
         componentOffsets.reserve(64);
@@ -61,8 +58,7 @@ namespace oblo::ecs_serializer
             u32 parentEntityObject;
         };
 
-        // TODO: Const range
-        const auto rootsRange = const_cast<ecs::entity_registry&>(reg).range<>().exclude<parent_component>();
+        const auto rootsRange = reg.range<>().exclude<parent_component>();
 
         deque<entity_stack_entry> stack;
 
@@ -143,7 +139,7 @@ namespace oblo::ecs_serializer
 
                                 return visit_result::recurse;
                             },
-                            [&doc, &nodeStack, &ptrStack](const property_node&, const property_node_finish)
+                            [&nodeStack, &ptrStack](const property_node&, const property_node_finish)
                             {
                                 nodeStack.pop_back();
                                 ptrStack.pop_back();
@@ -173,7 +169,7 @@ namespace oblo::ecs_serializer
 
                                 return visit_result::sibling;
                             },
-                            [&reg, &doc, &nodeStack, &ptrStack](const property& property)
+                            [&doc, &nodeStack, &ptrStack](const property& property)
                             {
                                 const byte* const propertyPtr = ptrStack.back() + property.offset;
 
@@ -263,8 +259,6 @@ namespace oblo::ecs_serializer
 
         deque<u32> nodeStack;
         deque<byte*> ptrStack;
-
-        final_act_queue deferred;
 
         struct entity_stack_entry
         {
@@ -374,7 +368,7 @@ namespace oblo::ecs_serializer
 
                                     return visit_result::recurse;
                                 },
-                                [&doc, &nodeStack, &ptrStack](const property_node& node, const property_node_finish)
+                                [&nodeStack, &ptrStack](const property_node& node, const property_node_finish)
                                 {
                                     if (node.name != meta_properties::array_element)
                                     {
@@ -426,7 +420,7 @@ namespace oblo::ecs_serializer
 
                                     return visit_result::sibling;
                                 },
-                                [&deferred, &doc, &nodeStack, &ptrStack](const property& property)
+                                [&doc, &nodeStack, &ptrStack](const property& property)
                                 {
                                     byte* const propertyPtr = ptrStack.back() + property.offset;
 
