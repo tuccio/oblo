@@ -24,17 +24,27 @@ namespace oblo::smoke
     namespace
     {
         template <typename T>
-        resource_ptr<T> get_resource_from_asset(
+        resource_ptr<T> find_first_resource_from_asset(
             resource_registry& resourceRegistry, const asset_registry& assetRegistry, uuid assetId)
         {
-            asset_meta assetMeta;
+            buffered_array<uuid, 16> artifacts;
 
-            if (!assetRegistry.find_asset_by_id(assetId, assetMeta) || assetMeta.typeHint != resource_type<T>)
+            if (!assetRegistry.find_asset_artifacts(assetId, artifacts))
             {
                 return {};
             }
 
-            return resourceRegistry.get_resource(assetMeta.mainArtifactHint).as<T>();
+            for (auto uuid : artifacts)
+            {
+                artifact_meta meta;
+
+                if (assetRegistry.find_artifact_by_id(uuid, meta) && meta.type == resource_type<T>)
+                {
+                    return resourceRegistry.get_resource(uuid).as<T>();
+                }
+            }
+
+            return {};
         }
 
         test_task wait_for_asset_processing(const test_context& ctx, const asset_registry& assetRegistry)
@@ -65,9 +75,9 @@ namespace oblo::smoke
 
             co_await wait_for_asset_processing(ctx, assetRegistry);
 
-            const auto triangle = get_resource_from_asset<model>(resourceRegistry, assetRegistry, *assetId);
-
+            const auto triangle = find_first_resource_from_asset<model>(resourceRegistry, assetRegistry, *assetId);
             OBLO_SMOKE_TRUE(triangle);
+
             triangle.load_sync();
 
             OBLO_SMOKE_EQ(triangle->materials.size(), 1);
@@ -109,7 +119,7 @@ namespace oblo::smoke
 
             co_await wait_for_asset_processing(ctx, assetRegistry);
 
-            const auto triangle = get_resource_from_asset<model>(resourceRegistry, assetRegistry, *assetId);
+            const auto triangle = find_first_resource_from_asset<model>(resourceRegistry, assetRegistry, *assetId);
 
             OBLO_SMOKE_TRUE(triangle);
             triangle.load_sync();
