@@ -72,6 +72,7 @@ namespace oblo::ecs
         Component* try_get(entity e);
 
         std::byte* try_get(entity e, component_type component);
+        const std::byte* try_get(entity e, component_type component) const;
 
         void get(entity e,
             const std::span<const component_type> components,
@@ -99,6 +100,7 @@ namespace oblo::ecs
         std::span<const entity> entities() const;
 
         std::span<const component_type> get_component_types(entity e) const;
+        std::span<const tag_type> get_tag_types(entity e) const;
 
         type_registry& get_type_registry() const;
 
@@ -120,6 +122,8 @@ namespace oblo::ecs
         /// @remarks Entity handles are composed of a number of generation bits, while te rest is an index in an array.
         /// This function allows extracting the index part of the handle.
         u32 extract_entity_index(ecs::entity e) const;
+
+        component_and_tag_sets get_component_and_tag_sets(ecs::entity e) const;
 
     private:
         struct memory_pool;

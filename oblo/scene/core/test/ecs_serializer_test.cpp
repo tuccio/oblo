@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <oblo/core/filesystem/filesystem.hpp>
+#include <oblo/core/finally.hpp>
 #include <oblo/core/iterator/enum_range.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/ecs/entity_registry.hpp>
@@ -318,7 +319,16 @@ namespace oblo
     {
         register_from_reflection();
 
-        const auto jsonPath = string_builder{}.append(testDir).append_path("json_hierarchy.json");
+        const auto jsonPath = string_builder{}.append(testDir).append_path("json_hierarchy.json").make_absolute_path();
+
+        auto log = finally(
+            [&jsonPath, this]
+            {
+                if (HasFatalFailure())
+                {
+                    std::cout << "Test failed, files can be found at: " << jsonPath.c_str() << std::endl;
+                }
+            });
 
         {
             ecs::entity_registry reg;

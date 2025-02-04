@@ -225,6 +225,29 @@ namespace oblo::ecs
         return get_component_pointer(archetype->chunks[chunkIndex]->data, *archetype, componentIndex, chunkOffset);
     }
 
+    const std::byte* entity_registry::try_get(entity e, component_type component) const
+    {
+        const entity_data* entityData = m_entities.try_find(e);
+
+        if (!entityData || !component)
+        {
+            return nullptr;
+        }
+
+        auto* const archetype = entityData->archetype;
+
+        const u8 componentIndex = find_component_index({archetype->components, archetype->numComponents}, component);
+
+        if (componentIndex == InvalidComponentIndex)
+        {
+            return nullptr;
+        }
+
+        const auto [chunkIndex, chunkOffset] = get_entity_location(*archetype, entityData->archetypeIndex);
+
+        return get_component_pointer(archetype->chunks[chunkIndex]->data, *archetype, componentIndex, chunkOffset);
+    }
+
     void entity_registry::get(
         entity e, const std::span<const component_type> components, std::span<const std::byte*> outComponents) const
     {
@@ -290,6 +313,19 @@ namespace oblo::ecs
         return {archetype->components, archetype->numComponents};
     }
 
+    std::span<const tag_type> entity_registry::get_tag_types(entity e) const
+    {
+        const entity_data* entityData = m_entities.try_find(e);
+
+        if (!entityData)
+        {
+            return {};
+        }
+
+        auto* const archetype = entityData->archetype;
+        return {archetype->tags, archetype->numTags};
+    }
+
     type_registry& entity_registry::get_type_registry() const
     {
         return *m_typeRegistry;
@@ -329,6 +365,11 @@ namespace oblo::ecs
     u32 entity_registry::extract_entity_index(ecs::entity e) const
     {
         return decltype(m_entities)::extractor_type{}.extract_key(e);
+    }
+
+    component_and_tag_sets entity_registry::get_component_and_tag_sets(ecs::entity e) const
+    {
+        return ecs::get_component_and_tag_sets(get_archetype_storage(e));
     }
 
     const archetype_storage* entity_registry::find_first_match(const archetype_storage* begin,
