@@ -273,12 +273,12 @@ namespace oblo::ecs
         return storage.archetype->chunks[chunkIndex]->header.numEntities;
     }
 
-    u32* access_archetype_modification_id(const archetype_storage& storage)
+    u64* access_archetype_modification_id(const archetype_storage& storage)
     {
         return &storage.archetype->modificationId;
     }
 
-    u32* access_chunk_modification_id(const archetype_storage& storage, u32 chunkIndex)
+    u64* access_chunk_modification_id(const archetype_storage& storage, u32 chunkIndex)
     {
         return &storage.archetype->chunks[chunkIndex]->header.modificationId;
     }

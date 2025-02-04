@@ -61,7 +61,6 @@ namespace oblo
         service_registry services;
         vk::renderer renderer;
         vk::vulkan_context* vulkanContext;
-        u32 modificationId{};
     };
 
     runtime::runtime() = default;
@@ -154,8 +153,6 @@ namespace oblo
         });
 
         m_impl->renderer.update(m_impl->frameAllocator);
-
-        m_impl->entities.set_modification_id(++m_impl->modificationId);
     }
 
     vk::renderer& runtime::get_renderer() const

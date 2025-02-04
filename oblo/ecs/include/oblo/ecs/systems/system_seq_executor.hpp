@@ -32,6 +32,6 @@ namespace oblo::ecs
     private:
         struct system_info;
         dynamic_array<system_info> m_systems;
-        bool m_firstUpdate{true};
+        u64 m_modificationId{};
     };
 }

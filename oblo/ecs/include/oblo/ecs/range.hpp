@@ -31,7 +31,7 @@ namespace oblo::ecs
 
         typed_range& notified();
 
-        typed_range& notified(u32 modificationId);
+        typed_range& notified(u64 modificationId);
 
         template <typename F>
         void for_each_chunk(F&& f) const;
@@ -54,7 +54,7 @@ namespace oblo::ecs
         component_type m_targets[s_ArraySize];
         u8 m_mapping[s_ArraySize];
         bool m_onlyNotified = false;
-        u32 m_modificationIdCheck;
+        u64 m_modificationIdCheck;
         entity_registry* m_registry;
     };
 
@@ -103,14 +103,14 @@ namespace oblo::ecs
         void notify(bool notifyArchetype = false) const
         {
             const auto latestId = m_registry->get_modification_id();
-            u32* const chunkModificationId = access_chunk_modification_id(m_archetype, m_chunkIndex);
+            u64* const chunkModificationId = access_chunk_modification_id(m_archetype, m_chunkIndex);
 
             *chunkModificationId = latestId;
 
             // This is only here because we don't have a nice API to iterate archetypes yet
             if (notifyArchetype)
             {
-                u32* const archetypeModificationId = access_archetype_modification_id(m_archetype);
+                u64* const archetypeModificationId = access_archetype_modification_id(m_archetype);
                 *archetypeModificationId = latestId;
             }
         }
@@ -415,7 +415,7 @@ namespace oblo::ecs
 
     template <typename... Components>
     entity_registry::typed_range<Components...>& entity_registry::typed_range<Components...>::notified(
-        u32 modificationId)
+        u64 modificationId)
     {
         m_onlyNotified = true;
         m_modificationIdCheck = modificationId;

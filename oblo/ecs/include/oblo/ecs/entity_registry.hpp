@@ -109,14 +109,16 @@ namespace oblo::ecs
         /// @brief Sets the modification id that will be applied when creating entities or calling notify on entity
         /// ranges.
         /// @remarks This can be set with the granularity the user wants to detect changes with.
-        void set_modification_id(u32 modificationId);
+        void set_modification_id(u64 modificationId);
 
         /// @brief Retrieves the last modification id set.
         /// @see set_modification_id
-        u32 get_modification_id() const;
+        u64 get_modification_id() const;
 
         /// @brief Applies the current modification id to the entity.
         void notify(entity e);
+
+        bool is_notified(entity e, u64 modificationId) const;
 
         /// @brief Extracts the entity index.
         /// @remarks Entity handles are composed of a number of generation bits, while te rest is an index in an array.
@@ -170,7 +172,7 @@ namespace oblo::ecs
         std::unique_ptr<memory_pool> m_pool;
         entities_map m_entities;
         std::vector<archetype_storage> m_componentsStorage;
-        u32 m_modificationId{};
+        u64 m_modificationId{};
     };
 
     template <typename... ComponentsOrTags>

@@ -336,12 +336,12 @@ namespace oblo::ecs
         return m_componentsStorage;
     }
 
-    void entity_registry::set_modification_id(u32 modificationId)
+    void entity_registry::set_modification_id(u64 modificationId)
     {
         m_modificationId = modificationId;
     }
 
-    u32 entity_registry::get_modification_id() const
+    u64 entity_registry::get_modification_id() const
     {
         return m_modificationId;
     }
@@ -360,6 +360,26 @@ namespace oblo::ecs
         const auto [chunkIndex, _] = get_entity_location(*archetype, entityData->archetypeIndex);
         archetype->modificationId = m_modificationId;
         archetype->chunks[chunkIndex]->header.modificationId = m_modificationId;
+    }
+
+    bool entity_registry::is_notified(entity e, u64 modificationId) const
+    {
+        const entity_data* entityData = m_entities.try_find(e);
+
+        if (!entityData)
+        {
+            return false;
+        }
+
+        archetype_impl* const archetype = entityData->archetype;
+
+        if (archetype->modificationId >= modificationId)
+        {
+            return true;
+        }
+
+        const auto [chunkIndex, _] = get_entity_location(*archetype, entityData->archetypeIndex);
+        return archetype->chunks[chunkIndex]->header.modificationId >= modificationId;
     }
 
     u32 entity_registry::extract_entity_index(ecs::entity e) const
