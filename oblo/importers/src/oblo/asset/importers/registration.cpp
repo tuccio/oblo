@@ -2,6 +2,7 @@
 
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/descriptors/file_importer_descriptor.hpp>
+#include <oblo/asset/importers/assimp.hpp>
 #include <oblo/asset/importers/dds.hpp>
 #include <oblo/asset/importers/gltf.hpp>
 #include <oblo/asset/importers/stb_image.hpp>
@@ -23,6 +24,7 @@ namespace oblo::importers
         constexpr string_view g_gltfExtensions[] = {".gltf", ".glb"};
         constexpr string_view g_stbExtensions[] = {".jpg", ".jpeg", ".png", ".tga", ".bmp", ".hdr"};
         constexpr string_view g_ddsExtensions[] = {".dds"};
+        constexpr string_view g_assimpExtensions[] = {".fbx"};
     }
 
     void register_gltf_importer(asset_registry& registry)
@@ -50,5 +52,6 @@ namespace oblo::importers
         outResourceTypes.emplace_back(make_file_importer_desc<gltf>(g_gltfExtensions));
         outResourceTypes.emplace_back(make_file_importer_desc<stb_image>(g_stbExtensions));
         outResourceTypes.emplace_back(make_file_importer_desc<dds>(g_ddsExtensions));
+        outResourceTypes.emplace_back(make_file_importer_desc<assimp>(g_assimpExtensions));
     }
 }

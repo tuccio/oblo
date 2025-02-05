@@ -23,6 +23,7 @@ class ObloConanRecipe(ConanFile):
     def requirements(self):
         self._install_required_recipes()
 
+        self.requires("assimp/5.4.3")
         self.requires("concurrentqueue/1.0.4")
         self.requires("cxxopts/2.2.1")
         self.requires("glslang/1.3.296.0")
@@ -32,7 +33,7 @@ class ObloConanRecipe(ConanFile):
         self.requires("imgui/1.91.5-docking", override=True)
         self.requires("imguizmo/cci.20231114")
         self.requires("meshoptimizer/0.20")
-        self.requires("rapidjson/cci.20220822")
+        self.requires("rapidjson/cci.20230929")
         self.requires("vulkan-headers/1.3.296.0", override=True)
         self.requires("vulkan-loader/1.3.290.0")
         self.requires("vulkan-memory-allocator/3.0.0")
@@ -40,7 +41,7 @@ class ObloConanRecipe(ConanFile):
         self.requires("sdl/2.0.20")
         self.requires("stb/cci.20230920")
         self.requires("tinygltf/2.8.13")
-        self.requires("utfcpp/3.2.3")
+        self.requires("utfcpp/4.0.1")
         self.requires("xxhash/0.8.2")
 
         # This is only needed for unit tests
