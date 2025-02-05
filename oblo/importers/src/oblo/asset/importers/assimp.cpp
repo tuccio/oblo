@@ -347,10 +347,15 @@ namespace oblo::importers
             vec3 emissiveFactor = vec3::splat(0.f);
             f32 emissiveMultiplier = 1.f;
             f32 metallic = 0.f;
-            f32 roughness = 1.f;
+            f32 roughness = .5f;
             f32 ior = 1.5f;
 
-            if (aiColor4D color; aiGetMaterialColor(aiMaterial, AI_MATKEY_COLOR_DIFFUSE, &color) == AI_SUCCESS)
+            resource_ref<texture> albedoTexture{};
+            resource_ref<texture> metalnessRoughnessTexture{};
+            resource_ref<texture> normalMapTexture{};
+            resource_ref<texture> emissiveTexture{};
+
+            if (aiColor4D color; aiGetMaterialColor(aiMaterial, AI_MATKEY_BASE_COLOR, &color) == AI_SUCCESS)
             {
                 albedo = {color.r, color.g, color.b};
             }
@@ -380,6 +385,8 @@ namespace oblo::importers
                 ior = factor;
             }
 
+            // TODO: If the material has specular, we need to convert to metallic
+
             outMaterial.set_property<material_type_tag::linear_color>(pbr::Albedo, albedo);
 
             outMaterial.set_property<material_type_tag::linear_color>(pbr::Emissive, emissiveFactor);
@@ -388,6 +395,11 @@ namespace oblo::importers
             outMaterial.set_property(pbr::Metalness, metallic);
             outMaterial.set_property(pbr::Roughness, roughness);
             outMaterial.set_property(pbr::IndexOfRefraction, ior);
+
+            outMaterial.set_property(pbr::AlbedoTexture, albedoTexture);
+            outMaterial.set_property(pbr::MetalnessRoughnessTexture, metalnessRoughnessTexture);
+            outMaterial.set_property(pbr::NormalMapTexture, normalMapTexture);
+            outMaterial.set_property(pbr::EmissiveTexture, emissiveTexture);
 
             string_builder outputPath;
             ctx.get_output_path(materialNodeConfig.id, outputPath, ".omaterial");
