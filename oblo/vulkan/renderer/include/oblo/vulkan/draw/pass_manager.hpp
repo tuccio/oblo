@@ -24,15 +24,11 @@ namespace oblo
 
 namespace oblo::vk
 {
-    class descriptor_set_pool;
-    class mesh_table;
-    class resource_manager;
     class texture_registry;
     class vulkan_context;
     struct base_pipeline;
     struct buffer;
     struct bindable_object;
-    struct batch_draw_data;
     struct compute_pass;
     struct compute_pass_initializer;
     struct compute_pipeline;
@@ -46,8 +42,6 @@ namespace oblo::vk
     struct render_pass_initializer;
     struct render_pipeline;
     struct render_pipeline_initializer;
-
-    enum class pipeline_stages : u8;
 
     struct compute_pass_context;
     struct render_pass_context;

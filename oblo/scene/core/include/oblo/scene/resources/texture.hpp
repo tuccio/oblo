@@ -9,11 +9,12 @@
 
 namespace oblo
 {
+    enum class texture_format : u32;
     struct vec2u;
 
     struct texture_desc
     {
-        u32 vkFormat;
+        texture_format vkFormat;
         u32 width;
         u32 height;
         u32 depth;

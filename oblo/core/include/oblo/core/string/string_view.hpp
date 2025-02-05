@@ -73,19 +73,25 @@ namespace oblo
             return reinterpret_cast<const char8_t*>(m_begin);
         }
 
-        constexpr const_reference at(usize i) const noexcept
+        OBLO_FORCEINLINE constexpr const_reference at(usize i) const noexcept
         {
             OBLO_ASSERT(i < m_size);
             return m_begin[i];
         }
 
-        constexpr char front() const noexcept
+        OBLO_FORCEINLINE constexpr const_reference operator[](usize i) const noexcept
+        {
+            OBLO_ASSERT(i < m_size);
+            return m_begin[i];
+        }
+
+        OBLO_FORCEINLINE constexpr const_reference front() const noexcept
         {
             OBLO_ASSERT(m_size > 0);
             return m_begin[0];
         }
 
-        constexpr char back() const noexcept
+        OBLO_FORCEINLINE constexpr const_reference back() const noexcept
         {
             OBLO_ASSERT(m_size > 0);
             return m_begin[m_size - 1];

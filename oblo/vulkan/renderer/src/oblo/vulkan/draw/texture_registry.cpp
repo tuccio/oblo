@@ -4,6 +4,7 @@
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/finally.hpp>
 #include <oblo/scene/resources/texture.hpp>
+#include <oblo/scene/resources/texture_format.hpp>
 #include <oblo/vulkan/staging_buffer.hpp>
 #include <oblo/vulkan/utility/pipeline_barrier.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
@@ -95,7 +96,7 @@ namespace oblo::vk
 
         // TODO: Make it a more recognizable texture, since sampling it should only happen by mistake
         dummy.allocate({
-            .vkFormat = VK_FORMAT_R8G8B8A8_SRGB,
+            .vkFormat = texture_format::r8g8b8a8_unorm,
             .width = 1,
             .height = 1,
             .depth = 1,

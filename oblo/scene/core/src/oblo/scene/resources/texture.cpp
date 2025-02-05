@@ -55,7 +55,7 @@ namespace oblo
         ktxTexture2* newKtx{};
 
         ktxTextureCreateInfo createInfo{
-            .vkFormat = desc.vkFormat,
+            .vkFormat = u32(desc.vkFormat),
             .baseWidth = desc.width,
             .baseHeight = desc.height,
             .baseDepth = desc.depth,
@@ -201,7 +201,7 @@ namespace oblo
         auto* const t = to_ktx(m_impl);
 
         return {
-            .vkFormat = u32(ktxTexture_GetVkFormat(t)),
+            .vkFormat = texture_format(ktxTexture_GetVkFormat(t)),
             .width = t->baseWidth,
             .height = t->baseHeight,
             .depth = t->baseDepth,

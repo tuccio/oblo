@@ -53,6 +53,20 @@ namespace oblo::importers::mesh_processing
 
         switch (inputMesh.get_attribute_format(attribute_kind::indices))
         {
+        case data_format::u8:
+            numMeshlets = meshopt_buildMeshlets(meshlets.data(),
+                meshletVertices.data(),
+                microIndices.data(),
+                inputMesh.get_attribute<u8>(attribute_kind::indices).data(),
+                inputMesh.get_index_count(),
+                reinterpret_cast<const float*>(positions.data()),
+                inputMesh.get_vertex_count(),
+                sizeof(vec3),
+                maxVertices,
+                maxTriangles,
+                coneWeight);
+            break;
+
         case data_format::u16:
             numMeshlets = meshopt_buildMeshlets(meshlets.data(),
                 meshletVertices.data(),
