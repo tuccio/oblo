@@ -356,7 +356,7 @@ namespace oblo::importers
 
         string_builder outPath;
 
-        if (!t.save(ctx.get_output_path(modelNodeConfig.id, outPath)))
+        if (!t.save(ctx.get_output_path(modelNodeConfig.id, outPath, ".ktx")))
         {
             return false;
         }

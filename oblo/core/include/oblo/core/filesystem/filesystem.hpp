@@ -24,6 +24,8 @@ namespace oblo::filesystem
 
     expected<bool> create_directories(cstring_view path);
 
+    expected<> create_hard_link(string_view src, string_view dst);
+
     expected<bool> is_directory(cstring_view path);
 
     expected<> absolute(cstring_view path, string_builder& out);

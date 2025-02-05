@@ -338,8 +338,10 @@ namespace oblo::importers
         }
 
         string_builder outPath;
+        ctx.get_output_path(modelNodeConfig.id, outPath);
+        outPath.append(".ktx");
 
-        if (!out.save(ctx.get_output_path(modelNodeConfig.id, outPath)))
+        if (!out.save(outPath))
         {
             return false;
         }

@@ -412,10 +412,12 @@ namespace oblo
         return allSucceeded;
     }
 
-    cstring_view import_context::get_output_path(const uuid& id, string_builder& outPath) const
+    cstring_view import_context::get_output_path(
+        const uuid& id, string_builder& outPath, string_view optExtension) const
     {
+        OBLO_ASSERT(optExtension.empty() || optExtension.starts_with("."));
         outPath = m_impl->temporaryPath;
-        outPath.append_path_separator().format("{}", id);
+        outPath.append_path_separator().format("{}", id).append(optExtension);
         return outPath;
     }
 

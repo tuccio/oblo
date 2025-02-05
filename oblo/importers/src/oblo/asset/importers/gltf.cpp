@@ -343,7 +343,8 @@ namespace oblo::importers
                 name = buffer.as<string>();
             }
 
-            if (const auto path = ctx.get_output_path(nodeConfig.id, buffer); !materialArtifact.save(path))
+            if (const auto path = ctx.get_output_path(nodeConfig.id, buffer, ".omaterial");
+                !materialArtifact.save(path))
             {
                 log::error("Failed to save material to {}", path);
                 continue;
@@ -425,7 +426,7 @@ namespace oblo::importers
 
                 string_builder outputPath;
 
-                if (!save_mesh(outMesh, ctx.get_output_path(meshNodeConfig.id, outputPath)))
+                if (!save_mesh(outMesh, ctx.get_output_path(meshNodeConfig.id, outputPath, ".gltf")))
                 {
                     log::error("Failed to save mesh");
                     continue;
@@ -573,7 +574,7 @@ namespace oblo::importers
             }
 
             string_builder outputPath;
-            ctx.get_output_path(hierarchyNodeConfig.id, outputPath);
+            ctx.get_output_path(hierarchyNodeConfig.id, outputPath, ".ohierarchy");
 
             if (!h.save(outputPath))
             {
