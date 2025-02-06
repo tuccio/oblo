@@ -3,6 +3,8 @@
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/flags.hpp>
 
+#include <span>
+
 namespace tinygltf
 {
     class Model;
@@ -30,7 +32,7 @@ namespace oblo
         const tinygltf::Primitive& primitive,
         dynamic_array<mesh_attribute>& attributes,
         dynamic_array<gltf_accessor>& sources,
-        dynamic_array<bool>* usedBuffers,
+        const std::span<bool>* usedBuffers,
         flags<mesh_post_process> processingFlags);
 
     SCENE_API bool load_mesh(mesh& mesh, cstring_view source);

@@ -58,6 +58,8 @@ namespace oblo::importers
             u32 meshIndex;
             u32 primitiveIndex;
             u32 nodeIndex;
+            string_builder outputPath;
+            bool wasImported;
         };
 
         struct import_material
@@ -260,6 +262,7 @@ namespace oblo::importers
                     .meshIndex = meshIndex,
                     .primitiveIndex = primitiveIndex,
                     .nodeIndex = u32(preview.nodes.size()),
+                    .wasImported = false,
                 });
 
                 preview.nodes.emplace_back(resource_type<mesh>, primitiveNameBuilder.as<string>());
@@ -394,15 +397,6 @@ namespace oblo::importers
             cfg.generateMeshlets = settings.read_bool(generateMeshlets).value_or(true);
         }
 
-        dynamic_array<mesh_attribute> attributes;
-        attributes.reserve(32);
-
-        dynamic_array<gltf_accessor> sources;
-        sources.reserve(32);
-
-        dynamic_array<bool> usedBuffer;
-        usedBuffer.resize(m_impl->model.buffers.size());
-
         const std::span importNodeConfigs = ctx.get_import_node_configs();
         const std::span importNodes = ctx.get_import_nodes();
 
@@ -500,6 +494,99 @@ namespace oblo::importers
             material.id = nodeConfig.id;
         }
 
+        const u32 numThreads = job_manager::get()->get_num_threads();
+        const usize numBuffers = m_impl->model.buffers.size();
+
+        // Allocate buffers that are written by all threads
+        dynamic_array<bool> usedBuffers;
+        usedBuffers.resize(numThreads * numBuffers);
+
+        parallel_for(
+            [this, &importNodeConfigs, &cfg, &ctx, &usedBuffers, numBuffers](job_range range)
+            {
+                buffered_array<mesh_attribute, 16> attributes;
+                buffered_array<gltf_accessor, 32> sources;
+
+                const usize offset = job_manager::get()->get_current_thread() * numBuffers;
+
+                const std::span usedBuffersSpan = std::span{usedBuffers}.subspan(offset, numBuffers);
+
+                for (u32 meshIndex = range.begin; meshIndex < range.end; ++meshIndex)
+                {
+                    attributes.clear();
+
+                    auto& importMesh = m_impl->importMeshes[meshIndex];
+                    const auto& meshNodeConfig = importNodeConfigs[importMesh.nodeIndex];
+
+                    if (!meshNodeConfig.enabled)
+                    {
+                        continue;
+                    }
+
+                    const auto& primitive =
+                        m_impl->model.meshes[importMesh.meshIndex].primitives[importMesh.primitiveIndex];
+
+                    mesh srcMesh;
+
+                    if (!load_mesh(srcMesh,
+                            m_impl->model,
+                            primitive,
+                            attributes,
+                            sources,
+                            &usedBuffersSpan,
+                            mesh_post_process::generate_tanget_space))
+                    {
+                        log::error("Failed to parse mesh");
+                        continue;
+                    }
+
+                    mesh outMesh;
+
+                    if (cfg.generateMeshlets)
+                    {
+                        if (!mesh_processing::build_meshlets(srcMesh, outMesh))
+                        {
+                            log::error("Failed to build meshlets");
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        outMesh = std::move(srcMesh);
+                    }
+
+                    outMesh.update_aabb();
+
+                    const cstring_view outputPath =
+                        ctx.get_output_path(meshNodeConfig.id, importMesh.outputPath, ".gltf");
+
+                    if (!save_mesh(outMesh, outputPath))
+                    {
+                        log::error("Failed to save mesh");
+                        continue;
+                    }
+
+                    importMesh.wasImported = true;
+                }
+            },
+            job_range{0u, m_impl->importMeshes.size32()},
+            1u);
+
+        // Merge the results from different threads together
+        for (u32 i = 1; i < numThreads; ++i)
+        {
+            const usize offset = i * numBuffers;
+
+            const std::span usedBuffersSpan = std::span{usedBuffers}.subspan(offset, numBuffers);
+
+            for (u32 j = 0; j < numBuffers; ++j)
+            {
+                usedBuffers[j] |= usedBuffersSpan[j];
+            }
+        }
+
+        usedBuffers.resize(numBuffers);
+
         for (const auto& model : m_impl->importModels)
         {
             const auto& modelNodeConfig = importNodeConfigs[model.nodeIndex];
@@ -519,64 +606,26 @@ namespace oblo::importers
 
             for (u32 meshIndex = model.primitiveBegin; meshIndex < model.primitiveBegin + numPrimitives; ++meshIndex)
             {
-                const auto& mesh = m_impl->importMeshes[meshIndex];
-                const auto& meshNodeConfig = importNodeConfigs[mesh.nodeIndex];
+                const auto& importMesh = m_impl->importMeshes[meshIndex];
+                const auto& meshNodeConfig = importNodeConfigs[importMesh.nodeIndex];
 
-                if (!meshNodeConfig.enabled)
+                if (!importMesh.wasImported)
                 {
                     continue;
                 }
 
-                const auto& primitive = m_impl->model.meshes[mesh.meshIndex].primitives[mesh.primitiveIndex];
-
-                oblo::mesh srcMesh;
-
-                if (!load_mesh(srcMesh,
-                        m_impl->model,
-                        primitive,
-                        attributes,
-                        sources,
-                        &usedBuffer,
-                        mesh_post_process::generate_tanget_space))
-                {
-                    log::error("Failed to parse mesh");
-                    continue;
-                }
-
-                oblo::mesh outMesh;
-
-                if (cfg.generateMeshlets)
-                {
-                    if (!mesh_processing::build_meshlets(srcMesh, outMesh))
-                    {
-                        log::error("Failed to build meshlets");
-                        continue;
-                    }
-                }
-                else
-                {
-                    outMesh = std::move(srcMesh);
-                }
-
-                outMesh.update_aabb();
+                const auto& primitive =
+                    m_impl->model.meshes[importMesh.meshIndex].primitives[importMesh.primitiveIndex];
 
                 modelAsset.meshes.emplace_back(meshNodeConfig.id);
                 modelAsset.materials.emplace_back(
                     primitive.material >= 0 ? m_impl->importMaterials[primitive.material].id : uuid{});
 
-                string_builder outputPath;
-
-                if (!save_mesh(outMesh, ctx.get_output_path(meshNodeConfig.id, outputPath, ".gltf")))
-                {
-                    log::error("Failed to save mesh");
-                    continue;
-                }
-
                 m_impl->artifacts.push_back({
                     .id = meshNodeConfig.id,
-                    .type = resource_type<oblo::mesh>,
-                    .name = importNodes[mesh.nodeIndex].name,
-                    .path = outputPath.as<string>(),
+                    .type = resource_type<mesh>,
+                    .name = importNodes[importMesh.nodeIndex].name,
+                    .path = importMesh.outputPath.as<string>(),
                 });
             }
 
@@ -738,9 +787,9 @@ namespace oblo::importers
 
         string_builder bufferPathBuilder;
 
-        for (usize i = 0; i < usedBuffer.size(); ++i)
+        for (usize i = 0; i < usedBuffers.size(); ++i)
         {
-            if (usedBuffer[i])
+            if (usedBuffers[i])
             {
                 auto& buffer = m_impl->model.buffers[i];
 

@@ -423,7 +423,7 @@ namespace oblo
         const tinygltf::Primitive& primitive,
         dynamic_array<mesh_attribute>& attributes,
         dynamic_array<gltf_accessor>& sources,
-        dynamic_array<bool>* usedBuffers,
+        const std::span<bool>* usedBuffers,
         flags<mesh_post_process> processingFlags)
     {
         const auto primitiveKind = convert_primitive_kind(primitive.mode);
@@ -570,7 +570,7 @@ namespace oblo
 
             if (usedBuffers)
             {
-                usedBuffers->at(bufferView.buffer) = true;
+                (*usedBuffers)[bufferView.buffer] = true;
             }
 
             const auto* const data = buffer.data.data() + bufferView.byteOffset + accessor.byteOffset;
