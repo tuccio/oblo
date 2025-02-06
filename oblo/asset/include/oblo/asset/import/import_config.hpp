@@ -11,6 +11,6 @@ namespace oblo
         string sourceFile;
         data_document settings;
         cstring_view workDir;
-        bool skipSourceFiles;
+        bool skipSourceFiles = false;
     };
 }
