@@ -1,7 +1,10 @@
 #include <oblo/scene/serialization/mesh_file.hpp>
 
+#include <oblo/core/buffered_array.hpp>
 #include <oblo/core/data_format.hpp>
 #include <oblo/core/debug.hpp>
+#include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/filesystem/file.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string_builder.hpp>
@@ -9,16 +12,17 @@
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/math/vec4.hpp>
+#include <oblo/properties/serialization/common.hpp>
 #include <oblo/scene/resources/mesh.hpp>
 
-#define TINYGLTF_IMPLEMENTATION
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <tinygltf/implementation.hpp>
 
-#include <tiny_gltf.h>
-
-#include <fstream>
 #include <span>
+
+// Unfortunately tiny_gltf includes Windows.h
+#ifdef GetObject
+    #undef GetObject
+#endif
 
 namespace oblo
 {
@@ -419,7 +423,7 @@ namespace oblo
         const tinygltf::Primitive& primitive,
         dynamic_array<mesh_attribute>& attributes,
         dynamic_array<gltf_accessor>& sources,
-        dynamic_array<bool>* usedBuffers,
+        const std::span<bool>* usedBuffers,
         flags<mesh_post_process> processingFlags)
     {
         const auto primitiveKind = convert_primitive_kind(primitive.mode);
@@ -566,7 +570,7 @@ namespace oblo
 
             if (usedBuffers)
             {
-                usedBuffers->at(bufferView.buffer) = true;
+                (*usedBuffers)[bufferView.buffer] = true;
             }
 
             const auto* const data = buffer.data.data() + bufferView.byteOffset + accessor.byteOffset;
@@ -672,38 +676,24 @@ namespace oblo
 
     bool load_mesh(mesh& mesh, cstring_view source)
     {
-        std::ifstream ifs{source.as<std::string>(), std::ios::ate | std::ios::binary};
+        dynamic_array<byte> content;
 
-        if (!ifs)
+        const auto r = filesystem::load_binary_file_into_memory(content, source);
+
+        if (!r)
         {
             return false;
         }
 
-        const auto fileSize = narrow_cast<u32>(ifs.tellg());
+        constexpr string_view fourCC = "glTF";
 
-        constexpr auto MagicCharsCount{4};
-
-        if (MagicCharsCount > fileSize)
+        if (fourCC.size() > r->size())
         {
             return false;
         }
 
-        char magic[MagicCharsCount];
-
-        ifs.seekg(0);
-        ifs.read(magic, MagicCharsCount);
-
-        if (!ifs)
-        {
-            return false;
-        }
-
-        ifs.seekg(0);
-
-        std::vector<char> content;
-        content.resize(fileSize);
-
-        ifs.read(content.data(), fileSize);
+        const bool isBinary =
+            fourCC.size() <= r->size() && std::memcmp(fourCC.data(), content.data(), fourCC.size()) == 0;
 
         tinygltf::TinyGLTF loader;
         loader.SetStoreOriginalJSONForExtrasAndExtensions(true);
@@ -717,18 +707,23 @@ namespace oblo
 
         bool success;
 
-        if (std::string_view{magic, MagicCharsCount} == "glTF")
+        if (isBinary)
         {
             success = loader.LoadBinaryFromMemory(&model,
                 &err,
                 &warn,
                 reinterpret_cast<const unsigned char*>(content.data()),
-                fileSize,
+                content.size32(),
                 parentPath);
         }
         else
         {
-            success = loader.LoadASCIIFromString(&model, &err, &warn, content.data(), fileSize, parentPath);
+            success = loader.LoadASCIIFromString(&model,
+                &err,
+                &warn,
+                reinterpret_cast<const char*>(content.data()),
+                content.size32(),
+                parentPath);
         }
 
         if (!success)
@@ -746,7 +741,7 @@ namespace oblo
         // We count indices as attributes here
         const auto maxAttributes = primitive.attributes.size() + 1;
 
-        dynamic_array<mesh_attribute> attributes;
+        buffered_array<mesh_attribute, 16> attributes;
         attributes.reserve(maxAttributes);
 
         dynamic_array<gltf_accessor> sources;
@@ -758,13 +753,21 @@ namespace oblo
 
             if (const auto& extra = model.meshes[0].extras_json_string; !extra.empty())
             {
+                tinygltf::detail::json json;
+
+                rapidjson::StringStream ss{extra.c_str()};
+
+                rapidjson::GenericDocument<tinygltf::detail::json::EncodingType,
+                    rapidjson::CrtAllocator,
+                    rapidjson::CrtAllocator>
+                    doc;
+
+                doc.ParseStream(ss);
+
                 using tinygltf::Value;
-
-                const auto json = tinygltf::detail::json::parse(extra, nullptr, false);
-
                 Value extraValue;
 
-                if (!json.is_discarded() && tinygltf::ParseJsonAsValue(&extraValue, json))
+                if (doc.IsObject() && tinygltf::ParseJsonAsValue(&extraValue, doc.GetObject()))
                 {
                     auto& aabbValue = extraValue.Get(ExtraAabb);
 

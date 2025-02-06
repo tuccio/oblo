@@ -325,8 +325,12 @@ namespace oblo::vk
         const u32 meshDataRow = m_meshDataTable.rows_count() == 0 ? 0 : 1;
         const auto newMeshesEnd = m_firstFreeMesh + meshDataRow * meshes.size();
 
-        if (newVertexEnd > m_vertexTable.rows_count() || newMeshesEnd > m_meshDataTable.rows_count() ||
-            newIndexEnd > m_totalIndices || newMeshletEnd > m_meshDataTable.rows_count())
+        const auto outOfVertexSpace = newVertexEnd > m_vertexTable.rows_count();
+        const auto outOfMeshSpace = newMeshesEnd > m_meshDataTable.rows_count();
+        const auto outOfIndexSpace = newIndexEnd > m_totalIndices;
+        const auto outOfMeshletSpace = newMeshletEnd > m_meshletsTable.rows_count();
+
+        if (outOfVertexSpace || outOfMeshSpace || outOfIndexSpace || outOfMeshletSpace)
         {
             return false;
         }

@@ -61,7 +61,7 @@ namespace oblo
         {
             static bool load(texture& texture, cstring_view source)
             {
-                return texture.load(source);
+                return texture.load(source).has_value();
             }
         };
     }

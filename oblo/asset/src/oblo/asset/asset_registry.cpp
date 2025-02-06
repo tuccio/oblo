@@ -1430,8 +1430,29 @@ namespace oblo
         auto artifactMetaPath = artifactPath;
         artifactMetaPath.append(g_artifactMetaExtension);
 
-        return filesystem::rename(srcArtifact, artifactPath).value_or(false) &&
-            save_artifact_meta(meta, artifactMetaPath);
+        if (!filesystem::rename(srcArtifact, artifactPath).value_or(false) ||
+            !save_artifact_meta(meta, artifactMetaPath))
+        {
+            return false;
+        }
+
+        const auto srcExtension = filesystem::extension(srcArtifact);
+
+        if (!srcExtension.empty())
+        {
+            // Create a link with the given extension, to make it easier to look into files
+            // This should probably be an option, it might be confusing if tools report the artifacts directory size to
+            // be twice as big as it actually is
+            auto artifactWithExtension = artifactPath;
+            artifactWithExtension.append(srcExtension);
+
+            if (!filesystem::create_hard_link(artifactPath, artifactWithExtension))
+            {
+                log::debug("Failed to create hard link {}", artifactWithExtension.view());
+            }
+        }
+
+        return true;
     }
 
     bool asset_registry_impl::save_asset(string_view destination,

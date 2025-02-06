@@ -127,6 +127,10 @@ namespace oblo
             resource_ptr<mesh> mesh;
         };
 
+        struct mesh_processed_tag
+        {
+        };
+
         struct processed_mesh_resources
         {
             static processed_mesh_resources from(const static_mesh_component& c)
@@ -189,6 +193,7 @@ namespace oblo
 
                 if (!mesh)
                 {
+                    deferred.add<mesh_processed_tag>(entity);
                     return;
                 }
             }
@@ -197,7 +202,8 @@ namespace oblo
                 entity_id_component,
                 processed_mesh_resources,
                 vk::draw_mesh_component,
-                vk::draw_raytraced_tag>(entity);
+                vk::draw_raytraced_tag,
+                mesh_processed_tag>(entity);
 
             deferred.remove<mesh_resources>(entity);
 
@@ -233,6 +239,7 @@ namespace oblo
 
         ecs::register_type<mesh_resources>(typeRegistry);
         ecs::register_type<processed_mesh_resources>(typeRegistry);
+        ecs::register_type<mesh_processed_tag>(typeRegistry);
 
         drawRegistry.register_instance_data(gpuTransform, "i_TransformBuffer");
         drawRegistry.register_instance_data(gpuMaterial, "i_MaterialBuffer");
@@ -252,18 +259,18 @@ namespace oblo
             // Just invalidate all entities that we already processed, instead of trying to figure which one use the
             // resources that were invalidated
             for (auto&& chunk : ctx.entities->range<const static_mesh_component>()
-                                    .with<global_transform_component, vk::draw_mesh_component>())
+                                    .with<global_transform_component, mesh_processed_tag>())
             {
                 for (auto&& e : chunk.get<ecs::entity>())
                 {
-                    deferred.remove<vk::draw_mesh_component>(e);
+                    deferred.remove<mesh_processed_tag>(e);
                 }
             }
         }
 
         // Process entities we already processed, in order to react to changes
         for (auto&& chunk : ctx.entities->range<const processed_mesh_resources, const static_mesh_component>()
-                                .with<vk::draw_mesh_component>()
+                                .with<mesh_processed_tag>()
                                 .notified())
         {
             for (auto&& [e, cachedRefs, meshComponent] :
@@ -271,7 +278,7 @@ namespace oblo
             {
                 if (processed_mesh_resources::from(meshComponent) != cachedRefs)
                 {
-                    deferred.remove<vk::draw_mesh_component>(e);
+                    deferred.remove<mesh_processed_tag>(e);
                 }
             }
         }
@@ -281,7 +288,7 @@ namespace oblo
         // Process entities that we didn't process yet or we just invalidated
         for (auto&& chunk : ctx.entities->range<const static_mesh_component>()
                                 .with<global_transform_component>()
-                                .exclude<vk::draw_mesh_component>())
+                                .exclude<mesh_processed_tag>())
         {
             for (auto&& [e, meshComponent] : chunk.zip<ecs::entity, static_mesh_component>())
             {

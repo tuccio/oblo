@@ -293,6 +293,22 @@ namespace oblo::filesystem
         return r;
     }
 
+    expected<> create_hard_link(string_view src, string_view dst)
+    {
+        std::filesystem::path pSrc{std::u8string_view{src.u8data(), src.size()}};
+        std::filesystem::path pDst{std::u8string_view{dst.u8data(), dst.size()}};
+
+        std::error_code ec;
+        std::filesystem::create_hard_link(pSrc, pDst, ec);
+
+        if (ec)
+        {
+            return unspecified_error;
+        }
+
+        return no_error;
+    }
+
     expected<bool> is_directory(cstring_view path)
     {
         std::filesystem::path p{std::u8string_view{path.u8data(), path.size()}};

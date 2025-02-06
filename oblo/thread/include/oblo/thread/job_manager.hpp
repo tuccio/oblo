@@ -16,16 +16,12 @@ namespace oblo
 
     template <typename F>
     concept callable_job_ctx = requires(F& f, const job_context& ctx) {
-        {
-            f(ctx)
-        };
+        { f(ctx) };
     };
 
     template <typename F>
     concept callable_job_no_ctx = requires(F& f) {
-        {
-            f()
-        };
+        { f() };
     };
 
     template <typename F>
@@ -56,6 +52,14 @@ namespace oblo
 
         THREAD_API bool init(const job_manager_config& cfg = job_manager_config::make_default());
         THREAD_API void shutdown();
+
+        /// @brief Returns the number of threads the job manager is initialized on.
+        THREAD_API u32 get_num_threads() const;
+
+        /// @brief Returns the index of the thread that is currently running.
+        /// @remarks Calling this function on a thread other than a job manager thread holds undefined behavior.
+        /// @return An index in the range [0, num_threads).
+        THREAD_API u32 get_current_thread() const;
 
         /// @brief Creates a waitable child job, that will be destroyed once the execution of its children is completed
         /// and the job is waited for.

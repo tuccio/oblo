@@ -5,15 +5,16 @@
 
 namespace oblo::importers
 {
-    class gltf final : public file_importer
+    class assimp : public file_importer
     {
     public:
-        gltf();
-        gltf(const gltf&) = delete;
-        gltf(gltf&&) noexcept = delete;
-        gltf& operator=(const gltf&) = delete;
-        gltf& operator=(gltf&&) noexcept = delete;
-        ~gltf();
+        assimp();
+        assimp(const assimp&) = delete;
+        assimp(assimp&&) noexcept = delete;
+        ~assimp();
+
+        assimp& operator=(const assimp&) = delete;
+        assimp& operator=(assimp&&) noexcept = delete;
 
         bool init(const import_config& config, import_preview& preview);
         bool import(import_context context);

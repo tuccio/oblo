@@ -51,12 +51,12 @@ namespace oblo
 
             ASSERT_EQ(i, 2);
 
-            ASSERT_TRUE(json::write(doc, "test/test.json"));
+            ASSERT_TRUE(json::write(doc, "properties_serialization_test.json"));
         }
 
         {
             data_document doc;
-            ASSERT_TRUE(json::read(doc, "test/test.json"));
+            ASSERT_TRUE(json::read(doc, "properties_serialization_test.json"));
 
             u32 currentDepth{0};
             u32 maxDepth{0};

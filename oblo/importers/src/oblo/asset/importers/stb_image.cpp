@@ -11,9 +11,8 @@
 #include <oblo/math/float.hpp>
 #include <oblo/math/power_of_two.hpp>
 #include <oblo/scene/resources/texture.hpp>
+#include <oblo/scene/resources/texture_format.hpp>
 #include <oblo/scene/resources/traits.hpp>
-
-#include <vulkan/vulkan_core.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -26,23 +25,26 @@ namespace oblo::importers
 
     namespace
     {
-        bool load_to_texture(texture& out, const u8* image, int w, int h, u32 vkFormat)
+        bool load_to_texture(texture& out, const u8* image, int w, int h, texture_format vkFormat)
         {
             const u32 width = u32(w);
             const u32 height = u32(h);
-            const u32 numLevels = log2_round_down_power_of_two(min(width, height));
+            const u32 numLevels = max(1u, log2_round_down_power_of_two(min(width, height)));
 
-            out.allocate({
-                .vkFormat = vkFormat,
-                .width = u32(w),
-                .height = u32(h),
-                .depth = 1,
-                .dimensions = 2,
-                .numLevels = numLevels,
-                .numLayers = 1,
-                .numFaces = 1,
-                .isArray = false,
-            });
+            if (!out.allocate({
+                    .vkFormat = vkFormat,
+                    .width = u32(w),
+                    .height = u32(h),
+                    .depth = 1,
+                    .dimensions = 2,
+                    .numLevels = numLevels,
+                    .numLayers = 1,
+                    .numFaces = 1,
+                    .isArray = false,
+                }))
+            {
+                return false;
+            }
 
             const auto highestMip = out.get_data(0, 0, 0);
             std::memcpy(highestMip.data(), image, highestMip.size());
@@ -62,7 +64,7 @@ namespace oblo::importers
 
                 switch (vkFormat)
                 {
-                case VK_FORMAT_R8_UNORM:
+                case texture_format::r8_unorm:
                     parallel_for_each_pixel(image_view_r<u8>{current, mipWidth, mipHeight},
                         box_filter_2x2{
                             linear_color_tag{},
@@ -70,7 +72,7 @@ namespace oblo::importers
                         });
                     break;
 
-                case VK_FORMAT_R8G8_UNORM:
+                case texture_format::r8g8_unorm:
                     parallel_for_each_pixel(image_view_rg<u8>{current, mipWidth, mipHeight},
                         box_filter_2x2{
                             linear_color_tag{},
@@ -78,7 +80,7 @@ namespace oblo::importers
                         });
                     break;
 
-                case VK_FORMAT_R8G8B8_UNORM:
+                case texture_format::r8g8b8_unorm:
                     parallel_for_each_pixel(image_view_rgb<u8>{current, mipWidth, mipHeight},
                         box_filter_2x2{
                             linear_color_tag{},
@@ -86,7 +88,7 @@ namespace oblo::importers
                         });
                     break;
 
-                case VK_FORMAT_R8G8B8A8_UNORM:
+                case texture_format::r8g8b8a8_unorm:
                     parallel_for_each_pixel(image_view_rgba<u8>{current, mipWidth, mipHeight},
                         box_filter_2x2{
                             linear_color_tag{},
@@ -94,7 +96,7 @@ namespace oblo::importers
                         });
                     break;
 
-                case VK_FORMAT_R32_SFLOAT:
+                case texture_format::r32_sfloat:
                     parallel_for_each_pixel(image_view_r<f32>{current, mipWidth, mipHeight},
                         box_filter_2x2{
                             linear_color_tag{},
@@ -102,7 +104,7 @@ namespace oblo::importers
                         });
                     break;
 
-                case VK_FORMAT_R32G32_SFLOAT:
+                case texture_format::r32g32_sfloat:
                     parallel_for_each_pixel(image_view_rg<f32>{current, mipWidth, mipHeight},
                         box_filter_2x2{
                             linear_color_tag{},
@@ -110,7 +112,7 @@ namespace oblo::importers
                         });
                     break;
 
-                case VK_FORMAT_R32G32B32_SFLOAT:
+                case texture_format::r32g32b32_sfloat:
                     parallel_for_each_pixel(image_view_rgb<f32>{current, mipWidth, mipHeight},
                         box_filter_2x2{
                             linear_color_tag{},
@@ -118,7 +120,7 @@ namespace oblo::importers
                         });
                     break;
 
-                case VK_FORMAT_R32G32B32A32_SFLOAT:
+                case texture_format::r32g32b32a32_sfloat:
                     parallel_for_each_pixel(image_view_rgba<f32>{current, mipWidth, mipHeight},
                         box_filter_2x2{
                             linear_color_tag{},
@@ -131,22 +133,25 @@ namespace oblo::importers
                 }
             }
 
-            if (vkFormat == VK_FORMAT_R8G8B8_UNORM)
+            if (vkFormat == texture_format::r8g8b8_unorm)
             {
                 // Convert RGB8 to RGBA8
                 texture withAlpha;
 
-                withAlpha.allocate({
-                    .vkFormat = VK_FORMAT_R8G8B8A8_UNORM,
-                    .width = u32(w),
-                    .height = u32(h),
-                    .depth = 1,
-                    .dimensions = 2,
-                    .numLevels = numLevels,
-                    .numLayers = 1,
-                    .numFaces = 1,
-                    .isArray = false,
-                });
+                if (!withAlpha.allocate({
+                        .vkFormat = texture_format::r8g8b8a8_unorm,
+                        .width = u32(w),
+                        .height = u32(h),
+                        .depth = 1,
+                        .dimensions = 2,
+                        .numLevels = numLevels,
+                        .numLayers = 1,
+                        .numFaces = 1,
+                        .isArray = false,
+                    }))
+                {
+                    return false;
+                }
 
                 for (u32 mipLevel = 0; mipLevel < numLevels; ++mipLevel)
                 {
@@ -173,22 +178,25 @@ namespace oblo::importers
 
                 out = std::move(withAlpha);
             }
-            else if (vkFormat == VK_FORMAT_R32G32B32_SFLOAT)
+            else if (vkFormat == texture_format::r32g32b32_sfloat)
             {
                 // Convert RGB32F to RGBA32F
                 texture withAlpha;
 
-                withAlpha.allocate({
-                    .vkFormat = VK_FORMAT_R32G32B32A32_SFLOAT,
-                    .width = u32(w),
-                    .height = u32(h),
-                    .depth = 1,
-                    .dimensions = 2,
-                    .numLevels = numLevels,
-                    .numLayers = 1,
-                    .numFaces = 1,
-                    .isArray = false,
-                });
+                if (!withAlpha.allocate({
+                        .vkFormat = texture_format::r32g32b32a32_sfloat,
+                        .width = u32(w),
+                        .height = u32(h),
+                        .depth = 1,
+                        .dimensions = 2,
+                        .numLevels = numLevels,
+                        .numLayers = 1,
+                        .numFaces = 1,
+                        .isArray = false,
+                    }))
+                {
+                    return false;
+                }
 
                 for (u32 mipLevel = 0; mipLevel < numLevels; ++mipLevel)
                 {
@@ -217,6 +225,25 @@ namespace oblo::importers
             }
 
             return true;
+        }
+
+        texture_format choose_format(int channels, bool isHDR)
+        {
+            constexpr texture_format u8Formats[] = {
+                texture_format::r8_unorm,
+                texture_format::r8g8_unorm,
+                texture_format::r8g8b8_unorm,
+                texture_format::r8g8b8a8_unorm,
+            };
+
+            constexpr texture_format f32Formats[] = {
+                texture_format::r32_sfloat,
+                texture_format::r32g32_sfloat,
+                texture_format::r32g32b32_sfloat,
+                texture_format::r32g32b32a32_sfloat,
+            };
+
+            return isHDR ? f32Formats[channels - 1] : u8Formats[channels - 1];
         }
 
         using image_ptr = std::unique_ptr<u8[], decltype([](u8* ptr) { free(ptr); })>;
@@ -332,32 +359,18 @@ namespace oblo::importers
             channels = int(swizzleCount);
         }
 
+        const auto textureFormat = choose_format(channels, isHDR);
+
         texture t;
 
-        constexpr u32 u8Formats[] = {
-            VK_FORMAT_R8_UNORM,
-            VK_FORMAT_R8G8_UNORM,
-            VK_FORMAT_R8G8B8_UNORM,
-            VK_FORMAT_R8G8B8A8_UNORM,
-        };
-
-        constexpr u32 f32Formats[] = {
-            VK_FORMAT_R32_SFLOAT,
-            VK_FORMAT_R32G32_SFLOAT,
-            VK_FORMAT_R32G32B32_SFLOAT,
-            VK_FORMAT_R32G32B32A32_SFLOAT,
-        };
-
-        const u32 vkFormat = isHDR ? f32Formats[channels - 1] : u8Formats[channels - 1];
-
-        if (!load_to_texture(t, image.get(), w, h, vkFormat))
+        if (!load_to_texture(t, image.get(), w, h, textureFormat))
         {
             return false;
         }
 
         string_builder outPath;
 
-        if (!t.save(ctx.get_output_path(modelNodeConfig.id, outPath)))
+        if (!t.save(ctx.get_output_path(modelNodeConfig.id, outPath, ".ktx")))
         {
             return false;
         }

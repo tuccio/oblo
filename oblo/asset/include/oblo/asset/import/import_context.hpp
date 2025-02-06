@@ -18,7 +18,7 @@ namespace oblo
     class import_context
     {
     public:
-        cstring_view get_output_path(const uuid& id, string_builder& outPath) const;
+        cstring_view get_output_path(const uuid& id, string_builder& outPath, string_view optExtension = {}) const;
 
         std::span<const import_node> get_import_nodes() const;
         std::span<const import_node> get_child_import_nodes(usize i) const;

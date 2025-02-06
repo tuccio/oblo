@@ -5,6 +5,7 @@
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/iterator/reverse_iterator.hpp>
 #include <oblo/core/unreachable.hpp>
+#include <oblo/log/log.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/draw/mesh_table.hpp>
 #include <oblo/vulkan/gpu_allocator.hpp>
@@ -229,7 +230,10 @@ namespace oblo::vk
 
         if (!it->meshes->allocate_meshes(meshEntry, outHandle))
         {
-            OBLO_ASSERT(false, "Failed to allocate mesh");
+            log::debug("Failed to allocate mesh with [vertices: {}, indices: {}, meshlets: {}]",
+                vertexCount,
+                indexCount,
+                meshletCount);
             return {};
         }
 

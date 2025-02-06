@@ -422,6 +422,16 @@ namespace oblo
         oblo::decrease_reference(as_job_impl(job));
     }
 
+    u32 job_manager::get_num_threads() const
+    {
+        return m_impl->threads.size32();
+    }
+
+    u32 job_manager::get_current_thread() const
+    {
+        return s_tlsWorkerCtx.id;
+    }
+
     void* job_manager::allocate_userdata(usize size, usize alignment)
     {
         return m_impl->userdataPool.allocate(size, alignment);
