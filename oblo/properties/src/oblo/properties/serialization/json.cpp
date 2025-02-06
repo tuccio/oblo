@@ -422,14 +422,61 @@ namespace oblo::json
 
         const auto& nodes = doc.get_nodes();
 
-        const auto visit = [&](auto&& recurse, u32 node) -> void
+        enum class parent_kind : u8
         {
+            none,
+            object,
+            array,
+        };
+
+        struct stack_frame
+        {
+            u32 node;
+            parent_kind closeParent;
+        };
+
+        deque<stack_frame> stack;
+
+        stack.push_back({
+            .node = doc.get_root(),
+            .closeParent = parent_kind::none,
+        });
+
+        while (!stack.empty())
+        {
+            const auto [node, closeParent] = stack.back();
+            stack.pop_back();
+
+            switch (closeParent)
+            {
+            case parent_kind::object:
+                writer.EndObject();
+                break;
+
+            case parent_kind::array:
+                writer.EndArray();
+                break;
+
+            case parent_kind::none:
+                break;
+            }
+
             if (node == data_node::Invalid)
             {
-                return;
+                continue;
             }
 
             const auto& current = nodes[node];
+
+            // We want to visit the sibling after the children, so we push it first
+            if (current.nextSibling != data_node::Invalid)
+            {
+                stack.push_back({
+                    .node = current.nextSibling,
+                    .closeParent = parent_kind::none,
+                });
+            }
+
             switch (current.kind)
             {
             case data_node_kind::object:
@@ -440,8 +487,15 @@ namespace oblo::json
 
                 if (writer.StartObject())
                 {
-                    recurse(recurse, current.objectOrArray.firstChild);
-                    writer.EndObject();
+                    stack.push_back({
+                        .node = data_node::Invalid,
+                        .closeParent = parent_kind::object,
+                    });
+
+                    stack.push_back({
+                        .node = current.objectOrArray.firstChild,
+                        .closeParent = parent_kind::none,
+                    });
                 }
 
                 break;
@@ -454,8 +508,15 @@ namespace oblo::json
 
                 if (writer.StartArray())
                 {
-                    recurse(recurse, current.objectOrArray.firstChild);
-                    writer.EndArray();
+                    stack.push_back({
+                        .node = data_node::Invalid,
+                        .closeParent = parent_kind::array,
+                    });
+
+                    stack.push_back({
+                        .node = current.objectOrArray.firstChild,
+                        .closeParent = parent_kind::none,
+                    });
                 }
 
                 break;
@@ -536,10 +597,8 @@ namespace oblo::json
                 break;
             }
 
-            recurse(recurse, current.nextSibling);
-        };
-
-        visit(visit, root);
+            // Let the last child close the parent
+        }
 
         return success_tag{};
     }
