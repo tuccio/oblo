@@ -1,16 +1,7 @@
 #pragma once
 
 #include <oblo/asset/import/file_importer.hpp>
-#include <oblo/core/dynamic_array.hpp>
-#include <oblo/core/string/hashed_string_view.hpp>
-#include <oblo/core/string/string_builder.hpp>
-
-#include <tiny_gltf.h>
-
-namespace oblo
-{
-    class material;
-}
+#include <oblo/core/unique_ptr.hpp>
 
 namespace oblo::importers
 {
@@ -29,27 +20,9 @@ namespace oblo::importers
         file_import_results get_results();
 
     private:
-        struct import_hierarchy;
-        struct import_model;
-        struct import_mesh;
-        struct import_material;
-        struct import_image;
+        struct impl;
 
     private:
-        void set_texture(material& m, hashed_string_view propertyName, int textureIndex) const;
-
-    private:
-        tinygltf::Model m_model;
-        tinygltf::TinyGLTF m_loader;
-        dynamic_array<import_hierarchy> m_importHierarchies;
-        dynamic_array<import_model> m_importModels;
-        dynamic_array<import_mesh> m_importMeshes;
-        dynamic_array<import_material> m_importMaterials;
-        dynamic_array<import_image> m_importImages;
-
-        dynamic_array<import_artifact> m_artifacts;
-        dynamic_array<string> m_sourceFiles;
-        string_builder m_sourceFileDir;
-        uuid m_mainArtifactHint{};
+        unique_ptr<impl> m_impl;
     };
 }

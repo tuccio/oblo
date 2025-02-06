@@ -3,10 +3,8 @@
 
 #include <oblo/asset/importers/gltf.hpp>
 
-#include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/import/import_artifact.hpp>
 #include <oblo/asset/import/import_context.hpp>
-#include <oblo/asset/importers/stb_image.hpp>
 #include <oblo/asset/processing/mesh_processing.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
@@ -30,44 +28,44 @@
 #include <oblo/scene/utility/ecs_utility.hpp>
 #include <oblo/thread/parallel_for.hpp>
 
-#include <format>
+#include <tiny_gltf.h>
 
 namespace oblo::importers
 {
-    struct gltf::import_hierarchy
-    {
-        u32 nodeIndex;
-        u32 sceneIndex;
-    };
-
-    struct gltf::import_model
-    {
-        u32 mesh;
-        u32 nodeIndex;
-        u32 primitiveBegin;
-    };
-
-    struct gltf::import_mesh
-    {
-        u32 mesh;
-        u32 primitive;
-        u32 nodeIndex;
-    };
-
-    struct gltf::import_material
-    {
-        u32 nodeIndex;
-        uuid id;
-    };
-
-    struct gltf::import_image
-    {
-        usize subImportIndex;
-        uuid id;
-    };
-
     namespace
     {
+        struct import_hierarchy
+        {
+            u32 nodeIndex;
+            u32 sceneIndex;
+        };
+
+        struct import_model
+        {
+            u32 mesh;
+            u32 nodeIndex;
+            u32 primitiveBegin;
+        };
+
+        struct import_mesh
+        {
+            u32 mesh;
+            u32 primitive;
+            u32 nodeIndex;
+        };
+
+        struct import_material
+        {
+            u32 nodeIndex;
+            uuid id;
+        };
+
+        struct import_image
+        {
+            usize subImportIndex;
+            uuid id;
+        };
+
         int find_image_from_texture(const tinygltf::Model& model, int textureIndex)
         {
             if (textureIndex < 0)
@@ -94,7 +92,33 @@ namespace oblo::importers
                 return fallback;
             }
         }
+
     }
+
+    struct gltf::impl
+    {
+        tinygltf::Model model;
+        tinygltf::TinyGLTF loader;
+        dynamic_array<import_hierarchy> importHierarchies;
+        dynamic_array<import_model> importModels;
+        dynamic_array<import_mesh> importMeshes;
+        dynamic_array<import_material> importMaterials;
+        dynamic_array<import_image> importImages;
+
+        dynamic_array<import_artifact> artifacts;
+        dynamic_array<string> sourceFiles;
+        string_builder sourceFileDir;
+        uuid mainArtifactHint{};
+
+        void set_texture(material& m, hashed_string_view propertyName, int textureIndex) const
+        {
+            if (const auto imageIndex = find_image_from_texture(model, textureIndex);
+                imageIndex >= 0 && usize(imageIndex) < importImages.size() && !importImages[imageIndex].id.is_nil())
+            {
+                m.set_property(propertyName, resource_ref<texture>(importImages[imageIndex].id));
+            }
+        }
+    };
 
     gltf::gltf() = default;
 
@@ -102,13 +126,15 @@ namespace oblo::importers
 
     bool gltf::init(const import_config& config, import_preview& preview)
     {
+        m_impl = allocate_unique<impl>();
+
         // Seems like TinyGLTF wants std::string
         const auto sourceFileStr = config.sourceFile.as<std::string>();
 
-        m_sourceFiles.reserve(1 + m_model.buffers.size() + m_model.images.size());
-        m_sourceFiles.emplace_back(config.sourceFile);
+        m_impl->sourceFiles.reserve(1 + m_impl->model.buffers.size() + m_impl->model.images.size());
+        m_impl->sourceFiles.emplace_back(config.sourceFile);
 
-        filesystem::parent_path(m_sourceFiles[0], m_sourceFileDir);
+        filesystem::parent_path(m_impl->sourceFiles[0], m_impl->sourceFileDir);
 
         std::string errors;
         std::string warnings;
@@ -117,11 +143,11 @@ namespace oblo::importers
 
         if (sourceFileStr.ends_with(".glb"))
         {
-            success = m_loader.LoadBinaryFromFile(&m_model, &errors, &warnings, sourceFileStr);
+            success = m_impl->loader.LoadBinaryFromFile(&m_impl->model, &errors, &warnings, sourceFileStr);
         }
         else if (sourceFileStr.ends_with(".gltf"))
         {
-            success = m_loader.LoadASCIIFromFile(&m_model, &errors, &warnings, sourceFileStr);
+            success = m_impl->loader.LoadASCIIFromFile(&m_impl->model, &errors, &warnings, sourceFileStr);
         }
         else
         {
@@ -137,16 +163,16 @@ namespace oblo::importers
 
         string_builder name;
 
-        for (u32 meshIndex = 0; meshIndex < m_model.meshes.size(); ++meshIndex)
+        for (u32 meshIndex = 0; meshIndex < m_impl->model.meshes.size(); ++meshIndex)
         {
-            const auto& gltfMesh = m_model.meshes[meshIndex];
+            const auto& gltfMesh = m_impl->model.meshes[meshIndex];
 
             name.clear().append(gltfMesh.name);
 
-            m_importModels.push_back({
+            m_impl->importModels.push_back({
                 .mesh = meshIndex,
                 .nodeIndex = u32(preview.nodes.size()),
-                .primitiveBegin = u32(m_importMeshes.size()),
+                .primitiveBegin = u32(m_impl->importMeshes.size()),
             });
 
             preview.nodes.emplace_back(resource_type<model>, name.as<string>());
@@ -155,7 +181,7 @@ namespace oblo::importers
             {
                 name.clear().append(gltfMesh.name).format("#{}", meshIndex);
 
-                m_importMeshes.push_back({
+                m_impl->importMeshes.push_back({
                     .mesh = meshIndex,
                     .primitive = primitiveIndex,
                     .nodeIndex = u32(preview.nodes.size()),
@@ -165,15 +191,15 @@ namespace oblo::importers
             }
         }
 
-        m_importImages.reserve(m_model.images.size());
+        m_impl->importImages.reserve(m_impl->model.images.size());
 
         std::string stdStringBuf;
 
-        for (u32 imageIndex = 0; imageIndex < m_model.images.size(); ++imageIndex)
+        for (u32 imageIndex = 0; imageIndex < m_impl->model.images.size(); ++imageIndex)
         {
-            auto& gltfImage = m_model.images[imageIndex];
+            auto& gltfImage = m_impl->model.images[imageIndex];
 
-            auto& importImage = m_importImages.emplace_back();
+            auto& importImage = m_impl->importImages.emplace_back();
 
             if (gltfImage.uri.empty())
             {
@@ -195,24 +221,24 @@ namespace oblo::importers
             name.clear().append(stdStringBuf.c_str());
             preview.nodes.emplace_back(resource_type<texture>, name.as<string>());
 
-            name.clear().append(m_sourceFileDir).append_path(stdStringBuf.c_str());
+            name.clear().append(m_impl->sourceFileDir).append_path(stdStringBuf.c_str());
             subImport.sourceFile = name.as<string>();
         }
 
-        m_importMaterials.reserve(m_model.materials.size());
+        m_impl->importMaterials.reserve(m_impl->model.materials.size());
 
-        for (u32 materialIndex = 0; materialIndex < m_model.materials.size(); ++materialIndex)
+        for (u32 materialIndex = 0; materialIndex < m_impl->model.materials.size(); ++materialIndex)
         {
-            auto& gltfMaterial = m_model.materials[materialIndex];
-            m_importMaterials.emplace_back(preview.nodes.size32());
+            auto& gltfMaterial = m_impl->model.materials[materialIndex];
+            m_impl->importMaterials.emplace_back(preview.nodes.size32());
             preview.nodes.emplace_back(resource_type<material>, string{gltfMaterial.name.c_str()});
 
             const auto metallicRoughness = gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index;
 
             if (metallicRoughness >= 0 && metallicRoughness == gltfMaterial.occlusionTexture.index &&
-                usize(metallicRoughness) < m_importImages.size())
+                usize(metallicRoughness) < m_impl->importImages.size())
             {
-                auto& subImport = preview.children[m_importImages[metallicRoughness].subImportIndex];
+                auto& subImport = preview.children[m_impl->importImages[metallicRoughness].subImportIndex];
                 auto& settings = subImport.settings;
 
                 // When the texture is an ORM map, we drop the occlusion and swap roughness and metalness back
@@ -225,13 +251,13 @@ namespace oblo::importers
             }
         }
 
-        m_importHierarchies.reserve(m_model.scenes.size());
+        m_impl->importHierarchies.reserve(m_impl->model.scenes.size());
 
-        for (u32 sceneIndex = 0; sceneIndex < m_model.scenes.size(); ++sceneIndex)
+        for (u32 sceneIndex = 0; sceneIndex < m_impl->model.scenes.size(); ++sceneIndex)
         {
-            auto& gltfScene = m_model.scenes[sceneIndex];
+            auto& gltfScene = m_impl->model.scenes[sceneIndex];
 
-            m_importHierarchies.push_back({
+            m_impl->importHierarchies.push_back({
                 .nodeIndex = preview.nodes.size32(),
                 .sceneIndex = sceneIndex,
             });
@@ -261,12 +287,12 @@ namespace oblo::importers
         sources.reserve(32);
 
         dynamic_array<bool> usedBuffer;
-        usedBuffer.resize(m_model.buffers.size());
+        usedBuffer.resize(m_impl->model.buffers.size());
 
         const std::span importNodeConfigs = ctx.get_import_node_configs();
         const std::span importNodes = ctx.get_import_nodes();
 
-        for (usize i = 0; i < m_importImages.size(); ++i)
+        for (usize i = 0; i < m_impl->importImages.size(); ++i)
         {
             const std::span childNodes = ctx.get_child_import_nodes(i);
             const std::span childNodeConfigs = ctx.get_child_import_node_configs(i);
@@ -274,12 +300,12 @@ namespace oblo::importers
             if (childNodes.size() == 1 && childNodeConfigs[0].enabled &&
                 childNodes[0].artifactType == resource_type<texture>)
             {
-                auto& image = m_importImages[i];
+                auto& image = m_impl->importImages[i];
                 image.id = childNodeConfigs[0].id;
             }
         }
 
-        for (auto& material : m_importMaterials)
+        for (auto& material : m_impl->importMaterials)
         {
             const auto& nodeConfig = importNodeConfigs[material.nodeIndex];
 
@@ -290,15 +316,15 @@ namespace oblo::importers
 
             oblo::material materialArtifact;
 
-            const auto materialIndex = &material - m_importMaterials.data();
-            auto& gltfMaterial = m_model.materials[materialIndex];
+            const auto materialIndex = &material - m_impl->importMaterials.data();
+            auto& gltfMaterial = m_impl->model.materials[materialIndex];
 
             auto& pbr = gltfMaterial.pbrMetallicRoughness;
 
-            set_texture(materialArtifact, pbr::AlbedoTexture, pbr.baseColorTexture.index);
-            set_texture(materialArtifact, pbr::MetalnessRoughnessTexture, pbr.metallicRoughnessTexture.index);
-            set_texture(materialArtifact, pbr::NormalMapTexture, gltfMaterial.normalTexture.index);
-            set_texture(materialArtifact, pbr::EmissiveTexture, gltfMaterial.emissiveTexture.index);
+            m_impl->set_texture(materialArtifact, pbr::AlbedoTexture, pbr.baseColorTexture.index);
+            m_impl->set_texture(materialArtifact, pbr::MetalnessRoughnessTexture, pbr.metallicRoughnessTexture.index);
+            m_impl->set_texture(materialArtifact, pbr::NormalMapTexture, gltfMaterial.normalTexture.index);
+            m_impl->set_texture(materialArtifact, pbr::EmissiveTexture, gltfMaterial.emissiveTexture.index);
 
             materialArtifact.set_property<material_type_tag::linear_color>(pbr::Albedo,
                 get_vec3_or(pbr.baseColorFactor, vec3::splat(1.f)));
@@ -350,7 +376,7 @@ namespace oblo::importers
                 continue;
             }
 
-            m_artifacts.push_back({
+            m_impl->artifacts.push_back({
                 .id = nodeConfig.id,
                 .type = resource_type<oblo::material>,
                 .name = std::move(name),
@@ -360,7 +386,7 @@ namespace oblo::importers
             material.id = nodeConfig.id;
         }
 
-        for (const auto& model : m_importModels)
+        for (const auto& model : m_impl->importModels)
         {
             const auto& modelNodeConfig = importNodeConfigs[model.nodeIndex];
 
@@ -369,7 +395,7 @@ namespace oblo::importers
                 continue;
             }
 
-            const auto& gltfMesh = m_model.meshes[model.mesh];
+            const auto& gltfMesh = m_impl->model.meshes[model.mesh];
 
             oblo::model modelAsset;
 
@@ -379,7 +405,7 @@ namespace oblo::importers
 
             for (u32 meshIndex = model.primitiveBegin; meshIndex < model.primitiveBegin + numPrimitives; ++meshIndex)
             {
-                const auto& mesh = m_importMeshes[meshIndex];
+                const auto& mesh = m_impl->importMeshes[meshIndex];
                 const auto& meshNodeConfig = importNodeConfigs[mesh.nodeIndex];
 
                 if (!meshNodeConfig.enabled)
@@ -387,12 +413,12 @@ namespace oblo::importers
                     continue;
                 }
 
-                const auto& primitive = m_model.meshes[mesh.mesh].primitives[mesh.primitive];
+                const auto& primitive = m_impl->model.meshes[mesh.mesh].primitives[mesh.primitive];
 
                 oblo::mesh srcMesh;
 
                 if (!load_mesh(srcMesh,
-                        m_model,
+                        m_impl->model,
                         primitive,
                         attributes,
                         sources,
@@ -422,7 +448,7 @@ namespace oblo::importers
 
                 modelAsset.meshes.emplace_back(meshNodeConfig.id);
                 modelAsset.materials.emplace_back(
-                    primitive.material >= 0 ? m_importMaterials[primitive.material].id : uuid{});
+                    primitive.material >= 0 ? m_impl->importMaterials[primitive.material].id : uuid{});
 
                 string_builder outputPath;
 
@@ -432,7 +458,7 @@ namespace oblo::importers
                     continue;
                 }
 
-                m_artifacts.push_back({
+                m_impl->artifacts.push_back({
                     .id = meshNodeConfig.id,
                     .type = resource_type<oblo::mesh>,
                     .name = importNodes[mesh.nodeIndex].name,
@@ -448,20 +474,20 @@ namespace oblo::importers
                 continue;
             }
 
-            m_artifacts.push_back({
+            m_impl->artifacts.push_back({
                 .id = modelNodeConfig.id,
                 .type = resource_type<oblo::model>,
                 .name = importNodes[model.nodeIndex].name,
                 .path = outputPath.as<string>(),
             });
 
-            if (m_importModels.size() == 1)
+            if (m_impl->importModels.size() == 1)
             {
-                m_mainArtifactHint = modelNodeConfig.id;
+                m_impl->mainArtifactHint = modelNodeConfig.id;
             }
         }
 
-        for (const auto& hierarchy : m_importHierarchies)
+        for (const auto& hierarchy : m_impl->importHierarchies)
         {
             const auto& hierarchyNodeConfig = importNodeConfigs[hierarchy.nodeIndex];
 
@@ -488,7 +514,7 @@ namespace oblo::importers
 
             deque<stack_info> stack;
 
-            const auto& gltfScene = m_model.scenes[hierarchy.sceneIndex];
+            const auto& gltfScene = m_impl->model.scenes[hierarchy.sceneIndex];
 
             for (auto node : gltfScene.nodes)
             {
@@ -500,7 +526,7 @@ namespace oblo::importers
                 const auto [parent, nodeIndex] = stack.back();
                 stack.pop_back();
 
-                auto& node = m_model.nodes[nodeIndex];
+                auto& node = m_impl->model.nodes[nodeIndex];
 
                 vec3 translation = vec3::splat(0.f);
                 quaternion rotation = quaternion::identity();
@@ -537,10 +563,10 @@ namespace oblo::importers
                 {
                     const usize modelIndex = usize(node.mesh);
 
-                    if (modelIndex < m_importModels.size())
+                    if (modelIndex < m_impl->importModels.size())
                     {
-                        auto& model = m_importModels[modelIndex];
-                        auto& gltfMesh = m_model.meshes[model.mesh];
+                        auto& model = m_impl->importModels[modelIndex];
+                        auto& gltfMesh = m_impl->model.meshes[model.mesh];
 
                         const auto numPrimitives = gltfMesh.primitives.size();
 
@@ -554,15 +580,16 @@ namespace oblo::importers
                                 quaternion::identity(),
                                 vec3::splat(1.f));
 
-                            const auto& importMesh = m_importMeshes[meshIndex];
+                            const auto& importMesh = m_impl->importMeshes[meshIndex];
                             const auto& meshNodeConfig = importNodeConfigs[importMesh.nodeIndex];
 
-                            const auto& primitive = m_model.meshes[importMesh.mesh].primitives[importMesh.primitive];
+                            const auto& primitive =
+                                m_impl->model.meshes[importMesh.mesh].primitives[importMesh.primitive];
 
                             auto& sm = reg.get<static_mesh_component>(m);
                             sm.mesh = resource_ref<mesh>{meshNodeConfig.id};
                             sm.material = resource_ref<material>{
-                                primitive.material >= 0 ? m_importMaterials[primitive.material].id : uuid{}};
+                                primitive.material >= 0 ? m_impl->importMaterials[primitive.material].id : uuid{}};
                         }
                     }
                 }
@@ -582,16 +609,16 @@ namespace oblo::importers
                 continue;
             }
 
-            m_artifacts.push_back({
+            m_impl->artifacts.push_back({
                 .id = hierarchyNodeConfig.id,
                 .type = resource_type<oblo::entity_hierarchy>,
                 .name = importNodes[hierarchy.nodeIndex].name,
                 .path = outputPath.as<string>(),
             });
 
-            if (m_importHierarchies.size() == 1)
+            if (m_impl->importHierarchies.size() == 1)
             {
-                m_mainArtifactHint = hierarchyNodeConfig.id;
+                m_impl->mainArtifactHint = hierarchyNodeConfig.id;
             }
         }
 
@@ -601,18 +628,18 @@ namespace oblo::importers
         {
             if (usedBuffer[i])
             {
-                auto& buffer = m_model.buffers[i];
+                auto& buffer = m_impl->model.buffers[i];
 
                 if (buffer.uri.empty() || buffer.uri.starts_with("data:"))
                 {
                     continue;
                 }
 
-                bufferPathBuilder.clear().append(m_sourceFileDir).append_path(buffer.uri);
+                bufferPathBuilder.clear().append(m_impl->sourceFileDir).append_path(buffer.uri);
 
                 if (filesystem::exists(bufferPathBuilder).value_or(false))
                 {
-                    m_sourceFiles.emplace_back(bufferPathBuilder.as<string>());
+                    m_impl->sourceFiles.emplace_back(bufferPathBuilder.as<string>());
                 }
             }
         }
@@ -623,18 +650,9 @@ namespace oblo::importers
     file_import_results gltf::get_results()
     {
         return {
-            .artifacts = m_artifacts,
-            .sourceFiles = m_sourceFiles,
-            .mainArtifactHint = m_mainArtifactHint,
+            .artifacts = m_impl->artifacts,
+            .sourceFiles = m_impl->sourceFiles,
+            .mainArtifactHint = m_impl->mainArtifactHint,
         };
-    }
-
-    void gltf::set_texture(material& m, hashed_string_view propertyName, int textureIndex) const
-    {
-        if (const auto imageIndex = find_image_from_texture(m_model, textureIndex);
-            imageIndex >= 0 && usize(imageIndex) < m_importImages.size() && !m_importImages[imageIndex].id.is_nil())
-        {
-            m.set_property(propertyName, resource_ref<texture>(m_importImages[imageIndex].id));
-        }
     }
 }
