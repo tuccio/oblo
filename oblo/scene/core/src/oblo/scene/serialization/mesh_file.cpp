@@ -9,16 +9,31 @@
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/math/vec4.hpp>
+#include <oblo/properties/serialization/common.hpp>
 #include <oblo/scene/resources/mesh.hpp>
 
+#define TINYGLTF_USE_RAPIDJSON_CRTALLOCATOR
+#define TINYGLTF_USE_RAPIDJSON
+#define TINYGLTF_NO_INCLUDE_RAPIDJSON
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+
+#include <rapidjson/document.h>
+#include <rapidjson/prettywriter.h>
+#include <rapidjson/rapidjson.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 
 #include <tiny_gltf.h>
 
 #include <fstream>
 #include <span>
+
+// Unfortunately tiny_gltf includes Windows.h
+#ifdef GetObject
+    #undef GetObject
+#endif
 
 namespace oblo
 {
@@ -758,13 +773,34 @@ namespace oblo
 
             if (const auto& extra = model.meshes[0].extras_json_string; !extra.empty())
             {
+                /* data_document doc;
+
+                 if (json::read_from_memory(doc, extra.c_str()))
+                 {
+                     const auto minNode = doc.find_child(doc.get_root(), "min"_hsv);
+                     const auto maxNode = doc.find_child(doc.get_root(), "max"_hsv);
+
+                     doc.read
+                 }
+
+                 const auto json = tinygltf::detail::json::parse(extra, nullptr, false);
+                 */
+
+                tinygltf::detail::json json;
+
+                rapidjson::StringStream ss{extra.c_str()};
+
+                rapidjson::GenericDocument<tinygltf::detail::json::EncodingType,
+                    rapidjson::CrtAllocator,
+                    rapidjson::CrtAllocator>
+                    doc;
+
+                doc.ParseStream(ss);
+
                 using tinygltf::Value;
-
-                const auto json = tinygltf::detail::json::parse(extra, nullptr, false);
-
                 Value extraValue;
 
-                if (!json.is_discarded() && tinygltf::ParseJsonAsValue(&extraValue, json))
+                if (doc.IsObject() && tinygltf::ParseJsonAsValue(&extraValue, doc.GetObject()))
                 {
                     auto& aabbValue = extraValue.Get(ExtraAabb);
 
