@@ -17,6 +17,7 @@ target_link_libraries(
     oblo::properties
     rapidjson
     KTX::ktx
+    TinyGLTF::Defines
     TinyGLTF::TinyGLTF
     Vulkan::Headers
 )

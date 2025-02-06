@@ -17,6 +17,7 @@ target_link_libraries(
     oblo::thread
     assimp::assimp
     meshoptimizer::meshoptimizer
+    TinyGLTF::Defines
     TinyGLTF::TinyGLTF
     stb::stb
 )

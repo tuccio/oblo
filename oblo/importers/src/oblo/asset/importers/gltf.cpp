@@ -1,6 +1,3 @@
-#define TINYGLTF_IMPLEMENTATION
-#define TINYGLTF_NO_EXTERNAL_IMAGE
-
 #include <oblo/asset/importers/gltf.hpp>
 
 #include <oblo/asset/import/import_artifact.hpp>
@@ -31,7 +28,7 @@
 #include <oblo/scene/utility/ecs_utility.hpp>
 #include <oblo/thread/parallel_for.hpp>
 
-#include <tiny_gltf.h>
+#include <tinygltf/implementation.hpp>
 
 namespace oblo::importers
 {

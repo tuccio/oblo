@@ -12,20 +12,7 @@
 #include <oblo/properties/serialization/common.hpp>
 #include <oblo/scene/resources/mesh.hpp>
 
-#define TINYGLTF_USE_RAPIDJSON_CRTALLOCATOR
-#define TINYGLTF_USE_RAPIDJSON
-#define TINYGLTF_NO_INCLUDE_RAPIDJSON
-#define TINYGLTF_IMPLEMENTATION
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-
-#include <rapidjson/document.h>
-#include <rapidjson/prettywriter.h>
-#include <rapidjson/rapidjson.h>
-#include <rapidjson/stringbuffer.h>
-#include <rapidjson/writer.h>
-
-#include <tiny_gltf.h>
+#include <tinygltf/implementation.hpp>
 
 #include <fstream>
 #include <span>
@@ -773,19 +760,6 @@ namespace oblo
 
             if (const auto& extra = model.meshes[0].extras_json_string; !extra.empty())
             {
-                /* data_document doc;
-
-                 if (json::read_from_memory(doc, extra.c_str()))
-                 {
-                     const auto minNode = doc.find_child(doc.get_root(), "min"_hsv);
-                     const auto maxNode = doc.find_child(doc.get_root(), "max"_hsv);
-
-                     doc.read
-                 }
-
-                 const auto json = tinygltf::detail::json::parse(extra, nullptr, false);
-                 */
-
                 tinygltf::detail::json json;
 
                 rapidjson::StringStream ss{extra.c_str()};
