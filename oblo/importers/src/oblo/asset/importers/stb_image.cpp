@@ -218,6 +218,25 @@ namespace oblo::importers
             return true;
         }
 
+        texture_format choose_format(int channels, bool isHDR)
+        {
+            constexpr texture_format u8Formats[] = {
+                texture_format::r8_unorm,
+                texture_format::r8g8_unorm,
+                texture_format::r8g8b8_unorm,
+                texture_format::r8g8b8a8_unorm,
+            };
+
+            constexpr texture_format f32Formats[] = {
+                texture_format::r32_sfloat,
+                texture_format::r32g32_sfloat,
+                texture_format::r32g32b32_sfloat,
+                texture_format::r32g32b32a32_sfloat,
+            };
+
+            return isHDR ? f32Formats[channels - 1] : u8Formats[channels - 1];
+        }
+
         using image_ptr = std::unique_ptr<u8[], decltype([](u8* ptr) { free(ptr); })>;
 
         image_ptr load_from_file(cstring_view path, int& w, int& h, int& channels, bool isHDR)
@@ -231,6 +250,23 @@ namespace oblo::importers
             else
             {
                 ptr.reset(stbi_load(path.c_str(), &w, &h, &channels, STBI_default));
+            }
+
+            return ptr;
+        }
+
+        image_ptr load_from_memory(const u8* buffer, int bytes, int& w, int& h, int& channels, bool isHDR)
+        {
+            image_ptr ptr;
+
+            if (isHDR)
+            {
+                ptr.reset(
+                    reinterpret_cast<stbi_uc*>(stbi_loadf_from_memory(buffer, bytes, &w, &h, &channels, STBI_default)));
+            }
+            else
+            {
+                ptr.reset(stbi_load_from_memory(buffer, bytes, &w, &h, &channels, STBI_default));
             }
 
             return ptr;
@@ -331,25 +367,11 @@ namespace oblo::importers
             channels = int(swizzleCount);
         }
 
+        const auto textureFormat = choose_format(channels, isHDR);
+
         texture t;
 
-        constexpr texture_format u8Formats[] = {
-            texture_format::r8_unorm,
-            texture_format::r8g8_unorm,
-            texture_format::r8g8b8_unorm,
-            texture_format::r8g8b8a8_unorm,
-        };
-
-        constexpr texture_format f32Formats[] = {
-            texture_format::r32_sfloat,
-            texture_format::r32g32_sfloat,
-            texture_format::r32g32b32_sfloat,
-            texture_format::r32g32b32a32_sfloat,
-        };
-
-        const texture_format vkFormat = isHDR ? f32Formats[channels - 1] : u8Formats[channels - 1];
-
-        if (!load_to_texture(t, image.get(), w, h, vkFormat))
+        if (!load_to_texture(t, image.get(), w, h, textureFormat))
         {
             return false;
         }
@@ -378,5 +400,24 @@ namespace oblo::importers
             .sourceFiles = {&m_source, count},
             .mainArtifactHint = m_result.id,
         };
+    }
+
+    bool stb_image::read_from_memory(texture& outTexture, bool isHDR, std::span<const byte> data)
+    {
+        int w, h, channels;
+
+        image_ptr image =
+            load_from_memory(reinterpret_cast<const u8*>(data.data()), int(data.size_bytes()), w, h, channels, isHDR);
+
+        if (!image)
+        {
+            return false;
+        }
+
+        const auto textureFormat = choose_format(channels, isHDR);
+
+        texture t;
+
+        return load_to_texture(t, image.get(), w, h, textureFormat);
     }
 }

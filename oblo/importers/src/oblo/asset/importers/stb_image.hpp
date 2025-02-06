@@ -19,6 +19,9 @@ namespace oblo::importers
         bool import(import_context context);
         file_import_results get_results();
 
+    public:
+        static bool read_from_memory(texture& outTexture, bool isHDR, std::span<const byte> data);
+
     private:
         string m_source;
         import_artifact m_result{};

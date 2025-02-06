@@ -7,6 +7,8 @@
 #include <oblo/asset/import/import_context.hpp>
 #include <oblo/asset/processing/mesh_processing.hpp>
 #include <oblo/core/debug.hpp>
+#include <oblo/core/deque.hpp>
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/type_id.hpp>
@@ -62,8 +64,15 @@ namespace oblo::importers
 
         struct import_image
         {
+            embedded_image* embeddedImage{};
             usize subImportIndex;
             uuid id;
+        };
+
+        struct embedded_image
+        {
+            u32 imageIndex;
+            std::span<const byte> data;
         };
 
         int find_image_from_texture(const tinygltf::Model& model, int textureIndex)
@@ -92,7 +101,6 @@ namespace oblo::importers
                 return fallback;
             }
         }
-
     }
 
     struct gltf::impl
@@ -109,6 +117,8 @@ namespace oblo::importers
         dynamic_array<string> sourceFiles;
         string_builder sourceFileDir;
         uuid mainArtifactHint{};
+
+        deque<embedded_image> embeddedImages;
 
         void set_texture(material& m, hashed_string_view propertyName, int textureIndex) const
         {
@@ -140,6 +150,30 @@ namespace oblo::importers
         std::string warnings;
 
         bool success;
+
+        // Currently we import embedded textures with STB, another option would be saving them to the temporary
+        // directory and using the regular file importer infrastructure to import.
+        m_impl->loader.SetImageLoader(
+            [](tinygltf::Image*,
+                int imageIndex,
+                std::string*,
+                std::string*,
+                int,
+                int,
+                const unsigned char* data,
+                int bytes,
+                void* userdata)
+            {
+                deque<embedded_image>& embeddedImages = *static_cast<deque<embedded_image>*>(userdata);
+
+                embeddedImages.push_back({
+                    .imageIndex = u32(imageIndex),
+                    .data = as_bytes(std::span{data, bytes}),
+                });
+
+                return true;
+            },
+            &m_impl->embeddedImages);
 
         if (sourceFileStr.ends_with(".glb"))
         {
@@ -202,38 +236,57 @@ namespace oblo::importers
             }
         }
 
-        m_impl->importImages.reserve(m_impl->model.images.size());
+        m_impl->importImages.resize(m_impl->model.images.size());
+
+        for (auto& embeddedImage : m_impl->embeddedImages)
+        {
+            m_impl->importImages[embeddedImage.imageIndex].embeddedImage = &embeddedImage;
+        }
 
         std::string stdStringBuf;
 
         for (u32 imageIndex = 0; imageIndex < m_impl->model.images.size(); ++imageIndex)
         {
             auto& gltfImage = m_impl->model.images[imageIndex];
+            auto& importImage = m_impl->importImages[imageIndex];
 
-            auto& importImage = m_impl->importImages.emplace_back();
-
-            if (gltfImage.uri.empty())
+            if (importImage.embeddedImage)
             {
-                log::warn("A texture was skipped because URI is not set, maybe it's embedded in the GLTF but this is "
-                          "not supported currently.");
-
-                continue;
+                if (gltfImage.name.empty())
+                {
+                    nameBuilder.clear().format("Image#{}", imageIndex);
+                }
+                else
+                {
+                    nameBuilder = gltfImage.name;
+                }
             }
-
-            if (!tinygltf::URIDecode(gltfImage.uri, &stdStringBuf, nullptr))
+            else
             {
-                log::error("Failed to decode URI {}", gltfImage.uri);
-                continue;
+                if (gltfImage.uri.empty())
+                {
+                    log::warn(
+                        "A texture was skipped because URI is not set, maybe it's embedded in the GLTF but this is "
+                        "not supported currently.");
+
+                    continue;
+                }
+
+                if (!tinygltf::URIDecode(gltfImage.uri, &stdStringBuf, nullptr))
+                {
+                    log::error("Failed to decode URI {}", gltfImage.uri);
+                    continue;
+                }
+
+                importImage.subImportIndex = preview.children.size();
+                auto& subImport = preview.children.emplace_back();
+
+                nameBuilder = stdStringBuf;
+                preview.nodes.emplace_back(resource_type<texture>, nameBuilder.as<string>());
+
+                nameBuilder.clear().append(m_impl->sourceFileDir).append_path(stdStringBuf.c_str());
+                subImport.sourceFile = nameBuilder.as<string>();
             }
-
-            importImage.subImportIndex = preview.children.size();
-            auto& subImport = preview.children.emplace_back();
-
-            nameBuilder = stdStringBuf;
-            preview.nodes.emplace_back(resource_type<texture>, nameBuilder.as<string>());
-
-            nameBuilder.clear().append(m_impl->sourceFileDir).append_path(stdStringBuf.c_str());
-            subImport.sourceFile = nameBuilder.as<string>();
         }
 
         m_impl->importMaterials.reserve(m_impl->model.materials.size());
@@ -249,7 +302,15 @@ namespace oblo::importers
             if (metallicRoughness >= 0 && metallicRoughness == gltfMaterial.occlusionTexture.index &&
                 usize(metallicRoughness) < m_impl->importImages.size())
             {
-                auto& subImport = preview.children[m_impl->importImages[metallicRoughness].subImportIndex];
+                auto& importImage = m_impl->importImages[metallicRoughness];
+
+                if (importImage.embeddedImage)
+                {
+                    // TODO
+                    continue;
+                }
+
+                auto& subImport = preview.children[importImage.subImportIndex];
                 auto& settings = subImport.settings;
 
                 // When the texture is an ORM map, we drop the occlusion and swap roughness and metalness back
