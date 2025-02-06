@@ -38,10 +38,10 @@ namespace oblo::vk
     namespace
     {
         // TODO: Remove the limitation, instead allocate 1 buffer and sub-allocate it with fixed size batches
-        constexpr u32 MaxVerticesPerBatch{4 << 20};
-        constexpr u32 MaxIndicesPerBatch{4 << 20};
-        constexpr u32 MaxMeshesPerBatch{4 << 10};
-        constexpr u32 MaxMeshletsPerBatch{MaxMeshesPerBatch};
+        constexpr u32 MaxVerticesPerBatch{1u << 24};
+        constexpr u32 MaxIndicesPerBatch{1u << 28};
+        constexpr u32 MaxMeshesPerBatch{1u << 14};
+        constexpr u32 MaxMeshletsPerBatch{1u << 20};
 
         constexpr u32 MaxAttributesCount{u32(attribute_kind::enum_max)};
         using buffer_columns = std::array<buffer_column_description, MaxAttributesCount>;
