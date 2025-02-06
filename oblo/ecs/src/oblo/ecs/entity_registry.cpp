@@ -33,7 +33,7 @@ namespace oblo::ecs
     {
         OBLO_ASSERT(m_typeRegistry);
 
-        m_pool = std::make_unique<memory_pool>();
+        m_pool = allocate_unique<memory_pool>();
     }
 
     entity_registry::entity_registry(entity_registry&&) noexcept = default;

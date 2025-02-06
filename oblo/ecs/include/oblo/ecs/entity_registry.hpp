@@ -1,14 +1,15 @@
 #pragma once
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/core/handle_pool.hpp>
 #include <oblo/core/type_id.hpp>
+#include <oblo/core/unique_ptr.hpp>
 #include <oblo/ecs/handles.hpp>
 #include <oblo/ecs/traits.hpp>
 #include <oblo/ecs/type_set.hpp>
 #include <oblo/ecs/utility/filter_components.hpp>
 
-#include <memory>
 #include <tuple>
 
 namespace oblo::ecs
@@ -171,9 +172,9 @@ namespace oblo::ecs
 
     private:
         type_registry* m_typeRegistry{nullptr};
-        std::unique_ptr<memory_pool> m_pool;
+        unique_ptr<memory_pool> m_pool;
         entities_map m_entities;
-        std::vector<archetype_storage> m_componentsStorage;
+        dynamic_array<archetype_storage> m_componentsStorage;
         u64 m_modificationId{};
     };
 
