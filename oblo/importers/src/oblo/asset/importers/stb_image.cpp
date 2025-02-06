@@ -29,19 +29,22 @@ namespace oblo::importers
         {
             const u32 width = u32(w);
             const u32 height = u32(h);
-            const u32 numLevels = log2_round_down_power_of_two(min(width, height));
+            const u32 numLevels = max(1u, log2_round_down_power_of_two(min(width, height)));
 
-            out.allocate({
-                .vkFormat = vkFormat,
-                .width = u32(w),
-                .height = u32(h),
-                .depth = 1,
-                .dimensions = 2,
-                .numLevels = numLevels,
-                .numLayers = 1,
-                .numFaces = 1,
-                .isArray = false,
-            });
+            if (!out.allocate({
+                    .vkFormat = vkFormat,
+                    .width = u32(w),
+                    .height = u32(h),
+                    .depth = 1,
+                    .dimensions = 2,
+                    .numLevels = numLevels,
+                    .numLayers = 1,
+                    .numFaces = 1,
+                    .isArray = false,
+                }))
+            {
+                return false;
+            }
 
             const auto highestMip = out.get_data(0, 0, 0);
             std::memcpy(highestMip.data(), image, highestMip.size());
@@ -135,17 +138,20 @@ namespace oblo::importers
                 // Convert RGB8 to RGBA8
                 texture withAlpha;
 
-                withAlpha.allocate({
-                    .vkFormat = texture_format::r8g8b8a8_unorm,
-                    .width = u32(w),
-                    .height = u32(h),
-                    .depth = 1,
-                    .dimensions = 2,
-                    .numLevels = numLevels,
-                    .numLayers = 1,
-                    .numFaces = 1,
-                    .isArray = false,
-                });
+                if (!withAlpha.allocate({
+                        .vkFormat = texture_format::r8g8b8a8_unorm,
+                        .width = u32(w),
+                        .height = u32(h),
+                        .depth = 1,
+                        .dimensions = 2,
+                        .numLevels = numLevels,
+                        .numLayers = 1,
+                        .numFaces = 1,
+                        .isArray = false,
+                    }))
+                {
+                    return false;
+                }
 
                 for (u32 mipLevel = 0; mipLevel < numLevels; ++mipLevel)
                 {
@@ -177,17 +183,20 @@ namespace oblo::importers
                 // Convert RGB32F to RGBA32F
                 texture withAlpha;
 
-                withAlpha.allocate({
-                    .vkFormat = texture_format::r32g32b32a32_sfloat,
-                    .width = u32(w),
-                    .height = u32(h),
-                    .depth = 1,
-                    .dimensions = 2,
-                    .numLevels = numLevels,
-                    .numLayers = 1,
-                    .numFaces = 1,
-                    .isArray = false,
-                });
+                if (!withAlpha.allocate({
+                        .vkFormat = texture_format::r32g32b32a32_sfloat,
+                        .width = u32(w),
+                        .height = u32(h),
+                        .depth = 1,
+                        .dimensions = 2,
+                        .numLevels = numLevels,
+                        .numLayers = 1,
+                        .numFaces = 1,
+                        .isArray = false,
+                    }))
+                {
+                    return false;
+                }
 
                 for (u32 mipLevel = 0; mipLevel < numLevels; ++mipLevel)
                 {
@@ -400,24 +409,5 @@ namespace oblo::importers
             .sourceFiles = {&m_source, count},
             .mainArtifactHint = m_result.id,
         };
-    }
-
-    bool stb_image::read_from_memory(texture& outTexture, bool isHDR, std::span<const byte> data)
-    {
-        int w, h, channels;
-
-        image_ptr image =
-            load_from_memory(reinterpret_cast<const u8*>(data.data()), int(data.size_bytes()), w, h, channels, isHDR);
-
-        if (!image)
-        {
-            return false;
-        }
-
-        const auto textureFormat = choose_format(channels, isHDR);
-
-        texture t;
-
-        return load_to_texture(t, image.get(), w, h, textureFormat);
     }
 }

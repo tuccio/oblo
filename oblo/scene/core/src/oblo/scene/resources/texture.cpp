@@ -48,7 +48,7 @@ namespace oblo
         deallocate();
     }
 
-    bool texture::allocate(const texture_desc& desc)
+    expected<> texture::allocate(const texture_desc& desc)
     {
         deallocate();
 
@@ -72,11 +72,11 @@ namespace oblo
 
         if (err != ktx_error_code_e::KTX_SUCCESS)
         {
-            return false;
+            return unspecified_error;
         }
 
         m_impl = to_impl(newKtx);
-        return true;
+        return no_error;
     }
 
     void texture::deallocate()
@@ -157,19 +157,19 @@ namespace oblo
         return ktxTexture_GetElementSize(to_ktx(m_impl));
     }
 
-    bool texture::save(cstring_view path) const
+    expected<> texture::save(cstring_view path) const
     {
         const filesystem::file_ptr f{filesystem::open_file(path, "wb")};
 
-        if (!f)
+        if (!f || KTX_SUCCESS != ktxTexture_WriteToStdioStream(to_ktx(m_impl), f.get()))
         {
-            return false;
+            return unspecified_error;
         }
 
-        return KTX_SUCCESS == ktxTexture_WriteToStdioStream(to_ktx(m_impl), f.get());
+        return no_error;
     }
 
-    bool texture::load(cstring_view path)
+    expected<> texture::load(cstring_view path)
     {
         deallocate();
 
@@ -179,7 +179,7 @@ namespace oblo
 
         if (!f)
         {
-            return false;
+            return unspecified_error;
         }
 
         const auto err = ktxTexture_CreateFromStdioStream(f.get(),
@@ -188,12 +188,12 @@ namespace oblo
 
         if (err != KTX_SUCCESS)
         {
-            return false;
+            return unspecified_error;
         }
 
         m_impl = to_impl(newKtx);
 
-        return true;
+        return no_error;
     }
 
     texture_desc texture::get_description() const

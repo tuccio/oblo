@@ -9,6 +9,7 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/core/deque.hpp>
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/filesystem/file.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/type_id.hpp>
@@ -36,6 +37,12 @@ namespace oblo::importers
 {
     namespace
     {
+        struct embedded_image
+        {
+            u32 imageIndex;
+            string sourceFile;
+        };
+
         struct import_hierarchy
         {
             u32 nodeIndex;
@@ -64,15 +71,9 @@ namespace oblo::importers
 
         struct import_image
         {
-            embedded_image* embeddedImage{};
+            const embedded_image* embeddedImage{};
             usize subImportIndex;
             uuid id;
-        };
-
-        struct embedded_image
-        {
-            u32 imageIndex;
-            std::span<const byte> data;
         };
 
         int find_image_from_texture(const tinygltf::Model& model, int textureIndex)
@@ -146,15 +147,21 @@ namespace oblo::importers
 
         filesystem::parent_path(m_impl->sourceFiles[0], m_impl->sourceFileDir);
 
-        std::string errors;
-        std::string warnings;
+        struct image_load_args
+        {
+            string_builder pathBuilder;
+            deque<embedded_image>& embeddedImages;
+            cstring_view workDir;
+        };
 
-        bool success;
+        image_load_args imageLoadArgs{
+            .embeddedImages = m_impl->embeddedImages,
+            .workDir = config.workDir,
+        };
 
-        // Currently we import embedded textures with STB, another option would be saving them to the temporary
-        // directory and using the regular file importer infrastructure to import.
+        // The current approach is to write these images to disk, so we can use the regular sub-import infrastructure.
         m_impl->loader.SetImageLoader(
-            [](tinygltf::Image*,
+            [](tinygltf::Image* image,
                 int imageIndex,
                 std::string*,
                 std::string*,
@@ -164,16 +171,42 @@ namespace oblo::importers
                 int bytes,
                 void* userdata)
             {
-                deque<embedded_image>& embeddedImages = *static_cast<deque<embedded_image>*>(userdata);
+                image_load_args& args = *static_cast<image_load_args*>(userdata);
 
-                embeddedImages.push_back({
+                args.pathBuilder.clear().append(args.workDir);
+
+                if (image->name.empty())
+                {
+                    args.pathBuilder.append_path_separator().format("Image{}", imageIndex);
+                }
+                else
+                {
+                    args.pathBuilder.append_path(image->name);
+                }
+
+                const string_view mime = image->mimeType;
+
+                if (auto slashIdx = mime.find_first_of('/'); slashIdx != string_view::npos)
+                {
+                    args.pathBuilder.append(".").append(image->mimeType.substr(slashIdx + 1));
+                }
+
+                args.embeddedImages.push_back({
                     .imageIndex = u32(imageIndex),
-                    .data = as_bytes(std::span{data, bytes}),
+                    .sourceFile = args.pathBuilder.as<string>(),
                 });
 
-                return true;
+                return filesystem::write_file(args.pathBuilder,
+                    as_bytes(std::span{data, usize(bytes)}),
+                    filesystem::write_mode::binary)
+                    .has_value();
             },
-            &m_impl->embeddedImages);
+            &imageLoadArgs);
+
+        bool success;
+
+        std::string errors;
+        std::string warnings;
 
         if (sourceFileStr.ends_with(".glb"))
         {
@@ -278,15 +311,24 @@ namespace oblo::importers
                     continue;
                 }
 
-                importImage.subImportIndex = preview.children.size();
-                auto& subImport = preview.children.emplace_back();
-
                 nameBuilder = stdStringBuf;
-                preview.nodes.emplace_back(resource_type<texture>, nameBuilder.as<string>());
-
-                nameBuilder.clear().append(m_impl->sourceFileDir).append_path(stdStringBuf.c_str());
-                subImport.sourceFile = nameBuilder.as<string>();
             }
+
+            importImage.subImportIndex = preview.children.size();
+            auto& subImport = preview.children.emplace_back();
+
+            preview.nodes.emplace_back(resource_type<texture>, nameBuilder.as<string>());
+
+            if (importImage.embeddedImage)
+            {
+                nameBuilder = importImage.embeddedImage->sourceFile;
+            }
+            else
+            {
+                nameBuilder.clear().append(m_impl->sourceFileDir).append_path(stdStringBuf.c_str());
+            }
+
+            subImport.sourceFile = nameBuilder.as<string>();
         }
 
         m_impl->importMaterials.reserve(m_impl->model.materials.size());
@@ -303,12 +345,6 @@ namespace oblo::importers
                 usize(metallicRoughness) < m_impl->importImages.size())
             {
                 auto& importImage = m_impl->importImages[metallicRoughness];
-
-                if (importImage.embeddedImage)
-                {
-                    // TODO
-                    continue;
-                }
 
                 auto& subImport = preview.children[importImage.subImportIndex];
                 auto& settings = subImport.settings;

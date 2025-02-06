@@ -2,6 +2,7 @@ oblo_add_library(scene MODULE)
 
 find_package(ktx REQUIRED)
 find_package(tinygltf REQUIRED)
+find_package(VulkanHeaders REQUIRED)
 
 target_link_libraries(
     oblo_scene
@@ -15,6 +16,7 @@ target_link_libraries(
     oblo::properties
     KTX::ktx
     TinyGLTF::TinyGLTF
+    Vulkan::Headers
 )
 
 target_link_libraries(

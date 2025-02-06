@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/expected.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/uuid.hpp>
@@ -38,7 +39,7 @@ namespace oblo
 
         ~texture();
 
-        bool allocate(const texture_desc& desc);
+        expected<> allocate(const texture_desc& desc);
         void deallocate();
 
         vec2u get_resolution() const;
@@ -54,8 +55,8 @@ namespace oblo
         /// @brief Retrieves the element size, i.e. the texel for uncompressed textures, the block otherwise.
         u32 get_element_size() const;
 
-        bool save(cstring_view path) const;
-        bool load(cstring_view path);
+        expected<> save(cstring_view path) const;
+        expected<> load(cstring_view path);
 
         texture_desc get_description() const;
 

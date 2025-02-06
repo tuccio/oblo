@@ -110,10 +110,12 @@ namespace oblo
 
         m_assetId = assetId;
         m_isReimport = isReimport;
+        m_temporaryPath = workDir;
 
         for (usize i = 0; i < m_fileImports.size(); ++i)
         {
             auto& fi = m_fileImports[i];
+            fi.config.workDir = m_temporaryPath;
 
             if (!fi.importer || !fi.importer->init(fi.config, fi.preview))
             {
@@ -136,7 +138,6 @@ namespace oblo
             }
         }
 
-        m_temporaryPath = workDir;
         return true;
     }
 
