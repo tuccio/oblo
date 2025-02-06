@@ -329,6 +329,7 @@ namespace oblo::importers
             }
 
             subImport.sourceFile = nameBuilder.as<string>();
+            subImport.skipSourceFiles = true;
         }
 
         m_impl->importMaterials.reserve(m_impl->model.materials.size());

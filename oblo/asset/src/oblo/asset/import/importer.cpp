@@ -16,6 +16,7 @@
 #include <oblo/properties/serialization/data_document.hpp>
 #include <oblo/properties/serialization/json.hpp>
 #include <oblo/thread/parallel_for.hpp>
+#include <oblo/trace/profile.hpp>
 
 namespace oblo
 {
@@ -103,6 +104,9 @@ namespace oblo
 
     bool importer::init(const asset_registry_impl& registry, uuid assetId, cstring_view workDir, bool isReimport)
     {
+        OBLO_PROFILE_SCOPE();
+        OBLO_PROFILE_TAG(get_config().sourceFile);
+
         if (m_fileImports.size() != 1)
         {
             return false;
@@ -153,6 +157,9 @@ namespace oblo
 
     bool importer::execute(const data_document& importSettings)
     {
+        OBLO_PROFILE_SCOPE();
+        OBLO_PROFILE_TAG(get_config().sourceFile);
+
         if (!begin_import())
         {
             return false;
@@ -249,7 +256,10 @@ namespace oblo
         {
             const auto results = fid.importer->get_results();
 
-            sourceFiles.append(results.sourceFiles.begin(), results.sourceFiles.end());
+            if (!fid.config.skipSourceFiles)
+            {
+                sourceFiles.append(results.sourceFiles.begin(), results.sourceFiles.end());
+            }
 
             for (const import_artifact& artifact : results.artifacts)
             {
@@ -404,7 +414,7 @@ namespace oblo
             }
 
             pathBuilder.clear().append(importDir).append_path(filesystem::filename(sourceFile));
-            allSucceeded &= filesystem::copy_file(sourceFile, pathBuilder).assert_value_or(false);
+            allSucceeded &= filesystem::copy_file(sourceFile, pathBuilder).value_or(false);
         }
 
         pathBuilder.clear().append(importDir).append_path(g_importConfigName);
