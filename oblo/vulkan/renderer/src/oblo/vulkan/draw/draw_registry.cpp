@@ -401,6 +401,11 @@ namespace oblo::vk
             meshPtr->get_index_count(),
             meshPtr->get_meshlet_count());
 
+        if (!meshHandle)
+        {
+            return {};
+        }
+
         buffer indexBuffer{};
         buffer meshletsBuffer{};
         buffer vertexBuffers[u32(vertex_attributes::enum_max)];
