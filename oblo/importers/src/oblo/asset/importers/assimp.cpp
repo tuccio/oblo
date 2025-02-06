@@ -257,7 +257,7 @@ namespace oblo::importers
 
                     if (aiMesh->HasFaces())
                     {
-                        auto fillIndices = [aiMesh, indicesPerFace]<typename T>(std::span<T> indices)
+                        auto fillIndices = [aiMesh]<typename T>(std::span<T> indices)
                         {
                             auto outIt = indices.begin();
 

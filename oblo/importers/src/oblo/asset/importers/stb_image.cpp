@@ -263,23 +263,6 @@ namespace oblo::importers
 
             return ptr;
         }
-
-        image_ptr load_from_memory(const u8* buffer, int bytes, int& w, int& h, int& channels, bool isHDR)
-        {
-            image_ptr ptr;
-
-            if (isHDR)
-            {
-                ptr.reset(
-                    reinterpret_cast<stbi_uc*>(stbi_loadf_from_memory(buffer, bytes, &w, &h, &channels, STBI_default)));
-            }
-            else
-            {
-                ptr.reset(stbi_load_from_memory(buffer, bytes, &w, &h, &channels, STBI_default));
-            }
-
-            return ptr;
-        }
     }
 
     bool stb_image::init(const import_config& config, import_preview& preview)
