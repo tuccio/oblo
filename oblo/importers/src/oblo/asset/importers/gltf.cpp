@@ -42,15 +42,15 @@ namespace oblo::importers
 
         struct import_model
         {
-            u32 mesh;
+            u32 meshIndex;
             u32 nodeIndex;
             u32 primitiveBegin;
         };
 
         struct import_mesh
         {
-            u32 mesh;
-            u32 primitive;
+            u32 meshIndex;
+            u32 primitiveIndex;
             u32 nodeIndex;
         };
 
@@ -161,33 +161,44 @@ namespace oblo::importers
             return false;
         }
 
-        string_builder name;
+        string_builder nameBuilder;
+        string_builder primitiveNameBuilder;
 
         for (u32 meshIndex = 0; meshIndex < m_impl->model.meshes.size(); ++meshIndex)
         {
             const auto& gltfMesh = m_impl->model.meshes[meshIndex];
 
-            name.clear().append(gltfMesh.name);
+            nameBuilder.clear();
+
+            if (gltfMesh.name.empty())
+            {
+                nameBuilder.format("Model#{}", meshIndex);
+            }
+            else
+            {
+                nameBuilder = gltfMesh.name;
+            }
 
             m_impl->importModels.push_back({
-                .mesh = meshIndex,
+                .meshIndex = meshIndex,
                 .nodeIndex = u32(preview.nodes.size()),
                 .primitiveBegin = u32(m_impl->importMeshes.size()),
             });
 
-            preview.nodes.emplace_back(resource_type<model>, name.as<string>());
+            preview.nodes.emplace_back(resource_type<model>, nameBuilder.as<string>());
 
             for (u32 primitiveIndex = 0; primitiveIndex < gltfMesh.primitives.size(); ++primitiveIndex)
             {
-                name.clear().append(gltfMesh.name).format("#{}", meshIndex);
+                primitiveNameBuilder = nameBuilder;
+                primitiveNameBuilder.format("/Mesh#{}", primitiveIndex);
 
                 m_impl->importMeshes.push_back({
-                    .mesh = meshIndex,
-                    .primitive = primitiveIndex,
+                    .meshIndex = meshIndex,
+                    .primitiveIndex = primitiveIndex,
                     .nodeIndex = u32(preview.nodes.size()),
                 });
 
-                preview.nodes.emplace_back(resource_type<mesh>, name.as<string>());
+                preview.nodes.emplace_back(resource_type<mesh>, primitiveNameBuilder.as<string>());
             }
         }
 
@@ -218,11 +229,11 @@ namespace oblo::importers
             importImage.subImportIndex = preview.children.size();
             auto& subImport = preview.children.emplace_back();
 
-            name.clear().append(stdStringBuf.c_str());
-            preview.nodes.emplace_back(resource_type<texture>, name.as<string>());
+            nameBuilder = stdStringBuf;
+            preview.nodes.emplace_back(resource_type<texture>, nameBuilder.as<string>());
 
-            name.clear().append(m_impl->sourceFileDir).append_path(stdStringBuf.c_str());
-            subImport.sourceFile = name.as<string>();
+            nameBuilder.clear().append(m_impl->sourceFileDir).append_path(stdStringBuf.c_str());
+            subImport.sourceFile = nameBuilder.as<string>();
         }
 
         m_impl->importMaterials.reserve(m_impl->model.materials.size());
@@ -262,7 +273,16 @@ namespace oblo::importers
                 .sceneIndex = sceneIndex,
             });
 
-            preview.nodes.emplace_back(resource_type<entity_hierarchy>, string{gltfScene.name.c_str()});
+            if (gltfScene.name.empty())
+            {
+                nameBuilder.clear().format("Scene#{}", sceneIndex);
+            }
+            else
+            {
+                nameBuilder = gltfScene.name;
+            }
+
+            preview.nodes.emplace_back(resource_type<entity_hierarchy>, nameBuilder.as<string>());
         }
 
         return true;
@@ -395,7 +415,7 @@ namespace oblo::importers
                 continue;
             }
 
-            const auto& gltfMesh = m_impl->model.meshes[model.mesh];
+            const auto& gltfMesh = m_impl->model.meshes[model.meshIndex];
 
             oblo::model modelAsset;
 
@@ -413,7 +433,7 @@ namespace oblo::importers
                     continue;
                 }
 
-                const auto& primitive = m_impl->model.meshes[mesh.mesh].primitives[mesh.primitive];
+                const auto& primitive = m_impl->model.meshes[mesh.meshIndex].primitives[mesh.primitiveIndex];
 
                 oblo::mesh srcMesh;
 
@@ -468,7 +488,7 @@ namespace oblo::importers
 
             string_builder outputPath;
 
-            if (!save_model_json(modelAsset, ctx.get_output_path(modelNodeConfig.id, outputPath)))
+            if (!save_model_json(modelAsset, ctx.get_output_path(modelNodeConfig.id, outputPath, ".omodel")))
             {
                 log::error("Failed to save mesh");
                 continue;
@@ -566,7 +586,7 @@ namespace oblo::importers
                     if (modelIndex < m_impl->importModels.size())
                     {
                         auto& model = m_impl->importModels[modelIndex];
-                        auto& gltfMesh = m_impl->model.meshes[model.mesh];
+                        auto& gltfMesh = m_impl->model.meshes[model.meshIndex];
 
                         const auto numPrimitives = gltfMesh.primitives.size();
 
@@ -584,7 +604,7 @@ namespace oblo::importers
                             const auto& meshNodeConfig = importNodeConfigs[importMesh.nodeIndex];
 
                             const auto& primitive =
-                                m_impl->model.meshes[importMesh.mesh].primitives[importMesh.primitive];
+                                m_impl->model.meshes[importMesh.meshIndex].primitives[importMesh.primitiveIndex];
 
                             auto& sm = reg.get<static_mesh_component>(m);
                             sm.mesh = resource_ref<mesh>{meshNodeConfig.id};
