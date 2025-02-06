@@ -1,7 +1,10 @@
 #include <oblo/scene/serialization/mesh_file.hpp>
 
+#include <oblo/core/buffered_array.hpp>
 #include <oblo/core/data_format.hpp>
 #include <oblo/core/debug.hpp>
+#include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/filesystem/file.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string_builder.hpp>
@@ -14,7 +17,6 @@
 
 #include <tinygltf/implementation.hpp>
 
-#include <fstream>
 #include <span>
 
 // Unfortunately tiny_gltf includes Windows.h
@@ -674,38 +676,24 @@ namespace oblo
 
     bool load_mesh(mesh& mesh, cstring_view source)
     {
-        std::ifstream ifs{source.as<std::string>(), std::ios::ate | std::ios::binary};
+        dynamic_array<byte> content;
 
-        if (!ifs)
+        const auto r = filesystem::load_binary_file_into_memory(content, source);
+
+        if (!r)
         {
             return false;
         }
 
-        const auto fileSize = narrow_cast<u32>(ifs.tellg());
+        constexpr string_view fourCC = "glTF";
 
-        constexpr auto MagicCharsCount{4};
-
-        if (MagicCharsCount > fileSize)
+        if (fourCC.size() > r->size())
         {
             return false;
         }
 
-        char magic[MagicCharsCount];
-
-        ifs.seekg(0);
-        ifs.read(magic, MagicCharsCount);
-
-        if (!ifs)
-        {
-            return false;
-        }
-
-        ifs.seekg(0);
-
-        std::vector<char> content;
-        content.resize(fileSize);
-
-        ifs.read(content.data(), fileSize);
+        const bool isBinary =
+            fourCC.size() <= r->size() && std::memcmp(fourCC.data(), content.data(), fourCC.size()) == 0;
 
         tinygltf::TinyGLTF loader;
         loader.SetStoreOriginalJSONForExtrasAndExtensions(true);
@@ -719,18 +707,23 @@ namespace oblo
 
         bool success;
 
-        if (std::string_view{magic, MagicCharsCount} == "glTF")
+        if (isBinary)
         {
             success = loader.LoadBinaryFromMemory(&model,
                 &err,
                 &warn,
                 reinterpret_cast<const unsigned char*>(content.data()),
-                fileSize,
+                content.size32(),
                 parentPath);
         }
         else
         {
-            success = loader.LoadASCIIFromString(&model, &err, &warn, content.data(), fileSize, parentPath);
+            success = loader.LoadASCIIFromString(&model,
+                &err,
+                &warn,
+                reinterpret_cast<const char*>(content.data()),
+                content.size32(),
+                parentPath);
         }
 
         if (!success)
@@ -748,7 +741,7 @@ namespace oblo
         // We count indices as attributes here
         const auto maxAttributes = primitive.attributes.size() + 1;
 
-        dynamic_array<mesh_attribute> attributes;
+        buffered_array<mesh_attribute, 16> attributes;
         attributes.reserve(maxAttributes);
 
         dynamic_array<gltf_accessor> sources;
