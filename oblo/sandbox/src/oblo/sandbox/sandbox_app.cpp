@@ -269,7 +269,8 @@ namespace oblo::vk
 
     void sandbox_base::begin_frame(u32* outImageIndex)
     {
-        m_context.frame_begin(m_acquiredImages[m_semaphoreIndex], m_frameCompleted[m_semaphoreIndex]);
+        m_context.frame_begin(m_frameCompleted[m_semaphoreIndex]);
+        m_context.push_frame_wait_semaphores({&m_acquiredImages[m_semaphoreIndex], 1});
 
         u32 imageIndex;
         VkResult acquireImageResult;
