@@ -45,6 +45,9 @@ namespace oblo
         template <typename T>
         std::span<T* const> find_services() const;
 
+        template <typename T>
+        T* find_unique_service() const;
+
     private:
         struct module_storage;
         struct scoped_state_change;
@@ -110,7 +113,7 @@ namespace oblo
     }
 
     template <typename T>
-    inline std::span<T* const> module_manager::find_services() const
+    std::span<T* const> module_manager::find_services() const
     {
         const auto services = find_services(get_type_id<T>());
 
@@ -123,5 +126,13 @@ namespace oblo
 
         auto* const ptr = start_lifetime_as_array<T*>(services.data(), count);
         return {ptr, count};
+    }
+
+    template <typename T>
+    T* module_manager::find_unique_service() const
+    {
+        const std::span services = find_services<T>();
+        OBLO_ASSERT(services.size() <= 1);
+        return services.empty() ? nullptr : services[0];
     }
 }
