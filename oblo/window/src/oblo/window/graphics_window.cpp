@@ -48,16 +48,16 @@ namespace oblo
     {
         OBLO_ASSERT(!m_impl);
 
-        i32 windowFlags = SDL_WINDOW_RESIZABLE;
+        i32 windowFlags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE;
 
         if (initializer.isMaximized)
         {
             windowFlags |= SDL_WINDOW_MAXIMIZED;
         }
 
-        if (!initializer.isHidden)
+        if (initializer.isHidden)
         {
-            windowFlags |= SDL_WINDOW_SHOWN;
+            windowFlags |= SDL_WINDOW_HIDDEN;
         }
 
         const i32 w = initializer.windowWidth == 0 ? 1280u : initializer.windowWidth;
@@ -118,23 +118,23 @@ namespace oblo
         return m_impl;
     }
 
-    bool graphics_window::is_visible() const
+    bool graphics_window::is_hidden() const
     {
         const auto flags = SDL_GetWindowFlags(sdl_window(m_impl));
-        return (flags & SDL_WINDOW_SHOWN) != 0;
+        return (flags & SDL_WINDOW_HIDDEN) != 0;
     }
 
-    void graphics_window::set_visible(bool visible)
+    void graphics_window::set_hidden(bool hide)
     {
         SDL_Window* const window = sdl_window(m_impl);
 
-        if (visible)
+        if (hide)
         {
-            SDL_ShowWindow(window);
+            SDL_HideWindow(window);
         }
         else
         {
-            SDL_HideWindow(window);
+            SDL_ShowWindow(window);
         }
     }
 

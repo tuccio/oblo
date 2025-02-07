@@ -29,6 +29,11 @@ int main(int, char**)
         return 2;
     }
 
+    if (mainWindow.is_open())
+    {
+        mainWindow.set_hidden(false);
+    }
+
     while (mainWindow.is_open())
     {
         mainWindow.update();

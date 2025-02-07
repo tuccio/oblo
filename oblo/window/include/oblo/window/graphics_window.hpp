@@ -38,8 +38,8 @@ namespace oblo
         bool is_ready() const;
         bool is_open() const;
 
-        bool is_visible() const;
-        void set_visible(bool visible);
+        bool is_hidden() const;
+        void set_hidden(bool hide);
 
         vec2u get_size() const;
 

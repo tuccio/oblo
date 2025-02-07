@@ -13,6 +13,7 @@
 #include <oblo/vulkan/utility/debug_utils.hpp>
 
 #include <memory>
+#include <span>
 
 namespace oblo::vk
 {
@@ -33,8 +34,10 @@ namespace oblo::vk
         bool init(const initializer& init);
         void shutdown();
 
-        void frame_begin(VkSemaphore waitSemaphore, VkSemaphore signalSemaphore);
+        void frame_begin(VkSemaphore signalSemaphore);
         void frame_end();
+
+        void push_frame_wait_semaphores(std::span<const VkSemaphore> waitSemaphores);
 
         stateful_command_buffer& get_active_command_buffer();
         void submit_active_command_buffer();

@@ -208,6 +208,7 @@ namespace oblo::vk
 
         dynamic_array<VkSwapchainKHR> acquiredSwapchains;
         dynamic_array<u32> acquiredImageIndices;
+        dynamic_array<VkSemaphore> acquiredImageSemaphores;
 
         u32 semaphoreIndex{};
 
@@ -450,6 +451,9 @@ namespace oblo::vk
     {
         acquiredSwapchains.clear();
         acquiredImageIndices.clear();
+        acquiredImageSemaphores.clear();
+
+        vkContext.frame_begin(frameCompletedSemaphore[semaphoreIndex]);
 
         for (auto it = windowContexts.begin(); it != windowContexts.end();)
         {
@@ -473,15 +477,26 @@ namespace oblo::vk
 
             acquiredSwapchains.emplace_back(windowCtx->swapchain.get());
             acquiredImageIndices.emplace_back(imageIndex);
+            acquiredImageSemaphores.emplace_back(windowCtx->acquiredImageSemaphores[semaphoreIndex]);
 
             ++it;
         }
 
-        return !acquiredSwapchains.empty();
+        if (acquiredSwapchains.empty())
+        {
+            vkContext.frame_end();
+            return false;
+        }
+
+        vkContext.push_frame_wait_semaphores(acquiredImageSemaphores);
+        return true;
     }
 
     void vulkan_engine_module::impl::present()
     {
+        // Should be unnecessary, but we won't submit if we don't call it at least once
+        vkContext.get_active_command_buffer();
+
         vkContext.frame_end();
 
         const VkPresentInfoKHR presentInfo{

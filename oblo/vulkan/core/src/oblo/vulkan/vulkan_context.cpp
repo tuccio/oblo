@@ -22,7 +22,7 @@ namespace oblo::vk
         u64 submitIndex{0};
 
         // Semaphore to wait on for the first submission, externally owned
-        VkSemaphore waitSemaphore{VK_NULL_HANDLE};
+        dynamic_array<VkSemaphore> waitSemaphores;
         // Semaphore to signal for the first submission, externally owned
         VkSemaphore signalSemaphore{VK_NULL_HANDLE};
     };
@@ -174,7 +174,7 @@ namespace oblo::vk
         m_frameInfo.clear();
     }
 
-    void vulkan_context::frame_begin(VkSemaphore waitSemaphore, VkSemaphore signalSemaphore)
+    void vulkan_context::frame_begin(VkSemaphore signalSemaphore)
     {
         OBLO_PROFILE_SCOPE();
 
@@ -182,7 +182,7 @@ namespace oblo::vk
 
         auto& frameInfo = m_frameInfo[m_poolIndex];
 
-        frameInfo.waitSemaphore = waitSemaphore;
+        frameInfo.waitSemaphores.clear();
         frameInfo.signalSemaphore = signalSemaphore;
 
         OBLO_VK_PANIC(
@@ -215,6 +215,12 @@ namespace oblo::vk
         }
 
         ++m_frameIndex;
+    }
+
+    void vulkan_context::push_frame_wait_semaphores(std::span<const VkSemaphore> waitSemaphores)
+    {
+        auto& frameInfo = m_frameInfo[m_poolIndex];
+        frameInfo.waitSemaphores.append(waitSemaphores.begin(), waitSemaphores.end());
     }
 
     stateful_command_buffer& vulkan_context::get_active_command_buffer()
@@ -294,8 +300,8 @@ namespace oblo::vk
         const VkSubmitInfo submitInfo{
             .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
             .pNext = &timelineInfo,
-            .waitSemaphoreCount = u32{currentFrame.waitSemaphore != nullptr},
-            .pWaitSemaphores = &currentFrame.waitSemaphore,
+            .waitSemaphoreCount = currentFrame.waitSemaphores.size32(),
+            .pWaitSemaphores = currentFrame.waitSemaphores.data(),
             .pWaitDstStageMask = submitPipelineStages,
             .commandBufferCount = commandBufferEnd - commandBufferBegin,
             .pCommandBuffers = commandBuffers + commandBufferBegin,
@@ -307,7 +313,7 @@ namespace oblo::vk
 
         ++m_submitIndex;
 
-        currentFrame.waitSemaphore = nullptr;
+        currentFrame.waitSemaphores.clear();
     }
 
     VkPhysicalDeviceSubgroupProperties vulkan_context::get_physical_device_subgroup_properties() const
@@ -366,10 +372,7 @@ namespace oblo::vk
 
     void vulkan_context::destroy_deferred(VkBuffer buffer, u64 submitIndex)
     {
-        dispose(
-            submitIndex,
-            [](vulkan_context& ctx, VkBuffer buffer) { ctx.destroy_immediate(buffer); },
-            buffer);
+        dispose(submitIndex, [](vulkan_context& ctx, VkBuffer buffer) { ctx.destroy_immediate(buffer); }, buffer);
     }
 
     void vulkan_context::destroy_deferred(VkImage image, u64 submitIndex)
