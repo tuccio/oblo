@@ -78,6 +78,7 @@ namespace oblo::vk
 
             h32<frame_graph_subgraph> swapchainGraph{};
 
+            bool swapchainResized = false;
             bool markedForDestruction = false;
 
             bool initialize(vulkan_context& ctx, resource_manager& resourceManager, const graphics_window& window)
@@ -230,6 +231,7 @@ namespace oblo::vk
             {
                 width = w;
                 height = h;
+                swapchainResized = true;
             }
 
             void on_destroy() override
@@ -425,12 +427,16 @@ namespace oblo::vk
         }
 
         // Then we need a surface to choose the queue and create the device
-        auto* windowModule = module_manager::get().find<window_module>();
-        auto& mainWindow = windowModule->get_main_window();
+        graphics_window hiddenWindow;
+
+        if (!hiddenWindow.create({.isHidden = true}))
+        {
+            return false;
+        }
 
         VkSurfaceKHR surface{};
 
-        if (!create_surface(mainWindow, instance.get(), nullptr, &surface))
+        if (!create_surface(hiddenWindow, instance.get(), nullptr, &surface))
         {
             return false;
         }
@@ -510,9 +516,29 @@ namespace oblo::vk
 
     void vulkan_engine_module::impl::shutdown()
     {
-        // TODO: Shutdown all window contexts
+        if (VkDevice device = engine.get_device())
+        {
+            vkDeviceWaitIdle(device);
 
-        // TODO: Shutdown the engine
+            renderer.shutdown();
+
+            for (auto& windowContext : windowContexts)
+            {
+                windowContext->shutdown(vkContext, resourceManager);
+                windowContext.reset();
+            }
+
+            for (VkSemaphore semaphore : frameCompletedSemaphore)
+            {
+                vkContext.reset_immediate(semaphore);
+            }
+
+            vkContext.shutdown();
+            allocator.shutdown();
+            engine.shutdown();
+        }
+
+        instance.shutdown();
     }
 
     graphics_window_context* vulkan_engine_module::impl::create_context(const graphics_window& window)
@@ -547,6 +573,14 @@ namespace oblo::vk
                 // Collect it, it was destroyed
                 windowCtx->shutdown(vkContext, resourceManager);
                 it = windowContexts.erase_unordered(it);
+                continue;
+            }
+
+            if (windowCtx->swapchainResized)
+            {
+                windowCtx->destroy_swapchain(vkContext, resourceManager);
+                windowCtx->create_swapchain(vkContext, resourceManager);
+                windowCtx->swapchainResized = false;
                 continue;
             }
 

@@ -1,4 +1,6 @@
 #include <oblo/core/service_registry.hpp>
+#include <oblo/log/log_module.hpp>
+#include <oblo/log/sinks/file_sink.hpp>
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_interface.hpp>
 #include <oblo/modules/module_manager.hpp>
@@ -18,6 +20,7 @@ namespace oblo
         bool startup(const module_initializer& initializer) override
         {
             initializer.services->add<resource_registry>().unique();
+            module_manager::get().load<log::log_module>()->add_sink(allocate_unique<log::file_sink>(stdout));
             return true;
         }
 
@@ -38,9 +41,9 @@ int main(int, char**)
 
     mm.finalize();
 
-    graphics_window& mainWindow = wm->get_main_window();
+    graphics_window mainWindow;
 
-    if (!mainWindow.initialize_graphics())
+    if (!mainWindow.create({.title = "Sandbox"}) || !mainWindow.initialize_graphics())
     {
         return 1;
     }
@@ -57,7 +60,9 @@ int main(int, char**)
         mainWindow.set_hidden(false);
     }
 
-    while (mainWindow.is_open())
+    auto eventProcessor = wm->create_event_processor();
+
+    while (mainWindow.is_open() && eventProcessor.process_events())
     {
         mainWindow.update();
 

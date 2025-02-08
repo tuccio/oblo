@@ -12,6 +12,7 @@ namespace oblo
     }
 
     class graphics_window_context;
+    class window_event_processor;
 
     using native_window_handle = void*;
 
@@ -54,6 +55,9 @@ namespace oblo
         native_window_handle get_native_handle() const;
 
         h32<vk::frame_graph_subgraph> get_swapchain_graph() const;
+
+    private:
+        friend class window_event_processor;
 
     private:
         void* m_impl{};

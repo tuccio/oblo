@@ -3,6 +3,8 @@
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/window/graphics_engine.hpp>
 #include <oblo/window/graphics_window_context.hpp>
+#include <oblo/window/window_event_processor.hpp>
+#include <oblo/window/window_module.hpp>
 
 #include <SDL.h>
 #include <SDL_syswm.h>
@@ -15,6 +17,8 @@ namespace oblo
         {
             return static_cast<SDL_Window*>(impl);
         }
+
+        constexpr const char* g_WindowGraphicsContext = "oblo::gfx";
     }
 
     graphics_window::graphics_window() = default;
@@ -105,7 +109,9 @@ namespace oblo
         }
 
         m_graphicsContext = gfxEngine->create_context(*this);
-        return gfxEngine != nullptr;
+        SDL_SetWindowData(sdl_window(m_impl), g_WindowGraphicsContext, m_graphicsContext);
+
+        return m_graphicsContext != nullptr;
     }
 
     bool graphics_window::is_ready() const
@@ -161,8 +167,55 @@ namespace oblo
         return SDL_GetWindowWMInfo(window, &wmInfo) ? wmInfo.info.win.window : nullptr;
     }
 
-    h32<vk::frame_graph_subgraph> oblo::graphics_window::get_swapchain_graph() const
+    h32<vk::frame_graph_subgraph> graphics_window::get_swapchain_graph() const
     {
         return m_graphicsContext->get_swapchain_graph();
+    }
+
+    bool window_event_processor::process_events() const
+    {
+        for (SDL_Event event; SDL_PollEvent(&event);)
+        {
+            if (m_windowEventDispatcher.dispatch)
+            {
+                m_windowEventDispatcher.dispatch(&event);
+            }
+
+            switch (event.type)
+            {
+            case SDL_QUIT:
+                return false;
+
+            case SDL_WINDOWEVENT: {
+                SDL_Window* const window = SDL_GetWindowFromID(event.window.windowID);
+                void* const windowData = SDL_GetWindowData(window, g_WindowGraphicsContext);
+                auto* const graphicsContext = static_cast<graphics_window_context*>(windowData);
+
+                if (graphicsContext)
+                {
+                    switch (event.window.event)
+                    {
+                    case SDL_WINDOWEVENT_MAXIMIZED:
+                    case SDL_WINDOWEVENT_RESTORED:
+                        break;
+
+                    case SDL_WINDOWEVENT_MINIMIZED:
+                        break;
+
+                    case SDL_WINDOWEVENT_RESIZED:
+                    case SDL_WINDOWEVENT_SIZE_CHANGED: {
+                        const u32 w = u32(event.window.data1);
+                        const u32 h = u32(event.window.data2);
+
+                        graphicsContext->on_resize(w, h);
+                        break;
+                    }
+                    }
+                }
+            }
+            }
+        }
+
+        return true;
     }
 }

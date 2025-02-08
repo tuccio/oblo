@@ -1,16 +1,7 @@
-oblo_add_library(window)
+add_subdirectory(graphics)
+add_subdirectory(imgui)
 
-find_package(SDL2 REQUIRED)
-
-target_link_libraries(
-    oblo_window
-    PUBLIC
-    oblo::core
-    oblo::modules
-    PRIVATE
-    SDL2::SDL2
-)
+find_package(ImGui REQUIRED)
 
 add_executable(window_sandbox sandbox.cpp)
-
-target_link_libraries(window_sandbox PRIVATE oblo::window oblo::vk_engine oblo::runtime)
+target_link_libraries(window_sandbox PRIVATE oblo::window_graphics oblo::window_imgui oblo::vk_engine oblo::log oblo::runtime imgui::imgui)
