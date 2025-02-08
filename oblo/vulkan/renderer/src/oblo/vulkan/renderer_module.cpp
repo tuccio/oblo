@@ -8,8 +8,13 @@
 #include <oblo/options/option_traits.hpp>
 #include <oblo/options/options_module.hpp>
 #include <oblo/options/options_provider.hpp>
+#include <oblo/reflection/registration/module_registration.hpp>
+#include <oblo/scene/reflection/gpu_component.hpp>
 #include <oblo/vulkan/compiler/compiler_module.hpp>
+#include <oblo/vulkan/data/components.hpp>
+#include <oblo/vulkan/data/tags_internal.hpp>
 #include <oblo/vulkan/draw/global_shader_options.hpp>
+#include <oblo/vulkan/draw/instance_data_type_registry.hpp>
 #include <oblo/vulkan/required_features.hpp>
 
 namespace oblo
@@ -27,6 +32,12 @@ namespace oblo
             .defaultValue = property_value_wrapper{true},
         };
     };
+}
+
+namespace oblo::ecs
+{
+    struct component_type_tag;
+    struct tag_type_tag;
 }
 
 namespace oblo::vk
@@ -109,7 +120,27 @@ namespace oblo::vk
             VK_KHR_RAY_QUERY_EXTENSION_NAME,
             VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
         };
+
+        void register_reflection(reflection::reflection_registry::registrant reg)
+        {
+            reg.add_class<draw_instance_component>()
+                .add_ranged_type_erasure()
+                .add_concept(gpu_component{"i_MeshHandles"})
+                .add_tag<ecs::component_type_tag>();
+
+            reg.add_class<draw_instance_id_component>().add_ranged_type_erasure().add_tag<ecs::component_type_tag>();
+            reg.add_class<draw_mesh_component>().add_ranged_type_erasure().add_tag<ecs::component_type_tag>();
+            reg.add_class<draw_raytraced_tag>().add_ranged_type_erasure().add_tag<ecs::tag_type_tag>();
+            reg.add_class<mesh_index_none_tag>().add_ranged_type_erasure().add_tag<ecs::tag_type_tag>();
+            reg.add_class<mesh_index_u8_tag>().add_ranged_type_erasure().add_tag<ecs::tag_type_tag>();
+            reg.add_class<mesh_index_u16_tag>().add_ranged_type_erasure().add_tag<ecs::tag_type_tag>();
+            reg.add_class<mesh_index_u32_tag>().add_ranged_type_erasure().add_tag<ecs::tag_type_tag>();
+        }
     }
+
+    renderer_module::renderer_module() = default;
+
+    renderer_module::~renderer_module() = default;
 
     bool renderer_module::startup(const module_initializer& initializer)
     {
@@ -118,12 +149,19 @@ namespace oblo::vk
 
         option_proxy_struct<renderer_options, global_shader_options_proxy>::register_options(*initializer.services);
 
+        reflection::load_module_and_register(register_reflection);
+
+        m_instanceDataTypeRegistry = allocate_unique<instance_data_type_registry>();
+
         return true;
     }
 
-    void renderer_module::shutdown() {}
+    void renderer_module::shutdown()
+    {
+        m_instanceDataTypeRegistry.reset();
+    }
 
-    void vk::renderer_module::finalize()
+    void renderer_module::finalize()
     {
         auto* const options = module_manager::get().find<options_module>();
         m_withRayTracing = renderer_options{}.isRayTracingEnabled.read(options->manager());
@@ -149,6 +187,8 @@ namespace oblo::vk
         {
             m_deviceExtensions.append(std::begin(g_rayTracingDeviceExtensions), std::end(g_rayTracingDeviceExtensions));
         }
+
+        m_instanceDataTypeRegistry->register_from_module();
     }
 
     required_features renderer_module::get_required_features()
@@ -175,5 +215,10 @@ namespace oblo::vk
     bool renderer_module::is_ray_tracing_enabled() const
     {
         return m_withRayTracing;
+    }
+
+    const instance_data_type_registry& vk::renderer_module::get_instance_data_type_registry() const
+    {
+        return *m_instanceDataTypeRegistry;
     }
 }

@@ -32,7 +32,7 @@ namespace oblo::vk
         auto& drawBufferData = ctx.access(inDrawBufferData);
         auto& drawCallBuffer = ctx.access(outDrawCallBuffer);
 
-        const auto& drawRegistry = ctx.get_draw_registry();
+        const auto& drawRegistry = *ctx.access(inRenderWorld).drawRegistry;
         const std::span drawCalls = drawRegistry.get_draw_calls();
 
         if (drawCalls.empty())

@@ -14,6 +14,7 @@ namespace oblo::vk::main_view
     constexpr string_view InInstanceBuffers{"InstanceBuffers"};
     constexpr string_view InFinalRenderTarget{"FinalRenderTarget"};
 
+    constexpr string_view InRenderWorld{"RenderWorld"};
     constexpr string_view InLights{"LightData"};
     constexpr string_view InLightBuffer{"LightDataBuffer"};
     constexpr string_view InLightConfig{"LightConfig"};
@@ -59,10 +60,12 @@ namespace oblo::vk::main_view
 
 namespace oblo::vk::scene_data
 {
+    constexpr string_view InRenderWorld{"RenderWorld"};
     constexpr string_view InLights{"LightData"};
     constexpr string_view InSkyboxResource{"InSkyboxResource"};
     constexpr string_view InSkyboxSettings{"SkyboxSettings"};
 
+    constexpr string_view OutRenderWorld{"RenderWorld"};
     constexpr string_view OutLights{"LightData"};
     constexpr string_view OutLightBuffer{"LightDataBuffer"};
     constexpr string_view OutLightConfig{"LightConfig"};

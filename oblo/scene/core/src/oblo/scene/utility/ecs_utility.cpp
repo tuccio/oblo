@@ -31,7 +31,7 @@ namespace oblo::ecs_utility
         void register_reflected_component_types(const reflection::reflection_registry& reflection,
             ecs::type_registry* typeRegistry,
             property_registry* propertyRegistry,
-            dynamic_array<reflection::type_handle>& componentTypes)
+            deque<reflection::type_handle>& componentTypes)
         {
             componentTypes.clear();
             reflection.find_by_tag<ecs::component_type_tag>(componentTypes);
@@ -81,7 +81,7 @@ namespace oblo::ecs_utility
 
         void register_reflected_tag_types(const reflection::reflection_registry& reflection,
             ecs::type_registry* typeRegistry,
-            dynamic_array<reflection::type_handle>& tagTypes)
+            deque<reflection::type_handle>& tagTypes)
         {
             tagTypes.clear();
             reflection.find_by_tag<ecs::tag_type_tag>(tagTypes);
@@ -129,8 +129,7 @@ namespace oblo::ecs_utility
         ecs::type_registry* typeRegistry,
         property_registry* propertyRegistry)
     {
-        dynamic_array<reflection::type_handle> types;
-        types.reserve(128);
+        deque<reflection::type_handle> types;
 
         register_reflected_component_types(reflection, typeRegistry, propertyRegistry, types);
         register_reflected_tag_types(reflection, typeRegistry, types);

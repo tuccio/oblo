@@ -27,6 +27,7 @@ namespace oblo
 
 namespace oblo::vk
 {
+    class instance_data_type_registry;
     class staging_buffer;
     class vulkan_context;
     struct buffer_column_description;
@@ -64,15 +65,6 @@ namespace oblo::vk
         u32 numInstances;
     };
 
-    struct draw_mesh_component
-    {
-        h32<draw_mesh> mesh;
-    };
-
-    struct draw_raytraced_tag
-    {
-    };
-
     class draw_registry
     {
     public:
@@ -89,15 +81,10 @@ namespace oblo::vk
             staging_buffer& stagingBuffer,
             string_interner& interner,
             ecs::entity_registry& entities,
-            const resource_registry& resourceRegistry);
+            const resource_registry& resourceRegistry,
+            const instance_data_type_registry& instanceDataTypeRegistry);
 
         void shutdown();
-
-        void register_instance_data(ecs::component_type type, string_view instanceName);
-
-        bool needs_reloading_instance_data_types() const;
-
-        void end_frame();
 
         h32<draw_mesh> try_get_mesh(const resource_ref<mesh>& resourceId) const;
         h32<draw_mesh> get_or_create_mesh(const resource_ref<mesh>& resourceId);
@@ -105,18 +92,14 @@ namespace oblo::vk
         void flush_uploads(VkCommandBuffer commandBuffer);
 
         void generate_mesh_database(frame_allocator& allocator);
-        void generate_draw_calls(frame_allocator& allocator, staging_buffer& stagingBuffer);
+        void generate_draw_calls(frame_allocator& allocator);
         void generate_raytracing_structures(frame_allocator& allocator, VkCommandBuffer commandBuffer);
-
-        string_view refresh_instance_data_defines(frame_allocator& allocator);
 
         std::span<const batch_draw_data> get_draw_calls() const;
 
         std::span<const std::byte> get_mesh_database_data() const;
 
         VkAccelerationStructureKHR get_tlas() const;
-
-        void debug_log(const batch_draw_data& drawData) const;
 
         ecs::entity_registry& get_entity_registry() const;
 
@@ -157,8 +140,6 @@ namespace oblo::vk
 
         const batch_draw_data* m_drawData{};
         u32 m_drawDataCount{};
-
-        bool m_isInstanceTypeInfoDirty{};
 
         std::span<const std::byte> m_meshDatabaseData;
 

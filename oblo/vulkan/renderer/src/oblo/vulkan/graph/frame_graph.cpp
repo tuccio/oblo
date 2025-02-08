@@ -1362,6 +1362,8 @@ namespace oblo::vk
         bufferDownloads.clear();
 
         ++frameCounter;
+
+        globalTLAS = {};
     }
 
     void frame_graph_impl::free_pin_storage(const frame_graph_pin_storage& storage, bool isFrameAllocated)

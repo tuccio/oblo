@@ -9,7 +9,7 @@ namespace oblo::ecs
 
 namespace oblo::vk
 {
-    class renderer;
+    class draw_registry;
     class resource_cache;
     struct draw_buffer;
 }
@@ -25,7 +25,7 @@ namespace oblo
         void update(const ecs::system_update_context& ctx);
 
     private:
-        vk::renderer* m_renderer{};
+        vk::draw_registry* m_drawRegistry{};
         const resource_registry* m_resourceRegistry;
         vk::resource_cache* m_resourceCache;
         h32<vk::draw_buffer> m_transformBuffer{};

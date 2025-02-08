@@ -17,7 +17,9 @@ namespace oblo::vk
     {
         uploadPass = ctx.transfer_pass();
 
-        const auto& drawRegistry = ctx.get_draw_registry();
+        const auto& drawRegistry = *ctx.access(inRenderWorld).drawRegistry;
+
+        ctx.register_global_tlas(drawRegistry.get_tlas());
 
         const std::span meshDatabaseData = drawRegistry.get_mesh_database_data();
 

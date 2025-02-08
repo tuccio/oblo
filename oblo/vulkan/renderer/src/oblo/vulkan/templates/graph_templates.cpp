@@ -12,6 +12,7 @@
 #include <oblo/vulkan/nodes/providers/ecs_entity_set_provider.hpp>
 #include <oblo/vulkan/nodes/providers/instance_table_node.hpp>
 #include <oblo/vulkan/nodes/providers/light_provider.hpp>
+#include <oblo/vulkan/nodes/providers/render_world_provider.hpp>
 #include <oblo/vulkan/nodes/providers/skybox_provider.hpp>
 #include <oblo/vulkan/nodes/providers/view_buffers_node.hpp>
 #include <oblo/vulkan/nodes/providers/view_light_data_provider.hpp>
@@ -61,6 +62,7 @@ namespace oblo::vk::main_view
 
         const auto viewBuffers = graph.add_node<view_buffers_node>();
         const auto viewLightData = graph.add_node<view_light_data_provider>();
+        const auto renderWorldData = graph.add_node<render_world_provider>();
         const auto visibilityPass = graph.add_node<visibility_pass>();
         const auto visibilityLighting = graph.add_node<visibility_lighting>();
         const auto visibilityDebug = graph.add_node<visibility_debug>();
@@ -83,6 +85,9 @@ namespace oblo::vk::main_view
         graph.make_output(viewBuffers, &view_buffers_node::inResolution, OutResolution);
         graph.make_output(viewBuffers, &view_buffers_node::outCameraBuffer, OutCameraBuffer);
         graph.make_output(viewBuffers, &view_buffers_node::outCameraDataSink, OutCameraDataSink);
+
+        // Render world node
+        graph.make_input(renderWorldData, &render_world_provider::inOutRenderWorld, InRenderWorld);
 
         // Visibility pass outputs, useful for other graphs (e.g shadows)
         graph.make_output(visibilityPass, &visibility_pass::outVisibilityBuffer, OutVisibilityBuffer);
@@ -205,6 +210,11 @@ namespace oblo::vk::main_view
                 frustumCulling,
                 &frustum_culling::inInstanceBuffers);
 
+            graph.connect(renderWorldData,
+                &render_world_provider::inOutRenderWorld,
+                frustumCulling,
+                &frustum_culling::inRenderWorld);
+
             const auto drawCallGenerator = graph.add_node<draw_call_generator>();
 
             // We need to read mesh handles from instance data to generate draw calls
@@ -218,6 +228,11 @@ namespace oblo::vk::main_view
                 &view_buffers_node::inInstanceBuffers,
                 drawCallGenerator,
                 &draw_call_generator::inInstanceBuffers);
+
+            graph.connect(renderWorldData,
+                &render_world_provider::inOutRenderWorld,
+                drawCallGenerator,
+                &draw_call_generator::inRenderWorld);
 
             // Connect the draw data
 
@@ -414,13 +429,26 @@ namespace oblo::vk::scene_data
         graph.make_output(lightProvider, &light_provider::outLightData, OutLightBuffer);
         graph.make_output(lightProvider, &light_provider::inOutLights, OutLights);
 
+        // Render world node
+        const auto renderWorldData = graph.add_node<render_world_provider>();
+        graph.make_input(renderWorldData, &render_world_provider::inOutRenderWorld, InRenderWorld);
+        graph.make_output(renderWorldData, &render_world_provider::inOutRenderWorld, OutRenderWorld);
+
         const auto instanceTableNode = graph.add_node<instance_table_node>();
         graph.make_output(instanceTableNode, &instance_table_node::outInstanceTables, OutInstanceTables);
         graph.make_output(instanceTableNode, &instance_table_node::outInstanceBuffers, OutInstanceBuffers);
         graph.make_output(instanceTableNode, &instance_table_node::outMeshDatabase, OutMeshDatabase);
+        graph.connect(renderWorldData,
+            &render_world_provider::inOutRenderWorld,
+            instanceTableNode,
+            &instance_table_node::inRenderWorld);
 
         const auto ecsEntitySetProvider = graph.add_node<ecs_entity_set_provider>();
         graph.make_output(ecsEntitySetProvider, &ecs_entity_set_provider::outEntitySet, OutEcsEntitySetBuffer);
+        graph.connect(renderWorldData,
+            &render_world_provider::inOutRenderWorld,
+            ecsEntitySetProvider,
+            &ecs_entity_set_provider::inRenderWorld);
 
         const auto skyboxProvider = graph.add_node<skybox_provider>();
         graph.make_input(skyboxProvider, &skybox_provider::inSkyboxResource, InSkyboxResource);
@@ -672,6 +700,7 @@ namespace oblo::vk
         registry.register_node<copy_texture_node>();
         registry.register_node<view_buffers_node>();
         registry.register_node<view_light_data_provider>();
+        registry.register_node<render_world_provider>();
         registry.register_node<frustum_culling>();
         registry.register_node<visibility_pass>();
         registry.register_node<visibility_debug>();

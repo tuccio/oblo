@@ -27,16 +27,10 @@ namespace oblo
 
     template <typename E, u32 Size>
     struct flags;
-
-    namespace ecs
-    {
-        class entity_registry;
-    }
 }
 
 namespace oblo::vk
 {
-    class draw_registry;
     class renderer;
     class resource_manager;
     class resource_pool;
@@ -161,6 +155,9 @@ namespace oblo::vk
 
         void create(resource<buffer> buffer, const staging_buffer_span& stagedData, buffer_usage usage) const;
 
+        // Temporary solution until the acceleration structure is a proper resource.
+        void register_global_tlas(VkAccelerationStructureKHR accelerationStructure) const;
+
         void acquire(resource<texture> texture, texture_usage usage) const;
 
         h32<resident_texture> acquire_bindless(resource<texture> texture, texture_usage usage) const;
@@ -212,10 +209,6 @@ namespace oblo::vk
         expected<image_initializer> get_current_initializer(resource<texture> texture) const;
 
         frame_allocator& get_frame_allocator() const;
-
-        const draw_registry& get_draw_registry() const;
-
-        ecs::entity_registry& get_entity_registry() const;
 
         random_generator& get_random_generator() const;
 
@@ -312,8 +305,6 @@ namespace oblo::vk
         VkCommandBuffer get_command_buffer() const;
 
         VkDevice get_device() const;
-
-        draw_registry& get_draw_registry() const;
 
         const loaded_functions& get_loaded_functions() const;
 

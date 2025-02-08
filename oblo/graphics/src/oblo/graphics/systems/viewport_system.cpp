@@ -171,7 +171,7 @@ namespace oblo
 
         m_sceneRenderer = ctx.services->find<scene_renderer>();
         OBLO_ASSERT(m_sceneRenderer);
-        m_sceneRenderer->ensure_setup();
+        m_sceneRenderer->ensure_setup(*ctx.entities);
 
         create_vulkan_objects();
 

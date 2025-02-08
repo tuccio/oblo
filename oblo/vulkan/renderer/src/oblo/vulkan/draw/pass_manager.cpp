@@ -28,6 +28,7 @@
 #include <oblo/vulkan/draw/descriptor_set_pool.hpp>
 #include <oblo/vulkan/draw/draw_registry.hpp>
 #include <oblo/vulkan/draw/global_shader_options.hpp>
+#include <oblo/vulkan/draw/instance_data_type_registry.hpp>
 #include <oblo/vulkan/draw/mesh_table.hpp>
 #include <oblo/vulkan/draw/raytracing_pass_initializer.hpp>
 #include <oblo/vulkan/draw/render_pass_initializer.hpp>
@@ -1398,7 +1399,8 @@ namespace oblo::vk
     void pass_manager::init(vulkan_context& vkContext,
         string_interner& interner,
         const buffer& dummy,
-        const texture_registry& textureRegistry)
+        const texture_registry& textureRegistry,
+        const instance_data_type_registry& instanceDataTypeRegistry)
     {
         m_impl = allocate_unique<impl>();
 
@@ -1410,6 +1412,8 @@ namespace oblo::vk
         m_impl->dummy = dummy;
 
         m_impl->textureRegistry = &textureRegistry;
+
+        instanceDataTypeRegistry.generate_defines(m_impl->instanceDataDefines);
 
         auto* compilerModule = module_manager::get().find<compiler_module>();
         m_impl->glslcCompiler = compilerModule->make_glslc_compiler("./glslc");
@@ -2628,14 +2632,6 @@ namespace oblo::vk
         debugUtils.set_object_name(m_impl->device, samplerDescriptorSet, "Sampler Descriptor Set");
 
         m_impl->currentSamplersDescriptor = samplerDescriptorSet;
-    }
-
-    void pass_manager::update_instance_data_defines(string_view defines)
-    {
-        m_impl->instanceDataDefines = defines;
-
-        // Invalidate all passes as well, to trigger recompilation of shaders
-        m_impl->invalidate_all_passes();
     }
 
     bool pass_manager::is_profiling_enabled() const

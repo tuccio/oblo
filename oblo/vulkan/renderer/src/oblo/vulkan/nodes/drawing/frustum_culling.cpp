@@ -41,7 +41,7 @@ namespace oblo::vk
         auto& allocator = ctx.get_frame_allocator();
         auto& drawBufferData = ctx.access(outDrawBufferData);
 
-        const auto& drawRegistry = ctx.get_draw_registry();
+        const auto& drawRegistry = *ctx.access(inRenderWorld).drawRegistry;
         const std::span drawCalls = drawRegistry.get_draw_calls();
 
         if (drawCalls.empty())

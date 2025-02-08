@@ -5,6 +5,7 @@
 #include <oblo/ecs/services/world_builder.hpp>
 #include <oblo/ecs/systems/system_graph_builder.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
+#include <oblo/graphics/components/gpu_components.hpp>
 #include <oblo/graphics/components/light_component.hpp>
 #include <oblo/graphics/components/skybox_component.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
@@ -19,6 +20,7 @@
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/options/options_module.hpp>
 #include <oblo/reflection/registration/module_registration.hpp>
+#include <oblo/scene/reflection/gpu_component.hpp>
 #include <oblo/scene/systems/barriers.hpp>
 #include <oblo/vulkan/renderer.hpp>
 
@@ -101,6 +103,16 @@ namespace oblo
                 .add_attribute<linear_color_tag>()
                 .add_ranged_type_erasure()
                 .add_tag<ecs::component_type_tag>();
+
+            reg.add_class<gpu_material>()
+                .add_ranged_type_erasure()
+                .add_concept(gpu_component{.bufferName = "i_MaterialBuffer"_hsv})
+                .add_tag<ecs::component_type_tag>();
+
+            reg.add_class<entity_id_component>()
+                .add_concept(gpu_component{.bufferName = "i_EntityIdBuffer"_hsv})
+                .add_ranged_type_erasure()
+                .add_tag<ecs::component_type_tag>();
         }
     }
 
@@ -113,7 +125,8 @@ namespace oblo
                 [](service_registry& registry)
             {
                 auto* const renderer = registry.find<vk::renderer>();
-                registry.add<scene_renderer>().unique(renderer->get_frame_graph());
+                auto* const drawRegistry = registry.find<vk::draw_registry>();
+                registry.add<scene_renderer>().unique(renderer->get_frame_graph(), *drawRegistry);
             },
             .systems =
                 [](ecs::system_graph_builder& builder)

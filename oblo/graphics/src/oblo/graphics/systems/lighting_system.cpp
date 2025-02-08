@@ -49,7 +49,7 @@ namespace oblo
 
         m_giOptions.init(*m_optionsManager);
 
-        m_sceneRenderer->ensure_setup();
+        m_sceneRenderer->ensure_setup(*ctx.entities);
 
         // Hacky setup for directional light
         const auto e = ecs_utility::create_named_physical_entity<light_component, transient_tag>(*ctx.entities,

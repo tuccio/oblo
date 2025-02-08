@@ -122,7 +122,7 @@ namespace oblo::reflection
         return m_impl->registry.get<enum_data>(e).underlyingType;
     }
 
-    void reflection_registry::find_by_tag(const type_id& tag, dynamic_array<type_handle>& types) const
+    void reflection_registry::find_by_tag(const type_id& tag, deque<type_handle>& types) const
     {
         const auto tagType = m_impl->typesRegistry.find_tag(tag);
 
@@ -134,8 +134,28 @@ namespace oblo::reflection
         ecs::component_and_tag_sets sets{};
         sets.tags.add(tagType);
 
-        // TODO: (#10) A component is necessary here
-        for (auto&& chunk : m_impl->registry.range<type_data>().with(sets))
+        for (auto&& chunk : m_impl->registry.range<>().with(sets))
+        {
+            for (const auto e : chunk.get<ecs::entity>())
+            {
+                types.emplace_back(e.value);
+            }
+        }
+    }
+
+    void reflection_registry::find_by_concept(const type_id& type, deque<type_handle>& types) const
+    {
+        const auto componentType = m_impl->typesRegistry.find_component(type);
+
+        if (!componentType)
+        {
+            return;
+        }
+
+        ecs::component_and_tag_sets sets{};
+        sets.components.add(componentType);
+
+        for (auto&& chunk : m_impl->registry.range<>().with(sets))
         {
             for (const auto e : chunk.get<ecs::entity>())
             {

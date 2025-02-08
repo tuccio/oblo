@@ -2,11 +2,13 @@
 
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/core/time/time.hpp>
+#include <oblo/core/unique_ptr.hpp>
 #include <oblo/editor/data/time_stats.hpp>
 #include <oblo/editor/window_manager.hpp>
 #include <oblo/runtime/runtime.hpp>
 #include <oblo/runtime/runtime_registry.hpp>
 #include <oblo/thread/job_manager.hpp>
+#include <oblo/vulkan/renderer.hpp>
 
 #include <span>
 
@@ -18,6 +20,8 @@ namespace oblo::vk
     struct sandbox_shutdown_context;
     struct sandbox_render_context;
     struct sandbox_update_imgui_context;
+
+    class renderer;
 }
 
 namespace oblo::editor
@@ -56,5 +60,6 @@ namespace oblo::editor
         time_stats m_timeStats{};
         time m_lastFrameTime{};
         editor_app_module* m_editorModule{};
+        vk::renderer m_renderer;
     };
 }

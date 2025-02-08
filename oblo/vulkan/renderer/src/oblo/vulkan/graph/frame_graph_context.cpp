@@ -242,7 +242,6 @@ namespace oblo::vk
             const binding_tables_span& bindingTables)
         {
             const auto& pm = renderer.get_pass_manager();
-            const auto& drawRegistry = renderer.get_draw_registry();
             const auto& interner = renderer.get_string_interner();
 
             pm.bind_descriptor_sets(commandBuffer,
@@ -250,7 +249,6 @@ namespace oblo::vk
                 pipeline,
                 [&frameGraph,
                     &pm,
-                    &drawRegistry,
                     &pipeline,
                     currentPass,
                     bindingTables = bindingTables.span(),
@@ -274,7 +272,7 @@ namespace oblo::vk
                             OBLO_ASSERT(r->accelerationStructure == g_globalTLAS,
                                 "Only the global TLAS is supported at the moment");
 
-                            return make_bindable_object(drawRegistry.get_tlas());
+                            return make_bindable_object(frameGraph.globalTLAS);
                         }
 
                         case bindable_resource_kind::buffer: {
@@ -449,6 +447,12 @@ namespace oblo::vk
         }
     }
 
+    void frame_graph_build_context::register_global_tlas(VkAccelerationStructureKHR accelerationStructure) const
+    {
+        OBLO_ASSERT(!m_frameGraph.globalTLAS);
+        m_frameGraph.globalTLAS = accelerationStructure;
+    }
+
     void frame_graph_build_context::acquire(resource<texture> texture, texture_usage usage) const
     {
         OBLO_ASSERT(m_state.currentPass);
@@ -554,16 +558,6 @@ namespace oblo::vk
     frame_allocator& frame_graph_build_context::get_frame_allocator() const
     {
         return m_frameGraph.dynamicAllocator;
-    }
-
-    const draw_registry& frame_graph_build_context::get_draw_registry() const
-    {
-        return m_renderer.get_draw_registry();
-    }
-
-    ecs::entity_registry& frame_graph_build_context::get_entity_registry() const
-    {
-        return m_renderer.get_draw_registry().get_entity_registry();
     }
 
     random_generator& frame_graph_build_context::get_random_generator() const
@@ -914,11 +908,6 @@ namespace oblo::vk
     VkDevice frame_graph_execute_context::get_device() const
     {
         return m_renderer.get_vulkan_context().get_device();
-    }
-
-    draw_registry& frame_graph_execute_context::get_draw_registry() const
-    {
-        return m_renderer.get_draw_registry();
     }
 
     const loaded_functions& frame_graph_execute_context::get_loaded_functions() const

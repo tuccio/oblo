@@ -324,18 +324,22 @@ namespace oblo::editor
 
         resourceRegistry.register_provider(resourceProvider);
 
+        m_renderer.init({
+            .vkContext = *ctx.vkContext,
+            .resources = resourceRegistry,
+        });
+
         if (!m_runtime.init({
                 .reflectionRegistry = &reflection->get_registry(),
                 .propertyRegistry = &propertyRegistry,
                 .resourceRegistry = &resourceRegistry,
                 .vulkanContext = ctx.vkContext,
+                .renderer = &m_renderer,
                 .worldBuilders = mm.find_services<ecs::world_builder>(),
             }))
         {
             return false;
         }
-
-        auto& renderer = m_runtime.get_renderer();
 
         m_windowManager.init();
         init_ui();
@@ -344,7 +348,7 @@ namespace oblo::editor
             auto& globalRegistry = m_windowManager.get_global_service_registry();
 
             globalRegistry.add<vk::vulkan_context>().externally_owned(ctx.vkContext);
-            globalRegistry.add<vk::renderer>().externally_owned(&renderer);
+            globalRegistry.add<vk::renderer>().externally_owned(&m_renderer);
             globalRegistry.add<const resource_registry>().externally_owned(&resourceRegistry);
             globalRegistry.add<asset_registry>().externally_owned(&m_assetRegistry);
             globalRegistry.add<const property_registry>().externally_owned(&propertyRegistry);
@@ -395,6 +399,8 @@ namespace oblo::editor
         m_runtime.shutdown();
         platform::shutdown();
 
+        m_renderer.shutdown();
+
         module_manager::get().shutdown();
 
         m_jobManager.shutdown();
@@ -409,7 +415,14 @@ namespace oblo::editor
 
         m_timeStats.dt = dt;
 
+        // This is here because the draw_registry is uploading during the runtime
+        // We should move that to a node instead
+        m_renderer.begin_frame();
+
         m_runtime.update({.dt = dt});
+
+        m_renderer.end_frame();
+
         m_lastFrameTime = now;
     }
 

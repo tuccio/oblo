@@ -10,6 +10,7 @@
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/ecs/utility/deferred.hpp>
 #include <oblo/ecs/utility/registration.hpp>
+#include <oblo/graphics/components/gpu_components.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/resource/resource_ptr.hpp>
@@ -18,6 +19,7 @@
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/scene/resources/material.hpp>
 #include <oblo/scene/resources/pbr_properties.hpp>
+#include <oblo/vulkan/data/components.hpp>
 #include <oblo/vulkan/draw/draw_registry.hpp>
 #include <oblo/vulkan/draw/resource_cache.hpp>
 #include <oblo/vulkan/renderer.hpp>
@@ -28,21 +30,6 @@ namespace oblo
 {
     namespace
     {
-        struct gpu_material
-        {
-            vec3 albedo;
-            h32<vk::resident_texture> albedoTexture;
-            f32 metalness;
-            f32 roughness;
-            h32<vk::resident_texture> metalnessRoughnessTexture;
-            h32<vk::resident_texture> normalMapTexture;
-            f32 ior;
-            u32 _padding[3];
-            vec3 emissive;
-            h32<vk::resident_texture> emissiveTexture;
-        };
-
-        static_assert(sizeof(gpu_material) % 16 == 0);
 
         gpu_material convert(vk::resource_cache& cache, const material& m)
         {
@@ -115,11 +102,6 @@ namespace oblo
 
             return out;
         }
-
-        struct entity_id_component
-        {
-            ecs::entity entityId;
-        };
 
         struct mesh_resources
         {
@@ -220,8 +202,8 @@ namespace oblo
 
     void static_mesh_system::first_update(const ecs::system_update_context& ctx)
     {
-        m_renderer = ctx.services->find<vk::renderer>();
-        OBLO_ASSERT(m_renderer);
+        m_drawRegistry = ctx.services->find<vk::draw_registry>();
+        OBLO_ASSERT(m_drawRegistry);
 
         m_resourceRegistry = ctx.services->find<const resource_registry>();
         OBLO_ASSERT(m_resourceRegistry);
@@ -229,29 +211,17 @@ namespace oblo
         m_resourceCache = ctx.services->find<vk::resource_cache>();
         OBLO_ASSERT(m_resourceCache);
 
-        auto& drawRegistry = m_renderer->get_draw_registry();
-
         auto& typeRegistry = ctx.entities->get_type_registry();
-
-        const auto gpuTransform = typeRegistry.find_component<global_transform_component>();
-        const auto gpuMaterial = typeRegistry.register_component(ecs::make_component_type_desc<gpu_material>());
-        const auto entityId = typeRegistry.register_component(ecs::make_component_type_desc<entity_id_component>());
 
         ecs::register_type<mesh_resources>(typeRegistry);
         ecs::register_type<processed_mesh_resources>(typeRegistry);
         ecs::register_type<mesh_processed_tag>(typeRegistry);
-
-        drawRegistry.register_instance_data(gpuTransform, "i_TransformBuffer");
-        drawRegistry.register_instance_data(gpuMaterial, "i_MaterialBuffer");
-        drawRegistry.register_instance_data(entityId, "i_EntityIdBuffer");
 
         update(ctx);
     }
 
     void static_mesh_system::update(const ecs::system_update_context& ctx)
     {
-        auto& drawRegistry = m_renderer->get_draw_registry();
-
         ecs::deferred deferred{ctx.frameAllocator};
 
         if (!m_resourceRegistry->get_updated_events<material>().empty())
@@ -292,7 +262,7 @@ namespace oblo
         {
             for (auto&& [e, meshComponent] : chunk.zip<ecs::entity, static_mesh_component>())
             {
-                add_mesh(m_resourceRegistry, m_resourceCache, drawRegistry, e, meshComponent, deferred);
+                add_mesh(m_resourceRegistry, m_resourceCache, *m_drawRegistry, e, meshComponent, deferred);
             }
         }
 

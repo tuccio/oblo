@@ -30,6 +30,7 @@ namespace oblo
         const property_registry* propertyRegistry;
         const resource_registry* resourceRegistry;
         vk::vulkan_context* vulkanContext;
+        vk::renderer* renderer;
         std::span<ecs::world_builder* const> worldBuilders;
         usize frameAllocatorMaxSize{1u << 28};
     };
@@ -55,8 +56,6 @@ namespace oblo
         RUNTIME_API void shutdown();
 
         RUNTIME_API void update(const runtime_update_context& ctx);
-
-        RUNTIME_API vk::renderer& get_renderer() const;
 
         RUNTIME_API ecs::entity_registry& get_entity_registry() const;
 
