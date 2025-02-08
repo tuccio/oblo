@@ -31,7 +31,7 @@ namespace oblo
         ~service_registry();
 
         template <typename T>
-        builder<T, T> add();
+        auto add();
 
         template <typename T>
         T* find() const;
@@ -60,7 +60,9 @@ namespace oblo
             T* const ptr = new T{std::forward<Args>(args)...};
             m_registry->m_services.emplace_back(ptr, [](void* p) { delete static_cast<T*>(p); });
 
-            (m_registry->m_map.emplace(get_type_id<Bases>(), static_cast<Bases*>(ptr)), ...);
+            (m_registry->m_map.emplace(get_type_id<Bases>(),
+                 const_cast<void*>(static_cast<const void*>(static_cast<Bases*>(ptr)))),
+                ...);
             return ptr;
         }
 
@@ -69,7 +71,9 @@ namespace oblo
             T* const ptr = new T{std::move(s)};
             m_registry->m_services.emplace_back(ptr, [](void* p) { delete static_cast<T*>(p); });
 
-            (m_registry->m_map.emplace(get_type_id<Bases>(), static_cast<Bases*>(ptr)), ...);
+            (m_registry->m_map.emplace(get_type_id<Bases>(),
+                 const_cast<void*>(static_cast<const void*>(static_cast<Bases*>(ptr)))),
+                ...);
             return ptr;
         }
 
@@ -114,9 +118,16 @@ namespace oblo
     }
 
     template <typename T>
-    service_registry::builder<T, T> service_registry::add()
+    auto service_registry::add()
     {
-        return builder<T, T>{this};
+        if constexpr (std::is_const_v<T>)
+        {
+            return builder<T, T>{this};
+        }
+        else
+        {
+            return builder<T, T, std::add_const_t<T>>{this};
+        }
     }
 
     template <typename T>

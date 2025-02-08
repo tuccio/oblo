@@ -96,6 +96,7 @@ namespace oblo
 
         m_impl->entities.init(&m_impl->typeRegistry);
 
+        // We should probably move this to a world builder in a module if it's necessary
         m_impl->services.add<vk::vulkan_context>().externally_owned(initializer.vulkanContext);
         m_impl->services.add<vk::renderer>().externally_owned(initializer.renderer);
 

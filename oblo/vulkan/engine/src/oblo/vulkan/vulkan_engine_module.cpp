@@ -7,6 +7,8 @@
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/vulkan/error.hpp>
+#include <oblo/vulkan/renderer.hpp>
+#include <oblo/vulkan/renderer_module.hpp>
 #include <oblo/vulkan/required_features.hpp>
 #include <oblo/vulkan/swapchain.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
@@ -204,6 +206,8 @@ namespace oblo::vk
         // This is possibly not necessary anymore?
         resource_manager resourceManager;
 
+        renderer renderer;
+
         deque<unique_ptr<vulkan_window_context>> windowContexts;
 
         dynamic_array<VkSwapchainKHR> acquiredSwapchains;
@@ -214,7 +218,7 @@ namespace oblo::vk
 
         VkSemaphore frameCompletedSemaphore[g_SwapchainImages]{};
 
-        bool initialize();
+        bool initialize(const resource_registry& resourceRegistry);
         void shutdown();
 
         // Implementation of graphics_engine
@@ -231,6 +235,7 @@ namespace oblo::vk
     bool vulkan_engine_module::startup(const module_initializer& initializer)
     {
         module_manager::get().load<window_module>();
+        module_manager::get().load<renderer_module>();
 
         m_impl = allocate_unique<impl>();
 
@@ -250,7 +255,9 @@ namespace oblo::vk
 
     void vulkan_engine_module::finalize()
     {
-        if (!m_impl->initialize())
+        auto* const resourceRegistry = module_manager::get().find_unique_service<const resource_registry>();
+
+        if (!resourceRegistry || !m_impl->initialize(*resourceRegistry))
         {
             return_error();
         }
@@ -341,7 +348,7 @@ namespace oblo::vk
         };
     }
 
-    bool vulkan_engine_module::impl::initialize()
+    bool vulkan_engine_module::impl::initialize(const resource_registry& resourceRegistry)
     {
         // First we create the instance
 
@@ -379,10 +386,15 @@ namespace oblo::vk
             VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME,
             VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
             VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
+            VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
             VK_EXT_MESH_SHADER_EXTENSION_NAME,
+            VK_KHR_SPIRV_1_4_EXTENSION_NAME,
+            VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
+            VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME, // This is needed for debug printf
+            VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME,    // We need this for profiling with Tracy
+            VK_EXT_HOST_QUERY_RESET_EXTENSION_NAME,         // We need this for profiling with Tracy
 
             // Ray-tracing extensions, we might want to disable them
-            VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
             VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
             VK_KHR_RAY_QUERY_EXTENSION_NAME,
             VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
@@ -421,6 +433,14 @@ namespace oblo::vk
                 allocator,
                 frameCompletedSemaphore,
                 OBLO_STRINGIZE(vulkan_engine::impl::frameCompletedSemaphore)))
+        {
+            return false;
+        }
+
+        if (!renderer.init({
+                .vkContext = vkContext,
+                .resources = resourceRegistry,
+            }))
         {
             return false;
         }
