@@ -30,10 +30,10 @@ namespace oblo::vk
         h32<compute_pass_instance> pickingPassInstance;
         h32<transfer_pass_instance> downloadInstance;
 
-        void init(const frame_graph_init_context& context);
+        void init(const frame_graph_init_context& ctx);
 
-        void build(const frame_graph_build_context& builder);
+        void build(const frame_graph_build_context& ctx);
 
-        void execute(const frame_graph_execute_context& context);
+        void execute(const frame_graph_execute_context& ctx);
     };
 }

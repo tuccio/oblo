@@ -91,6 +91,7 @@ namespace oblo::vk
         VkDeviceSize size;
         h32<stable_texture_resource> stableId;
         u32 framesAlive;
+        bool isExternal;
     };
 
     struct resource_pool::buffer_resource
@@ -238,6 +239,20 @@ namespace oblo::vk
         return h32<transient_texture_resource>{id + 1};
     }
 
+    h32<transient_texture_resource> resource_pool::add_external_texture(const texture& texture)
+    {
+        const auto id = u32(m_textureResources.size());
+
+        m_textureResources.push_back({
+            .initializer = texture.initializer,
+            .image = texture.image,
+            .imageView = texture.view,
+            .isExternal = true,
+        });
+
+        return h32<transient_texture_resource>{id + 1};
+    }
+
     h32<transient_buffer_resource> resource_pool::add_transient_buffer(
         u32 size, VkBufferUsageFlags usage, h32<stable_buffer_resource> stableId)
     {
@@ -364,7 +379,7 @@ namespace oblo::vk
 
         for (const auto& resource : m_lastFrameTransientTextures)
         {
-            if (resource.stableId)
+            if (resource.stableId || resource.isExternal)
             {
                 continue;
             }
@@ -397,6 +412,11 @@ namespace oblo::vk
             if (textureResource.stableId)
             {
                 acquire_from_pool(ctx, textureResource);
+                continue;
+            }
+
+            if (textureResource.isExternal)
+            {
                 continue;
             }
 
@@ -449,7 +469,7 @@ namespace oblo::vk
         VkDeviceSize offset{0};
         for (auto& textureResource : m_textureResources)
         {
-            if (textureResource.stableId)
+            if (textureResource.stableId || textureResource.isExternal)
             {
                 continue;
             }

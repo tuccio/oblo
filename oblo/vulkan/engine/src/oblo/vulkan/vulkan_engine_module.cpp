@@ -11,6 +11,8 @@
 #include <oblo/vulkan/renderer_module.hpp>
 #include <oblo/vulkan/required_features.hpp>
 #include <oblo/vulkan/swapchain.hpp>
+#include <oblo/vulkan/templates/graph_templates.hpp>
+#include <oblo/vulkan/texture.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
 #include <oblo/window/graphics_engine.hpp>
 #include <oblo/window/graphics_window_context.hpp>
@@ -65,26 +67,29 @@ namespace oblo::vk
 
         struct vulkan_window_context final : public graphics_window_context
         {
-            vulkan_context* vkCtx{};
             VkSurfaceKHR surface{};
             swapchain<g_SwapchainImages> swapchain;
+            h32<texture> swapchainTextures[g_SwapchainImages]{};
 
             VkSemaphore acquiredImageSemaphores[g_SwapchainImages]{};
 
             u32 width{1};
             u32 height{1};
 
-            bool initialize(vulkan_context& ctx, const graphics_window& window)
+            h32<frame_graph_subgraph> swapchainGraph{};
+
+            bool markedForDestruction = false;
+
+            bool initialize(vulkan_context& ctx, resource_manager& resourceManager, const graphics_window& window)
             {
-                OBLO_ASSERT(!vkCtx && !surface && !swapchain);
-                vkCtx = &ctx;
+                OBLO_ASSERT(!surface && !swapchain);
 
                 if (!create_surface(window,
                         ctx.get_instance(),
                         ctx.get_allocator().get_allocation_callbacks(),
                         &surface))
                 {
-                    shutdown();
+                    shutdown(ctx, resourceManager);
                     return false;
                 }
 
@@ -92,9 +97,9 @@ namespace oblo::vk
                 width = windowSize.x;
                 height = windowSize.y;
 
-                if (!swapchain.create(ctx, surface, width, height, g_SwapchainFormat))
+                if (!create_swapchain(ctx, resourceManager))
                 {
-                    shutdown();
+                    shutdown(ctx, resourceManager);
                     return false;
                 }
 
@@ -109,47 +114,85 @@ namespace oblo::vk
                 return true;
             }
 
-            void shutdown()
+            bool create_swapchain(vulkan_context& ctx, resource_manager& resourceManager)
             {
-                if (!vkCtx)
+                if (!swapchain.create(ctx, surface, width, height, g_SwapchainFormat))
                 {
-                    return;
+                    return false;
                 }
 
+                const image_initializer initializer{
+                    .imageType = VK_IMAGE_TYPE_2D,
+                    .format = g_SwapchainFormat,
+                    .extent = VkExtent3D{.width = width, .height = height, .depth = 1},
+                    .mipLevels = 1,
+                    .arrayLayers = 1,
+                    .samples = VK_SAMPLE_COUNT_1_BIT,
+                    .tiling = VK_IMAGE_TILING_OPTIMAL,
+                    .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                    .memoryUsage = memory_usage::gpu_only,
+                };
+
+                for (u32 i = 0; i < g_SwapchainImages; ++i)
+                {
+                    swapchainTextures[i] = resourceManager.register_texture(
+                        texture{
+                            .image = swapchain.get_image(i),
+                            .view = swapchain.get_image_view(i),
+                            .initializer = initializer,
+                        },
+                        VK_IMAGE_LAYOUT_UNDEFINED);
+                }
+
+                return true;
+            }
+
+            void destroy_swapchain(vulkan_context& ctx, resource_manager& resourceManager)
+            {
+                swapchain.destroy(ctx);
+
+                for (auto& handle : swapchainTextures)
+                {
+                    if (handle)
+                    {
+                        resourceManager.unregister_texture(handle);
+                        handle = {};
+                    }
+                }
+            }
+
+            void shutdown(vulkan_context& ctx, resource_manager& resourceManager)
+            {
                 // Should probably just delay defer destruction through the context instead
-                vkDeviceWaitIdle(vkCtx->get_device());
+                vkDeviceWaitIdle(ctx.get_device());
 
                 if (swapchain)
                 {
-                    swapchain.destroy(*vkCtx);
+                    destroy_swapchain(ctx, resourceManager);
                 }
 
                 if (surface)
                 {
-                    vkDestroySurfaceKHR(vkCtx->get_instance(),
-                        surface,
-                        vkCtx->get_allocator().get_allocation_callbacks());
+                    vkDestroySurfaceKHR(ctx.get_instance(), surface, ctx.get_allocator().get_allocation_callbacks());
 
                     surface = nullptr;
                 }
 
                 for (auto semaphore : acquiredImageSemaphores)
                 {
-                    vkDestroySemaphore(vkCtx->get_device(),
-                        semaphore,
-                        vkCtx->get_allocator().get_allocation_callbacks());
+                    vkDestroySemaphore(ctx.get_device(), semaphore, ctx.get_allocator().get_allocation_callbacks());
                 }
-
-                vkCtx = nullptr;
             }
 
-            bool acquire_next_image(u32 semaphoreIndex, u32* imageIndex)
+            bool acquire_next_image(
+                vulkan_context& ctx, resource_manager& resourceManager, u32 semaphoreIndex, u32* imageIndex)
             {
                 VkResult acquireImageResult;
 
                 do
                 {
-                    acquireImageResult = vkAcquireNextImageKHR(vkCtx->get_device(),
+                    acquireImageResult = vkAcquireNextImageKHR(ctx.get_device(),
                         swapchain.get(),
                         UINT64_MAX,
                         acquiredImageSemaphores[semaphoreIndex],
@@ -162,11 +205,11 @@ namespace oblo::vk
                     }
                     else if (acquireImageResult == VK_ERROR_OUT_OF_DATE_KHR)
                     {
-                        vkDeviceWaitIdle(vkCtx->get_device());
+                        vkDeviceWaitIdle(ctx.get_device());
 
-                        swapchain.destroy(*vkCtx);
+                        destroy_swapchain(ctx, resourceManager);
 
-                        if (!swapchain.create(*vkCtx, surface, width, height, g_SwapchainFormat))
+                        if (!create_swapchain(ctx, resourceManager))
                         {
                             OBLO_ASSERT(false, "Failed to create swapchain after it went out of date");
                             return false;
@@ -191,7 +234,12 @@ namespace oblo::vk
 
             void on_destroy() override
             {
-                shutdown();
+                markedForDestruction = true;
+            }
+
+            h32<frame_graph_subgraph> get_swapchain_graph() const override
+            {
+                return swapchainGraph;
             }
         };
     }
@@ -213,6 +261,10 @@ namespace oblo::vk
         dynamic_array<VkSwapchainKHR> acquiredSwapchains;
         dynamic_array<u32> acquiredImageIndices;
         dynamic_array<VkSemaphore> acquiredImageSemaphores;
+        dynamic_array<h32<frame_graph_subgraph>> swapchainGraphs;
+
+        frame_graph_registry nodeRegistry;
+        frame_graph_template swapchainGraphTemplate;
 
         u32 semaphoreIndex{};
 
@@ -261,6 +313,11 @@ namespace oblo::vk
         {
             return_error();
         }
+    }
+
+    renderer& vulkan_engine_module::get_renderer()
+    {
+        return m_impl->renderer;
     }
 
     namespace
@@ -445,6 +502,9 @@ namespace oblo::vk
             return false;
         }
 
+        nodeRegistry = create_frame_graph_registry();
+        swapchainGraphTemplate = swapchain_graph::create(nodeRegistry);
+
         return true;
     }
 
@@ -459,7 +519,7 @@ namespace oblo::vk
     {
         auto windowCtx = allocate_unique<vulkan_window_context>();
 
-        if (!windowCtx->initialize(vkContext, window))
+        if (!windowCtx->initialize(vkContext, resourceManager, window))
         {
             return nullptr;
         }
@@ -469,9 +529,12 @@ namespace oblo::vk
 
     bool vulkan_engine_module::impl::acquire_images()
     {
+        auto& frameGraph = renderer.get_frame_graph();
+
         acquiredSwapchains.clear();
         acquiredImageIndices.clear();
         acquiredImageSemaphores.clear();
+        swapchainGraphs.clear();
 
         vkContext.frame_begin(frameCompletedSemaphore[semaphoreIndex]);
 
@@ -479,25 +542,35 @@ namespace oblo::vk
         {
             vulkan_window_context* const windowCtx = it->get();
 
-            if (!windowCtx->swapchain)
+            if (windowCtx->markedForDestruction)
             {
                 // Collect it, it was destroyed
+                windowCtx->shutdown(vkContext, resourceManager);
                 it = windowContexts.erase_unordered(it);
                 continue;
             }
 
             u32 imageIndex;
 
-            if (!windowCtx->acquire_next_image(semaphoreIndex, &imageIndex))
+            if (!windowCtx->acquire_next_image(vkContext, resourceManager, semaphoreIndex, &imageIndex))
             {
-                // Not entirely sure this is a good idea
-                it = windowContexts.erase_unordered(it);
+                OBLO_ASSERT(false, "Failed to acquire image on swapchain");
+                ++it;
                 continue;
             }
 
             acquiredSwapchains.emplace_back(windowCtx->swapchain.get());
             acquiredImageIndices.emplace_back(imageIndex);
             acquiredImageSemaphores.emplace_back(windowCtx->acquiredImageSemaphores[semaphoreIndex]);
+
+            auto swapChainGraph = frameGraph.instantiate(swapchainGraphTemplate);
+
+            frameGraph
+                .set_input(swapChainGraph, swapchain_graph::InAcquiredImage, windowCtx->swapchainTextures[imageIndex])
+                .assert_value();
+
+            swapchainGraphs.emplace_back(swapChainGraph);
+            windowCtx->swapchainGraph = swapChainGraph;
 
             ++it;
         }
@@ -509,11 +582,23 @@ namespace oblo::vk
         }
 
         vkContext.push_frame_wait_semaphores(acquiredImageSemaphores);
+
+        renderer.begin_frame();
+
         return true;
     }
 
     void vulkan_engine_module::impl::present()
     {
+        auto& frameGraph = renderer.get_frame_graph();
+
+        for (auto& swapchainGraph : swapchainGraphs)
+        {
+            frameGraph.set_output_state(swapchainGraph, swapchain_graph::OutPresentedImage, true);
+        }
+
+        renderer.end_frame();
+
         // Should be unnecessary, but we won't submit if we don't call it at least once
         vkContext.get_active_command_buffer();
 
@@ -532,6 +617,14 @@ namespace oblo::vk
         OBLO_VK_PANIC_EXCEPT(vkQueuePresentKHR(engine.get_queue(), &presentInfo), VK_ERROR_OUT_OF_DATE_KHR);
 
         semaphoreIndex = (semaphoreIndex + 1) % g_SwapchainImages;
+
+        for (auto& swapchainGraph : swapchainGraphs)
+        {
+            // TODO: Just clear the input edges instead of removing it every time
+            frameGraph.remove(swapchainGraph);
+        }
+
+        swapchainGraphs.clear();
     }
 }
 

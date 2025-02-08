@@ -5,6 +5,8 @@
 
 namespace oblo::vk
 {
+    class renderer;
+
     class vulkan_engine_module final : public module_interface
     {
     public:
@@ -19,6 +21,8 @@ namespace oblo::vk
         bool startup(const module_initializer& initializer) override;
         void shutdown() override;
         void finalize() override;
+
+        renderer& get_renderer();
 
     private:
         struct impl;

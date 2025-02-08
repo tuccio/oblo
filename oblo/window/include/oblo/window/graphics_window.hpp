@@ -1,10 +1,16 @@
 #pragma once
 
+#include <oblo/core/handle.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/math/vec2u.hpp>
 
 namespace oblo
 {
+    namespace vk
+    {
+        struct frame_graph_subgraph;
+    }
+
     class graphics_window_context;
 
     using native_window_handle = void*;
@@ -46,6 +52,8 @@ namespace oblo
         void update();
 
         native_window_handle get_native_handle() const;
+
+        h32<vk::frame_graph_subgraph> get_swapchain_graph() const;
 
     private:
         void* m_impl{};

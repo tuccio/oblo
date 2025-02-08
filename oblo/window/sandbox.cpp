@@ -3,6 +3,8 @@
 #include <oblo/modules/module_interface.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/resource/resource_registry.hpp>
+#include <oblo/vulkan/graph/frame_graph.hpp>
+#include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/vulkan_engine_module.hpp>
 #include <oblo/window/graphics_engine.hpp>
 #include <oblo/window/graphics_window.hpp>

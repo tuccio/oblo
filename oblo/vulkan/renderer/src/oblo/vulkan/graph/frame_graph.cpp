@@ -554,6 +554,9 @@ namespace oblo::vk
             ps.transientTexture = {};
         }
 
+        // This is used to register external textures (e.g. the swapchain images)
+        m_impl->resourceManager = &renderer.get_resource_manager();
+
         // The two calls are from a time where we managed multiple small graphs sharing the resource pool, rather than 1
         // big graph owning it.
         m_impl->resourcePool.begin_build();
@@ -600,6 +603,8 @@ namespace oblo::vk
 
             textureRegistry.set_texture(texture.resident, t.view, image_layout_tracker::deduce_layout(texture.usage));
         }
+
+        m_impl->resourceManager = {};
     }
 
     void frame_graph::execute(renderer& renderer)

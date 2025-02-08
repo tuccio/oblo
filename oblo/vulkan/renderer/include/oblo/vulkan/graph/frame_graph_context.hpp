@@ -78,6 +78,7 @@ namespace oblo::vk
         storage_write,
         download,
         transfer_destination,
+        present,
     };
 
     enum class buffer_usage : u8
@@ -154,6 +155,8 @@ namespace oblo::vk
         void create(resource<buffer> buffer, const buffer_resource_initializer& initializer, buffer_usage usage) const;
 
         void create(resource<buffer> buffer, const staging_buffer_span& stagedData, buffer_usage usage) const;
+
+        void register_texture(resource<texture> resource, h32<texture> externalTexture) const;
 
         // Temporary solution until the acceleration structure is a proper resource.
         void register_global_tlas(VkAccelerationStructureKHR accelerationStructure) const;

@@ -130,6 +130,16 @@ namespace oblo::vk::surfels_gi
     frame_graph_template create(const frame_graph_registry& registry);
 }
 
+namespace oblo::vk::swapchain_graph
+{
+    constexpr string_view InAcquiredImage{"AcquiredImage"};
+    constexpr string_view OutAcquiredImage{"AcquiredImage"};
+    constexpr string_view InRenderedImage{"ImageToPresent"};
+    constexpr string_view OutPresentedImage{"PresentedImage"};
+
+    frame_graph_template create(const frame_graph_registry& registry);
+}
+
 namespace oblo::vk
 {
     vk::frame_graph_registry create_frame_graph_registry();

@@ -160,4 +160,9 @@ namespace oblo
 
         return SDL_GetWindowWMInfo(window, &wmInfo) ? wmInfo.info.win.window : nullptr;
     }
+
+    h32<vk::frame_graph_subgraph> oblo::graphics_window::get_swapchain_graph() const
+    {
+        return m_graphicsContext->get_swapchain_graph();
+    }
 }

@@ -539,6 +539,57 @@ namespace oblo::vk::raytraced_shadow_view
     }
 }
 
+namespace oblo::vk::swapchain_graph
+{
+    struct swapchain_image_acquire
+    {
+        data<h32<texture>> inSwapchainImageTexture;
+        resource<texture> outSwapchainImageResource;
+
+        void build(const frame_graph_build_context& ctx)
+        {
+            const auto texture = ctx.access(inSwapchainImageTexture);
+            ctx.register_texture(outSwapchainImageResource, texture);
+        }
+    };
+
+    struct swapchain_image_present
+    {
+        resource<texture> inRenderedImage;
+        resource<texture> inSwapchainImage;
+
+        void build(const frame_graph_build_context& ctx)
+        {
+            // TODO: If inRenderedImage and inSwapchainImage are not the same texure, we need to blit
+            ctx.empty_pass();
+            ctx.acquire(inSwapchainImage, texture_usage::present);
+        }
+    };
+
+    frame_graph_template create(const frame_graph_registry& registry)
+    {
+        vk::frame_graph_template graph;
+
+        graph.init(registry);
+
+        const auto acquire = graph.add_node<swapchain_image_acquire>();
+        const auto present = graph.add_node<swapchain_image_present>();
+
+        graph.make_input(acquire, &swapchain_image_acquire::inSwapchainImageTexture, InAcquiredImage);
+        graph.make_output(acquire, &swapchain_image_acquire::outSwapchainImageResource, OutAcquiredImage);
+
+        graph.make_input(present, &swapchain_image_present::inRenderedImage, InRenderedImage);
+        graph.make_output(present, &swapchain_image_present::inSwapchainImage, OutPresentedImage);
+
+        graph.connect(acquire,
+            &swapchain_image_acquire::outSwapchainImageResource,
+            present,
+            &swapchain_image_present::inSwapchainImage);
+
+        return graph;
+    }
+}
+
 namespace oblo::vk::surfels_gi
 {
     frame_graph_template create(const frame_graph_registry& registry)
@@ -736,6 +787,10 @@ namespace oblo::vk
         registry.register_node<surfel_accumulate_raycount>();
         registry.register_node<surfel_raytracing>();
         registry.register_node<surfel_debug>();
+
+        // Swapchain
+        registry.register_node<swapchain_graph::swapchain_image_acquire>();
+        registry.register_node<swapchain_graph::swapchain_image_present>();
 
         return registry;
     }

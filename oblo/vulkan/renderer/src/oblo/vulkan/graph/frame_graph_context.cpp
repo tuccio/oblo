@@ -447,6 +447,13 @@ namespace oblo::vk
         }
     }
 
+    void frame_graph_build_context::register_texture(resource<texture> resource, h32<texture> externalTexture) const
+    {
+        const auto& texture = m_frameGraph.resourceManager->get(externalTexture);
+        const auto poolIndex = m_resourcePool.add_external_texture(texture);
+        m_frameGraph.add_transient_resource(resource, poolIndex);
+    }
+
     void frame_graph_build_context::register_global_tlas(VkAccelerationStructureKHR accelerationStructure) const
     {
         OBLO_ASSERT(!m_frameGraph.globalTLAS);
