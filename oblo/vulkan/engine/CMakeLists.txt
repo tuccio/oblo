@@ -10,6 +10,6 @@ target_link_libraries(
     PRIVATE
     oblo::vk
     oblo::vk_renderer
-    oblo::window_graphics
+    oblo::app
     Vulkan::Vulkan
 )

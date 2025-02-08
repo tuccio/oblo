@@ -75,6 +75,10 @@ namespace oblo::vk
                 result |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
                 break;
 
+            case buffer_usage::index:
+                result |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+                break;
+
             default:
                 unreachable();
             }
@@ -146,10 +150,17 @@ namespace oblo::vk
                 access = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_UNIFORM_READ_BIT;
                 accessKind = buffer_access_kind::read;
                 break;
+
             case buffer_usage::indirect:
                 access = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
                 accessKind = buffer_access_kind::read;
                 break;
+
+            case buffer_usage::index:
+                access = VK_ACCESS_2_INDEX_READ_BIT;
+                accessKind = buffer_access_kind::read;
+                break;
+
             default:
                 unreachable();
             }

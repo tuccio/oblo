@@ -1,5 +1,8 @@
 #include <oblo/vulkan/vulkan_engine_module.hpp>
 
+#include <oblo/app/graphics_engine.hpp>
+#include <oblo/app/graphics_window.hpp>
+#include <oblo/app/graphics_window_context.hpp>
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/finally.hpp>
 #include <oblo/core/service_registry.hpp>
@@ -14,9 +17,6 @@
 #include <oblo/vulkan/templates/graph_templates.hpp>
 #include <oblo/vulkan/texture.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
-#include <oblo/window/graphics_engine.hpp>
-#include <oblo/window/graphics_window_context.hpp>
-#include <oblo/window/window_module.hpp>
 
 namespace oblo::vk
 {
@@ -288,7 +288,6 @@ namespace oblo::vk
 
     bool vulkan_engine_module::startup(const module_initializer& initializer)
     {
-        module_manager::get().load<window_module>();
         module_manager::get().load<renderer_module>();
 
         m_impl = allocate_unique<impl>();
@@ -458,14 +457,15 @@ namespace oblo::vk
             VK_EXT_HOST_QUERY_RESET_EXTENSION_NAME,         // We need this for profiling with Tracy
 
             // Ray-tracing extensions, we might want to disable them
-            VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
-            VK_KHR_RAY_QUERY_EXTENSION_NAME,
-            VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
+            // VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
+            // VK_KHR_RAY_QUERY_EXTENSION_NAME,
+            // VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
         };
 
         VkPhysicalDeviceFeatures2 g_physicalDeviceFeatures2{
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
-            .pNext = &g_rtPipelineFeatures, // We might want to disable ray-tracing
+            //.pNext = &g_rtPipelineFeatures, // We might want to disable ray-tracing
+            .pNext = &g_synchronizationFeatures,
             .features = g_physicalDeviceFeatures,
         };
 

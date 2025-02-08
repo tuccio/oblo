@@ -1,10 +1,9 @@
-#include <oblo/window/graphics_window.hpp>
+#include <oblo/app/graphics_window.hpp>
 
+#include <oblo/app/graphics_engine.hpp>
+#include <oblo/app/graphics_window_context.hpp>
+#include <oblo/app/window_event_processor.hpp>
 #include <oblo/modules/module_manager.hpp>
-#include <oblo/window/graphics_engine.hpp>
-#include <oblo/window/graphics_window_context.hpp>
-#include <oblo/window/window_event_processor.hpp>
-#include <oblo/window/window_module.hpp>
 
 #include <SDL.h>
 #include <SDL_syswm.h>
@@ -165,11 +164,6 @@ namespace oblo
         SDL_VERSION(&wmInfo.version);
 
         return SDL_GetWindowWMInfo(window, &wmInfo) ? wmInfo.info.win.window : nullptr;
-    }
-
-    h32<vk::frame_graph_subgraph> graphics_window::get_swapchain_graph() const
-    {
-        return m_graphicsContext->get_swapchain_graph();
     }
 
     bool window_event_processor::process_events() const

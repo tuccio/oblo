@@ -1,9 +1,9 @@
-oblo_add_library(window_graphics)
+oblo_add_library(app)
 
 find_package(SDL2 REQUIRED)
 
 target_link_libraries(
-    oblo_window_graphics
+    oblo_app
     PUBLIC
     oblo::core
     oblo::modules

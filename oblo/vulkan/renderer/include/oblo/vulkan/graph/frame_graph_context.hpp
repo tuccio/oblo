@@ -90,6 +90,7 @@ namespace oblo::vk
         uniform,
         indirect,
         download,
+        index,
         enum_max,
     };
 

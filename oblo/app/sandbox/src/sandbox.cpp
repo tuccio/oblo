@@ -1,3 +1,7 @@
+#include <oblo/app/graphics_engine.hpp>
+#include <oblo/app/graphics_window.hpp>
+#include <oblo/app/imgui_app.hpp>
+#include <oblo/app/window_event_processor.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/log/log_module.hpp>
 #include <oblo/log/sinks/file_sink.hpp>
@@ -8,9 +12,8 @@
 #include <oblo/vulkan/graph/frame_graph.hpp>
 #include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/vulkan_engine_module.hpp>
-#include <oblo/window/graphics_engine.hpp>
-#include <oblo/window/graphics_window.hpp>
-#include <oblo/window/window_module.hpp>
+
+#include <imgui.h>
 
 namespace oblo
 {
@@ -36,7 +39,6 @@ int main(int, char**)
     module_manager mm;
 
     mm.load<vk::vulkan_engine_module>();
-    auto* wm = mm.load<window_module>();
     mm.load<app_module>();
 
     mm.finalize();
@@ -55,12 +57,14 @@ int main(int, char**)
         return 2;
     }
 
-    if (mainWindow.is_open())
+    imgui_app app;
+
+    if (!app.init(mainWindow))
     {
-        mainWindow.set_hidden(false);
+        return 3;
     }
 
-    auto eventProcessor = wm->create_event_processor();
+    window_event_processor eventProcessor{imgui_app::get_event_dispatcher()};
 
     while (mainWindow.is_open() && eventProcessor.process_events())
     {
@@ -73,6 +77,11 @@ int main(int, char**)
         }
 
         // TODO: Render
+        app.begin_frame();
+
+        ImGui::ShowDemoWindow();
+
+        app.end_frame();
 
         gfxEngine->present();
     }
