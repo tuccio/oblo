@@ -80,10 +80,11 @@ int main(int, char**)
         app.begin_frame();
 
         ImGui::ShowDemoWindow();
-
-        app.end_frame();
+        app.render();
 
         gfxEngine->present();
+
+        app.end_frame();
     }
 
     return 0;

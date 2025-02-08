@@ -25,6 +25,7 @@ namespace oblo
         void shutdown();
 
         void begin_frame();
+        void render();
         void end_frame();
 
     private:

@@ -55,6 +55,7 @@ namespace oblo
         {
             graphics_window_context* windowContext{};
             h32<vk::frame_graph_subgraph> graph;
+            bool isOwned;
         };
 
         struct imgui_render_backend
@@ -99,16 +100,16 @@ namespace oblo
 
             void build(const vk::frame_graph_build_context& ctx)
             {
-                ImGuiViewport* const viewport = ctx.access(inViewport);
-                OBLO_ASSERT(viewport);
-
-                auto* const drawData = viewport->DrawData;
-
-                if (drawData->TotalVtxCount == 0 || drawData->CmdListsCount == 0)
+                if (!ctx.has_source(inOutRenderTarget))
                 {
                     renderPassInstance = {};
                     return;
                 }
+
+                ImGuiViewport* const viewport = ctx.access(inViewport);
+                OBLO_ASSERT(viewport);
+
+                auto* const drawData = viewport->DrawData;
 
                 const auto rtInitializer =
                     ctx.get_current_initializer(inOutRenderTarget).value_or(vk::image_initializer{});
@@ -349,8 +350,10 @@ namespace oblo
             return fgt;
         }
 
-        imgui_render_userdata* create_render_userdata(
-            const imgui_render_backend* backend, graphics_window_context* windowContext, ImGuiViewport* viewport)
+        imgui_render_userdata* create_render_userdata(const imgui_render_backend* backend,
+            graphics_window_context* windowContext,
+            bool isOwned,
+            ImGuiViewport* viewport)
         {
             auto& frameGraph = backend->renderer->get_frame_graph();
 
@@ -360,17 +363,33 @@ namespace oblo
             return IM_NEW(imgui_render_userdata){
                 .windowContext = windowContext,
                 .graph = graph,
+                .isOwned = isOwned,
             };
+        }
+
+        void destroy_render_userdata(const imgui_render_backend* backend, imgui_render_userdata* rud)
+        {
+            if (rud->isOwned && rud->windowContext)
+            {
+                rud->windowContext->on_destroy();
+            }
+
+            auto& frameGraph = backend->renderer->get_frame_graph();
+            frameGraph.remove(rud->graph);
+
+            IM_DELETE(rud);
         }
 
         void connect_viewport(vk::frame_graph& frameGraph, ImGuiViewport* viewport)
         {
             auto* const rud = static_cast<imgui_render_userdata*>(viewport->RendererUserData);
             const auto swapchainGraph = rud->windowContext->get_swapchain_graph();
-            OBLO_ASSERT(swapchainGraph);
 
-            frameGraph.connect(swapchainGraph, vk::swapchain_graph::OutAcquiredImage, rud->graph, g_InOutRT);
-            frameGraph.connect(rud->graph, g_InOutRT, swapchainGraph, vk::swapchain_graph::InRenderedImage);
+            if (swapchainGraph)
+            {
+                frameGraph.connect(swapchainGraph, vk::swapchain_graph::OutAcquiredImage, rud->graph, g_InOutRT);
+                frameGraph.connect(rud->graph, g_InOutRT, swapchainGraph, vk::swapchain_graph::InRenderedImage);
+            }
         }
     }
 
@@ -387,6 +406,11 @@ namespace oblo
             }
 
             context = ImGui::CreateContext();
+
+            auto& io = ImGui::GetIO();
+
+            io.ConfigFlags |=
+                ImGuiConfigFlags_DockingEnable | ImGuiConfigFlags_ViewportsEnable | ImGuiConfigFlags_NavEnableKeyboard;
 
             auto* const sdlWindow = get_sdl_window(window);
 
@@ -432,7 +456,36 @@ namespace oblo
                                                                        // Renderer side (optional)
 
             ImGuiViewport* viewport = ImGui::GetMainViewport();
-            viewport->RendererUserData = create_render_userdata(&backend, get_graphics_context(window), viewport);
+            viewport->RendererUserData =
+                create_render_userdata(&backend, get_graphics_context(window), false, viewport);
+
+            ImGuiPlatformIO& platformIO = ImGui::GetPlatformIO();
+
+            platformIO.Renderer_CreateWindow = [](ImGuiViewport* viewport)
+            {
+                auto* backend = static_cast<imgui_render_backend*>(ImGui::GetIO().BackendRendererUserData);
+
+                auto* graphicsContext = backend->graphicsEngine->create_context(viewport->PlatformHandleRaw,
+                    u32(viewport->Size.x),
+                    u32(viewport->Size.y));
+
+                viewport->RendererUserData = create_render_userdata(backend, graphicsContext, true, viewport);
+            };
+
+            platformIO.Renderer_DestroyWindow = [](ImGuiViewport* viewport)
+            {
+                auto* backend = static_cast<imgui_render_backend*>(ImGui::GetIO().BackendRendererUserData);
+                auto* rud = static_cast<imgui_render_userdata*>(viewport->RendererUserData);
+                destroy_render_userdata(backend, rud);
+
+                viewport->RendererUserData = nullptr;
+            };
+
+            platformIO.Renderer_SetWindowSize = [](ImGuiViewport* viewport, ImVec2 size)
+            {
+                auto* rud = static_cast<imgui_render_userdata*>(viewport->RendererUserData);
+                rud->windowContext->on_resize(u32(size.x), u32(size.y));
+            };
 
             // TODO: Create font texture
             unsigned char* pixels;
@@ -478,21 +531,40 @@ namespace oblo
     void imgui_app::begin_frame()
     {
         OBLO_PROFILE_SCOPE();
+
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
+    }
+
+    void imgui_app::render()
+    {
+        OBLO_PROFILE_SCOPE();
+        ImGui::Render();
+
+        // Update and Render additional Platform Windows
+        auto& io = ImGui::GetIO();
+
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        {
+            ImGui::UpdatePlatformWindows();
+        }
+
+        auto& fg = m_impl->backend.renderer->get_frame_graph();
+
+        auto& platformIO = ImGui::GetPlatformIO();
+
+        for (auto* viewport : platformIO.Viewports)
+        {
+            if (viewport->RendererUserData)
+            {
+                connect_viewport(fg, viewport);
+            }
+        }
     }
 
     void imgui_app::end_frame()
     {
         OBLO_PROFILE_SCOPE();
-        ImGui::Render();
-
-        auto& fg = m_impl->backend.renderer->get_frame_graph();
-
-        for (auto* viewport : ImGui::GetPlatformIO().Viewports)
-        {
-            connect_viewport(fg, viewport);
-        }
     }
 
     window_event_dispatcher imgui_app::get_event_dispatcher()

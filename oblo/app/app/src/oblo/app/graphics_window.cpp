@@ -107,7 +107,8 @@ namespace oblo
             return false;
         }
 
-        m_graphicsContext = gfxEngine->create_context(*this);
+        const auto [w, h] = get_size();
+        m_graphicsContext = gfxEngine->create_context(get_native_handle(), w, h);
         SDL_SetWindowData(sdl_window(m_impl), g_WindowGraphicsContext, m_graphicsContext);
 
         return m_graphicsContext != nullptr;

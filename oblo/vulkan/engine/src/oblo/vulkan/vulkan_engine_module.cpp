@@ -31,7 +31,7 @@ namespace oblo::vk
             OBLO_ASSERT(false);
         }
 
-        bool create_surface(const graphics_window& window,
+        bool create_surface(native_window_handle wh,
             VkInstance instance,
             const VkAllocationCallbacks* allocator,
             VkSurfaceKHR* surface);
@@ -81,22 +81,19 @@ namespace oblo::vk
             bool swapchainResized = false;
             bool markedForDestruction = false;
 
-            bool initialize(vulkan_context& ctx, resource_manager& resourceManager, const graphics_window& window)
+            bool initialize(
+                vulkan_context& ctx, resource_manager& resourceManager, native_window_handle wh, u32 w, u32 h)
             {
                 OBLO_ASSERT(!surface && !swapchain);
 
-                if (!create_surface(window,
-                        ctx.get_instance(),
-                        ctx.get_allocator().get_allocation_callbacks(),
-                        &surface))
+                if (!create_surface(wh, ctx.get_instance(), ctx.get_allocator().get_allocation_callbacks(), &surface))
                 {
                     shutdown(ctx, resourceManager);
                     return false;
                 }
 
-                const vec2u windowSize = window.get_size();
-                width = windowSize.x;
-                height = windowSize.y;
+                width = w;
+                height = h;
 
                 if (!create_swapchain(ctx, resourceManager))
                 {
@@ -276,7 +273,7 @@ namespace oblo::vk
         void shutdown();
 
         // Implementation of graphics_engine
-        graphics_window_context* create_context(const graphics_window& window) override;
+        graphics_window_context* create_context(native_window_handle wh, u32 width, u32 height) override;
 
         bool acquire_images() override;
         void present() override;
@@ -435,7 +432,7 @@ namespace oblo::vk
 
         VkSurfaceKHR surface{};
 
-        if (!create_surface(hiddenWindow, instance.get(), nullptr, &surface))
+        if (!create_surface(hiddenWindow.get_native_handle(), instance.get(), nullptr, &surface))
         {
             return false;
         }
@@ -541,11 +538,11 @@ namespace oblo::vk
         instance.shutdown();
     }
 
-    graphics_window_context* vulkan_engine_module::impl::create_context(const graphics_window& window)
+    graphics_window_context* vulkan_engine_module::impl::create_context(native_window_handle wh, u32 width, u32 height)
     {
         auto windowCtx = allocate_unique<vulkan_window_context>();
 
-        if (!windowCtx->initialize(vkContext, resourceManager, window))
+        if (!windowCtx->initialize(vkContext, resourceManager, wh, width, height))
         {
             return nullptr;
         }
@@ -671,12 +668,10 @@ namespace oblo::vk
 {
     namespace
     {
-        bool create_surface(const graphics_window& window,
-            VkInstance instance,
-            const VkAllocationCallbacks* allocator,
-            VkSurfaceKHR* surface)
+        bool create_surface(
+            native_window_handle wh, VkInstance instance, const VkAllocationCallbacks* allocator, VkSurfaceKHR* surface)
         {
-            const HWND hwnd = reinterpret_cast<HWND>(window.get_native_handle());
+            const HWND hwnd = reinterpret_cast<HWND>(wh);
 
             const VkWin32SurfaceCreateInfoKHR surfaceCreateInfo{
                 .sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
