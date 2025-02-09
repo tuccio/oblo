@@ -5,6 +5,7 @@
 #include <oblo/app/graphics_window_context.hpp>
 #include <oblo/app/window_event_processor.hpp>
 #include <oblo/core/allocation_helpers.hpp>
+#include <oblo/core/utility.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/trace/profile.hpp>
@@ -215,10 +216,10 @@ namespace oblo
 
                     vk::setup_viewport_scissor(commandBuffer, renderWidth, renderHeight);
 
-                    struct push_constants
+                    struct transform_constants
                     {
                         vec2 scale;
-                        vec2 translate;
+                        vec2 translation;
                     };
 
                     binding_table bindingTable;
@@ -240,59 +241,42 @@ namespace oblo
                     OBLO_ASSERT(viewport);
                     auto* const drawData = viewport->DrawData;
 
-                    push_constants pushConstants{};
-                    pushConstants.scale = vec2::splat(2.f) / vec2{drawData->DisplaySize.x, drawData->DisplaySize.y};
-                    pushConstants.translate =
-                        vec2::splat(-1.f) - pushConstants.scale * vec2{drawData->DisplayPos.x, drawData->DisplayPos.y};
+                    const vec2 scale = vec2::splat(2.f) / vec2{drawData->DisplaySize.x, drawData->DisplaySize.y};
+                    const vec2 translation =
+                        vec2::splat(-1.f) - scale * vec2{drawData->DisplayPos.x, drawData->DisplayPos.y};
 
-                    ctx.push_constants(shader_stage::vertex, 0, as_bytes(std::span{&pushConstants, 1}));
+                    const transform_constants transformConstants{
+                        .scale = scale,
+                        .translation = translation,
+                    };
+
+                    ctx.push_constants(shader_stage::vertex, 0, as_bytes(std::span{&transformConstants, 1}));
 
                     // Will project scissor/clipping rectangles into framebuffer space
-                    ImVec2 clip_off = drawData->DisplayPos; // (0,0) unless using multi-viewports
-                    ImVec2 clip_scale =
+                    ImVec2 clipOffset = drawData->DisplayPos; // (0,0) unless using multi-viewports
+                    ImVec2 clipScale =
                         drawData->FramebufferScale; // (1,1) unless using retina display which are often (2,2)
 
-                    // Render command lists
-                    // (Because we merged all buffers into a single one, we maintain our own offset into them)
-                    int global_vtx_offset = 0;
-                    int global_idx_offset = 0;
-                    for (const ImDrawList* draw_list : drawData->CmdLists)
+                    i32 vertexOffset = 0;
+                    i32 indexOffset = 0;
+
+                    for (const ImDrawList* drawList : drawData->CmdLists)
                     {
-                        for (const ImDrawCmd& pcmd : draw_list->CmdBuffer)
+                        for (const ImDrawCmd& cmd : drawList->CmdBuffer)
                         {
                             // Project scissor/clipping rectangles into framebuffer space
-                            vec2 clip_min{
-                                (pcmd.ClipRect.x - clip_off.x) * clip_scale.x,
-                                (pcmd.ClipRect.y - clip_off.y) * clip_scale.y,
-                            };
-
-                            vec2 clip_max{
-                                (pcmd.ClipRect.z - clip_off.x) * clip_scale.x,
-                                (pcmd.ClipRect.w - clip_off.y) * clip_scale.y,
-                            };
-
                             // Clamp to viewport as vkCmdSetScissor() won't accept values that are off bounds
-                            if (clip_min.x < 0.0f)
-                            {
-                                clip_min.x = 0.0f;
-                            }
+                            const vec2 clipMin{
+                                max(0.f, (cmd.ClipRect.x - clipOffset.x) * clipScale.x),
+                                max(0.f, (cmd.ClipRect.y - clipOffset.y) * clipScale.y),
+                            };
 
-                            if (clip_min.y < 0.0f)
-                            {
-                                clip_min.y = 0.0f;
-                            }
+                            const vec2 clipMax{
+                                min((cmd.ClipRect.z - clipOffset.x) * clipScale.x, f32(renderWidth)),
+                                min((cmd.ClipRect.w - clipOffset.y) * clipScale.y, f32(renderHeight)),
+                            };
 
-                            if (clip_max.x > renderWidth)
-                            {
-                                clip_max.x = (f32) renderWidth;
-                            }
-
-                            if (clip_max.y > renderHeight)
-                            {
-                                clip_max.y = (f32) renderHeight;
-                            }
-
-                            if (clip_max.x <= clip_min.x || clip_max.y <= clip_min.y)
+                            if (clipMax.x <= clipMin.x || clipMax.y <= clipMin.y)
                             {
                                 continue;
                             }
@@ -301,28 +285,28 @@ namespace oblo
                             const VkRect2D scissor{
                                 .offset =
                                     {
-                                        .x = (i32) (clip_min.x),
-                                        .y = (i32) (clip_min.y),
+                                        .x = (i32) (clipMin.x),
+                                        .y = (i32) (clipMin.y),
                                     },
                                 .extent =
                                     {
-                                        .width = (u32) (clip_max.x - clip_min.x),
-                                        .height = (u32) (clip_max.y - clip_min.y),
+                                        .width = (u32) (clipMax.x - clipMin.x),
+                                        .height = (u32) (clipMax.y - clipMin.y),
                                     },
                             };
 
                             vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
                             vkCmdDrawIndexed(commandBuffer,
-                                pcmd.ElemCount,
+                                cmd.ElemCount,
                                 1,
-                                pcmd.IdxOffset + global_idx_offset,
-                                pcmd.VtxOffset + global_vtx_offset,
+                                cmd.IdxOffset + indexOffset,
+                                cmd.VtxOffset + vertexOffset,
                                 0);
                         }
 
-                        global_idx_offset += draw_list->IdxBuffer.Size;
-                        global_vtx_offset += draw_list->VtxBuffer.Size;
+                        indexOffset += drawList->IdxBuffer.Size;
+                        vertexOffset += drawList->VtxBuffer.Size;
                     }
 
                     ctx.end_pass();

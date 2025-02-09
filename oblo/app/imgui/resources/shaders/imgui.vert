@@ -15,7 +15,7 @@ layout(std430, binding = 0) restrict buffer readonly b_VertexData
 layout(push_constant) uniform c_PushConstants
 {
     vec2 scale;
-    vec2 translate;
+    vec2 translation;
 }
 g_Constants;
 
@@ -36,5 +36,5 @@ void main()
 
     out_Data.color = unpackUnorm4x8(v.color);
     out_Data.uv = vec2(v.uv[0], v.uv[1]);
-    gl_Position = vec4(vec2(v.pos[0], v.pos[1]) * g_Constants.scale + g_Constants.translate, 0, 1);
+    gl_Position = vec4(vec2(v.pos[0], v.pos[1]) * g_Constants.scale + g_Constants.translation, 0, 1);
 }
