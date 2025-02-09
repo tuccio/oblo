@@ -63,6 +63,7 @@ namespace oblo
         service_registry services;
         vk::vulkan_context* vulkanContext;
         vk::draw_registry drawRegistry;
+        bool isRayTracingEnabled;
     };
 
     runtime::runtime() = default;
@@ -99,6 +100,8 @@ namespace oblo
         // We should probably move this to a world builder in a module if it's necessary
         m_impl->services.add<vk::vulkan_context>().externally_owned(initializer.vulkanContext);
         m_impl->services.add<vk::renderer>().externally_owned(initializer.renderer);
+
+        m_impl->isRayTracingEnabled = initializer.renderer->is_ray_tracing_enabled();
 
         m_impl->drawRegistry.init(*initializer.vulkanContext,
             initializer.renderer->get_staging_buffer(),
@@ -161,7 +164,7 @@ namespace oblo
         m_impl->drawRegistry.generate_mesh_database(m_impl->frameAllocator);
         m_impl->drawRegistry.generate_draw_calls(m_impl->frameAllocator);
 
-        // if (m_isRayTracingEnabled)
+        if (m_impl->isRayTracingEnabled)
         {
             m_impl->drawRegistry.generate_raytracing_structures(m_impl->frameAllocator, commandBuffer.get());
         }

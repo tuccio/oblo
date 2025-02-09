@@ -112,6 +112,8 @@ namespace oblo::vk
 
                 ctx.dispatch_compute(round_up_div(count, subgroupSize), 1, 1);
             }
+
+            ctx.end_pass();
         }
     }
 }

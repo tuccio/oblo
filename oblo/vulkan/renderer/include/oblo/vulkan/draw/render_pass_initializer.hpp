@@ -34,14 +34,15 @@ namespace oblo::vk
 
     struct color_blend_attachment_state
     {
-        bool enable;
+        bool enable = false;
         VkBlendFactor srcColorBlendFactor;
         VkBlendFactor dstColorBlendFactor;
         VkBlendOp colorBlendOp;
         VkBlendFactor srcAlphaBlendFactor;
         VkBlendFactor dstAlphaBlendFactor;
         VkBlendOp alphaBlendOp;
-        VkColorComponentFlags colorWriteMask;
+        VkColorComponentFlags colorWriteMask =
+            VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
     };
 
     struct render_pass_targets
