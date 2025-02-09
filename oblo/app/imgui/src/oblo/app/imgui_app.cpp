@@ -25,8 +25,6 @@ namespace oblo
 {
     namespace
     {
-        constexpr const char* g_WindowGraphicsContext = "oblo::gfx";
-
         void imgui_sdl_dispatch(const void* event)
         {
             ImGui_ImplSDL2_ProcessEvent(static_cast<const SDL_Event*>(event));

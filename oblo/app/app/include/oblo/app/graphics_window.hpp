@@ -45,8 +45,6 @@ namespace oblo
 
         vec2u get_size() const;
 
-        void update();
-
         native_window_handle get_native_handle() const;
 
     private:

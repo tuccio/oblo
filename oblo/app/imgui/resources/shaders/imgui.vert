@@ -2,10 +2,8 @@
 
 struct imgui_vertex
 {
-    float posX;
-    float posY;
-    float uvS;
-    float uvT;
+    float pos[2];
+    float uv[2];
     uint color;
 };
 
@@ -37,6 +35,6 @@ void main()
     imgui_vertex v = g_VertexData[gl_VertexIndex];
 
     out_Data.color = unpackUnorm4x8(v.color);
-    out_Data.uv = vec2(v.uvS, v.uvT);
-    gl_Position = vec4(vec2(v.posX, v.posY) * g_Constants.scale + g_Constants.translate, 0, 1);
+    out_Data.uv = vec2(v.uv[0], v.uv[1]);
+    gl_Position = vec4(vec2(v.pos[0], v.pos[1]) * g_Constants.scale + g_Constants.translate, 0, 1);
 }

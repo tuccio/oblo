@@ -68,8 +68,6 @@ int main(int, char**)
 
     while (mainWindow.is_open() && eventProcessor.process_events())
     {
-        mainWindow.update();
-
         if (!gfxEngine->acquire_images())
         {
             // Can decide what to do, e.g. run the update

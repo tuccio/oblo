@@ -12,12 +12,27 @@ namespace oblo
 {
     namespace
     {
+        constexpr const char* g_WindowGraphicsContext = "gfx";
+        constexpr const char* g_WindowPtr = "wnd";
+
         SDL_Window* sdl_window(void* impl)
         {
             return static_cast<SDL_Window*>(impl);
         }
 
-        constexpr const char* g_WindowGraphicsContext = "oblo::gfx";
+        struct window_info
+        {
+            SDL_Window* window;
+            graphics_window_context* graphicsContext;
+        };
+
+        window_info get_graphics_context(const SDL_Event& event)
+        {
+            SDL_Window* const window = SDL_GetWindowFromID(event.window.windowID);
+            void* const windowData = window ? SDL_GetWindowData(window, g_WindowGraphicsContext) : nullptr;
+            auto* const graphicsContext = static_cast<graphics_window_context*>(windowData);
+            return {window, graphicsContext};
+        }
     }
 
     graphics_window::graphics_window() = default;
@@ -28,6 +43,11 @@ namespace oblo
         m_graphicsContext = other.m_graphicsContext;
         other.m_impl = nullptr;
         other.m_graphicsContext = nullptr;
+
+        if (auto* sdlWindow = sdl_window(m_impl))
+        {
+            SDL_SetWindowData(sdlWindow, g_WindowPtr, this);
+        }
     }
 
     graphics_window::~graphics_window()
@@ -43,6 +63,11 @@ namespace oblo
         m_graphicsContext = other.m_graphicsContext;
         other.m_impl = nullptr;
         other.m_graphicsContext = nullptr;
+
+        if (auto* sdlWindow = sdl_window(m_impl))
+        {
+            SDL_SetWindowData(sdlWindow, g_WindowPtr, this);
+        }
 
         return *this;
     }
@@ -75,21 +100,26 @@ namespace oblo
 
         m_impl = window;
 
+        if (window)
+        {
+            SDL_SetWindowData(window, g_WindowPtr, this);
+        }
+
         return m_impl != nullptr;
     }
 
     void graphics_window::destroy()
     {
-        if (m_impl)
-        {
-            SDL_DestroyWindow(sdl_window(m_impl));
-            m_impl = nullptr;
-        }
-
         if (m_graphicsContext)
         {
             m_graphicsContext->on_destroy();
             m_graphicsContext = nullptr;
+        }
+
+        if (m_impl)
+        {
+            SDL_DestroyWindow(sdl_window(m_impl));
+            m_impl = nullptr;
         }
     }
 
@@ -151,13 +181,6 @@ namespace oblo
         return {u32(w), u32(h)};
     }
 
-    void graphics_window::update()
-    {
-        OBLO_ASSERT(is_ready());
-
-        // TODO: Poll events
-    }
-
     native_window_handle graphics_window::get_native_handle() const
     {
         SDL_Window* const window = sdl_window(m_impl);
@@ -182,30 +205,42 @@ namespace oblo
                 return false;
 
             case SDL_WINDOWEVENT: {
-                SDL_Window* const window = SDL_GetWindowFromID(event.window.windowID);
-                void* const windowData = SDL_GetWindowData(window, g_WindowGraphicsContext);
-                auto* const graphicsContext = static_cast<graphics_window_context*>(windowData);
-
-                if (graphicsContext)
+                switch (event.window.event)
                 {
-                    switch (event.window.event)
+                case SDL_WINDOWEVENT_MAXIMIZED:
+                case SDL_WINDOWEVENT_RESTORED:
+                    break;
+
+                case SDL_WINDOWEVENT_MINIMIZED:
+                    break;
+
+                case SDL_WINDOWEVENT_RESIZED:
+                case SDL_WINDOWEVENT_SIZE_CHANGED: {
+                    const auto [window, graphicsContext] = get_graphics_context(event);
+
+                    if (graphicsContext)
                     {
-                    case SDL_WINDOWEVENT_MAXIMIZED:
-                    case SDL_WINDOWEVENT_RESTORED:
-                        break;
-
-                    case SDL_WINDOWEVENT_MINIMIZED:
-                        break;
-
-                    case SDL_WINDOWEVENT_RESIZED:
-                    case SDL_WINDOWEVENT_SIZE_CHANGED: {
                         const u32 w = u32(event.window.data1);
                         const u32 h = u32(event.window.data2);
 
                         graphicsContext->on_resize(w, h);
-                        break;
                     }
+
+                    break;
+                }
+
+                case SDL_WINDOWEVENT_CLOSE: {
+                    SDL_Window* const sdlWindow = SDL_GetWindowFromID(event.window.windowID);
+                    auto* const graphicsWindow =
+                        sdlWindow ? static_cast<graphics_window*>(SDL_GetWindowData(sdlWindow, g_WindowPtr)) : nullptr;
+
+                    if (graphicsWindow)
+                    {
+                        graphicsWindow->destroy();
                     }
+
+                    break;
+                }
                 }
             }
             }
