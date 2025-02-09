@@ -9,8 +9,9 @@ target_link_libraries(
     oblo::modules
     oblo::options
     PRIVATE
+    oblo::app
+    oblo::log
     oblo::vk
     oblo::vk_renderer
-    oblo::app
     Vulkan::Vulkan
 )

@@ -8,6 +8,7 @@
 #include <oblo/core/finally.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/log/log.hpp>
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/options/option_proxy.hpp>
@@ -296,10 +297,14 @@ namespace oblo::vk
 
         VkSemaphore frameCompletedSemaphore[g_SwapchainImages]{};
 
+        VkDebugUtilsMessengerEXT vkMessenger{};
+
         option_proxy_struct<renderer_options> options;
 
         bool initialize(const resource_registry& resourceRegistry);
         void shutdown();
+
+        void create_debug_callbacks();
 
         // Implementation of graphics_engine
         graphics_window_context* create_context(native_window_handle wh, u32 width, u32 height) override;
@@ -458,6 +463,8 @@ namespace oblo::vk
             return false;
         }
 
+        create_debug_callbacks();
+
         // Then we need a surface to choose the queue and create the device
         graphics_window hiddenWindow;
 
@@ -559,6 +566,7 @@ namespace oblo::vk
         if (!renderer.init({
                 .vkContext = vkContext,
                 .resources = resourceRegistry,
+                .isRayTracingEnabled = isRayTracingEnabled,
             }))
         {
             return false;
@@ -594,7 +602,82 @@ namespace oblo::vk
             engine.shutdown();
         }
 
+        if (vkMessenger)
+        {
+            const PFN_vkDestroyDebugUtilsMessengerEXT vkDestroyDebugUtilsMessengerEXT =
+                reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
+                    vkGetInstanceProcAddr(instance.get(), "vkDestroyDebugUtilsMessengerEXT"));
+
+            vkDestroyDebugUtilsMessengerEXT(instance.get(), vkMessenger, nullptr);
+            vkMessenger = {};
+        }
+
         instance.shutdown();
+    }
+
+    namespace
+    {
+        VKAPI_ATTR VkBool32 VKAPI_CALL debug_messenger_callback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+            [[maybe_unused]] VkDebugUtilsMessageTypeFlagsEXT messageTypes,
+            const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+            [[maybe_unused]] void* pUserData)
+        {
+            log::severity severity = log::severity::debug;
+
+            if ((messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) != 0)
+            {
+                severity = log::severity::error;
+            }
+            else if ((messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) != 0)
+            {
+                severity = log::severity::warn;
+            }
+            else if ((messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT) != 0)
+            {
+                severity = log::severity::info;
+            }
+
+            log::generic(severity, "{}", pCallbackData->pMessage);
+
+            return VK_FALSE;
+        }
+    }
+
+    void vulkan_engine_module::impl::create_debug_callbacks()
+    {
+        // NOTE: The default allocator is used on purpose here, so we can log before creating it
+
+        // VkDebugUtilsMessengerEXT
+        {
+            const PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessengerEXT =
+                reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
+                    vkGetInstanceProcAddr(instance.get(), "vkCreateDebugUtilsMessengerEXT"));
+
+            if (vkCreateDebugUtilsMessengerEXT)
+            {
+                const VkDebugUtilsMessengerCreateInfoEXT createInfo{
+                    .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+                    .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+                        VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+                        VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
+                    .messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+                        VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+                        VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
+                    .pfnUserCallback = debug_messenger_callback,
+                };
+
+                const auto result = vkCreateDebugUtilsMessengerEXT(instance.get(), &createInfo, nullptr, &vkMessenger);
+
+                if (result != VK_SUCCESS)
+                {
+                    log::error("Failed to create vkCreateDebugUtilsMessengerEXT (error: {0:#x})", i32{result});
+                }
+            }
+            else
+            {
+                log::error("Unable to locate vkCreateDebugUtilsMessengerEXT");
+            }
+        }
     }
 
     graphics_window_context* vulkan_engine_module::impl::create_context(native_window_handle wh, u32 width, u32 height)

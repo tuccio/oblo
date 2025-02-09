@@ -271,7 +271,9 @@ namespace oblo
                         .translation = translation,
                     };
 
-                    ctx.push_constants(shader_stage::vertex, 0, as_bytes(std::span{&transformConstants, 1}));
+                    ctx.push_constants(shader_stage::vertex | shader_stage::fragment,
+                        0,
+                        as_bytes(std::span{&transformConstants, 1}));
 
                     // Will project scissor/clipping rectangles into framebuffer space
                     // (0,0) unless using multi-viewports
@@ -324,7 +326,7 @@ namespace oblo
 
                             if (residentTexture != lastResidentTexture)
                             {
-                                ctx.push_constants(shader_stage::fragment,
+                                ctx.push_constants(shader_stage::vertex | shader_stage::fragment,
                                     sizeof(transform_constants),
                                     as_bytes(std::span{&residentTexture, 1}));
 
