@@ -333,6 +333,7 @@ namespace oblo::editor
         mainWindow.set_hidden(false);
 
         window_event_processor eventProcessor{imgui_app::get_event_dispatcher()};
+        eventProcessor.set_input_queue(&m_impl->m_inputQueue);
 
         while (eventProcessor.process_events() && mainWindow.is_open())
         {
@@ -348,6 +349,8 @@ namespace oblo::editor
             m_impl->update_runtime();
 
             gfxEngine->present();
+
+            m_impl->m_inputQueue.clear();
         }
     }
 

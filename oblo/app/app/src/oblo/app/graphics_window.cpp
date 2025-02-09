@@ -220,6 +220,54 @@ namespace oblo
         return SDL_GetWindowWMInfo(window, &wmInfo) ? wmInfo.info.win.window : nullptr;
     }
 
+    void window_event_processor::set_input_queue(input_queue* inputQueue)
+    {
+        m_inputQueue = inputQueue;
+    }
+
+    namespace
+    {
+        mouse_key sdl_map_mouse_key(u8 key)
+        {
+            switch (key)
+            {
+            case SDL_BUTTON_LEFT:
+                return mouse_key::left;
+
+            case SDL_BUTTON_RIGHT:
+                return mouse_key::right;
+
+            case SDL_BUTTON_MIDDLE:
+                return mouse_key::middle;
+
+            default:
+                OBLO_ASSERT(false, "Unhandled mouse key");
+                return mouse_key::enum_max;
+            }
+        }
+
+        keyboard_key sdl_map_keyboard_key(SDL_Keycode key)
+        {
+            if (key >= 'a' && key <= 'z')
+            {
+                return keyboard_key(u32(keyboard_key::a) + (key - 'a'));
+            }
+
+            switch (key)
+            {
+            case SDLK_LSHIFT:
+                return keyboard_key::left_shift;
+            }
+
+            return keyboard_key::enum_max;
+        }
+
+        time sdl_convert_time(u32 time)
+        {
+            return time::from_milliseconds(time);
+        }
+    }
+
     bool window_event_processor::process_events() const
     {
         for (SDL_Event event; SDL_PollEvent(&event);)
@@ -227,6 +275,69 @@ namespace oblo
             if (m_windowEventDispatcher.dispatch)
             {
                 m_windowEventDispatcher.dispatch(&event);
+            }
+
+            if (m_inputQueue)
+            {
+                switch (event.type)
+                {
+                case SDL_MOUSEBUTTONDOWN:
+                    m_inputQueue->push({
+                        .kind = input_event_kind::mouse_press,
+                        .timestamp = sdl_convert_time(event.button.timestamp),
+                        .mousePress =
+                            {
+                                .key = sdl_map_mouse_key(event.button.button),
+                            },
+                    });
+                    break;
+
+                case SDL_MOUSEBUTTONUP:
+                    m_inputQueue->push({
+                        .kind = input_event_kind::mouse_release,
+                        .timestamp = sdl_convert_time(event.button.timestamp),
+                        .mouseRelease =
+                            {
+                                .key = sdl_map_mouse_key(event.button.button),
+                            },
+                    });
+                    break;
+
+                case SDL_MOUSEMOTION:
+                    m_inputQueue->push({
+                        .kind = input_event_kind::mouse_move,
+                        .timestamp = sdl_convert_time(event.motion.timestamp),
+                        .mouseMove =
+                            {
+                                .x = f32(event.motion.x),
+                                .y = f32(event.motion.y),
+                            },
+                    });
+                    break;
+
+                case SDL_KEYDOWN:
+                    m_inputQueue->push({
+                        .kind = input_event_kind::keyboard_press,
+                        .timestamp = sdl_convert_time(event.key.timestamp),
+                        .keyboardPress =
+                            {
+                                .key = sdl_map_keyboard_key(event.key.keysym.sym),
+                            },
+                    });
+                    break;
+
+                case SDL_KEYUP:
+                    m_inputQueue->push({
+                        .kind = input_event_kind::keyboard_release,
+                        .timestamp = sdl_convert_time(event.key.timestamp),
+                        .keyboardRelease =
+                            {
+                                .key = sdl_map_keyboard_key(event.key.keysym.sym),
+                            },
+                    });
+
+                    break;
+                }
             }
 
             switch (event.type)
