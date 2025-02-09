@@ -2,6 +2,8 @@
 
 #include <imgui.h>
 
+#include <IconsFontAwesome6.h>
+
 namespace oblo::editor
 {
     namespace
@@ -99,10 +101,44 @@ namespace oblo::editor
             colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.57f, 0.35f, 0.62f, 1.00f);
             colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.f, 0.f, 0.f, 0.f);
         }
+
+#include "embedded/Archivo-Regular.ttf.h"
+#include "embedded/fa-solid-900.ttf.h"
+
+        constexpr ImWchar FontAwesome6Ranges[]{ImWchar{ICON_MIN_FA}, ImWchar{ICON_MAX_FA}, ImWchar{}};
+
+        void init_fonts(ImGuiIO& io)
+        {
+            constexpr f32 textPixels{14.f};
+            constexpr f32 bigIconsPixels{48.f};
+
+            ImFontConfig config{};
+
+            config.FontDataOwnedByAtlas = false;
+
+            io.Fonts->AddFontFromMemoryTTF(Archivo_Regular_ttf, Archivo_Regular_ttf_len, textPixels, &config);
+
+            config.MergeMode = true;
+
+            io.Fonts->AddFontFromMemoryTTF(fa_solid_900_ttf,
+                fa_solid_900_ttf_len,
+                textPixels,
+                &config,
+                FontAwesome6Ranges);
+
+            config.MergeMode = false;
+
+            io.Fonts->AddFontFromMemoryTTF(fa_solid_900_ttf,
+                fa_solid_900_ttf_len,
+                bigIconsPixels,
+                &config,
+                FontAwesome6Ranges);
+        }
     }
 
     void init_ui()
     {
         init_ui_style();
+        init_fonts(ImGui::GetIO());
     }
 }

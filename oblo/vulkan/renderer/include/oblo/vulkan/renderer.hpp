@@ -6,7 +6,6 @@
 #include <oblo/vulkan/draw/resource_cache.hpp>
 #include <oblo/vulkan/draw/texture_registry.hpp>
 #include <oblo/vulkan/graph/frame_graph.hpp>
-#include <oblo/vulkan/renderer_context.hpp>
 #include <oblo/vulkan/staging_buffer.hpp>
 
 namespace oblo
@@ -62,6 +61,8 @@ namespace oblo::vk
     private:
         vulkan_context* m_vkContext{nullptr};
 
+        unique_ptr<instance_data_type_registry> m_instanceDataTypeRegistry;
+
         staging_buffer m_stagingBuffer;
         texture_registry m_textureRegistry;
         resource_cache m_resourceCache;
@@ -81,6 +82,7 @@ namespace oblo::vk
     {
         vulkan_context& vkContext;
         const resource_registry& resources;
+        bool isRayTracingEnabled;
     };
 
     inline vulkan_context& renderer::get_vulkan_context()

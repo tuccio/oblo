@@ -154,6 +154,36 @@ namespace oblo
         return m_impl;
     }
 
+    bool graphics_window::is_maximized() const
+    {
+        const auto flags = SDL_GetWindowFlags(sdl_window(m_impl));
+        return (flags & SDL_WINDOW_MAXIMIZED) != 0;
+    }
+
+    bool graphics_window::is_minimized() const
+    {
+        const auto flags = SDL_GetWindowFlags(sdl_window(m_impl));
+        return (flags & SDL_WINDOW_MINIMIZED) != 0;
+    }
+
+    void graphics_window::maximize()
+    {
+        SDL_Window* const window = sdl_window(m_impl);
+        SDL_MaximizeWindow(window);
+    }
+
+    void graphics_window::minimize()
+    {
+        SDL_Window* const window = sdl_window(m_impl);
+        SDL_MinimizeWindow(window);
+    }
+
+    void graphics_window::restore()
+    {
+        SDL_Window* const window = sdl_window(m_impl);
+        SDL_RestoreWindow(window);
+    }
+
     bool graphics_window::is_hidden() const
     {
         const auto flags = SDL_GetWindowFlags(sdl_window(m_impl));

@@ -40,6 +40,13 @@ namespace oblo
         bool is_ready() const;
         bool is_open() const;
 
+        bool is_maximized() const;
+        bool is_minimized() const;
+
+        void maximize();
+        void minimize();
+        void restore();
+
         bool is_hidden() const;
         void set_hidden(bool hide);
 

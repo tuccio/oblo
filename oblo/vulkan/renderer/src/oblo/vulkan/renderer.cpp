@@ -4,10 +4,9 @@
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/draw/descriptor_set_pool.hpp>
+#include <oblo/vulkan/draw/instance_data_type_registry.hpp>
 #include <oblo/vulkan/error.hpp>
-#include <oblo/vulkan/renderer_context.hpp>
 #include <oblo/vulkan/renderer_module.hpp>
-#include <oblo/vulkan/required_features.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
 #include <oblo/vulkan/texture.hpp>
@@ -23,9 +22,7 @@ namespace oblo::vk
     bool renderer::init(const renderer::initializer& initializer)
     {
         m_vkContext = &initializer.vkContext;
-
-        auto* const renderModule = module_manager::get().find<renderer_module>();
-        m_isRayTracingEnabled = renderModule->is_ray_tracing_enabled();
+        m_isRayTracingEnabled = initializer.isRayTracingEnabled;
 
         VkPhysicalDeviceProperties properties;
         vkGetPhysicalDeviceProperties(m_vkContext->get_physical_device(), &properties);
@@ -55,11 +52,15 @@ namespace oblo::vk
             });
 
         m_stringInterner.init(256);
+
+        m_instanceDataTypeRegistry = allocate_unique<instance_data_type_registry>();
+        m_instanceDataTypeRegistry->register_from_module();
+
         m_passManager.init(*m_vkContext,
             m_stringInterner,
             resourceManager.get(m_dummy),
             m_textureRegistry,
-            renderModule->get_instance_data_type_registry());
+            *m_instanceDataTypeRegistry);
 
         m_passManager.set_raytracing_enabled(m_isRayTracingEnabled);
 
@@ -145,7 +146,6 @@ namespace oblo::vk
 
     const instance_data_type_registry& renderer::get_instance_data_type_registry() const
     {
-        auto* const renderModule = module_manager::get().find<renderer_module>();
-        return renderModule->get_instance_data_type_registry();
+        return *m_instanceDataTypeRegistry;
     }
 }

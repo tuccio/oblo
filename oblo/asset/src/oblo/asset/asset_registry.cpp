@@ -1107,6 +1107,7 @@ namespace oblo
 
         return m_impl->resourceProvider.get();
     }
+
     void asset_registry::update()
     {
         auto* jm = job_manager::get();

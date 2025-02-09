@@ -7,6 +7,7 @@ target_link_libraries(
     PUBLIC
     oblo::core
     oblo::modules
+    oblo::options
     PRIVATE
     oblo::vk
     oblo::vk_renderer

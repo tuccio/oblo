@@ -29,8 +29,7 @@ namespace oblo
         const reflection::reflection_registry* reflectionRegistry;
         const property_registry* propertyRegistry;
         const resource_registry* resourceRegistry;
-        vk::vulkan_context* vulkanContext;
-        vk::renderer* renderer;
+        vk::renderer& renderer;
         std::span<ecs::world_builder* const> worldBuilders;
         usize frameAllocatorMaxSize{1u << 28};
     };

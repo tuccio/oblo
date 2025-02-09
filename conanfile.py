@@ -5,6 +5,7 @@ from conan.tools.files import copy
 from itertools import chain
 from os import path
 
+
 class ObloConanRecipe(ConanFile):
     name = "oblo"
     settings = "os", "compiler", "build_type", "arch"
@@ -66,6 +67,9 @@ class ObloConanRecipe(ConanFile):
         glslang.hlsl = False
         glslang.build_executables = False
 
+        sdl = self.options["sdl/*"]
+        sdl.shared = True
+
         if self.options.with_tracy:
             tracy = self.options["tracy/*"]
             tracy.enable = True
@@ -77,9 +81,12 @@ class ObloConanRecipe(ConanFile):
         src_dir = f"{imgui.package_folder}/res/bindings/"
 
         for backend in ["sdl2", "vulkan"]:
-            copy(self, f"imgui_impl_{backend}.h", src_dir, f"{self.recipe_folder}/3rdparty/imgui/{backend}/include")
-            copy(self, f"imgui_impl_{backend}_*", src_dir, f"{self.recipe_folder}/3rdparty/imgui/{backend}/src")
-            copy(self, f"imgui_impl_{backend}.cpp", src_dir, f"{self.recipe_folder}/3rdparty/imgui/{backend}/src")
+            copy(self, f"imgui_impl_{backend}.h", src_dir,
+                 f"{self.recipe_folder}/3rdparty/imgui/{backend}/include")
+            copy(self, f"imgui_impl_{backend}_*", src_dir,
+                 f"{self.recipe_folder}/3rdparty/imgui/{backend}/src")
+            copy(self, f"imgui_impl_{backend}.cpp", src_dir,
+                 f"{self.recipe_folder}/3rdparty/imgui/{backend}/src")
 
         out_bin_dir = path.join(self.build_folder, "..", "out", "bin")
 
@@ -87,11 +94,12 @@ class ObloConanRecipe(ConanFile):
             if self.settings.build_type == "Debug":
                 out_dirs = [path.join(out_bin_dir, "Debug")]
             elif self.settings.build_type == "Release":
-                out_dirs = [path.join(out_bin_dir, "Release"), path.join(out_bin_dir, "RelWithDebInfo")]
+                out_dirs = [path.join(out_bin_dir, "Release"), path.join(
+                    out_bin_dir, "RelWithDebInfo")]
             else:
                 raise ValueError("Unsupported configuration")
         else:
-                out_dirs = [out_bin_dir]
+            out_dirs = [out_bin_dir]
 
         for out_dir in out_dirs:
             for dep in self.dependencies.values():
@@ -109,7 +117,9 @@ class ObloConanRecipe(ConanFile):
         vulkanSdkVersion = "1.3.296.0"
 
         if not conan_api.search.recipes(f"spirv-tools/{vulkanSdkVersion}"):
-            conan_cli.run(["export", f"{self.recipe_folder}/conan/recipes/spirv-tools", "--version", vulkanSdkVersion])
+            conan_cli.run(
+                ["export", f"{self.recipe_folder}/conan/recipes/spirv-tools", "--version", vulkanSdkVersion])
 
         if not conan_api.search.recipes(f"glslang/{vulkanSdkVersion}"):
-            conan_cli.run(["export", f"{self.recipe_folder}/conan/recipes/glslang", "--version", vulkanSdkVersion])
+            conan_cli.run(
+                ["export", f"{self.recipe_folder}/conan/recipes/glslang", "--version", vulkanSdkVersion])

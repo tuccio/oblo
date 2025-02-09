@@ -10,8 +10,7 @@
 #include <oblo/runtime/runtime_registry.hpp>
 #include <oblo/scene/scene_module.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
-#include <oblo/vulkan/renderer_module.hpp>
-#include <oblo/vulkan/required_features.hpp>
+#include <oblo/vulkan/vulkan_engine_module.hpp>
 
 namespace oblo
 {
@@ -39,11 +38,11 @@ namespace oblo
         OBLO_ASSERT(!g_instance);
         OBLO_ASSERT(!m_impl);
 
-        m_impl = std::make_unique<impl>();
+        m_impl = allocate_unique<impl>();
 
         auto& mm = module_manager::get();
 
-        mm.load<vk::renderer_module>();
+        mm.load<vk::vulkan_engine_module>();
         mm.load<graphics_module>();
         mm.load<scene_module>();
 
@@ -80,10 +79,5 @@ namespace oblo
     runtime_registry runtime_module::create_runtime_registry() const
     {
         return runtime_registry{&m_impl->propertyRegistry};
-    }
-
-    vk::required_features runtime_module::get_required_renderer_features() const
-    {
-        return module_manager::get().find<vk::renderer_module>()->get_required_features();
     }
 }

@@ -419,7 +419,7 @@ namespace oblo
         ImGuiContext* context{};
         imgui_render_backend backend{};
 
-        expected<> init(const graphics_window& window)
+        expected<> init(const graphics_window& window, const imgui_app_config& cfg)
         {
             if (!window.is_ready())
             {
@@ -430,8 +430,22 @@ namespace oblo
 
             auto& io = ImGui::GetIO();
 
-            io.ConfigFlags |=
-                ImGuiConfigFlags_DockingEnable | ImGuiConfigFlags_ViewportsEnable | ImGuiConfigFlags_NavEnableKeyboard;
+            if (cfg.useDocking)
+            {
+                io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+            }
+
+            if (cfg.useMultiViewport)
+            {
+                io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+            }
+
+            if (cfg.useKeyboardNavigation)
+            {
+                io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+            }
+
+            io.IniFilename = cfg.configFile;
 
             auto* const sdlWindow = get_sdl_window(window);
 
@@ -544,7 +558,7 @@ namespace oblo
 
     imgui_app::~imgui_app() = default;
 
-    expected<> imgui_app::init(const graphics_window& window)
+    expected<> imgui_app::init(const graphics_window& window, const imgui_app_config& cfg)
     {
         if (m_impl)
         {
@@ -552,7 +566,7 @@ namespace oblo
         }
 
         m_impl = allocate_unique<impl>();
-        return m_impl->init(window);
+        return m_impl->init(window, cfg);
     }
 
     void imgui_app::shutdown()

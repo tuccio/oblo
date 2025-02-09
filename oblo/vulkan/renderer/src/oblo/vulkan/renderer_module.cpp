@@ -15,24 +15,6 @@
 #include <oblo/vulkan/data/tags_internal.hpp>
 #include <oblo/vulkan/draw/global_shader_options.hpp>
 #include <oblo/vulkan/draw/instance_data_type_registry.hpp>
-#include <oblo/vulkan/required_features.hpp>
-
-namespace oblo
-{
-    template <>
-    struct option_traits<"r.isRayTracingEnabled">
-    {
-        using type = bool;
-
-        static constexpr option_descriptor descriptor{
-            .kind = property_kind::boolean,
-            .id = "b01a7290-4f14-4b5c-9693-3b748bd9f45a"_uuid,
-            .name = "Enable Ray-Tracing",
-            .category = "Graphics",
-            .defaultValue = property_value_wrapper{true},
-        };
-    };
-}
 
 namespace oblo::ecs
 {
@@ -44,83 +26,6 @@ namespace oblo::vk
 {
     namespace
     {
-        struct renderer_options
-        {
-            // We only read this at startup, any change requires a reset
-            option_proxy<"r.isRayTracingEnabled"> isRayTracingEnabled;
-        };
-
-        // Device features
-        VkPhysicalDeviceMeshShaderFeaturesEXT g_meshShaderFeatures{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT,
-            .taskShader = true,
-            .meshShader = true,
-        };
-
-        VkPhysicalDeviceVulkan11Features g_deviceVulkan11Features{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
-            .pNext = &g_meshShaderFeatures,
-            .storageBuffer16BitAccess = true,
-            .shaderDrawParameters = true,
-        };
-
-        VkPhysicalDeviceVulkan12Features g_deviceVulkan12Features{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
-            .pNext = &g_deviceVulkan11Features,
-            .drawIndirectCount = true,
-            .storageBuffer8BitAccess = true,
-            .shaderInt8 = true,
-            .descriptorBindingSampledImageUpdateAfterBind = true,
-            .descriptorBindingPartiallyBound = true,
-            .descriptorBindingVariableDescriptorCount = true,
-            .runtimeDescriptorArray = true,
-            .hostQueryReset = true,
-            .timelineSemaphore = true,
-            .bufferDeviceAddress = true,
-        };
-
-        VkPhysicalDeviceSynchronization2Features g_synchronizationFeatures{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES,
-            .pNext = &g_deviceVulkan12Features,
-            .synchronization2 = true,
-        };
-
-        // From here on it's ray-tracing stuff, conditionally disabled
-        VkPhysicalDeviceAccelerationStructureFeaturesKHR g_accelerationFeatures{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR,
-            .pNext = &g_synchronizationFeatures,
-            .accelerationStructure = true,
-        };
-
-        VkPhysicalDeviceRayQueryFeaturesKHR g_rtRayQueryFeatures{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR,
-            .pNext = &g_accelerationFeatures,
-            .rayQuery = true,
-        };
-
-        VkPhysicalDeviceRayTracingPipelineFeaturesKHR g_rtPipelineFeatures{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR,
-            .pNext = &g_rtRayQueryFeatures,
-            .rayTracingPipeline = true,
-        };
-
-        // Physical device features
-        VkPhysicalDeviceShaderDrawParametersFeatures g_shaderDrawParameters{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES,
-            .shaderDrawParameters = true,
-        };
-
-        constexpr const char* g_instanceExtensions[] = {
-            VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
-            VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
-        };
-
-        constexpr const char* g_rayTracingDeviceExtensions[] = {
-            VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
-            VK_KHR_RAY_QUERY_EXTENSION_NAME,
-            VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
-        };
-
         void register_reflection(reflection::reflection_registry::registrant reg)
         {
             reg.add_class<draw_instance_component>()
@@ -147,78 +52,14 @@ namespace oblo::vk
         module_manager::get().load<options_module>();
         module_manager::get().load<compiler_module>();
 
-        option_proxy_struct<renderer_options, global_shader_options_proxy>::register_options(*initializer.services);
+        option_proxy_struct<global_shader_options_proxy>::register_options(*initializer.services);
 
         reflection::load_module_and_register(register_reflection);
-
-        m_instanceDataTypeRegistry = allocate_unique<instance_data_type_registry>();
 
         return true;
     }
 
-    void renderer_module::shutdown()
-    {
-        m_instanceDataTypeRegistry.reset();
-    }
+    void renderer_module::shutdown() {}
 
-    void renderer_module::finalize()
-    {
-        auto* const options = module_manager::get().find<options_module>();
-        m_withRayTracing = renderer_options{}.isRayTracingEnabled.read(options->manager());
-
-        m_deviceFeaturesChain = m_withRayTracing ? static_cast<void*>(&g_rtPipelineFeatures)
-                                                 : static_cast<void*>(&g_synchronizationFeatures);
-
-        m_instanceExtensions.assign(std::begin(g_instanceExtensions), std::end(g_instanceExtensions));
-        m_instanceExtensions.assign(std::begin(g_instanceExtensions), std::end(g_instanceExtensions));
-
-        m_deviceExtensions = {
-            VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
-            VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
-            VK_EXT_MESH_SHADER_EXTENSION_NAME,
-            VK_KHR_SPIRV_1_4_EXTENSION_NAME,
-            VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
-            VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME, // This is needed for debug printf
-            VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME,    // We need this for profiling with Tracy
-            VK_EXT_HOST_QUERY_RESET_EXTENSION_NAME,         // We need this for profiling with Tracy
-        };
-
-        if (m_withRayTracing)
-        {
-            m_deviceExtensions.append(std::begin(g_rayTracingDeviceExtensions), std::end(g_rayTracingDeviceExtensions));
-        }
-
-        m_instanceDataTypeRegistry->register_from_module();
-    }
-
-    required_features renderer_module::get_required_features()
-    {
-        return {
-            .instanceExtensions = m_instanceExtensions,
-            .deviceExtensions = m_deviceExtensions,
-            .physicalDeviceFeatures =
-                {
-                    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
-                    .pNext = &g_shaderDrawParameters,
-                    .features =
-                        {
-                            .multiDrawIndirect = true,
-                            .samplerAnisotropy = true,
-                            .shaderInt64 = true,
-                            .shaderInt16 = true,
-                        },
-                },
-            .deviceFeaturesChain = m_deviceFeaturesChain,
-        };
-    }
-
-    bool renderer_module::is_ray_tracing_enabled() const
-    {
-        return m_withRayTracing;
-    }
-
-    const instance_data_type_registry& vk::renderer_module::get_instance_data_type_registry() const
-    {
-        return *m_instanceDataTypeRegistry;
-    }
+    void renderer_module::finalize() {}
 }

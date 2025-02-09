@@ -1,5 +1,9 @@
 #include "app.hpp"
 
+#include <oblo/app/graphics_engine.hpp>
+#include <oblo/app/graphics_window.hpp>
+#include <oblo/app/imgui_app.hpp>
+#include <oblo/app/window_event_processor.hpp>
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/importers/importers_module.hpp>
 #include <oblo/asset/providers/native_asset_provider.hpp>
@@ -43,11 +47,10 @@
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/resource/utility/registration.hpp>
 #include <oblo/runtime/runtime_module.hpp>
-#include <oblo/sandbox/context.hpp>
 #include <oblo/scene/scene_editor_module.hpp>
 #include <oblo/thread/job_manager.hpp>
 #include <oblo/trace/profile.hpp>
-#include <oblo/vulkan/required_features.hpp>
+#include <oblo/vulkan/vulkan_engine_module.hpp>
 
 #include <cxxopts.hpp>
 
@@ -179,79 +182,176 @@ namespace oblo::editor
             h32<options_layer> m_layer{};
             u32 m_changeId{};
         };
+
+        class editor_app_module final : public module_interface
+        {
+        public:
+            bool startup(const module_initializer& initializer) override
+            {
+                auto& mm = module_manager::get();
+
+                mm.load<options_module>();
+                auto* runtime = mm.load<runtime_module>();
+                mm.load<reflection::reflection_module>();
+                mm.load<importers::importers_module>();
+                mm.load<editor_module>();
+                mm.load<scene_editor_module>();
+
+                initializer.services->add<options_layer_provider>().externally_owned(&m_editorOptions);
+
+                m_runtimeRegistry = runtime->create_runtime_registry();
+
+                initializer.services->add<const resource_registry>().externally_owned(
+                    &m_runtimeRegistry.get_resource_registry());
+
+                return true;
+            }
+
+            void shutdown() override {}
+
+            void finalize() override
+            {
+                m_editorOptions.init();
+                m_editorOptions.refresh_change_id();
+            }
+
+            void update()
+            {
+                m_editorOptions.update();
+            }
+
+            expected<> parse_cli_options(int argc, char* argv[]);
+
+            const project& get_project() const
+            {
+                return m_project;
+            }
+
+            cstring_view get_project_directory() const
+            {
+                return m_projectDir;
+            }
+
+            runtime_registry& get_runtime_registry()
+            {
+                return m_runtimeRegistry;
+            }
+
+        private:
+            options_layer_helper m_editorOptions;
+            project m_project;
+            string_builder m_projectDir;
+            runtime_registry m_runtimeRegistry;
+        };
     }
 
-    class editor_app_module final : public module_interface
+    struct app::impl
     {
-    public:
-        bool startup(const module_initializer& initializer) override
-        {
-            auto& mm = module_manager::get();
+        module_manager m_moduleManager;
+        log_queue* m_logQueue{};
+        job_manager m_jobManager;
+        window_manager m_windowManager;
+        runtime m_runtime;
+        asset_registry m_assetRegistry;
+        time_stats m_timeStats{};
+        time m_lastFrameTime{};
+        editor_app_module* m_editorModule{};
+        vk::vulkan_engine_module* m_vkEngine{};
+        input_queue m_inputQueue;
+        runtime_registry* m_runtimeRegistry{};
 
-            mm.load<options_module>();
-            mm.load<runtime_module>();
-            mm.load<reflection::reflection_module>();
-            mm.load<importers::importers_module>();
-            mm.load<editor_module>();
-            mm.load<scene_editor_module>();
-
-            initializer.services->add<options_layer_provider>().externally_owned(&m_editorOptions);
-
-            return true;
-        }
-
-        void shutdown() override {}
-
-        void finalize() override
-        {
-            m_editorOptions.init();
-            m_editorOptions.refresh_change_id();
-        }
-
-        void update()
-        {
-            m_editorOptions.update();
-        }
-
-        expected<> parse_cli_options(int argc, char* argv[]);
-
-        const project& get_project() const
-        {
-            return m_project;
-        }
-
-        cstring_view get_project_directory() const
-        {
-            return m_projectDir;
-        }
-
-    private:
-        options_layer_helper m_editorOptions;
-        project m_project;
-        string_builder m_projectDir;
+        bool init(int argc, char* argv[]);
+        bool startup();
+        void startup_ui();
+        void update_runtime();
+        void update_ui();
+        void shutdown();
     };
 
-    std::span<const char* const> app::get_required_instance_extensions() const
-    {
-        return module_manager::get().find<runtime_module>()->get_required_renderer_features().instanceExtensions;
-    }
+    app::app() = default;
 
-    VkPhysicalDeviceFeatures2 app::get_required_physical_device_features() const
+    app::~app()
     {
-        return module_manager::get().find<runtime_module>()->get_required_renderer_features().physicalDeviceFeatures;
-    }
-
-    void* app::get_required_device_features() const
-    {
-        return module_manager::get().find<runtime_module>()->get_required_renderer_features().deviceFeaturesChain;
-    }
-
-    std::span<const char* const> app::get_required_device_extensions() const
-    {
-        return module_manager::get().find<runtime_module>()->get_required_renderer_features().deviceExtensions;
+        shutdown();
     }
 
     bool app::init(int argc, char* argv[])
+    {
+        m_impl = allocate_unique<impl>();
+
+        if (!m_impl->init(argc, argv))
+        {
+            m_impl->shutdown();
+            m_impl.reset();
+            return false;
+        }
+
+        return m_impl->startup();
+    }
+
+    void app::shutdown()
+    {
+        if (m_impl)
+        {
+            m_impl->shutdown();
+            m_impl.reset();
+        }
+    }
+
+    void app::run()
+    {
+        graphics_window mainWindow;
+
+        if (!mainWindow.create({.title = "oblo", .isHidden = true}) || !mainWindow.initialize_graphics())
+        {
+            return;
+        }
+
+        auto* const gfxEngine = m_impl->m_moduleManager.find_unique_service<graphics_engine>();
+
+        if (!gfxEngine)
+        {
+            return;
+        }
+
+        imgui_app app;
+
+        if (!app.init(mainWindow, {.configFile = "oblo.imgui.ini"}))
+        {
+            return;
+        }
+
+        init_ui();
+        m_impl->startup_ui();
+
+        if (!app.init_font_atlas())
+        {
+            return;
+        }
+
+        mainWindow.maximize();
+        mainWindow.set_hidden(false);
+
+        window_event_processor eventProcessor{imgui_app::get_event_dispatcher()};
+
+        while (eventProcessor.process_events() && mainWindow.is_open())
+        {
+            if (!gfxEngine->acquire_images())
+            {
+                continue;
+            }
+
+            app.begin_frame();
+            m_impl->update_ui();
+            app.end_frame();
+
+            m_impl->update_runtime();
+
+            gfxEngine->present();
+        }
+    }
+
+    bool app::impl::init(int argc, char* argv[])
     {
         const auto bootTime = clock::now();
 
@@ -266,8 +366,9 @@ namespace oblo::editor
 
         m_logQueue = init_log(bootTime);
 
-        auto& mm = module_manager::get();
+        auto& mm = m_moduleManager;
         m_editorModule = mm.load<editor_app_module>();
+        m_runtimeRegistry = &m_editorModule->get_runtime_registry();
 
         if (!m_editorModule->parse_cli_options(argc, argv))
         {
@@ -283,19 +384,17 @@ namespace oblo::editor
             }
         }
 
+        m_vkEngine = mm.load<vk::vulkan_engine_module>();
+
         mm.finalize();
 
         return true;
     }
 
-    bool app::startup(const vk::sandbox_startup_context& ctx)
+    bool app::impl::startup()
     {
-        auto& mm = module_manager::get();
+        auto& mm = m_moduleManager;
         auto* const reflection = mm.find<oblo::reflection::reflection_module>();
-        auto* const runtime = mm.find<oblo::runtime_module>();
-        auto* const options = mm.find<oblo::options_module>();
-
-        m_runtimeRegistry = runtime->create_runtime_registry();
 
         const auto& project = m_editorModule->get_project();
         const auto& projectDir = m_editorModule->get_project_directory();
@@ -310,8 +409,8 @@ namespace oblo::editor
             return false;
         }
 
-        auto& propertyRegistry = m_runtimeRegistry.get_property_registry();
-        auto& resourceRegistry = m_runtimeRegistry.get_resource_registry();
+        auto& propertyRegistry = m_runtimeRegistry->get_property_registry();
+        auto& resourceRegistry = m_runtimeRegistry->get_resource_registry();
 
         register_native_asset_types(m_assetRegistry, mm.find_services<native_asset_provider>());
         register_file_importers(m_assetRegistry, mm.find_services<file_importers_provider>());
@@ -324,68 +423,15 @@ namespace oblo::editor
 
         resourceRegistry.register_provider(resourceProvider);
 
-        m_renderer.init({
-            .vkContext = *ctx.vkContext,
-            .resources = resourceRegistry,
-        });
-
         if (!m_runtime.init({
                 .reflectionRegistry = &reflection->get_registry(),
                 .propertyRegistry = &propertyRegistry,
                 .resourceRegistry = &resourceRegistry,
-                .vulkanContext = ctx.vkContext,
-                .renderer = &m_renderer,
+                .renderer = m_vkEngine->get_renderer(),
                 .worldBuilders = mm.find_services<ecs::world_builder>(),
             }))
         {
             return false;
-        }
-
-        m_windowManager.init();
-        init_ui();
-
-        {
-            auto& globalRegistry = m_windowManager.get_global_service_registry();
-
-            globalRegistry.add<vk::vulkan_context>().externally_owned(ctx.vkContext);
-            globalRegistry.add<vk::renderer>().externally_owned(&m_renderer);
-            globalRegistry.add<const resource_registry>().externally_owned(&resourceRegistry);
-            globalRegistry.add<asset_registry>().externally_owned(&m_assetRegistry);
-            globalRegistry.add<const property_registry>().externally_owned(&propertyRegistry);
-            globalRegistry.add<const reflection::reflection_registry>().externally_owned(&reflection->get_registry());
-            globalRegistry.add<const input_queue>().externally_owned(ctx.inputQueue);
-            globalRegistry.add<component_factory>().unique();
-            globalRegistry.add<const time_stats>().externally_owned(&m_timeStats);
-            globalRegistry.add<const log_queue>().externally_owned(m_logQueue);
-            globalRegistry.add<options_manager>().externally_owned(&options->manager());
-            globalRegistry.add<registered_commands>().unique();
-            globalRegistry.add<incremental_id_pool>().unique();
-            globalRegistry.add<asset_editor_manager>().unique();
-
-            service_registry sceneRegistry{};
-            sceneRegistry.add<ecs::entity_registry>().externally_owned(&m_runtime.get_entity_registry());
-
-            const auto sceneEditingWindow =
-                m_windowManager.create_window<scene_editing_window>(std::move(sceneRegistry));
-
-            m_windowManager.create_child_window<asset_browser>(sceneEditingWindow);
-            m_windowManager.create_child_window<inspector>(sceneEditingWindow);
-            m_windowManager.create_child_window<scene_hierarchy>(sceneEditingWindow);
-            m_windowManager.create_child_window<viewport>(sceneEditingWindow);
-            m_windowManager.create_child_window<console_window>(sceneEditingWindow);
-
-            deque<service_provider_descriptor> serviceRegistrants;
-
-            for (auto* const provider : module_manager::get().find_services<service_provider>())
-            {
-                serviceRegistrants.clear();
-                provider->fetch(serviceRegistrants);
-
-                for (const auto& serviceRegistrant : serviceRegistrants)
-                {
-                    serviceRegistrant.registerServices(globalRegistry);
-                }
-            }
         }
 
         m_lastFrameTime = clock::now();
@@ -393,13 +439,60 @@ namespace oblo::editor
         return true;
     }
 
-    void app::shutdown(const vk::sandbox_shutdown_context&)
+    void app::impl::startup_ui()
+    {
+        auto* const options = m_moduleManager.find<oblo::options_module>();
+        auto* const reflection = m_moduleManager.find<oblo::reflection::reflection_module>();
+
+        m_windowManager.init();
+
+        auto& globalRegistry = m_windowManager.get_global_service_registry();
+
+        globalRegistry.add<vk::vulkan_context>().externally_owned(&m_vkEngine->get_vulkan_context());
+        globalRegistry.add<vk::renderer>().externally_owned(&m_vkEngine->get_renderer());
+        globalRegistry.add<const resource_registry>().externally_owned(&m_runtimeRegistry->get_resource_registry());
+        globalRegistry.add<asset_registry>().externally_owned(&m_assetRegistry);
+        globalRegistry.add<const property_registry>().externally_owned(&m_runtimeRegistry->get_property_registry());
+        globalRegistry.add<const reflection::reflection_registry>().externally_owned(&reflection->get_registry());
+        globalRegistry.add<const input_queue>().externally_owned(&m_inputQueue);
+        globalRegistry.add<component_factory>().unique();
+        globalRegistry.add<const time_stats>().externally_owned(&m_timeStats);
+        globalRegistry.add<const log_queue>().externally_owned(m_logQueue);
+        globalRegistry.add<options_manager>().externally_owned(&options->manager());
+        globalRegistry.add<registered_commands>().unique();
+        globalRegistry.add<incremental_id_pool>().unique();
+        globalRegistry.add<asset_editor_manager>().unique();
+
+        service_registry sceneRegistry{};
+        sceneRegistry.add<ecs::entity_registry>().externally_owned(&m_runtime.get_entity_registry());
+
+        const auto sceneEditingWindow = m_windowManager.create_window<scene_editing_window>(std::move(sceneRegistry));
+
+        m_windowManager.create_child_window<asset_browser>(sceneEditingWindow);
+        m_windowManager.create_child_window<inspector>(sceneEditingWindow);
+        m_windowManager.create_child_window<scene_hierarchy>(sceneEditingWindow);
+        m_windowManager.create_child_window<viewport>(sceneEditingWindow);
+        m_windowManager.create_child_window<console_window>(sceneEditingWindow);
+
+        deque<service_provider_descriptor> serviceRegistrants;
+
+        for (auto* const provider : module_manager::get().find_services<service_provider>())
+        {
+            serviceRegistrants.clear();
+            provider->fetch(serviceRegistrants);
+
+            for (const auto& serviceRegistrant : serviceRegistrants)
+            {
+                serviceRegistrant.registerServices(globalRegistry);
+            }
+        }
+    }
+
+    void app::impl::shutdown()
     {
         m_windowManager.shutdown();
         m_runtime.shutdown();
         platform::shutdown();
-
-        m_renderer.shutdown();
 
         module_manager::get().shutdown();
 
@@ -408,28 +501,21 @@ namespace oblo::editor
         debug_assert_hook_remove();
     }
 
-    void app::update(const vk::sandbox_render_context&)
+    void app::impl::update_runtime()
     {
         const auto now = clock::now();
         const auto dt = now - m_lastFrameTime;
 
         m_timeStats.dt = dt;
-
-        // This is here because the draw_registry is uploading during the runtime
-        // We should move that to a node instead
-        m_renderer.begin_frame();
-
         m_runtime.update({.dt = dt});
-
-        m_renderer.end_frame();
 
         m_lastFrameTime = now;
     }
 
-    void app::update_imgui(const vk::sandbox_update_imgui_context&)
+    void app::impl::update_ui()
     {
         m_assetRegistry.update();
-        m_runtimeRegistry.get_resource_registry().update();
+        m_editorModule->get_runtime_registry().get_resource_registry().update();
 
         m_logQueue->flush();
 

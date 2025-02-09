@@ -8,6 +8,14 @@ namespace oblo
     class graphics_window;
     struct window_event_dispatcher;
 
+    struct imgui_app_config
+    {
+        const char* configFile{"imgui.ini"};
+        bool useMultiViewport{true};
+        bool useDocking{true};
+        bool useKeyboardNavigation{true};
+    };
+
     class imgui_app
     {
     public:
@@ -22,7 +30,7 @@ namespace oblo
         imgui_app& operator=(const imgui_app&) = delete;
         imgui_app& operator=(imgui_app&&) noexcept = delete;
 
-        expected<> init(const graphics_window& window);
+        expected<> init(const graphics_window& window, const imgui_app_config& cfg = {});
         void shutdown();
 
         expected<> init_font_atlas();

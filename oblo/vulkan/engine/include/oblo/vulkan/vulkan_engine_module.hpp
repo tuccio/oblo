@@ -6,6 +6,7 @@
 namespace oblo::vk
 {
     class renderer;
+    class vulkan_context;
 
     class vulkan_engine_module final : public module_interface
     {
@@ -22,6 +23,7 @@ namespace oblo::vk
         void shutdown() override;
         void finalize() override;
 
+        vulkan_context& get_vulkan_context();
         renderer& get_renderer();
 
     private:

@@ -98,17 +98,18 @@ namespace oblo
         m_impl->entities.init(&m_impl->typeRegistry);
 
         // We should probably move this to a world builder in a module if it's necessary
-        m_impl->services.add<vk::vulkan_context>().externally_owned(initializer.vulkanContext);
-        m_impl->services.add<vk::renderer>().externally_owned(initializer.renderer);
+        auto& vulkanContext = initializer.renderer.get_vulkan_context();
+        m_impl->services.add<vk::vulkan_context>().externally_owned(&vulkanContext);
+        m_impl->services.add<vk::renderer>().externally_owned(&initializer.renderer);
 
-        m_impl->isRayTracingEnabled = initializer.renderer->is_ray_tracing_enabled();
+        m_impl->isRayTracingEnabled = initializer.renderer.is_ray_tracing_enabled();
 
-        m_impl->drawRegistry.init(*initializer.vulkanContext,
-            initializer.renderer->get_staging_buffer(),
-            initializer.renderer->get_string_interner(),
+        m_impl->drawRegistry.init(vulkanContext,
+            initializer.renderer.get_staging_buffer(),
+            initializer.renderer.get_string_interner(),
             m_impl->entities,
             *initializer.resourceRegistry,
-            initializer.renderer->get_instance_data_type_registry());
+            initializer.renderer.get_instance_data_type_registry());
 
         m_impl->services.add<vk::draw_registry>().externally_owned(&m_impl->drawRegistry);
 
@@ -125,11 +126,11 @@ namespace oblo
             (worldBuilder->services)(m_impl->services);
         }
 
-        m_impl->services.add<vk::resource_cache>().externally_owned(&initializer.renderer->get_resource_cache());
+        m_impl->services.add<vk::resource_cache>().externally_owned(&initializer.renderer.get_resource_cache());
 
         m_impl->executor = std::move(*executor);
 
-        m_impl->vulkanContext = initializer.vulkanContext;
+        m_impl->vulkanContext = &vulkanContext;
 
         return true;
     }

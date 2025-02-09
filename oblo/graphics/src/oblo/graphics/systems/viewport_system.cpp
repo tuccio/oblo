@@ -28,7 +28,6 @@
 #include <oblo/vulkan/graph/frame_graph.hpp>
 #include <oblo/vulkan/graph/frame_graph_template.hpp>
 #include <oblo/vulkan/renderer.hpp>
-#include <oblo/vulkan/renderer_context.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/templates/graph_templates.hpp>
 #include <oblo/vulkan/texture.hpp>

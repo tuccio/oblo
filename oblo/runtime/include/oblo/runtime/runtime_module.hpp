@@ -1,13 +1,7 @@
 #pragma once
 
+#include <oblo/core/unique_ptr.hpp>
 #include <oblo/modules/module_interface.hpp>
-
-#include <memory>
-
-namespace oblo::vk
-{
-    struct required_features;
-}
 
 namespace oblo
 {
@@ -34,12 +28,10 @@ namespace oblo
 
         RUNTIME_API runtime_registry create_runtime_registry() const;
 
-        RUNTIME_API vk::required_features get_required_renderer_features() const;
-
     private:
         struct impl;
 
     private:
-        std::unique_ptr<impl> m_impl;
+        unique_ptr<impl> m_impl;
     };
 }

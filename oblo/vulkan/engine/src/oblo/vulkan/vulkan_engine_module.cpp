@@ -3,20 +3,41 @@
 #include <oblo/app/graphics_engine.hpp>
 #include <oblo/app/graphics_window.hpp>
 #include <oblo/app/graphics_window_context.hpp>
+#include <oblo/core/array_size.hpp>
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/finally.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_manager.hpp>
+#include <oblo/options/option_proxy.hpp>
+#include <oblo/options/option_traits.hpp>
+#include <oblo/options/options_module.hpp>
+#include <oblo/options/options_provider.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/renderer_module.hpp>
-#include <oblo/vulkan/required_features.hpp>
 #include <oblo/vulkan/swapchain.hpp>
 #include <oblo/vulkan/templates/graph_templates.hpp>
 #include <oblo/vulkan/texture.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
+
+namespace oblo
+{
+    template <>
+    struct option_traits<"r.isRayTracingEnabled">
+    {
+        using type = bool;
+
+        static constexpr option_descriptor descriptor{
+            .kind = property_kind::boolean,
+            .id = "b01a7290-4f14-4b5c-9693-3b748bd9f45a"_uuid,
+            .name = "Enable Ray-Tracing",
+            .category = "Graphics",
+            .defaultValue = property_value_wrapper{true},
+        };
+    };
+}
 
 namespace oblo::vk
 {
@@ -64,6 +85,12 @@ namespace oblo::vk
 
             return true;
         }
+
+        struct renderer_options
+        {
+            // We only read this at startup, any change requires a reset
+            option_proxy<"r.isRayTracingEnabled"> isRayTracingEnabled;
+        };
 
         struct vulkan_window_context final : public graphics_window_context
         {
@@ -269,6 +296,8 @@ namespace oblo::vk
 
         VkSemaphore frameCompletedSemaphore[g_SwapchainImages]{};
 
+        option_proxy_struct<renderer_options> options;
+
         bool initialize(const resource_registry& resourceRegistry);
         void shutdown();
 
@@ -285,11 +314,13 @@ namespace oblo::vk
 
     bool vulkan_engine_module::startup(const module_initializer& initializer)
     {
-        module_manager::get().load<renderer_module>();
-
         m_impl = allocate_unique<impl>();
 
         initializer.services->add<impl>().as<graphics_engine>().externally_owned(m_impl.get());
+
+        module_manager::get().load<renderer_module>();
+        module_manager::get().load<options_module>();
+        option_proxy_struct<renderer_options>::register_options(*initializer.services);
 
         return true;
     }
@@ -311,6 +342,11 @@ namespace oblo::vk
         {
             return_error();
         }
+    }
+
+    vulkan_context& vulkan_engine_module::get_vulkan_context()
+    {
+        return m_impl->vkContext;
     }
 
     renderer& vulkan_engine_module::get_renderer()
@@ -440,7 +476,7 @@ namespace oblo::vk
         const auto cleanup = finally([&] { vkDestroySurfaceKHR(instance.get(), surface, nullptr); });
 
         // Now we can create rest of the vulkan objects
-        constexpr const char* deviceExtensions[] = {
+        constexpr const char* requiredDeviceExtensions[] = {
             VK_KHR_SWAPCHAIN_EXTENSION_NAME,
             VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME,
             VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
@@ -453,18 +489,41 @@ namespace oblo::vk
             VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME,    // We need this for profiling with Tracy
             VK_EXT_HOST_QUERY_RESET_EXTENSION_NAME,         // We need this for profiling with Tracy
 
-            // Ray-tracing extensions, we might want to disable them
-            // VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
-            // VK_KHR_RAY_QUERY_EXTENSION_NAME,
-            // VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
         };
+
+        // Ray-tracing extensions, we might want to disable them
+        constexpr const char* rayTracingExtensions[] = {
+            VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
+            VK_KHR_RAY_QUERY_EXTENSION_NAME,
+            VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
+        };
+
+        auto& optionsManager = module_manager::get().find<options_module>()->manager();
+        options.init(optionsManager);
+        const bool isRayTracingEnabled = options.isRayTracingEnabled.read(optionsManager);
+
+        constexpr auto totalExtensions = array_size(requiredDeviceExtensions) + array_size(rayTracingExtensions);
+        buffered_array<const char*, totalExtensions> deviceExtensions;
+        deviceExtensions.append(std::begin(requiredDeviceExtensions), std::end(requiredDeviceExtensions));
+
+        if (isRayTracingEnabled)
+        {
+            deviceExtensions.append(std::begin(rayTracingExtensions), std::end(rayTracingExtensions));
+        }
 
         VkPhysicalDeviceFeatures2 g_physicalDeviceFeatures2{
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
-            //.pNext = &g_rtPipelineFeatures, // We might want to disable ray-tracing
-            .pNext = &g_synchronizationFeatures,
             .features = g_physicalDeviceFeatures,
         };
+
+        if (isRayTracingEnabled)
+        {
+            g_physicalDeviceFeatures2.pNext = &g_rtPipelineFeatures;
+        }
+        else
+        {
+            g_physicalDeviceFeatures2.pNext = &g_synchronizationFeatures;
+        }
 
         if (!engine.init(instance.get(), surface, {}, deviceExtensions, &g_physicalDeviceFeatures2, nullptr))
         {
