@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/expected.hpp>
 #include <oblo/core/unique_ptr.hpp>
 
 namespace oblo
@@ -21,11 +22,12 @@ namespace oblo
         imgui_app& operator=(const imgui_app&) = delete;
         imgui_app& operator=(imgui_app&&) noexcept = delete;
 
-        bool init(const graphics_window& window);
+        expected<> init(const graphics_window& window);
         void shutdown();
 
+        expected<> init_font_atlas();
+
         void begin_frame();
-        void render();
         void end_frame();
 
     private:

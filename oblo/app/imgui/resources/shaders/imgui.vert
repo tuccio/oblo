@@ -1,5 +1,7 @@
 #version 450 core
 
+#include <imgui_constants>
+
 struct imgui_vertex
 {
     float pos[2];
@@ -11,13 +13,6 @@ layout(std430, binding = 0) restrict buffer readonly b_VertexData
 {
     imgui_vertex g_VertexData[];
 };
-
-layout(push_constant) uniform c_PushConstants
-{
-    vec2 scale;
-    vec2 translation;
-}
-g_Constants;
 
 out gl_PerVertex
 {
@@ -34,7 +29,12 @@ void main()
 {
     imgui_vertex v = g_VertexData[gl_VertexIndex];
 
-    out_Data.color = unpackUnorm4x8(v.color);
-    out_Data.uv = vec2(v.uv[0], v.uv[1]);
-    gl_Position = vec4(vec2(v.pos[0], v.pos[1]) * g_Constants.scale + g_Constants.translation, 0, 1);
+    const vec2 position = vec2(v.pos[0], v.pos[1]);
+    const vec2 uv = vec2(v.uv[0], v.uv[1]);
+    const vec4 color = unpackUnorm4x8(v.color);
+
+    out_Data.color = color;
+    out_Data.uv = uv;
+
+    gl_Position = vec4(position * g_Constants.scale + g_Constants.translation, 0, 1);
 }

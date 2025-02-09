@@ -8,6 +8,9 @@
 #include <oblo/core/utility.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/modules/module_manager.hpp>
+#include <oblo/resource/resource_ptr.hpp>
+#include <oblo/resource/resource_registry.hpp>
+#include <oblo/scene/resources/texture.hpp>
 #include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/render_pass_initializer.hpp>
@@ -63,12 +66,12 @@ namespace oblo
             vk::renderer* renderer{};
             vk::frame_graph_registry nodeRegistry;
             vk::frame_graph_template renderTemplate;
-
-            void* create_render_userdata() {}
+            resource_ptr<texture> font;
         };
 
-        struct render_imgui_node
+        struct imgui_render_node
         {
+            vk::data<const imgui_render_backend*> inBackend;
             vk::data<ImGuiViewport*> inViewport;
 
             vk::resource<vk::texture> inOutRenderTarget;
@@ -78,6 +81,8 @@ namespace oblo
 
             h32<vk::render_pass> renderPass;
             h32<vk::render_pass_instance> renderPassInstance;
+
+            h32<vk::resident_texture> fontTexture;
 
             void init(const vk::frame_graph_init_context& ctx)
             {
@@ -105,6 +110,11 @@ namespace oblo
                     return;
                 }
 
+                auto* const backend = ctx.access(inBackend);
+                OBLO_ASSERT(backend);
+
+                fontTexture = ctx.load_resource(backend->font);
+
                 ImGuiViewport* const viewport = ctx.access(inViewport);
                 OBLO_ASSERT(viewport);
 
@@ -118,6 +128,20 @@ namespace oblo
                         .renderTargets =
                             {
                                 .colorAttachmentFormats = {rtInitializer.format},
+                                .blendStates =
+                                    {
+                                        {
+                                            .enable = true,
+                                            .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+                                            .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+                                            .colorBlendOp = VK_BLEND_OP_ADD,
+                                            .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+                                            .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+                                            .alphaBlendOp = VK_BLEND_OP_ADD,
+                                            .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+                                                VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
+                                        },
+                                    },
                             },
                         .depthStencilState =
                             {
@@ -187,10 +211,6 @@ namespace oblo
                         .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
                         .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-                        .clearValue =
-                            VkClearValue{
-                                .color = {0, 0, 0, 0},
-                            },
                     },
                 };
 
@@ -239,6 +259,7 @@ namespace oblo
 
                     ImGuiViewport* const viewport = ctx.access(inViewport);
                     OBLO_ASSERT(viewport);
+
                     auto* const drawData = viewport->DrawData;
 
                     const vec2 scale = vec2::splat(2.f) / vec2{drawData->DisplaySize.x, drawData->DisplaySize.y};
@@ -253,12 +274,15 @@ namespace oblo
                     ctx.push_constants(shader_stage::vertex, 0, as_bytes(std::span{&transformConstants, 1}));
 
                     // Will project scissor/clipping rectangles into framebuffer space
-                    ImVec2 clipOffset = drawData->DisplayPos; // (0,0) unless using multi-viewports
-                    ImVec2 clipScale =
-                        drawData->FramebufferScale; // (1,1) unless using retina display which are often (2,2)
+                    // (0,0) unless using multi-viewports
+                    ImVec2 clipOffset = drawData->DisplayPos;
+                    // (1,1) unless using retina display which are often (2,2)
+                    ImVec2 clipScale = drawData->FramebufferScale;
 
                     i32 vertexOffset = 0;
                     i32 indexOffset = 0;
+
+                    u32 lastResidentTexture = ~u32{};
 
                     for (const ImDrawList* drawList : drawData->CmdLists)
                     {
@@ -295,6 +319,18 @@ namespace oblo
                                     },
                             };
 
+                            [[maybe_unused]] auto newTexId = cmd.GetTexID();
+                            u32 residentTexture = fontTexture.value;
+
+                            if (residentTexture != lastResidentTexture)
+                            {
+                                ctx.push_constants(shader_stage::fragment,
+                                    sizeof(transform_constants),
+                                    as_bytes(std::span{&residentTexture, 1}));
+
+                                residentTexture = lastResidentTexture;
+                            }
+
                             vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
                             vkCmdDrawIndexed(commandBuffer,
@@ -315,19 +351,21 @@ namespace oblo
         };
 
         constexpr string_view g_InImGuiViewport{"ImGuiViewport"};
+        constexpr string_view g_InImGuiBackend{"ImGuiBackend"};
         constexpr string_view g_InOutRT{"RenderTarget"};
 
         vk::frame_graph_template create_imgui_frame_graph_template(vk::frame_graph_registry& registry)
         {
-            registry.register_node<render_imgui_node>();
+            registry.register_node<imgui_render_node>();
 
             vk::frame_graph_template fgt;
             fgt.init(registry);
 
-            auto render = fgt.add_node<render_imgui_node>();
-            fgt.make_input(render, &render_imgui_node::inViewport, g_InImGuiViewport);
-            fgt.make_input(render, &render_imgui_node::inOutRenderTarget, g_InOutRT);
-            fgt.make_output(render, &render_imgui_node::inOutRenderTarget, g_InOutRT);
+            auto render = fgt.add_node<imgui_render_node>();
+            fgt.make_input(render, &imgui_render_node::inViewport, g_InImGuiViewport);
+            fgt.make_input(render, &imgui_render_node::inBackend, g_InImGuiBackend);
+            fgt.make_input(render, &imgui_render_node::inOutRenderTarget, g_InOutRT);
+            fgt.make_output(render, &imgui_render_node::inOutRenderTarget, g_InOutRT);
 
             return fgt;
         }
@@ -341,6 +379,7 @@ namespace oblo
 
             auto graph = frameGraph.instantiate(backend->renderTemplate);
             frameGraph.set_input(graph, g_InImGuiViewport, viewport).assert_value();
+            frameGraph.set_input(graph, g_InImGuiBackend, backend).assert_value();
 
             return IM_NEW(imgui_render_userdata){
                 .windowContext = windowContext,
@@ -380,11 +419,11 @@ namespace oblo
         ImGuiContext* context{};
         imgui_render_backend backend{};
 
-        bool init(const graphics_window& window)
+        expected<> init(const graphics_window& window)
         {
             if (!window.is_ready())
             {
-                return false;
+                return unspecified_error;
             }
 
             context = ImGui::CreateContext();
@@ -398,13 +437,13 @@ namespace oblo
 
             if (!ImGui_ImplSDL2_InitForOther(sdlWindow))
             {
-                return false;
+                return unspecified_error;
             }
 
             return init_render_backend(window);
         }
 
-        bool init_render_backend(const graphics_window& window)
+        expected<> init_render_backend(const graphics_window& window)
         {
             auto& mm = module_manager::get();
 
@@ -412,17 +451,16 @@ namespace oblo
 
             if (!gfxEngine)
             {
-                return false;
+                return unspecified_error;
             }
 
             auto* const vkEngine = mm.find<vk::vulkan_engine_module>();
 
             if (!vkEngine)
             {
-                return false;
+                return unspecified_error;
             }
 
-            // TODO: Create the frame graph for the main window
             ImGuiIO& io = ImGui::GetIO();
             OBLO_ASSERT(io.BackendRendererUserData == nullptr);
 
@@ -458,9 +496,12 @@ namespace oblo
             {
                 auto* backend = static_cast<imgui_render_backend*>(ImGui::GetIO().BackendRendererUserData);
                 auto* rud = static_cast<imgui_render_userdata*>(viewport->RendererUserData);
-                destroy_render_userdata(backend, rud);
 
-                viewport->RendererUserData = nullptr;
+                if (rud)
+                {
+                    destroy_render_userdata(backend, rud);
+                    viewport->RendererUserData = nullptr;
+                }
             };
 
             platformIO.Renderer_SetWindowSize = [](ImGuiViewport* viewport, ImVec2 size)
@@ -469,20 +510,29 @@ namespace oblo
                 rud->windowContext->on_resize(u32(size.x), u32(size.y));
             };
 
-            // TODO: Create font texture
-            unsigned char* pixels;
-            int width, height;
-            io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
-            // size_t upload_size = width * height * 4 * sizeof(char);
+            return no_error;
+        }
 
-            return true;
+        void shutdown_renderer_backend()
+        {
+            ImGuiIO& io = ImGui::GetIO();
+
+            if (io.BackendRendererUserData)
+            {
+                // ImGui complains about this being set, we don't really have to do anything so far, since the
+                // destructor takes care of everything and the viewports are destroyed by Renderer_DestroyWindow
+                io.BackendRendererUserData = nullptr;
+            }
         }
 
         ~impl()
         {
             if (context)
             {
+                ImGui::DestroyPlatformWindows();
+
                 ImGui_ImplSDL2_Shutdown();
+                shutdown_renderer_backend();
 
                 ImGui::DestroyContext(context);
                 context = nullptr;
@@ -494,11 +544,11 @@ namespace oblo
 
     imgui_app::~imgui_app() = default;
 
-    bool imgui_app::init(const graphics_window& window)
+    expected<> imgui_app::init(const graphics_window& window)
     {
         if (m_impl)
         {
-            return false;
+            return unspecified_error;
         }
 
         m_impl = allocate_unique<impl>();
@@ -510,6 +560,37 @@ namespace oblo
         m_impl.reset();
     }
 
+    expected<> imgui_app::init_font_atlas()
+    {
+        ImGuiIO& io = ImGui::GetIO();
+
+        unsigned char* pixels;
+        int width, height;
+        io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+
+        texture font;
+
+        if (!font.allocate(texture_desc::make_2d(width, height, texture_format::r8g8b8a8_unorm)))
+        {
+            return unspecified_error;
+        }
+
+        std::span fontData = font.get_data();
+        const usize expectedSize = width * height * sizeof(u32) * sizeof(char);
+
+        if (fontData.size() != expectedSize)
+        {
+            return unspecified_error;
+        }
+
+        std::memcpy(fontData.data(), pixels, fontData.size_bytes());
+
+        auto* resourceRegistry = module_manager::get().find_unique_service<const resource_registry>();
+        m_impl->backend.font = resourceRegistry->instantiate<texture>(std::move(font), "ImGui Font");
+
+        return no_error;
+    }
+
     void imgui_app::begin_frame()
     {
         OBLO_PROFILE_SCOPE();
@@ -518,7 +599,7 @@ namespace oblo
         ImGui::NewFrame();
     }
 
-    void imgui_app::render()
+    void imgui_app::end_frame()
     {
         OBLO_PROFILE_SCOPE();
         ImGui::Render();
@@ -542,11 +623,6 @@ namespace oblo
                 connect_viewport(fg, viewport);
             }
         }
-    }
-
-    void imgui_app::end_frame()
-    {
-        OBLO_PROFILE_SCOPE();
     }
 
     window_event_dispatcher imgui_app::get_event_dispatcher()

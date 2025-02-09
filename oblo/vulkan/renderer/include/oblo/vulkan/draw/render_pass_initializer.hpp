@@ -32,11 +32,24 @@ namespace oblo::vk
         buffered_array<render_pass_stage, u8(pipeline_stages::enum_max)> stages;
     };
 
+    struct color_blend_attachment_state
+    {
+        bool enable;
+        VkBlendFactor srcColorBlendFactor;
+        VkBlendFactor dstColorBlendFactor;
+        VkBlendOp colorBlendOp;
+        VkBlendFactor srcAlphaBlendFactor;
+        VkBlendFactor dstAlphaBlendFactor;
+        VkBlendOp alphaBlendOp;
+        VkColorComponentFlags colorWriteMask;
+    };
+
     struct render_pass_targets
     {
         buffered_array<VkFormat, 4> colorAttachmentFormats;
         VkFormat depthFormat{VK_FORMAT_UNDEFINED};
         VkFormat stencilFormat{VK_FORMAT_UNDEFINED};
+        buffered_array<color_blend_attachment_state, 1> blendStates;
     };
 
     struct depth_stencil_state

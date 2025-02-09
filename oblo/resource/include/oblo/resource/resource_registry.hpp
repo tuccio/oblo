@@ -3,6 +3,7 @@
 #include <oblo/core/deque.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle.hpp>
+#include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/resource/providers/resource_provider.hpp>
@@ -41,6 +42,11 @@ namespace oblo
         void register_provider(resource_provider* provider);
         void unregister_provider(resource_provider* provider);
 
+        resource_ptr<void> instantiate(const uuid& type, function_ref<void(void*)> init, string_view name) const;
+
+        template <typename T>
+        resource_ptr<T> instantiate(T&& r, string_view name) const;
+
         resource_ptr<void> get_resource(const uuid& id) const;
 
         const deque<uuid>& get_updated_events(const uuid& eventType) const;
@@ -68,4 +74,11 @@ namespace oblo
     {
         return get_updated_events(resource_type<T>);
     }
+
+    template <typename T>
+    resource_ptr<T> resource_registry::instantiate(T&& r, string_view name) const
+    {
+        return instantiate(resource_type<T>, [&r](void* ptr) { *static_cast<T*>(ptr) = std::move(r); }, name).as<T>();
+    }
+
 }

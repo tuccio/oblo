@@ -8,7 +8,10 @@
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_interface.hpp>
 #include <oblo/modules/module_manager.hpp>
+#include <oblo/resource/providers/resource_types_provider.hpp>
 #include <oblo/resource/resource_registry.hpp>
+#include <oblo/resource/utility/registration.hpp>
+#include <oblo/scene/scene_module.hpp>
 #include <oblo/vulkan/graph/frame_graph.hpp>
 #include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/vulkan_engine_module.hpp>
@@ -40,8 +43,12 @@ int main(int, char**)
 
     mm.load<vk::vulkan_engine_module>();
     mm.load<app_module>();
+    mm.load<scene_module>();
 
     mm.finalize();
+
+    auto* resourceRegistry = mm.find_unique_service<resource_registry>();
+    register_resource_types(*resourceRegistry, mm.find_services<resource_types_provider>());
 
     graphics_window mainWindow;
 
@@ -59,14 +66,14 @@ int main(int, char**)
 
     imgui_app app;
 
-    if (!app.init(mainWindow))
+    if (!app.init(mainWindow) || !app.init_font_atlas())
     {
         return 3;
     }
 
     window_event_processor eventProcessor{imgui_app::get_event_dispatcher()};
 
-    while (mainWindow.is_open() && eventProcessor.process_events())
+    while (eventProcessor.process_events() && mainWindow.is_open())
     {
         if (!gfxEngine->acquire_images())
         {
@@ -74,15 +81,11 @@ int main(int, char**)
             continue;
         }
 
-        // TODO: Render
         app.begin_frame();
-
         ImGui::ShowDemoWindow();
-        app.render();
+        app.end_frame();
 
         gfxEngine->present();
-
-        app.end_frame();
     }
 
     return 0;

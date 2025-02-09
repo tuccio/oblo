@@ -1995,29 +1995,36 @@ namespace oblo::vk
             .minSampleShading = 1.f,
         };
 
-        const VkPipelineColorBlendAttachmentState colorBlendAttachment{
+        const VkPipelineColorBlendAttachmentState defaultColorBlendAttachment{
             .blendEnable = VK_FALSE,
             .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
                 VK_COLOR_COMPONENT_A_BIT,
         };
 
-        // TODO: Just hardcoded max number of 4 right now
-        const VkPipelineColorBlendAttachmentState colorBlendAttachments[] = {
-            colorBlendAttachment,
-            colorBlendAttachment,
-            colorBlendAttachment,
-            colorBlendAttachment,
-        };
+        buffered_array<VkPipelineColorBlendAttachmentState, 8> colorBlendAttachments;
+        colorBlendAttachments.reserve(desc.renderTargets.blendStates.size());
 
-        OBLO_ASSERT(numAttachments <= array_size(colorBlendAttachments));
+        for (auto& attachment : desc.renderTargets.blendStates)
+        {
+            colorBlendAttachments.push_back({
+                .blendEnable = attachment.enable,
+                .srcColorBlendFactor = attachment.srcColorBlendFactor,
+                .dstColorBlendFactor = attachment.dstColorBlendFactor,
+                .colorBlendOp = attachment.colorBlendOp,
+                .srcAlphaBlendFactor = attachment.srcAlphaBlendFactor,
+                .dstAlphaBlendFactor = attachment.dstAlphaBlendFactor,
+                .alphaBlendOp = attachment.alphaBlendOp,
+                .colorWriteMask = attachment.colorWriteMask,
+            });
+        }
 
         const VkPipelineColorBlendStateCreateInfo colorBlending{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
             .logicOpEnable = VK_FALSE,
             .logicOp = VK_LOGIC_OP_COPY,
-            .attachmentCount = numAttachments,
-            .pAttachments = colorBlendAttachments,
-            .blendConstants = {0.f},
+            .attachmentCount = colorBlendAttachments.size32(),
+            .pAttachments = colorBlendAttachments.data(),
+            .blendConstants = {},
         };
 
         const VkPipelineDepthStencilStateCreateInfo depthStencil{
