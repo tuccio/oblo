@@ -264,6 +264,7 @@ namespace oblo::editor
         bool startup();
         void startup_ui();
         void update_runtime();
+        void update_registries();
         void update_ui();
         void shutdown();
     };
@@ -335,8 +336,18 @@ namespace oblo::editor
         window_event_processor eventProcessor{imgui_app::get_event_dispatcher()};
         eventProcessor.set_input_queue(&m_impl->m_inputQueue);
 
-        while (eventProcessor.process_events() && mainWindow.is_open())
+        for (; OBLO_PROFILE_FRAME_BEGIN(); OBLO_PROFILE_FRAME_END())
         {
+            if (!eventProcessor.process_events())
+            {
+                break;
+            }
+
+            if (!mainWindow.is_open())
+            {
+                break;
+            }
+
             if (!gfxEngine->acquire_images())
             {
                 continue;
@@ -346,6 +357,7 @@ namespace oblo::editor
             m_impl->update_ui();
             app.end_frame();
 
+            m_impl->update_registries();
             m_impl->update_runtime();
 
             gfxEngine->present();
@@ -506,6 +518,8 @@ namespace oblo::editor
 
     void app::impl::update_runtime()
     {
+        OBLO_PROFILE_SCOPE();
+
         const auto now = clock::now();
         const auto dt = now - m_lastFrameTime;
 
@@ -515,10 +529,17 @@ namespace oblo::editor
         m_lastFrameTime = now;
     }
 
+    void app::impl::update_registries()
+    {
+        OBLO_PROFILE_SCOPE();
+
+        m_assetRegistry.update();
+        m_runtimeRegistry->get_resource_registry().update();
+    }
+
     void app::impl::update_ui()
     {
-        m_assetRegistry.update();
-        m_editorModule->get_runtime_registry().get_resource_registry().update();
+        OBLO_PROFILE_SCOPE();
 
         m_logQueue->flush();
 

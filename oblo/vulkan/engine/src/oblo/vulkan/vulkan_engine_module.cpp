@@ -15,6 +15,7 @@
 #include <oblo/options/option_traits.hpp>
 #include <oblo/options/options_module.hpp>
 #include <oblo/options/options_provider.hpp>
+#include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/renderer_module.hpp>
@@ -694,6 +695,8 @@ namespace oblo::vk
 
     bool vulkan_engine_module::impl::acquire_images()
     {
+        OBLO_PROFILE_SCOPE();
+
         auto& frameGraph = renderer.get_frame_graph();
 
         acquiredSwapchains.clear();
@@ -763,6 +766,8 @@ namespace oblo::vk
 
     void vulkan_engine_module::impl::present()
     {
+        OBLO_PROFILE_SCOPE();
+
         auto& frameGraph = renderer.get_frame_graph();
 
         for (auto& swapchainGraph : swapchainGraphs)

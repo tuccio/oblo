@@ -31,8 +31,6 @@ namespace oblo
 
     void fps_camera_controller::process(std::span<const input_event> events, time dt)
     {
-        m_strafe = {};
-
         const auto lastMousePosition = m_mousePosition;
 
         for (const auto& e : events)

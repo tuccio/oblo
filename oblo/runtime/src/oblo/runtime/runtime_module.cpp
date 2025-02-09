@@ -10,7 +10,6 @@
 #include <oblo/runtime/runtime_registry.hpp>
 #include <oblo/scene/scene_module.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
-#include <oblo/vulkan/vulkan_engine_module.hpp>
 
 namespace oblo
 {
@@ -42,7 +41,6 @@ namespace oblo
 
         auto& mm = module_manager::get();
 
-        mm.load<vk::vulkan_engine_module>();
         mm.load<graphics_module>();
         mm.load<scene_module>();
 
