@@ -166,7 +166,13 @@ namespace oblo
                 {
                     if (!m_sceneRenderer->is_scene_view(scene))
                     {
-                        shadow.shadowGraphs.erase(scene);
+                        auto* const shadowGraph = shadow.shadowGraphs.try_find(scene);
+
+                        if (shadowGraph)
+                        {
+                            frameGraph.remove(*shadowGraph);
+                            shadow.shadowGraphs.erase(scene);
+                        }
                     }
                 }
 

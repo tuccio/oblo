@@ -85,8 +85,11 @@ namespace oblo
 
             void build(const vk::frame_graph_build_context& ctx)
             {
-                const ImTextureID id = ctx.access(inId);
-                ctx.push(outImageSink, {inTexture, id});
+                if (ctx.has_source(inTexture))
+                {
+                    const ImTextureID id = ctx.access(inId);
+                    ctx.push(outImageSink, {inTexture, id});
+                }
             }
         };
 
