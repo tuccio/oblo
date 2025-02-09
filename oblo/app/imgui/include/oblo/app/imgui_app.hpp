@@ -6,6 +6,7 @@
 namespace oblo
 {
     class graphics_window;
+    class resource_registry;
     struct window_event_dispatcher;
 
     struct imgui_app_config
@@ -33,7 +34,7 @@ namespace oblo
         expected<> init(const graphics_window& window, const imgui_app_config& cfg = {});
         void shutdown();
 
-        expected<> init_font_atlas();
+        expected<> init_font_atlas(const resource_registry& resourceRegistry);
 
         void begin_frame();
         void end_frame();

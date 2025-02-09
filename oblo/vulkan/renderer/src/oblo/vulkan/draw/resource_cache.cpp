@@ -40,9 +40,8 @@ namespace oblo::vk
 
     resource_cache::~resource_cache() = default;
 
-    void resource_cache::init(const resource_registry& resources, texture_registry& textureRegistry)
+    void resource_cache::init(texture_registry& textureRegistry)
     {
-        m_resources = &resources;
         m_textureRegistry = &textureRegistry;
     }
 
@@ -62,41 +61,12 @@ namespace oblo::vk
                 }
                 else
                 {
-                    // We assume we are just out of space and we can retry next frame, we should return an error code instead
+                    // We assume we are just out of space and we can retry next frame, we should return an error code
+                    // instead
                     ++it;
                 }
             }
         }
-    }
-
-    h32<resident_texture> resource_cache::get_or_add(const texture_resource_ref& t)
-    {
-        if (const auto it = m_textures.find(t.id); it != m_textures.end())
-        {
-            return it->second.handle;
-        }
-
-        auto resource = m_resources->get_resource(t.id).as<texture>();
-
-        if (!resource)
-        {
-            return {};
-        }
-
-        h32<resident_texture> handle;
-        const auto isLoaded = load_and_add(*m_textureRegistry, resource, handle);
-
-        if (handle)
-        {
-            m_textures.emplace(t.id, handle);
-
-            if (!isLoaded)
-            {
-                m_asyncLoads.emplace_back(t.id, handle, resource);
-            }
-        }
-
-        return handle;
     }
 
     h32<resident_texture> resource_cache::get_or_add(const texture_resource_ptr& resource)

@@ -81,7 +81,6 @@ namespace oblo::vk
     struct renderer::initializer
     {
         vulkan_context& vkContext;
-        const resource_registry& resources;
         bool isRayTracingEnabled;
     };
 

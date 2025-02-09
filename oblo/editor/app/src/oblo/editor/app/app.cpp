@@ -191,18 +191,13 @@ namespace oblo::editor
                 auto& mm = module_manager::get();
 
                 mm.load<options_module>();
-                auto* runtime = mm.load<runtime_module>();
+                mm.load<runtime_module>();
                 mm.load<reflection::reflection_module>();
                 mm.load<importers::importers_module>();
                 mm.load<editor_module>();
                 mm.load<scene_editor_module>();
 
                 initializer.services->add<options_layer_provider>().externally_owned(&m_editorOptions);
-
-                m_runtimeRegistry = runtime->create_runtime_registry();
-
-                initializer.services->add<const resource_registry>().externally_owned(
-                    &m_runtimeRegistry.get_resource_registry());
 
                 return true;
             }
@@ -232,16 +227,10 @@ namespace oblo::editor
                 return m_projectDir;
             }
 
-            runtime_registry& get_runtime_registry()
-            {
-                return m_runtimeRegistry;
-            }
-
         private:
             options_layer_helper m_editorOptions;
             project m_project;
             string_builder m_projectDir;
-            runtime_registry m_runtimeRegistry;
         };
     }
 
@@ -258,7 +247,7 @@ namespace oblo::editor
         editor_app_module* m_editorModule{};
         vk::vulkan_engine_module* m_vkEngine{};
         input_queue m_inputQueue;
-        runtime_registry* m_runtimeRegistry{};
+        runtime_registry m_runtimeRegistry;
 
         bool init(int argc, char* argv[]);
         bool startup();
@@ -325,7 +314,7 @@ namespace oblo::editor
         init_ui();
         m_impl->startup_ui();
 
-        if (!app.init_font_atlas())
+        if (!app.init_font_atlas(m_impl->m_runtimeRegistry.get_resource_registry()))
         {
             return;
         }
@@ -383,7 +372,6 @@ namespace oblo::editor
 
         auto& mm = m_moduleManager;
         m_editorModule = mm.load<editor_app_module>();
-        m_runtimeRegistry = &m_editorModule->get_runtime_registry();
 
         if (!m_editorModule->parse_cli_options(argc, argv))
         {
@@ -424,8 +412,10 @@ namespace oblo::editor
             return false;
         }
 
-        auto& propertyRegistry = m_runtimeRegistry->get_property_registry();
-        auto& resourceRegistry = m_runtimeRegistry->get_resource_registry();
+        m_runtimeRegistry = mm.find<runtime_module>()->create_runtime_registry();
+
+        auto& propertyRegistry = m_runtimeRegistry.get_property_registry();
+        auto& resourceRegistry = m_runtimeRegistry.get_resource_registry();
 
         register_native_asset_types(m_assetRegistry, mm.find_services<native_asset_provider>());
         register_file_importers(m_assetRegistry, mm.find_services<file_importers_provider>());
@@ -465,9 +455,9 @@ namespace oblo::editor
 
         globalRegistry.add<vk::vulkan_context>().externally_owned(&m_vkEngine->get_vulkan_context());
         globalRegistry.add<vk::renderer>().externally_owned(&m_vkEngine->get_renderer());
-        globalRegistry.add<const resource_registry>().externally_owned(&m_runtimeRegistry->get_resource_registry());
+        globalRegistry.add<const resource_registry>().externally_owned(&m_runtimeRegistry.get_resource_registry());
         globalRegistry.add<asset_registry>().externally_owned(&m_assetRegistry);
-        globalRegistry.add<const property_registry>().externally_owned(&m_runtimeRegistry->get_property_registry());
+        globalRegistry.add<const property_registry>().externally_owned(&m_runtimeRegistry.get_property_registry());
         globalRegistry.add<const reflection::reflection_registry>().externally_owned(&reflection->get_registry());
         globalRegistry.add<const input_queue>().externally_owned(&m_inputQueue);
         globalRegistry.add<component_factory>().unique();
@@ -534,7 +524,7 @@ namespace oblo::editor
         OBLO_PROFILE_SCOPE();
 
         m_assetRegistry.update();
-        m_runtimeRegistry->get_resource_registry().update();
+        m_runtimeRegistry.get_resource_registry().update();
     }
 
     void app::impl::update_ui()

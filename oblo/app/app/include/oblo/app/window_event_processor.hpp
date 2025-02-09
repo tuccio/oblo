@@ -12,7 +12,8 @@ namespace oblo
     class window_event_processor
     {
     public:
-        explicit window_event_processor(const window_event_dispatcher& dispatcher) : m_windowEventDispatcher{dispatcher}
+        explicit window_event_processor(const window_event_dispatcher& dispatcher = {}) :
+            m_windowEventDispatcher{dispatcher}
         {
         }
 

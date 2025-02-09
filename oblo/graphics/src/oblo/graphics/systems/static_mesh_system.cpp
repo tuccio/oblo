@@ -31,7 +31,7 @@ namespace oblo
     namespace
     {
 
-        gpu_material convert(vk::resource_cache& cache, const material& m)
+        gpu_material convert(const resource_registry& resources, vk::resource_cache& cache, const material& m)
         {
             gpu_material out{};
 
@@ -66,7 +66,7 @@ namespace oblo
 
                 if (t)
                 {
-                    out.albedoTexture = cache.get_or_add(t);
+                    out.albedoTexture = cache.get_or_add(resources.get_resource(t));
                 }
             }
 
@@ -76,7 +76,7 @@ namespace oblo
 
                 if (t)
                 {
-                    out.normalMapTexture = cache.get_or_add(t);
+                    out.normalMapTexture = cache.get_or_add(resources.get_resource(t));
                 }
             }
 
@@ -86,7 +86,7 @@ namespace oblo
 
                 if (t)
                 {
-                    out.metalnessRoughnessTexture = cache.get_or_add(t);
+                    out.metalnessRoughnessTexture = cache.get_or_add(resources.get_resource(t));
                 }
             }
 
@@ -96,7 +96,7 @@ namespace oblo
 
                 if (t)
                 {
-                    out.emissiveTexture = cache.get_or_add(t);
+                    out.emissiveTexture = cache.get_or_add(resources.get_resource(t));
                 }
             }
 
@@ -189,7 +189,7 @@ namespace oblo
 
             deferred.remove<mesh_resources>(entity);
 
-            gpuMaterial = convert(*resourceCache, *materialRes);
+            gpuMaterial = convert(*resourceRegistry, *resourceCache, *materialRes);
 
             pickingId.entityId = entity;
 

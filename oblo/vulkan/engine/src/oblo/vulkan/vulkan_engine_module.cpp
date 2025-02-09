@@ -302,7 +302,7 @@ namespace oblo::vk
 
         option_proxy_struct<renderer_options> options;
 
-        bool initialize(const resource_registry& resourceRegistry);
+        bool initialize();
         void shutdown();
 
         void create_debug_callbacks();
@@ -342,9 +342,7 @@ namespace oblo::vk
 
     void vulkan_engine_module::finalize()
     {
-        auto* const resourceRegistry = module_manager::get().find_unique_service<const resource_registry>();
-
-        if (!resourceRegistry || !m_impl->initialize(*resourceRegistry))
+        if (!m_impl->initialize())
         {
             return_error();
         }
@@ -445,7 +443,7 @@ namespace oblo::vk
         };
     }
 
-    bool vulkan_engine_module::impl::initialize(const resource_registry& resourceRegistry)
+    bool vulkan_engine_module::impl::initialize()
     {
         // First we create the instance
 
@@ -566,7 +564,6 @@ namespace oblo::vk
 
         if (!renderer.init({
                 .vkContext = vkContext,
-                .resources = resourceRegistry,
                 .isRayTracingEnabled = isRayTracingEnabled,
             }))
         {
@@ -585,8 +582,6 @@ namespace oblo::vk
         {
             vkDeviceWaitIdle(device);
 
-            renderer.shutdown();
-
             for (auto& windowContext : windowContexts)
             {
                 windowContext->shutdown(vkContext, resourceManager);
@@ -597,6 +592,8 @@ namespace oblo::vk
             {
                 vkContext.reset_immediate(semaphore);
             }
+
+            renderer.shutdown();
 
             vkContext.shutdown();
             allocator.shutdown();

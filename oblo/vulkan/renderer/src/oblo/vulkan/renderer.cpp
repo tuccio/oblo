@@ -67,7 +67,7 @@ namespace oblo::vk
         const string_view includePaths[] = {"./vulkan/shaders/", "./imgui/shaders"};
         m_passManager.set_system_include_paths(includePaths);
 
-        m_resourceCache.init(initializer.resources, m_textureRegistry);
+        m_resourceCache.init(m_textureRegistry);
 
         m_firstUpdate = true;
 

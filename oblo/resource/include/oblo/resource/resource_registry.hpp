@@ -7,6 +7,7 @@
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/resource/providers/resource_provider.hpp>
+#include <oblo/resource/resource_ref.hpp>
 #include <oblo/resource/resource_traits.hpp>
 
 #include <unordered_map>
@@ -49,6 +50,9 @@ namespace oblo
 
         resource_ptr<void> get_resource(const uuid& id) const;
 
+        template <typename T>
+        resource_ptr<T> get_resource(const resource_ref<T>& id) const;
+
         const deque<uuid>& get_updated_events(const uuid& eventType) const;
 
         template <typename T>
@@ -81,4 +85,9 @@ namespace oblo
         return instantiate(resource_type<T>, [&r](void* ptr) { *static_cast<T*>(ptr) = std::move(r); }, name).as<T>();
     }
 
+    template <typename T>
+    resource_ptr<T> resource_registry::get_resource(const resource_ref<T>& id) const
+    {
+        return get_resource(id.id).as<T>();
+    }
 }

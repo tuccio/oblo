@@ -1,9 +1,10 @@
 oblo_add_library(smoke TEST_MAIN)
 
+find_package(ImGui REQUIRED)
+
 target_link_libraries(
     oblo_smoke
     PUBLIC
-    oblo::app
     oblo::asset
     oblo::ecs
     oblo::importers
@@ -13,7 +14,10 @@ target_link_libraries(
     oblo::scene
     oblo::thread
     PRIVATE
+    oblo::app
+    oblo::imgui_app
     oblo::renderdoc
+    imgui::imgui
 )
 
 target_link_libraries(

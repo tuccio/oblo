@@ -638,7 +638,7 @@ namespace oblo
         m_impl.reset();
     }
 
-    expected<> imgui_app::init_font_atlas()
+    expected<> imgui_app::init_font_atlas(const resource_registry& resourceRegistry)
     {
         ImGuiIO& io = ImGui::GetIO();
 
@@ -663,8 +663,7 @@ namespace oblo
 
         std::memcpy(fontData.data(), pixels, fontData.size_bytes());
 
-        auto* resourceRegistry = module_manager::get().find_unique_service<const resource_registry>();
-        m_impl->backend.font = resourceRegistry->instantiate<texture>(std::move(font), "ImGui Font");
+        m_impl->backend.font = resourceRegistry.instantiate<texture>(std::move(font), "ImGui Font");
 
         return no_error;
     }
