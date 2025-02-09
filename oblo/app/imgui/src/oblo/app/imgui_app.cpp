@@ -66,7 +66,28 @@ namespace oblo
             vk::renderer* renderer{};
             vk::frame_graph_registry nodeRegistry;
             vk::frame_graph_template renderTemplate;
+            vk::frame_graph_template pushImageTemplate;
             resource_ptr<texture> font;
+            deque<h32<vk::frame_graph_subgraph>> pushImageSubgraphs;
+        };
+
+        struct imgui_graph_image
+        {
+            vk::resource<vk::texture> texture;
+            ImTextureID id;
+        };
+
+        struct imgui_graph_image_push_node
+        {
+            vk::data<ImTextureID> inId;
+            vk::resource<vk::texture> inTexture;
+            vk::data_sink<imgui_graph_image> outImageSink;
+
+            void build(const vk::frame_graph_build_context& ctx)
+            {
+                const ImTextureID id = ctx.access(inId);
+                ctx.push(outImageSink, {inTexture, id});
+            }
         };
 
         struct imgui_render_node
@@ -76,13 +97,15 @@ namespace oblo
 
             vk::resource<vk::texture> inOutRenderTarget;
 
+            vk::data_sink<imgui_graph_image> inImageSink;
+
             vk::resource<vk::buffer> outVertexBuffer;
             vk::resource<vk::buffer> outIndexBuffer;
 
             h32<vk::render_pass> renderPass;
             h32<vk::render_pass_instance> renderPassInstance;
 
-            h32<vk::resident_texture> fontTexture;
+            std::span<h32<vk::resident_texture>> textures;
 
             void init(const vk::frame_graph_init_context& ctx)
             {
@@ -109,16 +132,6 @@ namespace oblo
                     renderPassInstance = {};
                     return;
                 }
-
-                auto* const backend = ctx.access(inBackend);
-                OBLO_ASSERT(backend);
-
-                fontTexture = ctx.load_resource(backend->font);
-
-                ImGuiViewport* const viewport = ctx.access(inViewport);
-                OBLO_ASSERT(viewport);
-
-                auto* const drawData = viewport->DrawData;
 
                 const auto rtInitializer =
                     ctx.get_current_initializer(inOutRenderTarget).value_or(vk::image_initializer{});
@@ -155,6 +168,24 @@ namespace oblo
                                 .lineWidth = 1.f,
                             },
                     });
+
+                auto* const backend = ctx.access(inBackend);
+                OBLO_ASSERT(backend);
+
+                textures = allocate_n_span<h32<vk::resident_texture>>(ctx.get_frame_allocator(),
+                    1 + backend->pushImageSubgraphs.size());
+
+                textures[0] = ctx.load_resource(backend->font);
+
+                for (auto& graphImage : ctx.access(inImageSink))
+                {
+                    textures[graphImage.id] = ctx.acquire_bindless(graphImage.texture, vk::texture_usage::shader_read);
+                }
+
+                ImGuiViewport* const viewport = ctx.access(inViewport);
+                OBLO_ASSERT(viewport);
+
+                auto* const drawData = viewport->DrawData;
 
                 ctx.acquire(inOutRenderTarget, vk::texture_usage::render_target_write);
 
@@ -321,8 +352,7 @@ namespace oblo
                                     },
                             };
 
-                            [[maybe_unused]] auto newTexId = cmd.GetTexID();
-                            u32 residentTexture = fontTexture.value;
+                            u32 residentTexture = textures[cmd.GetTexID()].value;
 
                             if (residentTexture != lastResidentTexture)
                             {
@@ -330,7 +360,7 @@ namespace oblo
                                     sizeof(transform_constants),
                                     as_bytes(std::span{&residentTexture, 1}));
 
-                                residentTexture = lastResidentTexture;
+                                lastResidentTexture = residentTexture;
                             }
 
                             vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
@@ -354,22 +384,40 @@ namespace oblo
 
         constexpr string_view g_InImGuiViewport{"ImGuiViewport"};
         constexpr string_view g_InImGuiBackend{"ImGuiBackend"};
+        constexpr string_view g_InImGuiImageSink{"ImGuiImageSink"};
         constexpr string_view g_InOutRT{"RenderTarget"};
 
-        vk::frame_graph_template create_imgui_frame_graph_template(vk::frame_graph_registry& registry)
+        constexpr string_view g_InImGuiId{"ImGuiId"};
+        constexpr string_view g_InGraphTexture{"GraphTexture"};
+        constexpr string_view g_OutImGuiImageSink{"ImGuiImageSink"};
+
+        void create_imgui_frame_graph_templates(imgui_render_backend& backend)
         {
+            vk::frame_graph_registry& registry = backend.nodeRegistry;
             registry.register_node<imgui_render_node>();
+            registry.register_node<imgui_graph_image_push_node>();
 
-            vk::frame_graph_template fgt;
-            fgt.init(registry);
+            {
+                auto& renderTemplate = backend.renderTemplate;
+                renderTemplate.init(registry);
 
-            auto render = fgt.add_node<imgui_render_node>();
-            fgt.make_input(render, &imgui_render_node::inViewport, g_InImGuiViewport);
-            fgt.make_input(render, &imgui_render_node::inBackend, g_InImGuiBackend);
-            fgt.make_input(render, &imgui_render_node::inOutRenderTarget, g_InOutRT);
-            fgt.make_output(render, &imgui_render_node::inOutRenderTarget, g_InOutRT);
+                auto render = renderTemplate.add_node<imgui_render_node>();
+                renderTemplate.make_input(render, &imgui_render_node::inViewport, g_InImGuiViewport);
+                renderTemplate.make_input(render, &imgui_render_node::inBackend, g_InImGuiBackend);
+                renderTemplate.make_input(render, &imgui_render_node::inImageSink, g_InImGuiImageSink);
+                renderTemplate.make_input(render, &imgui_render_node::inOutRenderTarget, g_InOutRT);
+                renderTemplate.make_output(render, &imgui_render_node::inOutRenderTarget, g_InOutRT);
+            }
 
-            return fgt;
+            {
+                auto& pushImageTemplate = backend.pushImageTemplate;
+                pushImageTemplate.init(registry);
+
+                auto push = pushImageTemplate.add_node<imgui_graph_image_push_node>();
+                pushImageTemplate.make_input(push, &imgui_graph_image_push_node::inId, g_InImGuiId);
+                pushImageTemplate.make_input(push, &imgui_graph_image_push_node::inTexture, g_InGraphTexture);
+                pushImageTemplate.make_output(push, &imgui_graph_image_push_node::outImageSink, g_OutImGuiImageSink);
+            }
         }
 
         imgui_render_userdata* create_render_userdata(const imgui_render_backend* backend,
@@ -482,7 +530,7 @@ namespace oblo
 
             backend.graphicsEngine = gfxEngine;
             backend.renderer = &vkEngine->get_renderer();
-            backend.renderTemplate = create_imgui_frame_graph_template(backend.nodeRegistry);
+            create_imgui_frame_graph_templates(backend);
 
             io.BackendRendererUserData = &backend;
             io.BackendRendererName = "oblo";
@@ -535,8 +583,7 @@ namespace oblo
 
             if (io.BackendRendererUserData)
             {
-                // ImGui complains about this being set, we don't really have to do anything so far, since the
-                // destructor takes care of everything and the viewports are destroyed by Renderer_DestroyWindow
+                clear_push_subgraphs();
                 io.BackendRendererUserData = nullptr;
             }
         }
@@ -553,6 +600,18 @@ namespace oblo
                 ImGui::DestroyContext(context);
                 context = nullptr;
             }
+        }
+
+        void clear_push_subgraphs()
+        {
+            auto& fg = backend.renderer->get_frame_graph();
+
+            for (auto& sg : backend.pushImageSubgraphs)
+            {
+                fg.remove(sg);
+            }
+
+            backend.pushImageSubgraphs.clear();
         }
     };
 
@@ -611,6 +670,8 @@ namespace oblo
     {
         OBLO_PROFILE_SCOPE();
 
+        m_impl->clear_push_subgraphs();
+
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
     }
@@ -644,5 +705,37 @@ namespace oblo
     window_event_dispatcher imgui_app::get_event_dispatcher()
     {
         return window_event_dispatcher{.dispatch = imgui_sdl_dispatch};
+    }
+}
+
+namespace oblo::imgui
+{
+    ImTextureID add_image(h32<vk::frame_graph_subgraph> subgraph, string_view output)
+    {
+        auto* viewport = ImGui::GetWindowViewport();
+        OBLO_ASSERT(viewport);
+
+        auto* backend = static_cast<imgui_render_backend*>(ImGui::GetIO().BackendRendererUserData);
+        OBLO_ASSERT(backend);
+
+        if (!viewport || !backend || !viewport->RendererUserData)
+        {
+            return {};
+        }
+
+        auto& frameGraph = backend->renderer->get_frame_graph();
+        auto* const rud = static_cast<imgui_render_userdata*>(viewport->RendererUserData);
+
+        const ImTextureID newId{1 + backend->pushImageSubgraphs.size()};
+
+        auto pushGraph = frameGraph.instantiate(backend->pushImageTemplate);
+        frameGraph.connect(subgraph, output, pushGraph, g_InGraphTexture);
+        frameGraph.set_input(pushGraph, g_InImGuiId, newId).assert_value();
+
+        frameGraph.connect(pushGraph, g_OutImGuiImageSink, rud->graph, g_InImGuiImageSink);
+
+        backend->pushImageSubgraphs.push_back(pushGraph);
+
+        return newId;
     }
 }

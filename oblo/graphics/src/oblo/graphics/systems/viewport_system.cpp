@@ -19,7 +19,6 @@
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/vulkan/create_render_target.hpp>
 #include <oblo/vulkan/data/camera_buffer.hpp>
-#include <oblo/vulkan/data/copy_texture_info.hpp>
 #include <oblo/vulkan/data/picking_configuration.hpp>
 #include <oblo/vulkan/data/time_buffer.hpp>
 #include <oblo/vulkan/data/visibility_debug_mode.hpp>
@@ -48,8 +47,6 @@ namespace oblo
         h32<vk::texture> texture{};
         u32 width{};
         u32 height{};
-        VkDescriptorSet descriptorSet{};
-        VkImage image{};
 
         mat4 lastFrameViewProj;
     };
@@ -66,100 +63,6 @@ namespace oblo
         for (auto& graphData : m_renderGraphs.values())
         {
             m_renderer->get_frame_graph().remove(graphData.subgraph);
-            destroy_graph_vulkan_objects(graphData);
-        }
-
-        auto& vkCtx = m_renderer->get_vulkan_context();
-
-        const auto submitIndex = vkCtx.get_submit_index();
-
-        if (m_sampler)
-        {
-            vkCtx.destroy_deferred(m_sampler, submitIndex);
-        }
-
-        if (m_descriptorSetLayout)
-        {
-            vkCtx.destroy_deferred(m_descriptorSetLayout, submitIndex);
-        }
-
-        if (m_descriptorPool)
-        {
-            vkCtx.destroy_deferred(m_descriptorPool, submitIndex);
-        }
-    }
-
-    void viewport_system::create_vulkan_objects()
-    {
-        const auto* const allocationCbs = m_renderer->get_allocator().get_allocation_callbacks();
-        const VkDevice device = m_renderer->get_engine().get_device();
-
-        {
-            constexpr auto MaxSets{64};
-            constexpr VkDescriptorPoolSize descriptorSizes[] = {
-                {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MaxSets},
-            };
-
-            const VkDescriptorPoolCreateInfo poolCreateInfo{
-                .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-                .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-                .maxSets = MaxSets,
-                .poolSizeCount = array_size(descriptorSizes),
-                .pPoolSizes = descriptorSizes,
-            };
-
-            OBLO_VK_PANIC(vkCreateDescriptorPool(device, &poolCreateInfo, allocationCbs, &m_descriptorPool));
-        }
-
-        {
-            const VkDescriptorSetLayoutBinding binding[] = {{
-                .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                .descriptorCount = 1,
-                .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-            }};
-
-            const VkDescriptorSetLayoutCreateInfo info = {
-                .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-                .bindingCount = 1,
-                .pBindings = binding,
-            };
-
-            OBLO_VK_PANIC(vkCreateDescriptorSetLayout(device, &info, allocationCbs, &m_descriptorSetLayout));
-        }
-
-        {
-            constexpr VkSamplerCreateInfo samplerInfo{
-                .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-                .magFilter = VK_FILTER_LINEAR,
-                .minFilter = VK_FILTER_LINEAR,
-                .mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST,
-                .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                .anisotropyEnable = VK_FALSE,
-                .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
-            };
-
-            OBLO_VK_PANIC(vkCreateSampler(device, &samplerInfo, allocationCbs, &m_sampler));
-        }
-    }
-
-    void viewport_system::destroy_graph_vulkan_objects(render_graph_data& renderGraphData)
-    {
-        auto& vkCtx = m_renderer->get_vulkan_context();
-        const auto submitIndex = vkCtx.get_submit_index();
-
-        if (renderGraphData.texture)
-        {
-            vkCtx.destroy_deferred(renderGraphData.texture, submitIndex);
-            renderGraphData.texture = {};
-            renderGraphData.image = {};
-        }
-
-        if (renderGraphData.descriptorSet)
-        {
-            vkCtx.destroy_deferred(renderGraphData.descriptorSet, m_descriptorPool, submitIndex);
-            renderGraphData.descriptorSet = {};
         }
     }
 
@@ -172,8 +75,6 @@ namespace oblo
         OBLO_ASSERT(m_sceneRenderer);
         m_sceneRenderer->ensure_setup(*ctx.entities);
 
-        create_vulkan_objects();
-
         update(ctx);
     }
 
@@ -181,9 +82,6 @@ namespace oblo
     {
         using namespace oblo::vk;
 
-        const auto device = m_renderer->get_engine().get_device();
-
-        auto& rm = m_renderer->get_resource_manager();
         auto& frameGraph = m_renderer->get_frame_graph();
 
         for (auto& renderGraphData : m_renderGraphs.values())
@@ -216,6 +114,7 @@ namespace oblo
 
                     const auto subgraph = frameGraph.instantiate(mainViewTemplate);
                     it->subgraph = subgraph;
+                    viewport.graph = subgraph;
 
                     m_sceneRenderer->add_scene_view(subgraph);
 
@@ -228,63 +127,8 @@ namespace oblo
                     renderGraphData->isAlive = true;
                 }
 
-                constexpr auto viewportImageLayout{VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-
                 const u32 renderWidth = max(viewport.width, 1u);
                 const u32 renderHeight = max(viewport.height, 1u);
-
-                if (!renderGraphData->texture || renderGraphData->width != renderWidth ||
-                    renderGraphData->height != renderHeight)
-                {
-                    // TODO: If descriptor set already exists, destroy
-                    // TODO: If texture already exists, unregister and destroy
-
-                    destroy_graph_vulkan_objects(*renderGraphData);
-
-                    const auto result = vk::create_2d_render_target(m_renderer->get_allocator(),
-                        renderWidth,
-                        renderHeight,
-                        VK_FORMAT_R8G8B8A8_UNORM,
-                        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-                            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-                        VK_IMAGE_ASPECT_COLOR_BIT);
-
-                    OBLO_ASSERT(result);
-
-                    const VkDescriptorSetAllocateInfo allocInfo{
-                        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-                        .descriptorPool = m_descriptorPool,
-                        .descriptorSetCount = 1,
-                        .pSetLayouts = &m_descriptorSetLayout,
-                    };
-
-                    OBLO_VK_PANIC(vkAllocateDescriptorSets(device, &allocInfo, &renderGraphData->descriptorSet));
-
-                    const VkDescriptorImageInfo descImage[] = {
-                        {
-                            .sampler = m_sampler,
-                            .imageView = result->view,
-                            .imageLayout = viewportImageLayout,
-                        },
-                    };
-
-                    const VkWriteDescriptorSet writeDesc[] = {{
-                        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                        .dstSet = renderGraphData->descriptorSet,
-                        .descriptorCount = 1,
-                        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                        .pImageInfo = descImage,
-                    }};
-
-                    vkUpdateDescriptorSets(device, 1, writeDesc, 0, nullptr);
-
-                    renderGraphData->width = renderWidth;
-                    renderGraphData->height = renderHeight;
-                    renderGraphData->texture = rm.register_texture(*result, VK_IMAGE_LAYOUT_UNDEFINED);
-                    renderGraphData->image = result->image;
-
-                    viewport.imageId = std::bit_cast<viewport_image_id>(renderGraphData->descriptorSet);
-                }
 
                 frameGraph
                     .set_input(renderGraphData->subgraph, main_view::InResolution, vec2u{renderWidth, renderHeight})
@@ -295,17 +139,6 @@ namespace oblo
                         main_view::InTime,
                         time_buffer{
                             .frameIndex = m_frameIndex,
-                        })
-                    .assert_value();
-
-                frameGraph
-                    .set_input(renderGraphData->subgraph,
-                        main_view::InFinalRenderTarget,
-                        copy_texture_info{
-                            .image = renderGraphData->image,
-                            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-                            .finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                            .aspect = VK_IMAGE_ASPECT_COLOR_BIT,
                         })
                     .assert_value();
 
@@ -423,7 +256,6 @@ namespace oblo
 
                 m_renderer->get_frame_graph().remove(renderGraphData.subgraph);
                 m_sceneRenderer->remove_scene_view(renderGraphData.subgraph);
-                destroy_graph_vulkan_objects(renderGraphData);
 
                 elementsToRemove[numRemovedElements] = entity;
                 ++numRemovedElements;

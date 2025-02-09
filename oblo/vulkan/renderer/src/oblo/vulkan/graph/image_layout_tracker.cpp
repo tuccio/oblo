@@ -77,7 +77,7 @@ namespace oblo::vk
                 outBarrier.dstStageMask = deduce_stage_mask(newPass);
                 break;
 
-            case texture_usage::download:
+            case texture_usage::transfer_source:
                 OBLO_ASSERT(newPass == pass_kind::transfer);
                 outBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
                 outBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;

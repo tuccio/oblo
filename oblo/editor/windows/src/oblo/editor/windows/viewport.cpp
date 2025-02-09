@@ -1,5 +1,6 @@
 #include <oblo/editor/windows/viewport.hpp>
 
+#include <oblo/app/imgui_texture.hpp>
 #include <oblo/asset/asset_meta.hpp>
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
@@ -127,11 +128,12 @@ namespace oblo::editor
 
             const auto topLeft = ImGui::GetCursorPos();
 
-            if (auto const imageId = v.imageId)
+            if (auto const viewportGraph = v.graph)
             {
                 const bool hasFocus = ImGui::IsWindowFocused();
 
-                ImGui::Image(imageId, windowSize);
+                const auto textureId = imgui::add_image(v.graph, "LitOutput");
+                ImGui::Image(textureId, windowSize);
 
                 // Maybe use item size?
                 m_gizmoHandler.set_id(m_viewportId);

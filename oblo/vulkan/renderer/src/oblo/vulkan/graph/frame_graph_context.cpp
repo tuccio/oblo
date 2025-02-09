@@ -178,7 +178,7 @@ namespace oblo::vk
                     VK_IMAGE_USAGE_TRANSFER_DST_BIT);
                 break;
 
-            case texture_usage::download:
+            case texture_usage::transfer_source:
                 resourcePool.add_transient_texture_usage(frameGraph.find_pool_index(texture),
                     VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
                 break;

@@ -22,35 +22,9 @@
 #include <oblo/vulkan/nodes/shadows/shadow_temporal.hpp>
 #include <oblo/vulkan/nodes/surfels/surfel_debug.hpp>
 #include <oblo/vulkan/nodes/surfels/surfel_management.hpp>
-#include <oblo/vulkan/nodes/utility/copy_texture_node.hpp>
 #include <oblo/vulkan/nodes/utility/entity_picking.hpp>
 #include <oblo/vulkan/nodes/visibility/visibility_lighting.hpp>
 #include <oblo/vulkan/nodes/visibility/visibility_pass.hpp>
-
-namespace oblo::vk
-{
-    namespace
-    {
-        template <typename Source>
-        void add_copy_output(vk::frame_graph_template& graph,
-            frame_graph_template_vertex_handle rtSource,
-            frame_graph_template_vertex_handle source,
-            resource<texture>(Source::*from),
-            string_view outputName)
-        {
-            const auto copyFinalTarget = graph.add_node<copy_texture_node>();
-
-            graph.make_output(copyFinalTarget, &copy_texture_node::inTarget, outputName);
-
-            graph.connect(rtSource,
-                &view_buffers_node::inFinalRenderTarget,
-                copyFinalTarget,
-                &copy_texture_node::inTarget);
-
-            graph.connect(source, from, copyFinalTarget, &copy_texture_node::inSource);
-        }
-    }
-}
 
 namespace oblo::vk::main_view
 {
@@ -73,7 +47,6 @@ namespace oblo::vk::main_view
         graph.make_input(viewBuffers, &view_buffers_node::inTimeData, InTime);
         graph.make_input(viewBuffers, &view_buffers_node::inInstanceTables, InInstanceTables);
         graph.make_input(viewBuffers, &view_buffers_node::inInstanceBuffers, InInstanceBuffers);
-        graph.make_input(viewBuffers, &view_buffers_node::inFinalRenderTarget, InFinalRenderTarget);
         graph.make_input(viewBuffers, &view_buffers_node::inMeshDatabase, InMeshDatabase);
 
         // View light data node
@@ -171,8 +144,8 @@ namespace oblo::vk::main_view
         graph.connect(visibilityLighting, &visibility_lighting::outShadedImage, toneMapping, &tone_mapping_node::inHDR);
 
         // Copies to the output textures
-        add_copy_output(graph, viewBuffers, toneMapping, &tone_mapping_node::outLDR, OutLitImage);
-        add_copy_output(graph, viewBuffers, visibilityDebug, &visibility_debug::outShadedImage, OutDebugImage);
+        graph.make_output(toneMapping, &tone_mapping_node::outLDR, OutLitImage);
+        graph.make_output(visibilityDebug, &visibility_debug::outShadedImage, OutDebugImage);
 
         {
             // Ray-Tracing debug pass outputs HDR, and has its own tone-mapping, which leats to the RT debug output
@@ -183,7 +156,7 @@ namespace oblo::vk::main_view
             const auto rtToneMapping = graph.add_node<tone_mapping_node>();
             graph.connect(raytracingDebug, &raytracing_debug::outShadedImage, rtToneMapping, &tone_mapping_node::inHDR);
 
-            add_copy_output(graph, viewBuffers, rtToneMapping, &tone_mapping_node::outLDR, OutRTDebugImage);
+            graph.make_output(rtToneMapping, &tone_mapping_node::outLDR, OutRTDebugImage);
         }
 
         // Culling + draw call generation
@@ -405,7 +378,7 @@ namespace oblo::vk::main_view
 
                     graph.connect(toneMapping, &tone_mapping_node::outLDR, surfelsDebug, &surfel_debug::inImage);
 
-                    add_copy_output(graph, viewBuffers, surfelsDebug, &surfel_debug::outDebugImage, outputs[u32(mode)]);
+                    graph.make_output(surfelsDebug, &surfel_debug::outDebugImage, outputs[u32(mode)]);
                 }
             }
         }
@@ -748,7 +721,6 @@ namespace oblo::vk
         frame_graph_registry registry;
 
         // Main view
-        registry.register_node<copy_texture_node>();
         registry.register_node<view_buffers_node>();
         registry.register_node<view_light_data_provider>();
         registry.register_node<render_world_provider>();

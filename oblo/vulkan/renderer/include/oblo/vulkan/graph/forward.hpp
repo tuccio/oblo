@@ -5,6 +5,7 @@
 namespace oblo::vk
 {
     class frame_graph;
+    struct frame_graph_subgraph;
 
     class frame_graph_init_context;
     class frame_graph_build_context;

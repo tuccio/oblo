@@ -12,7 +12,6 @@ namespace oblo::vk::main_view
     constexpr string_view InMeshDatabase{"MeshDatabase"};
     constexpr string_view InInstanceTables{"InstanceTables"};
     constexpr string_view InInstanceBuffers{"InstanceBuffers"};
-    constexpr string_view InFinalRenderTarget{"FinalRenderTarget"};
 
     constexpr string_view InRenderWorld{"RenderWorld"};
     constexpr string_view InLights{"LightData"};

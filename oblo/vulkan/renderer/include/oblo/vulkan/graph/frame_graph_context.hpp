@@ -76,7 +76,7 @@ namespace oblo::vk
         shader_read,
         storage_read,
         storage_write,
-        download,
+        transfer_source,
         transfer_destination,
         present,
     };
