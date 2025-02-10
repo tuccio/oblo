@@ -5,7 +5,6 @@
 #include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/core/service_registry.hpp>
 
-#include <algorithm>
 #include <tuple>
 
 namespace oblo
@@ -46,22 +45,7 @@ namespace oblo
             m_builders.emplace_back(fn, build, sizeof...(Dependencies));
         }
 
-        expected<success_tag, service_build_error> build(service_registry& serviceRegistry)
-        {
-            std::sort(m_builders.begin(),
-                m_builders.end(),
-                [](const builder_info& lhs, const builder_info& rhs) { return lhs.requirements < rhs.requirements; });
-
-            for (auto& b : m_builders)
-            {
-                if (!b.build(serviceRegistry, b.userdata))
-                {
-                    return service_build_error::missing_dependency;
-                }
-            }
-
-            return no_error;
-        }
+        expected<success_tag, service_build_error> build(service_registry& serviceRegistry);
 
     private:
         struct builder_info
