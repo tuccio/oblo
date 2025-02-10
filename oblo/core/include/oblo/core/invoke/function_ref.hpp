@@ -58,4 +58,7 @@ namespace oblo
         void* m_userdata{};
         invoke_fn m_invoke{};
     };
+
+    template <typename R, typename... Args>
+    function_ref(R (*)(Args...)) -> function_ref<R(Args...)>;
 }

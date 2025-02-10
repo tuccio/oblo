@@ -50,12 +50,20 @@ namespace oblo
         std::vector<service> m_services;
     };
 
+    template <typename T>
+    using service_builder = std::conditional_t<std::is_const_v<T>,
+        service_registry::builder<T, T>,
+        service_registry::builder<T, T, std::add_const_t<T>>>;
+
     template <typename T, typename... Bases>
     class [[nodiscard]] service_registry::builder
     {
     public:
+        using service_type = T;
+
+    public:
         template <typename... Args>
-        T* unique(Args&&... args) &&
+        T* unique(Args&&... args)
         {
             T* const ptr = new T{std::forward<Args>(args)...};
             m_registry->m_services.emplace_back(ptr, [](void* p) { delete static_cast<T*>(p); });
@@ -66,7 +74,7 @@ namespace oblo
             return ptr;
         }
 
-        T* unique(T&& s) &&
+        T* unique(T&& s)
         {
             T* const ptr = new T{std::move(s)};
             m_registry->m_services.emplace_back(ptr, [](void* p) { delete static_cast<T*>(p); });
@@ -77,7 +85,7 @@ namespace oblo
             return ptr;
         }
 
-        void externally_owned(T* ptr) &&
+        void externally_owned(T* ptr)
         {
             m_registry->m_services.emplace_back(const_cast<void*>(static_cast<const void*>(ptr)), nullptr);
 
@@ -87,7 +95,7 @@ namespace oblo
         }
 
         template <typename B>
-        builder<T, Bases..., B> as() const&&
+        builder<T, Bases..., B> as() const
         {
             return builder<T, Bases..., B>{m_registry};
         };
@@ -120,14 +128,7 @@ namespace oblo
     template <typename T>
     auto service_registry::add()
     {
-        if constexpr (std::is_const_v<T>)
-        {
-            return builder<T, T>{this};
-        }
-        else
-        {
-            return builder<T, T, std::add_const_t<T>>{this};
-        }
+        return service_builder<T>{this};
     }
 
     template <typename T>
