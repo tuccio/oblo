@@ -27,14 +27,14 @@
 namespace oblo
 {
     template <>
-    struct option_traits<"r.isRayTracingEnabled">
+    struct option_traits<"r.requireHardwareRaytracing">
     {
         using type = bool;
 
         static constexpr option_descriptor descriptor{
             .kind = property_kind::boolean,
             .id = "b01a7290-4f14-4b5c-9693-3b748bd9f45a"_uuid,
-            .name = "Enable Ray-Tracing",
+            .name = "Require Hardware Ray-Tracing",
             .category = "Graphics",
             .defaultValue = property_value_wrapper{true},
         };
@@ -85,7 +85,7 @@ namespace oblo::vk
         struct renderer_options
         {
             // We only read this at startup, any change requires a reset
-            option_proxy<"r.isRayTracingEnabled"> isRayTracingEnabled;
+            option_proxy<"r.requireHardwareRaytracing"> requireHardwareRaytracing;
         };
 
         struct vulkan_window_context final : public graphics_window_context
@@ -506,13 +506,13 @@ namespace oblo::vk
 
         auto& optionsManager = module_manager::get().find<options_module>()->manager();
         options.init(optionsManager);
-        const bool isRayTracingEnabled = options.isRayTracingEnabled.read(optionsManager);
+        const bool requireHardwareRaytracing = options.requireHardwareRaytracing.read(optionsManager);
 
         constexpr auto totalExtensions = array_size(requiredDeviceExtensions) + array_size(rayTracingExtensions);
         buffered_array<const char*, totalExtensions> deviceExtensions;
         deviceExtensions.append(std::begin(requiredDeviceExtensions), std::end(requiredDeviceExtensions));
 
-        if (isRayTracingEnabled)
+        if (requireHardwareRaytracing)
         {
             deviceExtensions.append(std::begin(rayTracingExtensions), std::end(rayTracingExtensions));
         }
@@ -522,7 +522,7 @@ namespace oblo::vk
             .features = g_physicalDeviceFeatures,
         };
 
-        if (isRayTracingEnabled)
+        if (requireHardwareRaytracing)
         {
             g_physicalDeviceFeatures2.pNext = &g_rtPipelineFeatures;
         }
@@ -564,7 +564,7 @@ namespace oblo::vk
 
         if (!renderer.init({
                 .vkContext = vkContext,
-                .isRayTracingEnabled = isRayTracingEnabled,
+                .isRayTracingEnabled = requireHardwareRaytracing,
             }))
         {
             return false;
