@@ -34,6 +34,8 @@ namespace oblo::vk
         bool init(const initializer& init);
         void shutdown();
 
+        void wait_until_ready();
+
         void frame_begin(VkSemaphore signalSemaphore);
         void frame_end();
 

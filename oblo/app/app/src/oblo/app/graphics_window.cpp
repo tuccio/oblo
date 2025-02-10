@@ -354,11 +354,17 @@ namespace oblo
                 switch (event.window.event)
                 {
                 case SDL_WINDOWEVENT_MAXIMIZED:
-                case SDL_WINDOWEVENT_RESTORED:
+                case SDL_WINDOWEVENT_RESTORED: {
+                    const auto [window, graphicsContext] = get_graphics_context(event);
+                    graphicsContext->on_visibility_change(true);
                     break;
+                }
 
-                case SDL_WINDOWEVENT_MINIMIZED:
+                case SDL_WINDOWEVENT_MINIMIZED: {
+                    const auto [window, graphicsContext] = get_graphics_context(event);
+                    graphicsContext->on_visibility_change(false);
                     break;
+                }
 
                 case SDL_WINDOWEVENT_RESIZED:
                 case SDL_WINDOWEVENT_SIZE_CHANGED: {

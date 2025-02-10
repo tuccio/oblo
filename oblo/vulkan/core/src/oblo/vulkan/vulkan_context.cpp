@@ -173,16 +173,13 @@ namespace oblo::vk
         m_frameInfo.clear();
     }
 
-    void vulkan_context::frame_begin(VkSemaphore signalSemaphore)
+    void vulkan_context::wait_until_ready()
     {
         OBLO_PROFILE_SCOPE();
 
         m_poolIndex = u32(m_frameIndex % m_frameInfo.size());
 
         auto& frameInfo = m_frameInfo[m_poolIndex];
-
-        frameInfo.waitSemaphores.clear();
-        frameInfo.signalSemaphore = signalSemaphore;
 
         OBLO_VK_PANIC(
             vkGetSemaphoreCounterValue(m_engine->get_device(), m_timelineSemaphore, &m_currentSemaphoreValue));
@@ -192,6 +189,27 @@ namespace oblo::vk
             OBLO_PROFILE_SCOPE("vkWaitForFences");
             OBLO_VK_PANIC(vkWaitForFences(m_engine->get_device(), 1, &frameInfo.fence, 0, UINT64_MAX));
         }
+    }
+
+    void vulkan_context::frame_begin(VkSemaphore signalSemaphore)
+    {
+        OBLO_PROFILE_SCOPE();
+
+        OBLO_ASSERT(m_poolIndex == u32(m_frameIndex % m_frameInfo.size()), "Missing call to wait_until_ready");
+
+        auto& frameInfo = m_frameInfo[m_poolIndex];
+
+        OBLO_VK_PANIC(
+            vkGetSemaphoreCounterValue(m_engine->get_device(), m_timelineSemaphore, &m_currentSemaphoreValue));
+
+        if (m_currentSemaphoreValue < frameInfo.submitIndex)
+        {
+            OBLO_PROFILE_SCOPE("vkWaitForFences");
+            OBLO_VK_PANIC(vkWaitForFences(m_engine->get_device(), 1, &frameInfo.fence, 0, UINT64_MAX));
+        }
+
+        frameInfo.waitSemaphores.clear();
+        frameInfo.signalSemaphore = signalSemaphore;
 
         destroy_resources(m_currentSemaphoreValue);
 
@@ -207,12 +225,7 @@ namespace oblo::vk
     void vulkan_context::frame_end()
     {
         OBLO_PROFILE_SCOPE();
-
-        if (m_currentCb.is_valid())
-        {
-            submit_active_command_buffer();
-        }
-
+        submit_active_command_buffer();
         ++m_frameIndex;
     }
 
@@ -245,38 +258,49 @@ namespace oblo::vk
 
     void vulkan_context::submit_active_command_buffer()
     {
-        VkCommandBuffer preparationCb{VK_NULL_HANDLE};
-
         u32 commandBufferBegin = 1;
-        constexpr u32 commandBufferEnd = 2;
+        u32 commandBufferEnd = 2;
 
         auto& currentFrame = m_frameInfo[m_poolIndex];
         currentFrame.submitIndex = m_submitIndex;
 
-        if (m_currentCb.has_incomplete_transitions())
+        VkCommandBuffer commandBuffers[2] = {};
+
+        if (m_currentCb.is_valid())
         {
-            preparationCb = *currentFrame.pool.fetch_buffer();
+            commandBuffers[1] = m_currentCb.get();
 
-            constexpr VkCommandBufferBeginInfo commandBufferBeginInfo{
-                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-                .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-            };
+            VkCommandBuffer preparationCb{VK_NULL_HANDLE};
 
-            OBLO_VK_PANIC(vkBeginCommandBuffer(preparationCb, &commandBufferBeginInfo));
+            if (m_currentCb.has_incomplete_transitions())
+            {
+                preparationCb = *currentFrame.pool.fetch_buffer();
 
-            commandBufferBegin = 0;
+                constexpr VkCommandBufferBeginInfo commandBufferBeginInfo{
+                    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+                    .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+                };
+
+                OBLO_VK_PANIC(vkBeginCommandBuffer(preparationCb, &commandBufferBeginInfo));
+
+                commandBufferBegin = 0;
+                commandBuffers[0] = preparationCb;
+            }
+
+            m_resourceManager->commit(m_currentCb, preparationCb);
+
+            for (u32 i = commandBufferBegin; i < commandBufferEnd; ++i)
+            {
+                OBLO_VK_PANIC(vkEndCommandBuffer(commandBuffers[i]));
+            }
+
+            m_currentCb = {};
         }
-
-        VkCommandBuffer commandBuffers[2] = {preparationCb, m_currentCb.get()};
-
-        m_resourceManager->commit(m_currentCb, preparationCb);
-
-        for (u32 i = commandBufferBegin; i < commandBufferEnd; ++i)
+        else
         {
-            OBLO_VK_PANIC(vkEndCommandBuffer(commandBuffers[i]));
+            // We have no command buffers, but we still submit to signal the frame end
+            commandBufferEnd = commandBufferBegin;
         }
-
-        m_currentCb = {};
 
         const u32 signalSemaphoreCount = 1 + u32{currentFrame.signalSemaphore != nullptr};
 

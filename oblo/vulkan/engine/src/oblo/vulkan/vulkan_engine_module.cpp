@@ -104,6 +104,7 @@ namespace oblo::vk
             h32<frame_graph_subgraph> outGraph{};
             string outName;
 
+            bool swapchainVisible = true;
             bool swapchainResized = false;
             bool markedForDestruction = false;
 
@@ -247,6 +248,11 @@ namespace oblo::vk
                 } while (true);
 
                 return true;
+            }
+
+            void on_visibility_change(bool visible) override
+            {
+                swapchainVisible = visible;
             }
 
             // Implementation of graphics_window_context
@@ -695,7 +701,7 @@ namespace oblo::vk
         acquiredImageSemaphores.clear();
         contextsToRender.clear();
 
-        vkContext.frame_begin(frameCompletedSemaphore[semaphoreIndex]);
+        vkContext.wait_until_ready();
 
         for (auto it = windowContexts.begin(); it != windowContexts.end();)
         {
@@ -706,6 +712,12 @@ namespace oblo::vk
                 // Collect it, it was destroyed
                 windowCtx->shutdown(vkContext, resourceManager);
                 it = windowContexts.erase_unordered(it);
+                continue;
+            }
+
+            if (!windowCtx->swapchainVisible)
+            {
+                ++it;
                 continue;
             }
 
@@ -744,10 +756,10 @@ namespace oblo::vk
 
         if (acquiredSwapchains.empty())
         {
-            vkContext.frame_end();
             return false;
         }
 
+        vkContext.frame_begin(frameCompletedSemaphore[semaphoreIndex]);
         vkContext.push_frame_wait_semaphores(acquiredImageSemaphores);
 
         renderer.begin_frame();
