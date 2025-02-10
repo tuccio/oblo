@@ -1995,12 +1995,6 @@ namespace oblo::vk
             .minSampleShading = 1.f,
         };
 
-        const VkPipelineColorBlendAttachmentState defaultColorBlendAttachment{
-            .blendEnable = VK_FALSE,
-            .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
-                VK_COLOR_COMPONENT_A_BIT,
-        };
-
         buffered_array<VkPipelineColorBlendAttachmentState, 8> colorBlendAttachments;
         colorBlendAttachments.reserve(desc.renderTargets.blendStates.size());
 

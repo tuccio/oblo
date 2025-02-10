@@ -82,12 +82,12 @@ namespace oblo
     template <typename T>
     resource_ptr<T> resource_registry::instantiate(T&& r, string_view name) const
     {
-        return instantiate(resource_type<T>, [&r](void* ptr) { *static_cast<T*>(ptr) = std::move(r); }, name).as<T>();
+        return instantiate(resource_type<T>, [&r](void* ptr) { *static_cast<T*>(ptr) = std::move(r); }, name).template as<T>();
     }
 
     template <typename T>
     resource_ptr<T> resource_registry::get_resource(const resource_ref<T>& id) const
     {
-        return get_resource(id.id).as<T>();
+        return get_resource(id.id).template as<T>();
     }
 }

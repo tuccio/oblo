@@ -435,12 +435,6 @@ namespace oblo::vk
             "VK_KHR_win32_surface",
 #endif
         };
-
-        constexpr const char* g_rayTracingDeviceExtensions[] = {
-            VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
-            VK_KHR_RAY_QUERY_EXTENSION_NAME,
-            VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
-        };
     }
 
     bool vulkan_engine_module::impl::initialize()
