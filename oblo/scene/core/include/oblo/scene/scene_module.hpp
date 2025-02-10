@@ -9,6 +9,6 @@ namespace oblo
     public:
         SCENE_API bool startup(const module_initializer& initializer) override;
         SCENE_API void shutdown() override;
-        void finalize() override {}
+        bool finalize() override { return true; }
     };
 }

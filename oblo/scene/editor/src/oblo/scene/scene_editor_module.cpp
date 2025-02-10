@@ -104,5 +104,8 @@ namespace oblo
 
     void scene_editor_module::shutdown() {}
 
-    void scene_editor_module::finalize() {}
+    bool scene_editor_module::finalize()
+    {
+        return true;
+    }
 }

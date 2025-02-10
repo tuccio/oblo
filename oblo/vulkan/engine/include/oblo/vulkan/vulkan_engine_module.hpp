@@ -21,7 +21,7 @@ namespace oblo::vk
 
         bool startup(const module_initializer& initializer) override;
         void shutdown() override;
-        void finalize() override;
+        bool finalize() override;
 
         vulkan_context& get_vulkan_context();
         renderer& get_renderer();

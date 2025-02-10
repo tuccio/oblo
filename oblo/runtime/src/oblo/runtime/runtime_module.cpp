@@ -64,7 +64,7 @@ namespace oblo
         m_impl.reset();
     }
 
-    void runtime_module::finalize()
+    bool runtime_module::finalize()
     {
         auto& mm = module_manager::get();
         auto* reflection = mm.find<reflection::reflection_module>();
@@ -72,6 +72,8 @@ namespace oblo
         ecs_utility::register_reflected_component_and_tag_types(reflection->get_registry(),
             nullptr,
             &m_impl->propertyRegistry);
+
+        return true;
     }
 
     runtime_registry runtime_module::create_runtime_registry() const

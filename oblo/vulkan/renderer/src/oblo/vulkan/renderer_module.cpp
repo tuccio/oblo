@@ -61,5 +61,8 @@ namespace oblo::vk
 
     void renderer_module::shutdown() {}
 
-    void renderer_module::finalize() {}
+    bool renderer_module::finalize()
+    {
+        return true;
+    }
 }

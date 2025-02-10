@@ -56,41 +56,31 @@ namespace oblo::smoke
             input_queue inputQueue{};
             scene_renderer* sceneRenderer{};
             test_context_impl* testCtx{};
-            string testName;
 
             graphics_app graphicsApp;
 
-            bool init(string_view name)
+            bool init(cstring_view name)
             {
-                testName = name;
-
                 auto& mm = module_manager::get();
 
                 mm.load<options_module>();
-                mm.load<runtime_module>();
-                mm.load<reflection::reflection_module>();
+                auto* const runtimeModule = mm.load<runtime_module>();
+                auto* const reflectionModule = mm.load<reflection::reflection_module>();
                 mm.load<scene_module>();
                 mm.load<importers::importers_module>();
-                mm.load<vk::vulkan_engine_module>();
+                auto* const vkEngine = mm.load<vk::vulkan_engine_module>();
 
-                mm.finalize();
+                if (!mm.finalize())
+                {
+                    return false;
+                }
 
-                return startup();
-            }
-
-            bool startup()
-            {
                 filesystem::remove_all("./test/smoke/").assert_value();
 
                 if (!assetRegistry.initialize("./test/smoke/assets", "./test/smoke/artifacts", "./test/smoke/sources"))
                 {
                     return false;
                 }
-
-                auto& mm = module_manager::get();
-
-                auto* const runtimeModule = mm.find<runtime_module>();
-                auto* const reflectionModule = mm.find<reflection::reflection_module>();
 
                 runtimeRegistry = runtimeModule->create_runtime_registry();
 
@@ -108,7 +98,7 @@ namespace oblo::smoke
                         .reflectionRegistry = &reflectionModule->get_registry(),
                         .propertyRegistry = &propertyRegistry,
                         .resourceRegistry = &resourceRegistry,
-                        .renderer = mm.find<vk::vulkan_engine_module>()->get_renderer(),
+                        .renderer = vkEngine->get_renderer(),
                         .worldBuilders = mm.find_services<ecs::world_builder>(),
                     }))
                 {
@@ -124,7 +114,7 @@ namespace oblo::smoke
 
                 sceneRenderer->ensure_setup(runtime.get_entity_registry());
 
-                if (!graphicsApp.init({.title = testName}))
+                if (!graphicsApp.init({.title = name}))
                 {
                     return false;
                 }

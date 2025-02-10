@@ -13,7 +13,7 @@ namespace oblo::vk
     public:
         VK_COMPILER_API bool startup(const module_initializer& initializer) override;
         VK_COMPILER_API void shutdown() override;
-        VK_COMPILER_API void finalize() override;
+        VK_COMPILER_API bool finalize() override;
 
         VK_COMPILER_API unique_ptr<shader_compiler> make_glslc_compiler(cstring_view workDir) const;
         VK_COMPILER_API unique_ptr<shader_compiler> make_glslang_compiler() const;

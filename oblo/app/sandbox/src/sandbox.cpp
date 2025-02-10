@@ -31,7 +31,7 @@ namespace oblo
         }
 
         void shutdown() override {}
-        void finalize() override {}
+        bool finalize() override { return true; }
     };
 }
 

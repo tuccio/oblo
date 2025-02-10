@@ -13,7 +13,7 @@ namespace oblo
 
     void options_module::shutdown() {}
 
-    void options_module::finalize()
+    bool options_module::finalize()
     {
         dynamic_array<options_layer_descriptor> layers;
         deque<options_layer_provider_descriptor> moduleLayers;
@@ -73,5 +73,7 @@ namespace oblo
                 layers.push_back(layerDesc.layer);
             }
         }
+
+        return true;
     }
 }

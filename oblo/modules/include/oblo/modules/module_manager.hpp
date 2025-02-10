@@ -38,7 +38,7 @@ namespace oblo
         template <typename T>
         T* find() const;
 
-        MODULES_API void finalize();
+        [[nodiscard]] MODULES_API bool finalize();
 
         MODULES_API void shutdown();
 
@@ -59,6 +59,7 @@ namespace oblo
             loading,
             finalizing,
             finalized,
+            failed,
         };
 
     private:

@@ -9,6 +9,6 @@ namespace oblo::editor
     public:
         bool startup(const module_initializer& initializer) override;
         void shutdown() override;
-        void finalize() override {}
+        bool finalize() override { return true; }
     };
 }

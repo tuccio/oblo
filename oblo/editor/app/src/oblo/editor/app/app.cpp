@@ -201,10 +201,11 @@ namespace oblo::editor
 
             void shutdown() override {}
 
-            void finalize() override
+            bool finalize() override
             {
                 m_editorOptions.init();
                 m_editorOptions.refresh_change_id();
+                return true;
             }
 
             void update()
@@ -368,9 +369,7 @@ namespace oblo::editor
 
         m_vkEngine = mm.load<vk::vulkan_engine_module>();
 
-        mm.finalize();
-
-        return true;
+        return mm.finalize();
     }
 
     bool app::impl::startup()

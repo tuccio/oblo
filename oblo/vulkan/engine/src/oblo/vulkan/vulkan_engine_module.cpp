@@ -48,12 +48,6 @@ namespace oblo::vk
         constexpr u32 g_SwapchainImages = 3;
         constexpr VkFormat g_SwapchainFormat = VK_FORMAT_B8G8R8A8_UNORM;
 
-        // TODO: Change finalize so that it may fail
-        void return_error()
-        {
-            OBLO_ASSERT(false);
-        }
-
         bool create_surface(native_window_handle wh,
             VkInstance instance,
             const VkAllocationCallbacks* allocator,
@@ -349,12 +343,9 @@ namespace oblo::vk
         }
     }
 
-    void vulkan_engine_module::finalize()
+    bool vulkan_engine_module::finalize()
     {
-        if (!m_impl->initialize())
-        {
-            return_error();
-        }
+        return m_impl->initialize();
     }
 
     vulkan_context& vulkan_engine_module::get_vulkan_context()
