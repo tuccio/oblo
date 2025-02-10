@@ -43,6 +43,7 @@ namespace oblo
     struct viewport_system::render_graph_data
     {
         bool isAlive{};
+        bool hasPicking{};
         u32 width{};
         u32 height{};
 
@@ -95,6 +96,8 @@ namespace oblo
                 {
                     const auto [it, ok] = m_renderGraphs.emplace(entity);
                     it->isAlive = true;
+                    it->hasPicking =
+                        frameGraph.get_output<async_download>(viewport.graph, main_view::OutPicking).has_value();
 
                     renderGraphData = &*it;
 
@@ -150,6 +153,7 @@ namespace oblo
                     renderGraphData->lastFrameViewProj = viewProj;
                 }
 
+                if (renderGraphData->hasPicking)
                 {
                     picking_configuration pickingConfig{};
 

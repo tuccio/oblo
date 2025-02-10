@@ -210,9 +210,13 @@ namespace oblo
         m_frameGraph.set_input(m_surfelsGI, vk::surfels_gi::InGIMultiplier, giConfig.multiplier).assert_value();
     }
 
-    h32<vk::frame_graph_subgraph> scene_renderer::create_scene_view(const vk::main_view::config& cfg)
+    h32<vk::frame_graph_subgraph> scene_renderer::create_scene_view(scene_view_kind kind)
     {
-        const auto mainViewTemplate = vk::main_view::create(m_nodeRegistry, cfg);
+        const auto mainViewTemplate = vk::main_view::create(m_nodeRegistry,
+            {
+                .withPicking = kind == scene_view_kind::editor,
+            });
+
         const auto subgraph = m_frameGraph.instantiate(mainViewTemplate);
         m_frameGraph.disable_all_outputs(subgraph);
 

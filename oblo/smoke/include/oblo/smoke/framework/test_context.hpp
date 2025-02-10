@@ -2,15 +2,12 @@
 
 #include <coroutine>
 
+#include <oblo/ecs/forward.hpp>
+
 namespace oblo
 {
     class asset_registry;
     class resource_registry;
-
-    namespace ecs
-    {
-        class entity_registry;
-    }
 }
 
 namespace oblo::smoke
@@ -34,6 +31,8 @@ namespace oblo::smoke
         const resource_registry& get_resource_registry() const;
 
         ecs::entity_registry& get_entity_registry() const;
+
+        ecs::entity get_camera_entity() const;
 
         std::suspend_always next_frame() const;
 

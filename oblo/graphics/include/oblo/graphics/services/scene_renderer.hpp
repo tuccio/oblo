@@ -13,11 +13,6 @@ namespace oblo::vk
     struct light_config;
     struct light_data;
     struct skybox_settings;
-
-    namespace main_view
-    {
-        struct config;
-    }
 }
 
 namespace oblo::ecs
@@ -41,6 +36,12 @@ namespace oblo
         std::span<const vk::light_data> data;
     };
 
+    enum class scene_view_kind
+    {
+        runtime,
+        editor,
+    };
+
     class scene_renderer
     {
     public:
@@ -62,7 +63,7 @@ namespace oblo
         void setup_skybox(const resource_ptr<texture>& skybox, const vk::skybox_settings& settings);
         void setup_surfels_gi(const surfels_gi_config& giConfig);
 
-        h32<vk::frame_graph_subgraph> create_scene_view(const vk::main_view::config& cfg);
+        h32<vk::frame_graph_subgraph> create_scene_view(scene_view_kind kind);
         void remove_scene_view(h32<vk::frame_graph_subgraph> subgraph);
 
         std::span<const h32<vk::frame_graph_subgraph>> get_scene_views() const;

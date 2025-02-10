@@ -130,7 +130,7 @@ namespace oblo::editor
 
             if (!m_viewGraph)
             {
-                m_viewGraph = m_sceneRenderer->create_scene_view({.withPicking = true});
+                m_viewGraph = m_sceneRenderer->create_scene_view(scene_view_kind::editor);
             }
 
             auto& v = m_entities->get<viewport_component>(m_entity);

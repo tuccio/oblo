@@ -8,9 +8,11 @@
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/platform/shared_library.hpp>
 #include <oblo/core/platform/shell.hpp>
+#include <oblo/core/service_registry.hpp>
 #include <oblo/core/time/clock.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
+#include <oblo/graphics/services/scene_renderer.hpp>
 #include <oblo/input/input_queue.hpp>
 #include <oblo/input/utility/fps_camera_controller.hpp>
 #include <oblo/log/log.hpp>
@@ -52,6 +54,7 @@ namespace oblo::smoke
             runtime runtime;
             ecs::entity cameraEntity{};
             input_queue inputQueue{};
+            scene_renderer* sceneRenderer{};
             test_context_impl* testCtx{};
             string testName;
 
@@ -112,6 +115,15 @@ namespace oblo::smoke
                     return false;
                 }
 
+                sceneRenderer = runtime.get_service_registry().find<scene_renderer>();
+
+                if (!sceneRenderer)
+                {
+                    return false;
+                }
+
+                sceneRenderer->ensure_setup(runtime.get_entity_registry());
+
                 if (!graphicsApp.init({.title = testName}))
                 {
                     return false;
@@ -159,7 +171,7 @@ namespace oblo::smoke
 
                 {
                     auto& viewport = runtime.get_entity_registry().get<viewport_component>(cameraEntity);
-                    graphicsApp.set_output(viewport.graph, "LitOutput");
+                    graphicsApp.set_output(viewport.graph, get_viewport_mode_graph_output(viewport.mode));
                 }
 
                 graphicsApp.present();
@@ -254,7 +266,10 @@ namespace oblo::smoke
         camera.far = 1000.f;
         camera.fovy = 75_deg;
 
-        return true;
+        auto& viewport = entities.get<viewport_component>(app.cameraEntity);
+        viewport.graph = app.sceneRenderer->create_scene_view(scene_view_kind::runtime);
+
+        return bool{viewport.graph};
     }
 
     bool test_fixture::run_test(test& test)
@@ -265,6 +280,7 @@ namespace oblo::smoke
             .entities = &app.runtime.get_entity_registry(),
             .assetRegistry = &app.assetRegistry,
             .resourceRegistry = &app.runtimeRegistry.get_resource_registry(),
+            .cameraEntity = app.cameraEntity,
         };
 
         const test_context ctx{&impl};
