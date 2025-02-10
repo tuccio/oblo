@@ -143,7 +143,7 @@ namespace oblo::editor
 
             if (auto const viewportGraph = m_viewGraph)
             {
-                const bool hasFocus = ImGui::IsWindowFocused();
+                const bool hasFocus = ImGui::IsWindowFocused(ImGuiFocusedFlags_DockHierarchy);
 
                 const string_view graphOutput = get_viewport_mode_graph_output(v.mode);
                 OBLO_ASSERT(!graphOutput.empty());
