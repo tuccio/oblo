@@ -33,7 +33,10 @@ namespace oblo::vk::test
                 auto& mm = module_manager::get();
                 vulkan_engine_module* vkEngine = mm.load<vulkan_engine_module>();
 
-                mm.finalize();
+                if (!mm.finalize())
+                {
+                    return false;
+                }
 
                 auto& vkContext = vkEngine->get_vulkan_context();
 

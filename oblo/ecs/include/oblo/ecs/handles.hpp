@@ -11,4 +11,6 @@ namespace oblo::ecs
     using entity = h32<entity_handle>;
     using component_type = h32<component_type_handle>;
     using tag_type = h32<tag_type_handle>;
+
+    constexpr u32 entity_generation_bits = 4;
 }

@@ -2,6 +2,7 @@
 
 #include <oblo/core/flat_dense_map.hpp>
 #include <oblo/ecs/forward.hpp>
+#include <oblo/ecs/utility/entity_map.hpp>
 
 namespace oblo::vk
 {
@@ -35,6 +36,6 @@ namespace oblo
         scene_renderer* m_sceneRenderer{};
         u32 m_frameIndex{};
 
-        flat_dense_map<ecs::entity, render_graph_data> m_renderGraphs;
+        ecs::entity_map<render_graph_data> m_renderGraphs;
     };
 };

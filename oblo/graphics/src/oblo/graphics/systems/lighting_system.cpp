@@ -9,7 +9,7 @@
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/ecs/utility/registration.hpp>
 #include <oblo/graphics/components/light_component.hpp>
-#include <oblo/graphics/systems/scene_renderer.hpp>
+#include <oblo/graphics/services/scene_renderer.hpp>
 #include <oblo/math/aabb.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/modules/module_manager.hpp>

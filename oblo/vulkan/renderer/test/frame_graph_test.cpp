@@ -202,7 +202,8 @@ namespace oblo::vk::test
         module_manager mm;
         auto* vkEngine = mm.load<vulkan_engine_module>();
 
-        mm.finalize();
+        ASSERT_TRUE(mm.finalize());
+
         graphics_app app;
 
         ASSERT_TRUE(app.init({}));
