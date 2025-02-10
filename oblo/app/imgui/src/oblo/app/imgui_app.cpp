@@ -622,20 +622,28 @@ namespace oblo
 
     imgui_app::~imgui_app() = default;
 
-    expected<> imgui_app::init(const graphics_window& window, const imgui_app_config& cfg)
+    expected<> imgui_app::init(const graphics_window_initializer& initializer, const imgui_app_config& cfg)
     {
         if (m_impl)
         {
             return unspecified_error;
         }
 
+        if (auto e = graphics_app::init(initializer); !e)
+        {
+            return e;
+        }
+
+        m_eventProcessor.set_event_dispatcher({imgui_sdl_dispatch});
+
         m_impl = allocate_unique<impl>();
-        return m_impl->init(window, cfg);
+        return m_impl->init(m_mainWindow, cfg);
     }
 
     void imgui_app::shutdown()
     {
         m_impl.reset();
+        graphics_app::shutdown();
     }
 
     expected<> imgui_app::init_font_atlas(const resource_registry& resourceRegistry)
@@ -668,7 +676,7 @@ namespace oblo
         return no_error;
     }
 
-    void imgui_app::begin_frame()
+    void imgui_app::begin_ui()
     {
         OBLO_PROFILE_SCOPE();
 
@@ -678,7 +686,7 @@ namespace oblo
         ImGui::NewFrame();
     }
 
-    void imgui_app::end_frame()
+    void imgui_app::end_ui()
     {
         OBLO_PROFILE_SCOPE();
         ImGui::Render();
@@ -702,11 +710,6 @@ namespace oblo
                 connect_viewport(fg, viewport);
             }
         }
-    }
-
-    window_event_dispatcher imgui_app::get_event_dispatcher()
-    {
-        return window_event_dispatcher{.dispatch = imgui_sdl_dispatch};
     }
 }
 

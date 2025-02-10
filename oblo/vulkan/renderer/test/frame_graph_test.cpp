@@ -5,8 +5,6 @@
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/runtime/runtime_module.hpp>
-#include <oblo/sandbox/sandbox_app.hpp>
-#include <oblo/sandbox/sandbox_app_config.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/graph/frame_graph.hpp>
 #include <oblo/vulkan/graph/frame_graph_context.hpp>
@@ -14,7 +12,6 @@
 #include <oblo/vulkan/graph/frame_graph_template.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 #include <oblo/vulkan/renderer.hpp>
-#include <oblo/vulkan/required_features.hpp>
 #include <oblo/vulkan/texture.hpp>
 
 #include <gtest/gtest.h>

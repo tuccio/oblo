@@ -1,9 +1,6 @@
 #include "app.hpp"
 
-#include <oblo/app/graphics_engine.hpp>
-#include <oblo/app/graphics_window.hpp>
 #include <oblo/app/imgui_app.hpp>
-#include <oblo/app/window_event_processor.hpp>
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/importers/importers_module.hpp>
 #include <oblo/asset/providers/native_asset_provider.hpp>
@@ -290,23 +287,9 @@ namespace oblo::editor
 
     void app::run()
     {
-        graphics_window mainWindow;
-
-        if (!mainWindow.create({.title = "oblo", .isHidden = true}) || !mainWindow.initialize_graphics())
-        {
-            return;
-        }
-
-        auto* const gfxEngine = m_impl->m_moduleManager.find_unique_service<graphics_engine>();
-
-        if (!gfxEngine)
-        {
-            return;
-        }
-
         imgui_app app;
 
-        if (!app.init(mainWindow, {.configFile = "oblo.imgui.ini"}))
+        if (!app.init({.title = "oblo", .isHidden = true}, {.configFile = "oblo.imgui.ini"}))
         {
             return;
         }
@@ -318,6 +301,8 @@ namespace oblo::editor
         {
             return;
         }
+
+        auto& mainWindow = app.get_main_window();
 
         mainWindow.maximize();
         mainWindow.set_hidden(false);
@@ -337,19 +322,19 @@ namespace oblo::editor
                 break;
             }
 
-            if (!gfxEngine->acquire_images())
+            if (!app.acquire_images())
             {
                 continue;
             }
 
-            app.begin_frame();
+            app.begin_ui();
             m_impl->update_ui();
-            app.end_frame();
+            app.end_ui();
 
             m_impl->update_registries();
             m_impl->update_runtime();
 
-            gfxEngine->present();
+            app.present();
 
             m_impl->m_inputQueue.clear();
         }

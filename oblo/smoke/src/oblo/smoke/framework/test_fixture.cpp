@@ -1,7 +1,5 @@
 #include <oblo/smoke/framework/test_fixture.hpp>
 
-#include <oblo/app/graphics_engine.hpp>
-#include <oblo/app/graphics_window.hpp>
 #include <oblo/app/imgui_app.hpp>
 #include <oblo/app/imgui_texture.hpp>
 #include <oblo/app/window_event_processor.hpp>
@@ -60,11 +58,7 @@ namespace oblo::smoke
             test_context_impl* testCtx{};
             string testName;
 
-            graphics_engine* gfxEngine{};
-            graphics_window mainWindow;
-
             imgui_app imguiApp;
-            window_event_processor eventProcessor{imgui_app::get_event_dispatcher()};
 
             bool init(string_view name)
             {
@@ -121,19 +115,7 @@ namespace oblo::smoke
                     return false;
                 }
 
-                if (!mainWindow.create({.title = testName}) || !mainWindow.initialize_graphics())
-                {
-                    return false;
-                }
-
-                gfxEngine = module_manager::get().find_unique_service<graphics_engine>();
-
-                if (!gfxEngine)
-                {
-                    return false;
-                }
-
-                if (!imguiApp.init(mainWindow,
+                if (!imguiApp.init({.title = testName},
                         {
                             .configFile = nullptr,
                             .useMultiViewport = false,
@@ -151,14 +133,13 @@ namespace oblo::smoke
             void shutdown()
             {
                 imguiApp.shutdown();
-                mainWindow.destroy();
 
                 runtime.shutdown();
             }
 
             bool run_frame()
             {
-                const auto [w, h] = mainWindow.get_size();
+                const auto [w, h] = imguiApp.get_main_window().get_size();
 
                 auto& viewport = runtime.get_entity_registry().get<viewport_component>(cameraEntity);
 
@@ -172,12 +153,12 @@ namespace oblo::smoke
 
                 inputQueue.clear();
 
-                if (!eventProcessor.process_events() || !mainWindow.is_open())
+                if (!imguiApp.process_events())
                 {
                     return false;
                 }
 
-                while (!gfxEngine->acquire_images())
+                while (!imguiApp.acquire_images())
                 {
                     std::this_thread::sleep_for(std::chrono::milliseconds{10});
                 }
@@ -186,14 +167,14 @@ namespace oblo::smoke
 
                 update_imgui();
 
-                gfxEngine->present();
+                imguiApp.present();
 
                 return true;
             }
 
             void update_imgui()
             {
-                imguiApp.begin_frame();
+                imguiApp.begin_ui();
 
                 if (cameraEntity)
                 {
@@ -219,12 +200,12 @@ namespace oblo::smoke
                     }
                 }
 
-                imguiApp.end_frame();
+                imguiApp.end_ui();
             }
 
             void set_input_processing(bool enable)
             {
-                eventProcessor.set_input_queue(enable ? &inputQueue : nullptr);
+                imguiApp.set_input_queue(enable ? &inputQueue : nullptr);
             }
 
             bool isRenderDocFirstUsage{true};

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/app/graphics_app.hpp>
 #include <oblo/core/expected.hpp>
 #include <oblo/core/unique_ptr.hpp>
 
@@ -17,11 +18,8 @@ namespace oblo
         bool useKeyboardNavigation{true};
     };
 
-    class imgui_app
+    class imgui_app : graphics_app
     {
-    public:
-        static window_event_dispatcher get_event_dispatcher();
-
     public:
         imgui_app();
         imgui_app(const imgui_app&) = delete;
@@ -31,13 +29,22 @@ namespace oblo
         imgui_app& operator=(const imgui_app&) = delete;
         imgui_app& operator=(imgui_app&&) noexcept = delete;
 
-        expected<> init(const graphics_window& window, const imgui_app_config& cfg = {});
+        expected<> init(const graphics_window_initializer& initializer, const imgui_app_config& cfg = {});
         void shutdown();
 
         expected<> init_font_atlas(const resource_registry& resourceRegistry);
 
-        void begin_frame();
-        void end_frame();
+        void begin_ui();
+        void end_ui();
+
+        using graphics_app::set_input_queue;
+
+        using graphics_app::get_main_window;
+
+        using graphics_app::process_events;
+
+        using graphics_app::acquire_images;
+        using graphics_app::present;
 
     private:
         struct impl;

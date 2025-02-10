@@ -50,42 +50,26 @@ int main(int, char**)
     auto* resourceRegistry = mm.find_unique_service<resource_registry>();
     register_resource_types(*resourceRegistry, mm.find_services<resource_types_provider>());
 
-    graphics_window mainWindow;
-
-    if (!mainWindow.create({.title = "Sandbox"}) || !mainWindow.initialize_graphics())
-    {
-        return 1;
-    }
-
-    auto* const gfxEngine = mm.find_unique_service<graphics_engine>();
-
-    if (!gfxEngine)
-    {
-        return 2;
-    }
-
     imgui_app app;
 
-    if (!app.init(mainWindow) || !app.init_font_atlas())
+    if (!app.init({.title = "Sandbox"}) || !app.init_font_atlas(*resourceRegistry))
     {
         return 3;
     }
 
-    window_event_processor eventProcessor{imgui_app::get_event_dispatcher()};
-
-    while (eventProcessor.process_events() && mainWindow.is_open())
+    while (app.process_events())
     {
-        if (!gfxEngine->acquire_images())
+        if (!app.acquire_images())
         {
             // Can decide what to do, e.g. run the update
             continue;
         }
 
-        app.begin_frame();
+        app.begin_ui();
         ImGui::ShowDemoWindow();
-        app.end_frame();
+        app.end_ui();
 
-        gfxEngine->present();
+        app.present();
     }
 
     return 0;

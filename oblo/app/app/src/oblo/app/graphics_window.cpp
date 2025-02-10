@@ -220,6 +220,11 @@ namespace oblo
         return SDL_GetWindowWMInfo(window, &wmInfo) ? wmInfo.info.win.window : nullptr;
     }
 
+    void window_event_processor::set_event_dispatcher(const window_event_dispatcher& dispatcher)
+    {
+        m_windowEventDispatcher = dispatcher;
+    }
+
     void window_event_processor::set_input_queue(input_queue* inputQueue)
     {
         m_inputQueue = inputQueue;

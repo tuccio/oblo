@@ -163,7 +163,7 @@ namespace oblo::vk
 
         const auto submitAndCheckEquality = [&]
         {
-            ctx.frame_begin(nullptr, nullptr);
+            ctx.frame_begin(nullptr);
 
             downloadedData.assign(cpuData.size(), 0xdeadbeef);
 
@@ -195,7 +195,7 @@ namespace oblo::vk
         for (u32 i = 0; i < 10; ++i)
         {
             {
-                ctx.frame_begin(nullptr, nullptr);
+                ctx.frame_begin(nullptr);
 
                 const u32 newSize = 1u << (i + 1);
 
@@ -217,7 +217,7 @@ namespace oblo::vk
                 const auto staged = staging.stage(std::as_bytes(std::span{cpuData}));
                 ASSERT_TRUE(staged);
 
-                ctx.frame_begin(nullptr, nullptr);
+                ctx.frame_begin(nullptr);
 
                 staging.begin_frame(2);
                 staging.upload(ctx.get_active_command_buffer().get(), *staged, vkBuffer.buffer, vkBuffer.offset);

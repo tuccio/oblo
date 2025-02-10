@@ -12,11 +12,12 @@ namespace oblo
     class window_event_processor
     {
     public:
-        explicit window_event_processor(const window_event_dispatcher& dispatcher = {}) :
-            m_windowEventDispatcher{dispatcher}
-        {
-        }
+        window_event_processor() = default;
 
+        window_event_processor(const window_event_processor&) = default;
+        window_event_processor& operator=(const window_event_processor&) = default;
+
+        void set_event_dispatcher(const window_event_dispatcher& dispatcher);
         void set_input_queue(input_queue* inputQueue);
 
         bool process_events() const;
