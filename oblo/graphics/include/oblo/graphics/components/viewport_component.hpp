@@ -60,8 +60,10 @@ namespace oblo
 
         viewport_mode mode;
 
-        picking_request picking;
-
         h32<vk::frame_graph_subgraph> graph;
+
+        picking_request picking;
     };
+
+    string_view get_viewport_mode_graph_output(viewport_mode mode);
 }

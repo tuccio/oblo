@@ -10,9 +10,9 @@
 #include <oblo/graphics/components/skybox_component.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
+#include <oblo/graphics/services/scene_renderer.hpp>
 #include <oblo/graphics/systems/graphics_options.hpp>
 #include <oblo/graphics/systems/lighting_system.hpp>
-#include <oblo/graphics/systems/scene_renderer.hpp>
 #include <oblo/graphics/systems/skybox_system.hpp>
 #include <oblo/graphics/systems/static_mesh_system.hpp>
 #include <oblo/graphics/systems/viewport_system.hpp>

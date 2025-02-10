@@ -51,7 +51,7 @@ namespace oblo::vk::main_view
     struct config
     {
         bool withPicking{false};
-        bool withSurfelsGI{false};
+        bool withSurfelsGI{true};
     };
 
     frame_graph_template create(const frame_graph_registry& registry, const config& cfg = {});

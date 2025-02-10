@@ -23,6 +23,7 @@ namespace oblo
     class frame_allocator;
     class property_registry;
     class resource_registry;
+    class service_registry;
 
     struct runtime_initializer
     {
@@ -57,6 +58,7 @@ namespace oblo
         RUNTIME_API void update(const runtime_update_context& ctx);
 
         RUNTIME_API ecs::entity_registry& get_entity_registry() const;
+        RUNTIME_API const service_registry& get_service_registry() const;
 
     private:
         struct impl;

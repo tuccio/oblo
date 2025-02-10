@@ -175,4 +175,9 @@ namespace oblo
     {
         return m_impl->entities;
     }
+
+    const service_registry& runtime::get_service_registry() const
+    {
+        return m_impl->services;
+    }
 }

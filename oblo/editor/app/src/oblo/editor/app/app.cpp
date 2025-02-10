@@ -449,6 +449,7 @@ namespace oblo::editor
 
         service_registry sceneRegistry{};
         sceneRegistry.add<ecs::entity_registry>().externally_owned(&m_runtime.get_entity_registry());
+        sceneRegistry.add<scene_renderer>().externally_owned(m_runtime.get_service_registry().find<scene_renderer>());
 
         const auto sceneEditingWindow = m_windowManager.create_window<scene_editing_window>(std::move(sceneRegistry));
 

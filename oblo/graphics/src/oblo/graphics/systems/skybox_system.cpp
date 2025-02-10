@@ -6,7 +6,7 @@
 #include <oblo/ecs/range.hpp>
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/graphics/components/skybox_component.hpp>
-#include <oblo/graphics/systems/scene_renderer.hpp>
+#include <oblo/graphics/services/scene_renderer.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/vulkan/data/skybox_settings.hpp>

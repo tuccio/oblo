@@ -17,7 +17,6 @@
 #include <oblo/vulkan/graph/frame_graph_impl.hpp>
 #include <oblo/vulkan/graph/frame_graph_template.hpp>
 #include <oblo/vulkan/renderer.hpp>
-#include <oblo/vulkan/stateful_command_buffer.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
 
 #include <iosfwd>

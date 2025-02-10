@@ -13,7 +13,7 @@
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
-#include <oblo/graphics/systems/scene_renderer.hpp>
+#include <oblo/graphics/services/scene_renderer.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/math/view_projection.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
@@ -43,8 +43,6 @@ namespace oblo
     struct viewport_system::render_graph_data
     {
         bool isAlive{};
-        h32<vk::frame_graph_subgraph> subgraph{};
-        h32<vk::texture> texture{};
         u32 width{};
         u32 height{};
 
@@ -53,18 +51,7 @@ namespace oblo
 
     viewport_system::viewport_system() = default;
 
-    viewport_system::~viewport_system()
-    {
-        if (!m_renderer)
-        {
-            return;
-        }
-
-        for (auto& graphData : m_renderGraphs.values())
-        {
-            m_renderer->get_frame_graph().remove(graphData.subgraph);
-        }
-    }
+    viewport_system::~viewport_system() = default;
 
     void viewport_system::first_update(const ecs::system_update_context& ctx)
     {
@@ -95,6 +82,11 @@ namespace oblo
             for (auto&& [entity, transform, camera, viewport] :
                 chunk.zip<ecs::entity, global_transform_component, camera_component, viewport_component>())
             {
+                if (!viewport.graph)
+                {
+                    continue;
+                }
+
                 auto* renderGraphData = m_renderGraphs.try_find(entity);
 
                 bool isFirstFrame = false;
@@ -103,22 +95,6 @@ namespace oblo
                 {
                     const auto [it, ok] = m_renderGraphs.emplace(entity);
                     it->isAlive = true;
-
-                    const auto registry = vk::create_frame_graph_registry();
-
-                    const auto mainViewTemplate = vk::main_view::create(registry,
-                        {
-                            .withPicking = true,
-                            .withSurfelsGI = true,
-                        });
-
-                    const auto subgraph = frameGraph.instantiate(mainViewTemplate);
-                    frameGraph.disable_all_outputs(subgraph);
-
-                    it->subgraph = subgraph;
-                    viewport.graph = subgraph;
-
-                    m_sceneRenderer->add_scene_view(subgraph);
 
                     renderGraphData = &*it;
 
@@ -132,19 +108,18 @@ namespace oblo
                 const u32 renderWidth = max(viewport.width, 1u);
                 const u32 renderHeight = max(viewport.height, 1u);
 
-                frameGraph
-                    .set_input(renderGraphData->subgraph, main_view::InResolution, vec2u{renderWidth, renderHeight})
+                frameGraph.set_input(viewport.graph, main_view::InResolution, vec2u{renderWidth, renderHeight})
                     .assert_value();
 
                 frameGraph
-                    .set_input(renderGraphData->subgraph,
+                    .set_input(viewport.graph,
                         main_view::InTime,
                         time_buffer{
                             .frameIndex = m_frameIndex,
                         })
                     .assert_value();
 
-                apply_viewport_mode(frameGraph, renderGraphData->subgraph, viewport.mode);
+                apply_viewport_mode(frameGraph, viewport.graph, viewport.mode);
 
                 {
                     // TODO: Deal with errors, also transposing would be enough here most likely
@@ -170,7 +145,7 @@ namespace oblo
                         .position = {position.x, position.y, position.z},
                     };
 
-                    frameGraph.set_input(renderGraphData->subgraph, main_view::InCamera, cameraBuffer).assert_value();
+                    frameGraph.set_input(viewport.graph, main_view::InCamera, cameraBuffer).assert_value();
 
                     renderGraphData->lastFrameViewProj = viewProj;
                 }
@@ -178,7 +153,7 @@ namespace oblo
                 {
                     picking_configuration pickingConfig{};
 
-                    frameGraph.set_output_state(renderGraphData->subgraph, main_view::OutPicking, false);
+                    frameGraph.set_output_state(viewport.graph, main_view::OutPicking, false);
 
                     switch (viewport.picking.state)
                     {
@@ -188,14 +163,14 @@ namespace oblo
                         };
 
                         viewport.picking.state = picking_request::state::awaiting;
-                        frameGraph.set_output_state(renderGraphData->subgraph, main_view::OutPicking, true);
+                        frameGraph.set_output_state(viewport.graph, main_view::OutPicking, true);
                     }
 
                     break;
 
                     case picking_request::state::awaiting: {
                         const expected asyncDownload =
-                            frameGraph.get_output<async_download>(renderGraphData->subgraph, main_view::OutPicking);
+                            frameGraph.get_output<async_download>(viewport.graph, main_view::OutPicking);
 
                         if (!asyncDownload)
                         {
@@ -234,10 +209,7 @@ namespace oblo
                         break;
                     }
 
-                    frameGraph
-                        .set_input(renderGraphData->subgraph,
-                            main_view::InPickingConfiguration,
-                            std::move(pickingConfig))
+                    frameGraph.set_input(viewport.graph, main_view::InPickingConfiguration, std::move(pickingConfig))
                         .assert_value();
                 }
             }
@@ -255,9 +227,6 @@ namespace oblo
                 {
                     continue;
                 }
-
-                m_renderer->get_frame_graph().remove(renderGraphData.subgraph);
-                m_sceneRenderer->remove_scene_view(renderGraphData.subgraph);
 
                 elementsToRemove[numRemovedElements] = entity;
                 ++numRemovedElements;
@@ -356,6 +325,66 @@ namespace oblo
                 unreachable();
                 break;
             }
+        }
+    }
+
+    string_view get_viewport_mode_graph_output(viewport_mode mode)
+    {
+        switch (mode)
+        {
+        case viewport_mode::lit:
+            return vk::main_view::OutLitImage;
+
+        case viewport_mode::albedo:
+            return vk::main_view::OutDebugImage;
+
+        case viewport_mode::normal_map:
+            return vk::main_view::OutDebugImage;
+
+        case viewport_mode::normals:
+            return vk::main_view::OutDebugImage;
+
+        case viewport_mode::tangents:
+            return vk::main_view::OutDebugImage;
+
+        case viewport_mode::bitangents:
+            return vk::main_view::OutDebugImage;
+
+        case viewport_mode::uv0:
+            return vk::main_view::OutDebugImage;
+
+        case viewport_mode::meshlet:
+            return vk::main_view::OutDebugImage;
+
+        case viewport_mode::metalness:
+            return vk::main_view::OutDebugImage;
+
+        case viewport_mode::roughness:
+            return vk::main_view::OutDebugImage;
+
+        case viewport_mode::emissive:
+            return vk::main_view::OutDebugImage;
+
+        case viewport_mode::motion_vectors:
+            return vk::main_view::OutDebugImage;
+
+        case viewport_mode::raytracing_debug:
+            return vk::main_view::OutRTDebugImage;
+
+        case viewport_mode::gi_surfels:
+            return vk::main_view::OutGISurfelsImage;
+
+        case viewport_mode::gi_surfels_lighting:
+            return vk::main_view::OutGiSurfelsLightingImage;
+
+        case viewport_mode::gi_surfels_raycount:
+            return vk::main_view::OutGiSurfelsRayCount;
+
+        case viewport_mode::gi_surfels_inconsistency:
+            return vk::main_view::OutGiSurfelsInconsistency;
+
+        default:
+            unreachable();
         }
     }
 }

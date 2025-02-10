@@ -1,4 +1,4 @@
-#include <oblo/graphics/systems/scene_renderer.hpp>
+#include <oblo/graphics/services/scene_renderer.hpp>
 
 #include <oblo/core/service_registry.hpp>
 #include <oblo/graphics/systems/graphics_options.hpp>
@@ -210,8 +210,12 @@ namespace oblo
         m_frameGraph.set_input(m_surfelsGI, vk::surfels_gi::InGIMultiplier, giConfig.multiplier).assert_value();
     }
 
-    void scene_renderer::add_scene_view(h32<vk::frame_graph_subgraph> subgraph)
+    h32<vk::frame_graph_subgraph> scene_renderer::create_scene_view(const vk::main_view::config& cfg)
     {
+        const auto mainViewTemplate = vk::main_view::create(m_nodeRegistry, cfg);
+        const auto subgraph = m_frameGraph.instantiate(mainViewTemplate);
+        m_frameGraph.disable_all_outputs(subgraph);
+
         m_sceneViews.emplace(subgraph);
 
         if (m_sceneDataProvider)
@@ -223,10 +227,13 @@ namespace oblo
         {
             connect_surfels_gi_to_scene_view(m_frameGraph, m_surfelsGI, subgraph);
         }
+
+        return subgraph;
     }
 
     void scene_renderer::remove_scene_view(h32<vk::frame_graph_subgraph> subgraph)
     {
+        m_frameGraph.remove(subgraph);
         m_sceneViews.erase(subgraph);
     }
 
