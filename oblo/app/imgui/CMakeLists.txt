@@ -12,7 +12,7 @@ target_link_libraries(
     oblo::vk_engine
     oblo::vk_renderer
     imgui::imgui
-    imgui::sdl_vk
+    imgui::backend_sdl2
     SDL2::SDL2
 )
 
