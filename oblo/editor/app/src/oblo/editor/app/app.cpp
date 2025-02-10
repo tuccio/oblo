@@ -307,17 +307,11 @@ namespace oblo::editor
         mainWindow.maximize();
         mainWindow.set_hidden(false);
 
-        window_event_processor eventProcessor{imgui_app::get_event_dispatcher()};
-        eventProcessor.set_input_queue(&m_impl->m_inputQueue);
+        app.set_input_queue(&m_impl->m_inputQueue);
 
         for (; OBLO_PROFILE_FRAME_BEGIN(); OBLO_PROFILE_FRAME_END())
         {
-            if (!eventProcessor.process_events())
-            {
-                break;
-            }
-
-            if (!mainWindow.is_open())
+            if (!app.process_events())
             {
                 break;
             }
