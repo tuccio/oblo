@@ -1,10 +1,9 @@
+#include <oblo/app/graphics_app.hpp>
 #include <oblo/core/finally.hpp>
-#include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/graph/dot.hpp>
 #include <oblo/core/graph/topological_sort.hpp>
+#include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/modules/module_manager.hpp>
-#include <oblo/resource/resource_registry.hpp>
-#include <oblo/runtime/runtime_module.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/graph/frame_graph.hpp>
 #include <oblo/vulkan/graph/frame_graph_context.hpp>
@@ -13,6 +12,7 @@
 #include <oblo/vulkan/graph/pins.hpp>
 #include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/texture.hpp>
+#include <oblo/vulkan/vulkan_engine_module.hpp>
 
 #include <gtest/gtest.h>
 
@@ -134,92 +134,6 @@ namespace oblo::vk::test
 
             return tmpl;
         }
-
-        struct test_wrapper
-        {
-            std::span<const char* const> get_required_instance_extensions() const
-            {
-                return module_manager::get()
-                    .find<runtime_module>()
-                    ->get_required_renderer_features()
-                    .instanceExtensions;
-            }
-
-            VkPhysicalDeviceFeatures2 get_required_physical_device_features() const
-            {
-                return module_manager::get()
-                    .find<runtime_module>()
-                    ->get_required_renderer_features()
-                    .physicalDeviceFeatures;
-            }
-
-            void* get_required_device_features() const
-            {
-                return module_manager::get()
-                    .find<runtime_module>()
-                    ->get_required_renderer_features()
-                    .deviceFeaturesChain;
-            }
-
-            std::span<const char* const> get_required_device_extensions() const
-            {
-                return module_manager::get().find<runtime_module>()->get_required_renderer_features().deviceExtensions;
-            }
-
-            bool init()
-            {
-                // Load the runtime, which will be queried for required vulkan features
-                auto& mm = module_manager::get();
-                mm.load<runtime_module>();
-
-                mm.finalize();
-
-                return true;
-            }
-
-            bool startup(const sandbox_startup_context& ctx)
-            {
-                frameAllocator.init(1u << 26);
-
-                entities.init(&typeRegistry);
-
-                if (!renderer.init({
-                        .vkContext = *ctx.vkContext,
-                        .frameAllocator = frameAllocator,
-                        .entities = entities,
-                        .resources = resources,
-                    }))
-                {
-                    return false;
-                }
-
-                return true;
-            }
-
-            void shutdown(const sandbox_shutdown_context&)
-            {
-                renderer.shutdown();
-                frameAllocator.shutdown();
-            }
-
-            void update(const sandbox_render_context& ctx)
-            {
-                updateCb(ctx);
-            }
-
-            void update_imgui(const sandbox_update_imgui_context&) {}
-
-            module_manager moduleManager;
-            frame_allocator frameAllocator;
-
-            renderer renderer;
-
-            ecs::type_registry typeRegistry;
-            ecs::entity_registry entities;
-            resource_registry resources;
-
-            std::function<void(const sandbox_render_context&)> updateCb;
-        };
     }
 
     TEST(frame_graph_template, frame_graph_template_main_view)
@@ -285,63 +199,60 @@ namespace oblo::vk::test
 
     TEST(frame_graph, frame_graph_mock_shadow)
     {
+        module_manager mm;
+        auto* vkEngine = mm.load<vulkan_engine_module>();
+
+        mm.finalize();
+        graphics_app app;
+
+        ASSERT_TRUE(app.init({}));
+
+        while (!app.acquire_images())
+            ;
+
         dynamic_array<std::string> executionLog;
 
         const auto registry = fgt_create_registry();
 
         const auto mainViewTemplate = fgt_create_main_view(registry);
 
-        sandbox_app<test_wrapper> app;
+        frame_graph frameGraph;
+        frameGraph.init(vkEngine->get_vulkan_context());
 
-        app.updateCb = [&](const sandbox_render_context& ctx)
-        {
-            frame_graph frameGraph;
-            frameGraph.init(*ctx.vkContext);
+        const auto mainView = frameGraph.instantiate(mainViewTemplate);
+        ASSERT_TRUE(mainView);
 
-            const auto mainView = frameGraph.instantiate(mainViewTemplate);
-            ASSERT_TRUE(mainView);
+        ASSERT_TRUE(frameGraph.set_input(mainView, "in_CpuData", fgt_cpu_data{&executionLog}));
 
-            ASSERT_TRUE(frameGraph.set_input(mainView, "in_CpuData", fgt_cpu_data{&executionLog}));
+        const auto shadowMapTemplate = fgt_create_shadow_map(registry);
 
-            const auto shadowMapTemplate = fgt_create_shadow_map(registry);
+        const auto shadowMapping = frameGraph.instantiate(shadowMapTemplate);
+        ASSERT_TRUE(shadowMapping);
 
-            const auto shadowMapping = frameGraph.instantiate(shadowMapTemplate);
-            ASSERT_TRUE(shadowMapping);
+        ASSERT_TRUE(frameGraph.set_input(shadowMapping, "in_CpuData", fgt_cpu_data{&executionLog}));
 
-            ASSERT_TRUE(frameGraph.set_input(shadowMapping, "in_CpuData", fgt_cpu_data{&executionLog}));
+        ASSERT_TRUE(frameGraph.connect(shadowMapping, "out_ShadowMap", mainView, "in_ShadowMap"));
+        ASSERT_TRUE(frameGraph.connect(shadowMapping, "out_ShadowMapAtlasId", mainView, "in_ShadowMapAtlasId"));
 
-            ASSERT_TRUE(frameGraph.connect(shadowMapping, "out_ShadowMap", mainView, "in_ShadowMap"));
-            ASSERT_TRUE(frameGraph.connect(shadowMapping, "out_ShadowMapAtlasId", mainView, "in_ShadowMapAtlasId"));
+        auto& renderer = vkEngine->get_renderer();
 
-            frameGraph.build(app.renderer);
+        frameGraph.build(renderer);
 
-            // Order between gbuffer and shadow is not determined, but lighting has to run last
-            ASSERT_EQ(executionLog.size(), 3);
-            ASSERT_TRUE(executionLog[1] != executionLog[0]);
-            ASSERT_TRUE(executionLog[0] == "fgt_gbuffer_pass::build" || executionLog[0] == "fgt_shadow_pass::build");
-            ASSERT_TRUE(executionLog[1] == "fgt_gbuffer_pass::build" || executionLog[1] == "fgt_shadow_pass::build");
-            ASSERT_TRUE(executionLog[2] == "fgt_lighting_pass::build");
+        // Order between gbuffer and shadow is not determined, but lighting has to run last
+        ASSERT_EQ(executionLog.size(), 3);
+        ASSERT_TRUE(executionLog[1] != executionLog[0]);
+        ASSERT_TRUE(executionLog[0] == "fgt_gbuffer_pass::build" || executionLog[0] == "fgt_shadow_pass::build");
+        ASSERT_TRUE(executionLog[1] == "fgt_gbuffer_pass::build" || executionLog[1] == "fgt_shadow_pass::build");
+        ASSERT_TRUE(executionLog[2] == "fgt_lighting_pass::build");
 
-            executionLog.clear();
+        executionLog.clear();
 
-            frameGraph.execute(app.renderer);
+        frameGraph.execute(renderer);
 
-            ASSERT_EQ(executionLog.size(), 3);
-            ASSERT_TRUE(executionLog[1] != executionLog[0]);
-            ASSERT_TRUE(
-                executionLog[0] == "fgt_gbuffer_pass::execute" || executionLog[0] == "fgt_shadow_pass::execute");
-            ASSERT_TRUE(
-                executionLog[1] == "fgt_gbuffer_pass::execute" || executionLog[1] == "fgt_shadow_pass::execute");
-            ASSERT_TRUE(executionLog[2] == "fgt_lighting_pass::execute");
-        };
-
-        app.set_config(sandbox_app_config{
-            .vkUseValidationLayers = true,
-        });
-
-        ASSERT_TRUE(app.init());
-        const auto cleanup = finally([&] { app.shutdown(); });
-
-        app.run_frame();
+        ASSERT_EQ(executionLog.size(), 3);
+        ASSERT_TRUE(executionLog[1] != executionLog[0]);
+        ASSERT_TRUE(executionLog[0] == "fgt_gbuffer_pass::execute" || executionLog[0] == "fgt_shadow_pass::execute");
+        ASSERT_TRUE(executionLog[1] == "fgt_gbuffer_pass::execute" || executionLog[1] == "fgt_shadow_pass::execute");
+        ASSERT_TRUE(executionLog[2] == "fgt_lighting_pass::execute");
     }
 }

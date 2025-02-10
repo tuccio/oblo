@@ -23,8 +23,8 @@ target_link_libraries(
     PRIVATE
     oblo::app
     oblo::resource
-    oblo::runtime
     oblo::modules
+    oblo::vk_engine
 )
 
 set(_test_resources "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test/resources/renderer")
