@@ -256,6 +256,8 @@ namespace oblo::vk
 
         expected<> begin_pass(h32<transfer_pass_instance> handle) const;
 
+        expected<> begin_pass(h32<empty_pass_instance> handle) const;
+
         void end_pass() const;
 
         void bind_descriptor_sets(binding_tables_span bindingTables) const;

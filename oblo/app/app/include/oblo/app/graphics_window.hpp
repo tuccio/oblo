@@ -6,6 +6,7 @@
 
 namespace oblo
 {
+    class graphics_app;
     class graphics_window_context;
     class window_event_processor;
 
@@ -55,6 +56,7 @@ namespace oblo
         native_window_handle get_native_handle() const;
 
     private:
+        friend class graphics_app;
         friend class window_event_processor;
 
     private:

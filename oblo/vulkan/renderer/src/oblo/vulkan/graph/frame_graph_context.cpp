@@ -759,6 +759,19 @@ namespace oblo::vk
         return no_error;
     }
 
+    expected<> frame_graph_execute_context::begin_pass(h32<empty_pass_instance> handle) const
+    {
+        OBLO_ASSERT(handle);
+        OBLO_ASSERT(m_frameGraph.passes[handle.value].kind == pass_kind::none);
+
+        const auto passHandle = h32<frame_graph_pass>{handle.value};
+        m_frameGraph.begin_pass_execution(passHandle, m_commandBuffer, m_state);
+
+        m_state.passKind = pass_kind::none;
+
+        return no_error;
+    }
+
     void frame_graph_execute_context::end_pass() const
     {
         auto& pm = m_renderer.get_pass_manager();

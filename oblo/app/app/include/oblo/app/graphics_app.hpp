@@ -6,6 +6,11 @@
 
 namespace oblo
 {
+    namespace vk
+    {
+        struct frame_graph_subgraph;
+    }
+
     class graphics_engine;
     struct graphics_window_initializer;
 
@@ -31,6 +36,8 @@ namespace oblo
         graphics_window& get_main_window();
 
         void set_input_queue(input_queue* inputQueue);
+
+        void set_output(h32<vk::frame_graph_subgraph> sg, string_view output);
 
     protected:
         graphics_window m_mainWindow;

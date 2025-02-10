@@ -1,7 +1,6 @@
 #include <oblo/smoke/framework/test_fixture.hpp>
 
-#include <oblo/app/imgui_app.hpp>
-#include <oblo/app/imgui_texture.hpp>
+#include <oblo/app/graphics_app.hpp>
 #include <oblo/app/window_event_processor.hpp>
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/importers/importers_module.hpp>
@@ -38,8 +37,6 @@
 #include <oblo/thread/job_manager.hpp>
 #include <oblo/vulkan/vulkan_engine_module.hpp>
 
-#include <imgui.h>
-
 #include <renderdoc_app.h>
 
 namespace oblo::smoke
@@ -58,7 +55,7 @@ namespace oblo::smoke
             test_context_impl* testCtx{};
             string testName;
 
-            imgui_app imguiApp;
+            graphics_app graphicsApp;
 
             bool init(string_view name)
             {
@@ -115,14 +112,7 @@ namespace oblo::smoke
                     return false;
                 }
 
-                if (!imguiApp.init({.title = testName},
-                        {
-                            .configFile = nullptr,
-                            .useMultiViewport = false,
-                            .useDocking = false,
-                            .useKeyboardNavigation = false,
-                        }) ||
-                    !imguiApp.init_font_atlas(resourceRegistry))
+                if (!graphicsApp.init({.title = testName}))
                 {
                     return false;
                 }
@@ -132,19 +122,21 @@ namespace oblo::smoke
 
             void shutdown()
             {
-                imguiApp.shutdown();
+                graphicsApp.shutdown();
 
                 runtime.shutdown();
             }
 
             bool run_frame()
             {
-                const auto [w, h] = imguiApp.get_main_window().get_size();
+                const auto [w, h] = graphicsApp.get_main_window().get_size();
 
-                auto& viewport = runtime.get_entity_registry().get<viewport_component>(cameraEntity);
+                {
+                    auto& viewport = runtime.get_entity_registry().get<viewport_component>(cameraEntity);
 
-                viewport.width = w;
-                viewport.height = h;
+                    viewport.width = w;
+                    viewport.height = h;
+                }
 
                 handle_renderdoc_captures();
 
@@ -153,59 +145,31 @@ namespace oblo::smoke
 
                 inputQueue.clear();
 
-                if (!imguiApp.process_events())
+                if (!graphicsApp.process_events())
                 {
                     return false;
                 }
 
-                while (!imguiApp.acquire_images())
+                while (!graphicsApp.acquire_images())
                 {
                     std::this_thread::sleep_for(std::chrono::milliseconds{10});
                 }
 
                 runtime.update({.dt = FixedTime});
 
-                update_imgui();
+                {
+                    auto& viewport = runtime.get_entity_registry().get<viewport_component>(cameraEntity);
+                    graphicsApp.set_output(viewport.graph, "LitOutput");
+                }
 
-                imguiApp.present();
+                graphicsApp.present();
 
                 return true;
             }
 
-            void update_imgui()
-            {
-                imguiApp.begin_ui();
-
-                if (cameraEntity)
-                {
-                    auto& viewport = runtime.get_entity_registry().get<viewport_component>(cameraEntity);
-                    OBLO_ASSERT(viewport.graph);
-
-                    if (viewport.graph)
-                    {
-                        const auto viewportSize = ImVec2{f32(viewport.width), f32(viewport.height)};
-
-                        ImGui::SetNextWindowPos({});
-                        ImGui::SetNextWindowSize(viewportSize);
-
-                        if (bool open{true}; ImGui::Begin("fullscreen",
-                                &open,
-                                ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground))
-                        {
-                            const auto image = imgui::add_image(viewport.graph, "LitOutput");
-
-                            ImGui::Image(image, viewportSize);
-                            ImGui::End();
-                        }
-                    }
-                }
-
-                imguiApp.end_ui();
-            }
-
             void set_input_processing(bool enable)
             {
-                imguiApp.set_input_queue(enable ? &inputQueue : nullptr);
+                graphicsApp.set_input_queue(enable ? &inputQueue : nullptr);
             }
 
             bool isRenderDocFirstUsage{true};

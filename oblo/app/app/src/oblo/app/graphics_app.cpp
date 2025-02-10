@@ -1,6 +1,7 @@
 #include <oblo/app/graphics_app.hpp>
 
 #include <oblo/app/graphics_engine.hpp>
+#include <oblo/app/graphics_window_context.hpp>
 #include <oblo/modules/module_manager.hpp>
 
 namespace oblo
@@ -57,5 +58,10 @@ namespace oblo
     void graphics_app::set_input_queue(input_queue* inputQueue)
     {
         m_eventProcessor.set_input_queue(inputQueue);
+    }
+
+    void graphics_app::set_output(h32<vk::frame_graph_subgraph> sg, string_view output)
+    {
+        m_mainWindow.m_graphicsContext->set_output(sg, output);
     }
 }

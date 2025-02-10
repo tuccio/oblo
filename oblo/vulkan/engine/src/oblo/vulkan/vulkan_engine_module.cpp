@@ -107,6 +107,9 @@ namespace oblo::vk
 
             h32<frame_graph_subgraph> swapchainGraph{};
 
+            h32<frame_graph_subgraph> outGraph{};
+            string outName;
+
             bool swapchainResized = false;
             bool markedForDestruction = false;
 
@@ -269,6 +272,12 @@ namespace oblo::vk
             {
                 return swapchainGraph;
             }
+
+            void set_output(h32<frame_graph_subgraph> sg, string_view name) override
+            {
+                outGraph = sg;
+                outName = name;
+            }
         };
     }
 
@@ -289,7 +298,7 @@ namespace oblo::vk
         dynamic_array<VkSwapchainKHR> acquiredSwapchains;
         dynamic_array<u32> acquiredImageIndices;
         dynamic_array<VkSemaphore> acquiredImageSemaphores;
-        dynamic_array<h32<frame_graph_subgraph>> swapchainGraphs;
+        dynamic_array<vulkan_window_context*> contextsToRender;
 
         frame_graph_registry nodeRegistry;
         frame_graph_template swapchainGraphTemplate;
@@ -699,7 +708,7 @@ namespace oblo::vk
         acquiredSwapchains.clear();
         acquiredImageIndices.clear();
         acquiredImageSemaphores.clear();
-        swapchainGraphs.clear();
+        contextsToRender.clear();
 
         vkContext.frame_begin(frameCompletedSemaphore[semaphoreIndex]);
 
@@ -742,7 +751,7 @@ namespace oblo::vk
                 .set_input(swapChainGraph, swapchain_graph::InAcquiredImage, windowCtx->swapchainTextures[imageIndex])
                 .assert_value();
 
-            swapchainGraphs.emplace_back(swapChainGraph);
+            contextsToRender.emplace_back(windowCtx);
             windowCtx->swapchainGraph = swapChainGraph;
 
             ++it;
@@ -767,9 +776,17 @@ namespace oblo::vk
 
         auto& frameGraph = renderer.get_frame_graph();
 
-        for (auto& swapchainGraph : swapchainGraphs)
+        for (auto* context : contextsToRender)
         {
-            frameGraph.set_output_state(swapchainGraph, swapchain_graph::OutPresentedImage, true);
+            frameGraph.set_output_state(context->swapchainGraph, swapchain_graph::OutPresentedImage, true);
+
+            if (context->outGraph)
+            {
+                frameGraph.connect(context->outGraph,
+                    context->outName,
+                    context->swapchainGraph,
+                    swapchain_graph::InRenderedImage);
+            }
         }
 
         renderer.end_frame();
@@ -793,13 +810,13 @@ namespace oblo::vk
 
         semaphoreIndex = (semaphoreIndex + 1) % g_SwapchainImages;
 
-        for (auto& swapchainGraph : swapchainGraphs)
+        for (auto* context : contextsToRender)
         {
-            // TODO: Just clear the input edges instead of removing it every time
-            frameGraph.remove(swapchainGraph);
+            frameGraph.remove(context->swapchainGraph);
+            context->swapchainGraph = {};
         }
 
-        swapchainGraphs.clear();
+        contextsToRender.clear();
     }
 }
 
