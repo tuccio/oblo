@@ -278,6 +278,8 @@ namespace oblo::vk
 
     void draw_registry::shutdown()
     {
+        vkDeviceWaitIdle(m_ctx->get_device());
+
         m_meshes.shutdown();
         m_rtScratchBuffer.shutdown();
         m_rtInstanceBuffer.shutdown();
@@ -288,12 +290,12 @@ namespace oblo::vk
 
             if (blas.fullIndexBuffer.allocation)
             {
-                m_ctx->destroy_deferred(blas.fullIndexBuffer.allocation, m_ctx->get_submit_index());
+                m_ctx->destroy_immediate(blas.fullIndexBuffer.allocation);
             }
 
             if (blas.fullIndexBuffer.buffer)
             {
-                m_ctx->destroy_deferred(blas.fullIndexBuffer.buffer, m_ctx->get_submit_index());
+                m_ctx->destroy_immediate(blas.fullIndexBuffer.buffer);
             }
         }
 
