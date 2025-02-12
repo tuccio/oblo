@@ -1,6 +1,7 @@
 #include <oblo/graphics/graphics_module.hpp>
 
 #include <oblo/core/service_registry.hpp>
+#include <oblo/core/service_registry_builder.hpp>
 #include <oblo/core/struct_apply.hpp>
 #include <oblo/ecs/services/world_builder.hpp>
 #include <oblo/ecs/systems/system_graph_builder.hpp>
@@ -122,11 +123,16 @@ namespace oblo
 
         initializer.services->add<ecs::world_builder>().unique({
             .services =
-                [](service_registry& registry)
+                [](service_registry_builder& builder)
             {
-                auto* const renderer = registry.find<vk::renderer>();
-                auto* const drawRegistry = registry.find<vk::draw_registry>();
-                registry.add<scene_renderer>().unique(renderer->get_frame_graph(), *drawRegistry);
+                builder.add<scene_renderer>().require<vk::renderer, vk::draw_registry>().build(
+                    [](service_builder<scene_renderer> builder)
+                    {
+                        auto& renderer = *builder.find<vk::renderer>();
+                        auto& drawRegistry = *builder.find<vk::draw_registry>();
+
+                        builder.unique(renderer.get_frame_graph(), drawRegistry);
+                    });
             },
             .systems =
                 [](ecs::system_graph_builder& builder)

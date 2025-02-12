@@ -2,6 +2,7 @@
 
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/service_registry.hpp>
+#include <oblo/core/service_registry_builder.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/services/world_builder.hpp>
@@ -115,6 +116,9 @@ namespace oblo
 
         m_impl->services.add<const resource_registry>().externally_owned(initializer.resourceRegistry);
         m_impl->services.add<const property_registry>().externally_owned(initializer.propertyRegistry);
+        m_impl->services.add<vk::resource_cache>().externally_owned(&initializer.renderer.get_resource_cache());
+
+        service_registry_builder serviceRegistryBuilder;
 
         for (const auto* worldBuilder : initializer.worldBuilders)
         {
@@ -123,10 +127,13 @@ namespace oblo
                 continue;
             }
 
-            (worldBuilder->services)(m_impl->services);
+            (worldBuilder->services)(serviceRegistryBuilder);
         }
 
-        m_impl->services.add<vk::resource_cache>().externally_owned(&initializer.renderer.get_resource_cache());
+        if (!serviceRegistryBuilder.build(m_impl->services))
+        {
+            return false;
+        }
 
         m_impl->executor = std::move(*executor);
 
