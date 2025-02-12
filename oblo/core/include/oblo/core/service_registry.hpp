@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/deque.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/type_id.hpp>
 
@@ -9,6 +10,9 @@
 namespace oblo
 {
     class service_registry_builder;
+
+    template <typename>
+    class service_builder;
 
     struct service_entry
     {
@@ -48,17 +52,30 @@ namespace oblo
         };
 
     private:
+        template <typename T, typename... Args>
+        T* unique(Args&&... args)
+        {
+            T* const ptr = new T{std::forward<Args>(args)...};
+            m_services.emplace_back(ptr, [](void* p) { delete static_cast<T*>(p); });
+            return ptr;
+        }
+
+        template <typename B, typename T>
+        void register_as(T* ptr)
+        {
+            m_map.emplace(get_type_id<B>(), const_cast<void*>(static_cast<const void*>(static_cast<B*>(ptr))));
+        }
+
+    private:
         friend class service_registry_builder;
+
+        template <typename T>
+        friend class service_builder;
 
     private:
         std::unordered_map<type_id, void*> m_map;
-        std::vector<service> m_services;
+        deque<service> m_services;
     };
-
-    template <typename T, typename... Bases>
-    using service_builder = std::conditional_t<std::is_const_v<T>,
-        service_registry::builder<T, T, Bases...>,
-        service_registry::builder<T, T, std::add_const_t<T>, Bases...>>;
 
     template <typename T, typename... Bases>
     class [[nodiscard]] service_registry::builder
@@ -70,33 +87,22 @@ namespace oblo
         template <typename... Args>
         T* unique(Args&&... args) &&
         {
-            T* const ptr = new T{std::forward<Args>(args)...};
-            m_registry->m_services.emplace_back(ptr, [](void* p) { delete static_cast<T*>(p); });
-
-            (m_registry->m_map.emplace(get_type_id<Bases>(),
-                 const_cast<void*>(static_cast<const void*>(static_cast<Bases*>(ptr)))),
-                ...);
+            T* const ptr = m_registry->unique<T>(std::forward<Args>(args)...);
+            (m_registry->register_as<Bases>(ptr), ...);
             return ptr;
         }
 
         T* unique(T&& s) &&
         {
-            T* const ptr = new T{std::move(s)};
-            m_registry->m_services.emplace_back(ptr, [](void* p) { delete static_cast<T*>(p); });
-
-            (m_registry->m_map.emplace(get_type_id<Bases>(),
-                 const_cast<void*>(static_cast<const void*>(static_cast<Bases*>(ptr)))),
-                ...);
+            T* const ptr = m_registry->unique<T>(std::move(s));
+            (m_registry->register_as<Bases>(ptr), ...);
             return ptr;
         }
 
         void externally_owned(T* ptr) &&
         {
             m_registry->m_services.emplace_back(const_cast<void*>(static_cast<const void*>(ptr)), nullptr);
-
-            (m_registry->m_map.emplace(get_type_id<Bases>(),
-                 const_cast<void*>(static_cast<const void*>(static_cast<Bases*>(ptr)))),
-                ...);
+            (m_registry->register_as<Bases>(ptr), ...);
         }
 
         template <typename B>
@@ -118,23 +124,14 @@ namespace oblo
         service_registry* m_registry;
     };
 
-    inline service_registry::~service_registry()
-    {
-        for (auto it = m_services.rbegin(); it != m_services.rend(); ++it)
-        {
-            const auto [ptr, destroy] = *it;
-
-            if (destroy && ptr)
-            {
-                destroy(ptr);
-            }
-        }
-    }
-
     template <typename T>
     auto service_registry::add()
     {
-        return service_builder<T>{this};
+        using builder_t = std::conditional_t<std::is_const_v<T>,
+            service_registry::builder<T, T>,
+            service_registry::builder<T, T, std::add_const_t<T>>>;
+
+        return builder_t{this};
     }
 
     template <typename T>

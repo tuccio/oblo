@@ -40,19 +40,19 @@ namespace oblo
         class builder;
 
         template <typename T, typename... Bases, typename... Requires>
-        class builder<T, bases<Bases...>, require<Requires...>>
+        class [[nodiscard]] builder<T, bases<Bases...>, require<Requires...>>
         {
         public:
-            template <typename B>
+            template <typename... B>
             auto as() const&&
             {
-                return builder<T, bases<Bases..., B>, service_registry_builder::require<Requires...>>{m_builder};
+                return builder<T, bases<Bases..., B...>, service_registry_builder::require<Requires...>>{m_builder};
             };
 
-            template <typename R>
+            template <typename... R>
             auto require() const
             {
-                return builder<T, bases<Bases...>, service_registry_builder ::require<Requires..., R>>{m_builder};
+                return builder<T, bases<Bases...>, service_registry_builder ::require<Requires..., R...>>{m_builder};
             };
 
             template <typename F>
@@ -68,31 +68,6 @@ namespace oblo
 
         private:
             service_registry_builder* m_builder{};
-        };
-
-        template <typename T, typename, typename>
-        struct concrete_builder;
-
-        template <typename T, typename... Bases, typename... Requires>
-        class concrete_builder<T, bases<Bases...>, require<Requires...>> : service_registry::builder<T, Bases...>
-        {
-            using base_builder = service_registry::builder<T, Bases...>;
-
-        public:
-            using base_builder::builder;
-
-            template <typename R>
-                requires((std::is_same_v<R, Requires> || ...))
-            R& get() const
-            {
-                return *static_cast<const base_builder&>(*this).m_registry->find<R>();
-            }
-
-            template <typename... Args>
-            void unique(Args&&... args)
-            {
-                static_cast<base_builder&&>(*this).unique(std::forward<Args...>(args)...);
-            }
         };
 
     public:
@@ -115,41 +90,66 @@ namespace oblo
         };
 
         template <typename F, typename T, typename... Requires, typename... Bases>
-        void register_builder(F&& f, const builder<T, bases<Bases...>, require<Requires...>>*)
-        {
-            auto getRequires = []() -> std::span<const type_id>
-            {
-                if constexpr (sizeof...(Requires) > 0)
-                {
-                    static constexpr type_id array[sizeof...(Requires)] = {get_type_id<Requires>()...};
-                    return array;
-                }
-                else
-                {
-                    return {};
-                }
-            };
-
-            auto getBases = []() -> std::span<const type_id>
-            {
-                if constexpr (sizeof...(Bases) > 0)
-                {
-                    static constexpr type_id array[sizeof...(Bases)] = {get_type_id<Bases>()...};
-                    return array;
-                }
-                else
-                {
-                    return {};
-                }
-            };
-
-            m_builders.emplace_back([cb = std::forward<F>(f)](service_registry& registry)
-                { cb(concrete_builder<T, bases<Bases...>, require<Requires...>>{&registry}); },
-                getRequires,
-                getBases);
-        }
+        void register_builder(F&& f, const builder<T, bases<Bases...>, require<Requires...>>*);
 
     private:
         deque<builder_info> m_builders;
     };
+
+    namespace detail
+    {
+        template <typename... T>
+        std::span<const type_id> make_type_span()
+        {
+            if constexpr (sizeof...(T) > 0)
+            {
+                static constexpr type_id array[sizeof...(T)] = {get_type_id<T>()...};
+                return array;
+            }
+            else
+            {
+                return {};
+            }
+        }
+
+    }
+
+    template <typename T>
+    class service_builder
+    {
+        using register_fn = void (*)(T* ptr, service_registry&);
+
+    public:
+        template <typename... Bases>
+        service_builder(service_registry& registry, service_registry_builder::bases<Bases...>) : m_registry{registry}
+        {
+            m_registerBases = +[](T* ptr, service_registry& reg) { (reg.register_as<Bases>(ptr), ...); };
+        }
+
+        template <typename... Args>
+        void unique(Args&&... args)
+        {
+            T* const ptr = m_registry.unique<T>(std::forward<Args>(args)...);
+            m_registerBases(ptr, m_registry);
+        }
+
+        template <typename S>
+        S* find() const
+        {
+            return m_registry.find<S>();
+        }
+
+    private:
+        service_registry& m_registry;
+        register_fn m_registerBases{};
+    };
+
+    template <typename F, typename T, typename... Requires, typename... Bases>
+    void service_registry_builder::register_builder(F&& f, const builder<T, bases<Bases...>, require<Requires...>>*)
+    {
+        m_builders.emplace_back([cb = std::forward<F>(f)](service_registry& registry)
+            { cb(service_builder<T>{registry, bases<Bases...>{}}); },
+            &detail::make_type_span<Requires...>,
+            &detail::make_type_span<Bases...>);
+    }
 }

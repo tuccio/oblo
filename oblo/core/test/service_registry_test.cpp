@@ -28,7 +28,7 @@ namespace oblo
     {
         service_registry_builder builder;
 
-        builder.add<service_foo>().build([](auto&& builder) { builder.unique(service_foo{42}); });
+        builder.add<service_foo>().build([](service_builder<service_foo> builder) { builder.unique(service_foo{42}); });
 
         service_registry registry;
 
@@ -47,19 +47,19 @@ namespace oblo
         service_registry_builder builder;
 
         builder.add<service_bar>().require<const service_foo>().build(
-            [](auto&& builder)
+            [](service_builder<service_bar> builder)
             {
-                const service_foo& foo = builder.get<const service_foo>();
+                const service_foo& foo = *builder.find<const service_foo>();
                 builder.unique(service_bar{foo});
             });
 
-        builder.add<service_foo>().build([](auto&& builder) { builder.unique(service_foo{42}); });
+        builder.add<service_foo>().build([](service_builder<service_foo> builder) { builder.unique(service_foo{42}); });
 
-        builder.add<service_baz>().require<const service_foo>().require<service_bar>().build(
-            [](auto&& builder)
+        builder.add<service_baz>().require<const service_foo, service_bar>().build(
+            [](service_builder<service_baz> builder)
             {
-                const service_foo& foo = builder.get<const service_foo>();
-                service_bar& bar = builder.get<service_bar>();
+                const service_foo& foo = *builder.find<const service_foo>();
+                const service_bar& bar = *builder.find<const service_bar>();
 
                 builder.unique(service_baz{foo, bar});
             });
@@ -94,9 +94,9 @@ namespace oblo
         service_registry_builder builder;
 
         builder.add<service_bar>().require<const service_foo>().build(
-            [](auto&& builder)
+            [](service_builder<service_bar> builder)
             {
-                const service_foo& foo = builder.get<const service_foo>();
+                const service_foo& foo = *builder.find<const service_foo>();
                 builder.unique(service_bar{foo});
             });
 

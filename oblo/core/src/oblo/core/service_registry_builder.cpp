@@ -70,4 +70,15 @@ namespace oblo
 
         return no_error;
     }
+
+    service_registry::~service_registry()
+    {
+        for (auto [ptr, destroy] : reverse_range(m_services))
+        {
+            if (destroy && ptr)
+            {
+                destroy(ptr);
+            }
+        }
+    }
 }
