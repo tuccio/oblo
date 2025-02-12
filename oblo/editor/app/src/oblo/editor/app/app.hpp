@@ -9,7 +9,6 @@
 #include <oblo/runtime/runtime.hpp>
 #include <oblo/runtime/runtime_registry.hpp>
 #include <oblo/thread/job_manager.hpp>
-#include <oblo/vulkan/renderer.hpp>
 
 namespace oblo::editor
 {

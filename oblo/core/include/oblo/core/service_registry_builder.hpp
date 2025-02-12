@@ -127,10 +127,17 @@ namespace oblo
         }
 
         template <typename... Args>
-        void unique(Args&&... args)
+        T* unique(Args&&... args)
         {
             T* const ptr = m_registry.unique<T>(std::forward<Args>(args)...);
             m_registerBases(ptr, m_registry);
+            return ptr;
+        }
+
+        T* externally_owned(T* ptr)
+        {
+            m_registerBases(ptr, m_registry);
+            return ptr;
         }
 
         template <typename S>

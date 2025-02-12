@@ -12,12 +12,6 @@ namespace oblo::reflection
     class reflection_registry;
 }
 
-namespace oblo::vk
-{
-    class renderer;
-    class vulkan_context;
-}
-
 namespace oblo
 {
     class frame_allocator;
@@ -30,7 +24,6 @@ namespace oblo
         const reflection::reflection_registry* reflectionRegistry;
         const property_registry* propertyRegistry;
         const resource_registry* resourceRegistry;
-        vk::renderer& renderer;
         std::span<ecs::world_builder* const> worldBuilders;
         usize frameAllocatorMaxSize{1u << 28};
     };

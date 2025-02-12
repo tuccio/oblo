@@ -410,10 +410,10 @@ namespace oblo::editor
                 .reflectionRegistry = &reflection->get_registry(),
                 .propertyRegistry = &propertyRegistry,
                 .resourceRegistry = &resourceRegistry,
-                .renderer = m_vkEngine->get_renderer(),
                 .worldBuilders = mm.find_services<ecs::world_builder>(),
             }))
         {
+            log::error("Failed to initialize runtime");
             return false;
         }
 

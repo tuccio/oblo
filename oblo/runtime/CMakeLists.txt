@@ -9,7 +9,4 @@ target_link_libraries(
     oblo::properties
     oblo::reflection
     oblo::scene
-    oblo::vk
-    oblo::vk_engine
-    oblo::vk_renderer
 )

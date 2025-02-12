@@ -140,7 +140,10 @@ namespace oblo::vk
 
     draw_registry::draw_registry() = default;
 
-    draw_registry::~draw_registry() = default;
+    draw_registry::~draw_registry()
+    {
+        shutdown();
+    }
 
     void draw_registry::init(vulkan_context& ctx,
         staging_buffer& stagingBuffer,

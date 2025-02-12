@@ -19,12 +19,6 @@
 #include <oblo/scene/utility/ecs_utility.hpp>
 #include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/draw/draw_registry.hpp>
-#include <oblo/vulkan/renderer.hpp>
-#include <oblo/vulkan/resource_manager.hpp>
-#include <oblo/vulkan/single_queue_engine.hpp>
-#include <oblo/vulkan/stateful_command_buffer.hpp>
-#include <oblo/vulkan/texture.hpp>
-#include <oblo/vulkan/vulkan_context.hpp>
 
 namespace oblo
 {
@@ -62,9 +56,6 @@ namespace oblo
         ecs::type_registry typeRegistry;
         ecs::entity_registry entities;
         service_registry services;
-        vk::vulkan_context* vulkanContext;
-        vk::draw_registry drawRegistry;
-        bool isRayTracingEnabled;
     };
 
     runtime::runtime() = default;
@@ -98,25 +89,9 @@ namespace oblo
 
         m_impl->entities.init(&m_impl->typeRegistry);
 
-        // We should probably move this to a world builder in a module if it's necessary
-        auto& vulkanContext = initializer.renderer.get_vulkan_context();
-        m_impl->services.add<vk::vulkan_context>().externally_owned(&vulkanContext);
-        m_impl->services.add<vk::renderer>().externally_owned(&initializer.renderer);
-
-        m_impl->isRayTracingEnabled = initializer.renderer.is_ray_tracing_enabled();
-
-        m_impl->drawRegistry.init(vulkanContext,
-            initializer.renderer.get_staging_buffer(),
-            initializer.renderer.get_string_interner(),
-            m_impl->entities,
-            *initializer.resourceRegistry,
-            initializer.renderer.get_instance_data_type_registry());
-
-        m_impl->services.add<vk::draw_registry>().externally_owned(&m_impl->drawRegistry);
-
+        m_impl->services.add<ecs::entity_registry>().externally_owned(&m_impl->entities);
         m_impl->services.add<const resource_registry>().externally_owned(initializer.resourceRegistry);
         m_impl->services.add<const property_registry>().externally_owned(initializer.propertyRegistry);
-        m_impl->services.add<vk::resource_cache>().externally_owned(&initializer.renderer.get_resource_cache());
 
         service_registry_builder serviceRegistryBuilder;
 
@@ -137,8 +112,6 @@ namespace oblo
 
         m_impl->executor = std::move(*executor);
 
-        m_impl->vulkanContext = &vulkanContext;
-
         return true;
     }
 
@@ -147,7 +120,6 @@ namespace oblo
         if (m_impl)
         {
             m_impl->executor.shutdown();
-            m_impl->drawRegistry.shutdown();
             m_impl.reset();
         }
     }
@@ -164,18 +136,6 @@ namespace oblo
             .frameAllocator = &m_impl->frameAllocator,
             .dt = ctx.dt,
         });
-
-        // Just temporarily here, should probably be in a render graph node
-        auto&& commandBuffer = m_impl->vulkanContext->get_active_command_buffer();
-        m_impl->drawRegistry.flush_uploads(commandBuffer.get());
-
-        m_impl->drawRegistry.generate_mesh_database(m_impl->frameAllocator);
-        m_impl->drawRegistry.generate_draw_calls(m_impl->frameAllocator);
-
-        if (m_impl->isRayTracingEnabled)
-        {
-            m_impl->drawRegistry.generate_raytracing_structures(m_impl->frameAllocator, commandBuffer.get());
-        }
     }
 
     ecs::entity_registry& runtime::get_entity_registry() const

@@ -30,7 +30,6 @@ namespace oblo
 {
     namespace
     {
-
         gpu_material convert(const resource_registry& resources, vk::resource_cache& cache, const material& m)
         {
             gpu_material out{};
