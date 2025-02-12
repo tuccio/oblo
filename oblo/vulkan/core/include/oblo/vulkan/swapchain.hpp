@@ -79,6 +79,11 @@ namespace oblo::vk
             return SwapChainImageCount;
         }
 
+        explicit operator bool() const
+        {
+            return m_swapchain != nullptr;
+        }
+
     private:
         friend bool detail::create_impl(const vulkan_context& ctx,
             VkSurfaceKHR surface,

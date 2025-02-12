@@ -68,7 +68,7 @@ namespace oblo::importers
                 return true;
             }
 
-            void finalize()
+            bool finalize()
             {
                 auto& mm = module_manager::get();
                 auto* reflection = mm.find<reflection::reflection_module>();
@@ -76,6 +76,8 @@ namespace oblo::importers
                 ecs_utility::register_reflected_component_and_tag_types(reflection->get_registry(),
                     nullptr,
                     &m_propertyRegistry);
+
+                return true;
             }
 
             void shutdown()
@@ -117,7 +119,7 @@ namespace oblo::importers
     {
         module_manager mm;
         mm.load<test_module>();
-        mm.finalize();
+        ASSERT_TRUE(mm.finalize());
 
         resource_registry resources;
 

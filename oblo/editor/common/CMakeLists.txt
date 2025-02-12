@@ -9,6 +9,7 @@ target_link_libraries(
     oblo::core
     oblo::ecs
     oblo::editor_core
+    oblo::imgui_app
     imgui::imgui
     PRIVATE
     iconfontcppheaders::iconfontcppheaders

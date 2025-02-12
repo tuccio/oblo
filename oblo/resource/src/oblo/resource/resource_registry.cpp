@@ -1,6 +1,7 @@
 #include <oblo/resource/resource_registry.hpp>
 
 #include <oblo/core/string/string.hpp>
+#include <oblo/core/uuid_generator.hpp>
 #include <oblo/resource/descriptors/resource_type_descriptor.hpp>
 #include <oblo/resource/resource.hpp>
 #include <oblo/resource/resource_ptr.hpp>
@@ -54,6 +55,29 @@ namespace oblo
             std::swap(*it, m_providers.back());
             m_providers.pop_back();
         }
+    }
+
+    resource_ptr<void> resource_registry::instantiate(
+        const uuid& type, function_ref<void(void*)> init, string_view name) const
+    {
+        resource_ptr<void> r;
+
+        const auto it = m_resourceTypes.find(type);
+
+        if (it != m_resourceTypes.end())
+        {
+            auto* const resource = detail::resource_create(&it->second, uuid_system_generator{}.generate(), name, {});
+            r = resource_ptr<void>{resource};
+
+            if (!detail::resource_instantiate(resource))
+            {
+                r.reset();
+            }
+
+            init(resource->data);
+        }
+
+        return r;
     }
 
     resource_ptr<void> resource_registry::get_resource(const uuid& id) const

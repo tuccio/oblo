@@ -1,9 +1,10 @@
-#include <oblo/graphics/systems/scene_renderer.hpp>
+#include <oblo/graphics/services/scene_renderer.hpp>
 
 #include <oblo/core/service_registry.hpp>
 #include <oblo/graphics/systems/graphics_options.hpp>
 #include <oblo/math/aabb.hpp>
 #include <oblo/resource/resource_ptr.hpp>
+#include <oblo/vulkan/data/render_world.hpp>
 #include <oblo/vulkan/data/skybox_settings.hpp>
 #include <oblo/vulkan/templates/graph_templates.hpp>
 
@@ -14,6 +15,8 @@ namespace oblo
         void connect_scene_data_provider_to_scene_view(
             vk::frame_graph& g, h32<vk::frame_graph_subgraph> sceneDataProvider, h32<vk::frame_graph_subgraph> mainView)
         {
+            g.connect(sceneDataProvider, vk::scene_data::OutRenderWorld, mainView, vk::main_view::InRenderWorld);
+
             g.connect(sceneDataProvider, vk::scene_data::OutLightConfig, mainView, vk::main_view::InLightConfig);
             g.connect(sceneDataProvider, vk::scene_data::OutLightBuffer, mainView, vk::main_view::InLightBuffer);
             g.connect(sceneDataProvider, vk::scene_data::OutLights, mainView, vk::main_view::InLights);
@@ -139,7 +142,8 @@ namespace oblo
         h32<vk::frame_graph_subgraph> sg;
     };
 
-    scene_renderer::scene_renderer(vk::frame_graph& frameGraph) : m_frameGraph{frameGraph}
+    scene_renderer::scene_renderer(vk::frame_graph& frameGraph, vk::draw_registry& drawRegistry) :
+        m_frameGraph{frameGraph}, m_drawRegistry{drawRegistry}
     {
         m_nodeRegistry = vk::create_frame_graph_registry();
     }
@@ -156,12 +160,21 @@ namespace oblo
         return m_nodeRegistry;
     }
 
-    void scene_renderer::ensure_setup()
+    void scene_renderer::ensure_setup(ecs::entity_registry& entityRegistry)
     {
         if (!m_sceneDataProvider)
         {
             const auto provider = vk::scene_data::create(m_nodeRegistry);
             m_sceneDataProvider = m_frameGraph.instantiate(provider);
+
+            m_frameGraph
+                .set_input(m_sceneDataProvider,
+                    vk::scene_data::InRenderWorld,
+                    vk::render_world{
+                        .entityRegistry = &entityRegistry,
+                        .drawRegistry = &m_drawRegistry,
+                    })
+                .assert_value();
         }
 
         if (!m_surfelsGI)
@@ -197,8 +210,16 @@ namespace oblo
         m_frameGraph.set_input(m_surfelsGI, vk::surfels_gi::InGIMultiplier, giConfig.multiplier).assert_value();
     }
 
-    void scene_renderer::add_scene_view(h32<vk::frame_graph_subgraph> subgraph)
+    h32<vk::frame_graph_subgraph> scene_renderer::create_scene_view(scene_view_kind kind)
     {
+        const auto mainViewTemplate = vk::main_view::create(m_nodeRegistry,
+            {
+                .withPicking = kind == scene_view_kind::editor,
+            });
+
+        const auto subgraph = m_frameGraph.instantiate(mainViewTemplate);
+        m_frameGraph.disable_all_outputs(subgraph);
+
         m_sceneViews.emplace(subgraph);
 
         if (m_sceneDataProvider)
@@ -210,10 +231,13 @@ namespace oblo
         {
             connect_surfels_gi_to_scene_view(m_frameGraph, m_surfelsGI, subgraph);
         }
+
+        return subgraph;
     }
 
     void scene_renderer::remove_scene_view(h32<vk::frame_graph_subgraph> subgraph)
     {
+        m_frameGraph.remove(subgraph);
         m_sceneViews.erase(subgraph);
     }
 

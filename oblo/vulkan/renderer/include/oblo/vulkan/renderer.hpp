@@ -2,28 +2,21 @@
 
 #include <oblo/core/handle.hpp>
 #include <oblo/core/string/string_interner.hpp>
-#include <oblo/vulkan/draw/draw_registry.hpp>
 #include <oblo/vulkan/draw/pass_manager.hpp>
 #include <oblo/vulkan/draw/resource_cache.hpp>
 #include <oblo/vulkan/draw/texture_registry.hpp>
 #include <oblo/vulkan/graph/frame_graph.hpp>
-#include <oblo/vulkan/renderer_context.hpp>
 #include <oblo/vulkan/staging_buffer.hpp>
-
-#include <memory>
 
 namespace oblo
 {
     class frame_allocator;
 }
 
-namespace oblo::ecs
-{
-    class entity_registry;
-}
-
 namespace oblo::vk
 {
+    class instance_data_type_registry;
+    class resource_manager;
     class single_queue_engine;
 
     class vulkan_context;
@@ -45,7 +38,9 @@ namespace oblo::vk
 
         bool init(const initializer& initializer);
         void shutdown();
-        void update(frame_allocator& frameAllocator);
+
+        void begin_frame();
+        void end_frame();
 
         vulkan_context& get_vulkan_context();
         single_queue_engine& get_engine();
@@ -53,11 +48,11 @@ namespace oblo::vk
         resource_manager& get_resource_manager();
         string_interner& get_string_interner();
         pass_manager& get_pass_manager();
-        draw_registry& get_draw_registry();
         staging_buffer& get_staging_buffer();
         stateful_command_buffer& get_active_command_buffer();
         texture_registry& get_texture_registry();
         resource_cache& get_resource_cache();
+        const instance_data_type_registry& get_instance_data_type_registry() const;
 
         frame_graph& get_frame_graph();
 
@@ -66,8 +61,9 @@ namespace oblo::vk
     private:
         vulkan_context* m_vkContext{nullptr};
 
+        unique_ptr<instance_data_type_registry> m_instanceDataTypeRegistry;
+
         staging_buffer m_stagingBuffer;
-        draw_registry m_drawRegistry;
         texture_registry m_textureRegistry;
         resource_cache m_resourceCache;
 
@@ -85,9 +81,7 @@ namespace oblo::vk
     struct renderer::initializer
     {
         vulkan_context& vkContext;
-        frame_allocator& frameAllocator;
-        ecs::entity_registry& entities;
-        const oblo::resource_registry& resources;
+        bool isRayTracingEnabled;
     };
 
     inline vulkan_context& renderer::get_vulkan_context()
@@ -103,11 +97,6 @@ namespace oblo::vk
     inline pass_manager& renderer::get_pass_manager()
     {
         return m_passManager;
-    }
-
-    inline draw_registry& renderer::get_draw_registry()
-    {
-        return m_drawRegistry;
     }
 
     inline staging_buffer& renderer::get_staging_buffer()

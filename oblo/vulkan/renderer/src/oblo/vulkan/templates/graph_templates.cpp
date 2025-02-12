@@ -12,6 +12,7 @@
 #include <oblo/vulkan/nodes/providers/ecs_entity_set_provider.hpp>
 #include <oblo/vulkan/nodes/providers/instance_table_node.hpp>
 #include <oblo/vulkan/nodes/providers/light_provider.hpp>
+#include <oblo/vulkan/nodes/providers/render_world_provider.hpp>
 #include <oblo/vulkan/nodes/providers/skybox_provider.hpp>
 #include <oblo/vulkan/nodes/providers/view_buffers_node.hpp>
 #include <oblo/vulkan/nodes/providers/view_light_data_provider.hpp>
@@ -21,35 +22,9 @@
 #include <oblo/vulkan/nodes/shadows/shadow_temporal.hpp>
 #include <oblo/vulkan/nodes/surfels/surfel_debug.hpp>
 #include <oblo/vulkan/nodes/surfels/surfel_management.hpp>
-#include <oblo/vulkan/nodes/utility/copy_texture_node.hpp>
 #include <oblo/vulkan/nodes/utility/entity_picking.hpp>
 #include <oblo/vulkan/nodes/visibility/visibility_lighting.hpp>
 #include <oblo/vulkan/nodes/visibility/visibility_pass.hpp>
-
-namespace oblo::vk
-{
-    namespace
-    {
-        template <typename Source>
-        void add_copy_output(vk::frame_graph_template& graph,
-            frame_graph_template_vertex_handle rtSource,
-            frame_graph_template_vertex_handle source,
-            resource<texture>(Source::*from),
-            string_view outputName)
-        {
-            const auto copyFinalTarget = graph.add_node<copy_texture_node>();
-
-            graph.make_output(copyFinalTarget, &copy_texture_node::inTarget, outputName);
-
-            graph.connect(rtSource,
-                &view_buffers_node::inFinalRenderTarget,
-                copyFinalTarget,
-                &copy_texture_node::inTarget);
-
-            graph.connect(source, from, copyFinalTarget, &copy_texture_node::inSource);
-        }
-    }
-}
 
 namespace oblo::vk::main_view
 {
@@ -61,6 +36,7 @@ namespace oblo::vk::main_view
 
         const auto viewBuffers = graph.add_node<view_buffers_node>();
         const auto viewLightData = graph.add_node<view_light_data_provider>();
+        const auto renderWorldData = graph.add_node<render_world_provider>();
         const auto visibilityPass = graph.add_node<visibility_pass>();
         const auto visibilityLighting = graph.add_node<visibility_lighting>();
         const auto visibilityDebug = graph.add_node<visibility_debug>();
@@ -71,7 +47,6 @@ namespace oblo::vk::main_view
         graph.make_input(viewBuffers, &view_buffers_node::inTimeData, InTime);
         graph.make_input(viewBuffers, &view_buffers_node::inInstanceTables, InInstanceTables);
         graph.make_input(viewBuffers, &view_buffers_node::inInstanceBuffers, InInstanceBuffers);
-        graph.make_input(viewBuffers, &view_buffers_node::inFinalRenderTarget, InFinalRenderTarget);
         graph.make_input(viewBuffers, &view_buffers_node::inMeshDatabase, InMeshDatabase);
 
         // View light data node
@@ -83,6 +58,9 @@ namespace oblo::vk::main_view
         graph.make_output(viewBuffers, &view_buffers_node::inResolution, OutResolution);
         graph.make_output(viewBuffers, &view_buffers_node::outCameraBuffer, OutCameraBuffer);
         graph.make_output(viewBuffers, &view_buffers_node::outCameraDataSink, OutCameraDataSink);
+
+        // Render world node
+        graph.make_input(renderWorldData, &render_world_provider::inOutRenderWorld, InRenderWorld);
 
         // Visibility pass outputs, useful for other graphs (e.g shadows)
         graph.make_output(visibilityPass, &visibility_pass::outVisibilityBuffer, OutVisibilityBuffer);
@@ -166,8 +144,8 @@ namespace oblo::vk::main_view
         graph.connect(visibilityLighting, &visibility_lighting::outShadedImage, toneMapping, &tone_mapping_node::inHDR);
 
         // Copies to the output textures
-        add_copy_output(graph, viewBuffers, toneMapping, &tone_mapping_node::outLDR, OutLitImage);
-        add_copy_output(graph, viewBuffers, visibilityDebug, &visibility_debug::outShadedImage, OutDebugImage);
+        graph.make_output(toneMapping, &tone_mapping_node::outLDR, OutLitImage);
+        graph.make_output(visibilityDebug, &visibility_debug::outShadedImage, OutDebugImage);
 
         {
             // Ray-Tracing debug pass outputs HDR, and has its own tone-mapping, which leats to the RT debug output
@@ -178,7 +156,7 @@ namespace oblo::vk::main_view
             const auto rtToneMapping = graph.add_node<tone_mapping_node>();
             graph.connect(raytracingDebug, &raytracing_debug::outShadedImage, rtToneMapping, &tone_mapping_node::inHDR);
 
-            add_copy_output(graph, viewBuffers, rtToneMapping, &tone_mapping_node::outLDR, OutRTDebugImage);
+            graph.make_output(rtToneMapping, &tone_mapping_node::outLDR, OutRTDebugImage);
         }
 
         // Culling + draw call generation
@@ -205,6 +183,11 @@ namespace oblo::vk::main_view
                 frustumCulling,
                 &frustum_culling::inInstanceBuffers);
 
+            graph.connect(renderWorldData,
+                &render_world_provider::inOutRenderWorld,
+                frustumCulling,
+                &frustum_culling::inRenderWorld);
+
             const auto drawCallGenerator = graph.add_node<draw_call_generator>();
 
             // We need to read mesh handles from instance data to generate draw calls
@@ -218,6 +201,11 @@ namespace oblo::vk::main_view
                 &view_buffers_node::inInstanceBuffers,
                 drawCallGenerator,
                 &draw_call_generator::inInstanceBuffers);
+
+            graph.connect(renderWorldData,
+                &render_world_provider::inOutRenderWorld,
+                drawCallGenerator,
+                &draw_call_generator::inRenderWorld);
 
             // Connect the draw data
 
@@ -390,7 +378,7 @@ namespace oblo::vk::main_view
 
                     graph.connect(toneMapping, &tone_mapping_node::outLDR, surfelsDebug, &surfel_debug::inImage);
 
-                    add_copy_output(graph, viewBuffers, surfelsDebug, &surfel_debug::outDebugImage, outputs[u32(mode)]);
+                    graph.make_output(surfelsDebug, &surfel_debug::outDebugImage, outputs[u32(mode)]);
                 }
             }
         }
@@ -414,13 +402,26 @@ namespace oblo::vk::scene_data
         graph.make_output(lightProvider, &light_provider::outLightData, OutLightBuffer);
         graph.make_output(lightProvider, &light_provider::inOutLights, OutLights);
 
+        // Render world node
+        const auto renderWorldData = graph.add_node<render_world_provider>();
+        graph.make_input(renderWorldData, &render_world_provider::inOutRenderWorld, InRenderWorld);
+        graph.make_output(renderWorldData, &render_world_provider::inOutRenderWorld, OutRenderWorld);
+
         const auto instanceTableNode = graph.add_node<instance_table_node>();
         graph.make_output(instanceTableNode, &instance_table_node::outInstanceTables, OutInstanceTables);
         graph.make_output(instanceTableNode, &instance_table_node::outInstanceBuffers, OutInstanceBuffers);
         graph.make_output(instanceTableNode, &instance_table_node::outMeshDatabase, OutMeshDatabase);
+        graph.connect(renderWorldData,
+            &render_world_provider::inOutRenderWorld,
+            instanceTableNode,
+            &instance_table_node::inRenderWorld);
 
         const auto ecsEntitySetProvider = graph.add_node<ecs_entity_set_provider>();
         graph.make_output(ecsEntitySetProvider, &ecs_entity_set_provider::outEntitySet, OutEcsEntitySetBuffer);
+        graph.connect(renderWorldData,
+            &render_world_provider::inOutRenderWorld,
+            ecsEntitySetProvider,
+            &ecs_entity_set_provider::inRenderWorld);
 
         const auto skyboxProvider = graph.add_node<skybox_provider>();
         graph.make_input(skyboxProvider, &skybox_provider::inSkyboxResource, InSkyboxResource);
@@ -508,6 +509,131 @@ namespace oblo::vk::raytraced_shadow_view
     type_id get_main_view_barrier_target()
     {
         return get_type_id<visibility_lighting>();
+    }
+}
+
+namespace oblo::vk::swapchain_graph
+{
+    struct swapchain_image_acquire
+    {
+        data<h32<texture>> inSwapchainImageTexture;
+        resource<texture> outSwapchainImageResource;
+
+        void build(const frame_graph_build_context& ctx)
+        {
+            const auto texture = ctx.access(inSwapchainImageTexture);
+            ctx.register_texture(outSwapchainImageResource, texture);
+        }
+    };
+
+    struct swapchain_image_present
+    {
+        h32<transfer_pass_instance> blitPass;
+        h32<empty_pass_instance> emptyPass;
+
+        resource<texture> inRenderedImage;
+        resource<texture> inSwapchainImage;
+
+        void build(const frame_graph_build_context& ctx)
+        {
+            if (ctx.has_source(inRenderedImage) && inRenderedImage != inSwapchainImage)
+            {
+                blitPass = ctx.transfer_pass();
+                ctx.acquire(inRenderedImage, texture_usage::transfer_source);
+                ctx.acquire(inSwapchainImage, texture_usage::transfer_destination);
+            }
+            else
+            {
+                blitPass = {};
+            }
+
+            emptyPass = ctx.empty_pass();
+            ctx.acquire(inSwapchainImage, texture_usage::present);
+        }
+
+        void execute(const frame_graph_execute_context& ctx)
+        {
+            if (blitPass && ctx.begin_pass(blitPass))
+            {
+                const texture src = ctx.access(inRenderedImage);
+                const texture dst = ctx.access(inSwapchainImage);
+
+                OBLO_ASSERT(src.image);
+                OBLO_ASSERT(dst.image);
+
+                VkImageBlit regions[1] = {
+                    {
+                        .srcSubresource =
+                            {
+                                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                                .layerCount = 1,
+                            },
+                        .srcOffsets =
+                            {
+                                {0, 0, 0},
+                                {
+                                    i32(src.initializer.extent.width),
+                                    i32(src.initializer.extent.height),
+                                    i32(src.initializer.extent.depth),
+                                },
+                            },
+                        .dstSubresource =
+                            {
+                                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                                .layerCount = 1,
+                            },
+                        .dstOffsets =
+                            {
+                                {0, 0, 0},
+                                {
+                                    i32(dst.initializer.extent.width),
+                                    i32(dst.initializer.extent.height),
+                                    i32(dst.initializer.extent.depth),
+                                },
+                            },
+                    },
+                };
+
+                vkCmdBlitImage(ctx.get_command_buffer(),
+                    src.image,
+                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    dst.image,
+                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    1,
+                    regions,
+                    VK_FILTER_LINEAR);
+
+                ctx.end_pass();
+            }
+
+            if (ctx.begin_pass(emptyPass))
+            {
+                ctx.end_pass();
+            }
+        }
+    };
+
+    frame_graph_template create(const frame_graph_registry& registry)
+    {
+        vk::frame_graph_template graph;
+
+        graph.init(registry);
+
+        const auto acquire = graph.add_node<swapchain_image_acquire>();
+        const auto present = graph.add_node<swapchain_image_present>();
+
+        graph.make_input(acquire, &swapchain_image_acquire::inSwapchainImageTexture, InAcquiredImage);
+        graph.make_output(acquire, &swapchain_image_acquire::outSwapchainImageResource, OutAcquiredImage);
+
+        graph.make_input(present, &swapchain_image_present::inRenderedImage, InRenderedImage);
+        graph.make_output(present, &swapchain_image_present::inSwapchainImage, OutPresentedImage);
+
+        graph.connect(acquire,
+            &swapchain_image_acquire::outSwapchainImageResource,
+            present,
+            &swapchain_image_present::inSwapchainImage);
+
+        return graph;
     }
 }
 
@@ -669,9 +795,9 @@ namespace oblo::vk
         frame_graph_registry registry;
 
         // Main view
-        registry.register_node<copy_texture_node>();
         registry.register_node<view_buffers_node>();
         registry.register_node<view_light_data_provider>();
+        registry.register_node<render_world_provider>();
         registry.register_node<frustum_culling>();
         registry.register_node<visibility_pass>();
         registry.register_node<visibility_debug>();
@@ -707,6 +833,10 @@ namespace oblo::vk
         registry.register_node<surfel_accumulate_raycount>();
         registry.register_node<surfel_raytracing>();
         registry.register_node<surfel_debug>();
+
+        // Swapchain
+        registry.register_node<swapchain_graph::swapchain_image_acquire>();
+        registry.register_node<swapchain_graph::swapchain_image_present>();
 
         return registry;
     }

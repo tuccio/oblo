@@ -40,6 +40,21 @@ namespace oblo::detail
         }
     }
 
+    bool resource_instantiate(resource* resource)
+    {
+        resource_load_state expected{resource_load_state::unloaded};
+
+        const bool instantiate = resource->loadState.compare_exchange_strong(expected, resource_load_state::loaded);
+
+        if (instantiate)
+        {
+            OBLO_ASSERT(!resource->data);
+            resource->data = resource->descriptor->create();
+        }
+
+        return instantiate;
+    }
+
     void resource_acquire(resource* resource)
     {
         resource->counter.fetch_add(1);

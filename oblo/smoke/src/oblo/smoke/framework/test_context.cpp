@@ -21,6 +21,11 @@ namespace oblo::smoke
         return *m_impl->entities;
     }
 
+    ecs::entity test_context::get_camera_entity() const
+    {
+        return m_impl->cameraEntity;
+    }
+
     std::suspend_always test_context::next_frame() const
     {
         return {};

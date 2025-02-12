@@ -135,10 +135,7 @@ namespace oblo::ecs
         struct tags_storage;
         struct entity_data;
 
-        using entities_map = h32_flat_pool_dense_map<entity_handle, entity_data>;
-
-    public:
-        using entity_extractor_type = entities_map::extractor_type;
+        using entities_map = h32_flat_pool_dense_map<entity_handle, entity_data, entity_generation_bits>;
 
     private:
         const archetype_storage* find_first_match(const archetype_storage* begin,

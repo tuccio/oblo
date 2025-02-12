@@ -1,22 +1,18 @@
-# SDL + Vulkan
+# SDL2
 
 find_package(ImGui REQUIRED)
-find_package(VulkanHeaders REQUIRED)
-find_package(Vulkan REQUIRED)
 find_package(SDL2 REQUIRED)
 
-add_library(imgui_sdl_vk sdl2/src/imgui_impl_sdl2.cpp vulkan/src/imgui_impl_vulkan.cpp)
-target_include_directories(imgui_sdl_vk PUBLIC sdl2/include vulkan/include)
+add_library(imgui_backend_sdl2 sdl2/src/imgui_impl_sdl2.cpp)
+target_include_directories(imgui_backend_sdl2 PUBLIC sdl2/include)
 
 target_link_libraries(
-    imgui_sdl_vk
+    imgui_backend_sdl2
     imgui::imgui
-    Vulkan::Headers
-    Vulkan::Vulkan
     SDL2::SDL2
 )
 
-set_target_properties(imgui_sdl_vk PROPERTIES FOLDER ${OBLO_FOLDER_THIRDPARTY})
+set_target_properties(imgui_backend_sdl2 PROPERTIES FOLDER ${OBLO_FOLDER_THIRDPARTY})
 
-target_compile_definitions(imgui_sdl_vk INTERFACE "IMGUI_IMPL_API=")
-target_compile_definitions(imgui_sdl_vk PRIVATE "IMGUI_IMPL_API=")
+target_compile_definitions(imgui_backend_sdl2 INTERFACE "IMGUI_IMPL_API=")
+target_compile_definitions(imgui_backend_sdl2 PRIVATE "IMGUI_IMPL_API=")

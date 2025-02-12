@@ -46,6 +46,8 @@ namespace oblo::vk
         h32<transient_texture_resource> add_transient_texture(
             const image_initializer& initializer, lifetime_range range, h32<stable_texture_resource> stableId);
 
+        h32<transient_texture_resource> add_external_texture(const texture& texture);
+
         h32<transient_buffer_resource> add_transient_buffer(
             u32 size, VkBufferUsageFlags usage, h32<stable_buffer_resource> stableId);
 

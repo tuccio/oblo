@@ -25,8 +25,6 @@ namespace oblo::vk
         resource<buffer> inInstanceTables;
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
-        data<copy_texture_info> inFinalRenderTarget;
-
         data_sink<camera_buffer> outCameraDataSink;
 
         void build(const frame_graph_build_context& ctx)

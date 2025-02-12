@@ -11,7 +11,7 @@ namespace oblo
 
         [[nodiscard]] virtual bool startup(const module_initializer& initializer) = 0;
 
-        virtual void finalize() = 0;
+        [[nodiscard]] virtual bool finalize() = 0;
 
         virtual void shutdown() = 0;
     };

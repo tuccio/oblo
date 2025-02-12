@@ -9,6 +9,6 @@ namespace oblo
     public:
         SCENE_EDITOR_API bool startup(const module_initializer& initializer) override;
         SCENE_EDITOR_API void shutdown() override;
-        SCENE_EDITOR_API void finalize() override;
+        SCENE_EDITOR_API bool finalize() override;
     };
 }

@@ -17,7 +17,10 @@ namespace oblo::vk
         glslang::FinalizeProcess();
     }
 
-    void compiler_module::finalize() {}
+    bool compiler_module::finalize()
+    {
+        return true;
+    }
 
     unique_ptr<shader_compiler> compiler_module::make_glslc_compiler(cstring_view workDir) const
     {

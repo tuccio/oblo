@@ -9,7 +9,7 @@
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/ecs/utility/registration.hpp>
 #include <oblo/graphics/components/light_component.hpp>
-#include <oblo/graphics/systems/scene_renderer.hpp>
+#include <oblo/graphics/services/scene_renderer.hpp>
 #include <oblo/math/aabb.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/modules/module_manager.hpp>
@@ -49,7 +49,7 @@ namespace oblo
 
         m_giOptions.init(*m_optionsManager);
 
-        m_sceneRenderer->ensure_setup();
+        m_sceneRenderer->ensure_setup(*ctx.entities);
 
         // Hacky setup for directional light
         const auto e = ecs_utility::create_named_physical_entity<light_component, transient_tag>(*ctx.entities,
@@ -166,7 +166,13 @@ namespace oblo
                 {
                     if (!m_sceneRenderer->is_scene_view(scene))
                     {
-                        shadow.shadowGraphs.erase(scene);
+                        auto* const shadowGraph = shadow.shadowGraphs.try_find(scene);
+
+                        if (shadowGraph)
+                        {
+                            frameGraph.remove(*shadowGraph);
+                            shadow.shadowGraphs.erase(scene);
+                        }
                     }
                 }
 

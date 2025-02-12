@@ -202,6 +202,11 @@ namespace oblo
             return m_denseKey.size();
         }
 
+        u32 size32() const
+        {
+            return m_denseKey.size32();
+        }
+
         bool empty() const
         {
             return size() == 0;

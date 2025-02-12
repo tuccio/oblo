@@ -77,7 +77,7 @@ namespace oblo::vk
                 outBarrier.dstStageMask = deduce_stage_mask(newPass);
                 break;
 
-            case texture_usage::download:
+            case texture_usage::transfer_source:
                 OBLO_ASSERT(newPass == pass_kind::transfer);
                 outBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
                 outBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
@@ -89,6 +89,11 @@ namespace oblo::vk
                 outBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
                 outBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
                 outBarrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+                break;
+
+            case texture_usage::present:
+                outBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+                outBarrier.dstStageMask = VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
                 break;
 
             default:
@@ -155,7 +160,7 @@ namespace oblo::vk
     bool image_layout_tracker::add_transition(
         VkImageMemoryBarrier2& outBarrier, handle_type handle, pass_kind pass, texture_usage usage)
     {
-        OBLO_ASSERT(pass != pass_kind::none);
+        OBLO_ASSERT(pass != pass_kind::none || usage == texture_usage::present);
 
         auto* const state = m_state.try_find(handle);
         OBLO_ASSERT(state);

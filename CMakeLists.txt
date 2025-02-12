@@ -20,7 +20,7 @@ find_package(GTest REQUIRED)
 # Setup 3rd parties built from source
 add_subdirectory(3rdparty)
 
-add_library(imgui::sdl_vk ALIAS imgui_sdl_vk)
+add_library(imgui::backend_sdl2 ALIAS imgui_backend_sdl2)
 
 # Finally setup our projects
 add_subdirectory(oblo)

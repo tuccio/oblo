@@ -12,7 +12,11 @@ namespace oblo::log
     public:
         LOG_API bool startup(const module_initializer& initializer) override;
         LOG_API void shutdown() override;
-        void finalize() override {}
+
+        bool finalize() override
+        {
+            return true;
+        }
 
         LOG_API void add_sink(unique_ptr<log_sink> sink);
     };

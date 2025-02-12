@@ -1,17 +1,23 @@
 #include <oblo/smoke/framework/test_fixture.hpp>
 
+#include <oblo/app/graphics_app.hpp>
+#include <oblo/app/window_event_processor.hpp>
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/importers/importers_module.hpp>
 #include <oblo/asset/utility/registration.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/platform/shared_library.hpp>
 #include <oblo/core/platform/shell.hpp>
+#include <oblo/core/service_registry.hpp>
 #include <oblo/core/time/clock.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
+#include <oblo/graphics/services/scene_renderer.hpp>
+#include <oblo/input/input_queue.hpp>
 #include <oblo/input/utility/fps_camera_controller.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/math/quaternion.hpp>
+#include <oblo/math/vec2u.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/options/options_module.hpp>
@@ -22,7 +28,6 @@
 #include <oblo/runtime/runtime.hpp>
 #include <oblo/runtime/runtime_module.hpp>
 #include <oblo/runtime/runtime_registry.hpp>
-#include <oblo/sandbox/sandbox_app.hpp>
 #include <oblo/scene/components/position_component.hpp>
 #include <oblo/scene/components/rotation_component.hpp>
 #include <oblo/scene/scene_module.hpp>
@@ -32,9 +37,6 @@
 #include <oblo/smoke/framework/test_context_impl.hpp>
 #include <oblo/smoke/framework/test_task.hpp>
 #include <oblo/thread/job_manager.hpp>
-#include <oblo/vulkan/required_features.hpp>
-
-#include <imgui.h>
 
 #include <renderdoc_app.h>
 
@@ -50,66 +52,33 @@ namespace oblo::smoke
             runtime_registry runtimeRegistry;
             runtime runtime;
             ecs::entity cameraEntity{};
-            const input_queue* inputQueue{};
+            input_queue inputQueue{};
+            scene_renderer* sceneRenderer{};
             test_context_impl* testCtx{};
 
-            std::span<const char* const> get_required_instance_extensions() const
-            {
-                return module_manager::get()
-                    .find<runtime_module>()
-                    ->get_required_renderer_features()
-                    .instanceExtensions;
-            }
+            graphics_app graphicsApp;
 
-            VkPhysicalDeviceFeatures2 get_required_physical_device_features() const
-            {
-                return module_manager::get()
-                    .find<runtime_module>()
-                    ->get_required_renderer_features()
-                    .physicalDeviceFeatures;
-            }
-
-            void* get_required_device_features() const
-            {
-                return module_manager::get()
-                    .find<runtime_module>()
-                    ->get_required_renderer_features()
-                    .deviceFeaturesChain;
-            }
-
-            std::span<const char* const> get_required_device_extensions() const
-            {
-                return module_manager::get().find<runtime_module>()->get_required_renderer_features().deviceExtensions;
-            }
-
-            bool init()
+            bool init(cstring_view name)
             {
                 auto& mm = module_manager::get();
 
                 mm.load<options_module>();
-                mm.load<runtime_module>();
-                mm.load<reflection::reflection_module>();
+                auto* const runtimeModule = mm.load<runtime_module>();
+                auto* const reflectionModule = mm.load<reflection::reflection_module>();
                 mm.load<scene_module>();
                 mm.load<importers::importers_module>();
 
-                mm.finalize();
+                if (!mm.finalize())
+                {
+                    return false;
+                }
 
-                return true;
-            }
-
-            bool startup(const vk::sandbox_startup_context& ctx)
-            {
                 filesystem::remove_all("./test/smoke/").assert_value();
 
                 if (!assetRegistry.initialize("./test/smoke/assets", "./test/smoke/artifacts", "./test/smoke/sources"))
                 {
                     return false;
                 }
-
-                auto& mm = module_manager::get();
-
-                auto* const runtimeModule = mm.find<runtime_module>();
-                auto* const reflectionModule = mm.find<reflection::reflection_module>();
 
                 runtimeRegistry = runtimeModule->create_runtime_registry();
 
@@ -127,85 +96,79 @@ namespace oblo::smoke
                         .reflectionRegistry = &reflectionModule->get_registry(),
                         .propertyRegistry = &propertyRegistry,
                         .resourceRegistry = &resourceRegistry,
-                        .vulkanContext = ctx.vkContext,
                         .worldBuilders = mm.find_services<ecs::world_builder>(),
                     }))
                 {
                     return false;
                 }
 
-                inputQueue = ctx.inputQueue;
+                sceneRenderer = runtime.get_service_registry().find<scene_renderer>();
+
+                if (!sceneRenderer)
+                {
+                    return false;
+                }
+
+                sceneRenderer->ensure_setup(runtime.get_entity_registry());
+
+                if (!graphicsApp.init({.title = name}))
+                {
+                    return false;
+                }
 
                 return true;
             }
 
-            void shutdown(const vk::sandbox_shutdown_context&)
+            void shutdown()
             {
+                graphicsApp.shutdown();
+
                 runtime.shutdown();
             }
 
-            void update(const vk::sandbox_render_context& ctx)
+            bool run_frame()
             {
+                const auto [w, h] = graphicsApp.get_main_window().get_size();
+
+                {
+                    auto& viewport = runtime.get_entity_registry().get<viewport_component>(cameraEntity);
+
+                    viewport.width = w;
+                    viewport.height = h;
+                }
+
                 handle_renderdoc_captures();
 
                 assetRegistry.update();
                 runtimeRegistry.get_resource_registry().update();
 
-                auto& viewport = runtime.get_entity_registry().get<viewport_component>(cameraEntity);
-                viewport.width = ctx.width;
-                viewport.height = ctx.height;
+                inputQueue.clear();
+
+                if (!graphicsApp.process_events())
+                {
+                    return false;
+                }
+
+                while (!graphicsApp.acquire_images())
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds{10});
+                }
 
                 runtime.update({.dt = FixedTime});
 
-                auto& resourceManager = ctx.vkContext->get_resource_manager();
-                auto& commandBuffer = ctx.vkContext->get_active_command_buffer();
-
-                commandBuffer.add_pipeline_barrier(resourceManager,
-                    ctx.swapchainTexture,
-                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
-                constexpr VkClearColorValue black{};
-
-                const auto& texture = resourceManager.get(ctx.swapchainTexture);
-
-                const VkImageSubresourceRange range{
-                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                    .baseMipLevel = 0,
-                    .levelCount = 1,
-                    .baseArrayLayer = 0,
-                    .layerCount = 1,
-                };
-
-                vkCmdClearColorImage(commandBuffer.get(),
-                    texture.image,
-                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                    &black,
-                    1,
-                    &range);
-            }
-
-            void update_imgui(const vk::sandbox_update_imgui_context&)
-            {
-                if (cameraEntity)
                 {
                     auto& viewport = runtime.get_entity_registry().get<viewport_component>(cameraEntity);
-
-                    if (viewport.imageId)
-                    {
-                        const auto viewportSize = ImVec2{f32(viewport.width), f32(viewport.height)};
-
-                        ImGui::SetNextWindowPos({});
-                        ImGui::SetNextWindowSize(viewportSize);
-
-                        if (bool open{true}; ImGui::Begin("fullscreen",
-                                &open,
-                                ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground))
-                        {
-                            ImGui::Image(viewport.imageId, viewportSize);
-                            ImGui::End();
-                        }
-                    }
+                    graphicsApp.set_output(viewport.graph, get_viewport_mode_graph_output(viewport.mode));
                 }
+
+                graphicsApp.present();
+
+                return true;
+            }
+
+            void set_input_processing(bool enable)
+            {
+                graphicsApp.set_input_queue(enable ? &inputQueue : nullptr);
             }
 
             bool isRenderDocFirstUsage{true};
@@ -248,7 +211,7 @@ namespace oblo::smoke
     {
         job_manager jobManager;
         oblo::module_manager moduleManager;
-        vk::sandbox_app<test_app> app;
+        test_app app;
 
         impl()
         {
@@ -271,12 +234,7 @@ namespace oblo::smoke
         m_impl = std::make_unique<impl>();
         auto& app = m_impl->app;
 
-        app.set_config({
-            .appName = cfg.name,
-            .appMainWindowTitle = cfg.name,
-        });
-
-        if (!app.init())
+        if (!app.init(cfg.name))
         {
             return false;
         }
@@ -295,7 +253,10 @@ namespace oblo::smoke
         camera.far = 1000.f;
         camera.fovy = 75_deg;
 
-        return true;
+        auto& viewport = entities.get<viewport_component>(app.cameraEntity);
+        viewport.graph = app.sceneRenderer->create_scene_view(scene_view_kind::runtime);
+
+        return bool{viewport.graph};
     }
 
     bool test_fixture::run_test(test& test)
@@ -306,12 +267,12 @@ namespace oblo::smoke
             .entities = &app.runtime.get_entity_registry(),
             .assetRegistry = &app.assetRegistry,
             .resourceRegistry = &app.runtimeRegistry.get_resource_registry(),
+            .cameraEntity = app.cameraEntity,
         };
 
         const test_context ctx{&impl};
         const auto task = test.run(ctx);
 
-        app.set_input_processing(false);
         app.testCtx = &impl;
 
         bool shouldQuit{false};
@@ -363,10 +324,12 @@ namespace oblo::smoke
                 entities.get<position_component, rotation_component, viewport_component>(app.cameraEntity);
 
             controller.set_screen_size({f32(viewport.width), f32(viewport.height)});
-            controller.process(app.inputQueue->get_events(), dt);
+            controller.process(app.inputQueue.get_events(), dt);
 
             position.value = controller.get_position();
             rotation.value = controller.get_orientation();
+
+            entities.notify(app.cameraEntity);
         }
     }
 }

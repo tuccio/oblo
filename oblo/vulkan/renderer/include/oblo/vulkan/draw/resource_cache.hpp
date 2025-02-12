@@ -9,8 +9,6 @@
 
 namespace oblo
 {
-    template <typename T>
-    struct resource_ref;
 
     template <typename T>
     class resource_ptr;
@@ -24,7 +22,6 @@ namespace oblo::vk
     class texture_registry;
     struct resident_texture;
 
-    using texture_resource_ref = resource_ref<oblo::texture>;
     using texture_resource_ptr = resource_ptr<oblo::texture>;
 
     class resource_cache
@@ -37,11 +34,10 @@ namespace oblo::vk
         resource_cache& operator=(resource_cache&&) noexcept = delete;
         ~resource_cache();
 
-        void init(const resource_registry& resources, texture_registry& textureRegistry);
+        void init(texture_registry& textureRegistry);
 
         void update();
 
-        h32<resident_texture> get_or_add(const texture_resource_ref& t);
         h32<resident_texture> get_or_add(const texture_resource_ptr& t);
 
     private:
@@ -49,7 +45,6 @@ namespace oblo::vk
         struct cached_texture;
 
     private:
-        const resource_registry* m_resources{};
         texture_registry* m_textureRegistry{};
         std::unordered_map<uuid, cached_texture> m_textures;
         deque<async_load> m_asyncLoads;

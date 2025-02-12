@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/vulkan/data/render_world.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 
@@ -7,6 +8,7 @@ namespace oblo::vk
 {
     struct ecs_entity_set_provider
     {
+        data<render_world> inRenderWorld;
         resource<buffer> outEntitySet;
         h32<transfer_pass_instance> uploadPass;
 

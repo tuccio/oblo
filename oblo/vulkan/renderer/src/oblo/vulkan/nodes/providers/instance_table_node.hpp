@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/vulkan/data/render_world.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 
@@ -22,6 +23,7 @@ namespace oblo::vk
         resource<buffer> outMeshDatabase;
         resource<buffer> outInstanceTables;
         data<instance_data_table_buffers_span> outInstanceBuffers;
+        data<render_world> inRenderWorld;
 
         std::span<instance_data_table> instanceTableArray;
 

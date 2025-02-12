@@ -2,8 +2,7 @@
 
 #include <oblo/core/flat_dense_map.hpp>
 #include <oblo/ecs/forward.hpp>
-
-#include <vulkan/vulkan.h>
+#include <oblo/ecs/utility/entity_map.hpp>
 
 namespace oblo::vk
 {
@@ -33,18 +32,10 @@ namespace oblo
         struct render_graph_data;
 
     private:
-        void create_vulkan_objects();
-
-        void destroy_graph_vulkan_objects(render_graph_data& renderGraphData);
-
-    private:
         vk::renderer* m_renderer{};
         scene_renderer* m_sceneRenderer{};
-        VkDescriptorPool m_descriptorPool{};
-        VkDescriptorSetLayout m_descriptorSetLayout{};
-        VkSampler m_sampler{};
         u32 m_frameIndex{};
 
-        flat_dense_map<ecs::entity, render_graph_data> m_renderGraphs;
+        ecs::entity_map<render_graph_data> m_renderGraphs;
     };
 };

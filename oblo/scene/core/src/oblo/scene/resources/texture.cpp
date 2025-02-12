@@ -29,6 +29,21 @@ namespace oblo
         }
     }
 
+    texture_desc texture_desc::make_2d(u32 width, u32 height, texture_format format)
+    {
+        return {
+            .vkFormat = format,
+            .width = width,
+            .height = height,
+            .depth = 1,
+            .dimensions = 2,
+            .numLevels = 1,
+            .numLayers = 1,
+            .numFaces = 1,
+            .isArray = false,
+        };
+    }
+
     texture::texture(texture&& other) noexcept
     {
         m_impl = other.m_impl;

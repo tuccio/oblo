@@ -17,7 +17,6 @@
 #include <oblo/vulkan/graph/frame_graph_impl.hpp>
 #include <oblo/vulkan/graph/frame_graph_template.hpp>
 #include <oblo/vulkan/renderer.hpp>
-#include <oblo/vulkan/stateful_command_buffer.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
 
 #include <iosfwd>
@@ -554,6 +553,9 @@ namespace oblo::vk
             ps.transientTexture = {};
         }
 
+        // This is used to register external textures (e.g. the swapchain images)
+        m_impl->resourceManager = &renderer.get_resource_manager();
+
         // The two calls are from a time where we managed multiple small graphs sharing the resource pool, rather than 1
         // big graph owning it.
         m_impl->resourcePool.begin_build();
@@ -600,6 +602,8 @@ namespace oblo::vk
 
             textureRegistry.set_texture(texture.resident, t.view, image_layout_tracker::deduce_layout(texture.usage));
         }
+
+        m_impl->resourceManager = {};
     }
 
     void frame_graph::execute(renderer& renderer)
@@ -1362,6 +1366,8 @@ namespace oblo::vk
         bufferDownloads.clear();
 
         ++frameCounter;
+
+        globalTLAS = {};
     }
 
     void frame_graph_impl::free_pin_storage(const frame_graph_pin_storage& storage, bool isFrameAllocated)

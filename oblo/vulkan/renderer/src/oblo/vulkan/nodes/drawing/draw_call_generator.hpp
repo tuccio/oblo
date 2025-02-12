@@ -4,6 +4,7 @@
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 #include <oblo/vulkan/nodes/providers/instance_table_node.hpp>
+#include <oblo/vulkan/nodes/providers/render_world_provider.hpp>
 
 namespace oblo::vk
 {
@@ -15,6 +16,7 @@ namespace oblo::vk
         h32<compute_pass_instance> drawCallGeneratorPassInstance;
 
         data<std::span<draw_buffer_data>> inDrawBufferData;
+        data<render_world> inRenderWorld;
 
         data<std::span<resource<buffer>>> outDrawCallBuffer;
 

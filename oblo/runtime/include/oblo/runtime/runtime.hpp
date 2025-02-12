@@ -12,24 +12,18 @@ namespace oblo::reflection
     class reflection_registry;
 }
 
-namespace oblo::vk
-{
-    class renderer;
-    class vulkan_context;
-}
-
 namespace oblo
 {
     class frame_allocator;
     class property_registry;
     class resource_registry;
+    class service_registry;
 
     struct runtime_initializer
     {
         const reflection::reflection_registry* reflectionRegistry;
         const property_registry* propertyRegistry;
         const resource_registry* resourceRegistry;
-        vk::vulkan_context* vulkanContext;
         std::span<ecs::world_builder* const> worldBuilders;
         usize frameAllocatorMaxSize{1u << 28};
     };
@@ -56,9 +50,8 @@ namespace oblo
 
         RUNTIME_API void update(const runtime_update_context& ctx);
 
-        RUNTIME_API vk::renderer& get_renderer() const;
-
         RUNTIME_API ecs::entity_registry& get_entity_registry() const;
+        RUNTIME_API const service_registry& get_service_registry() const;
 
     private:
         struct impl;

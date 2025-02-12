@@ -4,17 +4,19 @@
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/uuid.hpp>
+#include <oblo/scene/resources/texture_format.hpp>
 #include <oblo/scene/resources/traits.hpp>
 
 #include <span>
 
 namespace oblo
 {
-    enum class texture_format : u32;
     struct vec2u;
 
     struct texture_desc
     {
+        static SCENE_API texture_desc make_2d(u32 width, u32 height, texture_format format);
+
         texture_format vkFormat;
         u32 width;
         u32 height;

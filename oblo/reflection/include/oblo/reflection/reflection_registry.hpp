@@ -1,6 +1,6 @@
 #pragma once
 
-#include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/deque.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/unique_ptr.hpp>
@@ -63,7 +63,10 @@ namespace oblo::reflection
         type_id get_underlying_type(enum_handle enumId) const;
 
         template <typename T>
-        void find_by_tag(dynamic_array<type_handle>& types) const;
+        void find_by_tag(deque<type_handle>& types) const;
+
+        template <typename T>
+        void find_by_concept(deque<type_handle>& types) const;
 
         template <typename T>
         std::optional<T> find_concept(type_handle typeId) const;
@@ -71,7 +74,8 @@ namespace oblo::reflection
         bool is_fundamental(type_handle typeId) const;
 
     private:
-        void find_by_tag(const type_id& tag, dynamic_array<type_handle>& types) const;
+        void find_by_tag(const type_id& tag, deque<type_handle>& types) const;
+        void find_by_concept(const type_id& type, deque<type_handle>& types) const;
         const void* find_concept(type_handle typeId, const type_id& type) const;
 
     private:
@@ -100,9 +104,15 @@ namespace oblo::reflection
     }
 
     template <typename T>
-    void reflection_registry::find_by_tag(dynamic_array<type_handle>& types) const
+    void reflection_registry::find_by_tag(deque<type_handle>& types) const
     {
         find_by_tag(get_type_id<tag_type<T>>(), types);
+    }
+
+    template <typename T>
+    void reflection_registry::find_by_concept(deque<type_handle>& types) const
+    {
+        find_by_concept(get_type_id<concept_type<T>>(), types);
     }
 
     template <typename T>

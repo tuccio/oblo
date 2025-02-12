@@ -27,16 +27,10 @@ namespace oblo
 
     template <typename E, u32 Size>
     struct flags;
-
-    namespace ecs
-    {
-        class entity_registry;
-    }
 }
 
 namespace oblo::vk
 {
-    class draw_registry;
     class renderer;
     class resource_manager;
     class resource_pool;
@@ -82,8 +76,9 @@ namespace oblo::vk
         shader_read,
         storage_read,
         storage_write,
-        download,
+        transfer_source,
         transfer_destination,
+        present,
     };
 
     enum class buffer_usage : u8
@@ -95,6 +90,7 @@ namespace oblo::vk
         uniform,
         indirect,
         download,
+        index,
         enum_max,
     };
 
@@ -161,6 +157,11 @@ namespace oblo::vk
 
         void create(resource<buffer> buffer, const staging_buffer_span& stagedData, buffer_usage usage) const;
 
+        void register_texture(resource<texture> resource, h32<texture> externalTexture) const;
+
+        // Temporary solution until the acceleration structure is a proper resource.
+        void register_global_tlas(VkAccelerationStructureKHR accelerationStructure) const;
+
         void acquire(resource<texture> texture, texture_usage usage) const;
 
         h32<resident_texture> acquire_bindless(resource<texture> texture, texture_usage usage) const;
@@ -213,10 +214,6 @@ namespace oblo::vk
 
         frame_allocator& get_frame_allocator() const;
 
-        const draw_registry& get_draw_registry() const;
-
-        ecs::entity_registry& get_entity_registry() const;
-
         random_generator& get_random_generator() const;
 
         staging_buffer_span stage_upload(std::span<const byte> data) const;
@@ -258,6 +255,8 @@ namespace oblo::vk
         expected<> begin_pass(h32<raytracing_pass_instance> handle) const;
 
         expected<> begin_pass(h32<transfer_pass_instance> handle) const;
+
+        expected<> begin_pass(h32<empty_pass_instance> handle) const;
 
         void end_pass() const;
 
@@ -312,8 +311,6 @@ namespace oblo::vk
         VkCommandBuffer get_command_buffer() const;
 
         VkDevice get_device() const;
-
-        draw_registry& get_draw_registry() const;
 
         const loaded_functions& get_loaded_functions() const;
 

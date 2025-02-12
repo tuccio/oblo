@@ -277,6 +277,9 @@ namespace oblo::vk
         // Used to send signals to the frame graph (e.g. reset an effect)
         std::unordered_set<type_id> emptyEvents;
 
+        // Temporary until we make the acceleration structure a proper resource
+        VkAccelerationStructureKHR globalTLAS{};
+
     public: // Internals for frame graph execution
         void mark_active_nodes();
         void rebuild_runtime(renderer& renderer);

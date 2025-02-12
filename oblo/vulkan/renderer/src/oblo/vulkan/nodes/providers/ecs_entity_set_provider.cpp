@@ -23,7 +23,7 @@ namespace oblo::vk
     {
         uploadPass = ctx.transfer_pass();
 
-        ecs::entity_registry& reg = ctx.get_entity_registry();
+        ecs::entity_registry& reg = *ctx.access(inRenderWorld).entityRegistry;
 
         auto& frameAllocator = ctx.get_frame_allocator();
 

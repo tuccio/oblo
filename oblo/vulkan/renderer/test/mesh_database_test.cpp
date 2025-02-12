@@ -5,12 +5,9 @@
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_manager.hpp>
-#include <oblo/runtime/runtime_module.hpp>
-#include <oblo/sandbox/sandbox_app.hpp>
-#include <oblo/sandbox/sandbox_app_config.hpp>
 #include <oblo/vulkan/draw/mesh_database.hpp>
-#include <oblo/vulkan/required_features.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
+#include <oblo/vulkan/vulkan_engine_module.hpp>
 
 namespace oblo::vk::test
 {
@@ -34,16 +31,14 @@ namespace oblo::vk::test
             {
                 // Load the runtime, which will be queried for required vulkan features
                 auto& mm = module_manager::get();
-                mm.load<runtime_module>();
+                vulkan_engine_module* vkEngine = mm.load<vulkan_engine_module>();
 
-                mm.finalize();
+                if (!mm.finalize())
+                {
+                    return false;
+                }
 
-                return true;
-            }
-
-            bool startup(const vk::sandbox_startup_context& ctx)
-            {
-                auto& vkContext = *ctx.vkContext;
+                auto& vkContext = vkEngine->get_vulkan_context();
 
                 mesh_attribute_description attributes[] = {
                     {
@@ -72,42 +67,9 @@ namespace oblo::vk::test
                 });
             }
 
-            void shutdown(const vk::sandbox_shutdown_context&)
+            void shutdown()
             {
                 meshes.shutdown();
-            }
-
-            void update(const vk::sandbox_render_context&) {}
-
-            void update_imgui(const vk::sandbox_update_imgui_context&) {}
-
-            std::span<const char* const> get_required_instance_extensions() const
-            {
-                return module_manager::get()
-                    .find<runtime_module>()
-                    ->get_required_renderer_features()
-                    .instanceExtensions;
-            }
-
-            VkPhysicalDeviceFeatures2 get_required_physical_device_features() const
-            {
-                return module_manager::get()
-                    .find<runtime_module>()
-                    ->get_required_renderer_features()
-                    .physicalDeviceFeatures;
-            }
-
-            void* get_required_device_features() const
-            {
-                return module_manager::get()
-                    .find<runtime_module>()
-                    ->get_required_renderer_features()
-                    .deviceFeaturesChain;
-            }
-
-            std::span<const char* const> get_required_device_extensions() const
-            {
-                return module_manager::get().find<runtime_module>()->get_required_renderer_features().deviceExtensions;
             }
         };
     }
@@ -118,11 +80,7 @@ namespace oblo::vk::test
 
         constexpr auto N{mesh_database_test::N};
 
-        sandbox_app<mesh_database_test> app;
-
-        app.set_config({
-            .vkUseValidationLayers = true,
-        });
+        mesh_database_test app;
 
         ASSERT_TRUE(app.init());
 

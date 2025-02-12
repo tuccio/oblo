@@ -10,8 +10,6 @@
 #include <oblo/runtime/runtime_registry.hpp>
 #include <oblo/scene/scene_module.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
-#include <oblo/vulkan/renderer_module.hpp>
-#include <oblo/vulkan/required_features.hpp>
 
 namespace oblo
 {
@@ -39,11 +37,10 @@ namespace oblo
         OBLO_ASSERT(!g_instance);
         OBLO_ASSERT(!m_impl);
 
-        m_impl = std::make_unique<impl>();
+        m_impl = allocate_unique<impl>();
 
         auto& mm = module_manager::get();
 
-        mm.load<vk::renderer_module>();
         mm.load<graphics_module>();
         mm.load<scene_module>();
 
@@ -67,7 +64,7 @@ namespace oblo
         m_impl.reset();
     }
 
-    void runtime_module::finalize()
+    bool runtime_module::finalize()
     {
         auto& mm = module_manager::get();
         auto* reflection = mm.find<reflection::reflection_module>();
@@ -75,15 +72,12 @@ namespace oblo
         ecs_utility::register_reflected_component_and_tag_types(reflection->get_registry(),
             nullptr,
             &m_impl->propertyRegistry);
+
+        return true;
     }
 
     runtime_registry runtime_module::create_runtime_registry() const
     {
         return runtime_registry{&m_impl->propertyRegistry};
-    }
-
-    vk::required_features runtime_module::get_required_renderer_features() const
-    {
-        return module_manager::get().find<vk::renderer_module>()->get_required_features();
     }
 }

@@ -24,6 +24,7 @@ namespace oblo
 
 namespace oblo::vk
 {
+    class instance_data_type_registry;
     class texture_registry;
     class vulkan_context;
     struct base_pipeline;
@@ -63,7 +64,8 @@ namespace oblo::vk
         void init(vulkan_context& vkContext,
             string_interner& interner,
             const buffer& dummy,
-            const texture_registry& textureRegistry);
+            const texture_registry& textureRegistry,
+            const instance_data_type_registry& instanceDataTypeRegistry);
 
         void shutdown(vulkan_context& vkContext);
 
@@ -83,8 +85,6 @@ namespace oblo::vk
         void begin_frame(VkCommandBuffer commandBuffer);
         void end_frame();
         void update_global_descriptor_sets();
-
-        void update_instance_data_defines(string_view defines);
 
         bool is_profiling_enabled() const;
         void set_profiling_enabled(bool enabled);

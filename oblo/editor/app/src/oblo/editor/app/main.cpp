@@ -2,7 +2,6 @@
 
 #include <oblo/core/platform/core.hpp>
 #include <oblo/modules/module_manager.hpp>
-#include <oblo/sandbox/sandbox_app.hpp>
 
 #include "app.hpp"
 
@@ -19,28 +18,16 @@ namespace oblo
 
 int SDL_main(int argc, char* argv[])
 {
-    oblo::module_manager moduleManager;
-
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
 
-    oblo::vk::sandbox_app<oblo::editor::app> app;
+    oblo::editor::app editorApp;
 
-    app.set_config({
-        .imguiIniFile = "oblo.imgui.ini",
-        .uiWindowMaximized = true,
-        .uiUseDocking = true,
-        .uiUseMultiViewport = true,
-        .vkUseValidationLayers = false,
-    });
-
-    if (!app.init(argc, argv))
+    if (!editorApp.init(argc, argv))
     {
-        app.shutdown();
         return 1;
     }
 
-    app.run();
-    app.shutdown();
+    editorApp.run();
 
     SDL_Quit();
 

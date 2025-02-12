@@ -5,7 +5,10 @@
 
 namespace oblo
 {
-    using viewport_image_id = u64;
+    namespace vk
+    {
+        struct frame_graph_subgraph;
+    }
 
     struct picking_request
     {
@@ -54,10 +57,13 @@ namespace oblo
     {
         u32 width;
         u32 height;
-        viewport_image_id imageId;
 
         viewport_mode mode;
 
+        h32<vk::frame_graph_subgraph> graph;
+
         picking_request picking;
     };
+
+    string_view get_viewport_mode_graph_output(viewport_mode mode);
 }

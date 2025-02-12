@@ -2,6 +2,7 @@
 
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/service_registry.hpp>
+#include <oblo/core/service_registry_builder.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/services/world_builder.hpp>
@@ -12,16 +13,12 @@
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/ecs/utility/registration.hpp>
 #include <oblo/graphics/graphics_module.hpp>
+#include <oblo/reflection/reflection_registry.hpp>
 #include <oblo/scene/components/name_component.hpp>
 #include <oblo/scene/scene_module.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
 #include <oblo/trace/profile.hpp>
-#include <oblo/vulkan/renderer.hpp>
-#include <oblo/vulkan/resource_manager.hpp>
-#include <oblo/vulkan/single_queue_engine.hpp>
-#include <oblo/vulkan/stateful_command_buffer.hpp>
-#include <oblo/vulkan/texture.hpp>
-#include <oblo/vulkan/vulkan_context.hpp>
+#include <oblo/vulkan/draw/draw_registry.hpp>
 
 namespace oblo
 {
@@ -59,8 +56,6 @@ namespace oblo
         ecs::type_registry typeRegistry;
         ecs::entity_registry entities;
         service_registry services;
-        vk::renderer renderer;
-        vk::vulkan_context* vulkanContext;
     };
 
     runtime::runtime() = default;
@@ -94,11 +89,11 @@ namespace oblo
 
         m_impl->entities.init(&m_impl->typeRegistry);
 
-        m_impl->services.add<vk::vulkan_context>().externally_owned(initializer.vulkanContext);
-        m_impl->services.add<vk::renderer>().externally_owned(&m_impl->renderer);
-
+        m_impl->services.add<ecs::entity_registry>().externally_owned(&m_impl->entities);
         m_impl->services.add<const resource_registry>().externally_owned(initializer.resourceRegistry);
         m_impl->services.add<const property_registry>().externally_owned(initializer.propertyRegistry);
+
+        service_registry_builder serviceRegistryBuilder;
 
         for (const auto* worldBuilder : initializer.worldBuilders)
         {
@@ -107,25 +102,15 @@ namespace oblo
                 continue;
             }
 
-            (worldBuilder->services)(m_impl->services);
+            (worldBuilder->services)(serviceRegistryBuilder);
         }
 
-        m_impl->services.add<vk::resource_cache>().externally_owned(&m_impl->renderer.get_resource_cache());
-
-        m_impl->executor = std::move(*executor);
-
-        m_impl->vulkanContext = initializer.vulkanContext;
-
-        if (!m_impl->renderer.init({
-                .vkContext = *m_impl->vulkanContext,
-                .frameAllocator = m_impl->frameAllocator,
-                .entities = m_impl->entities,
-                .resources = *initializer.resourceRegistry,
-            }))
+        if (!serviceRegistryBuilder.build(m_impl->services))
         {
-            shutdown();
             return false;
         }
+
+        m_impl->executor = std::move(*executor);
 
         return true;
     }
@@ -135,7 +120,6 @@ namespace oblo
         if (m_impl)
         {
             m_impl->executor.shutdown();
-            m_impl->renderer.shutdown();
             m_impl.reset();
         }
     }
@@ -152,17 +136,15 @@ namespace oblo
             .frameAllocator = &m_impl->frameAllocator,
             .dt = ctx.dt,
         });
-
-        m_impl->renderer.update(m_impl->frameAllocator);
-    }
-
-    vk::renderer& runtime::get_renderer() const
-    {
-        return m_impl->renderer;
     }
 
     ecs::entity_registry& runtime::get_entity_registry() const
     {
         return m_impl->entities;
+    }
+
+    const service_registry& runtime::get_service_registry() const
+    {
+        return m_impl->services;
     }
 }

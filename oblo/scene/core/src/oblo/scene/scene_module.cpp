@@ -21,6 +21,7 @@
 #include <oblo/scene/components/rotation_component.hpp>
 #include <oblo/scene/components/scale_component.hpp>
 #include <oblo/scene/components/tags.hpp>
+#include <oblo/scene/reflection/gpu_component.hpp>
 #include <oblo/scene/resources/entity_hierarchy.hpp>
 #include <oblo/scene/resources/material.hpp>
 #include <oblo/scene/resources/mesh.hpp>
@@ -85,6 +86,7 @@ namespace oblo
                 .add_tag<ecs::component_type_tag>();
 
             reg.add_class<global_transform_component>()
+                .add_concept(gpu_component{.bufferName = "i_TransformBuffer"_hsv})
                 .add_field(&global_transform_component::localToWorld, "value")
                 .add_ranged_type_erasure()
                 .add_tag<ecs::component_type_tag>();

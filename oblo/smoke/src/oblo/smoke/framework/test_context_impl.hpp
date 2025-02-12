@@ -1,14 +1,11 @@
 #pragma once
 
+#include <oblo/ecs/forward.hpp>
+
 namespace oblo
 {
     class asset_registry;
     class resource_registry;
-
-    namespace ecs
-    {
-        class entity_registry;
-    }
 }
 
 namespace oblo::smoke
@@ -18,6 +15,7 @@ namespace oblo::smoke
         ecs::entity_registry* entities{};
         asset_registry* assetRegistry{};
         resource_registry* resourceRegistry{};
+        ecs::entity cameraEntity;
         bool renderdocCapture{};
     };
 }

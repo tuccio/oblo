@@ -9,9 +9,15 @@
 
 namespace oblo::vk
 {
+    class draw_registry;
     struct light_config;
     struct light_data;
     struct skybox_settings;
+}
+
+namespace oblo::ecs
+{
+    class entity_registry;
 }
 
 namespace oblo
@@ -30,10 +36,16 @@ namespace oblo
         std::span<const vk::light_data> data;
     };
 
+    enum class scene_view_kind
+    {
+        runtime,
+        editor,
+    };
+
     class scene_renderer
     {
     public:
-        explicit scene_renderer(vk::frame_graph& frameGraph);
+        explicit scene_renderer(vk::frame_graph& frameGraph, vk::draw_registry& drawRegistry);
         scene_renderer(const scene_renderer&) = delete;
         scene_renderer(scene_renderer&&) noexcept = delete;
 
@@ -45,13 +57,13 @@ namespace oblo
         vk::frame_graph& get_frame_graph() const;
         const vk::frame_graph_registry& get_frame_graph_registry() const;
 
-        void ensure_setup();
+        void ensure_setup(ecs::entity_registry& entityRegistry);
 
         void setup_lights(const scene_lights& lights);
         void setup_skybox(const resource_ptr<texture>& skybox, const vk::skybox_settings& settings);
         void setup_surfels_gi(const surfels_gi_config& giConfig);
 
-        void add_scene_view(h32<vk::frame_graph_subgraph> subgraph);
+        h32<vk::frame_graph_subgraph> create_scene_view(scene_view_kind kind);
         void remove_scene_view(h32<vk::frame_graph_subgraph> subgraph);
 
         std::span<const h32<vk::frame_graph_subgraph>> get_scene_views() const;
@@ -66,6 +78,7 @@ namespace oblo
     private:
         vk::frame_graph& m_frameGraph;
         vk::frame_graph_registry m_nodeRegistry;
+        vk::draw_registry& m_drawRegistry;
         h32<vk::frame_graph_subgraph> m_sceneDataProvider{};
         h32<vk::frame_graph_subgraph> m_surfelsGI{};
         // TODO: (#8) This could be a set

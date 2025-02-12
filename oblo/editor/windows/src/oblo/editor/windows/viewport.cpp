@@ -1,5 +1,6 @@
 #include <oblo/editor/windows/viewport.hpp>
 
+#include <oblo/app/imgui_texture.hpp>
 #include <oblo/asset/asset_meta.hpp>
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
@@ -31,6 +32,8 @@
 #include <oblo/scene/resources/model.hpp>
 #include <oblo/scene/resources/texture.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
+#include <oblo/vulkan/graph/frame_graph.hpp>
+#include <oblo/vulkan/templates/graph_templates.hpp>
 
 #include <imgui.h>
 
@@ -50,6 +53,11 @@ namespace oblo::editor
     {
         m_entities = ctx.services.find<ecs::entity_registry>();
         OBLO_ASSERT(m_entities);
+
+        m_sceneRenderer = ctx.services.find<scene_renderer>();
+        OBLO_ASSERT(m_sceneRenderer);
+
+        m_sceneRenderer->ensure_setup(*m_entities);
 
         m_resources = ctx.services.find<const resource_registry>();
         OBLO_ASSERT(m_resources);
@@ -120,18 +128,28 @@ namespace oblo::editor
                 camera.fovy = 75_deg;
             }
 
+            if (!m_viewGraph)
+            {
+                m_viewGraph = m_sceneRenderer->create_scene_view(scene_view_kind::editor);
+            }
+
             auto& v = m_entities->get<viewport_component>(m_entity);
 
             v.width = u32(max(1.f, windowSize.x));
             v.height = u32(max(1.f, windowSize.y));
+            v.graph = m_viewGraph;
 
             const auto topLeft = ImGui::GetCursorPos();
 
-            if (auto const imageId = v.imageId)
+            if (auto const viewportGraph = m_viewGraph)
             {
-                const bool hasFocus = ImGui::IsWindowFocused();
+                const bool hasFocus = ImGui::IsWindowFocused(ImGuiFocusedFlags_DockHierarchy);
 
-                ImGui::Image(imageId, windowSize);
+                const string_view graphOutput = get_viewport_mode_graph_output(v.mode);
+                OBLO_ASSERT(!graphOutput.empty());
+
+                const auto textureId = imgui::add_image(v.graph, graphOutput);
+                ImGui::Image(textureId, windowSize);
 
                 // Maybe use item size?
                 m_gizmoHandler.set_id(m_viewportId);
@@ -318,6 +336,12 @@ namespace oblo::editor
         {
             m_idPool->release<viewport>(m_viewportId);
             m_idPool = {};
+        }
+
+        if (m_viewGraph)
+        {
+            m_sceneRenderer->remove_scene_view(m_viewGraph);
+            m_viewGraph = {};
         }
     }
 

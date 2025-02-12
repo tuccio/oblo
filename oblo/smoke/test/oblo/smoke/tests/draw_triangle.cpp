@@ -2,9 +2,11 @@
 
 #include <oblo/asset/asset_meta.hpp>
 #include <oblo/asset/asset_registry.hpp>
+#include <oblo/core/iterator/enum_range.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
+#include <oblo/graphics/components/viewport_component.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/properties/serialization/common.hpp>
@@ -97,6 +99,23 @@ namespace oblo::smoke
             mesh.mesh = triangle->meshes[0];
 
             co_await ctx.next_frame();
+
+            // Switch viewport mode and render
+            for (const auto mode : {
+                     viewport_mode::albedo,
+                     viewport_mode::normals,
+                     viewport_mode::normal_map,
+                     viewport_mode::uv0,
+                     viewport_mode::meshlet,
+                     viewport_mode::raytracing_debug,
+                     viewport_mode::lit,
+                 })
+            {
+                entities.get<viewport_component>(ctx.get_camera_entity()).mode = mode;
+                entities.notify(triangleEntity);
+
+                co_await ctx.next_frame();
+            }
         }
     };
 

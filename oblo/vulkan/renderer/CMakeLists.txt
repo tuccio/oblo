@@ -21,10 +21,10 @@ oblo_create_symlink("${CMAKE_CURRENT_SOURCE_DIR}/resources" "${CMAKE_RUNTIME_OUT
 target_link_libraries(
     oblo_test_vk_renderer
     PRIVATE
+    oblo::app
     oblo::resource
-    oblo::sandbox
-    oblo::runtime
     oblo::modules
+    oblo::vk_engine
 )
 
 set(_test_resources "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test/resources/renderer")

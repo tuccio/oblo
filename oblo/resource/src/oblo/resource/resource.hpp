@@ -36,6 +36,7 @@ namespace oblo
         resource* resource_create(const resource_type_descriptor* desc, uuid id, string_view name, string_view path);
         void resource_release(resource* resource);
         void resource_acquire(resource* resource);
+        bool resource_instantiate(resource* resource);
         void resource_start_loading(resource* resource);
         bool resource_is_loaded(resource* resource);
     }

@@ -12,8 +12,8 @@ namespace oblo::vk::main_view
     constexpr string_view InMeshDatabase{"MeshDatabase"};
     constexpr string_view InInstanceTables{"InstanceTables"};
     constexpr string_view InInstanceBuffers{"InstanceBuffers"};
-    constexpr string_view InFinalRenderTarget{"FinalRenderTarget"};
 
+    constexpr string_view InRenderWorld{"RenderWorld"};
     constexpr string_view InLights{"LightData"};
     constexpr string_view InLightBuffer{"LightDataBuffer"};
     constexpr string_view InLightConfig{"LightConfig"};
@@ -51,7 +51,7 @@ namespace oblo::vk::main_view
     struct config
     {
         bool withPicking{false};
-        bool withSurfelsGI{false};
+        bool withSurfelsGI{true};
     };
 
     frame_graph_template create(const frame_graph_registry& registry, const config& cfg = {});
@@ -59,10 +59,12 @@ namespace oblo::vk::main_view
 
 namespace oblo::vk::scene_data
 {
+    constexpr string_view InRenderWorld{"RenderWorld"};
     constexpr string_view InLights{"LightData"};
     constexpr string_view InSkyboxResource{"InSkyboxResource"};
     constexpr string_view InSkyboxSettings{"SkyboxSettings"};
 
+    constexpr string_view OutRenderWorld{"RenderWorld"};
     constexpr string_view OutLights{"LightData"};
     constexpr string_view OutLightBuffer{"LightDataBuffer"};
     constexpr string_view OutLightConfig{"LightConfig"};
@@ -123,6 +125,16 @@ namespace oblo::vk::surfels_gi
     constexpr string_view OutUpdatedSurfelLightingData{"UpdatedSurfelLightingData"};
     constexpr string_view OutUpdatedSurfelLightEstimatorData{"UpdatedSurfelLightEstimatorData"};
     constexpr string_view OutSurfelsLastUsage{"SurfelsLastUsage"};
+
+    frame_graph_template create(const frame_graph_registry& registry);
+}
+
+namespace oblo::vk::swapchain_graph
+{
+    constexpr string_view InAcquiredImage{"AcquiredImage"};
+    constexpr string_view OutAcquiredImage{"AcquiredImage"};
+    constexpr string_view InRenderedImage{"ImageToPresent"};
+    constexpr string_view OutPresentedImage{"PresentedImage"};
 
     frame_graph_template create(const frame_graph_registry& registry);
 }

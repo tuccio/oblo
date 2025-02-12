@@ -75,6 +75,10 @@ namespace oblo::vk
                 result |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
                 break;
 
+            case buffer_usage::index:
+                result |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+                break;
+
             default:
                 unreachable();
             }
@@ -146,10 +150,17 @@ namespace oblo::vk
                 access = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_UNIFORM_READ_BIT;
                 accessKind = buffer_access_kind::read;
                 break;
+
             case buffer_usage::indirect:
                 access = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
                 accessKind = buffer_access_kind::read;
                 break;
+
+            case buffer_usage::index:
+                access = VK_ACCESS_2_INDEX_READ_BIT;
+                accessKind = buffer_access_kind::read;
+                break;
+
             default:
                 unreachable();
             }
@@ -167,7 +178,7 @@ namespace oblo::vk
                     VK_IMAGE_USAGE_TRANSFER_DST_BIT);
                 break;
 
-            case texture_usage::download:
+            case texture_usage::transfer_source:
                 resourcePool.add_transient_texture_usage(frameGraph.find_pool_index(texture),
                     VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
                 break;
@@ -242,7 +253,6 @@ namespace oblo::vk
             const binding_tables_span& bindingTables)
         {
             const auto& pm = renderer.get_pass_manager();
-            const auto& drawRegistry = renderer.get_draw_registry();
             const auto& interner = renderer.get_string_interner();
 
             pm.bind_descriptor_sets(commandBuffer,
@@ -250,7 +260,6 @@ namespace oblo::vk
                 pipeline,
                 [&frameGraph,
                     &pm,
-                    &drawRegistry,
                     &pipeline,
                     currentPass,
                     bindingTables = bindingTables.span(),
@@ -274,7 +283,7 @@ namespace oblo::vk
                             OBLO_ASSERT(r->accelerationStructure == g_globalTLAS,
                                 "Only the global TLAS is supported at the moment");
 
-                            return make_bindable_object(drawRegistry.get_tlas());
+                            return make_bindable_object(frameGraph.globalTLAS);
                         }
 
                         case bindable_resource_kind::buffer: {
@@ -449,6 +458,19 @@ namespace oblo::vk
         }
     }
 
+    void frame_graph_build_context::register_texture(resource<texture> resource, h32<texture> externalTexture) const
+    {
+        const auto& texture = m_frameGraph.resourceManager->get(externalTexture);
+        const auto poolIndex = m_resourcePool.add_external_texture(texture);
+        m_frameGraph.add_transient_resource(resource, poolIndex);
+    }
+
+    void frame_graph_build_context::register_global_tlas(VkAccelerationStructureKHR accelerationStructure) const
+    {
+        OBLO_ASSERT(!m_frameGraph.globalTLAS);
+        m_frameGraph.globalTLAS = accelerationStructure;
+    }
+
     void frame_graph_build_context::acquire(resource<texture> texture, texture_usage usage) const
     {
         OBLO_ASSERT(m_state.currentPass);
@@ -554,16 +576,6 @@ namespace oblo::vk
     frame_allocator& frame_graph_build_context::get_frame_allocator() const
     {
         return m_frameGraph.dynamicAllocator;
-    }
-
-    const draw_registry& frame_graph_build_context::get_draw_registry() const
-    {
-        return m_renderer.get_draw_registry();
-    }
-
-    ecs::entity_registry& frame_graph_build_context::get_entity_registry() const
-    {
-        return m_renderer.get_draw_registry().get_entity_registry();
     }
 
     random_generator& frame_graph_build_context::get_random_generator() const
@@ -747,6 +759,19 @@ namespace oblo::vk
         return no_error;
     }
 
+    expected<> frame_graph_execute_context::begin_pass(h32<empty_pass_instance> handle) const
+    {
+        OBLO_ASSERT(handle);
+        OBLO_ASSERT(m_frameGraph.passes[handle.value].kind == pass_kind::none);
+
+        const auto passHandle = h32<frame_graph_pass>{handle.value};
+        m_frameGraph.begin_pass_execution(passHandle, m_commandBuffer, m_state);
+
+        m_state.passKind = pass_kind::none;
+
+        return no_error;
+    }
+
     void frame_graph_execute_context::end_pass() const
     {
         auto& pm = m_renderer.get_pass_manager();
@@ -914,11 +939,6 @@ namespace oblo::vk
     VkDevice frame_graph_execute_context::get_device() const
     {
         return m_renderer.get_vulkan_context().get_device();
-    }
-
-    draw_registry& frame_graph_execute_context::get_draw_registry() const
-    {
-        return m_renderer.get_draw_registry();
     }
 
     const loaded_functions& frame_graph_execute_context::get_loaded_functions() const

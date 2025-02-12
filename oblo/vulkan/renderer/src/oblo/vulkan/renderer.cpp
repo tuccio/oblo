@@ -4,10 +4,9 @@
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/draw/descriptor_set_pool.hpp>
+#include <oblo/vulkan/draw/instance_data_type_registry.hpp>
 #include <oblo/vulkan/error.hpp>
-#include <oblo/vulkan/renderer_context.hpp>
 #include <oblo/vulkan/renderer_module.hpp>
-#include <oblo/vulkan/required_features.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
 #include <oblo/vulkan/texture.hpp>
@@ -23,7 +22,7 @@ namespace oblo::vk
     bool renderer::init(const renderer::initializer& initializer)
     {
         m_vkContext = &initializer.vkContext;
-        m_isRayTracingEnabled = module_manager::get().find<renderer_module>()->is_ray_tracing_enabled();
+        m_isRayTracingEnabled = initializer.isRayTracingEnabled;
 
         VkPhysicalDeviceProperties properties;
         vkGetPhysicalDeviceProperties(m_vkContext->get_physical_device(), &properties);
@@ -52,20 +51,23 @@ namespace oblo::vk
                 .memoryUsage = memory_usage::gpu_only,
             });
 
-        m_stringInterner.init(64);
-        m_passManager.init(*m_vkContext, m_stringInterner, resourceManager.get(m_dummy), m_textureRegistry);
+        m_stringInterner.init(256);
+
+        m_instanceDataTypeRegistry = allocate_unique<instance_data_type_registry>();
+        m_instanceDataTypeRegistry->register_from_module();
+
+        m_passManager.init(*m_vkContext,
+            m_stringInterner,
+            resourceManager.get(m_dummy),
+            m_textureRegistry,
+            *m_instanceDataTypeRegistry);
+
         m_passManager.set_raytracing_enabled(m_isRayTracingEnabled);
 
-        const string_view includePaths[] = {"./vulkan/shaders/"};
+        const string_view includePaths[] = {"./vulkan/shaders/", "./imgui/shaders"};
         m_passManager.set_system_include_paths(includePaths);
 
-        m_drawRegistry.init(*m_vkContext,
-            m_stagingBuffer,
-            m_stringInterner,
-            initializer.entities,
-            initializer.resources);
-
-        m_resourceCache.init(initializer.resources, m_textureRegistry);
+        m_resourceCache.init(m_textureRegistry);
 
         m_firstUpdate = true;
 
@@ -77,8 +79,6 @@ namespace oblo::vk
         auto& allocator = m_vkContext->get_allocator();
         auto& resourceManager = m_vkContext->get_resource_manager();
 
-        m_drawRegistry.shutdown();
-
         m_frameGraph.shutdown(*m_vkContext);
 
         m_passManager.shutdown(*m_vkContext);
@@ -89,12 +89,8 @@ namespace oblo::vk
         m_stagingBuffer.shutdown();
     }
 
-    void renderer::update(frame_allocator& frameAllocator)
+    void renderer::begin_frame()
     {
-        OBLO_PROFILE_SCOPE();
-
-        auto& commandBuffer = m_vkContext->get_active_command_buffer();
-
         m_resourceCache.update();
 
         m_stagingBuffer.notify_finished_frames(m_vkContext->get_last_finished_submit());
@@ -105,23 +101,15 @@ namespace oblo::vk
         {
             m_textureRegistry.on_first_frame();
 
-            // Not sure if we ever need to update it in other frames than the first
-            const auto instanceDataDefines = m_drawRegistry.refresh_instance_data_defines(frameAllocator);
-            m_passManager.update_instance_data_defines(instanceDataDefines);
-
             m_firstUpdate = false;
         }
+    }
 
-        m_drawRegistry.flush_uploads(commandBuffer.get());
+    void renderer::end_frame()
+    {
+        auto& commandBuffer = m_vkContext->get_active_command_buffer();
+
         m_textureRegistry.flush_uploads(commandBuffer.get());
-
-        m_drawRegistry.generate_mesh_database(frameAllocator);
-        m_drawRegistry.generate_draw_calls(frameAllocator, m_stagingBuffer);
-
-        if (m_isRayTracingEnabled)
-        {
-            m_drawRegistry.generate_raytracing_structures(frameAllocator, commandBuffer.get());
-        }
 
         m_passManager.begin_frame(commandBuffer.get());
 
@@ -133,7 +121,6 @@ namespace oblo::vk
         m_frameGraph.execute(*this);
 
         m_passManager.end_frame();
-        m_drawRegistry.end_frame();
         m_stagingBuffer.end_frame();
     }
 
@@ -155,5 +142,10 @@ namespace oblo::vk
     stateful_command_buffer& renderer::get_active_command_buffer()
     {
         return m_vkContext->get_active_command_buffer();
+    }
+
+    const instance_data_type_registry& renderer::get_instance_data_type_registry() const
+    {
+        return *m_instanceDataTypeRegistry;
     }
 }

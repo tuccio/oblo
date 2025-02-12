@@ -150,7 +150,7 @@ namespace oblo
         return ptr;
     }
 
-    void module_manager::finalize()
+    bool module_manager::finalize()
     {
         OBLO_ASSERT(m_state < state::finalizing);
 
@@ -162,10 +162,15 @@ namespace oblo
 
         for (auto& m : modules)
         {
-            m.ptr->finalize();
+            if (!m.ptr->finalize())
+            {
+                m_state = state::failed;
+                return false;
+            }
         }
 
         m_state = state::finalized;
+        return true;
     }
 
     void module_manager::shutdown()
