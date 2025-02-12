@@ -8,6 +8,8 @@
 
 namespace oblo
 {
+    class service_registry_builder;
+
     struct service_entry
     {
         type_id type;
@@ -46,14 +48,17 @@ namespace oblo
         };
 
     private:
+        friend class service_registry_builder;
+
+    private:
         std::unordered_map<type_id, void*> m_map;
         std::vector<service> m_services;
     };
 
-    template <typename T>
+    template <typename T, typename... Bases>
     using service_builder = std::conditional_t<std::is_const_v<T>,
-        service_registry::builder<T, T>,
-        service_registry::builder<T, T, std::add_const_t<T>>>;
+        service_registry::builder<T, T, Bases...>,
+        service_registry::builder<T, T, std::add_const_t<T>, Bases...>>;
 
     template <typename T, typename... Bases>
     class [[nodiscard]] service_registry::builder
@@ -63,7 +68,7 @@ namespace oblo
 
     public:
         template <typename... Args>
-        T* unique(Args&&... args)
+        T* unique(Args&&... args) &&
         {
             T* const ptr = new T{std::forward<Args>(args)...};
             m_registry->m_services.emplace_back(ptr, [](void* p) { delete static_cast<T*>(p); });
@@ -74,7 +79,7 @@ namespace oblo
             return ptr;
         }
 
-        T* unique(T&& s)
+        T* unique(T&& s) &&
         {
             T* const ptr = new T{std::move(s)};
             m_registry->m_services.emplace_back(ptr, [](void* p) { delete static_cast<T*>(p); });
@@ -85,7 +90,7 @@ namespace oblo
             return ptr;
         }
 
-        void externally_owned(T* ptr)
+        void externally_owned(T* ptr) &&
         {
             m_registry->m_services.emplace_back(const_cast<void*>(static_cast<const void*>(ptr)), nullptr);
 
@@ -95,13 +100,14 @@ namespace oblo
         }
 
         template <typename B>
-        builder<T, Bases..., B> as() const
+        builder<T, Bases..., B> as() const&&
         {
             return builder<T, Bases..., B>{m_registry};
         };
 
     private:
         friend class service_registry;
+        friend class service_registry_builder;
 
         template <typename, typename...>
         friend class builder;
