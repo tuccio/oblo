@@ -37,7 +37,6 @@
 #include <oblo/smoke/framework/test_context_impl.hpp>
 #include <oblo/smoke/framework/test_task.hpp>
 #include <oblo/thread/job_manager.hpp>
-#include <oblo/vulkan/vulkan_engine_module.hpp>
 
 #include <renderdoc_app.h>
 
@@ -68,7 +67,6 @@ namespace oblo::smoke
                 auto* const reflectionModule = mm.load<reflection::reflection_module>();
                 mm.load<scene_module>();
                 mm.load<importers::importers_module>();
-                auto* const vkEngine = mm.load<vk::vulkan_engine_module>();
 
                 if (!mm.finalize())
                 {
@@ -98,7 +96,6 @@ namespace oblo::smoke
                         .reflectionRegistry = &reflectionModule->get_registry(),
                         .propertyRegistry = &propertyRegistry,
                         .resourceRegistry = &resourceRegistry,
-                        .renderer = vkEngine->get_renderer(),
                         .worldBuilders = mm.find_services<ecs::world_builder>(),
                     }))
                 {

@@ -65,7 +65,8 @@ namespace oblo
         for (const auto& v : reverse_range(vertices))
         {
             const usize builderIndex = graph[v];
-            m_builders[builderIndex].build(serviceRegistry);
+            auto& builder = m_builders[builderIndex];
+            builder.build(serviceRegistry, builder.callback);
         }
 
         return no_error;

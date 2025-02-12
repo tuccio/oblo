@@ -5,7 +5,6 @@
 #include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/core/service_registry.hpp>
 
-#include <functional>
 #include <span>
 #include <tuple>
 
@@ -55,10 +54,9 @@ namespace oblo
                 return builder<T, bases<Bases...>, service_registry_builder ::require<Requires..., R...>>{m_builder};
             };
 
-            template <typename F>
-            void build(F&& f) &&
+            void build(void (*f)(service_builder<T>)) &&
             {
-                m_builder->register_builder(std::forward<F>(f), this);
+                m_builder->register_builder(f, this);
             }
 
         private:
@@ -82,15 +80,17 @@ namespace oblo
     private:
         struct builder_info
         {
+            using build_fn = void (*)(service_registry&, void*);
             using get_type_fn = std::span<const type_id> (*)();
 
-            std::function<void(service_registry&)> build;
+            build_fn build;
+            void* callback;
             get_type_fn getRequires;
             get_type_fn getBases;
         };
 
-        template <typename F, typename T, typename... Requires, typename... Bases>
-        void register_builder(F&& f, const builder<T, bases<Bases...>, require<Requires...>>*);
+        template <typename T, typename... Requires, typename... Bases>
+        void register_builder(void (*cb)(service_builder<T>), const builder<T, bases<Bases...>, require<Requires...>>*);
 
     private:
         deque<builder_info> m_builders;
@@ -151,11 +151,17 @@ namespace oblo
         register_fn m_registerBases{};
     };
 
-    template <typename F, typename T, typename... Requires, typename... Bases>
-    void service_registry_builder::register_builder(F&& f, const builder<T, bases<Bases...>, require<Requires...>>*)
+    template <typename T, typename... Requires, typename... Bases>
+    void service_registry_builder::register_builder(void (*cb)(service_builder<T>),
+        const builder<T, bases<Bases...>, require<Requires...>>*)
     {
-        m_builders.emplace_back([cb = std::forward<F>(f)](service_registry& registry)
-            { cb(service_builder<T>{registry, bases<Bases...>{}}); },
+        m_builders.emplace_back(
+            [](service_registry& registry, void* userdata)
+            {
+                auto cb = reinterpret_cast<void (*)(service_builder<T>)>(userdata);
+                cb(service_builder<T>{registry, bases<Bases...>{}});
+            },
+            reinterpret_cast<void*>(cb),
             &detail::make_type_span<Requires...>,
             &detail::make_type_span<Bases...>);
     }
