@@ -42,7 +42,6 @@ namespace oblo::vk
         void push_frame_wait_semaphores(std::span<const VkSemaphore> waitSemaphores);
 
         stateful_command_buffer& get_active_command_buffer();
-        void submit_active_command_buffer();
 
         VkInstance get_instance() const;
         VkDevice get_device() const;
@@ -111,6 +110,8 @@ namespace oblo::vk
 
         template <typename F, typename... T>
         void dispose(u64 submitIndex, F&& f, T&&... args);
+
+        void submit_active_command_buffer();
 
     private:
         VkInstance m_instance{};

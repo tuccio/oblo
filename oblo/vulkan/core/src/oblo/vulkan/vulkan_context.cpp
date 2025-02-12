@@ -70,6 +70,18 @@ namespace oblo::vk
 
         m_frameInfo.resize(init.submitsInFlight);
 
+        m_debugUtilsLabel = {
+            .vkCmdBeginDebugUtilsLabelEXT = PFN_vkCmdBeginDebugUtilsLabelEXT(
+                vkGetDeviceProcAddr(m_engine->get_device(), "vkCmdBeginDebugUtilsLabelEXT")),
+            .vkCmdEndDebugUtilsLabelEXT = PFN_vkCmdEndDebugUtilsLabelEXT(
+                vkGetDeviceProcAddr(m_engine->get_device(), "vkCmdEndDebugUtilsLabelEXT")),
+        };
+
+        m_debugUtilsObject = {
+            .vkSetDebugUtilsObjectNameEXT = PFN_vkSetDebugUtilsObjectNameEXT(
+                vkGetDeviceProcAddr(m_engine->get_device(), "vkSetDebugUtilsObjectNameEXT")),
+        };
+
         const VkSemaphoreTypeCreateInfo timelineTypeCreateInfo{
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
             .pNext = nullptr,
@@ -89,6 +101,10 @@ namespace oblo::vk
             return false;
         }
 
+        m_debugUtilsObject.set_object_name(m_engine->get_device(),
+            m_timelineSemaphore,
+            OBLO_STRINGIZE(vulkan_context::m_timelineSemaphore));
+
         for (auto& submitInfo : m_frameInfo)
         {
             if (!submitInfo.pool
@@ -107,21 +123,13 @@ namespace oblo::vk
             {
                 return false;
             }
+
+            m_debugUtilsObject.set_object_name(m_engine->get_device(),
+                submitInfo.fence,
+                OBLO_STRINGIZE(vulkan_context::frame_info::fence));
         }
 
         m_pending = std::make_unique<pending_disposal_queues>();
-
-        m_debugUtilsLabel = {
-            .vkCmdBeginDebugUtilsLabelEXT = PFN_vkCmdBeginDebugUtilsLabelEXT(
-                vkGetDeviceProcAddr(m_engine->get_device(), "vkCmdBeginDebugUtilsLabelEXT")),
-            .vkCmdEndDebugUtilsLabelEXT = PFN_vkCmdEndDebugUtilsLabelEXT(
-                vkGetDeviceProcAddr(m_engine->get_device(), "vkCmdEndDebugUtilsLabelEXT")),
-        };
-
-        m_debugUtilsObject = {
-            .vkSetDebugUtilsObjectNameEXT = PFN_vkSetDebugUtilsObjectNameEXT(
-                vkGetDeviceProcAddr(m_engine->get_device(), "vkSetDebugUtilsObjectNameEXT")),
-        };
 
 #define OBLO_VK_LOAD_FN(name) .name = PFN_##name(vkGetInstanceProcAddr(m_instance, #name))
 
