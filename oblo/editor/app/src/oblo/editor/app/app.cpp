@@ -433,6 +433,7 @@ namespace oblo::editor
 
         globalRegistry.add<vk::vulkan_context>().externally_owned(&m_vkEngine->get_vulkan_context());
         globalRegistry.add<vk::renderer>().externally_owned(&m_vkEngine->get_renderer());
+        globalRegistry.add<vk::frame_graph>().externally_owned(&m_vkEngine->get_frame_graph());
         globalRegistry.add<const resource_registry>().externally_owned(&m_runtimeRegistry.get_resource_registry());
         globalRegistry.add<asset_registry>().externally_owned(&m_assetRegistry);
         globalRegistry.add<const property_registry>().externally_owned(&m_runtimeRegistry.get_property_registry());

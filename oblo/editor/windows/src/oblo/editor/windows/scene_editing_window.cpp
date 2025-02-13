@@ -6,6 +6,7 @@
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/editor/windows/command_palette_window.hpp>
 #include <oblo/editor/windows/demo_window.hpp>
+#include <oblo/editor/windows/frame_graph_window.hpp>
 #include <oblo/editor/windows/options_editor.hpp>
 #include <oblo/editor/windows/style_window.hpp>
 #include <oblo/editor/windows/viewport.hpp>
@@ -77,6 +78,12 @@ namespace oblo::editor
                 if (ImGui::MenuItem("Viewport"))
                 {
                     ctx.windowManager.create_child_window<viewport>(ctx.windowHandle);
+                }
+
+                if (ImGui::MenuItem("Frame Graph"))
+                {
+                    ctx.windowManager.create_child_window<frame_graph_window>(ctx.windowHandle,
+                        window_flags::unique_sibling);
                 }
 
                 if (ImGui::MenuItem("Options"))

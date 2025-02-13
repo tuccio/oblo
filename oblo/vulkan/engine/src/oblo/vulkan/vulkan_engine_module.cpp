@@ -364,6 +364,11 @@ namespace oblo::vk
         return m_impl->renderer;
     }
 
+    frame_graph& vulkan_engine_module::get_frame_graph()
+    {
+        return m_impl->renderer.get_frame_graph();
+    }
+
     namespace
     {
         constexpr VkPhysicalDeviceFeatures g_physicalDeviceFeatures{
