@@ -80,12 +80,6 @@ namespace oblo::editor
                     ctx.windowManager.create_child_window<viewport>(ctx.windowHandle);
                 }
 
-                if (ImGui::MenuItem("Frame Graph"))
-                {
-                    ctx.windowManager.create_child_window<frame_graph_window>(ctx.windowHandle,
-                        window_flags::unique_sibling);
-                }
-
                 if (ImGui::MenuItem("Options"))
                 {
                     ctx.windowManager.create_child_window<options_editor>(ctx.windowHandle);
@@ -96,6 +90,12 @@ namespace oblo::editor
 
             if (ImGui::BeginMenu("Dev"))
             {
+                if (ImGui::MenuItem("Frame Graph"))
+                {
+                    ctx.windowManager.create_child_window<frame_graph_window>(ctx.windowHandle,
+                        window_flags::unique_sibling);
+                }
+
                 if (ImGui::MenuItem("ImGui Demo Window"))
                 {
                     ctx.windowManager.create_child_window<demo_window>(ctx.windowHandle);
