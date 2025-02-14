@@ -33,6 +33,7 @@ class ObloConanRecipe(ConanFile):
         self.requires("ktx/4.0.0")
         self.requires("imgui/1.91.5-docking", override=True)
         self.requires("imguizmo/cci.20231114")
+        self.requires("imgui-node-editor/b302971")
         self.requires("meshoptimizer/0.20")
         self.requires("rapidjson/cci.20230929")
         self.requires("vulkan-headers/1.3.296.0", override=True)
@@ -123,3 +124,7 @@ class ObloConanRecipe(ConanFile):
         if not conan_api.search.recipes(f"glslang/{vulkanSdkVersion}"):
             conan_cli.run(
                 ["export", f"{self.recipe_folder}/conan/recipes/glslang", "--version", vulkanSdkVersion])
+            
+        if not conan_api.search.recipes(f"imgui-node-editor/b302971"):
+            conan_cli.run(
+                ["export", f"{self.recipe_folder}/conan/recipes/imgui-node-editor", "--version", "b302971"])
