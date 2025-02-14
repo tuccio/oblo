@@ -77,7 +77,7 @@ void main()
     #else
     const vec2 rand = random_uniform_2d(seed);
 
-    const vec3 target = random_sample_uniform_disk(farAway, L, rand) + offset;
+    const vec3 target = random_sample_uniform_disk(g_Constants.punctualLightRadius, L, rand) + offset;
     const vec3 direction = normalize(target - origin);
     #endif
 

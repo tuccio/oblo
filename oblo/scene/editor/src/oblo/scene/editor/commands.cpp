@@ -91,9 +91,10 @@ namespace oblo
             [](ecs::entity_registry& reg, ecs::entity e) {
                 auto& light = init_light_common(reg, e);
                 light.type = light_type::directional;
-                light.intensity = 20.f;
+                light.intensity = 50.f;
                 light.shadowSamples = 4;
                 light.isShadowCaster = true;
+                light.shadowPunctualRadius = 100.f;
             }
         );
 
