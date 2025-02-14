@@ -13,18 +13,14 @@ namespace oblo::vk
 
         resource<buffer> inCameraBuffer;
 
-        // resource<buffer> inMeshDatabase;
+        resource<buffer> inMeshDatabase;
 
-        // resource<buffer> inInstanceTables;
-        // data<instance_data_table_buffers_span> inInstanceBuffers;
+        resource<buffer> inInstanceTables;
+        data<instance_data_table_buffers_span> inInstanceBuffers;
 
-        // resource<texture> inVisibilityBuffer;
+        resource<texture> inVisibilityBuffer;
 
         resource<texture> outFiltered;
-
-        // resource<texture> stableHistory;
-        // resource<texture> transientHistory;
-        // resource<texture> historySamples;
 
         h32<compute_pass> filterPass;
         h32<compute_pass_instance> filterPassInstance;

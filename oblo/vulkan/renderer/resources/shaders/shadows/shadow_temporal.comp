@@ -155,6 +155,6 @@ void main()
     imageStore(t_OutFiltered, ivec2(screenPos), vec4(result, 0, 0, 1));
 
     const bool acceptSample = true;
-    const uint newSamples = max(uint(acceptSample) * historySamplesCount + 1, 255);
+    const uint newSamples = max(acceptSample ? historySamplesCount + 1 : 1, 255);
     imageStore(t_InOutHistorySamplesCount, ivec2(screenPos), uvec4(newSamples, 0, 0, 0));
 }

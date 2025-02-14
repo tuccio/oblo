@@ -27,14 +27,13 @@ namespace oblo::vk
             });
 
         ctx.acquire(inSource, texture_usage::storage_read);
-        // ctx.acquire(inMoments, texture_usage::storage_read);
 
         ctx.acquire(inCameraBuffer, buffer_usage::uniform);
-        // ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
+        ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
 
-        // ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
+        ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
 
-        // acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
+        acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
 
         const auto imageInitializer = ctx.get_current_initializer(inSource);
         imageInitializer.assert_value();
@@ -56,42 +55,6 @@ namespace oblo::vk
                 },
                 texture_usage::storage_write);
         }
-
-        // if (passIndex == 0)
-        //{
-        //     ctx.create(stableHistory,
-        //         {
-        //             .width = imageInitializer->extent.width,
-        //             .height = imageInitializer->extent.height,
-        //             .format = imageInitializer->format,
-        //             .usage = imageInitializer->usage,
-        //             .isStable = true,
-        //         },
-        //         texture_usage::storage_write);
-
-        //    ctx.create(transientHistory,
-        //        {
-        //            .width = imageInitializer->extent.width,
-        //            .height = imageInitializer->extent.height,
-        //            .format = imageInitializer->format,
-        //            .usage = imageInitializer->usage,
-        //        },
-        //        texture_usage::storage_write);
-
-        //    ctx.create(historySamples,
-        //        {
-        //            .width = imageInitializer->extent.width,
-        //            .height = imageInitializer->extent.height,
-        //            .format = VK_FORMAT_R8_UINT,
-        //            .usage = imageInitializer->usage,
-        //        },
-        //        texture_usage::storage_write);
-        //}
-        // else
-        //{
-        //    ctx.acquire(transientHistory, texture_usage::storage_read);
-        //    ctx.acquire(historySamples, texture_usage::storage_read);
-        //}
     }
 
     void shadow_filter::execute(const frame_graph_execute_context& ctx)
@@ -104,30 +67,16 @@ namespace oblo::vk
             binding_table bindingTable;
 
             bindingTable.bind_buffers({
-                //{"b_InstanceTables", inInstanceTables},
-                //{"b_MeshTables", inMeshDatabase},
+                {"b_InstanceTables", inInstanceTables},
+                {"b_MeshTables", inMeshDatabase},
                 {"b_CameraBuffer", inCameraBuffer},
             });
 
             bindingTable.bind_textures({
                 {"t_InSource", inSource},
-                //{"t_InMoments", inMoments},
-                //{"t_InVisibilityBuffer", inVisibilityBuffer},
+                {"t_InVisibilityBuffer", inVisibilityBuffer},
                 {"t_OutFiltered", outFiltered},
-                //{"t_TransientHistory", transientHistory},
-                //{"t_HistorySamples", historySamples},
             });
-
-            // if (passIndex == 0)
-            //{
-            //     // Pass #0 will copy the stable to the transient for the current frame to consume, while also
-            //     outputting
-            //     // its result as history for next frame
-            //     ctx.bind_textures(bindingTable,
-            //         {
-            //             {"t_StableHistory", stableHistory},
-            //         });
-            // }
 
             ctx.bind_descriptor_sets(bindingTable);
 
