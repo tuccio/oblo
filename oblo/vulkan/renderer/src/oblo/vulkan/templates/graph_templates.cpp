@@ -495,6 +495,14 @@ namespace oblo::vk::raytraced_shadow_view
 
         graph.connect(filter2, &shadow_filter::outFiltered, output, &shadow_output::outShadow);
 
+#ifdef OBLO_DEBUG // These are here just to be inspected
+        graph.make_output(shadows, &raytraced_shadows::outShadow, "Raytraced");
+        graph.make_output(temporal, &shadow_temporal::outFiltered, "TemporalFilter");
+        graph.make_output(filter0, &shadow_filter::outFiltered, "Filter0");
+        graph.make_output(filter1, &shadow_filter::outFiltered, "Filter1");
+        graph.make_output(filter2, &shadow_filter::outFiltered, "Filter2");
+#endif
+
         graph.make_output(output, &shadow_output::outShadow, OutShadow);
         graph.make_output(output, &shadow_output::outShadowSink, OutShadowSink);
 
