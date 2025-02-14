@@ -32,7 +32,6 @@
 #include <oblo/scene/resources/model.hpp>
 #include <oblo/scene/resources/texture.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
-#include <oblo/vulkan/graph/frame_graph.hpp>
 #include <oblo/vulkan/templates/graph_templates.hpp>
 
 #include <imgui.h>

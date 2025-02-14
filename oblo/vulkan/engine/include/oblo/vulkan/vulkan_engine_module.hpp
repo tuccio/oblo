@@ -5,6 +5,7 @@
 
 namespace oblo::vk
 {
+    class frame_graph;
     class renderer;
     class vulkan_context;
 
@@ -25,6 +26,7 @@ namespace oblo::vk
 
         vulkan_context& get_vulkan_context();
         renderer& get_renderer();
+        frame_graph& get_frame_graph();
 
     private:
         struct impl;

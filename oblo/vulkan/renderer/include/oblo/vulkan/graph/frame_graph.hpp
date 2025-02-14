@@ -13,6 +13,9 @@
 namespace oblo
 {
     class frame_allocator;
+
+    template <typename>
+    class deque;
 }
 
 namespace oblo::vk
@@ -24,6 +27,7 @@ namespace oblo::vk
 
     struct frame_graph_impl;
     struct frame_graph_subgraph;
+    struct frame_graph_output_desc;
 
     class frame_graph
     {
@@ -64,6 +68,9 @@ namespace oblo::vk
         template <typename T>
             requires std::is_empty_v<T>
         void push_event(const T& e);
+
+        void fetch_subgraphs(deque<h32<frame_graph_subgraph>>& outSubgraphs);
+        void fetch_outputs(h32<frame_graph_subgraph> subgraph, deque<frame_graph_output_desc>& outSubgraphOutputs);
 
     private:
         void* try_get_input(h32<frame_graph_subgraph> graph, string_view name, const type_id& typeId);
@@ -113,4 +120,10 @@ namespace oblo::vk
     {
         push_empty_event_impl(get_type_id<T>());
     }
+
+    struct frame_graph_output_desc
+    {
+        string_view name;
+        type_id type;
+    };
 }

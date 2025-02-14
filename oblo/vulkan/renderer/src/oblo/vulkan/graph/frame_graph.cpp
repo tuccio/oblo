@@ -914,27 +914,64 @@ namespace oblo::vk
             return nullptr;
         }
 
-        // OBLO_ASSERT(m_impl->graph.get_in_edges(it->second).empty(),
-        //     "This doesn't quite work for outputs in the general case");
-
         const auto& pinData = *m_impl->pins.try_find(v.pin);
 
-        OBLO_ASSERT(pinData.ownedStorage);
-        auto& storage = *m_impl->pinStorage.try_find(pinData.ownedStorage);
+        auto* storage = pinData.referencedPin ? m_impl->pinStorage.try_find(pinData.referencedPin) : nullptr;
 
-        if (storage.typeDesc.typeId != typeId)
+        if (!storage)
+        {
+            OBLO_ASSERT(pinData.ownedStorage);
+            storage = m_impl->pinStorage.try_find(pinData.ownedStorage);
+        }
+
+        if (storage->typeDesc.typeId != typeId)
         {
             return nullptr;
         }
 
-        if (!storage.data)
+        if (!storage->data)
         {
-            void* const dataPtr = m_impl->memoryPool.allocate(storage.typeDesc.size, storage.typeDesc.alignment);
-            storage.typeDesc.construct(dataPtr);
-            storage.data = dataPtr;
+            void* const dataPtr = m_impl->memoryPool.allocate(storage->typeDesc.size, storage->typeDesc.alignment);
+            storage->typeDesc.construct(dataPtr);
+            storage->data = dataPtr;
         }
 
-        return storage.data;
+        return storage->data;
+    }
+
+    void frame_graph::fetch_subgraphs(deque<h32<frame_graph_subgraph>>& outSubgraphs)
+    {
+        const std::span subgraphs = m_impl->subgraphs.keys();
+        outSubgraphs.append(subgraphs.begin(), subgraphs.end());
+    }
+
+    void frame_graph::fetch_outputs(h32<frame_graph_subgraph> subgraph,
+        deque<frame_graph_output_desc>& outSubgraphOutputs)
+    {
+        auto* const sg = m_impl->subgraphs.try_find(subgraph);
+
+        if (!sg)
+        {
+            return;
+        }
+
+        for (auto& [name, v] : sg->outputs)
+        {
+            const auto& vertexData = m_impl->graph[v];
+
+            if (!vertexData.pin)
+            {
+                OBLO_ASSERT(false);
+                continue;
+            }
+
+            const auto& pinData = *m_impl->pins.try_find(vertexData.pin);
+
+            OBLO_ASSERT(pinData.ownedStorage);
+            auto& storage = *m_impl->pinStorage.try_find(pinData.ownedStorage);
+
+            outSubgraphOutputs.emplace_back(name, storage.typeDesc.typeId);
+        }
     }
 
     void frame_graph::push_empty_event_impl(const type_id& type)
