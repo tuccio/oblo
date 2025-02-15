@@ -65,12 +65,10 @@ namespace oblo
             .intensity = 50.f,
             .isShadowCaster = true,
             .hardShadows = false,
-            .shadowSamples = 4,
             .shadowBias = .025f,
             .shadowPunctualRadius = 100.f,
+            .shadowDepthSigma = 1e-2f,
             .shadowTemporalAccumulationFactor = .3f,
-            .shadowBlurKernel = 5,
-            .shadowBlurSigma = 1.15f,
         };
 
         m_rtShadows = vk::raytraced_shadow_view::create(m_sceneRenderer->get_frame_graph_registry());
@@ -237,11 +235,11 @@ namespace oblo
                     }
 
                     const vk::raytraced_shadow_config cfg{
-                        .shadowSamples = max(1u, shadow.light->shadowSamples),
                         .lightIndex = u32(shadow.lightIndex),
                         .type = vk::light_type(shadow.light->type),
                         .shadowPunctualRadius = shadow.light->shadowPunctualRadius,
                         .temporalAccumulationFactor = shadow.light->shadowTemporalAccumulationFactor,
+                        .depthSigma = shadow.light->shadowDepthSigma,
                         .hardShadows = shadow.light->hardShadows,
                     };
 

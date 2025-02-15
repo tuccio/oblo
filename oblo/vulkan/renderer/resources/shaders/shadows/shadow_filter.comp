@@ -49,6 +49,12 @@ shared vec3 g_NormalCache[g_ShadowCacheSize][g_ShadowCacheSize];
 const uint g_NeighborhoodCacheSize = g_ThreadLocalSize + 2;
 shared vec2 g_MomentsCache[g_NeighborhoodCacheSize][g_NeighborhoodCacheSize];
 
+layout(push_constant) uniform c_PushConstants
+{
+    float depthSigma;
+}
+g_Constants;
+
 ivec2 apply_offset_clamp(in ivec2 pixel, in uvec2 offset, in uvec2 resolution)
 {
     return ivec2(min(int(resolution.x), int(pixel.x + offset.x)), min(int(resolution.y), int(pixel.y + offset.y)));
@@ -95,8 +101,6 @@ void main()
     const float depthCenter = g_DepthCache[center.y][center.x];
     const vec3 normalCenter = g_NormalCache[center.y][center.x];
 
-    const float depthSigma = 1e-2f;
-
     const vec2 moments = compute_moments();
 
     const float variance = moments.x - moments.y * moments.y;
@@ -114,7 +118,7 @@ void main()
             float w = kernel[abs(x)] * kernel[abs(y)];
 
             w *= exp(-abs(shadow - shadowCenter) / stdDev);
-            w *= exp(-abs(depth - depthCenter) / depthSigma);
+            w *= exp(-abs(depth - depthCenter) / g_Constants.depthSigma);
             w *= pow(saturate(dot(normal, normalCenter)), 32.f);
 
             result += w * shadow;

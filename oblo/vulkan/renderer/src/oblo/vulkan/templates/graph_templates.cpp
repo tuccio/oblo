@@ -479,6 +479,7 @@ namespace oblo::vk::raytraced_shadow_view
         graph.connect(momentFilterV, &box_blur_v::outBlurred, temporal, &shadow_temporal::inShadowMean);
 
         graph.connect(shadows, &raytraced_shadows::inCameraBuffer, temporal, &shadow_temporal::inCameraBuffer);
+        graph.connect(shadows, &raytraced_shadows::inConfig, temporal, &shadow_temporal::inConfig);
 
         graph.connect(temporal, &shadow_temporal::outFiltered, filter0, &shadow_filter::inSource);
         graph.connect(filter0, &shadow_filter::outFiltered, filter1, &shadow_filter::inSource);
@@ -491,6 +492,7 @@ namespace oblo::vk::raytraced_shadow_view
         for (auto filter : {filter0, filter1, filter2})
         {
             graph.connect(shadows, &raytraced_shadows::inCameraBuffer, filter, &shadow_filter::inCameraBuffer);
+            graph.connect(shadows, &raytraced_shadows::inConfig, filter, &shadow_filter::inConfig);
 
             graph.connect(temporal, &shadow_temporal::inVisibilityBuffer, filter, &shadow_filter::inVisibilityBuffer);
             graph.connect(temporal, &shadow_temporal::inMeshDatabase, filter, &shadow_filter::inMeshDatabase);

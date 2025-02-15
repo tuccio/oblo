@@ -56,13 +56,11 @@ namespace oblo
 
             light.isShadowCaster = false;
             light.hardShadows = false;
-            light.shadowBias = .01f;
+            light.shadowBias = .025f;
             light.shadowPunctualRadius = .15f;
-            light.shadowSamples = 1;
+            light.shadowDepthSigma = 1e-2f;
 
             light.shadowTemporalAccumulationFactor = .3f;
-            light.shadowBlurKernel = 3;
-            light.shadowBlurSigma = 1.15f;
 
             light.spotInnerAngle = 30_deg;
             light.spotOuterAngle = 60_deg;
@@ -92,8 +90,6 @@ namespace oblo
                 auto& light = init_light_common(reg, e);
                 light.type = light_type::directional;
                 light.intensity = 50.f;
-                light.shadowSamples = 4;
-                light.shadowBias = .025f;
                 light.isShadowCaster = true;
                 light.shadowPunctualRadius = 100.f;
             }

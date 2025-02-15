@@ -81,22 +81,33 @@ namespace oblo::vk
             binding_table bindingTable;
 
             bindingTable.bind_buffers({
-                {"b_InstanceTables", inInstanceTables},
-                {"b_MeshTables", inMeshDatabase},
-                {"b_CameraBuffer", inCameraBuffer},
+                {"b_InstanceTables"_hsv, inInstanceTables},
+                {"b_MeshTables"_hsv, inMeshDatabase},
+                {"b_CameraBuffer"_hsv, inCameraBuffer},
             });
 
             bindingTable.bind_textures({
-                {"t_InShadow", inShadow},
-                {"t_InShadowMean", inShadowMean},
-                {"t_InHistory", inHistory},
-                {"t_OutFiltered", outFiltered},
-                {"t_OutShadowMoments", outShadowMoments},
-                {"t_InOutHistorySamplesCount", inOutHistorySamplesCount},
-                {"t_InVisibilityBuffer", inVisibilityBuffer},
+                {"t_InShadow"_hsv, inShadow},
+                {"t_InShadowMean"_hsv, inShadowMean},
+                {"t_InHistory"_hsv, inHistory},
+                {"t_OutFiltered"_hsv, outFiltered},
+                {"t_OutShadowMoments"_hsv, outShadowMoments},
+                {"t_InOutHistorySamplesCount"_hsv, inOutHistorySamplesCount},
+                {"t_InVisibilityBuffer"_hsv, inVisibilityBuffer},
             });
 
             ctx.bind_descriptor_sets(bindingTable);
+
+            struct push_constants
+            {
+                f32 temporalAccumulationFactor;
+            };
+
+            const push_constants constants{
+                .temporalAccumulationFactor = ctx.access(inConfig).temporalAccumulationFactor,
+            };
+
+            ctx.push_constants(shader_stage::compute, 0, as_bytes(std::span{&constants, 1}));
 
             ctx.dispatch_compute(round_up_div(resolution.x, 8u), round_up_div(resolution.x, 8u), 1);
 

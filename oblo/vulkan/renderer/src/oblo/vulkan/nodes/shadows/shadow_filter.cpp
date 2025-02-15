@@ -95,6 +95,17 @@ namespace oblo::vk
 
             ctx.bind_descriptor_sets(bindingTable);
 
+            struct push_constants
+            {
+                f32 depthSigma;
+            };
+
+            const push_constants constants{
+                .depthSigma = ctx.access(inConfig).depthSigma,
+            };
+
+            ctx.push_constants(shader_stage::compute, 0, as_bytes(std::span{&constants, 1}));
+
             ctx.dispatch_compute(round_up_div(resolution.x, 8u), round_up_div(resolution.x, 8u), 1);
 
             ctx.end_pass();

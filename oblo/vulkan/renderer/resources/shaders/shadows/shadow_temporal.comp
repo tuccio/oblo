@@ -32,11 +32,14 @@ layout(binding = 16) uniform b_CameraBuffer
     camera_buffer g_Camera;
 };
 
+layout(push_constant) uniform c_PushConstants
+{
+    float temporalAccumulationFactor;
+}
+g_Constants;
+
 // We run 8x8 groups
 const uint g_ThreadLocalSize = 8;
-
-const uint g_ShadowCacheSize = g_ThreadLocalSize;
-const uint g_ShadowLoadsPerThread = (g_ShadowCacheSize + g_ThreadLocalSize - 1) / g_ThreadLocalSize;
 
 layout(local_size_x = g_ThreadLocalSize, local_size_y = g_ThreadLocalSize, local_size_z = 1) in;
 
@@ -128,7 +131,7 @@ void main()
     {
         history = imageLoad(t_InHistory, historyCoords).x;
         historySamplesCount = imageLoad(t_InOutHistorySamplesCount, historyCoords).x;
-        historyWeight = .3f;
+        historyWeight = g_Constants.temporalAccumulationFactor;
     }
 
     // TODO: If the mean is 0 or 1, we might also skip the whole filtering
@@ -138,9 +141,11 @@ void main()
     const float mean2 = mean * mean;
     const float variance = saturate(mean - mean2);
 
-    if (variance > .01f)
+    if (variance > 1e-3f)
     {
-        historyWeight *= 3.f;
+        const float maxHistoryWeight = .7f;
+        const float varianceBoost = 3.f;
+        historyWeight = max(historyWeight * varianceBoost, maxHistoryWeight);
     }
 
     const float deviation = sqrt(variance);
