@@ -22,7 +22,7 @@ namespace oblo::vk
         temporalPassInstance = ctx.compute_pass(temporalPass, {});
 
         ctx.acquire(inShadow, texture_usage::storage_read);
-        ctx.acquire(inMoments, texture_usage::storage_read);
+        ctx.acquire(inShadowMean, texture_usage::storage_read);
 
         const auto imageInitializer = ctx.get_current_initializer(inShadow);
         imageInitializer.assert_value();
@@ -32,6 +32,14 @@ namespace oblo::vk
                 .width = imageInitializer->extent.width,
                 .height = imageInitializer->extent.height,
                 .format = VK_FORMAT_R8_UNORM,
+            },
+            texture_usage::storage_write);
+
+        ctx.create(outShadowMoments,
+            {
+                .width = imageInitializer->extent.width,
+                .height = imageInitializer->extent.height,
+                .format = VK_FORMAT_R16G16_SFLOAT,
             },
             texture_usage::storage_write);
 
@@ -80,9 +88,10 @@ namespace oblo::vk
 
             bindingTable.bind_textures({
                 {"t_InShadow", inShadow},
-                {"t_InMoments", inMoments},
+                {"t_InShadowMean", inShadowMean},
                 {"t_InHistory", inHistory},
                 {"t_OutFiltered", outFiltered},
+                {"t_OutShadowMoments", outShadowMoments},
                 {"t_InOutHistorySamplesCount", inOutHistorySamplesCount},
                 {"t_InVisibilityBuffer", inVisibilityBuffer},
             });

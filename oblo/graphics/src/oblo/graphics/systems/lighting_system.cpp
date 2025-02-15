@@ -66,7 +66,7 @@ namespace oblo
             .isShadowCaster = true,
             .hardShadows = false,
             .shadowSamples = 4,
-            .shadowBias = .01f,
+            .shadowBias = .025f,
             .shadowPunctualRadius = 100.f,
             .shadowTemporalAccumulationFactor = .3f,
             .shadowBlurKernel = 5,

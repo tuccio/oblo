@@ -18,14 +18,14 @@
 #include <visibility/visibility_utils>
 
 layout(binding = 0, r8) uniform restrict readonly image2D t_InShadow;
-layout(binding = 1, r8) uniform restrict readonly image2D t_InMoments;
+layout(binding = 1, r8) uniform restrict readonly image2D t_InShadowMean;
 layout(binding = 2, r8) uniform restrict readonly image2D t_InHistory;
-
-layout(binding = 3, rg32ui) uniform restrict readonly uimage2D t_InVisibilityBuffer;
+layout(binding = 3, rg16f) uniform restrict writeonly image2D t_OutShadowMoments;
 
 layout(binding = 5, r8ui) uniform restrict uimage2D t_InOutHistorySamplesCount;
 
 layout(binding = 8, r8) uniform restrict writeonly image2D t_OutFiltered;
+layout(binding = 9, rg32ui) uniform restrict readonly uimage2D t_InVisibilityBuffer;
 
 layout(binding = 16) uniform b_CameraBuffer
 {
@@ -115,7 +115,7 @@ void main()
     }
 
     const float shadow = imageLoad(t_InShadow, ivec2(screenPos)).x;
-    const float mean = imageLoad(t_InMoments, ivec2(screenPos)).x;
+    const float mean = imageLoad(t_InShadowMean, ivec2(screenPos)).x;
 
     const ivec2 historyCoords = reproject_coords(vb, ivec2(screenPos), resolution);
 
@@ -135,7 +135,8 @@ void main()
     // TODO: We should implement edge-stopping (see EAW à trous)
     // TODO: Should probably check for disocclusion
 
-    const float variance = saturate(mean - mean * mean);
+    const float mean2 = mean * mean;
+    const float variance = saturate(mean - mean2);
 
     if (variance > .01f)
     {
@@ -157,4 +158,6 @@ void main()
     const bool acceptSample = true;
     const uint newSamples = max(acceptSample ? historySamplesCount + 1 : 1, 255);
     imageStore(t_InOutHistorySamplesCount, ivec2(screenPos), uvec4(newSamples, 0, 0, 0));
+
+    imageStore(t_OutShadowMoments, ivec2(screenPos), vec4(mean, mean2, 0, 0));
 }

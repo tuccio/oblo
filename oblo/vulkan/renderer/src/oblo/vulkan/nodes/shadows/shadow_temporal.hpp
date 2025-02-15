@@ -10,7 +10,7 @@ namespace oblo::vk
     struct shadow_temporal
     {
         resource<texture> inShadow;
-        resource<texture> inMoments;
+        resource<texture> inShadowMean;
         resource<texture> inHistory;
         resource<texture> inOutHistorySamplesCount;
 
@@ -24,6 +24,7 @@ namespace oblo::vk
         resource<texture> inVisibilityBuffer;
 
         resource<texture> outFiltered;
+        resource<texture> outShadowMoments;
 
         h32<compute_pass> temporalPass;
         h32<compute_pass_instance> temporalPassInstance;

@@ -476,13 +476,17 @@ namespace oblo::vk::raytraced_shadow_view
         graph.connect(momentFilterH, &box_blur_h::outBlurred, momentFilterV, &box_blur_v::inSource);
 
         graph.connect(shadows, &raytraced_shadows::outShadow, temporal, &shadow_temporal::inShadow);
-        graph.connect(momentFilterV, &box_blur_v::outBlurred, temporal, &shadow_temporal::inMoments);
+        graph.connect(momentFilterV, &box_blur_v::outBlurred, temporal, &shadow_temporal::inShadowMean);
 
         graph.connect(shadows, &raytraced_shadows::inCameraBuffer, temporal, &shadow_temporal::inCameraBuffer);
 
         graph.connect(temporal, &shadow_temporal::outFiltered, filter0, &shadow_filter::inSource);
         graph.connect(filter0, &shadow_filter::outFiltered, filter1, &shadow_filter::inSource);
         graph.connect(filter1, &shadow_filter::outFiltered, filter2, &shadow_filter::inSource);
+
+        graph.connect(temporal, &shadow_temporal::outShadowMoments, filter0, &shadow_filter::inShadowMoments);
+        graph.connect(filter0, &shadow_filter::outShadowMoments, filter1, &shadow_filter::inShadowMoments);
+        graph.connect(filter1, &shadow_filter::outShadowMoments, filter2, &shadow_filter::inShadowMoments);
 
         for (auto filter : {filter0, filter1, filter2})
         {
@@ -505,9 +509,13 @@ namespace oblo::vk::raytraced_shadow_view
 #ifdef OBLO_DEBUG // These are here just to be inspected
         graph.make_output(shadows, &raytraced_shadows::outShadow, "Raytraced");
         graph.make_output(temporal, &shadow_temporal::outFiltered, "TemporalFilter");
-        graph.make_output(filter0, &shadow_filter::outFiltered, "Filter0");
-        graph.make_output(filter1, &shadow_filter::outFiltered, "Filter1");
-        graph.make_output(filter2, &shadow_filter::outFiltered, "Filter2");
+        graph.make_output(filter0, &shadow_filter::outFiltered, "Filter0 - Shadows");
+        graph.make_output(filter1, &shadow_filter::outFiltered, "Filter1 - Shadows");
+        graph.make_output(filter2, &shadow_filter::outFiltered, "Filter2 - Shadows");
+
+        graph.make_output(filter0, &shadow_filter::outShadowMoments, "Filter0 - Moments");
+        graph.make_output(filter1, &shadow_filter::outShadowMoments, "Filter1 - Moments");
+        graph.make_output(filter2, &shadow_filter::outShadowMoments, "Filter2 - Moments");
 #endif
 
         graph.make_output(output, &shadow_output::outShadow, OutShadow);

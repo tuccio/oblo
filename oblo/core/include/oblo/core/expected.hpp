@@ -237,6 +237,11 @@ namespace oblo
             return **this;
         }
 
+        constexpr T value_or(const T& fallback) const noexcept
+        {
+            return m_hasValue ? *reinterpret_cast<const T*>(m_buffer) : fallback;
+        }
+
         template <typename U>
         constexpr T value_or(U&& fallback) const noexcept
         {

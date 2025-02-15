@@ -93,6 +93,7 @@ namespace oblo
                 light.type = light_type::directional;
                 light.intensity = 50.f;
                 light.shadowSamples = 4;
+                light.shadowBias = .025f;
                 light.isShadowCaster = true;
                 light.shadowPunctualRadius = 100.f;
             }
