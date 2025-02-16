@@ -5,6 +5,7 @@
 
 namespace oblo
 {
+    struct mat4;
     struct quaternion;
     struct vec2;
     struct vec3;
@@ -48,6 +49,8 @@ namespace oblo::editor::ui
         bool add(id_t id, cstring_view name, vec2& v);
         bool add(id_t id, cstring_view name, vec3& v);
         bool add(id_t id, cstring_view name, vec4& v);
+
+        bool add(id_t id, cstring_view name, mat4& v);
 
         bool add(id_t id, cstring_view name, quaternion& v);
 

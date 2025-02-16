@@ -87,7 +87,9 @@ namespace oblo
 
             reg.add_class<global_transform_component>()
                 .add_concept(gpu_component{.bufferName = "i_TransformBuffer"_hsv})
-                .add_field(&global_transform_component::localToWorld, "value")
+                .add_field(&global_transform_component::localToWorld, "localToWorld")
+                .add_field(&global_transform_component::lastFrameLocalToWorld, "lastFrameLocalToWorld")
+                .add_field(&global_transform_component::normalMatrix, "normalMatrix")
                 .add_ranged_type_erasure()
                 .add_tag<ecs::component_type_tag>();
 
