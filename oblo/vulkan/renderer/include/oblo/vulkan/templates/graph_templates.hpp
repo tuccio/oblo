@@ -36,6 +36,7 @@ namespace oblo::vk::main_view
     constexpr string_view OutCameraDataSink{"CameraDataSink"};
     constexpr string_view OutCameraBuffer{"CameraBuffer"};
     constexpr string_view OutDepthBuffer{"DepthBuffer"};
+    constexpr string_view OutLastFrameDepthBuffer{"LastFrameDepthBuffer"};
     constexpr string_view OutVisibilityBuffer{"VisibilityBuffer"};
     constexpr string_view OutLitImage{"LitOutput"};
     constexpr string_view OutDebugImage{"DebugOutput"};
@@ -45,6 +46,8 @@ namespace oblo::vk::main_view
     constexpr string_view OutGiSurfelsInconsistency{"DebugtGiSurfelsInconsistency"};
     constexpr string_view OutRTDebugImage{"DebugRTOutput"};
     constexpr string_view OutSurfelsTileCoverageSink{"SurfelsGITileOutput"};
+    constexpr string_view OutDisocclusionMask{"DisocclusionMask"};
+    constexpr string_view OutMotionVectors{"MotionVectors"};
 
     constexpr string_view OutPicking{"OutPicking"};
 

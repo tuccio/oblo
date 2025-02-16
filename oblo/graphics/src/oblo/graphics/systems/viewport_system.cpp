@@ -47,6 +47,7 @@ namespace oblo
         u32 width{};
         u32 height{};
 
+        vec3 lastFramePosition;
         mat4 lastFrameViewProj;
     };
 
@@ -135,7 +136,11 @@ namespace oblo
                     const mat4 invViewProj = inverse(viewProj).assert_value_or(mat4::identity());
                     const mat4 invProj = inverse(proj).assert_value_or(mat4::identity());
 
-                    const vec4 position = transform.localToWorld.columns[3];
+                    const vec3 position = {
+                        transform.localToWorld.columns[3].x,
+                        transform.localToWorld.columns[3].y,
+                        transform.localToWorld.columns[3].z,
+                    };
 
                     const camera_buffer cameraBuffer{
                         .view = view,
@@ -145,12 +150,16 @@ namespace oblo
                         .invProjection = invProj,
                         .lastFrameViewProjection = isFirstFrame ? viewProj : renderGraphData->lastFrameViewProj,
                         .frustum = make_frustum_from_inverse_view_projection(invViewProj),
-                        .position = {position.x, position.y, position.z},
+                        .position = position,
+                        .near = camera.near,
+                        .lastFramePosition = isFirstFrame ? position : renderGraphData->lastFramePosition,
+                        .far = camera.far,
                     };
 
                     frameGraph.set_input(viewport.graph, main_view::InCamera, cameraBuffer).assert_value();
 
                     renderGraphData->lastFrameViewProj = viewProj;
+                    renderGraphData->lastFramePosition = position;
                 }
 
                 if (renderGraphData->hasPicking)

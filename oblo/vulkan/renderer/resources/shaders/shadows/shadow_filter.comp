@@ -93,8 +93,6 @@ void main()
     const float kernel[g_TapsPerPixel] = {1.f, 2.f / 3.f, 1.f / 6.f};
 
     // TODO: If the mean is 0 or 1, we might skip this loop
-    // TODO: We should implement edge-stopping (see EAW à trous)
-
     float weightSum = 0.f;
 
     const float shadowCenter = g_ShadowCache[center.y][center.x];
@@ -168,7 +166,6 @@ void sample_geometry(
 
     const ray cameraRay = visibility_calculate_camera_ray(g_Camera, ndc);
 
-    // We could use this for the depth stop function for the à trous filter
     float intersectionDistance;
 
     distance_from_triangle_plane(cameraRay, triangleWS, intersectionDistance);

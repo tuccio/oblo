@@ -1077,15 +1077,9 @@ namespace oblo::vk
         return &nodes.at(nodeHandle);
     }
 
-    void frame_graph_impl::reroute(resource<buffer> source, resource<buffer> destination)
+    void frame_graph_impl::reroute(h32<frame_graph_pin_storage> srcStorageHandle,
+        h32<frame_graph_pin_storage> dstStorageHandle)
     {
-        // Source is a node that should end its path here
-        // Destination is a node with no incoming edges, owned by the current node
-        OBLO_ASSERT(get_owner_node(destination) == currentNode, "Only the source of the pin should reroute");
-
-        const auto srcStorageHandle = to_storage_handle(source);
-        const auto dstStorageHandle = to_storage_handle(destination);
-
         const auto& srcRouteStorage = pinStorage.at(srcStorageHandle);
         auto& dstRouteStorage = pinStorage.at(dstStorageHandle);
 

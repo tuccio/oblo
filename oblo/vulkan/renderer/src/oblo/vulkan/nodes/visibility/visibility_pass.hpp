@@ -24,15 +24,21 @@ namespace oblo::vk
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
         resource<texture> outVisibilityBuffer;
+        resource<texture> outLastFrameDepthBuffer;
         resource<texture> outDepthBuffer;
 
         h32<render_pass> renderPass;
         h32<render_pass_instance> passInstance;
+        h32<transfer_pass_instance> copyPassInstance;
 
-        void init(const frame_graph_init_context& context);
+        resource<texture> depthBuffer0;
+        resource<texture> depthBuffer1;
+        u8 outputIndex{0};
 
-        void build(const frame_graph_build_context& builder);
+        void init(const frame_graph_init_context& ctx);
 
-        void execute(const frame_graph_execute_context& context);
+        void build(const frame_graph_build_context& ctx);
+
+        void execute(const frame_graph_execute_context& ctx);
     };
 }

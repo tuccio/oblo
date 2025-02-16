@@ -24,13 +24,23 @@ vec3 visibility_calculate_position(in ray cameraRay, in triangle triangleWS)
     return ray_point_at(cameraRay, intersectionDistance);
 }
 
+vec2 visibility_calculate_last_frame_position_ndc_2d(in mat4 lastFrameViewProjection, in vec3 prevPositionWS)
+{
+    const vec4 prevPositionCS = lastFrameViewProjection * vec4(prevPositionWS, 1);
+    return prevPositionCS.xy / prevPositionCS.w;
+}
+
 vec2 visibility_calculate_last_frame_position_ndc_2d(
-    in vec2 ndc, in mat4 lastFrameViewProjection, in barycentric_coords bc, in triangle prevTriangleWS)
+    in mat4 lastFrameViewProjection, in barycentric_coords bc, in triangle prevTriangleWS)
 {
     const vec3 prevPositionWS = barycentric_interpolate(bc, prevTriangleWS.v);
-    const vec4 prevPositionCS = lastFrameViewProjection * vec4(prevPositionWS, 1);
+    return visibility_calculate_last_frame_position_ndc_2d(lastFrameViewProjection, prevPositionWS);
+}
 
-    return prevPositionCS.xy / prevPositionCS.w;
+vec3 visibility_calculate_last_frame_position_ndc_3d(in mat4 lastFrameViewProjection, in vec3 prevPositionWS)
+{
+    const vec4 prevPositionCS = lastFrameViewProjection * vec4(prevPositionWS, 1);
+    return prevPositionCS.xyz / prevPositionCS.w;
 }
 
 #endif

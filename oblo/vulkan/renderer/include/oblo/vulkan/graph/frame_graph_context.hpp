@@ -171,6 +171,7 @@ namespace oblo::vk
         void acquire(resource<buffer> buffer, buffer_usage usage) const;
 
         void reroute(resource<buffer> source, resource<buffer> destination) const;
+        void reroute(resource<texture> source, resource<texture> destination) const;
 
         /// @brief Determines whether the pin has an incoming edge.
         bool has_source(resource<buffer> buffer) const;

@@ -32,6 +32,33 @@ namespace oblo::vk
 
     void visibility_pass::build(const frame_graph_build_context& ctx)
     {
+        constexpr bool noCopyDoubleBuffer = false;
+
+        if constexpr (!noCopyDoubleBuffer)
+        {
+            copyPassInstance = ctx.transfer_pass();
+
+            const auto resolution = ctx.access(inResolution);
+
+            ctx.create(outDepthBuffer,
+                {
+                    .width = resolution.x,
+                    .height = resolution.y,
+                    .format = VK_FORMAT_D24_UNORM_S8_UINT,
+                    .isStable = true,
+                },
+                texture_usage::transfer_source);
+
+            ctx.create(outLastFrameDepthBuffer,
+                {
+                    .width = resolution.x,
+                    .height = resolution.y,
+                    .format = VK_FORMAT_D24_UNORM_S8_UINT,
+                    .isStable = true,
+                },
+                texture_usage::transfer_destination);
+        }
+
         constexpr auto visibilityBufferFormat = VK_FORMAT_R32G32_UINT;
 
         passInstance = ctx.render_pass(renderPass,
@@ -67,14 +94,46 @@ namespace oblo::vk
             },
             texture_usage::render_target_write);
 
-        ctx.create(outDepthBuffer,
-            {
-                .width = resolution.x,
-                .height = resolution.y,
-                .format = VK_FORMAT_D24_UNORM_S8_UINT,
-                .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-            },
-            texture_usage::depth_stencil_write);
+        if constexpr (noCopyDoubleBuffer)
+        {
+            // Handle the double buffering of frame buffers
+            copyPassInstance = {};
+
+            const u8 writeDepthIndex = outputIndex;
+            const u8 readDepthIndex = 1 - outputIndex;
+
+            const resource<texture> depthBuffers[] = {
+                depthBuffer0,
+                depthBuffer1,
+            };
+
+            ctx.create(depthBuffers[writeDepthIndex],
+                {
+                    .width = resolution.x,
+                    .height = resolution.y,
+                    .format = VK_FORMAT_D24_UNORM_S8_UINT,
+                    .isStable = true,
+                },
+                texture_usage::depth_stencil_write);
+
+            ctx.create(depthBuffers[readDepthIndex],
+                {
+                    .width = resolution.x,
+                    .height = resolution.y,
+                    .format = VK_FORMAT_D24_UNORM_S8_UINT,
+                    .isStable = true,
+                },
+                texture_usage::depth_stencil_read);
+
+            ctx.reroute(depthBuffers[writeDepthIndex], outDepthBuffer);
+            ctx.reroute(depthBuffers[readDepthIndex], outLastFrameDepthBuffer);
+
+            outputIndex = readDepthIndex;
+        }
+        else
+        {
+            ctx.acquire(outLastFrameDepthBuffer, texture_usage::depth_stencil_write);
+        }
 
         for (const auto& drawData : ctx.access(inDrawData))
         {
@@ -95,6 +154,38 @@ namespace oblo::vk
 
     void visibility_pass::execute(const frame_graph_execute_context& ctx)
     {
+        if (copyPassInstance && ctx.begin_pass(copyPassInstance))
+        {
+            const auto src = ctx.access(outDepthBuffer);
+            const auto dst = ctx.access(outLastFrameDepthBuffer);
+
+            const VkImageCopy copy{
+                .srcSubresource =
+                    {
+                        .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+                        .layerCount = 1,
+                    },
+                .dstSubresource =
+                    {
+                        .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+                        .layerCount = 1,
+                    },
+                .extent = src.initializer.extent,
+            };
+
+            const auto commandBuffer = ctx.get_command_buffer();
+
+            vkCmdCopyImage(commandBuffer,
+                src.image,
+                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                dst.image,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                1,
+                &copy);
+
+            ctx.end_pass();
+        }
+
         binding_table perDrawBindingTable;
         binding_table passBindingTable;
 

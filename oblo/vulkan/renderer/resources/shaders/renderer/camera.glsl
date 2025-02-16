@@ -13,11 +13,22 @@ struct camera_buffer
     mat4 lastFrameViewProjection;
     frustum frustum;
     vec3 position;
+    float near;
+    vec3 lastFramePosition;
+    float far;
 };
 
 bool camera_depth_no_hit(float depth)
 {
     return depth == 0.f;
+}
+
+float camera_linearize_depth_ndc(in camera_buffer camera, in float depth)
+{
+    // Equivalent to:
+    //   vec4 h = camera.invProjection * vec4(0, 0, depth, 1);
+    //   return h.z / h.w;
+    return -camera.near * camera.far / (camera.near - depth * (camera.far - camera.near));
 }
 
 vec3 camera_unproject_world_space(in camera_buffer camera, in vec2 positionNDC, in float depth)
