@@ -14,7 +14,7 @@
 layout(binding = 11) uniform accelerationStructureEXT u_SceneTLAS;
 
 layout(binding = 12) uniform texture2D t_InDepthBuffer;
-layout(binding = 13, r8) uniform restrict image2D t_OutShadow;
+layout(binding = 13, r8) uniform writeonly restrict image2D t_OutShadow;
 
 layout(std430, binding = 15) restrict readonly buffer b_LightData
 {
@@ -64,10 +64,6 @@ void main()
     const float tMax = 1e6f;
 #endif
 
-#if SHADOW_TYPE == OBLO_LIGHT_TYPE_POINT || SHADOW_TYPE == OBLO_LIGHT_TYPE_SPOT
-    const vec3 L = normalize(light.position - positionWS);
-#endif
-
     const vec3 origin = positionWS;
 
 #if SHADOW_TYPE == OBLO_LIGHT_TYPE_DIRECTIONAL
@@ -89,7 +85,8 @@ void main()
     #if SHADOW_HARD
     const vec3 target = light.position;
     #else
-    const vec3 target = random_sample_uniform_disk(g_Constants.punctualLightRadius, L, rand) + light.position;
+    const vec3 target =
+        random_sample_uniform_disk(g_Constants.punctualLightRadius, light.direction, rand) + light.position;
     #endif
 
     const vec3 weightedDir = target - origin;
@@ -112,8 +109,6 @@ void main()
     );
 
     visibility = r_HitVisibility;
-
-    const float oldValue = imageLoad(t_OutShadow, ivec2(gl_LaunchIDEXT.xy)).x;
 
     imageStore(t_OutShadow, ivec2(gl_LaunchIDEXT.xy), vec4(visibility, 0, 0, 1));
 }
