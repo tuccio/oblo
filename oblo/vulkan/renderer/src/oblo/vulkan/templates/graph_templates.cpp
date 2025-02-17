@@ -499,8 +499,8 @@ namespace oblo::vk::raytraced_shadow_view
         graph.bind(momentFilterH, &gaussian_blur_h::inConfig, momentFilter);
         graph.bind(momentFilterV, &gaussian_blur_v::inConfig, momentFilter);
 
-        graph.bind(momentFilterH, &box_blur_h::outputInPlace, false);
-        graph.bind(momentFilterV, &box_blur_v::outputInPlace, false);
+        graph.bind(momentFilterH, &gaussian_blur_h::outputInPlace, false);
+        graph.bind(momentFilterV, &gaussian_blur_v::outputInPlace, false);
 
         graph.bind(filter0, &shadow_filter::passIndex, 0u);
         graph.bind(filter1, &shadow_filter::passIndex, 1u);
@@ -565,6 +565,9 @@ namespace oblo::vk::raytraced_shadow_view
         graph.make_output(filter0, &shadow_filter::outShadowMoments, "Filter0 - Moments");
         graph.make_output(filter1, &shadow_filter::outShadowMoments, "Filter1 - Moments");
         graph.make_output(filter2, &shadow_filter::outShadowMoments, "Filter2 - Moments");
+
+        graph.make_output(momentFilterH, &gaussian_blur_h::outBlurred, "Shadow Blur Horizontal");
+        graph.make_output(momentFilterV, &gaussian_blur_v::outBlurred, "Shadow Blur Vertical");
 #endif
 
         graph.make_output(output, &shadow_output::outShadow, OutShadow);
