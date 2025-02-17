@@ -76,7 +76,7 @@ namespace oblo::vk
 
             ctx.bind_descriptor_sets(bindingTable);
 
-            ctx.dispatch_compute(round_up_div(resolution.x, 8u), round_up_div(resolution.x, 8u), 1);
+            ctx.dispatch_compute(round_up_div(resolution.x, 8u), round_up_div(resolution.y, 8u), 1);
 
             ctx.end_pass();
         }
