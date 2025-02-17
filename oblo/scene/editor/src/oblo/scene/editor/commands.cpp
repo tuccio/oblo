@@ -61,6 +61,8 @@ namespace oblo
             light.shadowDepthSigma = 1e-2f;
 
             light.shadowTemporalAccumulationFactor = .3f;
+            light.shadowMeanFilterSize = 17;
+            light.shadowMeanFilterSigma = 1.f;
 
             light.spotInnerAngle = 30_deg;
             light.spotOuterAngle = 60_deg;

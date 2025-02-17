@@ -84,6 +84,7 @@ namespace oblo::vk::raytraced_shadow_view
 {
     constexpr string_view InCameraBuffer{"CameraBuffer"};
     constexpr string_view InLightBuffer{"LightBuffer"};
+    constexpr string_view InMeanFilterConfig{"MeanFilterConfig"};
     constexpr string_view InResolution{"Resolution"};
     constexpr string_view InConfig{"Config"};
     constexpr string_view InDepthBuffer{"DepthBuffer"};

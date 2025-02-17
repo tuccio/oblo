@@ -91,7 +91,7 @@ temporal_output calculate_outputs(in visibility_buffer_data vb, in ivec2 coords,
     // Sample actual old depth at the pixel
     // If the expected old depth is less (reverse Z) than the sampled depth, we assume disocclusion
 
-    const ivec2 pixelOffset = ivec2(resolution * r.motionVectors);
+    const ivec2 pixelOffset = ivec2(resolution * r.motionVectors + vec2(.5f));
     const ivec2 oldCoords = coords - pixelOffset;
 
     if (oldCoords.x < 0 || oldCoords.y < 0 || oldCoords.x >= resolution.x || oldCoords.y >= resolution.y)

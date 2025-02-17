@@ -29,5 +29,7 @@ namespace oblo
 
         // These should rather be global settings
         f32 shadowTemporalAccumulationFactor;
+        u32 shadowMeanFilterSize;
+        f32 shadowMeanFilterSigma;
     };
 }

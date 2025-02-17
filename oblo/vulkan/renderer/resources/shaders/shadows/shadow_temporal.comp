@@ -75,7 +75,10 @@ void main()
     // TODO: If the mean is 0 or 1 for whole whole group, we might also skip the filtering
     // Note: we use the E[X] instead of E[X^2] because we assume 1 ray per pixel, and shadows are either 0 or 1
     const float mean2 = mean * mean;
-     float variance = saturate(mean - mean2);
+    float variance = saturate(mean - mean2);
+
+    const float highVarianceThreshold = 1e-4;
+    const bool isHighVariance = variance > highVarianceThreshold;
 
     vec3 currentPositionWS;
     vec3 lastFramePositionWS;
@@ -98,12 +101,14 @@ void main()
             historyWeight = g_Constants.temporalAccumulationFactor;
         }
 
-        if (historySamplesCount > 16 && variance > 1e-4)
+        if (historySamplesCount > 32 && isHighVariance)
         {
+            const float maxHistoryWeight = 1.f;
             const float highVarianceBoost = 5.f;
             const float highVarianceHistoryBoost = 5.f;
+            
             variance *= highVarianceBoost;
-            historyWeight = min(highVarianceHistoryBoost * historyWeight, 1.f);
+            historyWeight = min(highVarianceHistoryBoost * historyWeight, maxHistoryWeight);
         }
     }
 

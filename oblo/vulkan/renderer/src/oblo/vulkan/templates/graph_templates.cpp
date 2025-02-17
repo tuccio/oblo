@@ -497,7 +497,8 @@ namespace oblo::vk::raytraced_shadow_view
         constexpr gaussian_blur_config momentFilter{.kernelSize = 17, .sigma = 1};
 
         graph.bind(momentFilterH, &gaussian_blur_h::inConfig, momentFilter);
-        graph.bind(momentFilterV, &gaussian_blur_v::inConfig, momentFilter);
+        graph.make_input(momentFilterH, &gaussian_blur_h::inConfig, InMeanFilterConfig);
+        graph.connect(momentFilterH, &gaussian_blur_h::inConfig, momentFilterV, &gaussian_blur_v::inConfig);
 
         graph.bind(momentFilterH, &gaussian_blur_h::outputInPlace, false);
         graph.bind(momentFilterV, &gaussian_blur_v::outputInPlace, false);

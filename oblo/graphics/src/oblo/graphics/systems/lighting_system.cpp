@@ -69,6 +69,8 @@ namespace oblo
             .shadowPunctualRadius = 100.f,
             .shadowDepthSigma = 1e-2f,
             .shadowTemporalAccumulationFactor = .3f,
+            .shadowMeanFilterSize = 17,
+            .shadowMeanFilterSigma = 1.f,
         };
 
         m_rtShadows = vk::raytraced_shadow_view::create(m_sceneRenderer->get_frame_graph_registry());
@@ -254,6 +256,15 @@ namespace oblo
                     };
 
                     frameGraph.set_input(*v, vk::raytraced_shadow_view::InConfig, cfg).assert_value();
+
+                    frameGraph
+                        .set_input(*v,
+                            vk::raytraced_shadow_view::InMeanFilterConfig,
+                            vk::gaussian_blur_config{
+                                .kernelSize = shadow.light->shadowMeanFilterSize,
+                                .sigma = shadow.light->shadowMeanFilterSigma,
+                            })
+                        .assert_value();
                 }
             }
         }

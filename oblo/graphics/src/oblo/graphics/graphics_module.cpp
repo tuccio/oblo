@@ -73,7 +73,9 @@ namespace oblo
                 .add_field(&light_component::shadowBias, "shadowBias")
                 .add_field(&light_component::shadowPunctualRadius, "shadowPunctualRadius")
                 .add_field(&light_component::shadowDepthSigma, "shadowDepthSigma")
-                .add_field(&light_component::shadowTemporalAccumulationFactor, "shadowTemporalAccumulationFactor");
+                .add_field(&light_component::shadowTemporalAccumulationFactor, "shadowTemporalAccumulationFactor")
+                .add_field(&light_component::shadowMeanFilterSize, "shadowMeanFilterSize")
+                .add_field(&light_component::shadowMeanFilterSigma, "shadowMeanFilterSigma");
 
             reg.add_enum<light_type>()
                 .add_enumerator("point", light_type::point)
