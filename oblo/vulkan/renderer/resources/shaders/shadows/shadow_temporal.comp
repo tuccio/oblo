@@ -55,7 +55,7 @@ ivec2 reproject_coords(in ivec2 coords, in uvec2 resolution)
 {
     // Motion vectors are calculated as current - previous, so we need to subtract to obtain the previous coordinates
     const vec2 motionVector = imageLoad(t_InMotionVectors, coords).xy;
-    const ivec2 pixelOffset = ivec2(resolution * motionVector + .5f);
+    const ivec2 pixelOffset = ivec2(vec2(resolution) * motionVector + .5f);
     return coords - pixelOffset;
 }
 
@@ -103,10 +103,10 @@ void main()
 
         if (historySamplesCount > 32 && isHighVariance)
         {
-            const float maxHistoryWeight = 1.f;
+            const float maxHistoryWeight = .9f;
             const float highVarianceBoost = 5.f;
             const float highVarianceHistoryBoost = 5.f;
-            
+
             variance *= highVarianceBoost;
             historyWeight = min(highVarianceHistoryBoost * historyWeight, maxHistoryWeight);
         }

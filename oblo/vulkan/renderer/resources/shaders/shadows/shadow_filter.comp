@@ -100,7 +100,8 @@ void main()
     const vec2 moments = compute_moments();
 
     const float variance = moments.x - moments.y * moments.y;
-    const float stdDev = sqrt(max(variance, 1e-6f));
+    const float stdDev = sqrt(max(variance, 1e-10f));
+    const float shadowFactor = 1e-1f / stdDev;
 
     const int k = int(g_TapRadius);
 
@@ -115,7 +116,7 @@ void main()
 
             float w = kernel[abs(x)] * kernel[abs(y)];
 
-            w *= exp(-abs(shadow - shadowCenter) / stdDev);
+            w *= exp(-abs(shadow - shadowCenter) * shadowFactor);
             w *= exp(-abs(depth - depthCenter) / g_Constants.depthSigma);
             w *= pow(saturate(dot(normal, normalCenter)), 32.f);
 
