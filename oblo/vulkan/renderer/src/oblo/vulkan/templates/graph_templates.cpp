@@ -486,18 +486,18 @@ namespace oblo::vk::raytraced_shadow_view
         graph.init(registry);
 
         const auto shadows = graph.add_node<raytraced_shadows>();
-        const auto momentFilterH = graph.add_node<box_blur_h>();
-        const auto momentFilterV = graph.add_node<box_blur_v>();
+        const auto momentFilterH = graph.add_node<gaussian_blur_h>();
+        const auto momentFilterV = graph.add_node<gaussian_blur_v>();
         const auto temporal = graph.add_node<shadow_temporal>();
         const auto filter0 = graph.add_node<shadow_filter>();
         const auto filter1 = graph.add_node<shadow_filter>();
         const auto filter2 = graph.add_node<shadow_filter>();
         const auto output = graph.add_node<shadow_output>();
 
-        constexpr box_blur_config momentFilter{.kernelSize = 17};
+        constexpr gaussian_blur_config momentFilter{.kernelSize = 17, .sigma = 1};
 
-        graph.bind(momentFilterH, &box_blur_h::inConfig, momentFilter);
-        graph.bind(momentFilterV, &box_blur_v::inConfig, momentFilter);
+        graph.bind(momentFilterH, &gaussian_blur_h::inConfig, momentFilter);
+        graph.bind(momentFilterV, &gaussian_blur_v::inConfig, momentFilter);
 
         graph.bind(momentFilterH, &box_blur_h::outputInPlace, false);
         graph.bind(momentFilterV, &box_blur_v::outputInPlace, false);

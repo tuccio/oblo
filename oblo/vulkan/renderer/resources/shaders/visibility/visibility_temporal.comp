@@ -84,15 +84,15 @@ temporal_output calculate_outputs(in visibility_buffer_data vb, in ivec2 coords,
         visibility_calculate_last_frame_position_ndc_2d(g_Camera.lastFrameViewProjection, prevPositionWS);
 
     temporal_output r;
-    r.motionVectors = prevNDC.xy - ndc;
+    r.motionVectors = ndc - prevNDC.xy;
 
     // Reproject using motion vectors
     // Calculate expected old depth
     // Sample actual old depth at the pixel
     // If the expected old depth is less (reverse Z) than the sampled depth, we assume disocclusion
 
-    const ivec2 pixelOffset = ivec2(resolution * (prevNDC.xy - ndc));
-    const ivec2 oldCoords = coords + pixelOffset;
+    const ivec2 pixelOffset = ivec2(resolution * r.motionVectors);
+    const ivec2 oldCoords = coords - pixelOffset;
 
     if (oldCoords.x < 0 || oldCoords.y < 0 || oldCoords.x >= resolution.x || oldCoords.y >= resolution.y)
     {

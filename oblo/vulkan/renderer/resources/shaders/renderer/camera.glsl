@@ -14,7 +14,7 @@ struct camera_buffer
     frustum frustum;
     vec3 position;
     float near;
-    vec3 lastFramePosition;
+    vec3 _padding;
     float far;
 };
 

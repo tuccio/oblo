@@ -88,8 +88,6 @@ void main()
 
     float result = 0.f;
 
-    const int k = int(g_TapRadius);
-
     const float kernel[g_TapsPerPixel] = {1.f, 2.f / 3.f, 1.f / 6.f};
 
     // TODO: If the mean is 0 or 1, we might skip this loop
@@ -102,7 +100,9 @@ void main()
     const vec2 moments = compute_moments();
 
     const float variance = moments.x - moments.y * moments.y;
-    const float stdDev = sqrt(max(variance, 1e-10f));
+    const float stdDev = sqrt(max(variance, 1e-6f));
+
+    const int k = int(g_TapRadius);
 
     [[unroll]] for (int y = -k; y <= k; ++y)
     {
@@ -131,8 +131,7 @@ void main()
     }
 
     imageStore(t_OutFiltered, ivec2(screenPos), vec4(result, 0, 0, 1));
-
-    imageStore(t_OutShadowMoments, ivec2(screenPos), vec4(moments.xx, 0, 0));
+    imageStore(t_OutShadowMoments, ivec2(screenPos), vec4(moments.xy, 0, 0));
 }
 
 void sample_geometry(
@@ -250,6 +249,7 @@ void load_neighborhood_cache(in uvec2 resolution)
 
 vec2 compute_moments()
 {
+#if 0
     const uvec2 center = gl_LocalInvocationID.xy + uvec2(1);
 
     const int k = 1;
@@ -271,4 +271,29 @@ vec2 compute_moments()
     }
 
     return moments;
+
+#else
+    const uvec2 center = uvec2(g_Stride) + gl_LocalInvocationID.xy;
+
+    const int k = 1;
+    vec2 moments = vec2(0);
+
+    const float kernel[2][2] = {
+        {1.f / 4.f, 1.f / 8.f},
+        {1.f / 8.f, 1.f / 16.f},
+    };
+
+    [[unroll]] for (int y = -k; y <= k; ++y)
+    {
+        [[unroll]] for (int x = -k; x <= k; ++x)
+        {
+            const float w = kernel[abs(x)][abs(y)];
+            const uvec2 coords = uvec2(center + ivec2(x, y));
+            const float s = g_ShadowCache[coords.y][coords.x];
+            moments += w * vec2(s * s, s);
+        }
+    }
+
+    return moments;
+#endif
 }

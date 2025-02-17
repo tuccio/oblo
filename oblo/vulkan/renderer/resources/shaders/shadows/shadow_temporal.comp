@@ -51,56 +51,12 @@ ivec2 apply_offset_clamp(in ivec2 pixel, in uvec2 offset, in uvec2 resolution)
     return ivec2(min(int(resolution.x), int(pixel.x + offset.x)), min(int(resolution.y), int(pixel.y + offset.y)));
 }
 
-ivec2 reproject_coords(in visibility_buffer_data vb,
-    in ivec2 coords,
-    in uvec2 resolution,
-    out vec3 positionWS,
-    out vec3 lastFramePositionWS)
+ivec2 reproject_coords(in ivec2 coords, in uvec2 resolution)
 {
-    const mesh_handle mesh = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MeshHandles, vb.instanceId);
-    const transform transform = OBLO_INSTANCE_DATA(vb.instanceTableId, i_TransformBuffer, vb.instanceId);
-
-    // Read the mesh data
-    const mesh_table meshTable = mesh_table_fetch(mesh);
-
-    const uvec3 vertexIndices = mesh_get_meshlet_indices(meshTable, mesh, vb.meshletId, vb.meshletTriangleId);
-
-    triangle triangleWS;
-    triangle prevTriangleWS;
-
-    // Read the vertex data and transform everything in world space, we do lighting calculation in that
-    // space
-    [[unroll]] for (uint i = 0; i < 3; ++i)
-    {
-        const uint vertexId = vertexIndices[i];
-
-        const vec3 vertexPosition = mesh_get_position(meshTable, vertexId);
-        triangleWS.v[i] = (transform.localToWorld * vec4(vertexPosition, 1)).xyz;
-
-        prevTriangleWS.v[i] = (transform.lastFrameLocalToWorld * vec4(vertexPosition, 1)).xyz;
-    }
-
-    const vec2 ndc = screen_to_ndc(uvec2(coords), resolution);
-
-    const ray cameraRay = visibility_calculate_camera_ray(g_Camera, ndc);
-
-    // We could use this for the depth stop function for the à trous filter
-    float intersectionDistance;
-
-    distance_from_triangle_plane(cameraRay, triangleWS, intersectionDistance);
-
-    positionWS = ray_point_at(cameraRay, intersectionDistance);
-
-    barycentric_coords bc;
-    barycentric_calculate(bc, triangleWS.v, positionWS);
-    barycentric_calculate(bc, prevTriangleWS.v, lastFramePositionWS);
-
-    const vec2 prevNDC =
-        visibility_calculate_last_frame_position_ndc_2d(g_Camera.lastFrameViewProjection, lastFramePositionWS);
-
-    const ivec2 pixelOffset = ivec2(resolution * (prevNDC - ndc));
-
-    return pixelOffset + coords;
+    // Motion vectors are calculated as current - previous, so we need to subtract to obtain the previous coordinates
+    const vec2 motionVector = imageLoad(t_InMotionVectors, coords).xy;
+    const ivec2 pixelOffset = ivec2(resolution * motionVector + .5f);
+    return coords - pixelOffset;
 }
 
 void main()
@@ -113,30 +69,18 @@ void main()
         return;
     }
 
-    const uvec4 vbPixel = imageLoad(t_InVisibilityBuffer, ivec2(screenPos));
-
-    visibility_buffer_data vb;
-
-    if (!visibility_buffer_parse(vbPixel.xy, vb))
-    {
-        // TODO: If nothing is in the VB of a whole tile we could probably skip the whole filtering as well
-        imageStore(t_OutFiltered, ivec2(screenPos), vec4(0, 0, 0, 1));
-        imageStore(t_InOutHistorySamplesCount, ivec2(screenPos), uvec4(0));
-        return;
-    }
-
     const float shadow = imageLoad(t_InShadow, ivec2(screenPos)).x;
     const float mean = imageLoad(t_InShadowMean, ivec2(screenPos)).x;
 
-    // TODO: If the mean is 0 or 1, we might also skip the whole filtering
+    // TODO: If the mean is 0 or 1 for whole whole group, we might also skip the filtering
+    // Note: we use the E[X] instead of E[X^2] because we assume 1 ray per pixel, and shadows are either 0 or 1
     const float mean2 = mean * mean;
-    const float variance = saturate(mean - mean2);
+     float variance = saturate(mean - mean2);
 
     vec3 currentPositionWS;
     vec3 lastFramePositionWS;
 
-    const ivec2 historyCoords =
-        reproject_coords(vb, ivec2(screenPos), resolution, currentPositionWS, lastFramePositionWS);
+    const ivec2 historyCoords = reproject_coords(ivec2(screenPos), resolution);
 
     float history = 0.f;
     uint historySamplesCount = 0;
@@ -153,13 +97,14 @@ void main()
             historySamplesCount = imageLoad(t_InOutHistorySamplesCount, historyCoords).x;
             historyWeight = g_Constants.temporalAccumulationFactor;
         }
-    }
 
-    if (historySamplesCount < 8 )
-    {
-        const float maxHistoryWeight = .7f;
-        const float varianceBoost = 3.f;
-        historyWeight = max(historyWeight * varianceBoost, maxHistoryWeight);
+        if (historySamplesCount > 16 && variance > 1e-4)
+        {
+            const float highVarianceBoost = 5.f;
+            const float highVarianceHistoryBoost = 5.f;
+            variance *= highVarianceBoost;
+            historyWeight = min(highVarianceHistoryBoost * historyWeight, 1.f);
+        }
     }
 
     const float deviation = sqrt(variance);
