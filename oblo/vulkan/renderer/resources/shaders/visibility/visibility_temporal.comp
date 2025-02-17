@@ -83,12 +83,8 @@ temporal_output calculate_outputs(in visibility_buffer_data vb, in ivec2 coords,
     const vec2 prevNDC =
         visibility_calculate_last_frame_position_ndc_2d(g_Camera.lastFrameViewProjection, prevPositionWS);
 
-    // const vec2 prevNDC =
-    //     visibility_calculate_last_frame_position_ndc_2d(ndc, g_Camera.lastFrameViewProjection, bc, prevTriangleWS);
-
     temporal_output r;
     r.motionVectors = prevNDC.xy - ndc;
-    r.disocclusion = 0; // TODO
 
     // Reproject using motion vectors
     // Calculate expected old depth
@@ -105,15 +101,12 @@ temporal_output calculate_outputs(in visibility_buffer_data vb, in ivec2 coords,
     else
     {
         const float oldSampledDepth = texelFetch(t_InLastFrameDepth, oldCoords, 0).x;
-
-        // TODO: This is wrong
         const float oldExpectedDepth = texelFetch(t_InCurrentDepth, coords, 0).x;
-        // const float oldExpectedDepth = prevNDC.z;
 
+        // TODO: We should linearize to make tolerance make sense
         const float g_DisocclusionTolerance = 1e-3f;
         const bool isDisoccluded = oldSampledDepth > oldExpectedDepth + g_DisocclusionTolerance;
 
-        // r.disocclusion = camera_linearize_depth_ndc(g_Camera, oldSampledDepth);
         r.disocclusion = isDisoccluded ? 1.f : 0.f;
     }
 

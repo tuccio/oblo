@@ -91,6 +91,8 @@ namespace oblo::vk::raytraced_shadow_view
     constexpr string_view InMeshDatabase{"MeshDatabase"};
     constexpr string_view InInstanceTables{"InstanceTables"};
     constexpr string_view InInstanceBuffers{"InstanceBuffers"};
+    constexpr string_view InDisocclusionMask{"DisocclusionMask"};
+    constexpr string_view InMotionVectors{"MotionVectors"};
 
     constexpr string_view OutShadow{"Shadow"};
     constexpr string_view OutShadowSink{"ShadowSink"};

@@ -208,6 +208,16 @@ namespace oblo
                             shadowMappingGraph,
                             vk::raytraced_shadow_view::InVisibilityBuffer);
 
+                        frameGraph.connect(sceneView,
+                            vk::main_view::OutDisocclusionMask,
+                            shadowMappingGraph,
+                            vk::raytraced_shadow_view::InDisocclusionMask);
+
+                        frameGraph.connect(sceneView,
+                            vk::main_view::OutMotionVectors,
+                            shadowMappingGraph,
+                            vk::raytraced_shadow_view::InMotionVectors);
+
                         frameGraph.connect(shadowMappingGraph,
                             vk::raytraced_shadow_view::OutShadowSink,
                             sceneView,

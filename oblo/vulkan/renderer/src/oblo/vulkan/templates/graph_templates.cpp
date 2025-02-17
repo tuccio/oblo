@@ -516,6 +516,8 @@ namespace oblo::vk::raytraced_shadow_view
         graph.make_input(temporal, &shadow_temporal::inMeshDatabase, InMeshDatabase);
         graph.make_input(temporal, &shadow_temporal::inInstanceBuffers, InInstanceBuffers);
         graph.make_input(temporal, &shadow_temporal::inInstanceTables, InInstanceTables);
+        graph.make_input(temporal, &shadow_temporal::inDisocclusionMask, InDisocclusionMask);
+        graph.make_input(temporal, &shadow_temporal::inMotionVectors, InMotionVectors);
 
         graph.connect(shadows, &raytraced_shadows::outShadow, momentFilterH, &box_blur_h::inSource);
         graph.connect(momentFilterH, &box_blur_h::outBlurred, momentFilterV, &box_blur_v::inSource);

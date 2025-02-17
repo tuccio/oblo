@@ -27,6 +27,9 @@ namespace oblo::vk
         resource<texture> outFiltered;
         resource<texture> outShadowMoments;
 
+        resource<texture> inDisocclusionMask;
+        resource<texture> inMotionVectors;
+
         h32<compute_pass> temporalPass;
         h32<compute_pass_instance> temporalPassInstance;
 

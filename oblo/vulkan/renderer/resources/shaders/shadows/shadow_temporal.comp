@@ -22,7 +22,10 @@ layout(binding = 1, r8) uniform restrict readonly image2D t_InShadowMean;
 layout(binding = 2, r8) uniform restrict readonly image2D t_InHistory;
 layout(binding = 3, rg16f) uniform restrict writeonly image2D t_OutShadowMoments;
 
-layout(binding = 5, r8ui) uniform restrict uimage2D t_InOutHistorySamplesCount;
+layout(binding = 4, r8) uniform restrict image2D t_InDisocclusionMask;
+layout(binding = 5, rg8) uniform restrict image2D t_InMotionVectors;
+
+layout(binding = 7, r8ui) uniform restrict uimage2D t_InOutHistorySamplesCount;
 
 layout(binding = 8, r8) uniform restrict writeonly image2D t_OutFiltered;
 layout(binding = 9, rg32ui) uniform restrict readonly uimage2D t_InVisibilityBuffer;
@@ -48,7 +51,11 @@ ivec2 apply_offset_clamp(in ivec2 pixel, in uvec2 offset, in uvec2 resolution)
     return ivec2(min(int(resolution.x), int(pixel.x + offset.x)), min(int(resolution.y), int(pixel.y + offset.y)));
 }
 
-ivec2 reproject_coords(in visibility_buffer_data vb, in ivec2 coords, in uvec2 resolution)
+ivec2 reproject_coords(in visibility_buffer_data vb,
+    in ivec2 coords,
+    in uvec2 resolution,
+    out vec3 positionWS,
+    out vec3 lastFramePositionWS)
 {
     const mesh_handle mesh = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MeshHandles, vb.instanceId);
     const transform transform = OBLO_INSTANCE_DATA(vb.instanceTableId, i_TransformBuffer, vb.instanceId);
@@ -82,13 +89,14 @@ ivec2 reproject_coords(in visibility_buffer_data vb, in ivec2 coords, in uvec2 r
 
     distance_from_triangle_plane(cameraRay, triangleWS, intersectionDistance);
 
-    const vec3 positionWS = ray_point_at(cameraRay, intersectionDistance);
+    positionWS = ray_point_at(cameraRay, intersectionDistance);
 
     barycentric_coords bc;
     barycentric_calculate(bc, triangleWS.v, positionWS);
+    barycentric_calculate(bc, prevTriangleWS.v, lastFramePositionWS);
 
     const vec2 prevNDC =
-        visibility_calculate_last_frame_position_ndc_2d(ndc, g_Camera.lastFrameViewProjection, bc, prevTriangleWS);
+        visibility_calculate_last_frame_position_ndc_2d(g_Camera.lastFrameViewProjection, lastFramePositionWS);
 
     const ivec2 pixelOffset = ivec2(resolution * (prevNDC - ndc));
 
@@ -120,7 +128,15 @@ void main()
     const float shadow = imageLoad(t_InShadow, ivec2(screenPos)).x;
     const float mean = imageLoad(t_InShadowMean, ivec2(screenPos)).x;
 
-    const ivec2 historyCoords = reproject_coords(vb, ivec2(screenPos), resolution);
+    // TODO: If the mean is 0 or 1, we might also skip the whole filtering
+    const float mean2 = mean * mean;
+    const float variance = saturate(mean - mean2);
+
+    vec3 currentPositionWS;
+    vec3 lastFramePositionWS;
+
+    const ivec2 historyCoords =
+        reproject_coords(vb, ivec2(screenPos), resolution, currentPositionWS, lastFramePositionWS);
 
     float history = 0.f;
     uint historySamplesCount = 0;
@@ -129,19 +145,17 @@ void main()
     if (historyCoords.x >= 0 && historyCoords.x < resolution.x && historyCoords.y >= 0 &&
         historyCoords.y < resolution.y)
     {
-        history = imageLoad(t_InHistory, historyCoords).x;
-        historySamplesCount = imageLoad(t_InOutHistorySamplesCount, historyCoords).x;
-        historyWeight = g_Constants.temporalAccumulationFactor;
+        const float disocclusion = imageLoad(t_InDisocclusionMask, historyCoords).x;
+
+        if (disocclusion < .9f)
+        {
+            history = imageLoad(t_InHistory, historyCoords).x;
+            historySamplesCount = imageLoad(t_InOutHistorySamplesCount, historyCoords).x;
+            historyWeight = g_Constants.temporalAccumulationFactor;
+        }
     }
 
-    // TODO: If the mean is 0 or 1, we might also skip the whole filtering
-    // TODO: We should implement edge-stopping (see EAW à trous)
-    // TODO: Should probably check for disocclusion
-
-    const float mean2 = mean * mean;
-    const float variance = saturate(mean - mean2);
-
-    if (variance > 1e-3f)
+    if (historySamplesCount < 8 )
     {
         const float maxHistoryWeight = .7f;
         const float varianceBoost = 3.f;
@@ -160,8 +174,7 @@ void main()
 
     imageStore(t_OutFiltered, ivec2(screenPos), vec4(result, 0, 0, 1));
 
-    const bool acceptSample = true;
-    const uint newSamples = max(acceptSample ? historySamplesCount + 1 : 1, 255);
+    const uint newSamples = max(historySamplesCount + 1, 255);
     imageStore(t_InOutHistorySamplesCount, ivec2(screenPos), uvec4(newSamples, 0, 0, 0));
 
     imageStore(t_OutShadowMoments, ivec2(screenPos), vec4(mean, mean2, 0, 0));

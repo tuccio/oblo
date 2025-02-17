@@ -65,6 +65,8 @@ namespace oblo::vk
 
         ctx.acquire(inCameraBuffer, buffer_usage::uniform);
         ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
+        ctx.acquire(inMotionVectors, texture_usage::storage_read);
+        ctx.acquire(inDisocclusionMask, texture_usage::storage_read);
 
         ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
 
@@ -94,6 +96,8 @@ namespace oblo::vk
                 {"t_OutShadowMoments"_hsv, outShadowMoments},
                 {"t_InOutHistorySamplesCount"_hsv, inOutHistorySamplesCount},
                 {"t_InVisibilityBuffer"_hsv, inVisibilityBuffer},
+                {"t_InDisocclusionMask"_hsv, inDisocclusionMask},
+                {"t_InMotionVectors"_hsv, inMotionVectors},
             });
 
             ctx.bind_descriptor_sets(bindingTable);
