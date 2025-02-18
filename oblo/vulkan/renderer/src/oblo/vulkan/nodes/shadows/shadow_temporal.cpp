@@ -35,14 +35,6 @@ namespace oblo::vk
             },
             texture_usage::storage_write);
 
-        ctx.create(outShadowMoments,
-            {
-                .width = imageInitializer->extent.width,
-                .height = imageInitializer->extent.height,
-                .format = VK_FORMAT_R16G16_SFLOAT,
-            },
-            texture_usage::storage_write);
-
         // A little weird to create this readonly texture, it will be written later by the first filter pass
         // We effectively read the history from the previous frame in this pass
         ctx.create(inHistory,
@@ -54,23 +46,8 @@ namespace oblo::vk
             },
             texture_usage::shader_read);
 
-        ctx.create(inOutHistorySamplesCount,
-            {
-                .width = imageInitializer->extent.width,
-                .height = imageInitializer->extent.height,
-                .format = VK_FORMAT_R8_UINT,
-                .isStable = true,
-            },
-            texture_usage::storage_write);
-
-        ctx.acquire(inCameraBuffer, buffer_usage::uniform);
-        ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
         ctx.acquire(inMotionVectors, texture_usage::storage_read);
         ctx.acquire(inDisocclusionMask, texture_usage::storage_read);
-
-        ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
-
-        acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
     }
 
     void shadow_temporal::execute(const frame_graph_execute_context& ctx)
@@ -82,20 +59,11 @@ namespace oblo::vk
 
             binding_table bindingTable;
 
-            bindingTable.bind_buffers({
-                {"b_InstanceTables"_hsv, inInstanceTables},
-                {"b_MeshTables"_hsv, inMeshDatabase},
-                {"b_CameraBuffer"_hsv, inCameraBuffer},
-            });
-
             bindingTable.bind_textures({
                 {"t_InShadow"_hsv, inShadow},
                 {"t_InShadowMean"_hsv, inShadowMean},
                 {"t_InHistory"_hsv, inHistory},
                 {"t_OutFiltered"_hsv, outFiltered},
-                {"t_OutShadowMoments"_hsv, outShadowMoments},
-                {"t_InOutHistorySamplesCount"_hsv, inOutHistorySamplesCount},
-                {"t_InVisibilityBuffer"_hsv, inVisibilityBuffer},
                 {"t_InDisocclusionMask"_hsv, inDisocclusionMask},
                 {"t_InMotionVectors"_hsv, inMotionVectors},
             });

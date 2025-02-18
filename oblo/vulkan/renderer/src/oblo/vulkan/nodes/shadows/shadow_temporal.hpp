@@ -4,7 +4,6 @@
 #include <oblo/vulkan/data/raytraced_shadow_config.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
-#include <oblo/vulkan/nodes/providers/instance_table_node.hpp>
 
 namespace oblo::vk
 {
@@ -13,19 +12,8 @@ namespace oblo::vk
         resource<texture> inShadow;
         resource<texture> inShadowMean;
         resource<texture> inHistory;
-        resource<texture> inOutHistorySamplesCount;
-
-        resource<buffer> inCameraBuffer;
-
-        resource<buffer> inMeshDatabase;
-
-        resource<buffer> inInstanceTables;
-        data<instance_data_table_buffers_span> inInstanceBuffers;
-
-        resource<texture> inVisibilityBuffer;
 
         resource<texture> outFiltered;
-        resource<texture> outShadowMoments;
 
         resource<texture> inDisocclusionMask;
         resource<texture> inMotionVectors;

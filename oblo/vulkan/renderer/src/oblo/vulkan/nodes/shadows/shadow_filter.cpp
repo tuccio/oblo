@@ -55,19 +55,6 @@ namespace oblo::vk
                 },
                 texture_usage::storage_write);
         }
-
-        ctx.acquire(inShadowMoments, texture_usage::storage_read);
-
-        const auto momentsInitializer = ctx.get_current_initializer(inShadowMoments).value_or({});
-
-        ctx.create(outShadowMoments,
-            {
-                .width = momentsInitializer.extent.width,
-                .height = momentsInitializer.extent.height,
-                .format = momentsInitializer.format,
-                .usage = momentsInitializer.usage,
-            },
-            texture_usage::storage_write);
     }
 
     void shadow_filter::execute(const frame_graph_execute_context& ctx)
@@ -89,8 +76,6 @@ namespace oblo::vk
                 {"t_InSource"_hsv, inSource},
                 {"t_InVisibilityBuffer"_hsv, inVisibilityBuffer},
                 {"t_OutFiltered"_hsv, outFiltered},
-                {"t_InShadowMoments"_hsv, inShadowMoments},
-                {"t_OutShadowMoments"_hsv, outShadowMoments},
             });
 
             ctx.bind_descriptor_sets(bindingTable);

@@ -21,9 +21,6 @@ namespace oblo::vk
 
         resource<texture> inVisibilityBuffer;
 
-        resource<texture> inShadowMoments;
-        resource<texture> outShadowMoments;
-
         resource<texture> outFiltered;
 
         data<raytraced_shadow_config> inConfig;

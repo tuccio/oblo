@@ -513,10 +513,6 @@ namespace oblo::vk::raytraced_shadow_view
         graph.make_input(shadows, &raytraced_shadows::inConfig, InConfig);
         graph.make_input(shadows, &raytraced_shadows::inDepthBuffer, InDepthBuffer);
 
-        graph.make_input(temporal, &shadow_temporal::inVisibilityBuffer, InVisibilityBuffer);
-        graph.make_input(temporal, &shadow_temporal::inMeshDatabase, InMeshDatabase);
-        graph.make_input(temporal, &shadow_temporal::inInstanceBuffers, InInstanceBuffers);
-        graph.make_input(temporal, &shadow_temporal::inInstanceTables, InInstanceTables);
         graph.make_input(temporal, &shadow_temporal::inDisocclusionMask, InDisocclusionMask);
         graph.make_input(temporal, &shadow_temporal::inMotionVectors, InMotionVectors);
 
@@ -526,26 +522,29 @@ namespace oblo::vk::raytraced_shadow_view
         graph.connect(shadows, &raytraced_shadows::outShadow, temporal, &shadow_temporal::inShadow);
         graph.connect(momentFilterV, &box_blur_v::outBlurred, temporal, &shadow_temporal::inShadowMean);
 
-        graph.connect(shadows, &raytraced_shadows::inCameraBuffer, temporal, &shadow_temporal::inCameraBuffer);
         graph.connect(shadows, &raytraced_shadows::inConfig, temporal, &shadow_temporal::inConfig);
 
         graph.connect(temporal, &shadow_temporal::outFiltered, filter0, &shadow_filter::inSource);
         graph.connect(filter0, &shadow_filter::outFiltered, filter1, &shadow_filter::inSource);
         graph.connect(filter1, &shadow_filter::outFiltered, filter2, &shadow_filter::inSource);
 
-        graph.connect(temporal, &shadow_temporal::outShadowMoments, filter0, &shadow_filter::inShadowMoments);
-        graph.connect(filter0, &shadow_filter::outShadowMoments, filter1, &shadow_filter::inShadowMoments);
-        graph.connect(filter1, &shadow_filter::outShadowMoments, filter2, &shadow_filter::inShadowMoments);
+        graph.make_input(filter0, &shadow_filter::inVisibilityBuffer, InVisibilityBuffer);
+        graph.make_input(filter0, &shadow_filter::inMeshDatabase, InMeshDatabase);
+        graph.make_input(filter0, &shadow_filter::inInstanceBuffers, InInstanceBuffers);
+        graph.make_input(filter0, &shadow_filter::inInstanceTables, InInstanceTables);
 
         for (auto filter : {filter0, filter1, filter2})
         {
             graph.connect(shadows, &raytraced_shadows::inCameraBuffer, filter, &shadow_filter::inCameraBuffer);
             graph.connect(shadows, &raytraced_shadows::inConfig, filter, &shadow_filter::inConfig);
 
-            graph.connect(temporal, &shadow_temporal::inVisibilityBuffer, filter, &shadow_filter::inVisibilityBuffer);
-            graph.connect(temporal, &shadow_temporal::inMeshDatabase, filter, &shadow_filter::inMeshDatabase);
-            graph.connect(temporal, &shadow_temporal::inInstanceBuffers, filter, &shadow_filter::inInstanceBuffers);
-            graph.connect(temporal, &shadow_temporal::inInstanceTables, filter, &shadow_filter::inInstanceTables);
+            if (filter != filter0)
+            {
+                graph.connect(filter0, &shadow_filter::inVisibilityBuffer, filter, &shadow_filter::inVisibilityBuffer);
+                graph.connect(filter0, &shadow_filter::inMeshDatabase, filter, &shadow_filter::inMeshDatabase);
+                graph.connect(filter0, &shadow_filter::inInstanceBuffers, filter, &shadow_filter::inInstanceBuffers);
+                graph.connect(filter0, &shadow_filter::inInstanceTables, filter, &shadow_filter::inInstanceTables);
+            }
         }
 
         // A little unintuitive, we use the result of the first filter as history for next frame
@@ -562,10 +561,6 @@ namespace oblo::vk::raytraced_shadow_view
         graph.make_output(filter0, &shadow_filter::outFiltered, "Filter0 - Shadows");
         graph.make_output(filter1, &shadow_filter::outFiltered, "Filter1 - Shadows");
         graph.make_output(filter2, &shadow_filter::outFiltered, "Filter2 - Shadows");
-
-        graph.make_output(filter0, &shadow_filter::outShadowMoments, "Filter0 - Moments");
-        graph.make_output(filter1, &shadow_filter::outShadowMoments, "Filter1 - Moments");
-        graph.make_output(filter2, &shadow_filter::outShadowMoments, "Filter2 - Moments");
 
         graph.make_output(momentFilterH, &gaussian_blur_h::outBlurred, "Shadow Blur Horizontal");
         graph.make_output(momentFilterV, &gaussian_blur_v::outBlurred, "Shadow Blur Vertical");
