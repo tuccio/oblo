@@ -99,11 +99,10 @@ temporal_output calculate_outputs(in visibility_buffer_data vb, in ivec2 coords,
     else
     {
         const float oldSampledDepth = texelFetch(t_InLastFrameDepth, oldCoords, 0).x;
-        const vec3 currentNDC = visibility_calculate_position_ndc_3d(g_Camera.viewProjection, positionWS);
 
         const float oldLinearDepth = camera_linearize_depth_ndc(g_Camera, oldSampledDepth);
-        const float currentLinearDepth = camera_linearize_depth_ndc(g_Camera, currentNDC.z);
-        
+        const float currentLinearDepth = -(g_Camera.view * vec4(positionWS, 1)).z;
+
         const float g_DisocclusionTolerance = 3e0f;
         const bool isDisoccluded = oldLinearDepth > currentLinearDepth + g_DisocclusionTolerance;
 
