@@ -60,7 +60,7 @@ namespace oblo
             light.shadowPunctualRadius = .15f;
             light.shadowDepthSigma = 1e-2f;
 
-            light.shadowTemporalAccumulationFactor = .3f;
+            light.shadowTemporalAccumulationFactor = .98f;
             light.shadowMeanFilterSize = 17;
             light.shadowMeanFilterSigma = 1.f;
 

@@ -89,12 +89,13 @@ void main()
 
         if (isHighVariance)
         {
-            const float maxHistoryWeight = .9f;
+            const float maxHistoryWeight = max(.9f, g_Constants.temporalAccumulationFactor);
             const float highVarianceBoost = 5.f;
             const float highVarianceHistoryBoost = 5.f;
 
             variance *= highVarianceBoost;
             historyWeight = min(highVarianceHistoryBoost * historyWeight, maxHistoryWeight);
+            historyWeight = g_Constants.temporalAccumulationFactor;
         }
     }
 

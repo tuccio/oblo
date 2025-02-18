@@ -1,3 +1,4 @@
+
 #include <oblo/graphics/systems/lighting_system.hpp>
 
 #include <oblo/core/buffered_array.hpp>
@@ -68,7 +69,7 @@ namespace oblo
             .shadowBias = .025f,
             .shadowPunctualRadius = 100.f,
             .shadowDepthSigma = 1e-2f,
-            .shadowTemporalAccumulationFactor = .3f,
+            .shadowTemporalAccumulationFactor = .98f,
             .shadowMeanFilterSize = 17,
             .shadowMeanFilterSigma = 1.f,
         };
