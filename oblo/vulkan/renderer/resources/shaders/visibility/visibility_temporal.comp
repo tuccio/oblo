@@ -21,7 +21,6 @@
 layout(binding = 0, rg8) uniform restrict writeonly image2D t_OutMotionVectors;
 layout(binding = 1, r8) uniform restrict writeonly image2D t_OutDisocclusionMask;
 
-layout(binding = 4) uniform texture2D t_InCurrentDepth;
 layout(binding = 5) uniform texture2D t_InLastFrameDepth;
 layout(binding = 6, rg32ui) uniform restrict readonly uimage2D t_InVisibilityBuffer;
 
@@ -80,8 +79,7 @@ temporal_output calculate_outputs(in visibility_buffer_data vb, in ivec2 coords,
 
     const vec3 prevPositionWS = barycentric_interpolate(bc, prevTriangleWS.v);
 
-    const vec2 prevNDC =
-        visibility_calculate_last_frame_position_ndc_2d(g_Camera.lastFrameViewProjection, prevPositionWS);
+    const vec2 prevNDC = visibility_calculate_position_ndc_2d(g_Camera.lastFrameViewProjection, prevPositionWS);
 
     temporal_output r;
     r.motionVectors = ndc - prevNDC.xy;
@@ -101,11 +99,13 @@ temporal_output calculate_outputs(in visibility_buffer_data vb, in ivec2 coords,
     else
     {
         const float oldSampledDepth = texelFetch(t_InLastFrameDepth, oldCoords, 0).x;
-        const float oldExpectedDepth = texelFetch(t_InCurrentDepth, coords, 0).x;
+        const vec3 currentNDC = visibility_calculate_position_ndc_3d(g_Camera.viewProjection, positionWS);
 
-        // TODO: We should linearize to make tolerance make sense
-        const float g_DisocclusionTolerance = 1e-3f;
-        const bool isDisoccluded = oldSampledDepth > oldExpectedDepth + g_DisocclusionTolerance;
+        const float oldLinearDepth = camera_linearize_depth_ndc(g_Camera, oldSampledDepth);
+        const float currentLinearDepth = camera_linearize_depth_ndc(g_Camera, currentNDC.z);
+        
+        const float g_DisocclusionTolerance = 3e0f;
+        const bool isDisoccluded = oldLinearDepth > currentLinearDepth + g_DisocclusionTolerance;
 
         r.disocclusion = isDisoccluded ? 1.f : 0.f;
     }
