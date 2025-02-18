@@ -662,13 +662,13 @@ namespace oblo::vk
 
         auto& imageLayoutTracker = executionState.imageLayoutTracker;
 
-        for (const auto [resource, poolIndex] : m_impl->transientTextures)
+        for (const auto [resource, transientTextureHandle] : m_impl->transientTextures)
         {
-            const auto t = resourcePool.get_transient_texture(poolIndex);
+            const auto t = resourcePool.get_transient_texture(transientTextureHandle);
 
             // We use the pin storage id as texture id because it's unique per texture
             // The frame graph context also assumes this is the case when reading the layout
-            imageLayoutTracker.start_tracking(resource, t);
+            imageLayoutTracker.start_tracking(transientTextureHandle, t);
 
             new (m_impl->access_storage(resource)) texture{t};
         }
@@ -813,8 +813,14 @@ namespace oblo::vk
         {
             const auto& textureTransition = textureTransitions[i];
 
-            if (!state.imageLayoutTracker.add_transition(imageBarriers.push_back_default(),
-                    textureTransition.texture,
+            auto* const texture = pinStorage.try_find(textureTransition.texture);
+            OBLO_ASSERT(texture && texture->transientTexture);
+
+            auto& barrier = imageBarriers.push_back_default();
+
+            if (!texture ||
+                !state.imageLayoutTracker.add_transition(barrier,
+                    texture->transientTexture,
                     pass.kind,
                     textureTransition.usage))
             {

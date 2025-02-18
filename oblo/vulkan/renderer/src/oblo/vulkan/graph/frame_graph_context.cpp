@@ -326,7 +326,10 @@ namespace oblo::vk
                             // track of textures
                             const auto storage = as_storage_handle(r->texture);
 
-                            const auto layout = imageLayoutTracker.try_get_layout(storage);
+                            auto* const textureStorage = frameGraph.pinStorage.try_find(storage);
+                            OBLO_ASSERT(textureStorage && textureStorage->transientTexture);
+
+                            const auto layout = imageLayoutTracker.try_get_layout(textureStorage->transientTexture);
                             layout.assert_value();
 
                             return make_bindable_object(t.view, layout.value_or(VK_IMAGE_LAYOUT_UNDEFINED));
