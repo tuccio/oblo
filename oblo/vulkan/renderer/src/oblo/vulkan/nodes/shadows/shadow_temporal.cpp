@@ -52,7 +52,7 @@ namespace oblo::vk
                 .format = VK_FORMAT_R8_UNORM,
                 .isStable = true,
             },
-            texture_usage::storage_read);
+            texture_usage::shader_read);
 
         ctx.create(inOutHistorySamplesCount,
             {

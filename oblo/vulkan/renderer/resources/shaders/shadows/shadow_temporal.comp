@@ -3,6 +3,7 @@
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_control_flow_attributes : enable
 #extension GL_EXT_buffer_reference : require
+#extension GL_EXT_nonuniform_qualifier : require
 #extension GL_EXT_shader_8bit_storage : require
 #extension GL_ARB_gpu_shader_int64 : require
 
@@ -13,19 +14,18 @@
 #include <renderer/meshes/mesh_data>
 #include <renderer/meshes/mesh_indices>
 #include <renderer/meshes/mesh_table>
+#include <renderer/textures>
 #include <renderer/transform>
 #include <visibility/visibility_buffer>
 #include <visibility/visibility_utils>
 
 layout(binding = 0, r8) uniform restrict readonly image2D t_InShadow;
 layout(binding = 1, r8) uniform restrict readonly image2D t_InShadowMean;
-layout(binding = 2, r8) uniform restrict readonly image2D t_InHistory;
+layout(binding = 2) uniform texture2D t_InHistory;
 layout(binding = 3, rg16f) uniform restrict writeonly image2D t_OutShadowMoments;
 
 layout(binding = 4, r8) uniform restrict image2D t_InDisocclusionMask;
 layout(binding = 5, rg8) uniform restrict image2D t_InMotionVectors;
-
-layout(binding = 7, r8ui) uniform restrict uimage2D t_InOutHistorySamplesCount;
 
 layout(binding = 8, r8) uniform restrict writeonly image2D t_OutFiltered;
 layout(binding = 9, rg32ui) uniform restrict readonly uimage2D t_InVisibilityBuffer;
@@ -51,12 +51,13 @@ ivec2 apply_offset_clamp(in ivec2 pixel, in uvec2 offset, in uvec2 resolution)
     return ivec2(min(int(resolution.x), int(pixel.x + offset.x)), min(int(resolution.y), int(pixel.y + offset.y)));
 }
 
-ivec2 reproject_coords(in ivec2 coords, in uvec2 resolution)
+vec2 reproject_coords(in uvec2 coords, in uvec2 resolution)
 {
+    const vec2 uv = vec2(coords + .5f) / vec2(resolution);
+
     // Motion vectors are calculated as current - previous, so we need to subtract to obtain the previous coordinates
-    const vec2 motionVector = imageLoad(t_InMotionVectors, coords).xy;
-    const ivec2 pixelOffset = ivec2(vec2(resolution) * motionVector + .5f);
-    return coords - pixelOffset;
+    const vec2 motionVector = imageLoad(t_InMotionVectors, ivec2(coords)).xy;
+    return uv - motionVector;
 }
 
 void main()
@@ -83,25 +84,23 @@ void main()
     vec3 currentPositionWS;
     vec3 lastFramePositionWS;
 
-    const ivec2 historyCoords = reproject_coords(ivec2(screenPos), resolution);
+    const vec2 historyUV = reproject_coords(screenPos, resolution);
 
     float history = 0.f;
     uint historySamplesCount = 0;
     float historyWeight = 0.f;
 
-    if (historyCoords.x >= 0 && historyCoords.x < resolution.x && historyCoords.y >= 0 &&
-        historyCoords.y < resolution.y)
+    // if (historyUV.x >= 0 && historyUV.x < 1.f && historyUV.y >= 0 && historyUV.y < 1.f)
     {
-        const float disocclusion = imageLoad(t_InDisocclusionMask, historyCoords).x;
+        const float disocclusion = imageLoad(t_InDisocclusionMask, ivec2(screenPos)).x;
 
         if (disocclusion < .9f)
         {
-            history = imageLoad(t_InHistory, historyCoords).x;
-            historySamplesCount = imageLoad(t_InOutHistorySamplesCount, historyCoords).x;
+            history = texture(sampler2D(t_InHistory, g_Samplers[OBLO_SAMPLER_LINEAR]), historyUV).x;
             historyWeight = g_Constants.temporalAccumulationFactor;
         }
 
-        if (historySamplesCount > 32 && isHighVariance)
+        if (isHighVariance)
         {
             const float maxHistoryWeight = .9f;
             const float highVarianceBoost = 5.f;
@@ -123,9 +122,6 @@ void main()
     const float result = mix(shadow, clampedHistory, historyWeight);
 
     imageStore(t_OutFiltered, ivec2(screenPos), vec4(result, 0, 0, 1));
-
-    const uint newSamples = max(historySamplesCount + 1, 255);
-    imageStore(t_InOutHistorySamplesCount, ivec2(screenPos), uvec4(newSamples, 0, 0, 0));
 
     imageStore(t_OutShadowMoments, ivec2(screenPos), vec4(mean, mean2, 0, 0));
 }
