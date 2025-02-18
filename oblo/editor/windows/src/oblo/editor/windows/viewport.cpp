@@ -150,6 +150,8 @@ namespace oblo::editor
                 const auto textureId = imgui::add_image(v.graph, graphOutput);
                 ImGui::Image(textureId, windowSize);
 
+                const bool isClicked = ImGui::IsItemClicked();
+
                 // Maybe use item size?
                 m_gizmoHandler.set_id(m_viewportId);
 
@@ -162,7 +164,7 @@ namespace oblo::editor
                 switch (v.picking.state)
                 {
                 case picking_request::state::none:
-                    if (!gizmoActive && ImGui::IsItemClicked())
+                    if (hasFocus && !gizmoActive && isClicked)
                     {
                         const auto [viewportX, viewportY] = ImGui::GetItemRectMin();
                         const auto [mouseX, mouseY] = ImGui::GetMousePos();

@@ -361,10 +361,16 @@ namespace oblo::ecs_serializer
                                     const auto newNode =
                                         doc.find_child(nodeStack.back(), hashed_string_view{node.name});
 
-                                    OBLO_ASSERT(doc.is_object(newNode));
-
+                                    // Push even if we early out, because the property_node_finish call will pop
                                     ptrStack.push_back(ptr);
                                     nodeStack.push_back(newNode);
+
+                                    if (newNode == data_node::Invalid)
+                                    {
+                                        return visit_result::sibling;
+                                    }
+
+                                    OBLO_ASSERT(doc.is_object(newNode));
 
                                     return visit_result::recurse;
                                 },

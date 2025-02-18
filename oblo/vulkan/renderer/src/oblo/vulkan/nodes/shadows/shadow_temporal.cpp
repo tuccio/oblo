@@ -22,7 +22,7 @@ namespace oblo::vk
         temporalPassInstance = ctx.compute_pass(temporalPass, {});
 
         ctx.acquire(inShadow, texture_usage::storage_read);
-        ctx.acquire(inMoments, texture_usage::storage_read);
+        ctx.acquire(inShadowMean, texture_usage::storage_read);
 
         const auto imageInitializer = ctx.get_current_initializer(inShadow);
         imageInitializer.assert_value();
@@ -44,23 +44,10 @@ namespace oblo::vk
                 .format = VK_FORMAT_R8_UNORM,
                 .isStable = true,
             },
-            texture_usage::storage_read);
+            texture_usage::shader_read);
 
-        ctx.create(inOutHistorySamplesCount,
-            {
-                .width = imageInitializer->extent.width,
-                .height = imageInitializer->extent.height,
-                .format = VK_FORMAT_R8_UINT,
-                .isStable = true,
-            },
-            texture_usage::storage_write);
-
-        ctx.acquire(inCameraBuffer, buffer_usage::uniform);
-        ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
-
-        ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
-
-        acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
+        ctx.acquire(inMotionVectors, texture_usage::storage_read);
+        ctx.acquire(inDisocclusionMask, texture_usage::storage_read);
     }
 
     void shadow_temporal::execute(const frame_graph_execute_context& ctx)
@@ -72,24 +59,29 @@ namespace oblo::vk
 
             binding_table bindingTable;
 
-            bindingTable.bind_buffers({
-                {"b_InstanceTables", inInstanceTables},
-                {"b_MeshTables", inMeshDatabase},
-                {"b_CameraBuffer", inCameraBuffer},
-            });
-
             bindingTable.bind_textures({
-                {"t_InShadow", inShadow},
-                {"t_InMoments", inMoments},
-                {"t_InHistory", inHistory},
-                {"t_OutFiltered", outFiltered},
-                {"t_InOutHistorySamplesCount", inOutHistorySamplesCount},
-                {"t_InVisibilityBuffer", inVisibilityBuffer},
+                {"t_InShadow"_hsv, inShadow},
+                {"t_InShadowMean"_hsv, inShadowMean},
+                {"t_InHistory"_hsv, inHistory},
+                {"t_OutFiltered"_hsv, outFiltered},
+                {"t_InDisocclusionMask"_hsv, inDisocclusionMask},
+                {"t_InMotionVectors"_hsv, inMotionVectors},
             });
 
             ctx.bind_descriptor_sets(bindingTable);
 
-            ctx.dispatch_compute(round_up_div(resolution.x, 8u), round_up_div(resolution.x, 8u), 1);
+            struct push_constants
+            {
+                f32 temporalAccumulationFactor;
+            };
+
+            const push_constants constants{
+                .temporalAccumulationFactor = ctx.access(inConfig).temporalAccumulationFactor,
+            };
+
+            ctx.push_constants(shader_stage::compute, 0, as_bytes(std::span{&constants, 1}));
+
+            ctx.dispatch_compute(round_up_div(resolution.x, 8u), round_up_div(resolution.y, 8u), 1);
 
             ctx.end_pass();
         }

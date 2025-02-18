@@ -1,17 +1,14 @@
 #pragma once
 
 #include <oblo/core/types.hpp>
-#include <oblo/vulkan/data/raytraced_shadow_config.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 #include <oblo/vulkan/nodes/providers/instance_table_node.hpp>
 
 namespace oblo::vk
 {
-    struct shadow_filter
+    struct visibility_temporal
     {
-        resource<texture> inSource;
-
         resource<buffer> inCameraBuffer;
 
         resource<buffer> inMeshDatabase;
@@ -21,14 +18,14 @@ namespace oblo::vk
 
         resource<texture> inVisibilityBuffer;
 
-        resource<texture> outFiltered;
+        resource<texture> inCurrentDepth;
+        resource<texture> inLastFrameDepth;
 
-        data<raytraced_shadow_config> inConfig;
+        h32<compute_pass> temporalPass;
+        h32<compute_pass_instance> temporalPassInstance;
 
-        h32<compute_pass> filterPass;
-        h32<compute_pass_instance> filterPassInstance;
-
-        u32 passIndex;
+        resource<texture> outMotionVectors;
+        resource<texture> outDisocclusionMask;
 
         void init(const frame_graph_init_context& ctx);
 

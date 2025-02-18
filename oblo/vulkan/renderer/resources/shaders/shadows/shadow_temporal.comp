@@ -3,40 +3,33 @@
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_control_flow_attributes : enable
 #extension GL_EXT_buffer_reference : require
+#extension GL_EXT_nonuniform_qualifier : require
 #extension GL_EXT_shader_8bit_storage : require
 #extension GL_ARB_gpu_shader_int64 : require
 
-#include <renderer/camera>
-#include <renderer/instances>
 #include <renderer/math>
-#include <renderer/meshes/mesh_attributes>
-#include <renderer/meshes/mesh_data>
-#include <renderer/meshes/mesh_indices>
-#include <renderer/meshes/mesh_table>
+#include <renderer/textures>
 #include <renderer/transform>
 #include <visibility/visibility_buffer>
 #include <visibility/visibility_utils>
 
 layout(binding = 0, r8) uniform restrict readonly image2D t_InShadow;
-layout(binding = 1, r8) uniform restrict readonly image2D t_InMoments;
-layout(binding = 2, r8) uniform restrict readonly image2D t_InHistory;
+layout(binding = 1, r8) uniform restrict readonly image2D t_InShadowMean;
+layout(binding = 2) uniform texture2D t_InHistory;
 
-layout(binding = 3, rg32ui) uniform restrict readonly uimage2D t_InVisibilityBuffer;
-
-layout(binding = 5, r8ui) uniform restrict uimage2D t_InOutHistorySamplesCount;
+layout(binding = 4, r8) uniform restrict image2D t_InDisocclusionMask;
+layout(binding = 5, rg8) uniform restrict image2D t_InMotionVectors;
 
 layout(binding = 8, r8) uniform restrict writeonly image2D t_OutFiltered;
 
-layout(binding = 16) uniform b_CameraBuffer
+layout(push_constant) uniform c_PushConstants
 {
-    camera_buffer g_Camera;
-};
+    float temporalAccumulationFactor;
+}
+g_Constants;
 
 // We run 8x8 groups
 const uint g_ThreadLocalSize = 8;
-
-const uint g_ShadowCacheSize = g_ThreadLocalSize;
-const uint g_ShadowLoadsPerThread = (g_ShadowCacheSize + g_ThreadLocalSize - 1) / g_ThreadLocalSize;
 
 layout(local_size_x = g_ThreadLocalSize, local_size_y = g_ThreadLocalSize, local_size_z = 1) in;
 
@@ -45,51 +38,13 @@ ivec2 apply_offset_clamp(in ivec2 pixel, in uvec2 offset, in uvec2 resolution)
     return ivec2(min(int(resolution.x), int(pixel.x + offset.x)), min(int(resolution.y), int(pixel.y + offset.y)));
 }
 
-ivec2 reproject_coords(in visibility_buffer_data vb, in ivec2 coords, in uvec2 resolution)
+vec2 reproject_coords(in uvec2 coords, in uvec2 resolution)
 {
-    const mesh_handle mesh = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MeshHandles, vb.instanceId);
-    const transform transform = OBLO_INSTANCE_DATA(vb.instanceTableId, i_TransformBuffer, vb.instanceId);
+    const vec2 uv = vec2(coords + .5f) / vec2(resolution);
 
-    // Read the mesh data
-    const mesh_table meshTable = mesh_table_fetch(mesh);
-
-    const uvec3 vertexIndices = mesh_get_meshlet_indices(meshTable, mesh, vb.meshletId, vb.meshletTriangleId);
-
-    triangle triangleWS;
-    triangle prevTriangleWS;
-
-    // Read the vertex data and transform everything in world space, we do lighting calculation in that
-    // space
-    [[unroll]] for (uint i = 0; i < 3; ++i)
-    {
-        const uint vertexId = vertexIndices[i];
-
-        const vec3 vertexPosition = mesh_get_position(meshTable, vertexId);
-        triangleWS.v[i] = (transform.localToWorld * vec4(vertexPosition, 1)).xyz;
-
-        prevTriangleWS.v[i] = (transform.lastFrameLocalToWorld * vec4(vertexPosition, 1)).xyz;
-    }
-
-    const vec2 ndc = screen_to_ndc(uvec2(coords), resolution);
-
-    const ray cameraRay = visibility_calculate_camera_ray(g_Camera, ndc);
-
-    // We could use this for the depth stop function for the à trous filter
-    float intersectionDistance;
-
-    distance_from_triangle_plane(cameraRay, triangleWS, intersectionDistance);
-
-    const vec3 positionWS = ray_point_at(cameraRay, intersectionDistance);
-
-    barycentric_coords bc;
-    barycentric_calculate(bc, triangleWS.v, positionWS);
-
-    const vec2 prevNDC =
-        visibility_calculate_last_frame_position_ndc_2d(ndc, g_Camera.lastFrameViewProjection, bc, prevTriangleWS);
-
-    const ivec2 pixelOffset = ivec2(resolution * (prevNDC - ndc));
-
-    return pixelOffset + coords;
+    // Motion vectors are calculated as current - previous, so we need to subtract to obtain the previous coordinates
+    const vec2 motionVector = imageLoad(t_InMotionVectors, ivec2(coords)).xy;
+    return uv - motionVector;
 }
 
 void main()
@@ -102,44 +57,46 @@ void main()
         return;
     }
 
-    const uvec4 vbPixel = imageLoad(t_InVisibilityBuffer, ivec2(screenPos));
-
-    visibility_buffer_data vb;
-
-    if (!visibility_buffer_parse(vbPixel.xy, vb))
-    {
-        // TODO: If nothing is in the VB of a whole tile we could probably skip the whole filtering as well
-        imageStore(t_OutFiltered, ivec2(screenPos), vec4(0, 0, 0, 1));
-        imageStore(t_InOutHistorySamplesCount, ivec2(screenPos), uvec4(0));
-        return;
-    }
-
     const float shadow = imageLoad(t_InShadow, ivec2(screenPos)).x;
-    const float mean = imageLoad(t_InMoments, ivec2(screenPos)).x;
+    const float mean = imageLoad(t_InShadowMean, ivec2(screenPos)).x;
 
-    const ivec2 historyCoords = reproject_coords(vb, ivec2(screenPos), resolution);
+    // TODO: If the mean is 0 or 1 for whole whole group, we might also skip the filtering
+    // Note: we use the E[X] instead of E[X^2] because we assume 1 ray per pixel, and shadows are either 0 or 1
+    const float mean2 = mean * mean;
+    float variance = saturate(mean - mean2);
+
+    const float highVarianceThreshold = 1e-4;
+    const bool isHighVariance = variance > highVarianceThreshold;
+
+    vec3 currentPositionWS;
+    vec3 lastFramePositionWS;
+
+    const vec2 historyUV = reproject_coords(screenPos, resolution);
 
     float history = 0.f;
     uint historySamplesCount = 0;
     float historyWeight = 0.f;
 
-    if (historyCoords.x >= 0 && historyCoords.x < resolution.x && historyCoords.y >= 0 &&
-        historyCoords.y < resolution.y)
+    if (historyUV.x >= 0 && historyUV.x < 1.f && historyUV.y >= 0 && historyUV.y < 1.f)
     {
-        history = imageLoad(t_InHistory, historyCoords).x;
-        historySamplesCount = imageLoad(t_InOutHistorySamplesCount, historyCoords).x;
-        historyWeight = .3f;
-    }
+        const float disocclusion = imageLoad(t_InDisocclusionMask, ivec2(screenPos)).x;
 
-    // TODO: If the mean is 0 or 1, we might also skip the whole filtering
-    // TODO: We should implement edge-stopping (see EAW à trous)
-    // TODO: Should probably check for disocclusion
+        if (disocclusion < .9f)
+        {
+            history = texture(sampler2D(t_InHistory, g_Samplers[OBLO_SAMPLER_LINEAR]), historyUV).x;
+            historyWeight = g_Constants.temporalAccumulationFactor;
+        }
 
-    const float variance = saturate(mean - mean * mean);
+        if (isHighVariance)
+        {
+            const float maxHistoryWeight = max(.9f, g_Constants.temporalAccumulationFactor);
+            const float highVarianceBoost = 5.f;
+            const float highVarianceHistoryBoost = 5.f;
 
-    if (variance > .01f)
-    {
-        historyWeight *= 3.f;
+            variance *= highVarianceBoost;
+            historyWeight = min(highVarianceHistoryBoost * historyWeight, maxHistoryWeight);
+            historyWeight = g_Constants.temporalAccumulationFactor;
+        }
     }
 
     const float deviation = sqrt(variance);
@@ -153,8 +110,4 @@ void main()
     const float result = mix(shadow, clampedHistory, historyWeight);
 
     imageStore(t_OutFiltered, ivec2(screenPos), vec4(result, 0, 0, 1));
-
-    const bool acceptSample = true;
-    const uint newSamples = max(uint(acceptSample) * historySamplesCount + 1, 255);
-    imageStore(t_InOutHistorySamplesCount, ivec2(screenPos), uvec4(newSamples, 0, 0, 0));
 }

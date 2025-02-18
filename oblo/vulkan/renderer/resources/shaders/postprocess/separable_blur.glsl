@@ -51,12 +51,12 @@ blur_pixel_t blur_read_pixel_at_offset(in blur_context ctx, int offset)
     return g_ImageCache[index];
 }
 
-ivec2 blur_apply_offset_clamp(in ivec2 pixel, in uint offset, in uvec2 resolution)
+ivec2 blur_apply_offset_clamp(in ivec2 pixel, in uint offset, in ivec2 resolution)
 {
 #ifdef BLUR_HORIZONTAL
-    return ivec2(min(int(resolution.x), int(pixel.x + offset)), pixel.y);
+    return ivec2(min(resolution.x, pixel.x + offset), pixel.y);
 #else
-    return ivec2(pixel.x, min(int(resolution.y), int(pixel.y + offset)));
+    return ivec2(pixel.x, min(resolution.y, pixel.y + offset));
 #endif
 }
 
@@ -65,11 +65,11 @@ void main()
     const uvec2 resolution = imageSize(t_InSource);
 
 #ifdef BLUR_HORIZONTAL
-    const uvec2 firstGroupPixel = uvec2(gl_WorkGroupID.x * g_GroupSize, gl_WorkGroupID.y);
-    const ivec2 firstPixelToLoad = ivec2(max(0, int(firstGroupPixel.x - g_KernelDataSize)), firstGroupPixel.y);
+    const ivec2 firstGroupPixel = ivec2(gl_WorkGroupID.x * g_GroupSize, gl_WorkGroupID.y);
+    const ivec2 firstPixelToLoad = ivec2(max(0, firstGroupPixel.x - g_KernelDataSize), firstGroupPixel.y);
 #else
-    const uvec2 firstGroupPixel = uvec2(gl_WorkGroupID.x, gl_WorkGroupID.y * g_GroupSize);
-    const ivec2 firstPixelToLoad = ivec2(firstGroupPixel.x, max(0, int(firstGroupPixel.y - g_KernelDataSize)));
+    const ivec2 firstGroupPixel = ivec2(gl_WorkGroupID.x, gl_WorkGroupID.y * g_GroupSize);
+    const ivec2 firstPixelToLoad = ivec2(firstGroupPixel.x, max(0, firstGroupPixel.y - g_KernelDataSize));
 #endif
 
     [[unroll]] for (uint loadIndex = 0; loadIndex < g_LoadsPerThread; ++loadIndex)
@@ -78,7 +78,7 @@ void main()
 
         if (offset < g_ImageCacheSize)
         {
-            const ivec2 coords = blur_apply_offset_clamp(firstPixelToLoad, offset, resolution);
+            const ivec2 coords = blur_apply_offset_clamp(firstPixelToLoad, offset, ivec2(resolution));
             const vec4 pixel = imageLoad(t_InSource, coords);
 
             g_ImageCache[offset] = blur_make_pixel(pixel);

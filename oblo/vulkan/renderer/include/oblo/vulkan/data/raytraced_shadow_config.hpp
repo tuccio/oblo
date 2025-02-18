@@ -8,11 +8,11 @@ namespace oblo::vk
 
     struct raytraced_shadow_config
     {
-        u32 shadowSamples;
         u32 lightIndex;
         light_type type;
         f32 shadowPunctualRadius;
         f32 temporalAccumulationFactor;
+        f32 depthSigma;
         bool hardShadows;
     };
 }

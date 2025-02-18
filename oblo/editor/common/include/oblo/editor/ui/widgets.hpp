@@ -4,7 +4,7 @@
 
 namespace oblo::editor::ui
 {
-    bool dragfloat_n_xyz(const char* label,
+    bool dragfloat_n_xyzw(const char* label,
         float* v,
         int components,
         float vSpeed,

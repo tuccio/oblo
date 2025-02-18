@@ -16,6 +16,7 @@
 #include <oblo/editor/ui/property_table.hpp>
 #include <oblo/editor/utility/entity_utility.hpp>
 #include <oblo/editor/window_update_context.hpp>
+#include <oblo/math/mat4.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/properties/attributes.hpp>
 #include <oblo/properties/property_kind.hpp>
@@ -95,6 +96,13 @@ namespace oblo::editor
                             if (node.type == get_type_id<quaternion>())
                             {
                                 modified |= build_quaternion_editor(node, ptr);
+                                return visit_result::sibling;
+                            }
+
+                            if (node.type == get_type_id<mat4>())
+                            {
+                                auto* const v = new (ptr) mat4;
+                                modified |= ui::property_table::add(int(hash_mix(node.offset, 0)), node.name, *v);
                                 return visit_result::sibling;
                             }
 

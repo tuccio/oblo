@@ -23,13 +23,13 @@ namespace oblo
         radians spotOuterAngle;
         bool isShadowCaster;
         bool hardShadows;
-        u32 shadowSamples;
         f32 shadowBias;
         f32 shadowPunctualRadius;
+        f32 shadowDepthSigma;
 
         // These should rather be global settings
         f32 shadowTemporalAccumulationFactor;
-        u32 shadowBlurKernel;
-        f32 shadowBlurSigma;
+        u32 shadowMeanFilterSize;
+        f32 shadowMeanFilterSigma;
     };
 }

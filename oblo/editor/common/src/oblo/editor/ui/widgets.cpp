@@ -1,5 +1,6 @@
 #include <oblo/editor/ui/widgets.hpp>
 
+#include <oblo/core/array_size.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/editor/ui/constants.hpp>
 
@@ -9,14 +10,15 @@ namespace oblo::editor::ui
 {
     namespace
     {
-        static constexpr ImU32 g_xyzColors[] = {
+        static constexpr ImU32 g_xyzwColors[] = {
             colors::red,
             colors::green,
             colors::blue,
+            colors::yellow,
         };
     }
 
-    bool dragfloat_n_xyz(const char* label,
+    bool dragfloat_n_xyzw(const char* label,
         float* v,
         int components,
         float vSpeed,
@@ -25,7 +27,7 @@ namespace oblo::editor::ui
         const char* displayFormat,
         ImGuiSliderFlags flags)
     {
-        OBLO_ASSERT(components >= 0 && components <= 3);
+        OBLO_ASSERT(components >= 0 && components <= i32(array_size(g_xyzwColors)));
 
         using namespace ImGui;
 
@@ -55,7 +57,7 @@ namespace oblo::editor::ui
 
             window->DrawList->AddLine({min.x + spacing, min.y - halfSpacing},
                 {min.x - spacing, max.y - halfSpacing},
-                g_xyzColors[i],
+                g_xyzwColors[i],
                 thickness);
 
             SameLine(0, g.Style.ItemInnerSpacing.x);

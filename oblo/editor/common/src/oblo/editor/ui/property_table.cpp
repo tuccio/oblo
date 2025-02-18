@@ -1,8 +1,10 @@
 #include <oblo/editor/ui/property_table.hpp>
 
+#include <oblo/core/array_size.hpp>
 #include <oblo/editor/ui/artifact_picker.hpp>
 #include <oblo/editor/ui/widgets.hpp>
 #include <oblo/math/angle.hpp>
+#include <oblo/math/mat4.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec3.hpp>
@@ -13,6 +15,11 @@ namespace oblo::editor::ui
 {
     namespace
     {
+        void setup_property_width()
+        {
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        }
+
         void setup_property(cstring_view name)
         {
             constexpr f32 rowHeight = 28.f;
@@ -30,7 +37,7 @@ namespace oblo::editor::ui
 
             ImGui::TableSetColumnIndex(1);
 
-            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            setup_property_width();
         }
     }
 
@@ -91,7 +98,7 @@ namespace oblo::editor::ui
         setup_property(name);
 
         ImGui::PushID(id);
-        const bool r = ui::dragfloat_n_xyz("", &v.x, 2, .1f);
+        const bool r = ui::dragfloat_n_xyzw("", &v.x, 2, .1f);
         ImGui::PopID();
         return r;
     }
@@ -101,7 +108,7 @@ namespace oblo::editor::ui
         setup_property(name);
 
         ImGui::PushID(id);
-        const bool r = ui::dragfloat_n_xyz("", &v.x, 3, .1f);
+        const bool r = ui::dragfloat_n_xyzw("", &v.x, 3, .1f);
         ImGui::PopID();
         return r;
     }
@@ -111,9 +118,32 @@ namespace oblo::editor::ui
         setup_property(name);
 
         ImGui::PushID(id);
-        const bool r = ui::dragfloat_n_xyz("", &v.x, 4, .1f);
+        const bool r = ui::dragfloat_n_xyzw("", &v.x, 4, .1f);
         ImGui::PopID();
         return r;
+    }
+
+    bool property_table::add(id_t id, cstring_view name, mat4& v)
+    {
+        setup_property(name);
+
+        auto t = transpose(v);
+
+        ImGui::PushID(id);
+
+        bool modified = false;
+
+        for (u32 i = 0; i < array_size(t.columns); ++i)
+        {
+            ImGui::PushID(i);
+            setup_property_width();
+            const bool r = ui::dragfloat_n_xyzw("", &t.columns[i].x, 4, .1f);
+            modified |= r;
+            ImGui::PopID();
+        }
+
+        ImGui::PopID();
+        return modified;
     }
 
     bool property_table::add(id_t id, cstring_view name, quaternion& v)
@@ -127,7 +157,7 @@ namespace oblo::editor::ui
         bool anyChange{false};
 
         ImGui::PushID(id);
-        anyChange |= ui::dragfloat_n_xyz("", values, 3, .1f);
+        anyChange |= ui::dragfloat_n_xyzw("", values, 3, .1f);
         ImGui::PopID();
 
         if (anyChange)

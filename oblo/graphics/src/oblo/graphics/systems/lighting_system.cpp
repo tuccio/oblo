@@ -1,3 +1,4 @@
+
 #include <oblo/graphics/systems/lighting_system.hpp>
 
 #include <oblo/core/buffered_array.hpp>
@@ -64,12 +65,13 @@ namespace oblo
             .color = vec3::splat(1.f),
             .intensity = 50.f,
             .isShadowCaster = true,
-            .hardShadows = true,
-            .shadowSamples = 4,
-            .shadowBias = .01f,
-            .shadowTemporalAccumulationFactor = .3f,
-            .shadowBlurKernel = 5,
-            .shadowBlurSigma = 1.15f,
+            .hardShadows = false,
+            .shadowBias = .025f,
+            .shadowPunctualRadius = 100.f,
+            .shadowDepthSigma = 1e-2f,
+            .shadowTemporalAccumulationFactor = .98f,
+            .shadowMeanFilterSize = 17,
+            .shadowMeanFilterSigma = 1.f,
         };
 
         m_rtShadows = vk::raytraced_shadow_view::create(m_sceneRenderer->get_frame_graph_registry());
@@ -209,6 +211,16 @@ namespace oblo
                             shadowMappingGraph,
                             vk::raytraced_shadow_view::InVisibilityBuffer);
 
+                        frameGraph.connect(sceneView,
+                            vk::main_view::OutDisocclusionMask,
+                            shadowMappingGraph,
+                            vk::raytraced_shadow_view::InDisocclusionMask);
+
+                        frameGraph.connect(sceneView,
+                            vk::main_view::OutMotionVectors,
+                            shadowMappingGraph,
+                            vk::raytraced_shadow_view::InMotionVectors);
+
                         frameGraph.connect(shadowMappingGraph,
                             vk::raytraced_shadow_view::OutShadowSink,
                             sceneView,
@@ -236,15 +248,24 @@ namespace oblo
                     }
 
                     const vk::raytraced_shadow_config cfg{
-                        .shadowSamples = max(1u, shadow.light->shadowSamples),
                         .lightIndex = u32(shadow.lightIndex),
                         .type = vk::light_type(shadow.light->type),
                         .shadowPunctualRadius = shadow.light->shadowPunctualRadius,
                         .temporalAccumulationFactor = shadow.light->shadowTemporalAccumulationFactor,
+                        .depthSigma = shadow.light->shadowDepthSigma,
                         .hardShadows = shadow.light->hardShadows,
                     };
 
                     frameGraph.set_input(*v, vk::raytraced_shadow_view::InConfig, cfg).assert_value();
+
+                    frameGraph
+                        .set_input(*v,
+                            vk::raytraced_shadow_view::InMeanFilterConfig,
+                            vk::gaussian_blur_config{
+                                .kernelSize = shadow.light->shadowMeanFilterSize,
+                                .sigma = shadow.light->shadowMeanFilterSigma,
+                            })
+                        .assert_value();
                 }
             }
         }

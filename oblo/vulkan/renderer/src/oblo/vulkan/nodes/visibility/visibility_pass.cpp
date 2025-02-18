@@ -67,14 +67,41 @@ namespace oblo::vk
             },
             texture_usage::render_target_write);
 
-        ctx.create(outDepthBuffer,
-            {
-                .width = resolution.x,
-                .height = resolution.y,
-                .format = VK_FORMAT_D24_UNORM_S8_UINT,
-                .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-            },
-            texture_usage::depth_stencil_write);
+        {
+            // Handle the double buffering of frame buffers
+            copyPassInstance = {};
+
+            const u8 writeDepthIndex = outputIndex;
+            const u8 readDepthIndex = 1 - outputIndex;
+
+            const resource<texture> depthBuffers[] = {
+                depthBuffer0,
+                depthBuffer1,
+            };
+
+            ctx.create(depthBuffers[writeDepthIndex],
+                {
+                    .width = resolution.x,
+                    .height = resolution.y,
+                    .format = VK_FORMAT_D24_UNORM_S8_UINT,
+                    .isStable = true,
+                },
+                texture_usage::depth_stencil_write);
+
+            ctx.create(depthBuffers[readDepthIndex],
+                {
+                    .width = resolution.x,
+                    .height = resolution.y,
+                    .format = VK_FORMAT_D24_UNORM_S8_UINT,
+                    .isStable = true,
+                },
+                texture_usage::depth_stencil_read);
+
+            ctx.reroute(depthBuffers[writeDepthIndex], outDepthBuffer);
+            ctx.reroute(depthBuffers[readDepthIndex], outLastFrameDepthBuffer);
+
+            outputIndex = readDepthIndex;
+        }
 
         for (const auto& drawData : ctx.access(inDrawData))
         {

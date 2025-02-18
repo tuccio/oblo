@@ -8,7 +8,7 @@
 
 namespace oblo::vk
 {
-    struct frame_graph_pin_storage;
+    struct transient_texture_resource;
     struct texture;
 
     enum class pass_kind : u8;
@@ -17,7 +17,7 @@ namespace oblo::vk
     class image_layout_tracker
     {
     public:
-        using handle_type = h32<frame_graph_pin_storage>;
+        using handle_type = h32<transient_texture_resource>;
 
     public:
         static VkImageLayout deduce_layout(texture_usage usage);
@@ -42,6 +42,6 @@ namespace oblo::vk
         struct image_layout;
 
     private:
-        h32_flat_extpool_dense_map<frame_graph_pin_storage, image_layout> m_state;
+        h32_flat_extpool_dense_map<transient_texture_resource, image_layout> m_state;
     };
 }

@@ -39,6 +39,12 @@ namespace oblo::vk
             case texture_usage::shader_read:
                 return VK_IMAGE_USAGE_SAMPLED_BIT;
 
+            case texture_usage::transfer_destination:
+                return VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+
+            case texture_usage::transfer_source:
+                return VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+
             case texture_usage::storage_read:
             case texture_usage::storage_write:
                 return {};
@@ -199,6 +205,12 @@ namespace oblo::vk
                     VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
                 break;
 
+            case texture_usage::depth_stencil_write:
+            case texture_usage::depth_stencil_read:
+                resourcePool.add_transient_texture_usage(frameGraph.find_pool_index(texture),
+                    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+                break;
+
             default:
                 break;
             }
@@ -314,7 +326,10 @@ namespace oblo::vk
                             // track of textures
                             const auto storage = as_storage_handle(r->texture);
 
-                            const auto layout = imageLayoutTracker.try_get_layout(storage);
+                            auto* const textureStorage = frameGraph.pinStorage.try_find(storage);
+                            OBLO_ASSERT(textureStorage && textureStorage->transientTexture);
+
+                            const auto layout = imageLayoutTracker.try_get_layout(textureStorage->transientTexture);
                             layout.assert_value();
 
                             return make_bindable_object(t.view, layout.value_or(VK_IMAGE_LAYOUT_UNDEFINED));
@@ -520,7 +535,28 @@ namespace oblo::vk
 
     void frame_graph_build_context::reroute(resource<buffer> source, resource<buffer> destination) const
     {
-        m_frameGraph.reroute(source, destination);
+        // Source is a node that should end its path here
+        // Destination is a node with no incoming edges, owned by the current node
+        OBLO_ASSERT(m_frameGraph.get_owner_node(destination) == m_frameGraph.currentNode,
+            "Only the source of the pin should reroute");
+
+        const auto srcStorageHandle = as_storage_handle(source);
+        const auto dstStorageHandle = as_storage_handle(destination);
+
+        m_frameGraph.reroute(srcStorageHandle, dstStorageHandle);
+    }
+
+    void frame_graph_build_context::reroute(resource<texture> source, resource<texture> destination) const
+    {
+        // Source is a node that should end its path here
+        // Destination is a node with no incoming edges, owned by the current node
+        OBLO_ASSERT(m_frameGraph.get_owner_node(destination) == m_frameGraph.currentNode,
+            "Only the source of the pin should reroute");
+
+        const auto srcStorageHandle = as_storage_handle(source);
+        const auto dstStorageHandle = as_storage_handle(destination);
+
+        m_frameGraph.reroute(srcStorageHandle, dstStorageHandle);
     }
 
     bool frame_graph_build_context::has_source(resource<buffer> buffer) const
