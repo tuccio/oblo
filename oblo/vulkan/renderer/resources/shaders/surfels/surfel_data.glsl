@@ -6,8 +6,6 @@
 
 // Used as a coverage value for surfel_tile_data when no geometry is present
 const float NO_SURFELS_NEEDED = 1e6;
-const float SURFEL_CONTRIBUTION_THRESHOLD = 2;
-const float SURFEL_CONTRIBUTION_THRESHOLD_SQR = SURFEL_CONTRIBUTION_THRESHOLD * SURFEL_CONTRIBUTION_THRESHOLD;
 
 const uint SURFEL_MAX_RAYS_PER_SURFEL = 128;
 
@@ -99,6 +97,12 @@ ivec3 surfel_grid_find_cell(in surfel_grid_header h, in vec3 positionWS)
 bool surfel_grid_has_cell(in surfel_grid_header h, in ivec3 cell)
 {
     return all(greaterThanEqual(cell, ivec3(0))) && all(lessThan(cell, surfel_grid_cells_count(h)));
+}
+
+float surfel_grid_max_contribution_distance(in surfel_grid_header h)
+{
+    return 32;
+    // return h.cellSize;
 }
 
 vec3 surfel_data_world_position(in surfel_data surfel)

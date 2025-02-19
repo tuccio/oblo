@@ -8,7 +8,6 @@ void surfel_commit_to_grid(in uint surfelId, in uint cellIndex);
 void surfel_scatter_to_grid(
     in surfel_grid_header gridHeader, in ivec3 cell, in uint surfelId, in vec3 positionWS, in float radius)
 {
-    // Search neighboring cells and accumulate overlapping surfels
     [[unroll]] for (int x = -1; x <= 1; ++x)
     {
         [[unroll]] for (int y = -1; y <= 1; ++y)
@@ -22,7 +21,8 @@ void surfel_scatter_to_grid(
                     continue;
                 }
 
-                const vec3 contributionThreshold = positionWS + SURFEL_CONTRIBUTION_THRESHOLD * radius * vec3(x, y, z);
+                const vec3 contributionThreshold =
+                    positionWS + radius * vec3(x, y, z);
 
                 if (neighboringCell == surfel_grid_find_cell(gridHeader, contributionThreshold))
                 {

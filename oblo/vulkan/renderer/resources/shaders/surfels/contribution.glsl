@@ -46,19 +46,19 @@ vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
 
             const float radius2 = surfel.radius * surfel.radius;
 
-            // We allow influences up to this distance
-            const float threshold = SURFEL_CONTRIBUTION_THRESHOLD_SQR * radius2;
-
             const float angleWeight = max(dot(surfelNormal, normal), 0);
-            const vec3 surfelContribution = angleWeight * surfelLight.irradiance;
-            allSum += surfelContribution;
+            const float distanceWeight = max(0, 1 - distance2 / radius2);
 
-            if (distance2 <= threshold)
+            const float weight = angleWeight * distanceWeight;
+
+            if (weight > 0)
             {
-                const float weight = angleWeight * (1 - distance2 / threshold);
-                weightSum += weight;
+                const vec3 surfelContribution = weight * surfelLight.irradiance;
 
-                irradiance += weight * surfelContribution;
+                weightSum += weight;
+                irradiance += surfelContribution;
+
+                allSum += surfelContribution;
 
                 g_SurfelLastUsage[surfelId] = currentTimestamp;
             }
