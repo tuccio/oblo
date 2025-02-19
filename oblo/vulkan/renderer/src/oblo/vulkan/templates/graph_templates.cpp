@@ -309,6 +309,7 @@ namespace oblo::vk::main_view
             graph.make_input(surfelsTiling, &surfel_tiling::inSurfelsGrid, InLastFrameSurfelsGrid);
             graph.make_input(surfelsTiling, &surfel_tiling::inSurfelsGridData, InLastFrameSurfelsGridData);
             graph.make_input(surfelsTiling, &surfel_tiling::inSurfelsData, InLastFrameSurfelData);
+            graph.make_input(surfelsTiling, &surfel_tiling::inSurfelsSpawnData, InLastFrameSurfelSpawnData);
             graph.make_output(surfelsTiling, &surfel_tiling::outTileCoverageSink, OutSurfelsTileCoverageSink);
             graph.make_input(surfelsTiling,
                 &surfel_tiling::inLastFrameSurfelsLightingData,
@@ -361,6 +362,7 @@ namespace oblo::vk::main_view
                     OutGiSurfelsLightingImage,
                     OutGiSurfelsRayCount,
                     OutGiSurfelsInconsistency,
+                    OutGiSurfelsLifetime,
                 };
 
                 static_assert(u32(surfel_debug::mode::enum_max) == array_size(outputs));
@@ -375,6 +377,11 @@ namespace oblo::vk::main_view
                         &surfel_tiling::inSurfelsGrid,
                         surfelsDebug,
                         &surfel_debug::inSurfelsGrid);
+
+                    graph.connect(surfelsTiling,
+                        &surfel_tiling::inSurfelsSpawnData,
+                        surfelsDebug,
+                        &surfel_debug::inSurfelsSpawnData);
 
                     graph.connect(surfelsTiling,
                         &surfel_tiling::inSurfelsGridData,
@@ -740,6 +747,7 @@ namespace oblo::vk::surfels_gi
         graph.make_output(initializer, &surfel_initializer::outSurfelsGrid, OutLastFrameGrid);
         graph.make_output(initializer, &surfel_initializer::outSurfelsGridData, OutLastFrameGridData);
         graph.make_output(initializer, &surfel_initializer::outSurfelsData, OutLastFrameSurfelData);
+        graph.make_output(initializer, &surfel_initializer::outSurfelsSpawnData, OutLastFrameSurfelSpawnData);
         graph.make_output(initializer, &surfel_initializer::outSurfelsLastUsage, OutSurfelsLastUsage);
         graph.make_output(initializer,
             &surfel_initializer::outLastFrameSurfelsLightingData,

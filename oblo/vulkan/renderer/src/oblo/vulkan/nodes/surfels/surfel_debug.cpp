@@ -40,6 +40,10 @@ namespace oblo::vk
             define = "MODE_SURFEL_INCONSISTENCY"_hsv;
             break;
 
+        case mode::surfel_lifetime:
+            define = "MODE_SURFEL_LIFETIME"_hsv;
+            break;
+
         default:
             unreachable();
         }
@@ -64,6 +68,7 @@ namespace oblo::vk
             texture_usage::storage_write);
 
         ctx.acquire(inSurfelsData, buffer_usage::storage_read);
+        ctx.acquire(inSurfelsSpawnData, buffer_usage::storage_read);
         ctx.acquire(inSurfelsGrid, buffer_usage::storage_read);
         ctx.acquire(inSurfelsGridData, buffer_usage::storage_read);
         ctx.acquire(inSurfelsLightingData, buffer_usage::storage_read);
@@ -83,6 +88,7 @@ namespace oblo::vk
             bindingTable.bind_buffers({
                 {"b_CameraBuffer"_hsv, inCameraBuffer},
                 {"b_SurfelsData"_hsv, inSurfelsData},
+                {"b_SurfelsSpawnData"_hsv, inSurfelsSpawnData},
                 {"b_SurfelsGrid"_hsv, inSurfelsGrid},
                 {"b_SurfelsGridData"_hsv, inSurfelsGridData},
                 {"b_InSurfelsLighting"_hsv, inSurfelsLightingData},

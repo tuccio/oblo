@@ -219,6 +219,8 @@ namespace oblo::vk
 
         staging_buffer_span stage_upload(std::span<const byte> data) const;
 
+        u32 get_current_frames_count() const;
+
         template <typename T>
         bool has_event() const
         {

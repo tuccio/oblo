@@ -66,6 +66,7 @@ namespace oblo::vk
         resource<buffer> inSurfelsGrid;
         resource<buffer> inSurfelsGridData;
         resource<buffer> inSurfelsData;
+        resource<buffer> inSurfelsSpawnData; // This is not used, it's just here to forward it to debug views
         resource<buffer> inLastFrameSurfelsLightingData;
 
         data<camera_buffer> inCameraData;

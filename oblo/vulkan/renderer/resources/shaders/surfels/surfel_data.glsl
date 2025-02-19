@@ -151,12 +151,15 @@ bool surfel_data_is_alive(in surfel_data surfelData)
     return !isinf(surfelData.positionWS.x);
 }
 
-float surfel_max_radius(in surfel_grid_header gridHeader)
+float surfel_clamp_radius(in surfel_grid_header gridHeader, in float radius)
 {
+    // The max radius determines in how many cells the surfel might be replicated, updating the maximum radius might
+    // require updating g_MaxSurfelMultiplicity in C++
     const float gridCellSize = surfel_grid_cell_size(gridHeader);
-    // If this limit is changed, g_MaxSurfelMultiplicity has to be changed on the C++ side
     const float maxRadius = .25f * gridCellSize;
-    return maxRadius;
+    const float minRadius = .05f * gridCellSize;
+
+    return max(minRadius, min(maxRadius, radius));
 }
 
 float surfel_estimate_radius(in surfel_grid_header gridHeader, in vec3 cameraPosition, in vec3 surfelPosition)
@@ -167,9 +170,7 @@ float surfel_estimate_radius(in surfel_grid_header gridHeader, in vec3 cameraPos
     const float gridCellSize = surfel_grid_cell_size(gridHeader);
     const float surfelScalingFactor = 0.03;
 
-    const float maxRadius = surfel_max_radius(gridHeader);
-
-    const float radius = min(maxRadius, surfelScalingFactor * sqrt(cameraDistance2));
+    const float radius = surfel_clamp_radius(gridHeader, surfelScalingFactor * sqrt(cameraDistance2));
 
     return radius;
 }

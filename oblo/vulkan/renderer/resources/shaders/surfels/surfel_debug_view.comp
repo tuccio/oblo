@@ -26,6 +26,7 @@
 #include <surfels/buffers/surfel_grid_data_r>
 #include <surfels/buffers/surfel_grid_r>
 #include <surfels/buffers/surfel_lighting_data_in_r>
+#include <surfels/buffers/surfel_spawn_data_r>
 #include <surfels/surfel_data>
 #include <tone_mapping/tonemap>
 #include <visibility/visibility_shading>
@@ -134,6 +135,11 @@ vec4 visibility_shade(in visibility_shade_context ctx)
 #elif defined(MODE_SURFEL_INCONSISTENCY)
         const float inconsistency = g_SurfelsLightEstimatorData[surfelId].inconsistency;
         return vec4(debug_color_map_jet(inconsistency), 1);
+#elif defined(MODE_SURFEL_LIFETIME)
+        const float spawned = g_SurfelSpawnData[surfelId].spawnTimestamp;
+        const float current = g_SurfelGridHeader.currentTimestamp;
+        const float lifetime = saturate((current - spawned) / 2048.f);
+        return vec4(debug_color_map_jet(lifetime), 1);
 #endif
     }
 

@@ -20,6 +20,7 @@ namespace oblo::vk::main_view
     constexpr string_view InLastFrameSurfelsGrid{"LastFrameSurfelsGrid"};
     constexpr string_view InLastFrameSurfelsGridData{"LastFrameSurfelsGridData"};
     constexpr string_view InLastFrameSurfelData{"LastFrameSurfelData"};
+    constexpr string_view InLastFrameSurfelSpawnData{"LastFrameSurfelSpawnData"};
     constexpr string_view InLastFrameSurfelsLightingData{"LastFrameSurfelsLightingData"};
     constexpr string_view InUpdatedSurfelsGrid{"UpdatedSurfelsGrid"};
     constexpr string_view InUpdatedSurfelsGridData{"UpdatedSurfelsGridData"};
@@ -44,6 +45,7 @@ namespace oblo::vk::main_view
     constexpr string_view OutGiSurfelsLightingImage{"DebugGITileCoverageOutput"};
     constexpr string_view OutGiSurfelsRayCount{"DebugtGiSurfelsRayCount"};
     constexpr string_view OutGiSurfelsInconsistency{"DebugtGiSurfelsInconsistency"};
+    constexpr string_view OutGiSurfelsLifetime{"DebugtGiSurfelsLifetime"};
     constexpr string_view OutRTDebugImage{"DebugRTOutput"};
     constexpr string_view OutSurfelsTileCoverageSink{"SurfelsGITileOutput"};
     constexpr string_view OutDisocclusionMask{"DisocclusionMask"};
@@ -124,6 +126,7 @@ namespace oblo::vk::surfels_gi
     constexpr string_view OutLastFrameGrid{"LastGrid"};
     constexpr string_view OutLastFrameGridData{"LastGridData"};
     constexpr string_view OutLastFrameSurfelData{"LastSurfelData"};
+    constexpr string_view OutLastFrameSurfelSpawnData{"LastSurfelSpawnData"};
     constexpr string_view OutLastFrameSurfelsLightingData{"LastFrameSurfelsLightingData"};
     constexpr string_view OutUpdatedSurfelGrid{"UpdatedSurfelGrid"};
     constexpr string_view OutUpdatedSurfelGridData{"UpdatedSurfelGridData"};

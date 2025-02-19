@@ -624,6 +624,11 @@ namespace oblo::vk
         return m_renderer.get_staging_buffer().stage(data).value();
     }
 
+    u32 frame_graph_build_context::get_current_frames_count() const
+    {
+        return m_frameGraph.frameCounter;
+    }
+
     frame_graph_build_context::frame_graph_build_context(
         frame_graph_impl& frameGraph, frame_graph_build_state& state, renderer& renderer, resource_pool& resourcePool) :
         m_frameGraph{frameGraph}, m_state{state}, m_renderer{renderer}, m_resourcePool{resourcePool}

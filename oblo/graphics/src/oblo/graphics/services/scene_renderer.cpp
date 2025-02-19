@@ -94,6 +94,11 @@ namespace oblo
                 vk::main_view::InLastFrameSurfelData);
 
             g.connect(surfelsGIGlobal,
+                vk::surfels_gi::OutLastFrameSurfelSpawnData,
+                mainView,
+                vk::main_view::InLastFrameSurfelSpawnData);
+
+            g.connect(surfelsGIGlobal,
                 vk::surfels_gi::OutLastFrameSurfelsLightingData,
                 mainView,
                 vk::main_view::InLastFrameSurfelsLightingData);

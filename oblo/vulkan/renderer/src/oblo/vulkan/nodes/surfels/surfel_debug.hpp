@@ -18,6 +18,7 @@ namespace oblo::vk
             surfel_lighting,
             surfel_raycount,
             surfel_inconsistency,
+            surfel_lifetime,
             enum_max,
         };
 
@@ -29,6 +30,7 @@ namespace oblo::vk
         resource<texture> outDebugImage;
 
         resource<buffer> inSurfelsData;
+        resource<buffer> inSurfelsSpawnData;
         resource<buffer> inSurfelsGrid;
         resource<buffer> inSurfelsGridData;
         resource<buffer> inSurfelsLightingData;
