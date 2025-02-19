@@ -6,6 +6,7 @@
 #include <oblo/core/thread/async_download.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/log/log.hpp>
+#include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/draw/bindable_object.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
@@ -1018,6 +1019,12 @@ namespace oblo::vk
         OBLO_ASSERT(m_state.passKind == pass_kind::raytracing);
         auto& pm = m_renderer.get_pass_manager();
         pm.trace_rays(m_state.rtCtx, x, y, z);
+    }
+
+    vec2u frame_graph_execute_context::get_resolution(resource<texture> h) const
+    {
+        const auto extent = access(h).initializer.extent;
+        return {extent.width, extent.height};
     }
 
     void* frame_graph_execute_context::access_storage(h32<frame_graph_pin_storage> handle) const
