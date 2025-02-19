@@ -79,6 +79,18 @@ namespace oblo::vk
             return nullptr;
         }
 
+        void remove(hashed_string_view name)
+        {
+            for (auto it = m_kv.begin(); it != m_kv.end(); ++it)
+            {
+                if (it->key == name)
+                {
+                    m_kv.erase_unordered(it);
+                    return;
+                }
+            }
+        }
+
         void clear()
         {
             m_kv.clear();

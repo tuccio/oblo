@@ -1,5 +1,7 @@
 #version 460
 
+// #define SURFEL_DEBUG_PRINTF 1
+
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_buffer_reference : require
 #extension GL_ARB_gpu_shader_int64 : require
@@ -71,7 +73,7 @@ void main()
 #if OBLO_DEBUG_PRINTF && SURFEL_DEBUG_PRINTF
     if (gl_GlobalInvocationID.x == 0)
     {
-        // debugPrintfEXT("[UPDATE] Surfels alive: %u\n", g_Constants.maxSurfels - g_SurfelStackHeader.available);
+        debugPrintfEXT("[UPDATE] Surfels alive: %u\n", g_Constants.maxSurfels - g_SurfelStackHeader.available);
     }
 #endif
 

@@ -45,13 +45,15 @@ vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
             const float distance2 = dot(pToS, pToS);
 
             const float radius2 = surfel.radius * surfel.radius;
+            const float maxInfluenceDistance2 = max(1e-6, 4 * radius2);
 
             const float angleWeight = max(dot(surfelNormal, normal), 0);
-            const float distanceWeight = max(0, 1 - distance2 / radius2);
+
+            const float distanceWeight = max(0, 1 - distance2 / maxInfluenceDistance2);
 
             const float weight = angleWeight * distanceWeight;
 
-            if (weight > 0)
+            if (weight > 1e-5)
             {
                 const vec3 surfelContribution = weight * surfelLight.irradiance;
 
