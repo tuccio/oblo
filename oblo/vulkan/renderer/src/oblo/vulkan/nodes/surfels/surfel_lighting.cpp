@@ -63,7 +63,7 @@ namespace oblo::vk
 
         for (u32 passIndex = 0; passIndex < g_FilterPassCount; ++passIndex)
         {
-            builder.clear().format("GI_FILTER_PASS_INDEX {}", passIndex);
+            builder.clear().format("A_TROUS_PASS_INDEX {}", passIndex);
             const hashed_string_view defines[] = {builder.as<hashed_string_view>()};
 
             filterPassInstances[passIndex] = ctx.compute_pass(filterPass, {.defines = defines});
