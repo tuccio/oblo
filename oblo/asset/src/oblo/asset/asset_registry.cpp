@@ -1387,6 +1387,12 @@ namespace oblo
     void asset_registry_impl::push_import_process(
         asset_entry* optEntry, importer&& importer, data_document&& settings, string_view destination)
     {
+        // If the asset is processing we should maybe invalidate the current processing and enqueue a new one
+        if (optEntry && optEntry->isProcessing)
+        {
+            return;
+        }
+
         auto& importProcess = currentImports.emplace_back(allocate_unique<import_process>());
 
         importProcess->importer = std::move(importer);
