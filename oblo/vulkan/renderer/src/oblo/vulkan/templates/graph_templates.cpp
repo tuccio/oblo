@@ -21,6 +21,7 @@
 #include <oblo/vulkan/nodes/shadows/shadow_output.hpp>
 #include <oblo/vulkan/nodes/shadows/shadow_temporal.hpp>
 #include <oblo/vulkan/nodes/surfels/surfel_debug.hpp>
+#include <oblo/vulkan/nodes/surfels/surfel_lighting.hpp>
 #include <oblo/vulkan/nodes/surfels/surfel_management.hpp>
 #include <oblo/vulkan/nodes/utility/entity_picking.hpp>
 #include <oblo/vulkan/nodes/visibility/visibility_lighting.hpp>
@@ -304,26 +305,17 @@ namespace oblo::vk::main_view
         // Surfels GI
         if (cfg.withSurfelsGI)
         {
+            // Surfels tiling setup
             const auto surfelsTiling = graph.add_node<surfel_tiling>();
 
             graph.make_input(surfelsTiling, &surfel_tiling::inSurfelsGrid, InLastFrameSurfelsGrid);
             graph.make_input(surfelsTiling, &surfel_tiling::inSurfelsGridData, InLastFrameSurfelsGridData);
             graph.make_input(surfelsTiling, &surfel_tiling::inSurfelsData, InLastFrameSurfelData);
+            graph.make_input(surfelsTiling, &surfel_tiling::inSurfelsSpawnData, InLastFrameSurfelSpawnData);
             graph.make_output(surfelsTiling, &surfel_tiling::outTileCoverageSink, OutSurfelsTileCoverageSink);
             graph.make_input(surfelsTiling,
                 &surfel_tiling::inLastFrameSurfelsLightingData,
                 InLastFrameSurfelsLightingData);
-
-            graph.make_input(visibilityLighting, &visibility_lighting::inSurfelsGrid, InUpdatedSurfelsGrid);
-            graph.make_input(visibilityLighting, &visibility_lighting::inSurfelsGridData, InUpdatedSurfelsGridData);
-            graph.make_input(visibilityLighting, &visibility_lighting::inSurfelsData, InUpdatedSurfelsData);
-            graph.make_input(visibilityLighting,
-                &visibility_lighting::inSurfelsLightingData,
-                InUpdatedSurfelsLightingData);
-            graph.make_input(visibilityLighting,
-                &visibility_lighting::inSurfelsLightEstimatorData,
-                InUpdatedSurfelsLightEstimatorData);
-            graph.make_input(visibilityLighting, &visibility_lighting::inOutSurfelsLastUsage, InSurfelsLastUsage);
 
             graph.connect(viewBuffers,
                 &view_buffers_node::outCameraBuffer,
@@ -355,12 +347,84 @@ namespace oblo::vk::main_view
                 visibilityLighting,
                 &visibility_lighting::inSurfelsGrid);
 
+            // Visibility lighting setup (we should get rid of)
+            graph.make_input(visibilityLighting, &visibility_lighting::inSurfelsGrid, InUpdatedSurfelsGrid);
+            graph.make_input(visibilityLighting, &visibility_lighting::inSurfelsGridData, InUpdatedSurfelsGridData);
+            graph.make_input(visibilityLighting, &visibility_lighting::inSurfelsData, InUpdatedSurfelsData);
+            graph.make_input(visibilityLighting,
+                &visibility_lighting::inSurfelsLightingData,
+                InUpdatedSurfelsLightingData);
+            graph.make_input(visibilityLighting,
+                &visibility_lighting::inSurfelsLightEstimatorData,
+                InUpdatedSurfelsLightEstimatorData);
+            graph.make_input(visibilityLighting, &visibility_lighting::inOutSurfelsLastUsage, InSurfelsLastUsage);
+
+            const auto surfelsLighting = graph.add_node<surfel_lighting>();
+
+            graph.connect(surfelsTiling,
+                &surfel_tiling::inSurfelsGrid,
+                surfelsLighting,
+                &surfel_lighting::inSurfelsGrid);
+
+            graph.connect(visibilityLighting,
+                &visibility_lighting::inSurfelsGrid,
+                surfelsLighting,
+                &surfel_lighting::inSurfelsGrid);
+
+            graph.connect(visibilityLighting,
+                &visibility_lighting::inSurfelsGridData,
+                surfelsLighting,
+                &surfel_lighting::inSurfelsGridData);
+
+            graph.connect(visibilityLighting,
+                &visibility_lighting::inSurfelsData,
+                surfelsLighting,
+                &surfel_lighting::inSurfelsData);
+
+            graph.connect(visibilityLighting,
+                &visibility_lighting::inSurfelsLightingData,
+                surfelsLighting,
+                &surfel_lighting::inSurfelsLightingData);
+
+            graph.connect(visibilityLighting,
+                &visibility_lighting::inOutSurfelsLastUsage,
+                surfelsLighting,
+                &surfel_lighting::inOutSurfelsLastUsage);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::outCameraBuffer,
+                surfelsLighting,
+                &surfel_lighting::inCameraBuffer);
+
+            graph.connect(visibilityPass,
+                &visibility_pass::outVisibilityBuffer,
+                surfelsLighting,
+                &surfel_lighting::inVisibilityBuffer);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::inInstanceTables,
+                surfelsLighting,
+                &surfel_lighting::inInstanceTables);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::inInstanceBuffers,
+                surfelsLighting,
+                &surfel_lighting::inInstanceBuffers);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::inMeshDatabase,
+                surfelsLighting,
+                &surfel_lighting::inMeshDatabase);
+
+            graph.make_output(surfelsLighting, &surfel_lighting::outIndirectLighting, "IndirectLighting");
+
             {
                 constexpr string_view outputs[] = {
                     OutGISurfelsImage,
                     OutGiSurfelsLightingImage,
                     OutGiSurfelsRayCount,
                     OutGiSurfelsInconsistency,
+                    OutGiSurfelsLifetime,
                 };
 
                 static_assert(u32(surfel_debug::mode::enum_max) == array_size(outputs));
@@ -375,6 +439,11 @@ namespace oblo::vk::main_view
                         &surfel_tiling::inSurfelsGrid,
                         surfelsDebug,
                         &surfel_debug::inSurfelsGrid);
+
+                    graph.connect(surfelsTiling,
+                        &surfel_tiling::inSurfelsSpawnData,
+                        surfelsDebug,
+                        &surfel_debug::inSurfelsSpawnData);
 
                     graph.connect(surfelsTiling,
                         &surfel_tiling::inSurfelsGridData,
@@ -740,6 +809,7 @@ namespace oblo::vk::surfels_gi
         graph.make_output(initializer, &surfel_initializer::outSurfelsGrid, OutLastFrameGrid);
         graph.make_output(initializer, &surfel_initializer::outSurfelsGridData, OutLastFrameGridData);
         graph.make_output(initializer, &surfel_initializer::outSurfelsData, OutLastFrameSurfelData);
+        graph.make_output(initializer, &surfel_initializer::outSurfelsSpawnData, OutLastFrameSurfelSpawnData);
         graph.make_output(initializer, &surfel_initializer::outSurfelsLastUsage, OutSurfelsLastUsage);
         graph.make_output(initializer,
             &surfel_initializer::outLastFrameSurfelsLightingData,
@@ -904,6 +974,7 @@ namespace oblo::vk
         registry.register_node<surfel_update>();
         registry.register_node<surfel_accumulate_raycount>();
         registry.register_node<surfel_raytracing>();
+        registry.register_node<surfel_lighting>();
         registry.register_node<surfel_debug>();
 
         // Swapchain

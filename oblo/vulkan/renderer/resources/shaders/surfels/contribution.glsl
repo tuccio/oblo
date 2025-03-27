@@ -43,23 +43,24 @@ vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
             const vec3 pToS = surfelPosition - position;
 
             const float distance2 = dot(pToS, pToS);
+            const float maxInfluenceDistance2 = max(1e-6, 4 * surfel.radius * surfel.radius);
 
-            const float radius2 = surfel.radius * surfel.radius;
-
-            // We allow influences up to this distance
-            const float threshold = SURFEL_CONTRIBUTION_THRESHOLD_SQR * radius2;
-
+            // We weigh based on alignment with surfels normal, distance and number of samples
             const float angleWeight = max(dot(surfelNormal, normal), 0);
-            const vec3 surfelContribution = angleWeight * surfelLight.irradiance;
-            allSum += surfelContribution;
+            const float distanceWeight = max(0, 1 - distance2 / maxInfluenceDistance2);
+            const float samplesWeight = smoothstep(0, 1, min(surfelLight.numSamples / 2048.f, 1));
 
-            if (distance2 <= threshold)
+            const float weight = angleWeight * distanceWeight * samplesWeight;
+
+            const vec3 surfelContribution = weight * surfelLight.irradiance;
+
+            weightSum += weight;
+            irradiance += surfelContribution;
+
+            allSum += angleWeight * surfelLight.irradiance;
+
+            if (distanceWeight > 1e-5 && angleWeight > 1e-5)
             {
-                const float weight = angleWeight * (1 - distance2 / threshold);
-                weightSum += weight;
-
-                irradiance += weight * surfelContribution;
-
                 g_SurfelLastUsage[surfelId] = currentTimestamp;
             }
         }

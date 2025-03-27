@@ -6,8 +6,6 @@
 
 // Used as a coverage value for surfel_tile_data when no geometry is present
 const float NO_SURFELS_NEEDED = 1e6;
-const float SURFEL_CONTRIBUTION_THRESHOLD = 2;
-const float SURFEL_CONTRIBUTION_THRESHOLD_SQR = SURFEL_CONTRIBUTION_THRESHOLD * SURFEL_CONTRIBUTION_THRESHOLD;
 
 const uint SURFEL_MAX_RAYS_PER_SURFEL = 128;
 
@@ -101,6 +99,12 @@ bool surfel_grid_has_cell(in surfel_grid_header h, in ivec3 cell)
     return all(greaterThanEqual(cell, ivec3(0))) && all(lessThan(cell, surfel_grid_cells_count(h)));
 }
 
+float surfel_grid_max_contribution_distance(in surfel_grid_header h)
+{
+    return 32;
+    // return h.cellSize;
+}
+
 vec3 surfel_data_world_position(in surfel_data surfel)
 {
     return surfel.positionWS;
@@ -151,12 +155,15 @@ bool surfel_data_is_alive(in surfel_data surfelData)
     return !isinf(surfelData.positionWS.x);
 }
 
-float surfel_max_radius(in surfel_grid_header gridHeader)
+float surfel_clamp_radius(in surfel_grid_header gridHeader, in float radius)
 {
+    // The max radius determines in how many cells the surfel might be replicated, updating the maximum radius might
+    // require updating g_MaxSurfelMultiplicity in C++
     const float gridCellSize = surfel_grid_cell_size(gridHeader);
-    // If this limit is changed, g_MaxSurfelMultiplicity has to be changed on the C++ side
     const float maxRadius = .25f * gridCellSize;
-    return maxRadius;
+    const float minRadius = .05f * gridCellSize;
+
+    return max(minRadius, min(maxRadius, radius));
 }
 
 float surfel_estimate_radius(in surfel_grid_header gridHeader, in vec3 cameraPosition, in vec3 surfelPosition)
@@ -165,11 +172,9 @@ float surfel_estimate_radius(in surfel_grid_header gridHeader, in vec3 cameraPos
     const float cameraDistance2 = dot(cameraVector, cameraVector);
 
     const float gridCellSize = surfel_grid_cell_size(gridHeader);
-    const float surfelScalingFactor = 0.03;
+    const float surfelScalingFactor = 0.02;
 
-    const float maxRadius = surfel_max_radius(gridHeader);
-
-    const float radius = min(maxRadius, surfelScalingFactor * sqrt(cameraDistance2));
+    const float radius = surfel_clamp_radius(gridHeader, surfelScalingFactor * sqrt(cameraDistance2));
 
     return radius;
 }

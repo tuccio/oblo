@@ -12,16 +12,8 @@
 
 #include <span>
 
-namespace oblo
-{
-    class string;
-}
-
 namespace oblo::vk
 {
-    struct draw_buffer_data;
-    struct picking_configuration;
-
     struct visibility_lighting
     {
         data<vec2u> inResolution;

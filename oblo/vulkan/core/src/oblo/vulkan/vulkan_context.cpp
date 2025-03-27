@@ -1,5 +1,6 @@
 #include <oblo/vulkan/vulkan_context.hpp>
 
+#include <oblo/core/buffered_array.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/trace/profile.hpp>
@@ -310,10 +311,14 @@ namespace oblo::vk
             commandBufferEnd = commandBufferBegin;
         }
 
+        constexpr u32 maxSignalSemaphoresCount = 2;
         const u32 signalSemaphoreCount = 1 + u32{currentFrame.signalSemaphore != nullptr};
 
         // We need dummy values for all the signaled semaphores
-        const u64 signalSemaphoreValues[2] = {m_submitIndex};
+        const u64 signalSemaphoreValues[maxSignalSemaphoresCount] = {m_submitIndex};
+
+        const VkSemaphore signalSemaphores[maxSignalSemaphoresCount] = {m_timelineSemaphore,
+            currentFrame.signalSemaphore};
 
         const VkTimelineSemaphoreSubmitInfo timelineInfo{
             .sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
@@ -324,20 +329,19 @@ namespace oblo::vk
             .pSignalSemaphoreValues = signalSemaphoreValues,
         };
 
-        const VkSemaphore semaphores[] = {m_timelineSemaphore, currentFrame.signalSemaphore};
-
-        constexpr VkPipelineStageFlags submitPipelineStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+        buffered_array<VkPipelineStageFlags, 8> waitStages;
+        waitStages.assign(currentFrame.waitSemaphores.size(), VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
 
         const VkSubmitInfo submitInfo{
             .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
             .pNext = &timelineInfo,
             .waitSemaphoreCount = currentFrame.waitSemaphores.size32(),
             .pWaitSemaphores = currentFrame.waitSemaphores.data(),
-            .pWaitDstStageMask = submitPipelineStages,
+            .pWaitDstStageMask = waitStages.data(),
             .commandBufferCount = commandBufferEnd - commandBufferBegin,
             .pCommandBuffers = commandBuffers + commandBufferBegin,
             .signalSemaphoreCount = signalSemaphoreCount,
-            .pSignalSemaphores = semaphores,
+            .pSignalSemaphores = signalSemaphores,
         };
 
         OBLO_VK_PANIC(vkQueueSubmit(m_engine->get_queue(), 1, &submitInfo, currentFrame.fence));

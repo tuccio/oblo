@@ -22,7 +22,7 @@ namespace oblo::vk
         filterPassInstance = ctx.compute_pass(filterPass,
             {
                 .defines = {{
-                    {string_builder{}.format("SHADOW_FILTER_PASS_INDEX {}", passIndex).as<hashed_string_view>()},
+                    {string_builder{}.format("A_TROUS_PASS_INDEX {}", passIndex).as<hashed_string_view>()},
                 }},
             });
 

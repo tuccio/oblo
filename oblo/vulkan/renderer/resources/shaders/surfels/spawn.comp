@@ -48,13 +48,13 @@ void main()
     }
 
     // We don't spawn anything if the coverage is already high
-    const float maxCoverageThreshold = 0.9;
+    const float maxCoverageThreshold = .25f;
 
     const surfel_tile_data tile = g_TileData[globalIndex];
 
-    if (tile.worstPixelCoverage < 0.75)
+    if (tile.worstPixelCoverage < maxCoverageThreshold)
     {
-        if (ecs_entity_is_valid(tile.spawnData.entity) && tile.worstPixelCoverage < maxCoverageThreshold)
+        if (ecs_entity_is_valid(tile.spawnData.entity))
         {
             uint newSurfelId;
             const bool allocated = surfel_stack_allocate(newSurfelId);

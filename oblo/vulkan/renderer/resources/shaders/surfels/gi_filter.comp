@@ -19,8 +19,8 @@
 
 #include <postprocess/a_trous>
 
-layout(binding = 0, r8) uniform restrict readonly image2D t_InSource;
-layout(binding = 1, r8) uniform restrict writeonly image2D t_OutFiltered;
+layout(binding = 0, rgba16f) uniform restrict readonly image2D t_InSource;
+layout(binding = 1, rgba16f) uniform restrict writeonly image2D t_OutFiltered;
 layout(binding = 3, rg32ui) uniform restrict readonly uimage2D t_InVisibilityBuffer;
 
 layout(binding = 16) uniform b_CameraBuffer
@@ -28,17 +28,9 @@ layout(binding = 16) uniform b_CameraBuffer
     camera_buffer g_Camera;
 };
 
-shared float g_ShadowCache[g_ATrousCacheSize][g_ATrousCacheSize];
+shared vec3 g_IrradianceCache[g_ATrousCacheSize][g_ATrousCacheSize];
 shared float g_DepthCache[g_ATrousCacheSize][g_ATrousCacheSize];
 shared vec3 g_NormalCache[g_ATrousCacheSize][g_ATrousCacheSize];
-
-layout(push_constant) uniform c_PushConstants
-{
-    float depthSigma;
-}
-g_Constants;
-
-vec2 compute_moments();
 
 void main()
 {
@@ -56,24 +48,17 @@ void main()
         return;
     }
 
-    const uvec2 center = uvec2(g_ATrousStride) + gl_LocalInvocationID.xy;
+    const uvec2 center = uvec2(g_ATrousPadding) + gl_LocalInvocationID.xy;
 
-    float result = 0.f;
+    vec3 result = vec3(0);
 
     const float kernel[g_ATrousTapsPerPixel] = {1.f, 2.f / 3.f, 1.f / 6.f};
 
-    // TODO: If the mean is 0 or 1, we might skip this loop
     float weightSum = 0.f;
 
-    const float shadowCenter = g_ShadowCache[center.y][center.x];
+    const vec3 irradianceCenter = g_IrradianceCache[center.y][center.x];
     const float depthCenter = g_DepthCache[center.y][center.x];
     const vec3 normalCenter = g_NormalCache[center.y][center.x];
-
-    const vec2 moments = compute_moments();
-
-    const float variance = moments.x - moments.y * moments.y;
-    const float stdDev = sqrt(max(variance, 1e-10f));
-    const float shadowFactor = 1e-1f / stdDev;
 
     const int k = int(g_ATrousTapRadius);
 
@@ -88,14 +73,14 @@ void main()
         [[unroll]] for (int x = -k; x <= k; ++x)
         {
             const uvec2 coords = uvec2(center + ivec2(x, y) * g_ATrousStride);
-            const float shadow = g_ShadowCache[coords.y][coords.x];
+            const vec3 irradiance = g_IrradianceCache[coords.y][coords.x];
             const float depth = g_DepthCache[coords.y][coords.x];
             const vec3 normal = g_NormalCache[coords.y][coords.x];
 
             float w = kernel[abs(x)] * kernel[abs(y)];
 
-            w *= exp(-abs(shadow - shadowCenter) * shadowFactor);
-            w *= exp(-abs(depth - depthCenter) / g_Constants.depthSigma);
+            const float invDepthSigma = 1e2;
+            w *= exp(-abs(depth - depthCenter) * invDepthSigma);
             w *= pow(saturate(dot(normal, normalCenter)), 32.f);
 
             if (depth < 0)
@@ -103,7 +88,7 @@ void main()
                 w = 0;
             }
 
-            result += w * shadow;
+            result += w * irradiance;
 
             weightSum += w;
         }
@@ -114,7 +99,7 @@ void main()
         result /= weightSum;
     }
 
-    imageStore(t_OutFiltered, ivec2(screenPos), vec4(result, 0, 0, 1));
+    imageStore(t_OutFiltered, ivec2(screenPos), vec4(result, 1));
 }
 
 void sample_geometry(
@@ -168,7 +153,7 @@ void a_trous_load_pixel(in ivec2 coords, in uvec2 offset, in uvec2 resolution)
 {
     const vec4 pixel = imageLoad(t_InSource, coords);
 
-    g_ShadowCache[offset.y][offset.x] = pixel.x;
+    g_IrradianceCache[offset.y][offset.x] = pixel.xyz;
 
     const uvec4 vbPixel = imageLoad(t_InVisibilityBuffer, coords);
 
@@ -191,30 +176,4 @@ void a_trous_load_pixel(in ivec2 coords, in uvec2 offset, in uvec2 resolution)
 
     g_DepthCache[offset.y][offset.x] = depth;
     g_NormalCache[offset.y][offset.x] = normalWS;
-}
-
-vec2 compute_moments()
-{
-    const uvec2 center = uvec2(g_ATrousStride) + gl_LocalInvocationID.xy;
-
-    const int k = 1;
-    vec2 moments = vec2(0);
-
-    const float kernel[2][2] = {
-        {1.f / 4.f, 1.f / 8.f},
-        {1.f / 8.f, 1.f / 16.f},
-    };
-
-    [[unroll]] for (int y = -k; y <= k; ++y)
-    {
-        [[unroll]] for (int x = -k; x <= k; ++x)
-        {
-            const float w = kernel[abs(x)][abs(y)];
-            const uvec2 coords = uvec2(center + ivec2(x, y));
-            const float s = g_ShadowCache[coords.y][coords.x];
-            moments += w * vec2(s * s, s);
-        }
-    }
-
-    return moments;
 }

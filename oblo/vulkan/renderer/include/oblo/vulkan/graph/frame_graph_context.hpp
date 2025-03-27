@@ -27,6 +27,8 @@ namespace oblo
 
     template <typename E, u32 Size>
     struct flags;
+
+    struct vec2u;
 }
 
 namespace oblo::vk
@@ -219,6 +221,8 @@ namespace oblo::vk
 
         staging_buffer_span stage_upload(std::span<const byte> data) const;
 
+        u32 get_current_frames_count() const;
+
         template <typename T>
         bool has_event() const
         {
@@ -326,6 +330,8 @@ namespace oblo::vk
         void push_constants(flags<shader_stage, 14> stages, u32 offset, std::span<const byte> bytes) const;
         void dispatch_compute(u32 groupsX, u32 groupsY, u32 groupsZ) const;
         void trace_rays(u32 x, u32 y, u32 z) const;
+
+        vec2u get_resolution(resource<texture> h) const;
 
     private:
         void* access_storage(h32<frame_graph_pin_storage> handle) const;
