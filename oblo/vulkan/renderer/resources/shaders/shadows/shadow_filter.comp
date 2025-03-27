@@ -77,6 +77,12 @@ void main()
 
     const int k = int(g_ATrousTapRadius);
 
+    if (depthCenter < 0)
+    {
+        imageStore(t_OutFiltered, ivec2(screenPos), vec4(0, 0, 0, 1));
+        return;
+    }
+
     [[unroll]] for (int y = -k; y <= k; ++y)
     {
         [[unroll]] for (int x = -k; x <= k; ++x)
@@ -91,6 +97,11 @@ void main()
             w *= exp(-abs(shadow - shadowCenter) * shadowFactor);
             w *= exp(-abs(depth - depthCenter) / g_Constants.depthSigma);
             w *= pow(saturate(dot(normal, normalCenter)), 32.f);
+
+            if (depth < 0)
+            {
+                w = 0;
+            }
 
             result += w * shadow;
 

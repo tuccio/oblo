@@ -162,8 +162,8 @@ float surfel_calculate_weight_contribution(in vec3 position, in vec3 normal)
 
             const float radius2 = surfel.radius * surfel.radius;
 
-            // We allow influences up to this distance
-            const float threshold = radius2;
+            // Threshold for spawning distance
+            const float threshold = 2 * radius2;
 
             if (distance2 <= threshold)
             {

@@ -150,12 +150,11 @@ void main()
     surfel_lighting_data result;
 
     const surfel_lighting_data lightData = g_InSurfelsLighting[surfelId];
+    const uint newSamplesCount = lightData.numSamples + numRays;
 
     if (lightData.numSamples < linearInterpolationThreshold)
     {
-        const uint newSamplesCount = lightData.numSamples + numRays;
         result.irradiance = (lightData.irradiance * lightData.numSamples + irradianceSum) / newSamplesCount;
-        result.numSamples = newSamplesCount;
     }
     else
     {
@@ -166,6 +165,8 @@ void main()
         result.irradiance = mean;
         g_SurfelsLightEstimatorData[surfelId] = estimator;
     }
+
+    result.numSamples = newSamplesCount;
 
     g_OutSurfelsLighting[surfelId] = result;
 }
