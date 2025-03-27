@@ -20,6 +20,9 @@ function(oblo_setup_build_configurations)
         else()
             # Disable -Wlogical-op-parentheses which warns if you don't add parentheses to A || B && C
             add_compile_options(-Wno-logical-op-parentheses)
+
+            # Disable -Wmissing-field-initializers, which warns if initializers are missing fields, because unfortunately it triggers with designated initializers too
+            add_compile_options(-Wno-missing-field-initializers)
         endif()
     endif()
 
