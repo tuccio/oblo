@@ -20,6 +20,7 @@
 #include <oblo/editor/ui/style.hpp>
 #include <oblo/editor/windows/asset_browser.hpp>
 #include <oblo/editor/windows/console_window.hpp>
+#include <oblo/editor/windows/editor_window.hpp>
 #include <oblo/editor/windows/inspector.hpp>
 #include <oblo/editor/windows/scene_editing_window.hpp>
 #include <oblo/editor/windows/scene_hierarchy.hpp>
@@ -447,17 +448,21 @@ namespace oblo::editor
         globalRegistry.add<incremental_id_pool>().unique();
         globalRegistry.add<asset_editor_manager>().unique();
 
+        const auto editorWindow = m_windowManager.create_window<editor_window>(service_registry{});
+
         service_registry sceneRegistry{};
         sceneRegistry.add<ecs::entity_registry>().externally_owned(&m_runtime.get_entity_registry());
         sceneRegistry.add<scene_renderer>().externally_owned(m_runtime.get_service_registry().find<scene_renderer>());
 
-        const auto sceneEditingWindow = m_windowManager.create_window<scene_editing_window>(std::move(sceneRegistry));
+        const auto sceneEditingWindow =
+            m_windowManager.create_child_window<scene_editing_window>(editorWindow, std::move(sceneRegistry));
 
-        m_windowManager.create_child_window<asset_browser>(sceneEditingWindow);
         m_windowManager.create_child_window<inspector>(sceneEditingWindow);
         m_windowManager.create_child_window<scene_hierarchy>(sceneEditingWindow);
         m_windowManager.create_child_window<viewport>(sceneEditingWindow);
-        m_windowManager.create_child_window<console_window>(sceneEditingWindow);
+
+        m_windowManager.create_child_window<asset_browser>(editorWindow);
+        m_windowManager.create_child_window<console_window>(editorWindow);
 
         deque<service_provider_descriptor> serviceRegistrants;
 
