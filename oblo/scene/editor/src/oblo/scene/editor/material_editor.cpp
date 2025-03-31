@@ -1,5 +1,6 @@
 #include <oblo/scene/editor/material_editor.hpp>
 
+#include <oblo/asset/any_asset.hpp>
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/core/formatters/uuid_formatter.hpp>
 #include <oblo/core/service_registry.hpp>
@@ -9,6 +10,7 @@
 #include <oblo/editor/services/incremental_id_pool.hpp>
 #include <oblo/editor/ui/artifact_picker.hpp>
 #include <oblo/editor/ui/property_table.hpp>
+#include <oblo/editor/window_manager.hpp>
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/math/vec2.hpp>
@@ -23,17 +25,38 @@
 
 namespace oblo::editor
 {
-    material_editor::material_editor(uuid assetId) : m_assetId{assetId} {}
+    class material_editor_window final
+    {
+    public:
+        material_editor_window(uuid assetId);
+        ~material_editor_window();
 
-    material_editor::~material_editor()
+        bool init(const window_update_context& ctx);
+        bool update(const window_update_context& ctx);
+
+        expected<> save_asset() const;
+
+    private:
+        asset_registry* m_assetRegistry{};
+        incremental_id_pool* m_idPool{};
+        u32 m_id{};
+        uuid m_assetId{};
+        any_asset m_asset;
+        std::unordered_map<hashed_string_view, material_property_descriptor, hash<hashed_string_view>> m_propertyEditor;
+        unique_ptr<ui::artifact_picker> m_artifactPicker;
+    };
+
+    material_editor_window::material_editor_window(uuid assetId) : m_assetId{assetId} {}
+
+    material_editor_window::~material_editor_window()
     {
         if (m_idPool)
         {
-            m_idPool->release<material_editor>(m_id);
+            m_idPool->release<material_editor_window>(m_id);
         }
     }
 
-    bool material_editor::init(const window_update_context& ctx)
+    bool material_editor_window::init(const window_update_context& ctx)
     {
         m_assetRegistry = ctx.services.find<asset_registry>();
 
@@ -49,7 +72,7 @@ namespace oblo::editor
             return false;
         }
 
-        m_id = m_idPool->acquire<material_editor>();
+        m_id = m_idPool->acquire<material_editor_window>();
 
         auto asset = m_assetRegistry->load_asset(m_assetId);
 
@@ -77,7 +100,7 @@ namespace oblo::editor
         return true;
     }
 
-    bool material_editor::update(const window_update_context&)
+    bool material_editor_window::update(const window_update_context&)
     {
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2, 2));
@@ -206,7 +229,7 @@ namespace oblo::editor
 
                 if (modified)
                 {
-                    if (!m_assetRegistry->save_asset(m_asset, m_assetId))
+                    if (!save_asset())
                     {
                         log::error("Failed to save material {}", m_assetId);
                     }
@@ -219,5 +242,47 @@ namespace oblo::editor
         ImGui::PopStyleVar(2);
 
         return isOpen;
+    }
+
+    expected<> material_editor_window::save_asset() const
+    {
+        return m_assetRegistry->save_asset(m_asset, m_assetId);
+    }
+
+    expected<> material_editor::open(window_manager& wm, uuid assetId)
+    {
+        const auto h = wm.create_window<material_editor_window>({}, {}, assetId);
+
+        if (!h)
+        {
+            return unspecified_error;
+        }
+
+        m_editor = h;
+
+        return no_error;
+    }
+
+    void material_editor::close(window_manager& wm)
+    {
+        wm.destroy_window(m_editor);
+        m_editor = {};
+    }
+
+    expected<> material_editor::save(window_manager& wm)
+    {
+        auto* const materialEditor = wm.try_access<material_editor_window>(m_editor);
+
+        if (!materialEditor)
+        {
+            return unspecified_error;
+        }
+
+        return materialEditor->save_asset();
+    }
+
+    window_handle material_editor::get_window() const
+    {
+        return m_editor;
     }
 }

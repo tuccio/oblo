@@ -2,6 +2,7 @@
 
 #include <oblo/core/deque.hpp>
 #include <oblo/core/expected.hpp>
+#include <oblo/core/unique_ptr.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/editor/window_handle.hpp>
 
@@ -11,6 +12,7 @@
 namespace oblo::editor
 {
     class window_manager;
+    class asset_editor;
     struct asset_editor_descriptor;
 
     class asset_editor_manager
@@ -33,7 +35,8 @@ namespace oblo::editor
         expected<success_tag, open_error> open_editor(window_manager& wm, const uuid& assetId, const uuid& assetType);
 
     private:
-        std::unordered_map<uuid, window_handle> m_editors;
+        std::unordered_map<uuid, unique_ptr<asset_editor>> m_editors;
+        std::unordered_map<uuid, uuid> m_uniqueEditors;
         deque<asset_editor_descriptor> m_descriptors;
     };
 }

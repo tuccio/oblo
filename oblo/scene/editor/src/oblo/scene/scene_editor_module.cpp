@@ -16,6 +16,7 @@
 #include <oblo/scene/assets/traits.hpp>
 #include <oblo/scene/editor/commands.hpp>
 #include <oblo/scene/editor/material_editor.hpp>
+#include <oblo/scene/editor/scene_editor.hpp>
 #include <oblo/scene/resources/material.hpp>
 #include <oblo/scene/resources/pbr_properties.hpp>
 #include <oblo/scene/resources/traits.hpp>
@@ -104,12 +105,12 @@ namespace oblo
 
                         return any_asset{std::move(m)};
                     },
-                    .openEditorWindow = [](editor::window_manager& windowManager, uuid assetId)
-                    { return windowManager.create_window<editor::material_editor>({}, {}, assetId); },
+                    .createEditor = []() -> unique_ptr<editor::asset_editor>
+                    { return allocate_unique<editor::material_editor>(); },
                 });
 
                 out.push_back(editor::asset_editor_descriptor{
-                    .assetType = asset_type<material>,
+                    .assetType = asset_type<scene>,
                     .name = "Scene",
                     .create =
                         []
@@ -124,6 +125,8 @@ namespace oblo
 
                         return r;
                     },
+                    .createEditor = []() -> unique_ptr<editor::asset_editor>
+                    { return allocate_unique<editor::scene_editor>(); },
                 });
             }
         };

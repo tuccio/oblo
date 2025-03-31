@@ -17,15 +17,13 @@
 #include <oblo/editor/services/incremental_id_pool.hpp>
 #include <oblo/editor/services/log_queue.hpp>
 #include <oblo/editor/services/registered_commands.hpp>
+#include <oblo/editor/services/runtime_manager.hpp>
 #include <oblo/editor/ui/style.hpp>
 #include <oblo/editor/windows/asset_browser.hpp>
 #include <oblo/editor/windows/console_window.hpp>
 #include <oblo/editor/windows/editor_window.hpp>
-#include <oblo/editor/windows/inspector.hpp>
-#include <oblo/editor/windows/scene_editing_window.hpp>
-#include <oblo/editor/windows/scene_hierarchy.hpp>
 #include <oblo/editor/windows/style_window.hpp>
-#include <oblo/editor/windows/viewport.hpp>
+#include <oblo/graphics/services/scene_renderer.hpp>
 #include <oblo/input/input_queue.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/log/log_module.hpp>
@@ -231,6 +229,77 @@ namespace oblo::editor
             project m_project;
             string_builder m_projectDir;
         };
+
+        class runtime_manager_impl : public runtime_manager
+        {
+        public:
+            runtime_manager_impl(runtime_registry& runtimeRegistry) : m_runtimeRegistry{runtimeRegistry} {}
+
+            runtime* create()
+            {
+                auto& mm = module_manager::get();
+
+                auto* const reflection = mm.find<oblo::reflection::reflection_module>();
+
+                auto& propertyRegistry = m_runtimeRegistry.get_property_registry();
+                auto& resourceRegistry = m_runtimeRegistry.get_resource_registry();
+
+                auto& entry = m_runtimes.emplace_back();
+
+                if (!entry.world.init({
+
+                        .reflectionRegistry = &reflection->get_registry(),
+                        .propertyRegistry = &propertyRegistry,
+                        .resourceRegistry = &resourceRegistry,
+                        .worldBuilders = mm.find_services<ecs::world_builder>(),
+                    }))
+                {
+                    return nullptr;
+                }
+
+                return &entry.world;
+            }
+
+            void destroy(runtime* r)
+            {
+                for (auto it = m_runtimes.begin(); it != m_runtimes.end(); ++it)
+                {
+                    if (r == &it->world)
+                    {
+                        r->shutdown();
+                        m_runtimes.erase(it);
+                        break;
+                    }
+                }
+            }
+
+            void update(const runtime_update_context& ctx)
+            {
+                for (auto& r : m_runtimes)
+                {
+                    r.world.update(ctx);
+                }
+            }
+
+            void shutdown()
+            {
+                for (auto& r : m_runtimes)
+                {
+                    r.world.shutdown();
+                }
+
+                m_runtimes.clear();
+            }
+
+        private:
+            struct runtime_impl
+            {
+                runtime world;
+            };
+
+            runtime_registry& m_runtimeRegistry;
+            dynamic_array<runtime_impl> m_runtimes;
+        };
     }
 
     struct app::impl
@@ -239,14 +308,15 @@ namespace oblo::editor
         log_queue* m_logQueue{};
         job_manager m_jobManager;
         window_manager m_windowManager;
-        runtime m_runtime;
         asset_registry m_assetRegistry;
         time_stats m_timeStats{};
         time m_lastFrameTime{};
         editor_app_module* m_editorModule{};
         vk::vulkan_engine_module* m_vkEngine{};
+        asset_editor_manager* m_assetEditors{};
         input_queue m_inputQueue;
         runtime_registry m_runtimeRegistry;
+        runtime_manager_impl m_runtimeManager{m_runtimeRegistry};
 
         bool init(int argc, char* argv[]);
         bool startup();
@@ -376,7 +446,6 @@ namespace oblo::editor
     bool app::impl::startup()
     {
         auto& mm = m_moduleManager;
-        auto* const reflection = mm.find<oblo::reflection::reflection_module>();
 
         const auto& project = m_editorModule->get_project();
         const auto& projectDir = m_editorModule->get_project_directory();
@@ -392,8 +461,6 @@ namespace oblo::editor
         }
 
         m_runtimeRegistry = mm.find<runtime_module>()->create_runtime_registry();
-
-        auto& propertyRegistry = m_runtimeRegistry.get_property_registry();
         auto& resourceRegistry = m_runtimeRegistry.get_resource_registry();
 
         register_native_asset_types(m_assetRegistry, mm.find_services<native_asset_provider>());
@@ -406,17 +473,6 @@ namespace oblo::editor
         auto* const resourceProvider = m_assetRegistry.initialize_resource_provider();
 
         resourceRegistry.register_provider(resourceProvider);
-
-        if (!m_runtime.init({
-                .reflectionRegistry = &reflection->get_registry(),
-                .propertyRegistry = &propertyRegistry,
-                .resourceRegistry = &resourceRegistry,
-                .worldBuilders = mm.find_services<ecs::world_builder>(),
-            }))
-        {
-            log::error("Failed to initialize runtime");
-            return false;
-        }
 
         m_lastFrameTime = clock::now();
 
@@ -447,19 +503,9 @@ namespace oblo::editor
         globalRegistry.add<registered_commands>().unique();
         globalRegistry.add<incremental_id_pool>().unique();
         globalRegistry.add<asset_editor_manager>().unique();
+        globalRegistry.add<runtime_manager>().externally_owned(&m_runtimeManager);
 
         const auto editorWindow = m_windowManager.create_window<editor_window>(service_registry{});
-
-        service_registry sceneRegistry{};
-        sceneRegistry.add<ecs::entity_registry>().externally_owned(&m_runtime.get_entity_registry());
-        sceneRegistry.add<scene_renderer>().externally_owned(m_runtime.get_service_registry().find<scene_renderer>());
-
-        const auto sceneEditingWindow =
-            m_windowManager.create_child_window<scene_editing_window>(editorWindow, std::move(sceneRegistry));
-
-        m_windowManager.create_child_window<inspector>(sceneEditingWindow);
-        m_windowManager.create_child_window<scene_hierarchy>(sceneEditingWindow);
-        m_windowManager.create_child_window<viewport>(sceneEditingWindow);
 
         m_windowManager.create_child_window<asset_browser>(editorWindow);
         m_windowManager.create_child_window<console_window>(editorWindow);
@@ -481,7 +527,7 @@ namespace oblo::editor
     void app::impl::shutdown()
     {
         m_windowManager.shutdown();
-        m_runtime.shutdown();
+        m_runtimeManager.shutdown();
         platform::shutdown();
 
         module_manager::get().shutdown();
@@ -499,7 +545,7 @@ namespace oblo::editor
         const auto dt = now - m_lastFrameTime;
 
         m_timeStats.dt = dt;
-        m_runtime.update({.dt = dt});
+        m_runtimeManager.update({.dt = dt});
 
         m_lastFrameTime = now;
     }
