@@ -27,10 +27,8 @@ namespace oblo::editor
         };
 
     public:
-        asset_editor_manager();
+        asset_editor_manager(window_handle root);
         ~asset_editor_manager();
-
-        const deque<asset_editor_descriptor>& get_available_editors() const;
 
         expected<success_tag, open_error> open_editor(window_manager& wm, const uuid& assetId, const uuid& assetType);
 
@@ -38,5 +36,6 @@ namespace oblo::editor
         std::unordered_map<uuid, unique_ptr<asset_editor>> m_editors;
         std::unordered_map<uuid, uuid> m_uniqueEditors;
         deque<asset_editor_descriptor> m_descriptors;
+        window_handle m_root{};
     };
 }

@@ -3,22 +3,11 @@
 #include <oblo/editor/window_manager.hpp>
 #include <oblo/scene/editor/scene_editing_window.hpp>
 
-// if (!m_runtime.init({
-//         .reflectionRegistry = &reflection->get_registry(),
-//         .propertyRegistry = &propertyRegistry,
-//         .resourceRegistry = &resourceRegistry,
-//         .worldBuilders = mm.find_services<ecs::world_builder>(),
-//     }))
-//{
-//     log::error("Failed to initialize runtime");
-//     return false;
-// }
-
 namespace oblo::editor
 {
-    expected<> scene_editor::open(window_manager& wm, uuid)
+    expected<> scene_editor::open(window_manager& wm, window_handle parent, uuid)
     {
-        const auto h = wm.create_window<scene_editing_window>({}, {});
+        const auto h = wm.create_child_window<scene_editing_window>(parent, {}, service_registry{});
 
         if (!h)
         {

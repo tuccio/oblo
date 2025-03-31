@@ -249,9 +249,9 @@ namespace oblo::editor
         return m_assetRegistry->save_asset(m_asset, m_assetId);
     }
 
-    expected<> material_editor::open(window_manager& wm, uuid assetId)
+    expected<> material_editor::open(window_manager& wm, window_handle parent, uuid assetId)
     {
-        const auto h = wm.create_window<material_editor_window>({}, {}, assetId);
+        const auto h = wm.create_child_window<material_editor_window>(parent, {}, {}, assetId);
 
         if (!h)
         {
