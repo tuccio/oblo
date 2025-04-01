@@ -34,7 +34,7 @@ namespace oblo::editor
         bool init(const window_update_context& ctx);
         bool update(const window_update_context& ctx);
 
-        expected<> save_asset() const;
+        expected<> save_asset(asset_registry& assetRegistry) const;
 
     private:
         asset_registry* m_assetRegistry{};
@@ -229,7 +229,7 @@ namespace oblo::editor
 
                 if (modified)
                 {
-                    if (!save_asset())
+                    if (!save_asset(*m_assetRegistry))
                     {
                         log::error("Failed to save material {}", m_assetId);
                     }
@@ -244,9 +244,9 @@ namespace oblo::editor
         return isOpen;
     }
 
-    expected<> material_editor_window::save_asset() const
+    expected<> material_editor_window::save_asset(asset_registry& assetRegistry) const
     {
-        return m_assetRegistry->save_asset(m_asset, m_assetId);
+        return assetRegistry.save_asset(m_asset, m_assetId);
     }
 
     expected<> material_editor::open(window_manager& wm, window_handle parent, uuid assetId)
@@ -269,7 +269,7 @@ namespace oblo::editor
         m_editor = {};
     }
 
-    expected<> material_editor::save(window_manager& wm)
+    expected<> material_editor::save(window_manager& wm, asset_registry& assetRegistry)
     {
         auto* const materialEditor = wm.try_access<material_editor_window>(m_editor);
 
@@ -278,7 +278,7 @@ namespace oblo::editor
             return unspecified_error;
         }
 
-        return materialEditor->save_asset();
+        return materialEditor->save_asset(assetRegistry);
     }
 
     window_handle material_editor::get_window() const

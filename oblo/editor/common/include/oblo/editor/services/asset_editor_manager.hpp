@@ -9,6 +9,11 @@
 #include <span>
 #include <unordered_map>
 
+namespace oblo
+{
+    class asset_registry;
+}
+
 namespace oblo::editor
 {
     class window_manager;
@@ -27,13 +32,14 @@ namespace oblo::editor
         };
 
     public:
-        asset_editor_manager(window_handle root);
+        asset_editor_manager(window_handle root, asset_registry& assetRegistry);
         ~asset_editor_manager();
 
         expected<success_tag, open_error> open_editor(window_manager& wm, const uuid& assetId, const uuid& assetType);
 
+        uuid find_unique_type_editor(const uuid& assetType);
+
         void close_editor(window_manager& wm, const uuid& assetId);
-        void close_unique_type_editor(window_manager& wm, const uuid& assetType);
 
         expected<> save_asset(window_manager& wm, const uuid& assetId);
 
@@ -42,5 +48,6 @@ namespace oblo::editor
         std::unordered_map<uuid, uuid> m_uniqueEditors;
         deque<asset_editor_descriptor> m_descriptors;
         window_handle m_root{};
+        asset_registry& m_assetRegistry;
     };
 }

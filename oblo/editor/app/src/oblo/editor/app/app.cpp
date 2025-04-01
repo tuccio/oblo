@@ -504,7 +504,7 @@ namespace oblo::editor
         globalRegistry.add<options_manager>().externally_owned(&options->manager());
         globalRegistry.add<registered_commands>().unique();
         globalRegistry.add<incremental_id_pool>().unique();
-        globalRegistry.add<asset_editor_manager>().unique(editorWindow);
+        globalRegistry.add<asset_editor_manager>().unique(editorWindow, m_assetRegistry);
         globalRegistry.add<runtime_manager>().externally_owned(&m_runtimeManager);
 
         m_windowManager.create_child_window<asset_browser>(editorWindow);

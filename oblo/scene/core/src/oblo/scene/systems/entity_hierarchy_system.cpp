@@ -11,6 +11,7 @@
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/components/entity_hierarchy_component.hpp>
+#include <oblo/scene/components/tags.hpp>
 #include <oblo/scene/resources/entity_hierarchy.hpp>
 #include <oblo/scene/serialization/ecs_serializer.hpp>
 
@@ -46,7 +47,7 @@ namespace oblo
         ecs::deferred deferred;
 
         for (auto&& chunk : ctx.entities->range<entity_hierarchy_component>()
-                                .exclude<entity_hierarchy_loading, entity_hierarchy_loaded>())
+                 .exclude<entity_hierarchy_loading, entity_hierarchy_loaded>())
         {
             for (auto&& [e, hc] : chunk.zip<ecs::entity, entity_hierarchy_component>())
             {
@@ -89,13 +90,22 @@ namespace oblo
                             doc.get_root(),
                             loading.hierarchy->get_entity_registry(),
                             *propertyRegistry)
-                             .has_value())
+                            .has_value())
                     {
                         log::debug("Failed to write {} to data_document", loading.hierarchy.get_name());
                         continue;
                     }
 
-                    if (!ecs_serializer::read(*ctx.entities, doc, doc.get_root(), *propertyRegistry, e).has_value())
+                    if (!ecs_serializer::read(*ctx.entities,
+                            doc,
+                            doc.get_root(),
+                            *propertyRegistry,
+                            e,
+                            {
+                                // We mark all spawned entities as transient to avoid saving them with the scene
+                                .addTypes = ecs::make_type_sets<transient_tag>(ctx.entities->get_type_registry()),
+                            })
+                            .has_value())
                     {
                         log::debug("Failed to read {} from data_document", loading.hierarchy.get_name());
                         continue;

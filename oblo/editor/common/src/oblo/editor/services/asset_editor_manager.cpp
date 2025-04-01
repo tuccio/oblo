@@ -85,14 +85,23 @@ namespace oblo::editor
 
                 if (!isOpen)
                 {
+                    const auto oldAssetId = assetEditorManager->find_unique_type_editor(descriptor.assetType);
+
                     if (save)
                     {
-                        assetEditorManager->save_asset(ctx.windowManager, assetId).assert_value();
+                        if (!oldAssetId.is_nil())
+                        {
+                            assetEditorManager->save_asset(ctx.windowManager, oldAssetId).assert_value();
+                        }
                     }
 
                     if (!cancel)
                     {
-                        assetEditorManager->close_unique_type_editor(ctx.windowManager, descriptor.assetType);
+                        if (!oldAssetId.is_nil())
+                        {
+                            assetEditorManager->close_editor(ctx.windowManager, oldAssetId);
+                        }
+
                         assetEditorManager->open_editor(ctx.windowManager, assetId, descriptor.assetType)
                             .assert_value();
                     }
@@ -107,7 +116,8 @@ namespace oblo::editor
         };
     }
 
-    asset_editor_manager::asset_editor_manager(window_handle root) : m_root{root}
+    asset_editor_manager::asset_editor_manager(window_handle root, asset_registry& assetRegistry) :
+        m_root{root}, m_assetRegistry{assetRegistry}
     {
         auto& mm = module_manager::get();
 
@@ -208,6 +218,18 @@ namespace oblo::editor
         return open_error::no_such_type;
     }
 
+    uuid asset_editor_manager::find_unique_type_editor(const uuid& assetType)
+    {
+        const auto it = m_uniqueEditors.find(assetType);
+
+        if (it == m_uniqueEditors.end())
+        {
+            return uuid{};
+        }
+
+        return it->second;
+    }
+
     void asset_editor_manager::close_editor(window_manager& wm, const uuid& assetId)
     {
         const auto it = m_editors.find(assetId);
@@ -220,18 +242,6 @@ namespace oblo::editor
         it->second->close(wm);
     }
 
-    void asset_editor_manager::close_unique_type_editor(window_manager& wm, const uuid& assetType)
-    {
-        const auto uIt = m_uniqueEditors.find(assetType);
-
-        if (uIt == m_uniqueEditors.end())
-        {
-            return;
-        }
-
-        close_editor(wm, uIt->second);
-    }
-
     expected<> asset_editor_manager::save_asset(window_manager& wm, const uuid& assetId)
     {
         const auto it = m_editors.find(assetId);
@@ -241,6 +251,6 @@ namespace oblo::editor
             return unspecified_error;
         }
 
-        return it->second->save(wm);
+        return it->second->save(wm, m_assetRegistry);
     }
 }

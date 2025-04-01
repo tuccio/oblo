@@ -10,6 +10,7 @@
 #include <oblo/editor/windows/scene_hierarchy.hpp>
 #include <oblo/editor/windows/viewport.hpp>
 #include <oblo/runtime/runtime.hpp>
+#include <oblo/scene/resources/entity_hierarchy.hpp>
 
 #include <imgui.h>
 
@@ -66,5 +67,10 @@ namespace oblo::editor
             m_runtimeManager->destroy(m_runtime);
             m_runtime = {};
         }
+    }
+
+    const ecs::entity_registry& scene_editing_window::get_entity_registry() const
+    {
+        return m_runtime->get_entity_registry();
     }
 }

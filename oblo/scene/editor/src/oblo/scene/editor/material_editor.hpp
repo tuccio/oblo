@@ -11,7 +11,7 @@ namespace oblo::editor
 
         void close(window_manager& wm) override;
 
-        expected<> save(window_manager& wm) override;
+        expected<> save(window_manager& wm, asset_registry& assetRegistry) override;
 
         window_handle get_window() const override;
 

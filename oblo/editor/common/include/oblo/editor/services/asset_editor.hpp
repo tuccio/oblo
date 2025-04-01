@@ -4,6 +4,11 @@
 #include <oblo/core/uuid.hpp>
 #include <oblo/editor/window_handle.hpp>
 
+namespace oblo
+{
+    class asset_registry;
+}
+
 namespace oblo::editor
 {
     class window_manager;
@@ -17,7 +22,7 @@ namespace oblo::editor
 
         virtual void close(window_manager& wm) = 0;
 
-        virtual expected<> save(window_manager& wm) = 0;
+        virtual expected<> save(window_manager& wm, asset_registry& assetRegistry) = 0;
 
         virtual window_handle get_window() const = 0;
     };
