@@ -20,6 +20,7 @@
 #include <oblo/scene/resources/material.hpp>
 #include <oblo/scene/resources/pbr_properties.hpp>
 #include <oblo/scene/resources/traits.hpp>
+#include <oblo/scene/serialization/ecs_serializer.hpp>
 
 namespace oblo
 {
@@ -63,7 +64,7 @@ namespace oblo
                         [](any_asset& asset, cstring_view source)
                     {
                         auto& m = asset.emplace<scene>();
-                        return m.load(source).has_value();
+                        return m.load(source, {}).has_value();
                     },
                     .save =
                         [](const any_asset& asset, cstring_view destination, cstring_view)

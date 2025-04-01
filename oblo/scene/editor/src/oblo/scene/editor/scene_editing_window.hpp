@@ -23,7 +23,7 @@ namespace oblo::editor
         bool update(const window_update_context& ctx);
         void on_close();
 
-        const ecs::entity_registry& get_entity_registry() const;
+        ecs::entity_registry& get_entity_registry() const;
 
     private:
         selected_entities m_selection;

@@ -7,7 +7,7 @@ namespace oblo::editor
     class scene_editor final : public asset_editor
     {
     public:
-        expected<> open(window_manager& wm, window_handle parent, uuid assetId) override;
+        expected<> open(window_manager& wm, asset_registry& assetRegistry, window_handle parent, uuid assetId) override;
 
         void close(window_manager& wm) override;
 

@@ -69,7 +69,7 @@ namespace oblo::editor
         }
     }
 
-    const ecs::entity_registry& scene_editing_window::get_entity_registry() const
+    ecs::entity_registry& scene_editing_window::get_entity_registry() const
     {
         return m_runtime->get_entity_registry();
     }

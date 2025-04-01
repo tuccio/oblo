@@ -11,8 +11,22 @@
 
 namespace oblo::editor
 {
-    expected<> scene_editor::open(window_manager& wm, window_handle parent, uuid assetId)
+    expected<> scene_editor::open(window_manager& wm, asset_registry& assetRegistry, window_handle parent, uuid assetId)
     {
+        auto anyAsset = assetRegistry.load_asset(assetId);
+
+        if (!anyAsset)
+        {
+            return unspecified_error;
+        }
+
+        auto* const sceneAsset = anyAsset->as<scene>();
+
+        if (!sceneAsset)
+        {
+            return unspecified_error;
+        }
+
         const auto h = wm.create_child_window<scene_editing_window>(parent, {}, service_registry{});
 
         if (!h)
@@ -22,6 +36,20 @@ namespace oblo::editor
 
         m_editor = h;
         m_assetId = assetId;
+
+        auto* const sceneEditor = wm.try_access<scene_editing_window>(m_editor);
+
+        if (!sceneEditor)
+        {
+            wm.destroy_window(h);
+            return unspecified_error;
+        }
+
+        if (!sceneAsset->copy_to(sceneEditor->get_entity_registry(), {}, {}))
+        {
+            wm.destroy_window(h);
+            return unspecified_error;
+        }
 
         return no_error;
     }
@@ -54,7 +82,8 @@ namespace oblo::editor
         if (!sceneAsset.copy_from(entityRegistry,
                 {
                     .skipEntities = ecs::make_type_sets<transient_tag>(entityRegistry.get_type_registry()),
-                }))
+                },
+                {}))
         {
             return unspecified_error;
         }

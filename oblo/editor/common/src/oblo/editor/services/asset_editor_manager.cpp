@@ -179,7 +179,7 @@ namespace oblo::editor
 
                 unique_ptr assetEditor = desc.createEditor();
 
-                if (assetEditor && assetEditor->open(wm, m_root, assetId))
+                if (assetEditor && assetEditor->open(wm, m_assetRegistry, m_root, assetId))
                 {
                     const auto root = assetEditor->get_window();
 

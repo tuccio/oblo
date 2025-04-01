@@ -1,7 +1,9 @@
 #include <oblo/editor/windows/editor_window.hpp>
 
 #include <oblo/core/debug.hpp>
+#include <oblo/core/formatters/uuid_formatter.hpp>
 #include <oblo/editor/service_context.hpp>
+#include <oblo/editor/services/asset_editor_manager.hpp>
 #include <oblo/editor/window_manager.hpp>
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/editor/windows/demo_window.hpp>
@@ -9,6 +11,7 @@
 #include <oblo/editor/windows/options_editor.hpp>
 #include <oblo/editor/windows/style_window.hpp>
 #include <oblo/editor/windows/viewport.hpp>
+#include <oblo/log/log.hpp>
 #include <oblo/vulkan/events/gi_reset_event.hpp>
 #include <oblo/vulkan/graph/frame_graph.hpp>
 #include <oblo/vulkan/renderer.hpp>
@@ -65,6 +68,38 @@ namespace oblo::editor
         if (ImGui::BeginMenuBar())
         {
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, windowPadding);
+
+            if (ImGui::BeginMenu("File"))
+            {
+                auto* const assetEditors = ctx.services.find<asset_editor_manager>();
+
+                uuid sceneAssetId{};
+
+                if (assetEditors)
+                {
+                    // Either we need to adjust the dependencies, or this should be some sort of extension point
+                    constexpr uuid sceneAssetType = "9d257a82-a911-43c8-b8fb-1babd7117620"_uuid;
+                    sceneAssetId = assetEditors->find_unique_type_editor(sceneAssetType);
+                }
+
+                constexpr auto saveScene = "Save Scene";
+
+                if (sceneAssetId.is_nil())
+                {
+                    ImGui::BeginDisabled();
+                    ImGui::MenuItem(saveScene);
+                    ImGui::EndDisabled();
+                }
+                else if (ImGui::MenuItem(saveScene))
+                {
+                    if (!assetEditors->save_asset(ctx.windowManager, sceneAssetId))
+                    {
+                        log::error("Failed to save scene {}", sceneAssetId);
+                    }
+                }
+
+                ImGui::EndMenu();
+            }
 
             if (ImGui::BeginMenu("Windows"))
             {

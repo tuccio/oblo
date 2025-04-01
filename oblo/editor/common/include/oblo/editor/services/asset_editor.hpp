@@ -18,7 +18,8 @@ namespace oblo::editor
     public:
         virtual ~asset_editor() = default;
 
-        virtual expected<> open(window_manager& wm, window_handle parent, uuid assetId) = 0;
+        virtual expected<> open(
+            window_manager& wm, asset_registry& assetRegistry, window_handle parent, uuid assetId) = 0;
 
         virtual void close(window_manager& wm) = 0;
 

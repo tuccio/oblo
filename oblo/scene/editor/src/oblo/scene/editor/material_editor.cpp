@@ -28,7 +28,7 @@ namespace oblo::editor
     class material_editor_window final
     {
     public:
-        material_editor_window(uuid assetId);
+        material_editor_window(asset_registry& assetRegistry, uuid assetId);
         ~material_editor_window();
 
         bool init(const window_update_context& ctx);
@@ -46,7 +46,10 @@ namespace oblo::editor
         unique_ptr<ui::artifact_picker> m_artifactPicker;
     };
 
-    material_editor_window::material_editor_window(uuid assetId) : m_assetId{assetId} {}
+    material_editor_window::material_editor_window(asset_registry& assetRegistry, uuid assetId) :
+        m_assetRegistry{&assetRegistry}, m_assetId{assetId}
+    {
+    }
 
     material_editor_window::~material_editor_window()
     {
@@ -58,13 +61,6 @@ namespace oblo::editor
 
     bool material_editor_window::init(const window_update_context& ctx)
     {
-        m_assetRegistry = ctx.services.find<asset_registry>();
-
-        if (!m_assetRegistry)
-        {
-            return false;
-        }
-
         m_idPool = ctx.services.find<incremental_id_pool>();
 
         if (!m_idPool)
@@ -249,9 +245,10 @@ namespace oblo::editor
         return assetRegistry.save_asset(m_asset, m_assetId);
     }
 
-    expected<> material_editor::open(window_manager& wm, window_handle parent, uuid assetId)
+    expected<> material_editor::open(
+        window_manager& wm, asset_registry& assetRegistry, window_handle parent, uuid assetId)
     {
-        const auto h = wm.create_child_window<material_editor_window>(parent, {}, {}, assetId);
+        const auto h = wm.create_child_window<material_editor_window>(parent, {}, {}, assetRegistry, assetId);
 
         if (!h)
         {
