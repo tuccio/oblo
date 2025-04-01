@@ -15,6 +15,8 @@ namespace oblo::editor
     class scene_editing_window final
     {
     public:
+        ~scene_editing_window();
+
         bool init(const window_update_context& ctx);
         bool update(const window_update_context& ctx);
         void on_close();

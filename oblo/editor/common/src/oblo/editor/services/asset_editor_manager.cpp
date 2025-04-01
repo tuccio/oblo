@@ -18,6 +18,12 @@ namespace oblo::editor
                     [[maybe_unused]] const auto count = editors->erase(id);
                     OBLO_ASSERT(count > 0);
                 }
+
+                if (uniqueEditors)
+                {
+                    [[maybe_unused]] const auto count = uniqueEditors->erase(assetType);
+                    OBLO_ASSERT(count > 0);
+                }
             }
 
             bool update(const window_update_context&) const
@@ -26,22 +32,31 @@ namespace oblo::editor
             }
 
             uuid id{};
+            uuid assetType{};
             std::unordered_map<uuid, unique_ptr<asset_editor>>* editors{};
+            std::unordered_map<uuid, uuid>* uniqueEditors{};
         };
 
         struct replace_unique_editor
         {
-            bool update(const window_update_context&) const
+            bool update(const window_update_context& ctx) const
             {
                 bool isOpen = true;
+                bool save = false;
+                bool cancel = false;
 
-                if (ImGui::BeginPopupModal("Save and close?"))
+                constexpr auto popupName = "Save and close?##save_and_close";
+
+                ImGui::OpenPopup(popupName);
+
+                if (ImGui::BeginPopupModal(popupName))
                 {
                     ImGui::TextUnformatted("An asset is being closed, do you wish to save it before closing?");
 
                     if (ImGui::Button("Save"))
                     {
-                        // TODO: Save and mark to open new editor
+                        save = true;
+                        cancel = false;
                         isOpen = false;
                     }
 
@@ -49,7 +64,8 @@ namespace oblo::editor
 
                     if (ImGui::Button("Discard"))
                     {
-                        // TODO: Mark to open new editor
+                        save = false;
+                        cancel = false;
                         isOpen = false;
                     }
 
@@ -57,7 +73,8 @@ namespace oblo::editor
 
                     if (ImGui::Button("Cancel"))
                     {
-                        // TODO: Just close this window
+                        save = false;
+                        cancel = true;
                         isOpen = false;
                     }
 
@@ -66,9 +83,25 @@ namespace oblo::editor
                     ImGui::EndPopup();
                 }
 
+                if (!isOpen)
+                {
+                    if (save)
+                    {
+                        assetEditorManager->save_asset(ctx.windowManager, assetId).assert_value();
+                    }
+
+                    if (!cancel)
+                    {
+                        assetEditorManager->close_unique_type_editor(ctx.windowManager, descriptor.assetType);
+                        assetEditorManager->open_editor(ctx.windowManager, assetId, descriptor.assetType)
+                            .assert_value();
+                    }
+                }
+
                 return isOpen;
             }
 
+            asset_editor_manager* assetEditorManager{};
             asset_editor_descriptor descriptor{};
             uuid assetId{};
         };
@@ -122,9 +155,13 @@ namespace oblo::editor
 
                         if (ptr)
                         {
+                            ptr->assetEditorManager = this;
                             ptr->descriptor = desc;
                             ptr->assetId = assetId;
                         }
+
+                        // The replacement will open the editor later if the user goes on with it
+                        m_editors.erase(it);
 
                         return no_error;
                     }
@@ -146,6 +183,14 @@ namespace oblo::editor
                         ptr->editors = &m_editors;
                     }
 
+                    if (desc.flags.contains(editor::asset_editor_flags::unique_type))
+                    {
+                        m_uniqueEditors.emplace(assetType, assetId);
+
+                        ptr->assetType = assetType;
+                        ptr->uniqueEditors = &m_uniqueEditors;
+                    }
+
                     it->second = std::move(assetEditor);
 
                     return no_error;
@@ -161,5 +206,41 @@ namespace oblo::editor
         m_editors.erase(it);
 
         return open_error::no_such_type;
+    }
+
+    void asset_editor_manager::close_editor(window_manager& wm, const uuid& assetId)
+    {
+        const auto it = m_editors.find(assetId);
+
+        if (it == m_editors.end())
+        {
+            return;
+        }
+
+        it->second->close(wm);
+    }
+
+    void asset_editor_manager::close_unique_type_editor(window_manager& wm, const uuid& assetType)
+    {
+        const auto uIt = m_uniqueEditors.find(assetType);
+
+        if (uIt == m_uniqueEditors.end())
+        {
+            return;
+        }
+
+        close_editor(wm, uIt->second);
+    }
+
+    expected<> asset_editor_manager::save_asset(window_manager& wm, const uuid& assetId)
+    {
+        const auto it = m_editors.find(assetId);
+
+        if (it == m_editors.end())
+        {
+            return unspecified_error;
+        }
+
+        return it->second->save(wm);
     }
 }

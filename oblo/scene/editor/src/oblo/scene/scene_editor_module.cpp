@@ -127,6 +127,7 @@ namespace oblo
                     },
                     .createEditor = []() -> unique_ptr<editor::asset_editor>
                     { return allocate_unique<editor::scene_editor>(); },
+                    .flags = editor::asset_editor_flags::unique_type,
                 });
             }
         };

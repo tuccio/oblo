@@ -32,6 +32,11 @@ namespace oblo::editor
 
         expected<success_tag, open_error> open_editor(window_manager& wm, const uuid& assetId, const uuid& assetType);
 
+        void close_editor(window_manager& wm, const uuid& assetId);
+        void close_unique_type_editor(window_manager& wm, const uuid& assetType);
+
+        expected<> save_asset(window_manager& wm, const uuid& assetId);
+
     private:
         std::unordered_map<uuid, unique_ptr<asset_editor>> m_editors;
         std::unordered_map<uuid, uuid> m_uniqueEditors;

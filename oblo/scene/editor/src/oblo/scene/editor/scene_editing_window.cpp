@@ -15,6 +15,11 @@
 
 namespace oblo::editor
 {
+    scene_editing_window ::~scene_editing_window()
+    {
+        on_close();
+    }
+
     bool scene_editing_window::init(const window_update_context& ctx)
     {
         m_runtimeManager = ctx.services.find<runtime_manager>();

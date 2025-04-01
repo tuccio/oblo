@@ -153,7 +153,27 @@ namespace oblo
         m_nodeRegistry = vk::create_frame_graph_registry();
     }
 
-    scene_renderer::~scene_renderer() = default;
+    scene_renderer::~scene_renderer()
+    {
+        if (m_sceneDataProvider)
+        {
+            m_frameGraph.remove(m_sceneDataProvider);
+            m_sceneDataProvider = {};
+        }
+
+        if (m_surfelsGI)
+        {
+            m_frameGraph.remove(m_surfelsGI);
+            m_surfelsGI = {};
+        }
+
+        for (auto&& view : m_sceneViews.keys())
+        {
+            m_frameGraph.remove(view);
+        }
+
+        m_sceneViews.clear();
+    }
 
     vk::frame_graph& scene_renderer::get_frame_graph() const
     {

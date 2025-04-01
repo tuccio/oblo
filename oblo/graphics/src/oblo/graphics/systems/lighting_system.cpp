@@ -36,7 +36,21 @@ namespace oblo
 
     lighting_system::lighting_system() = default;
 
-    lighting_system::~lighting_system() = default;
+    lighting_system::~lighting_system()
+    {
+        if (m_sceneRenderer)
+        {
+            for (auto&& shadow : m_shadows.values())
+            {
+                auto& frameGraph = m_sceneRenderer->get_frame_graph();
+
+                for (auto&& perViewShadow : shadow.shadowGraphs.values())
+                {
+                    frameGraph.remove(perViewShadow);
+                }
+            }
+        }
+    }
 
     void lighting_system::first_update(const ecs::system_update_context& ctx)
     {
