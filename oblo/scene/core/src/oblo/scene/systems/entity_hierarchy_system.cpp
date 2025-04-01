@@ -96,11 +96,18 @@ namespace oblo
                         continue;
                     }
 
+                    // The call to ecs_serializer::read modifies the entity registry we are iterating over, it's ok for
+                    // now because we return right after this, thus only processing 1 hierarchy per frame
+                    const ecs::entity root = e;
+
+                    deferred.remove<entity_hierarchy_loading>(root);
+                    deferred.add<entity_hierarchy_loaded>(root);
+
                     if (!ecs_serializer::read(*ctx.entities,
                             doc,
                             doc.get_root(),
                             *propertyRegistry,
-                            e,
+                            root,
                             {
                                 // We mark all spawned entities as transient to avoid saving them with the scene
                                 .addTypes = ecs::make_type_sets<transient_tag>(ctx.entities->get_type_registry()),
@@ -111,10 +118,6 @@ namespace oblo
                         continue;
                     }
 
-                    deferred.remove<entity_hierarchy_loading>(e);
-                    deferred.add<entity_hierarchy_loaded>(e);
-
-                    // Only process 1 per frame for now
                     deferred.apply(*ctx.entities);
 
                     return;
