@@ -22,6 +22,7 @@
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/property_registry.hpp>
 #include <oblo/properties/property_tree.hpp>
+#include <oblo/properties/property_value_wrapper.hpp>
 #include <oblo/properties/visit.hpp>
 #include <oblo/reflection/reflection_registry.hpp>
 #include <oblo/resource/descriptors/resource_ref_descriptor.hpp>
@@ -39,12 +40,18 @@ namespace oblo
 
 namespace oblo::editor
 {
+    struct inspector::string_buffer
+    {
+        char buffer[256];
+    };
+
     namespace
     {
         struct inspector_context
         {
             const reflection::reflection_registry& reflection;
             ui::artifact_picker& artifactPicker;
+            deque<inspector::string_buffer>& stringBuffers;
         };
 
         bool build_quaternion_editor(const property_node& node, std::byte* const data)
@@ -72,6 +79,8 @@ namespace oblo::editor
             auto* ptr = data;
 
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+
+            usize nextStringBufferIdx = 0;
 
             if (ui::property_table::begin())
             {
@@ -124,7 +133,7 @@ namespace oblo::editor
                         },
                         [&ptr](const property_node& node, const property_node_finish) { ptr -= node.offset; },
                         [](const property_node&, const property_array&, auto&&) { return visit_result::sibling; },
-                        [&ptr, &ctx, &tree, &modified](const property& property)
+                        [&ptr, &ctx, &tree, &modified, &nextStringBufferIdx](const property& property)
                         {
                             const auto makeId = [&property]
                             { return (int(hash_mix(property.offset, property.parent))); };
@@ -177,6 +186,37 @@ namespace oblo::editor
 
                             break;
 
+                            case property_kind::string: {
+                                property_value_wrapper srcWrapper;
+                                srcWrapper.assign_from(property.kind, propertyPtr);
+                                const auto src = srcWrapper.get_string();
+
+                                if (nextStringBufferIdx >= ctx.stringBuffers.size())
+                                {
+                                    ctx.stringBuffers.resize(nextStringBufferIdx + 1);
+                                }
+
+                                auto& stringBuffer = ctx.stringBuffers[nextStringBufferIdx];
+                                ++nextStringBufferIdx;
+
+                                const auto numChars = min(src.size(), sizeof(inspector::string_buffer) - 1);
+                                std::memcpy(stringBuffer.buffer, src.data(), numChars);
+                                stringBuffer.buffer[numChars] = '\0';
+
+                                modified |= ui::property_table::add_input_text(makeId(),
+                                    property.name,
+                                    stringBuffer.buffer,
+                                    sizeof(inspector::string_buffer));
+
+                                if (modified)
+                                {
+                                    property_value_wrapper inputTextWrapper{string_view{stringBuffer.buffer}};
+                                    inputTextWrapper.assign_to(property.kind, propertyPtr);
+                                }
+
+                                break;
+                            }
+
                             default:
                                 ui::property_table::add_empty(property.name);
                                 break;
@@ -206,7 +246,7 @@ namespace oblo::editor
         m_factory = ctx.services.find<component_factory>();
 
         auto* assetRegistry = ctx.services.find<asset_registry>();
-        m_artifactPicker = std::make_unique<ui::artifact_picker>(*assetRegistry);
+        m_artifactPicker = allocate_unique<ui::artifact_picker>(*assetRegistry);
     }
 
     bool inspector::update(const window_update_context&)
@@ -273,6 +313,7 @@ namespace oblo::editor
                     const inspector_context inspectorContext = {
                         .reflection = *m_reflection,
                         .artifactPicker = *m_artifactPicker,
+                        .stringBuffers = m_stringBuffers,
                     };
 
                     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2, 2));
