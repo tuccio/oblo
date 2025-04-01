@@ -22,7 +22,27 @@
 
 namespace oblo::editor
 {
-    void editor_window::init(const window_update_context&) {}
+    namespace
+    {
+        uuid find_scene_asset(asset_editor_manager* assetEditorManager)
+        {
+            uuid sceneAssetId{};
+
+            if (assetEditorManager)
+            {
+                // Either we need to adjust the dependencies, or this should be some sort of extension point
+                constexpr uuid sceneAssetType = "9d257a82-a911-43c8-b8fb-1babd7117620"_uuid;
+                sceneAssetId = assetEditorManager->find_unique_type_editor(sceneAssetType);
+            }
+
+            return sceneAssetId;
+        }
+    }
+
+    void editor_window::init(const window_update_context& ctx)
+    {
+        m_assetEditorManager = ctx.services.find<asset_editor_manager>();
+    }
 
     bool editor_window::update(const window_update_context& ctx)
     {
@@ -71,16 +91,7 @@ namespace oblo::editor
 
             if (ImGui::BeginMenu("File"))
             {
-                auto* const assetEditors = ctx.services.find<asset_editor_manager>();
-
-                uuid sceneAssetId{};
-
-                if (assetEditors)
-                {
-                    // Either we need to adjust the dependencies, or this should be some sort of extension point
-                    constexpr uuid sceneAssetType = "9d257a82-a911-43c8-b8fb-1babd7117620"_uuid;
-                    sceneAssetId = assetEditors->find_unique_type_editor(sceneAssetType);
-                }
+                const uuid sceneAssetId = find_scene_asset(m_assetEditorManager);
 
                 constexpr auto saveScene = "Save Scene";
 
@@ -92,7 +103,7 @@ namespace oblo::editor
                 }
                 else if (ImGui::MenuItem(saveScene))
                 {
-                    if (!assetEditors->save_asset(ctx.windowManager, sceneAssetId))
+                    if (!m_assetEditorManager->save_asset(ctx.windowManager, sceneAssetId))
                     {
                         log::error("Failed to save scene {}", sceneAssetId);
                     }
@@ -105,7 +116,17 @@ namespace oblo::editor
             {
                 if (ImGui::MenuItem("Viewport"))
                 {
-                    ctx.windowManager.create_child_window<viewport>(ctx.windowHandle);
+                    const uuid sceneAssetId = find_scene_asset(m_assetEditorManager);
+
+                    if (!sceneAssetId.is_nil())
+                    {
+                        const auto h = m_assetEditorManager->get_window(sceneAssetId);
+
+                        if (h)
+                        {
+                            ctx.windowManager.create_child_window<viewport>(h);
+                        }
+                    }
                 }
 
                 if (ImGui::MenuItem("Options"))

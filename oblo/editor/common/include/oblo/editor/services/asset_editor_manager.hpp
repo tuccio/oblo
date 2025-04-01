@@ -32,8 +32,10 @@ namespace oblo::editor
         };
 
     public:
-        asset_editor_manager(window_handle root, asset_registry& assetRegistry);
+        explicit asset_editor_manager(asset_registry& assetRegistry);
         ~asset_editor_manager();
+
+        void set_window_root(window_handle root);
 
         expected<success_tag, open_error> open_editor(window_manager& wm, const uuid& assetId, const uuid& assetType);
 
@@ -43,11 +45,13 @@ namespace oblo::editor
 
         expected<> save_asset(window_manager& wm, const uuid& assetId);
 
+        window_handle get_window(const uuid& assetId) const;
+
     private:
+        asset_registry& m_assetRegistry;
         std::unordered_map<uuid, unique_ptr<asset_editor>> m_editors;
         std::unordered_map<uuid, uuid> m_uniqueEditors;
         deque<asset_editor_descriptor> m_descriptors;
         window_handle m_root{};
-        asset_registry& m_assetRegistry;
     };
 }

@@ -486,8 +486,6 @@ namespace oblo::editor
 
         m_windowManager.init();
 
-        const auto editorWindow = m_windowManager.create_window<editor_window>(service_registry{});
-
         auto& globalRegistry = m_windowManager.get_global_service_registry();
 
         globalRegistry.add<vk::vulkan_context>().externally_owned(&m_vkEngine->get_vulkan_context());
@@ -504,8 +502,13 @@ namespace oblo::editor
         globalRegistry.add<options_manager>().externally_owned(&options->manager());
         globalRegistry.add<registered_commands>().unique();
         globalRegistry.add<incremental_id_pool>().unique();
-        globalRegistry.add<asset_editor_manager>().unique(editorWindow, m_assetRegistry);
         globalRegistry.add<runtime_manager>().externally_owned(&m_runtimeManager);
+        auto* const assetEditorManager = globalRegistry.add<asset_editor_manager>().unique(m_assetRegistry);
+
+        const auto editorWindow = m_windowManager.create_window<editor_window>(service_registry{});
+
+        // Add all asset editors under the editor window, to make sure they are dockable
+        assetEditorManager->set_window_root(editorWindow);
 
         m_windowManager.create_child_window<asset_browser>(editorWindow);
         m_windowManager.create_child_window<console_window>(editorWindow);

@@ -116,8 +116,9 @@ namespace oblo::editor
         };
     }
 
-    asset_editor_manager::asset_editor_manager(window_handle root, asset_registry& assetRegistry) :
-        m_root{root}, m_assetRegistry{assetRegistry}
+    asset_editor_manager::~asset_editor_manager() = default;
+
+    asset_editor_manager::asset_editor_manager(asset_registry& assetRegistry) : m_assetRegistry{assetRegistry}
     {
         auto& mm = module_manager::get();
 
@@ -132,7 +133,10 @@ namespace oblo::editor
         }
     }
 
-    asset_editor_manager::~asset_editor_manager() = default;
+    void asset_editor_manager::set_window_root(window_handle root)
+    {
+        m_root = root;
+    }
 
     expected<success_tag, asset_editor_manager::open_error> asset_editor_manager::open_editor(
         window_manager& wm, const uuid& assetId, const uuid& assetType)
@@ -252,5 +256,17 @@ namespace oblo::editor
         }
 
         return it->second->save(wm, m_assetRegistry);
+    }
+
+    window_handle asset_editor_manager::get_window(const uuid& assetId) const
+    {
+        const auto it = m_editors.find(assetId);
+
+        if (it == m_editors.end())
+        {
+            return {};
+        }
+
+        return it->second->get_window();
     }
 }
