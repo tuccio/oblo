@@ -1,15 +1,17 @@
-#include <oblo/editor/windows/scene_editing_window.hpp>
+#include <oblo/editor/windows/editor_window.hpp>
 
 #include <oblo/core/debug.hpp>
+#include <oblo/core/formatters/uuid_formatter.hpp>
 #include <oblo/editor/service_context.hpp>
+#include <oblo/editor/services/asset_editor_manager.hpp>
 #include <oblo/editor/window_manager.hpp>
 #include <oblo/editor/window_update_context.hpp>
-#include <oblo/editor/windows/command_palette_window.hpp>
 #include <oblo/editor/windows/demo_window.hpp>
 #include <oblo/editor/windows/frame_graph_window.hpp>
 #include <oblo/editor/windows/options_editor.hpp>
 #include <oblo/editor/windows/style_window.hpp>
 #include <oblo/editor/windows/viewport.hpp>
+#include <oblo/log/log.hpp>
 #include <oblo/vulkan/events/gi_reset_event.hpp>
 #include <oblo/vulkan/graph/frame_graph.hpp>
 #include <oblo/vulkan/renderer.hpp>
@@ -20,15 +22,29 @@
 
 namespace oblo::editor
 {
-    void scene_editing_window::init(const window_update_context& ctx)
+    namespace
     {
-        auto* const registry = ctx.services.get_local_registry();
-        OBLO_ASSERT(registry);
+        uuid find_scene_asset(asset_editor_manager* assetEditorManager)
+        {
+            uuid sceneAssetId{};
 
-        registry->add<selected_entities>().externally_owned(&m_selection);
+            if (assetEditorManager)
+            {
+                // Either we need to adjust the dependencies, or this should be some sort of extension point
+                constexpr uuid sceneAssetType = "9d257a82-a911-43c8-b8fb-1babd7117620"_uuid;
+                sceneAssetId = assetEditorManager->find_unique_type_editor(sceneAssetType);
+            }
+
+            return sceneAssetId;
+        }
     }
 
-    bool scene_editing_window::update(const window_update_context& ctx)
+    void editor_window::init(const window_update_context& ctx)
+    {
+        m_assetEditorManager = ctx.services.find<asset_editor_manager>();
+    }
+
+    bool editor_window::update(const window_update_context& ctx)
     {
         constexpr ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_None;
 
@@ -73,11 +89,44 @@ namespace oblo::editor
         {
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, windowPadding);
 
+            if (ImGui::BeginMenu("File"))
+            {
+                const uuid sceneAssetId = find_scene_asset(m_assetEditorManager);
+
+                constexpr auto saveScene = "Save Scene";
+
+                if (sceneAssetId.is_nil())
+                {
+                    ImGui::BeginDisabled();
+                    ImGui::MenuItem(saveScene);
+                    ImGui::EndDisabled();
+                }
+                else if (ImGui::MenuItem(saveScene))
+                {
+                    if (!m_assetEditorManager->save_asset(ctx.windowManager, sceneAssetId))
+                    {
+                        log::error("Failed to save scene {}", sceneAssetId);
+                    }
+                }
+
+                ImGui::EndMenu();
+            }
+
             if (ImGui::BeginMenu("Windows"))
             {
                 if (ImGui::MenuItem("Viewport"))
                 {
-                    ctx.windowManager.create_child_window<viewport>(ctx.windowHandle);
+                    const uuid sceneAssetId = find_scene_asset(m_assetEditorManager);
+
+                    if (!sceneAssetId.is_nil())
+                    {
+                        const auto h = m_assetEditorManager->get_window(sceneAssetId);
+
+                        if (h)
+                        {
+                            ctx.windowManager.create_child_window<viewport>(h);
+                        }
+                    }
                 }
 
                 if (ImGui::MenuItem("Options"))
@@ -93,7 +142,8 @@ namespace oblo::editor
                 if (ImGui::MenuItem("Frame Graph"))
                 {
                     ctx.windowManager.create_child_window<frame_graph_window>(ctx.windowHandle,
-                        window_flags::unique_sibling);
+                        window_flags::unique_sibling,
+                        {});
                 }
 
                 if (ImGui::MenuItem("ImGui Demo Window"))
@@ -155,12 +205,6 @@ namespace oblo::editor
         ImGui::DockSpace(dockspace_id, ImVec2{0.f, 0.f}, dockspaceFlags);
 
         ImGui::End();
-
-        if (auto& io = ImGui::GetIO(); !io.WantTextInput && io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_P))
-        {
-            ctx.windowManager.create_child_window<command_palette_window>(ctx.windowHandle,
-                window_flags::unique_sibling);
-        }
 
         return true;
     }

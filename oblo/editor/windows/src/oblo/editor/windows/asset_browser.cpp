@@ -560,7 +560,7 @@ namespace oblo::editor
             const auto& e = directoryTree[info.index];
 
             const auto dirName = filesystem::filename(e.path.view());
-            b.clear().format("{}##{}", dirName, e.path);
+            b.clear().format(ICON_FA_FOLDER " {}##{}", dirName, e.path);
 
             i32 nodeFlags = ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_OpenOnArrow |
                 (info.index == 0 ? ImGuiTreeNodeFlags_DefaultOpen : 0);

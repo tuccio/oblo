@@ -67,5 +67,7 @@ namespace oblo::editor::ui
             void* v,
             const type_id& typeId,
             const reflection::reflection_registry& reflection);
+
+        bool add_input_text(id_t id, cstring_view name, char* buffer, usize size);
     };
 }

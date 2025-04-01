@@ -21,6 +21,11 @@ namespace oblo
             ecs::component_and_tag_sets skipTypes{};
         };
 
+        struct read_config
+        {
+            ecs::component_and_tag_sets addTypes{};
+        };
+
         SCENE_API expected<> write(data_document& doc,
             u32 docRoot,
             const ecs::entity_registry& reg,
@@ -31,6 +36,7 @@ namespace oblo
             const data_document& doc,
             u32 docRoot,
             const property_registry& propertyRegistry,
-            ecs::entity root = {});
+            ecs::entity root = {},
+            const read_config& cfg = {});
     }
 }

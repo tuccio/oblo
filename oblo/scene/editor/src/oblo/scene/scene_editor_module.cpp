@@ -12,12 +12,15 @@
 #include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_manager.hpp>
+#include <oblo/scene/assets/scene.hpp>
 #include <oblo/scene/assets/traits.hpp>
 #include <oblo/scene/editor/commands.hpp>
 #include <oblo/scene/editor/material_editor.hpp>
+#include <oblo/scene/editor/scene_editor.hpp>
 #include <oblo/scene/resources/material.hpp>
 #include <oblo/scene/resources/pbr_properties.hpp>
 #include <oblo/scene/resources/traits.hpp>
+#include <oblo/scene/serialization/ecs_serializer.hpp>
 
 namespace oblo
 {
@@ -52,6 +55,32 @@ namespace oblo
                     .createImporter = []() -> unique_ptr<file_importer>
                     { return allocate_unique<copy_importer>(resource_type<material>, "material"); },
                 });
+
+                out.push_back({
+                    .typeUuid = asset_type<scene>,
+                    .typeId = get_type_id<scene>(),
+                    .fileExtension = ".oscene",
+                    .load =
+                        [](any_asset& asset, cstring_view source)
+                    {
+                        auto& m = asset.emplace<scene>();
+                        return m.load(source, {}).has_value();
+                    },
+                    .save =
+                        [](const any_asset& asset, cstring_view destination, cstring_view)
+                    {
+                        auto* const m = asset.as<scene>();
+
+                        if (!m)
+                        {
+                            return false;
+                        }
+
+                        return m->save(destination).has_value();
+                    },
+                    .createImporter = []() -> unique_ptr<file_importer>
+                    { return allocate_unique<copy_importer>(resource_type<entity_hierarchy>, "scene"); },
+                });
             }
         };
 
@@ -77,8 +106,29 @@ namespace oblo
 
                         return any_asset{std::move(m)};
                     },
-                    .openEditorWindow = [](editor::window_manager& windowManager, uuid assetId)
-                    { return windowManager.create_window<editor::material_editor>({}, {}, assetId); },
+                    .createEditor = []() -> unique_ptr<editor::asset_editor>
+                    { return allocate_unique<editor::material_editor>(); },
+                });
+
+                out.push_back(editor::asset_editor_descriptor{
+                    .assetType = asset_type<scene>,
+                    .name = "Scene",
+                    .create =
+                        []
+                    {
+                        any_asset r;
+                        auto& s = r.emplace<scene>();
+
+                        if (!s.init())
+                        {
+                            r.clear();
+                        }
+
+                        return r;
+                    },
+                    .createEditor = []() -> unique_ptr<editor::asset_editor>
+                    { return allocate_unique<editor::scene_editor>(); },
+                    .flags = editor::asset_editor_flags::unique_type,
                 });
             }
         };

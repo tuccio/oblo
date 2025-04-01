@@ -6,6 +6,8 @@
 
 namespace oblo
 {
+    class data_document;
+
     namespace reflection
     {
         class reflection_registry;
@@ -13,6 +15,7 @@ namespace oblo
 
     namespace ecs_serializer
     {
+        struct read_config;
         struct write_config;
     }
 
@@ -36,9 +39,20 @@ namespace oblo
         SCENE_API ecs::entity_registry& get_entity_registry();
         SCENE_API const ecs::entity_registry& get_entity_registry() const;
 
-        SCENE_API expected<> load(cstring_view source);
+        SCENE_API expected<> load(cstring_view source, const ecs_serializer::read_config& cfg);
+        SCENE_API expected<> load(const data_document& doc, const ecs_serializer::read_config& cfg);
+
         SCENE_API expected<> save(cstring_view source) const;
         SCENE_API expected<> save(cstring_view source, const ecs_serializer::write_config& cfg) const;
+        SCENE_API expected<> save(data_document& doc, const ecs_serializer::write_config& cfg) const;
+
+        SCENE_API expected<> copy_from(const ecs::entity_registry& other,
+            const ecs_serializer::write_config& wCfg,
+            const ecs_serializer::read_config& rCfg);
+
+        SCENE_API expected<> copy_to(ecs::entity_registry& other,
+            const ecs_serializer::write_config& wCfg,
+            const ecs_serializer::read_config& rCfg);
 
     private:
         ecs::type_registry m_types;

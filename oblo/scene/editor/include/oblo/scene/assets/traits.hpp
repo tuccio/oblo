@@ -6,6 +6,7 @@ namespace oblo
 {
     class material;
     class mesh;
+    class scene;
     class texture;
     struct model;
 
@@ -31,5 +32,11 @@ namespace oblo
     struct asset_traits<mesh>
     {
         static constexpr uuid uuid = "2d5702d2-3cda-4273-ab5c-39cf6a487814"_uuid;
+    };
+
+    template <>
+    struct asset_traits<scene>
+    {
+        static constexpr uuid uuid = "9d257a82-a911-43c8-b8fb-1babd7117620"_uuid;
     };
 }

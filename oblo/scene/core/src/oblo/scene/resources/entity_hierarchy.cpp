@@ -50,7 +50,7 @@ namespace oblo
         return m_registry;
     }
 
-    expected<> entity_hierarchy::load(cstring_view source)
+    expected<> entity_hierarchy::load(cstring_view source, const ecs_serializer::read_config& cfg)
     {
         const auto propertyRegistries = module_manager::get().find_services<const property_registry>();
 
@@ -71,7 +71,29 @@ namespace oblo
             return unspecified_error;
         }
 
-        if (!ecs_serializer::read(m_registry, doc, doc.get_root(), *propertyRegistries.front()))
+        if (!ecs_serializer::read(m_registry, doc, doc.get_root(), *propertyRegistries.front(), {}, cfg))
+        {
+            return unspecified_error;
+        }
+
+        return no_error;
+    }
+
+    expected<> entity_hierarchy::load(const data_document& doc, const ecs_serializer::read_config& cfg)
+    {
+        const auto propertyRegistries = module_manager::get().find_services<const property_registry>();
+
+        if (propertyRegistries.empty() || propertyRegistries.size() != 1)
+        {
+            return unspecified_error;
+        }
+
+        if (!init())
+        {
+            return unspecified_error;
+        }
+
+        if (!ecs_serializer::read(m_registry, doc, doc.get_root(), *propertyRegistries.front(), {}, cfg))
         {
             return unspecified_error;
         }
@@ -84,7 +106,7 @@ namespace oblo
         return save(source, {});
     }
 
-    expected<> entity_hierarchy::save(cstring_view source, const ecs_serializer::write_config& cfg) const
+    expected<> entity_hierarchy::save(cstring_view destination, const ecs_serializer::write_config& cfg) const
     {
         const auto propertyRegistries = module_manager::get().find_services<const property_registry>();
 
@@ -101,7 +123,82 @@ namespace oblo
             return unspecified_error;
         }
 
-        if (!json::write(doc, source))
+        if (!json::write(doc, destination))
+        {
+            return unspecified_error;
+        }
+
+        return no_error;
+    }
+
+    expected<> entity_hierarchy::save(data_document& doc, const ecs_serializer::write_config& cfg) const
+    {
+        const auto propertyRegistries = module_manager::get().find_services<const property_registry>();
+
+        if (propertyRegistries.empty() || propertyRegistries.size() != 1)
+        {
+            return unspecified_error;
+        }
+
+        if (!ecs_serializer::write(doc, doc.get_root(), m_registry, *propertyRegistries.front(), cfg))
+        {
+            return unspecified_error;
+        }
+
+        return no_error;
+    }
+
+    expected<> entity_hierarchy::copy_from(const ecs::entity_registry& other,
+        const ecs_serializer::write_config& wCfg,
+        const ecs_serializer::read_config& rCfg)
+    {
+        if (&other == &m_registry)
+        {
+            return unspecified_error;
+        }
+
+        const auto propertyRegistries = module_manager::get().find_services<const property_registry>();
+
+        if (propertyRegistries.empty() || propertyRegistries.size() != 1)
+        {
+            return unspecified_error;
+        }
+
+        data_document doc;
+        doc.init();
+
+        if (!ecs_serializer::write(doc, doc.get_root(), other, *propertyRegistries.front(), wCfg))
+        {
+            return unspecified_error;
+        }
+
+        return load(doc, rCfg);
+    }
+
+    expected<> entity_hierarchy::copy_to(
+        ecs::entity_registry& other, const ecs_serializer::write_config& wCfg, const ecs_serializer::read_config& rCfg)
+    {
+        if (&other == &m_registry)
+        {
+            return unspecified_error;
+        }
+
+        const auto propertyRegistries = module_manager::get().find_services<const property_registry>();
+
+        if (propertyRegistries.empty() || propertyRegistries.size() != 1)
+        {
+            return unspecified_error;
+        }
+
+        data_document doc;
+        doc.init();
+
+        if (!ecs_serializer::write(doc, doc.get_root(), m_registry, *propertyRegistries.front(), wCfg))
+        {
+            return unspecified_error;
+        }
+
+        if (!ecs_serializer::read(other, doc, doc.get_root(), *propertyRegistries.front(), {}, rCfg))
         {
             return unspecified_error;
         }

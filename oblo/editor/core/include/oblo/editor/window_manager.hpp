@@ -2,6 +2,7 @@
 
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/flags.hpp>
+#include <oblo/core/service_registry.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/unique_ptr.hpp>
@@ -9,11 +10,7 @@
 #include <oblo/editor/window_update_context.hpp>
 
 #include <memory_resource>
-
-namespace oblo
-{
-    class service_registry;
-}
+#include <optional>
 
 namespace oblo::editor
 {
@@ -53,8 +50,12 @@ namespace oblo::editor
         template <typename T>
         window_handle create_child_window(window_handle parent);
 
+        template <typename T>
+        window_handle create_child_window(window_handle parent, service_registry&& services);
+
         template <typename T, typename... Args>
-        window_handle create_child_window(window_handle parent, flags<window_flags> flags, Args&&... args);
+        window_handle create_child_window(
+            window_handle parent, flags<window_flags> flag, std::optional<service_registry> services, Args&&... args);
 
         template <typename T>
         bool has_child(window_handle parent, bool recursive) const;
@@ -130,19 +131,27 @@ namespace oblo::editor
     template <typename T>
     window_handle window_manager::create_child_window(window_handle parent)
     {
-        return create_child_window<T>(parent, flags<window_flags>{});
+        return create_child_window<T>(parent, {}, {});
+    }
+
+    template <typename T>
+    window_handle window_manager::create_child_window(window_handle parent, service_registry&& services)
+    {
+        return create_child_window<T>(parent, {}, std::move(services));
     }
 
     template <typename T, typename... Args>
-    window_handle window_manager::create_child_window(window_handle parent, flags<window_flags> flags, Args&&... args)
+    window_handle window_manager::create_child_window(
+        window_handle parent, flags<window_flags> flags, std::optional<service_registry> services, Args&&... args)
     {
         if (flags.contains(window_flags::unique_sibling) && has_child<T>(parent, false))
         {
             return {};
         }
 
+        auto* const servicesPtr = services.has_value() ? create_new_registry(std::move(*services)) : nullptr;
         auto* const parentEntry = reinterpret_cast<window_entry*>(parent.value);
-        return create_window_impl<T>(parentEntry, nullptr, std::forward<Args>(args)...);
+        return create_window_impl<T>(parentEntry, servicesPtr, std::forward<Args>(args)...);
     }
 
     template <typename T>

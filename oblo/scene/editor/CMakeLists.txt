@@ -8,10 +8,12 @@ target_link_libraries(
     PUBLIC
     oblo::asset
     oblo::modules
+    oblo::runtime
     oblo::scene
     PRIVATE
     oblo::editor::core
     oblo::editor::common
+    oblo::editor::windows
     oblo::graphics
     imgui::imgui
     iconfontcppheaders::iconfontcppheaders

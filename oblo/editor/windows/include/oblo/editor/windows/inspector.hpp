@@ -1,6 +1,7 @@
 #pragma once
 
-#include <memory>
+#include <oblo/core/deque.hpp>
+#include <oblo/core/unique_ptr.hpp>
 
 namespace oblo
 {
@@ -43,12 +44,16 @@ namespace oblo::editor
         void init(const window_update_context&);
         bool update(const window_update_context&);
 
+    public:
+        struct string_buffer;
+
     private:
         const property_registry* m_propertyRegistry{};
         const reflection::reflection_registry* m_reflection{};
         ecs::entity_registry* m_registry{};
         const selected_entities* m_selection{};
         const component_factory* m_factory{};
-        std::unique_ptr<ui::artifact_picker> m_artifactPicker;
+        unique_ptr<ui::artifact_picker> m_artifactPicker;
+        deque<string_buffer> m_stringBuffers;
     };
 }

@@ -10,6 +10,7 @@
 #include <oblo/scene/resources/model.hpp>
 #include <oblo/scene/resources/texture.hpp>
 #include <oblo/scene/resources/traits.hpp>
+#include <oblo/scene/serialization/ecs_serializer.hpp>
 #include <oblo/scene/serialization/mesh_file.hpp>
 #include <oblo/scene/serialization/model_file.hpp>
 
@@ -25,7 +26,7 @@ namespace oblo
         {
             static bool load(entity_hierarchy& hierarchy, cstring_view source)
             {
-                return hierarchy.load(source).has_value();
+                return hierarchy.load(source, {}).has_value();
             }
         };
 

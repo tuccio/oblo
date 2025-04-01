@@ -84,7 +84,7 @@ namespace oblo::editor
             colors[ImGuiCol_TabUnfocused] = ImVec4(0.05f, 0.05f, 0.07f, 1.00f);
             colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.08f, 0.09f, 0.10f, 1.00f);
             colors[ImGuiCol_DockingPreview] = ImVec4(0.57f, 0.35f, 0.62f, 1.00f);
-            colors[ImGuiCol_DockingEmptyBg] = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
+            colors[ImGuiCol_DockingEmptyBg] = ImVec4(0.08f, 0.09f, 0.10f, 1.00f);
             colors[ImGuiCol_PlotLines] = ImVec4(0.91f, 0.84f, 0.95f, 1.00f);
             colors[ImGuiCol_PlotLinesHovered] = ImVec4(0.04f, 0.98f, 0.98f, 1.00f);
             colors[ImGuiCol_PlotHistogram] = ImVec4(1.00f, 0.29f, 0.60f, 1.00f);

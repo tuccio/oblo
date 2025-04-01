@@ -74,6 +74,11 @@ namespace oblo
             return m_wrapper == nullptr;
         }
 
+        void clear()
+        {
+            m_wrapper.reset();
+        }
+
         type_id get_type_id() const noexcept
         {
             return m_wrapper->get_type_id();

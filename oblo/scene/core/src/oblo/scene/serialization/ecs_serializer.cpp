@@ -116,7 +116,6 @@ namespace oblo::ecs_serializer
                         const auto componentNode = doc.child_object(componentsObject, componentTypeDesc.type.name);
 
                         auto* const propertyTree = propertyRegistry.try_get(componentTypeDesc.type);
-                        OBLO_ASSERT(propertyTree);
 
                         if (!propertyTree)
                         {
@@ -238,7 +237,8 @@ namespace oblo::ecs_serializer
         const data_document& doc,
         u32 docRoot,
         const property_registry& propertyRegistry,
-        ecs::entity root)
+        ecs::entity root,
+        const read_config& cfg)
     {
         if (!doc.is_object(docRoot))
         {
@@ -289,7 +289,7 @@ namespace oblo::ecs_serializer
                 componentTypes.clear();
                 componentPtrs.clear();
 
-                ecs::component_and_tag_sets types{};
+                ecs::component_and_tag_sets types = cfg.addTypes;
 
                 const u32 childrenArray = doc.find_child(entityObject, json_strings::entityChildren);
                 const u32 componentsObject = doc.find_child(entityObject, json_strings::componentsObject);

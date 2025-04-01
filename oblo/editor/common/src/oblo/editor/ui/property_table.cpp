@@ -278,4 +278,15 @@ namespace oblo::editor::ui
 
         return modified;
     }
+
+    bool property_table::add_input_text(id_t id, cstring_view name, char* buffer, usize size)
+    {
+        setup_property(name);
+
+        ImGui::PushID(id);
+        const bool modified = ImGui::InputText("", buffer, size);
+        ImGui::PopID();
+
+        return modified;
+    }
 }

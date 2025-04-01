@@ -4,7 +4,7 @@
 
 namespace oblo::editor
 {
-    class material_editor final : public asset_editor
+    class scene_editor final : public asset_editor
     {
     public:
         expected<> open(window_manager& wm, asset_registry& assetRegistry, window_handle parent, uuid assetId) override;
@@ -17,5 +17,6 @@ namespace oblo::editor
 
     private:
         window_handle m_editor{};
+        uuid m_assetId{};
     };
 }
