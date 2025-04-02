@@ -1,5 +1,7 @@
 #version 450 core
 
+#include <renderer/math>
+
 #include <imgui_constants>
 
 struct imgui_vertex
@@ -25,13 +27,21 @@ layout(location = 0) out struct
     vec2 uv;
 } out_Data;
 
+vec4 srgb_to_linear(uint srgb)
+{
+    const float gamma = 2.2f;
+
+    const vec4 color = unpackUnorm4x8(srgb);
+    return vec4(pow(color.xyz, gamma), color.w);
+}
+
 void main()
 {
     imgui_vertex v = g_VertexData[gl_VertexIndex];
 
     const vec2 position = vec2(v.pos[0], v.pos[1]);
     const vec2 uv = vec2(v.uv[0], v.uv[1]);
-    const vec4 color = unpackUnorm4x8(v.color);
+    const vec4 color = srgb_to_linear(v.color);
 
     out_Data.color = color;
     out_Data.uv = uv;

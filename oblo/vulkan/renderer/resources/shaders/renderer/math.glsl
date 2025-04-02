@@ -1,6 +1,11 @@
 #ifndef OBLO_INCLUDE_RENDERER_MATH
 #define OBLO_INCLUDE_RENDERER_MATH
 
+vec3 pow(in vec3 x, in float e)
+{
+    return vec3(pow(x[0], e), pow(x[1], e), pow(x[2], e));
+}
+
 float pow2(in float x)
 {
     return x * x;
