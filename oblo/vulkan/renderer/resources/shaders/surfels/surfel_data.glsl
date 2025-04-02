@@ -8,6 +8,9 @@
 const float NO_SURFELS_NEEDED = 1e6;
 
 const uint SURFEL_MAX_RAYS_PER_SURFEL = 128;
+const uint SURFEL_SHARING_SCALE = 4;
+const uint SURFEL_SHARING_SCALE2 = SURFEL_SHARING_SCALE * SURFEL_SHARING_SCALE;
+const float SURFEL_RADIUS_SCALE = 0.04;
 
 struct surfel_spawn_data
 {
@@ -172,9 +175,8 @@ float surfel_estimate_radius(in surfel_grid_header gridHeader, in vec3 cameraPos
     const float cameraDistance2 = dot(cameraVector, cameraVector);
 
     const float gridCellSize = surfel_grid_cell_size(gridHeader);
-    const float surfelScalingFactor = 0.02;
 
-    const float radius = surfel_clamp_radius(gridHeader, surfelScalingFactor * sqrt(cameraDistance2));
+    const float radius = surfel_clamp_radius(gridHeader, SURFEL_RADIUS_SCALE * sqrt(cameraDistance2));
 
     return radius;
 }

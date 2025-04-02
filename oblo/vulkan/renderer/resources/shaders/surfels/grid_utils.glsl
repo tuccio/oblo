@@ -8,27 +8,27 @@ void surfel_commit_to_grid(in uint surfelId, in uint cellIndex);
 void surfel_scatter_to_grid(
     in surfel_grid_header gridHeader, in ivec3 cell, in uint surfelId, in vec3 positionWS, in float radius)
 {
-    [[unroll]] for (int x = -1; x <= 1; ++x)
+    const vec3 coordsMin = positionWS - radius * SURFEL_SHARING_SCALE;
+    const vec3 coordsMax = positionWS + radius * SURFEL_SHARING_SCALE;
+
+    const ivec3 cellMin = surfel_grid_find_cell(gridHeader, coordsMin);
+    const ivec3 cellMax = surfel_grid_find_cell(gridHeader, coordsMax);
+
+    for (int x = cellMin.x; x <= cellMax.x; ++x)
     {
-        [[unroll]] for (int y = -1; y <= 1; ++y)
+        for (int y = cellMin.y; y <= cellMax.y; ++y)
         {
-            [[unroll]] for (int z = -1; z <= 1; ++z)
+            for (int z = cellMin.z; z <= cellMax.z; ++z)
             {
-                const ivec3 neighboringCell = cell + ivec3(x, y, z);
+                const ivec3 neighboringCell = ivec3(x, y, z);
 
                 if (!surfel_grid_has_cell(gridHeader, neighboringCell))
                 {
                     continue;
                 }
 
-                const vec3 contributionThreshold =
-                    positionWS + radius * vec3(x, y, z);
-
-                if (neighboringCell == surfel_grid_find_cell(gridHeader, contributionThreshold))
-                {
-                    const uint neighboringCellIndex = surfel_grid_cell_index(gridHeader, neighboringCell);
-                    surfel_commit_to_grid(surfelId, neighboringCellIndex);
-                }
+                const uint neighboringCellIndex = surfel_grid_cell_index(gridHeader, neighboringCell);
+                surfel_commit_to_grid(surfelId, neighboringCellIndex);
             }
         }
     }
