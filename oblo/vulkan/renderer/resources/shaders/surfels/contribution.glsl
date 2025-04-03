@@ -48,7 +48,7 @@ vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
             // We weigh based on alignment with surfels normal, distance and number of samples
             const float angleWeight = max(dot(surfelNormal, normal), 0);
             const float distanceWeight = max(0, 1 - distance2 / maxInfluenceDistance2);
-            const float samplesWeight = smoothstep(0, 1, min(surfelLight.numSamples / 2048.f, 1));
+            const float samplesWeight = smoothstep(0, 1, min(surfelLight.numSamples / 256.f, 1));
 
             const float weight = angleWeight * distanceWeight * samplesWeight;
 
