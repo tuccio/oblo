@@ -92,7 +92,7 @@ void main()
 
         const float tolerance = 1.5f;
 
-        if (distance2 * tolerance < min(radius2, otherRadius2))
+        if (distance2 * tolerance < SURFEL_SHARING_SPAWN_SCALE * min(radius2, otherRadius2))
         {
             surfel_kill(surfelId);
             return;

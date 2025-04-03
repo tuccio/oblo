@@ -14,7 +14,11 @@ layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in
 
 vec3 tone_map(in vec3 x)
 {
+#if 1
     return tonemap_aces_approx(x);
+#else
+    return tonemap_aces_hill(x);
+#endif
 }
 
 void main()

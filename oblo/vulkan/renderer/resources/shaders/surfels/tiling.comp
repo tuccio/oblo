@@ -163,7 +163,7 @@ float surfel_calculate_weight_contribution(in vec3 position, in vec3 normal)
             const float radius2 = surfel.radius * surfel.radius;
 
             // Threshold for spawning distance
-            const float threshold = 2 * radius2;
+            const float threshold = SURFEL_SHARING_SPAWN_SCALE * radius2;
 
             if (distance2 <= threshold)
             {

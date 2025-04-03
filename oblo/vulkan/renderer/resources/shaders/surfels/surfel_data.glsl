@@ -7,7 +7,20 @@
 // Used as a coverage value for surfel_tile_data when no geometry is present
 const float NO_SURFELS_NEEDED = 1e6;
 
+// Number of rays we can shoot for a single surfel each frame
 const uint SURFEL_MAX_RAYS_PER_SURFEL = 128;
+
+// When gathering irradiance from surfels, we share irradiance from neighbors up to a certain distance
+// This is the scale we use to multiply the radius to determine the distance
+const float SURFEL_SHARING_SCALE = 4;
+const float SURFEL_SHARING_SCALE2 = SURFEL_SHARING_SCALE * SURFEL_SHARING_SCALE;
+
+// When spawning surfels, or calculating overcoverage for killing them as we move away, we weight surfel sharing
+// contribution, but use some extra tolerance to make sure coverage is good and that we don't kill surfels too soon
+const float SURFEL_SHARING_SPAWN_SCALE = SURFEL_SHARING_SCALE * .85f;
+
+// Surfel radius at 1 meter distance from the camera
+const float SURFEL_RADIUS_SCALE = 0.04;
 
 struct surfel_spawn_data
 {
@@ -172,9 +185,8 @@ float surfel_estimate_radius(in surfel_grid_header gridHeader, in vec3 cameraPos
     const float cameraDistance2 = dot(cameraVector, cameraVector);
 
     const float gridCellSize = surfel_grid_cell_size(gridHeader);
-    const float surfelScalingFactor = 0.02;
 
-    const float radius = surfel_clamp_radius(gridHeader, surfelScalingFactor * sqrt(cameraDistance2));
+    const float radius = surfel_clamp_radius(gridHeader, SURFEL_RADIUS_SCALE * sqrt(cameraDistance2));
 
     return radius;
 }
