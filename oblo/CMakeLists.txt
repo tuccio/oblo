@@ -1,5 +1,6 @@
 add_subdirectory(app)
 add_subdirectory(asset)
+add_subdirectory(codegen)
 add_subdirectory(core)
 add_subdirectory(cpurt)
 add_subdirectory(ecs)
