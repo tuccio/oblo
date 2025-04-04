@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/handle.hpp>
+#include <oblo/core/reflection/annotations.hpp>
 #include <oblo/math/vec2.hpp>
 
 namespace oblo
@@ -51,7 +52,7 @@ namespace oblo
         gi_surfels_lighting,
         gi_surfels_raycount,
         gi_surfels_inconsistency,
-    };
+    } OBLO_ENUM();
 
     struct viewport_component
     {
@@ -63,7 +64,7 @@ namespace oblo
         h32<vk::frame_graph_subgraph> graph;
 
         picking_request picking;
-    };
+    } OBLO_COMPONENT();
 
     string_view get_viewport_mode_graph_output(viewport_mode mode);
 }

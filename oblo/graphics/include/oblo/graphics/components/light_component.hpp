@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/reflection/annotations.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/math/angle.hpp>
 #include <oblo/math/vec3.hpp>
@@ -11,7 +12,7 @@ namespace oblo
         point,
         spot,
         directional,
-    };
+    } OBLO_ENUM();
 
     struct light_component
     {
@@ -31,5 +32,5 @@ namespace oblo
         f32 shadowTemporalAccumulationFactor;
         u32 shadowMeanFilterSize;
         f32 shadowMeanFilterSigma;
-    };
+    } OBLO_COMPONENT();
 }
