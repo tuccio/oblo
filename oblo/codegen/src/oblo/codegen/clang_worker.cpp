@@ -2,6 +2,8 @@
 
 #include <oblo/core/string/string_builder.hpp>
 
+#include <charconv>
+
 namespace oblo::gen
 {
     namespace
@@ -96,7 +98,56 @@ namespace oblo::gen
             return CXChildVisit_Continue;
         }
 
-        void parse_annotation(target_data& t, record_type& r, string_view annotation)
+        enum class annotation_property_result
+        {
+            expect_none,
+            expect_number,
+            expect_string,
+        };
+
+        annotation_property_result process_annotation_property(
+            record_type& r, hashed_string_view property, i32** outIdx)
+        {
+            if (property == "Component"_hsv)
+            {
+                r.flags.set(record_flags::ecs_component);
+                return annotation_property_result::expect_none;
+            }
+
+            if (property == "Tag"_hsv)
+            {
+                r.flags.set(record_flags::ecs_tag);
+                return annotation_property_result::expect_none;
+            }
+
+            if (property == "GpuComponent"_hsv)
+            {
+                *outIdx = &r.attrGpuComponent;
+                return annotation_property_result::expect_string;
+            }
+
+            return annotation_property_result::expect_none;
+        }
+
+        annotation_property_result process_annotation_property(field_type& f, hashed_string_view property, i32** outIdx)
+        {
+            if (property == "ClampMin"_hsv)
+            {
+                *outIdx = &f.attrClampMin;
+                return annotation_property_result::expect_number;
+            }
+
+            if (property == "ClampMax"_hsv)
+            {
+                *outIdx = &f.attrClampMax;
+                return annotation_property_result::expect_number;
+            }
+
+            return annotation_property_result::expect_none;
+        }
+
+        template <typename T>
+        void parse_annotation(target_data& t, T& r, string_view annotation)
         {
             for (auto it = annotation.begin(); it != annotation.end();)
             {
@@ -121,19 +172,13 @@ namespace oblo::gen
 
                 const hashed_string_view property{it, narrow_cast<usize>(e - it)};
 
-                i32* expectString = nullptr;
+                i32* expectIdx = nullptr;
 
-                if (property == "Component"_hsv)
+                const auto expectResult = process_annotation_property(r, property, &expectIdx);
+
+                if (expectIdx)
                 {
-                    r.flags.set(record_flags::ecs_component);
-                }
-                else if (property == "Tag"_hsv)
-                {
-                    r.flags.set(record_flags::ecs_tag);
-                }
-                else if (property == "GpuComponent"_hsv)
-                {
-                    expectString = &r.attrGpuComponent;
+                    *expectIdx = -1;
                 }
 
                 if (e == annotation.end())
@@ -143,7 +188,7 @@ namespace oblo::gen
 
                 it = e + 1;
 
-                if (expectString)
+                if (expectResult == annotation_property_result::expect_string && expectIdx)
                 {
                     while (*it != '"' && it != annotation.end())
                     {
@@ -168,23 +213,61 @@ namespace oblo::gen
                         break;
                     }
 
-                    *expectString = narrow_cast<i32>(t.stringAttributeData.size());
+                    *expectIdx = narrow_cast<i32>(t.stringAttributeData.size());
                     t.stringAttributeData.emplace_back(string_view{stringBegin, narrow_cast<usize>(it - stringBegin)});
 
                     ++it;
                 }
+                else if (expectResult == annotation_property_result::expect_number && expectIdx)
+                {
+                    while ((std::isspace(*it) || *it == '=') && it != annotation.end())
+                    {
+                        ++it;
+                    }
+
+                    double number;
+
+                    const auto [end, ec] = std::from_chars(it, annotation.end(), number);
+
+                    if (ec == std::errc{})
+                    {
+                        *expectIdx = narrow_cast<i32>(t.numberAttributeData.size());
+                        t.numberAttributeData.emplace_back(number);
+                    }
+
+                    if (end == annotation.end())
+                    {
+                        break;
+                    }
+
+                    it = end + 1;
+                }
             }
         }
+
+        struct add_field_ctx
+        {
+            target_data* target;
+            record_type* record;
+        };
 
         CXChildVisitResult add_fields(CXCursor cursor, CXCursor, CXClientData userdata)
         {
             if (cursor.kind == CXCursor_FieldDecl)
             {
-                auto& recordType = *reinterpret_cast<record_type*>(userdata);
+                auto& ctx = *reinterpret_cast<add_field_ctx*>(userdata);
 
                 const clang_string spelling{clang_getCursorSpelling(cursor)};
-                auto& field = recordType.fields.emplace_back();
+                auto& field = ctx.record->fields.emplace_back();
                 field.name = spelling.view();
+
+                clang_string annotation{};
+                clang_visitChildren(cursor, find_annotation, &annotation);
+
+                if (annotation)
+                {
+                    parse_annotation(*ctx.target, field, annotation.view());
+                }
             }
 
             // We only search among the direct children here
@@ -202,7 +285,6 @@ namespace oblo::gen
                 // defined in within the project directory?)
 
                 clang_string annotation{};
-
                 clang_visitChildren(cursor, find_annotation, &annotation);
 
                 if (annotation)
@@ -215,8 +297,10 @@ namespace oblo::gen
                     recordType.name = fullyQualifiedName;
                     parse_annotation(targetReflection, recordType, annotation.view());
 
+                    add_field_ctx ctx{.target = &targetReflection, .record = &recordType};
+
                     // We may want to parse the annotation for some metadata
-                    clang_visitChildren(cursor, add_fields, &recordType);
+                    clang_visitChildren(cursor, add_fields, &ctx);
                 }
             }
 
