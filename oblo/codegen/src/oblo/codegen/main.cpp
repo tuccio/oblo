@@ -40,16 +40,18 @@ namespace oblo
 
     struct record_type
     {
-        string_builder name;
-        flags<record_flags> flags;
+        string name;
         deque<field_type> fields;
 
-        string attrGpuComponent;
+        flags<record_flags> flags;
+
+        i32 attrGpuComponent{-1};
     };
 
     struct target_data
     {
         deque<record_type> recordTypes;
+        deque<string> stringAttributeData;
     };
 
     class clang_worker
@@ -174,8 +176,11 @@ namespace oblo
                 {
                     auto& recordType = targetReflection.recordTypes.emplace_back();
 
-                    build_fully_qualified_name(recordType.name, cursor);
-                    parse_annotation(recordType, annotation.view());
+                    string_builder fullyQualifiedName;
+                    build_fully_qualified_name(fullyQualifiedName, cursor);
+
+                    recordType.name = fullyQualifiedName;
+                    parse_annotation(targetReflection, recordType, annotation.view());
 
                     // We may want to parse the annotation for some metadata
                     clang_visitChildren(cursor, add_fields, &recordType);
@@ -235,7 +240,7 @@ namespace oblo
             clang_disposeString(name);
         }
 
-        static void parse_annotation(record_type& r, string_view annotation)
+        static void parse_annotation(target_data& t, record_type& r, string_view annotation)
         {
             for (auto it = annotation.begin(); it != annotation.end();)
             {
@@ -260,7 +265,7 @@ namespace oblo
 
                 const hashed_string_view property{it, narrow_cast<usize>(e - it)};
 
-                string* expectString = {};
+                i32* expectString = nullptr;
 
                 if (property == "Component"_hsv)
                 {
@@ -307,7 +312,8 @@ namespace oblo
                         break;
                     }
 
-                    *expectString = string_view{stringBegin, narrow_cast<usize>(it - stringBegin)};
+                    *expectString = narrow_cast<i32>(t.stringAttributeData.size());
+                    t.stringAttributeData.emplace_back(string_view{stringBegin, narrow_cast<usize>(it - stringBegin)});
 
                     ++it;
                 }
@@ -360,7 +366,7 @@ namespace oblo
 
             for (const auto& record : target.recordTypes)
             {
-                generate_record(record);
+                generate_record(target, record);
             }
 
             deindent();
@@ -418,7 +424,7 @@ namespace oblo::ecs
             new_line();
         }
 
-        void generate_record(const record_type& r)
+        void generate_record(const target_data& t, const record_type& r)
         {
             m_content.append("reg.add_class<");
             m_content.append(r.name);
@@ -455,10 +461,10 @@ namespace oblo::ecs
                 new_line();
             }
 
-            if (!r.attrGpuComponent.empty())
+            if (r.attrGpuComponent >= 0)
             {
                 m_content.append(".add_concept(::oblo::gpu_component{.bufferName = \"");
-                m_content.append(r.attrGpuComponent);
+                m_content.append(t.stringAttributeData[r.attrGpuComponent]);
                 m_content.append("\"_hsv})");
             }
 
