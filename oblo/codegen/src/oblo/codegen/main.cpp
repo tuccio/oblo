@@ -1,6 +1,7 @@
 #include <clang-c/Index.h>
 
 #include <oblo/core/deque.hpp>
+#include <oblo/core/expected.hpp>
 #include <oblo/core/filesystem/file.hpp>
 #include <oblo/core/filesystem/file_ptr.hpp>
 #include <oblo/core/string/cstring_view.hpp>
@@ -24,9 +25,15 @@ namespace oblo
         std::fputs(b.c_str(), stderr);
     }
 
+    struct field_type
+    {
+        string name;
+    };
+
     struct record_type
     {
-        string_view name;
+        string_builder name;
+        deque<field_type> fields;
     };
 
     struct target_data
@@ -34,21 +41,21 @@ namespace oblo
         deque<record_type> recordTypes;
     };
 
-    class codegen_worker
+    class clang_worker
     {
     public:
-        codegen_worker()
+        clang_worker()
         {
             m_index = clang_createIndex(0, 0);
         }
 
-        codegen_worker(const codegen_worker&) = delete;
-        codegen_worker(codegen_worker&&) noexcept = delete;
+        clang_worker(const clang_worker&) = delete;
+        clang_worker(clang_worker&&) noexcept = delete;
 
-        codegen_worker& operator=(const codegen_worker&) = delete;
-        codegen_worker& operator=(codegen_worker&&) noexcept = delete;
+        clang_worker& operator=(const clang_worker&) = delete;
+        clang_worker& operator=(clang_worker&&) noexcept = delete;
 
-        ~codegen_worker()
+        ~clang_worker()
         {
             if (m_index)
             {
@@ -57,7 +64,7 @@ namespace oblo
             }
         }
 
-        void process(cstring_view sourceFile, cstring_view /*outputFile*/, const dynamic_array<const char*> args)
+        expected<target_data> parse_code(cstring_view sourceFile, const dynamic_array<const char*> args)
         {
             const CXTranslationUnit tu = clang_parseTranslationUnit(m_index,
                 sourceFile.c_str(),
@@ -70,30 +77,134 @@ namespace oblo
             if (!tu)
             {
                 report_error("Failed to parse file {}", sourceFile);
-                return;
+                return unspecified_error;
             }
 
+            target_data targetData;
+
             const CXCursor rootCursor = clang_getTranslationUnitCursor(tu);
-            clang_visitChildren(rootCursor, visit_recursive, this);
+            clang_visitChildren(rootCursor, visit_translation_unit, &targetData);
 
             clang_disposeTranslationUnit(tu);
+
+            return targetData;
         }
 
     private:
-        static CXChildVisitResult visit_recursive(CXCursor cursor, CXCursor, CXClientData userdata)
+        class clang_string
         {
-            [[maybe_unused]] auto* const self = static_cast<codegen_worker*>(userdata);
+        public:
+            clang_string() : m_string{} {}
+
+            explicit clang_string(CXString str)
+            {
+                m_string = str;
+            }
+
+            clang_string(const clang_string&) = delete;
+
+            clang_string(clang_string&& other) noexcept
+            {
+                m_string = other.m_string;
+                other.m_string = {};
+            }
+
+            clang_string& operator=(const clang_string&) = delete;
+
+            clang_string& operator=(clang_string&& other) noexcept
+            {
+                if (m_string.data)
+                {
+                    clang_disposeString(m_string);
+                }
+
+                m_string = other.m_string;
+                other.m_string = {};
+
+                return *this;
+            }
+
+            ~clang_string()
+            {
+                if (m_string.data)
+                {
+                    clang_disposeString(m_string);
+                }
+            }
+
+            explicit operator bool() const noexcept
+            {
+                return m_string.data != nullptr;
+            }
+
+            cstring_view view() const noexcept
+            {
+                return cstring_view{clang_getCString(m_string)};
+            }
+
+        private:
+            CXString m_string;
+        };
+
+        static CXChildVisitResult visit_translation_unit(CXCursor cursor, CXCursor, CXClientData userdata)
+        {
+            target_data& targetReflection = *reinterpret_cast<target_data*>(userdata);
 
             if (clang_isCursorDefinition(cursor) && cursor.kind == CXCursor_ClassDecl ||
                 cursor.kind == CXCursor_StructDecl)
             {
-                string_builder fullyQualifiedName;
-                build_fully_qualified_name(fullyQualifiedName, cursor);
+                // TODO: We should determine whether the definition belongs to the project (i.e. is the file it's
+                // defined in within the project directory?)
 
-                report_error("Found type: {}", fullyQualifiedName);
+                clang_string annotation{};
+
+                clang_visitChildren(cursor, find_annotation, &annotation);
+
+                if (annotation)
+                {
+                    auto& recordType = targetReflection.recordTypes.emplace_back();
+
+                    build_fully_qualified_name(recordType.name, cursor);
+
+                    // We may want to parse the annotation for some metadata
+                    clang_visitChildren(cursor, add_fields, &recordType);
+                }
             }
 
             return CXChildVisit_Recurse;
+        }
+
+        static CXChildVisitResult find_annotation(CXCursor cursor, CXCursor, CXClientData userdata)
+        {
+            if (cursor.kind == CXCursor_AnnotateAttr)
+            {
+                clang_string spelling{clang_getCursorSpelling(cursor)};
+
+                if (spelling.view().starts_with("_oblo_reflect"))
+                {
+                    // Returns the annotation to the caller
+                    *reinterpret_cast<clang_string*>(userdata) = std::move(spelling);
+                    return CXChildVisit_Break;
+                }
+            }
+
+            // We only search among the direct children here
+            return CXChildVisit_Continue;
+        }
+
+        static CXChildVisitResult add_fields(CXCursor cursor, CXCursor, CXClientData userdata)
+        {
+            if (cursor.kind == CXCursor_FieldDecl)
+            {
+                auto& recordType = *reinterpret_cast<oblo::record_type*>(userdata);
+
+                const clang_string spelling{clang_getCursorSpelling(cursor)};
+                auto& field = recordType.fields.emplace_back();
+                field.name = spelling.view();
+            }
+
+            // We only search among the direct children here
+            return CXChildVisit_Continue;
         }
 
         static void build_fully_qualified_name(string_builder& out, CXCursor cursor)
@@ -150,9 +261,11 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    oblo::codegen_worker worker;
+    oblo::clang_worker worker;
     oblo::dynamic_array<const char*> clangArguments;
     clangArguments.reserve(1024);
+
+    int errors = 0;
 
     for (auto&& target : doc.GetArray())
     {
@@ -170,6 +283,9 @@ int main(int argc, char* argv[])
 
         clangArguments.clear();
 
+        // Macro used to distinguish the codegen pass in annotation macros
+        clangArguments.emplace_back("-DOBLO_CODEGEN");
+
         for (auto&& include : includesIt->value.GetArray())
         {
             clangArguments.emplace_back(include.GetString());
@@ -180,7 +296,15 @@ int main(int argc, char* argv[])
             clangArguments.emplace_back(define.GetString());
         }
 
-        worker.process(sourceFileIt->value.GetString(), outputFileIt->value.GetString(), clangArguments);
+        const auto result = worker.parse_code(sourceFileIt->value.GetString(), clangArguments);
+
+        if (!result)
+        {
+            ++errors;
+            continue;
+        }
+
+        // TODO: Generate reflection code and output
     }
 
     return 0;
