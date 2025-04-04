@@ -14,6 +14,7 @@ namespace oblo::gen
 
 // TODO: Move this somewhere else
 #include <oblo/scene/reflection/gpu_component.hpp>
+#include <oblo/math/color.hpp>
 )");
         new_line();
 
@@ -46,6 +47,11 @@ namespace oblo::gen
             generate_record(target, record);
         }
 
+        for (const auto& enumType : target.enumTypes)
+        {
+            generate_enum(enumType);
+        }
+
         deindent();
         new_line();
 
@@ -60,14 +66,14 @@ namespace oblo::gen
         return filesystem::write_file(outputFile, as_bytes(std::span{m_content}), {});
     }
 
-    inline void reflection_worker::reset()
+    void reflection_worker::reset()
     {
         m_content.clear();
         m_content.reserve(1u << 14);
         m_indentation = 0;
     }
 
-    inline void reflection_worker::new_line()
+    void reflection_worker::new_line()
     {
         m_content.append('\n');
 
@@ -77,17 +83,17 @@ namespace oblo::gen
         }
     }
 
-    inline void reflection_worker::indent(i32 i)
+    void reflection_worker::indent(i32 i)
     {
         m_indentation += i;
     }
 
-    inline void reflection_worker::deindent(i32 i)
+    void reflection_worker::deindent(i32 i)
     {
         m_indentation -= i;
     }
 
-    inline void reflection_worker::generate_forward_declarations()
+    void reflection_worker::generate_forward_declarations()
     {
         m_content.append(R"(
 namespace oblo::ecs
@@ -100,7 +106,7 @@ namespace oblo::ecs
         new_line();
     }
 
-    inline void reflection_worker::generate_record(const target_data& t, const record_type& r)
+    void reflection_worker::generate_record(const target_data& t, const record_type& r)
     {
         m_content.append("reg.add_class<");
         m_content.append(r.name);
@@ -118,6 +124,14 @@ namespace oblo::ecs
             m_content.append(", \"");
             m_content.append(field.name);
             m_content.append("\")");
+
+            if (field.flags.contains(field_flags::linear_color))
+            {
+                indent();
+                new_line();
+                m_content.append(".add_attribute<::oblo::linear_color_tag>()");
+                deindent();
+            }
 
             new_line();
         }
@@ -142,6 +156,34 @@ namespace oblo::ecs
             m_content.append(".add_concept(::oblo::gpu_component{.bufferName = \"");
             m_content.append(t.stringAttributeData[r.attrGpuComponent]);
             m_content.append("\"_hsv})");
+        }
+
+        m_content.append(";");
+
+        deindent();
+        new_line();
+    }
+
+    void reflection_worker::generate_enum(const enum_type& e)
+    {
+        m_content.append("reg.add_enum<");
+        m_content.append(e.name);
+        m_content.append(">()");
+
+        indent();
+        new_line();
+
+        for (auto& enumerator : e.enumerators)
+        {
+            m_content.append(".add_enumerator(\"");
+            m_content.append(enumerator);
+            m_content.append("\", ");
+            m_content.append(e.name);
+            m_content.append("::");
+            m_content.append(enumerator);
+            m_content.append(")");
+
+            new_line();
         }
 
         m_content.append(";");

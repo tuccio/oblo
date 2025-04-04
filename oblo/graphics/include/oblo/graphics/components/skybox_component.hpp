@@ -13,6 +13,8 @@ namespace oblo
     {
         resource_ref<texture> texture;
         f32 multiplier;
+
+        OBLO_PROPERTY(LinearColor)
         vec3 tint;
     } OBLO_COMPONENT();
 }

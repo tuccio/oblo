@@ -25,6 +25,7 @@ namespace oblo::gen
         void generate_forward_declarations();
 
         void generate_record(const target_data& t, const record_type& r);
+        void generate_enum(const enum_type& e);
 
     private:
         string_builder m_content;

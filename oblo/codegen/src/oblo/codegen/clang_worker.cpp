@@ -143,6 +143,12 @@ namespace oblo::gen
                 return annotation_property_result::expect_number;
             }
 
+            if (property == "LinearColor"_hsv)
+            {
+                f.flags.set(field_flags::linear_color);
+                return annotation_property_result::expect_none;
+            }
+
             return annotation_property_result::expect_none;
         }
 
@@ -274,6 +280,20 @@ namespace oblo::gen
             return CXChildVisit_Continue;
         }
 
+        CXChildVisitResult add_enumerators(CXCursor cursor, CXCursor, CXClientData userdata)
+        {
+            if (cursor.kind == CXCursor_EnumConstantDecl)
+            {
+                auto& enumType = *reinterpret_cast<enum_type*>(userdata);
+
+                const clang_string spelling{clang_getCursorSpelling(cursor)};
+                enumType.enumerators.emplace_back(spelling.view());
+            }
+
+            // We only search among the direct children here
+            return CXChildVisit_Continue;
+        }
+
         CXChildVisitResult visit_translation_unit(CXCursor cursor, CXCursor, CXClientData userdata)
         {
             target_data& targetReflection = *reinterpret_cast<target_data*>(userdata);
@@ -299,8 +319,27 @@ namespace oblo::gen
 
                     add_field_ctx ctx{.target = &targetReflection, .record = &recordType};
 
-                    // We may want to parse the annotation for some metadata
                     clang_visitChildren(cursor, add_fields, &ctx);
+                }
+            }
+            else if (clang_isCursorDefinition(cursor) && cursor.kind == CXCursor_EnumDecl)
+            {
+                // TODO: We should determine whether the definition belongs to the project (i.e. is the file it's
+                // defined in within the project directory?)
+
+                clang_string annotation{};
+                clang_visitChildren(cursor, find_annotation, &annotation);
+
+                if (annotation)
+                {
+                    auto& enumType = targetReflection.enumTypes.emplace_back();
+
+                    string_builder fullyQualifiedName;
+                    build_fully_qualified_name(fullyQualifiedName, cursor);
+
+                    enumType.name = fullyQualifiedName;
+
+                    clang_visitChildren(cursor, add_enumerators, &enumType);
                 }
             }
 

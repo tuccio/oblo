@@ -24,7 +24,7 @@ namespace oblo
         u32 _padding[3];
         vec3 emissive;
         h32<vk::resident_texture> emissiveTexture;
-    } OBLO_COMPONENT();
+    } OBLO_COMPONENT(GpuComponent = "i_MaterialBuffer");
 
     static_assert(sizeof(gpu_material) % 16 == 0);
 
@@ -33,5 +33,5 @@ namespace oblo
     struct entity_id_component
     {
         ecs::entity entityId;
-    } OBLO_COMPONENT();
+    } OBLO_COMPONENT(GpuComponent = "i_EntityIdBuffer");
 }
