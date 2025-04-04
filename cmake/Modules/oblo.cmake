@@ -4,8 +4,6 @@ option(OBLO_ENABLE_ASSERT "Enables internal asserts" OFF)
 option(OBLO_DISABLE_COMPILER_OPTIMIZATIONS "Disables compiler optimizations" OFF)
 option(OBLO_DEBUG "Activates code useful for debugging" OFF)
 
-define_property(GLOBAL PROPERTY oblo_3rdparty_targets BRIEF_DOCS "3rd party targets" FULL_DOCS "List of 3rd party targets")
-
 set(OBLO_FOLDER_BUILD "0 - Build")
 set(OBLO_FOLDER_APPLICATIONS "1 - Applications")
 set(OBLO_FOLDER_LIBRARIES "2 - Libraries")
@@ -59,11 +57,13 @@ function(oblo_find_source_files)
     file(GLOB_RECURSE _private_includes src/*.hpp)
     file(GLOB_RECURSE _public_includes include/*.hpp)
     file(GLOB_RECURSE _test_src test/*.cpp test/*.hpp)
+    file(GLOB_RECURSE _reflection_includes reflection/*.hpp)
 
     set(_oblo_src ${_src} PARENT_SCOPE)
     set(_oblo_private_includes ${_private_includes} PARENT_SCOPE)
     set(_oblo_public_includes ${_public_includes} PARENT_SCOPE)
     set(_oblo_test_src ${_test_src} PARENT_SCOPE)
+    set(_oblo_reflection_includes ${_reflection_includes} PARENT_SCOPE)
 endfunction(oblo_find_source_files)
 
 function(oblo_add_source_files target)
@@ -158,6 +158,40 @@ function(oblo_add_library name)
     set(_target "${_oblo_target_prefix}_${name}")
     oblo_find_source_files()
 
+    if(_oblo_reflection_includes)
+        list(LENGTH _oblo_reflection_includes _reflection_sources_count)
+
+        if(_reflection_sources_count GREATER 1)
+            message(FATAL_ERROR "Target ${_target} has ${_reflection_sources_count} reflection include sources, only 1 is supported")
+        endif()
+
+        set(_reflection_file ${CMAKE_CURRENT_BINARY_DIR}/${_target}.gen.cpp)
+        file(TOUCH ${_reflection_file})
+        list(APPEND _oblo_src ${_reflection_file})
+
+        set_property(GLOBAL APPEND PROPERTY oblo_reflection_targets ${_target})
+
+        get_target_property(
+            _global_reflection_config
+            oblo-reflection
+            OBLO_REFLECTION_CONFIG
+        )
+
+        list(APPEND _global_reflection_config
+            "{\n\
+    \"target\": \"${_target}\",\n\
+    \"source_file\": \"${_oblo_reflection_includes}\",\n\
+    \"output_file\": \"${_reflection_file}\",\n\
+    \"include_directories\": [ $<JOIN:$<REMOVE_DUPLICATES:$<LIST:TRANSFORM,$<TARGET_PROPERTY:${_target},INCLUDE_DIRECTORIES>,REPLACE,(.+),\"\\0\">>,$<COMMA>> ],\n\
+    \"compile_definitions\": [ $<JOIN:$<REMOVE_DUPLICATES:$<LIST:TRANSFORM,$<TARGET_PROPERTY:${_target},COMPILE_DEFINITIONS>,REPLACE,(.+),\"\\0\">>,$<COMMA>> ]\n\
+}")
+
+        set_target_properties(
+            oblo-reflection
+            PROPERTIES OBLO_REFLECTION_CONFIG "${_global_reflection_config}"
+        )
+    endif()
+
     if(NOT DEFINED _oblo_src)
         # Header only library
         add_library(${_target} INTERFACE)
@@ -243,14 +277,6 @@ function(oblo_add_test name)
     endif()
 endfunction(oblo_add_test name)
 
-function(oblo_3rdparty_create_aliases)
-    get_property(_targets GLOBAL PROPERTY oblo_3rdparty_targets)
-
-    foreach(_target ${_targets})
-        add_library("3rdparty::${_target}" ALIAS ${_target})
-    endforeach(_target ${_targets})
-endfunction(oblo_3rdparty_create_aliases)
-
 function(oblo_create_symlink source target)
     if(WIN32)
         # We create a junction on Windows, to avoid admin rights issues
@@ -273,4 +299,9 @@ function(oblo_init)
         FOLDER ${OBLO_FOLDER_BUILD}
         PROJECT_LABEL configure
     )
+
+    file(GENERATE OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/reflection_config.json CONTENT [\n$<GENEX_EVAL:$<JOIN:$<TARGET_PROPERTY:oblo-reflection,OBLO_REFLECTION_CONFIG>,$<COMMA>\n>>\n])
+
+    add_custom_target(oblo-reflection)
+    set_target_properties(oblo-reflection PROPERTIES OBLO_REFLECTION_CONFIG "")
 endfunction(oblo_init)
