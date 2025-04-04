@@ -4,6 +4,7 @@
 #include <oblo/core/expected.hpp>
 #include <oblo/core/filesystem/file.hpp>
 #include <oblo/core/filesystem/file_ptr.hpp>
+#include <oblo/core/flags.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/string/string_view.hpp>
@@ -30,10 +31,20 @@ namespace oblo
         string name;
     };
 
+    enum class record_flags : u8
+    {
+        ecs_component,
+        ecs_tag,
+        enum_max,
+    };
+
     struct record_type
     {
         string_builder name;
+        flags<record_flags> flags;
         deque<field_type> fields;
+
+        string attrGpuComponent;
     };
 
     struct target_data
@@ -76,7 +87,6 @@ namespace oblo
 
             if (!tu)
             {
-                report_error("Failed to parse file {}", sourceFile);
                 return unspecified_error;
             }
 
@@ -165,6 +175,7 @@ namespace oblo
                     auto& recordType = targetReflection.recordTypes.emplace_back();
 
                     build_fully_qualified_name(recordType.name, cursor);
+                    parse_annotation(recordType, annotation.view());
 
                     // We may want to parse the annotation for some metadata
                     clang_visitChildren(cursor, add_fields, &recordType);
@@ -224,8 +235,242 @@ namespace oblo
             clang_disposeString(name);
         }
 
+        static void parse_annotation(record_type& r, string_view annotation)
+        {
+            for (auto it = annotation.begin(); it != annotation.end();)
+            {
+                // Trim on the left
+                while (std::isspace(*it) && it != annotation.end())
+                {
+                    ++it;
+                }
+
+                if (it == annotation.end())
+                {
+                    break;
+                }
+
+                auto e = it;
+
+                // Get the whole property name
+                while (!std::isspace(*e) && *e != ',' && *e != '=' && e != annotation.end())
+                {
+                    ++e;
+                }
+
+                const hashed_string_view property{it, narrow_cast<usize>(e - it)};
+
+                string* expectString = {};
+
+                if (property == "Component"_hsv)
+                {
+                    r.flags.set(record_flags::ecs_component);
+                }
+                else if (property == "Tag"_hsv)
+                {
+                    r.flags.set(record_flags::ecs_tag);
+                }
+                else if (property == "GpuComponent"_hsv)
+                {
+                    expectString = &r.attrGpuComponent;
+                }
+
+                if (e == annotation.end())
+                {
+                    break;
+                }
+
+                it = e + 1;
+
+                if (expectString)
+                {
+                    while (*it != '"' && it != annotation.end())
+                    {
+                        ++it;
+                    }
+
+                    if (it == annotation.end())
+                    {
+                        break;
+                    }
+
+                    const auto stringBegin = ++it;
+
+                    // We might need to consider escapes here, but it's unsupported for now
+                    while (*it != '"' && it != annotation.end())
+                    {
+                        ++it;
+                    }
+
+                    if (it == annotation.end())
+                    {
+                        break;
+                    }
+
+                    *expectString = string_view{stringBegin, narrow_cast<usize>(it - stringBegin)};
+
+                    ++it;
+                }
+            }
+        }
+
     private:
         CXIndex m_index{};
+    };
+
+    class reflection_worker
+    {
+    public:
+        oblo::expected<> generate(
+            const cstring_view sourceFile, const cstring_view outputFile, const target_data& target)
+        {
+            reset();
+
+            m_content.append(R"(
+#include <oblo/reflection/registration/registrant.hpp>
+
+// TODO: Move this somewhere else
+#include <oblo/scene/reflection/gpu_component.hpp>
+)");
+            new_line();
+
+            m_content.append("#include \"");
+            m_content.append(sourceFile);
+            m_content.append("\"");
+            new_line();
+
+            new_line();
+
+            generate_forward_declarations();
+
+            m_content.append("namespace oblo::reflection::gen");
+            new_line();
+
+            m_content.append("{");
+            indent();
+            new_line();
+
+            m_content.append("void register_reflection([[maybe_unused]] reflection_registry::registrant& reg)");
+
+            new_line();
+            m_content.append("{");
+
+            indent();
+            new_line();
+
+            for (const auto& record : target.recordTypes)
+            {
+                generate_record(record);
+            }
+
+            deindent();
+            new_line();
+
+            new_line();
+            m_content.append("}");
+
+            deindent();
+            new_line();
+            m_content.append("}");
+            new_line();
+
+            return filesystem::write_file(outputFile, as_bytes(std::span{m_content}), {});
+        }
+
+    private:
+        void reset()
+        {
+            m_content.clear();
+            m_content.reserve(1u << 14);
+            m_indentation = 0;
+        }
+
+        void new_line()
+        {
+            m_content.append('\n');
+
+            for (i32 i = 0; i < m_indentation; ++i)
+            {
+                m_content.append("    ");
+            }
+        }
+
+        void indent(i32 i = 1)
+        {
+            m_indentation += i;
+        }
+
+        void deindent(i32 i = 1)
+        {
+            m_indentation -= i;
+        }
+
+        void generate_forward_declarations()
+        {
+            m_content.append(R"(
+namespace oblo::ecs
+{
+    struct component_type_tag;
+    struct tag_type_tag;
+}
+)");
+
+            new_line();
+        }
+
+        void generate_record(const record_type& r)
+        {
+            m_content.append("reg.add_class<");
+            m_content.append(r.name);
+            m_content.append(">()");
+
+            indent();
+            new_line();
+
+            for (auto& field : r.fields)
+            {
+                m_content.append(".add_field(&");
+                m_content.append(r.name);
+                m_content.append("::");
+                m_content.append(field.name);
+                m_content.append(", \"");
+                m_content.append(field.name);
+                m_content.append("\")");
+
+                new_line();
+            }
+
+            m_content.append(".add_ranged_type_erasure()");
+            new_line();
+
+            if (r.flags.contains(record_flags::ecs_component))
+            {
+                m_content.append(".add_tag<::oblo::ecs::component_type_tag>()");
+                new_line();
+            }
+
+            if (r.flags.contains(record_flags::ecs_tag))
+            {
+                m_content.append(".add_tag<::oblo::ecs::tag_type_tag>()");
+                new_line();
+            }
+
+            if (!r.attrGpuComponent.empty())
+            {
+                m_content.append(".add_concept(::oblo::gpu_component{.bufferName = \"");
+                m_content.append(r.attrGpuComponent);
+                m_content.append("\"_hsv})");
+            }
+
+            m_content.append(";");
+
+            deindent();
+            new_line();
+        }
+
+    private:
+        string_builder m_content;
+        i32 m_indentation{};
     };
 }
 
@@ -261,9 +506,15 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    oblo::clang_worker worker;
-    oblo::dynamic_array<const char*> clangArguments;
-    clangArguments.reserve(1024);
+    struct thread_context
+    {
+        oblo::clang_worker parser;
+        oblo::reflection_worker generator;
+        oblo::dynamic_array<const char*> clangArguments;
+    };
+
+    thread_context ctx;
+    ctx.clangArguments.reserve(1024);
 
     int errors = 0;
 
@@ -281,30 +532,42 @@ int main(int argc, char* argv[])
             continue;
         }
 
-        clangArguments.clear();
+        ctx.clangArguments.clear();
 
         // Macro used to distinguish the codegen pass in annotation macros
-        clangArguments.emplace_back("-DOBLO_CODEGEN");
+        ctx.clangArguments.emplace_back("-DOBLO_CODEGEN");
 
         for (auto&& include : includesIt->value.GetArray())
         {
-            clangArguments.emplace_back(include.GetString());
+            ctx.clangArguments.emplace_back(include.GetString());
         }
 
         for (auto&& define : definesIt->value.GetArray())
         {
-            clangArguments.emplace_back(define.GetString());
+            ctx.clangArguments.emplace_back(define.GetString());
         }
 
-        const auto result = worker.parse_code(sourceFileIt->value.GetString(), clangArguments);
+        const char* sourceFile = sourceFileIt->value.GetString();
 
-        if (!result)
+        const auto parseResult = ctx.parser.parse_code(sourceFile, ctx.clangArguments);
+
+        if (!parseResult)
         {
+            oblo::report_error("Failed to parse file {}", sourceFile);
             ++errors;
             continue;
         }
 
-        // TODO: Generate reflection code and output
+        const char* outputFile = outputFileIt->value.GetString();
+
+        const auto generateResult = ctx.generator.generate(sourceFile, outputFile, *parseResult);
+
+        if (!generateResult)
+        {
+            oblo::report_error("Failed to generate file {}", outputFile);
+            ++errors;
+            continue;
+        }
     }
 
     return 0;
