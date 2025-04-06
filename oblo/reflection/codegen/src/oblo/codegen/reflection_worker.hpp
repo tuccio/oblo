@@ -22,8 +22,6 @@ namespace oblo::gen
 
         void deindent(i32 i = 1);
 
-        void generate_forward_declarations();
-
         void generate_record(const target_data& t, const record_type& r);
         void generate_enum(const enum_type& e);
 

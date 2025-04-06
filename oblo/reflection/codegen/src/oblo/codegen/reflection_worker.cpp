@@ -14,6 +14,7 @@ namespace oblo::gen
 
 #include <oblo/reflection/attributes/color.hpp>
 #include <oblo/reflection/concepts/gpu_component.hpp>
+#include <oblo/reflection/tags/ecs.hpp>
 )");
         new_line();
 
@@ -23,8 +24,6 @@ namespace oblo::gen
         new_line();
 
         new_line();
-
-        generate_forward_declarations();
 
         m_content.append("namespace oblo::reflection::gen");
         new_line();
@@ -90,19 +89,6 @@ namespace oblo::gen
     void reflection_worker::deindent(i32 i)
     {
         m_indentation -= i;
-    }
-
-    void reflection_worker::generate_forward_declarations()
-    {
-        m_content.append(R"(
-namespace oblo::ecs
-{
-    struct component_type_tag;
-    struct tag_type_tag;
-}
-)");
-
-        new_line();
     }
 
     void reflection_worker::generate_record(const target_data& t, const record_type& r)
