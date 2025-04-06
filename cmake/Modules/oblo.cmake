@@ -4,7 +4,7 @@ option(OBLO_ENABLE_ASSERT "Enables internal asserts" OFF)
 option(OBLO_DISABLE_COMPILER_OPTIMIZATIONS "Disables compiler optimizations" OFF)
 option(OBLO_DEBUG "Activates code useful for debugging" OFF)
 
-define_property(GLOBAL PROPERTY oblo_reflection_config BRIEF_DOCS "Reflection config file" FULL_DOCS "The path to the generated config file used to generate reflection code")
+define_property(GLOBAL PROPERTY oblo_codegen_config BRIEF_DOCS "Codegen config file" FULL_DOCS "The path to the generated config file used to generate reflection code")
 
 set(OBLO_FOLDER_BUILD "0 - Build")
 set(OBLO_FOLDER_APPLICATIONS "1 - Applications")
@@ -12,6 +12,8 @@ set(OBLO_FOLDER_LIBRARIES "2 - Libraries")
 set(OBLO_FOLDER_TESTS "3 - Tests")
 set(OBLO_FOLDER_THIRDPARTY "4 - Third-party")
 set(OBLO_FOLDER_CMAKE "5 - CMake")
+
+set(OBLO_CODEGEN_CUSTOM_TARGET run-codegen)
 
 macro(oblo_remove_cxx_flag _option_regex)
     string(TOUPPER ${CMAKE_BUILD_TYPE} _build_type)
@@ -176,12 +178,12 @@ function(oblo_add_library name)
         set_property(GLOBAL APPEND PROPERTY oblo_reflection_targets ${_target})
 
         get_target_property(
-            _global_reflection_config
-            oblo-reflection
-            OBLO_REFLECTION_CONFIG
+            _global_codegen_config
+            ${OBLO_CODEGEN_CUSTOM_TARGET}
+            oblo_codegen_config
         )
 
-        list(APPEND _global_reflection_config
+        list(APPEND _global_codegen_config
             "{\n\
 \"target\": \"${_target}\",\n\
 \"source_file\": \"${_oblo_reflection_includes}\",\n\
@@ -191,8 +193,8 @@ function(oblo_add_library name)
 }")
 
         set_target_properties(
-            oblo-reflection
-            PROPERTIES OBLO_REFLECTION_CONFIG "${_global_reflection_config}"
+            ${OBLO_CODEGEN_CUSTOM_TARGET}
+            PROPERTIES OBLO_CODEGEN_CONFIG "${_global_reflection_config}"
         )
 
         set(_withReflection TRUE)
@@ -301,14 +303,14 @@ function(oblo_create_symlink source target)
 endfunction(oblo_create_symlink)
 
 function(oblo_init_reflection)
-    set(_codegen_target ocodegen)
-    set(_reflection_config_file ${CMAKE_CURRENT_BINARY_DIR}/reflection_config-$<CONFIG>.json)
-    file(GENERATE OUTPUT ${_reflection_config_file} CONTENT [\n$<GENEX_EVAL:$<JOIN:$<TARGET_PROPERTY:oblo-reflection,OBLO_REFLECTION_CONFIG>,$<COMMA>\n>>\n])
+    set(_codegen_exe_target ocodegen)
+    set(_codegen_config_file ${CMAKE_CURRENT_BINARY_DIR}/reflection_config-$<CONFIG>.json)
+    file(GENERATE OUTPUT ${_codegen_config_file} CONTENT [\n$<GENEX_EVAL:$<JOIN:$<TARGET_PROPERTY:${OBLO_CODEGEN_CUSTOM_TARGET},OBLO_CODEGEN_CONFIG>,$<COMMA>\n>>\n])
 
-    add_custom_target(oblo-reflection COMMAND $<TARGET_FILE:${_codegen_target}> ${_reflection_config_file})
-    set_target_properties(oblo-reflection PROPERTIES OBLO_REFLECTION_CONFIG "" FOLDER ${OBLO_FOLDER_BUILD})
+    add_custom_target(${OBLO_CODEGEN_CUSTOM_TARGET} COMMAND $<TARGET_FILE:${_codegen_exe_target}> ${_codegen_config_file})
+    set_target_properties(${OBLO_CODEGEN_CUSTOM_TARGET} PROPERTIES oblo_codegen_config "" FOLDER ${OBLO_FOLDER_BUILD})
 
-    set_property(GLOBAL PROPERTY oblo_reflection_config ${_reflection_config_file})
+    set_property(GLOBAL PROPERTY oblo_codegen_config ${_codegen_config_file})
 endfunction(oblo_init_reflection)
 
 function(oblo_init)

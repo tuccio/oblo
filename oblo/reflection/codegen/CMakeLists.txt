@@ -11,5 +11,5 @@ target_link_libraries(
     rapidjson
 )
 
-get_property(_reflection_config_file GLOBAL PROPERTY oblo_reflection_config)
-set_target_properties(ocodegen PROPERTIES VS_DEBUGGER_COMMAND_ARGUMENTS \"${_reflection_config_file}\")
+get_property(_codegen_config_file GLOBAL PROPERTY oblo_codegen_config)
+set_target_properties(ocodegen PROPERTIES VS_DEBUGGER_COMMAND_ARGUMENTS \"${_codegen_config_file}\")
