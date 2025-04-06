@@ -15,10 +15,10 @@
 #include "reflection_worker.hpp"
 #include "target_data.hpp"
 
-namespace oblo
+namespace oblo::gen
 {
     template <typename... Args>
-    void report_error(std::format_string<Args...> fmt, Args&&... args)
+    void print(std::format_string<Args...> fmt, Args&&... args)
     {
         string_builder b;
         b.format(fmt, std::forward<Args>(args)...);
@@ -32,7 +32,7 @@ int main(int argc, char* argv[])
     if (argc != 2)
     {
         const char* appName = argc > 0 ? argv[0] : "ocodegen";
-        oblo::report_error("Usage: {} <path to config file>", appName);
+        oblo::gen::print("Usage: {} <path to config file>", appName);
         return 1;
     }
 
@@ -41,7 +41,7 @@ int main(int argc, char* argv[])
 
     if (!file)
     {
-        oblo::report_error("Failed to read config file {}", configFile);
+        oblo::gen::print("Failed to read config file {}", configFile);
         return 1;
     }
 
@@ -55,7 +55,7 @@ int main(int argc, char* argv[])
 
     if (doc.HasParseError() || !doc.IsArray())
     {
-        oblo::report_error("Failed to parse config file {}", configFile);
+        oblo::gen::print("Failed to parse config file {}", configFile);
         return 1;
     }
 
@@ -71,6 +71,8 @@ int main(int argc, char* argv[])
 
     int errors = 0;
 
+    oblo::gen::print("Starting generation with config file {}", configFile);
+
     for (auto&& target : doc.GetArray())
     {
         const auto nameIt = target.FindMember("target");
@@ -82,9 +84,11 @@ int main(int argc, char* argv[])
         if (nameIt == target.MemberEnd() || sourceFileIt == target.MemberEnd() || outputFileIt == target.MemberEnd() ||
             includesIt == target.MemberEnd() || definesIt == target.MemberEnd())
         {
-            oblo::report_error("Failed to parse configuration file {}", configFile);
+            oblo::gen::print("Failed to parse configuration file {}", configFile);
             continue;
         }
+
+        oblo::gen::print("Parsing {}", nameIt->name.GetString());
 
         ctx.clangArguments.clear();
 
@@ -111,11 +115,11 @@ int main(int argc, char* argv[])
         {
             const auto clangErrors = ctx.parser.get_errors();
 
-            oblo::report_error("Failed to parse file {}", sourceFile);
+            oblo::gen::print("Failed to parse file {}", sourceFile);
 
             if (!clangErrors.empty())
             {
-                oblo::report_error("{}", clangErrors);
+                oblo::gen::print("{}", clangErrors);
             }
 
             ++errors;
@@ -130,11 +134,13 @@ int main(int argc, char* argv[])
 
         if (!generateResult)
         {
-            oblo::report_error("Failed to generate file {}", outputFile);
+            oblo::gen::print("Failed to generate file {}", outputFile);
             ++errors;
             continue;
         }
     }
 
-    return 0;
+    oblo::gen::print("Code generation finished with {} errors", errors);
+
+    return errors;
 }

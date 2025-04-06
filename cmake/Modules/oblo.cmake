@@ -132,6 +132,10 @@ macro(_oblo_setup_target_namespace namespace)
     endif()
 endmacro(_oblo_setup_target_namespace)
 
+function (oblo_add_codegen_dependency target)
+    add_dependencies(${target} ${OBLO_CODEGEN_CUSTOM_TARGET})
+endfunction (oblo_add_codegen_dependency)
+
 function(oblo_add_executable name)
     set(_target "${name}")
     oblo_find_source_files()
@@ -180,7 +184,7 @@ function(oblo_add_library name)
         get_target_property(
             _global_codegen_config
             ${OBLO_CODEGEN_CUSTOM_TARGET}
-            oblo_codegen_config
+            oblo_codegen_config_content
         )
 
         list(APPEND _global_codegen_config
@@ -194,7 +198,7 @@ function(oblo_add_library name)
 
         set_target_properties(
             ${OBLO_CODEGEN_CUSTOM_TARGET}
-            PROPERTIES OBLO_CODEGEN_CONFIG "${_global_reflection_config}"
+            PROPERTIES oblo_codegen_config_content "${_global_codegen_config}"
         )
 
         set(_withReflection TRUE)
@@ -243,6 +247,7 @@ function(oblo_add_library name)
 
         if(_withReflection)
             target_link_libraries(${_target} PUBLIC oblo::annotations)
+            oblo_add_codegen_dependency(${_target})
         endif()
 
         target_compile_definitions(${_target} PRIVATE "OBLO_PROJECT_NAME=${_target}")
@@ -305,10 +310,10 @@ endfunction(oblo_create_symlink)
 function(oblo_init_reflection)
     set(_codegen_exe_target ocodegen)
     set(_codegen_config_file ${CMAKE_CURRENT_BINARY_DIR}/reflection_config-$<CONFIG>.json)
-    file(GENERATE OUTPUT ${_codegen_config_file} CONTENT [\n$<GENEX_EVAL:$<JOIN:$<TARGET_PROPERTY:${OBLO_CODEGEN_CUSTOM_TARGET},OBLO_CODEGEN_CONFIG>,$<COMMA>\n>>\n])
+    file(GENERATE OUTPUT ${_codegen_config_file} CONTENT [\n$<GENEX_EVAL:$<JOIN:$<TARGET_PROPERTY:${OBLO_CODEGEN_CUSTOM_TARGET},oblo_codegen_config_content>,$<COMMA>\n>>\n])
 
     add_custom_target(${OBLO_CODEGEN_CUSTOM_TARGET} COMMAND $<TARGET_FILE:${_codegen_exe_target}> ${_codegen_config_file})
-    set_target_properties(${OBLO_CODEGEN_CUSTOM_TARGET} PROPERTIES oblo_codegen_config "" FOLDER ${OBLO_FOLDER_BUILD})
+    set_target_properties(${OBLO_CODEGEN_CUSTOM_TARGET} PROPERTIES oblo_codegen_config_content "" FOLDER ${OBLO_FOLDER_BUILD})
 
     set_property(GLOBAL PROPERTY oblo_codegen_config ${_codegen_config_file})
 endfunction(oblo_init_reflection)
