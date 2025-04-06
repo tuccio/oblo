@@ -38,6 +38,39 @@ namespace oblo
         }
     }
 
+    TEST(flat_dense_set, flat_dense_set_emplace_erase)
+    {
+        constexpr auto max = 4096;
+        bool alreadyInserted[max]{false};
+
+        flat_dense_set<u32> set;
+
+        for (u32 increments : {5, 3, 2, 1})
+        {
+            for (u32 index = 0; index < max; index += increments)
+            {
+                auto value = index;
+                const auto [it, inserted] = set.emplace(index);
+
+                ASSERT_NE(inserted, alreadyInserted[index]);
+                alreadyInserted[index] = true;
+
+                ASSERT_EQ(*it, value);
+            }
+        }
+
+        for (u32 increments : {5, 3, 2, 1})
+        {
+            for (u32 index = 0; index < max; index += increments)
+            {
+                const bool erased = set.erase(index);
+
+                ASSERT_EQ(erased, alreadyInserted[index]) << index << " " << increments;
+                alreadyInserted[index] = false;
+            }
+        }
+    }
+
     TEST(handle_pool, handle_pool_generation)
     {
         handle_pool<u32, 2> pool;

@@ -54,7 +54,7 @@ namespace oblo
             return std::pair{it, key};
         }
 
-        u32 erase(key_type key)
+        auto erase(key_type key)
         {
             const auto res = base::erase(key);
 
