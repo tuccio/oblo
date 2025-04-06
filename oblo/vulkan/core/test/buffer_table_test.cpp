@@ -179,7 +179,7 @@ namespace oblo::vk
             }
 
             staging.begin_frame(1);
-            staging.download(ctx.get_active_command_buffer().get(), vkBuffer.buffer, vkBuffer.offset, *result);
+            staging.download(ctx.get_active_command_buffer(), vkBuffer.buffer, vkBuffer.offset, *result);
             staging.end_frame();
 
             ctx.frame_end();
@@ -200,7 +200,7 @@ namespace oblo::vk
                 const u32 newSize = 1u << (i + 1);
 
                 cpuData.resize(newSize);
-                buffer.resize(ctx.get_active_command_buffer().get(), newSize);
+                buffer.resize(ctx.get_active_command_buffer(), newSize);
 
                 ctx.frame_end();
 
@@ -221,7 +221,7 @@ namespace oblo::vk
                 ctx.frame_begin(nullptr);
 
                 staging.begin_frame(2);
-                staging.upload(ctx.get_active_command_buffer().get(), *staged, vkBuffer.buffer, vkBuffer.offset);
+                staging.upload(ctx.get_active_command_buffer(), *staged, vkBuffer.buffer, vkBuffer.offset);
                 staging.end_frame();
 
                 ctx.frame_end();

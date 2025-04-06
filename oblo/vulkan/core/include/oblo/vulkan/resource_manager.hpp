@@ -7,12 +7,9 @@
 
 #include <vulkan/vulkan.h>
 
-#include <vector>
-
 namespace oblo::vk
 {
     class gpu_allocator;
-    class command_buffer_state;
     struct buffer;
     struct buffer_initializer;
     struct image_initializer;
@@ -52,8 +49,6 @@ namespace oblo::vk
         const buffer& get(h32<buffer> handle) const;
         buffer& get(h32<buffer> handle);
 
-        bool commit(command_buffer_state& commandBufferState, VkCommandBuffer preparationBuffer);
-
     private:
         struct stored_buffer;
         struct stored_texture;
@@ -61,50 +56,5 @@ namespace oblo::vk
     private:
         h32_flat_pool_dense_map<buffer, stored_buffer> m_buffers;
         h32_flat_pool_dense_map<texture, stored_texture> m_textures;
-    };
-
-    class command_buffer_state
-    {
-    public:
-        command_buffer_state() = default;
-        command_buffer_state(const command_buffer_state&) = delete;
-        command_buffer_state(command_buffer_state&&) noexcept = default;
-        command_buffer_state& operator=(const command_buffer_state&) = delete;
-        command_buffer_state& operator=(command_buffer_state&&) noexcept = default;
-
-        void set_starting_layout(h32<texture> handle, VkImageLayout currentLayout);
-
-        void add_pipeline_barrier(
-            const texture& tex, h32<texture> handle, VkCommandBuffer commandBuffer, VkImageLayout newLayout);
-
-        void add_pipeline_barrier(const resource_manager& resourceManager,
-            h32<texture> handle,
-            VkCommandBuffer commandBuffer,
-            VkImageLayout newLayout);
-
-        void clear();
-
-        bool has_incomplete_transitions() const;
-
-        expected<VkImageLayout> try_find(h32<texture> handle) const;
-
-    private:
-        struct image_transition
-        {
-            h32<texture> handle;
-            VkImageLayout newLayout;
-            VkFormat format;
-            VkImageAspectFlags aspectMask;
-            u32 layerCount;
-            u32 mipLevels;
-        };
-
-        friend class resource_manager;
-
-    private:
-        using extractor = h32_flat_pool_dense_map<texture>::extractor_type;
-
-        flat_dense_map<h32<texture>, VkImageLayout, extractor> m_transitions;
-        std::vector<image_transition> m_incompleteTransitions;
     };
 }

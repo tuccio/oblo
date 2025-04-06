@@ -109,11 +109,11 @@ namespace oblo::vk
 
     void renderer::end_frame()
     {
-        auto& commandBuffer = m_vkContext->get_active_command_buffer();
+        const VkCommandBuffer commandBuffer = m_vkContext->get_active_command_buffer();
 
-        m_textureRegistry.flush_uploads(commandBuffer.get());
+        m_textureRegistry.flush_uploads(commandBuffer);
 
-        m_passManager.begin_frame(commandBuffer.get());
+        m_passManager.begin_frame(commandBuffer);
 
         m_frameGraph.build(*this);
 

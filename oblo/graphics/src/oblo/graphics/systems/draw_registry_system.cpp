@@ -20,14 +20,14 @@ namespace oblo
     void draw_registry_system::update(const ecs::system_update_context& ctx)
     {
         auto&& commandBuffer = m_vulkanContext->get_active_command_buffer();
-        m_drawRegistry->flush_uploads(commandBuffer.get());
+        m_drawRegistry->flush_uploads(commandBuffer);
 
         m_drawRegistry->generate_mesh_database(*ctx.frameAllocator);
         m_drawRegistry->generate_draw_calls(*ctx.frameAllocator);
 
         if (m_isRayTracingEnabled)
         {
-            m_drawRegistry->generate_raytracing_structures(*ctx.frameAllocator, commandBuffer.get());
+            m_drawRegistry->generate_raytracing_structures(*ctx.frameAllocator, commandBuffer);
         }
     }
 }

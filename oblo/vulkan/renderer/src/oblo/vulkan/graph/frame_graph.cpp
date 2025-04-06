@@ -610,7 +610,7 @@ namespace oblo::vk
         OBLO_PROFILE_SCOPE("Frame Graph Execute");
 
         auto& vkContext = renderer.get_vulkan_context();
-        auto& commandBuffer = vkContext.get_active_command_buffer();
+        const VkCommandBuffer commandBuffer = vkContext.get_active_command_buffer();
         auto& resourcePool = m_impl->resourcePool;
 
         m_impl->downloadStaging.begin_frame(vkContext.get_submit_index());
@@ -632,7 +632,7 @@ namespace oblo::vk
 
         if (!m_impl->pendingUploads.empty())
         {
-            m_impl->flush_uploads(commandBuffer.get(), renderer.get_staging_buffer());
+            m_impl->flush_uploads(commandBuffer, renderer.get_staging_buffer());
         }
 
         // Prepare the download buffers
@@ -658,7 +658,7 @@ namespace oblo::vk
         }
 
         frame_graph_execution_state executionState;
-        const frame_graph_execute_context executeCtx{*m_impl, executionState, renderer, commandBuffer.get()};
+        const frame_graph_execute_context executeCtx{*m_impl, executionState, renderer, commandBuffer};
 
         auto& imageLayoutTracker = executionState.imageLayoutTracker;
 
@@ -689,7 +689,7 @@ namespace oblo::vk
                 .pMemoryBarriers = &uploadMemoryBarrier,
             };
 
-            vkCmdPipelineBarrier2(commandBuffer.get(), &dependencyInfo);
+            vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
         }
 
         frame_graph_barriers barriers{
@@ -716,7 +716,7 @@ namespace oblo::vk
             {
                 // We automatically start the first pass
                 m_impl->begin_pass_execution(h32<frame_graph_pass>{passesPerNode.passesBegin},
-                    commandBuffer.get(),
+                    commandBuffer,
                     executionState);
             }
 
