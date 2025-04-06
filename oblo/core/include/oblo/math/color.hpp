@@ -31,7 +31,7 @@ namespace oblo
     T color_convert(linear_color_tag, srgb_color_tag, f32 source);
 
     template <>
-    u8 color_convert<u8>(linear_color_tag, srgb_color_tag, f32 source)
+    inline u8 color_convert<u8>(linear_color_tag, srgb_color_tag, f32 source)
     {
         return u8(std::pow(source, 1.f / 2.2f) * f32(0xffu));
     }
@@ -40,13 +40,13 @@ namespace oblo
     T color_convert(linear_color_tag, linear_color_tag, f32 source);
 
     template <>
-    u8 color_convert<u8>(linear_color_tag, linear_color_tag, f32 source)
+    inline u8 color_convert<u8>(linear_color_tag, linear_color_tag, f32 source)
     {
         return u8(source * f32(0xffu));
     }
 
     template <>
-    f32 color_convert<f32>(linear_color_tag, linear_color_tag, f32 source)
+    inline f32 color_convert<f32>(linear_color_tag, linear_color_tag, f32 source)
     {
         return source;
     }

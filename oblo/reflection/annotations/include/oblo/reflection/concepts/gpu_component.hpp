@@ -2,7 +2,7 @@
 
 #include <oblo/core/string/hashed_string_view.hpp>
 
-namespace oblo
+namespace oblo::reflection
 {
     /// @brief Can be used in reflection as a concept on components to mark components to be uploaded to GPU.
     struct gpu_component

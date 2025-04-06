@@ -7,6 +7,7 @@
 #include <oblo/core/types.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/math/aabb.hpp>
+#include <oblo/reflection/codegen/annotations.hpp>
 #include <oblo/scene/resources/traits.hpp>
 
 #include <span>
@@ -128,7 +129,7 @@ namespace oblo
         dynamic_array<attribute_data> m_attributes;
         dynamic_array<meshlet> m_meshlets;
         aabb m_aabb{aabb::make_invalid()};
-    };
+    } OBLO_RESOURCE();
 
     template <typename T>
     std::span<T> mesh::get_attribute(attribute_kind attribute)

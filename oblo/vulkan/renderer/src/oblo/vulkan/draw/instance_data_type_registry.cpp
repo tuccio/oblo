@@ -2,9 +2,9 @@
 
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/modules/module_manager.hpp>
+#include <oblo/reflection/concepts/gpu_component.hpp>
 #include <oblo/reflection/reflection_module.hpp>
 #include <oblo/reflection/reflection_registry.hpp>
-#include <oblo/scene/reflection/gpu_component.hpp>
 
 namespace oblo::vk
 {
@@ -14,13 +14,13 @@ namespace oblo::vk
             instance_data_type_registry& instanceDataRegistry)
         {
             deque<reflection::type_handle> gpuComponentTypes;
-            reflection.find_by_concept<gpu_component>(gpuComponentTypes);
+            reflection.find_by_concept<reflection::gpu_component>(gpuComponentTypes);
 
             for (const auto typeHandle : gpuComponentTypes)
             {
                 const auto typeData = reflection.get_type_data(typeHandle);
 
-                const auto gpuComponent = reflection.find_concept<gpu_component>(typeHandle);
+                const auto gpuComponent = reflection.find_concept<reflection::gpu_component>(typeHandle);
                 instanceDataRegistry.register_instance_data(typeData.type, gpuComponent->bufferName);
             }
         }

@@ -2,6 +2,7 @@
 
 #include <oblo/core/debug.hpp>
 #include <oblo/core/platform/compiler.hpp>
+#include <oblo/core/preprocessor.hpp>
 
 #include <cmath>
 #include <utility>
@@ -78,6 +79,3 @@ namespace oblo
         return round_up_div(number, multiple) * multiple;
     }
 }
-
-#define OBLO_STRINGIZE_IMPL(Name) #Name
-#define OBLO_STRINGIZE(Name) OBLO_STRINGIZE_IMPL(Name)

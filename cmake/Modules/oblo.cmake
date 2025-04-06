@@ -2,9 +2,10 @@ include(build_configurations)
 
 option(OBLO_ENABLE_ASSERT "Enables internal asserts" OFF)
 option(OBLO_DISABLE_COMPILER_OPTIMIZATIONS "Disables compiler optimizations" OFF)
+option(OBLO_SKIP_CODEGEN "Disables the codegen dependencies on project, requiring users to run codegen manually" OFF)
 option(OBLO_DEBUG "Activates code useful for debugging" OFF)
 
-define_property(GLOBAL PROPERTY oblo_3rdparty_targets BRIEF_DOCS "3rd party targets" FULL_DOCS "List of 3rd party targets")
+define_property(GLOBAL PROPERTY oblo_codegen_config BRIEF_DOCS "Codegen config file" FULL_DOCS "The path to the generated config file used to generate reflection code")
 
 set(OBLO_FOLDER_BUILD "0 - Build")
 set(OBLO_FOLDER_APPLICATIONS "1 - Applications")
@@ -12,6 +13,8 @@ set(OBLO_FOLDER_LIBRARIES "2 - Libraries")
 set(OBLO_FOLDER_TESTS "3 - Tests")
 set(OBLO_FOLDER_THIRDPARTY "4 - Third-party")
 set(OBLO_FOLDER_CMAKE "5 - CMake")
+
+set(OBLO_CODEGEN_CUSTOM_TARGET run-codegen)
 
 macro(oblo_remove_cxx_flag _option_regex)
     string(TOUPPER ${CMAKE_BUILD_TYPE} _build_type)
@@ -59,11 +62,13 @@ function(oblo_find_source_files)
     file(GLOB_RECURSE _private_includes src/*.hpp)
     file(GLOB_RECURSE _public_includes include/*.hpp)
     file(GLOB_RECURSE _test_src test/*.cpp test/*.hpp)
+    file(GLOB_RECURSE _reflection_includes reflection/*.hpp)
 
     set(_oblo_src ${_src} PARENT_SCOPE)
     set(_oblo_private_includes ${_private_includes} PARENT_SCOPE)
     set(_oblo_public_includes ${_public_includes} PARENT_SCOPE)
     set(_oblo_test_src ${_test_src} PARENT_SCOPE)
+    set(_oblo_reflection_includes ${_reflection_includes} PARENT_SCOPE)
 endfunction(oblo_find_source_files)
 
 function(oblo_add_source_files target)
@@ -128,6 +133,12 @@ macro(_oblo_setup_target_namespace namespace)
     endif()
 endmacro(_oblo_setup_target_namespace)
 
+function(oblo_add_codegen_dependency target)
+    if(NOT OBLO_SKIP_CODEGEN)
+        add_dependencies(${target} ${OBLO_CODEGEN_CUSTOM_TARGET})
+    endif()
+endfunction(oblo_add_codegen_dependency)
+
 function(oblo_add_executable name)
     set(_target "${name}")
     oblo_find_source_files()
@@ -157,6 +168,44 @@ function(oblo_add_library name)
 
     set(_target "${_oblo_target_prefix}_${name}")
     oblo_find_source_files()
+
+    set(_withReflection FALSE)
+
+    if(_oblo_reflection_includes)
+        list(LENGTH _oblo_reflection_includes _reflection_sources_count)
+
+        if(_reflection_sources_count GREATER 1)
+            message(FATAL_ERROR "Target ${_target} has ${_reflection_sources_count} reflection include sources, only 1 is supported")
+        endif()
+
+        set(_reflection_file ${CMAKE_CURRENT_BINARY_DIR}/${_target}.gen.cpp)
+        file(TOUCH ${_reflection_file})
+        list(APPEND _oblo_src ${_reflection_file})
+
+        set_property(GLOBAL APPEND PROPERTY oblo_reflection_targets ${_target})
+
+        get_target_property(
+            _global_codegen_config
+            ${OBLO_CODEGEN_CUSTOM_TARGET}
+            oblo_codegen_config_content
+        )
+
+        list(APPEND _global_codegen_config
+            "{\n\
+\"target\": \"${_target}\",\n\
+\"source_file\": \"${_oblo_reflection_includes}\",\n\
+\"output_file\": \"${_reflection_file}\",\n\
+\"include_directories\": [ $<JOIN:$<REMOVE_DUPLICATES:$<LIST:TRANSFORM,$<TARGET_PROPERTY:${_target},INCLUDE_DIRECTORIES>,REPLACE,(.+),\"-I\\0\">>,$<COMMA>> ],\n\
+\"compile_definitions\": [ $<JOIN:$<REMOVE_DUPLICATES:$<LIST:TRANSFORM,$<TARGET_PROPERTY:${_target},COMPILE_DEFINITIONS>,REPLACE,(.+),\"-D\\0\">>,$<COMMA>> ]\n\
+}")
+
+        set_target_properties(
+            ${OBLO_CODEGEN_CUSTOM_TARGET}
+            PROPERTIES oblo_codegen_config_content "${_global_codegen_config}"
+        )
+
+        set(_withReflection TRUE)
+    endif()
 
     if(NOT DEFINED _oblo_src)
         # Header only library
@@ -198,6 +247,13 @@ function(oblo_add_library name)
             target_compile_definitions(${_target} INTERFACE "${_api_define}=")
             target_compile_definitions(${_target} PRIVATE "${_api_define}=")
         endif()
+
+        if(_withReflection)
+            target_link_libraries(${_target} PUBLIC oblo::annotations)
+            oblo_add_codegen_dependency(${_target})
+        endif()
+
+        target_compile_definitions(${_target} PRIVATE "OBLO_PROJECT_NAME=${_target}")
     endif()
 
     if(DEFINED _oblo_test_src)
@@ -243,14 +299,6 @@ function(oblo_add_test name)
     endif()
 endfunction(oblo_add_test name)
 
-function(oblo_3rdparty_create_aliases)
-    get_property(_targets GLOBAL PROPERTY oblo_3rdparty_targets)
-
-    foreach(_target ${_targets})
-        add_library("3rdparty::${_target}" ALIAS ${_target})
-    endforeach(_target ${_targets})
-endfunction(oblo_3rdparty_create_aliases)
-
 function(oblo_create_symlink source target)
     if(WIN32)
         # We create a junction on Windows, to avoid admin rights issues
@@ -261,6 +309,17 @@ function(oblo_create_symlink source target)
         execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${source} ${target})
     endif()
 endfunction(oblo_create_symlink)
+
+function(oblo_init_reflection)
+    set(_codegen_exe_target ocodegen)
+    set(_codegen_config_file ${CMAKE_CURRENT_BINARY_DIR}/reflection_config-$<CONFIG>.json)
+    file(GENERATE OUTPUT ${_codegen_config_file} CONTENT [\n$<GENEX_EVAL:$<JOIN:$<TARGET_PROPERTY:${OBLO_CODEGEN_CUSTOM_TARGET},oblo_codegen_config_content>,$<COMMA>\n>>\n])
+
+    add_custom_target(${OBLO_CODEGEN_CUSTOM_TARGET} COMMAND $<TARGET_FILE:${_codegen_exe_target}> ${_codegen_config_file})
+    set_target_properties(${OBLO_CODEGEN_CUSTOM_TARGET} PROPERTIES oblo_codegen_config_content "" FOLDER ${OBLO_FOLDER_BUILD})
+
+    set_property(GLOBAL PROPERTY oblo_codegen_config ${_codegen_config_file})
+endfunction(oblo_init_reflection)
 
 function(oblo_init)
     set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER ${OBLO_FOLDER_CMAKE})
@@ -273,4 +332,6 @@ function(oblo_init)
         FOLDER ${OBLO_FOLDER_BUILD}
         PROJECT_LABEL configure
     )
+
+    oblo_init_reflection()
 endfunction(oblo_init)

@@ -24,8 +24,8 @@
 #include <oblo/properties/property_tree.hpp>
 #include <oblo/properties/property_value_wrapper.hpp>
 #include <oblo/properties/visit.hpp>
+#include <oblo/reflection/concepts/resource_type.hpp>
 #include <oblo/reflection/reflection_registry.hpp>
-#include <oblo/resource/descriptors/resource_ref_descriptor.hpp>
 
 #include <format>
 
@@ -169,7 +169,7 @@ namespace oblo::editor
                                 const auto parentType = ctx.reflection.find_type(tree.nodes[property.parent].type);
 
                                 if (const auto resourceRef =
-                                        ctx.reflection.find_concept<resource_ref_descriptor>(parentType))
+                                        ctx.reflection.find_concept<reflection::resource_type>(parentType))
                                 {
                                     modified |= ui::property_table::add(makeId(),
                                         tree.nodes[property.parent].name,
