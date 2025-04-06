@@ -17,7 +17,6 @@ namespace oblo::vk
 {
     class instance_data_type_registry;
     class resource_manager;
-    class single_queue_engine;
 
     class vulkan_context;
     struct buffer;

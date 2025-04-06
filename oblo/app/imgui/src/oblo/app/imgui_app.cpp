@@ -18,7 +18,6 @@
 #include <oblo/vulkan/graph/frame_graph_registry.hpp>
 #include <oblo/vulkan/graph/frame_graph_template.hpp>
 #include <oblo/vulkan/graph/node_common.hpp>
-#include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/templates/graph_templates.hpp>
 #include <oblo/vulkan/utility.hpp>
 #include <oblo/vulkan/vulkan_engine_module.hpp>
@@ -63,7 +62,7 @@ namespace oblo
         struct imgui_render_backend
         {
             graphics_engine* graphicsEngine{};
-            vk::renderer* renderer{};
+            vk::frame_graph* frameGraph{};
             vk::frame_graph_registry nodeRegistry;
             vk::frame_graph_template renderTemplate;
             vk::frame_graph_template pushImageTemplate;
@@ -428,7 +427,7 @@ namespace oblo
             bool isOwned,
             ImGuiViewport* viewport)
         {
-            auto& frameGraph = backend->renderer->get_frame_graph();
+            auto& frameGraph = *backend->frameGraph;
 
             auto graph = frameGraph.instantiate(backend->renderTemplate);
             frameGraph.set_input(graph, g_InImGuiViewport, viewport).assert_value();
@@ -448,7 +447,7 @@ namespace oblo
                 rud->windowContext->on_destroy();
             }
 
-            auto& frameGraph = backend->renderer->get_frame_graph();
+            auto& frameGraph = *backend->frameGraph;
             frameGraph.remove(rud->graph);
 
             IM_DELETE(rud);
@@ -532,7 +531,7 @@ namespace oblo
             OBLO_ASSERT(io.BackendRendererUserData == nullptr);
 
             backend.graphicsEngine = gfxEngine;
-            backend.renderer = &vkEngine->get_renderer();
+            backend.frameGraph = &vkEngine->get_frame_graph();
             create_imgui_frame_graph_templates(backend);
 
             io.BackendRendererUserData = &backend;
@@ -607,7 +606,7 @@ namespace oblo
 
         void clear_push_subgraphs()
         {
-            auto& fg = backend.renderer->get_frame_graph();
+            auto& fg = *backend.frameGraph;
 
             for (auto& sg : backend.pushImageSubgraphs)
             {
@@ -699,7 +698,7 @@ namespace oblo
             ImGui::UpdatePlatformWindows();
         }
 
-        auto& fg = m_impl->backend.renderer->get_frame_graph();
+        auto& fg = *m_impl->backend.frameGraph;
 
         auto& platformIO = ImGui::GetPlatformIO();
 
@@ -728,7 +727,7 @@ namespace oblo::imgui
             return {};
         }
 
-        auto& frameGraph = backend->renderer->get_frame_graph();
+        auto& frameGraph = *backend->frameGraph;
         auto* const rud = static_cast<imgui_render_userdata*>(viewport->RendererUserData);
 
         const ImTextureID newId{1 + backend->pushImageSubgraphs.size()};
