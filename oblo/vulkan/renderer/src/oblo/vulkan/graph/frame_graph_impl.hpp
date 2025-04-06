@@ -315,9 +315,6 @@ namespace oblo::vk
 
         void reroute(h32<frame_graph_pin_storage> oldRoute, h32<frame_graph_pin_storage> newRoute);
 
-        frame_graph_vertex add_transient_node(const type_id& nodeType);
-        void connect(frame_graph_vertex srcNode, u32 srcOffset, frame_graph_vertex dstNode, u32 dstOffset);
-
         h32<frame_graph_pass> begin_pass_build(frame_graph_build_state& state, pass_kind passKind);
         void end_pass_build(frame_graph_build_state& state);
 

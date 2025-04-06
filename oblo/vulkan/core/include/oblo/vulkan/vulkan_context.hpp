@@ -135,9 +135,6 @@ namespace oblo::vk
         u64 m_submitIndex{1};
         u64 m_frameIndex{0};
 
-        struct pending_disposal_queues;
-        std::unique_ptr<pending_disposal_queues> m_pending;
-
         deque<disposable_object> m_disposableObjects;
 
         loaded_functions m_loadedFunctions{};

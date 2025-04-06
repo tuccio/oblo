@@ -553,7 +553,7 @@ namespace oblo::vk
         }
 
         // This is used to register external textures (e.g. the swapchain images)
-        m_impl->resourceManager = &renderer.get_resource_manager();
+        m_impl->resourceManager = &renderer.get_vulkan_context().get_resource_manager();
 
         // The two calls are from a time where we managed multiple small graphs sharing the resource pool, rather than 1
         // big graph owning it.
@@ -609,10 +609,11 @@ namespace oblo::vk
     {
         OBLO_PROFILE_SCOPE("Frame Graph Execute");
 
-        auto& commandBuffer = renderer.get_active_command_buffer();
+        auto& vkContext = renderer.get_vulkan_context();
+        auto& commandBuffer = vkContext.get_active_command_buffer();
         auto& resourcePool = m_impl->resourcePool;
 
-        m_impl->downloadStaging.begin_frame(renderer.get_vulkan_context().get_submit_index());
+        m_impl->downloadStaging.begin_frame(vkContext.get_submit_index());
 
         for (const auto [storage, poolIndex] : m_impl->transientBuffers)
         {

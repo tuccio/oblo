@@ -56,14 +56,4 @@ namespace oblo::vk
     {
         return m_instance;
     }
-
-    std::vector<VkLayerProperties> instance::available_layers()
-    {
-        u32 layerCount;
-        vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-
-        std::vector<VkLayerProperties> availableLayers(layerCount);
-        vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
-        return availableLayers;
-    }
 }

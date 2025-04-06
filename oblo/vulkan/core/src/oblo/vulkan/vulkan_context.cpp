@@ -45,10 +45,6 @@ namespace oblo::vk
         };
     }
 
-    struct vulkan_context::pending_disposal_queues
-    {
-    };
-
     vulkan_context::vulkan_context() = default;
 
     vulkan_context::~vulkan_context() = default;
@@ -109,7 +105,7 @@ namespace oblo::vk
         for (auto& submitInfo : m_frameInfo)
         {
             if (!submitInfo.pool
-                     .init(m_engine->get_device(), m_engine->get_queue_family_index(), false, init.buffersPerFrame, 1u))
+                    .init(m_engine->get_device(), m_engine->get_queue_family_index(), false, init.buffersPerFrame, 1u))
             {
                 return false;
             }
@@ -129,8 +125,6 @@ namespace oblo::vk
                 submitInfo.fence,
                 OBLO_STRINGIZE(vulkan_context::frame_info::fence));
         }
-
-        m_pending = std::make_unique<pending_disposal_queues>();
 
 #define OBLO_VK_LOAD_FN(name) .name = PFN_##name(vkGetInstanceProcAddr(m_instance, #name))
 
@@ -451,7 +445,8 @@ namespace oblo::vk
     {
         dispose(
             submitIndex,
-            [](vulkan_context& ctx, VkDescriptorSetLayout setLayout) {
+            [](vulkan_context& ctx, VkDescriptorSetLayout setLayout)
+            {
                 vkDestroyDescriptorSetLayout(ctx.get_device(),
                     setLayout,
                     ctx.get_allocator().get_allocation_callbacks());

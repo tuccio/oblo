@@ -11,8 +11,6 @@
 
 namespace oblo::vk
 {
-    class result;
-
     struct shader_preprocessor_options
     {
         /// @brief It can be used to skip emitting line directives, which might confuse SPIR-V tooling in some cases
