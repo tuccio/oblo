@@ -2,9 +2,9 @@
 
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/modules/module_manager.hpp>
+#include <oblo/reflection/concepts/gpu_component.hpp>
 #include <oblo/reflection/reflection_module.hpp>
 #include <oblo/reflection/reflection_registry.hpp>
-#include <oblo/scene/reflection/gpu_component.hpp>
 
 namespace oblo::vk
 {

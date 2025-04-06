@@ -47,6 +47,8 @@ namespace oblo::gen
 
     struct target_data
     {
+        string name;
+
         deque<record_type> recordTypes;
         deque<enum_type> enumTypes;
         deque<double> numberAttributeData;

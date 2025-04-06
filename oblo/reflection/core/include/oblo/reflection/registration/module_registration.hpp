@@ -12,6 +12,8 @@ namespace oblo::reflection
         auto& mm = module_manager::get();
 
         auto* reflection = mm.load<reflection::reflection_module>();
-        f(reflection->get_registrant());
+
+        auto&& registrant = reflection->get_registrant();
+        f(registrant);
     }
 }

@@ -32,7 +32,9 @@ namespace oblo::gen
         indent();
         new_line();
 
-        m_content.append("void register_reflection([[maybe_unused]] reflection_registry::registrant& reg)");
+        m_content.append("void register_");
+        m_content.append(target.name);
+        m_content.append("([[maybe_unused]] reflection_registry::registrant& reg)");
 
         new_line();
         m_content.append("{");

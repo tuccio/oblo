@@ -73,15 +73,16 @@ int main(int argc, char* argv[])
 
     for (auto&& target : doc.GetArray())
     {
+        const auto nameIt = target.FindMember("target");
         const auto sourceFileIt = target.FindMember("source_file");
         const auto outputFileIt = target.FindMember("output_file");
         const auto includesIt = target.FindMember("include_directories");
         const auto definesIt = target.FindMember("compile_definitions");
 
-        if (sourceFileIt == target.MemberEnd() || outputFileIt == target.MemberEnd() ||
+        if (nameIt == target.MemberEnd() || sourceFileIt == target.MemberEnd() || outputFileIt == target.MemberEnd() ||
             includesIt == target.MemberEnd() || definesIt == target.MemberEnd())
         {
-            oblo::report_error("Failed to parse target within file {}", configFile);
+            oblo::report_error("Failed to parse configuration file {}", configFile);
             continue;
         }
 
@@ -104,7 +105,7 @@ int main(int argc, char* argv[])
 
         const char* sourceFile = sourceFileIt->value.GetString();
 
-        const auto parseResult = ctx.parser.parse_code(sourceFile, ctx.clangArguments);
+        auto parseResult = ctx.parser.parse_code(sourceFile, ctx.clangArguments);
 
         if (!parseResult)
         {
@@ -120,6 +121,8 @@ int main(int argc, char* argv[])
             ++errors;
             continue;
         }
+
+        parseResult->name = nameIt->value.GetString();
 
         const char* outputFile = outputFileIt->value.GetString();
 

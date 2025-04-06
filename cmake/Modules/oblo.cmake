@@ -242,6 +242,8 @@ function(oblo_add_library name)
         if(_withReflection)
             target_link_libraries(${_target} PUBLIC oblo::annotations)
         endif()
+
+        target_compile_definitions(${_target} PRIVATE "OBLO_PROJECT_NAME=${_target}")
     endif()
 
     if(DEFINED _oblo_test_src)
