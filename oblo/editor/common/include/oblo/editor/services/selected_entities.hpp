@@ -1,7 +1,5 @@
 #pragma once
 
-#include <oblo/core/flat_dense_map.hpp>
-#include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/ecs/handles.hpp>
 #include <oblo/ecs/utility/entity_map.hpp>
 

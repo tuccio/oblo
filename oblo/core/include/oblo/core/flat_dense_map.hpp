@@ -1,7 +1,7 @@
 #pragma once
 
+#include <oblo/core/detail/flat_dense_impl.hpp>
 #include <oblo/core/flat_dense_forward.hpp>
-#include <oblo/core/flat_dense_set.hpp>
 
 #include <span>
 

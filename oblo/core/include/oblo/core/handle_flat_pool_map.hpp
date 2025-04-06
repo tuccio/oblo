@@ -1,9 +1,7 @@
 #pragma once
 
+#include <oblo/core/detail/handle_flat_pool_dense_impl.hpp>
 #include <oblo/core/flat_dense_map.hpp>
-#include <oblo/core/handle_flat_pool_set.hpp>
-#include <oblo/core/handle_pool.hpp>
-#include <oblo/core/types.hpp>
 
 namespace oblo
 {

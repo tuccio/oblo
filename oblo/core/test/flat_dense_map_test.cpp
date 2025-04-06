@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <oblo/core/flat_dense_map.hpp>
+#include <oblo/core/flat_dense_set.hpp>
 #include <oblo/core/handle_pool.hpp>
 
 namespace oblo
