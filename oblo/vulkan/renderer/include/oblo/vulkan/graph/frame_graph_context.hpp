@@ -315,7 +315,7 @@ namespace oblo::vk
 
         VkCommandBuffer get_command_buffer() const;
 
-        VkDevice get_device() const;
+        u64 get_device_address(resource<buffer> buffer) const;
 
         const loaded_functions& get_loaded_functions() const;
 

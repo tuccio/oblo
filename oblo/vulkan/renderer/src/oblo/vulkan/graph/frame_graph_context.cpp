@@ -978,9 +978,16 @@ namespace oblo::vk
         return m_commandBuffer;
     }
 
-    VkDevice frame_graph_execute_context::get_device() const
+    u64 frame_graph_execute_context::get_device_address(resource<buffer> buffer) const
     {
-        return m_renderer.get_vulkan_context().get_device();
+        const auto& b = access(buffer);
+
+        const VkBufferDeviceAddressInfo info{
+            .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+            .buffer = b.buffer,
+        };
+
+        return vkGetBufferDeviceAddress(m_renderer.get_vulkan_context().get_device(), &info) + b.offset;
     }
 
     const loaded_functions& frame_graph_execute_context::get_loaded_functions() const
