@@ -2,6 +2,7 @@ include(build_configurations)
 
 option(OBLO_ENABLE_ASSERT "Enables internal asserts" OFF)
 option(OBLO_DISABLE_COMPILER_OPTIMIZATIONS "Disables compiler optimizations" OFF)
+option(OBLO_SKIP_CODEGEN "Disables the codegen dependencies on project, requiring users to run codegen manually" OFF)
 option(OBLO_DEBUG "Activates code useful for debugging" OFF)
 
 define_property(GLOBAL PROPERTY oblo_codegen_config BRIEF_DOCS "Codegen config file" FULL_DOCS "The path to the generated config file used to generate reflection code")
@@ -132,9 +133,11 @@ macro(_oblo_setup_target_namespace namespace)
     endif()
 endmacro(_oblo_setup_target_namespace)
 
-function (oblo_add_codegen_dependency target)
-    add_dependencies(${target} ${OBLO_CODEGEN_CUSTOM_TARGET})
-endfunction (oblo_add_codegen_dependency)
+function(oblo_add_codegen_dependency target)
+    if(NOT OBLO_SKIP_CODEGEN)
+        add_dependencies(${target} ${OBLO_CODEGEN_CUSTOM_TARGET})
+    endif()
+endfunction(oblo_add_codegen_dependency)
 
 function(oblo_add_executable name)
     set(_target "${name}")
