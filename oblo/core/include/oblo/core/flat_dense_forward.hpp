@@ -7,4 +7,7 @@ namespace oblo
 
     template <typename Key, typename Value, typename KeyExtractor = flat_key_extractor<Key>>
     class flat_dense_map;
+
+    template <typename Key, typename KeyExtractor = flat_key_extractor<Key>>
+    class flat_dense_set;
 }

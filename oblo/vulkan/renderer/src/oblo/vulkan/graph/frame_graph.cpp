@@ -380,7 +380,6 @@ namespace oblo::vk
             return;
         }
 
-        // TODO: (#8) This could be a set
         using edge_handle = frame_graph_topology::edge_handle;
 
         buffered_array<edge_handle, 32> edgesToRemove;

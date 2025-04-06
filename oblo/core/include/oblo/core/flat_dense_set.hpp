@@ -3,18 +3,15 @@
 #include <oblo/core/detail/flat_dense_impl.hpp>
 #include <oblo/core/flat_dense_forward.hpp>
 
-#include <span>
-
 namespace oblo
 {
-    template <typename Key, typename Value, typename KeyExtractor>
-    class flat_dense_map : detail::flat_dense_impl<Key, Value, dynamic_array<Value>, KeyExtractor>
+    template <typename Key, typename KeyExtractor>
+    class flat_dense_set : detail::flat_dense_impl<Key, std::nullptr_t, detail::null_value_storage, KeyExtractor>
     {
-        using base_type = detail::flat_dense_impl<Key, Value, dynamic_array<Value>, KeyExtractor>;
+        using base_type = detail::flat_dense_impl<Key, std::nullptr_t, detail::null_value_storage, KeyExtractor>;
 
     public:
         using key_type = Key;
-        using value_type = Value;
         using extractor_type = KeyExtractor;
 
         using base_type::base_type;
@@ -31,15 +28,5 @@ namespace oblo
         using base_type::size;
         using base_type::size32;
         using base_type::try_find;
-
-        std::span<const Value> values() const
-        {
-            return base_type::value_storage();
-        }
-
-        std::span<Value> values()
-        {
-            return base_type::value_storage();
-        }
     };
 }

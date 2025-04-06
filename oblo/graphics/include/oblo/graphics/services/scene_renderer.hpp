@@ -1,7 +1,7 @@
 #pragma once
 
 #include <oblo/core/dynamic_array.hpp>
-#include <oblo/core/handle_flat_pool_map.hpp>
+#include <oblo/core/handle_flat_pool_set.hpp>
 #include <oblo/vulkan/graph/frame_graph.hpp>
 #include <oblo/vulkan/graph/frame_graph_registry.hpp>
 
@@ -81,7 +81,6 @@ namespace oblo
         vk::draw_registry& m_drawRegistry;
         h32<vk::frame_graph_subgraph> m_sceneDataProvider{};
         h32<vk::frame_graph_subgraph> m_surfelsGI{};
-        // TODO: (#8) This could be a set
-        h32_flat_extpool_dense_map<vk::frame_graph_subgraph, bool> m_sceneViews;
+        h32_flat_extpool_dense_set<vk::frame_graph_subgraph> m_sceneViews;
     };
 }
