@@ -87,6 +87,8 @@ int main(int argc, char* argv[])
 
         ctx.clangArguments.clear();
 
+        ctx.clangArguments.emplace_back("-std=c++20");
+
         // Macro used to distinguish the codegen pass in annotation macros
         ctx.clangArguments.emplace_back("-DOBLO_CODEGEN");
 
@@ -106,7 +108,15 @@ int main(int argc, char* argv[])
 
         if (!parseResult)
         {
+            const auto clangErrors = ctx.parser.get_errors();
+
             oblo::report_error("Failed to parse file {}", sourceFile);
+
+            if (!clangErrors.empty())
+            {
+                oblo::report_error("{}", clangErrors);
+            }
+
             ++errors;
             continue;
         }

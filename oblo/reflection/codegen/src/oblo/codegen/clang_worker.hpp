@@ -5,6 +5,7 @@
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/expected.hpp>
 #include <oblo/core/string/cstring_view.hpp>
+#include <oblo/core/string/string_builder.hpp>
 
 #include "target_data.hpp"
 
@@ -25,7 +26,10 @@ namespace oblo::gen
 
         expected<target_data> parse_code(cstring_view sourceFile, const dynamic_array<const char*> args);
 
+        cstring_view get_errors() const;
+
     private:
         CXIndex m_index{};
+        string_builder m_errors;
     };
 }

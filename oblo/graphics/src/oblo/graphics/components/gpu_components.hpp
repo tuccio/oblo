@@ -1,7 +1,7 @@
 #pragma once
 
 #include <oblo/core/handle.hpp>
-#include <oblo/core/reflection/annotations.hpp>
+#include <oblo/reflection/codegen/annotations.hpp>
 #include <oblo/ecs/handles.hpp>
 #include <oblo/math/vec3.hpp>
 

@@ -363,6 +363,8 @@ namespace oblo::gen
 
     expected<target_data> clang_worker::parse_code(cstring_view sourceFile, const dynamic_array<const char*> args)
     {
+        m_errors.clear();
+
         const CXTranslationUnit tu = clang_parseTranslationUnit(m_index,
             sourceFile.c_str(),
             args.data(),
@@ -376,6 +378,35 @@ namespace oblo::gen
             return unspecified_error;
         }
 
+        if (const u32 numErrors = clang_getNumDiagnostics(tu))
+        {
+            bool hasErrors = false;
+
+            u32 displayOptions = clang_defaultDiagnosticDisplayOptions();
+
+            for (u32 i = 0; i < numErrors; ++i)
+            {
+                const CXDiagnostic diag = clang_getDiagnostic(tu, i);
+
+                if (clang_getDiagnosticSeverity(diag) >= CXDiagnostic_Error)
+                {
+                    const clang_string str{clang_formatDiagnostic(diag, displayOptions)};
+
+                    m_errors.append(str.view());
+                    m_errors.append('\n');
+
+                    hasErrors = true;
+                }
+
+                clang_disposeDiagnostic(diag);
+            }
+
+            if (hasErrors)
+            {
+                return unspecified_error;
+            }
+        }
+
         target_data targetData;
 
         const CXCursor rootCursor = clang_getTranslationUnitCursor(tu);
@@ -384,5 +415,10 @@ namespace oblo::gen
         clang_disposeTranslationUnit(tu);
 
         return targetData;
+    }
+
+    cstring_view clang_worker::get_errors() const
+    {
+        return m_errors.view();
     }
 }

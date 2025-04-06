@@ -12,9 +12,8 @@ namespace oblo::gen
         m_content.append(R"(
 #include <oblo/reflection/registration/registrant.hpp>
 
-// TODO: Move this somewhere else
-#include <oblo/scene/reflection/gpu_component.hpp>
-#include <oblo/math/color.hpp>
+#include <oblo/reflection/attributes/color.hpp>
+#include <oblo/reflection/concepts/gpu_component.hpp>
 )");
         new_line();
 

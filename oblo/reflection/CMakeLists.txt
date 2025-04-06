@@ -1,10 +1,3 @@
-oblo_add_library(reflection)
-
-target_link_libraries(
-    oblo_reflection
-    PUBLIC
-    oblo::core
-    oblo::modules
-    PRIVATE
-    oblo::ecs
-)
+add_subdirectory(annotations)
+add_subdirectory(codegen)
+add_subdirectory(core)

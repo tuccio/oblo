@@ -1,6 +1,6 @@
 #pragma once
 
-#include <oblo/core/reflection/annotations.hpp>
+#include <oblo/reflection/codegen/annotations.hpp>
 #include <oblo/math/vec3.hpp>
 
 namespace oblo

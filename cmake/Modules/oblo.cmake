@@ -160,6 +160,8 @@ function(oblo_add_library name)
     set(_target "${_oblo_target_prefix}_${name}")
     oblo_find_source_files()
 
+    set(_withReflection FALSE)
+
     if(_oblo_reflection_includes)
         list(LENGTH _oblo_reflection_includes _reflection_sources_count)
 
@@ -181,17 +183,19 @@ function(oblo_add_library name)
 
         list(APPEND _global_reflection_config
             "{\n\
-    \"target\": \"${_target}\",\n\
-    \"source_file\": \"${_oblo_reflection_includes}\",\n\
-    \"output_file\": \"${_reflection_file}\",\n\
-    \"include_directories\": [ $<JOIN:$<REMOVE_DUPLICATES:$<LIST:TRANSFORM,$<TARGET_PROPERTY:${_target},INCLUDE_DIRECTORIES>,REPLACE,(.+),\"-I\\0\">>,$<COMMA>> ],\n\
-    \"compile_definitions\": [ $<JOIN:$<REMOVE_DUPLICATES:$<LIST:TRANSFORM,$<TARGET_PROPERTY:${_target},COMPILE_DEFINITIONS>,REPLACE,(.+),\"-D\\0\">>,$<COMMA>> ]\n\
+\"target\": \"${_target}\",\n\
+\"source_file\": \"${_oblo_reflection_includes}\",\n\
+\"output_file\": \"${_reflection_file}\",\n\
+\"include_directories\": [ $<JOIN:$<REMOVE_DUPLICATES:$<LIST:TRANSFORM,$<TARGET_PROPERTY:${_target},INCLUDE_DIRECTORIES>,REPLACE,(.+),\"-I\\0\">>,$<COMMA>> ],\n\
+\"compile_definitions\": [ $<JOIN:$<REMOVE_DUPLICATES:$<LIST:TRANSFORM,$<TARGET_PROPERTY:${_target},COMPILE_DEFINITIONS>,REPLACE,(.+),\"-D\\0\">>,$<COMMA>> ]\n\
 }")
 
         set_target_properties(
             oblo-reflection
             PROPERTIES OBLO_REFLECTION_CONFIG "${_global_reflection_config}"
         )
+
+        set(_withReflection TRUE)
     endif()
 
     if(NOT DEFINED _oblo_src)
@@ -233,6 +237,10 @@ function(oblo_add_library name)
         else()
             target_compile_definitions(${_target} INTERFACE "${_api_define}=")
             target_compile_definitions(${_target} PRIVATE "${_api_define}=")
+        endif()
+
+        if(_withReflection)
+            target_link_libraries(${_target} PUBLIC oblo::annotations)
         endif()
     endif()
 
