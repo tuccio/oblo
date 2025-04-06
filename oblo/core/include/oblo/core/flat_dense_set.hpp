@@ -35,6 +35,7 @@ namespace oblo
         public:
             using key_type = Key;
             using extractor_type = KeyExtractor;
+            using value_type = Value;
 
             flat_dense_impl() = default;
             flat_dense_impl(const flat_dense_impl&) = default;
@@ -65,7 +66,7 @@ namespace oblo
                     m_sparse.resize(newSize, Invalid);
                 }
                 else if (const auto pointedIndex = m_sparse[keyIndex];
-                         pointedIndex < m_denseKey.size() && is_key_matched_unchecked(keyIndex, pointedIndex))
+                    pointedIndex < m_denseKey.size() && is_key_matched_unchecked(keyIndex, pointedIndex))
                 {
                     return std::pair{dense_begin() + pointedIndex, false};
                 }

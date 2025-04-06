@@ -84,7 +84,7 @@ namespace oblo
         using key_type = base_type::key_type;
         using extractor_type = base_type::extractor_type;
 
-        using base_type::flat_dense_impl;
+        using base_type::base_type;
         using base_type::operator=;
 
         using base_type::at;
