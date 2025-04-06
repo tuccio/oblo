@@ -26,17 +26,16 @@ namespace oblo::editor
         u32 get_last_refresh_event_id() const;
 
     private:
-        using selected_entities_map = ecs::entity_map<ecs::entity>;
+        using selected_entities_set = ecs::entity_set;
 
     private:
-        // TODO: (#8) Should implement a flat_dense_set
-        selected_entities_map m_selected;
+        selected_entities_set m_selected;
         u32 m_eventId{};
     };
 
     inline void selected_entities::add(ecs::entity e)
     {
-        m_selected.emplace(e, e);
+        m_selected.emplace(e);
     }
 
     inline void selected_entities::add(std::span<const ecs::entity> entities)

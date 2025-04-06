@@ -17,7 +17,7 @@ namespace oblo
         using value_type = Value;
         using extractor_type = KeyExtractor;
 
-        using base_type::flat_dense_impl;
+        using base_type::base_type;
         using base_type::operator=;
 
         using base_type::at;

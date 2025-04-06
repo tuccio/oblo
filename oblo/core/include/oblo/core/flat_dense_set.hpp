@@ -41,7 +41,7 @@ namespace oblo
             flat_dense_impl(flat_dense_impl&&) noexcept = default;
 
             flat_dense_impl(allocator* allocator) :
-                m_sparse{allocator}, m_denseKey{allocator}, ValueStorage{allocator} {};
+                ValueStorage{allocator}, m_sparse{allocator}, m_denseKey{allocator} {};
 
             flat_dense_impl& operator=(const flat_dense_impl&) = default;
             flat_dense_impl& operator=(flat_dense_impl&&) noexcept = default;
@@ -65,7 +65,7 @@ namespace oblo
                     m_sparse.resize(newSize, Invalid);
                 }
                 else if (const auto pointedIndex = m_sparse[keyIndex];
-                    pointedIndex < m_denseKey.size() && is_key_matched_unchecked(keyIndex, pointedIndex))
+                         pointedIndex < m_denseKey.size() && is_key_matched_unchecked(keyIndex, pointedIndex))
                 {
                     return std::pair{dense_begin() + pointedIndex, false};
                 }
@@ -195,14 +195,22 @@ namespace oblo
             void reserve_dense(usize size)
             {
                 m_denseKey.reserve(size);
-                ValueStorage::reserve(size);
+
+                if constexpr (has_value)
+                {
+                    ValueStorage::reserve(size);
+                }
             }
 
             void clear()
             {
                 m_sparse.clear();
                 m_denseKey.clear();
-                ValueStorage::clear();
+
+                if constexpr (has_value)
+                {
+                    ValueStorage::clear();
+                }
             }
 
             usize size() const
@@ -285,7 +293,7 @@ namespace oblo
         using key_type = Key;
         using extractor_type = KeyExtractor;
 
-        using base_type::flat_dense_impl;
+        using base_type::base_type;
         using base_type::operator=;
 
         using base_type::at;
