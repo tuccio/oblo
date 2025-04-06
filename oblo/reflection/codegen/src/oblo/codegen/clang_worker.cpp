@@ -120,6 +120,12 @@ namespace oblo::gen
                 return annotation_property_result::expect_none;
             }
 
+            if (property == "Resource"_hsv)
+            {
+                r.flags.set(record_flags::resource);
+                return annotation_property_result::expect_none;
+            }
+
             if (property == "GpuComponent"_hsv)
             {
                 *outIdx = &r.attrGpuComponent;
@@ -259,7 +265,7 @@ namespace oblo::gen
 
         CXChildVisitResult add_fields(CXCursor cursor, CXCursor, CXClientData userdata)
         {
-            if (cursor.kind == CXCursor_FieldDecl)
+            if (cursor.kind == CXCursor_FieldDecl && clang_getCXXAccessSpecifier(cursor) == CX_CXXPublic)
             {
                 auto& ctx = *reinterpret_cast<add_field_ctx*>(userdata);
 

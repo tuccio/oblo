@@ -14,6 +14,7 @@ namespace oblo::gen
 
 #include <oblo/reflection/attributes/color.hpp>
 #include <oblo/reflection/concepts/gpu_component.hpp>
+#include <oblo/reflection/concepts/resource_type.hpp>
 #include <oblo/reflection/tags/ecs.hpp>
 )");
         new_line();
@@ -140,7 +141,7 @@ namespace oblo::gen
 
         if (r.attrGpuComponent >= 0)
         {
-            m_content.append(".add_concept(::oblo::gpu_component{.bufferName = \"");
+            m_content.append(".add_concept(::oblo::reflection::gpu_component{.bufferName = \"");
             m_content.append(t.stringAttributeData[r.attrGpuComponent]);
             m_content.append("\"_hsv})");
         }
@@ -149,6 +150,15 @@ namespace oblo::gen
 
         deindent();
         new_line();
+
+        if (r.flags.contains(record_flags::resource))
+        {
+            m_content.format(
+                R"(reg.add_class<resource_ref<{0}>>().add_concept(::oblo::reflection::resource_type{{.typeId = get_type_id<{0}>(), .typeUuid = ::oblo::resource_type<{0}>,}}).add_field(&resource_ref<{0}>::id, "id");)",
+                r.name);
+
+            new_line();
+        }
     }
 
     void reflection_worker::generate_enum(const enum_type& e)

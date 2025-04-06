@@ -9,7 +9,6 @@
 #include <oblo/options/options_module.hpp>
 #include <oblo/options/options_provider.hpp>
 #include <oblo/reflection/codegen/registration.hpp>
-#include <oblo/reflection/registration/module_registration.hpp>
 #include <oblo/vulkan/compiler/compiler_module.hpp>
 #include <oblo/vulkan/draw/global_shader_options.hpp>
 
@@ -32,7 +31,7 @@ namespace oblo::vk
 
         option_proxy_struct<global_shader_options_proxy>::register_options(*initializer.services);
 
-        reflection::load_module_and_register(reflection::gen::register_reflection);
+        reflection::gen::load_module_and_register();
 
         return true;
     }

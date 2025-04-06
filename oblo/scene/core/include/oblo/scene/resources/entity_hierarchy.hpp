@@ -3,6 +3,7 @@
 #include <oblo/core/expected.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/ecs/entity_registry.hpp>
+#include <oblo/reflection/codegen/annotations.hpp>
 
 namespace oblo
 {
@@ -57,5 +58,5 @@ namespace oblo
     private:
         ecs::type_registry m_types;
         ecs::entity_registry m_registry{&m_types};
-    };
+    } OBLO_RESOURCE();
 }

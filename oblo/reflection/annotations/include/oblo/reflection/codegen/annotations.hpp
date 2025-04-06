@@ -11,3 +11,4 @@
 #define OBLO_ENUM(...) OBLO_REFLECT(__VA_ARGS__)
 #define OBLO_COMPONENT(...) OBLO_REFLECT(Component, __VA_ARGS__)
 #define OBLO_TAG(...) OBLO_REFLECT(Tag, __VA_ARGS__)
+#define OBLO_RESOURCE(...) OBLO_REFLECT(Resource, __VA_ARGS__)

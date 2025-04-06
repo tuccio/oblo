@@ -9,6 +9,7 @@
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/uuid.hpp>
+#include <oblo/reflection/codegen/annotations.hpp>
 #include <oblo/scene/resources/traits.hpp>
 
 #include <span>
@@ -143,7 +144,7 @@ namespace oblo
     private:
         std::unordered_map<string, usize, string_hash, string_equal> m_map;
         dynamic_array<material_property> m_properties;
-    };
+    } OBLO_RESOURCE();
 
     template <typename T>
     expected<T, material_error> material_property::as() const

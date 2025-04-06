@@ -14,13 +14,13 @@ namespace oblo::vk
             instance_data_type_registry& instanceDataRegistry)
         {
             deque<reflection::type_handle> gpuComponentTypes;
-            reflection.find_by_concept<gpu_component>(gpuComponentTypes);
+            reflection.find_by_concept<reflection::gpu_component>(gpuComponentTypes);
 
             for (const auto typeHandle : gpuComponentTypes)
             {
                 const auto typeData = reflection.get_type_data(typeHandle);
 
-                const auto gpuComponent = reflection.find_concept<gpu_component>(typeHandle);
+                const auto gpuComponent = reflection.find_concept<reflection::gpu_component>(typeHandle);
                 instanceDataRegistry.register_instance_data(typeData.type, gpuComponent->bufferName);
             }
         }

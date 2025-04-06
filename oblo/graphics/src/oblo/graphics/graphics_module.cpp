@@ -16,7 +16,6 @@
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/options/options_module.hpp>
 #include <oblo/reflection/codegen/registration.hpp>
-#include <oblo/reflection/registration/module_registration.hpp>
 #include <oblo/scene/systems/barriers.hpp>
 #include <oblo/vulkan/draw/draw_registry.hpp>
 #include <oblo/vulkan/draw/resource_cache.hpp>
@@ -27,7 +26,7 @@ namespace oblo
 {
     bool graphics_module::startup(const module_initializer& initializer)
     {
-        reflection::load_module_and_register(reflection::gen::register_reflection);
+        reflection::gen::load_module_and_register();
 
         module_manager::get().load<vk::vulkan_engine_module>();
 

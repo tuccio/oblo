@@ -4,6 +4,7 @@
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/uuid.hpp>
+#include <oblo/reflection/codegen/annotations.hpp>
 #include <oblo/scene/resources/texture_format.hpp>
 #include <oblo/scene/resources/traits.hpp>
 
@@ -64,5 +65,5 @@ namespace oblo
 
     private:
         void* m_impl{};
-    };
+    } OBLO_RESOURCE();
 }

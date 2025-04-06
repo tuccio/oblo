@@ -2,7 +2,8 @@
 
 #include <oblo/core/deque.hpp>
 #include <oblo/core/flags.hpp>
-#include <oblo/core/string/string.hpp>
+
+#include <unordered_set>
 
 namespace oblo::gen
 {
@@ -16,6 +17,7 @@ namespace oblo::gen
     {
         ecs_component,
         ecs_tag,
+        resource,
         enum_max,
     };
 
