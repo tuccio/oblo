@@ -18,6 +18,7 @@
 #include <oblo/vulkan/graph/frame_graph_registry.hpp>
 #include <oblo/vulkan/graph/frame_graph_template.hpp>
 #include <oblo/vulkan/graph/node_common.hpp>
+#include <oblo/vulkan/graph/render_pass.hpp>
 #include <oblo/vulkan/templates/graph_templates.hpp>
 #include <oblo/vulkan/utility.hpp>
 #include <oblo/vulkan/vulkan_engine_module.hpp>
@@ -235,37 +236,22 @@ namespace oblo
                     return;
                 }
 
-                const auto renderTarget = ctx.access(inOutRenderTarget);
-
-                const VkRenderingAttachmentInfo colorAttachments[] = {
+                const render_attachment colorAttachments[] = {
                     {
-                        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-                        .imageView = renderTarget.view,
-                        .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-                        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                        .texture = inOutRenderTarget,
+                        .loadOp = attachment_load_op::clear,
+                        .storeOp = attachment_store_op::store,
                     },
                 };
 
-                const auto [renderWidth, renderHeight, _] = renderTarget.initializer.extent;
-
-                const VkRenderingInfo renderInfo{
-                    .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-                    .renderArea =
-                        {
-                            .extent{
-                                .width = renderWidth,
-                                .height = renderHeight,
-                            },
-                        },
-                    .layerCount = 1,
-                    .colorAttachmentCount = 1,
-                    .pColorAttachments = colorAttachments,
+                const render_pass_config cfg{
+                    .renderResolution = ctx.get_resolution(inOutRenderTarget),
+                    .colorAttachments = colorAttachments,
                 };
 
-                if (ctx.begin_pass(renderPassInstance, renderInfo))
+                if (ctx.begin_pass(renderPassInstance, cfg))
                 {
-                    ctx.set_viewport(renderWidth, renderHeight);
+                    ctx.set_viewport(cfg.renderResolution.x, cfg.renderResolution.y);
 
                     struct transform_constants
                     {
@@ -326,8 +312,8 @@ namespace oblo
                             };
 
                             const vec2 clipMax{
-                                min((cmd.ClipRect.z - clipOffset.x) * clipScale.x, f32(renderWidth)),
-                                min((cmd.ClipRect.w - clipOffset.y) * clipScale.y, f32(renderHeight)),
+                                min((cmd.ClipRect.z - clipOffset.x) * clipScale.x, f32(cfg.renderResolution.x)),
+                                min((cmd.ClipRect.w - clipOffset.y) * clipScale.y, f32(cfg.renderResolution.y)),
                             };
 
                             if (clipMax.x <= clipMin.x || clipMax.y <= clipMin.y)

@@ -48,4 +48,36 @@ namespace oblo::vk
             unreachable();
         }
     }
+
+    inline VkAttachmentLoadOp convert_to_vk(attachment_load_op op)
+    {
+        switch (op)
+        {
+        case attachment_load_op::none:
+            return VK_ATTACHMENT_LOAD_OP_NONE_KHR;
+        case attachment_load_op::load:
+            return VK_ATTACHMENT_LOAD_OP_LOAD;
+        case attachment_load_op::clear:
+            return VK_ATTACHMENT_LOAD_OP_CLEAR;
+        case attachment_load_op::dont_care:
+            return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        default:
+            unreachable();
+        }
+    }
+
+    inline VkAttachmentStoreOp convert_to_vk(attachment_store_op op)
+    {
+        switch (op)
+        {
+        case attachment_store_op::none:
+            return VK_ATTACHMENT_STORE_OP_NONE;
+        case attachment_store_op::store:
+            return VK_ATTACHMENT_STORE_OP_STORE;
+        case attachment_store_op::dont_care:
+            return VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        default:
+            unreachable();
+        }
+    }
 }

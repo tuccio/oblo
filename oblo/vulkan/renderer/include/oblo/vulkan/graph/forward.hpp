@@ -31,6 +31,8 @@ namespace oblo::vk
     struct render_pipeline_initializer;
     struct raytracing_pipeline_initializer;
 
+    struct render_pass_config;
+
     class binding_table;
     struct bindable_object;
 

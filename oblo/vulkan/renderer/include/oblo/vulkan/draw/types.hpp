@@ -11,4 +11,19 @@ namespace oblo::vk
         u16,
         u32,
     };
+
+    enum class attachment_load_op : u8
+    {
+        none,
+        load,
+        clear,
+        dont_care,
+    };
+
+    enum class attachment_store_op : u8
+    {
+        none,
+        store,
+        dont_care,
+    };
 }

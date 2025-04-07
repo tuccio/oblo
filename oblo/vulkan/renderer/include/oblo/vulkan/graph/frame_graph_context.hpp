@@ -201,7 +201,7 @@ namespace oblo::vk
 
         expected<> begin_pass(h32<compute_pass_instance> handle) const;
 
-        expected<> begin_pass(h32<render_pass_instance> handle, const VkRenderingInfo& renderingInfo) const;
+        expected<> begin_pass(h32<render_pass_instance> handle, const render_pass_config& cfg) const;
 
         expected<> begin_pass(h32<raytracing_pass_instance> handle) const;
 
@@ -267,7 +267,7 @@ namespace oblo::vk
 
         const gpu_info& get_gpu_info() const;
 
-        void set_viewport(u32 w, u32 h) const;
+        void set_viewport(u32 w, u32 h, f32 minDepth = 0.f, f32 maxDepth = 1.f) const;
         void set_scissor(i32 x, i32 y, u32 w, u32 h) const;
 
         void push_constants(flags<shader_stage, 14> stages, u32 offset, std::span<const byte> bytes) const;
@@ -286,13 +286,11 @@ namespace oblo::vk
 
         vec2u get_resolution(resource<texture> h) const;
 
-        // TODO: Make private
-        texture access(resource<texture> h) const;
-
     private:
         void* access_storage(h32<frame_graph_pin_storage> handle) const;
 
         buffer access(resource<buffer> h) const;
+        texture access(resource<texture> h) const;
 
         bool has_event_impl(const type_id& type) const;
 

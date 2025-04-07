@@ -14,6 +14,7 @@
 #include <oblo/vulkan/draw/shader_stage_utils.hpp>
 #include <oblo/vulkan/draw/vk_type_conversions.hpp>
 #include <oblo/vulkan/graph/frame_graph_impl.hpp>
+#include <oblo/vulkan/graph/render_pass.hpp>
 #include <oblo/vulkan/graph/resource_pool.hpp>
 #include <oblo/vulkan/graph/types_internal.hpp>
 #include <oblo/vulkan/renderer.hpp>
@@ -733,8 +734,24 @@ namespace oblo::vk
         return no_error;
     }
 
+    namespace
+    {
+        VkRenderingAttachmentInfo make_rendering_attachment_info(
+            VkImageView imageView, VkImageLayout layout, const render_attachment& attachment)
+        {
+            return {
+                .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                .imageView = imageView,
+                .imageLayout = layout,
+                .loadOp = convert_to_vk(attachment.loadOp),
+                .storeOp = convert_to_vk(attachment.storeOp),
+                .clearValue = std::bit_cast<VkClearColorValue>(attachment.clearValue),
+            };
+        }
+    }
+
     expected<> frame_graph_execute_context::begin_pass(h32<render_pass_instance> handle,
-        const VkRenderingInfo& renderingInfo) const
+        const render_pass_config& cfg) const
     {
         OBLO_ASSERT(handle);
         OBLO_ASSERT(m_frameGraph.passes[handle.value].kind == pass_kind::graphics);
@@ -743,6 +760,54 @@ namespace oblo::vk
         m_frameGraph.begin_pass_execution(passHandle, m_state);
 
         auto& pm = m_renderer.get_pass_manager();
+
+        buffered_array<VkRenderingAttachmentInfo, 2> colorAttachments;
+
+        for (const auto& colorAttachment : cfg.colorAttachments)
+        {
+            const auto& vkTexture = access(colorAttachment.texture);
+
+            colorAttachments.push_back(make_rendering_attachment_info(vkTexture.view,
+                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                colorAttachment));
+        }
+
+        std::optional<VkRenderingAttachmentInfo> depthAttachment;
+
+        if (cfg.depthAttachment)
+        {
+            const auto& vkTexture = access(cfg.depthAttachment->texture);
+
+            depthAttachment = make_rendering_attachment_info(vkTexture.view,
+                VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+                *cfg.depthAttachment);
+        }
+
+        std::optional<VkRenderingAttachmentInfo> stencilAttachment;
+
+        if (cfg.stencilAttachment)
+        {
+            const auto& vkTexture = access(cfg.stencilAttachment->texture);
+
+            stencilAttachment = make_rendering_attachment_info(vkTexture.view,
+                VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL,
+                *cfg.stencilAttachment);
+        }
+
+        const VkRenderingInfo renderingInfo{
+            .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+            .renderArea =
+                {
+                    .offset = {cfg.renderOffset.x, cfg.renderOffset.y},
+                    .extent = {cfg.renderResolution.x, cfg.renderResolution.y},
+                },
+            .layerCount = 1,
+            .viewMask = 0,
+            .colorAttachmentCount = colorAttachments.size32(),
+            .pColorAttachments = colorAttachments.data(),
+            .pDepthAttachment = depthAttachment ? &*depthAttachment : nullptr,
+            .pStencilAttachment = stencilAttachment ? &*stencilAttachment : nullptr,
+        };
 
         const auto pipeline = m_frameGraph.passes[handle.value].renderPipeline;
         const auto renderCtx = pm.begin_render_pass(m_state.commandBuffer, pipeline, renderingInfo);
@@ -1002,13 +1067,13 @@ namespace oblo::vk
         return m_frameGraph.gpuInfo;
     }
 
-    void frame_graph_execute_context::set_viewport(u32 w, u32 h) const
+    void frame_graph_execute_context::set_viewport(u32 w, u32 h, f32 minDepth, f32 maxDepth) const
     {
         const VkViewport viewport{
             .width = f32(w),
             .height = f32(h),
-            .minDepth = 0.f,
-            .maxDepth = 1.f,
+            .minDepth = minDepth,
+            .maxDepth = maxDepth,
         };
 
         vkCmdSetViewport(m_state.commandBuffer, 0, 1, &viewport);

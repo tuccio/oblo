@@ -6,6 +6,7 @@
 #include <oblo/vulkan/data/picking_configuration.hpp>
 #include <oblo/vulkan/draw/render_pass_initializer.hpp>
 #include <oblo/vulkan/graph/node_common.hpp>
+#include <oblo/vulkan/graph/render_pass.hpp>
 #include <oblo/vulkan/loaded_functions.hpp>
 #include <oblo/vulkan/nodes/drawing/frustum_culling.hpp>
 #include <oblo/vulkan/utility.hpp>
@@ -133,51 +134,33 @@ namespace oblo::vk
 
         const std::span drawData = ctx.access(inDrawData);
 
-        const auto visibilityBuffer = ctx.access(outVisibilityBuffer);
-        const auto depthBuffer = ctx.access(outDepthBuffer);
-
-        const VkRenderingAttachmentInfo colorAttachments[] = {
+        const render_attachment colorAttachments[] = {
             {
-                .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-                .imageView = visibilityBuffer.view,
-                .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                .texture = outVisibilityBuffer,
+                .loadOp = attachment_load_op::clear,
+                .storeOp = attachment_store_op::store,
             },
         };
 
-        const VkRenderingAttachmentInfo depthAttachment{
-            .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-            .imageView = depthBuffer.view,
-            .imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
-            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        const render_attachment depthAttachment{
+            .texture = outDepthBuffer,
+            .loadOp = attachment_load_op::clear,
+            .storeOp = attachment_store_op::store,
         };
 
-        const auto [renderWidth, renderHeight, _] = visibilityBuffer.initializer.extent;
-
-        const VkRenderingInfo renderInfo{
-            .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-            .renderArea =
-                {
-                    .extent{
-                        .width = renderWidth,
-                        .height = renderHeight,
-                    },
-                },
-            .layerCount = 1,
-            .colorAttachmentCount = array_size(colorAttachments),
-            .pColorAttachments = colorAttachments,
-            .pDepthAttachment = &depthAttachment,
+        const render_pass_config cfg{
+            .renderResolution = ctx.get_resolution(outVisibilityBuffer),
+            .colorAttachments = colorAttachments,
+            .depthAttachment = depthAttachment,
         };
 
-        if (!ctx.begin_pass(passInstance, renderInfo))
+        if (!ctx.begin_pass(passInstance, cfg))
         {
             return;
         }
 
-        ctx.set_viewport(renderWidth, renderHeight);
-        ctx.set_scissor(0, 0, renderWidth, renderHeight);
+        ctx.set_viewport(cfg.renderResolution.x, cfg.renderResolution.y);
+        ctx.set_scissor(0, 0, cfg.renderResolution.x, cfg.renderResolution.y);
 
         const binding_table* bindingTables[] = {
             &perDrawBindingTable,
