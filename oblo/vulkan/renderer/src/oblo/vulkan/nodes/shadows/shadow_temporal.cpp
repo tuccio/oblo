@@ -54,8 +54,7 @@ namespace oblo::vk
     {
         if (const auto pass = ctx.begin_pass(temporalPassInstance))
         {
-            const auto& sourceTexture = ctx.access(inShadow);
-            const vec2u resolution{sourceTexture.initializer.extent.width, sourceTexture.initializer.extent.height};
+            const vec2u resolution = ctx.get_resolution(inShadow);
 
             binding_table bindingTable;
 

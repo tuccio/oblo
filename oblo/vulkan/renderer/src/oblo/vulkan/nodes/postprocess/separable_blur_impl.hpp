@@ -109,8 +109,7 @@ namespace oblo::vk
     {
         if (const auto pass = ctx.begin_pass(blurPassInstance))
         {
-            const auto& sourceTexture = ctx.access(inSource);
-            const vec2u resolution{sourceTexture.initializer.extent.width, sourceTexture.initializer.extent.height};
+            const vec2u resolution = ctx.get_resolution(inSource);
 
             binding_table bindingTable;
 

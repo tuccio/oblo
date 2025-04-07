@@ -1,5 +1,6 @@
 #include <oblo/vulkan/nodes/postprocess/tone_mapping_node.hpp>
 
+#include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/compute_pass_initializer.hpp>
 #include <oblo/vulkan/gpu_allocator.hpp>
@@ -45,11 +46,11 @@ namespace oblo::vk
 
         if (const auto pass = ctx.begin_pass(toneMappingPassInstance))
         {
-            const auto& extents = ctx.access(outLDR).initializer.extent;
+            const vec2u resolution = ctx.get_resolution(outLDR);
 
             ctx.bind_descriptor_sets(bindingTable);
 
-            ctx.dispatch_compute(round_up_div(extents.width, ctx.get_gpu_info().subgroupSize), extents.height, 1);
+            ctx.dispatch_compute(round_up_div(resolution.x, ctx.get_gpu_info().subgroupSize), resolution.y, 1);
 
             ctx.end_pass();
         }

@@ -104,8 +104,7 @@ namespace oblo::vk
                 {"t_OutShadedImage"_hsv, outDebugImage},
             });
 
-            const auto& visBuffer = ctx.access(inVisibilityBuffer);
-            const vec2u resolution = {visBuffer.initializer.extent.width, visBuffer.initializer.extent.height};
+            const vec2u resolution = ctx.get_resolution(inVisibilityBuffer);
 
             ctx.bind_descriptor_sets(bindingTable);
 

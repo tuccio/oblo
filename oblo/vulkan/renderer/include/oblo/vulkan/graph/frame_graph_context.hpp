@@ -277,10 +277,6 @@ namespace oblo::vk
             return *static_cast<data_sink_container<T>*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
         }
 
-        texture access(resource<texture> h) const;
-
-        buffer access(resource<buffer> h) const;
-
         resource<acceleration_structure> get_global_tlas() const;
 
         /// @brief Determines whether the pin has an incoming edge.
@@ -340,8 +336,13 @@ namespace oblo::vk
 
         vec2u get_resolution(resource<texture> h) const;
 
+        // TODO: Make private
+        texture access(resource<texture> h) const;
+
     private:
         void* access_storage(h32<frame_graph_pin_storage> handle) const;
+
+        buffer access(resource<buffer> h) const;
 
         bool has_event_impl(const type_id& type) const;
 
