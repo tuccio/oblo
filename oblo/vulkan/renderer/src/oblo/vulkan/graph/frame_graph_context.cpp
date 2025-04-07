@@ -15,6 +15,7 @@
 #include <oblo/vulkan/draw/vk_type_conversions.hpp>
 #include <oblo/vulkan/graph/frame_graph_impl.hpp>
 #include <oblo/vulkan/graph/resource_pool.hpp>
+#include <oblo/vulkan/graph/types_internal.hpp>
 #include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/staging_buffer.hpp>

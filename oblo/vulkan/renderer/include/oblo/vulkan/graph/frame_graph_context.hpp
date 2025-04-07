@@ -33,15 +33,6 @@ namespace oblo::vk
 {
     class renderer;
 
-    enum class pass_kind : u8
-    {
-        none,
-        graphics,
-        compute,
-        raytracing,
-        transfer,
-    };
-
     enum class texture_usage : u8
     {
         render_target_write,
