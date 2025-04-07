@@ -32,32 +32,7 @@ namespace oblo
 namespace oblo::vk
 {
     class renderer;
-    class resource_manager;
     class resource_pool;
-
-    struct bindable_object;
-    struct buffer;
-    struct texture;
-    struct image_initializer;
-
-    struct loaded_functions;
-    struct frame_graph_impl;
-    struct frame_graph_build_state;
-    struct frame_graph_execution_state;
-    struct frame_graph_pin_storage;
-    struct frame_graph_pass;
-    struct compute_pass_instance;
-    struct resident_texture;
-    struct staging_buffer_span;
-
-    struct compute_pass_initializer;
-    struct render_pass_initializer;
-    struct raytracing_pass_initializer;
-    struct compute_pipeline_initializer;
-    struct render_pipeline_initializer;
-    struct raytracing_pipeline_initializer;
-
-    class binding_table;
 
     enum class pass_kind : u8
     {
