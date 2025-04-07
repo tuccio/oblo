@@ -657,8 +657,8 @@ namespace oblo::vk
             download.promise.init(get_global_allocator());
         }
 
-        frame_graph_execution_state executionState;
-        const frame_graph_execute_context executeCtx{*m_impl, executionState, renderer, commandBuffer};
+        frame_graph_execution_state executionState{.commandBuffer = commandBuffer};
+        const frame_graph_execute_context executeCtx{*m_impl, executionState, renderer};
 
         auto& imageLayoutTracker = executionState.imageLayoutTracker;
 
@@ -715,9 +715,7 @@ namespace oblo::vk
             if (passesPerNode.passesBegin < passesPerNode.passesEnd)
             {
                 // We automatically start the first pass
-                m_impl->begin_pass_execution(h32<frame_graph_pass>{passesPerNode.passesBegin},
-                    commandBuffer,
-                    executionState);
+                m_impl->begin_pass_execution(h32<frame_graph_pass>{passesPerNode.passesBegin}, executionState);
             }
 
             auto* const ptr = node->ptr;
@@ -789,8 +787,7 @@ namespace oblo::vk
         state.currentPass = {};
     }
 
-    void frame_graph_impl::begin_pass_execution(
-        h32<frame_graph_pass> passId, VkCommandBuffer commandBuffer, frame_graph_execution_state& state) const
+    void frame_graph_impl::begin_pass_execution(h32<frame_graph_pass> passId, frame_graph_execution_state& state) const
     {
         OBLO_ASSERT(passId);
 
@@ -843,7 +840,7 @@ namespace oblo::vk
                 .pImageMemoryBarriers = imageBarriers.data(),
             };
 
-            vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
+            vkCmdPipelineBarrier2(state.commandBuffer, &dependencyInfo);
         }
 
         state.currentPass = passId;

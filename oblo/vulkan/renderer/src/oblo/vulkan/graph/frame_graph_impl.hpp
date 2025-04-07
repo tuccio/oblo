@@ -318,8 +318,7 @@ namespace oblo::vk
         h32<frame_graph_pass> begin_pass_build(frame_graph_build_state& state, pass_kind passKind);
         void end_pass_build(frame_graph_build_state& state);
 
-        void begin_pass_execution(
-            h32<frame_graph_pass> pass, VkCommandBuffer commandBuffer, frame_graph_execution_state& state) const;
+        void begin_pass_execution(h32<frame_graph_pass> pass, frame_graph_execution_state& state) const;
 
     public: // Utility
         void free_pin_storage(const frame_graph_pin_storage& storage, bool isFrameAllocated);
@@ -334,6 +333,7 @@ namespace oblo::vk
 
     struct frame_graph_execution_state
     {
+        VkCommandBuffer commandBuffer{};
         h32<frame_graph_pass> currentPass;
         image_layout_tracker imageLayoutTracker;
         pass_kind passKind;

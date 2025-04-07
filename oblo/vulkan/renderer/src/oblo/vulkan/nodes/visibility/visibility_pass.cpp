@@ -176,25 +176,19 @@ namespace oblo::vk
             return;
         }
 
-        const VkCommandBuffer commandBuffer = ctx.get_command_buffer();
-
-        setup_viewport_scissor(commandBuffer, renderWidth, renderHeight);
+        ctx.set_viewport(renderWidth, renderHeight);
+        ctx.set_scissor(0, 0, renderWidth, renderHeight);
 
         const binding_table* bindingTables[] = {
             &perDrawBindingTable,
             &passBindingTable,
         };
 
-        const auto drawMeshIndirectCount = ctx.get_loaded_functions().vkCmdDrawMeshTasksIndirectCountEXT;
-
         const auto drawCallBufferSpan = ctx.access(inDrawCallBuffer);
 
         for (usize drawCallIndex = 0; drawCallIndex < drawData.size(); ++drawCallIndex)
         {
             const auto& culledDraw = drawData[drawCallIndex];
-
-            const auto drawCallBuffer = ctx.access(drawCallBufferSpan[drawCallIndex]);
-            const auto drawCallCountBuffer = ctx.access(culledDraw.drawCallCountBuffer);
 
             perDrawBindingTable.clear();
 
@@ -214,13 +208,11 @@ namespace oblo::vk
             ctx.bind_descriptor_sets(bindingTables);
             ctx.push_constants(shader_stage::mesh, 0, as_bytes(std::span{&pushConstants, 1}));
 
-            drawMeshIndirectCount(commandBuffer,
-                drawCallBuffer.buffer,
-                drawCallBuffer.offset,
-                drawCallCountBuffer.buffer,
-                drawCallCountBuffer.offset,
-                culledDraw.sourceData.numInstances,
-                sizeof(VkDrawMeshTasksIndirectCommandEXT));
+            ctx.draw_mesh_tasks_indirect_count(drawCallBufferSpan[drawCallIndex],
+                0,
+                culledDraw.drawCallCountBuffer,
+                0,
+                culledDraw.sourceData.numInstances);
         }
 
         ctx.end_pass();

@@ -11,8 +11,6 @@
 #include <oblo/vulkan/graph/frame_graph_resources.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 
-#include <vulkan/vulkan_core.h>
-
 #include <span>
 
 namespace oblo
@@ -246,10 +244,8 @@ namespace oblo::vk
     class frame_graph_execute_context
     {
     public:
-        explicit frame_graph_execute_context(const frame_graph_impl& frameGraph,
-            frame_graph_execution_state& executeCtx,
-            renderer& renderer,
-            VkCommandBuffer commandBuffer);
+        explicit frame_graph_execute_context(
+            const frame_graph_impl& frameGraph, frame_graph_execution_state& executeCtx, renderer& renderer);
 
         void begin_pass(h32<frame_graph_pass> handle) const;
 
@@ -266,6 +262,8 @@ namespace oblo::vk
         void end_pass() const;
 
         void bind_descriptor_sets(binding_tables_span bindingTables) const;
+
+        void bind_index_buffer(resource<buffer> buffer, u32 bufferOffset, mesh_index_type indexType) const;
 
         template <typename T>
         T& access(data<T> data) const
@@ -313,11 +311,7 @@ namespace oblo::vk
 
         async_download download(resource<buffer> h) const;
 
-        VkCommandBuffer get_command_buffer() const;
-
         u64 get_device_address(resource<buffer> buffer) const;
-
-        const loaded_functions& get_loaded_functions() const;
 
         template <typename T>
         bool has_event() const
@@ -327,9 +321,22 @@ namespace oblo::vk
 
         const gpu_info& get_gpu_info() const;
 
+        void set_viewport(u32 w, u32 h) const;
+        void set_scissor(i32 x, i32 y, u32 w, u32 h) const;
+
         void push_constants(flags<shader_stage, 14> stages, u32 offset, std::span<const byte> bytes) const;
         void dispatch_compute(u32 groupsX, u32 groupsY, u32 groupsZ) const;
         void trace_rays(u32 x, u32 y, u32 z) const;
+
+        void draw_indexed(u32 indexCount, u32 instanceCount, u32 firstIndex, u32 vertexOffset, u32 firstInstance) const;
+
+        void draw_mesh_tasks_indirect_count(resource<buffer> drawCallBuffer,
+            u32 drawCallBufferOffset,
+            resource<buffer> drawCallCountBuffer,
+            u32 drawCallCountBufferOffset,
+            u32 maxDrawCount) const;
+
+        void blit_image(resource<texture> srcTexture, resource<texture> dstTexture) const;
 
         vec2u get_resolution(resource<texture> h) const;
 
@@ -342,6 +349,5 @@ namespace oblo::vk
         const frame_graph_impl& m_frameGraph;
         frame_graph_execution_state& m_state;
         renderer& m_renderer;
-        VkCommandBuffer m_commandBuffer;
     };
 }

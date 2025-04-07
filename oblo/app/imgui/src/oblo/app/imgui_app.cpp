@@ -265,9 +265,7 @@ namespace oblo
 
                 if (ctx.begin_pass(renderPassInstance, renderInfo))
                 {
-                    const VkCommandBuffer commandBuffer = ctx.get_command_buffer();
-
-                    vk::setup_viewport_scissor(commandBuffer, renderWidth, renderHeight);
+                    ctx.set_viewport(renderWidth, renderHeight);
 
                     struct transform_constants
                     {
@@ -283,12 +281,9 @@ namespace oblo
 
                     ctx.bind_descriptor_sets(bindingTable);
 
-                    auto indexBuffer = ctx.access(outIndexBuffer);
-
-                    vkCmdBindIndexBuffer(commandBuffer,
-                        indexBuffer.buffer,
-                        indexBuffer.offset,
-                        sizeof(ImDrawIdx) == 2 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
+                    ctx.bind_index_buffer(outIndexBuffer,
+                        0,
+                        sizeof(ImDrawIdx) == 2 ? mesh_index_type::u16 : mesh_index_type::u32);
 
                     ImGuiViewport* const viewport = ctx.access(inViewport);
                     OBLO_ASSERT(viewport);
@@ -310,9 +305,9 @@ namespace oblo
 
                     // Will project scissor/clipping rectangles into framebuffer space
                     // (0,0) unless using multi-viewports
-                    ImVec2 clipOffset = drawData->DisplayPos;
+                    const ImVec2 clipOffset = drawData->DisplayPos;
                     // (1,1) unless using retina display which are often (2,2)
-                    ImVec2 clipScale = drawData->FramebufferScale;
+                    const ImVec2 clipScale = drawData->FramebufferScale;
 
                     i32 vertexOffset = 0;
                     i32 indexOffset = 0;
@@ -340,20 +335,6 @@ namespace oblo
                                 continue;
                             }
 
-                            // Apply scissor/clipping rectangle
-                            const VkRect2D scissor{
-                                .offset =
-                                    {
-                                        .x = (i32) (clipMin.x),
-                                        .y = (i32) (clipMin.y),
-                                    },
-                                .extent =
-                                    {
-                                        .width = (u32) (clipMax.x - clipMin.x),
-                                        .height = (u32) (clipMax.y - clipMin.y),
-                                    },
-                            };
-
                             u32 residentTexture = textures[cmd.GetTexID()].value;
 
                             if (residentTexture != lastResidentTexture)
@@ -365,10 +346,12 @@ namespace oblo
                                 lastResidentTexture = residentTexture;
                             }
 
-                            vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+                            ctx.set_scissor(i32(clipMin.x),
+                                i32(clipMin.y),
+                                u32(clipMax.x - clipMin.x),
+                                u32(clipMax.y - clipMin.y));
 
-                            vkCmdDrawIndexed(commandBuffer,
-                                cmd.ElemCount,
+                            ctx.draw_indexed(cmd.ElemCount,
                                 1,
                                 cmd.IdxOffset + indexOffset,
                                 cmd.VtxOffset + vertexOffset,

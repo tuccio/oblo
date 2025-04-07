@@ -30,4 +30,6 @@ namespace oblo::vk
     enum class buffer_usage : u8;
     enum class pass_kind : u8;
     enum class shader_stage : u8;
+
+    enum class mesh_index_type : u8;
 }

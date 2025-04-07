@@ -8,6 +8,7 @@
 #include <oblo/log/log.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/draw/mesh_table.hpp>
+#include <oblo/vulkan/draw/vk_type_conversions.hpp>
 #include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 
@@ -269,23 +270,7 @@ namespace oblo::vk
 
         const auto indexType = m_tables[tableId].meshes->get_index_type();
 
-        switch (indexType)
-        {
-        case VK_INDEX_TYPE_NONE_KHR:
-            return mesh_index_type::none;
-
-        case VK_INDEX_TYPE_UINT8_EXT:
-            return mesh_index_type::u8;
-
-        case VK_INDEX_TYPE_UINT16:
-            return mesh_index_type::u16;
-
-        case VK_INDEX_TYPE_UINT32:
-            return mesh_index_type::u32;
-
-        default:
-            unreachable();
-        }
+        return convert_to_oblo(indexType);
     }
 
     buffer mesh_database::get_index_buffer(mesh_index_type meshIndexType) const
