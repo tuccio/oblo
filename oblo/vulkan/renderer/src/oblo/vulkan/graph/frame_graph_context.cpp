@@ -1144,7 +1144,7 @@ namespace oblo::vk
             sizeof(VkDrawMeshTasksIndirectCommandEXT));
     }
 
-    void frame_graph_execute_context::blit_image(resource<texture> srcTexture, resource<texture> dstTexture) const
+    void frame_graph_execute_context::blit_color(resource<texture> srcTexture, resource<texture> dstTexture) const
     {
         const texture src = access(srcTexture);
         const texture dst = access(dstTexture);

@@ -256,7 +256,7 @@ namespace oblo::vk
             u32 drawCallCountBufferOffset,
             u32 maxDrawCount) const;
 
-        void blit_image(resource<texture> srcTexture, resource<texture> dstTexture) const;
+        void blit_color(resource<texture> srcTexture, resource<texture> dstTexture) const;
 
         vec2u get_resolution(resource<texture> h) const;
 

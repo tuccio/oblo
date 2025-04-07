@@ -635,7 +635,7 @@ namespace oblo::vk::swapchain_graph
         {
             if (blitPass && ctx.begin_pass(blitPass))
             {
-                ctx.blit_image(inRenderedImage, inSwapchainImage);
+                ctx.blit_color(inRenderedImage, inSwapchainImage);
                 ctx.end_pass();
             }
 
