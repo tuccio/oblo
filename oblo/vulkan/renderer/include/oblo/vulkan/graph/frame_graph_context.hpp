@@ -59,18 +59,6 @@ namespace oblo::vk
         enum_max,
     };
 
-    struct texture_binding_desc
-    {
-        string_view name;
-        resource<texture> resource;
-    };
-
-    struct buffer_binding_desc
-    {
-        string_view name;
-        resource<buffer> resource;
-    };
-
     struct gpu_info
     {
         u32 subgroupSize;
