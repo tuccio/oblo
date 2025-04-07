@@ -2,6 +2,7 @@
 
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/vulkan/buffer.hpp>
+#include <oblo/vulkan/draw/draw_registry.hpp>
 #include <oblo/vulkan/graph/node_common.hpp>
 
 namespace oblo::vk

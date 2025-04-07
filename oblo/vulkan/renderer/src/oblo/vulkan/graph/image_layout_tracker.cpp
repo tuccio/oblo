@@ -1,6 +1,8 @@
-#include <oblo/core/unreachable.hpp>
-#include <oblo/vulkan/graph/frame_graph_context.hpp>
 #include <oblo/vulkan/graph/image_layout_tracker.hpp>
+
+#include <oblo/core/unreachable.hpp>
+#include <oblo/vulkan/draw/types.hpp>
+#include <oblo/vulkan/graph/frame_graph_context.hpp>
 #include <oblo/vulkan/graph/types_internal.hpp>
 #include <oblo/vulkan/texture.hpp>
 

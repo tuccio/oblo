@@ -33,32 +33,6 @@ namespace oblo::vk
 {
     class renderer;
 
-    enum class texture_usage : u8
-    {
-        render_target_write,
-        depth_stencil_read,
-        depth_stencil_write,
-        shader_read,
-        storage_read,
-        storage_write,
-        transfer_source,
-        transfer_destination,
-        present,
-    };
-
-    enum class buffer_usage : u8
-    {
-        storage_read,
-        storage_write,
-        /// @brief This means the buffer is not actually used on GPU in this node, just uploaded on.
-        storage_upload,
-        uniform,
-        indirect,
-        download,
-        index,
-        enum_max,
-    };
-
     struct gpu_info
     {
         u32 subgroupSize;

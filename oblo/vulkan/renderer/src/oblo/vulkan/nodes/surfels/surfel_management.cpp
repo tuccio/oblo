@@ -3,6 +3,7 @@
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/random_generator.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/ecs/handles.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/math/vec4.hpp>
