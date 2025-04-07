@@ -32,7 +32,6 @@ namespace oblo
 namespace oblo::vk
 {
     class renderer;
-    class resource_pool;
 
     enum class pass_kind : u8
     {
@@ -107,10 +106,8 @@ namespace oblo::vk
     class frame_graph_build_context
     {
     public:
-        explicit frame_graph_build_context(frame_graph_impl& frameGraph,
-            frame_graph_build_state& state,
-            renderer& renderer,
-            resource_pool& resourcePool);
+        explicit frame_graph_build_context(
+            frame_graph_impl& frameGraph, frame_graph_build_state& state, renderer& renderer);
 
         [[nodiscard]] h32<compute_pass_instance> compute_pass(h32<compute_pass> pass,
             const compute_pipeline_initializer& initializer) const;
@@ -213,7 +210,6 @@ namespace oblo::vk
         frame_graph_impl& m_frameGraph;
         frame_graph_build_state& m_state;
         renderer& m_renderer;
-        resource_pool& m_resourcePool;
     };
 
     class frame_graph_execute_context

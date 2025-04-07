@@ -541,7 +541,7 @@ namespace oblo::vk
         m_impl->passes.assign_default(1);
 
         frame_graph_build_state buildState;
-        const frame_graph_build_context buildCtx{*m_impl, buildState, renderer, m_impl->resourcePool};
+        const frame_graph_build_context buildCtx{*m_impl, buildState, renderer};
 
         // Clearing these is required for certain operations that query created textures during the build process (e.g.
         // get_texture_initializer).

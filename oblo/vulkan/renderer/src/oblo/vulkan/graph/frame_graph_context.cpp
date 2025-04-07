@@ -377,12 +377,12 @@ namespace oblo::vk
             stableId = std::bit_cast<h32<stable_texture_resource>>(texture);
         }
 
-        const auto poolIndex = m_resourcePool.add_transient_texture(imageInitializer, range, stableId);
+        const auto poolIndex = m_frameGraph.resourcePool.add_transient_texture(imageInitializer, range, stableId);
 
         m_frameGraph.add_transient_resource(texture, poolIndex);
         m_frameGraph.add_resource_transition(texture, usage);
 
-        add_texture_usages(m_resourcePool, m_frameGraph, texture, usage);
+        add_texture_usages(m_frameGraph.resourcePool, m_frameGraph, texture, usage);
     }
 
     void frame_graph_build_context::create(
@@ -408,7 +408,7 @@ namespace oblo::vk
                 "Uploading at initialization time on stable buffers is currently not supported");
         }
 
-        const auto poolIndex = m_resourcePool.add_transient_buffer(initializer.size, vkUsage, stableId);
+        const auto poolIndex = m_frameGraph.resourcePool.add_transient_buffer(initializer.size, vkUsage, stableId);
 
         staging_buffer_span stagedData{};
         staging_buffer_span* stagedDataPtr{};
@@ -457,7 +457,7 @@ namespace oblo::vk
 
         constexpr h32<stable_buffer_resource> notStable{};
 
-        const auto poolIndex = m_resourcePool.add_transient_buffer(stagedDataSize, vkUsage, notStable);
+        const auto poolIndex = m_frameGraph.resourcePool.add_transient_buffer(stagedDataSize, vkUsage, notStable);
 
         // We rely on a global memory barrier in frame graph to synchronize all uploads before submitting any command
 
@@ -478,7 +478,7 @@ namespace oblo::vk
     void frame_graph_build_context::register_texture(resource<texture> resource, h32<texture> externalTexture) const
     {
         const auto& texture = m_frameGraph.resourceManager->get(externalTexture);
-        const auto poolIndex = m_resourcePool.add_external_texture(texture);
+        const auto poolIndex = m_frameGraph.resourcePool.add_external_texture(texture);
         m_frameGraph.add_transient_resource(resource, poolIndex);
     }
 
@@ -493,7 +493,7 @@ namespace oblo::vk
         OBLO_ASSERT(m_state.currentPass);
 
         m_frameGraph.add_resource_transition(texture, usage);
-        add_texture_usages(m_resourcePool, m_frameGraph, texture, usage);
+        add_texture_usages(m_frameGraph.resourcePool, m_frameGraph, texture, usage);
     }
 
     h32<resident_texture> frame_graph_build_context::acquire_bindless(resource<texture> texture,
@@ -502,7 +502,7 @@ namespace oblo::vk
         OBLO_ASSERT(m_state.currentPass);
 
         m_frameGraph.add_resource_transition(texture, usage);
-        add_texture_usages(m_resourcePool, m_frameGraph, texture, usage);
+        add_texture_usages(m_frameGraph.resourcePool, m_frameGraph, texture, usage);
 
         const auto bindlessHandle = m_renderer.get_texture_registry().acquire();
         m_frameGraph.bindlessTextures.emplace_back(bindlessHandle, texture, usage);
@@ -521,7 +521,7 @@ namespace oblo::vk
 
         const auto poolIndex = m_frameGraph.find_pool_index(buffer);
         OBLO_ASSERT(poolIndex, "The buffer might not have an input connected, or needs to be created");
-        m_resourcePool.add_transient_buffer_usage(poolIndex, convert_buffer_usage(usage));
+        m_frameGraph.resourcePool.add_transient_buffer_usage(poolIndex, convert_buffer_usage(usage));
 
         const auto& currentPass = m_frameGraph.passes[m_state.currentPass.value];
         const auto [pipelineStage, access, accessKind] = convert_for_sync2(currentPass.kind, usage);
@@ -608,7 +608,7 @@ namespace oblo::vk
             return unspecified_error;
         }
 
-        return m_resourcePool.get_initializer(h);
+        return m_frameGraph.resourcePool.get_initializer(h);
     }
 
     frame_allocator& frame_graph_build_context::get_frame_allocator() const
@@ -631,9 +631,9 @@ namespace oblo::vk
         return m_frameGraph.frameCounter;
     }
 
-    frame_graph_build_context::frame_graph_build_context(
-        frame_graph_impl& frameGraph, frame_graph_build_state& state, renderer& renderer, resource_pool& resourcePool) :
-        m_frameGraph{frameGraph}, m_state{state}, m_renderer{renderer}, m_resourcePool{resourcePool}
+    frame_graph_build_context::frame_graph_build_context(frame_graph_impl& frameGraph,
+        frame_graph_build_state& state,
+        renderer& renderer) : m_frameGraph{frameGraph}, m_state{state}, m_renderer{renderer}
     {
     }
 

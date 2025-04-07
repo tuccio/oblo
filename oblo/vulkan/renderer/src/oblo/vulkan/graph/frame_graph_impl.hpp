@@ -285,7 +285,6 @@ namespace oblo::vk
         void rebuild_runtime(renderer& renderer);
         void flush_uploads(VkCommandBuffer commandBuffer, staging_buffer& stagingBuffer);
         void flush_downloads(vulkan_context& vkCtx);
-        void begin_frame();
         void finish_frame();
 
     public: // API for contexts
