@@ -43,8 +43,7 @@ namespace oblo::vk
             {
                 .width = resolution.x,
                 .height = resolution.y,
-                .format = VK_FORMAT_R16G16B16A16_SFLOAT,
-                .usage = VK_IMAGE_USAGE_STORAGE_BIT,
+                .format = texture_format::r16g16b16a16_sfloat,
             },
             texture_usage::storage_write);
 
@@ -192,8 +191,7 @@ namespace oblo::vk
             {
                 .width = resolution.x,
                 .height = resolution.y,
-                .format = VK_FORMAT_R8G8B8A8_UNORM,
-                .usage = VK_IMAGE_USAGE_STORAGE_BIT,
+                .format = texture_format::r8g8b8a8_unorm,
             },
             texture_usage::storage_write);
 

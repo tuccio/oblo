@@ -356,13 +356,13 @@ namespace oblo::vk
 
         const image_initializer imageInitializer{
             .imageType = VK_IMAGE_TYPE_2D,
-            .format = initializer.format,
+            .format = convert_to_vk(initializer.format),
             .extent = {.width = initializer.width, .height = initializer.height, .depth = 1},
             .mipLevels = 1,
             .arrayLayers = 1,
             .samples = VK_SAMPLE_COUNT_1_BIT,
             .tiling = VK_IMAGE_TILING_OPTIMAL,
-            .usage = convert_usage(usage) | VK_IMAGE_USAGE_SAMPLED_BIT | initializer.usage,
+            .usage = convert_usage(usage) | VK_IMAGE_USAGE_SAMPLED_BIT,
             .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
             .memoryUsage = memory_usage::gpu_only,
             .debugLabel = initializer.debugLabel,

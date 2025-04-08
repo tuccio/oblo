@@ -63,8 +63,7 @@ namespace oblo::vk
             {
                 .width = resolution.x,
                 .height = resolution.y,
-                .format = VkFormat(visibilityBufferFormat),
-                .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                .format = visibilityBufferFormat,
             },
             texture_usage::render_target_write);
 
@@ -84,7 +83,7 @@ namespace oblo::vk
                 {
                     .width = resolution.x,
                     .height = resolution.y,
-                    .format = VK_FORMAT_D24_UNORM_S8_UINT,
+                    .format = texture_format::d24_unorm_s8_uint,
                     .isStable = true,
                 },
                 texture_usage::depth_stencil_write);
@@ -93,7 +92,7 @@ namespace oblo::vk
                 {
                     .width = resolution.x,
                     .height = resolution.y,
-                    .format = VK_FORMAT_D24_UNORM_S8_UINT,
+                    .format = texture_format::d24_unorm_s8_uint,
                     .isStable = true,
                 },
                 texture_usage::depth_stencil_read);

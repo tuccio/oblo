@@ -29,8 +29,7 @@ namespace oblo::vk
             texture_resource_initializer{
                 .width = hdrInit.extent.width,
                 .height = hdrInit.extent.height,
-                .format = VK_FORMAT_R8G8B8A8_UNORM,
-                .usage = VK_IMAGE_USAGE_STORAGE_BIT,
+                .format = texture_format::r8g8b8a8_unorm,
             },
             texture_usage::storage_write);
     }

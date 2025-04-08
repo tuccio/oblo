@@ -31,7 +31,7 @@ namespace oblo::vk
             {
                 .width = imageInitializer->extent.width,
                 .height = imageInitializer->extent.height,
-                .format = VK_FORMAT_R8_UNORM,
+                .format = texture_format::r8_unorm,
             },
             texture_usage::storage_write);
 
@@ -41,7 +41,7 @@ namespace oblo::vk
             {
                 .width = imageInitializer->extent.width,
                 .height = imageInitializer->extent.height,
-                .format = VK_FORMAT_R8_UNORM,
+                .format = texture_format::r8_unorm,
                 .isStable = true,
             },
             texture_usage::shader_read);

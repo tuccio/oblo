@@ -122,6 +122,11 @@ namespace oblo::vk
         return VkFormat(format);
     }
 
+    inline texture_format convert_to_oblo(VkFormat format)
+    {
+        return texture_format(format);
+    }
+
     inline VkBlendFactor convert_to_vk(blend_factor factor)
     {
         return VkBlendFactor(factor);

@@ -13,6 +13,8 @@
 
 #include <span>
 
+#include <vulkan/vulkan_core.h>
+
 namespace oblo
 {
     class async_download;
