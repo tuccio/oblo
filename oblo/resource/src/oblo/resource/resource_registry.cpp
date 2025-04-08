@@ -134,7 +134,14 @@ namespace oblo
 
                     auto* const resource = detail::resource_create(&typeIt->second, e.id, e.name, e.path);
 
-                    m_resources[e.id] = resource_storage{
+                    auto& entry = m_resources[e.id];
+
+                    if (entry.handle)
+                    {
+                        entry.handle.invalidate();
+                    }
+
+                    entry = resource_storage{
                         .handle = resource_ptr<void>{resource},
                     };
 

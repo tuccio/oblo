@@ -17,6 +17,8 @@ namespace oblo::detail
             .path = path.as<string>(),
             .descriptor = desc,
             .counter = 0,
+            .loadState = resource_load_state::unloaded,
+            .invalidated = false,
         };
     }
 
@@ -122,5 +124,15 @@ namespace oblo::detail
         auto* const jm = job_manager::get();
         jm->increase_reference(resource->loadJob);
         jm->wait(resource->loadJob);
+    }
+
+    bool resource_is_invalidated(resource* resource)
+    {
+        return resource->invalidated.load(std::memory_order_relaxed);
+    }
+
+    void resource_invalidate(resource* resource)
+    {
+        resource->invalidated.store(true, std::memory_order_relaxed);
     }
 }

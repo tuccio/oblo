@@ -16,3 +16,5 @@ target_link_libraries(
 )
 
 add_library(oblo::luau::runtime ALIAS oblo_luau_rt)
+
+oblo_create_symlink("${CMAKE_CURRENT_SOURCE_DIR}/resources" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/luau")

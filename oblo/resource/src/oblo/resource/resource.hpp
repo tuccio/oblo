@@ -29,6 +29,7 @@ namespace oblo
         const resource_type_descriptor* descriptor;
         std::atomic<u32> counter;
         std::atomic<resource_load_state> loadState;
+        std::atomic<bool> invalidated;
     };
 
     namespace detail
@@ -39,5 +40,7 @@ namespace oblo
         bool resource_instantiate(resource* resource);
         void resource_start_loading(resource* resource);
         bool resource_is_loaded(resource* resource);
+        bool resource_is_invalidated(resource* resource);
+        void resource_invalidate(resource* resource);
     }
 }
