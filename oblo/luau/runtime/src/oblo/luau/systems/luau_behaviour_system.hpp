@@ -6,6 +6,8 @@
 
 namespace oblo
 {
+    class resource_registry;
+
     class luau_behaviour_system
     {
     public:
@@ -15,5 +17,6 @@ namespace oblo
 
     private:
         lua_State* m_state{};
+        const resource_registry* m_resourceRegistry{};
     };
 }

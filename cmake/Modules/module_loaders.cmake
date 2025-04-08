@@ -3,6 +3,7 @@ function(_oblo_init_module_load_type type)
     set_target_properties(oblo_register_module_${type} PROPERTIES oblo_registered_modules "")
 endfunction(_oblo_init_module_load_type)
 
+_oblo_init_module_load_type(asset)
 _oblo_init_module_load_type(core)
 
 function(_oblo_register_module_as module type)
@@ -42,11 +43,16 @@ namespace oblo::gen
         $<LIST:TRANSFORM,$<TARGET_PROPERTY:oblo_register_module_${type},oblo_registered_modules>,REPLACE,(.+),mm.load(\"${_module_prefix}\\0\");\n>
     }
 }")
+    set(_target ${_module_prefix}${module})
 
     # Make sure we inherit all the dependencies, so that the modules are built before the loader
-    add_dependencies(oblo_${module} oblo_register_module_${type})
+    if (NOT TARGET ${_target})
+        set(_target ${module})
+    endif()
 
-    target_include_directories(oblo_${module} PRIVATE ${_include_dir})
+    add_dependencies(${_target} oblo_register_module_${type})
+
+    target_include_directories(${_target} PRIVATE ${_include_dir})
 endfunction(_oblo_register_module_loader_as)
 
 function(oblo_register_core_module module)
@@ -56,3 +62,11 @@ endfunction(oblo_register_core_module)
 function(oblo_register_core_module_loader module)
     _oblo_register_module_loader_as(${module} core)
 endfunction(oblo_register_core_module_loader)
+
+function(oblo_register_asset_module module)
+    _oblo_register_module_as(${module} asset)
+endfunction(oblo_register_asset_module)
+
+function(oblo_register_asset_module_loader module)
+    _oblo_register_module_loader_as(${module} asset)
+endfunction(oblo_register_asset_module_loader)

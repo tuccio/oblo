@@ -10,6 +10,8 @@ target_link_libraries(
     oblo::ecs
     oblo::log
     oblo::modules
+    oblo::reflection
+    oblo::resource
     Luau::Luau
 )
 

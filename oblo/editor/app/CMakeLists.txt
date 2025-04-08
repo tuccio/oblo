@@ -3,6 +3,8 @@ oblo_add_executable(oblo)
 find_package(cxxopts REQUIRED)
 find_package(SDL2 REQUIRED)
 
+oblo_register_asset_module_loader(oblo)
+
 target_link_libraries(
     oblo
     PRIVATE

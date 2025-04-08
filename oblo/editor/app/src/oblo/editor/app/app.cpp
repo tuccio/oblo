@@ -50,6 +50,8 @@
 
 #include <cxxopts.hpp>
 
+#include <module_loader_asset.gen.hpp>
+
 namespace oblo
 {
     std::istream& operator>>(std::istream& is, string_builder& s);
@@ -194,6 +196,8 @@ namespace oblo::editor
                 mm.load<scene_editor_module>();
 
                 initializer.services->add<options_layer_provider>().externally_owned(&m_editorOptions);
+
+                gen::load_modules_asset();
 
                 return true;
             }

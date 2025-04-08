@@ -5,6 +5,7 @@
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_interface.hpp>
 #include <oblo/modules/utility/registration.hpp>
+#include <oblo/reflection/codegen/registration.hpp>
 
 namespace oblo::barriers
 {
@@ -18,6 +19,8 @@ namespace oblo
     public:
         bool startup(const module_initializer& initializer) override
         {
+            reflection::gen::load_module_and_register();
+
             initializer.services->add<ecs::world_builder>().unique({
                 .systems = [](ecs::system_graph_builder& b)
                 { b.add_system<luau_behaviour_system>().before<barriers::transform_update>(); },
