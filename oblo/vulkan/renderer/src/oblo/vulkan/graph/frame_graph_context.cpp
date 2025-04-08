@@ -751,7 +751,7 @@ namespace oblo::vk
                 .imageLayout = layout,
                 .loadOp = convert_to_vk(attachment.loadOp),
                 .storeOp = convert_to_vk(attachment.storeOp),
-                .clearValue = std::bit_cast<VkClearColorValue>(attachment.clearValue),
+                .clearValue = {std::bit_cast<VkClearColorValue>(attachment.clearValue)},
             };
         }
     }
