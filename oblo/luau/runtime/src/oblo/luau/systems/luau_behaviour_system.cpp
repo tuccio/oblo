@@ -38,10 +38,18 @@ namespace oblo
                     continue;
                 }
 
+                if (!script.is_loaded())
+                {
+                    script.load_start_async();
+                    continue;
+                }
+
+                auto& byteCode = script->byteCode;
+
                 if (luau_load(m_state,
                         "luau_behaviour",
-                        reinterpret_cast<const char*>(script->byteCode.data()),
-                        script->byteCode.size_bytes(),
+                        reinterpret_cast<const char*>(byteCode.data()),
+                        byteCode.size_bytes(),
                         0) != LUA_OK)
                 {
                     log::error("Failed to load");
