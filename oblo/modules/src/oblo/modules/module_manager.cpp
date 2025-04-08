@@ -75,9 +75,9 @@ namespace oblo
 
     struct module_manager::module_storage
     {
+        platform::shared_library lib;
         unique_ptr<module_interface> ptr;
         service_registry services;
-        platform::shared_library lib;
         u32 loadOrder{};
     };
 
@@ -175,6 +175,7 @@ namespace oblo
 
     void module_manager::shutdown()
     {
+
         // We unload in reverse load order
         dynamic_array<sorted_module> modules;
         sort_modules(modules, m_modules, reverse_load_order{});
@@ -192,6 +193,8 @@ namespace oblo
             it->second.ptr->shutdown();
             m_modules.erase(it);
         }
+
+        m_services.clear();
     }
 
     module_interface* module_manager::find(const hashed_string_view& id) const
