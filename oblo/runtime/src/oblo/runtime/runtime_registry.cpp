@@ -10,7 +10,7 @@ namespace oblo
         resource_registry resourceRegistry;
     };
 
-    runtime_registry::runtime_registry(property_registry* propertyRegistry) : m_impl{std::make_unique<impl>()}
+    runtime_registry::runtime_registry(property_registry* propertyRegistry) : m_impl{allocate_unique<impl>()}
     {
         m_impl->propertyRegistry = propertyRegistry;
     }
@@ -31,5 +31,10 @@ namespace oblo
     resource_registry& runtime_registry::get_resource_registry()
     {
         return m_impl->resourceRegistry;
+    }
+
+    void runtime_registry::shutdown()
+    {
+        m_impl.reset();
     }
 }

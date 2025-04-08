@@ -1,8 +1,7 @@
 #pragma once
 
+#include <oblo/core/unique_ptr.hpp>
 #include <oblo/modules/module_interface.hpp>
-
-#include <memory>
 
 namespace oblo
 {
@@ -26,6 +25,8 @@ namespace oblo
 
         RUNTIME_API resource_registry& get_resource_registry();
 
+        RUNTIME_API void shutdown();
+
     private:
         explicit runtime_registry(property_registry* propertyRegistry);
 
@@ -34,6 +35,6 @@ namespace oblo
         struct impl;
 
     private:
-        std::unique_ptr<impl> m_impl;
+        unique_ptr<impl> m_impl;
     };
 }

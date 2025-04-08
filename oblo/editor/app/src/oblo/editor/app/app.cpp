@@ -535,6 +535,7 @@ namespace oblo::editor
     {
         m_windowManager.shutdown();
         m_runtimeManager.shutdown();
+        m_runtimeRegistry.shutdown();
         platform::shutdown();
 
         module_manager::get().shutdown();
