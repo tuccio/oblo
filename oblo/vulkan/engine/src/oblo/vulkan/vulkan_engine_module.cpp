@@ -46,7 +46,7 @@ namespace oblo::vk
     namespace
     {
         constexpr u32 g_SwapchainImages = 3;
-        constexpr VkFormat g_SwapchainFormat = VK_FORMAT_B8G8R8A8_SRGB;
+        constexpr VkFormat g_SwapchainFormat = VK_FORMAT_B8G8R8A8_UNORM;
 
         bool create_surface(native_window_handle wh,
             VkInstance instance,

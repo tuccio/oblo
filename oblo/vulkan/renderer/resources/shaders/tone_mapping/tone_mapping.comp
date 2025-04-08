@@ -3,6 +3,7 @@
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_nonuniform_qualifier : require
 
+#include <renderer/color>
 #include <renderer/math>
 #include <renderer/textures>
 #include <tone_mapping/tonemap>
@@ -14,7 +15,7 @@ layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in
 
 vec3 tone_map(in vec3 x)
 {
-#if 1
+#if 0
     return tonemap_aces_approx(x);
 #else
     return tonemap_aces_hill(x);
@@ -32,7 +33,7 @@ void main()
     }
 
     const vec4 hdr = imageLoad(t_InHDR, screenPos);
-    const vec4 ldr = vec4(tone_map(hdr.xyz), hdr.w);
+    const vec4 ldr = vec4(linear_to_srgb_float(tone_map(hdr.xyz)), hdr.w);
 
     imageStore(t_OutLDR, screenPos, ldr);
 }
