@@ -21,14 +21,14 @@ namespace oblo::vk
     {
         toneMappingPassInstance = ctx.compute_pass(toneMappingPass, {});
 
-        const auto hdrInit = ctx.get_current_initializer(inHDR).value_or(image_initializer{});
+        const auto hdrInit = ctx.get_current_initializer(inHDR).value_or(texture_init_desc{});
 
         ctx.acquire(inHDR, texture_usage::storage_read);
 
         ctx.create(outLDR,
             texture_resource_initializer{
-                .width = hdrInit.extent.width,
-                .height = hdrInit.extent.height,
+                .width = hdrInit.width,
+                .height = hdrInit.height,
                 .format = texture_format::r8g8b8a8_unorm,
             },
             texture_usage::storage_write);

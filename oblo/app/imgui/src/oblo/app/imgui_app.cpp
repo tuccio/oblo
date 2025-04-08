@@ -138,7 +138,7 @@ namespace oblo
                 }
 
                 const auto rtInitializer =
-                    ctx.get_current_initializer(inOutRenderTarget).value_or(vk::image_initializer{});
+                    ctx.get_current_initializer(inOutRenderTarget).value_or(vk::texture_init_desc{});
 
                 renderPassInstance = ctx.render_pass(renderPass,
                     {

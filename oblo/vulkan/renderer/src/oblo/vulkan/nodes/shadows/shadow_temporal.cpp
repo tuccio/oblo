@@ -29,8 +29,8 @@ namespace oblo::vk
 
         ctx.create(outFiltered,
             {
-                .width = imageInitializer->extent.width,
-                .height = imageInitializer->extent.height,
+                .width = imageInitializer->width,
+                .height = imageInitializer->height,
                 .format = texture_format::r8_unorm,
             },
             texture_usage::storage_write);
@@ -39,8 +39,8 @@ namespace oblo::vk
         // We effectively read the history from the previous frame in this pass
         ctx.create(inHistory,
             {
-                .width = imageInitializer->extent.width,
-                .height = imageInitializer->extent.height,
+                .width = imageInitializer->width,
+                .height = imageInitializer->height,
                 .format = texture_format::r8_unorm,
                 .isStable = true,
             },

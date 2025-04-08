@@ -601,7 +601,7 @@ namespace oblo::vk
         return resource;
     }
 
-    expected<image_initializer> frame_graph_build_context::get_current_initializer(resource<texture> texture) const
+    expected<texture_init_desc> frame_graph_build_context::get_current_initializer(resource<texture> texture) const
     {
         const auto h = m_frameGraph.find_pool_index(texture);
 
@@ -610,7 +610,13 @@ namespace oblo::vk
             return unspecified_error;
         }
 
-        return m_frameGraph.resourcePool.get_initializer(h);
+        const auto& init = m_frameGraph.resourcePool.get_initializer(h);
+
+        return texture_init_desc{
+            .width = init.extent.width,
+            .height = init.extent.height,
+            .format = convert_to_oblo(init.format),
+        };
     }
 
     frame_allocator& frame_graph_build_context::get_frame_allocator() const

@@ -5,7 +5,6 @@
 #include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/compute_pass_initializer.hpp>
-#include <oblo/vulkan/draw/vk_type_conversions.hpp>
 #include <oblo/vulkan/graph/node_common.hpp>
 
 namespace oblo::vk
@@ -49,9 +48,9 @@ namespace oblo::vk
         {
             ctx.create(outFiltered,
                 {
-                    .width = imageInitializer->extent.width,
-                    .height = imageInitializer->extent.height,
-                    .format = convert_to_oblo(imageInitializer->format),
+                    .width = imageInitializer->width,
+                    .height = imageInitializer->height,
+                    .format = imageInitializer->format,
                 },
                 texture_usage::storage_write);
         }

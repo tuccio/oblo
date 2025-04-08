@@ -35,10 +35,8 @@ namespace oblo::vk
 {
     class renderer;
 
-    struct gpu_info
-    {
-        u32 subgroupSize;
-    };
+    struct gpu_info;
+    struct texture_init_desc;
 
     class binding_tables_span;
 
@@ -138,7 +136,7 @@ namespace oblo::vk
             a->push_back(value);
         }
 
-        expected<image_initializer> get_current_initializer(resource<texture> texture) const;
+        expected<texture_init_desc> get_current_initializer(resource<texture> texture) const;
 
         frame_allocator& get_frame_allocator() const;
 
@@ -274,5 +272,17 @@ namespace oblo::vk
         const frame_graph_impl& m_frameGraph;
         frame_graph_execution_state& m_state;
         renderer& m_renderer;
+    };
+
+    struct gpu_info
+    {
+        u32 subgroupSize;
+    };
+
+    struct texture_init_desc
+    {
+        u32 width;
+        u32 height;
+        texture_format format;
     };
 }

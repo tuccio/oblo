@@ -5,7 +5,6 @@
 #include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/compute_pass_initializer.hpp>
-#include <oblo/vulkan/draw/vk_type_conversions.hpp>
 #include <oblo/vulkan/graph/node_common.hpp>
 
 namespace oblo::vk
@@ -56,12 +55,12 @@ namespace oblo::vk
 
         switch (sourceInitializer->format)
         {
-        case VK_FORMAT_R8_UNORM:
+        case texture_format::r8_unorm:
             imageFormat = "BLUR_IMAGE_FORMAT r8"_hsv;
             imageChannels.format("BLUR_IMAGE_CHANNELS 1");
             break;
 
-        case VK_FORMAT_R8G8_UNORM:
+        case texture_format::r8g8_unorm:
             imageFormat = "BLUR_IMAGE_FORMAT rg8"_hsv;
             imageChannels.format("BLUR_IMAGE_CHANNELS 2");
             break;
@@ -91,9 +90,9 @@ namespace oblo::vk
 
             ctx.create(outBlurred,
                 {
-                    .width = imageInitializer->extent.width,
-                    .height = imageInitializer->extent.height,
-                    .format = convert_to_oblo(imageInitializer->format),
+                    .width = imageInitializer->width,
+                    .height = imageInitializer->height,
+                    .format = imageInitializer->format,
                 },
                 texture_usage::storage_write);
         }

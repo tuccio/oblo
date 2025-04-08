@@ -281,11 +281,10 @@ namespace oblo::vk
     {
         randomSeed = ctx.get_random_generator().generate();
 
-        const auto resolution =
-            ctx.get_current_initializer(inVisibilityBuffer).assert_value_or(image_initializer{}).extent;
+        const auto visBufferDesc = ctx.get_current_initializer(inVisibilityBuffer).assert_value_or(texture_init_desc{});
 
-        const u32 tilesX = round_up_div(resolution.width, g_tileSize);
-        const u32 tilesY = round_up_div(resolution.height, g_tileSize);
+        const u32 tilesX = round_up_div(visBufferDesc.width, g_tileSize);
+        const u32 tilesY = round_up_div(visBufferDesc.height, g_tileSize);
         const u32 tilesCount = tilesX * tilesY;
 
         const u32 tilesBufferSize = u32(tilesCount * sizeof(surfel_tile_data));

@@ -51,7 +51,7 @@ namespace oblo::vk
         debugPassInstance = ctx.compute_pass(debugPass, {.defines = std::span(&define, 1)});
 
         const auto& visBufferInit = ctx.get_current_initializer(inVisibilityBuffer).value();
-        const vec2u resolution = {visBufferInit.extent.width, visBufferInit.extent.height};
+        const vec2u resolution = {visBufferInit.width, visBufferInit.height};
 
         ctx.acquire(inCameraBuffer, buffer_usage::uniform);
 
