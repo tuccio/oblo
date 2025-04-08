@@ -2,6 +2,7 @@
 
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/vulkan/buffer.hpp>
+#include <oblo/vulkan/draw/draw_registry.hpp>
 #include <oblo/vulkan/graph/node_common.hpp>
 
 namespace oblo::vk
@@ -95,15 +96,10 @@ namespace oblo::vk
 
             for (usize j = 0; j < u32(instanceBuffers[i].bufferResources.size()); ++j)
             {
-                const auto b = ctx.access(instanceBuffers[i].bufferResources[j]);
-
-                const VkBufferDeviceAddressInfo info{
-                    .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-                    .buffer = b.buffer,
-                };
+                const auto bufferAddress = ctx.get_device_address(instanceBuffers[i].bufferResources[j]);
 
                 const auto id = instanceBuffers[i].bufferIds[j];
-                instanceTableArray[i].bufferAddress[id] = vkGetBufferDeviceAddress(ctx.get_device(), &info) + b.offset;
+                instanceTableArray[i].bufferAddress[id] = bufferAddress;
             }
         }
 

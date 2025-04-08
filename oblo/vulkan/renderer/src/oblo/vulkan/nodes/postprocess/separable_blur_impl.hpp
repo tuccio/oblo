@@ -55,12 +55,12 @@ namespace oblo::vk
 
         switch (sourceInitializer->format)
         {
-        case VK_FORMAT_R8_UNORM:
+        case texture_format::r8_unorm:
             imageFormat = "BLUR_IMAGE_FORMAT r8"_hsv;
             imageChannels.format("BLUR_IMAGE_CHANNELS 1");
             break;
 
-        case VK_FORMAT_R8G8_UNORM:
+        case texture_format::r8g8_unorm:
             imageFormat = "BLUR_IMAGE_FORMAT rg8"_hsv;
             imageChannels.format("BLUR_IMAGE_CHANNELS 2");
             break;
@@ -90,10 +90,9 @@ namespace oblo::vk
 
             ctx.create(outBlurred,
                 {
-                    .width = imageInitializer->extent.width,
-                    .height = imageInitializer->extent.height,
+                    .width = imageInitializer->width,
+                    .height = imageInitializer->height,
                     .format = imageInitializer->format,
-                    .usage = imageInitializer->usage,
                 },
                 texture_usage::storage_write);
         }
@@ -109,8 +108,7 @@ namespace oblo::vk
     {
         if (const auto pass = ctx.begin_pass(blurPassInstance))
         {
-            const auto& sourceTexture = ctx.access(inSource);
-            const vec2u resolution{sourceTexture.initializer.extent.width, sourceTexture.initializer.extent.height};
+            const vec2u resolution = ctx.get_resolution(inSource);
 
             binding_table bindingTable;
 

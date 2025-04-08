@@ -14,11 +14,12 @@
 #include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/render_pass_initializer.hpp>
+#include <oblo/vulkan/draw/types.hpp>
 #include <oblo/vulkan/graph/frame_graph.hpp>
 #include <oblo/vulkan/graph/frame_graph_registry.hpp>
 #include <oblo/vulkan/graph/frame_graph_template.hpp>
 #include <oblo/vulkan/graph/node_common.hpp>
-#include <oblo/vulkan/renderer.hpp>
+#include <oblo/vulkan/graph/render_pass.hpp>
 #include <oblo/vulkan/templates/graph_templates.hpp>
 #include <oblo/vulkan/utility.hpp>
 #include <oblo/vulkan/vulkan_engine_module.hpp>
@@ -63,7 +64,7 @@ namespace oblo
         struct imgui_render_backend
         {
             graphics_engine* graphicsEngine{};
-            vk::renderer* renderer{};
+            vk::frame_graph* frameGraph{};
             vk::frame_graph_registry nodeRegistry;
             vk::frame_graph_template renderTemplate;
             vk::frame_graph_template pushImageTemplate;
@@ -137,25 +138,25 @@ namespace oblo
                 }
 
                 const auto rtInitializer =
-                    ctx.get_current_initializer(inOutRenderTarget).value_or(vk::image_initializer{});
+                    ctx.get_current_initializer(inOutRenderTarget).value_or(vk::texture_init_desc{});
 
                 renderPassInstance = ctx.render_pass(renderPass,
                     {
                         .renderTargets =
                             {
-                                .colorAttachmentFormats = {rtInitializer.format},
+                                .colorAttachmentFormats = {vk::texture_format(rtInitializer.format)},
                                 .blendStates =
                                     {
                                         {
                                             .enable = true,
-                                            .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
-                                            .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-                                            .colorBlendOp = VK_BLEND_OP_ADD,
-                                            .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
-                                            .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-                                            .alphaBlendOp = VK_BLEND_OP_ADD,
-                                            .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
-                                                VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
+                                            .srcColorBlendFactor = vk::blend_factor::src_alpha,
+                                            .dstColorBlendFactor = vk::blend_factor::one_minus_src_alpha,
+                                            .colorBlendOp = vk::blend_op::add,
+                                            .srcAlphaBlendFactor = vk::blend_factor::one,
+                                            .dstAlphaBlendFactor = vk::blend_factor::one_minus_src_alpha,
+                                            .alphaBlendOp = vk::blend_op::add,
+                                            .colorWriteMask = vk::color_component::r | vk::color_component::g |
+                                                vk::color_component::b | vk::color_component::a,
                                         },
                                     },
                             },
@@ -166,8 +167,8 @@ namespace oblo
                             },
                         .rasterizationState =
                             {
-                                .polygonMode = VK_POLYGON_MODE_FILL,
-                                .cullMode = VK_CULL_MODE_NONE,
+                                .polygonMode = vk::polygon_mode::fill,
+                                .cullMode = {},
                                 .lineWidth = 1.f,
                             },
                     });
@@ -236,39 +237,22 @@ namespace oblo
                     return;
                 }
 
-                const auto renderTarget = ctx.access(inOutRenderTarget);
-
-                const VkRenderingAttachmentInfo colorAttachments[] = {
+                const render_attachment colorAttachments[] = {
                     {
-                        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-                        .imageView = renderTarget.view,
-                        .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-                        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                        .texture = inOutRenderTarget,
+                        .loadOp = attachment_load_op::clear,
+                        .storeOp = attachment_store_op::store,
                     },
                 };
 
-                const auto [renderWidth, renderHeight, _] = renderTarget.initializer.extent;
-
-                const VkRenderingInfo renderInfo{
-                    .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-                    .renderArea =
-                        {
-                            .extent{
-                                .width = renderWidth,
-                                .height = renderHeight,
-                            },
-                        },
-                    .layerCount = 1,
-                    .colorAttachmentCount = 1,
-                    .pColorAttachments = colorAttachments,
+                const render_pass_config cfg{
+                    .renderResolution = ctx.get_resolution(inOutRenderTarget),
+                    .colorAttachments = colorAttachments,
                 };
 
-                if (ctx.begin_pass(renderPassInstance, renderInfo))
+                if (ctx.begin_pass(renderPassInstance, cfg))
                 {
-                    const VkCommandBuffer commandBuffer = ctx.get_command_buffer();
-
-                    vk::setup_viewport_scissor(commandBuffer, renderWidth, renderHeight);
+                    ctx.set_viewport(cfg.renderResolution.x, cfg.renderResolution.y);
 
                     struct transform_constants
                     {
@@ -284,12 +268,9 @@ namespace oblo
 
                     ctx.bind_descriptor_sets(bindingTable);
 
-                    auto indexBuffer = ctx.access(outIndexBuffer);
-
-                    vkCmdBindIndexBuffer(commandBuffer,
-                        indexBuffer.buffer,
-                        indexBuffer.offset,
-                        sizeof(ImDrawIdx) == 2 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
+                    ctx.bind_index_buffer(outIndexBuffer,
+                        0,
+                        sizeof(ImDrawIdx) == 2 ? mesh_index_type::u16 : mesh_index_type::u32);
 
                     ImGuiViewport* const viewport = ctx.access(inViewport);
                     OBLO_ASSERT(viewport);
@@ -311,9 +292,9 @@ namespace oblo
 
                     // Will project scissor/clipping rectangles into framebuffer space
                     // (0,0) unless using multi-viewports
-                    ImVec2 clipOffset = drawData->DisplayPos;
+                    const ImVec2 clipOffset = drawData->DisplayPos;
                     // (1,1) unless using retina display which are often (2,2)
-                    ImVec2 clipScale = drawData->FramebufferScale;
+                    const ImVec2 clipScale = drawData->FramebufferScale;
 
                     i32 vertexOffset = 0;
                     i32 indexOffset = 0;
@@ -332,28 +313,14 @@ namespace oblo
                             };
 
                             const vec2 clipMax{
-                                min((cmd.ClipRect.z - clipOffset.x) * clipScale.x, f32(renderWidth)),
-                                min((cmd.ClipRect.w - clipOffset.y) * clipScale.y, f32(renderHeight)),
+                                min((cmd.ClipRect.z - clipOffset.x) * clipScale.x, f32(cfg.renderResolution.x)),
+                                min((cmd.ClipRect.w - clipOffset.y) * clipScale.y, f32(cfg.renderResolution.y)),
                             };
 
                             if (clipMax.x <= clipMin.x || clipMax.y <= clipMin.y)
                             {
                                 continue;
                             }
-
-                            // Apply scissor/clipping rectangle
-                            const VkRect2D scissor{
-                                .offset =
-                                    {
-                                        .x = (i32) (clipMin.x),
-                                        .y = (i32) (clipMin.y),
-                                    },
-                                .extent =
-                                    {
-                                        .width = (u32) (clipMax.x - clipMin.x),
-                                        .height = (u32) (clipMax.y - clipMin.y),
-                                    },
-                            };
 
                             u32 residentTexture = textures[cmd.GetTexID()].value;
 
@@ -366,10 +333,12 @@ namespace oblo
                                 lastResidentTexture = residentTexture;
                             }
 
-                            vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+                            ctx.set_scissor(i32(clipMin.x),
+                                i32(clipMin.y),
+                                u32(clipMax.x - clipMin.x),
+                                u32(clipMax.y - clipMin.y));
 
-                            vkCmdDrawIndexed(commandBuffer,
-                                cmd.ElemCount,
+                            ctx.draw_indexed(cmd.ElemCount,
                                 1,
                                 cmd.IdxOffset + indexOffset,
                                 cmd.VtxOffset + vertexOffset,
@@ -428,7 +397,7 @@ namespace oblo
             bool isOwned,
             ImGuiViewport* viewport)
         {
-            auto& frameGraph = backend->renderer->get_frame_graph();
+            auto& frameGraph = *backend->frameGraph;
 
             auto graph = frameGraph.instantiate(backend->renderTemplate);
             frameGraph.set_input(graph, g_InImGuiViewport, viewport).assert_value();
@@ -448,7 +417,7 @@ namespace oblo
                 rud->windowContext->on_destroy();
             }
 
-            auto& frameGraph = backend->renderer->get_frame_graph();
+            auto& frameGraph = *backend->frameGraph;
             frameGraph.remove(rud->graph);
 
             IM_DELETE(rud);
@@ -532,7 +501,7 @@ namespace oblo
             OBLO_ASSERT(io.BackendRendererUserData == nullptr);
 
             backend.graphicsEngine = gfxEngine;
-            backend.renderer = &vkEngine->get_renderer();
+            backend.frameGraph = &vkEngine->get_frame_graph();
             create_imgui_frame_graph_templates(backend);
 
             io.BackendRendererUserData = &backend;
@@ -607,7 +576,7 @@ namespace oblo
 
         void clear_push_subgraphs()
         {
-            auto& fg = backend.renderer->get_frame_graph();
+            auto& fg = *backend.frameGraph;
 
             for (auto& sg : backend.pushImageSubgraphs)
             {
@@ -699,7 +668,7 @@ namespace oblo
             ImGui::UpdatePlatformWindows();
         }
 
-        auto& fg = m_impl->backend.renderer->get_frame_graph();
+        auto& fg = *m_impl->backend.frameGraph;
 
         auto& platformIO = ImGui::GetPlatformIO();
 
@@ -728,7 +697,7 @@ namespace oblo::imgui
             return {};
         }
 
-        auto& frameGraph = backend->renderer->get_frame_graph();
+        auto& frameGraph = *backend->frameGraph;
         auto* const rud = static_cast<imgui_render_userdata*>(viewport->RendererUserData);
 
         const ImTextureID newId{1 + backend->pushImageSubgraphs.size()};

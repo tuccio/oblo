@@ -45,10 +45,6 @@ namespace oblo::vk
         };
     }
 
-    struct vulkan_context::pending_disposal_queues
-    {
-    };
-
     vulkan_context::vulkan_context() = default;
 
     vulkan_context::~vulkan_context() = default;
@@ -109,7 +105,7 @@ namespace oblo::vk
         for (auto& submitInfo : m_frameInfo)
         {
             if (!submitInfo.pool
-                     .init(m_engine->get_device(), m_engine->get_queue_family_index(), false, init.buffersPerFrame, 1u))
+                    .init(m_engine->get_device(), m_engine->get_queue_family_index(), false, init.buffersPerFrame, 1u))
             {
                 return false;
             }
@@ -129,8 +125,6 @@ namespace oblo::vk
                 submitInfo.fence,
                 OBLO_STRINGIZE(vulkan_context::frame_info::fence));
         }
-
-        m_pending = std::make_unique<pending_disposal_queues>();
 
 #define OBLO_VK_LOAD_FN(name) .name = PFN_##name(vkGetInstanceProcAddr(m_instance, #name))
 
@@ -244,9 +238,9 @@ namespace oblo::vk
         frameInfo.waitSemaphores.append(waitSemaphores.begin(), waitSemaphores.end());
     }
 
-    stateful_command_buffer& vulkan_context::get_active_command_buffer()
+    VkCommandBuffer vulkan_context::get_active_command_buffer()
     {
-        if (!m_currentCb.is_valid())
+        if (!m_currentCb)
         {
             auto& pool = m_frameInfo[m_poolIndex].pool;
 
@@ -259,7 +253,7 @@ namespace oblo::vk
 
             OBLO_VK_PANIC(vkBeginCommandBuffer(cb, &commandBufferBeginInfo));
 
-            m_currentCb = stateful_command_buffer{cb};
+            m_currentCb = cb;
         }
 
         return m_currentCb;
@@ -267,48 +261,18 @@ namespace oblo::vk
 
     void vulkan_context::submit_active_command_buffer()
     {
-        u32 commandBufferBegin = 1;
-        u32 commandBufferEnd = 2;
+        u32 commandBufferCount = 0;
 
         auto& currentFrame = m_frameInfo[m_poolIndex];
         currentFrame.submitIndex = m_submitIndex;
 
-        VkCommandBuffer commandBuffers[2] = {};
+        const VkCommandBuffer commandBuffers[1] = {m_currentCb};
 
-        if (m_currentCb.is_valid())
+        if (m_currentCb)
         {
-            commandBuffers[1] = m_currentCb.get();
-
-            VkCommandBuffer preparationCb{VK_NULL_HANDLE};
-
-            if (m_currentCb.has_incomplete_transitions())
-            {
-                preparationCb = *currentFrame.pool.fetch_buffer();
-
-                constexpr VkCommandBufferBeginInfo commandBufferBeginInfo{
-                    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-                    .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-                };
-
-                OBLO_VK_PANIC(vkBeginCommandBuffer(preparationCb, &commandBufferBeginInfo));
-
-                commandBufferBegin = 0;
-                commandBuffers[0] = preparationCb;
-            }
-
-            m_resourceManager->commit(m_currentCb, preparationCb);
-
-            for (u32 i = commandBufferBegin; i < commandBufferEnd; ++i)
-            {
-                OBLO_VK_PANIC(vkEndCommandBuffer(commandBuffers[i]));
-            }
-
+            OBLO_VK_PANIC(vkEndCommandBuffer(m_currentCb));
             m_currentCb = {};
-        }
-        else
-        {
-            // We have no command buffers, but we still submit to signal the frame end
-            commandBufferEnd = commandBufferBegin;
+            commandBufferCount = 1;
         }
 
         constexpr u32 maxSignalSemaphoresCount = 2;
@@ -317,8 +281,10 @@ namespace oblo::vk
         // We need dummy values for all the signaled semaphores
         const u64 signalSemaphoreValues[maxSignalSemaphoresCount] = {m_submitIndex};
 
-        const VkSemaphore signalSemaphores[maxSignalSemaphoresCount] = {m_timelineSemaphore,
-            currentFrame.signalSemaphore};
+        const VkSemaphore signalSemaphores[maxSignalSemaphoresCount] = {
+            m_timelineSemaphore,
+            currentFrame.signalSemaphore,
+        };
 
         const VkTimelineSemaphoreSubmitInfo timelineInfo{
             .sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
@@ -338,8 +304,8 @@ namespace oblo::vk
             .waitSemaphoreCount = currentFrame.waitSemaphores.size32(),
             .pWaitSemaphores = currentFrame.waitSemaphores.data(),
             .pWaitDstStageMask = waitStages.data(),
-            .commandBufferCount = commandBufferEnd - commandBufferBegin,
-            .pCommandBuffers = commandBuffers + commandBufferBegin,
+            .commandBufferCount = commandBufferCount,
+            .pCommandBuffers = commandBuffers,
             .signalSemaphoreCount = signalSemaphoreCount,
             .pSignalSemaphores = signalSemaphores,
         };
@@ -451,7 +417,8 @@ namespace oblo::vk
     {
         dispose(
             submitIndex,
-            [](vulkan_context& ctx, VkDescriptorSetLayout setLayout) {
+            [](vulkan_context& ctx, VkDescriptorSetLayout setLayout)
+            {
                 vkDestroyDescriptorSetLayout(ctx.get_device(),
                     setLayout,
                     ctx.get_allocator().get_allocation_callbacks());

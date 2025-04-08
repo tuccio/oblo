@@ -27,7 +27,9 @@ namespace oblo::vk
         VkPhysicalDeviceProperties properties;
         vkGetPhysicalDeviceProperties(m_vkContext->get_physical_device(), &properties);
 
-        if (!m_stagingBuffer.init(get_allocator(), StagingBufferSize, properties.limits))
+        auto& gpuAllocator = m_vkContext->get_allocator();
+
+        if (!m_stagingBuffer.init(gpuAllocator, StagingBufferSize, properties.limits))
         {
             return false;
         }
@@ -44,7 +46,7 @@ namespace oblo::vk
 
         auto& resourceManager = m_vkContext->get_resource_manager();
 
-        m_dummy = resourceManager.create(get_allocator(),
+        m_dummy = resourceManager.create(gpuAllocator,
             {
                 .size = 16u,
                 .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
@@ -107,11 +109,11 @@ namespace oblo::vk
 
     void renderer::end_frame()
     {
-        auto& commandBuffer = m_vkContext->get_active_command_buffer();
+        const VkCommandBuffer commandBuffer = m_vkContext->get_active_command_buffer();
 
-        m_textureRegistry.flush_uploads(commandBuffer.get());
+        m_textureRegistry.flush_uploads(commandBuffer);
 
-        m_passManager.begin_frame(commandBuffer.get());
+        m_passManager.begin_frame(commandBuffer);
 
         m_frameGraph.build(*this);
 
@@ -122,26 +124,6 @@ namespace oblo::vk
 
         m_passManager.end_frame();
         m_stagingBuffer.end_frame();
-    }
-
-    single_queue_engine& renderer::get_engine()
-    {
-        return m_vkContext->get_engine();
-    }
-
-    gpu_allocator& renderer::get_allocator()
-    {
-        return m_vkContext->get_allocator();
-    }
-
-    resource_manager& renderer::get_resource_manager()
-    {
-        return m_vkContext->get_resource_manager();
-    }
-
-    stateful_command_buffer& renderer::get_active_command_buffer()
-    {
-        return m_vkContext->get_active_command_buffer();
     }
 
     const instance_data_type_registry& renderer::get_instance_data_type_registry() const

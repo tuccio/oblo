@@ -17,7 +17,6 @@ namespace oblo::vk
 {
     class instance_data_type_registry;
     class resource_manager;
-    class single_queue_engine;
 
     class vulkan_context;
     struct buffer;
@@ -43,13 +42,9 @@ namespace oblo::vk
         void end_frame();
 
         vulkan_context& get_vulkan_context();
-        single_queue_engine& get_engine();
-        gpu_allocator& get_allocator();
-        resource_manager& get_resource_manager();
         string_interner& get_string_interner();
         pass_manager& get_pass_manager();
         staging_buffer& get_staging_buffer();
-        stateful_command_buffer& get_active_command_buffer();
         texture_registry& get_texture_registry();
         resource_cache& get_resource_cache();
         const instance_data_type_registry& get_instance_data_type_registry() const;

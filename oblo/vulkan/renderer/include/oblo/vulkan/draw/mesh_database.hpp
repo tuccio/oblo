@@ -3,6 +3,7 @@
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/vulkan/data/handles.hpp>
+#include <oblo/vulkan/draw/types.hpp>
 
 #include <span>
 
@@ -26,14 +27,6 @@ namespace oblo::vk
     {
         h32<string> name;
         u32 elementSize;
-    };
-
-    enum class mesh_index_type : u8
-    {
-        none,
-        u8,
-        u16,
-        u32,
     };
 
     // We might want to search all mesh tables that have the same attributes?

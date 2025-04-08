@@ -5,10 +5,9 @@
 #include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/vulkan/draw/types.hpp>
 
 #include <span>
-
-#include <vulkan/vulkan.h>
 
 namespace oblo::vk
 {
@@ -35,51 +34,62 @@ namespace oblo::vk
     struct color_blend_attachment_state
     {
         bool enable = false;
-        VkBlendFactor srcColorBlendFactor;
-        VkBlendFactor dstColorBlendFactor;
-        VkBlendOp colorBlendOp;
-        VkBlendFactor srcAlphaBlendFactor;
-        VkBlendFactor dstAlphaBlendFactor;
-        VkBlendOp alphaBlendOp;
-        VkColorComponentFlags colorWriteMask =
-            VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+        blend_factor srcColorBlendFactor;
+        blend_factor dstColorBlendFactor;
+        blend_op colorBlendOp;
+        blend_factor srcAlphaBlendFactor;
+        blend_factor dstAlphaBlendFactor;
+        blend_op alphaBlendOp;
+        flags<color_component> colorWriteMask =
+            color_component::r | color_component::g | color_component::b | color_component::a;
     };
 
     struct render_pass_targets
     {
-        buffered_array<VkFormat, 4> colorAttachmentFormats;
-        VkFormat depthFormat{VK_FORMAT_UNDEFINED};
-        VkFormat stencilFormat{VK_FORMAT_UNDEFINED};
+        buffered_array<texture_format, 4> colorAttachmentFormats;
+        texture_format depthFormat{texture_format::undefined};
+        texture_format stencilFormat{texture_format::undefined};
         buffered_array<color_blend_attachment_state, 1> blendStates;
+    };
+
+    struct stencil_op_state
+    {
+        stencil_op failOp;
+        stencil_op passOp;
+        stencil_op depthFailOp;
+        compare_op compareOp;
+        u32 compareMask;
+        u32 writeMask;
+        u32 reference;
     };
 
     struct depth_stencil_state
     {
-        VkPipelineDepthStencilStateCreateFlags flags;
+        flags<pipeline_depth_stencil_state_create> flags;
         bool depthTestEnable;
         bool depthWriteEnable;
-        VkCompareOp depthCompareOp;
+        compare_op depthCompareOp;
         bool depthBoundsTestEnable;
         bool stencilTestEnable;
-        VkStencilOpState front;
-        VkStencilOpState back;
+        stencil_op_state front;
+        stencil_op_state back;
         f32 minDepthBounds;
         f32 maxDepthBounds;
     };
 
     struct rasterization_state
     {
-        VkPipelineRasterizationStateCreateFlags flags;
+        flags<pipeline_depth_stencil_state_create> flags;
         bool depthClampEnable;
         bool rasterizerDiscardEnable;
-        VkPolygonMode polygonMode;
-        VkCullModeFlags cullMode;
-        VkFrontFace frontFace;
+        polygon_mode polygonMode;
+        oblo::flags<cull_mode> cullMode;
+        front_face frontFace;
         bool depthBiasEnable;
-        float depthBiasConstantFactor;
-        float depthBiasClamp;
-        float depthBiasSlopeFactor;
-        float lineWidth;
+        f32 depthBiasConstantFactor;
+        f32 depthBiasClamp;
+        f32 depthBiasSlopeFactor;
+        f32 lineWidth;
     };
 
     struct render_pipeline_initializer
@@ -87,7 +97,7 @@ namespace oblo::vk
         render_pass_targets renderTargets;
         depth_stencil_state depthStencilState;
         rasterization_state rasterizationState;
-        VkPrimitiveTopology primitiveTopology{VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST};
+        primitive_topology primitiveTopology{primitive_topology::triangle_list};
         std::span<const hashed_string_view> defines;
     };
 }

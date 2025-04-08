@@ -1,5 +1,6 @@
 #include <oblo/vulkan/nodes/postprocess/tone_mapping_node.hpp>
 
+#include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/compute_pass_initializer.hpp>
 #include <oblo/vulkan/gpu_allocator.hpp>
@@ -20,16 +21,15 @@ namespace oblo::vk
     {
         toneMappingPassInstance = ctx.compute_pass(toneMappingPass, {});
 
-        const auto hdrInit = ctx.get_current_initializer(inHDR).value_or(image_initializer{});
+        const auto hdrInit = ctx.get_current_initializer(inHDR).value_or(texture_init_desc{});
 
         ctx.acquire(inHDR, texture_usage::storage_read);
 
         ctx.create(outLDR,
             texture_resource_initializer{
-                .width = hdrInit.extent.width,
-                .height = hdrInit.extent.height,
-                .format = VK_FORMAT_R8G8B8A8_UNORM,
-                .usage = VK_IMAGE_USAGE_STORAGE_BIT,
+                .width = hdrInit.width,
+                .height = hdrInit.height,
+                .format = texture_format::r8g8b8a8_unorm,
             },
             texture_usage::storage_write);
     }
@@ -45,11 +45,11 @@ namespace oblo::vk
 
         if (const auto pass = ctx.begin_pass(toneMappingPassInstance))
         {
-            const auto& extents = ctx.access(outLDR).initializer.extent;
+            const vec2u resolution = ctx.get_resolution(outLDR);
 
             ctx.bind_descriptor_sets(bindingTable);
 
-            ctx.dispatch_compute(round_up_div(extents.width, ctx.get_gpu_info().subgroupSize), extents.height, 1);
+            ctx.dispatch_compute(round_up_div(resolution.x, ctx.get_gpu_info().subgroupSize), resolution.y, 1);
 
             ctx.end_pass();
         }

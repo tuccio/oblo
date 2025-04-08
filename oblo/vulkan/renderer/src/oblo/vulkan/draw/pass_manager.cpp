@@ -34,6 +34,7 @@
 #include <oblo/vulkan/draw/render_pass_initializer.hpp>
 #include <oblo/vulkan/draw/shader_stage_utils.hpp>
 #include <oblo/vulkan/draw/texture_registry.hpp>
+#include <oblo/vulkan/draw/vk_type_conversions.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/texture.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
@@ -1943,19 +1944,22 @@ namespace oblo::vk
             return failure();
         }
 
+        static_assert(sizeof(VkFormat) == sizeof(texture_format), "We rely on this when reinterpret casting");
+
         const u32 numAttachments = u32(desc.renderTargets.colorAttachmentFormats.size());
 
         const VkPipelineRenderingCreateInfo pipelineRenderingCreateInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
             .colorAttachmentCount = numAttachments,
-            .pColorAttachmentFormats = desc.renderTargets.colorAttachmentFormats.data(),
-            .depthAttachmentFormat = desc.renderTargets.depthFormat,
-            .stencilAttachmentFormat = desc.renderTargets.stencilFormat,
+            .pColorAttachmentFormats =
+                reinterpret_cast<const VkFormat*>(desc.renderTargets.colorAttachmentFormats.data()),
+            .depthAttachmentFormat = convert_to_vk(desc.renderTargets.depthFormat),
+            .stencilAttachmentFormat = convert_to_vk(desc.renderTargets.stencilFormat),
         };
 
         const VkPipelineInputAssemblyStateCreateInfo inputAssembly{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-            .topology = desc.primitiveTopology,
+            .topology = convert_to_vk(desc.primitiveTopology),
             .primitiveRestartEnable = VK_FALSE,
         };
 
@@ -1975,12 +1979,12 @@ namespace oblo::vk
 
         const VkPipelineRasterizationStateCreateInfo rasterizer{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-            .flags = desc.rasterizationState.flags,
+            .flags = convert_to_vk(desc.rasterizationState.flags),
             .depthClampEnable = desc.rasterizationState.depthClampEnable,
             .rasterizerDiscardEnable = desc.rasterizationState.rasterizerDiscardEnable,
-            .polygonMode = desc.rasterizationState.polygonMode,
-            .cullMode = desc.rasterizationState.cullMode,
-            .frontFace = desc.rasterizationState.frontFace,
+            .polygonMode = convert_to_vk(desc.rasterizationState.polygonMode),
+            .cullMode = convert_to_vk(desc.rasterizationState.cullMode),
+            .frontFace = convert_to_vk(desc.rasterizationState.frontFace),
             .depthBiasEnable = desc.rasterizationState.depthBiasEnable,
             .depthBiasConstantFactor = desc.rasterizationState.depthBiasConstantFactor,
             .depthBiasClamp = desc.rasterizationState.depthBiasClamp,
@@ -2002,13 +2006,13 @@ namespace oblo::vk
         {
             colorBlendAttachments.push_back({
                 .blendEnable = attachment.enable,
-                .srcColorBlendFactor = attachment.srcColorBlendFactor,
-                .dstColorBlendFactor = attachment.dstColorBlendFactor,
-                .colorBlendOp = attachment.colorBlendOp,
-                .srcAlphaBlendFactor = attachment.srcAlphaBlendFactor,
-                .dstAlphaBlendFactor = attachment.dstAlphaBlendFactor,
-                .alphaBlendOp = attachment.alphaBlendOp,
-                .colorWriteMask = attachment.colorWriteMask,
+                .srcColorBlendFactor = convert_to_vk(attachment.srcColorBlendFactor),
+                .dstColorBlendFactor = convert_to_vk(attachment.dstColorBlendFactor),
+                .colorBlendOp = convert_to_vk(attachment.colorBlendOp),
+                .srcAlphaBlendFactor = convert_to_vk(attachment.srcAlphaBlendFactor),
+                .dstAlphaBlendFactor = convert_to_vk(attachment.dstAlphaBlendFactor),
+                .alphaBlendOp = convert_to_vk(attachment.alphaBlendOp),
+                .colorWriteMask = convert_to_vk(attachment.colorWriteMask),
             });
         }
 
@@ -2023,14 +2027,32 @@ namespace oblo::vk
 
         const VkPipelineDepthStencilStateCreateInfo depthStencil{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-            .flags = desc.depthStencilState.flags,
+            .flags = convert_to_vk(desc.depthStencilState.flags),
             .depthTestEnable = desc.depthStencilState.depthTestEnable,
             .depthWriteEnable = desc.depthStencilState.depthWriteEnable,
-            .depthCompareOp = desc.depthStencilState.depthCompareOp,
+            .depthCompareOp = convert_to_vk(desc.depthStencilState.depthCompareOp),
             .depthBoundsTestEnable = desc.depthStencilState.depthBoundsTestEnable,
             .stencilTestEnable = desc.depthStencilState.stencilTestEnable,
-            .front = desc.depthStencilState.front,
-            .back = desc.depthStencilState.back,
+            .front =
+                {
+                    .failOp = convert_to_vk(desc.depthStencilState.front.failOp),
+                    .passOp = convert_to_vk(desc.depthStencilState.front.passOp),
+                    .depthFailOp = convert_to_vk(desc.depthStencilState.front.depthFailOp),
+                    .compareOp = convert_to_vk(desc.depthStencilState.front.compareOp),
+                    .compareMask = desc.depthStencilState.front.compareMask,
+                    .writeMask = desc.depthStencilState.front.writeMask,
+                    .reference = desc.depthStencilState.front.reference,
+                },
+            .back =
+                {
+                    .failOp = convert_to_vk(desc.depthStencilState.back.failOp),
+                    .passOp = convert_to_vk(desc.depthStencilState.back.passOp),
+                    .depthFailOp = convert_to_vk(desc.depthStencilState.back.depthFailOp),
+                    .compareOp = convert_to_vk(desc.depthStencilState.back.compareOp),
+                    .compareMask = desc.depthStencilState.back.compareMask,
+                    .writeMask = desc.depthStencilState.back.writeMask,
+                    .reference = desc.depthStencilState.back.reference,
+                },
             .minDepthBounds = desc.depthStencilState.minDepthBounds,
             .maxDepthBounds = desc.depthStencilState.maxDepthBounds,
         };
@@ -2264,7 +2286,7 @@ namespace oblo::vk
         deque<string_view> sourceFiles;
 
         for (u32 currentShaderIndex = 0; currentShaderIndex < raytracingPass->shaderSourcePaths.size();
-             ++currentShaderIndex)
+            ++currentShaderIndex)
         {
             const auto& filePath = raytracingPass->shaderSourcePaths[currentShaderIndex];
             const auto rtStage = raytracingPass->shaderStages[currentShaderIndex];

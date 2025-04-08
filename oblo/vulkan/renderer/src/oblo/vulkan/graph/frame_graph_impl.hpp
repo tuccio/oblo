@@ -285,7 +285,6 @@ namespace oblo::vk
         void rebuild_runtime(renderer& renderer);
         void flush_uploads(VkCommandBuffer commandBuffer, staging_buffer& stagingBuffer);
         void flush_downloads(vulkan_context& vkCtx);
-        void begin_frame();
         void finish_frame();
 
     public: // API for contexts
@@ -315,14 +314,10 @@ namespace oblo::vk
 
         void reroute(h32<frame_graph_pin_storage> oldRoute, h32<frame_graph_pin_storage> newRoute);
 
-        frame_graph_vertex add_transient_node(const type_id& nodeType);
-        void connect(frame_graph_vertex srcNode, u32 srcOffset, frame_graph_vertex dstNode, u32 dstOffset);
-
         h32<frame_graph_pass> begin_pass_build(frame_graph_build_state& state, pass_kind passKind);
         void end_pass_build(frame_graph_build_state& state);
 
-        void begin_pass_execution(
-            h32<frame_graph_pass> pass, VkCommandBuffer commandBuffer, frame_graph_execution_state& state) const;
+        void begin_pass_execution(h32<frame_graph_pass> pass, frame_graph_execution_state& state) const;
 
     public: // Utility
         void free_pin_storage(const frame_graph_pin_storage& storage, bool isFrameAllocated);
@@ -337,6 +332,7 @@ namespace oblo::vk
 
     struct frame_graph_execution_state
     {
+        VkCommandBuffer commandBuffer{};
         h32<frame_graph_pass> currentPass;
         image_layout_tracker imageLayoutTracker;
         pass_kind passKind;

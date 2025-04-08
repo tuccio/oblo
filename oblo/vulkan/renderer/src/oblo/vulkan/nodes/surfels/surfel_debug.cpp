@@ -51,7 +51,7 @@ namespace oblo::vk
         debugPassInstance = ctx.compute_pass(debugPass, {.defines = std::span(&define, 1)});
 
         const auto& visBufferInit = ctx.get_current_initializer(inVisibilityBuffer).value();
-        const vec2u resolution = {visBufferInit.extent.width, visBufferInit.extent.height};
+        const vec2u resolution = {visBufferInit.width, visBufferInit.height};
 
         ctx.acquire(inCameraBuffer, buffer_usage::uniform);
 
@@ -62,8 +62,7 @@ namespace oblo::vk
             {
                 .width = resolution.x,
                 .height = resolution.y,
-                .format = VK_FORMAT_R8G8B8A8_UNORM,
-                .usage = VK_IMAGE_USAGE_STORAGE_BIT,
+                .format = texture_format::r8g8b8a8_unorm,
             },
             texture_usage::storage_write);
 
@@ -104,8 +103,7 @@ namespace oblo::vk
                 {"t_OutShadedImage"_hsv, outDebugImage},
             });
 
-            const auto& visBuffer = ctx.access(inVisibilityBuffer);
-            const vec2u resolution = {visBuffer.initializer.extent.width, visBuffer.initializer.extent.height};
+            const vec2u resolution = ctx.get_resolution(inVisibilityBuffer);
 
             ctx.bind_descriptor_sets(bindingTable);
 

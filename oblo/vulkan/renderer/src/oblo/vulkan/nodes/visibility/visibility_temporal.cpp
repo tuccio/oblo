@@ -26,17 +26,17 @@ namespace oblo::vk
 
         ctx.create(outMotionVectors,
             {
-                .width = imageInitializer->extent.width,
-                .height = imageInitializer->extent.height,
-                .format = VK_FORMAT_R8G8_UNORM,
+                .width = imageInitializer->width,
+                .height = imageInitializer->height,
+                .format = texture_format::r8g8_unorm,
             },
             texture_usage::storage_write);
 
         ctx.create(outDisocclusionMask,
             {
-                .width = imageInitializer->extent.width,
-                .height = imageInitializer->extent.height,
-                .format = VK_FORMAT_R8_UNORM,
+                .width = imageInitializer->width,
+                .height = imageInitializer->height,
+                .format = texture_format::r8_unorm,
             },
             texture_usage::storage_write);
 
@@ -55,8 +55,7 @@ namespace oblo::vk
     {
         if (const auto pass = ctx.begin_pass(temporalPassInstance))
         {
-            const auto& sourceTexture = ctx.access(inVisibilityBuffer);
-            const vec2u resolution{sourceTexture.initializer.extent.width, sourceTexture.initializer.extent.height};
+            const vec2u resolution = ctx.get_resolution(inVisibilityBuffer);
 
             binding_table bindingTable;
 

@@ -2,10 +2,9 @@
 
 #include <oblo/core/string/debug_label.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/vulkan/draw/types.hpp>
 
 #include <span>
-
-#include <vulkan/vulkan_core.h>
 
 namespace oblo::vk
 {
@@ -13,8 +12,7 @@ namespace oblo::vk
     {
         u32 width;
         u32 height;
-        VkFormat format;
-        VkImageUsageFlags usage;
+        texture_format format;
         bool isStable;
         debug_label debugLabel{std::source_location::current()};
     };

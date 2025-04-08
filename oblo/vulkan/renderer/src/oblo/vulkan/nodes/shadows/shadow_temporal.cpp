@@ -29,9 +29,9 @@ namespace oblo::vk
 
         ctx.create(outFiltered,
             {
-                .width = imageInitializer->extent.width,
-                .height = imageInitializer->extent.height,
-                .format = VK_FORMAT_R8_UNORM,
+                .width = imageInitializer->width,
+                .height = imageInitializer->height,
+                .format = texture_format::r8_unorm,
             },
             texture_usage::storage_write);
 
@@ -39,9 +39,9 @@ namespace oblo::vk
         // We effectively read the history from the previous frame in this pass
         ctx.create(inHistory,
             {
-                .width = imageInitializer->extent.width,
-                .height = imageInitializer->extent.height,
-                .format = VK_FORMAT_R8_UNORM,
+                .width = imageInitializer->width,
+                .height = imageInitializer->height,
+                .format = texture_format::r8_unorm,
                 .isStable = true,
             },
             texture_usage::shader_read);
@@ -54,8 +54,7 @@ namespace oblo::vk
     {
         if (const auto pass = ctx.begin_pass(temporalPassInstance))
         {
-            const auto& sourceTexture = ctx.access(inShadow);
-            const vec2u resolution{sourceTexture.initializer.extent.width, sourceTexture.initializer.extent.height};
+            const vec2u resolution = ctx.get_resolution(inShadow);
 
             binding_table bindingTable;
 

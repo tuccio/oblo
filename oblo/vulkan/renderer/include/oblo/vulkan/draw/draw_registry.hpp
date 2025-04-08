@@ -30,19 +30,8 @@ namespace oblo::vk
     class instance_data_type_registry;
     class staging_buffer;
     class vulkan_context;
-    struct buffer_column_description;
     struct draw_mesh;
     struct staging_buffer_span;
-
-    struct draw_commands
-    {
-        std::span<const byte> drawCommands;
-        u32 drawCount;
-        bool isIndexed;
-        VkBuffer indexBuffer;
-        u32 indexBufferOffset;
-        VkIndexType indexType;
-    };
 
     struct draw_buffer
     {

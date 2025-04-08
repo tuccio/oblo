@@ -11,9 +11,9 @@
 #include <oblo/vulkan/graph/frame_graph_resources.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 
-#include <vulkan/vulkan_core.h>
-
 #include <span>
+
+#include <vulkan/vulkan_core.h>
 
 namespace oblo
 {
@@ -34,84 +34,9 @@ namespace oblo
 namespace oblo::vk
 {
     class renderer;
-    class resource_manager;
-    class resource_pool;
 
-    struct bindable_object;
-    struct buffer;
-    struct texture;
-    struct image_initializer;
-
-    struct loaded_functions;
-    struct frame_graph_impl;
-    struct frame_graph_build_state;
-    struct frame_graph_execution_state;
-    struct frame_graph_pin_storage;
-    struct frame_graph_pass;
-    struct compute_pass_instance;
-    struct resident_texture;
-    struct staging_buffer_span;
-
-    struct compute_pass_initializer;
-    struct render_pass_initializer;
-    struct raytracing_pass_initializer;
-    struct compute_pipeline_initializer;
-    struct render_pipeline_initializer;
-    struct raytracing_pipeline_initializer;
-
-    class binding_table;
-
-    enum class pass_kind : u8
-    {
-        none,
-        graphics,
-        compute,
-        raytracing,
-        transfer,
-    };
-
-    enum class texture_usage : u8
-    {
-        render_target_write,
-        depth_stencil_read,
-        depth_stencil_write,
-        shader_read,
-        storage_read,
-        storage_write,
-        transfer_source,
-        transfer_destination,
-        present,
-    };
-
-    enum class buffer_usage : u8
-    {
-        storage_read,
-        storage_write,
-        /// @brief This means the buffer is not actually used on GPU in this node, just uploaded on.
-        storage_upload,
-        uniform,
-        indirect,
-        download,
-        index,
-        enum_max,
-    };
-
-    struct texture_binding_desc
-    {
-        string_view name;
-        resource<texture> resource;
-    };
-
-    struct buffer_binding_desc
-    {
-        string_view name;
-        resource<buffer> resource;
-    };
-
-    struct gpu_info
-    {
-        u32 subgroupSize;
-    };
+    struct gpu_info;
+    struct texture_init_desc;
 
     class binding_tables_span;
 
@@ -134,10 +59,8 @@ namespace oblo::vk
     class frame_graph_build_context
     {
     public:
-        explicit frame_graph_build_context(frame_graph_impl& frameGraph,
-            frame_graph_build_state& state,
-            renderer& renderer,
-            resource_pool& resourcePool);
+        explicit frame_graph_build_context(
+            frame_graph_impl& frameGraph, frame_graph_build_state& state, renderer& renderer);
 
         [[nodiscard]] h32<compute_pass_instance> compute_pass(h32<compute_pass> pass,
             const compute_pipeline_initializer& initializer) const;
@@ -213,7 +136,7 @@ namespace oblo::vk
             a->push_back(value);
         }
 
-        expected<image_initializer> get_current_initializer(resource<texture> texture) const;
+        expected<texture_init_desc> get_current_initializer(resource<texture> texture) const;
 
         frame_allocator& get_frame_allocator() const;
 
@@ -240,22 +163,19 @@ namespace oblo::vk
         frame_graph_impl& m_frameGraph;
         frame_graph_build_state& m_state;
         renderer& m_renderer;
-        resource_pool& m_resourcePool;
     };
 
     class frame_graph_execute_context
     {
     public:
-        explicit frame_graph_execute_context(const frame_graph_impl& frameGraph,
-            frame_graph_execution_state& executeCtx,
-            renderer& renderer,
-            VkCommandBuffer commandBuffer);
+        explicit frame_graph_execute_context(
+            const frame_graph_impl& frameGraph, frame_graph_execution_state& executeCtx, renderer& renderer);
 
         void begin_pass(h32<frame_graph_pass> handle) const;
 
         expected<> begin_pass(h32<compute_pass_instance> handle) const;
 
-        expected<> begin_pass(h32<render_pass_instance> handle, const VkRenderingInfo& renderingInfo) const;
+        expected<> begin_pass(h32<render_pass_instance> handle, const render_pass_config& cfg) const;
 
         expected<> begin_pass(h32<raytracing_pass_instance> handle) const;
 
@@ -266,6 +186,8 @@ namespace oblo::vk
         void end_pass() const;
 
         void bind_descriptor_sets(binding_tables_span bindingTables) const;
+
+        void bind_index_buffer(resource<buffer> buffer, u32 bufferOffset, mesh_index_type indexType) const;
 
         template <typename T>
         T& access(data<T> data) const
@@ -278,10 +200,6 @@ namespace oblo::vk
         {
             return *static_cast<data_sink_container<T>*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
         }
-
-        texture access(resource<texture> h) const;
-
-        buffer access(resource<buffer> h) const;
 
         resource<acceleration_structure> get_global_tlas() const;
 
@@ -313,11 +231,7 @@ namespace oblo::vk
 
         async_download download(resource<buffer> h) const;
 
-        VkCommandBuffer get_command_buffer() const;
-
-        VkDevice get_device() const;
-
-        const loaded_functions& get_loaded_functions() const;
+        u64 get_device_address(resource<buffer> buffer) const;
 
         template <typename T>
         bool has_event() const
@@ -327,14 +241,30 @@ namespace oblo::vk
 
         const gpu_info& get_gpu_info() const;
 
+        void set_viewport(u32 w, u32 h, f32 minDepth = 0.f, f32 maxDepth = 1.f) const;
+        void set_scissor(i32 x, i32 y, u32 w, u32 h) const;
+
         void push_constants(flags<shader_stage, 14> stages, u32 offset, std::span<const byte> bytes) const;
         void dispatch_compute(u32 groupsX, u32 groupsY, u32 groupsZ) const;
         void trace_rays(u32 x, u32 y, u32 z) const;
+
+        void draw_indexed(u32 indexCount, u32 instanceCount, u32 firstIndex, u32 vertexOffset, u32 firstInstance) const;
+
+        void draw_mesh_tasks_indirect_count(resource<buffer> drawCallBuffer,
+            u32 drawCallBufferOffset,
+            resource<buffer> drawCallCountBuffer,
+            u32 drawCallCountBufferOffset,
+            u32 maxDrawCount) const;
+
+        void blit_color(resource<texture> srcTexture, resource<texture> dstTexture) const;
 
         vec2u get_resolution(resource<texture> h) const;
 
     private:
         void* access_storage(h32<frame_graph_pin_storage> handle) const;
+
+        buffer access(resource<buffer> h) const;
+        texture access(resource<texture> h) const;
 
         bool has_event_impl(const type_id& type) const;
 
@@ -342,6 +272,17 @@ namespace oblo::vk
         const frame_graph_impl& m_frameGraph;
         frame_graph_execution_state& m_state;
         renderer& m_renderer;
-        VkCommandBuffer m_commandBuffer;
+    };
+
+    struct gpu_info
+    {
+        u32 subgroupSize;
+    };
+
+    struct texture_init_desc
+    {
+        u32 width;
+        u32 height;
+        texture_format format;
     };
 }

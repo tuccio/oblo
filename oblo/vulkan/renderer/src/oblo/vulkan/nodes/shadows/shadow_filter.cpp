@@ -48,10 +48,9 @@ namespace oblo::vk
         {
             ctx.create(outFiltered,
                 {
-                    .width = imageInitializer->extent.width,
-                    .height = imageInitializer->extent.height,
+                    .width = imageInitializer->width,
+                    .height = imageInitializer->height,
                     .format = imageInitializer->format,
-                    .usage = imageInitializer->usage,
                 },
                 texture_usage::storage_write);
         }
@@ -61,8 +60,7 @@ namespace oblo::vk
     {
         if (const auto pass = ctx.begin_pass(filterPassInstance))
         {
-            const auto& sourceTexture = ctx.access(inSource);
-            const vec2u resolution{sourceTexture.initializer.extent.width, sourceTexture.initializer.extent.height};
+            const vec2u resolution = ctx.get_resolution(inSource);
 
             binding_table bindingTable;
 

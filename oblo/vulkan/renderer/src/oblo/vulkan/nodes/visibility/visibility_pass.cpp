@@ -6,6 +6,7 @@
 #include <oblo/vulkan/data/picking_configuration.hpp>
 #include <oblo/vulkan/draw/render_pass_initializer.hpp>
 #include <oblo/vulkan/graph/node_common.hpp>
+#include <oblo/vulkan/graph/render_pass.hpp>
 #include <oblo/vulkan/loaded_functions.hpp>
 #include <oblo/vulkan/nodes/drawing/frustum_culling.hpp>
 #include <oblo/vulkan/utility.hpp>
@@ -32,26 +33,26 @@ namespace oblo::vk
 
     void visibility_pass::build(const frame_graph_build_context& ctx)
     {
-        constexpr auto visibilityBufferFormat = VK_FORMAT_R32G32_UINT;
+        constexpr auto visibilityBufferFormat = texture_format::r32g32_uint;
 
         passInstance = ctx.render_pass(renderPass,
             {
                 .renderTargets =
                     {
                         .colorAttachmentFormats = {visibilityBufferFormat},
-                        .depthFormat = VK_FORMAT_D24_UNORM_S8_UINT,
+                        .depthFormat = texture_format::d24_unorm_s8_uint,
                         .blendStates = {{.enable = false}},
                     },
                 .depthStencilState =
                     {
                         .depthTestEnable = true,
                         .depthWriteEnable = true,
-                        .depthCompareOp = VK_COMPARE_OP_GREATER, // We use reverse depth
+                        .depthCompareOp = compare_op::greater, // We use reverse depth
                     },
                 .rasterizationState =
                     {
-                        .polygonMode = VK_POLYGON_MODE_FILL,
-                        .cullMode = VK_CULL_MODE_NONE,
+                        .polygonMode = polygon_mode::fill,
+                        .cullMode = {},
                         .lineWidth = 1.f,
                     },
             });
@@ -63,7 +64,6 @@ namespace oblo::vk
                 .width = resolution.x,
                 .height = resolution.y,
                 .format = visibilityBufferFormat,
-                .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
             },
             texture_usage::render_target_write);
 
@@ -83,7 +83,7 @@ namespace oblo::vk
                 {
                     .width = resolution.x,
                     .height = resolution.y,
-                    .format = VK_FORMAT_D24_UNORM_S8_UINT,
+                    .format = texture_format::d24_unorm_s8_uint,
                     .isStable = true,
                 },
                 texture_usage::depth_stencil_write);
@@ -92,7 +92,7 @@ namespace oblo::vk
                 {
                     .width = resolution.x,
                     .height = resolution.y,
-                    .format = VK_FORMAT_D24_UNORM_S8_UINT,
+                    .format = texture_format::d24_unorm_s8_uint,
                     .isStable = true,
                 },
                 texture_usage::depth_stencil_read);
@@ -133,68 +133,44 @@ namespace oblo::vk
 
         const std::span drawData = ctx.access(inDrawData);
 
-        const auto visibilityBuffer = ctx.access(outVisibilityBuffer);
-        const auto depthBuffer = ctx.access(outDepthBuffer);
-
-        const VkRenderingAttachmentInfo colorAttachments[] = {
+        const render_attachment colorAttachments[] = {
             {
-                .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-                .imageView = visibilityBuffer.view,
-                .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                .texture = outVisibilityBuffer,
+                .loadOp = attachment_load_op::clear,
+                .storeOp = attachment_store_op::store,
             },
         };
 
-        const VkRenderingAttachmentInfo depthAttachment{
-            .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-            .imageView = depthBuffer.view,
-            .imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
-            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        const render_attachment depthAttachment{
+            .texture = outDepthBuffer,
+            .loadOp = attachment_load_op::clear,
+            .storeOp = attachment_store_op::store,
         };
 
-        const auto [renderWidth, renderHeight, _] = visibilityBuffer.initializer.extent;
-
-        const VkRenderingInfo renderInfo{
-            .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-            .renderArea =
-                {
-                    .extent{
-                        .width = renderWidth,
-                        .height = renderHeight,
-                    },
-                },
-            .layerCount = 1,
-            .colorAttachmentCount = array_size(colorAttachments),
-            .pColorAttachments = colorAttachments,
-            .pDepthAttachment = &depthAttachment,
+        const render_pass_config cfg{
+            .renderResolution = ctx.get_resolution(outVisibilityBuffer),
+            .colorAttachments = colorAttachments,
+            .depthAttachment = depthAttachment,
         };
 
-        if (!ctx.begin_pass(passInstance, renderInfo))
+        if (!ctx.begin_pass(passInstance, cfg))
         {
             return;
         }
 
-        const VkCommandBuffer commandBuffer = ctx.get_command_buffer();
-
-        setup_viewport_scissor(commandBuffer, renderWidth, renderHeight);
+        ctx.set_viewport(cfg.renderResolution.x, cfg.renderResolution.y);
+        ctx.set_scissor(0, 0, cfg.renderResolution.x, cfg.renderResolution.y);
 
         const binding_table* bindingTables[] = {
             &perDrawBindingTable,
             &passBindingTable,
         };
 
-        const auto drawMeshIndirectCount = ctx.get_loaded_functions().vkCmdDrawMeshTasksIndirectCountEXT;
-
         const auto drawCallBufferSpan = ctx.access(inDrawCallBuffer);
 
         for (usize drawCallIndex = 0; drawCallIndex < drawData.size(); ++drawCallIndex)
         {
             const auto& culledDraw = drawData[drawCallIndex];
-
-            const auto drawCallBuffer = ctx.access(drawCallBufferSpan[drawCallIndex]);
-            const auto drawCallCountBuffer = ctx.access(culledDraw.drawCallCountBuffer);
 
             perDrawBindingTable.clear();
 
@@ -214,13 +190,11 @@ namespace oblo::vk
             ctx.bind_descriptor_sets(bindingTables);
             ctx.push_constants(shader_stage::mesh, 0, as_bytes(std::span{&pushConstants, 1}));
 
-            drawMeshIndirectCount(commandBuffer,
-                drawCallBuffer.buffer,
-                drawCallBuffer.offset,
-                drawCallCountBuffer.buffer,
-                drawCallCountBuffer.offset,
-                culledDraw.sourceData.numInstances,
-                sizeof(VkDrawMeshTasksIndirectCommandEXT));
+            ctx.draw_mesh_tasks_indirect_count(drawCallBufferSpan[drawCallIndex],
+                0,
+                culledDraw.drawCallCountBuffer,
+                0,
+                culledDraw.sourceData.numInstances);
         }
 
         ctx.end_pass();

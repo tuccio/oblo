@@ -3,7 +3,6 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/vulkan/buffer.hpp>
-#include <oblo/vulkan/stateful_command_buffer.hpp>
 #include <oblo/vulkan/texture.hpp>
 #include <oblo/vulkan/utility/pipeline_barrier.hpp>
 
@@ -150,118 +149,5 @@ namespace oblo::vk
         auto* ptr = try_find(handle);
         OBLO_ASSERT(ptr);
         return *ptr;
-    }
-
-    bool resource_manager::commit(command_buffer_state& commandBufferState, VkCommandBuffer transitionsBuffer)
-    {
-        const bool anyTransition{commandBufferState.has_incomplete_transitions()};
-        OBLO_ASSERT(!anyTransition || transitionsBuffer);
-
-        // Fill up the transitions buffer with the incomplete transitions, which we can now check from global state
-        for (const auto& pendingTransition : commandBufferState.m_incompleteTransitions)
-        {
-            const auto* it = m_textures.try_find(pendingTransition.handle);
-            OBLO_ASSERT(it != nullptr, "The texture is not registered, unable to add transition");
-
-            if (it)
-            {
-                const auto oldLayout = it->layout;
-
-                add_pipeline_barrier_cmd(transitionsBuffer,
-                    oldLayout,
-                    pendingTransition.newLayout,
-                    it->data.image,
-                    pendingTransition.format,
-                    pendingTransition.layerCount,
-                    pendingTransition.mipLevels);
-            }
-        }
-
-        // Update the global state
-        const std::span keys = commandBufferState.m_transitions.keys();
-        const std::span values = commandBufferState.m_transitions.values();
-
-        for (usize i = 0; i < keys.size(); ++i)
-        {
-            const auto handle = keys[i];
-
-            auto* const layoutPtr = m_textures.try_find(handle);
-
-            if (layoutPtr)
-            {
-                layoutPtr->layout = values[i];
-            }
-        }
-
-        return anyTransition;
-    }
-
-    void command_buffer_state::set_starting_layout(h32<texture> texture, VkImageLayout currentLayout)
-    {
-        m_transitions.emplace(texture, currentLayout);
-    }
-
-    void command_buffer_state::add_pipeline_barrier(
-        const texture& tex, h32<texture> handle, VkCommandBuffer commandBuffer, VkImageLayout newLayout)
-    {
-        auto* const transitionPtr = m_transitions.try_find(handle);
-
-        if (!transitionPtr)
-        {
-            m_transitions.emplace(handle, newLayout);
-
-            m_incompleteTransitions.emplace_back(image_transition{
-                .handle = handle,
-                .newLayout = newLayout,
-                .format = tex.initializer.format,
-                .layerCount = tex.initializer.arrayLayers,
-                .mipLevels = tex.initializer.mipLevels,
-            });
-        }
-        else
-        {
-            const auto oldLayout = *transitionPtr;
-            *transitionPtr = newLayout;
-
-            add_pipeline_barrier_cmd(commandBuffer,
-                oldLayout,
-                newLayout,
-                tex.image,
-                tex.initializer.format,
-                tex.initializer.arrayLayers,
-                tex.initializer.mipLevels);
-        }
-    }
-
-    void command_buffer_state::add_pipeline_barrier(const resource_manager& resourceManager,
-        h32<texture> handle,
-        VkCommandBuffer commandBuffer,
-        VkImageLayout newLayout)
-    {
-        auto* texturePtr = resourceManager.try_find(handle);
-        OBLO_ASSERT(texturePtr);
-
-        add_pipeline_barrier(*texturePtr, handle, commandBuffer, newLayout);
-    }
-
-    void command_buffer_state::clear()
-    {
-        m_transitions.clear();
-        m_incompleteTransitions.clear();
-    }
-
-    bool command_buffer_state::has_incomplete_transitions() const
-    {
-        return !m_incompleteTransitions.empty();
-    }
-
-    expected<VkImageLayout> command_buffer_state::try_find(h32<texture> handle) const
-    {
-        if (auto* const layout = m_transitions.try_find(handle))
-        {
-            return *layout;
-        }
-
-        return unspecified_error;
     }
 }

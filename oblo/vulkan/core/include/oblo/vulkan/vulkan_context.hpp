@@ -9,7 +9,6 @@
 #include <oblo/vulkan/loaded_functions.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
-#include <oblo/vulkan/stateful_command_buffer.hpp>
 #include <oblo/vulkan/utility/debug_utils.hpp>
 
 #include <memory>
@@ -41,7 +40,7 @@ namespace oblo::vk
 
         void push_frame_wait_semaphores(std::span<const VkSemaphore> waitSemaphores);
 
-        stateful_command_buffer& get_active_command_buffer();
+        VkCommandBuffer get_active_command_buffer();
 
         VkInstance get_instance() const;
         VkDevice get_device() const;
@@ -126,7 +125,7 @@ namespace oblo::vk
 
         VkSemaphore m_timelineSemaphore{};
 
-        stateful_command_buffer m_currentCb;
+        VkCommandBuffer m_currentCb{};
 
         u32 m_poolIndex{0};
         u64 m_currentSemaphoreValue{0};
@@ -134,9 +133,6 @@ namespace oblo::vk
         // We want the submit index to start from more than 0, which is the starting value of the semaphore
         u64 m_submitIndex{1};
         u64 m_frameIndex{0};
-
-        struct pending_disposal_queues;
-        std::unique_ptr<pending_disposal_queues> m_pending;
 
         deque<disposable_object> m_disposableObjects;
 

@@ -635,54 +635,7 @@ namespace oblo::vk::swapchain_graph
         {
             if (blitPass && ctx.begin_pass(blitPass))
             {
-                const texture src = ctx.access(inRenderedImage);
-                const texture dst = ctx.access(inSwapchainImage);
-
-                OBLO_ASSERT(src.image);
-                OBLO_ASSERT(dst.image);
-
-                VkImageBlit regions[1] = {
-                    {
-                        .srcSubresource =
-                            {
-                                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                                .layerCount = 1,
-                            },
-                        .srcOffsets =
-                            {
-                                {0, 0, 0},
-                                {
-                                    i32(src.initializer.extent.width),
-                                    i32(src.initializer.extent.height),
-                                    i32(src.initializer.extent.depth),
-                                },
-                            },
-                        .dstSubresource =
-                            {
-                                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                                .layerCount = 1,
-                            },
-                        .dstOffsets =
-                            {
-                                {0, 0, 0},
-                                {
-                                    i32(dst.initializer.extent.width),
-                                    i32(dst.initializer.extent.height),
-                                    i32(dst.initializer.extent.depth),
-                                },
-                            },
-                    },
-                };
-
-                vkCmdBlitImage(ctx.get_command_buffer(),
-                    src.image,
-                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    dst.image,
-                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                    1,
-                    regions,
-                    VK_FILTER_LINEAR);
-
+                ctx.blit_color(inRenderedImage, inSwapchainImage);
                 ctx.end_pass();
             }
 

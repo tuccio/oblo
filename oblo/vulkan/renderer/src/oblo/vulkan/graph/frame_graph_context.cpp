@@ -12,8 +12,11 @@
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/descriptor_set_pool.hpp>
 #include <oblo/vulkan/draw/shader_stage_utils.hpp>
+#include <oblo/vulkan/draw/vk_type_conversions.hpp>
 #include <oblo/vulkan/graph/frame_graph_impl.hpp>
+#include <oblo/vulkan/graph/render_pass.hpp>
 #include <oblo/vulkan/graph/resource_pool.hpp>
+#include <oblo/vulkan/graph/types_internal.hpp>
 #include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/staging_buffer.hpp>
@@ -353,13 +356,13 @@ namespace oblo::vk
 
         const image_initializer imageInitializer{
             .imageType = VK_IMAGE_TYPE_2D,
-            .format = initializer.format,
+            .format = convert_to_vk(initializer.format),
             .extent = {.width = initializer.width, .height = initializer.height, .depth = 1},
             .mipLevels = 1,
             .arrayLayers = 1,
             .samples = VK_SAMPLE_COUNT_1_BIT,
             .tiling = VK_IMAGE_TILING_OPTIMAL,
-            .usage = convert_usage(usage) | VK_IMAGE_USAGE_SAMPLED_BIT | initializer.usage,
+            .usage = convert_usage(usage) | VK_IMAGE_USAGE_SAMPLED_BIT,
             .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
             .memoryUsage = memory_usage::gpu_only,
             .debugLabel = initializer.debugLabel,
@@ -376,12 +379,12 @@ namespace oblo::vk
             stableId = std::bit_cast<h32<stable_texture_resource>>(texture);
         }
 
-        const auto poolIndex = m_resourcePool.add_transient_texture(imageInitializer, range, stableId);
+        const auto poolIndex = m_frameGraph.resourcePool.add_transient_texture(imageInitializer, range, stableId);
 
         m_frameGraph.add_transient_resource(texture, poolIndex);
         m_frameGraph.add_resource_transition(texture, usage);
 
-        add_texture_usages(m_resourcePool, m_frameGraph, texture, usage);
+        add_texture_usages(m_frameGraph.resourcePool, m_frameGraph, texture, usage);
     }
 
     void frame_graph_build_context::create(
@@ -407,7 +410,7 @@ namespace oblo::vk
                 "Uploading at initialization time on stable buffers is currently not supported");
         }
 
-        const auto poolIndex = m_resourcePool.add_transient_buffer(initializer.size, vkUsage, stableId);
+        const auto poolIndex = m_frameGraph.resourcePool.add_transient_buffer(initializer.size, vkUsage, stableId);
 
         staging_buffer_span stagedData{};
         staging_buffer_span* stagedDataPtr{};
@@ -456,7 +459,7 @@ namespace oblo::vk
 
         constexpr h32<stable_buffer_resource> notStable{};
 
-        const auto poolIndex = m_resourcePool.add_transient_buffer(stagedDataSize, vkUsage, notStable);
+        const auto poolIndex = m_frameGraph.resourcePool.add_transient_buffer(stagedDataSize, vkUsage, notStable);
 
         // We rely on a global memory barrier in frame graph to synchronize all uploads before submitting any command
 
@@ -477,7 +480,7 @@ namespace oblo::vk
     void frame_graph_build_context::register_texture(resource<texture> resource, h32<texture> externalTexture) const
     {
         const auto& texture = m_frameGraph.resourceManager->get(externalTexture);
-        const auto poolIndex = m_resourcePool.add_external_texture(texture);
+        const auto poolIndex = m_frameGraph.resourcePool.add_external_texture(texture);
         m_frameGraph.add_transient_resource(resource, poolIndex);
     }
 
@@ -492,7 +495,7 @@ namespace oblo::vk
         OBLO_ASSERT(m_state.currentPass);
 
         m_frameGraph.add_resource_transition(texture, usage);
-        add_texture_usages(m_resourcePool, m_frameGraph, texture, usage);
+        add_texture_usages(m_frameGraph.resourcePool, m_frameGraph, texture, usage);
     }
 
     h32<resident_texture> frame_graph_build_context::acquire_bindless(resource<texture> texture,
@@ -501,7 +504,7 @@ namespace oblo::vk
         OBLO_ASSERT(m_state.currentPass);
 
         m_frameGraph.add_resource_transition(texture, usage);
-        add_texture_usages(m_resourcePool, m_frameGraph, texture, usage);
+        add_texture_usages(m_frameGraph.resourcePool, m_frameGraph, texture, usage);
 
         const auto bindlessHandle = m_renderer.get_texture_registry().acquire();
         m_frameGraph.bindlessTextures.emplace_back(bindlessHandle, texture, usage);
@@ -520,7 +523,7 @@ namespace oblo::vk
 
         const auto poolIndex = m_frameGraph.find_pool_index(buffer);
         OBLO_ASSERT(poolIndex, "The buffer might not have an input connected, or needs to be created");
-        m_resourcePool.add_transient_buffer_usage(poolIndex, convert_buffer_usage(usage));
+        m_frameGraph.resourcePool.add_transient_buffer_usage(poolIndex, convert_buffer_usage(usage));
 
         const auto& currentPass = m_frameGraph.passes[m_state.currentPass.value];
         const auto [pipelineStage, access, accessKind] = convert_for_sync2(currentPass.kind, usage);
@@ -598,7 +601,7 @@ namespace oblo::vk
         return resource;
     }
 
-    expected<image_initializer> frame_graph_build_context::get_current_initializer(resource<texture> texture) const
+    expected<texture_init_desc> frame_graph_build_context::get_current_initializer(resource<texture> texture) const
     {
         const auto h = m_frameGraph.find_pool_index(texture);
 
@@ -607,7 +610,13 @@ namespace oblo::vk
             return unspecified_error;
         }
 
-        return m_resourcePool.get_initializer(h);
+        const auto& init = m_frameGraph.resourcePool.get_initializer(h);
+
+        return texture_init_desc{
+            .width = init.extent.width,
+            .height = init.extent.height,
+            .format = convert_to_oblo(init.format),
+        };
     }
 
     frame_allocator& frame_graph_build_context::get_frame_allocator() const
@@ -630,9 +639,9 @@ namespace oblo::vk
         return m_frameGraph.frameCounter;
     }
 
-    frame_graph_build_context::frame_graph_build_context(
-        frame_graph_impl& frameGraph, frame_graph_build_state& state, renderer& renderer, resource_pool& resourcePool) :
-        m_frameGraph{frameGraph}, m_state{state}, m_renderer{renderer}, m_resourcePool{resourcePool}
+    frame_graph_build_context::frame_graph_build_context(frame_graph_impl& frameGraph,
+        frame_graph_build_state& state,
+        renderer& renderer) : m_frameGraph{frameGraph}, m_state{state}, m_renderer{renderer}
     {
     }
 
@@ -695,15 +704,13 @@ namespace oblo::vk
 
     frame_graph_execute_context::frame_graph_execute_context(const frame_graph_impl& frameGraph,
         frame_graph_execution_state& executeCtx,
-        renderer& renderer,
-        VkCommandBuffer commandBuffer) :
-        m_frameGraph{frameGraph}, m_state{executeCtx}, m_renderer{renderer}, m_commandBuffer{commandBuffer}
+        renderer& renderer) : m_frameGraph{frameGraph}, m_state{executeCtx}, m_renderer{renderer}
     {
     }
 
     void frame_graph_execute_context::begin_pass(h32<frame_graph_pass> handle) const
     {
-        m_frameGraph.begin_pass_execution(handle, m_commandBuffer, m_state);
+        m_frameGraph.begin_pass_execution(handle, m_state);
     }
 
     expected<> frame_graph_execute_context::begin_pass(h32<compute_pass_instance> handle) const
@@ -712,12 +719,12 @@ namespace oblo::vk
         OBLO_ASSERT(m_frameGraph.passes[handle.value].kind == pass_kind::compute);
 
         const auto passHandle = h32<frame_graph_pass>{handle.value};
-        m_frameGraph.begin_pass_execution(passHandle, m_commandBuffer, m_state);
+        m_frameGraph.begin_pass_execution(passHandle, m_state);
 
         auto& pm = m_renderer.get_pass_manager();
 
         const auto pipeline = m_frameGraph.passes[handle.value].computePipeline;
-        const auto computeCtx = pm.begin_compute_pass(m_commandBuffer, pipeline);
+        const auto computeCtx = pm.begin_compute_pass(m_state.commandBuffer, pipeline);
 
         if (!computeCtx)
         {
@@ -733,19 +740,83 @@ namespace oblo::vk
         return no_error;
     }
 
+    namespace
+    {
+        VkRenderingAttachmentInfo make_rendering_attachment_info(
+            VkImageView imageView, VkImageLayout layout, const render_attachment& attachment)
+        {
+            return {
+                .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                .imageView = imageView,
+                .imageLayout = layout,
+                .loadOp = convert_to_vk(attachment.loadOp),
+                .storeOp = convert_to_vk(attachment.storeOp),
+                .clearValue = {std::bit_cast<VkClearColorValue>(attachment.clearValue)},
+            };
+        }
+    }
+
     expected<> frame_graph_execute_context::begin_pass(h32<render_pass_instance> handle,
-        const VkRenderingInfo& renderingInfo) const
+        const render_pass_config& cfg) const
     {
         OBLO_ASSERT(handle);
         OBLO_ASSERT(m_frameGraph.passes[handle.value].kind == pass_kind::graphics);
 
         const auto passHandle = h32<frame_graph_pass>{handle.value};
-        m_frameGraph.begin_pass_execution(passHandle, m_commandBuffer, m_state);
+        m_frameGraph.begin_pass_execution(passHandle, m_state);
 
         auto& pm = m_renderer.get_pass_manager();
 
+        buffered_array<VkRenderingAttachmentInfo, 2> colorAttachments;
+
+        for (const auto& colorAttachment : cfg.colorAttachments)
+        {
+            const auto& vkTexture = access(colorAttachment.texture);
+
+            colorAttachments.push_back(make_rendering_attachment_info(vkTexture.view,
+                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                colorAttachment));
+        }
+
+        std::optional<VkRenderingAttachmentInfo> depthAttachment;
+
+        if (cfg.depthAttachment)
+        {
+            const auto& vkTexture = access(cfg.depthAttachment->texture);
+
+            depthAttachment = make_rendering_attachment_info(vkTexture.view,
+                VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+                *cfg.depthAttachment);
+        }
+
+        std::optional<VkRenderingAttachmentInfo> stencilAttachment;
+
+        if (cfg.stencilAttachment)
+        {
+            const auto& vkTexture = access(cfg.stencilAttachment->texture);
+
+            stencilAttachment = make_rendering_attachment_info(vkTexture.view,
+                VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL,
+                *cfg.stencilAttachment);
+        }
+
+        const VkRenderingInfo renderingInfo{
+            .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+            .renderArea =
+                {
+                    .offset = {cfg.renderOffset.x, cfg.renderOffset.y},
+                    .extent = {cfg.renderResolution.x, cfg.renderResolution.y},
+                },
+            .layerCount = 1,
+            .viewMask = 0,
+            .colorAttachmentCount = colorAttachments.size32(),
+            .pColorAttachments = colorAttachments.data(),
+            .pDepthAttachment = depthAttachment ? &*depthAttachment : nullptr,
+            .pStencilAttachment = stencilAttachment ? &*stencilAttachment : nullptr,
+        };
+
         const auto pipeline = m_frameGraph.passes[handle.value].renderPipeline;
-        const auto renderCtx = pm.begin_render_pass(m_commandBuffer, pipeline, renderingInfo);
+        const auto renderCtx = pm.begin_render_pass(m_state.commandBuffer, pipeline, renderingInfo);
 
         if (!renderCtx)
         {
@@ -767,12 +838,12 @@ namespace oblo::vk
         OBLO_ASSERT(m_frameGraph.passes[handle.value].kind == pass_kind::raytracing);
 
         const auto passHandle = h32<frame_graph_pass>{handle.value};
-        m_frameGraph.begin_pass_execution(passHandle, m_commandBuffer, m_state);
+        m_frameGraph.begin_pass_execution(passHandle, m_state);
 
         auto& pm = m_renderer.get_pass_manager();
 
         const auto pipeline = m_frameGraph.passes[handle.value].raytracingPipeline;
-        const auto rtCtx = pm.begin_raytracing_pass(m_commandBuffer, pipeline);
+        const auto rtCtx = pm.begin_raytracing_pass(m_state.commandBuffer, pipeline);
 
         if (!rtCtx)
         {
@@ -794,7 +865,7 @@ namespace oblo::vk
         OBLO_ASSERT(m_frameGraph.passes[handle.value].kind == pass_kind::transfer);
 
         const auto passHandle = h32<frame_graph_pass>{handle.value};
-        m_frameGraph.begin_pass_execution(passHandle, m_commandBuffer, m_state);
+        m_frameGraph.begin_pass_execution(passHandle, m_state);
 
         m_state.passKind = pass_kind::transfer;
 
@@ -807,7 +878,7 @@ namespace oblo::vk
         OBLO_ASSERT(m_frameGraph.passes[handle.value].kind == pass_kind::none);
 
         const auto passHandle = h32<frame_graph_pass>{handle.value};
-        m_frameGraph.begin_pass_execution(passHandle, m_commandBuffer, m_state);
+        m_frameGraph.begin_pass_execution(passHandle, m_state);
 
         m_state.passKind = pass_kind::none;
 
@@ -865,12 +936,21 @@ namespace oblo::vk
 
         vk::bind_descriptor_sets(m_frameGraph,
             m_renderer,
-            m_commandBuffer,
+            m_state.commandBuffer,
             bindPoint,
             m_state.currentPass,
             *m_state.basePipeline,
             m_state.imageLayoutTracker,
             bindingTables);
+    }
+
+    void frame_graph_execute_context::bind_index_buffer(
+        resource<buffer> buffer, u32 bufferOffset, mesh_index_type indexType) const
+    {
+        const auto vkIndexType = convert_to_vk(indexType);
+
+        const auto b = access(buffer);
+        vkCmdBindIndexBuffer(m_state.commandBuffer, b.buffer, b.offset + bufferOffset, vkIndexType);
     }
 
     texture frame_graph_execute_context::access(resource<texture> h) const
@@ -933,7 +1013,7 @@ namespace oblo::vk
         }
 
         const auto b = access(h);
-        stagingBuffer.upload(get_command_buffer(), *stagedData, b.buffer, b.offset + bufferOffset);
+        stagingBuffer.upload(m_state.commandBuffer, *stagedData, b.buffer, b.offset + bufferOffset);
     }
 
     void frame_graph_execute_context::upload(
@@ -943,7 +1023,7 @@ namespace oblo::vk
         const auto b = access(h);
 
         // NOTE: This is also not thread safe, it changes some internal state in the staging buffer
-        stagingBuffer.upload(get_command_buffer(), data, b.buffer, b.offset + bufferOffset);
+        stagingBuffer.upload(m_state.commandBuffer, data, b.buffer, b.offset + bufferOffset);
     }
 
     async_download frame_graph_execute_context::download(resource<buffer> h) const
@@ -963,7 +1043,10 @@ namespace oblo::vk
                 auto& pendingDownload = m_frameGraph.pendingDownloads[download.pendingDownloadId];
 
                 const auto b = access(h);
-                m_frameGraph.downloadStaging.download(m_commandBuffer, b.buffer, b.offset, pendingDownload.stagedSpan);
+                m_frameGraph.downloadStaging.download(m_state.commandBuffer,
+                    b.buffer,
+                    b.offset,
+                    pendingDownload.stagedSpan);
 
                 return async_download{pendingDownload.promise};
             }
@@ -973,24 +1056,43 @@ namespace oblo::vk
         return async_download{};
     }
 
-    VkCommandBuffer frame_graph_execute_context::get_command_buffer() const
+    u64 frame_graph_execute_context::get_device_address(resource<buffer> buffer) const
     {
-        return m_commandBuffer;
-    }
+        const auto& b = access(buffer);
 
-    VkDevice frame_graph_execute_context::get_device() const
-    {
-        return m_renderer.get_vulkan_context().get_device();
-    }
+        const VkBufferDeviceAddressInfo info{
+            .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+            .buffer = b.buffer,
+        };
 
-    const loaded_functions& frame_graph_execute_context::get_loaded_functions() const
-    {
-        return m_renderer.get_vulkan_context().get_loaded_functions();
+        return vkGetBufferDeviceAddress(m_renderer.get_vulkan_context().get_device(), &info) + b.offset;
     }
 
     const gpu_info& frame_graph_execute_context::get_gpu_info() const
     {
         return m_frameGraph.gpuInfo;
+    }
+
+    void frame_graph_execute_context::set_viewport(u32 w, u32 h, f32 minDepth, f32 maxDepth) const
+    {
+        const VkViewport viewport{
+            .width = f32(w),
+            .height = f32(h),
+            .minDepth = minDepth,
+            .maxDepth = maxDepth,
+        };
+
+        vkCmdSetViewport(m_state.commandBuffer, 0, 1, &viewport);
+    }
+
+    void frame_graph_execute_context::set_scissor(i32 x, i32 y, u32 w, u32 h) const
+    {
+        const VkRect2D scissor{
+            .offset = {.x = x, .y = y},
+            .extent = {.width = w, .height = h},
+        };
+
+        vkCmdSetScissor(m_state.commandBuffer, 0, 1, &scissor);
     }
 
     void frame_graph_execute_context::push_constants(
@@ -1005,13 +1107,13 @@ namespace oblo::vk
             vkShaderFlags |= to_vk_shader_stage(flag);
         }
 
-        pm.push_constants(m_commandBuffer, *m_state.basePipeline, vkShaderFlags, offset, bytes);
+        pm.push_constants(m_state.commandBuffer, *m_state.basePipeline, vkShaderFlags, offset, bytes);
     }
 
     void frame_graph_execute_context::dispatch_compute(u32 groupsX, u32 groupsY, u32 groupsZ) const
     {
         OBLO_ASSERT(m_state.passKind == pass_kind::compute);
-        vkCmdDispatch(m_commandBuffer, groupsX, groupsY, groupsZ);
+        vkCmdDispatch(m_state.commandBuffer, groupsX, groupsY, groupsZ);
     }
 
     void frame_graph_execute_context::trace_rays(u32 x, u32 y, u32 z) const
@@ -1019,6 +1121,84 @@ namespace oblo::vk
         OBLO_ASSERT(m_state.passKind == pass_kind::raytracing);
         auto& pm = m_renderer.get_pass_manager();
         pm.trace_rays(m_state.rtCtx, x, y, z);
+    }
+
+    void frame_graph_execute_context::draw_indexed(
+        u32 indexCount, u32 instanceCount, u32 firstIndex, u32 vertexOffset, u32 firstInstance) const
+    {
+        vkCmdDrawIndexed(m_state.commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+    }
+
+    void frame_graph_execute_context::draw_mesh_tasks_indirect_count(resource<buffer> drawCallBuffer,
+        u32 drawCallBufferOffset,
+        resource<buffer> drawCallCountBuffer,
+        u32 drawCallCountBufferOffset,
+        u32 maxDrawCount) const
+    {
+        const auto& drawCallVkBuf = access(drawCallBuffer);
+        const auto& drawCountVkBuf = access(drawCallCountBuffer);
+
+        const auto vkCmdDrawMeshTasksIndirectCount =
+            m_renderer.get_vulkan_context().get_loaded_functions().vkCmdDrawMeshTasksIndirectCountEXT;
+
+        vkCmdDrawMeshTasksIndirectCount(m_state.commandBuffer,
+            drawCallVkBuf.buffer,
+            drawCallVkBuf.offset + drawCallBufferOffset,
+            drawCountVkBuf.buffer,
+            drawCountVkBuf.offset + drawCallCountBufferOffset,
+            maxDrawCount,
+            sizeof(VkDrawMeshTasksIndirectCommandEXT));
+    }
+
+    void frame_graph_execute_context::blit_color(resource<texture> srcTexture, resource<texture> dstTexture) const
+    {
+        const texture src = access(srcTexture);
+        const texture dst = access(dstTexture);
+
+        OBLO_ASSERT(src.image);
+        OBLO_ASSERT(dst.image);
+
+        VkImageBlit regions[1] = {
+            {
+                .srcSubresource =
+                    {
+                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .layerCount = 1,
+                    },
+                .srcOffsets =
+                    {
+                        {0, 0, 0},
+                        {
+                            i32(src.initializer.extent.width),
+                            i32(src.initializer.extent.height),
+                            i32(src.initializer.extent.depth),
+                        },
+                    },
+                .dstSubresource =
+                    {
+                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .layerCount = 1,
+                    },
+                .dstOffsets =
+                    {
+                        {0, 0, 0},
+                        {
+                            i32(dst.initializer.extent.width),
+                            i32(dst.initializer.extent.height),
+                            i32(dst.initializer.extent.depth),
+                        },
+                    },
+            },
+        };
+
+        vkCmdBlitImage(m_state.commandBuffer,
+            src.image,
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            dst.image,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            1,
+            regions,
+            VK_FILTER_LINEAR);
     }
 
     vec2u frame_graph_execute_context::get_resolution(resource<texture> h) const

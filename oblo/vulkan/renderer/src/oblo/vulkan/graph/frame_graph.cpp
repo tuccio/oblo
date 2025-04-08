@@ -541,7 +541,7 @@ namespace oblo::vk
         m_impl->passes.assign_default(1);
 
         frame_graph_build_state buildState;
-        const frame_graph_build_context buildCtx{*m_impl, buildState, renderer, m_impl->resourcePool};
+        const frame_graph_build_context buildCtx{*m_impl, buildState, renderer};
 
         // Clearing these is required for certain operations that query created textures during the build process (e.g.
         // get_texture_initializer).
@@ -553,7 +553,7 @@ namespace oblo::vk
         }
 
         // This is used to register external textures (e.g. the swapchain images)
-        m_impl->resourceManager = &renderer.get_resource_manager();
+        m_impl->resourceManager = &renderer.get_vulkan_context().get_resource_manager();
 
         // The two calls are from a time where we managed multiple small graphs sharing the resource pool, rather than 1
         // big graph owning it.
@@ -609,10 +609,11 @@ namespace oblo::vk
     {
         OBLO_PROFILE_SCOPE("Frame Graph Execute");
 
-        auto& commandBuffer = renderer.get_active_command_buffer();
+        auto& vkContext = renderer.get_vulkan_context();
+        const VkCommandBuffer commandBuffer = vkContext.get_active_command_buffer();
         auto& resourcePool = m_impl->resourcePool;
 
-        m_impl->downloadStaging.begin_frame(renderer.get_vulkan_context().get_submit_index());
+        m_impl->downloadStaging.begin_frame(vkContext.get_submit_index());
 
         for (const auto [storage, poolIndex] : m_impl->transientBuffers)
         {
@@ -631,7 +632,7 @@ namespace oblo::vk
 
         if (!m_impl->pendingUploads.empty())
         {
-            m_impl->flush_uploads(commandBuffer.get(), renderer.get_staging_buffer());
+            m_impl->flush_uploads(commandBuffer, renderer.get_staging_buffer());
         }
 
         // Prepare the download buffers
@@ -656,8 +657,8 @@ namespace oblo::vk
             download.promise.init(get_global_allocator());
         }
 
-        frame_graph_execution_state executionState;
-        const frame_graph_execute_context executeCtx{*m_impl, executionState, renderer, commandBuffer.get()};
+        frame_graph_execution_state executionState{.commandBuffer = commandBuffer};
+        const frame_graph_execute_context executeCtx{*m_impl, executionState, renderer};
 
         auto& imageLayoutTracker = executionState.imageLayoutTracker;
 
@@ -688,7 +689,7 @@ namespace oblo::vk
                 .pMemoryBarriers = &uploadMemoryBarrier,
             };
 
-            vkCmdPipelineBarrier2(commandBuffer.get(), &dependencyInfo);
+            vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
         }
 
         frame_graph_barriers barriers{
@@ -714,9 +715,7 @@ namespace oblo::vk
             if (passesPerNode.passesBegin < passesPerNode.passesEnd)
             {
                 // We automatically start the first pass
-                m_impl->begin_pass_execution(h32<frame_graph_pass>{passesPerNode.passesBegin},
-                    commandBuffer.get(),
-                    executionState);
+                m_impl->begin_pass_execution(h32<frame_graph_pass>{passesPerNode.passesBegin}, executionState);
             }
 
             auto* const ptr = node->ptr;
@@ -788,8 +787,7 @@ namespace oblo::vk
         state.currentPass = {};
     }
 
-    void frame_graph_impl::begin_pass_execution(
-        h32<frame_graph_pass> passId, VkCommandBuffer commandBuffer, frame_graph_execution_state& state) const
+    void frame_graph_impl::begin_pass_execution(h32<frame_graph_pass> passId, frame_graph_execution_state& state) const
     {
         OBLO_ASSERT(passId);
 
@@ -842,7 +840,7 @@ namespace oblo::vk
                 .pImageMemoryBarriers = imageBarriers.data(),
             };
 
-            vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
+            vkCmdPipelineBarrier2(state.commandBuffer, &dependencyInfo);
         }
 
         state.currentPass = passId;

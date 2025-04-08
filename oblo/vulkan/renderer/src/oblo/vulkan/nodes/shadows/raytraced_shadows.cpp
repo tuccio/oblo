@@ -51,8 +51,7 @@ namespace oblo::vk
             {
                 .width = resolution.x,
                 .height = resolution.y,
-                .format = VK_FORMAT_R8_UNORM,
-                .usage = VK_IMAGE_USAGE_STORAGE_BIT,
+                .format = texture_format::r8_unorm,
             },
             texture_usage::storage_write);
 

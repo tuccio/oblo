@@ -26,8 +26,6 @@ namespace oblo::vk
 
         VkInstance get() const;
 
-        static std::vector<VkLayerProperties> available_layers();
-
     private:
         VkInstance m_instance{nullptr};
     };

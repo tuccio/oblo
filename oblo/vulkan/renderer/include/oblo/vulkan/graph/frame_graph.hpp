@@ -12,8 +12,6 @@
 
 namespace oblo
 {
-    class frame_allocator;
-
     template <typename>
     class deque;
 }

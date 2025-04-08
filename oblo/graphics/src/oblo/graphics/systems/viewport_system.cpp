@@ -17,7 +17,6 @@
 #include <oblo/math/vec2u.hpp>
 #include <oblo/math/view_projection.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
-#include <oblo/vulkan/create_render_target.hpp>
 #include <oblo/vulkan/data/camera_buffer.hpp>
 #include <oblo/vulkan/data/picking_configuration.hpp>
 #include <oblo/vulkan/data/time_buffer.hpp>

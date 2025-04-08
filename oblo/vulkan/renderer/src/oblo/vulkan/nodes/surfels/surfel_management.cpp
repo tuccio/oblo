@@ -3,7 +3,9 @@
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/random_generator.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/ecs/handles.hpp>
 #include <oblo/math/vec2.hpp>
+#include <oblo/math/vec2u.hpp>
 #include <oblo/math/vec4.hpp>
 #include <oblo/vulkan/data/camera_buffer.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
@@ -279,11 +281,10 @@ namespace oblo::vk
     {
         randomSeed = ctx.get_random_generator().generate();
 
-        const auto resolution =
-            ctx.get_current_initializer(inVisibilityBuffer).assert_value_or(image_initializer{}).extent;
+        const auto visBufferDesc = ctx.get_current_initializer(inVisibilityBuffer).assert_value_or(texture_init_desc{});
 
-        const u32 tilesX = round_up_div(resolution.width, g_tileSize);
-        const u32 tilesY = round_up_div(resolution.height, g_tileSize);
+        const u32 tilesX = round_up_div(visBufferDesc.width, g_tileSize);
+        const u32 tilesY = round_up_div(visBufferDesc.height, g_tileSize);
         const u32 tilesCount = tilesX * tilesY;
 
         const u32 tilesBufferSize = u32(tilesCount * sizeof(surfel_tile_data));
@@ -333,10 +334,10 @@ namespace oblo::vk
         {
             binding_table bindingTable;
 
-            const auto resolution = ctx.access(inVisibilityBuffer).initializer.extent;
+            const auto resolution = ctx.get_resolution(inVisibilityBuffer);
 
-            const u32 tilesX = round_up_div(resolution.width, g_tileSize);
-            const u32 tilesY = round_up_div(resolution.height, g_tileSize);
+            const u32 tilesX = round_up_div(resolution.x, g_tileSize);
+            const u32 tilesY = round_up_div(resolution.y, g_tileSize);
 
             bindingTable.bind_buffers({
                 {"b_InstanceTables", inInstanceTables},
