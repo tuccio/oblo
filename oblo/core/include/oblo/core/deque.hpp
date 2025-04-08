@@ -346,20 +346,23 @@ namespace oblo
     deque<T>::deque(const deque& other) :
         m_chunks{other.get_allocator()}, m_start{other.m_start}, m_elementsPerChunk{other.m_elementsPerChunk}
     {
-        reserve(other.m_size);
-
-        for (usize i = 0; i < other.m_size / m_elementsPerChunk; ++i)
+        if (other.m_size > 0)
         {
-            const T* const src = other.m_chunks[i];
-            T* const dst = m_chunks[i];
-            std::uninitialized_copy(src, src + m_elementsPerChunk, dst);
-        }
+            reserve(other.m_size);
 
-        {
-            const usize elementsInChunk = other.m_size % m_elementsPerChunk;
-            const T* const src = other.m_chunks.back();
-            T* const dst = m_chunks.back();
-            std::uninitialized_copy(src, src + elementsInChunk, dst);
+            for (usize i = 0; i < other.m_size / m_elementsPerChunk; ++i)
+            {
+                const T* const src = other.m_chunks[i];
+                T* const dst = m_chunks[i];
+                std::uninitialized_copy(src, src + m_elementsPerChunk, dst);
+            }
+
+            {
+                const usize elementsInChunk = other.m_size % m_elementsPerChunk;
+                const T* const src = other.m_chunks.back();
+                T* const dst = m_chunks.back();
+                std::uninitialized_copy(src, src + elementsInChunk, dst);
+            }
         }
 
         m_size = other.m_size;
