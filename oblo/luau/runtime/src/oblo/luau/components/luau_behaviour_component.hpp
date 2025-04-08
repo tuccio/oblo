@@ -10,4 +10,8 @@ namespace oblo
     {
         resource_ref<luau_bytecode> script;
     } OBLO_COMPONENT();
+
+    struct luau_behaviour_loaded_tag
+    {
+    } OBLO_TAG();
 }
