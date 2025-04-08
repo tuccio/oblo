@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/flags.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/vulkan/draw/types.hpp>
 
@@ -79,5 +80,60 @@ namespace oblo::vk
         default:
             unreachable();
         }
+    }
+
+    inline VkCompareOp convert_to_vk(compare_op op)
+    {
+        return VkCompareOp(op);
+    }
+
+    inline VkStencilOp convert_to_vk(stencil_op op)
+    {
+        return VkStencilOp(op);
+    }
+
+    inline VkPrimitiveTopology convert_to_vk(primitive_topology topology)
+    {
+        return VkPrimitiveTopology(topology);
+    }
+
+    inline VkPolygonMode convert_to_vk(polygon_mode mode)
+    {
+        return VkPolygonMode(mode);
+    }
+
+    inline VkCullModeFlags convert_to_vk(flags<cull_mode> f)
+    {
+        return VkCullModeFlags(f.storage);
+    }
+
+    inline VkFrontFace convert_to_vk(front_face face)
+    {
+        return VkFrontFace(face);
+    }
+
+    inline VkPipelineDepthStencilStateCreateFlags convert_to_vk(flags<pipeline_depth_stencil_state_create> f)
+    {
+        return VkPipelineDepthStencilStateCreateFlags(f.storage);
+    }
+
+    inline VkFormat convert_to_vk(texture_format format)
+    {
+        return VkFormat(format);
+    }
+
+    inline VkBlendFactor convert_to_vk(blend_factor factor)
+    {
+        return VkBlendFactor(factor);
+    }
+
+    inline VkBlendOp convert_to_vk(blend_op op)
+    {
+        return VkBlendOp(op);
+    }
+
+    inline VkColorComponentFlags convert_to_vk(flags<color_component> f)
+    {
+        return VkColorComponentFlags(f.storage);
     }
 }

@@ -33,26 +33,26 @@ namespace oblo::vk
 
     void visibility_pass::build(const frame_graph_build_context& ctx)
     {
-        constexpr auto visibilityBufferFormat = VK_FORMAT_R32G32_UINT;
+        constexpr auto visibilityBufferFormat = texture_format::r32g32_uint;
 
         passInstance = ctx.render_pass(renderPass,
             {
                 .renderTargets =
                     {
                         .colorAttachmentFormats = {visibilityBufferFormat},
-                        .depthFormat = VK_FORMAT_D24_UNORM_S8_UINT,
+                        .depthFormat = texture_format::d24_unorm_s8_uint,
                         .blendStates = {{.enable = false}},
                     },
                 .depthStencilState =
                     {
                         .depthTestEnable = true,
                         .depthWriteEnable = true,
-                        .depthCompareOp = VK_COMPARE_OP_GREATER, // We use reverse depth
+                        .depthCompareOp = compare_op::greater, // We use reverse depth
                     },
                 .rasterizationState =
                     {
-                        .polygonMode = VK_POLYGON_MODE_FILL,
-                        .cullMode = VK_CULL_MODE_NONE,
+                        .polygonMode = polygon_mode::fill,
+                        .cullMode = {},
                         .lineWidth = 1.f,
                     },
             });
@@ -63,7 +63,7 @@ namespace oblo::vk
             {
                 .width = resolution.x,
                 .height = resolution.y,
-                .format = visibilityBufferFormat,
+                .format = VkFormat(visibilityBufferFormat),
                 .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
             },
             texture_usage::render_target_write);

@@ -14,6 +14,7 @@
 #include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/render_pass_initializer.hpp>
+#include <oblo/vulkan/draw/types.hpp>
 #include <oblo/vulkan/graph/frame_graph.hpp>
 #include <oblo/vulkan/graph/frame_graph_registry.hpp>
 #include <oblo/vulkan/graph/frame_graph_template.hpp>
@@ -143,19 +144,19 @@ namespace oblo
                     {
                         .renderTargets =
                             {
-                                .colorAttachmentFormats = {rtInitializer.format},
+                                .colorAttachmentFormats = {vk::texture_format(rtInitializer.format)},
                                 .blendStates =
                                     {
                                         {
                                             .enable = true,
-                                            .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
-                                            .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-                                            .colorBlendOp = VK_BLEND_OP_ADD,
-                                            .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
-                                            .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-                                            .alphaBlendOp = VK_BLEND_OP_ADD,
-                                            .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
-                                                VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
+                                            .srcColorBlendFactor = vk::blend_factor::src_alpha,
+                                            .dstColorBlendFactor = vk::blend_factor::one_minus_src_alpha,
+                                            .colorBlendOp = vk::blend_op::add,
+                                            .srcAlphaBlendFactor = vk::blend_factor::one,
+                                            .dstAlphaBlendFactor = vk::blend_factor::one_minus_src_alpha,
+                                            .alphaBlendOp = vk::blend_op::add,
+                                            .colorWriteMask = vk::color_component::r | vk::color_component::g |
+                                                vk::color_component::b | vk::color_component::a,
                                         },
                                     },
                             },
@@ -166,8 +167,8 @@ namespace oblo
                             },
                         .rasterizationState =
                             {
-                                .polygonMode = VK_POLYGON_MODE_FILL,
-                                .cullMode = VK_CULL_MODE_NONE,
+                                .polygonMode = vk::polygon_mode::fill,
+                                .cullMode = {},
                                 .lineWidth = 1.f,
                             },
                     });
