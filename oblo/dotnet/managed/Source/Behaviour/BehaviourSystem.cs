@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace Oblo.Managed
+namespace Oblo
 {
     public class BehaviourSystem
     {
@@ -30,7 +30,7 @@ namespace Oblo.Managed
 
         void Update()
         {
-            System.Console.WriteLine($"Update called on {nameof(BehaviourSystem)}");
+            Log.Info($"Update called on {nameof(BehaviourSystem)}");
         }
     }
 }

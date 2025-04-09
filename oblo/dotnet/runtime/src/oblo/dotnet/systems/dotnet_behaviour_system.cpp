@@ -28,17 +28,17 @@ namespace oblo
 
             m_create = dotnetRuntime.load_assembly_delegate<std::remove_pointer_t<create_system_fn>>(
                 "managed/Oblo.Managed.dll",
-                "Oblo.Managed.BehaviourSystem, Oblo.Managed",
+                "Oblo.BehaviourSystem, Oblo.Managed",
                 "Create");
 
             m_destroy = dotnetRuntime.load_assembly_delegate<std::remove_pointer_t<destroy_system_fn>>(
                 "managed/Oblo.Managed.dll",
-                "Oblo.Managed.BehaviourSystem, Oblo.Managed",
+                "Oblo.BehaviourSystem, Oblo.Managed",
                 "Destroy");
 
             m_update = dotnetRuntime.load_assembly_delegate<std::remove_pointer_t<update_system_fn>>(
                 "managed/Oblo.Managed.dll",
-                "Oblo.Managed.BehaviourSystem, Oblo.Managed",
+                "Oblo.BehaviourSystem, Oblo.Managed",
                 "Update");
 
             if (m_create && m_destroy && m_update)
