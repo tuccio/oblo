@@ -1,1 +1,2 @@
+add_subdirectory(managed)
 add_subdirectory(runtime)

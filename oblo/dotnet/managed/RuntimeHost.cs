@@ -1,6 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 
-namespace Oblo.Runtime
+namespace Oblo.Managed
 {
     public class RuntimeHost
     {

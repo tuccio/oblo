@@ -110,8 +110,8 @@ namespace oblo
         }
 
         const auto delegate = r->load_assembly_delegate<void()>(
-            L".\\..\\..\\..\\..\\oblo\\dotnet\\managed\\Oblo.Runtime\\bin\\Debug\\net9.0\\Oblo.Runtime.dll",
-            L"Oblo.Runtime.RuntimeHost, Oblo.Runtime",
+            L"managed/Oblo.Managed.dll",
+            L"Oblo.Managed.RuntimeHost, Oblo.Managed",
             L"Init");
 
         if (delegate)

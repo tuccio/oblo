@@ -1,0 +1,1 @@
+add_custom_target(Oblo.Managed COMMAND dotnet build \"${CMAKE_CURRENT_SOURCE_DIR}/Oblo.Managed.csproj\" -o \"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/managed\")
