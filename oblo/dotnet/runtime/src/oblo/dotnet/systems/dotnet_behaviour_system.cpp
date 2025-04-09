@@ -41,7 +41,12 @@ namespace oblo
                 "Oblo.BehaviourSystem, Oblo.Managed",
                 "Update");
 
-            if (m_create && m_destroy && m_update)
+            m_registerBehaviour = dotnetRuntime.load_assembly_delegate<std::remove_pointer_t<register_behaviour_fn>>(
+                "managed/Oblo.Managed.dll",
+                "Oblo.BehaviourSystem, Oblo.Managed",
+                "RegisterBehaviour");
+
+            if (m_create && m_destroy && m_update && m_registerBehaviour)
             {
                 m_managedSystem = m_create();
             }
@@ -50,10 +55,62 @@ namespace oblo
         update(ctx);
     }
 
-    void dotnet_behaviour_system::update(const ecs::system_update_context&)
+    void dotnet_behaviour_system::update(const ecs::system_update_context& ctx)
     {
         if (m_managedSystem)
         {
+            ecs::deferred deferred;
+
+            const auto updatedScripts = m_resourceRegistry->get_updated_events<dotnet_assembly>();
+
+            for (auto&& chunk :
+                ctx.entities->range<dotnet_behaviour_component>().exclude<dotnet_behaviour_state_component>())
+            {
+                for (auto&& [e, b] : chunk.zip<ecs::entity, dotnet_behaviour_component>())
+                {
+                    auto& state = deferred.add<dotnet_behaviour_state_component>(e);
+
+                    state.script = m_resourceRegistry->get_resource(b.script);
+                    state.initialized = false;
+
+                    if (!b.script)
+                    {
+                        continue;
+                    }
+
+                    if (!state.script.is_loaded())
+                    {
+                        state.script.load_start_async();
+                        continue;
+                    }
+                }
+            }
+
+            for (auto&& chunk : ctx.entities->range<dotnet_behaviour_component, dotnet_behaviour_state_component>())
+            {
+                for (auto&& [e, b, state] :
+                    chunk.zip<ecs::entity, dotnet_behaviour_component, dotnet_behaviour_state_component>())
+                {
+                    if (state.script.is_invalidated())
+                    {
+                        deferred.remove<dotnet_behaviour_state_component>(e);
+                        continue;
+                    }
+
+                    if (!state.initialized && state.script.is_loaded())
+                    {
+                        m_registerBehaviour(m_managedSystem,
+                            e.value,
+                            state.script->assembly.data(),
+                            state.script->assembly.size32());
+
+                        state.initialized = true;
+                    }
+                }
+            }
+
+            deferred.apply(*ctx.entities);
+
             m_update(m_managedSystem);
         }
     }

@@ -8,7 +8,7 @@ namespace oblo
 {
     struct dotnet_assembly
     {
-        dynamic_array<byte> byteCode;
+        dynamic_array<byte> assembly;
     } OBLO_RESOURCE();
 
     template <>

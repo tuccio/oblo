@@ -16,12 +16,14 @@ namespace oblo
     private:
         using create_system_fn = void* (*) ();
         using destroy_system_fn = void (*)(void*);
+        using register_behaviour_fn = void (*)(void*, u32, const void*, u32);
         using update_system_fn = void (*)(void*);
 
     private:
         const resource_registry* m_resourceRegistry{};
         create_system_fn m_create{};
         destroy_system_fn m_destroy{};
+        register_behaviour_fn m_registerBehaviour{};
         update_system_fn m_update{};
         void* m_managedSystem{};
     };

@@ -38,7 +38,7 @@ namespace oblo
                     {
                         auto* const bc = static_cast<dotnet_assembly*>(ptr);
 
-                        if (!filesystem::load_binary_file_into_memory(bc->byteCode, source))
+                        if (!filesystem::load_binary_file_into_memory(bc->assembly, source))
                         {
                             return false;
                         }
