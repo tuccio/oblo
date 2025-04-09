@@ -1,4 +1,3 @@
-using System.Drawing;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
@@ -7,23 +6,25 @@ namespace Oblo
     public class BehaviourSystem
     {
         [UnmanagedCallersOnly]
-        public static IntPtr Create()
+        private static IntPtr Create()
         {
+            AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
+
             BehaviourSystem system = new();
 
-            var pinned = GCHandle.Alloc(system, GCHandleType.Pinned);
+            var pinned = GCHandle.Alloc(system, GCHandleType.Normal);
 
             return GCHandle.ToIntPtr(pinned);
         }
 
         [UnmanagedCallersOnly]
-        public static void Destroy(IntPtr ptr)
+        private static void Destroy(IntPtr ptr)
         {
             GCHandle.FromIntPtr(ptr).Free();
         }
 
         [UnmanagedCallersOnly]
-        public static void Update(IntPtr self)
+        private static void Update(IntPtr self)
         {
             var system = GCHandle.FromIntPtr(self).Target as BehaviourSystem;
 
@@ -31,12 +32,8 @@ namespace Oblo
         }
 
         [UnmanagedCallersOnly]
-        public static void RegisterBehaviour(IntPtr self, UInt32 entityId, IntPtr assemblyData, UInt32 assemblySize)
+        private static void RegisterBehaviour(IntPtr self, UInt32 entityId, IntPtr assemblyData, UInt32 assemblySize)
         {
-            Log.Info($"{nameof(RegisterBehaviour)} called");
-
-            var system = GCHandle.FromIntPtr(self).Target as BehaviourSystem;
-
             try
             {
                 byte[] managedArray = new byte[assemblySize];
@@ -44,20 +41,73 @@ namespace Oblo
 
                 var assembly = Assembly.Load(managedArray);
 
-                foreach (Type type in assembly.GetTypes())
-                {
-                    Log.Info($"Found type: {type.FullName}");
-                }
+                var system = GCHandle.FromIntPtr(self).Target as BehaviourSystem;
+                system?.RegisterBehaviour(entityId, assembly);
             }
             catch (Exception ex)
             {
-                Log.Error("Failed to parse assembly");
+                Log.Error($"Failed to load assembly: {ex.Message}");
+            }
+
+        }
+
+        public void RegisterBehaviour(uint entityId, Assembly assembly)
+        {
+            var behaviourInterface = typeof(IBehaviour);
+
+            foreach (Type type in assembly.GetTypes())
+            {
+                if (!type.IsAbstract && behaviourInterface.IsAssignableFrom(type))
+                {
+                    var ctor = type.GetConstructor(Type.EmptyTypes);
+
+                    if (ctor is not null)
+                    {
+                        IBehaviour? behaviour = Activator.CreateInstance(type) as IBehaviour;
+
+                        if (behaviour is not null)
+                        {
+                            _entities.Add(new BehaviourEntity { EntityId = entityId, Behaviour = behaviour });
+                        }
+
+                        break;
+                    }
+
+                }
             }
         }
 
-        void Update()
+        public void Update()
         {
-            Log.Info($"Update called on C# {nameof(BehaviourSystem)}");
+            foreach (BehaviourEntity e in _entities)
+            {
+                e.Behaviour.OnUpdate();
+            }
         }
+
+        private static Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs args)
+        {
+            string? assemblyName = new AssemblyName(args.Name).Name;
+
+            if (assemblyName == "Oblo.Managed")
+            {
+                return Assembly.GetExecutingAssembly();
+            }
+
+            if (assemblyName is null)
+            {
+                throw new ArgumentException();
+            }
+
+            return Assembly.LoadFile($"{assemblyName}.dll");
+        }
+
+        private struct BehaviourEntity
+        {
+            public UInt32 EntityId;
+            public IBehaviour Behaviour;
+        }
+
+        private List<BehaviourEntity> _entities = new();
     }
 }

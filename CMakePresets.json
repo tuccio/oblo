@@ -29,6 +29,9 @@
             },
             "environment": {
                 "OBLO_CONAN_MULTICONFIG": "True"
+            },
+            "cacheVariables": {
+                "OBLO_GENERATE_CSHARP": true
             }
         },
         {

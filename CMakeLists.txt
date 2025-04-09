@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
-project(oblo LANGUAGES CXX)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/out/lib)
@@ -10,6 +9,14 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(oblo)
+
+set(_languages CXX)
+
+if(OBLO_GENERATE_CSHARP)
+    list(APPEND _languages CSharp)
+endif()
+
+project(oblo LANGUAGES ${_languages})
 
 enable_testing()
 

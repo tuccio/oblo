@@ -5,6 +5,7 @@ option(OBLO_ENABLE_ASSERT "Enables internal asserts" OFF)
 option(OBLO_DISABLE_COMPILER_OPTIMIZATIONS "Disables compiler optimizations" OFF)
 option(OBLO_SKIP_CODEGEN "Disables the codegen dependencies on project, requiring users to run codegen manually" OFF)
 option(OBLO_DEBUG "Activates code useful for debugging" OFF)
+option(OBLO_GENERATE_CSHARP "Enables C# projects" OFF)
 
 define_property(GLOBAL PROPERTY oblo_codegen_config BRIEF_DOCS "Codegen config file" FULL_DOCS "The path to the generated config file used to generate reflection code")
 
