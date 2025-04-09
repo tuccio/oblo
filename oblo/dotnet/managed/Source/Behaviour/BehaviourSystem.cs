@@ -5,11 +5,51 @@ namespace Oblo
 {
     public class BehaviourSystem
     {
+        private struct BehaviourEntity
+        {
+            public UInt32 EntityId;
+            public IBehaviour Behaviour;
+        }
+
+        private List<BehaviourEntity> _entities = new();
+
+        public void RegisterBehaviour(uint entityId, Assembly assembly)
+        {
+            var behaviourInterface = typeof(IBehaviour);
+
+            foreach (Type type in assembly.GetTypes())
+            {
+                if (!type.IsAbstract && behaviourInterface.IsAssignableFrom(type))
+                {
+                    var ctor = type.GetConstructor(Type.EmptyTypes);
+
+                    if (ctor is not null)
+                    {
+                        IBehaviour? behaviour = Activator.CreateInstance(type) as IBehaviour;
+
+                        if (behaviour is not null)
+                        {
+                            _entities.Add(new BehaviourEntity { EntityId = entityId, Behaviour = behaviour });
+                        }
+
+                        break;
+                    }
+
+                }
+            }
+        }
+
+        public void Update()
+        {
+            foreach (BehaviourEntity e in _entities)
+            {
+                e.Behaviour.OnUpdate();
+            }
+        }
+
         [UnmanagedCallersOnly]
         private static IntPtr Create()
         {
-            AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
-
             BehaviourSystem system = new();
 
             var pinned = GCHandle.Alloc(system, GCHandleType.Normal);
@@ -50,64 +90,5 @@ namespace Oblo
             }
 
         }
-
-        public void RegisterBehaviour(uint entityId, Assembly assembly)
-        {
-            var behaviourInterface = typeof(IBehaviour);
-
-            foreach (Type type in assembly.GetTypes())
-            {
-                if (!type.IsAbstract && behaviourInterface.IsAssignableFrom(type))
-                {
-                    var ctor = type.GetConstructor(Type.EmptyTypes);
-
-                    if (ctor is not null)
-                    {
-                        IBehaviour? behaviour = Activator.CreateInstance(type) as IBehaviour;
-
-                        if (behaviour is not null)
-                        {
-                            _entities.Add(new BehaviourEntity { EntityId = entityId, Behaviour = behaviour });
-                        }
-
-                        break;
-                    }
-
-                }
-            }
-        }
-
-        public void Update()
-        {
-            foreach (BehaviourEntity e in _entities)
-            {
-                e.Behaviour.OnUpdate();
-            }
-        }
-
-        private static Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs args)
-        {
-            string? assemblyName = new AssemblyName(args.Name).Name;
-
-            if (assemblyName == "Oblo.Managed")
-            {
-                return Assembly.GetExecutingAssembly();
-            }
-
-            if (assemblyName is null)
-            {
-                throw new ArgumentException();
-            }
-
-            return Assembly.LoadFile($"{assemblyName}.dll");
-        }
-
-        private struct BehaviourEntity
-        {
-            public UInt32 EntityId;
-            public IBehaviour Behaviour;
-        }
-
-        private List<BehaviourEntity> _entities = new();
     }
 }
