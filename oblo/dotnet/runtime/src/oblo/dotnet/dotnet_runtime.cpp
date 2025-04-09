@@ -1,18 +1,17 @@
 #include <oblo/dotnet/dotnet_runtime.hpp>
 
 #include <oblo/core/platform/shared_library.hpp>
+#include <oblo/core/string/string_builder.hpp>
 #include <oblo/dotnet/sdk/coreclr_delegates.h>
 #include <oblo/dotnet/sdk/hostfxr.h>
 
+#include <utf8cpp/utf8.h>
+
 #include <iostream>
+#include <string>
 
 namespace oblo
 {
-    namespace
-    {
-
-    }
-
     struct dotnet_runtime::impl
     {
         bool load_hostfxr()
@@ -67,12 +66,10 @@ namespace oblo
             return true;
         }
 
-        template <typename T>
-            requires std::is_function_v<T>
-        std::add_pointer_t<T> load_assembly_delegate(
+        void* load_assembly_delegate(
             const char_t* assemblyPath, const char_t* assemblyQualifiedType, const char_t* method)
         {
-            std::add_pointer_t<T> delegate{};
+            void* delegate{};
 
             const int rc = dotnetLoadAssembly(assemblyPath,
                 assemblyQualifiedType,
@@ -109,16 +106,6 @@ namespace oblo
             return unspecified_error;
         }
 
-        const auto delegate = r->load_assembly_delegate<void()>(
-            L"managed/Oblo.Managed.dll",
-            L"Oblo.Managed.RuntimeHost, Oblo.Managed",
-            L"Init");
-
-        if (delegate)
-        {
-            delegate();
-        }
-
         m_impl = std::move(r);
 
         return no_error;
@@ -128,4 +115,27 @@ namespace oblo
     {
         m_impl.reset();
     }
+
+#if _WIN32
+    void* dotnet_runtime::load_assembly_delegate(
+        cstring_view assemblyPath, cstring_view assemblyType, cstring_view methodName) const
+    {
+        std::wstring assemblyPathU16;
+        utf8::unchecked::utf8to16(assemblyPath.begin(), assemblyPath.end(), std::back_inserter(assemblyPathU16));
+
+        std::wstring assemblyTypeU16;
+        utf8::unchecked::utf8to16(assemblyType.begin(), assemblyType.end(), std::back_inserter(assemblyTypeU16));
+
+        std::wstring methodNameU16;
+        utf8::unchecked::utf8to16(methodName.begin(), methodName.end(), std::back_inserter(methodNameU16));
+
+        return m_impl->load_assembly_delegate(assemblyPathU16.c_str(), assemblyTypeU16.c_str(), methodNameU16.c_str());
+    }
+#else
+    void* dotnet_runtime::load_assembly_delegate(
+        cstring_view assemblyPath, cstring_view assemblyType, cstring_view methodName) const
+    {
+        return m_impl->load_assembly_delegate(assemblyPath.c_str(), assemblyType.c_str(), methodName.c_str());
+    }
+#endif
 }

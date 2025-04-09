@@ -14,6 +14,15 @@ namespace oblo
         void shutdown();
 
     private:
+        using create_system_fn = void* (*) ();
+        using destroy_system_fn = void (*)(void*);
+        using update_system_fn = void (*)(void*);
+
+    private:
         const resource_registry* m_resourceRegistry{};
+        create_system_fn m_create{};
+        destroy_system_fn m_destroy{};
+        update_system_fn m_update{};
+        void* m_managedSystem{};
     };
 }

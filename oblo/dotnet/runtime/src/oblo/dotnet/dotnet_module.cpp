@@ -1,3 +1,5 @@
+#include <oblo/dotnet/dotnet_module.hpp>
+
 #include <oblo/core/filesystem/file.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/dotnet/dotnet_runtime.hpp>
@@ -48,39 +50,39 @@ namespace oblo
         };
     }
 
-    class dotnet_module final : public module_interface
+    bool dotnet_module::startup(const module_initializer& initializer)
     {
-    public:
-        bool startup(const module_initializer& initializer) override
+        if (!m_runtime.init())
         {
-            if (!m_runtime.init())
-            {
-                return false;
-            }
-
-            reflection::gen::load_module_and_register();
-
-            initializer.services->add<ecs::world_builder>().unique({
-                .systems = [](ecs::system_graph_builder& b)
-                { b.add_system<dotnet_behaviour_system>().before<barriers::transform_update>(); },
-            });
-
-            initializer.services->add<dotnet_resource_types_provider>().as<resource_types_provider>().unique();
-
-            return true;
+            return false;
         }
 
-        bool finalize() override
-        {
-            m_runtime.shutdown();
-            return true;
-        }
+        reflection::gen::load_module_and_register();
 
-        void shutdown() {}
+        initializer.services->add<ecs::world_builder>().unique({
+            .systems = [](ecs::system_graph_builder& b)
+            { b.add_system<dotnet_behaviour_system>().before<barriers::transform_update>(); },
+        });
 
-    private:
-        dotnet_runtime m_runtime;
-    };
+        initializer.services->add<dotnet_resource_types_provider>().as<resource_types_provider>().unique();
+
+        return true;
+    }
+
+    bool dotnet_module::finalize()
+    {
+        return true;
+    }
+
+    void dotnet_module::shutdown()
+    {
+        m_runtime.shutdown();
+    }
+
+    const dotnet_runtime& dotnet_module::get_runtime() const
+    {
+        return m_runtime;
+    }
 
 }
 
