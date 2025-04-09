@@ -14,6 +14,7 @@ namespace oblo::platform
     {
         cstring_view path;
         std::span<const cstring_view> arguments;
+        cstring_view workDir;
         const file* inputStream{};
         const file* outputStream{};
         const file* errorStream{};

@@ -402,4 +402,10 @@ namespace oblo::filesystem
         const auto n = p.filename().u8string().size();
         return path.substr(path.size() - n);
     }
+
+    void current_path(string_builder& out)
+    {
+        const auto p = std::filesystem::current_path();
+        out.clear().append(p.c_str());
+    }
 }

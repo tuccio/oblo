@@ -43,4 +43,6 @@ namespace oblo::filesystem
     cstring_view filename(cstring_view path);
 
     string_view filename(string_view path);
+
+    void current_path(string_builder& out);
 }

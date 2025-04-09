@@ -24,16 +24,18 @@ namespace Oblo
             oblo_log_error(message);
         }
 
-        [DllImport("oblo_dotnet_bindings", CallingConvention = CallingConvention.Cdecl)]
+        private const string ImportLibrary = "oblo_dotnet_bindings";
+
+        [DllImport(ImportLibrary, CallingConvention = CallingConvention.Cdecl)]
         private static extern void oblo_log_debug([MarshalAs(UnmanagedType.LPUTF8Str)] string message);
 
-        [DllImport("oblo_dotnet_bindings", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(ImportLibrary, CallingConvention = CallingConvention.Cdecl)]
         private static extern void oblo_log_info([MarshalAs(UnmanagedType.LPUTF8Str)] string message);
 
-        [DllImport("oblo_dotnet_bindings", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(ImportLibrary, CallingConvention = CallingConvention.Cdecl)]
         private static extern void oblo_log_warn([MarshalAs(UnmanagedType.LPUTF8Str)] string message);
 
-        [DllImport("oblo_dotnet_bindings", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(ImportLibrary, CallingConvention = CallingConvention.Cdecl)]
         private static extern void oblo_log_error([MarshalAs(UnmanagedType.LPUTF8Str)] string message);
     }
 }

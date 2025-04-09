@@ -1129,6 +1129,22 @@ namespace oblo
             if (!success)
             {
                 log::debug("Import execution of {} failed", importProcess.importer.get_config().sourceFile);
+
+                if (importProcess.importer.is_reimport())
+                {
+                    const auto assetIt = m_impl->assets.find(importProcess.importer.get_asset_id());
+
+                    if (assetIt == m_impl->assets.end())
+                    {
+                        log::debug("An import execution terminated, but asset {} was not found, maybe it was deleted?",
+                            importProcess.importer.get_asset_id());
+                    }
+                    else
+                    {
+                        OBLO_ASSERT(assetIt->second.isProcessing);
+                        assetIt->second.isProcessing = false;
+                    }
+                }
             }
             else
             {
@@ -1140,8 +1156,7 @@ namespace oblo
 
                     if (assetIt == m_impl->assets.end())
                     {
-                        log::debug("An import execution terminated, but asset {} was not found, maybe "
-                                   "probablyInvalidIt was deleted?",
+                        log::debug("An import execution terminated, but asset {} was not found, maybe it was deleted?",
                             importProcess.importer.get_asset_id());
 
                         it = m_impl->currentImports.erase_unordered(it);

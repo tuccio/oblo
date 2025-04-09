@@ -164,7 +164,7 @@ namespace oblo::platform
             TRUE,
             flags,
             nullptr,
-            nullptr,
+            desc.workDir.empty() ? nullptr : desc.workDir.c_str(),
             &startupInfo,
             &processInfo);
 
