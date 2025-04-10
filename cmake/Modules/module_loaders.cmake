@@ -5,6 +5,7 @@ endfunction(_oblo_init_module_load_type)
 
 _oblo_init_module_load_type(asset)
 _oblo_init_module_load_type(core)
+_oblo_init_module_load_type(editor)
 
 function(_oblo_register_module_as module type)
     get_target_property(
@@ -40,7 +41,7 @@ namespace oblo::gen
     {
         [[maybe_unused]] auto& mm = module_manager::get();
 
-        $<LIST:TRANSFORM,$<TARGET_PROPERTY:oblo_register_module_${type},oblo_registered_modules>,REPLACE,(.+),mm.load(\"${_module_prefix}\\0\");\n>
+$<LIST:JOIN,$<LIST:TRANSFORM,$<TARGET_PROPERTY:oblo_register_module_${type},oblo_registered_modules>,REPLACE,(.+),        mm.load(\"${_module_prefix}\\0\")>,;\n>;
     }
 }")
     set(_target ${_module_prefix}${module})
@@ -70,3 +71,11 @@ endfunction(oblo_register_asset_module)
 function(oblo_register_asset_module_loader module)
     _oblo_register_module_loader_as(${module} asset)
 endfunction(oblo_register_asset_module_loader)
+
+function(oblo_register_editor_module module)
+    _oblo_register_module_as(${module} editor)
+endfunction(oblo_register_editor_module)
+
+function(oblo_register_editor_module_loader module)
+    _oblo_register_module_loader_as(${module} editor)
+endfunction(oblo_register_editor_module_loader)

@@ -7,7 +7,8 @@ target_link_libraries(
     PRIVATE
     oblo::asset
     oblo::modules
-    oblo::dotnet::runtime
 )
+
+target_include_directories(oblo_dotnet_asset PRIVATE $<TARGET_PROPERTY:oblo::dotnet::runtime,INTERFACE_INCLUDE_DIRECTORIES>)
 
 add_library(oblo::dotnet::asset ALIAS oblo_dotnet_asset)

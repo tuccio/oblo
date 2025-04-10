@@ -51,6 +51,7 @@
 #include <cxxopts.hpp>
 
 #include <module_loader_asset.gen.hpp>
+#include <module_loader_editor.gen.hpp>
 
 namespace oblo
 {
@@ -198,6 +199,7 @@ namespace oblo::editor
                 initializer.services->add<options_layer_provider>().externally_owned(&m_editorOptions);
 
                 gen::load_modules_asset();
+                gen::load_modules_editor();
 
                 return true;
             }

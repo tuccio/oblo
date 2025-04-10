@@ -20,7 +20,8 @@ namespace oblo
     {
         m_resourceRegistry = ctx.services->find<const resource_registry>();
 
-        auto* const dotnetModule = dynamic_cast<dotnet_module*>(module_manager::get().find("oblo_dotnet_rt"_hsv));
+        constexpr hashed_string_view thisModule = OBLO_STRINGIZE(OBLO_PROJECT_NAME);
+        auto* const dotnetModule = dynamic_cast<dotnet_module*>(module_manager::get().find(thisModule));
 
         if (dotnetModule)
         {
@@ -91,7 +92,7 @@ namespace oblo
                 for (auto&& [e, b, state] :
                     chunk.zip<ecs::entity, dotnet_behaviour_component, dotnet_behaviour_state_component>())
                 {
-                    if (state.script.is_invalidated())
+                    if (state.script.is_invalidated() || state.script.as_ref() != b.script)
                     {
                         deferred.remove<dotnet_behaviour_state_component>(e);
                         continue;

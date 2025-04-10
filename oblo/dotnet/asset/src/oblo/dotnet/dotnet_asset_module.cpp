@@ -1,16 +1,18 @@
+#include <oblo/asset/any_asset.hpp>
 #include <oblo/asset/descriptors/file_importer_descriptor.hpp>
 #include <oblo/asset/import/file_importer.hpp>
-#include <oblo/asset/import/file_importers_provider.hpp>
 #include <oblo/asset/import/import_artifact.hpp>
 #include <oblo/asset/import/import_config.hpp>
 #include <oblo/asset/import/import_context.hpp>
 #include <oblo/asset/import/import_preview.hpp>
+#include <oblo/asset/providers/native_asset_provider.hpp>
 #include <oblo/core/filesystem/file.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/platform/file.hpp>
 #include <oblo/core/platform/process.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/dotnet/assets/dotnet_script_asset.hpp>
 #include <oblo/dotnet/resources/dotnet_assembly.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/modules/module_initializer.hpp>
@@ -100,9 +102,7 @@ namespace oblo
                 string_builder csproj = destination;
                 csproj.append_path("DotNetBehaviour.csproj");
 
-                if (!generate_csproj(csproj,
-                        "net9.0",
-                        managedHint.as<string_view>()))
+                if (!generate_csproj(csproj, "net9.0", managedHint.as<string_view>()))
                 {
                     return false;
                 }
@@ -213,15 +213,34 @@ namespace oblo
             string m_source;
         };
 
-        class importers_provider final : public file_importers_provider
+        class dotnet_asset_provider final : public native_asset_provider
         {
-        public:
-            void fetch_importers(dynamic_array<file_importer_descriptor>& outImporters) const override
+            void fetch(deque<native_asset_descriptor>& out) const override
             {
-                outImporters.push_back(file_importer_descriptor{
-                    .type = get_type_id<dotnet_script_importer>(),
-                    .create = []() -> unique_ptr<file_importer> { return allocate_unique<dotnet_script_importer>(); },
-                    .extensions = dotnet_script_importer::extensions,
+                out.push_back({
+                    .typeUuid = asset_type<dotnet_script_asset>,
+                    .typeId = get_type_id<dotnet_script_asset>(),
+                    .fileExtension = ".cs",
+                    .load =
+                        [](any_asset& asset, cstring_view source)
+                    {
+                        auto& m = asset.emplace<dotnet_script_asset>();
+                        return filesystem::load_text_file_into_memory(m.code(), source).has_value();
+                    },
+                    .save =
+                        [](const any_asset& asset, cstring_view destination, cstring_view)
+                    {
+                        auto* const s = asset.as<dotnet_script_asset>();
+
+                        if (!s)
+                        {
+                            return false;
+                        }
+
+                        return filesystem::write_file(destination, as_bytes(std::span{s->code()}), {}).has_value();
+                    },
+                    .createImporter = []() -> unique_ptr<file_importer>
+                    { return allocate_unique<dotnet_script_importer>(); },
                 });
             }
         };
@@ -232,7 +251,7 @@ namespace oblo
     public:
         bool startup(const module_initializer& initializer) override
         {
-            initializer.services->add<importers_provider>().as<file_importers_provider>().unique();
+            initializer.services->add<dotnet_asset_provider>().as<native_asset_provider>().unique();
             return true;
         }
 
