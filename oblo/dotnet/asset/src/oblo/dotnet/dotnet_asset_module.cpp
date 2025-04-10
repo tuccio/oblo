@@ -14,6 +14,7 @@
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/dotnet/assets/dotnet_script_asset.hpp>
 #include <oblo/dotnet/resources/dotnet_assembly.hpp>
+#include <oblo/dotnet/utility/dotnet_utility.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_interface.hpp>
@@ -23,35 +24,9 @@ namespace oblo
 {
     namespace
     {
-        expected<> generate_csproj(cstring_view path, string_view targetFramework, string_view obloManagedPath)
-        {
-            string_builder content;
-
-            content.format(R"(<Project Sdk="Microsoft.NET.Sdk">
-
-    <PropertyGroup>
-        <TargetFramework>{0}</TargetFramework>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <Nullable>enable</Nullable>
-    </PropertyGroup>
-
-    <ItemGroup>
-        <Reference Include="Oblo.Managed">
-            <HintPath>{1}</HintPath>
-            <Private>true</Private>
-        </Reference>
-    </ItemGroup>
-
-</Project>)",
-                targetFramework,
-                obloManagedPath);
-
-            return filesystem::write_file(path, as_bytes(content.mutable_data()), {});
-        }
-
         class dotnet_script_importer : public file_importer
         {
-            static constexpr cstring_view g_ArtifactName = "DotNetBehaviour.dll";
+            static constexpr cstring_view g_ArtifactName = "ScriptAssembly.dll";
 
         public:
             static constexpr string_view extensions[] = {".cs"};
@@ -95,14 +70,10 @@ namespace oblo
                     return false;
                 }
 
-                string_builder managedHint;
-                filesystem::current_path(managedHint);
-                managedHint.append_path("managed/Oblo.Managed.dll");
-
                 string_builder csproj = destination;
-                csproj.append_path("DotNetBehaviour.csproj");
+                csproj.append_path("ScriptAssembly.csproj");
 
-                if (!generate_csproj(csproj, "net9.0", managedHint.as<string_view>()))
+                if (!dotnet_utility::generate_csproj(csproj))
                 {
                     return false;
                 }
@@ -116,7 +87,7 @@ namespace oblo
 
                     constexpr cstring_view buildArgs[] = {
                         "build",
-                        "./DotNetBehaviour.csproj",
+                        "./ScriptAssembly.csproj",
                         "-o",
                         "./bin",
                         "-c",

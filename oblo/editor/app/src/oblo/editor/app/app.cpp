@@ -14,6 +14,7 @@
 #include <oblo/editor/providers/service_provider.hpp>
 #include <oblo/editor/services/asset_editor_manager.hpp>
 #include <oblo/editor/services/component_factory.hpp>
+#include <oblo/editor/services/editor_directories.hpp>
 #include <oblo/editor/services/incremental_id_pool.hpp>
 #include <oblo/editor/services/log_queue.hpp>
 #include <oblo/editor/services/registered_commands.hpp>
@@ -510,6 +511,12 @@ namespace oblo::editor
         globalRegistry.add<incremental_id_pool>().unique();
         globalRegistry.add<runtime_manager>().externally_owned(&m_runtimeManager);
         auto* const assetEditorManager = globalRegistry.add<asset_editor_manager>().unique(m_assetRegistry);
+
+        string_builder temporaryDir;
+        temporaryDir.append(m_editorModule->get_project_directory()).append_path(".oblo").append_path(".temp");
+
+        auto* editorDirectories = globalRegistry.add<editor_directories>().unique();
+        editorDirectories->init(temporaryDir).assert_value();
 
         const auto editorWindow = m_windowManager.create_window<editor_window>(service_registry{});
 

@@ -5,6 +5,8 @@
 
 namespace oblo::platform
 {
+    void open_file(string_view dir);
+
     void open_folder(string_view dir);
 
     bool open_file_dialog(string_builder& file);
