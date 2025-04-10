@@ -155,12 +155,14 @@ namespace oblo::editor
                     {
                         dotnet_script_asset s;
 
-                        s.code().append(R"(public class Behaviour : Oblo.IBehaviour
+                        s.scripts["Behaviour.cs"] = R"(using Oblo;
+
+public class Behaviour : IBehaviour
 {
     public void OnUpdate()
     {
     }
-})");
+})";
 
                         return any_asset{std::move(s)};
                     },

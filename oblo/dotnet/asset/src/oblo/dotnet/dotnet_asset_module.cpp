@@ -8,6 +8,7 @@
 #include <oblo/asset/providers/native_asset_provider.hpp>
 #include <oblo/core/filesystem/file.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
+#include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/core/platform/file.hpp>
 #include <oblo/core/platform/process.hpp>
 #include <oblo/core/service_registry.hpp>
@@ -19,6 +20,8 @@
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_interface.hpp>
 #include <oblo/modules/utility/registration.hpp>
+#include <oblo/properties/serialization/data_document.hpp>
+#include <oblo/properties/serialization/json.hpp>
 
 namespace oblo
 {
@@ -29,7 +32,7 @@ namespace oblo
             static constexpr cstring_view g_ArtifactName = "ScriptAssembly.dll";
 
         public:
-            static constexpr string_view extensions[] = {".cs"};
+            static constexpr string_view extensions[] = {".ocsscript"};
 
             bool init(const import_config& config, import_preview& preview)
             {
@@ -66,6 +69,34 @@ namespace oblo
                 sourceFile.append_path(sourceFileName);
 
                 if (!filesystem::copy_file(m_source, sourceFile))
+                {
+                    return false;
+                }
+
+                m_sourceFiles.emplace_back(m_source);
+
+                bool failedCopy = false;
+
+                string_builder sourceDir;
+                filesystem::parent_path(m_source, sourceDir);
+
+                if (!dotnet_utility::find_cs_files(sourceDir,
+                        [this, b = string_builder{}, &sourceDir, &destination, &failedCopy](
+                            cstring_view filename) mutable
+                        {
+                            b = sourceDir;
+                            b.append_path(filename);
+                            m_sourceFiles.emplace_back(b.as<string>());
+
+                            string_builder outputFile = destination;
+                            outputFile.append_path(filename);
+
+                            if (!filesystem::copy_file(b, outputFile))
+                            {
+                                failedCopy = true;
+                            }
+                        }) ||
+                    failedCopy)
                 {
                     return false;
                 }
@@ -174,7 +205,7 @@ namespace oblo
             {
                 file_import_results r;
                 r.artifacts = {&m_artifact, 1};
-                r.sourceFiles = {&m_source, 1};
+                r.sourceFiles = m_sourceFiles;
                 r.mainArtifactHint = m_artifact.id;
                 return r;
             }
@@ -182,6 +213,7 @@ namespace oblo
         private:
             import_artifact m_artifact{};
             string m_source;
+            dynamic_array<string> m_sourceFiles;
         };
 
         class dotnet_asset_provider final : public native_asset_provider
@@ -191,12 +223,30 @@ namespace oblo
                 out.push_back({
                     .typeUuid = asset_type<dotnet_script_asset>,
                     .typeId = get_type_id<dotnet_script_asset>(),
-                    .fileExtension = ".cs",
+                    .fileExtension = ".ocsscript",
                     .load =
                         [](any_asset& asset, cstring_view source)
                     {
-                        auto& m = asset.emplace<dotnet_script_asset>();
-                        return filesystem::load_text_file_into_memory(m.code(), source).has_value();
+                        auto& s = asset.emplace<dotnet_script_asset>();
+
+                        string_builder dir;
+                        filesystem::parent_path(source, dir);
+
+                        const auto r = dotnet_utility::find_cs_files(dir,
+                            [&s, &dir](cstring_view filename)
+                            {
+                                string_builder path = dir;
+                                path.append_path(filename);
+
+                                auto& code = s.scripts[filename.as<string>()];
+
+                                if (!filesystem::load_text_file_into_memory(code, filename))
+                                {
+                                    log::error("Failed to load C# script at {}", path);
+                                }
+                            });
+
+                        return r.has_value();
                     },
                     .save =
                         [](const any_asset& asset, cstring_view destination, cstring_view)
@@ -208,7 +258,34 @@ namespace oblo
                             return false;
                         }
 
-                        return filesystem::write_file(destination, as_bytes(std::span{s->code()}), {}).has_value();
+                        // This will eventually contain settings for the script, maybe references to other scripts
+                        data_document doc;
+                        doc.init();
+
+                        if (!json::write(doc, destination))
+                        {
+                            return false;
+                        }
+
+                        string_builder path;
+
+                        for (auto& [name, code] : s->scripts)
+                        {
+                            filesystem::parent_path(destination, path);
+                            path.append_path(name);
+
+                            if (filesystem::extension(path.view()) != ".cs")
+                            {
+                                path.append(".cs");
+                            }
+
+                            if (!filesystem::write_file(path, as_bytes(std::span{code}), {}))
+                            {
+                                return false;
+                            }
+                        }
+
+                        return true;
                     },
                     .createImporter = []() -> unique_ptr<file_importer>
                     { return allocate_unique<dotnet_script_importer>(); },
@@ -233,7 +310,6 @@ namespace oblo
 
         void shutdown() {}
     };
-
 }
 
 OBLO_MODULE_REGISTER(oblo::dotnet_asset_module)

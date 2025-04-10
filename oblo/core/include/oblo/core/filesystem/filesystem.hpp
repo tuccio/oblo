@@ -8,6 +8,9 @@
 namespace oblo
 {
     class string_builder;
+
+    template <typename>
+    class function_ref;
 }
 
 namespace oblo::filesystem
@@ -45,4 +48,39 @@ namespace oblo::filesystem
     string_view filename(string_view path);
 
     void current_path(string_builder& out);
+
+    enum class walk_result : u8
+    {
+        walk,
+        stop,
+    };
+
+    class walk_entry;
+
+    using walk_cb = function_ref<walk_result(const walk_entry& info)>;
+
+    expected<> walk(cstring_view directory, walk_cb visit);
+
+    class walk_entry
+    {
+    public:
+        walk_entry() = default;
+        walk_entry(const walk_entry&) = delete;
+        walk_entry(walk_entry&&) noexcept = delete;
+
+        walk_entry& operator=(const walk_entry&) = delete;
+        walk_entry& operator=(walk_entry&&) noexcept = delete;
+
+        void filename(string_builder& out) const;
+
+        bool is_regular_file() const;
+        bool is_directory() const;
+
+    private:
+        friend expected<> walk(cstring_view directory, walk_cb visit);
+
+    private:
+        struct impl;
+        const impl* m_impl{};
+    };
 }

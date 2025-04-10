@@ -37,4 +37,25 @@ namespace oblo::dotnet_utility
 
         return filesystem::write_file(path, as_bytes(content.mutable_data()), {});
     }
+
+    expected<> find_cs_files(cstring_view directory, function_ref<void(cstring_view)> cb)
+    {
+        // TODO: This should be recursive, but possibly we don't support subdirs in asset sources
+
+        return filesystem::walk(directory,
+            [pathBuilder = string_builder{}, &cb](const filesystem::walk_entry& e) mutable
+            {
+                if (e.is_regular_file())
+                {
+                    e.filename(pathBuilder.clear());
+
+                    if (pathBuilder.view().ends_with(".cs"))
+                    {
+                        cb(pathBuilder);
+                    }
+                }
+
+                return filesystem::walk_result::walk;
+            });
+    }
 }

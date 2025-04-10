@@ -3,16 +3,13 @@
 #include <oblo/asset/asset_traits.hpp>
 #include <oblo/core/string/string_builder.hpp>
 
+#include <unordered_map>
+
 namespace oblo
 {
-    class dotnet_script_asset
+    struct dotnet_script_asset
     {
-    public:
-        DOTNET_ASSET_API const string_builder& code() const;
-        DOTNET_ASSET_API string_builder& code();
-
-    private:
-        string_builder m_code;
+        std::unordered_map<string, string_builder, hash<string>> scripts;
     };
 
     template <>
