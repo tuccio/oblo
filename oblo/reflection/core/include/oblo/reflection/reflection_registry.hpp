@@ -63,6 +63,9 @@ namespace oblo::reflection
         type_id get_underlying_type(enum_handle enumId) const;
 
         template <typename T>
+        bool has_tag(type_handle typeId) const;
+
+        template <typename T>
         void find_by_tag(deque<type_handle>& types) const;
 
         template <typename T>
@@ -74,6 +77,7 @@ namespace oblo::reflection
         bool is_fundamental(type_handle typeId) const;
 
     private:
+        bool has_tag(const type_id& tag, type_handle type) const;
         void find_by_tag(const type_id& tag, deque<type_handle>& types) const;
         void find_by_concept(const type_id& type, deque<type_handle>& types) const;
         const void* find_concept(type_handle typeId, const type_id& type) const;
@@ -127,5 +131,11 @@ namespace oblo::reflection
         }
 
         return res;
+    }
+
+    template <typename T>
+    bool reflection_registry::has_tag(type_handle type) const
+    {
+        return has_tag(get_type_id<tag_type<T>>(), type);
     }
 };

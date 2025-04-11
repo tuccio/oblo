@@ -132,6 +132,12 @@ namespace oblo::gen
                 return annotation_property_result::expect_string;
             }
 
+            if (property == "ScriptAPI"_hsv)
+            {
+                r.flags.set(record_flags::script_api);
+                return annotation_property_result::expect_none;
+            }
+
             return annotation_property_result::expect_none;
         }
 
