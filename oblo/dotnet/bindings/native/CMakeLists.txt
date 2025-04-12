@@ -5,6 +5,7 @@ target_link_libraries(
     PRIVATE
     oblo::ecs
     oblo::log
+    oblo::properties
     oblo::reflection
     oblo::resource
 )

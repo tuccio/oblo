@@ -2,6 +2,7 @@
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
+#include <oblo/properties/property_value_wrapper.hpp>
 
 namespace oblo
 {
@@ -178,6 +179,29 @@ extern "C"
         const quaternion* value)
     {
         make_property_ref<quaternion>(registry, entityId, componentTypeId, offset) = *value;
+        registry->notify(entityId);
+    }
+
+    DOTNET_BINDINGS_API const char* oblo_ecs_property_get_string(
+        ecs::entity_registry* registry, ecs::entity entityId, ecs::component_type componentTypeId, u32 offset, u32* len)
+    {
+        property_value_wrapper w{};
+        w.assign_from(property_kind::string, &make_property_ref<byte>(registry, entityId, componentTypeId, offset));
+
+        const auto view = w.get_string();
+        *len = view.size32();
+        return view.data();
+    }
+
+    DOTNET_BINDINGS_API void oblo_ecs_property_set_string(ecs::entity_registry* registry,
+        ecs::entity entityId,
+        ecs::component_type componentTypeId,
+        u32 offset,
+        const char* utf8,
+        u32 len)
+    {
+        property_value_wrapper w{string_view{utf8, len}};
+        w.assign_to(property_kind::string, &make_property_ref<byte>(registry, entityId, componentTypeId, offset));
         registry->notify(entityId);
     }
 }

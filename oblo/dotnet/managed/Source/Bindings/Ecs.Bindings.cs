@@ -1,6 +1,7 @@
 using System.Numerics;
 using System.Reflection.Emit;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Oblo.Ecs
 {
@@ -153,6 +154,25 @@ namespace Oblo.Ecs
         [SuppressGCTransition]
         [DllImport(ImportLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern void oblo_ecs_property_set_quaternion(IntPtr registry, uint entityId, uint componentTypeId, uint offset, in Quaternion value);
+
+        public static void GetComponentPropertyRaw(Entity e, ComponentTypeId componentTypeId, uint offset, out string result)
+        {
+            var ptr = oblo_ecs_property_get_string(e.EntityRegistry, e.Id.Value, componentTypeId.Value, offset, out int len);
+            result = Marshal.PtrToStringUTF8(ptr, len);
+        }
+
+        public static void SetComponentPropertyRaw(Entity e, ComponentTypeId componentTypeId, uint offset, in string value)
+        {
+            oblo_ecs_property_set_string(e.EntityRegistry, e.Id.Value, componentTypeId.Value, offset, value, value.Length);
+        }
+
+        [SuppressGCTransition]
+        [DllImport(ImportLibrary, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern IntPtr oblo_ecs_property_get_string(IntPtr registry, uint entityId, uint componentTypeId, uint offset, out int len);
+
+        [SuppressGCTransition]
+        [DllImport(ImportLibrary, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void oblo_ecs_property_set_string(IntPtr registry, uint entityId, uint componentTypeId, uint offset, string value, int len);
 
         public static T GetComponent<T>(Entity entity) where T : struct, IComponent
         {
