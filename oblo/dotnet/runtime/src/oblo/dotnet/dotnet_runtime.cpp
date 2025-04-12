@@ -4,10 +4,10 @@
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/dotnet/sdk/coreclr_delegates.h>
 #include <oblo/dotnet/sdk/hostfxr.h>
+#include <oblo/log/log.hpp>
 
 #include <utf8cpp/utf8.h>
 
-#include <iostream>
 #include <string>
 
 namespace oblo
@@ -35,8 +35,7 @@ namespace oblo
 
         bool load_dotnet_load_assembly()
         {
-            [[maybe_unused]] constexpr const char_t* configPath =
-                L"./dotnet/shared/Microsoft.NETCore.App/9.0.4/dotnet.runtimeconfig.json";
+            [[maybe_unused]] constexpr const char_t* configPath = L"./dotnet/oblo.runtimeconfig.json";
 
             // Load .NET Core
             void* load_assembly_and_get_function_pointer = nullptr;
@@ -45,7 +44,7 @@ namespace oblo
 
             if (rc != 0 || cxt == nullptr)
             {
-                std::cerr << "Init failed: " << std::hex << std::showbase << rc << std::endl;
+                oblo::log::error("Failed to initialize runtime: {:#x}", rc);
                 hostfxrClose(cxt);
                 return false;
             }
@@ -57,7 +56,7 @@ namespace oblo
 
             if (rc != 0 || load_assembly_and_get_function_pointer == nullptr)
             {
-                std::cerr << "Get delegate failed: " << std::hex << std::showbase << rc << std::endl;
+                oblo::log::error("Failed to get delegate: {:#x}", rc);
             }
 
             hostfxrClose(cxt);

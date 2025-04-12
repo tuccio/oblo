@@ -16,3 +16,5 @@ target_link_libraries(
 )
 
 add_library(oblo::dotnet::runtime ALIAS oblo_dotnet_rt)
+
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/resources/oblo.runtimeconfig.json" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/dotnet/oblo.runtimeconfig.json" COPYONLY)

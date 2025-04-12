@@ -1,9 +1,9 @@
 from conan import ConanFile
 from conan.api.conan_api import ConanAPI
 from conan.cli.cli import Cli
-from conan.tools.files import copy
+from conan.tools.files import copy, mkdir
 from itertools import chain
-from os import path
+import os
 
 
 class ObloConanRecipe(ConanFile):
@@ -27,6 +27,7 @@ class ObloConanRecipe(ConanFile):
         self.requires("assimp/5.4.3")
         self.requires("concurrentqueue/1.0.4")
         self.requires("cxxopts/2.2.1")
+        self.requires("dotnet-sdk/9.0.203")
         self.requires("glslang/1.3.296.0")
         self.requires("gtest/1.10.0")
         self.requires("iconfontcppheaders/cci.20240128")
@@ -89,13 +90,13 @@ class ObloConanRecipe(ConanFile):
             copy(self, f"imgui_impl_{backend}.cpp", src_dir,
                  f"{self.recipe_folder}/3rdparty/imgui/{backend}/src")
 
-        out_bin_dir = path.join(self.build_folder, "..", "out", "bin")
+        out_bin_dir = os.path.join(self.build_folder, "..", "out", "bin")
 
         if self.options.is_multiconfig:
             if self.settings.build_type == "Debug":
-                out_dirs = [path.join(out_bin_dir, "Debug")]
+                out_dirs = [os.path.join(out_bin_dir, "Debug")]
             elif self.settings.build_type == "Release":
-                out_dirs = [path.join(out_bin_dir, "Release"), path.join(
+                out_dirs = [os.path.join(out_bin_dir, "Release"), os.path.join(
                     out_bin_dir, "RelWithDebInfo")]
             else:
                 raise ValueError("Unsupported configuration")
@@ -107,9 +108,11 @@ class ObloConanRecipe(ConanFile):
                 for bin_dir in chain(dep.cpp_info.libdirs, dep.cpp_info.bindirs):
                     # Some relative paths that are just lib/bin end up copying our own files recursively
                     # To fix that, check if the path is absolute
-                    if path.isabs(bin_dir):
+                    if os.path.isabs(bin_dir):
                         copy(self, "*.dylib", bin_dir, out_dir)
                         copy(self, "*.dll", bin_dir, out_dir)
+
+        self._deploy_dotnet(out_bin_dir)
 
     def _install_required_recipes(self):
         conan_api = ConanAPI()
@@ -124,3 +127,18 @@ class ObloConanRecipe(ConanFile):
         if not conan_api.search.recipes(f"glslang/{vulkanSdkVersion}"):
             conan_cli.run(
                 ["export", f"{self.recipe_folder}/conan/recipes/glslang", "--version", vulkanSdkVersion])
+
+        if not conan_api.search.recipes(f"dotnet-sdk/9.0.203"):
+            conan_cli.run(
+                ["export", f"{self.recipe_folder}/conan/recipes/dotnet-sdk", "--version", "9.0.203"])
+
+    def _deploy_dotnet(self, dir):
+        _dotnet = self.dependencies["dotnet-sdk"]
+
+        _dotnet_dir = os.path.join(dir, "dotnet")
+        mkdir(self, _dotnet_dir)
+
+        copy(self, "*", _dotnet.cpp_info.components["dotnet-hostfxr"].bindirs[0], os.path.join(_dotnet_dir, "host"))
+        copy(self, "*", _dotnet.cpp_info.components["dotnet-runtime"].bindirs[0], os.path.join(_dotnet_dir, "shared"))
+
+        copy(self, "*", _dotnet.cpp_info.components["dotnet-cli"].bindirs[0], _dotnet_dir)
