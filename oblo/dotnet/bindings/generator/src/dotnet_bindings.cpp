@@ -84,8 +84,7 @@ namespace oblo::gen::dotnet
 
         string_view extract_class_name(string_view typeName)
         {
-            // struct n1::n2::my_class<n3::xdd>
-
+            // Find < in case it's a template, then work our way through the ::
             const auto firstTemplate = typeName.find_first_of('<');
 
             usize begin = 0;
@@ -113,32 +112,35 @@ namespace oblo::gen::dotnet
             }
         }
 
-        void begin_component(string_builder& nativeCode, string_builder& managedCode, string_view className)
+        void begin_component(
+            string_builder& nativeCode, string_builder& managedCode, string_view className, const type_id& type)
         {
             indent(managedCode, g_ManagedClassIndent);
             managedCode.append("public struct ");
             to_pascal_case(className, managedCode);
-            managedCode.append('\n');
+            managedCode.append(" : IComponent\n");
 
             indent(managedCode, g_ManagedClassIndent);
             managedCode.append("{\n");
 
             indent(managedCode, g_ManagedClassIndent + 1);
+            managedCode.format("private const string NativeType = \"{}\";\n", type.name);
+
+            indent(managedCode, g_ManagedClassIndent + 1);
             managedCode.append("public Entity Entity => _entity;\n");
 
             indent(managedCode, g_ManagedClassIndent + 1);
-            managedCode.append("public ComponentTypeId TypeId => _typeId;\n");
-
-            indent(managedCode, g_ManagedClassIndent + 1);
-            managedCode.append("private readonly Entity _entity;\n");
-
-            indent(managedCode, g_ManagedClassIndent + 1);
-            managedCode.append("private readonly ComponentTypeId _typeId;\n");
-
-            indent(managedCode, g_ManagedClassIndent + 1);
-            managedCode.append("public ");
+            managedCode.append("public ComponentTypeId TypeId => Bindings.ComponentTraits<");
             to_pascal_case(className, managedCode);
-            managedCode.append("(Entity entity, ComponentTypeId typeId) { _entity = entity; _typeId = typeId; }\n");
+            managedCode.append(">.TypeId;\n");
+
+            indent(managedCode, g_ManagedClassIndent + 1);
+            managedCode.append("private Entity _entity;\n");
+
+            indent(managedCode, g_ManagedClassIndent + 1);
+            managedCode.append("internal ");
+            to_pascal_case(className, managedCode);
+            managedCode.append("(Entity entity) { _entity = entity; }\n");
 
             nativeCode.append("// Begin component ");
             nativeCode.append(className);
@@ -155,35 +157,36 @@ namespace oblo::gen::dotnet
             nativeCode.append('\n');
         }
 
+        void add_component_property(
+            string_builder& managedCode, string_view csharpType, string_view propertyName, u32 offset)
+        {
+            indent(managedCode, g_ManagedClassIndent + 1);
+            managedCode.append("public ");
+            managedCode.append(csharpType);
+            managedCode.append(" ");
+            to_pascal_case(propertyName, managedCode);
+            managedCode.append('\n');
+
+            indent(managedCode, g_ManagedClassIndent + 1);
+            managedCode.append("{\n");
+
+            indent(managedCode, g_ManagedClassIndent + 2);
+            managedCode.format("get {{ Ecs.Bindings.GetComponentPropertyRaw(Entity, TypeId, {0}, out {1} result); "
+                               "return result; }}\n",
+                offset,
+                csharpType);
+
+            indent(managedCode, g_ManagedClassIndent + 2);
+            managedCode.format("set {{ Ecs.Bindings.SetComponentPropertyRaw(Entity, TypeId, {0}, in value); }}\n",
+                offset);
+
+            indent(managedCode, g_ManagedClassIndent + 1);
+            managedCode.append("}\n\n");
+        }
+
         void add_component_property(string_builder& managedCode, const property& p)
         {
-            if (p.kind != property_kind::string)
-            {
-                const auto csharpType = to_csharp_type(p.kind);
-
-                indent(managedCode, g_ManagedClassIndent + 1);
-                managedCode.append("public ");
-                managedCode.append(csharpType);
-                managedCode.append(" ");
-                to_pascal_case(p.name, managedCode);
-                managedCode.append('\n');
-
-                indent(managedCode, g_ManagedClassIndent + 1);
-                managedCode.append("{\n");
-
-                indent(managedCode, g_ManagedClassIndent + 2);
-                managedCode.format("get {{ Ecs.Bindings.GetComponentPropertyRaw(Entity, TypeId, {0}, out {1} result); "
-                                   "return result; }}\n",
-                    p.offset,
-                    csharpType);
-
-                indent(managedCode, g_ManagedClassIndent + 2);
-                managedCode.format("set {{ Ecs.Bindings.SetComponentPropertyRaw(Entity, TypeId, {0}, ref value); }}\n",
-                    p.offset);
-
-                indent(managedCode, g_ManagedClassIndent + 1);
-                managedCode.append("}\n\n");
-            }
+            add_component_property(managedCode, to_csharp_type(p.kind), p.name, p.offset);
         }
     }
 
@@ -195,6 +198,9 @@ namespace oblo::gen::dotnet
     {
         string_builder nativeCode;
         string_builder managedCode;
+
+        managedCode.append("using Oblo.Ecs;\n");
+        managedCode.append("using System.Numerics;\n");
 
         managedCode.append("namespace Oblo\n{\n");
 
@@ -216,7 +222,7 @@ namespace oblo::gen::dotnet
 
             const auto className = extract_class_name(component.type.name);
 
-            begin_component(nativeCode, managedCode, className);
+            begin_component(nativeCode, managedCode, className, component.type);
 
             auto& root = propertyTree->nodes[0];
 
@@ -234,9 +240,12 @@ namespace oblo::gen::dotnet
 
                 if (node.type == get_type_id<vec3>())
                 {
+                    add_component_property(managedCode, "Vector3", node.name, node.offset);
                 }
-
-                // Add nodes
+                else if (node.type == get_type_id<quaternion>())
+                {
+                    add_component_property(managedCode, "Quaternion", node.name, node.offset);
+                }
             }
 
             end_component(nativeCode, managedCode, component.type.name);
@@ -244,8 +253,8 @@ namespace oblo::gen::dotnet
 
         managedCode.append("}"); // namespace Oblo
 
-        const auto native = !filesystem::write_file(nativePath, as_bytes(std::span{nativeCode}), {});
-        const auto managed = !filesystem::write_file(managedPath, as_bytes(std::span{managedCode}), {});
+        const auto native = filesystem::write_file(nativePath, as_bytes(std::span{nativeCode}), {});
+        const auto managed = filesystem::write_file(managedPath, as_bytes(std::span{managedCode}), {});
 
         if (!native || !managed)
         {

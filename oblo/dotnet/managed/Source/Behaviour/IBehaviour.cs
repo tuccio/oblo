@@ -1,7 +1,7 @@
-namespace Oblo
+namespace Oblo.Behaviour
 {
     public interface IBehaviour
     {
-        void OnUpdate();
+        void OnUpdate(IUpdateContext ctx);
     }
 }

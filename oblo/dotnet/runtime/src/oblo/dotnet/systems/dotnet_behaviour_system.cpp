@@ -29,22 +29,22 @@ namespace oblo
 
             m_create = dotnetRuntime.load_assembly_delegate<std::remove_pointer_t<create_system_fn>>(
                 "managed/Oblo.Managed.dll",
-                "Oblo.BehaviourSystem, Oblo.Managed",
+                "Oblo.Behaviour.BehaviourSystem, Oblo.Managed",
                 "Create");
 
             m_destroy = dotnetRuntime.load_assembly_delegate<std::remove_pointer_t<destroy_system_fn>>(
                 "managed/Oblo.Managed.dll",
-                "Oblo.BehaviourSystem, Oblo.Managed",
+                "Oblo.Behaviour.BehaviourSystem, Oblo.Managed",
                 "Destroy");
 
             m_update = dotnetRuntime.load_assembly_delegate<std::remove_pointer_t<update_system_fn>>(
                 "managed/Oblo.Managed.dll",
-                "Oblo.BehaviourSystem, Oblo.Managed",
+                "Oblo.Behaviour.BehaviourSystem, Oblo.Managed",
                 "Update");
 
             m_registerBehaviour = dotnetRuntime.load_assembly_delegate<std::remove_pointer_t<register_behaviour_fn>>(
                 "managed/Oblo.Managed.dll",
-                "Oblo.BehaviourSystem, Oblo.Managed",
+                "Oblo.Behaviour.BehaviourSystem, Oblo.Managed",
                 "RegisterBehaviour");
 
             if (m_create && m_destroy && m_update && m_registerBehaviour)
@@ -112,7 +112,7 @@ namespace oblo
 
             deferred.apply(*ctx.entities);
 
-            m_update(m_managedSystem);
+            m_update(m_managedSystem, ctx.entities);
         }
     }
 

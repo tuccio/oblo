@@ -1,13 +1,14 @@
+using Oblo.Ecs;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-namespace Oblo
+namespace Oblo.Behaviour
 {
     public class BehaviourSystem
     {
         private struct BehaviourEntity
         {
-            public UInt32 EntityId;
+            public EntityId EntityId;
             public IBehaviour Behaviour;
         }
 
@@ -29,7 +30,7 @@ namespace Oblo
 
                         if (behaviour is not null)
                         {
-                            _entities.Add(new BehaviourEntity { EntityId = entityId, Behaviour = behaviour });
+                            _entities.Add(new BehaviourEntity { EntityId = new EntityId(entityId), Behaviour = behaviour });
                         }
 
                         break;
@@ -38,11 +39,20 @@ namespace Oblo
             }
         }
 
-        public void Update()
+        public void Update(IntPtr entityRegistry)
         {
+            Bindings.oblo_ecs_register_types(entityRegistry);
+
+            var ctx = new UpdateContext();
+
+            // TODO
+            ctx.DeltaTime = TimeSpan.FromMilliseconds(16);
+
             foreach (BehaviourEntity e in _entities)
             {
-                e.Behaviour.OnUpdate();
+                ctx.Entity = new Entity(entityRegistry, e.EntityId);
+
+                e.Behaviour.OnUpdate(ctx);
             }
         }
 
@@ -63,11 +73,11 @@ namespace Oblo
         }
 
         [UnmanagedCallersOnly]
-        private static void Update(IntPtr self)
+        private static void Update(IntPtr self, IntPtr entityRegistry)
         {
             var system = GCHandle.FromIntPtr(self).Target as BehaviourSystem;
 
-            system?.Update();
+            system?.Update(entityRegistry);
         }
 
         [UnmanagedCallersOnly]
@@ -89,5 +99,14 @@ namespace Oblo
             }
 
         }
+
+        private class UpdateContext : IUpdateContext
+        {
+            public Entity Entity { get; set; }
+
+            public TimeSpan DeltaTime { get; set; }
+
+        }
     }
+
 }

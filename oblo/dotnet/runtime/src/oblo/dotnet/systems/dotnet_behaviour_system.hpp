@@ -17,7 +17,7 @@ namespace oblo
         using create_system_fn = void* (*) ();
         using destroy_system_fn = void (*)(void*);
         using register_behaviour_fn = void (*)(void*, u32, const void*, u32);
-        using update_system_fn = void (*)(void*);
+        using update_system_fn = void (*)(void*, void*);
 
     private:
         const resource_registry* m_resourceRegistry{};
