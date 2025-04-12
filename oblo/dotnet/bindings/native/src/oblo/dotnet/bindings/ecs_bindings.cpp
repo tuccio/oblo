@@ -36,6 +36,22 @@ extern "C"
         return g_bindingsTypeRegistry->find_component(type_id{.name = typeName});
     }
 
+    DOTNET_BINDINGS_API u32 oblo_ecs_get_entity_index_mask()
+    {
+        return ~handle_pool<ecs::entity::value_type, ecs::entity_generation_bits>::get_gen_mask();
+    }
+
+    DOTNET_BINDINGS_API u32 oblo_ecs_entity_exists(ecs::entity_registry* registry, ecs::entity entityId)
+    {
+        return u32{registry->contains(entityId)};
+    }
+
+    DOTNET_BINDINGS_API u32 oblo_ecs_component_exists(
+        ecs::entity_registry* registry, ecs::entity entityId, ecs::component_type componentTypeId)
+    {
+        return u32{registry->try_get(entityId, componentTypeId) != nullptr};
+    }
+
     DOTNET_BINDINGS_API void oblo_ecs_property_get_float(ecs::entity_registry* registry,
         ecs::entity entityId,
         ecs::component_type componentTypeId,
@@ -143,6 +159,7 @@ extern "C"
         const vec3* value)
     {
         make_property_ref<vec3>(registry, entityId, componentTypeId, offset) = *value;
+        registry->notify(entityId);
     }
 
     DOTNET_BINDINGS_API void oblo_ecs_property_get_quaternion(ecs::entity_registry* registry,
@@ -161,5 +178,6 @@ extern "C"
         const quaternion* value)
     {
         make_property_ref<quaternion>(registry, entityId, componentTypeId, offset) = *value;
+        registry->notify(entityId);
     }
 }

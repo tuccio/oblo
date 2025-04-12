@@ -16,5 +16,3 @@ target_link_libraries(
 )
 
 add_library(oblo::dotnet::runtime ALIAS oblo_dotnet_rt)
-
-add_dependencies(oblo_dotnet_rt oblo::dotnet::bindings Oblo.Managed-build)

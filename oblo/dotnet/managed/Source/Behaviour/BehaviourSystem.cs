@@ -2,6 +2,7 @@ using Oblo.Ecs;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
+
 namespace Oblo.Behaviour
 {
     public class BehaviourSystem
@@ -12,6 +13,7 @@ namespace Oblo.Behaviour
             public IBehaviour Behaviour;
         }
 
+        private List<int> _entitiesMap = new();
         private List<BehaviourEntity> _entities = new();
 
         public void RegisterBehaviour(uint entityId, Assembly assembly)
@@ -30,7 +32,30 @@ namespace Oblo.Behaviour
 
                         if (behaviour is not null)
                         {
-                            _entities.Add(new BehaviourEntity { EntityId = new EntityId(entityId), Behaviour = behaviour });
+                            var id = new EntityId(entityId);
+
+                            var index = (int)id.ExtractIndex();
+
+                            if (index >= _entitiesMap.Count)
+                            {
+                                _entitiesMap.Capacity = Math.Max(index + 1, (int)(_entitiesMap.Capacity * 1.5f));
+
+                                while (_entitiesMap.Count <= index)
+                                {
+                                    _entitiesMap.Add(0);
+                                }
+                            }
+
+                            var denseIndex = _entitiesMap[index];
+
+                            if (denseIndex < _entities.Count && _entities[denseIndex].EntityId == id)
+                            {
+                                _entities[denseIndex] = new BehaviourEntity { EntityId = new EntityId(entityId), Behaviour = behaviour };
+                            }
+                            else
+                            {
+                                _entities.Add(new BehaviourEntity { EntityId = new EntityId(entityId), Behaviour = behaviour });
+                            }
                         }
 
                         break;
@@ -48,11 +73,20 @@ namespace Oblo.Behaviour
             // TODO
             ctx.DeltaTime = TimeSpan.FromMilliseconds(16);
 
-            foreach (BehaviourEntity e in _entities)
+            for (int i = 0; i < _entities.Count;)
             {
+                var e = _entities[i];
+
                 ctx.Entity = new Entity(entityRegistry, e.EntityId);
 
+                if (!ctx.Entity.GetComponent<BehaviourComponent>().IsAlive)
+                {
+                    // TODO
+                    continue;
+                }
+
                 e.Behaviour.OnUpdate(ctx);
+                ++i;
             }
         }
 

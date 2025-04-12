@@ -130,6 +130,11 @@ namespace oblo::gen::dotnet
             managedCode.append("public Entity Entity => _entity;\n");
 
             indent(managedCode, g_ManagedClassIndent + 1);
+            managedCode.append(
+                "public bool IsAlive => Bindings.oblo_ecs_component_exists(_entity.EntityRegistry, _entity.Id.Value, "
+                "TypeId.Value);");
+
+            indent(managedCode, g_ManagedClassIndent + 1);
             managedCode.append("public ComponentTypeId TypeId => Bindings.ComponentTraits<");
             to_pascal_case(className, managedCode);
             managedCode.append(">.TypeId;\n");

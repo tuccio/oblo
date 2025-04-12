@@ -166,6 +166,10 @@ namespace Oblo.Ecs
 
         [SuppressGCTransition]
         [DllImport(ImportLibrary, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern bool oblo_ecs_entity_exists(IntPtr registry, uint entityId);
+
+        [SuppressGCTransition]
+        [DllImport(ImportLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern bool oblo_ecs_component_exists(IntPtr registry, uint entityId, uint componentTypeId);
 
 
@@ -176,6 +180,10 @@ namespace Oblo.Ecs
         [SuppressGCTransition]
         [DllImport(ImportLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern uint oblo_ecs_find_component_type(string typeName);
+
+        [SuppressGCTransition]
+        [DllImport(ImportLibrary, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern uint oblo_ecs_get_entity_index_mask();
 
         public static class ComponentTraits<T> where T : IComponent
         {

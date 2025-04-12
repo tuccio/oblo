@@ -10,7 +10,7 @@ namespace oblo
     struct dotnet_behaviour_component
     {
         resource_ref<dotnet_assembly> script{};
-    } OBLO_COMPONENT();
+    } OBLO_COMPONENT(ScriptAPI);
 
     struct dotnet_behaviour_state_component
     {

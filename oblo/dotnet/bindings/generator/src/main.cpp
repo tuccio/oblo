@@ -17,6 +17,7 @@ int main(int, char*[])
     auto* reflection = mm.load<reflection::reflection_module>();
     mm.load<scene_module>();
     mm.load<graphics_module>();
+    mm.load("oblo_dotnet_behaviour");
 
     if (!mm.finalize())
     {

@@ -1,8 +1,17 @@
 namespace Oblo.Ecs
 {
-    public record struct EntityId(uint Value);
+    public readonly record struct EntityId(uint Value)
+    {
+        static uint EntityIndexMask = Bindings.oblo_ecs_get_entity_index_mask();
 
-    public record struct ComponentTypeId(uint Value);
+        public uint ExtractIndex()
+        {
+            return Value & EntityIndexMask;
+        }
+    }
+
+
+    public readonly record struct ComponentTypeId(uint Value);
 
     public interface IComponent
     {
@@ -10,7 +19,7 @@ namespace Oblo.Ecs
 
         public ComponentTypeId TypeId { get; }
 
-        bool IsAlive => Bindings.oblo_ecs_component_exists(Entity.EntityRegistry, Entity.Id.Value, TypeId.Value);
+        public bool IsAlive { get; }
     }
 
     public record struct Entity(IntPtr EntityRegistry, EntityId Id)
@@ -19,5 +28,7 @@ namespace Oblo.Ecs
         {
             return Bindings.GetComponent<T>(this);
         }
+
+        public bool IsAlive => Bindings.oblo_ecs_entity_exists(EntityRegistry, Id.Value);
     }
 }
