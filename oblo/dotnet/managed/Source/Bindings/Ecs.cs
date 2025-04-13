@@ -51,6 +51,6 @@ namespace Oblo.Ecs
             return Bindings.GetComponent<T>(this);
         }
 
-        public bool IsAlive => Bindings.oblo_ecs_entity_exists(EntityRegistry.NativeHandle, Id.Value);
+        public bool IsAlive => Id.IsValid && Bindings.oblo_ecs_entity_exists(EntityRegistry.NativeHandle, Id.Value);
     }
 }

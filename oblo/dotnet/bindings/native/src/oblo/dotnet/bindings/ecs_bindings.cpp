@@ -261,4 +261,23 @@ extern "C"
         w.assign_to(property_kind::string, &make_property_ref<byte>(registry, entityId, componentTypeId, offset));
         registry->notify(entityId);
     }
+
+    DOTNET_BINDINGS_API void oblo_ecs_property_get_guid(ecs::entity_registry* registry,
+        ecs::entity entityId,
+        ecs::component_type componentTypeId,
+        u32 offset,
+        uuid* result)
+    {
+        *result = make_property_ref<uuid>(registry, entityId, componentTypeId, offset);
+    }
+
+    DOTNET_BINDINGS_API void oblo_ecs_property_set_guid(ecs::entity_registry* registry,
+        ecs::entity entityId,
+        ecs::component_type componentTypeId,
+        u32 offset,
+        const uuid* value)
+    {
+        make_property_ref<uuid>(registry, entityId, componentTypeId, offset) = *value;
+        registry->notify(entityId);
+    }
 }

@@ -9,6 +9,7 @@
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/property_registry.hpp>
 #include <oblo/properties/property_tree.hpp>
+#include <oblo/reflection/concepts/resource_type.hpp>
 #include <oblo/reflection/reflection_registry.hpp>
 
 namespace oblo::reflection
@@ -130,7 +131,8 @@ namespace oblo::gen::dotnet
 
             indent(managedCode, g_ManagedClassIndent + 1);
             managedCode.append(
-                "public bool IsAlive => Bindings.oblo_ecs_component_exists(_entity.EntityRegistry.NativeHandle, _entity.Id.Value, "
+                "public bool IsAlive => Bindings.oblo_ecs_component_exists(_entity.EntityRegistry.NativeHandle, "
+                "_entity.Id.Value, "
                 "TypeId.Value);");
 
             indent(managedCode, g_ManagedClassIndent + 1);
@@ -184,6 +186,26 @@ namespace oblo::gen::dotnet
         {
             add_component_property(managedCode, to_csharp_type(p.kind), p.name, p.offset);
         }
+
+        void begin_resource(string_builder& managedCode, string_view className, const type_id& type)
+        {
+            indent(managedCode, g_ManagedClassIndent);
+            managedCode.append("public struct ");
+            to_pascal_case(className, managedCode);
+            managedCode.append(" : IResource\n");
+
+            indent(managedCode, g_ManagedClassIndent);
+            managedCode.append("{\n");
+
+            indent(managedCode, g_ManagedClassIndent + 1);
+            managedCode.format("private const string NativeType = \"{}\";\n", type.name);
+        }
+
+        void end_resource(string_builder& managedCode)
+        {
+            indent(managedCode, g_ManagedClassIndent);
+            managedCode.append("}\n");
+        }
     }
 
     expected<> generate_bindings(const reflection::reflection_registry& reflectionRegistry,
@@ -197,6 +219,25 @@ namespace oblo::gen::dotnet
         managedCode.append("using System.Numerics;\n");
 
         managedCode.append("namespace Oblo\n{\n");
+
+        deque<reflection::type_handle> resourceRefTypes;
+        reflectionRegistry.find_by_concept<reflection::resource_type>(resourceRefTypes);
+
+        for (auto& typeHandle : resourceRefTypes)
+        {
+            const auto r = reflectionRegistry.find_concept<reflection::resource_type>(typeHandle);
+
+            if (!r)
+            {
+                continue;
+            }
+
+            const auto& type = r->typeId;
+            const auto className = extract_class_name(type.name);
+
+            begin_resource(managedCode, className, type);
+            end_resource(managedCode);
+        }
 
         for (auto& component : typeRegistry.get_component_types())
         {
@@ -239,6 +280,26 @@ namespace oblo::gen::dotnet
                 else if (node.type == get_type_id<quaternion>())
                 {
                     add_component_property(managedCode, "Quaternion", node.name, node.offset);
+                }
+                else
+                {
+                    const auto type = reflectionRegistry.find_type(node.type);
+
+                    if (type)
+                    {
+                        const auto r = reflectionRegistry.find_concept<reflection::resource_type>(type);
+
+                        if (r)
+                        {
+                            string_builder resourceRefCSharpType;
+                            resourceRefCSharpType.format("ResourceRef<");
+                            const auto resourceClassName = extract_class_name(r->typeId.name);
+                            to_pascal_case(resourceClassName, resourceRefCSharpType);
+                            resourceRefCSharpType.append(">");
+
+                            add_component_property(managedCode, resourceRefCSharpType.view(), node.name, node.offset);
+                        }
+                    }
                 }
             }
 

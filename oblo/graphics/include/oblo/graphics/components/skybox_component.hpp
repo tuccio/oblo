@@ -16,5 +16,5 @@ namespace oblo
 
         OBLO_PROPERTY(LinearColor)
         vec3 tint;
-    } OBLO_COMPONENT();
+    } OBLO_COMPONENT(ScriptAPI);
 }

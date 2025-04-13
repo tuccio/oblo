@@ -13,5 +13,5 @@ namespace oblo
     {
         resource_ref<mesh> mesh;
         resource_ref<material> material;
-    } OBLO_COMPONENT();
+    } OBLO_COMPONENT(ScriptAPI);
 }

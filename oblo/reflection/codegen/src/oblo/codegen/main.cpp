@@ -21,7 +21,7 @@ int main(int argc, char* argv[])
     if (argc != 2)
     {
         const char* appName = argc > 0 ? argv[0] : "ocodegen";
-        oblo::print("Usage: {} <path to config file>", appName);
+        oblo::print_line("Usage: {} <path to config file>", appName);
         return 1;
     }
 
@@ -30,7 +30,7 @@ int main(int argc, char* argv[])
 
     if (!file)
     {
-        oblo::print("Failed to read config file {}", configFile);
+        oblo::print_line("Failed to read config file {}", configFile);
         return 1;
     }
 
@@ -44,7 +44,7 @@ int main(int argc, char* argv[])
 
     if (doc.HasParseError() || !doc.IsArray())
     {
-        oblo::print("Failed to parse config file {}", configFile);
+        oblo::print_line("Failed to parse config file {}", configFile);
         return 1;
     }
 
@@ -60,7 +60,7 @@ int main(int argc, char* argv[])
 
     int errors = 0;
 
-    oblo::print("Starting generation with config file {}", configFile);
+    oblo::print_line("Starting generation with config file {}", configFile);
 
     for (auto&& target : doc.GetArray())
     {
@@ -73,11 +73,11 @@ int main(int argc, char* argv[])
         if (nameIt == target.MemberEnd() || sourceFileIt == target.MemberEnd() || outputFileIt == target.MemberEnd() ||
             includesIt == target.MemberEnd() || definesIt == target.MemberEnd())
         {
-            oblo::print("Failed to parse configuration file {}", configFile);
+            oblo::print_line("Failed to parse configuration file {}", configFile);
             continue;
         }
 
-        oblo::print("Parsing {}", nameIt->name.GetString());
+        oblo::print_line("Parsing {}", nameIt->name.GetString());
 
         ctx.clangArguments.clear();
 
@@ -104,11 +104,11 @@ int main(int argc, char* argv[])
         {
             const auto clangErrors = ctx.parser.get_errors();
 
-            oblo::print("Failed to parse file {}", sourceFile);
+            oblo::print_line("Failed to parse file {}", sourceFile);
 
             if (!clangErrors.empty())
             {
-                oblo::print("{}", clangErrors);
+                oblo::print_line("{}", clangErrors);
             }
 
             ++errors;
@@ -123,13 +123,13 @@ int main(int argc, char* argv[])
 
         if (!generateResult)
         {
-            oblo::print("Failed to generate file {}", outputFile);
+            oblo::print_line("Failed to generate file {}", outputFile);
             ++errors;
             continue;
         }
     }
 
-    oblo::print("Code generation finished with {} errors", errors);
+    oblo::print_line("Code generation finished with {} errors", errors);
 
     return errors;
 }

@@ -16,7 +16,7 @@ int main(int argc, char* argv[])
 
     if (argc < 2)
     {
-        print("Usage: " OBLO_STRINGIZE(OBLO_PROJECT_NAME) " <output file>");
+        print_line("Usage: " OBLO_STRINGIZE(OBLO_PROJECT_NAME) " <output file>");
     }
 
     module_manager mm;
@@ -45,10 +45,14 @@ int main(int argc, char* argv[])
 
     ecs_utility::register_reflected_component_and_tag_types(reflection->get_registry(), &types, &properties);
 
+    print_line("Generating bindings into {}", outFile);
+
     if (!gen::dotnet::generate_bindings(reflection->get_registry(), types, properties, outFile))
     {
+        print_line("Failed to generate bindings");
         return 1;
     }
 
+    print_line("Successufly generated bindings");
     return 0;
 }
