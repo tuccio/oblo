@@ -22,13 +22,23 @@ namespace Oblo.Ecs
         public bool IsAlive { get; }
     }
 
-    public record struct Entity(IntPtr EntityRegistry, EntityId Id)
+    public readonly record struct Entity(EntityRegistry EntityRegistry, EntityId Id)
     {
+        public T AddComponent<T>() where T : struct, IComponent
+        {
+            return Bindings.AddComponent<T>(this);
+        }
+
+        public void RemoveComponent<T>() where T : struct, IComponent
+        {
+            Bindings.RemoveComponent<T>(this);
+        }
+
         public T GetComponent<T>() where T : struct, IComponent
         {
             return Bindings.GetComponent<T>(this);
         }
 
-        public bool IsAlive => Bindings.oblo_ecs_entity_exists(EntityRegistry, Id.Value);
+        public bool IsAlive => Bindings.oblo_ecs_entity_exists(EntityRegistry.NativeHandle, Id.Value);
     }
 }

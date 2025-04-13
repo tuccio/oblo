@@ -19,6 +19,18 @@ namespace oblo
         }
 
         const ecs::type_registry* g_bindingsTypeRegistry{};
+
+        ecs::component_and_tag_sets make_type_set(const ecs::component_type* components, i32 componentsCount)
+        {
+            ecs::component_and_tag_sets types{};
+
+            for (i32 i = 0; i < componentsCount; ++i)
+            {
+                types.components.add(components[i]);
+            }
+
+            return types;
+        }
     }
 }
 
@@ -47,10 +59,43 @@ extern "C"
         return u32{registry->contains(entityId)};
     }
 
+    DOTNET_BINDINGS_API u32 oblo_ecs_entity_create(
+        ecs::entity_registry* registry, const ecs::component_type* components, i32 componentsCount)
+    {
+        const ecs::component_and_tag_sets types = make_type_set(components, componentsCount);
+
+        ecs::entity ids[1];
+        registry->create(types, 1, ids);
+
+        return ids[0].value;
+    }
+
+    DOTNET_BINDINGS_API void oblo_ecs_entity_destroy(ecs::entity_registry* registry, ecs::entity entityId)
+    {
+        return registry->destroy(entityId);
+    }
+
     DOTNET_BINDINGS_API u32 oblo_ecs_component_exists(
         ecs::entity_registry* registry, ecs::entity entityId, ecs::component_type componentTypeId)
     {
         return u32{registry->try_get(entityId, componentTypeId) != nullptr};
+    }
+
+    DOTNET_BINDINGS_API void oblo_ecs_component_add(ecs::entity_registry* registry,
+        ecs::entity entityId,
+        const ecs::component_type* components,
+        i32 componentsCount)
+    {
+        const ecs::component_and_tag_sets types = make_type_set(components, componentsCount);
+        registry->add(entityId, types);
+    }
+
+    DOTNET_BINDINGS_API void oblo_ecs_component_remove(
+        ecs::entity_registry* registry, ecs::entity entityId, ecs::component_type componentTypeId)
+    {
+        ecs::component_and_tag_sets types{};
+        types.components.add(componentTypeId);
+        registry->remove(entityId, types);
     }
 
     DOTNET_BINDINGS_API void oblo_ecs_property_get_float(ecs::entity_registry* registry,

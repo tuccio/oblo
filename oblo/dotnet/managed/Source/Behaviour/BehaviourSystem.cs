@@ -78,13 +78,14 @@ namespace Oblo.Behaviour
 
             Bindings.oblo_ecs_register_types(entityRegistry);
 
+            _updateContext.EntityRegistry = new EntityRegistry(entityRegistry);
             _updateContext.DeltaTime = TimeSpan.FromTicks(nativeContext.DeltaTime);
 
             for (int i = 0; i < _entities.Count;)
             {
                 var e = _entities[i];
 
-                _updateContext.Entity = new Entity(entityRegistry, e.EntityId);
+                _updateContext.Entity = new Entity(_updateContext.EntityRegistry, e.EntityId);
 
                 if (!_updateContext.Entity.GetComponent<BehaviourComponent>().IsAlive)
                 {
@@ -145,11 +146,11 @@ namespace Oblo.Behaviour
 
         private class UpdateContext : IUpdateContext
         {
+            public EntityRegistry EntityRegistry { get; set; }
+
             public Entity Entity { get; set; }
 
             public TimeSpan DeltaTime { get; set; }
-
         }
     }
-
 }

@@ -7,5 +7,7 @@ namespace Oblo.Behaviour
         public Entity Entity { get; }
 
         public TimeSpan DeltaTime { get; }
+
+        public EntityRegistry EntityRegistry { get; }
     }
 }
