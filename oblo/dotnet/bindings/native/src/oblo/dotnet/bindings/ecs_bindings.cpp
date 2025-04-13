@@ -262,7 +262,7 @@ extern "C"
         registry->notify(entityId);
     }
 
-    DOTNET_BINDINGS_API void oblo_ecs_property_get_guid(ecs::entity_registry* registry,
+    DOTNET_BINDINGS_API void oblo_ecs_property_get_uuid(ecs::entity_registry* registry,
         ecs::entity entityId,
         ecs::component_type componentTypeId,
         u32 offset,
@@ -271,7 +271,7 @@ extern "C"
         *result = make_property_ref<uuid>(registry, entityId, componentTypeId, offset);
     }
 
-    DOTNET_BINDINGS_API void oblo_ecs_property_set_guid(ecs::entity_registry* registry,
+    DOTNET_BINDINGS_API void oblo_ecs_property_set_uuid(ecs::entity_registry* registry,
         ecs::entity entityId,
         ecs::component_type componentTypeId,
         u32 offset,

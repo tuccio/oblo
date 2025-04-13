@@ -194,24 +194,24 @@ namespace Oblo.Ecs
 
         public static void GetComponentPropertyRaw<T>(Entity e, ComponentTypeId componentTypeId, uint offset, out ResourceRef<T> result) where T : struct, IResource
         {
-            oblo_ecs_property_get_guid(e.EntityRegistry.NativeHandle, e.Id.Value, componentTypeId.Value, offset, out Guid id);
+            oblo_ecs_property_get_uuid(e.EntityRegistry.NativeHandle, e.Id.Value, componentTypeId.Value, offset, out Uuid id);
             result = new ResourceRef<T>(id);
         }
 
         public static void SetComponentPropertyRaw<T>(Entity e, ComponentTypeId componentTypeId, uint offset, in ResourceRef<T> value) where T : struct, IResource
         {
-            oblo_ecs_property_set_guid(e.EntityRegistry.NativeHandle, e.Id.Value, componentTypeId.Value, offset, value.Id);
+            oblo_ecs_property_set_uuid(e.EntityRegistry.NativeHandle, e.Id.Value, componentTypeId.Value, offset, value.Id);
         }
 
         [SuppressGCTransition]
         [SuppressUnmanagedCodeSecurity]
         [DllImport(ImportLibrary, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern void oblo_ecs_property_get_guid(IntPtr registry, uint entityId, uint componentTypeId, uint offset, out Guid result);
+        internal static extern void oblo_ecs_property_get_uuid(IntPtr registry, uint entityId, uint componentTypeId, uint offset, out Uuid result);
 
         [SuppressGCTransition]
         [SuppressUnmanagedCodeSecurity]
         [DllImport(ImportLibrary, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern void oblo_ecs_property_set_guid(IntPtr registry, uint entityId, uint componentTypeId, uint offset, in Guid value);
+        internal static extern void oblo_ecs_property_set_uuid(IntPtr registry, uint entityId, uint componentTypeId, uint offset, in Uuid value);
 
         public static T AddComponent<T>(Entity entity) where T : struct, IComponent
         {

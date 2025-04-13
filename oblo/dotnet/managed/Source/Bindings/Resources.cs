@@ -1,4 +1,4 @@
-using System;
+using Oblo;
 using System.Runtime.InteropServices;
 
 namespace Oblo
@@ -9,11 +9,11 @@ namespace Oblo
     [StructLayout(LayoutKind.Sequential)]
     public struct ResourceRef<T> where T : struct, IResource
     {
-        public Guid Id => _id;
+        public Uuid Id => _id;
 
-        private Guid _id;
+        private Uuid _id;
 
-        public ResourceRef(Guid id)
+        public ResourceRef(Uuid id)
         {
             _id = id;
         }
