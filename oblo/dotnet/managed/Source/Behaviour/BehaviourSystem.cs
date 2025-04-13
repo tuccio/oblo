@@ -88,7 +88,9 @@ namespace Oblo.Behaviour
 
                 if (!_updateContext.Entity.GetComponent<BehaviourComponent>().IsAlive)
                 {
-                    // TODO
+                    int last = _entities.Count - 1;
+                    _entities[i] = _entities[last];
+                    _entities.RemoveAt(last);
                     continue;
                 }
 
