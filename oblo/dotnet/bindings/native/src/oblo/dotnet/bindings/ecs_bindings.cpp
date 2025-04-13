@@ -3,6 +3,7 @@
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/properties/property_value_wrapper.hpp>
+#include <oblo/scene/utility/ecs_utility.hpp>
 
 namespace oblo
 {
@@ -73,6 +74,17 @@ extern "C"
     DOTNET_BINDINGS_API void oblo_ecs_entity_destroy(ecs::entity_registry* registry, ecs::entity entityId)
     {
         return registry->destroy(entityId);
+    }
+
+    DOTNET_BINDINGS_API void oblo_ecs_entity_destroy_hierarchy(ecs::entity_registry* registry, ecs::entity entityId)
+    {
+        ecs_utility::destroy_hierarchy(*registry, entityId);
+    }
+
+    DOTNET_BINDINGS_API void oblo_ecs_entity_reparent(
+        ecs::entity_registry* registry, ecs::entity entityId, ecs::entity newParent)
+    {
+        ecs_utility::reparent_entity(*registry, entityId, newParent);
     }
 
     DOTNET_BINDINGS_API u32 oblo_ecs_component_exists(

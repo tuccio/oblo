@@ -9,5 +9,5 @@ namespace oblo
     struct children_component
     {
         buffered_array<ecs::entity, 8> children;
-    } OBLO_COMPONENT();
+    } OBLO_COMPONENT(ScriptAPI);
 }

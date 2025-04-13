@@ -1,8 +1,15 @@
+using System.Runtime.InteropServices;
+
 namespace Oblo.Ecs
 {
+    [StructLayout(LayoutKind.Sequential)]
     public readonly record struct EntityId(uint Value)
     {
-        static uint EntityIndexMask = Bindings.oblo_ecs_get_entity_index_mask();
+        public static EntityId Invalid => new EntityId(0);
+
+        public bool IsValid => Value != 0;
+
+        private static uint EntityIndexMask = Bindings.oblo_ecs_get_entity_index_mask();
 
         public uint ExtractIndex()
         {
@@ -10,8 +17,13 @@ namespace Oblo.Ecs
         }
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    public readonly record struct ComponentTypeId(uint Value)
+    {
+        public static ComponentTypeId Invalid => new ComponentTypeId(0);
 
-    public readonly record struct ComponentTypeId(uint Value);
+        public bool IsValid => Value != 0;
+    }
 
     public interface IComponent
     {

@@ -8,6 +8,7 @@ target_link_libraries(
     oblo::properties
     oblo::reflection
     oblo::resource
+    oblo::scene
 )
 
 add_library(oblo::dotnet::bindings ALIAS oblo_dotnet_bindings)

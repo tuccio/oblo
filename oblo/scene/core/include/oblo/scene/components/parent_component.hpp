@@ -8,5 +8,5 @@ namespace oblo
     struct parent_component
     {
         ecs::entity parent;
-    } OBLO_COMPONENT();
+    } OBLO_COMPONENT(ScriptAPI);
 }

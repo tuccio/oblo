@@ -10,5 +10,5 @@ namespace oblo
     struct entity_hierarchy_component
     {
         resource_ref<entity_hierarchy> hierarchy;
-    } OBLO_COMPONENT();
+    } OBLO_COMPONENT(ScriptAPI);
 }

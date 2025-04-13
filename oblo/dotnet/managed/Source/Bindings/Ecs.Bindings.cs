@@ -232,6 +232,16 @@ namespace Oblo.Ecs
         [SuppressGCTransition]
         [SuppressUnmanagedCodeSecurity]
         [DllImport(ImportLibrary, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void oblo_ecs_entity_destroy_hierarchy(IntPtr registry, uint entityId);
+
+        [SuppressGCTransition]
+        [SuppressUnmanagedCodeSecurity]
+        [DllImport(ImportLibrary, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void oblo_ecs_entity_reparent(IntPtr registry, uint entityId, uint newParentId);
+
+        [SuppressGCTransition]
+        [SuppressUnmanagedCodeSecurity]
+        [DllImport(ImportLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern bool oblo_ecs_component_exists(IntPtr registry, uint entityId, uint componentTypeId);
 
         [SuppressGCTransition]
