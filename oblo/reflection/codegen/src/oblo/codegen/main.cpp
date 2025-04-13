@@ -4,6 +4,7 @@
 #include <oblo/core/filesystem/file.hpp>
 #include <oblo/core/filesystem/file_ptr.hpp>
 #include <oblo/core/flags.hpp>
+#include <oblo/core/print.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/string/string_view.hpp>
@@ -15,24 +16,12 @@
 #include "reflection_worker.hpp"
 #include "target_data.hpp"
 
-namespace oblo::gen
-{
-    template <typename... Args>
-    void print(std::format_string<Args...> fmt, Args&&... args)
-    {
-        string_builder b;
-        b.format(fmt, std::forward<Args>(args)...);
-        b.append('\n');
-        std::fputs(b.c_str(), stderr);
-    }
-}
-
 int main(int argc, char* argv[])
 {
     if (argc != 2)
     {
         const char* appName = argc > 0 ? argv[0] : "ocodegen";
-        oblo::gen::print("Usage: {} <path to config file>", appName);
+        oblo::print("Usage: {} <path to config file>", appName);
         return 1;
     }
 
@@ -41,7 +30,7 @@ int main(int argc, char* argv[])
 
     if (!file)
     {
-        oblo::gen::print("Failed to read config file {}", configFile);
+        oblo::print("Failed to read config file {}", configFile);
         return 1;
     }
 
@@ -55,7 +44,7 @@ int main(int argc, char* argv[])
 
     if (doc.HasParseError() || !doc.IsArray())
     {
-        oblo::gen::print("Failed to parse config file {}", configFile);
+        oblo::print("Failed to parse config file {}", configFile);
         return 1;
     }
 
@@ -71,7 +60,7 @@ int main(int argc, char* argv[])
 
     int errors = 0;
 
-    oblo::gen::print("Starting generation with config file {}", configFile);
+    oblo::print("Starting generation with config file {}", configFile);
 
     for (auto&& target : doc.GetArray())
     {
@@ -84,11 +73,11 @@ int main(int argc, char* argv[])
         if (nameIt == target.MemberEnd() || sourceFileIt == target.MemberEnd() || outputFileIt == target.MemberEnd() ||
             includesIt == target.MemberEnd() || definesIt == target.MemberEnd())
         {
-            oblo::gen::print("Failed to parse configuration file {}", configFile);
+            oblo::print("Failed to parse configuration file {}", configFile);
             continue;
         }
 
-        oblo::gen::print("Parsing {}", nameIt->name.GetString());
+        oblo::print("Parsing {}", nameIt->name.GetString());
 
         ctx.clangArguments.clear();
 
@@ -115,11 +104,11 @@ int main(int argc, char* argv[])
         {
             const auto clangErrors = ctx.parser.get_errors();
 
-            oblo::gen::print("Failed to parse file {}", sourceFile);
+            oblo::print("Failed to parse file {}", sourceFile);
 
             if (!clangErrors.empty())
             {
-                oblo::gen::print("{}", clangErrors);
+                oblo::print("{}", clangErrors);
             }
 
             ++errors;
@@ -134,13 +123,13 @@ int main(int argc, char* argv[])
 
         if (!generateResult)
         {
-            oblo::gen::print("Failed to generate file {}", outputFile);
+            oblo::print("Failed to generate file {}", outputFile);
             ++errors;
             continue;
         }
     }
 
-    oblo::gen::print("Code generation finished with {} errors", errors);
+    oblo::print("Code generation finished with {} errors", errors);
 
     return errors;
 }

@@ -23,7 +23,7 @@ namespace oblo::filesystem
 
         constexpr wchar_t suffix[] = L"\\*";
 
-        if (outIt - wDir < sizeof(suffix))
+        if (usize(outIt - wDir) < sizeof(suffix))
         {
             // Not enough space in the buffer
             return unspecified_error;

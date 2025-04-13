@@ -15,6 +15,7 @@ set(OBLO_FOLDER_LIBRARIES "2 - Libraries")
 set(OBLO_FOLDER_TESTS "3 - Tests")
 set(OBLO_FOLDER_THIRDPARTY "4 - Third-party")
 set(OBLO_FOLDER_CMAKE "5 - CMake")
+set(OBLO_FOLDER_INTERNAL "6 - Internal")
 
 set(OBLO_CODEGEN_CUSTOM_TARGET run-codegen)
 
@@ -149,6 +150,7 @@ function(oblo_add_executable name)
     oblo_setup_include_dirs(${_target})
     oblo_setup_source_groups(${_target})
     add_executable("oblo::${name}" ALIAS ${_target})
+    target_compile_definitions(${_target} PRIVATE "OBLO_PROJECT_NAME=${_target}")
 
     set_target_properties(${_target} PROPERTIES FOLDER ${OBLO_FOLDER_APPLICATIONS})
 
@@ -209,6 +211,8 @@ function(oblo_add_library name)
         set(_withReflection TRUE)
     endif()
 
+    set(_vs_proj_target ${_target})
+
     if(NOT DEFINED _oblo_src)
         # Header only library
         add_library(${_target} INTERFACE)
@@ -221,7 +225,8 @@ function(oblo_add_library name)
 
         target_sources(${_target} INTERFACE ${_oblo_public_includes})
 
-        add_custom_target(${_target}-interface SOURCES ${_oblo_public_includes})
+        set(_vs_proj_target ${_target}-interface)
+        add_custom_target(${_vs_proj_target} SOURCES ${_oblo_public_includes})
     else()
         # Regular C++ library
         set(_kind "STATIC")
@@ -271,7 +276,7 @@ function(oblo_add_library name)
     oblo_setup_source_groups(${_target})
 
     set_target_properties(
-        ${_target} PROPERTIES
+        ${_vs_proj_target} PROPERTIES
         FOLDER ${OBLO_FOLDER_LIBRARIES}
         PROJECT_LABEL ${name}
     )
@@ -337,3 +342,9 @@ function(oblo_init)
 
     oblo_init_reflection()
 endfunction(oblo_init)
+
+function(oblo_set_target_folder target folder)
+    string(TOUPPER ${folder} _upper)
+    set(_resolved ${OBLO_FOLDER_${_upper}})
+    set_target_properties(${target} PROPERTIES FOLDER ${_resolved})
+endfunction(oblo_set_target_folder)

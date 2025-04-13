@@ -2,11 +2,13 @@
 
 #include <oblo/core/platform/shared_library.hpp>
 #include <oblo/core/string/string_builder.hpp>
-#include <oblo/dotnet/sdk/coreclr_delegates.h>
-#include <oblo/dotnet/sdk/hostfxr.h>
+
 #include <oblo/log/log.hpp>
 
 #include <utf8cpp/utf8.h>
+
+#include <coreclr_delegates.h>
+#include <hostfxr.h>
 
 #include <string>
 

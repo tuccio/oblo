@@ -112,8 +112,7 @@ namespace oblo::gen::dotnet
             }
         }
 
-        void begin_component(
-            string_builder& nativeCode, string_builder& managedCode, string_view className, const type_id& type)
+        void begin_component(string_builder& managedCode, string_view className, const type_id& type)
         {
             indent(managedCode, g_ManagedClassIndent);
             managedCode.append("public struct ");
@@ -146,20 +145,12 @@ namespace oblo::gen::dotnet
             managedCode.append("internal ");
             to_pascal_case(className, managedCode);
             managedCode.append("(Entity entity) { _entity = entity; }\n");
-
-            nativeCode.append("// Begin component ");
-            nativeCode.append(className);
-            nativeCode.append('\n');
         }
 
-        void end_component(string_builder& nativeCode, string_builder& managedCode, string_view className)
+        void end_component(string_builder& managedCode)
         {
             indent(managedCode, g_ManagedClassIndent);
             managedCode.append("}\n");
-
-            nativeCode.append("// End component ");
-            nativeCode.append(className);
-            nativeCode.append('\n');
         }
 
         void add_component_property(
@@ -198,10 +189,8 @@ namespace oblo::gen::dotnet
     expected<> generate_bindings(const reflection::reflection_registry& reflectionRegistry,
         const ecs::type_registry& typeRegistry,
         const property_registry& propertyRegistry,
-        cstring_view nativePath,
         cstring_view managedPath)
     {
-        string_builder nativeCode;
         string_builder managedCode;
 
         managedCode.append("using Oblo.Ecs;\n");
@@ -227,7 +216,7 @@ namespace oblo::gen::dotnet
 
             const auto className = extract_class_name(component.type.name);
 
-            begin_component(nativeCode, managedCode, className, component.type);
+            begin_component(managedCode, className, component.type);
 
             auto& root = propertyTree->nodes[0];
 
@@ -253,15 +242,14 @@ namespace oblo::gen::dotnet
                 }
             }
 
-            end_component(nativeCode, managedCode, component.type.name);
+            end_component(managedCode);
         }
 
         managedCode.append("}"); // namespace Oblo
 
-        const auto native = filesystem::write_file(nativePath, as_bytes(std::span{nativeCode}), {});
         const auto managed = filesystem::write_file(managedPath, as_bytes(std::span{managedCode}), {});
 
-        if (!native || !managed)
+        if (!managed)
         {
             return unspecified_error;
         }

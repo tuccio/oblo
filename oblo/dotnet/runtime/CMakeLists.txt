@@ -2,6 +2,7 @@ oblo_add_library(dotnet_rt MODULE)
 
 oblo_register_core_module(dotnet_rt)
 
+find_package(dotnet-sdk REQUIRED)
 find_package(utf8cpp REQUIRED)
 
 target_link_libraries(
@@ -12,6 +13,7 @@ target_link_libraries(
     oblo::modules
     oblo::reflection
     oblo::resource
+    dotnet-sdk::hostfxr
     utf8cpp
 )
 

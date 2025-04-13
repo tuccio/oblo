@@ -6,4 +6,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Include="$(GeneratedDotNetDir)\*.cs" />
+  </ItemGroup>
 </Project>

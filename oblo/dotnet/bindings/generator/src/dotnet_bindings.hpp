@@ -24,6 +24,5 @@ namespace oblo::gen::dotnet
     expected<> generate_bindings(const reflection::reflection_registry& reflectionRegistry,
         const ecs::type_registry& typeRegistry,
         const property_registry& propertyRegistry,
-        cstring_view nativePath,
         cstring_view managedPath);
 }

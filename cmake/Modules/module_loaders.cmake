@@ -18,7 +18,9 @@ function(_oblo_register_module_as module type)
 
     set_target_properties(
         oblo_register_module_${type}
-        PROPERTIES oblo_registered_modules "${_modules}"
+        PROPERTIES
+        oblo_registered_modules "${_modules}"
+        FOLDER ${OBLO_FOLDER_INTERNAL}
     )
 
     add_dependencies(oblo_register_module_${type} oblo_${module})

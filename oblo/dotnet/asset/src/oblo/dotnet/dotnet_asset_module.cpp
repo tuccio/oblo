@@ -32,8 +32,6 @@ namespace oblo
             static constexpr cstring_view g_ArtifactName = "ScriptAssembly.dll";
 
         public:
-            static constexpr string_view extensions[] = {".ocsscript"};
-
             bool init(const import_config& config, import_preview& preview)
             {
                 m_source = config.sourceFile;
@@ -308,7 +306,7 @@ namespace oblo
             return true;
         }
 
-        void shutdown() {}
+        void shutdown() override {}
     };
 }
 

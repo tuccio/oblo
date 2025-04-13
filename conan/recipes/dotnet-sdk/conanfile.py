@@ -38,13 +38,13 @@ class DotNetSDKConan(ConanFile):
         copy(self, "*.txt", self.build_folder, os.path.join(self.package_folder, "licenses"))
 
     def package_info(self):
-        self.cpp_info.components["dotnet-cli"].set_property("cmake_file_name", "dotnet::cli")
-        self.cpp_info.components["dotnet-cli"].bindirs = ["bin"]
+        self.cpp_info.components["cli"].set_property("cmake_file_name", "dotnet::cli")
+        self.cpp_info.components["cli"].bindirs = ["bin"]
 
-        self.cpp_info.components["dotnet-hostfxr"].set_property("cmake_file_name", "dotnet::hostfxr")
-        self.cpp_info.components["dotnet-hostfxr"].bindirs = ["host"]
-        self.cpp_info.components["dotnet-hostfxr"].includedirs = ["include/hostfxr"]
+        self.cpp_info.components["hostfxr"].set_property("cmake_file_name", "dotnet::hostfxr")
+        self.cpp_info.components["hostfxr"].bindirs = ["host"]
+        self.cpp_info.components["hostfxr"].includedirs = ["include/hostfxr"]
 
-        self.cpp_info.components["dotnet-runtime"].set_property("cmake_file_name", "dotnet::runtime")
-        self.cpp_info.components["dotnet-runtime"].bindirs = ["shared"]
+        self.cpp_info.components["runtime"].set_property("cmake_file_name", "dotnet::runtime")
+        self.cpp_info.components["runtime"].bindirs = ["shared"]
 
