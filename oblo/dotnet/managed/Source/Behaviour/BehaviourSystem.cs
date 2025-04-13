@@ -13,10 +13,18 @@ namespace Oblo.Behaviour
             public IBehaviour Behaviour;
         }
 
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct UpdateNativeContext
+        {
+            public IntPtr EntityRegistry;
+            public Int64 DeltaTime;
+        }
+
+        private UpdateContext _updateContext = new();
         private List<int> _entitiesMap = new();
         private List<BehaviourEntity> _entities = new();
 
-        public void RegisterBehaviour(uint entityId, Assembly assembly)
+        internal void RegisterBehaviour(uint entityId, Assembly assembly)
         {
             var behaviourInterface = typeof(IBehaviour);
 
@@ -64,28 +72,27 @@ namespace Oblo.Behaviour
             }
         }
 
-        public void Update(IntPtr entityRegistry)
+        internal void Update(in UpdateNativeContext nativeContext)
         {
+            IntPtr entityRegistry = nativeContext.EntityRegistry;
+
             Bindings.oblo_ecs_register_types(entityRegistry);
 
-            var ctx = new UpdateContext();
-
-            // TODO
-            ctx.DeltaTime = TimeSpan.FromMilliseconds(16);
+            _updateContext.DeltaTime = TimeSpan.FromTicks(nativeContext.DeltaTime);
 
             for (int i = 0; i < _entities.Count;)
             {
                 var e = _entities[i];
 
-                ctx.Entity = new Entity(entityRegistry, e.EntityId);
+                _updateContext.Entity = new Entity(entityRegistry, e.EntityId);
 
-                if (!ctx.Entity.GetComponent<BehaviourComponent>().IsAlive)
+                if (!_updateContext.Entity.GetComponent<BehaviourComponent>().IsAlive)
                 {
                     // TODO
                     continue;
                 }
 
-                e.Behaviour.OnUpdate(ctx);
+                e.Behaviour.OnUpdate(_updateContext);
                 ++i;
             }
         }
@@ -107,11 +114,11 @@ namespace Oblo.Behaviour
         }
 
         [UnmanagedCallersOnly]
-        private static void Update(IntPtr self, IntPtr entityRegistry)
+        private static void Update(IntPtr self, UpdateNativeContext ctx)
         {
             var system = GCHandle.FromIntPtr(self).Target as BehaviourSystem;
 
-            system?.Update(entityRegistry);
+            system?.Update(ctx);
         }
 
         [UnmanagedCallersOnly]

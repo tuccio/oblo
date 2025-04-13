@@ -16,6 +16,12 @@
 
 namespace oblo
 {
+    struct dotnet_behaviour_system::update_ctx
+    {
+        ecs::entity_registry* entityRegistry;
+        time deltaTime;
+    };
+
     void dotnet_behaviour_system::first_update(const ecs::system_update_context& ctx)
     {
         m_resourceRegistry = ctx.services->find<const resource_registry>();
@@ -112,7 +118,11 @@ namespace oblo
 
             deferred.apply(*ctx.entities);
 
-            m_update(m_managedSystem, ctx.entities);
+            m_update(m_managedSystem,
+                {
+                    .entityRegistry = ctx.entities,
+                    .deltaTime = ctx.dt,
+                });
         }
     }
 
