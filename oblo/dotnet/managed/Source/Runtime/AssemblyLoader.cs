@@ -1,14 +1,18 @@
 using System.Reflection;
-using System.Runtime.CompilerServices;
 
 namespace Oblo
 {
     internal static class AssemblyLoader
     {
-        [ModuleInitializer]
+        private static bool _isInitialized = false;
+
         public static void Init()
         {
-            AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
+            if (!_isInitialized)
+            {
+                AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
+                _isInitialized = true;
+            }
         }
 
         private static Assembly CurrentDomain_AssemblyResolve(object? sender, ResolveEventArgs args)

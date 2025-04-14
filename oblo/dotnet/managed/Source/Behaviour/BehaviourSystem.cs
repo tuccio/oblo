@@ -7,6 +7,11 @@ namespace Oblo.Behaviour
 {
     public class BehaviourSystem
     {
+        static BehaviourSystem()
+        {
+            AssemblyLoader.Init();
+        }
+
         private struct BehaviourEntity
         {
             public EntityId EntityId;
