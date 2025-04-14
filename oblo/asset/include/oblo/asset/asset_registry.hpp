@@ -99,6 +99,8 @@ namespace oblo
 
         bool find_asset_artifacts(const uuid& id, dynamic_array<uuid>& artifacts) const;
 
+        const native_asset_descriptor* find_native_asset_type(const uuid& type) const;
+
         void iterate_artifacts_by_type(const uuid& type,
             function_ref<bool(const uuid& assetId, const uuid& artifactId)> callback) const;
 

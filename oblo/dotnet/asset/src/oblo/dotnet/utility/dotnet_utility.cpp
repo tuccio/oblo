@@ -35,7 +35,7 @@ namespace oblo::dotnet_utility
             targetFramework,
             managedHint);
 
-        return filesystem::write_file(path, as_bytes(content.mutable_data()), {});
+        return filesystem::write_file(path, as_bytes(std::span{content}), {});
     }
 
     expected<> find_cs_files(cstring_view directory, function_ref<void(cstring_view)> cb)

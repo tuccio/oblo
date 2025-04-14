@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Oblo
@@ -49,16 +50,32 @@ namespace Oblo
             Byte15 = bytes[15];
         }
 
+        public static Uuid Parse(string str)
+        {
+            return FromGuid(Guid.Parse(str));
+        }
+
         public static Uuid FromGuid(in Guid guid)
         {
-            // In .NET 10 we could use TryWriteBytes instead
-            Guid copy = guid;
+            ReadOnlySpan<Guid> guidSpan = MemoryMarshal.CreateSpan(ref Unsafe.AsRef(in guid), 1);
+            ReadOnlySpan<byte> guidBytes = MemoryMarshal.Cast<Guid, byte>(guidSpan);
 
-            Span<Guid> guidSpan = MemoryMarshal.CreateSpan(ref copy, 1);
-            ReadOnlySpan<byte> bytes = MemoryMarshal.Cast<Guid, byte>(guidSpan);
+            // Reshuffle to big-endian (UUID format)
+            ReadOnlySpan<byte> uuidBytes = stackalloc byte[16]
+            {
+                // Reverse Data1 (4 bytes)
+                guidBytes[3], guidBytes[2], guidBytes[1], guidBytes[0],
+                // Reverse Data2 (2 bytes)
+                guidBytes[5], guidBytes[4],
+                // Reverse Data3 (2 bytes)
+                guidBytes[7], guidBytes[6],
+                // Data4 (8 bytes) is already in correct order
+                guidBytes[8], guidBytes[9], guidBytes[10], guidBytes[11],
+                guidBytes[12], guidBytes[13], guidBytes[14], guidBytes[15]
+            };
 
             // Reorder from Win32 GUID layout to standard UUID layout
-            return new Uuid(bytes);
+            return new Uuid(uuidBytes);
         }
 
         public Guid ToGuid()

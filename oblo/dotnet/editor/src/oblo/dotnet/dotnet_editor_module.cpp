@@ -34,39 +34,8 @@ namespace oblo::editor
             {
             }
 
-            bool init([[maybe_unused]] const window_update_context& ctx)
+            bool init(const window_update_context&)
             {
-
-#if 0
-                string_builder sourcePath;
-
-                if (!m_assetRegistry.get_source_path(m_assetId, sourcePath))
-                {
-                    return false;
-                }
-
-                auto* editorDir = ctx.services.find<editor_directories>();
-
-                if (!editorDir)
-                {
-                    return false;
-                }
-
-                string_builder workDir;
-
-                if (!editorDir->create_temporary_directory(workDir))
-                {
-                    return false;
-                }
-
-                string_builder sourceFile = workDir;
-                sourceFile.append_path("Script.cs");
-
-                if (!filesystem::create_hard_link(sourcePath.as<string_view>(), sourceFile.as<string_view>()))
-                {
-                    return false;
-                }
-#else
                 string_builder csproj;
 
                 if (!m_assetRegistry.get_source_directory(m_assetId, csproj))
@@ -82,7 +51,6 @@ namespace oblo::editor
                 }
 
                 platform::open_file(csproj);
-#endif
 
                 return true;
             }
@@ -150,22 +118,6 @@ namespace oblo::editor
                 out.push_back(asset_editor_descriptor{.assetType = asset_type<dotnet_script_asset>,
                     .category = "Script",
                     .name = "C# Script",
-                    .create =
-                        []
-                    {
-                        dotnet_script_asset s;
-
-                        s.scripts["Behaviour.cs"] = R"(using Oblo;
-
-public class Behaviour : IBehaviour
-{
-    public void OnUpdate()
-    {
-    }
-})";
-
-                        return any_asset{std::move(s)};
-                    },
                     .createEditor = []() -> unique_ptr<asset_editor>
                     { return allocate_unique<dotnet_script_editor>(); }});
             }

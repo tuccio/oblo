@@ -41,18 +41,18 @@ namespace oblo
 
             // Load .NET Core
             void* load_assembly_and_get_function_pointer = nullptr;
-            hostfxr_handle cxt = nullptr;
-            int rc = hostfxrInit(configPath, nullptr, &cxt);
+            hostfxr_handle ctx = nullptr;
+            int rc = hostfxrInit(configPath, nullptr, &ctx);
 
-            if (rc != 0 || cxt == nullptr)
+            if (rc != 0 || ctx == nullptr)
             {
                 oblo::log::error("Failed to initialize runtime: {:#x}", rc);
-                hostfxrClose(cxt);
+                hostfxrClose(ctx);
                 return false;
             }
 
             // Get the load assembly function pointer
-            rc = hostfxrGetDelegate(cxt,
+            rc = hostfxrGetDelegate(ctx,
                 hdt_load_assembly_and_get_function_pointer,
                 &load_assembly_and_get_function_pointer);
 
@@ -61,7 +61,7 @@ namespace oblo
                 oblo::log::error("Failed to get delegate: {:#x}", rc);
             }
 
-            hostfxrClose(cxt);
+            hostfxrClose(ctx);
 
             dotnetLoadAssembly = load_assembly_and_get_function_pointer_fn(load_assembly_and_get_function_pointer);
             return true;

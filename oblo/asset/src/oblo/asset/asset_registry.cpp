@@ -847,6 +847,12 @@ namespace oblo
         return true;
     }
 
+    const native_asset_descriptor* asset_registry::find_native_asset_type(const uuid& type) const
+    {
+        const auto it = m_impl->nativeAssetTypes.find(type);
+        return it == m_impl->nativeAssetTypes.end() ? nullptr : &it->second;
+    }
+
     void asset_registry::iterate_artifacts_by_type(const uuid& type,
         function_ref<bool(const uuid& assetId, const uuid& artifactId)> callback) const
     {

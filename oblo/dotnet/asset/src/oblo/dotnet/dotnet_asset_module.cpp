@@ -222,6 +222,22 @@ namespace oblo
                     .typeUuid = asset_type<dotnet_script_asset>,
                     .typeId = get_type_id<dotnet_script_asset>(),
                     .fileExtension = ".ocsscript",
+                    .create =
+                        []
+                    {
+                        dotnet_script_asset s;
+
+                        s.scripts["Behaviour.cs"] = R"(using Oblo;
+
+public class Behaviour : IBehaviour
+{
+    public void OnUpdate()
+    {
+    }
+})";
+
+                        return any_asset{std::move(s)};
+                    },
                     .load =
                         [](any_asset& asset, cstring_view source)
                     {

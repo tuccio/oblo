@@ -2,8 +2,6 @@ oblo_add_library(dotnet_behaviour MODULE)
 
 oblo_register_core_module(dotnet_behaviour)
 
-find_package(utf8cpp REQUIRED)
-
 target_link_libraries(
     oblo_dotnet_behaviour
     PRIVATE
