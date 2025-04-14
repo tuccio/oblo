@@ -1,6 +1,12 @@
 set(_dotnet_bindings_dir "${CMAKE_CURRENT_BINARY_DIR}/dotnet-bindings")
+set(_dotnet_build_cmd dotnet build --configuration $<IF:$<CONFIG:Debug>,Debug,Release> \"${CMAKE_CURRENT_SOURCE_DIR}/Oblo.Managed.csproj\" -o \"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/managed\" "-p:GeneratedDotNetDir=${_dotnet_bindings_dir}")
 
-add_custom_target(Oblo.Managed-build COMMAND dotnet build --configuration $<IF:$<CONFIG:Debug>,Debug,Release> \"${CMAKE_CURRENT_SOURCE_DIR}/Oblo.Managed.csproj\" -o \"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/managed\" "-p:GeneratedDotNetDir=${_dotnet_bindings_dir}")
+add_custom_target(
+    Oblo.Managed-build
+    ALL
+    COMMAND ${_dotnet_build_cmd}
+    COMMENT "Building .NET code: ${_dotnet_build_cmd}"
+)
 
 set_target_properties(
     Oblo.Managed-build
