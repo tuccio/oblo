@@ -29,3 +29,5 @@ target_link_libraries(
     oblo::thread
     oblo::test::glTF::SampleModels
 )
+
+oblo_register_asset_module(importers)

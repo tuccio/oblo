@@ -34,6 +34,20 @@ namespace oblo
                     .typeUuid = asset_type<material>,
                     .typeId = get_type_id<material>(),
                     .fileExtension = ".omaterial",
+                    .create =
+                        []
+                    {
+                        material m;
+
+                        // TODO: Set all properties
+                        pbr::properties properties;
+
+                        struct_apply([&m](auto&... descs)
+                            { (m.set_property(descs.name, descs.type, descs.defaultValue), ...); },
+                            properties);
+
+                        return any_asset{std::move(m)};
+                    },
                     .load =
                         [](any_asset& asset, cstring_view source)
                     {
@@ -60,6 +74,19 @@ namespace oblo
                     .typeUuid = asset_type<scene>,
                     .typeId = get_type_id<scene>(),
                     .fileExtension = ".oscene",
+                    .create =
+                        []
+                    {
+                        any_asset r;
+                        auto& s = r.emplace<scene>();
+
+                        if (!s.init())
+                        {
+                            r.clear();
+                        }
+
+                        return r;
+                    },
                     .load =
                         [](any_asset& asset, cstring_view source)
                     {
@@ -92,20 +119,6 @@ namespace oblo
                     .assetType = asset_type<material>,
                     .category = "Material",
                     .name = "PBR",
-                    .create =
-                        []
-                    {
-                        material m;
-
-                        // TODO: Set all properties
-                        pbr::properties properties;
-
-                        struct_apply([&m](auto&... descs)
-                            { (m.set_property(descs.name, descs.type, descs.defaultValue), ...); },
-                            properties);
-
-                        return any_asset{std::move(m)};
-                    },
                     .createEditor = []() -> unique_ptr<editor::asset_editor>
                     { return allocate_unique<editor::material_editor>(); },
                 });
@@ -113,19 +126,6 @@ namespace oblo
                 out.push_back(editor::asset_editor_descriptor{
                     .assetType = asset_type<scene>,
                     .name = "Scene",
-                    .create =
-                        []
-                    {
-                        any_asset r;
-                        auto& s = r.emplace<scene>();
-
-                        if (!s.init())
-                        {
-                            r.clear();
-                        }
-
-                        return r;
-                    },
                     .createEditor = []() -> unique_ptr<editor::asset_editor>
                     { return allocate_unique<editor::scene_editor>(); },
                     .flags = editor::asset_editor_flags::unique_type,

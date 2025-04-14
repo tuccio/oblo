@@ -3,7 +3,6 @@
 #include <oblo/app/graphics_app.hpp>
 #include <oblo/app/window_event_processor.hpp>
 #include <oblo/asset/asset_registry.hpp>
-#include <oblo/asset/importers/importers_module.hpp>
 #include <oblo/asset/utility/registration.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/platform/shared_library.hpp>
@@ -40,6 +39,8 @@
 
 #include <renderdoc_app.h>
 
+#include <module_loader_asset.gen.hpp>
+
 namespace oblo::smoke
 {
     namespace
@@ -66,7 +67,8 @@ namespace oblo::smoke
                 auto* const runtimeModule = mm.load<runtime_module>();
                 auto* const reflectionModule = mm.load<reflection::reflection_module>();
                 mm.load<scene_module>();
-                mm.load<importers::importers_module>();
+
+                gen::load_modules_asset();
 
                 if (!mm.finalize())
                 {
@@ -86,6 +88,7 @@ namespace oblo::smoke
                 auto& resourceRegistry = runtimeRegistry.get_resource_registry();
 
                 register_file_importers(assetRegistry, mm.find_services<file_importers_provider>());
+                register_native_asset_types(assetRegistry, mm.find_services<native_asset_provider>());
                 register_resource_types(resourceRegistry, mm.find_services<resource_types_provider>());
 
                 assetRegistry.discover_assets({});
