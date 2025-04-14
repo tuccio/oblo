@@ -1,7 +1,6 @@
-# TODO: Setup the configuration type
 set(_dotnet_bindings_dir "${CMAKE_CURRENT_BINARY_DIR}/dotnet-bindings")
 
-add_custom_target(Oblo.Managed-build COMMAND dotnet build \"${CMAKE_CURRENT_SOURCE_DIR}/Oblo.Managed.csproj\" -o \"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/managed\" "-p:GeneratedDotNetDir=${_dotnet_bindings_dir}")
+add_custom_target(Oblo.Managed-build COMMAND dotnet build --configuration $<IF:$<CONFIG:Debug>,Debug,Release> \"${CMAKE_CURRENT_SOURCE_DIR}/Oblo.Managed.csproj\" -o \"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/managed\" "-p:GeneratedDotNetDir=${_dotnet_bindings_dir}")
 
 set_target_properties(
     Oblo.Managed-build
@@ -17,3 +16,4 @@ if(OBLO_GENERATE_CSHARP)
     oblo_set_target_folder(Oblo.Managed-build libraries)
 endif()
 
+add_dependencies(Oblo.Managed-build run-bindgen)

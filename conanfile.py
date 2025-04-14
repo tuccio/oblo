@@ -140,5 +140,3 @@ class ObloConanRecipe(ConanFile):
 
         copy(self, "*", _dotnet.cpp_info.components["dotnet-hostfxr"].bindirs[0], os.path.join(_dotnet_dir, "host"))
         copy(self, "*", _dotnet.cpp_info.components["dotnet-runtime"].bindirs[0], os.path.join(_dotnet_dir, "shared"))
-
-        copy(self, "*", _dotnet.cpp_info.components["dotnet-cli"].bindirs[0], _dotnet_dir)

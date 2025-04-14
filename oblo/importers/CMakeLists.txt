@@ -12,8 +12,8 @@ target_link_libraries(
     oblo::modules
     oblo::scene
     PRIVATE
+    oblo::graphics
     oblo::log
-    oblo::runtime
     oblo::thread
     assimp::assimp
     meshoptimizer::meshoptimizer
