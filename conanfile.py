@@ -133,6 +133,7 @@ class ObloConanRecipe(ConanFile):
                 ["export", f"{self.recipe_folder}/conan/recipes/dotnet-sdk", "--version", "9.0.203"])
 
     def _deploy_dotnet(self, dir):
+        # Deploy .NET maintaining the install layout https://github.com/dotnet/designs/blob/main/accepted/2020/install-locations.md#net-core-install-layout
         _dotnet = self.dependencies["dotnet-sdk"]
 
         _dotnet_dir = os.path.join(dir, "dotnet")

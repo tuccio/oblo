@@ -74,9 +74,14 @@ namespace oblo::smoke
 
             entityRegistry.get<dotnet_behaviour_component>(e).script = duckBehaviour.as_ref();
 
-            for (u32 i = 0; i < 120; ++i)
+            for (u32 i = 0; i < 120;)
             {
-                ctx.next_frame();
+                if (duckBehaviour.is_loaded())
+                {
+                    ++i;
+                }
+
+                co_await ctx.next_frame();
             }
         }
 

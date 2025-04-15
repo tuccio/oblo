@@ -60,7 +60,12 @@ namespace oblo::platform
         }
     }
 
-    bool shared_library::is_valid() const
+    void shared_library::leak()
+    {
+        m_handle = nullptr;
+    }
+
+    bool shared_library::is_open() const
     {
         return m_handle != nullptr;
     }

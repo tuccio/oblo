@@ -14,6 +14,20 @@
 
 namespace oblo
 {
+    namespace
+    {
+        enum corehost_status_code
+        {
+            // Success
+            Success = 0, // Operation was successful
+            Success_HostAlreadyInitialized =
+                0x00000001, // Initialization was successful, but another host context is already initialized
+            Success_DifferentRuntimeProperties =
+                0x00000002, // Initialization was successful, but another host context is already initialized and the
+                            // requested context specified runtime properties which are not the same
+        };
+    }
+
     struct dotnet_runtime::impl
     {
         bool load_hostfxr()
@@ -44,7 +58,11 @@ namespace oblo
             hostfxr_handle ctx = nullptr;
             int rc = hostfxrInit(configPath, nullptr, &ctx);
 
-            if (rc != 0 || ctx == nullptr)
+            const auto failedToInitialize = rc != corehost_status_code::Success &&
+                rc != corehost_status_code::Success_DifferentRuntimeProperties &&
+                rc != corehost_status_code::Success_HostAlreadyInitialized;
+
+            if (failedToInitialize || ctx == nullptr)
             {
                 oblo::log::error("Failed to initialize runtime: {:#x}", rc);
                 hostfxrClose(ctx);
@@ -64,6 +82,14 @@ namespace oblo
             hostfxrClose(ctx);
 
             dotnetLoadAssembly = load_assembly_and_get_function_pointer_fn(load_assembly_and_get_function_pointer);
+
+            // Internally CoreCLR is not unloaded (e.g. hostpolicy.dll isn't)
+            // As a result, unloading hostfxr will cause any next attempt to initialize a new runtime to fail,
+            // causing a new instance of this module to fail to initialize, e.g. in smoke tests where we
+            // wipe the module_manager at each run.
+            // To avoid this, we avoid unloading hostfxr, in order to let it keep track of the previously loaded CLR.
+            hostfxr.leak();
+
             return true;
         }
 
