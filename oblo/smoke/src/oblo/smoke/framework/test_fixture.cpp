@@ -127,6 +127,7 @@ namespace oblo::smoke
                 graphicsApp.shutdown();
 
                 runtime.shutdown();
+                runtimeRegistry.shutdown();
             }
 
             bool run_frame()
