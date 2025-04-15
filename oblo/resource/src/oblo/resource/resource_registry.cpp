@@ -117,7 +117,20 @@ namespace oblo
                             .handle = resource_ptr<void>{resource},
                         });
                 },
-                [this](const resource_removed_event& e) { m_resources.erase(e.id); },
+                [this](const resource_removed_event& e)
+                {
+                    const auto it = m_resources.find(e.id);
+                    
+                    if (it != m_resources.end())
+                    {
+                        if (it->second.handle)
+                        {
+                            it->second.handle.invalidate();
+                        }
+
+                        m_resources.erase(it);
+                    }
+                },
                 [this](const resource_updated_event& e)
                 {
                     const auto typeIt = m_resourceTypes.find(e.typeUuid);
