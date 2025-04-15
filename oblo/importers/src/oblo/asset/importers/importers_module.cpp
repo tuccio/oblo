@@ -6,6 +6,7 @@
 #include <oblo/core/service_registry.hpp>
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_manager.hpp>
+#include <oblo/modules/utility/registration.hpp>
 
 namespace oblo::importers
 {
@@ -29,3 +30,5 @@ namespace oblo::importers
 
     void importers_module::shutdown() {}
 }
+
+OBLO_MODULE_REGISTER(oblo::importers::importers_module)

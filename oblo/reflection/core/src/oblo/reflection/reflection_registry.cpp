@@ -122,6 +122,19 @@ namespace oblo::reflection
         return m_impl->registry.get<enum_data>(e).underlyingType;
     }
 
+    bool reflection_registry::has_tag(const type_id& tag, type_handle type) const
+    {
+        const auto tagType = m_impl->typesRegistry.find_tag(tag);
+
+        if (!tagType)
+        {
+            return false;
+        }
+
+        const auto e = ecs::entity{type.value};
+        return m_impl->registry.get_component_and_tag_sets(e).tags.contains(tagType);
+    }
+
     void reflection_registry::find_by_tag(const type_id& tag, deque<type_handle>& types) const
     {
         const auto tagType = m_impl->typesRegistry.find_tag(tag);

@@ -1,9 +1,9 @@
 #pragma once
 
-#include <oblo/reflection/codegen/annotations.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/math/angle.hpp>
 #include <oblo/math/vec3.hpp>
+#include <oblo/reflection/codegen/annotations.hpp>
 
 namespace oblo
 {
@@ -32,5 +32,5 @@ namespace oblo
         f32 shadowTemporalAccumulationFactor;
         u32 shadowMeanFilterSize;
         f32 shadowMeanFilterSigma;
-    } OBLO_COMPONENT();
+    } OBLO_COMPONENT(ScriptAPI);
 }

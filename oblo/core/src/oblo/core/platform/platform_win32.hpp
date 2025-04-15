@@ -18,7 +18,7 @@ namespace oblo::win32
 
         *end = {};
 
-        return end + 1;
+        return end;
     }
 }
 

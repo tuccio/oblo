@@ -28,7 +28,6 @@ namespace oblo
 
         static constexpr T get_index(T value);
 
-    private:
         static consteval T get_gen_mask()
         {
             if constexpr (GenBits == 0)
@@ -41,6 +40,7 @@ namespace oblo
             }
         }
 
+    private:
         static constexpr T increment_gen(T value);
 
     private:

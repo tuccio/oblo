@@ -17,7 +17,6 @@ namespace oblo::editor
         enum_max,
     };
 
-    using asset_create_fn = any_asset (*)();
     using asset_editor_create_fn = unique_ptr<asset_editor> (*)();
 
     struct asset_editor_descriptor
@@ -25,7 +24,6 @@ namespace oblo::editor
         uuid assetType{};
         cstring_view category;
         cstring_view name;
-        asset_create_fn create{};
         asset_editor_create_fn createEditor{};
         flags<asset_editor_flags> flags{};
     };

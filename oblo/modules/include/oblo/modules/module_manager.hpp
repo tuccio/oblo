@@ -38,6 +38,8 @@ namespace oblo
         template <typename T>
         T* find() const;
 
+        MODULES_API module_interface* find(const hashed_string_view& id) const;
+
         [[nodiscard]] MODULES_API bool finalize();
 
         MODULES_API void shutdown();
@@ -63,7 +65,6 @@ namespace oblo
         };
 
     private:
-        MODULES_API module_interface* find(const hashed_string_view& id) const;
         [[nodiscard]] MODULES_API module_storage* load(const hashed_string_view& id,
             unique_ptr<module_interface> module);
 

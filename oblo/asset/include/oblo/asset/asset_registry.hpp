@@ -99,12 +99,15 @@ namespace oblo
 
         bool find_asset_artifacts(const uuid& id, dynamic_array<uuid>& artifacts) const;
 
+        const native_asset_descriptor* find_native_asset_type(const uuid& type) const;
+
         void iterate_artifacts_by_type(const uuid& type,
             function_ref<bool(const uuid& assetId, const uuid& artifactId)> callback) const;
 
         cstring_view get_asset_directory() const;
 
         bool get_source_directory(const uuid& assetId, string_builder& outPath) const;
+        bool get_source_path(const uuid& assetId, string_builder& outPath) const;
         bool get_artifact_path(const uuid& artifactId, string_builder& outPath) const;
 
         bool get_asset_name(const uuid& assetId, string_builder& outName) const;

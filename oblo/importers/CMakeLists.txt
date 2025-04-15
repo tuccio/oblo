@@ -12,8 +12,8 @@ target_link_libraries(
     oblo::modules
     oblo::scene
     PRIVATE
+    oblo::graphics
     oblo::log
-    oblo::runtime
     oblo::thread
     assimp::assimp
     meshoptimizer::meshoptimizer
@@ -29,3 +29,5 @@ target_link_libraries(
     oblo::thread
     oblo::test::glTF::SampleModels
 )
+
+oblo_register_asset_module(importers)

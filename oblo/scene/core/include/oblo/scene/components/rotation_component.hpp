@@ -8,5 +8,5 @@ namespace oblo
     struct rotation_component
     {
         quaternion value;
-    } OBLO_COMPONENT();
+    } OBLO_COMPONENT(ScriptAPI);
 }

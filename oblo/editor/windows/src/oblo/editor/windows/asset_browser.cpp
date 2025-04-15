@@ -2,6 +2,7 @@
 
 #include <oblo/asset/asset_meta.hpp>
 #include <oblo/asset/asset_registry.hpp>
+#include <oblo/asset/descriptors/native_asset_descriptor.hpp>
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/deque.hpp>
@@ -1127,8 +1128,15 @@ namespace oblo::editor
 
             for (const auto& desc : createDescs)
             {
+                auto* const nativeDesc = registry->find_native_asset_type(desc.assetType);
+
+                if (!nativeDesc || !nativeDesc->create)
+                {
+                    continue;
+                }
+
                 // Ignoring category for now
-                createMenu.emplace_back(desc.name, desc.create);
+                createMenu.emplace_back(desc.name, nativeDesc->create);
             }
         }
     }

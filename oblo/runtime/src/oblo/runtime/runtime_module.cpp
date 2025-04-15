@@ -11,6 +11,8 @@
 #include <oblo/scene/scene_module.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
 
+#include <module_loader_core.gen.hpp>
+
 namespace oblo
 {
     namespace
@@ -38,6 +40,8 @@ namespace oblo
         OBLO_ASSERT(!m_impl);
 
         m_impl = allocate_unique<impl>();
+
+        gen::load_modules_core();
 
         auto& mm = module_manager::get();
 

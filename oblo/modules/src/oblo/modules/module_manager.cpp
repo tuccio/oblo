@@ -25,6 +25,7 @@ namespace oblo
             hashed_string_view id;
             u32 loadOrder;
             module_interface* ptr;
+            platform::shared_library lib;
         };
 
         struct reverse_load_order
@@ -75,9 +76,10 @@ namespace oblo
 
     struct module_manager::module_storage
     {
+        unique_ptr<string> nameStorage;
+        platform::shared_library lib;
         unique_ptr<module_interface> ptr;
         service_registry services;
-        platform::shared_library lib;
         u32 loadOrder{};
     };
 
@@ -189,9 +191,14 @@ namespace oblo
                 continue;
             }
 
+            // Move the library out to defer the unload until the end
+            m.lib = std::move(it->second.lib);
+
             it->second.ptr->shutdown();
             m_modules.erase(it);
         }
+
+        m_services.clear();
     }
 
     module_interface* module_manager::find(const hashed_string_view& id) const
@@ -212,7 +219,10 @@ namespace oblo
 
         scoped_state_change state{&m_state, state::loading};
 
-        const auto [it, inserted] = m_modules.emplace(id, module_storage{});
+        // Copy the name to the heap, to make sure the string_view is not unloaded when a dll is unloaded
+        unique_ptr<string> nameStorage = allocate_unique<string>(id.as<string>());
+
+        const auto [it, inserted] = m_modules.emplace(nameStorage->as<hashed_string_view>(), module_storage{});
 
         if (!inserted)
         {
@@ -239,6 +249,7 @@ namespace oblo
 
         auto& moduleEntry = it->second;
 
+        moduleEntry.nameStorage = std::move(nameStorage);
         moduleEntry.ptr = std::move(module);
         moduleEntry.services = std::move(services);
         moduleEntry.loadOrder = ++m_nextLoadIndex;

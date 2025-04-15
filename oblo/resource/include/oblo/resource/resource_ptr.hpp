@@ -20,6 +20,8 @@ namespace oblo
         void resource_start_loading(resource* resource);
         bool resource_is_loaded(resource* resource);
         void resource_load_sync(resource* resource);
+        bool resource_is_invalidated(resource* resource);
+        void resource_invalidate(resource* resource);
     }
 
     template <typename T = void>
@@ -193,6 +195,24 @@ namespace oblo
             }
 
             return false;
+        }
+
+        bool is_invalidated() const noexcept
+        {
+            if (m_resource)
+            {
+                return detail::resource_is_invalidated(m_resource);
+            }
+
+            return false;
+        }
+
+        void invalidate() const noexcept
+        {
+            if (m_resource)
+            {
+                detail::resource_invalidate(m_resource);
+            }
         }
 
     private:

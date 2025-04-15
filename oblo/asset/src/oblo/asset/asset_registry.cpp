@@ -847,6 +847,12 @@ namespace oblo
         return true;
     }
 
+    const native_asset_descriptor* asset_registry::find_native_asset_type(const uuid& type) const
+    {
+        const auto it = m_impl->nativeAssetTypes.find(type);
+        return it == m_impl->nativeAssetTypes.end() ? nullptr : &it->second;
+    }
+
     void asset_registry::iterate_artifacts_by_type(const uuid& type,
         function_ref<bool(const uuid& assetId, const uuid& artifactId)> callback) const
     {
@@ -878,6 +884,13 @@ namespace oblo
         return true;
     }
 
+    bool asset_registry::get_source_path(const uuid& assetId, string_builder& outPath) const
+    {
+        m_impl->make_source_files_dir_path(outPath, assetId);
+        outPath.append_path_separator();
+        return importer::read_source_file_path(*m_impl, assetId, outPath);
+    }
+
     bool asset_registry::get_artifact_path(const uuid& artifactId, string_builder& outPath) const
     {
         const auto it = m_impl->artifactsMap.find(artifactId);
@@ -888,7 +901,6 @@ namespace oblo
         }
 
         m_impl->make_artifact_path(outPath, it->second.meta.assetId, it->second.processId, artifactId);
-
         return true;
     }
 
@@ -1129,6 +1141,22 @@ namespace oblo
             if (!success)
             {
                 log::debug("Import execution of {} failed", importProcess.importer.get_config().sourceFile);
+
+                if (importProcess.importer.is_reimport())
+                {
+                    const auto assetIt = m_impl->assets.find(importProcess.importer.get_asset_id());
+
+                    if (assetIt == m_impl->assets.end())
+                    {
+                        log::debug("An import execution terminated, but asset {} was not found, maybe it was deleted?",
+                            importProcess.importer.get_asset_id());
+                    }
+                    else
+                    {
+                        OBLO_ASSERT(assetIt->second.isProcessing);
+                        assetIt->second.isProcessing = false;
+                    }
+                }
             }
             else
             {
@@ -1140,8 +1168,7 @@ namespace oblo
 
                     if (assetIt == m_impl->assets.end())
                     {
-                        log::debug("An import execution terminated, but asset {} was not found, maybe "
-                                   "probablyInvalidIt was deleted?",
+                        log::debug("An import execution terminated, but asset {} was not found, maybe it was deleted?",
                             importProcess.importer.get_asset_id());
 
                         it = m_impl->currentImports.erase_unordered(it);

@@ -8,5 +8,5 @@ namespace oblo
     struct name_component
     {
         string value;
-    } OBLO_COMPONENT();
+    } OBLO_COMPONENT(ScriptAPI);
 }

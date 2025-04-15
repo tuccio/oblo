@@ -8,5 +8,5 @@ namespace oblo
     struct position_component
     {
         vec3 value;
-    } OBLO_COMPONENT();
+    } OBLO_COMPONENT(ScriptAPI);
 }

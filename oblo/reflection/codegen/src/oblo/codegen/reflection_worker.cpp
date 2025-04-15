@@ -16,6 +16,7 @@ namespace oblo::gen
 #include <oblo/reflection/concepts/gpu_component.hpp>
 #include <oblo/reflection/concepts/resource_type.hpp>
 #include <oblo/reflection/tags/ecs.hpp>
+#include <oblo/reflection/tags/script_api.hpp>
 )");
         new_line();
 
@@ -136,6 +137,12 @@ namespace oblo::gen
         if (r.flags.contains(record_flags::ecs_tag))
         {
             m_content.append(".add_tag<::oblo::ecs::tag_type_tag>()");
+            new_line();
+        }
+
+        if (r.flags.contains(record_flags::script_api))
+        {
+            m_content.append(".add_tag<::oblo::reflection::script_api>()");
             new_line();
         }
 

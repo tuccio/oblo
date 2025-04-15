@@ -14,6 +14,7 @@
 #include <oblo/editor/providers/service_provider.hpp>
 #include <oblo/editor/services/asset_editor_manager.hpp>
 #include <oblo/editor/services/component_factory.hpp>
+#include <oblo/editor/services/editor_directories.hpp>
 #include <oblo/editor/services/incremental_id_pool.hpp>
 #include <oblo/editor/services/log_queue.hpp>
 #include <oblo/editor/services/registered_commands.hpp>
@@ -49,6 +50,9 @@
 #include <oblo/vulkan/vulkan_engine_module.hpp>
 
 #include <cxxopts.hpp>
+
+#include <module_loader_asset.gen.hpp>
+#include <module_loader_editor.gen.hpp>
 
 namespace oblo
 {
@@ -194,6 +198,9 @@ namespace oblo::editor
                 mm.load<scene_editor_module>();
 
                 initializer.services->add<options_layer_provider>().externally_owned(&m_editorOptions);
+
+                gen::load_modules_asset();
+                gen::load_modules_editor();
 
                 return true;
             }
@@ -505,6 +512,12 @@ namespace oblo::editor
         globalRegistry.add<runtime_manager>().externally_owned(&m_runtimeManager);
         auto* const assetEditorManager = globalRegistry.add<asset_editor_manager>().unique(m_assetRegistry);
 
+        string_builder temporaryDir;
+        temporaryDir.append(m_editorModule->get_project_directory()).append_path(".oblo").append_path(".temp");
+
+        auto* editorDirectories = globalRegistry.add<editor_directories>().unique();
+        editorDirectories->init(temporaryDir).assert_value();
+
         const auto editorWindow = m_windowManager.create_window<editor_window>(service_registry{});
 
         // Add all asset editors under the editor window, to make sure they are dockable
@@ -531,6 +544,7 @@ namespace oblo::editor
     {
         m_windowManager.shutdown();
         m_runtimeManager.shutdown();
+        m_runtimeRegistry.shutdown();
         platform::shutdown();
 
         module_manager::get().shutdown();

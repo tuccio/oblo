@@ -1,0 +1,14 @@
+sdks:
+  Windows:
+    x86_64:
+      9.0.203:
+        url: "https://builds.dotnet.microsoft.com/dotnet/Sdk/9.0.203/dotnet-sdk-9.0.203-win-x64.zip"
+        sha256: "6687f7f9789ea6d53a6beedd459f999ba68ff506a7d944db82a652febb1de296"
+
+runtime-version:
+  9.0.203: 9.0.4
+
+sdk-dir:
+  Windows:
+    x86_64:
+      9.0.203: "./packs/Microsoft.NETCore.App.Host.win-x64/9.0.4/runtimes/win-x64/native"

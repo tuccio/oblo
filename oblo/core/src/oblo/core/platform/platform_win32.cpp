@@ -53,6 +53,15 @@ namespace oblo::platform
         }
     }
 
+    void open_file(string_view dir)
+    {
+        wchar_t buffer[MAX_PATH];
+        win32::convert_path(dir, buffer);
+
+        [[maybe_unused]] const auto res = ShellExecuteW(nullptr, L"open", buffer, nullptr, nullptr, SW_SHOWDEFAULT);
+        OBLO_ASSERT(res != 0);
+    }
+
     void open_folder(string_view dir)
     {
         wchar_t buffer[MAX_PATH];
@@ -164,7 +173,7 @@ namespace oblo::platform
             TRUE,
             flags,
             nullptr,
-            nullptr,
+            desc.workDir.empty() ? nullptr : desc.workDir.c_str(),
             &startupInfo,
             &processInfo);
 

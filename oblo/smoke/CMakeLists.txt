@@ -5,7 +5,6 @@ target_link_libraries(
     PUBLIC
     oblo::asset
     oblo::ecs
-    oblo::importers
     oblo::options
     oblo::resource
     oblo::runtime
@@ -19,9 +18,13 @@ target_link_libraries(
 target_link_libraries(
     oblo_test_smoke
     PRIVATE
+    oblo::dotnet::asset
+    oblo::dotnet::behaviour
     oblo::modules
     oblo::test::glTF::SampleModels
 )
 
 # We need access to shaders etc
 set_target_properties(oblo_test_smoke PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+
+oblo_register_asset_module_loader(oblo_smoke)

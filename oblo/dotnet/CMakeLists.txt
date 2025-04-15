@@ -1,0 +1,6 @@
+add_subdirectory(asset)
+add_subdirectory(behaviour)
+add_subdirectory(bindings)
+add_subdirectory(editor)
+add_subdirectory(managed)
+add_subdirectory(runtime)

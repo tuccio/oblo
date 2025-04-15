@@ -117,7 +117,20 @@ namespace oblo
                             .handle = resource_ptr<void>{resource},
                         });
                 },
-                [this](const resource_removed_event& e) { m_resources.erase(e.id); },
+                [this](const resource_removed_event& e)
+                {
+                    const auto it = m_resources.find(e.id);
+                    
+                    if (it != m_resources.end())
+                    {
+                        if (it->second.handle)
+                        {
+                            it->second.handle.invalidate();
+                        }
+
+                        m_resources.erase(it);
+                    }
+                },
                 [this](const resource_updated_event& e)
                 {
                     const auto typeIt = m_resourceTypes.find(e.typeUuid);
@@ -134,7 +147,14 @@ namespace oblo
 
                     auto* const resource = detail::resource_create(&typeIt->second, e.id, e.name, e.path);
 
-                    m_resources[e.id] = resource_storage{
+                    auto& entry = m_resources[e.id];
+
+                    if (entry.handle)
+                    {
+                        entry.handle.invalidate();
+                    }
+
+                    entry = resource_storage{
                         .handle = resource_ptr<void>{resource},
                     };
 

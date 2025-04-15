@@ -11,16 +11,18 @@ namespace oblo
 {
     class any_asset;
 
+    using asset_create_fn = any_asset (*)();
     using load_asset_fn = bool (*)(any_asset& asset, cstring_view source);
     using save_asset_fn = bool (*)(const any_asset& asset, cstring_view destination, cstring_view workDir);
 
     struct native_asset_descriptor
     {
-        uuid typeUuid;
+        uuid typeUuid{};
         type_id typeId;
         cstring_view fileExtension;
-        load_asset_fn load;
-        save_asset_fn save;
-        create_file_importer_fn createImporter;
+        asset_create_fn create{};
+        load_asset_fn load{};
+        save_asset_fn save{};
+        create_file_importer_fn createImporter{};
     };
 }

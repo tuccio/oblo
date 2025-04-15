@@ -7,3 +7,4 @@ compiler.runtime=dynamic
 compiler.cppstd=20
 [conf]
 tools.cmake.cmaketoolchain:generator=Visual Studio 17 2022
+tools.cmake.cmaketoolchain:extra_variables={"CMAKE_POLICY_VERSION_MINIMUM": "3.5"}

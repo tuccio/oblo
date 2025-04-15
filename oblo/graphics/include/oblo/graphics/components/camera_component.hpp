@@ -1,9 +1,9 @@
 #pragma once
 
-#include <oblo/reflection/codegen/annotations.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/math/angle.hpp>
 #include <oblo/math/vec3.hpp>
+#include <oblo/reflection/codegen/annotations.hpp>
 
 namespace oblo
 {
@@ -12,5 +12,5 @@ namespace oblo
         radians fovy;
         f32 near;
         f32 far;
-    } OBLO_COMPONENT();
+    } OBLO_COMPONENT(ScriptAPI);
 }

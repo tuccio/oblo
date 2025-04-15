@@ -1,9 +1,9 @@
 from conan import ConanFile
 from conan.api.conan_api import ConanAPI
 from conan.cli.cli import Cli
-from conan.tools.files import copy
+from conan.tools.files import copy, mkdir
 from itertools import chain
-from os import path
+import os
 
 
 class ObloConanRecipe(ConanFile):
@@ -13,11 +13,13 @@ class ObloConanRecipe(ConanFile):
 
     options = {
         "is_multiconfig": [True, False],
+        "with_dotnet": [True, False],
         "with_tracy": [True, False],
     }
 
     default_options = {
         "is_multiconfig": False,
+        "with_dotnet": True,
         "with_tracy": False,
     }
 
@@ -30,9 +32,10 @@ class ObloConanRecipe(ConanFile):
         self.requires("glslang/1.3.296.0")
         self.requires("gtest/1.10.0")
         self.requires("iconfontcppheaders/cci.20240128")
-        self.requires("ktx/4.0.0")
         self.requires("imgui/1.91.5-docking", override=True)
         self.requires("imguizmo/cci.20231114")
+        self.requires("ktx/4.0.0")
+        self.requires("luau/0.667")
         self.requires("meshoptimizer/0.20")
         self.requires("rapidjson/cci.20230929")
         self.requires("vulkan-headers/1.3.296.0", override=True)
@@ -50,6 +53,9 @@ class ObloConanRecipe(ConanFile):
 
         if self.options.with_tracy:
             self.requires("tracy/0.10")
+
+        if self.options.with_dotnet:
+            self.requires("dotnet-sdk/9.0.203")
 
     def configure(self):
         self.options["eigen/*"].MPL2_only = True
@@ -88,13 +94,13 @@ class ObloConanRecipe(ConanFile):
             copy(self, f"imgui_impl_{backend}.cpp", src_dir,
                  f"{self.recipe_folder}/3rdparty/imgui/{backend}/src")
 
-        out_bin_dir = path.join(self.build_folder, "..", "out", "bin")
+        out_bin_dir = os.path.join(self.build_folder, "..", "out", "bin")
 
         if self.options.is_multiconfig:
             if self.settings.build_type == "Debug":
-                out_dirs = [path.join(out_bin_dir, "Debug")]
+                out_dirs = [os.path.join(out_bin_dir, "Debug")]
             elif self.settings.build_type == "Release":
-                out_dirs = [path.join(out_bin_dir, "Release"), path.join(
+                out_dirs = [os.path.join(out_bin_dir, "Release"), os.path.join(
                     out_bin_dir, "RelWithDebInfo")]
             else:
                 raise ValueError("Unsupported configuration")
@@ -106,9 +112,12 @@ class ObloConanRecipe(ConanFile):
                 for bin_dir in chain(dep.cpp_info.libdirs, dep.cpp_info.bindirs):
                     # Some relative paths that are just lib/bin end up copying our own files recursively
                     # To fix that, check if the path is absolute
-                    if path.isabs(bin_dir):
+                    if os.path.isabs(bin_dir):
                         copy(self, "*.dylib", bin_dir, out_dir)
                         copy(self, "*.dll", bin_dir, out_dir)
+
+        if self.options.with_dotnet:
+            self._deploy_dotnet(out_bin_dir)
 
     def _install_required_recipes(self):
         conan_api = ConanAPI()
@@ -123,3 +132,17 @@ class ObloConanRecipe(ConanFile):
         if not conan_api.search.recipes(f"glslang/{vulkanSdkVersion}"):
             conan_cli.run(
                 ["export", f"{self.recipe_folder}/conan/recipes/glslang", "--version", vulkanSdkVersion])
+
+        if not conan_api.search.recipes(f"dotnet-sdk/9.0.203"):
+            conan_cli.run(
+                ["export", f"{self.recipe_folder}/conan/recipes/dotnet-sdk", "--version", "9.0.203"])
+
+    def _deploy_dotnet(self, dir):
+        # Deploy .NET maintaining the install layout https://github.com/dotnet/designs/blob/main/accepted/2020/install-locations.md#net-core-install-layout
+        _dotnet = self.dependencies["dotnet-sdk"]
+
+        _dotnet_dir = os.path.join(dir, "dotnet")
+        mkdir(self, _dotnet_dir)
+
+        copy(self, "*", _dotnet.cpp_info.components["hostfxr"].bindirs[0], os.path.join(_dotnet_dir, "host"))
+        copy(self, "*", _dotnet.cpp_info.components["runtime"].bindirs[0], os.path.join(_dotnet_dir, "shared"))
