@@ -323,7 +323,7 @@ function(oblo_init_reflection)
     set(_codegen_config_file ${CMAKE_CURRENT_BINARY_DIR}/reflection_config-$<CONFIG>.json)
     file(GENERATE OUTPUT ${_codegen_config_file} CONTENT [\n$<GENEX_EVAL:$<JOIN:$<TARGET_PROPERTY:${OBLO_CODEGEN_CUSTOM_TARGET},oblo_codegen_config_content>,$<COMMA>\n>>\n])
 
-    add_custom_target(${OBLO_CODEGEN_CUSTOM_TARGET} COMMAND $<TARGET_FILE:${_codegen_exe_target}> ${_codegen_config_file})
+    add_custom_target(${OBLO_CODEGEN_CUSTOM_TARGET} ALL COMMAND $<TARGET_FILE:${_codegen_exe_target}> ${_codegen_config_file})
     set_target_properties(${OBLO_CODEGEN_CUSTOM_TARGET} PROPERTIES oblo_codegen_config_content "" FOLDER ${OBLO_FOLDER_BUILD})
 
     set_property(GLOBAL PROPERTY oblo_codegen_config ${_codegen_config_file})

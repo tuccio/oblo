@@ -19,7 +19,12 @@ oblo_set_target_folder(Oblo.Managed-build build)
 
 if(OBLO_GENERATE_CSHARP)
     include_external_msproject(Oblo.Managed "${CMAKE_CURRENT_SOURCE_DIR}/Oblo.Managed.csproj")
-    oblo_set_target_folder(Oblo.Managed-build libraries)
+
+    # We add the csproj for convenience, although it would fail to build since it's missing the reference to the generated code
+    # Nonetheless it's nice to have in the solution when developing, we just need to exclude it from the ALL target
+    set_target_properties(Oblo.Managed PROPERTIES EXCLUDE_FROM_ALL TRUE)
+
+    oblo_set_target_folder(Oblo.Managed libraries)
 endif()
 
 add_dependencies(Oblo.Managed-build run-bindgen)
