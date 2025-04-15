@@ -228,10 +228,11 @@ namespace oblo
                         dotnet_script_asset s;
 
                         s.scripts["Behaviour.cs"] = R"(using Oblo;
+using Oblo.Behaviour;
 
 public class Behaviour : IBehaviour
 {
-    public void OnUpdate()
+    public void OnUpdate(IUpdateContext ctx)
     {
     }
 })";
