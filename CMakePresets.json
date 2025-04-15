@@ -14,7 +14,11 @@
             "installDir": "${sourceDir}/.install/${presetName}",
             "cacheVariables": {
                 "CMAKE_PROJECT_TOP_LEVEL_INCLUDES": "${sourceDir}/cmake/Modules/conan_provider.cmake",
-                "CONAN_INSTALL_ARGS": "--build=missing;-o;oblo/*:is_multiconfig=$env{OBLO_CONAN_MULTICONFIG};-o;oblo/*:with_tracy=True"
+                "CONAN_INSTALL_ARGS": "--build=missing;-o;oblo/*:is_multiconfig=$env{OBLO_CONAN_MULTICONFIG};-o;oblo/*:with_tracy=True;-o;oblo/*:with_dotnet=$env{OBLO_WITH_DOTNET}",
+                "OBLO_WITH_DOTNET": true
+            },
+            "environment": {
+                "OBLO_WITH_DOTNET": "True"
             }
         },
         {

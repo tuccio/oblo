@@ -13,11 +13,13 @@ class ObloConanRecipe(ConanFile):
 
     options = {
         "is_multiconfig": [True, False],
+        "with_dotnet": [True, False],
         "with_tracy": [True, False],
     }
 
     default_options = {
         "is_multiconfig": False,
+        "with_dotnet": True,
         "with_tracy": False,
     }
 
@@ -27,7 +29,6 @@ class ObloConanRecipe(ConanFile):
         self.requires("assimp/5.4.3")
         self.requires("concurrentqueue/1.0.4")
         self.requires("cxxopts/2.2.1")
-        self.requires("dotnet-sdk/9.0.203")
         self.requires("glslang/1.3.296.0")
         self.requires("gtest/1.10.0")
         self.requires("iconfontcppheaders/cci.20240128")
@@ -52,6 +53,9 @@ class ObloConanRecipe(ConanFile):
 
         if self.options.with_tracy:
             self.requires("tracy/0.10")
+
+        if self.options.with_dotnet:
+            self.requires("dotnet-sdk/9.0.203")
 
     def configure(self):
         self.options["eigen/*"].MPL2_only = True
@@ -112,7 +116,8 @@ class ObloConanRecipe(ConanFile):
                         copy(self, "*.dylib", bin_dir, out_dir)
                         copy(self, "*.dll", bin_dir, out_dir)
 
-        self._deploy_dotnet(out_bin_dir)
+        if self.options.with_dotnet:
+            self._deploy_dotnet(out_bin_dir)
 
     def _install_required_recipes(self):
         conan_api = ConanAPI()
@@ -139,5 +144,5 @@ class ObloConanRecipe(ConanFile):
         _dotnet_dir = os.path.join(dir, "dotnet")
         mkdir(self, _dotnet_dir)
 
-        copy(self, "*", _dotnet.cpp_info.components["dotnet-hostfxr"].bindirs[0], os.path.join(_dotnet_dir, "host"))
-        copy(self, "*", _dotnet.cpp_info.components["dotnet-runtime"].bindirs[0], os.path.join(_dotnet_dir, "shared"))
+        copy(self, "*", _dotnet.cpp_info.components["hostfxr"].bindirs[0], os.path.join(_dotnet_dir, "host"))
+        copy(self, "*", _dotnet.cpp_info.components["runtime"].bindirs[0], os.path.join(_dotnet_dir, "shared"))
