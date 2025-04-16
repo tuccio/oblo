@@ -17,6 +17,7 @@ namespace oblo::gen
 #include <oblo/reflection/concepts/resource_type.hpp>
 #include <oblo/reflection/tags/ecs.hpp>
 #include <oblo/reflection/tags/script_api.hpp>
+#include <oblo/reflection/tags/serialization.hpp>
 )");
         new_line();
 
@@ -143,6 +144,12 @@ namespace oblo::gen
         if (r.flags.contains(record_flags::script_api))
         {
             m_content.append(".add_tag<::oblo::reflection::script_api>()");
+            new_line();
+        }
+
+        if (r.flags.contains(record_flags::transient))
+        {
+            m_content.append(".add_tag<::oblo::reflection::transient_type_tag>()");
             new_line();
         }
 

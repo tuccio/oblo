@@ -45,7 +45,12 @@ namespace oblo::editor
             return unspecified_error;
         }
 
-        if (!sceneAsset->copy_to(sceneEditor->get_entity_registry(), {}, {}))
+        if (!m_serializationContext.init() ||
+            // We copy the asset 1:1 here, including transient types and entities if present
+            !sceneAsset->copy_to(sceneEditor->get_entity_registry(),
+                m_serializationContext.get_property_registry(),
+                {},
+                {}))
         {
             wm.destroy_window(h);
             return unspecified_error;
@@ -74,16 +79,15 @@ namespace oblo::editor
 
         const auto& entityRegistry = sceneEditor->get_entity_registry();
 
-        if (!sceneAsset.init())
+        if (!sceneAsset.init(m_serializationContext.get_type_registry()))
         {
             return unspecified_error;
         }
 
         if (!sceneAsset.copy_from(entityRegistry,
-                {
-                    .skipEntities = ecs::make_type_sets<transient_tag>(entityRegistry.get_type_registry()),
-                },
-                {}))
+                m_serializationContext.get_property_registry(),
+                m_serializationContext.make_write_config(),
+                m_serializationContext.make_read_config()))
         {
             return unspecified_error;
         }

@@ -33,7 +33,7 @@ namespace oblo
                     .create = []() -> void* { return new dotnet_assembly{}; },
                     .destroy = [](void* ptr) { delete static_cast<dotnet_assembly*>(ptr); },
                     .load =
-                        [](void* ptr, cstring_view source)
+                        [](void* ptr, cstring_view source, const any&)
                     {
                         auto* const bc = static_cast<dotnet_assembly*>(ptr);
 

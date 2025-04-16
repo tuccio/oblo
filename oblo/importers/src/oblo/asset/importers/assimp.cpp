@@ -15,6 +15,7 @@
 #include <oblo/scene/resources/material.hpp>
 #include <oblo/scene/resources/mesh.hpp>
 #include <oblo/scene/resources/pbr_properties.hpp>
+#include <oblo/scene/serialization/entity_hierarchy_serialization_context.hpp>
 #include <oblo/scene/serialization/mesh_file.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
 #include <oblo/thread/parallel_for.hpp>
@@ -152,6 +153,14 @@ namespace oblo::importers
 
     bool assimp::import(import_context ctx)
     {
+        entity_hierarchy_serialization_context ehCtx;
+
+        if (!ehCtx.init())
+        {
+            log::error("Failed to initialize entity hierarchy context");
+            return false;
+        }
+
         const aiScene* const scene = m_impl->scene;
 
         const std::span importNodeConfigs = ctx.get_import_node_configs();
@@ -427,7 +436,7 @@ namespace oblo::importers
 
             entity_hierarchy h;
 
-            if (!h.init())
+            if (!h.init(ehCtx.get_type_registry()))
             {
                 log::error("Failed to initialize entity hierarchy");
                 continue;
@@ -503,7 +512,7 @@ namespace oblo::importers
             string_builder outputPath;
             ctx.get_output_path(hierarchyNodeConfig.id, outputPath, ".ohierarchy");
 
-            if (!h.save(outputPath))
+            if (!h.save(outputPath, ehCtx))
             {
                 log::error("Failed to save entity hierarchy");
                 continue;

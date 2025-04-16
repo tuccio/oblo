@@ -137,7 +137,7 @@ namespace oblo
                 }
 
                 for (const u32 propertyParent = tree.properties[nextPropertyIndex].parent;
-                     propertyParent > currentNodeIndex;)
+                    propertyParent > currentNodeIndex;)
                 {
                     ++currentNodeIndex;
                 }
@@ -308,5 +308,10 @@ namespace oblo
     {
         const auto it = m_impl->propertyTrees.find(type);
         return it == m_impl->propertyTrees.end() ? nullptr : &it->second;
+    }
+
+    const reflection::reflection_registry& oblo::property_registry::get_reflection_registry() const
+    {
+        return *m_impl->reflection;
     }
 }

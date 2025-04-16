@@ -11,6 +11,7 @@
 #include <oblo/scene/resources/texture.hpp>
 #include <oblo/scene/resources/traits.hpp>
 #include <oblo/scene/serialization/ecs_serializer.hpp>
+#include <oblo/scene/serialization/entity_hierarchy_serialization_context.hpp>
 #include <oblo/scene/serialization/mesh_file.hpp>
 #include <oblo/scene/serialization/model_file.hpp>
 
@@ -24,45 +25,74 @@ namespace oblo
         template <>
         struct meta<entity_hierarchy>
         {
-            static bool load(entity_hierarchy& hierarchy, cstring_view source)
+            static bool load(entity_hierarchy& hierarchy, cstring_view source, const any& ctx)
             {
-                return hierarchy.load(source, {}).has_value();
+                const auto& ehCtx = *ctx.as<entity_hierarchy_serialization_context>();
+                return hierarchy.init(ehCtx.get_type_registry()).has_value() &&
+                    hierarchy.load(source, ehCtx).has_value();
+            }
+
+            static any make_load_userdata()
+            {
+                any ctx;
+                ctx.emplace<entity_hierarchy_serialization_context>().init().assert_value();
+                return ctx;
             }
         };
 
         template <>
         struct meta<material>
         {
-            static bool load(material& material, cstring_view source)
+            static bool load(material& material, cstring_view source, const any&)
             {
                 return material.load(source);
+            }
+
+            static any make_load_userdata()
+            {
+                return {};
             }
         };
 
         template <>
         struct meta<mesh>
         {
-            static bool load(mesh& mesh, cstring_view source)
+            static bool load(mesh& mesh, cstring_view source, const any&)
             {
                 return load_mesh(mesh, source);
+            }
+
+            static any make_load_userdata()
+            {
+                return {};
             }
         };
 
         template <>
         struct meta<model>
         {
-            static bool load(model& model, cstring_view source)
+            static bool load(model& model, cstring_view source, const any&)
             {
                 return load_model(model, source);
+            }
+
+            static any make_load_userdata()
+            {
+                return {};
             }
         };
 
         template <>
         struct meta<texture>
         {
-            static bool load(texture& texture, cstring_view source)
+            static bool load(texture& texture, cstring_view source, const any&)
             {
                 return texture.load(source).has_value();
+            }
+
+            static any make_load_userdata()
+            {
+                return {};
             }
         };
     }
@@ -75,7 +105,9 @@ namespace oblo
             .typeUuid = resource_type<T>,
             .create = []() -> void* { return new T{}; },
             .destroy = [](void* ptr) { delete static_cast<T*>(ptr); },
-            .load = [](void* ptr, cstring_view source) { return meta<T>::load(*static_cast<T*>(ptr), source); },
+            .load = [](void* ptr, cstring_view source, const any& ctx)
+            { return meta<T>::load(*static_cast<T*>(ptr), source, ctx); },
+            .userdata = meta<T>::make_load_userdata(),
         };
     }
 

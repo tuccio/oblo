@@ -26,13 +26,13 @@ namespace oblo
                 .typeId = get_type_id<string_builder>(),
                 .fileExtension = ".txt",
                 .load =
-                    [](any_asset& asset, cstring_view source)
+                    [](any_asset& asset, cstring_view source, const any&)
                 {
                     auto& b = asset.emplace<mock_test_asset>();
                     return filesystem::load_text_file_into_memory(b, source).has_value();
                 },
                 .save =
-                    [](const any_asset& asset, cstring_view destination, cstring_view)
+                    [](const any_asset& asset, cstring_view destination, cstring_view, const any&)
                 {
                     auto* const b = asset.as<mock_test_asset>();
 

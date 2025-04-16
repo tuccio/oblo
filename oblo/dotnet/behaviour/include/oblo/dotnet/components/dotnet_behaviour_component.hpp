@@ -16,5 +16,5 @@ namespace oblo
     {
         resource_ptr<dotnet_assembly> script{};
         bool initialized{};
-    } OBLO_COMPONENT();
+    } OBLO_COMPONENT(Transient);
 }

@@ -5,4 +5,5 @@
 #include <oblo/graphics/components/light_component.hpp>
 #include <oblo/graphics/components/skybox_component.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
+#include <oblo/graphics/components/static_mesh_internal.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>

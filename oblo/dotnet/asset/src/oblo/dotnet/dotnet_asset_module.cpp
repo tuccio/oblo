@@ -223,7 +223,7 @@ namespace oblo
                     .typeId = get_type_id<dotnet_script_asset>(),
                     .fileExtension = ".ocsscript",
                     .create =
-                        []
+                        [](const any&)
                     {
                         dotnet_script_asset s;
 
@@ -240,7 +240,7 @@ public class Behaviour : IBehaviour
                         return any_asset{std::move(s)};
                     },
                     .load =
-                        [](any_asset& asset, cstring_view source)
+                        [](any_asset& asset, cstring_view source, const any&)
                     {
                         auto& s = asset.emplace<dotnet_script_asset>();
 
@@ -264,7 +264,7 @@ public class Behaviour : IBehaviour
                         return r.has_value();
                     },
                     .save =
-                        [](const any_asset& asset, cstring_view destination, cstring_view)
+                        [](const any_asset& asset, cstring_view destination, cstring_view, const any&)
                     {
                         auto* const s = asset.as<dotnet_script_asset>();
 

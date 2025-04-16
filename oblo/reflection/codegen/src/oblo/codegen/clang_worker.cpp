@@ -138,6 +138,12 @@ namespace oblo::gen
                 return annotation_property_result::expect_none;
             }
 
+            if (property == "Transient"_hsv)
+            {
+                r.flags.set(record_flags::transient);
+                return annotation_property_result::expect_none;
+            }
+
             return annotation_property_result::expect_none;
         }
 

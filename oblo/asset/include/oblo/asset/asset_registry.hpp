@@ -64,7 +64,7 @@ namespace oblo
         void register_file_importer(const file_importer_descriptor& desc);
         void unregister_file_importer(type_id type);
 
-        void register_native_asset_type(const native_asset_descriptor& desc);
+        void register_native_asset_type(native_asset_descriptor desc);
         void unregister_native_asset_type(uuid type);
 
         /// @brief Starts an asynchronous import process for a new asset.

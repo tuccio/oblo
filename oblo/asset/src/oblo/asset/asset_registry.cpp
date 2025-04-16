@@ -472,9 +472,9 @@ namespace oblo
         m_impl->importers.erase(type);
     }
 
-    void asset_registry::register_native_asset_type(const native_asset_descriptor& desc)
+    void asset_registry::register_native_asset_type(native_asset_descriptor desc)
     {
-        m_impl->nativeAssetTypes.emplace(desc.typeUuid, desc);
+        m_impl->nativeAssetTypes.emplace(desc.typeUuid, std::move(desc));
     }
 
     void asset_registry::unregister_native_asset_type(uuid type)
@@ -599,7 +599,7 @@ namespace oblo
 
         cstring_view source = optSource.empty() ? sourceFile : optSource;
 
-        if (!desc.save(asset, source, workDir))
+        if (!desc.save(asset, source, workDir, desc.userdata))
         {
             return unspecified_error;
         }
@@ -724,7 +724,7 @@ namespace oblo
 
         any_asset asset;
 
-        if (!typeIt->second.load(asset, sourceFilePath))
+        if (!typeIt->second.load(asset, sourceFilePath, typeIt->second.userdata))
         {
             return unspecified_error;
         }

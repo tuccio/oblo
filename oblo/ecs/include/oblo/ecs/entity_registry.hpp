@@ -27,14 +27,14 @@ namespace oblo::ecs
 
     public:
         entity_registry();
-        explicit entity_registry(type_registry* typeRegistry);
+        explicit entity_registry(const type_registry* typeRegistry);
         entity_registry(const entity_registry&) = delete;
         entity_registry(entity_registry&&) noexcept;
         entity_registry& operator=(const entity_registry&) = delete;
         entity_registry& operator=(entity_registry&&) noexcept;
         ~entity_registry();
 
-        void init(type_registry* typeRegistry);
+        void init(const type_registry* typeRegistry);
 
         entity create(const component_and_tag_sets& types);
         void create(const component_and_tag_sets& types, u32 count, std::span<entity> outEntityIds = {});
@@ -105,7 +105,7 @@ namespace oblo::ecs
         std::span<const component_type> get_component_types(entity e) const;
         std::span<const tag_type> get_tag_types(entity e) const;
 
-        type_registry& get_type_registry() const;
+        const type_registry& get_type_registry() const;
 
         std::span<const archetype_storage> get_archetypes() const;
 
@@ -168,7 +168,7 @@ namespace oblo::ecs
         void move_archetype(entity_data& entityData, const archetype_storage& newStorage);
 
     private:
-        type_registry* m_typeRegistry{nullptr};
+        const type_registry* m_typeRegistry{nullptr};
         unique_ptr<memory_pool> m_pool;
         entities_map m_entities;
         dynamic_array<archetype_storage> m_componentsStorage;
