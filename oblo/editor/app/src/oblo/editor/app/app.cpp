@@ -256,6 +256,7 @@ namespace oblo::editor
                 if (!entry.world.init({
 
                         .reflectionRegistry = &reflection->get_registry(),
+                        .typeRegistry = mm.find_unique_service<const ecs::type_registry>(),
                         .propertyRegistry = &propertyRegistry,
                         .resourceRegistry = &resourceRegistry,
                         .worldBuilders = mm.find_services<ecs::world_builder>(),
