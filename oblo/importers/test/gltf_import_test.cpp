@@ -137,9 +137,9 @@ namespace oblo::importers
         deque<resource_type_descriptor> resourceTypes;
         fetch_scene_resource_types(resourceTypes);
 
-        for (const auto& type : resourceTypes)
+        for (auto& type : resourceTypes)
         {
-            resources.register_type(type);
+            resources.register_type(std::move(type));
         }
 
         register_gltf_importer(registry);

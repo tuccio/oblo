@@ -19,7 +19,3 @@ add_subdirectory(scene)
 add_subdirectory(smoke)
 add_subdirectory(thread)
 add_subdirectory(vulkan)
-
-if(OBLO_WITH_DOTNET)
-    add_subdirectory(dotnet)
-endif()
