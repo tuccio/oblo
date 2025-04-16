@@ -28,8 +28,7 @@ namespace oblo
         }
     }
 
-    void register_native_asset_types(asset_registry& registry,
-        std::span<const native_asset_provider* const> providers)
+    void register_native_asset_types(asset_registry& registry, std::span<const native_asset_provider* const> providers)
     {
         deque<native_asset_descriptor> nativeAssetTypes;
 
@@ -38,9 +37,9 @@ namespace oblo
             nativeAssetTypes.clear();
             provider->fetch(nativeAssetTypes);
 
-            for (const auto& nativeAssetType : nativeAssetTypes)
+            for (auto& nativeAssetType : nativeAssetTypes)
             {
-                registry.register_native_asset_type(nativeAssetType);
+                registry.register_native_asset_type(std::move(nativeAssetType));
             }
         }
     }

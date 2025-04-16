@@ -37,7 +37,7 @@ namespace oblo
         resource_registry& operator=(const resource_registry&) = delete;
         resource_registry& operator=(resource_registry&&) noexcept = delete;
 
-        void register_type(const resource_type_descriptor& typeDesc);
+        void register_type(resource_type_descriptor typeDesc);
         void unregister_type(const uuid& type);
 
         void register_provider(resource_provider* provider);
@@ -82,7 +82,11 @@ namespace oblo
     template <typename T>
     resource_ptr<T> resource_registry::instantiate(T&& r, string_view name) const
     {
-        return instantiate(resource_type<T>, [&r](void* ptr) { *static_cast<T*>(ptr) = std::move(r); }, name).template as<T>();
+        return instantiate(
+            resource_type<T>,
+            [&r](void* ptr) { *static_cast<T*>(ptr) = std::move(r); },
+            name)
+            .template as<T>();
     }
 
     template <typename T>

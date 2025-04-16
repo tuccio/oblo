@@ -2,9 +2,9 @@
 
 #include <oblo/core/time/time.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/core/unique_ptr.hpp>
 #include <oblo/ecs/forward.hpp>
 
-#include <memory>
 #include <span>
 
 namespace oblo::reflection
@@ -22,6 +22,7 @@ namespace oblo
     struct runtime_initializer
     {
         const reflection::reflection_registry* reflectionRegistry;
+        const ecs::type_registry* typeRegistry;
         const property_registry* propertyRegistry;
         const resource_registry* resourceRegistry;
         std::span<ecs::world_builder* const> worldBuilders;
@@ -57,6 +58,6 @@ namespace oblo
         struct impl;
 
     private:
-        std::unique_ptr<impl> m_impl;
+        unique_ptr<impl> m_impl;
     };
 }

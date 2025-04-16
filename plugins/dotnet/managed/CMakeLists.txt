@@ -27,4 +27,4 @@ if(OBLO_GENERATE_CSHARP)
     oblo_set_target_folder(Oblo.Managed libraries)
 endif()
 
-add_dependencies(Oblo.Managed-build run-bindgen)
+add_dependencies(Oblo.Managed-build run-bindgen oblo::dotnet::bindings)

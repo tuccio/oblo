@@ -2,6 +2,7 @@
 
 #include <oblo/core/debug.hpp>
 #include <oblo/core/service_registry.hpp>
+#include <oblo/ecs/type_registry.hpp>
 #include <oblo/graphics/graphics_module.hpp>
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_manager.hpp>
@@ -23,6 +24,7 @@ namespace oblo
     struct runtime_module::impl
     {
         property_registry propertyRegistry;
+        ecs::type_registry typeRegistry;
     };
 
     runtime_module& runtime_module::get()
@@ -56,6 +58,7 @@ namespace oblo
             &reflection->get_registry());
 
         initializer.services->add<const property_registry>().externally_owned(&m_impl->propertyRegistry);
+        initializer.services->add<const ecs::type_registry>().externally_owned(&m_impl->typeRegistry);
 
         g_instance = this;
         return true;
@@ -74,7 +77,7 @@ namespace oblo
         auto* reflection = mm.find<reflection::reflection_module>();
 
         ecs_utility::register_reflected_component_and_tag_types(reflection->get_registry(),
-            nullptr,
+            &m_impl->typeRegistry,
             &m_impl->propertyRegistry);
 
         return true;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/editor/services/asset_editor.hpp>
+#include <oblo/scene/serialization/entity_hierarchy_serialization_context.hpp>
 
 namespace oblo::editor
 {
@@ -18,5 +19,6 @@ namespace oblo::editor
     private:
         window_handle m_editor{};
         uuid m_assetId{};
+        entity_hierarchy_serialization_context m_serializationContext;
     };
 }

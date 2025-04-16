@@ -11,33 +11,17 @@
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/components/entity_hierarchy_component.hpp>
+#include <oblo/scene/components/entity_hierarchy_internal.hpp>
 #include <oblo/scene/components/tags.hpp>
 #include <oblo/scene/resources/entity_hierarchy.hpp>
 #include <oblo/scene/serialization/ecs_serializer.hpp>
 
 namespace oblo
 {
-    namespace
-    {
-        struct entity_hierarchy_loaded
-        {
-        };
-
-        struct entity_hierarchy_loading
-        {
-            resource_ptr<entity_hierarchy> hierarchy{};
-        };
-    }
-
     void entity_hierarchy_system::first_update(const ecs::system_update_context& ctx)
     {
         m_resourceRegistry = ctx.services->find<const resource_registry>();
         OBLO_ASSERT(m_resourceRegistry);
-
-        auto& typeRegistry = ctx.entities->get_type_registry();
-
-        ecs::register_type<entity_hierarchy_loaded>(typeRegistry);
-        ecs::register_type<entity_hierarchy_loading>(typeRegistry);
 
         update(ctx);
     }

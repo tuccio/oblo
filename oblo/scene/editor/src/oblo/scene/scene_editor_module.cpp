@@ -21,6 +21,7 @@
 #include <oblo/scene/resources/pbr_properties.hpp>
 #include <oblo/scene/resources/traits.hpp>
 #include <oblo/scene/serialization/ecs_serializer.hpp>
+#include <oblo/scene/serialization/entity_hierarchy_serialization_context.hpp>
 
 namespace oblo
 {
@@ -35,7 +36,7 @@ namespace oblo
                     .typeId = get_type_id<material>(),
                     .fileExtension = ".omaterial",
                     .create =
-                        []
+                        [](const any&)
                     {
                         material m;
 
@@ -49,13 +50,13 @@ namespace oblo
                         return any_asset{std::move(m)};
                     },
                     .load =
-                        [](any_asset& asset, cstring_view source)
+                        [](any_asset& asset, cstring_view source, const any&)
                     {
                         auto& m = asset.emplace<material>();
                         return m.load(source);
                     },
                     .save =
-                        [](const any_asset& asset, cstring_view destination, cstring_view)
+                        [](const any_asset& asset, cstring_view destination, cstring_view, const any&)
                     {
                         auto* const m = asset.as<material>();
 
@@ -70,17 +71,20 @@ namespace oblo
                     { return allocate_unique<copy_importer>(resource_type<material>, "material"); },
                 });
 
+                any sceneCtx;
+                sceneCtx.emplace<entity_hierarchy_serialization_context>().init().assert_value();
+
                 out.push_back({
                     .typeUuid = asset_type<scene>,
                     .typeId = get_type_id<scene>(),
                     .fileExtension = ".oscene",
                     .create =
-                        []
+                        [](const any& ctx)
                     {
                         any_asset r;
                         auto& s = r.emplace<scene>();
 
-                        if (!s.init())
+                        if (!s.init(ctx.as<entity_hierarchy_serialization_context>()->get_type_registry()))
                         {
                             r.clear();
                         }
@@ -88,13 +92,14 @@ namespace oblo
                         return r;
                     },
                     .load =
-                        [](any_asset& asset, cstring_view source)
+                        [](any_asset& asset, cstring_view source, const any& ctx)
                     {
+                        auto& ehCtx = *ctx.as<entity_hierarchy_serialization_context>();
                         auto& m = asset.emplace<scene>();
-                        return m.load(source, {}).has_value();
+                        return m.init(ehCtx.get_type_registry()).has_value() && m.load(source, ehCtx).has_value();
                     },
                     .save =
-                        [](const any_asset& asset, cstring_view destination, cstring_view)
+                        [](const any_asset& asset, cstring_view destination, cstring_view, const any& ctx)
                     {
                         auto* const m = asset.as<scene>();
 
@@ -103,10 +108,11 @@ namespace oblo
                             return false;
                         }
 
-                        return m->save(destination).has_value();
+                        return m->save(destination, *ctx.as<entity_hierarchy_serialization_context>()).has_value();
                     },
                     .createImporter = []() -> unique_ptr<file_importer>
                     { return allocate_unique<copy_importer>(resource_type<entity_hierarchy>, "scene"); },
+                    .userdata = std::move(sceneCtx),
                 });
             }
         };

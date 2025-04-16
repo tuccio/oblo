@@ -29,9 +29,9 @@ namespace oblo
 
     resource_registry::~resource_registry() = default;
 
-    void resource_registry::register_type(const resource_type_descriptor& typeDesc)
+    void resource_registry::register_type(resource_type_descriptor typeDesc)
     {
-        m_resourceTypes[typeDesc.typeUuid] = typeDesc;
+        m_resourceTypes[typeDesc.typeUuid] = std::move(typeDesc);
     }
 
     void resource_registry::unregister_type(const uuid& type)
@@ -120,7 +120,7 @@ namespace oblo
                 [this](const resource_removed_event& e)
                 {
                     const auto it = m_resources.find(e.id);
-                    
+
                     if (it != m_resources.end())
                     {
                         if (it->second.handle)

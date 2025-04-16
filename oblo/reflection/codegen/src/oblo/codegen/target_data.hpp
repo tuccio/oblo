@@ -19,6 +19,7 @@ namespace oblo::gen
         ecs_tag,
         resource,
         script_api,
+        transient,
         enum_max,
     };
 

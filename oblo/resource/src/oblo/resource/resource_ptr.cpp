@@ -103,7 +103,7 @@ namespace oblo::detail
                     resource->data = resource->descriptor->create();
 
                     // TODO: We should handle load failure somehow, instead of handing a half baked resource
-                    resource->descriptor->load(resource->data, resource->path);
+                    resource->descriptor->load(resource->data, resource->path, resource->descriptor->userdata);
 
                     resource->loadState.store(resource_load_state::loaded);
                     resource_release(resource);

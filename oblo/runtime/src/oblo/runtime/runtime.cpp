@@ -53,7 +53,6 @@ namespace oblo
     {
         frame_allocator frameAllocator;
         ecs::system_seq_executor executor;
-        ecs::type_registry typeRegistry;
         ecs::entity_registry entities;
         service_registry services;
     };
@@ -75,7 +74,7 @@ namespace oblo
             return false;
         }
 
-        m_impl = std::make_unique<impl>();
+        m_impl = allocate_unique<impl>();
 
         if (!m_impl->frameAllocator.init(initializer.frameAllocatorMaxSize))
         {
@@ -83,11 +82,7 @@ namespace oblo
             return false;
         }
 
-        ecs_utility::register_reflected_component_and_tag_types(*initializer.reflectionRegistry,
-            &m_impl->typeRegistry,
-            nullptr);
-
-        m_impl->entities.init(&m_impl->typeRegistry);
+        m_impl->entities.init(initializer.typeRegistry);
 
         m_impl->services.add<ecs::entity_registry>().externally_owned(&m_impl->entities);
         m_impl->services.add<const resource_registry>().externally_owned(initializer.resourceRegistry);

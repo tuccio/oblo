@@ -15,9 +15,9 @@ namespace oblo
             resourceTypes.clear();
             provider->fetch_resource_types(resourceTypes);
 
-            for (const auto& resourceType : resourceTypes)
+            for (auto& resourceType : resourceTypes)
             {
-                registry.register_type(resourceType);
+                registry.register_type(std::move(resourceType));
             }
         }
     }

@@ -69,7 +69,7 @@ namespace oblo::editor
         struct create_menu_item
         {
             cstring_view name;
-            asset_create_fn create{};
+            uuid assetTypeId{};
         };
 
         struct rename_context
@@ -1136,7 +1136,7 @@ namespace oblo::editor
                 }
 
                 // Ignoring category for now
-                createMenu.emplace_back(desc.name, nativeDesc->create);
+                createMenu.emplace_back(desc.name, desc.assetType);
             }
         }
     }
@@ -1195,7 +1195,10 @@ namespace oblo::editor
 
                             find_first_available(assetPath, AssetMetaExtension);
 
-                            const auto r = registry->create_asset(item.create(),
+                            const auto* desc = registry->find_native_asset_type(item.assetTypeId);
+                            OBLO_ASSERT(desc);
+
+                            const auto r = registry->create_asset(desc->create(desc->userdata),
                                 current.view(),
                                 filesystem::stem(filesystem::filename(assetPath.view())));
 

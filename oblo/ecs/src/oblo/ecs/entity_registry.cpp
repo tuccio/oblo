@@ -29,7 +29,7 @@ namespace oblo::ecs
 
     entity_registry::entity_registry() = default;
 
-    entity_registry::entity_registry(type_registry* typeRegistry) : m_typeRegistry{typeRegistry}
+    entity_registry::entity_registry(const type_registry* typeRegistry) : m_typeRegistry{typeRegistry}
     {
         OBLO_ASSERT(m_typeRegistry);
 
@@ -53,7 +53,7 @@ namespace oblo::ecs
         }
     }
 
-    void entity_registry::init(type_registry* typeRegistry)
+    void entity_registry::init(const type_registry* typeRegistry)
     {
         *this = entity_registry{typeRegistry};
     }
@@ -95,7 +95,7 @@ namespace oblo::ecs
         auto outIt = outEntityIds.begin();
 
         for (chunk** chunk = chunks + firstChunkIndex; chunk != chunks + numRequiredChunks;
-             ++chunk, numEntitiesInCurrentChunk = 0)
+            ++chunk, numEntitiesInCurrentChunk = 0)
         {
             std::byte* const chunkBytes = (*chunk)->data;
 
@@ -326,7 +326,7 @@ namespace oblo::ecs
         return {archetype->tags, archetype->numTags};
     }
 
-    type_registry& entity_registry::get_type_registry() const
+    const type_registry& entity_registry::get_type_registry() const
     {
         return *m_typeRegistry;
     }

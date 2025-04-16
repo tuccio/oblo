@@ -41,6 +41,8 @@ namespace oblo
 
         const property_tree* try_get(const type_id& type) const;
 
+        const reflection::reflection_registry& get_reflection_registry() const;
+
     private:
         struct impl;
         unique_ptr<impl> m_impl;

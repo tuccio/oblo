@@ -3,6 +3,7 @@
 #include <oblo/resource/resource_ref.hpp>
 #include <oblo/scene/components/children_component.hpp>
 #include <oblo/scene/components/entity_hierarchy_component.hpp>
+#include <oblo/scene/components/entity_hierarchy_internal.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/scene/components/name_component.hpp>
 #include <oblo/scene/components/parent_component.hpp>

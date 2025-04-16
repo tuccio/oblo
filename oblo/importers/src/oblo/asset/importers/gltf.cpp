@@ -23,6 +23,7 @@
 #include <oblo/scene/resources/model.hpp>
 #include <oblo/scene/resources/pbr_properties.hpp>
 #include <oblo/scene/resources/traits.hpp>
+#include <oblo/scene/serialization/entity_hierarchy_serialization_context.hpp>
 #include <oblo/scene/serialization/mesh_file.hpp>
 #include <oblo/scene/serialization/model_file.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
@@ -388,6 +389,14 @@ namespace oblo::importers
 
     bool gltf::import(import_context ctx)
     {
+        entity_hierarchy_serialization_context ehCtx;
+
+        if (!ehCtx.init())
+        {
+            log::error("Failed to initialize entity hierarchy context");
+            return false;
+        }
+
         gltf_import_config cfg{};
 
         const auto& settings = ctx.get_settings();
@@ -662,7 +671,7 @@ namespace oblo::importers
 
             entity_hierarchy h;
 
-            if (!h.init())
+            if (!h.init(ehCtx.get_type_registry()))
             {
                 log::error("Failed to initialize entity hierarchy");
                 continue;
@@ -735,7 +744,7 @@ namespace oblo::importers
                         const auto numPrimitives = gltfMesh.primitives.size();
 
                         for (u32 meshIndex = model.primitiveBegin; meshIndex < model.primitiveBegin + numPrimitives;
-                             ++meshIndex)
+                            ++meshIndex)
                         {
                             const auto m = ecs_utility::create_named_physical_entity<static_mesh_component>(reg,
                                 node.name.c_str(),
@@ -767,7 +776,7 @@ namespace oblo::importers
             string_builder outputPath;
             ctx.get_output_path(hierarchyNodeConfig.id, outputPath, ".ohierarchy");
 
-            if (!h.save(outputPath))
+            if (!h.save(outputPath, ehCtx))
             {
                 log::error("Failed to save entity hierarchy");
                 continue;

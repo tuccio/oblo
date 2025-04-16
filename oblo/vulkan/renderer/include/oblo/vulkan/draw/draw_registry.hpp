@@ -118,7 +118,7 @@ namespace oblo::vk
         const resource_registry* m_resourceRegistry{};
         mesh_database m_meshes;
         ecs::entity_registry* m_entities{};
-        ecs::type_registry* m_typeRegistry{};
+        const ecs::type_registry* m_typeRegistry{};
 
         ecs::component_type m_instanceComponent{};
         ecs::component_type m_instanceIdComponent{};

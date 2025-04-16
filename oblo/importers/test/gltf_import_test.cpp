@@ -64,6 +64,7 @@ namespace oblo::importers
                     &reflection->get_registry());
 
                 initializer.services->add<const property_registry>().externally_owned(&m_propertyRegistry);
+                initializer.services->add<const ecs::type_registry>().externally_owned(&m_typeRegistry);
 
                 return true;
             }
@@ -74,7 +75,7 @@ namespace oblo::importers
                 auto* reflection = mm.find<reflection::reflection_module>();
 
                 ecs_utility::register_reflected_component_and_tag_types(reflection->get_registry(),
-                    nullptr,
+                    &m_typeRegistry,
                     &m_propertyRegistry);
 
                 return true;
@@ -88,6 +89,7 @@ namespace oblo::importers
         private:
             job_manager m_jobManager;
             property_registry m_propertyRegistry;
+            ecs::type_registry m_typeRegistry;
         };
 
         template <typename T>
@@ -137,9 +139,9 @@ namespace oblo::importers
         deque<resource_type_descriptor> resourceTypes;
         fetch_scene_resource_types(resourceTypes);
 
-        for (const auto& type : resourceTypes)
+        for (auto& type : resourceTypes)
         {
-            resources.register_type(type);
+            resources.register_type(std::move(type));
         }
 
         register_gltf_importer(registry);
