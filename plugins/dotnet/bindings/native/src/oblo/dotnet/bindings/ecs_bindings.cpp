@@ -2,6 +2,7 @@
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
+#include <oblo/modules/module_manager.hpp>
 #include <oblo/properties/property_value_wrapper.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
 
@@ -19,7 +20,8 @@ namespace oblo
             return *reinterpret_cast<T*>(componentPtr + offset);
         }
 
-        const ecs::type_registry* g_bindingsTypeRegistry{};
+        const ecs::type_registry* g_typeRegistry =
+            module_manager::get().find_unique_service<const ecs::type_registry>();
 
         ecs::component_and_tag_sets make_type_set(const ecs::component_type* components, i32 componentsCount)
         {
@@ -41,13 +43,12 @@ extern "C"
 
     DOTNET_BINDINGS_API void oblo_ecs_register_types(ecs::entity_registry* registry)
     {
-        // TODO: We need a static type registry we can use, for now we reference the first
-        g_bindingsTypeRegistry = &registry->get_type_registry();
+        g_typeRegistry = &registry->get_type_registry();
     }
 
     DOTNET_BINDINGS_API ecs::component_type oblo_ecs_find_component_type(const char* typeName)
     {
-        return g_bindingsTypeRegistry->find_component(type_id{.name = typeName});
+        return g_typeRegistry->find_component(type_id{.name = typeName});
     }
 
     DOTNET_BINDINGS_API u32 oblo_ecs_get_entity_index_mask()
