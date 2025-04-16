@@ -1,32 +1,34 @@
-#include <oblo/smoke/framework.hpp>
+#ifdef OBLO_SMOKE_DOTNET_TESTS
 
-#include <oblo/asset/any_asset.hpp>
-#include <oblo/asset/asset_meta.hpp>
-#include <oblo/asset/asset_registry.hpp>
-#include <oblo/core/filesystem/file.hpp>
-#include <oblo/core/filesystem/filesystem.hpp>
-#include <oblo/core/formatters/uuid_formatter.hpp>
-#include <oblo/core/iterator/enum_range.hpp>
-#include <oblo/dotnet/assets/dotnet_script_asset.hpp>
-#include <oblo/dotnet/components/dotnet_behaviour_component.hpp>
-#include <oblo/ecs/entity_registry.hpp>
-#include <oblo/graphics/components/camera_component.hpp>
-#include <oblo/graphics/components/static_mesh_component.hpp>
-#include <oblo/graphics/components/viewport_component.hpp>
-#include <oblo/math/quaternion.hpp>
-#include <oblo/math/vec3.hpp>
-#include <oblo/properties/serialization/common.hpp>
-#include <oblo/resource/resource_ptr.hpp>
-#include <oblo/resource/resource_registry.hpp>
-#include <oblo/scene/components/position_component.hpp>
-#include <oblo/scene/components/rotation_component.hpp>
-#include <oblo/scene/components/scale_component.hpp>
-#include <oblo/scene/resources/model.hpp>
-#include <oblo/scene/resources/traits.hpp>
-#include <oblo/scene/utility/ecs_utility.hpp>
-#include <oblo/smoke/tests/asset_utility.hpp>
+    #include <oblo/smoke/framework.hpp>
 
-#include <gtest/gtest.h>
+    #include <oblo/asset/any_asset.hpp>
+    #include <oblo/asset/asset_meta.hpp>
+    #include <oblo/asset/asset_registry.hpp>
+    #include <oblo/core/filesystem/file.hpp>
+    #include <oblo/core/filesystem/filesystem.hpp>
+    #include <oblo/core/formatters/uuid_formatter.hpp>
+    #include <oblo/core/iterator/enum_range.hpp>
+    #include <oblo/dotnet/assets/dotnet_script_asset.hpp>
+    #include <oblo/dotnet/components/dotnet_behaviour_component.hpp>
+    #include <oblo/ecs/entity_registry.hpp>
+    #include <oblo/graphics/components/camera_component.hpp>
+    #include <oblo/graphics/components/static_mesh_component.hpp>
+    #include <oblo/graphics/components/viewport_component.hpp>
+    #include <oblo/math/quaternion.hpp>
+    #include <oblo/math/vec3.hpp>
+    #include <oblo/properties/serialization/common.hpp>
+    #include <oblo/resource/resource_ptr.hpp>
+    #include <oblo/resource/resource_registry.hpp>
+    #include <oblo/scene/components/position_component.hpp>
+    #include <oblo/scene/components/rotation_component.hpp>
+    #include <oblo/scene/components/scale_component.hpp>
+    #include <oblo/scene/resources/model.hpp>
+    #include <oblo/scene/resources/traits.hpp>
+    #include <oblo/scene/utility/ecs_utility.hpp>
+    #include <oblo/smoke/tests/asset_utility.hpp>
+
+    #include <gtest/gtest.h>
 
 namespace oblo::smoke
 {
@@ -149,3 +151,5 @@ public class TotallyNormalDuckBehaviour : IBehaviour
 
     OBLO_SMOKE_TEST(dotnet_entities_test)
 }
+
+#endif
