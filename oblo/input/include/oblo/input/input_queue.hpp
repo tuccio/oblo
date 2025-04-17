@@ -1,9 +1,9 @@
 #pragma once
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/input/input_event.hpp>
 
 #include <span>
-#include <vector>
 
 namespace oblo
 {
@@ -18,7 +18,7 @@ namespace oblo
         input_events get_events() const;
 
     private:
-        std::vector<input_event> m_queue;
+        dynamic_array<input_event> m_queue;
     };
 
     inline void input_queue::push(const input_event& e)

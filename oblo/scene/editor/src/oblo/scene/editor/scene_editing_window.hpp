@@ -1,17 +1,22 @@
 #pragma once
 
 #include <oblo/ecs/forward.hpp>
+#include <oblo/editor/data/time_stats.hpp>
 #include <oblo/editor/services/selected_entities.hpp>
+#include <oblo/runtime/runtime.hpp>
 
 namespace oblo
 {
     class data_document;
-    class runtime_manager;
-    class runtime;
 }
 
 namespace oblo::editor
 {
+    class update_subscriptions;
+    class world_factory;
+
+    struct update_subscriber;
+
     struct window_update_context;
 
     class scene_editing_window final
@@ -27,7 +32,11 @@ namespace oblo::editor
 
     private:
         selected_entities m_selection;
-        runtime_manager* m_runtimeManager{};
-        runtime* m_runtime{};
+        world_factory* m_worldFactory{};
+        update_subscriptions* m_updateSubscriptions{};
+        h32<update_subscriber> m_subscription{};
+        runtime m_scene;
+        time_stats m_timeStats{};
+        time m_lastFrameTime{};
     };
 }
