@@ -4,6 +4,7 @@
 #include <oblo/core/time/clock.hpp>
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/services/update_dispatcher.hpp>
+#include <oblo/editor/ui/constants.hpp>
 #include <oblo/editor/window_manager.hpp>
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/editor/windows/command_palette_window.hpp>
@@ -15,7 +16,10 @@
 #include <oblo/runtime/runtime.hpp>
 #include <oblo/scene/resources/entity_hierarchy.hpp>
 
+#include <IconsFontAwesome6.h>
+
 #include <imgui.h>
+#include <imgui_internal.h>
 
 namespace oblo::editor
 {
@@ -104,6 +108,54 @@ namespace oblo::editor
                 window_flags::unique_sibling,
                 {});
         }
+
+        const f32 height = ImGui::GetFrameHeight();
+
+        // Add menu bar flag and disable everything else
+        constexpr ImGuiWindowFlags flags =
+            ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_MenuBar;
+
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
+
+        if (ImGui::BeginViewportSideBar("##scene_toolbar", nullptr, ImGuiDir_Up, height, flags))
+        {
+            if (ImGui::BeginMenuBar())
+            {
+                ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(5, 0));
+                ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_MenuBarBg));
+
+                ImGui::Button(ICON_FA_FLOPPY_DISK);
+
+                ImGui::SameLine();
+
+                ImGui::Separator();
+
+                ImGui::SameLine();
+
+                ImGui::PushStyleColor(ImGuiCol_Text, colors::green);
+                ImGui::Button(ICON_FA_PLAY);
+                ImGui::PopStyleColor();
+
+                ImGui::SameLine();
+
+                ImGui::PushStyleColor(ImGuiCol_Text, colors::red);
+                ImGui::Button(ICON_FA_STOP);
+                ImGui::PopStyleColor();
+
+                ImGui::SameLine();
+
+                ImGui::Separator();
+
+                ImGui::PopStyleColor();
+                ImGui::PopStyleVar();
+
+                ImGui::EndMenuBar();
+            }
+        }
+
+        ImGui::End();
+
+        ImGui::PopStyleVar();
 
         return true;
     }

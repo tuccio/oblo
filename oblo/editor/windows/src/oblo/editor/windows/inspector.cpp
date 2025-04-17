@@ -28,8 +28,6 @@
 #include <oblo/reflection/concepts/resource_type.hpp>
 #include <oblo/reflection/reflection_registry.hpp>
 
-#include <format>
-
 #include <IconsFontAwesome6.h>
 
 #include <imgui.h>
