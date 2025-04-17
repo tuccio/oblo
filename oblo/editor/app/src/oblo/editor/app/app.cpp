@@ -249,6 +249,7 @@ namespace oblo::editor
         input_queue m_inputQueue;
         runtime_registry m_runtimeRegistry;
         update_dispatcher m_updateDispatcher;
+        editor_window* m_mainWindow{};
 
         bool init(int argc, char* argv[]);
         bool startup();
@@ -308,6 +309,66 @@ namespace oblo::editor
 
         auto& mainWindow = app.get_main_window();
 
+        auto hitTest = [this, &mainWindow](const vec2u& position)
+        {
+            constexpr i32 borderSize = 2;
+
+            hit_test_result r = hit_test_result::normal;
+
+            const bool isMaximized = mainWindow.is_maximized();
+            const auto [w, h] = mainWindow.get_size();
+
+            if (!isMaximized)
+            {
+                if (position.x <= borderSize && position.y <= borderSize)
+                {
+                    r = hit_test_result::resize_top_left;
+                }
+                else if (position.x >= w - borderSize && position.y <= borderSize)
+                {
+                    r = hit_test_result::resize_top_right;
+                }
+                else if (position.x <= borderSize && position.y >= h - borderSize)
+                {
+                    r = hit_test_result::resize_bottom_left;
+                }
+                else if (position.x >= w - borderSize && position.y >= h - borderSize)
+                {
+                    r = hit_test_result::resize_bottom_right;
+                }
+                else if (position.y <= borderSize)
+                {
+                    r = hit_test_result::resize_top;
+                }
+                else if (position.y >= h - borderSize)
+                {
+                    r = hit_test_result::resize_bottom;
+                }
+                else if (position.x <= borderSize)
+                {
+                    r = hit_test_result::resize_left;
+                }
+                else if (position.x >= w - borderSize)
+                {
+                    r = hit_test_result::resize_right;
+                }
+                else if (m_impl->m_mainWindow->is_draggable_space(position))
+                {
+                    r = hit_test_result::draggable;
+                }
+            }
+            else if (m_impl->m_mainWindow->is_draggable_space(position))
+            {
+                r = hit_test_result::draggable;
+            }
+
+            return r;
+        };
+
+        const auto hitTestRef = hit_test_fn{hitTest};
+
+        mainWindow.set_borderless(true);
+        mainWindow.set_custom_hit_test(&hitTestRef);
         mainWindow.maximize();
         mainWindow.set_hidden(false);
 
@@ -315,6 +376,8 @@ namespace oblo::editor
 
         for (; OBLO_PROFILE_FRAME_BEGIN(); OBLO_PROFILE_FRAME_END())
         {
+            m_impl->m_mainWindow->set_is_maximized(mainWindow.is_maximized());
+
             if (!app.process_events())
             {
                 break;
@@ -335,6 +398,27 @@ namespace oblo::editor
             app.present();
 
             m_impl->m_inputQueue.clear();
+
+            switch (m_impl->m_mainWindow->get_last_window_event())
+            {
+            default:
+                break;
+
+            case editor_window_event::minimize:
+                mainWindow.minimize();
+                break;
+            case editor_window_event::maximize:
+                mainWindow.maximize();
+                break;
+            case editor_window_event::restore:
+                mainWindow.restore();
+                break;
+
+            case editor_window_event::close:
+                // We should check if we want to save the current scene first, maybe by triggering closure of every
+                // asset editor. Currenty we don't do that on ALT+F4 either though.
+                return;
+            }
         }
     }
 
@@ -440,7 +524,8 @@ namespace oblo::editor
         auto* editorDirectories = globalRegistry.add<editor_directories>().unique();
         editorDirectories->init(temporaryDir).assert_value();
 
-        const auto editorWindow = m_windowManager.create_window<editor_window>(service_registry{});
+        const window_handle editorWindow = m_windowManager.create_window<editor_window>(service_registry{});
+        m_mainWindow = m_windowManager.try_access<editor_window>(editorWindow);
 
         // Add all asset editors under the editor window, to make sure they are dockable
         assetEditorManager->set_window_root(editorWindow);

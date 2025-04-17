@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/handle.hpp>
+#include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/math/vec2u.hpp>
 
@@ -20,6 +21,22 @@ namespace oblo
         bool isHidden;
         bool isMaximized;
     };
+
+    enum class hit_test_result
+    {
+        normal,
+        draggable,
+        resize_top_left,
+        resize_top,
+        resize_top_right,
+        resize_right,
+        resize_bottom_right,
+        resize_bottom,
+        resize_bottom_left,
+        resize_left
+    };
+
+    using hit_test_fn = function_ref<hit_test_result(const vec2u&)>;
 
     class graphics_window
     {
@@ -50,6 +67,10 @@ namespace oblo
 
         bool is_hidden() const;
         void set_hidden(bool hide);
+
+        void set_borderless(bool borderless);
+
+        void set_custom_hit_test(const hit_test_fn* f);
 
         vec2u get_size() const;
 

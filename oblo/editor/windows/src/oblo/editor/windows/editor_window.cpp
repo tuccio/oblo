@@ -4,6 +4,7 @@
 #include <oblo/core/formatters/uuid_formatter.hpp>
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/services/asset_editor_manager.hpp>
+#include <oblo/editor/ui/constants.hpp>
 #include <oblo/editor/window_manager.hpp>
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/editor/windows/demo_window.hpp>
@@ -15,6 +16,8 @@
 #include <oblo/vulkan/events/gi_reset_event.hpp>
 #include <oblo/vulkan/graph/frame_graph.hpp>
 #include <oblo/vulkan/renderer.hpp>
+
+#include <IconsFontAwesome6.h>
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -47,6 +50,8 @@ namespace oblo::editor
 
     bool editor_window::update(const window_update_context& ctx)
     {
+        m_lastEvent = editor_window_event::none;
+
         constexpr ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_None;
 
         auto& style = ImGui::GetStyle();
@@ -110,7 +115,9 @@ namespace oblo::editor
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
 
-        if (ImGui::BeginViewportSideBar("##main_menu2", nullptr, ImGuiDir_Up, height, flags))
+        auto* const mainViewport = ImGui::GetMainViewport();
+
+        if (ImGui::BeginViewportSideBar("##main_menu", mainViewport, ImGuiDir_Up, height, flags))
         {
             if (ImGui::BeginMenuBar())
             {
@@ -213,6 +220,54 @@ namespace oblo::editor
 
                 ImGui::PopStyleVar();
 
+                constexpr u32 numButtons = 3;
+                constexpr f32 itemSpacing = 8.f;
+                constexpr f32 aribtraryPaddingRight = 0.f;
+                const f32 wholeWidth = ImGui::GetContentRegionAvail().x;
+
+                const f32 windowButtonsWidth = itemSpacing * (numButtons - 1) +
+                    ImGui::CalcTextSize(ICON_FA_WINDOW_MINIMIZE).x + style.ItemInnerSpacing.x * 2 * numButtons +
+                    style.WindowPadding.x * 2 + style.FrameBorderSize * 2 + aribtraryPaddingRight;
+
+                const auto draggableBegin = ImGui::GetCursorPos();
+
+                ImGui::SameLine(draggableBegin.x + wholeWidth - windowButtonsWidth);
+                const f32 draggableEnd = ImGui::GetCursorPosX();
+
+                {
+                    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(itemSpacing, 0));
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_MenuBarBg));
+
+                    if (ImGui::Button(ICON_FA_MINUS))
+                    {
+                        m_lastEvent = editor_window_event::minimize;
+                    }
+
+                    ImGui::SameLine();
+
+                    if (ImGui::Button(m_isMaximized ? ICON_FA_WINDOW_RESTORE : ICON_FA_WINDOW_MAXIMIZE))
+                    {
+                        m_lastEvent = m_isMaximized ? editor_window_event::restore : editor_window_event::maximize;
+                    }
+
+                    ImGui::SameLine();
+
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, colors::red);
+
+                    if (ImGui::Button(ICON_FA_XMARK))
+                    {
+                        m_lastEvent = editor_window_event::close;
+                    }
+
+                    ImGui::PopStyleColor(1);
+
+                    ImGui::PopStyleVar(1);
+                    ImGui::PopStyleColor(1);
+                }
+
+                m_draggableAreaMin = {u32(draggableBegin.x), u32(draggableBegin.y)};
+                m_draggableAreaMax = {u32(draggableEnd), u32(draggableBegin.y + height)};
+
                 ImGui::EndMenuBar();
             }
         }
@@ -222,5 +277,21 @@ namespace oblo::editor
         ImGui::PopStyleVar();
 
         return true;
+    }
+
+    editor_window_event editor_window::get_last_window_event() const
+    {
+        return m_lastEvent;
+    }
+
+    bool editor_window::is_draggable_space(const vec2u& position) const
+    {
+        return position.x >= m_draggableAreaMin.x && position.x <= m_draggableAreaMax.x &&
+            position.y >= m_draggableAreaMin.y && position.y <= m_draggableAreaMax.y;
+    }
+
+    void editor_window::set_is_maximized(bool isMaximized)
+    {
+        m_isMaximized = isMaximized;
     }
 }
