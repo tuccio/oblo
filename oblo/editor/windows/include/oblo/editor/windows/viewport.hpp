@@ -19,6 +19,7 @@ namespace oblo
 
 namespace oblo::editor
 {
+    class editor_world;
     class incremental_id_pool;
     class selected_entities;
     struct window_update_context;
@@ -34,12 +35,16 @@ namespace oblo::editor
         vec3 get_spawn_location() const;
 
     private:
+        void attach_to_world();
+        void detach_from_world();
+
         void on_close();
 
         void spawn_artifact(const window_update_context& ctx, uuid id);
 
     private:
         const resource_registry* m_resources{};
+        editor_world* m_editorWorld{};
         ecs::entity_registry* m_entities{};
         scene_renderer* m_sceneRenderer{};
         selected_entities* m_selection{};
@@ -50,7 +55,6 @@ namespace oblo::editor
         fps_camera_controller m_cameraController;
         u32 m_viewportId{};
         gizmo_handler m_gizmoHandler{};
-        const time_stats* m_timeStats{};
         dynamic_array<cstring_view> m_viewportModes;
     };
 }

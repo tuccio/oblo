@@ -2,14 +2,9 @@
 
 #include <oblo/core/types.hpp>
 
-namespace oblo::ecs
-{
-    class entity_registry;
-}
-
 namespace oblo::editor
 {
-    class selected_entities;
+    class editor_world;
     struct window_update_context;
 
     class scene_hierarchy final
@@ -19,8 +14,7 @@ namespace oblo::editor
         bool update(const window_update_context& ctx);
 
     private:
-        ecs::entity_registry* m_registry{};
-        selected_entities* m_selection{};
+        editor_world* m_editorWorld;
         u32 m_lastRefreshEvent{};
     };
 }

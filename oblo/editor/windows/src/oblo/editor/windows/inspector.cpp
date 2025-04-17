@@ -11,6 +11,7 @@
 #include <oblo/ecs/tag_type_desc.hpp>
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/services/component_factory.hpp>
+#include <oblo/editor/services/editor_world.hpp>
 #include <oblo/editor/services/selected_entities.hpp>
 #include <oblo/editor/ui/artifact_picker.hpp>
 #include <oblo/editor/ui/property_table.hpp>
@@ -241,8 +242,7 @@ namespace oblo::editor
     {
         m_propertyRegistry = ctx.services.find<const property_registry>();
         m_reflection = ctx.services.find<const reflection::reflection_registry>();
-        m_registry = ctx.services.find<ecs::entity_registry>();
-        m_selection = ctx.services.find<selected_entities>();
+        m_editorWorld = ctx.services.find<const editor_world>();
         m_factory = ctx.services.find<component_factory>();
 
         auto* assetRegistry = ctx.services.find<asset_registry>();
@@ -259,9 +259,12 @@ namespace oblo::editor
 
         if (ImGui::Begin("Inspector", &open))
         {
-            const std::span selectedEntities = m_selection->get();
+            auto* const selectionService = m_editorWorld->get_selected_entities();
+            const std::span selectedEntities = selectionService->get();
 
-            const auto& typeRegistry = m_registry->get_type_registry();
+            auto* const entityRegistry = m_editorWorld->get_entity_registry();
+
+            const auto& typeRegistry = entityRegistry->get_type_registry();
 
             ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
 
@@ -279,7 +282,7 @@ namespace oblo::editor
                     {
                         for (const auto e : selectedEntities)
                         {
-                            m_factory->add(*m_registry, e, type);
+                            m_factory->add(*entityRegistry, e, type);
                         }
                     }
                 }
@@ -289,11 +292,11 @@ namespace oblo::editor
 
             for (const auto e : selectedEntities)
             {
-                if (e && m_registry->contains(e))
+                if (e && entityRegistry->contains(e))
                 {
                     const f32 availableWidth = ImGui::GetContentRegionAvail().x;
 
-                    auto* const entityName = entity_utility::get_name_cstr(*m_registry, e);
+                    auto* const entityName = entity_utility::get_name_cstr(*entityRegistry, e);
                     ImGui::TextUnformatted(entityName);
 
                     builder.clear().format("[Entity id: {}]", e.value);
@@ -308,7 +311,7 @@ namespace oblo::editor
 
                     ImGui::PopStyleColor();
 
-                    const std::span components = m_registry->get_component_types(e);
+                    const std::span components = entityRegistry->get_component_types(e);
 
                     const inspector_context inspectorContext = {
                         .reflection = *m_reflection,
@@ -342,15 +345,15 @@ namespace oblo::editor
                         {
                             if (ImGui::MenuItem("Reset"))
                             {
-                                auto& typeDesc = m_registry->get_type_registry().get_component_type_desc(type);
+                                auto& typeDesc = entityRegistry->get_type_registry().get_component_type_desc(type);
 
                                 byte* ptr;
-                                m_registry->get(e, {&type, 1}, {&ptr, 1});
+                                entityRegistry->get(e, {&type, 1}, {&ptr, 1});
 
                                 typeDesc.destroy(ptr, 1);
                                 typeDesc.create(ptr, 1);
 
-                                m_registry->notify(e);
+                                entityRegistry->notify(e);
                             }
 
                             if (ImGui::MenuItem("Delete"))
@@ -358,7 +361,7 @@ namespace oblo::editor
                                 ecs::component_and_tag_sets types{};
                                 types.components.add(type);
 
-                                m_registry->remove(e, types);
+                                entityRegistry->remove(e, types);
 
                                 wasDeleted = true;
                             }
@@ -372,13 +375,13 @@ namespace oblo::editor
 
                             if (propertyTree)
                             {
-                                auto* const data = m_registry->try_get(e, type);
+                                auto* const data = entityRegistry->try_get(e, type);
 
                                 ImGui::PushID(int(type.value));
 
                                 if (build_property_table(inspectorContext, *propertyTree, data))
                                 {
-                                    m_registry->notify(e);
+                                    entityRegistry->notify(e);
                                 }
 
                                 ImGui::PopID();

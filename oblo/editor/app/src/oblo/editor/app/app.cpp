@@ -23,7 +23,6 @@
 #include <oblo/editor/windows/console_window.hpp>
 #include <oblo/editor/windows/editor_window.hpp>
 #include <oblo/editor/windows/style_window.hpp>
-#include <oblo/graphics/services/scene_renderer.hpp>
 #include <oblo/input/input_queue.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/log/log_module.hpp>
@@ -479,7 +478,7 @@ namespace oblo::editor
     void app::impl::update_runtime()
     {
         OBLO_PROFILE_SCOPE();
-        m_updateDispatcher.update();
+        m_updateDispatcher.dispatch();
     }
 
     void app::impl::update_registries()

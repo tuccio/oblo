@@ -1,8 +1,9 @@
 #pragma once
 
 #include <oblo/ecs/forward.hpp>
-#include <oblo/editor/data/time_stats.hpp>
+#include <oblo/editor/services/editor_world.hpp>
 #include <oblo/editor/services/selected_entities.hpp>
+#include <oblo/editor/services/update_dispatcher.hpp>
 #include <oblo/runtime/runtime.hpp>
 
 namespace oblo
@@ -12,11 +13,6 @@ namespace oblo
 
 namespace oblo::editor
 {
-    class update_subscriptions;
-    class world_factory;
-
-    struct update_subscriber;
-
     struct window_update_context;
 
     class scene_editing_window final
@@ -31,12 +27,10 @@ namespace oblo::editor
         ecs::entity_registry& get_entity_registry() const;
 
     private:
-        selected_entities m_selection;
-        world_factory* m_worldFactory{};
+        runtime m_scene;
+        editor_world m_editorWorld;
         update_subscriptions* m_updateSubscriptions{};
         h32<update_subscriber> m_subscription{};
-        runtime m_scene;
-        time_stats m_timeStats{};
         time m_lastFrameTime{};
     };
 }

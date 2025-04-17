@@ -69,7 +69,7 @@ namespace oblo::editor
 
                 const auto dt = now - m_lastFrameTime;
 
-                m_timeStats.dt = dt;
+                m_editorWorld.set_time_stats({.dt = dt});
                 m_scene.update({.dt = dt});
 
                 m_lastFrameTime = now;
@@ -80,14 +80,12 @@ namespace oblo::editor
             return false;
         }
 
+        m_editorWorld.switch_world(m_scene.get_entity_registry(), m_scene.get_service_registry());
+
         auto* const registry = ctx.services.get_local_registry();
         OBLO_ASSERT(registry);
 
-        registry->add<selected_entities>().externally_owned(&m_selection);
-        registry->add<time_stats>().externally_owned(&m_timeStats);
-
-        registry->add<ecs::entity_registry>().externally_owned(&m_scene.get_entity_registry());
-        registry->add<scene_renderer>().externally_owned(m_scene.get_service_registry().find<scene_renderer>());
+        registry->add<editor_world>().externally_owned(&m_editorWorld);
 
         ctx.windowManager.create_child_window<inspector>(ctx.windowHandle);
         ctx.windowManager.create_child_window<scene_hierarchy>(ctx.windowHandle);

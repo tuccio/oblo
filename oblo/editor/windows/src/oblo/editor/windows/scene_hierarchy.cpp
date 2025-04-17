@@ -6,6 +6,7 @@
 #include <oblo/ecs/range.hpp>
 #include <oblo/editor/data/drag_and_drop_payload.hpp>
 #include <oblo/editor/service_context.hpp>
+#include <oblo/editor/services/editor_world.hpp>
 #include <oblo/editor/services/selected_entities.hpp>
 #include <oblo/editor/utility/entity_utility.hpp>
 #include <oblo/editor/window_update_context.hpp>
@@ -23,8 +24,7 @@ namespace oblo::editor
 {
     void scene_hierarchy::init(const window_update_context& ctx)
     {
-        m_registry = ctx.services.find<ecs::entity_registry>();
-        m_selection = ctx.services.find<selected_entities>();
+        m_editorWorld = ctx.services.find<editor_world>();
     }
 
     bool scene_hierarchy::update(const window_update_context&)
@@ -35,6 +35,9 @@ namespace oblo::editor
 
         if (ImGui::Begin("Hierarchy", &open))
         {
+            auto* const entityRegistry = m_editorWorld->get_entity_registry();
+            auto* const selection = m_editorWorld->get_selected_entities();
+
             auto* const window = ImGui::GetCurrentWindow();
 
             if (ImGui::BeginDragDropTargetCustom(window->ContentRegionRect, window->ID))
@@ -42,7 +45,7 @@ namespace oblo::editor
                 if (auto* const assetPayload = ImGui::AcceptDragDropPayload(payloads::Entity))
                 {
                     const ecs::entity newChild = payloads::unpack_entity(assetPayload->Data);
-                    ecs_utility::reparent_entity(*m_registry, newChild, {});
+                    ecs_utility::reparent_entity(*entityRegistry, newChild, {});
                 }
 
                 ImGui::EndDragDropTarget();
@@ -59,19 +62,19 @@ namespace oblo::editor
             {
                 if (ImGui::MenuItem("Create Entity"))
                 {
-                    const auto e = ecs_utility::create_named_physical_entity(*m_registry,
+                    const auto e = ecs_utility::create_named_physical_entity(*entityRegistry,
                         "New Entity",
                         {},
                         {},
                         quaternion::identity(),
                         vec3::splat(1));
 
-                    m_selection->clear();
-                    m_selection->add(e);
-                    m_selection->push_refresh_event();
+                    selection->clear();
+                    selection->add(e);
+                    selection->push_refresh_event();
                 }
 
-                const std::span selectedEntities = m_selection->get();
+                const std::span selectedEntities = selection->get();
 
                 if (!selectedEntities.empty())
                 {
@@ -79,10 +82,10 @@ namespace oblo::editor
                     {
                         for (const auto e : selectedEntities)
                         {
-                            ecs_utility::destroy_hierarchy(*m_registry, e);
+                            ecs_utility::destroy_hierarchy(*entityRegistry, e);
                         }
 
-                        m_selection->clear();
+                        selection->clear();
                     }
                 }
 
@@ -92,30 +95,30 @@ namespace oblo::editor
             {
                 if (hasFocus && ImGui::IsKeyPressed(ImGuiKey_Delete, false))
                 {
-                    for (const auto e : m_selection->get())
+                    for (const auto e : selection->get())
                     {
-                        ecs_utility::destroy_hierarchy(*m_registry, e);
+                        ecs_utility::destroy_hierarchy(*entityRegistry, e);
                     }
 
-                    m_selection->clear();
+                    selection->clear();
                 }
             }
 
             ecs::entity entityToSelect{};
 
-            if (const auto eventId = m_selection->get_last_refresh_event_id(); m_lastRefreshEvent != eventId)
+            if (const auto eventId = selection->get_last_refresh_event_id(); m_lastRefreshEvent != eventId)
             {
-                const auto selection = m_selection->get();
+                const auto selectedEntities = selection->get();
 
-                if (selection.size() == 1)
+                if (selectedEntities.size() == 1)
                 {
-                    entityToSelect = selection.front();
+                    entityToSelect = selectedEntities.front();
                 }
 
                 m_lastRefreshEvent = eventId;
             }
 
-            const auto rootsRange = m_registry->range<>().exclude<parent_component>();
+            const auto rootsRange = entityRegistry->range<>().exclude<parent_component>();
 
             struct entity_stack_entry
             {
@@ -132,7 +135,8 @@ namespace oblo::editor
                 {
                     bool isSelectedEntityInTree = false;
 
-                    if (entityToSelect != ecs::entity{} && ecs_utility::find_root(*m_registry, entityToSelect) == root)
+                    if (entityToSelect != ecs::entity{} &&
+                        ecs_utility::find_root(*entityRegistry, entityToSelect) == root)
                     {
                         isSelectedEntityInTree = true;
                     }
@@ -152,7 +156,7 @@ namespace oblo::editor
                         const ecs::entity e = info.id;
                         const bool forceExpand = info.forceExpand;
 
-                        const children_component* cc = m_registry->try_get<children_component>(e);
+                        const children_component* cc = entityRegistry->try_get<children_component>(e);
 
                         ImGuiTreeNodeFlags flags{ImGuiTreeNodeFlags_OpenOnArrow};
 
@@ -163,7 +167,7 @@ namespace oblo::editor
                             flags |= ImGuiTreeNodeFlags_Leaf;
                         }
 
-                        if (m_selection->contains(e))
+                        if (selection->contains(e))
                         {
                             flags |= ImGuiTreeNodeFlags_Selected;
 
@@ -173,7 +177,7 @@ namespace oblo::editor
                             }
                         }
 
-                        auto* const name = entity_utility::get_name_cstr(*m_registry, e);
+                        auto* const name = entity_utility::get_name_cstr(*entityRegistry, e);
 
                         if (forceExpand)
                         {
@@ -201,8 +205,8 @@ namespace oblo::editor
 
                                 const ecs::entity newChild = payloads::unpack_entity(assetPayload->Data);
 
-                                defer.push(
-                                    [this, newChild, e] { ecs_utility::reparent_entity(*m_registry, newChild, e); });
+                                defer.push([entityRegistry, newChild, e]
+                                    { ecs_utility::reparent_entity(*entityRegistry, newChild, e); });
                             }
 
                             ImGui::EndDragDropTarget();
@@ -212,10 +216,10 @@ namespace oblo::editor
                         {
                             if (!ImGui::GetIO().KeyCtrl)
                             {
-                                m_selection->clear();
+                                selection->clear();
                             }
 
-                            m_selection->add(e);
+                            selection->add(e);
                         }
 
                         u32 nodesToPop = info.ancestorsToPop;

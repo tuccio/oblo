@@ -11,6 +11,7 @@
 #include <oblo/ecs/type_set.hpp>
 #include <oblo/editor/data/drag_and_drop_payload.hpp>
 #include <oblo/editor/service_context.hpp>
+#include <oblo/editor/services/editor_world.hpp>
 #include <oblo/editor/services/incremental_id_pool.hpp>
 #include <oblo/editor/services/selected_entities.hpp>
 #include <oblo/editor/window_update_context.hpp>
@@ -50,25 +51,17 @@ namespace oblo::editor
 
     void viewport::init(const window_update_context& ctx)
     {
-        m_entities = ctx.services.find<ecs::entity_registry>();
-        OBLO_ASSERT(m_entities);
+        m_editorWorld = ctx.services.find<editor_world>();
+        OBLO_ASSERT(m_editorWorld);
 
-        m_sceneRenderer = ctx.services.find<scene_renderer>();
-        OBLO_ASSERT(m_sceneRenderer);
-
-        m_sceneRenderer->ensure_setup(*m_entities);
+        attach_to_world();
+        m_editorWorld->register_world_switch_callback([this] { detach_from_world(); });
 
         m_resources = ctx.services.find<const resource_registry>();
         OBLO_ASSERT(m_resources);
 
         m_inputQueue = ctx.services.find<const input_queue>();
         OBLO_ASSERT(m_inputQueue);
-
-        m_selection = ctx.services.find<selected_entities>();
-        OBLO_ASSERT(m_selection);
-
-        m_timeStats = ctx.services.find<const time_stats>();
-        OBLO_ASSERT(m_timeStats);
 
         m_idPool = ctx.services.find<incremental_id_pool>();
         OBLO_ASSERT(m_idPool);
@@ -234,11 +227,13 @@ namespace oblo::editor
                         }
                     }
 
+                    const auto dt = m_editorWorld->get_time_stats().dt;
+
                     auto&& [p, r] = m_entities->get<position_component, rotation_component>(m_entity);
 
                     const auto [w, h] = ImGui::GetItemRectSize();
                     m_cameraController.set_screen_size({w, h});
-                    m_cameraController.process(m_inputQueue->get_events(), m_timeStats->dt);
+                    m_cameraController.process(m_inputQueue->get_events(), dt);
 
                     p.value = m_cameraController.get_position();
                     r.value = m_cameraController.get_orientation();
@@ -325,7 +320,21 @@ namespace oblo::editor
             m_entities->get<rotation_component>(m_entity).value * vec3{.z = -SpawnDistance};
     }
 
-    void viewport::on_close()
+    void viewport::attach_to_world()
+    {
+        m_entities = m_editorWorld->get_entity_registry();
+        OBLO_ASSERT(m_entities);
+
+        m_sceneRenderer = m_editorWorld->get_scene_renderer();
+        OBLO_ASSERT(m_sceneRenderer);
+
+        m_sceneRenderer->ensure_setup(*m_entities);
+
+        m_selection = m_editorWorld->get_selected_entities();
+        OBLO_ASSERT(m_selection);
+    }
+
+    void viewport::detach_from_world()
     {
         if (m_entity)
         {
@@ -333,16 +342,25 @@ namespace oblo::editor
             m_entity = {};
         }
 
-        if (m_idPool)
-        {
-            m_idPool->release<viewport>(m_viewportId);
-            m_idPool = {};
-        }
-
         if (m_viewGraph)
         {
             m_sceneRenderer->remove_scene_view(m_viewGraph);
             m_viewGraph = {};
+        }
+
+        m_entities = {};
+        m_sceneRenderer = {};
+        m_selection = {};
+    }
+
+    void viewport::on_close()
+    {
+        detach_from_world();
+
+        if (m_idPool)
+        {
+            m_idPool->release<viewport>(m_viewportId);
+            m_idPool = {};
         }
     }
 
