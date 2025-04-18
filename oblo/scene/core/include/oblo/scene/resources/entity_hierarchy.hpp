@@ -27,11 +27,11 @@ namespace oblo
     public:
         SCENE_API entity_hierarchy();
         entity_hierarchy(const entity_hierarchy&) = delete;
-        entity_hierarchy(entity_hierarchy&&) noexcept = delete;
+        SCENE_API entity_hierarchy(entity_hierarchy&&) noexcept;
         SCENE_API ~entity_hierarchy();
 
         entity_hierarchy& operator=(const entity_hierarchy&) = delete;
-        entity_hierarchy& operator=(entity_hierarchy&&) noexcept = delete;
+        SCENE_API entity_hierarchy& operator=(entity_hierarchy&&) noexcept;
 
         SCENE_API expected<> init(const ecs::type_registry& typeRegistry);
 

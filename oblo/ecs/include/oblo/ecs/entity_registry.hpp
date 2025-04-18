@@ -46,6 +46,7 @@ namespace oblo::ecs
         void create(u32 count, std::span<entity> outEntityIds = {});
 
         void destroy(entity e);
+        void destroy_all();
 
         void add(entity e, const component_and_tag_sets& types);
 

@@ -54,8 +54,12 @@ namespace oblo::editor
         m_editorWorld = ctx.services.find<editor_world>();
         OBLO_ASSERT(m_editorWorld);
 
-        attach_to_world();
-        m_editorWorld->register_world_switch_callback([this] { detach_from_world(); });
+        m_editorWorld->register_world_switch_callback(
+            [this]
+            {
+                // Detach and leave the viewport detached until next update
+                detach_from_world();
+            });
 
         m_resources = ctx.services.find<const resource_registry>();
         OBLO_ASSERT(m_resources);
@@ -86,6 +90,12 @@ namespace oblo::editor
 
     bool viewport::update(const window_update_context& ctx)
     {
+        if (!m_entities)
+        {
+            // When detaching from the world we leave these fields unset until next update
+            attach_to_world();
+        }
+
         bool open{true};
 
         string_builder buffer;

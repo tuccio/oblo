@@ -10,7 +10,11 @@ namespace oblo
 
     entity_hierarchy::entity_hierarchy() = default;
 
+    entity_hierarchy::entity_hierarchy(entity_hierarchy&&) noexcept = default;
+
     entity_hierarchy::~entity_hierarchy() = default;
+
+    entity_hierarchy& entity_hierarchy::operator=(entity_hierarchy&&) noexcept = default;
 
     expected<> entity_hierarchy::init(const ecs::type_registry& typeRegistry)
     {

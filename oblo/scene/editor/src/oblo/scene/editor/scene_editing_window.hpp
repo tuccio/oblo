@@ -5,6 +5,7 @@
 #include <oblo/editor/services/selected_entities.hpp>
 #include <oblo/editor/services/update_dispatcher.hpp>
 #include <oblo/runtime/runtime.hpp>
+#include <oblo/scene/resources/entity_hierarchy.hpp>
 
 namespace oblo
 {
@@ -27,10 +28,19 @@ namespace oblo::editor
         ecs::entity_registry& get_entity_registry() const;
 
     private:
+        void start_simulation(const window_update_context& ctx);
+        void stop_simulation(const window_update_context& ctx);
+
+    private:
+        enum class editor_mode : u8;
+
+    private:
         runtime m_scene;
+        entity_hierarchy m_sceneBackup;
         editor_world m_editorWorld;
         update_subscriptions* m_updateSubscriptions{};
-        h32<update_subscriber> m_subscription{};
         time m_lastFrameTime{};
+        h32<update_subscriber> m_subscription{};
+        editor_mode m_editorMode{};
     };
 }

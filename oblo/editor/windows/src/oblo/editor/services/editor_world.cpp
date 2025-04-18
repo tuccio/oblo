@@ -12,6 +12,7 @@ namespace oblo::editor
         m_sceneRenderer = services.find<scene_renderer>();
 
         m_selectedEntities.clear();
+        m_selectedEntities.push_refresh_event();
     }
 
     ecs::entity_registry* editor_world::get_entity_registry() const
