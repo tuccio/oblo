@@ -6,6 +6,7 @@
 #include <oblo/core/formatters/uuid_formatter.hpp>
 #include <oblo/core/time/clock.hpp>
 #include <oblo/core/unreachable.hpp>
+#include <oblo/ecs/systems/system_graph_usages.hpp>
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/services/update_dispatcher.hpp>
 #include <oblo/editor/ui/constants.hpp>
@@ -23,6 +24,7 @@
 #include <oblo/scene/assets/traits.hpp>
 #include <oblo/scene/resources/entity_hierarchy.hpp>
 #include <oblo/scene/serialization/entity_hierarchy_serialization_context.hpp>
+#include <oblo/scene/systems/usages.hpp>
 
 #include <IconsFontAwesome6.h>
 
@@ -31,10 +33,18 @@
 
 namespace oblo::editor
 {
+    enum class scene_editing_window::editor_mode : u8
+    {
+        editing,
+        simulating,
+    };
+
     namespace
     {
-        bool create_world(
-            runtime& world, const property_registry& propertyRegistry, const resource_registry& resourceRegistry)
+        bool create_world(runtime& world,
+            const property_registry& propertyRegistry,
+            const resource_registry& resourceRegistry,
+            ecs::system_graph_usages usages)
         {
             auto& mm = module_manager::get();
 
@@ -52,12 +62,36 @@ namespace oblo::editor
                     .propertyRegistry = &propertyRegistry,
                     .resourceRegistry = &resourceRegistry,
                     .worldBuilders = mm.find_services<ecs::world_builder>(),
+                    .usages = &usages,
                 }))
             {
                 return false;
             }
 
             return true;
+        }
+
+        ecs::system_graph_usages make_system_usages(scene_editing_window::editor_mode newMode)
+        {
+            using editor_mode = scene_editing_window::editor_mode;
+
+            ecs::system_graph_usages usages;
+
+            switch (newMode)
+            {
+            case editor_mode::simulating:
+                usages = {system_graph_usages::editor, system_graph_usages::scripts};
+                break;
+
+            case editor_mode::editing:
+                usages = {system_graph_usages::editor};
+                break;
+
+            default:
+                unreachable();
+            }
+
+            return usages;
         }
 
         bool toolbar_button(const char* label, bool isDisabled, u32 enabledColor, u32 disabledColor)
@@ -101,12 +135,6 @@ namespace oblo::editor
         }
     }
 
-    enum class scene_editing_window::editor_mode : u8
-    {
-        editing,
-        simulating,
-    };
-
     scene_editing_window ::~scene_editing_window()
     {
         on_close();
@@ -141,7 +169,7 @@ namespace oblo::editor
                 m_lastFrameTime = now;
             });
 
-        if (!create_world(m_scene, *m_propertyRegistry, *m_resourceRegistry))
+        if (!create_world(m_scene, *m_propertyRegistry, *m_resourceRegistry, make_system_usages(m_editorMode)))
         {
             return false;
         }
@@ -269,7 +297,10 @@ namespace oblo::editor
 
         m_assetId = {};
 
-        if (!copy_current_from(*sceneAsset))
+        // Keeps the current editor mode
+        const auto newMode = m_editorMode;
+
+        if (!copy_current_from(*sceneAsset, newMode))
         {
             return unspecified_error;
         }
@@ -291,14 +322,14 @@ namespace oblo::editor
         return assetRegistry.save_asset(asset, m_assetId);
     }
 
-    expected<> scene_editing_window::copy_current_from(const entity_hierarchy& source)
+    expected<> scene_editing_window::copy_current_from(const entity_hierarchy& source, editor_mode newMode)
     {
         m_editorWorld.detach_world();
 
         runtime newScene;
 
         // Try to create the world first, so we keep the current around in case it fails
-        if (!create_world(newScene, *m_propertyRegistry, *m_resourceRegistry))
+        if (!create_world(newScene, *m_propertyRegistry, *m_resourceRegistry, make_system_usages(newMode)))
         {
             return unspecified_error;
         }
@@ -371,15 +402,17 @@ namespace oblo::editor
             return;
         }
 
-        // Detaching here might be unnecessary, since we did not remove any entity, but we do it for consistency
-        m_editorWorld.switch_world(m_scene.get_entity_registry(), m_scene.get_service_registry());
+        if (!copy_current_from(m_sceneBackup, editor_mode::simulating))
+        {
+            log::error("Failed to serialize scene back");
+        }
 
         m_editorMode = editor_mode::simulating;
     }
 
     void scene_editing_window::stop_simulation()
     {
-        if (!copy_current_from(m_sceneBackup))
+        if (!copy_current_from(m_sceneBackup, editor_mode::editing))
         {
             log::error("Failed to serialize scene back");
         }

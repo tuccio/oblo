@@ -3,6 +3,7 @@
 #include <oblo/core/expected.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/ecs/forward.hpp>
+#include <oblo/ecs/systems/system_graph_usages.hpp>
 
 #include <span>
 #include <unordered_map>
@@ -15,7 +16,7 @@ namespace oblo::ecs
         class barrier_builder;
 
     public:
-        system_graph_builder();
+        explicit system_graph_builder(system_graph_usages usages);
         system_graph_builder(const system_graph_builder&) = delete;
         system_graph_builder(system_graph_builder&&) = delete;
 
@@ -35,6 +36,8 @@ namespace oblo::ecs
         template <typename T>
         barrier_builder add_barrier();
 
+        const system_graph_usages& usages() const;
+
         expected<system_graph> build();
 
     private:
@@ -46,6 +49,7 @@ namespace oblo::ecs
     private:
         system_graph m_graph;
         std::unordered_map<type_id, barrier_systems> m_barrier;
+        system_graph_usages m_usages{};
     };
 
     class system_graph_builder::barrier_builder

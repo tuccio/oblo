@@ -23,6 +23,9 @@ namespace oblo::editor
     class scene_editing_window final
     {
     public:
+        enum class editor_mode : u8;
+
+    public:
         ~scene_editing_window();
 
         bool init(const window_update_context& ctx);
@@ -39,7 +42,7 @@ namespace oblo::editor
         /// @brief Wipes the current scene, copying the source hierarchy into it.
         /// @remarks When the simulation is active, the simulation world will be wiped, leaving the original scene
         /// untouched.
-        expected<> copy_current_from(const entity_hierarchy& source);
+        expected<> copy_current_from(const entity_hierarchy& source, editor_mode newMode);
 
         /// @brief Copies the current editor scene into the destination.
         /// @remarks When the simulation is active, this method will still copy the original scene, as it appeared
@@ -47,9 +50,6 @@ namespace oblo::editor
         expected<> copy_scene_to(entity_hierarchy& destination) const;
 
         static expected<> copy_to(const ecs::entity_registry& source, entity_hierarchy& destination);
-
-    private:
-        enum class editor_mode : u8;
 
     private:
         runtime m_scene;
