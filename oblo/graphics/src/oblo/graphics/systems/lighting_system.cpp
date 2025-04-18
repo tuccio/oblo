@@ -66,28 +66,6 @@ namespace oblo
 
         m_sceneRenderer->ensure_setup(*ctx.entities);
 
-        // Hacky setup for directional light
-        const auto e = ecs_utility::create_named_physical_entity<light_component, transient_tag>(*ctx.entities,
-            "Sun",
-            {},
-            {},
-            quaternion::from_euler_xyz_intrinsic(degrees_tag{}, vec3{.x = -69.f, .y = -29.f, .z = -2.f}),
-            vec3::splat(1.f));
-
-        ctx.entities->get<light_component>(e) = {
-            .type = light_type::directional,
-            .color = vec3::splat(1.f),
-            .intensity = 50.f,
-            .isShadowCaster = true,
-            .hardShadows = false,
-            .shadowBias = .025f,
-            .shadowPunctualRadius = 100.f,
-            .shadowDepthSigma = 1e-2f,
-            .shadowTemporalAccumulationFactor = .98f,
-            .shadowMeanFilterSize = 17,
-            .shadowMeanFilterSigma = 1.f,
-        };
-
         m_rtShadows = vk::raytraced_shadow_view::create(m_sceneRenderer->get_frame_graph_registry());
 
         update(ctx);

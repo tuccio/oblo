@@ -471,6 +471,23 @@ namespace oblo::ecs_serializer
                                             }
                                             break;
 
+                                        case property_kind::u8:
+                                            if (const auto value = doc.read_u32(valueNode))
+                                            {
+                                                property_value_wrapper{narrow_cast<u8>(*value)}.assign_to(property.kind,
+                                                    propertyPtr);
+                                            }
+                                            break;
+
+                                        case property_kind::u16:
+                                            if (const auto value = doc.read_u32(valueNode))
+                                            {
+                                                property_value_wrapper{narrow_cast<u16>(*value)}.assign_to(
+                                                    property.kind,
+                                                    propertyPtr);
+                                            }
+                                            break;
+
                                         case property_kind::u32:
                                             if (const auto value = doc.read_u32(valueNode))
                                             {
@@ -478,7 +495,15 @@ namespace oblo::ecs_serializer
                                             }
                                             break;
 
+                                        case property_kind::u64:
+                                            if (const auto value = doc.read_u64(valueNode))
+                                            {
+                                                property_value_wrapper{*value}.assign_to(property.kind, propertyPtr);
+                                            }
+                                            break;
+
                                         default:
+                                            OBLO_ASSERT(false);
                                             break;
                                         }
                                     }

@@ -73,7 +73,9 @@ namespace oblo
         expected<bool, error> read_bool(u32 node) const;
 
         expected<f32, error> read_f32(u32 node) const;
+        expected<f64, error> read_f64(u32 node) const;
         expected<u32, error> read_u32(u32 node) const;
+        expected<u64, error> read_u64(u32 node) const;
         expected<uuid, error> read_uuid(u32 node) const;
 
     private:

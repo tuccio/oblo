@@ -401,7 +401,7 @@ namespace oblo
         }
 
         for (u32 index = m_nodes[parent].objectOrArray.firstChild; index != data_node::Invalid;
-             index = m_nodes[index].nextSibling)
+            index = m_nodes[index].nextSibling)
         {
             if (get_node_name(index) == name)
             {
@@ -489,7 +489,46 @@ namespace oblo
         return error::value_kind_mismatch;
     }
 
+    expected<f64, data_document::error> data_document::read_f64(u32 node) const
+    {
+        if (node >= m_nodes.size())
+        {
+            return error::node_invalid;
+        }
+
+        auto& n = m_nodes[node];
+
+        if (n.kind != data_node_kind::value)
+        {
+            return error::node_kind_mismatch;
+        }
+
+        if (n.valueKind == property_kind::f32)
+        {
+            return *reinterpret_cast<const f64*>(n.value.data);
+        }
+
+        if (n.valueKind == property_kind::f64)
+        {
+            return *reinterpret_cast<const f64*>(n.value.data);
+        }
+
+        return error::value_kind_mismatch;
+    }
+
     expected<u32, data_document::error> data_document::read_u32(u32 node) const
+    {
+        const auto r64 = read_u64(node);
+
+        if (!r64)
+        {
+            return r64.error();
+        }
+
+        return narrow_cast<u32>(r64.value());
+    }
+
+    expected<u64, data_document::error> data_document::read_u64(u32 node) const
     {
         if (node >= m_nodes.size())
         {
@@ -513,6 +552,9 @@ namespace oblo
 
         case property_kind::u32:
             return *reinterpret_cast<const u32*>(n.value.data);
+
+        case property_kind::u64:
+            return *reinterpret_cast<const u64*>(n.value.data);
 
         default:
             break;

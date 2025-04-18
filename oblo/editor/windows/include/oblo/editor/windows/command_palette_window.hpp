@@ -1,12 +1,10 @@
 #pragma once
 
-#include <oblo/ecs/forward.hpp>
-
 #include <imgui.h>
 
 namespace oblo::editor
 {
-    class selected_entities;
+    class editor_world;
     struct registered_commands;
     struct window_update_context;
 
@@ -22,7 +20,6 @@ namespace oblo::editor
         registered_commands* m_commands{};
         ImGuiTextFilter m_filter{};
 
-        ecs::entity_registry* m_entities{};
-        selected_entities* m_selection{};
+        editor_world* m_editorWorld{};
     };
 }
