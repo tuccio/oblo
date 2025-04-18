@@ -132,9 +132,17 @@ namespace oblo::importers
         const string artifactsDir{child_path(testDir, "artifacts")};
         const string sourceFilesDir{child_path(testDir, "sourcefiles")};
 
+        const asset_source_descriptor assetSources[]{
+            {
+                .id = "assets"_hsv,
+                .assetsDirectory = assetsDir,
+                .sourcesDirectory = sourceFilesDir,
+            },
+        };
+
         clear_directory(testDir);
 
-        ASSERT_TRUE(registry.initialize(assetsDir, artifactsDir, sourceFilesDir));
+        ASSERT_TRUE(registry.initialize(assetSources, artifactsDir));
 
         deque<resource_type_descriptor> resourceTypes;
         fetch_scene_resource_types(resourceTypes);
@@ -162,13 +170,16 @@ namespace oblo::importers
         {
             const auto dirName = filesystem::filename(filesystem::parent_path(file, dirNameBuilder));
 
+            string_builder destination;
+            destination.append("$assets").append_path(dirName);
+
             data_document importSettings;
             importSettings.init();
             importSettings.child_value(importSettings.get_root(),
                 "generateMeshlets"_hsv,
                 property_value_wrapper{false});
 
-            const auto importResult = registry.import(file, dirName, "Box", std::move(importSettings));
+            const auto importResult = registry.import(file, destination.view(), "Box", std::move(importSettings));
 
             ASSERT_TRUE(importResult);
 
@@ -184,8 +195,7 @@ namespace oblo::importers
             asset_meta assetMeta;
 
             string_builder assetPath;
-            assetPath.append(dirName);
-            assetPath.append_path("Box");
+            assetPath.format("$assets/{}/Box", dirName);
 
             ASSERT_TRUE(registry.find_asset_by_path(assetPath, meshId, assetMeta));
 

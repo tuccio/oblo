@@ -498,7 +498,11 @@ namespace oblo
             importer.set_asset_name(assetName);
         }
 
-        m_impl->push_import_process(nullptr, std::move(importer), std::move(settings), destination, assetSource);
+        m_impl->push_import_process(nullptr,
+            std::move(importer),
+            std::move(settings),
+            cstring_view{fullPath},
+            assetSource);
 
         return assetId;
     }
@@ -1679,7 +1683,6 @@ namespace oblo
         out = assetSources[it->second.value].assetDir;
 
         out.append(assetPath.substr(1 + assetSourceName.size()));
-        out.make_canonical_path();
 
         return it->second;
     }
