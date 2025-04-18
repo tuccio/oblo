@@ -1,13 +1,19 @@
 #pragma once
 
+#include <oblo/core/uuid.hpp>
 #include <oblo/ecs/forward.hpp>
+#include <oblo/editor/services/editor_world.hpp>
 #include <oblo/editor/services/selected_entities.hpp>
+#include <oblo/editor/services/update_dispatcher.hpp>
+#include <oblo/runtime/runtime.hpp>
+#include <oblo/scene/resources/entity_hierarchy.hpp>
 
 namespace oblo
 {
+    class asset_registry;
     class data_document;
-    class runtime_manager;
-    class runtime;
+    class property_registry;
+    class resource_registry;
 }
 
 namespace oblo::editor
@@ -17,17 +23,46 @@ namespace oblo::editor
     class scene_editing_window final
     {
     public:
+        enum class editor_mode : u8;
+
+    public:
         ~scene_editing_window();
 
         bool init(const window_update_context& ctx);
         bool update(const window_update_context& ctx);
         void on_close();
 
-        ecs::entity_registry& get_entity_registry() const;
+        expected<> load_scene(asset_registry& assetRegistry, const uuid& assetId);
+        expected<> save_scene(asset_registry& assetRegistry) const;
 
     private:
-        selected_entities m_selection;
-        runtime_manager* m_runtimeManager{};
-        runtime* m_runtime{};
+        void start_simulation();
+        void stop_simulation();
+
+        /// @brief Wipes the current scene, copying the source hierarchy into it.
+        /// @remarks When the simulation is active, the simulation world will be wiped, leaving the original scene
+        /// untouched.
+        expected<> copy_current_from(const entity_hierarchy& source, editor_mode newMode);
+
+        /// @brief Copies the current editor scene into the destination.
+        /// @remarks When the simulation is active, this method will still copy the original scene, as it appeared
+        /// before simulation started.
+        expected<> copy_scene_to(entity_hierarchy& destination) const;
+
+        static expected<> copy_to(const ecs::entity_registry& source, entity_hierarchy& destination);
+
+    private:
+        runtime m_scene;
+        entity_hierarchy m_sceneBackup;
+        editor_world m_editorWorld;
+
+        const property_registry* m_propertyRegistry{};
+        const resource_registry* m_resourceRegistry{};
+        update_subscriptions* m_updateSubscriptions{};
+
+        time m_lastFrameTime{};
+        h32<update_subscriber> m_subscription{};
+        editor_mode m_editorMode{};
+        uuid m_assetId{};
     };
 }

@@ -3,6 +3,7 @@
 #include <oblo/app/graphics_engine.hpp>
 #include <oblo/app/graphics_window_context.hpp>
 #include <oblo/app/window_event_processor.hpp>
+#include <oblo/core/unreachable.hpp>
 #include <oblo/modules/module_manager.hpp>
 
 #include <SDL.h>
@@ -32,6 +33,35 @@ namespace oblo
             void* const windowData = window ? SDL_GetWindowData(window, g_WindowGraphicsContext) : nullptr;
             auto* const graphicsContext = static_cast<graphics_window_context*>(windowData);
             return {window, graphicsContext};
+        }
+
+        SDL_HitTestResult to_sdl_hit_test_result(hit_test_result res)
+        {
+            switch (res)
+            {
+            case hit_test_result::normal:
+                return SDL_HITTEST_NORMAL;
+            case hit_test_result::draggable:
+                return SDL_HITTEST_DRAGGABLE;
+            case hit_test_result::resize_top_left:
+                return SDL_HITTEST_RESIZE_TOPLEFT;
+            case hit_test_result::resize_top:
+                return SDL_HITTEST_RESIZE_TOP;
+            case hit_test_result::resize_top_right:
+                return SDL_HITTEST_RESIZE_TOPRIGHT;
+            case hit_test_result::resize_right:
+                return SDL_HITTEST_RESIZE_RIGHT;
+            case hit_test_result::resize_bottom_right:
+                return SDL_HITTEST_RESIZE_BOTTOMRIGHT;
+            case hit_test_result::resize_bottom:
+                return SDL_HITTEST_RESIZE_BOTTOM;
+            case hit_test_result::resize_bottom_left:
+                return SDL_HITTEST_RESIZE_BOTTOMLEFT;
+            case hit_test_result::resize_left:
+                return SDL_HITTEST_RESIZE_LEFT;
+            default:
+                unreachable();
+            }
         }
     }
 
@@ -201,6 +231,36 @@ namespace oblo
         else
         {
             SDL_ShowWindow(window);
+        }
+    }
+
+    void graphics_window::set_borderless(bool borderless)
+    {
+        SDL_Window* const window = sdl_window(m_impl);
+        SDL_SetWindowBordered(window, borderless ? SDL_FALSE : SDL_TRUE);
+    }
+
+    namespace
+    {
+        SDL_HitTestResult hit_test(SDL_Window*, const SDL_Point* position, void* data)
+        {
+            auto& f = *static_cast<const hit_test_fn*>(data);
+            const auto result = f(vec2u{u32(position->x), u32(position->y)});
+            return to_sdl_hit_test_result(result);
+        }
+    }
+
+    void graphics_window::set_custom_hit_test(const hit_test_fn* f)
+    {
+        SDL_Window* const window = sdl_window(m_impl);
+
+        if (f)
+        {
+            SDL_SetWindowHitTest(window, hit_test, const_cast<void*>(static_cast<const void*>(f)));
+        }
+        else
+        {
+            SDL_SetWindowHitTest(window, nullptr, nullptr);
         }
     }
 

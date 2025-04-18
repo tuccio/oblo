@@ -85,9 +85,11 @@ namespace oblo
 
     public:
         template <typename... Args>
-        T* unique(Args&&... args) &&
+        auto unique(Args&&... args) &&
         {
-            T* const ptr = m_registry->unique<T>(std::forward<Args>(args)...);
+            using U = std::remove_const_t<T>;
+
+            auto* const ptr = m_registry->unique<U>(std::forward<Args>(args)...);
             (m_registry->register_as<Bases>(ptr), ...);
             return ptr;
         }

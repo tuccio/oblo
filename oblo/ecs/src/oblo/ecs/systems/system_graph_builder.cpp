@@ -14,7 +14,7 @@ namespace oblo::ecs
         buffered_array<type_id, 8> before;
     };
 
-    system_graph_builder::system_graph_builder() = default;
+    system_graph_builder::system_graph_builder(system_graph_usages usages) : m_usages{std::move(usages)} {}
 
     system_graph_builder::~system_graph_builder() = default;
 
@@ -48,6 +48,11 @@ namespace oblo::ecs
         }
 
         return barrierBuilder;
+    }
+
+    const system_graph_usages& system_graph_builder::usages() const
+    {
+        return m_usages;
     }
 
     expected<system_graph> system_graph_builder::build()

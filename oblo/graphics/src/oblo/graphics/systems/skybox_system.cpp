@@ -37,6 +37,8 @@ namespace oblo
         m_sceneRenderer = ctx.services->find<scene_renderer>();
         OBLO_ASSERT(m_sceneRenderer);
 
+        m_sceneRenderer->ensure_setup(*ctx.entities);
+
         m_resourceRegistry = ctx.services->find<const resource_registry>();
         OBLO_ASSERT(m_resourceRegistry);
 

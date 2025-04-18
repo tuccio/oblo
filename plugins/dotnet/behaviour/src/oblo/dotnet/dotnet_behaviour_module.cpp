@@ -54,8 +54,14 @@ namespace oblo
         reflection::gen::load_module_and_register();
 
         initializer.services->add<ecs::world_builder>().unique({
-            .systems = [](ecs::system_graph_builder& b)
-            { b.add_system<dotnet_behaviour_system>().before<barriers::transform_update>(); },
+            .systems =
+                [](ecs::system_graph_builder& b)
+            {
+                if (!b.usages().contains("no_scripts"_hsv))
+                {
+                    b.add_system<dotnet_behaviour_system>().before<barriers::transform_update>();
+                }
+            },
         });
 
         initializer.services->add<dotnet_resource_types_provider>().as<resource_types_provider>().unique();

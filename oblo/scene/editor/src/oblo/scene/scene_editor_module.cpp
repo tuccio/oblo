@@ -9,6 +9,8 @@
 #include <oblo/core/struct_apply.hpp>
 #include <oblo/editor/providers/asset_editor_provider.hpp>
 #include <oblo/editor/providers/service_provider.hpp>
+#include <oblo/graphics/components/light_component.hpp>
+#include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_manager.hpp>
@@ -22,6 +24,7 @@
 #include <oblo/scene/resources/traits.hpp>
 #include <oblo/scene/serialization/ecs_serializer.hpp>
 #include <oblo/scene/serialization/entity_hierarchy_serialization_context.hpp>
+#include <oblo/scene/utility/ecs_utility.hpp>
 
 namespace oblo
 {
@@ -88,6 +91,30 @@ namespace oblo
                         {
                             r.clear();
                         }
+
+                        auto& entities = s.get_entity_registry();
+
+                        const auto e = ecs_utility::create_named_physical_entity<light_component>(entities,
+                            "Sun",
+                            {},
+                            {},
+                            quaternion::from_euler_xyz_intrinsic(degrees_tag{},
+                                vec3{.x = -69.f, .y = -29.f, .z = -2.f}),
+                            vec3::splat(1.f));
+
+                        entities.get<light_component>(e) = {
+                            .type = light_type::directional,
+                            .color = vec3::splat(1.f),
+                            .intensity = 50.f,
+                            .isShadowCaster = true,
+                            .hardShadows = false,
+                            .shadowBias = .025f,
+                            .shadowPunctualRadius = 100.f,
+                            .shadowDepthSigma = 1e-2f,
+                            .shadowTemporalAccumulationFactor = .98f,
+                            .shadowMeanFilterSize = 17,
+                            .shadowMeanFilterSigma = 1.f,
+                        };
 
                         return r;
                     },

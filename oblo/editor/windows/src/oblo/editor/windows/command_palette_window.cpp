@@ -2,6 +2,7 @@
 
 #include <oblo/core/array_size.hpp>
 #include <oblo/editor/service_context.hpp>
+#include <oblo/editor/services/editor_world.hpp>
 #include <oblo/editor/services/registered_commands.hpp>
 #include <oblo/editor/services/selected_entities.hpp>
 #include <oblo/editor/window_manager.hpp>
@@ -33,8 +34,8 @@ namespace oblo::editor
         m_commands = ctx.services.find<registered_commands>();
         m_filter.Clear();
 
-        m_entities = ctx.services.find<ecs::entity_registry>();
-        m_selection = ctx.services.find<selected_entities>();
+        m_editorWorld = ctx.services.find<editor_world>();
+        OBLO_ASSERT(m_editorWorld);
     }
 
     bool command_palette_window::update(const window_update_context& ctx)
@@ -98,8 +99,10 @@ namespace oblo::editor
 
                     if (ImGui::Selectable(buffer))
                     {
-                        const auto e = spawnCommands.spawn(*m_entities);
-                        auto* const p = m_entities->try_get<position_component>(e);
+                        auto* const entities = m_editorWorld->get_entity_registry();
+
+                        const auto e = spawnCommands.spawn(*entities);
+                        auto* const p = entities->try_get<position_component>(e);
 
                         if (p)
                         {
@@ -110,9 +113,11 @@ namespace oblo::editor
                             }
                         }
 
-                        m_selection->clear();
-                        m_selection->add(e);
-                        m_selection->push_refresh_event();
+                        auto* const selection = m_editorWorld->get_selected_entities();
+
+                        selection->clear();
+                        selection->add(e);
+                        selection->push_refresh_event();
 
                         isOpen = false;
                     }

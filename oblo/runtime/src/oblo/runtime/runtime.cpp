@@ -24,9 +24,10 @@ namespace oblo
 {
     namespace
     {
-        expected<ecs::system_seq_executor> create_system_executor(std::span<ecs::world_builder* const> worldBuilders)
+        expected<ecs::system_seq_executor> create_system_executor(std::span<ecs::world_builder* const> worldBuilders,
+            ecs::system_graph_usages usages)
         {
-            ecs::system_graph_builder builder;
+            ecs::system_graph_builder builder{std::move(usages)};
 
             for (const auto& worldBuilder : worldBuilders)
             {
@@ -67,7 +68,14 @@ namespace oblo
 
     bool runtime::init(const runtime_initializer& initializer)
     {
-        auto executor = create_system_executor(initializer.worldBuilders);
+        ecs::system_graph_usages usages;
+
+        if (initializer.usages)
+        {
+            usages = *initializer.usages;
+        }
+
+        auto executor = create_system_executor(initializer.worldBuilders, std::move(usages));
 
         if (!executor)
         {

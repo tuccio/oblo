@@ -8,7 +8,6 @@
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/platform/core.hpp>
 #include <oblo/core/service_registry.hpp>
-#include <oblo/core/time/clock.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/editor/editor_module.hpp>
 #include <oblo/editor/providers/service_provider.hpp>
@@ -18,13 +17,12 @@
 #include <oblo/editor/services/incremental_id_pool.hpp>
 #include <oblo/editor/services/log_queue.hpp>
 #include <oblo/editor/services/registered_commands.hpp>
-#include <oblo/editor/services/runtime_manager.hpp>
+#include <oblo/editor/services/update_dispatcher.hpp>
 #include <oblo/editor/ui/style.hpp>
 #include <oblo/editor/windows/asset_browser.hpp>
 #include <oblo/editor/windows/console_window.hpp>
 #include <oblo/editor/windows/editor_window.hpp>
 #include <oblo/editor/windows/style_window.hpp>
-#include <oblo/graphics/services/scene_renderer.hpp>
 #include <oblo/input/input_queue.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/log/log_module.hpp>
@@ -236,78 +234,6 @@ namespace oblo::editor
             project m_project;
             string_builder m_projectDir;
         };
-
-        class runtime_manager_impl : public runtime_manager
-        {
-        public:
-            runtime_manager_impl(runtime_registry& runtimeRegistry) : m_runtimeRegistry{runtimeRegistry} {}
-
-            runtime* create()
-            {
-                auto& mm = module_manager::get();
-
-                auto* const reflection = mm.find<oblo::reflection::reflection_module>();
-
-                auto& propertyRegistry = m_runtimeRegistry.get_property_registry();
-                auto& resourceRegistry = m_runtimeRegistry.get_resource_registry();
-
-                auto& entry = m_runtimes.emplace_back();
-
-                if (!entry.world.init({
-
-                        .reflectionRegistry = &reflection->get_registry(),
-                        .typeRegistry = mm.find_unique_service<const ecs::type_registry>(),
-                        .propertyRegistry = &propertyRegistry,
-                        .resourceRegistry = &resourceRegistry,
-                        .worldBuilders = mm.find_services<ecs::world_builder>(),
-                    }))
-                {
-                    return nullptr;
-                }
-
-                return &entry.world;
-            }
-
-            void destroy(runtime* r)
-            {
-                for (auto it = m_runtimes.begin(); it != m_runtimes.end(); ++it)
-                {
-                    if (r == &it->world)
-                    {
-                        r->shutdown();
-                        m_runtimes.erase(it);
-                        break;
-                    }
-                }
-            }
-
-            void update(const runtime_update_context& ctx)
-            {
-                for (auto& r : m_runtimes)
-                {
-                    r.world.update(ctx);
-                }
-            }
-
-            void shutdown()
-            {
-                for (auto& r : m_runtimes)
-                {
-                    r.world.shutdown();
-                }
-
-                m_runtimes.clear();
-            }
-
-        private:
-            struct runtime_impl
-            {
-                runtime world;
-            };
-
-            runtime_registry& m_runtimeRegistry;
-            dynamic_array<runtime_impl> m_runtimes;
-        };
     }
 
     struct app::impl
@@ -317,14 +243,13 @@ namespace oblo::editor
         job_manager m_jobManager;
         window_manager m_windowManager;
         asset_registry m_assetRegistry;
-        time_stats m_timeStats{};
-        time m_lastFrameTime{};
         editor_app_module* m_editorModule{};
         vk::vulkan_engine_module* m_vkEngine{};
         asset_editor_manager* m_assetEditors{};
         input_queue m_inputQueue;
         runtime_registry m_runtimeRegistry;
-        runtime_manager_impl m_runtimeManager{m_runtimeRegistry};
+        update_dispatcher m_updateDispatcher;
+        editor_window* m_mainWindow{};
 
         bool init(int argc, char* argv[]);
         bool startup();
@@ -384,6 +309,66 @@ namespace oblo::editor
 
         auto& mainWindow = app.get_main_window();
 
+        auto hitTest = [this, &mainWindow](const vec2u& position)
+        {
+            constexpr i32 borderSize = 2;
+
+            hit_test_result r = hit_test_result::normal;
+
+            const bool isMaximized = mainWindow.is_maximized();
+            const auto [w, h] = mainWindow.get_size();
+
+            if (!isMaximized)
+            {
+                if (position.x <= borderSize && position.y <= borderSize)
+                {
+                    r = hit_test_result::resize_top_left;
+                }
+                else if (position.x >= w - borderSize && position.y <= borderSize)
+                {
+                    r = hit_test_result::resize_top_right;
+                }
+                else if (position.x <= borderSize && position.y >= h - borderSize)
+                {
+                    r = hit_test_result::resize_bottom_left;
+                }
+                else if (position.x >= w - borderSize && position.y >= h - borderSize)
+                {
+                    r = hit_test_result::resize_bottom_right;
+                }
+                else if (position.y <= borderSize)
+                {
+                    r = hit_test_result::resize_top;
+                }
+                else if (position.y >= h - borderSize)
+                {
+                    r = hit_test_result::resize_bottom;
+                }
+                else if (position.x <= borderSize)
+                {
+                    r = hit_test_result::resize_left;
+                }
+                else if (position.x >= w - borderSize)
+                {
+                    r = hit_test_result::resize_right;
+                }
+                else if (m_impl->m_mainWindow->is_draggable_space(position))
+                {
+                    r = hit_test_result::draggable;
+                }
+            }
+            else if (m_impl->m_mainWindow->is_draggable_space(position))
+            {
+                r = hit_test_result::draggable;
+            }
+
+            return r;
+        };
+
+        const auto hitTestRef = hit_test_fn{hitTest};
+
+        mainWindow.set_borderless(true);
+        mainWindow.set_custom_hit_test(&hitTestRef);
         mainWindow.maximize();
         mainWindow.set_hidden(false);
 
@@ -391,6 +376,8 @@ namespace oblo::editor
 
         for (; OBLO_PROFILE_FRAME_BEGIN(); OBLO_PROFILE_FRAME_END())
         {
+            m_impl->m_mainWindow->set_is_maximized(mainWindow.is_maximized());
+
             if (!app.process_events())
             {
                 break;
@@ -411,6 +398,27 @@ namespace oblo::editor
             app.present();
 
             m_impl->m_inputQueue.clear();
+
+            switch (m_impl->m_mainWindow->get_last_window_event())
+            {
+            default:
+                break;
+
+            case editor_window_event::minimize:
+                mainWindow.minimize();
+                break;
+            case editor_window_event::maximize:
+                mainWindow.maximize();
+                break;
+            case editor_window_event::restore:
+                mainWindow.restore();
+                break;
+
+            case editor_window_event::close:
+                // We should check if we want to save the current scene first, maybe by triggering closure of every
+                // asset editor. Currenty we don't do that on ALT+F4 either though.
+                return;
+            }
         }
     }
 
@@ -482,8 +490,6 @@ namespace oblo::editor
 
         resourceRegistry.register_provider(resourceProvider);
 
-        m_lastFrameTime = clock::now();
-
         return true;
     }
 
@@ -505,12 +511,11 @@ namespace oblo::editor
         globalRegistry.add<const reflection::reflection_registry>().externally_owned(&reflection->get_registry());
         globalRegistry.add<const input_queue>().externally_owned(&m_inputQueue);
         globalRegistry.add<component_factory>().unique();
-        globalRegistry.add<const time_stats>().externally_owned(&m_timeStats);
         globalRegistry.add<const log_queue>().externally_owned(m_logQueue);
         globalRegistry.add<options_manager>().externally_owned(&options->manager());
         globalRegistry.add<registered_commands>().unique();
         globalRegistry.add<incremental_id_pool>().unique();
-        globalRegistry.add<runtime_manager>().externally_owned(&m_runtimeManager);
+        globalRegistry.add<update_subscriptions>().externally_owned(&m_updateDispatcher);
         auto* const assetEditorManager = globalRegistry.add<asset_editor_manager>().unique(m_assetRegistry);
 
         string_builder temporaryDir;
@@ -519,7 +524,8 @@ namespace oblo::editor
         auto* editorDirectories = globalRegistry.add<editor_directories>().unique();
         editorDirectories->init(temporaryDir).assert_value();
 
-        const auto editorWindow = m_windowManager.create_window<editor_window>(service_registry{});
+        const window_handle editorWindow = m_windowManager.create_window<editor_window>(service_registry{});
+        m_mainWindow = m_windowManager.try_access<editor_window>(editorWindow);
 
         // Add all asset editors under the editor window, to make sure they are dockable
         assetEditorManager->set_window_root(editorWindow);
@@ -544,7 +550,6 @@ namespace oblo::editor
     void app::impl::shutdown()
     {
         m_windowManager.shutdown();
-        m_runtimeManager.shutdown();
         m_runtimeRegistry.shutdown();
         platform::shutdown();
 
@@ -558,14 +563,7 @@ namespace oblo::editor
     void app::impl::update_runtime()
     {
         OBLO_PROFILE_SCOPE();
-
-        const auto now = clock::now();
-        const auto dt = now - m_lastFrameTime;
-
-        m_timeStats.dt = dt;
-        m_runtimeManager.update({.dt = dt});
-
-        m_lastFrameTime = now;
+        m_updateDispatcher.dispatch();
     }
 
     void app::impl::update_registries()

@@ -26,6 +26,7 @@ namespace oblo
         const property_registry* propertyRegistry;
         const resource_registry* resourceRegistry;
         std::span<ecs::world_builder* const> worldBuilders;
+        const ecs::system_graph_usages* usages;
         usize frameAllocatorMaxSize{1u << 28};
     };
 

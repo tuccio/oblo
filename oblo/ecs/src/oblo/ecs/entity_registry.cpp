@@ -153,6 +153,46 @@ namespace oblo::ecs
         m_entities.erase(e);
     }
 
+    void entity_registry::destroy_all()
+    {
+        // Goes through all chunks, calling destructors on components, then clears the entity map too
+        // Also updates chunk and storage metadata (e.g. modification id and entities count)
+
+        for (auto& storage : m_componentsStorage)
+        {
+            const u8 numComponentTypes = storage.archetype->numComponents;
+
+            for (u32 chunkIndex = 0, chunkEnd = get_used_chunks_count(storage); chunkIndex != chunkEnd; ++chunkIndex)
+            {
+                auto* currentChunk = storage.archetype->chunks[chunkIndex];
+
+                const u32 numEntitiesInChunk = get_entities_count_in_chunk(storage, chunkIndex);
+
+                for (u8 componentIndex = 0; componentIndex < numComponentTypes; ++componentIndex)
+                {
+                    // The first entity in the chunk
+                    constexpr u32 chunkOffset = 0;
+
+                    auto* const firstComponentPtr =
+                        get_component_pointer(currentChunk->data, *storage.archetype, componentIndex, chunkOffset);
+
+                    storage.archetype->fnTables[componentIndex].do_destroy(firstComponentPtr, numEntitiesInChunk);
+                }
+
+                // We could also just free all chunks
+                currentChunk->header.numEntities = 0;
+                currentChunk->header.modificationId = m_modificationId;
+            }
+
+            // While in this case we could free the chunks, we should not clear the archetype storages, so that users
+            // can still check the modification id
+            storage.archetype->numCurrentEntities = 0;
+            storage.archetype->modificationId = m_modificationId;
+        }
+
+        m_entities.clear();
+    }
+
     void entity_registry::add(entity e, const component_and_tag_sets& newTypes)
     {
         if (newTypes.components.is_empty() && newTypes.tags.is_empty())
