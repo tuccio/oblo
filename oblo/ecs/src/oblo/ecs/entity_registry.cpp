@@ -184,6 +184,8 @@ namespace oblo::ecs
                 currentChunk->header.modificationId = m_modificationId;
             }
 
+            // While in this case we could free the chunks, we should not clear the archetype storages, so that users
+            // can still check the modification id
             storage.archetype->numCurrentEntities = 0;
             storage.archetype->modificationId = m_modificationId;
         }
