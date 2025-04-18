@@ -8,6 +8,4 @@ namespace oblo::editor::colors
     constexpr u32 green = 0xFF6DA06D;
     constexpr u32 yellow = 0xFF7CC9E6;
     constexpr u32 red = 0xFF5757B8;
-
-    constexpr u32 disabled_button = 0xFF545454;
 }

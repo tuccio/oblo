@@ -1,6 +1,9 @@
 #include <oblo/scene/editor/scene_editing_window.hpp>
 
+#include <oblo/asset/any_asset.hpp>
+#include <oblo/asset/asset_registry.hpp>
 #include <oblo/core/debug.hpp>
+#include <oblo/core/formatters/uuid_formatter.hpp>
 #include <oblo/core/time/clock.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/editor/service_context.hpp>
@@ -16,6 +19,8 @@
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/reflection/reflection_module.hpp>
 #include <oblo/runtime/runtime.hpp>
+#include <oblo/scene/assets/scene.hpp>
+#include <oblo/scene/assets/traits.hpp>
 #include <oblo/scene/resources/entity_hierarchy.hpp>
 #include <oblo/scene/serialization/entity_hierarchy_serialization_context.hpp>
 
@@ -180,6 +185,8 @@ namespace oblo::editor
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
 
+        constexpr u32 disabledButtonColor = 0xFF545454;
+
         if (ImGui::BeginViewportSideBar("##scene_toolbar", nullptr, ImGuiDir_Up, height, flags))
         {
             if (ImGui::BeginMenuBar())
@@ -187,7 +194,15 @@ namespace oblo::editor
                 ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(5, 0));
                 ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_MenuBarBg));
 
-                ImGui::Button(ICON_FA_FLOPPY_DISK);
+                if (toolbar_button(ICON_FA_FLOPPY_DISK, m_assetId.is_nil(), colors::blue, disabledButtonColor))
+                {
+                    auto* const assetRegistry = ctx.services.find<asset_registry>();
+
+                    if (!assetRegistry || !save_scene(*assetRegistry))
+                    {
+                        log::error("Failed to save asset {}", m_assetId);
+                    }
+                }
 
                 ImGui::SameLine();
 
@@ -198,9 +213,9 @@ namespace oblo::editor
                 if (toolbar_button(ICON_FA_PLAY,
                         m_editorMode != editor_mode::editing,
                         colors::green,
-                        colors::disabled_button))
+                        disabledButtonColor))
                 {
-                    start_simulation(ctx);
+                    start_simulation();
                 }
 
                 ImGui::SameLine();
@@ -208,9 +223,9 @@ namespace oblo::editor
                 if (toolbar_button(ICON_FA_STOP,
                         m_editorMode == editor_mode::editing,
                         colors::red,
-                        colors::disabled_button))
+                        disabledButtonColor))
                 {
-                    stop_simulation(ctx);
+                    stop_simulation();
                 }
 
                 ImGui::SameLine();
@@ -242,47 +257,124 @@ namespace oblo::editor
         m_scene.shutdown();
     }
 
-    ecs::entity_registry& scene_editing_window::get_entity_registry() const
+    expected<> scene_editing_window::load_scene(asset_registry& assetRegistry, const uuid& assetId)
     {
-        return m_scene.get_entity_registry();
+        auto anyAsset = assetRegistry.load_asset(assetId);
+
+        if (!anyAsset)
+        {
+            return unspecified_error;
+        }
+
+        auto* const sceneAsset = anyAsset->as<scene>();
+
+        if (!sceneAsset)
+        {
+            return unspecified_error;
+        }
+
+        m_assetId = {};
+
+        if (!copy_current_from(*sceneAsset))
+        {
+            return unspecified_error;
+        }
+
+        m_assetId = assetId;
+        return no_error;
     }
 
-    void scene_editing_window::start_simulation(const window_update_context&)
+    expected<> scene_editing_window::save_scene(asset_registry& assetRegistry) const
+    {
+        any_asset asset;
+        auto& sceneAsset = asset.emplace<scene>();
+
+        if (!copy_scene_to(sceneAsset))
+        {
+            return unspecified_error;
+        }
+
+        return assetRegistry.save_asset(asset, m_assetId);
+    }
+
+    expected<> scene_editing_window::copy_current_from(const entity_hierarchy& source)
+    {
+        auto& sceneEntities = m_scene.get_entity_registry();
+        sceneEntities.destroy_all();
+
+        entity_hierarchy_serialization_context serializationCtx;
+
+        // NOTE: Here we pass empty configs into the copy_to, thus copying transient entities and types too if present,
+        // this is currently unused and possibly unnecessary, so subject to revisiting
+        if (!serializationCtx.init() ||
+            !source.copy_to(m_scene.get_entity_registry(), serializationCtx.get_property_registry(), {}, {}))
+        {
+            return unspecified_error;
+        }
+
+        return no_error;
+    }
+
+    expected<> scene_editing_window::copy_scene_to(entity_hierarchy& destination) const
+    {
+        const ecs::entity_registry* source{};
+
+        switch (m_editorMode)
+        {
+        case editor_mode::simulating:
+            source = &m_sceneBackup.get_entity_registry();
+            break;
+
+        case editor_mode::editing:
+            source = &m_scene.get_entity_registry();
+            break;
+
+        default:
+            return unspecified_error;
+        }
+
+        return copy_to(*source, destination);
+    }
+
+    expected<> scene_editing_window::copy_to(const ecs::entity_registry& source, entity_hierarchy& destination)
     {
         entity_hierarchy_serialization_context serializationCtx;
 
-        m_sceneBackup = {};
-
-
-        if (!serializationCtx.init() || !m_sceneBackup.init(serializationCtx.get_type_registry()) ||
-            !m_sceneBackup.copy_from(m_scene.get_entity_registry(),
+        // NOTE: In this copy we ignore transient entities and types (e.g. editor entities that might be present)
+        if (!serializationCtx.init() || !destination.init(serializationCtx.get_type_registry()) ||
+            !destination.copy_from(source,
                 serializationCtx.get_property_registry(),
                 serializationCtx.make_write_config(),
                 serializationCtx.make_read_config()))
+        {
+            return unspecified_error;
+        }
+
+        return no_error;
+    }
+
+    void scene_editing_window::start_simulation()
+    {
+        m_sceneBackup = {};
+
+        if (!copy_to(m_scene.get_entity_registry(), m_sceneBackup))
         {
             log::error("Failed to start simulation due to a serialization error");
             return;
         }
 
-        // m_editorWorld.switch_world(m_simulation.get_entity_registry(), m_simulation.get_service_registry());
+        // Detaching here might be unnecessary, since we did not remove any entity, but we do it for consistency
+        m_editorWorld.switch_world(m_scene.get_entity_registry(), m_scene.get_service_registry());
+
         m_editorMode = editor_mode::simulating;
     }
 
-    void scene_editing_window::stop_simulation(const window_update_context&)
+    void scene_editing_window::stop_simulation()
     {
-        entity_hierarchy_serialization_context serializationCtx;
-
         // This lets the viewports know they have to detach and recreate their entities
         m_editorWorld.switch_world(m_scene.get_entity_registry(), m_scene.get_service_registry());
 
-        auto& sceneEntities = m_scene.get_entity_registry();
-        sceneEntities.destroy_all();
-
-        if (!serializationCtx.init() ||
-            !m_sceneBackup.copy_to(m_scene.get_entity_registry(),
-                serializationCtx.get_property_registry(),
-                serializationCtx.make_write_config(),
-                serializationCtx.make_read_config()))
+        if (!copy_current_from(m_sceneBackup))
         {
             log::error("Failed to serialize scene back");
         }

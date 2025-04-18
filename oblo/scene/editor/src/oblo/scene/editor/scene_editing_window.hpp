@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/uuid.hpp>
 #include <oblo/ecs/forward.hpp>
 #include <oblo/editor/services/editor_world.hpp>
 #include <oblo/editor/services/selected_entities.hpp>
@@ -9,6 +10,7 @@
 
 namespace oblo
 {
+    class asset_registry;
     class data_document;
 }
 
@@ -25,11 +27,24 @@ namespace oblo::editor
         bool update(const window_update_context& ctx);
         void on_close();
 
-        ecs::entity_registry& get_entity_registry() const;
+        expected<> load_scene(asset_registry& assetRegistry, const uuid& assetId);
+        expected<> save_scene(asset_registry& assetRegistry) const;
 
     private:
-        void start_simulation(const window_update_context& ctx);
-        void stop_simulation(const window_update_context& ctx);
+        void start_simulation();
+        void stop_simulation();
+
+        /// @brief Wipes the current scene, copying the source hierarchy into it.
+        /// @remarks When the simulation is active, the simulation world will be wiped, leaving the original scene
+        /// untouched.
+        expected<> copy_current_from(const entity_hierarchy& source);
+
+        /// @brief Copies the current editor scene into the destination.
+        /// @remarks When the simulation is active, this method will still copy the original scene, as it appeared
+        /// before simulation started.
+        expected<> copy_scene_to(entity_hierarchy& destination) const;
+
+        static expected<> copy_to(const ecs::entity_registry& source, entity_hierarchy& destination);
 
     private:
         enum class editor_mode : u8;
@@ -42,5 +57,6 @@ namespace oblo::editor
         time m_lastFrameTime{};
         h32<update_subscriber> m_subscription{};
         editor_mode m_editorMode{};
+        uuid m_assetId{};
     };
 }

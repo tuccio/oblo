@@ -126,7 +126,7 @@ namespace oblo
     expected<> entity_hierarchy::copy_to(ecs::entity_registry& other,
         const property_registry& propertyRegistry,
         const ecs_serializer::write_config& wCfg,
-        const ecs_serializer::read_config& rCfg)
+        const ecs_serializer::read_config& rCfg) const
     {
         if (&other == &m_registry)
         {

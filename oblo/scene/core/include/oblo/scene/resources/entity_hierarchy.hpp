@@ -65,7 +65,7 @@ namespace oblo
         SCENE_API expected<> copy_to(ecs::entity_registry& other,
             const property_registry& propertyRegistry,
             const ecs_serializer::write_config& wCfg,
-            const ecs_serializer::read_config& rCfg);
+            const ecs_serializer::read_config& rCfg) const;
 
     private:
         ecs::entity_registry m_registry;
