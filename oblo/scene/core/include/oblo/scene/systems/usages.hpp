@@ -5,5 +5,5 @@
 namespace oblo::system_graph_usages
 {
     constexpr ecs::system_graph_usage editor = "editor"_hsv;
-    constexpr ecs::system_graph_usage scripts = "scripts"_hsv;
+    constexpr ecs::system_graph_usage no_scripts = "no_scripts"_hsv;
 }

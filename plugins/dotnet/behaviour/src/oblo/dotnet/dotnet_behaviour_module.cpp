@@ -57,7 +57,7 @@ namespace oblo
             .systems =
                 [](ecs::system_graph_builder& b)
             {
-                if (b.usages().contains("scripts"_hsv))
+                if (!b.usages().contains("no_scripts"_hsv))
                 {
                     b.add_system<dotnet_behaviour_system>().before<barriers::transform_update>();
                 }
