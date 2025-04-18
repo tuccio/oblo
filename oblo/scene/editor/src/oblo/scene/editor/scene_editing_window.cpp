@@ -33,27 +33,24 @@ namespace oblo::editor
 {
     namespace
     {
-        bool create_world(runtime& world, const service_context& ctx)
+        bool create_world(
+            runtime& world, const property_registry& propertyRegistry, const resource_registry& resourceRegistry)
         {
             auto& mm = module_manager::get();
 
-            auto* const reflection = mm.find<oblo::reflection::reflection_module>();
-
-            auto* const propertyRegistry = ctx.find<const property_registry>();
-            auto* const resourceRegistry = ctx.find<const resource_registry>();
             auto* const typeRegistry = mm.find_unique_service<const ecs::type_registry>();
 
-            if (!(reflection && propertyRegistry && resourceRegistry && typeRegistry))
+            if (!typeRegistry)
             {
                 return false;
             }
 
             if (!world.init({
 
-                    .reflectionRegistry = &reflection->get_registry(),
+                    .reflectionRegistry = &propertyRegistry.get_reflection_registry(),
                     .typeRegistry = typeRegistry,
-                    .propertyRegistry = propertyRegistry,
-                    .resourceRegistry = resourceRegistry,
+                    .propertyRegistry = &propertyRegistry,
+                    .resourceRegistry = &resourceRegistry,
                     .worldBuilders = mm.find_services<ecs::world_builder>(),
                 }))
             {
@@ -117,8 +114,19 @@ namespace oblo::editor
 
     bool scene_editing_window::init(const window_update_context& ctx)
     {
+        m_propertyRegistry = ctx.services.find<const property_registry>();
+        OBLO_ASSERT(m_propertyRegistry);
+
+        m_resourceRegistry = ctx.services.find<const resource_registry>();
+        OBLO_ASSERT(m_resourceRegistry);
+
         m_updateSubscriptions = ctx.services.find<update_subscriptions>();
         OBLO_ASSERT(m_updateSubscriptions);
+
+        if (!m_propertyRegistry || !m_resourceRegistry || !m_updateSubscriptions)
+        {
+            return false;
+        }
 
         m_subscription = m_updateSubscriptions->subscribe(
             [this]()
@@ -130,24 +138,10 @@ namespace oblo::editor
                 m_editorWorld.set_time_stats({.dt = dt});
                 m_scene.update({.dt = dt});
 
-                // switch (m_editorMode)
-                //{
-                // case editor_mode::editing:
-                //     m_scene.update({.dt = dt});
-                //     break;
-
-                // case editor_mode::simulating:
-                //     m_simulation.update({.dt = dt});
-                //     break;
-
-                // default:
-                //     unreachable();
-                // }
-
                 m_lastFrameTime = now;
             });
 
-        if (!create_world(m_scene, ctx.services))
+        if (!create_world(m_scene, *m_propertyRegistry, *m_resourceRegistry))
         {
             return false;
         }
@@ -299,8 +293,22 @@ namespace oblo::editor
 
     expected<> scene_editing_window::copy_current_from(const entity_hierarchy& source)
     {
-        auto& sceneEntities = m_scene.get_entity_registry();
-        sceneEntities.destroy_all();
+        m_editorWorld.detach_world();
+
+        runtime newScene;
+
+        // Try to create the world first, so we keep the current around in case it fails
+        if (!create_world(newScene, *m_propertyRegistry, *m_resourceRegistry))
+        {
+            return unspecified_error;
+        }
+
+        // Now we can replace it
+        m_scene.shutdown();
+        m_scene = std::move(newScene);
+
+        // This lets the viewports know they have to detach and recreate their entities
+        m_editorWorld.switch_world(m_scene.get_entity_registry(), m_scene.get_service_registry());
 
         entity_hierarchy_serialization_context serializationCtx;
 
@@ -371,9 +379,6 @@ namespace oblo::editor
 
     void scene_editing_window::stop_simulation()
     {
-        // This lets the viewports know they have to detach and recreate their entities
-        m_editorWorld.switch_world(m_scene.get_entity_registry(), m_scene.get_service_registry());
-
         if (!copy_current_from(m_sceneBackup))
         {
             log::error("Failed to serialize scene back");

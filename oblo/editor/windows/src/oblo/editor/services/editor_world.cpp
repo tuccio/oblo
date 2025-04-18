@@ -15,6 +15,17 @@ namespace oblo::editor
         m_selectedEntities.push_refresh_event();
     }
 
+    void editor_world::detach_world()
+    {
+        m_worldSwitchSubscribers.dispatch();
+
+        m_entityRegistry = nullptr;
+        m_sceneRenderer = nullptr;
+
+        m_selectedEntities.clear();
+        m_selectedEntities.push_refresh_event();
+    }
+
     ecs::entity_registry* editor_world::get_entity_registry() const
     {
         return m_entityRegistry;

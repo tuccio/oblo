@@ -12,6 +12,8 @@ namespace oblo
 {
     class asset_registry;
     class data_document;
+    class property_registry;
+    class resource_registry;
 }
 
 namespace oblo::editor
@@ -53,7 +55,11 @@ namespace oblo::editor
         runtime m_scene;
         entity_hierarchy m_sceneBackup;
         editor_world m_editorWorld;
+
+        const property_registry* m_propertyRegistry{};
+        const resource_registry* m_resourceRegistry{};
         update_subscriptions* m_updateSubscriptions{};
+
         time m_lastFrameTime{};
         h32<update_subscriber> m_subscription{};
         editor_mode m_editorMode{};

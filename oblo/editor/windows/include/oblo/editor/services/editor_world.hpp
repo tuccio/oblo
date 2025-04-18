@@ -28,6 +28,7 @@ namespace oblo::editor
 
     public:
         void switch_world(ecs::entity_registry& entityRegistry, const service_registry& services);
+        void detach_world();
 
         ecs::entity_registry* get_entity_registry() const;
         scene_renderer* get_scene_renderer() const;

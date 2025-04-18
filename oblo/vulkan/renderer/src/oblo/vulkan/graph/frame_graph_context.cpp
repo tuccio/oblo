@@ -486,7 +486,7 @@ namespace oblo::vk
 
     void frame_graph_build_context::register_global_tlas(VkAccelerationStructureKHR accelerationStructure) const
     {
-        //OBLO_ASSERT(!m_frameGraph.globalTLAS);
+        OBLO_ASSERT(!m_frameGraph.globalTLAS);
         m_frameGraph.globalTLAS = accelerationStructure;
     }
 
