@@ -109,7 +109,15 @@ namespace oblo
             string_builder sourceFiles;
             sourceFiles.append(directory).append_path("sources");
 
-            if (!registry.initialize(assetsDir, artifactsDir, sourceFiles))
+            const asset_source_descriptor assetSources[]{
+                {
+                    .id = "assets"_hsv,
+                    .assetsDirectory = assetsDir,
+                    .sourcesDirectory = sourceFiles,
+                },
+            };
+
+            if (!registry.initialize(assetSources, artifactsDir))
             {
                 return false;
             }
@@ -164,7 +172,7 @@ namespace oblo
             auto& b = a.emplace<mock_test_asset>();
             b.append("A");
 
-            const auto id = registry.create_asset(a, ".", "A");
+            const auto id = registry.create_asset(a, "$assets/", "A");
 
             ASSERT_TRUE(id);
             assetA = *id;
@@ -176,7 +184,7 @@ namespace oblo
 
         {
             string_builder expectedPath;
-            expectedPath.append(registry.get_asset_directory());
+            expectedPath.append(registry.get_asset_directory("assets"_hsv));
 
             string_builder assetPath;
             ASSERT_TRUE(registry.get_asset_directory(assetA, assetPath));
@@ -206,7 +214,7 @@ namespace oblo
 
         {
             string_builder expectedPath;
-            expectedPath.append(registry.get_asset_directory()).append_path("New Dir");
+            expectedPath.append(registry.get_asset_directory("assets"_hsv)).append_path("New Dir");
 
             string_builder assetPath;
             ASSERT_TRUE(registry.get_asset_directory(assetA, assetPath));
@@ -239,7 +247,7 @@ namespace oblo
 
         {
             string_builder expectedPath;
-            expectedPath.append(registry.get_asset_directory());
+            expectedPath.append(registry.get_asset_directory("assets"_hsv));
 
             string_builder assetPath;
             ASSERT_TRUE(registry.get_asset_directory(assetA, assetPath));
@@ -282,7 +290,7 @@ namespace oblo
             write_file(file, content);
 
             {
-                const auto id = registry.import(file, ".", "A", {});
+                const auto id = registry.import(file, "$assets/", "A", {});
 
                 ASSERT_TRUE(id);
                 assetA = *id;
@@ -294,7 +302,7 @@ namespace oblo
 
             {
                 string_builder expectedPath;
-                expectedPath.append(registry.get_asset_directory());
+                expectedPath.append(registry.get_asset_directory("assets"_hsv));
 
                 string_builder assetPath;
                 ASSERT_TRUE(registry.get_asset_directory(assetA, assetPath));
@@ -341,7 +349,7 @@ namespace oblo
 
         {
             string_builder expectedPath;
-            expectedPath.append(registry.get_asset_directory());
+            expectedPath.append(registry.get_asset_directory("assets"_hsv));
 
             string_builder assetPath;
             ASSERT_TRUE(registry.get_asset_directory(assetA, assetPath));

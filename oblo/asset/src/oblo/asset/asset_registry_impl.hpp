@@ -3,6 +3,7 @@
 #include <oblo/asset/asset_meta.hpp>
 #include <oblo/core/deque.hpp>
 #include <oblo/core/expected.hpp>
+#include <oblo/core/handle.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/string/transparent_string_hash.hpp>
 #include <oblo/core/type_id.hpp>
@@ -29,6 +30,7 @@ namespace oblo
     struct artifact_entry;
     struct asset_entry;
     struct asset_process_info;
+    struct asset_source;
     struct file_importer_info;
     struct native_asset_descriptor;
     struct import_process;
@@ -60,26 +62,31 @@ namespace oblo
 
         std::unordered_map<string, uuid, transparent_string_hash, std::equal_to<>> assetFileMap;
 
-        string_builder assetsDir;
+        std::unordered_map<hashed_string_view, h32<asset_source>, hash<hashed_string_view>> assetSourceNameToIdx;
+        dynamic_array<asset_source> assetSources;
+
         string_builder artifactsDir;
-        string_builder sourceFilesDir;
 
         deque<unique_ptr<import_process>> currentImports;
 
         unique_ptr<artifact_resource_provider> resourceProvider;
-        unique_ptr<filesystem::directory_watcher> watcher;
 
         u64 versionId{};
 
     public:
-        string_builder& make_asset_path(string_builder& out, string_view directory) const;
+        h32<asset_source> resolve_asset_path(string_builder& out, string_view assetPath) const;
+
+        string_builder& make_asset_path(string_builder& out, string_view directory, h32<asset_source> source) const;
 
         string_builder& make_artifact_path(string_builder& out, uuid assetId, uuid processId, uuid artifactId) const;
         string_builder& make_artifacts_process_path(string_builder& out, uuid assetId) const;
         string_builder& make_artifacts_directory_path(string_builder& out, uuid assetId, uuid processId) const;
 
-        void push_import_process(
-            asset_entry* optEntry, importer&& importer, data_document&& settings, string_view destination);
+        void push_import_process(asset_entry* optEntry,
+            importer&& importer,
+            data_document&& settings,
+            string_view destination,
+            h32<asset_source> assetSource);
 
         bool save_artifact(
             const cstring_view path, const artifact_meta& meta, const uuid& processId, write_policy policy);
@@ -95,19 +102,24 @@ namespace oblo
 
         importer create_importer(string_view sourceFile) const;
 
-        bool create_source_files_dir(string_builder& dir, uuid sourceFileId);
-        string_builder& make_source_files_dir_path(string_builder& dir, uuid sourceFileId) const;
+        const asset_source& get_asset_source(h32<asset_source> source) const;
+
+        bool create_source_files_dir(string_builder& dir, uuid sourceFileId, h32<asset_source> source);
+
+        string_builder& make_source_files_dir_path(
+            string_builder& dir, uuid sourceFileId, h32<asset_source> source) const;
 
         bool create_temporary_files_dir(string_builder& dir, uuid assetId) const;
 
-        bool create_directories(string_view directory);
+        bool create_directories(cstring_view directory);
 
         expected<> create_or_save_asset(asset_entry* optAssetEntry,
             const any_asset& asset,
             uuid assetId,
             cstring_view optSource,
             string_view destination,
-            string_view optName);
+            string_view optName,
+            h32<asset_source> assetSource);
 
         void on_artifact_added(artifact_meta meta, const uuid& processId);
         void on_artifact_removed(uuid artifactId);
@@ -120,5 +132,14 @@ namespace oblo
 
         bool on_new_asset_discovered(
             string_builder& builder, const uuid& assetId, const uuid& processId, deque<uuid>& artifacts);
+    };
+
+    struct asset_source
+    {
+        string_builder assetDir;
+        string_builder sourceDir;
+        unique_ptr<filesystem::directory_watcher> watcher;
+        h32<asset_source> id;
+        string name;
     };
 }

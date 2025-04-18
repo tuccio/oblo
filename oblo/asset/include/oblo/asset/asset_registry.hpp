@@ -3,6 +3,7 @@
 #include <oblo/core/expected.hpp>
 #include <oblo/core/flags.hpp>
 #include <oblo/core/string/cstring_view.hpp>
+#include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/unique_ptr.hpp>
 
@@ -41,6 +42,8 @@ namespace oblo
         enum_max,
     };
 
+    struct asset_source_descriptor;
+
     class asset_registry
     {
     public:
@@ -51,7 +54,7 @@ namespace oblo
         asset_registry& operator=(asset_registry&&) noexcept = delete;
         ~asset_registry();
 
-        [[nodiscard]] bool initialize(cstring_view assetsDir, cstring_view artifactsDir, cstring_view sourceFilesDir);
+        [[nodiscard]] bool initialize(std::span<const asset_source_descriptor> assetSources, cstring_view artifactsDir);
 
         void shutdown();
 
@@ -104,7 +107,7 @@ namespace oblo
         void iterate_artifacts_by_type(const uuid& type,
             function_ref<bool(const uuid& assetId, const uuid& artifactId)> callback) const;
 
-        cstring_view get_asset_directory() const;
+        cstring_view get_asset_directory(hashed_string_view sourceId) const;
 
         bool get_source_directory(const uuid& assetId, string_builder& outPath) const;
         bool get_source_path(const uuid& assetId, string_builder& outPath) const;
@@ -119,6 +122,13 @@ namespace oblo
 
     private:
         unique_ptr<asset_registry_impl> m_impl;
+    };
+
+    struct asset_source_descriptor
+    {
+        hashed_string_view id;
+        cstring_view assetsDirectory;
+        cstring_view sourcesDirectory;
     };
 
     inline const cstring_view AssetMetaExtension{".oasset"};
