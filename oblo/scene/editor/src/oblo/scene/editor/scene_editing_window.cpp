@@ -116,23 +116,6 @@ namespace oblo::editor
 
             return r;
         }
-
-        bool toolbar_button(const char* label, bool isDisabled)
-        {
-            if (isDisabled)
-            {
-                ImGui::BeginDisabled();
-            }
-
-            const auto r = ImGui::Button(label);
-
-            if (isDisabled)
-            {
-                ImGui::EndDisabled();
-            }
-
-            return r;
-        }
     }
 
     scene_editing_window ::~scene_editing_window()
