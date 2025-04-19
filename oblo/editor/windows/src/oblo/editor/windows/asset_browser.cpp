@@ -82,8 +82,8 @@ namespace oblo::editor
 
             bool is_renaming() const;
             bool is_renaming(const asset_browser_entry* other) const;
-            void start_renaming(const asset_browser_entry* other);
-            void stop_renaming(bool apply);
+            void start_renaming(const asset_registry& registry, const asset_browser_entry* other);
+            void stop_renaming(const asset_registry& registry, bool apply);
 
             void init(string_view str)
             {
@@ -119,6 +119,7 @@ namespace oblo::editor
             const char* text,
             ImGuiID selectableId,
             bool* isSelected,
+            const asset_registry& registry,
             rename_context* renameCtx = nullptr)
         {
             bool isPressed = false;
@@ -194,12 +195,12 @@ namespace oblo::editor
                             array_size(renameCtx->buffer),
                             ImGuiInputTextFlags_EnterReturnsTrue))
                     {
-                        renameCtx->stop_renaming(true);
+                        renameCtx->stop_renaming(registry, true);
                     }
                     else if (ImGui::IsItemFocused() && ImGui::IsKeyPressed(ImGuiKey_Escape) ||
                         ImGui::IsItemDeactivated())
                     {
-                        renameCtx->stop_renaming(false);
+                        renameCtx->stop_renaming(registry, false);
                     }
                 }
 
@@ -361,7 +362,7 @@ namespace oblo::editor
 
     void asset_browser::impl::build_directory_tree()
     {
-        renameCtx.stop_renaming(false);
+        renameCtx.stop_renaming(*registry, false);
         replace_selection(nullptr);
         directoryTree.clear();
 
@@ -735,7 +736,8 @@ namespace oblo::editor
                         g_Transparent,
                         "Back",
                         ImGui::GetID("##back"),
-                        &isSelected))
+                        &isSelected,
+                        *registry))
                 {
                     currentAssetPath.append_path("..").make_canonical_path();
                 }
@@ -769,6 +771,7 @@ namespace oblo::editor
                             entry.name.c_str(),
                             ImGui::GetID("##dir"),
                             &isSelected,
+                            *registry,
                             entryRename))
                     {
                         currentAssetPath = entry.assetPath;
@@ -798,7 +801,7 @@ namespace oblo::editor
 
                         if (ImGui::MenuItem("Rename"))
                         {
-                            renameCtx.start_renaming(&entry);
+                            renameCtx.start_renaming(*registry, &entry);
                         }
 
                         if (ImGui::MenuItem("Delete"))
@@ -849,6 +852,7 @@ namespace oblo::editor
                         entry.name.c_str(),
                         ImGui::GetID(builder.c_str()),
                         &isSelected,
+                        *registry,
                         entryRename);
 
                     if (ImGui::BeginItemTooltip())
@@ -901,7 +905,7 @@ namespace oblo::editor
 
                         if (ImGui::MenuItem("Rename"))
                         {
-                            renameCtx.start_renaming(&entry);
+                            renameCtx.start_renaming(*registry, &entry);
                         }
 
                         if (ImGui::MenuItem("Delete"))
@@ -954,7 +958,8 @@ namespace oblo::editor
                                 artifactColor,
                                 artifactName,
                                 ImGui::GetID(builder.c_str()),
-                                &isSelected);
+                                &isSelected,
+                                *registry);
 
                             if (!artifactMeta.artifactId.is_nil() && ImGui::BeginDragDropSource())
                             {
@@ -1014,7 +1019,7 @@ namespace oblo::editor
 
                 if (ImGui::IsKeyPressed(ImGuiKey_F2))
                 {
-                    renameCtx.start_renaming(selectedEntry);
+                    renameCtx.start_renaming(*registry, selectedEntry);
                 }
             }
         }
@@ -1096,11 +1101,11 @@ namespace oblo::editor
         return activeRenameEntry == other;
     }
 
-    void rename_context::start_renaming(const asset_browser_entry* other)
+    void rename_context::start_renaming(const asset_registry& registry, const asset_browser_entry* other)
     {
         if (is_renaming())
         {
-            stop_renaming(false);
+            stop_renaming(registry, false);
         }
 
         activeRenameEntry = other;
@@ -1111,7 +1116,7 @@ namespace oblo::editor
         }
     }
 
-    void rename_context::stop_renaming(bool apply)
+    void rename_context::stop_renaming(const asset_registry& registry, bool apply)
     {
         if (!activeRenameEntry)
         {
@@ -1123,12 +1128,21 @@ namespace oblo::editor
             string_builder newName = activeRenameEntry->assetPath;
             newName.parent_path().append_path(buffer);
 
+            string_builder oldFsName;
+            string_builder newFsName;
+
             if (activeRenameEntry->kind == asset_browser_entry_kind::asset)
             {
-                newName.append(AssetMetaExtension);
+                registry.resolve_asset_meta_path(oldFsName, activeRenameEntry->assetPath.view());
+                registry.resolve_asset_meta_path(newFsName, newName.view());
+            }
+            else
+            {
+                registry.resolve_asset_path(oldFsName, activeRenameEntry->assetPath.view());
+                registry.resolve_asset_path(newFsName, newName.view());
             }
 
-            if (!filesystem::rename(activeRenameEntry->assetPath, newName).value_or(false))
+            if (!filesystem::rename(oldFsName, newFsName).value_or(false))
             {
                 log::debug("Failed to rename {} to {}", activeRenameEntry->assetPath, newName);
             }
