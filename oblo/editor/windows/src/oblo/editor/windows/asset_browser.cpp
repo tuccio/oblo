@@ -262,6 +262,7 @@ namespace oblo::editor
         const asset_browser_entry* activeRenameEntry{};
 
         string requestedDelete;
+        asset_browser_entry_kind requestedDeleteEntryKind{};
 
         rename_context renameCtx;
 
@@ -546,8 +547,11 @@ namespace oblo::editor
                 {
                     string_builder fileSystemPath;
 
-                    if (!registry->resolve_asset_meta_path(fileSystemPath, requestedDelete) ||
-                        !filesystem::remove_all(fileSystemPath).value_or(false))
+                    const bool resolved = requestedDeleteEntryKind == asset_browser_entry_kind::asset
+                        ? registry->resolve_asset_meta_path(fileSystemPath, requestedDelete)
+                        : registry->resolve_asset_path(fileSystemPath, requestedDelete);
+
+                    if (!resolved || !filesystem::remove_all(fileSystemPath).value_or(false))
                     {
                         log::error("Failed to delete \"{}\"", requestedDelete);
                     }
@@ -1086,6 +1090,7 @@ namespace oblo::editor
     void asset_browser::impl::delete_entry(const asset_browser_entry& entry)
     {
         requestedDelete = entry.assetPath.as<string_view>();
+        requestedDeleteEntryKind = entry.kind;
     }
 
     bool asset_browser::impl::is_selected(const asset_browser_entry* other) const
