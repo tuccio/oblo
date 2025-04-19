@@ -308,13 +308,13 @@ namespace oblo::editor
 
         for (auto& source : sources)
         {
-            rootFSPath.clear();
-            m_impl->registry->resolve_asset_path(rootFSPath, source);
-            rootFSPath.make_canonical_path();
-
             auto& repo = m_impl->assetRepositories.emplace_back();
 
             repo.rootAssetPath = assetPathBuilder.clear().format("{}{}", asset_path_prefix, source);
+
+            rootFSPath.clear();
+            m_impl->registry->resolve_asset_path(rootFSPath, repo.rootAssetPath);
+            rootFSPath.make_canonical_path();
 
             if (repo.assetDirWatcher.init({
                     .path = rootFSPath.view(),
@@ -604,7 +604,14 @@ namespace oblo::editor
 
                 const auto& e = repo.directoryTree[info.index];
 
-                const auto assetPathDirName = filesystem::filename(e.assetPath.view());
+                auto assetPathDirName = filesystem::filename(e.assetPath.view());
+
+                if (info.index == 0)
+                {
+                    OBLO_ASSERT(assetPathDirName.starts_with(asset_path_prefix));
+                    assetPathDirName.remove_prefix(asset_path_prefix.size());
+                }
+
                 b.clear().format(ICON_FA_FOLDER " {}##{}", assetPathDirName, e.assetPath);
 
                 i32 nodeFlags = ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_OpenOnArrow |
@@ -721,7 +728,7 @@ namespace oblo::editor
 
     void asset_browser::impl::draw_main_panel(const window_update_context& ctx)
     {
-        if (!ImGui::BeginChild("#main_panel"))
+        if (!ImGui::BeginChild("#main_panel") || currentAssetPath.empty())
         {
             ImGui::EndChild();
             return;
@@ -733,8 +740,7 @@ namespace oblo::editor
 
         string_builder builder;
 
-        const asset_browser_directory emptyDir{.isRoot = true};
-        const asset_browser_directory& dir = currentAssetPath.empty() ? emptyDir : get_or_build(currentAssetPath);
+        const asset_browser_directory& dir = get_or_build(currentAssetPath);
 
         const f32 entryWidth = bigIconsFont->FontSize + 4.f * ImGui::GetStyle().ItemSpacing.x;
 

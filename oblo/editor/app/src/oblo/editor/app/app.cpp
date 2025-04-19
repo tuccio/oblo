@@ -198,6 +198,19 @@ namespace oblo::editor
 
                 initializer.services->add<options_layer_provider>().externally_owned(&m_editorOptions);
 
+                constexpr auto addRepositories = [](deque<asset_repository_descriptor>& outRepositories)
+                {
+                    outRepositories.push_back({
+                        .name = "oblo",
+                        .assetsDirectory = "./data/oblo/assets",
+                        .sourcesDirectory = "./data/oblo/sources",
+                    });
+                };
+
+                initializer.services->add<lambda_asset_repository_provider<decltype(addRepositories)>>()
+                    .as<asset_repository_provider>()
+                    .unique();
+
                 gen::load_modules_asset();
                 gen::load_modules_editor();
 
