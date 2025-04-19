@@ -1,3 +1,6 @@
 [submodule "testing/glTF-Sample-Assets"]
 	path = testing/glTF-Sample-Assets
 	url = https://github.com/KhronosGroup/glTF-Sample-Assets.git
+[submodule "oblo/editor/app/resources/oblo-assets"]
+	path = oblo/editor/app/resources/oblo-assets
+	url = https://github.com/tuccio/oblo-assets

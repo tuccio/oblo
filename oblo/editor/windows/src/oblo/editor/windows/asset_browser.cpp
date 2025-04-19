@@ -317,7 +317,7 @@ namespace oblo::editor
             m_impl->registry->resolve_asset_path(rootFSPath, repo.rootAssetPath);
             rootFSPath.make_canonical_path();
 
-            if (repo.assetDirWatcher.init({
+            if (!repo.assetDirWatcher.init({
                     .path = rootFSPath.view(),
                     .isRecursive = true,
                 }))

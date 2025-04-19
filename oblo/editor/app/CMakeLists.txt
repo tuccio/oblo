@@ -31,3 +31,6 @@ target_link_libraries(
     SDL2::SDL2
     SDL2::SDL2main
 )
+
+file(MAKE_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/data)
+oblo_create_symlink("${CMAKE_CURRENT_SOURCE_DIR}/resources/oblo-assets" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/data/oblo")
