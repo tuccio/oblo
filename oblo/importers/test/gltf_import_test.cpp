@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <oblo/asset/asset_meta.hpp>
+#include <oblo/asset/asset_path.hpp>
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/importers/registration.hpp>
 #include <oblo/core/data_format.hpp>
@@ -171,7 +172,7 @@ namespace oblo::importers
             const auto dirName = filesystem::filename(filesystem::parent_path(file, dirNameBuilder));
 
             string_builder destination;
-            destination.append("$assets").append_path(dirName);
+            destination.append(OBLO_ASSET_PATH("assets")).append_path(dirName);
 
             data_document importSettings;
             importSettings.init();
@@ -195,7 +196,7 @@ namespace oblo::importers
             asset_meta assetMeta;
 
             string_builder assetPath;
-            assetPath.format("$assets/{}/Box", dirName);
+            assetPath.format(OBLO_ASSET_PATH("assets/{}/Box"), dirName);
 
             ASSERT_TRUE(registry.find_asset_by_path(assetPath, meshId, assetMeta));
 

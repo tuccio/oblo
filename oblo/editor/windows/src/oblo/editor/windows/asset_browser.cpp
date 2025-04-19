@@ -1,6 +1,7 @@
 #include <oblo/editor/windows/asset_browser.hpp>
 
 #include <oblo/asset/asset_meta.hpp>
+#include <oblo/asset/asset_path.hpp>
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/descriptors/native_asset_descriptor.hpp>
 #include <oblo/core/array_size.hpp>
@@ -292,7 +293,7 @@ namespace oblo::editor
         m_impl->assetEditors = ctx.services.find<asset_editor_manager>();
         OBLO_ASSERT(m_impl->assetEditors);
 
-        m_impl->currentAssetPath = "$assets";
+        m_impl->currentAssetPath = OBLO_ASSET_PATH("assets");
 
         m_impl->rootFSPath = m_impl->registry->get_asset_directory("assets");
         m_impl->rootFSPath.make_canonical_path();
@@ -375,7 +376,7 @@ namespace oblo::editor
         };
 
         deque<queue_item> queue;
-        queue.emplace_back("$assets", -1);
+        queue.emplace_back(OBLO_ASSET_PATH("assets"), -1);
 
         string_builder fileSystemPath;
 
@@ -418,7 +419,7 @@ namespace oblo::editor
 
     asset_browser_directory& asset_browser::impl::get_or_build(const string_builder& assetDir)
     {
-        OBLO_ASSERT(assetDir.view().starts_with("$"));
+        OBLO_ASSERT(assetDir.view().starts_with(asset_path_prefix));
 
         std::error_code ec;
 
@@ -579,8 +580,8 @@ namespace oblo::editor
 
             const auto& e = directoryTree[info.index];
 
-            const auto dirName = filesystem::filename(e.assetPath.view());
-            b.clear().format(ICON_FA_FOLDER " {}##{}", dirName, e.assetPath);
+            const auto assetPathDirName = filesystem::filename(e.assetPath.view());
+            b.clear().format(ICON_FA_FOLDER " {}##{}", assetPathDirName, e.assetPath);
 
             i32 nodeFlags = ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_OpenOnArrow |
                 (info.index == 0 ? ImGuiTreeNodeFlags_DefaultOpen : 0);

@@ -2,6 +2,7 @@
 
 #include <oblo/asset/any_asset.hpp>
 #include <oblo/asset/asset_meta.hpp>
+#include <oblo/asset/asset_path.hpp>
 #include <oblo/asset/asset_registry_impl.hpp>
 #include <oblo/asset/descriptors/file_importer_descriptor.hpp>
 #include <oblo/asset/descriptors/native_asset_descriptor.hpp>
@@ -262,7 +263,7 @@ namespace oblo
 
         bool is_asset_path(string_view assetPath)
         {
-            return assetPath.starts_with("$");
+            return assetPath.starts_with(asset_path_prefix);
         }
     }
 
@@ -1679,7 +1680,7 @@ namespace oblo
 
     h32<asset_source> asset_registry_impl::resolve_asset_path(string_builder& out, string_view assetPath) const
     {
-        if (!assetPath.starts_with("$"))
+        if (!assetPath.starts_with(asset_path_prefix))
         {
             return {};
         }

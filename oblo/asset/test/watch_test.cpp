@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <oblo/asset/any_asset.hpp>
+#include <oblo/asset/asset_path.hpp>
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/descriptors/native_asset_descriptor.hpp>
 #include <oblo/asset/import/copy_importer.hpp>
@@ -172,7 +173,7 @@ namespace oblo
             auto& b = a.emplace<mock_test_asset>();
             b.append("A");
 
-            const auto id = registry.create_asset(a, "$assets/", "A");
+            const auto id = registry.create_asset(a, OBLO_ASSET_PATH("assets/"), "A");
 
             ASSERT_TRUE(id);
             assetA = *id;
@@ -290,7 +291,7 @@ namespace oblo
             write_file(file, content);
 
             {
-                const auto id = registry.import(file, "$assets/", "A", {});
+                const auto id = registry.import(file, OBLO_ASSET_PATH("assets/"), "A", {});
 
                 ASSERT_TRUE(id);
                 assetA = *id;

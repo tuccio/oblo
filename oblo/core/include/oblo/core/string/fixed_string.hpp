@@ -6,18 +6,18 @@
 
 namespace oblo
 {
-    template <u32 N>
+    template <usize N>
     struct fixed_string
     {
         constexpr fixed_string(const char (&string)[N])
         {
-            for (u32 i = 0; i != N; ++i)
+            for (usize i = 0; i != N; ++i)
             {
                 this->string[i] = string[i];
             }
         }
 
-        constexpr u32 size() const
+        constexpr usize size() const
         {
             return N - 1;
         }
