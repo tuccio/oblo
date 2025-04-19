@@ -132,6 +132,8 @@ namespace oblo
 
         bool on_new_asset_discovered(
             string_builder& builder, const uuid& assetId, const uuid& processId, deque<uuid>& artifacts);
+
+        bool handle_asset_rename(cstring_view newPath);
     };
 
     struct asset_source

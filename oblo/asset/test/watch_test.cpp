@@ -229,14 +229,40 @@ namespace oblo
         ASSERT_TRUE(check_text_asset_content(registry, assetA, "A"));
 
         {
-            // Move it back but change name
-            string_builder newDir;
-            newDir.append(assetsDir).append_path("New Dir");
-
-            ASSERT_TRUE(filesystem::create_directories(newDir));
+            // Rename the parent directory
+            string_builder newName;
+            newName.append(assetsDir).append_path("Foo");
 
             string_builder oldName;
-            oldName.append(newDir).append_path("A").append(AssetMetaExtension);
+            oldName.append(assetsDir).append_path("New Dir");
+
+            ASSERT_TRUE(filesystem::rename(oldName, newName));
+        }
+
+        wait_processing(registry);
+
+        {
+            string_builder expectedPath;
+            expectedPath.append(OBLO_ASSET_PATH("assets")).append_path("Foo", '/');
+
+            string_builder assetPath;
+            ASSERT_TRUE(registry.get_asset_directory_path(assetA, assetPath));
+            ASSERT_EQ(assetPath, expectedPath);
+
+            string_builder assetName;
+            ASSERT_TRUE(registry.get_asset_name(assetA, assetName));
+            ASSERT_EQ(assetName.view(), "A");
+        }
+
+        ASSERT_TRUE(check_text_asset_content(registry, assetA, "A"));
+
+        {
+            // Move it back but change name
+            string_builder fooDir;
+            fooDir.append(assetsDir).append_path("Foo");
+
+            string_builder oldName;
+            oldName.append(fooDir).append_path("A").append(AssetMetaExtension);
 
             string_builder newName;
             newName.append(assetsDir).append_path("A_renamed").append(AssetMetaExtension);

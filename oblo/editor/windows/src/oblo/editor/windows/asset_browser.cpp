@@ -239,7 +239,6 @@ namespace oblo::editor
     {
         asset_registry* registry{};
         asset_editor_manager* assetEditors{};
-        string_builder rootFSPath;
         string_builder currentAssetPath;
         uuid expandedAsset{};
         deque<create_menu_item> createMenu;
@@ -295,17 +294,18 @@ namespace oblo::editor
 
         m_impl->currentAssetPath = OBLO_ASSET_PATH("assets");
 
-        m_impl->rootFSPath = m_impl->registry->get_asset_directory("assets");
-        m_impl->rootFSPath.make_canonical_path();
+        string_builder rootFSPath;
+        m_impl->registry->resolve_asset_path(rootFSPath, m_impl->currentAssetPath.view());
+        rootFSPath.make_canonical_path();
 
         m_impl->populate_asset_editors();
 
         if (!m_impl->assetDirWatcher.init({
-                .path = m_impl->rootFSPath.view(),
+                .path = rootFSPath.view(),
                 .isRecursive = true,
             }))
         {
-            log::debug("Asset browser failed to start watch on \"{}\"", m_impl->rootFSPath);
+            log::debug("Asset browser failed to start watch on \"{}\"", rootFSPath);
         }
 
         auto& fonts = ImGui::GetIO().Fonts;
@@ -333,7 +333,7 @@ namespace oblo::editor
 
             if (!m_impl->assetDirWatcher.process([&](auto&&) { requiresRefresh = true; }))
             {
-                log::debug("Asset browser watch processing on \"{}\" failed", m_impl->rootFSPath);
+                log::debug("Asset browser watch processing on \"{}\" failed", m_impl->assetDirWatcher.get_directory());
             }
 
             if (m_impl->directoryTree.empty() || requiresRefresh)

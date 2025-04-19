@@ -1135,6 +1135,46 @@ namespace oblo
         return allSuccessful;
     }
 
+    bool asset_registry_impl::handle_asset_rename(cstring_view newPath)
+    {
+        OBLO_ASSERT(filesystem::extension(newPath) == AssetMetaExtension);
+
+        asset_meta meta;
+
+        if (!load_asset_meta(meta, newPath))
+        {
+            return false;
+        }
+
+        const auto it = assets.find(meta.assetId);
+
+        if (it == assets.end())
+        {
+            return false;
+        }
+
+        string_builder oldFileName = it->second.path;
+        OBLO_ASSERT(filesystem::extension(oldFileName) != AssetMetaExtension);
+
+        oldFileName.append(AssetMetaExtension);
+
+        auto fileIt = assetFileMap.find(oldFileName.view());
+
+        if (fileIt != assetFileMap.end())
+        {
+            auto n = assetFileMap.extract(fileIt);
+            n.key() = newPath;
+            n.mapped() = meta.assetId;
+            assetFileMap.insert(std::move(n));
+        }
+
+        // We keep the meta extension out of the name
+        it->second.path = newPath;
+        it->second.path.resize(newPath.size() - AssetMetaExtension.size());
+
+        return true;
+    }
+
     void asset_registry::discover_assets(flags<asset_discovery_flags> flags)
     {
         std::error_code ec;
@@ -1460,27 +1500,35 @@ namespace oblo
 
                         case filesystem::directory_watcher_event_kind::renamed:
                             // We need to update the asset entry path
-                            if (e.path.ends_with(AssetMetaExtension) && load_asset_meta(meta, e.path))
+                            if (e.path.ends_with(AssetMetaExtension))
                             {
-                                const auto it = m_impl->assets.find(meta.assetId);
+                                [[maybe_unused]] const bool handled = m_impl->handle_asset_rename(e.path);
+                                OBLO_ASSERT(handled);
+                            }
+                            else if (filesystem::is_directory(e.path).value_or(false))
+                            {
+                                // Recursively handle each asset
+                                std::error_code ec;
 
-                                if (it != m_impl->assets.end())
+                                string_builder movedAsset;
+
+                                for (auto&& entry :
+                                    std::filesystem::recursive_directory_iterator{e.path.as<std::string>(), ec})
                                 {
-                                    it->second.path = e.path;
-                                }
+                                    const auto& p = entry.path();
 
-                                auto fileIt = m_impl->assetFileMap.find(e.previousName);
+                                    if (!is_regular_file(p) || p.extension() != AssetMetaExtension.c_str())
+                                    {
+                                        continue;
+                                    }
 
-                                if (fileIt != m_impl->assetFileMap.end())
-                                {
-                                    auto n = m_impl->assetFileMap.extract(fileIt);
-                                    n.key() = e.path;
-                                    n.mapped() = meta.assetId;
-                                    m_impl->assetFileMap.insert(std::move(n));
+                                    movedAsset.clear().append(p.c_str());
+
+                                    [[maybe_unused]] const bool handled = m_impl->handle_asset_rename(movedAsset);
+                                    OBLO_ASSERT(handled);
                                 }
                             }
 
-                            // We need to update the asset_entry::path
                             break;
 
                         case filesystem::directory_watcher_event_kind::modified:
