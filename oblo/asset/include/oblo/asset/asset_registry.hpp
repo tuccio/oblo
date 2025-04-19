@@ -109,6 +109,8 @@ namespace oblo
 
         cstring_view resolve_asset_source_path(hashed_string_view sourceId) const;
 
+        void get_asset_source_names(deque<hashed_string_view>& outAssetSources) const;
+
         bool resolve_asset_path(string_builder& outBuilder, string_view assetPath) const;
         bool resolve_asset_meta_path(string_builder& outBuilder, string_view assetPath) const;
 
@@ -130,7 +132,7 @@ namespace oblo
 
     struct asset_source_descriptor
     {
-        hashed_string_view id;
+        hashed_string_view name;
         cstring_view assetsDirectory;
         cstring_view sourcesDirectory;
     };

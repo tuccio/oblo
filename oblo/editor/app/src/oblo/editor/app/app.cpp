@@ -10,6 +10,7 @@
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/editor/editor_module.hpp>
+#include <oblo/editor/providers/asset_repository_provider.hpp>
 #include <oblo/editor/providers/service_provider.hpp>
 #include <oblo/editor/services/asset_editor_manager.hpp>
 #include <oblo/editor/services/component_factory.hpp>
@@ -471,13 +472,31 @@ namespace oblo::editor
         artifactsDir.append(projectDir).append_path(project.artifactsDir);
         sourcesDir.append(projectDir).append_path(project.sourcesDir);
 
-        const asset_source_descriptor assetSources[] = {
+        deque<asset_repository_descriptor> moduleRepositories;
+
+        for (auto* const provider : mm.find_services<asset_repository_provider>())
+        {
+            provider->fetch(moduleRepositories);
+        }
+
+        buffered_array<asset_source_descriptor, 8> assetSources = {
             {
-                .id = "assets",
+                .name = "assets",
                 .assetsDirectory = assetsDir,
                 .sourcesDirectory = sourcesDir,
             },
         };
+
+        assetSources.reserve(moduleRepositories.size() + 1);
+
+        for (auto& repo : moduleRepositories)
+        {
+            assetSources.emplace_back() = {
+                .name = hashed_string_view{repo.name},
+                .assetsDirectory = repo.assetsDirectory,
+                .sourcesDirectory = repo.sourcesDirectory,
+            };
+        }
 
         if (!m_assetRegistry.initialize(assetSources, artifactsDir))
         {

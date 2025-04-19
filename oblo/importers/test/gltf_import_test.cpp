@@ -135,7 +135,7 @@ namespace oblo::importers
 
         const asset_source_descriptor assetSources[]{
             {
-                .id = "assets"_hsv,
+                .name = "assets"_hsv,
                 .assetsDirectory = assetsDir,
                 .sourcesDirectory = sourceFilesDir,
             },

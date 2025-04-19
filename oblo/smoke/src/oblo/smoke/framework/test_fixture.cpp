@@ -80,7 +80,7 @@ namespace oblo::smoke
 
                 const asset_source_descriptor assetSources[] = {
                     {
-                        .id = "assets",
+                        .name = "assets",
                         .assetsDirectory = "./test/smoke/assets",
                         .sourcesDirectory = "./test/smoke/sources",
                     },

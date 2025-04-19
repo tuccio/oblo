@@ -423,7 +423,7 @@ namespace oblo
             auto& source = m_impl->assetSources[lastIdx.value];
 
             // NOTE: We store the string and keep the view in the map, so the array should not be resized anymore
-            source.name = assetSourceDesc.id.as<string>();
+            source.name = assetSourceDesc.name.as<string>();
             hashed_string_view sourceName{source.name};
 
             const auto [mapIt, ok] = m_impl->assetSourceNameToIdx.emplace(sourceName, lastIdx);
@@ -958,6 +958,14 @@ namespace oblo
         OBLO_ASSERT(it != m_impl->assetSourceNameToIdx.end());
 
         return m_impl->assetSources[it->second.value].assetDir;
+    }
+
+    void asset_registry::get_asset_source_names(deque<hashed_string_view>& outAssetSources) const
+    {
+        for (auto& [name, id] : m_impl->assetSourceNameToIdx)
+        {
+            outAssetSources.emplace_back(name);
+        }
     }
 
     bool asset_registry::resolve_asset_path(string_builder& outBuilder, string_view assetPath) const

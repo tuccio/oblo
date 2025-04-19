@@ -233,6 +233,13 @@ namespace oblo::editor
 
             return isPressed;
         }
+
+        struct asset_source_entry
+        {
+            string rootAssetPath;
+            filesystem::directory_watcher assetDirWatcher;
+            deque<directory_tree_entry> directoryTree;
+        };
     }
 
     struct asset_browser::impl
@@ -243,10 +250,9 @@ namespace oblo::editor
         uuid expandedAsset{};
         deque<create_menu_item> createMenu;
 
-        filesystem::directory_watcher assetDirWatcher;
+        dynamic_array<asset_source_entry> assetRepositories;
 
         std::unordered_map<string_builder, asset_browser_directory, hash<string_builder>> assetBrowserEntries;
-        deque<directory_tree_entry> directoryTree;
 
         ImFont* bigIconsFont{};
 
@@ -262,7 +268,7 @@ namespace oblo::editor
         void populate_asset_editors();
         void draw_popup_menu();
 
-        void build_directory_tree();
+        void build_directory_tree(asset_source_entry& repo);
         asset_browser_directory& get_or_build(const string_builder& p);
 
         void draw_modals();
@@ -292,21 +298,34 @@ namespace oblo::editor
         m_impl->assetEditors = ctx.services.find<asset_editor_manager>();
         OBLO_ASSERT(m_impl->assetEditors);
 
-        m_impl->currentAssetPath = OBLO_ASSET_PATH("assets");
+        deque<hashed_string_view> sources;
+        m_impl->registry->get_asset_source_names(sources);
 
+        m_impl->assetRepositories.reserve(sources.size());
+
+        string_builder assetPathBuilder;
         string_builder rootFSPath;
-        m_impl->registry->resolve_asset_path(rootFSPath, m_impl->currentAssetPath.view());
-        rootFSPath.make_canonical_path();
+
+        for (auto& source : sources)
+        {
+            rootFSPath.clear();
+            m_impl->registry->resolve_asset_path(rootFSPath, source);
+            rootFSPath.make_canonical_path();
+
+            auto& repo = m_impl->assetRepositories.emplace_back();
+
+            repo.rootAssetPath = assetPathBuilder.clear().format("{}{}", asset_path_prefix, source);
+
+            if (repo.assetDirWatcher.init({
+                    .path = rootFSPath.view(),
+                    .isRecursive = true,
+                }))
+            {
+                log::debug("Asset browser failed to start watch on \"{}\"", rootFSPath);
+            }
+        }
 
         m_impl->populate_asset_editors();
-
-        if (!m_impl->assetDirWatcher.init({
-                .path = rootFSPath.view(),
-                .isRecursive = true,
-            }))
-        {
-            log::debug("Asset browser failed to start watch on \"{}\"", rootFSPath);
-        }
 
         auto& fonts = ImGui::GetIO().Fonts;
 
@@ -331,14 +350,17 @@ namespace oblo::editor
 
             bool requiresRefresh{};
 
-            if (!m_impl->assetDirWatcher.process([&](auto&&) { requiresRefresh = true; }))
+            for (auto& repo : m_impl->assetRepositories)
             {
-                log::debug("Asset browser watch processing on \"{}\" failed", m_impl->assetDirWatcher.get_directory());
-            }
+                if (!repo.assetDirWatcher.process([&](auto&&) { requiresRefresh = true; }))
+                {
+                    log::debug("Asset browser watch processing on \"{}\" failed", repo.assetDirWatcher.get_directory());
+                }
 
-            if (m_impl->directoryTree.empty() || requiresRefresh)
-            {
-                m_impl->build_directory_tree();
+                if (repo.directoryTree.empty() || requiresRefresh)
+                {
+                    m_impl->build_directory_tree(repo);
+                }
             }
 
             if (const auto vId = m_impl->registry->get_version_id(); requiresRefresh || m_impl->lastVersionId != vId)
@@ -361,11 +383,11 @@ namespace oblo::editor
         return open;
     }
 
-    void asset_browser::impl::build_directory_tree()
+    void asset_browser::impl::build_directory_tree(asset_source_entry& repo)
     {
         renameCtx.stop_renaming(*registry, false);
         replace_selection(nullptr);
-        directoryTree.clear();
+        repo.directoryTree.clear();
 
         std::error_code ec;
 
@@ -376,7 +398,7 @@ namespace oblo::editor
         };
 
         deque<queue_item> queue;
-        queue.emplace_back(OBLO_ASSET_PATH("assets"), -1);
+        queue.emplace_back(repo.rootAssetPath, -1);
 
         string_builder fileSystemPath;
 
@@ -386,12 +408,12 @@ namespace oblo::editor
         {
             auto& dir = queue.front();
 
-            const u32 entryIdx = directoryTree.size32();
+            const u32 entryIdx = repo.directoryTree.size32();
 
-            auto& entry = directoryTree.emplace_back();
+            auto& entry = repo.directoryTree.emplace_back();
             entry.assetPath = dir.assetPath;
 
-            entry.firstChild = directoryTree.size32() + queue.size32() - 1;
+            entry.firstChild = repo.directoryTree.size32() + queue.size32() - 1;
 
             const bool isAssetDir = registry->resolve_asset_path(fileSystemPath.clear(), dir.assetPath);
             OBLO_ASSERT(isAssetDir);
@@ -411,7 +433,7 @@ namespace oblo::editor
                 }
             }
 
-            entry.lastChild = directoryTree.size32() + queue.size32() - 1;
+            entry.lastChild = repo.directoryTree.size32() + queue.size32() - 1;
 
             queue.pop_front();
         }
@@ -565,85 +587,88 @@ namespace oblo::editor
 
         deque<draw_node_info> stack;
 
-        if (!directoryTree.empty())
+        for (auto& repo : assetRepositories)
         {
-            stack.push_back_default() = {
-                .index = 0,
-                .ancestorsToPop = 0,
-            };
-        }
-
-        while (!stack.empty())
-        {
-            const draw_node_info info = stack.back();
-            stack.pop_back();
-
-            const auto& e = directoryTree[info.index];
-
-            const auto assetPathDirName = filesystem::filename(e.assetPath.view());
-            b.clear().format(ICON_FA_FOLDER " {}##{}", assetPathDirName, e.assetPath);
-
-            i32 nodeFlags = ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_OpenOnArrow |
-                (info.index == 0 ? ImGuiTreeNodeFlags_DefaultOpen : 0);
-
-            const bool isLeaf = e.firstChild == e.lastChild;
-
-            if (isLeaf)
+            if (!repo.directoryTree.empty())
             {
-                nodeFlags |= ImGuiTreeNodeFlags_Leaf;
+                stack.push_back_default() = {
+                    .index = 0,
+                    .ancestorsToPop = 0,
+                };
             }
 
-            if (e.assetPath == currentAssetPath)
+            while (!stack.empty())
             {
-                nodeFlags |= ImGuiTreeNodeFlags_Selected;
-            }
+                const draw_node_info info = stack.back();
+                stack.pop_back();
 
-            const bool expanded = ImGui::TreeNodeEx(b.c_str(), nodeFlags);
+                const auto& e = repo.directoryTree[info.index];
 
-            if (ImGui::IsItemActivated())
-            {
-                currentAssetPath = e.assetPath;
-            }
+                const auto assetPathDirName = filesystem::filename(e.assetPath.view());
+                b.clear().format(ICON_FA_FOLDER " {}##{}", assetPathDirName, e.assetPath);
 
-            if (ImGui::BeginDragDropTarget())
-            {
-                if (auto* const assetPayload = ImGui::AcceptDragDropPayload(payloads::Asset))
+                i32 nodeFlags = ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_OpenOnArrow |
+                    (info.index == 0 ? ImGuiTreeNodeFlags_DefaultOpen : 0);
+
+                const bool isLeaf = e.firstChild == e.lastChild;
+
+                if (isLeaf)
                 {
-                    const uuid id = payloads::unpack_asset(assetPayload->Data);
-                    move_asset_to_directory(id, e.assetPath);
+                    nodeFlags |= ImGuiTreeNodeFlags_Leaf;
                 }
 
-                ImGui::EndDragDropTarget();
-            }
-
-            u32 nodesToPop = info.ancestorsToPop;
-
-            if (expanded)
-            {
-                ++nodesToPop;
-
-                const auto firstChildIdx = stack.size();
-
-                const u32 childrenCount = e.lastChild - e.firstChild;
-
-                for (u32 i = 1; i <= childrenCount; ++i)
+                if (e.assetPath == currentAssetPath)
                 {
-                    const u32 reverseIndex = e.lastChild - i;
-                    stack.emplace_back(reverseIndex);
+                    nodeFlags |= ImGuiTreeNodeFlags_Selected;
                 }
 
-                // The first will be processed last
-                if (firstChildIdx != stack.size())
-                {
-                    stack[firstChildIdx].ancestorsToPop = nodesToPop;
-                }
-            }
+                const bool expanded = ImGui::TreeNodeEx(b.c_str(), nodeFlags);
 
-            if (isLeaf || !expanded)
-            {
-                for (u32 i = 0; i < nodesToPop; ++i)
+                if (ImGui::IsItemActivated())
                 {
-                    ImGui::TreePop();
+                    currentAssetPath = e.assetPath;
+                }
+
+                if (ImGui::BeginDragDropTarget())
+                {
+                    if (auto* const assetPayload = ImGui::AcceptDragDropPayload(payloads::Asset))
+                    {
+                        const uuid id = payloads::unpack_asset(assetPayload->Data);
+                        move_asset_to_directory(id, e.assetPath);
+                    }
+
+                    ImGui::EndDragDropTarget();
+                }
+
+                u32 nodesToPop = info.ancestorsToPop;
+
+                if (expanded)
+                {
+                    ++nodesToPop;
+
+                    const auto firstChildIdx = stack.size();
+
+                    const u32 childrenCount = e.lastChild - e.firstChild;
+
+                    for (u32 i = 1; i <= childrenCount; ++i)
+                    {
+                        const u32 reverseIndex = e.lastChild - i;
+                        stack.emplace_back(reverseIndex);
+                    }
+
+                    // The first will be processed last
+                    if (firstChildIdx != stack.size())
+                    {
+                        stack[firstChildIdx].ancestorsToPop = nodesToPop;
+                    }
+                }
+
+                if (isLeaf || !expanded)
+                {
+                    for (u32 i = 0; i < nodesToPop; ++i)
+                    {
+                        ImGui::TreePop();
+                    }
                 }
             }
         }
@@ -708,7 +733,8 @@ namespace oblo::editor
 
         string_builder builder;
 
-        const asset_browser_directory& dir = get_or_build(currentAssetPath);
+        const asset_browser_directory emptyDir{.isRoot = true};
+        const asset_browser_directory& dir = currentAssetPath.empty() ? emptyDir : get_or_build(currentAssetPath);
 
         const f32 entryWidth = bigIconsFont->FontSize + 4.f * ImGui::GetStyle().ItemSpacing.x;
 
