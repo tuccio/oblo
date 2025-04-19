@@ -35,7 +35,7 @@ namespace oblo::smoke
             constexpr cstring_view sourceFile =
                 OBLO_GLTF_SAMPLE_MODELS "/Models/SimpleMaterial/glTF-Embedded/SimpleMaterial.gltf";
 
-            const auto assetId = assetRegistry.import(sourceFile, ".", "SimpleMaterial", {});
+            const auto assetId = assetRegistry.import(sourceFile, "$assets/", "SimpleMaterial", {});
 
             OBLO_SMOKE_TRUE(assetId);
 
@@ -96,7 +96,7 @@ namespace oblo::smoke
             constexpr cstring_view sourceFile =
                 OBLO_GLTF_SAMPLE_MODELS "/Models/SimpleMaterial/glTF-Embedded/SimpleMaterial.gltf";
 
-            const auto assetId = assetRegistry.import(sourceFile, ".", "SimpleMaterial", {});
+            const auto assetId = assetRegistry.import(sourceFile, "$assets/", "SimpleMaterial", {});
 
             OBLO_SMOKE_TRUE(assetId);
 

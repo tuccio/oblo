@@ -22,6 +22,16 @@ namespace oblo
         string_builder(const string_builder&) = default;
         string_builder(string_builder&&) noexcept = default;
 
+        explicit string_builder(char c);
+        explicit string_builder(const string& str);
+        explicit string_builder(cstring_view str);
+        explicit string_builder(string_view str);
+
+        explicit string_builder(const char* str, const char* end = nullptr);
+        explicit string_builder(const wchar_t* str, const wchar_t* end = nullptr);
+        explicit string_builder(const char8_t* str, const char8_t* end = nullptr);
+        explicit string_builder(const char16_t* str, const char16_t* end = nullptr);
+
         string_builder& operator=(const string_builder&) = default;
         string_builder& operator=(string_builder&&) noexcept = default;
 

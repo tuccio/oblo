@@ -49,13 +49,13 @@ namespace oblo::editor
             asset_browser_entry_kind kind;
             asset_meta meta;
             deque<artifact_meta> artifacts;
-            string_builder path;
+            string_builder assetPath;
             string_builder name;
         };
 
         struct directory_tree_entry
         {
-            string_builder path;
+            string_builder assetPath;
             u32 firstChild{};
             u32 lastChild{};
         };
@@ -237,8 +237,8 @@ namespace oblo::editor
     {
         asset_registry* registry{};
         asset_editor_manager* assetEditors{};
-        string_builder path;
-        string_builder current;
+        string_builder rootFSPath;
+        string_builder currentAssetPath;
         uuid expandedAsset{};
         deque<create_menu_item> createMenu;
 
@@ -291,19 +291,19 @@ namespace oblo::editor
         m_impl->assetEditors = ctx.services.find<asset_editor_manager>();
         OBLO_ASSERT(m_impl->assetEditors);
 
-        m_impl->path = m_impl->registry->get_asset_directory();
-        m_impl->path.make_canonical_path();
+        m_impl->currentAssetPath = "$assets";
 
-        m_impl->current = m_impl->path;
+        m_impl->rootFSPath = m_impl->registry->get_asset_directory("assets");
+        m_impl->rootFSPath.make_canonical_path();
 
         m_impl->populate_asset_editors();
 
         if (!m_impl->assetDirWatcher.init({
-                .path = m_impl->path.view(),
+                .path = m_impl->rootFSPath.view(),
                 .isRecursive = true,
             }))
         {
-            log::debug("Asset browser failed to start watch on '{}'", m_impl->path);
+            log::debug("Asset browser failed to start watch on '{}'", m_impl->rootFSPath);
         }
 
         auto& fonts = ImGui::GetIO().Fonts;
@@ -331,7 +331,7 @@ namespace oblo::editor
 
             if (!m_impl->assetDirWatcher.process([&](auto&&) { requiresRefresh = true; }))
             {
-                log::debug("Asset browser watch processing on '{}' failed", m_impl->path);
+                log::debug("Asset browser watch processing on '{}' failed", m_impl->rootFSPath);
             }
 
             if (m_impl->directoryTree.empty() || requiresRefresh)
@@ -369,12 +369,16 @@ namespace oblo::editor
 
         struct queue_item
         {
-            std::filesystem::path path;
+            string assetPath;
             i64 parent{-1};
         };
 
         deque<queue_item> queue;
-        queue.emplace_back(path.as<std::string>(), -1);
+        queue.emplace_back("$assets", -1);
+
+        string_builder fileSystemPath;
+
+        string_builder currentPath;
 
         while (!queue.empty())
         {
@@ -383,17 +387,25 @@ namespace oblo::editor
             const u32 entryIdx = directoryTree.size32();
 
             auto& entry = directoryTree.emplace_back();
-            entry.path.append(dir.path.native().c_str());
+            entry.assetPath = dir.assetPath;
 
             entry.firstChild = directoryTree.size32() + queue.size32() - 1;
 
-            for (auto&& fsEntry : std::filesystem::directory_iterator{dir.path, ec})
-            {
-                const auto& p = fsEntry.path();
+            const bool isAssetDir = registry->resolve_asset_path(fileSystemPath.clear(), dir.assetPath);
+            OBLO_ASSERT(isAssetDir);
 
-                if (std::filesystem::is_directory(p))
+            if (isAssetDir)
+            {
+                for (auto&& fsEntry :
+                    std::filesystem::directory_iterator{std::filesystem::path{fileSystemPath.c_str()}, ec})
                 {
-                    queue.emplace_back(p, entryIdx);
+                    const auto& p = fsEntry.path();
+
+                    if (std::filesystem::is_directory(p))
+                    {
+                        currentPath.clear().append(dir.assetPath).append("/").append(p.filename().u8string().c_str());
+                        queue.emplace_back(currentPath.as<string>(), entryIdx);
+                    }
                 }
             }
 
@@ -405,9 +417,11 @@ namespace oblo::editor
 
     asset_browser_directory& asset_browser::impl::get_or_build(const string_builder& assetDir)
     {
+        OBLO_ASSERT(assetDir.view().starts_with("$"));
+
         std::error_code ec;
 
-        // TODO: if it's not in the asset directory, maybe reutrn the root
+        // TODO: if it's not in the asset directory, maybe return the root
 
         const auto [it, isNew] = assetBrowserEntries.emplace(assetDir, asset_browser_directory{});
         auto& abDir = it->second;
@@ -417,15 +431,16 @@ namespace oblo::editor
             return abDir;
         }
 
-        if (assetDir == path)
-        {
-            abDir.isRoot = true;
-        }
+        const bool isRoot = filesystem::filename(assetDir).begin() == assetDir.begin();
+        abDir.isRoot = isRoot;
 
         dynamic_array<uuid> artifacts;
         artifacts.reserve(128);
 
-        for (auto&& fsEntry : std::filesystem::directory_iterator{assetDir.as<std::string>(), ec})
+        string_builder resolvedDirectory;
+        registry->resolve_asset_path(resolvedDirectory, assetDir.view());
+
+        for (auto&& fsEntry : std::filesystem::directory_iterator{resolvedDirectory.as<std::string>(), ec})
         {
             const auto& p = fsEntry.path();
 
@@ -435,7 +450,7 @@ namespace oblo::editor
 
                 auto& e = abDir.entries.emplace_back();
                 e.kind = asset_browser_entry_kind::directory;
-                e.path.append(p.native().c_str());
+                e.assetPath.append(assetDir).append("/").append(name.c_str());
                 e.name.append(name.native().c_str());
             }
             else if (p.extension() == AssetMetaExtension.c_str())
@@ -444,12 +459,12 @@ namespace oblo::editor
 
                 auto& e = abDir.entries.emplace_back();
                 e.kind = asset_browser_entry_kind::asset;
-                e.path.append(p.native().c_str());
+                e.assetPath.append(assetDir).append("/").append(name.c_str());
                 e.name.append(name.native().c_str());
 
                 uuid assetId;
 
-                if (!registry->find_asset_by_meta_path(e.path, assetId, e.meta))
+                if (!registry->find_asset_by_path(e.assetPath, assetId, e.meta))
                 {
                     OBLO_ASSERT(false);
                     abDir.entries.pop_back();
@@ -505,7 +520,10 @@ namespace oblo::editor
 
                 if (ImGui::Button("Yes", ImVec2(120, 0)))
                 {
-                    if (!filesystem::remove_all(requestedDelete).value_or(false))
+                    string_builder fileSystemPath;
+
+                    if (!registry->resolve_asset_meta_path(fileSystemPath, requestedDelete) ||
+                        !filesystem::remove_all(fileSystemPath).value_or(false))
                     {
                         log::error("Failed to delete {}", requestedDelete);
                     }
@@ -560,8 +578,8 @@ namespace oblo::editor
 
             const auto& e = directoryTree[info.index];
 
-            const auto dirName = filesystem::filename(e.path.view());
-            b.clear().format(ICON_FA_FOLDER " {}##{}", dirName, e.path);
+            const auto dirName = filesystem::filename(e.assetPath.view());
+            b.clear().format(ICON_FA_FOLDER " {}##{}", dirName, e.assetPath);
 
             i32 nodeFlags = ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_OpenOnArrow |
                 (info.index == 0 ? ImGuiTreeNodeFlags_DefaultOpen : 0);
@@ -573,7 +591,7 @@ namespace oblo::editor
                 nodeFlags |= ImGuiTreeNodeFlags_Leaf;
             }
 
-            if (e.path == current)
+            if (e.assetPath == currentAssetPath)
             {
                 nodeFlags |= ImGuiTreeNodeFlags_Selected;
             }
@@ -582,7 +600,7 @@ namespace oblo::editor
 
             if (ImGui::IsItemActivated())
             {
-                current = e.path;
+                currentAssetPath = e.assetPath;
             }
 
             if (ImGui::BeginDragDropTarget())
@@ -590,7 +608,7 @@ namespace oblo::editor
                 if (auto* const assetPayload = ImGui::AcceptDragDropPayload(payloads::Asset))
                 {
                     const uuid id = payloads::unpack_asset(assetPayload->Data);
-                    move_asset_to_directory(id, e.path);
+                    move_asset_to_directory(id, e.assetPath);
                 }
 
                 ImGui::EndDragDropTarget();
@@ -688,7 +706,7 @@ namespace oblo::editor
 
         string_builder builder;
 
-        const asset_browser_directory& dir = get_or_build(current);
+        const asset_browser_directory& dir = get_or_build(currentAssetPath);
 
         const f32 entryWidth = bigIconsFont->FontSize + 4.f * ImGui::GetStyle().ItemSpacing.x;
 
@@ -719,7 +737,7 @@ namespace oblo::editor
                         ImGui::GetID("##back"),
                         &isSelected))
                 {
-                    current.append_path("..").make_canonical_path();
+                    currentAssetPath.append_path("..").make_canonical_path();
                 }
 
                 if (ImGui::BeginItemTooltip())
@@ -736,7 +754,7 @@ namespace oblo::editor
                 switch (entry.kind)
                 {
                 case asset_browser_entry_kind::directory: {
-                    builder.clear().format("##{}", entry.path);
+                    builder.clear().format("##{}", entry.assetPath);
 
                     ImGui::PushID(builder.c_str());
 
@@ -753,7 +771,7 @@ namespace oblo::editor
                             &isSelected,
                             entryRename))
                     {
-                        current.clear().append(entry.path).make_canonical_path();
+                        currentAssetPath = entry.assetPath;
                     }
 
                     if (isSelected)
@@ -766,7 +784,7 @@ namespace oblo::editor
                         if (auto* const assetPayload = ImGui::AcceptDragDropPayload(payloads::Asset))
                         {
                             const uuid id = payloads::unpack_asset(assetPayload->Data);
-                            move_asset_to_directory(id, entry.path);
+                            move_asset_to_directory(id, entry.assetPath);
                         }
 
                         ImGui::EndDragDropTarget();
@@ -790,7 +808,10 @@ namespace oblo::editor
 
                         if (ImGui::MenuItem("Open in Explorer"))
                         {
-                            platform::open_folder(entry.path.view());
+                            string_builder fileSystemPath;
+                            registry->resolve_asset_path(fileSystemPath, entry.assetPath.view());
+
+                            platform::open_folder(fileSystemPath.view());
                         }
 
                         ImGui::EndPopup();
@@ -811,7 +832,7 @@ namespace oblo::editor
 
                     ImGui::PushID(int(hash_all<std::hash>(meta.assetId)));
 
-                    builder.clear().format("##{}", entry.path);
+                    builder.clear().format("##{}", entry.assetPath);
 
                     const auto assetColorId =
                         hash_all<hash>(meta.nativeAssetType, meta.typeHint) % array_size(g_Colors);
@@ -1026,7 +1047,7 @@ namespace oblo::editor
 
     void asset_browser::impl::delete_entry(const asset_browser_entry& entry)
     {
-        requestedDelete = entry.path.as<string_view>();
+        requestedDelete = entry.assetPath.as<string_view>();
     }
 
     bool asset_browser::impl::is_selected(const asset_browser_entry* other) const
@@ -1051,7 +1072,8 @@ namespace oblo::editor
             string_builder oldPath;
 
             string_builder newPath;
-            newPath.append(directory).append_path_separator();
+            registry->resolve_asset_meta_path(newPath, directory);
+            newPath.append_path_separator();
 
             if (registry->get_asset_name(assetId, newPath) && registry->get_asset_directory(assetId, oldPath) &&
                 registry->get_asset_name(assetId, oldPath.append_path_separator()))
@@ -1098,7 +1120,7 @@ namespace oblo::editor
 
         if (apply)
         {
-            string_builder newName = activeRenameEntry->path;
+            string_builder newName = activeRenameEntry->assetPath;
             newName.parent_path().append_path(buffer);
 
             if (activeRenameEntry->kind == asset_browser_entry_kind::asset)
@@ -1106,9 +1128,9 @@ namespace oblo::editor
                 newName.append(AssetMetaExtension);
             }
 
-            if (!filesystem::rename(activeRenameEntry->path, newName).value_or(false))
+            if (!filesystem::rename(activeRenameEntry->assetPath, newName).value_or(false))
             {
-                log::debug("Failed to rename {} to {}", activeRenameEntry->path, newName);
+                log::debug("Failed to rename {} to {}", activeRenameEntry->assetPath, newName);
             }
         }
 
@@ -1153,12 +1175,14 @@ namespace oblo::editor
                 {
                     const auto filename = filesystem::stem(filesystem::filename(file.view()));
 
-                    string_builder available = current;
+                    string_builder available;
+                    registry->resolve_asset_path(available, currentAssetPath.view());
+
                     available.append_path(filename);
                     find_first_available(available, AssetMetaExtension);
 
                     const auto r = registry->import(file.view(),
-                        current.view(),
+                        currentAssetPath.view(),
                         filesystem::stem(filesystem::filename(available.view())),
                         data_document{});
 
@@ -1173,7 +1197,9 @@ namespace oblo::editor
             {
                 if (ImGui::MenuItem("Folder"))
                 {
-                    string_builder directory = current;
+                    string_builder directory;
+                    registry->resolve_asset_path(directory, currentAssetPath.view());
+
                     directory.append_path("New Folder");
 
                     find_first_available(directory, "");
@@ -1190,17 +1216,19 @@ namespace oblo::editor
                     {
                         if (ImGui::MenuItem(item.name.c_str()))
                         {
-                            string_builder assetPath = current;
-                            assetPath.append_path("New ").append(item.name);
+                            string_builder fileSystemPath;
+                            registry->resolve_asset_path(fileSystemPath, currentAssetPath.view());
 
-                            find_first_available(assetPath, AssetMetaExtension);
+                            fileSystemPath.append_path("New ").append(item.name);
+
+                            find_first_available(fileSystemPath, AssetMetaExtension);
 
                             const auto* desc = registry->find_native_asset_type(item.assetTypeId);
                             OBLO_ASSERT(desc);
 
                             const auto r = registry->create_asset(desc->create(desc->userdata),
-                                current.view(),
-                                filesystem::stem(filesystem::filename(assetPath.view())));
+                                currentAssetPath.view(),
+                                filesystem::stem(filesystem::filename(fileSystemPath.view())));
 
                             if (!r)
                             {
@@ -1217,7 +1245,10 @@ namespace oblo::editor
 
             if (ImGui::MenuItem("Open in Explorer"))
             {
-                platform::open_folder(current.view());
+                string_builder fileSystemPath;
+                registry->resolve_asset_path(fileSystemPath, currentAssetPath.view());
+
+                platform::open_folder(fileSystemPath.view());
             }
 
             ImGui::EndPopup();

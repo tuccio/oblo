@@ -92,6 +92,46 @@ namespace oblo
         return append(separator);
     }
 
+    string_builder::string_builder(char c)
+    {
+        append(c);
+    }
+
+    string_builder::string_builder(const string& str)
+    {
+        append(str);
+    }
+
+    string_builder::string_builder(cstring_view str)
+    {
+        append(str);
+    }
+
+    string_builder::string_builder(string_view str)
+    {
+        append(str);
+    }
+
+    string_builder::string_builder(const char* str, const char* end)
+    {
+        append(str, end);
+    }
+
+    string_builder::string_builder(const wchar_t* str, const wchar_t* end)
+    {
+        append(str, end);
+    }
+
+    string_builder::string_builder(const char8_t* str, const char8_t* end)
+    {
+        append(str, end);
+    }
+
+    string_builder::string_builder(const char16_t* str, const char16_t* end)
+    {
+        append(str, end);
+    }
+
     string_builder& string_builder::append_path(string_view str)
     {
         return append_path_separator().append(str);

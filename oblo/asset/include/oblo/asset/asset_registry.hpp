@@ -109,6 +109,9 @@ namespace oblo
 
         cstring_view get_asset_directory(hashed_string_view sourceId) const;
 
+        bool resolve_asset_path(string_builder& outBuilder, string_view assetPath) const;
+        bool resolve_asset_meta_path(string_builder& outBuilder, string_view assetPath) const;
+
         bool get_source_directory(const uuid& assetId, string_builder& outPath) const;
         bool get_source_path(const uuid& assetId, string_builder& outPath) const;
         bool get_artifact_path(const uuid& artifactId, string_builder& outPath) const;

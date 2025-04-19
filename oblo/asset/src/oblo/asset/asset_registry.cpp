@@ -958,6 +958,22 @@ namespace oblo
         return m_impl->assetSources[it->second.value].assetDir;
     }
 
+    bool asset_registry::resolve_asset_path(string_builder& outBuilder, string_view assetPath) const
+    {
+        return bool{m_impl->resolve_asset_path(outBuilder, assetPath)};
+    }
+
+    bool asset_registry::resolve_asset_meta_path(string_builder& outBuilder, string_view assetPath) const
+    {
+        if (resolve_asset_path(outBuilder, assetPath))
+        {
+            outBuilder.append(AssetMetaExtension);
+            return true;
+        }
+
+        return false;
+    }
+
     bool asset_registry::get_source_directory(const uuid& assetId, string_builder& outPath) const
     {
         const auto it = m_impl->assets.find(assetId);

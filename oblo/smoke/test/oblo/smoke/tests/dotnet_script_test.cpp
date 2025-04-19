@@ -42,7 +42,7 @@ namespace oblo::smoke
 
             constexpr cstring_view sourceFile = OBLO_GLTF_SAMPLE_MODELS "/Models/Duck/glTF-Embedded/Duck.gltf";
 
-            const auto modelAssetId = assetRegistry.import(sourceFile, ".", "Duck", {});
+            const auto modelAssetId = assetRegistry.import(sourceFile, "$assets/", "Duck", {});
             OBLO_SMOKE_TRUE(modelAssetId);
 
             co_await wait_for_asset_processing(ctx, assetRegistry);
@@ -145,7 +145,7 @@ public class TotallyNormalDuckBehaviour : IBehaviour
                 model->meshes.front().id.format_to(meshUuid),
                 model->materials.front().id.format_to(materialUuid));
 
-            return assetRegistry.create_asset(any_asset{std::move(asset)}, ".", "DuckBehaviour");
+            return assetRegistry.create_asset(any_asset{std::move(asset)}, "$assets/", "DuckBehaviour");
         }
     };
 

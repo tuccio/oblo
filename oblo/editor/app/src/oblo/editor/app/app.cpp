@@ -471,7 +471,15 @@ namespace oblo::editor
         artifactsDir.append(projectDir).append_path(project.artifactsDir);
         sourcesDir.append(projectDir).append_path(project.sourcesDir);
 
-        if (!m_assetRegistry.initialize(assetsDir, artifactsDir, sourcesDir))
+        const asset_source_descriptor assetSources[] = {
+            {
+                .id = "assets",
+                .assetsDirectory = assetsDir,
+                .sourcesDirectory = sourcesDir,
+            },
+        };
+
+        if (!m_assetRegistry.initialize(assetSources, artifactsDir))
         {
             return false;
         }

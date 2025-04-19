@@ -78,7 +78,15 @@ namespace oblo::smoke
 
                 filesystem::remove_all("./test/smoke/").assert_value();
 
-                if (!assetRegistry.initialize("./test/smoke/assets", "./test/smoke/artifacts", "./test/smoke/sources"))
+                const asset_source_descriptor assetSources[] = {
+                    {
+                        .id = "assets",
+                        .assetsDirectory = "./test/smoke/assets",
+                        .sourcesDirectory = "./test/smoke/sources",
+                    },
+                };
+
+                if (!assetRegistry.initialize(assetSources, "/test/smoke/artifacts"))
                 {
                     return false;
                 }
