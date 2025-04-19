@@ -16,6 +16,7 @@
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/formatters/uuid_formatter.hpp>
 #include <oblo/core/invoke/function_ref.hpp>
+#include <oblo/core/platform/core.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/unreachable.hpp>
@@ -727,7 +728,7 @@ namespace oblo
         ++versionId;
     }
 
-    const string_builder* asset_registry_impl::get_asset_path(const uuid& id)
+    const string_builder* asset_registry_impl::get_asset_filesystem_path(const uuid& id)
     {
         const auto it = assets.find(id);
 
@@ -951,7 +952,7 @@ namespace oblo
         }
     }
 
-    cstring_view asset_registry::get_asset_directory(hashed_string_view id) const
+    cstring_view asset_registry::resolve_asset_source_path(hashed_string_view id) const
     {
         const auto it = m_impl->assetSourceNameToIdx.find(id);
         OBLO_ASSERT(it != m_impl->assetSourceNameToIdx.end());
@@ -1018,7 +1019,7 @@ namespace oblo
 
     bool asset_registry::get_asset_name(const uuid& assetId, string_builder& outName) const
     {
-        auto* const path = m_impl->get_asset_path(assetId);
+        auto* const path = m_impl->get_asset_filesystem_path(assetId);
 
         if (!path)
         {
@@ -1029,17 +1030,54 @@ namespace oblo
         return true;
     }
 
-    bool asset_registry::get_asset_directory(const uuid& assetId, string_builder& outPath) const
+    bool asset_registry::get_asset_path(const uuid& assetId, string_builder& outPath) const
     {
-        auto* const path = m_impl->get_asset_path(assetId);
+        const auto it = m_impl->assets.find(assetId);
 
-        if (!path)
+        if (it == m_impl->assets.end())
         {
             return false;
         }
 
-        outPath.append(*path).parent_path();
+        // Build an asset path from file system path
+        auto& source = m_impl->get_asset_source(it->second.assetSource);
+        outPath.append(asset_path_prefix).append(source.name);
+
+        const string_view fsPath = string_view{it->second.path};
+        OBLO_ASSERT(fsPath.starts_with(source.assetDir.view()));
+
+        outPath.append_path_separator('/');
+
+        for (char c : fsPath.substr(source.assetDir.size()))
+        {
+            if constexpr (platform::is_windows())
+            {
+                if (c == '\\')
+                {
+                    c = '/';
+                }
+            }
+
+            if (c == '/' && outPath.view().back() == '/')
+            {
+                continue;
+            }
+
+            outPath.append(c);
+        }
+
         return true;
+    }
+
+    bool asset_registry::get_asset_directory_path(const uuid& assetId, string_builder& outPath) const
+    {
+        if (get_asset_path(assetId, outPath))
+        {
+            outPath.parent_path();
+            return true;
+        }
+
+        return false;
     }
 
     u32 asset_registry::get_running_import_count() const

@@ -54,7 +54,9 @@ namespace oblo
         string_builder& append(const char8_t* str, const char8_t* end = nullptr);
         string_builder& append(const char16_t* str, const char16_t* end = nullptr);
 
+        string_builder& append_path_separator(char separator);
         string_builder& append_path_separator();
+        string_builder& append_path(string_view str, char separator);
         string_builder& append_path(string_view str);
 
         template <typename... Args>

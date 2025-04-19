@@ -305,7 +305,7 @@ namespace oblo::editor
                 .isRecursive = true,
             }))
         {
-            log::debug("Asset browser failed to start watch on '{}'", m_impl->rootFSPath);
+            log::debug("Asset browser failed to start watch on \"{}\"", m_impl->rootFSPath);
         }
 
         auto& fonts = ImGui::GetIO().Fonts;
@@ -333,7 +333,7 @@ namespace oblo::editor
 
             if (!m_impl->assetDirWatcher.process([&](auto&&) { requiresRefresh = true; }))
             {
-                log::debug("Asset browser watch processing on '{}' failed", m_impl->rootFSPath);
+                log::debug("Asset browser watch processing on \"{}\" failed", m_impl->rootFSPath);
             }
 
             if (m_impl->directoryTree.empty() || requiresRefresh)
@@ -507,7 +507,7 @@ namespace oblo::editor
             if (ImGui::BeginPopupModal(deletePopup, &isOpen, ImGuiWindowFlags_AlwaysAutoResize))
             {
                 string_builder builder;
-                builder.format("Are you sure you want to delete '{}'?",
+                builder.format("Are you sure you want to delete \"{}\"?",
                     filesystem::filename(requestedDelete.as<cstring_view>()));
 
                 ImGui::TextUnformatted(builder.c_str());
@@ -527,7 +527,7 @@ namespace oblo::editor
                     if (!registry->resolve_asset_meta_path(fileSystemPath, requestedDelete) ||
                         !filesystem::remove_all(fileSystemPath).value_or(false))
                     {
-                        log::error("Failed to delete {}", requestedDelete);
+                        log::error("Failed to delete \"{}\"", requestedDelete);
                     }
 
                     ImGui::CloseCurrentPopup();
@@ -740,7 +740,7 @@ namespace oblo::editor
                         &isSelected,
                         *registry))
                 {
-                    currentAssetPath.append_path("..").make_canonical_path();
+                    currentAssetPath.parent_path();
                 }
 
                 if (ImGui::BeginItemTooltip())
@@ -1071,24 +1071,29 @@ namespace oblo::editor
 
     void asset_browser::impl::move_asset_to_directory(const uuid assetId, cstring_view directory)
     {
+        bool success = false;
+
         asset_meta assetMeta;
 
         if (registry->find_asset_by_id(assetId, assetMeta))
         {
+            string_builder newPath{directory};
+            string_builder newFsPath;
             string_builder oldPath;
+            string_builder oldFsPath;
 
-            string_builder newPath;
-            registry->resolve_asset_meta_path(newPath, directory);
-            newPath.append_path_separator();
-
-            if (registry->get_asset_name(assetId, newPath) && registry->get_asset_directory(assetId, oldPath) &&
-                registry->get_asset_name(assetId, oldPath.append_path_separator()))
+            if (registry->get_asset_path(assetId, oldPath) &&
+                registry->get_asset_name(assetId, newPath.append_path_separator('/')) &&
+                registry->resolve_asset_meta_path(oldFsPath, oldPath.view()) &&
+                registry->resolve_asset_meta_path(newFsPath, newPath.view()))
             {
-                oldPath.append(AssetMetaExtension);
-                newPath.append(AssetMetaExtension);
-
-                filesystem::rename(oldPath, newPath).assert_value();
+                success = filesystem::rename(oldFsPath, newFsPath).value_or(false);
             }
+        }
+
+        if (!success)
+        {
+            log::error("Failed to move asset {} to \"{}\"", assetId, directory);
         }
     }
 
@@ -1145,7 +1150,7 @@ namespace oblo::editor
 
             if (!filesystem::rename(oldFsName, newFsName).value_or(false))
             {
-                log::debug("Failed to rename {} to {}", activeRenameEntry->assetPath, newName);
+                log::debug("Failed to rename \"{}\" to \"{}\"", activeRenameEntry->assetPath, newName);
             }
         }
 
@@ -1203,7 +1208,7 @@ namespace oblo::editor
 
                     if (!r)
                     {
-                        log::error("No importer was found for {}", file);
+                        log::error("No importer was found for \"{}\"", file);
                     }
                 }
             }
@@ -1221,7 +1226,7 @@ namespace oblo::editor
 
                     if (!filesystem::create_directories(directory))
                     {
-                        log::error("Failed to create new directory {}", directory);
+                        log::error("Failed to create new directory \"{}\"", directory);
                     }
                 }
 
@@ -1247,7 +1252,7 @@ namespace oblo::editor
 
                             if (!r)
                             {
-                                log::error("Failed to create new asset {}", item.name);
+                                log::error("Failed to create new asset \"{}\"", item.name);
                             }
                         }
                     }

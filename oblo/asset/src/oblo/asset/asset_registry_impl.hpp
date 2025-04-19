@@ -125,7 +125,7 @@ namespace oblo
         void on_artifact_removed(uuid artifactId);
         void on_artifact_modified(uuid assetId, uuid processId, uuid artifactId);
 
-        const string_builder* get_asset_path(const uuid& id);
+        const string_builder* get_asset_filesystem_path(const uuid& id);
 
         bool on_new_artifact_discovered(
             string_builder& builder, const uuid& artifactId, const uuid& assetId, const uuid& processId);

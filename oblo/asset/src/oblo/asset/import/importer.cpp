@@ -214,14 +214,14 @@ namespace oblo
         {
             OBLO_ASSERT(destination.empty());
 
-            auto* const assetPath = registry.get_asset_path(m_assetId);
+            auto* const assetFSPath = registry.get_asset_filesystem_path(m_assetId);
 
-            if (!assetPath)
+            if (!assetFSPath)
             {
                 return false;
             }
 
-            destinationDir.append(*assetPath).parent_path();
+            destinationDir.append(*assetFSPath).parent_path();
             destination = destinationDir;
         }
 

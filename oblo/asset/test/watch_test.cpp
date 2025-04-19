@@ -185,10 +185,10 @@ namespace oblo
 
         {
             string_builder expectedPath;
-            expectedPath.append(registry.get_asset_directory("assets"_hsv));
+            expectedPath.append(OBLO_ASSET_PATH("assets"));
 
             string_builder assetPath;
-            ASSERT_TRUE(registry.get_asset_directory(assetA, assetPath));
+            ASSERT_TRUE(registry.get_asset_directory_path(assetA, assetPath));
             ASSERT_EQ(assetPath, expectedPath);
 
             string_builder assetName;
@@ -198,7 +198,7 @@ namespace oblo
 
         {
             string_builder newDir;
-            newDir.append(assetsDir).append_path("New Dir");
+            newDir.append(assetsDir).append_path("New Dir", '/');
 
             ASSERT_TRUE(filesystem::create_directories(newDir));
 
@@ -215,10 +215,10 @@ namespace oblo
 
         {
             string_builder expectedPath;
-            expectedPath.append(registry.get_asset_directory("assets"_hsv)).append_path("New Dir");
+            expectedPath.append(OBLO_ASSET_PATH("assets")).append_path("New Dir", '/');
 
             string_builder assetPath;
-            ASSERT_TRUE(registry.get_asset_directory(assetA, assetPath));
+            ASSERT_TRUE(registry.get_asset_directory_path(assetA, assetPath));
             ASSERT_EQ(assetPath, expectedPath);
 
             string_builder assetName;
@@ -248,10 +248,10 @@ namespace oblo
 
         {
             string_builder expectedPath;
-            expectedPath.append(registry.get_asset_directory("assets"_hsv));
+            expectedPath.append(OBLO_ASSET_PATH("assets"));
 
             string_builder assetPath;
-            ASSERT_TRUE(registry.get_asset_directory(assetA, assetPath));
+            ASSERT_TRUE(registry.get_asset_directory_path(assetA, assetPath));
             ASSERT_EQ(assetPath, expectedPath);
 
             string_builder assetName;
@@ -303,10 +303,10 @@ namespace oblo
 
             {
                 string_builder expectedPath;
-                expectedPath.append(registry.get_asset_directory("assets"_hsv));
+                expectedPath.append(OBLO_ASSET_PATH("assets"));
 
                 string_builder assetPath;
-                ASSERT_TRUE(registry.get_asset_directory(assetA, assetPath));
+                ASSERT_TRUE(registry.get_asset_directory_path(assetA, assetPath));
                 ASSERT_EQ(assetPath, expectedPath);
 
                 string_builder assetName;
@@ -350,10 +350,10 @@ namespace oblo
 
         {
             string_builder expectedPath;
-            expectedPath.append(registry.get_asset_directory("assets"_hsv));
+            expectedPath.append(OBLO_ASSET_PATH("assets"));
 
             string_builder assetPath;
-            ASSERT_TRUE(registry.get_asset_directory(assetA, assetPath));
+            ASSERT_TRUE(registry.get_asset_directory_path(assetA, assetPath));
             ASSERT_EQ(assetPath, expectedPath);
 
             string_builder assetName;

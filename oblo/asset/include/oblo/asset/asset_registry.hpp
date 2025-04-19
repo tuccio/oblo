@@ -107,7 +107,7 @@ namespace oblo
         void iterate_artifacts_by_type(const uuid& type,
             function_ref<bool(const uuid& assetId, const uuid& artifactId)> callback) const;
 
-        cstring_view get_asset_directory(hashed_string_view sourceId) const;
+        cstring_view resolve_asset_source_path(hashed_string_view sourceId) const;
 
         bool resolve_asset_path(string_builder& outBuilder, string_view assetPath) const;
         bool resolve_asset_meta_path(string_builder& outBuilder, string_view assetPath) const;
@@ -117,7 +117,8 @@ namespace oblo
         bool get_artifact_path(const uuid& artifactId, string_builder& outPath) const;
 
         bool get_asset_name(const uuid& assetId, string_builder& outName) const;
-        bool get_asset_directory(const uuid& assetId, string_builder& outPath) const;
+        bool get_asset_path(const uuid& assetId, string_builder& outPath) const;
+        bool get_asset_directory_path(const uuid& assetId, string_builder& outPath) const;
 
         u32 get_running_import_count() const;
 
