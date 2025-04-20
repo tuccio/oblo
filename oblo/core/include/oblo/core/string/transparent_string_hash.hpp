@@ -2,6 +2,7 @@
 
 #include <oblo/core/hash.hpp>
 #include <oblo/core/string/cstring_view.hpp>
+#include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/string/string.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/string/string_view.hpp>
@@ -20,6 +21,11 @@ namespace oblo
         usize operator()(string_view str) const
         {
             return hash<string_view>{}(str);
+        }
+
+        usize operator()(hashed_string_view str) const
+        {
+            return hash<hashed_string_view>{}(str);
         }
 
         usize operator()(const string& str) const

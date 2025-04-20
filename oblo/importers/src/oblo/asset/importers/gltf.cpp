@@ -330,7 +330,7 @@ namespace oblo::importers
             }
 
             subImport.sourceFile = nameBuilder.as<string>();
-            subImport.skipSourceFiles = true;
+            subImport.skipSourceFiles = importImage.embeddedImage;
         }
 
         m_impl->importMaterials.reserve(m_impl->model.materials.size());

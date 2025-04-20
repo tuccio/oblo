@@ -7,18 +7,25 @@
 template <>
 struct std::formatter<oblo::uuid>
 {
-    template <typename FormatParseContext>
-    constexpr auto parse(FormatParseContext& pc) const
+    constexpr auto parse(std::format_parse_context& ctx) const
     {
-        return pc.end();
+        return ctx.begin();
     }
 
-    template <typename FormatContext>
-    constexpr auto format(const oblo::uuid& uuid, FormatContext& fc) const
+    auto format(const oblo::uuid& uuid, std::format_context& ctx) const
     {
         constexpr auto N = 36;
         char buffer[N];
         uuid.format_to(buffer);
-        return std::format_to(fc.out(), "{}", string_view{buffer, N});
+
+        auto&& outIt = ctx.out();
+
+        for (auto c : buffer)
+        {
+            *outIt = c;
+            ++outIt;
+        }
+
+        return outIt;
     }
 };

@@ -1,7 +1,9 @@
 #include <gtest/gtest.h>
 
 #include <oblo/asset/any_asset.hpp>
+#include <oblo/asset/asset_path.hpp>
 #include <oblo/asset/asset_registry.hpp>
+#include <oblo/asset/descriptors/asset_repository_descriptor.hpp>
 #include <oblo/asset/descriptors/native_asset_descriptor.hpp>
 #include <oblo/asset/import/copy_importer.hpp>
 #include <oblo/core/filesystem/file.hpp>
@@ -109,7 +111,15 @@ namespace oblo
             string_builder sourceFiles;
             sourceFiles.append(directory).append_path("sources");
 
-            if (!registry.initialize(assetsDir, artifactsDir, sourceFiles))
+            const asset_repository_descriptor assetRepositories[]{
+                {
+                    .name = "assets"_hsv,
+                    .assetsDirectory = assetsDir,
+                    .sourcesDirectory = sourceFiles,
+                },
+            };
+
+            if (!registry.initialize(assetRepositories, artifactsDir))
             {
                 return false;
             }
@@ -164,7 +174,7 @@ namespace oblo
             auto& b = a.emplace<mock_test_asset>();
             b.append("A");
 
-            const auto id = registry.create_asset(a, ".", "A");
+            const auto id = registry.create_asset(a, OBLO_ASSET_PATH("assets/"), "A");
 
             ASSERT_TRUE(id);
             assetA = *id;
@@ -176,10 +186,10 @@ namespace oblo
 
         {
             string_builder expectedPath;
-            expectedPath.append(registry.get_asset_directory());
+            expectedPath.append(OBLO_ASSET_PATH("assets"));
 
             string_builder assetPath;
-            ASSERT_TRUE(registry.get_asset_directory(assetA, assetPath));
+            ASSERT_TRUE(registry.get_asset_directory_path(assetA, assetPath));
             ASSERT_EQ(assetPath, expectedPath);
 
             string_builder assetName;
@@ -189,7 +199,7 @@ namespace oblo
 
         {
             string_builder newDir;
-            newDir.append(assetsDir).append_path("New Dir");
+            newDir.append(assetsDir).append_path("New Dir", '/');
 
             ASSERT_TRUE(filesystem::create_directories(newDir));
 
@@ -206,10 +216,38 @@ namespace oblo
 
         {
             string_builder expectedPath;
-            expectedPath.append(registry.get_asset_directory()).append_path("New Dir");
+            expectedPath.append(OBLO_ASSET_PATH("assets")).append_path("New Dir", '/');
 
             string_builder assetPath;
-            ASSERT_TRUE(registry.get_asset_directory(assetA, assetPath));
+            ASSERT_TRUE(registry.get_asset_directory_path(assetA, assetPath));
+            ASSERT_EQ(assetPath, expectedPath);
+
+            string_builder assetName;
+            ASSERT_TRUE(registry.get_asset_name(assetA, assetName));
+            ASSERT_EQ(assetName.view(), "A");
+        }
+
+        ASSERT_TRUE(check_text_asset_content(registry, assetA, "A"));
+
+        {
+            // Rename the parent directory
+            string_builder newName;
+            newName.append(assetsDir).append_path("Foo");
+
+            string_builder oldName;
+            oldName.append(assetsDir).append_path("New Dir");
+
+            ASSERT_TRUE(filesystem::rename(oldName, newName));
+        }
+
+        wait_processing(registry);
+
+        {
+            string_builder expectedPath;
+            expectedPath.append(OBLO_ASSET_PATH("assets")).append_path("Foo", '/');
+
+            string_builder assetPath;
+            ASSERT_TRUE(registry.get_asset_directory_path(assetA, assetPath));
             ASSERT_EQ(assetPath, expectedPath);
 
             string_builder assetName;
@@ -221,13 +259,11 @@ namespace oblo
 
         {
             // Move it back but change name
-            string_builder newDir;
-            newDir.append(assetsDir).append_path("New Dir");
-
-            ASSERT_TRUE(filesystem::create_directories(newDir));
+            string_builder fooDir;
+            fooDir.append(assetsDir).append_path("Foo");
 
             string_builder oldName;
-            oldName.append(newDir).append_path("A").append(AssetMetaExtension);
+            oldName.append(fooDir).append_path("A").append(AssetMetaExtension);
 
             string_builder newName;
             newName.append(assetsDir).append_path("A_renamed").append(AssetMetaExtension);
@@ -239,10 +275,10 @@ namespace oblo
 
         {
             string_builder expectedPath;
-            expectedPath.append(registry.get_asset_directory());
+            expectedPath.append(OBLO_ASSET_PATH("assets"));
 
             string_builder assetPath;
-            ASSERT_TRUE(registry.get_asset_directory(assetA, assetPath));
+            ASSERT_TRUE(registry.get_asset_directory_path(assetA, assetPath));
             ASSERT_EQ(assetPath, expectedPath);
 
             string_builder assetName;
@@ -282,7 +318,7 @@ namespace oblo
             write_file(file, content);
 
             {
-                const auto id = registry.import(file, ".", "A", {});
+                const auto id = registry.import(file, OBLO_ASSET_PATH("assets/"), "A", {});
 
                 ASSERT_TRUE(id);
                 assetA = *id;
@@ -294,10 +330,10 @@ namespace oblo
 
             {
                 string_builder expectedPath;
-                expectedPath.append(registry.get_asset_directory());
+                expectedPath.append(OBLO_ASSET_PATH("assets"));
 
                 string_builder assetPath;
-                ASSERT_TRUE(registry.get_asset_directory(assetA, assetPath));
+                ASSERT_TRUE(registry.get_asset_directory_path(assetA, assetPath));
                 ASSERT_EQ(assetPath, expectedPath);
 
                 string_builder assetName;
@@ -341,10 +377,10 @@ namespace oblo
 
         {
             string_builder expectedPath;
-            expectedPath.append(registry.get_asset_directory());
+            expectedPath.append(OBLO_ASSET_PATH("assets"));
 
             string_builder assetPath;
-            ASSERT_TRUE(registry.get_asset_directory(assetA, assetPath));
+            ASSERT_TRUE(registry.get_asset_directory_path(assetA, assetPath));
             ASSERT_EQ(assetPath, expectedPath);
 
             string_builder assetName;

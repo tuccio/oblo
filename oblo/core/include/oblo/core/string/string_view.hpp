@@ -112,7 +112,7 @@ namespace oblo
             return m_size == 0;
         }
 
-        constexpr string_view substr(size_type pos = 0, size_type count = npos) const noexcept
+        constexpr string_view substr(size_type pos, size_type count = npos) const noexcept
         {
             OBLO_ASSERT(pos <= m_size);
             return {m_begin + pos, clamp_offset(pos, count)};

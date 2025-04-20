@@ -76,6 +76,18 @@ namespace oblo
         }
     }
 
+    string_builder& string_builder::append_path_separator(char separator)
+    {
+        OBLO_ASSERT(is_path_separator(separator));
+
+        if (const auto len = size(); len > 0 && is_path_separator(m_buffer[len - 1]))
+        {
+            return *this;
+        }
+
+        return append(separator);
+    }
+
     string_builder& string_builder::append_path_separator()
     {
 #ifdef _WIN32
@@ -84,12 +96,52 @@ namespace oblo
         constexpr char separator = '/';
 #endif
 
-        if (const auto len = size(); len > 0 && is_path_separator(m_buffer[len - 1]))
-        {
-            return *this;
-        }
+        return append_path_separator(separator);
+    }
 
-        return append(separator);
+    string_builder::string_builder(char c) : string_builder{}
+    {
+        append(c);
+    }
+
+    string_builder::string_builder(const string& str) : string_builder{}
+    {
+        append(str);
+    }
+
+    string_builder::string_builder(cstring_view str) : string_builder{}
+    {
+        append(str);
+    }
+
+    string_builder::string_builder(string_view str) : string_builder{}
+    {
+        append(str);
+    }
+
+    string_builder::string_builder(const char* str, const char* end) : string_builder{}
+    {
+        append(str, end);
+    }
+
+    string_builder::string_builder(const wchar_t* str, const wchar_t* end) : string_builder{}
+    {
+        append(str, end);
+    }
+
+    string_builder::string_builder(const char8_t* str, const char8_t* end) : string_builder{}
+    {
+        append(str, end);
+    }
+
+    string_builder::string_builder(const char16_t* str, const char16_t* end) : string_builder{}
+    {
+        append(str, end);
+    }
+
+    string_builder& string_builder::append_path(string_view str, char separator)
+    {
+        return append_path_separator(separator).append(str);
     }
 
     string_builder& string_builder::append_path(string_view str)

@@ -2,6 +2,7 @@
 
 #include <oblo/app/imgui_app.hpp>
 #include <oblo/asset/asset_registry.hpp>
+#include <oblo/asset/descriptors/asset_repository_descriptor.hpp>
 #include <oblo/asset/importers/importers_module.hpp>
 #include <oblo/asset/providers/native_asset_provider.hpp>
 #include <oblo/asset/utility/registration.hpp>
@@ -10,6 +11,7 @@
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/editor/editor_module.hpp>
+#include <oblo/editor/providers/module_repository_provider.hpp>
 #include <oblo/editor/providers/service_provider.hpp>
 #include <oblo/editor/services/asset_editor_manager.hpp>
 #include <oblo/editor/services/component_factory.hpp>
@@ -196,6 +198,19 @@ namespace oblo::editor
                 mm.load<scene_editor_module>();
 
                 initializer.services->add<options_layer_provider>().externally_owned(&m_editorOptions);
+
+                constexpr auto addRepositories = [](deque<module_repository_descriptor>& outRepositories)
+                {
+                    outRepositories.push_back({
+                        .name = "oblo",
+                        .assetsDirectory = "./data/oblo/assets",
+                        .sourcesDirectory = "./data/oblo/sources",
+                    });
+                };
+
+                initializer.services->add<lambda_module_repository_provider<decltype(addRepositories)>>()
+                    .as<module_repository_provider>()
+                    .unique();
 
                 gen::load_modules_asset();
                 gen::load_modules_editor();
@@ -471,7 +486,34 @@ namespace oblo::editor
         artifactsDir.append(projectDir).append_path(project.artifactsDir);
         sourcesDir.append(projectDir).append_path(project.sourcesDir);
 
-        if (!m_assetRegistry.initialize(assetsDir, artifactsDir, sourcesDir))
+        deque<module_repository_descriptor> moduleRepositories;
+
+        for (auto* const provider : mm.find_services<module_repository_provider>())
+        {
+            provider->fetch(moduleRepositories);
+        }
+
+        buffered_array<asset_repository_descriptor, 8> assetRepositories = {
+            {
+                .name = "assets",
+                .assetsDirectory = assetsDir,
+                .sourcesDirectory = sourcesDir,
+            },
+        };
+
+        assetRepositories.reserve(moduleRepositories.size() + 1);
+
+        for (auto& repo : moduleRepositories)
+        {
+            assetRepositories.emplace_back() = {
+                .name = hashed_string_view{repo.name},
+                .assetsDirectory = repo.assetsDirectory,
+                .sourcesDirectory = repo.sourcesDirectory,
+                .flags = asset_repository_flags::omit_import_source_path,
+            };
+        }
+
+        if (!m_assetRegistry.initialize(assetRepositories, artifactsDir))
         {
             return false;
         }

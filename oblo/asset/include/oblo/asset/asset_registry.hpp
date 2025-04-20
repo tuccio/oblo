@@ -3,6 +3,7 @@
 #include <oblo/core/expected.hpp>
 #include <oblo/core/flags.hpp>
 #include <oblo/core/string/cstring_view.hpp>
+#include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/unique_ptr.hpp>
 
@@ -30,6 +31,7 @@ namespace oblo
 
     struct artifact_meta;
     struct asset_meta;
+    struct asset_repository_descriptor;
     struct native_asset_descriptor;
     struct file_importer_descriptor;
     struct uuid;
@@ -51,7 +53,8 @@ namespace oblo
         asset_registry& operator=(asset_registry&&) noexcept = delete;
         ~asset_registry();
 
-        [[nodiscard]] bool initialize(cstring_view assetsDir, cstring_view artifactsDir, cstring_view sourceFilesDir);
+        [[nodiscard]] bool initialize(std::span<const asset_repository_descriptor> assetRepositories,
+            cstring_view artifactsDir);
 
         void shutdown();
 
@@ -104,14 +107,20 @@ namespace oblo
         void iterate_artifacts_by_type(const uuid& type,
             function_ref<bool(const uuid& assetId, const uuid& artifactId)> callback) const;
 
-        cstring_view get_asset_directory() const;
+        cstring_view resolve_asset_source_path(hashed_string_view sourceId) const;
+
+        void get_asset_source_names(deque<hashed_string_view>& outAssetSources) const;
+
+        bool resolve_asset_path(string_builder& outBuilder, string_view assetPath) const;
+        bool resolve_asset_meta_path(string_builder& outBuilder, string_view assetPath) const;
 
         bool get_source_directory(const uuid& assetId, string_builder& outPath) const;
         bool get_source_path(const uuid& assetId, string_builder& outPath) const;
         bool get_artifact_path(const uuid& artifactId, string_builder& outPath) const;
 
         bool get_asset_name(const uuid& assetId, string_builder& outName) const;
-        bool get_asset_directory(const uuid& assetId, string_builder& outPath) const;
+        bool get_asset_path(const uuid& assetId, string_builder& outPath) const;
+        bool get_asset_directory_path(const uuid& assetId, string_builder& outPath) const;
 
         u32 get_running_import_count() const;
 
@@ -120,6 +129,7 @@ namespace oblo
     private:
         unique_ptr<asset_registry_impl> m_impl;
     };
+
 
     inline const cstring_view AssetMetaExtension{".oasset"};
 }

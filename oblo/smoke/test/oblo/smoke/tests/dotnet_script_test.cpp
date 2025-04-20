@@ -4,6 +4,7 @@
 
     #include <oblo/asset/any_asset.hpp>
     #include <oblo/asset/asset_meta.hpp>
+    #include <oblo/asset/asset_path.hpp>
     #include <oblo/asset/asset_registry.hpp>
     #include <oblo/core/filesystem/file.hpp>
     #include <oblo/core/filesystem/filesystem.hpp>
@@ -42,7 +43,7 @@ namespace oblo::smoke
 
             constexpr cstring_view sourceFile = OBLO_GLTF_SAMPLE_MODELS "/Models/Duck/glTF-Embedded/Duck.gltf";
 
-            const auto modelAssetId = assetRegistry.import(sourceFile, ".", "Duck", {});
+            const auto modelAssetId = assetRegistry.import(sourceFile, OBLO_ASSET_PATH("assets/"), "Duck", {});
             OBLO_SMOKE_TRUE(modelAssetId);
 
             co_await wait_for_asset_processing(ctx, assetRegistry);
@@ -145,7 +146,7 @@ public class TotallyNormalDuckBehaviour : IBehaviour
                 model->meshes.front().id.format_to(meshUuid),
                 model->materials.front().id.format_to(materialUuid));
 
-            return assetRegistry.create_asset(any_asset{std::move(asset)}, ".", "DuckBehaviour");
+            return assetRegistry.create_asset(any_asset{std::move(asset)}, OBLO_ASSET_PATH("assets/"), "DuckBehaviour");
         }
     };
 

@@ -1,6 +1,7 @@
 #include <oblo/smoke/framework.hpp>
 
 #include <oblo/asset/asset_meta.hpp>
+#include <oblo/asset/asset_path.hpp>
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/core/iterator/enum_range.hpp>
 #include <oblo/ecs/entity_registry.hpp>
@@ -35,7 +36,7 @@ namespace oblo::smoke
             constexpr cstring_view sourceFile =
                 OBLO_GLTF_SAMPLE_MODELS "/Models/SimpleMaterial/glTF-Embedded/SimpleMaterial.gltf";
 
-            const auto assetId = assetRegistry.import(sourceFile, ".", "SimpleMaterial", {});
+            const auto assetId = assetRegistry.import(sourceFile, OBLO_ASSET_PATH("assets/"), "SimpleMaterial", {});
 
             OBLO_SMOKE_TRUE(assetId);
 
@@ -96,7 +97,7 @@ namespace oblo::smoke
             constexpr cstring_view sourceFile =
                 OBLO_GLTF_SAMPLE_MODELS "/Models/SimpleMaterial/glTF-Embedded/SimpleMaterial.gltf";
 
-            const auto assetId = assetRegistry.import(sourceFile, ".", "SimpleMaterial", {});
+            const auto assetId = assetRegistry.import(sourceFile, OBLO_ASSET_PATH("assets/"), "SimpleMaterial", {});
 
             OBLO_SMOKE_TRUE(assetId);
 
