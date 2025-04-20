@@ -1194,11 +1194,14 @@ namespace oblo
         string_builder builder;
 
         deque<uuid> assetsToReprocess;
+        usize blockingReprocessCount{};
 
-        for (auto& assetSource : std::span{m_impl->assetRepositories}.subspan(1))
+        // The first entry should just be a dummy
+        OBLO_ASSERT(m_impl->assetRepositories.empty() || m_impl->assetRepositories[0].name.empty());
+
+        for (auto& repo : std::span{m_impl->assetRepositories}.subspan(1))
         {
-            for (auto&& entry :
-                std::filesystem::recursive_directory_iterator{assetSource.assetDir.as<std::string>(), ec})
+            for (auto&& entry : std::filesystem::recursive_directory_iterator{repo.assetDir.as<std::string>(), ec})
             {
                 const auto& p = entry.path();
 
@@ -1223,7 +1226,7 @@ namespace oblo
                     auto [it, ok] = m_impl->assets.emplace(assetMeta.assetId,
                         asset_entry{
                             .meta = assetMeta,
-                            .assetSource = assetSource.id,
+                            .assetSource = repo.id,
                         });
 
                     if (!ok)
@@ -1256,6 +1259,12 @@ namespace oblo
                     if (needsReprocessing && flags.contains(asset_discovery_flags::reprocess_dirty))
                     {
                         assetsToReprocess.push_back(assetMeta.assetId);
+
+                        if (repo.flags.contains(asset_repository_flags::wait_until_processed))
+                        {
+                            std::swap(assetsToReprocess[blockingReprocessCount], assetsToReprocess.back());
+                            ++blockingReprocessCount;
+                        }
                     }
                 }
                 else
@@ -1303,8 +1312,31 @@ namespace oblo
             }
         }
 
-        for (const auto& assetId : assetsToReprocess)
+        if (blockingReprocessCount > 0)
         {
+            for (usize i = 0; i < blockingReprocessCount; ++i)
+            {
+                const auto& assetId = assetsToReprocess[i];
+
+                if (!process(assetId))
+                {
+                    log::debug("Failed to reprocess asset {}", assetId);
+                }
+            }
+
+            // Make sure these are imported first
+            while (get_running_import_count() > 0)
+            {
+                update();
+            }
+        }
+
+        // Enqueue the processing for non-blocking assets
+
+        for (usize i = blockingReprocessCount; i < assetsToReprocess.size(); ++i)
+        {
+            const auto& assetId = assetsToReprocess[i];
+
             if (!process(assetId))
             {
                 log::debug("Failed to reprocess asset {}", assetId);

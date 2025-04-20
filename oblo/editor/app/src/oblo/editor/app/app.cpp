@@ -205,6 +205,8 @@ namespace oblo::editor
                         .name = "oblo",
                         .assetsDirectory = "./data/oblo/assets",
                         .sourcesDirectory = "./data/oblo/sources",
+                        .flags = asset_repository_flags::omit_import_source_path |
+                            asset_repository_flags::wait_until_processed,
                     });
                 };
 
@@ -520,7 +522,7 @@ namespace oblo::editor
                 .name = hashed_string_view{repo.name},
                 .assetsDirectory = repo.assetsDirectory,
                 .sourcesDirectory = repo.sourcesDirectory,
-                .flags = asset_repository_flags::omit_import_source_path,
+                .flags = repo.flags,
             };
         }
 
