@@ -113,6 +113,8 @@ namespace oblo::editor
             0xFFF79302,
         };
 
+        constexpr const char* g_PayloadAssetDir = "oblo::assetdir";
+
         bool big_icon_widget(ImFont* bigIcons,
             ImU32 iconColor,
             const char* icon,
@@ -284,6 +286,7 @@ namespace oblo::editor
         void replace_selection(const asset_browser_entry* newSelection);
 
         void move_asset_to_directory(const uuid assetId, cstring_view directory);
+        void move_directory_to_directory(cstring_view src, cstring_view dst);
     };
 
     asset_browser::asset_browser() = default;
@@ -642,12 +645,24 @@ namespace oblo::editor
                     currentAssetPath = e.assetPath;
                 }
 
+                if (ImGui::BeginDragDropSource())
+                {
+                    ImGui::SetDragDropPayload(g_PayloadAssetDir, e.assetPath.c_str(), e.assetPath.size() + 1);
+
+                    ImGui::EndDragDropSource();
+                }
+
                 if (ImGui::BeginDragDropTarget())
                 {
                     if (auto* const assetPayload = ImGui::AcceptDragDropPayload(payloads::Asset))
                     {
                         const uuid id = payloads::unpack_asset(assetPayload->Data);
                         move_asset_to_directory(id, e.assetPath);
+                    }
+                    else if (auto* const assetDirPayload = ImGui::AcceptDragDropPayload(g_PayloadAssetDir))
+                    {
+                        const char* const src = static_cast<const char*>(assetDirPayload->Data);
+                        move_directory_to_directory(src, e.assetPath);
                     }
 
                     ImGui::EndDragDropTarget();
@@ -828,8 +843,22 @@ namespace oblo::editor
                             const uuid id = payloads::unpack_asset(assetPayload->Data);
                             move_asset_to_directory(id, entry.assetPath);
                         }
+                        else if (auto* const assetDirPayload = ImGui::AcceptDragDropPayload(g_PayloadAssetDir))
+                        {
+                            const char* const src = static_cast<const char*>(assetDirPayload->Data);
+                            move_directory_to_directory(src, entry.assetPath);
+                        }
 
                         ImGui::EndDragDropTarget();
+                    }
+
+                    if (ImGui::BeginDragDropSource())
+                    {
+                        ImGui::SetDragDropPayload(g_PayloadAssetDir,
+                            entry.assetPath.c_str(),
+                            entry.assetPath.size() + 1);
+
+                        ImGui::EndDragDropSource();
                     }
 
                     if (ImGui::BeginPopupContextItem("##dirctx"))
@@ -1133,6 +1162,26 @@ namespace oblo::editor
         if (!success)
         {
             log::error("Failed to move asset {} to \"{}\"", assetId, directory);
+        }
+    }
+
+    void asset_browser::impl::move_directory_to_directory(cstring_view src, cstring_view dst)
+    {
+        bool success = false;
+
+        string_builder oldPath;
+        string_builder newPath;
+
+        if (registry->resolve_asset_path(oldPath, src) && registry->resolve_asset_path(newPath, dst))
+        {
+            newPath.append_path(filesystem::filename(oldPath));
+
+            success = filesystem::rename(oldPath, newPath).value_or(false);
+        }
+
+        if (!success)
+        {
+            log::error("Failed to move directory \"{}\" to \"{}\"", src, dst);
         }
     }
 
