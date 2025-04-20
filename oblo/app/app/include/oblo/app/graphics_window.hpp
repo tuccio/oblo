@@ -5,6 +5,8 @@
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/math/vec2u.hpp>
 
+#include <span>
+
 namespace oblo
 {
     class graphics_app;
@@ -85,6 +87,8 @@ namespace oblo
         vec2u get_size() const;
 
         native_window_handle get_native_handle() const;
+
+        void set_icon(u32 w, u32 h, std::span<const byte> data);
 
     private:
         friend class graphics_app;

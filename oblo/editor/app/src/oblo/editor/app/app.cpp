@@ -41,9 +41,11 @@
 #include <oblo/properties/serialization/data_document.hpp>
 #include <oblo/properties/serialization/json.hpp>
 #include <oblo/reflection/reflection_module.hpp>
+#include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/resource/utility/registration.hpp>
 #include <oblo/runtime/runtime_module.hpp>
+#include <oblo/scene/resources/texture.hpp>
 #include <oblo/scene/scene_editor_module.hpp>
 #include <oblo/thread/job_manager.hpp>
 #include <oblo/trace/profile.hpp>
@@ -307,6 +309,29 @@ namespace oblo::editor
         }
     }
 
+    namespace
+    {
+        void setup_icon(const resource_registry& registry, graphics_window& window)
+        {
+            constexpr resource_ref<texture> icon{"4130f5a7-12c2-e913-ac2c-c0bc8228dbec"_uuid};
+
+            const resource_ptr ptr = registry.get_resource(icon);
+            OBLO_ASSERT(ptr);
+
+            if (ptr)
+            {
+                ptr.load_sync();
+
+                const auto& desc = ptr->get_description();
+                std::span<const byte> data = ptr->get_data(0, 0, 0);
+
+                OBLO_ASSERT(desc.vkFormat == texture_format::r8g8b8a8_unorm);
+
+                window.set_icon(desc.width, desc.height, data);
+            }
+        }
+    }
+
     void app::run()
     {
         graphics_window::set_global_borderless_style(graphics_window::borderless_style::resizable);
@@ -338,6 +363,8 @@ namespace oblo::editor
         m_impl->startup_ui();
 
         auto& mainWindow = app.get_main_window();
+
+        setup_icon(m_impl->m_runtimeRegistry.get_resource_registry(), mainWindow);
 
         auto hitTest = [this, &mainWindow](const vec2u& position)
         {

@@ -303,6 +303,17 @@ namespace oblo
         return SDL_GetWindowWMInfo(window, &wmInfo) ? wmInfo.info.win.window : nullptr;
     }
 
+    void graphics_window::set_icon(u32 w, u32 h, std::span<const byte> data)
+    {
+        SDL_Window* const window = sdl_window(m_impl);
+
+        SDL_Surface* const surface = SDL_CreateRGBSurfaceWithFormat(0, i32(w), i32(h), 8, SDL_PIXELFORMAT_RGBA32);
+        std::memcpy(surface->pixels, data.data(), data.size());
+
+        SDL_SetWindowIcon(window, surface);
+        SDL_FreeSurface(surface);
+    }
+
     void window_event_processor::set_event_dispatcher(const window_event_dispatcher& dispatcher)
     {
         m_windowEventDispatcher = dispatcher;
