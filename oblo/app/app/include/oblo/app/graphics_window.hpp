@@ -20,6 +20,7 @@ namespace oblo
         u32 windowHeight;
         bool isHidden;
         bool isMaximized;
+        bool isBorderless;
     };
 
     enum class hit_test_result
@@ -40,6 +41,15 @@ namespace oblo
 
     class graphics_window
     {
+    public:
+        enum class borderless_style
+        {
+            fullscreen,
+            resizable,
+        };
+
+        static void set_global_borderless_style(borderless_style style);
+
     public:
         graphics_window();
         graphics_window(const graphics_window&) = delete;

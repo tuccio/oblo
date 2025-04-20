@@ -65,6 +65,24 @@ namespace oblo
         }
     }
 
+    void graphics_window::set_global_borderless_style(borderless_style style)
+    {
+        switch (style)
+        {
+        case borderless_style::fullscreen:
+            SDL_SetHint("SDL_BORDERLESS_WINDOWED_STYLE", "0");
+            SDL_SetHint("SDL_BORDERLESS_RESIZABLE_STYLE", "0");
+            break;
+
+        case borderless_style::resizable:
+            SDL_SetHint("SDL_BORDERLESS_WINDOWED_STYLE", "0");
+
+            // This seems to allow the snap features in Windows Aero
+            SDL_SetHint("SDL_BORDERLESS_RESIZABLE_STYLE", "1");
+            break;
+        }
+    }
+
     graphics_window::graphics_window() = default;
 
     graphics_window::graphics_window(graphics_window&& other) noexcept
@@ -116,6 +134,11 @@ namespace oblo
         if (initializer.isHidden)
         {
             windowFlags |= SDL_WINDOW_HIDDEN;
+        }
+
+        if (initializer.isBorderless)
+        {
+            windowFlags |= SDL_WINDOW_BORDERLESS;
         }
 
         const i32 w = initializer.windowWidth == 0 ? 1280u : initializer.windowWidth;
@@ -423,6 +446,16 @@ namespace oblo
                 case SDL_WINDOWEVENT_MINIMIZED: {
                     const auto [window, graphicsContext] = get_graphics_context(event);
                     graphicsContext->on_visibility_change(false);
+                    break;
+                }
+
+                case SDL_WINDOWEVENT_MOVED: {
+
+                    const u32 x = u32(event.window.data1);
+                    const u32 y = u32(event.window.data2);
+
+                    (void) x;
+                    (void) y;
                     break;
                 }
 

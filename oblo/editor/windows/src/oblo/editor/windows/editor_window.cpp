@@ -231,7 +231,7 @@ namespace oblo::editor
 
                 const auto draggableBegin = ImGui::GetCursorPos();
 
-                ImGui::SameLine(draggableBegin.x + wholeWidth - windowButtonsWidth);
+                ImGui::SameLine(1 + draggableBegin.x + wholeWidth - windowButtonsWidth);
                 const f32 draggableEnd = ImGui::GetCursorPosX();
 
                 {

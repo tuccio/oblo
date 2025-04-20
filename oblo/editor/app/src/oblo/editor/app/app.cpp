@@ -307,9 +307,18 @@ namespace oblo::editor
 
     void app::run()
     {
+        graphics_window::set_global_borderless_style(graphics_window::borderless_style::resizable);
+
         imgui_app app;
 
-        if (!app.init({.title = "oblo", .isHidden = true}, {.configFile = "oblo.imgui.ini"}))
+        if (!app.init(
+                {
+                    .title = "oblo",
+                    .isHidden = true,
+                    .isMaximized = true,
+                    .isBorderless = true,
+                },
+                {.configFile = "oblo.imgui.ini"}))
         {
             return;
         }
@@ -382,9 +391,7 @@ namespace oblo::editor
 
         const auto hitTestRef = hit_test_fn{hitTest};
 
-        mainWindow.set_borderless(true);
         mainWindow.set_custom_hit_test(&hitTestRef);
-        mainWindow.maximize();
         mainWindow.set_hidden(false);
 
         app.set_input_queue(&m_impl->m_inputQueue);
