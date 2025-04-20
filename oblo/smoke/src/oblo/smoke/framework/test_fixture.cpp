@@ -3,6 +3,7 @@
 #include <oblo/app/graphics_app.hpp>
 #include <oblo/app/window_event_processor.hpp>
 #include <oblo/asset/asset_registry.hpp>
+#include <oblo/asset/descriptors/asset_repository_descriptor.hpp>
 #include <oblo/asset/utility/registration.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/platform/shared_library.hpp>
@@ -78,7 +79,7 @@ namespace oblo::smoke
 
                 filesystem::remove_all("./test/smoke/").assert_value();
 
-                const asset_source_descriptor assetSources[] = {
+                const asset_repository_descriptor assetRepositories[] = {
                     {
                         .name = "assets",
                         .assetsDirectory = "./test/smoke/assets",
@@ -86,7 +87,7 @@ namespace oblo::smoke
                     },
                 };
 
-                if (!assetRegistry.initialize(assetSources, "/test/smoke/artifacts"))
+                if (!assetRegistry.initialize(assetRepositories, "/test/smoke/artifacts"))
                 {
                     return false;
                 }

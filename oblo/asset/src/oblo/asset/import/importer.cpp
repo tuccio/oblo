@@ -24,13 +24,16 @@ namespace oblo
     {
         constexpr string_view g_importConfigName{"config.oimport"};
 
-        bool write_import_config(const import_config& config, cstring_view destination)
+        bool write_import_config(const import_config& config, cstring_view destination, bool omitSourceFilesPath)
         {
             data_document doc;
 
             doc.init();
 
-            doc.child_value(doc.get_root(), "source"_hsv, property_value_wrapper{config.sourceFile});
+            if (!omitSourceFilesPath)
+            {
+                doc.child_value(doc.get_root(), "source"_hsv, property_value_wrapper{config.sourceFile});
+            }
 
             const auto filename = property_value_wrapper{filesystem::filename(cstring_view{config.sourceFile})};
             doc.child_value(doc.get_root(), "filename"_hsv, filename);
@@ -61,7 +64,7 @@ namespace oblo
     };
 
     bool importer::read_source_file_path(
-        const asset_registry_impl& registry, uuid assetId, h32<asset_source> assetSource, string_builder& out)
+        const asset_registry_impl& registry, uuid assetId, h32<asset_repository> assetSource, string_builder& out)
     {
         registry.make_source_files_dir_path(out, assetId, assetSource).append_path(g_importConfigName);
 
@@ -202,7 +205,7 @@ namespace oblo
         return true;
     }
 
-    bool importer::finalize(asset_registry_impl& registry, cstring_view destination, h32<asset_source> assetSource)
+    bool importer::finalize(asset_registry_impl& registry, cstring_view destination, h32<asset_repository> assetSource)
     {
         using write_policy = asset_registry_impl::write_policy;
 
@@ -396,11 +399,11 @@ namespace oblo
     }
 
     bool importer::write_source_files(
-        asset_registry_impl& registry, const deque<cstring_view>& sourceFiles, h32<asset_source> assetSource)
+        asset_registry_impl& registry, const deque<cstring_view>& sourceFiles, h32<asset_repository> repoId)
     {
         string_builder importDir;
 
-        if (!registry.create_source_files_dir(importDir, m_assetId, assetSource))
+        if (!registry.create_source_files_dir(importDir, m_assetId, repoId))
         {
             return false;
         }
@@ -421,7 +424,11 @@ namespace oblo
         }
 
         pathBuilder.clear().append(importDir).append_path(g_importConfigName);
-        allSucceeded &= write_import_config(get_config(), pathBuilder);
+
+        auto& repository = registry.get_asset_repository(repoId);
+
+        const bool omitImportSource = repository.flags.contains(asset_repository_flags::omit_import_source_path);
+        allSucceeded &= write_import_config(get_config(), pathBuilder, omitImportSource);
 
         return allSucceeded;
     }

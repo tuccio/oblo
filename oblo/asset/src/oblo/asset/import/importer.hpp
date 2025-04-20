@@ -18,7 +18,7 @@ namespace oblo
     class file_importer;
 
     struct artifact_meta;
-    struct asset_source;
+    struct asset_repository;
     struct import_config;
 
     class importer
@@ -28,7 +28,7 @@ namespace oblo
 
     public:
         static bool read_source_file_path(
-            const asset_registry_impl& registry, uuid sourceFileId, h32<asset_source> assetSource, string_builder& out);
+            const asset_registry_impl& registry, uuid sourceFileId, h32<asset_repository> assetSource, string_builder& out);
 
     public:
         importer();
@@ -49,7 +49,7 @@ namespace oblo
         void set_asset_name(string_view assetName);
 
         bool execute(const data_document& importSettings);
-        bool finalize(asset_registry_impl& registry, cstring_view destination, h32<asset_source> assetSource);
+        bool finalize(asset_registry_impl& registry, cstring_view destination, h32<asset_repository> assetSource);
 
         bool is_valid() const noexcept;
         bool is_reimport() const noexcept;
@@ -61,7 +61,7 @@ namespace oblo
     private:
         bool begin_import();
         bool write_source_files(
-            asset_registry_impl& registry, const deque<cstring_view>& sourceFiles, h32<asset_source> assetSource);
+            asset_registry_impl& registry, const deque<cstring_view>& sourceFiles, h32<asset_repository> assetSource);
 
     private:
         deque<file_import_data> m_fileImports;

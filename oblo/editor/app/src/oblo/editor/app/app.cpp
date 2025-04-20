@@ -2,6 +2,7 @@
 
 #include <oblo/app/imgui_app.hpp>
 #include <oblo/asset/asset_registry.hpp>
+#include <oblo/asset/descriptors/asset_repository_descriptor.hpp>
 #include <oblo/asset/importers/importers_module.hpp>
 #include <oblo/asset/providers/native_asset_provider.hpp>
 #include <oblo/asset/utility/registration.hpp>
@@ -10,7 +11,7 @@
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/editor/editor_module.hpp>
-#include <oblo/editor/providers/asset_repository_provider.hpp>
+#include <oblo/editor/providers/module_repository_provider.hpp>
 #include <oblo/editor/providers/service_provider.hpp>
 #include <oblo/editor/services/asset_editor_manager.hpp>
 #include <oblo/editor/services/component_factory.hpp>
@@ -198,7 +199,7 @@ namespace oblo::editor
 
                 initializer.services->add<options_layer_provider>().externally_owned(&m_editorOptions);
 
-                constexpr auto addRepositories = [](deque<asset_repository_descriptor>& outRepositories)
+                constexpr auto addRepositories = [](deque<module_repository_descriptor>& outRepositories)
                 {
                     outRepositories.push_back({
                         .name = "oblo",
@@ -207,8 +208,8 @@ namespace oblo::editor
                     });
                 };
 
-                initializer.services->add<lambda_asset_repository_provider<decltype(addRepositories)>>()
-                    .as<asset_repository_provider>()
+                initializer.services->add<lambda_module_repository_provider<decltype(addRepositories)>>()
+                    .as<module_repository_provider>()
                     .unique();
 
                 gen::load_modules_asset();
@@ -485,14 +486,14 @@ namespace oblo::editor
         artifactsDir.append(projectDir).append_path(project.artifactsDir);
         sourcesDir.append(projectDir).append_path(project.sourcesDir);
 
-        deque<asset_repository_descriptor> moduleRepositories;
+        deque<module_repository_descriptor> moduleRepositories;
 
-        for (auto* const provider : mm.find_services<asset_repository_provider>())
+        for (auto* const provider : mm.find_services<module_repository_provider>())
         {
             provider->fetch(moduleRepositories);
         }
 
-        buffered_array<asset_source_descriptor, 8> assetSources = {
+        buffered_array<asset_repository_descriptor, 8> assetRepositories = {
             {
                 .name = "assets",
                 .assetsDirectory = assetsDir,
@@ -500,18 +501,19 @@ namespace oblo::editor
             },
         };
 
-        assetSources.reserve(moduleRepositories.size() + 1);
+        assetRepositories.reserve(moduleRepositories.size() + 1);
 
         for (auto& repo : moduleRepositories)
         {
-            assetSources.emplace_back() = {
+            assetRepositories.emplace_back() = {
                 .name = hashed_string_view{repo.name},
                 .assetsDirectory = repo.assetsDirectory,
                 .sourcesDirectory = repo.sourcesDirectory,
+                .flags = asset_repository_flags::omit_import_source_path,
             };
         }
 
-        if (!m_assetRegistry.initialize(assetSources, artifactsDir))
+        if (!m_assetRegistry.initialize(assetRepositories, artifactsDir))
         {
             return false;
         }

@@ -31,6 +31,7 @@ namespace oblo
 
     struct artifact_meta;
     struct asset_meta;
+    struct asset_repository_descriptor;
     struct native_asset_descriptor;
     struct file_importer_descriptor;
     struct uuid;
@@ -42,8 +43,6 @@ namespace oblo
         enum_max,
     };
 
-    struct asset_source_descriptor;
-
     class asset_registry
     {
     public:
@@ -54,7 +53,8 @@ namespace oblo
         asset_registry& operator=(asset_registry&&) noexcept = delete;
         ~asset_registry();
 
-        [[nodiscard]] bool initialize(std::span<const asset_source_descriptor> assetSources, cstring_view artifactsDir);
+        [[nodiscard]] bool initialize(std::span<const asset_repository_descriptor> assetRepositories,
+            cstring_view artifactsDir);
 
         void shutdown();
 
@@ -130,12 +130,6 @@ namespace oblo
         unique_ptr<asset_registry_impl> m_impl;
     };
 
-    struct asset_source_descriptor
-    {
-        hashed_string_view name;
-        cstring_view assetsDirectory;
-        cstring_view sourcesDirectory;
-    };
 
     inline const cstring_view AssetMetaExtension{".oasset"};
 }

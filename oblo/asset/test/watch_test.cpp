@@ -3,6 +3,7 @@
 #include <oblo/asset/any_asset.hpp>
 #include <oblo/asset/asset_path.hpp>
 #include <oblo/asset/asset_registry.hpp>
+#include <oblo/asset/descriptors/asset_repository_descriptor.hpp>
 #include <oblo/asset/descriptors/native_asset_descriptor.hpp>
 #include <oblo/asset/import/copy_importer.hpp>
 #include <oblo/core/filesystem/file.hpp>
@@ -110,7 +111,7 @@ namespace oblo
             string_builder sourceFiles;
             sourceFiles.append(directory).append_path("sources");
 
-            const asset_source_descriptor assetSources[]{
+            const asset_repository_descriptor assetRepositories[]{
                 {
                     .name = "assets"_hsv,
                     .assetsDirectory = assetsDir,
@@ -118,7 +119,7 @@ namespace oblo
                 },
             };
 
-            if (!registry.initialize(assetSources, artifactsDir))
+            if (!registry.initialize(assetRepositories, artifactsDir))
             {
                 return false;
             }

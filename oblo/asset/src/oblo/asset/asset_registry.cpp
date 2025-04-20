@@ -43,7 +43,7 @@ namespace oblo
 
         bool isProcessing{};
 
-        h32<asset_source> assetSource{};
+        h32<asset_repository> assetSource{};
     };
 
     struct file_importer_info
@@ -71,7 +71,7 @@ namespace oblo
         data_document settings;
         string destination;
         time startTime;
-        h32<asset_source> assetSource{};
+        h32<asset_repository> assetSource{};
         bool isReimport;
         job_handle job{};
         std::atomic<bool> success{};
@@ -396,7 +396,8 @@ namespace oblo
         shutdown();
     }
 
-    bool asset_registry::initialize(std::span<const asset_source_descriptor> assetSources, cstring_view artifactsDir)
+    bool asset_registry::initialize(std::span<const asset_repository_descriptor> assetRepositories,
+        cstring_view artifactsDir)
     {
         if (!ensure_directories(artifactsDir))
         {
@@ -406,24 +407,23 @@ namespace oblo
         m_impl = allocate_unique<asset_registry_impl>();
 
         m_impl->artifactsDir.append(artifactsDir).make_absolute_path();
-        m_impl->assetSources.resize(assetSources.size() + 1);
+        m_impl->assetRepositories.resize(assetRepositories.size() + 1);
 
-        h32<asset_source> lastIdx{};
+        h32<asset_repository> lastIdx{};
 
-        for (const auto& assetSourceDesc : assetSources)
+        for (const auto& repoDesc : assetRepositories)
         {
-            if (!ensure_directories(assetSourceDesc.assetsDirectory) ||
-                !ensure_directories(assetSourceDesc.sourcesDirectory))
+            if (!ensure_directories(repoDesc.assetsDirectory) || !ensure_directories(repoDesc.sourcesDirectory))
             {
                 return false;
             }
 
             ++lastIdx.value;
 
-            auto& source = m_impl->assetSources[lastIdx.value];
+            auto& source = m_impl->assetRepositories[lastIdx.value];
 
             // NOTE: We store the string and keep the view in the map, so the array should not be resized anymore
-            source.name = assetSourceDesc.name.as<string>();
+            source.name = repoDesc.name.as<string>();
             hashed_string_view sourceName{source.name};
 
             const auto [mapIt, ok] = m_impl->assetSourceNameToIdx.emplace(sourceName, lastIdx);
@@ -433,8 +433,9 @@ namespace oblo
                 return false;
             }
 
-            source.assetDir.append(assetSourceDesc.assetsDirectory).make_absolute_path();
-            source.sourceDir.append(assetSourceDesc.sourcesDirectory).make_absolute_path();
+            source.assetDir.append(repoDesc.assetsDirectory).make_absolute_path();
+            source.sourceDir.append(repoDesc.sourcesDirectory).make_absolute_path();
+            source.flags = repoDesc.flags;
             source.id = lastIdx;
             source.watcher = allocate_unique<filesystem::directory_watcher>();
 
@@ -615,7 +616,7 @@ namespace oblo
         cstring_view optSource,
         string_view destination,
         string_view optName,
-        h32<asset_source> assetSource)
+        h32<asset_repository> assetSource)
     {
         // Find native_asset_descriptor
         const auto it = nativeAssetTypes.find(asset.get_type_uuid());
@@ -845,15 +846,16 @@ namespace oblo
         return uuid_system_generator{}.generate();
     }
 
-    bool asset_registry_impl::create_source_files_dir(string_builder& dir, uuid sourceFileId, h32<asset_source> source)
+    bool asset_registry_impl::create_source_files_dir(
+        string_builder& dir, uuid sourceFileId, h32<asset_repository> source)
     {
         return ensure_directories(make_source_files_dir_path(dir, sourceFileId, source));
     }
 
     string_builder& asset_registry_impl::make_source_files_dir_path(
-        string_builder& dir, uuid sourceFileId, h32<asset_source> source) const
+        string_builder& dir, uuid sourceFileId, h32<asset_repository> source) const
     {
-        const auto& assetSource = get_asset_source(source);
+        const auto& assetSource = get_asset_repository(source);
         return dir.clear().append(assetSource.sourceDir).append_path_separator().format("{}", sourceFileId);
     }
 
@@ -957,7 +959,7 @@ namespace oblo
         const auto it = m_impl->assetSourceNameToIdx.find(id);
         OBLO_ASSERT(it != m_impl->assetSourceNameToIdx.end());
 
-        return m_impl->assetSources[it->second.value].assetDir;
+        return m_impl->assetRepositories[it->second.value].assetDir;
     }
 
     void asset_registry::get_asset_source_names(deque<hashed_string_view>& outAssetSources) const
@@ -1048,7 +1050,7 @@ namespace oblo
         }
 
         // Build an asset path from file system path
-        auto& source = m_impl->get_asset_source(it->second.assetSource);
+        auto& source = m_impl->get_asset_repository(it->second.assetSource);
         outPath.append(asset_path_prefix).append(source.name);
 
         const string_view fsPath = string_view{it->second.path};
@@ -1193,7 +1195,7 @@ namespace oblo
 
         deque<uuid> assetsToReprocess;
 
-        for (auto& assetSource : std::span{m_impl->assetSources}.subspan(1))
+        for (auto& assetSource : std::span{m_impl->assetRepositories}.subspan(1))
         {
             for (auto&& entry :
                 std::filesystem::recursive_directory_iterator{assetSource.assetDir.as<std::string>(), ec})
@@ -1269,7 +1271,7 @@ namespace oblo
 
             auto readUuidFromFileName = [](cstring_view filename, uuid& id) { return id.parse_from(filename); };
 
-            for (auto& assetSource : std::span{m_impl->assetSources}.subspan(1))
+            for (auto& assetSource : std::span{m_impl->assetRepositories}.subspan(1))
             {
                 for (const cstring_view cleanupDir : {assetSource.sourceDir.view(), m_impl->artifactsDir.view()})
                 {
@@ -1417,7 +1419,7 @@ namespace oblo
             it = m_impl->currentImports.erase_unordered(it);
         }
 
-        for (auto& assetSource : std::span{m_impl->assetSources}.subspan(1))
+        for (auto& assetSource : std::span{m_impl->assetRepositories}.subspan(1))
         {
             if (!assetSource.watcher)
             {
@@ -1637,7 +1639,7 @@ namespace oblo
         importer&& importer,
         data_document&& settings,
         string_view destination,
-        h32<asset_source> assetSource)
+        h32<asset_repository> assetSource)
     {
         OBLO_ASSERT(assetSource);
 
@@ -1772,7 +1774,7 @@ namespace oblo
         return true;
     }
 
-    h32<asset_source> asset_registry_impl::resolve_asset_path(string_builder& out, string_view assetPath) const
+    h32<asset_repository> asset_registry_impl::resolve_asset_path(string_builder& out, string_view assetPath) const
     {
         if (!assetPath.starts_with(asset_path_prefix))
         {
@@ -1791,7 +1793,7 @@ namespace oblo
             return {};
         }
 
-        out = assetSources[it->second.value].assetDir;
+        out = assetRepositories[it->second.value].assetDir;
 
         out.append(assetPath.substr(1 + assetSourceName.size()));
 
@@ -1799,11 +1801,11 @@ namespace oblo
     }
 
     string_builder& asset_registry_impl::make_asset_path(
-        string_builder& out, string_view directory, h32<asset_source> assetSource) const
+        string_builder& out, string_view directory, h32<asset_repository> assetSource) const
     {
         OBLO_ASSERT(filesystem::is_relative(directory));
 
-        out.append(get_asset_source(assetSource).assetDir);
+        out.append(get_asset_repository(assetSource).assetDir);
         out.append_path_separator();
 
         out.append(directory);
@@ -1861,10 +1863,10 @@ namespace oblo
         return {};
     }
 
-    const asset_source& asset_registry_impl::get_asset_source(h32<asset_source> source) const
+    const asset_repository& asset_registry_impl::get_asset_repository(h32<asset_repository> source) const
     {
         OBLO_ASSERT(source);
-        return assetSources[source.value];
+        return assetRepositories[source.value];
     }
 
     bool asset_registry_impl::create_directories(cstring_view directory)

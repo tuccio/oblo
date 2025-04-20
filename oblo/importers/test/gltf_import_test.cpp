@@ -3,6 +3,7 @@
 #include <oblo/asset/asset_meta.hpp>
 #include <oblo/asset/asset_path.hpp>
 #include <oblo/asset/asset_registry.hpp>
+#include <oblo/asset/descriptors/asset_repository_descriptor.hpp>
 #include <oblo/asset/importers/registration.hpp>
 #include <oblo/core/data_format.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
@@ -133,7 +134,7 @@ namespace oblo::importers
         const string artifactsDir{child_path(testDir, "artifacts")};
         const string sourceFilesDir{child_path(testDir, "sourcefiles")};
 
-        const asset_source_descriptor assetSources[]{
+        const asset_repository_descriptor assetRepositories[]{
             {
                 .name = "assets"_hsv,
                 .assetsDirectory = assetsDir,
@@ -143,7 +144,7 @@ namespace oblo::importers
 
         clear_directory(testDir);
 
-        ASSERT_TRUE(registry.initialize(assetSources, artifactsDir));
+        ASSERT_TRUE(registry.initialize(assetRepositories, artifactsDir));
 
         deque<resource_type_descriptor> resourceTypes;
         fetch_scene_resource_types(resourceTypes);
