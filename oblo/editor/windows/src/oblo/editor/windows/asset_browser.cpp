@@ -527,7 +527,9 @@ namespace oblo::editor
                 ImGui::OpenPopup(deletePopup);
             }
 
-            if (ImGui::BeginPopupModal(deletePopup, &isOpen, ImGuiWindowFlags_AlwaysAutoResize))
+            if (ImGui::BeginPopupModal(deletePopup,
+                    &isOpen,
+                    ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings))
             {
                 string_builder builder;
                 builder.format("Are you sure you want to delete \"{}\"?",
