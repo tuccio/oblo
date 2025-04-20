@@ -63,13 +63,70 @@ namespace oblo
 
         struct imgui_render_backend
         {
+            const resource_registry* resourceRegistry{};
             graphics_engine* graphicsEngine{};
             vk::frame_graph* frameGraph{};
             vk::frame_graph_registry nodeRegistry;
             vk::frame_graph_template renderTemplate;
             vk::frame_graph_template pushImageTemplate;
-            resource_ptr<texture> font;
             deque<h32<vk::frame_graph_subgraph>> pushImageSubgraphs;
+
+            std::unordered_map<resource_ref<texture>, usize, hash<resource_ref<texture>>> registeredTexturesMap;
+            deque<resource_ptr<texture>> registeredTextures;
+
+            ImTextureID nextTextureId{};
+
+            static constexpr u64 subgraph_image_bit = u64{1} << 63;
+
+            ImTextureID register_texture(resource_ref<texture> ref)
+            {
+                const auto [it, inserted] = registeredTexturesMap.emplace(ref, nextTextureId);
+
+                if (inserted)
+                {
+                    resource_ptr ptr = resourceRegistry->get_resource(ref);
+                    OBLO_ASSERT(ptr);
+
+                    if (ptr)
+                    {
+                        ptr.load_start_async();
+                    }
+
+                    return register_texture(std::move(ptr));
+                }
+
+                return it->second;
+            }
+
+            ImTextureID register_texture(resource_ptr<texture> ptr)
+            {
+                const auto newId = nextTextureId;
+
+                registeredTextures.resize(newId + 1);
+
+                registeredTextures[newId] = std::move(ptr);
+                ++nextTextureId;
+
+                return newId;
+            }
+
+            ImTextureID register_subgraph_image(h32<vk::frame_graph_subgraph> subgraph)
+            {
+                const auto newId = ImTextureID{subgraph_image_bit | pushImageSubgraphs.size()};
+                pushImageSubgraphs.emplace_back(subgraph);
+                return newId;
+            }
+
+            static bool is_subgraph_texture(ImTextureID id)
+            {
+                return (subgraph_image_bit & id) != 0;
+            }
+
+            static u64 extract_subgraph_texture_index(ImTextureID id)
+            {
+                OBLO_ASSERT(is_subgraph_texture(id));
+                return ~subgraph_image_bit & id;
+            }
         };
 
         struct imgui_graph_image
@@ -109,7 +166,8 @@ namespace oblo
             h32<vk::render_pass> renderPass;
             h32<vk::render_pass_instance> renderPassInstance;
 
-            std::span<h32<vk::resident_texture>> textures;
+            std::span<h32<vk::resident_texture>> registeredTextures;
+            std::span<h32<vk::resident_texture>> subgraphTextures;
 
             void init(const vk::frame_graph_init_context& ctx)
             {
@@ -176,14 +234,23 @@ namespace oblo
                 auto* const backend = ctx.access(inBackend);
                 OBLO_ASSERT(backend);
 
-                textures = allocate_n_span<h32<vk::resident_texture>>(ctx.get_frame_allocator(),
-                    1 + backend->pushImageSubgraphs.size());
+                registeredTextures = allocate_n_span<h32<vk::resident_texture>>(ctx.get_frame_allocator(),
+                    backend->registeredTextures.size());
 
-                textures[0] = ctx.load_resource(backend->font);
+                subgraphTextures = allocate_n_span<h32<vk::resident_texture>>(ctx.get_frame_allocator(),
+                    backend->pushImageSubgraphs.size());
+
+                for (usize i = 0; i < backend->registeredTextures.size(); ++i)
+                {
+                    registeredTextures[i] = ctx.load_resource(backend->registeredTextures[i]);
+                }
 
                 for (auto& graphImage : ctx.access(inImageSink))
                 {
-                    textures[graphImage.id] = ctx.acquire_bindless(graphImage.texture, vk::texture_usage::shader_read);
+                    const auto textureId = backend->extract_subgraph_texture_index(graphImage.id);
+
+                    subgraphTextures[textureId] =
+                        ctx.acquire_bindless(graphImage.texture, vk::texture_usage::shader_read);
                 }
 
                 ImGuiViewport* const viewport = ctx.access(inViewport);
@@ -299,7 +366,7 @@ namespace oblo
                     i32 vertexOffset = 0;
                     i32 indexOffset = 0;
 
-                    u32 lastResidentTexture = ~u32{};
+                    ImTextureID lastImage = ~ImTextureID{};
 
                     for (const ImDrawList* drawList : drawData->CmdLists)
                     {
@@ -322,15 +389,29 @@ namespace oblo
                                 continue;
                             }
 
-                            u32 residentTexture = textures[cmd.GetTexID()].value;
+                            const ImTextureID newImage = cmd.GetTexID();
 
-                            if (residentTexture != lastResidentTexture)
+                            if (newImage != lastImage)
                             {
+                                h32<vk::resident_texture> residentTexture{};
+
+                                if (imgui_render_backend::is_subgraph_texture(newImage))
+                                {
+                                    const auto translatedId =
+                                        imgui_render_backend::extract_subgraph_texture_index(newImage);
+
+                                    residentTexture = subgraphTextures[translatedId];
+                                }
+                                else
+                                {
+                                    residentTexture = registeredTextures[newImage];
+                                }
+
                                 ctx.push_constants(shader_stage::vertex | shader_stage::fragment,
                                     sizeof(transform_constants),
                                     as_bytes(std::span{&residentTexture, 1}));
 
-                                lastResidentTexture = residentTexture;
+                                lastImage = newImage;
                             }
 
                             ctx.set_scissor(i32(clipMin.x),
@@ -640,7 +721,8 @@ namespace oblo
 
         std::memcpy(fontData.data(), pixels, fontData.size_bytes());
 
-        m_impl->backend.font = resourceRegistry.instantiate<texture>(std::move(font), "ImGui Font");
+        m_impl->backend.resourceRegistry = &resourceRegistry;
+        m_impl->backend.register_texture(resourceRegistry.instantiate<texture>(std::move(font), "ImGui Font"));
 
         return no_error;
     }
@@ -684,6 +766,19 @@ namespace oblo
 
 namespace oblo::imgui
 {
+    ImTextureID add_image(resource_ref<texture> texture)
+    {
+        auto* backend = static_cast<imgui_render_backend*>(ImGui::GetIO().BackendRendererUserData);
+        OBLO_ASSERT(backend);
+
+        if (!backend)
+        {
+            return {};
+        }
+
+        return backend->register_texture(texture);
+    }
+
     ImTextureID add_image(h32<vk::frame_graph_subgraph> subgraph, string_view output)
     {
         auto* viewport = ImGui::GetWindowViewport();
@@ -700,9 +795,9 @@ namespace oblo::imgui
         auto& frameGraph = *backend->frameGraph;
         auto* const rud = static_cast<imgui_render_userdata*>(viewport->RendererUserData);
 
-        const ImTextureID newId{1 + backend->pushImageSubgraphs.size()};
+        const auto pushGraph = frameGraph.instantiate(backend->pushImageTemplate);
+        const ImTextureID newId = backend->register_subgraph_image(pushGraph);
 
-        auto pushGraph = frameGraph.instantiate(backend->pushImageTemplate);
         frameGraph.connect(subgraph, output, pushGraph, g_InGraphTexture);
         frameGraph.set_input(pushGraph, g_InImGuiId, newId).assert_value();
 

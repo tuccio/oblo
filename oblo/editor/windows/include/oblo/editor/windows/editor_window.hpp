@@ -34,6 +34,8 @@ namespace oblo::editor
         vec2u m_draggableAreaMin{};
         vec2u m_draggableAreaMax{};
 
+        u64 m_appIconId{};
+
         bool m_isMaximized{};
     };
 }

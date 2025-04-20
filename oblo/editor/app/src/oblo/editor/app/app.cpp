@@ -323,13 +323,17 @@ namespace oblo::editor
             return;
         }
 
+        // Before accessing any resource (run a first update to make sure they are available)
+        m_impl->update_registries();
+
         init_ui();
-        m_impl->startup_ui();
 
         if (!app.init_font_atlas(m_impl->m_runtimeRegistry.get_resource_registry()))
         {
             return;
         }
+
+        m_impl->startup_ui();
 
         auto& mainWindow = app.get_main_window();
 
