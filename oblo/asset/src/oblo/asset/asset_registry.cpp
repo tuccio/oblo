@@ -1200,7 +1200,7 @@ namespace oblo
             {
                 const auto& p = entry.path();
 
-                if (!is_regular_file(p))
+                if (p.extension() != AssetMetaExtension.c_str() || !is_regular_file(p))
                 {
                     continue;
                 }
