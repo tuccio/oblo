@@ -1,5 +1,3 @@
-#include <SDL.h>
-
 #include <oblo/core/platform/core.hpp>
 #include <oblo/modules/module_manager.hpp>
 
@@ -16,10 +14,8 @@ namespace oblo
     }
 }
 
-int SDL_main(int argc, char* argv[])
+int main(int argc, char* argv[])
 {
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
-
     oblo::editor::app editorApp;
 
     if (!editorApp.init(argc, argv))
@@ -28,8 +24,6 @@ int SDL_main(int argc, char* argv[])
     }
 
     editorApp.run();
-
-    SDL_Quit();
 
     return 0;
 }

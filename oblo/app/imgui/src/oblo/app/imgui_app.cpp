@@ -40,13 +40,13 @@ namespace oblo
             ImGui_ImplWin32_WndProcHandler(msg->hwnd, msg->message, msg->wParam, msg->lParam);
         }
 
-        void* get_sdl_window(const graphics_window& window);
+        void* get_win32_window(const graphics_window& window);
         graphics_window_context* get_graphics_context(const graphics_window& window);
 
         template <auto Impl, auto Context>
         struct graphics_window_accessor
         {
-            friend void* get_sdl_window(const graphics_window& window)
+            friend void* get_win32_window(const graphics_window& window)
             {
                 return static_cast<void*>(window.*Impl);
             }
@@ -555,9 +555,9 @@ namespace oblo
 
             io.IniFilename = cfg.configFile;
 
-            auto* const sdlWindow = get_sdl_window(window);
+            auto* const win32Window = get_win32_window(window);
 
-            if (!ImGui_ImplWin32_Init(sdlWindow))
+            if (!ImGui_ImplWin32_Init(win32Window))
             {
                 return unspecified_error;
             }

@@ -230,9 +230,33 @@ namespace oblo
 
     graphics_window::graphics_window() = default;
 
+    graphics_window::graphics_window(graphics_window&& other) noexcept
+    {
+        m_impl = other.m_impl;
+        m_graphicsContext = other.m_graphicsContext;
+        m_hitTest = other.m_hitTest;
+
+        other.m_impl = nullptr;
+        m_hitTest = {};
+    }
+
     graphics_window::~graphics_window()
     {
         destroy();
+    }
+
+    graphics_window& graphics_window::operator=(graphics_window&& other) noexcept
+    {
+        destroy();
+
+        m_impl = other.m_impl;
+        m_graphicsContext = other.m_graphicsContext;
+        m_hitTest = other.m_hitTest;
+
+        other.m_impl = nullptr;
+        m_hitTest = {};
+
+        return *this;
     }
 
     bool graphics_window::create(const graphics_window_initializer& initializer)
@@ -288,7 +312,6 @@ namespace oblo
         SetWindowLongPtr(hWnd, GWLP_USERDATA, std::bit_cast<LONG_PTR>(this));
 
         m_impl = hWnd;
-        m_style = initializer.style;
 
         set_hidden(initializer.isHidden);
 
@@ -412,7 +435,7 @@ namespace oblo
 
     namespace
     {
-        mouse_key win32_map_mouse_key(u8 key)
+        constexpr mouse_key win32_map_mouse_key(u8 key)
         {
             switch (key)
             {
@@ -426,7 +449,6 @@ namespace oblo
                 return mouse_key::middle;
 
             default:
-                OBLO_ASSERT(false, "Unhandled mouse key");
                 return mouse_key::enum_max;
             }
         }
@@ -494,6 +516,50 @@ namespace oblo
                         .mouseRelease =
                             {
                                 .key = win32_map_mouse_key(VK_LBUTTON),
+                            },
+                    });
+                    break;
+
+                case WM_RBUTTONDOWN:
+                    m_inputQueue->push({
+                        .kind = input_event_kind::mouse_press,
+                        .timestamp = win32_convert_time(msg.time),
+                        .mousePress =
+                            {
+                                .key = win32_map_mouse_key(VK_RBUTTON),
+                            },
+                    });
+                    break;
+
+                case WM_RBUTTONUP:
+                    m_inputQueue->push({
+                        .kind = input_event_kind::mouse_release,
+                        .timestamp = win32_convert_time(msg.time),
+                        .mouseRelease =
+                            {
+                                .key = win32_map_mouse_key(VK_RBUTTON),
+                            },
+                    });
+                    break;
+
+                case WM_MBUTTONDOWN:
+                    m_inputQueue->push({
+                        .kind = input_event_kind::mouse_press,
+                        .timestamp = win32_convert_time(msg.time),
+                        .mousePress =
+                            {
+                                .key = win32_map_mouse_key(VK_MBUTTON),
+                            },
+                    });
+                    break;
+
+                case WM_MBUTTONUP:
+                    m_inputQueue->push({
+                        .kind = input_event_kind::mouse_release,
+                        .timestamp = win32_convert_time(msg.time),
+                        .mouseRelease =
+                            {
+                                .key = win32_map_mouse_key(VK_MBUTTON),
                             },
                     });
                     break;

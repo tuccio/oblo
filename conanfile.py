@@ -42,7 +42,6 @@ class ObloConanRecipe(ConanFile):
         self.requires("vulkan-loader/1.3.290.0")
         self.requires("vulkan-memory-allocator/3.0.0")
         self.requires("spirv-cross/1.3.296.0")
-        self.requires("sdl/2.0.20")
         self.requires("stb/cci.20230920")
         self.requires("tinygltf/2.8.13")
         self.requires("utfcpp/4.0.1")
@@ -72,9 +71,6 @@ class ObloConanRecipe(ConanFile):
         glslang.spv_remapper = False
         glslang.hlsl = False
         glslang.build_executables = False
-
-        sdl = self.options["sdl/*"]
-        sdl.shared = True
 
         if self.options.with_tracy:
             tracy = self.options["tracy/*"]

@@ -93,7 +93,6 @@ namespace oblo
     private:
         void* m_impl{};
         graphics_window_context* m_graphicsContext{};
-        window_style m_style{};
         hit_test_fn m_hitTest{};
     };
 }

@@ -1,7 +1,6 @@
 oblo_add_executable(oblo)
 
 find_package(cxxopts REQUIRED)
-find_package(SDL2 REQUIRED)
 
 oblo_register_asset_module_loader(oblo)
 oblo_register_editor_module_loader(oblo)
@@ -28,8 +27,6 @@ target_link_libraries(
     oblo::thread
     oblo::vk_engine
     cxxopts::cxxopts
-    SDL2::SDL2
-    SDL2::SDL2main
 )
 
 file(MAKE_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/data)
