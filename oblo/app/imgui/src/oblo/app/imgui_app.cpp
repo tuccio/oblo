@@ -24,26 +24,31 @@
 #include <oblo/vulkan/utility.hpp>
 #include <oblo/vulkan/vulkan_engine_module.hpp>
 
-#include <imgui_impl_sdl2.h>
+#include <imgui_impl_win32.h>
+
+#include <Windows.h>
+
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 namespace oblo
 {
     namespace
     {
-        void imgui_sdl_dispatch(const void* event)
+        void imgui_win32_dispatch_event(const void* event)
         {
-            ImGui_ImplSDL2_ProcessEvent(static_cast<const SDL_Event*>(event));
+            const MSG* msg = reinterpret_cast<const MSG*>(event);
+            ImGui_ImplWin32_WndProcHandler(msg->hwnd, msg->message, msg->wParam, msg->lParam);
         }
 
-        SDL_Window* get_sdl_window(const graphics_window& window);
+        void* get_sdl_window(const graphics_window& window);
         graphics_window_context* get_graphics_context(const graphics_window& window);
 
         template <auto Impl, auto Context>
         struct graphics_window_accessor
         {
-            friend SDL_Window* get_sdl_window(const graphics_window& window)
+            friend void* get_sdl_window(const graphics_window& window)
             {
-                return static_cast<SDL_Window*>(window.*Impl);
+                return static_cast<void*>(window.*Impl);
             }
 
             friend graphics_window_context* get_graphics_context(const graphics_window& window)
@@ -552,7 +557,7 @@ namespace oblo
 
             auto* const sdlWindow = get_sdl_window(window);
 
-            if (!ImGui_ImplSDL2_InitForOther(sdlWindow))
+            if (!ImGui_ImplWin32_Init(sdlWindow))
             {
                 return unspecified_error;
             }
@@ -647,7 +652,7 @@ namespace oblo
             {
                 ImGui::DestroyPlatformWindows();
 
-                ImGui_ImplSDL2_Shutdown();
+                ImGui_ImplWin32_Shutdown();
                 shutdown_renderer_backend();
 
                 ImGui::DestroyContext(context);
@@ -684,7 +689,7 @@ namespace oblo
             return e;
         }
 
-        m_eventProcessor.set_event_dispatcher({imgui_sdl_dispatch});
+        m_eventProcessor.set_event_dispatcher({imgui_win32_dispatch_event});
 
         m_impl = allocate_unique<impl>();
         return m_impl->init(m_mainWindow, cfg);
@@ -733,7 +738,7 @@ namespace oblo
 
         m_impl->clear_push_subgraphs();
 
-        ImGui_ImplSDL2_NewFrame();
+        ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
     }
 

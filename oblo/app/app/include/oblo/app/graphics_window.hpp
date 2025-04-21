@@ -78,8 +78,6 @@ namespace oblo
         bool is_hidden() const;
         void set_hidden(bool hide);
 
-        void set_borderless(bool borderless);
-
         void set_custom_hit_test(const hit_test_fn* f);
 
         vec2u get_size() const;
@@ -96,5 +94,6 @@ namespace oblo
         void* m_impl{};
         graphics_window_context* m_graphicsContext{};
         window_style m_style{};
+        hit_test_fn m_hitTest{};
     };
 }

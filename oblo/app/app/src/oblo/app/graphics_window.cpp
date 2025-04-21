@@ -1,163 +1,197 @@
-#include <oblo/app/graphics_window.hpp>
-
 #include <oblo/app/graphics_engine.hpp>
+#include <oblo/app/graphics_window.hpp>
 #include <oblo/app/graphics_window_context.hpp>
 #include <oblo/app/window_event_processor.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/modules/module_manager.hpp>
 
-#include <SDL.h>
-#include <SDL_syswm.h>
+#include <Windows.h>
+#include <Windowsx.h>
 
 namespace oblo
 {
     namespace
     {
-        constexpr const char* g_WindowGraphicsContext = "gfx";
-        constexpr const char* g_WindowPtr = "wnd";
+        graphics_window_context* get_graphics_window_context(graphics_window* w);
+        const hit_test_fn& get_graphics_window_hit_test(graphics_window* w);
 
-        SDL_Window* sdl_window(void* impl)
+        template <auto Ctx, auto Hit>
+        struct private_accessor
         {
-            return static_cast<SDL_Window*>(impl);
-        }
+            friend graphics_window_context* get_graphics_window_context(graphics_window* w)
+            {
+                return w->*Ctx;
+            }
 
-        struct window_info
-        {
-            SDL_Window* window;
-            graphics_window_context* graphicsContext;
+            friend const hit_test_fn& get_graphics_window_hit_test(graphics_window* w)
+            {
+                return w->*Hit;
+            }
         };
 
-        window_info get_graphics_context(const SDL_Event& event)
-        {
-            SDL_Window* const window = SDL_GetWindowFromID(event.window.windowID);
-            void* const windowData = window ? SDL_GetWindowData(window, g_WindowGraphicsContext) : nullptr;
-            auto* const graphicsContext = static_cast<graphics_window_context*>(windowData);
-            return {window, graphicsContext};
-        }
+        template private_accessor<&graphics_window::m_graphicsContext, &graphics_window::m_hitTest>;
 
-        SDL_HitTestResult to_sdl_hit_test_result(hit_test_result res)
+        LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
-            switch (res)
+            graphics_window* const window = std::bit_cast<graphics_window*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
+
+            switch (uMsg)
             {
-            case hit_test_result::normal:
-                return SDL_HITTEST_NORMAL;
-            case hit_test_result::draggable:
-                return SDL_HITTEST_DRAGGABLE;
-            case hit_test_result::resize_top_left:
-                return SDL_HITTEST_RESIZE_TOPLEFT;
-            case hit_test_result::resize_top:
-                return SDL_HITTEST_RESIZE_TOP;
-            case hit_test_result::resize_top_right:
-                return SDL_HITTEST_RESIZE_TOPRIGHT;
-            case hit_test_result::resize_right:
-                return SDL_HITTEST_RESIZE_RIGHT;
-            case hit_test_result::resize_bottom_right:
-                return SDL_HITTEST_RESIZE_BOTTOMRIGHT;
-            case hit_test_result::resize_bottom:
-                return SDL_HITTEST_RESIZE_BOTTOM;
-            case hit_test_result::resize_bottom_left:
-                return SDL_HITTEST_RESIZE_BOTTOMLEFT;
-            case hit_test_result::resize_left:
-                return SDL_HITTEST_RESIZE_LEFT;
-            default:
-                unreachable();
+            case WM_SIZE:
+                if (window && get_graphics_window_context(window))
+                {
+                    const UINT width = LOWORD(lParam);
+                    const UINT height = HIWORD(lParam);
+
+                    graphics_window_context* const graphicsCtx = get_graphics_window_context(window);
+                    graphicsCtx->on_resize(width, height);
+                }
+                return 0;
+
+            case WM_CLOSE:
+                if (window)
+                {
+                    window->destroy();
+                }
+                return 0;
+
+            case WM_NCHITTEST: {
+                // Let the default procedure handle resizing areas
+                const LRESULT hit = DefWindowProc(hWnd, uMsg, wParam, lParam);
+                switch (hit)
+                {
+                case HTNOWHERE:
+                case HTRIGHT:
+                case HTLEFT:
+                case HTTOPLEFT:
+                case HTTOP:
+                case HTTOPRIGHT:
+                case HTBOTTOMRIGHT:
+                case HTBOTTOM:
+                case HTBOTTOMLEFT: {
+                    return hit;
+                }
+                }
+
+                if (auto& hitTest = get_graphics_window_hit_test(window))
+                {
+                    POINT p = {
+                        .x = GET_X_LPARAM(lParam),
+                        .y = GET_Y_LPARAM(lParam),
+                    };
+
+                    ScreenToClient(hWnd, &p);
+
+                    switch (hitTest({u32(p.x), u32(p.y)}))
+                    {
+                    case hit_test_result::normal:
+                        return HTCLIENT;
+                    case hit_test_result::draggable:
+                        return HTCAPTION;
+                    case hit_test_result::resize_top_left:
+                        return HTTOPLEFT;
+                    case hit_test_result::resize_top:
+                        return HTTOP;
+                    case hit_test_result::resize_top_right:
+                        return HTTOPRIGHT;
+                    case hit_test_result::resize_right:
+                        return HTRIGHT;
+                    case hit_test_result::resize_bottom_right:
+                        return HTBOTTOMRIGHT;
+                    case hit_test_result::resize_bottom:
+                        return HTBOTTOM;
+                    case hit_test_result::resize_bottom_left:
+                        return HTBOTTOMLEFT;
+                    case hit_test_result::resize_left:
+                        return HTLEFT;
+                    }
+                }
+
+                return HTCLIENT;
             }
+            }
+
+            return DefWindowProc(hWnd, uMsg, wParam, lParam);
         }
     }
 
     graphics_window::graphics_window() = default;
-
-    graphics_window::graphics_window(graphics_window&& other) noexcept
-    {
-        m_impl = other.m_impl;
-        m_graphicsContext = other.m_graphicsContext;
-        m_style = other.m_style;
-        other.m_impl = nullptr;
-        other.m_graphicsContext = nullptr;
-
-        if (auto* sdlWindow = sdl_window(m_impl))
-        {
-            SDL_SetWindowData(sdlWindow, g_WindowPtr, this);
-        }
-    }
 
     graphics_window::~graphics_window()
     {
         destroy();
     }
 
-    graphics_window& graphics_window::operator=(graphics_window&& other) noexcept
-    {
-        destroy();
-
-        m_impl = other.m_impl;
-        m_graphicsContext = other.m_graphicsContext;
-        m_style = other.m_style;
-        other.m_impl = nullptr;
-        other.m_graphicsContext = nullptr;
-
-        if (auto* sdlWindow = sdl_window(m_impl))
-        {
-            SDL_SetWindowData(sdlWindow, g_WindowPtr, this);
-        }
-
-        return *this;
-    }
-
     bool graphics_window::create(const graphics_window_initializer& initializer)
     {
         OBLO_ASSERT(!m_impl);
 
-        i32 windowFlags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE;
+        const WNDCLASS wc = {
+            .lpfnWndProc = WindowProc,
+            .hInstance = GetModuleHandle(nullptr),
+            .lpszClassName = "GraphicsWindowClass",
+        };
 
-        if (initializer.style == window_style::app)
-        {
-            SDL_SetHintWithPriority("SDL_BORDERLESS_WINDOWED_STYLE", "1", SDL_HINT_OVERRIDE);
-            SDL_SetHintWithPriority("SDL_BORDERLESS_RESIZABLE_STYLE",
-                "1",
-                SDL_HINT_OVERRIDE); // This seems to allow the snap features in Windows Aero
-        }
+        RegisterClass(&wc);
 
-        if (initializer.isMaximized)
-        {
-            windowFlags |= SDL_WINDOW_MAXIMIZED;
-        }
-
-        if (initializer.isHidden)
-        {
-            windowFlags |= SDL_WINDOW_HIDDEN;
-        }
+        DWORD style;
 
         if (initializer.isBorderless)
         {
-            windowFlags |= SDL_WINDOW_BORDERLESS;
+            switch (initializer.style)
+            {
+            case window_style::app:
+                style = WS_POPUP | WS_SYSMENU // Sysmenu enables the aero snapping feature
+                    | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_THICKFRAME;
+                break;
+
+            default:
+                style = WS_POPUP;
+            }
         }
-
-        const i32 w = initializer.windowWidth == 0 ? 1280u : initializer.windowWidth;
-        const i32 h = initializer.windowHeight == 0 ? 720u : initializer.windowHeight;
-
-        SDL_Window* const window = SDL_CreateWindow(initializer.title.c_str(),
-            SDL_WINDOWPOS_UNDEFINED,
-            SDL_WINDOWPOS_UNDEFINED,
-            w,
-            h,
-            windowFlags);
-
-        if (initializer.style == window_style::app)
+        else
         {
-            SDL_SetHintWithPriority("SDL_BORDERLESS_WINDOWED_STYLE", nullptr, SDL_HINT_OVERRIDE);
-            SDL_SetHintWithPriority("SDL_BORDERLESS_RESIZABLE_STYLE", nullptr, SDL_HINT_OVERRIDE);
+            style = WS_OVERLAPPEDWINDOW;
         }
 
-        m_impl = window;
+        RECT rect = {
+            0,
+            0,
+            LONG(initializer.windowWidth ? initializer.windowWidth : 1280),
+            LONG(initializer.windowHeight ? initializer.windowHeight : 720),
+        };
+
+        if (!initializer.isBorderless)
+        {
+            AdjustWindowRect(&rect, style, FALSE);
+        }
+
+        const HWND hWnd = CreateWindowEx(0,
+            wc.lpszClassName,
+            initializer.title.c_str(),
+            style,
+            CW_USEDEFAULT,
+            CW_USEDEFAULT,
+            rect.right - rect.left,
+            rect.bottom - rect.top,
+            nullptr,
+            nullptr,
+            GetModuleHandle(nullptr),
+            nullptr);
+
+        if (!hWnd)
+        {
+            return false;
+        }
+
+        SetWindowLongPtr(hWnd, GWLP_USERDATA, std::bit_cast<LONG_PTR>(this));
+
+        m_impl = hWnd;
         m_style = initializer.style;
 
-        if (window)
-        {
-            SDL_SetWindowData(window, g_WindowPtr, this);
-        }
+        set_hidden(initializer.isHidden);
 
-        return m_impl != nullptr;
+        return true;
     }
 
     void graphics_window::destroy()
@@ -170,7 +204,7 @@ namespace oblo
 
         if (m_impl)
         {
-            SDL_DestroyWindow(sdl_window(m_impl));
+            DestroyWindow(std::bit_cast<HWND>(m_impl));
             m_impl = nullptr;
         }
     }
@@ -191,7 +225,6 @@ namespace oblo
 
         const auto [w, h] = get_size();
         m_graphicsContext = gfxEngine->create_context(get_native_handle(), w, h);
-        SDL_SetWindowData(sdl_window(m_impl), g_WindowGraphicsContext, m_graphicsContext);
 
         return m_graphicsContext != nullptr;
     }
@@ -208,123 +241,62 @@ namespace oblo
 
     bool graphics_window::is_maximized() const
     {
-        const auto flags = SDL_GetWindowFlags(sdl_window(m_impl));
-        return (flags & SDL_WINDOW_MAXIMIZED) != 0;
+        return IsZoomed(std::bit_cast<HWND>(m_impl)) != 0;
     }
 
     bool graphics_window::is_minimized() const
     {
-        const auto flags = SDL_GetWindowFlags(sdl_window(m_impl));
-        return (flags & SDL_WINDOW_MINIMIZED) != 0;
+        return IsIconic(std::bit_cast<HWND>(m_impl)) != 0;
     }
 
     void graphics_window::maximize()
     {
-        SDL_Window* const window = sdl_window(m_impl);
-        SDL_MaximizeWindow(window);
+        ShowWindow(std::bit_cast<HWND>(m_impl), SW_MAXIMIZE);
     }
 
     void graphics_window::minimize()
     {
-        SDL_Window* const window = sdl_window(m_impl);
-        SDL_MinimizeWindow(window);
+        ShowWindow(std::bit_cast<HWND>(m_impl), SW_MINIMIZE);
     }
 
     void graphics_window::restore()
     {
-        SDL_Window* const window = sdl_window(m_impl);
-        SDL_RestoreWindow(window);
+        ShowWindow(std::bit_cast<HWND>(m_impl), SW_RESTORE);
     }
 
     bool graphics_window::is_hidden() const
     {
-        const auto flags = SDL_GetWindowFlags(sdl_window(m_impl));
-        return (flags & SDL_WINDOW_HIDDEN) != 0;
+        return IsWindowVisible(std::bit_cast<HWND>(m_impl)) == 0;
     }
 
     void graphics_window::set_hidden(bool hide)
     {
-        SDL_Window* const window = sdl_window(m_impl);
-
-        if (hide)
-        {
-            SDL_HideWindow(window);
-        }
-        else
-        {
-            SDL_ShowWindow(window);
-        }
-    }
-
-    void graphics_window::set_borderless(bool borderless)
-    {
-        if (m_style == window_style::app)
-        {
-            SDL_SetHintWithPriority("SDL_BORDERLESS_WINDOWED_STYLE", "0", SDL_HINT_OVERRIDE);
-            SDL_SetHintWithPriority("SDL_BORDERLESS_RESIZABLE_STYLE",
-                "0",
-                SDL_HINT_OVERRIDE); // This seems to allow the snap features in Windows Aero
-        }
-
-        SDL_Window* const window = sdl_window(m_impl);
-        SDL_SetWindowBordered(window, borderless ? SDL_FALSE : SDL_TRUE);
-
-        if (m_style == window_style::app)
-        {
-            SDL_SetHintWithPriority("SDL_BORDERLESS_WINDOWED_STYLE", nullptr, SDL_HINT_OVERRIDE);
-            SDL_SetHintWithPriority("SDL_BORDERLESS_RESIZABLE_STYLE", nullptr, SDL_HINT_OVERRIDE);
-        }
-    }
-
-    namespace
-    {
-        SDL_HitTestResult hit_test(SDL_Window*, const SDL_Point* position, void* data)
-        {
-            auto& f = *static_cast<const hit_test_fn*>(data);
-            const auto result = f(vec2u{u32(position->x), u32(position->y)});
-            return to_sdl_hit_test_result(result);
-        }
+        ShowWindow(std::bit_cast<HWND>(m_impl), hide ? SW_HIDE : SW_SHOW);
     }
 
     void graphics_window::set_custom_hit_test(const hit_test_fn* f)
     {
-        SDL_Window* const window = sdl_window(m_impl);
-
-        if (f)
-        {
-            SDL_SetWindowHitTest(window, hit_test, const_cast<void*>(static_cast<const void*>(f)));
-        }
-        else
-        {
-            SDL_SetWindowHitTest(window, nullptr, nullptr);
-        }
+        m_hitTest = *f;
     }
 
     vec2u graphics_window::get_size() const
     {
-        int w, h;
-        SDL_GetWindowSize(sdl_window(m_impl), &w, &h);
-        return {u32(w), u32(h)};
+        RECT rect;
+        GetClientRect(std::bit_cast<HWND>(m_impl), &rect);
+        return {static_cast<u32>(rect.right - rect.left), static_cast<u32>(rect.bottom - rect.top)};
     }
 
     native_window_handle graphics_window::get_native_handle() const
     {
-        SDL_Window* const window = sdl_window(m_impl);
-        SDL_SysWMinfo wmInfo;
-        SDL_VERSION(&wmInfo.version);
-
-        return SDL_GetWindowWMInfo(window, &wmInfo) ? wmInfo.info.win.window : nullptr;
+        return m_impl;
     }
 
     void graphics_window::set_icon(u32 w, u32 h, std::span<const byte> data)
     {
-        SDL_Window* const window = sdl_window(m_impl);
-
-        SDL_Surface* const surface = SDL_CreateRGBSurfaceWithFormat(0, i32(w), i32(h), 8, SDL_PIXELFORMAT_RGBA32);
-        std::memcpy(surface->pixels, data.data(), data.size());
-
-        SDL_SetWindowIcon(window, surface);
-        SDL_FreeSurface(surface);
+        (void) h;
+        (void) w;
+        (void) data;
+        // Implementation for setting window icon using Win32 API
     }
 
     void window_event_processor::set_event_dispatcher(const window_event_dispatcher& dispatcher)
@@ -343,13 +315,13 @@ namespace oblo
         {
             switch (key)
             {
-            case SDL_BUTTON_LEFT:
+            case VK_LBUTTON:
                 return mouse_key::left;
 
-            case SDL_BUTTON_RIGHT:
+            case VK_RBUTTON:
                 return mouse_key::right;
 
-            case SDL_BUTTON_MIDDLE:
+            case VK_MBUTTON:
                 return mouse_key::middle;
 
             default:
@@ -358,160 +330,108 @@ namespace oblo
             }
         }
 
-        keyboard_key sdl_map_keyboard_key(SDL_Keycode key)
+        keyboard_key sdl_map_keyboard_key(WPARAM key)
         {
-            if (key >= 'a' && key <= 'z')
+            if (key >= 'A' && key <= 'Z')
             {
-                return keyboard_key(u32(keyboard_key::a) + (key - 'a'));
+                return keyboard_key(u32(keyboard_key::a) + (key - 'A'));
             }
 
             switch (key)
             {
-            case SDLK_LSHIFT:
+            case VK_SHIFT:
                 return keyboard_key::left_shift;
             }
 
             return keyboard_key::enum_max;
         }
 
-        time sdl_convert_time(u32 time)
+        time sdl_convert_time(DWORD time)
         {
-            return time::from_milliseconds(time);
+            return time::from_milliseconds(i64(time));
         }
     }
 
     bool window_event_processor::process_events() const
     {
-        for (SDL_Event event; SDL_PollEvent(&event);)
+        MSG msg;
+
+        while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
         {
+            if (msg.message == WM_QUIT)
+            {
+                return false;
+            }
+
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+
             if (m_windowEventDispatcher.dispatch)
             {
-                m_windowEventDispatcher.dispatch(&event);
+                m_windowEventDispatcher.dispatch(&msg);
             }
 
             if (m_inputQueue)
             {
-                switch (event.type)
+                switch (msg.message)
                 {
-                case SDL_MOUSEBUTTONDOWN:
+                case WM_LBUTTONDOWN:
                     m_inputQueue->push({
                         .kind = input_event_kind::mouse_press,
-                        .timestamp = sdl_convert_time(event.button.timestamp),
+                        .timestamp = sdl_convert_time(msg.time),
                         .mousePress =
                             {
-                                .key = sdl_map_mouse_key(event.button.button),
+                                .key = sdl_map_mouse_key(VK_LBUTTON),
                             },
                     });
                     break;
 
-                case SDL_MOUSEBUTTONUP:
+                case WM_LBUTTONUP:
                     m_inputQueue->push({
                         .kind = input_event_kind::mouse_release,
-                        .timestamp = sdl_convert_time(event.button.timestamp),
+                        .timestamp = sdl_convert_time(msg.time),
                         .mouseRelease =
                             {
-                                .key = sdl_map_mouse_key(event.button.button),
+                                .key = sdl_map_mouse_key(VK_LBUTTON),
                             },
                     });
                     break;
 
-                case SDL_MOUSEMOTION:
+                case WM_MOUSEMOVE:
                     m_inputQueue->push({
                         .kind = input_event_kind::mouse_move,
-                        .timestamp = sdl_convert_time(event.motion.timestamp),
+                        .timestamp = sdl_convert_time(msg.time),
                         .mouseMove =
                             {
-                                .x = f32(event.motion.x),
-                                .y = f32(event.motion.y),
+                                .x = f32(GET_X_LPARAM(msg.lParam)),
+                                .y = f32(GET_Y_LPARAM(msg.lParam)),
                             },
                     });
                     break;
 
-                case SDL_KEYDOWN:
+                case WM_KEYDOWN:
                     m_inputQueue->push({
                         .kind = input_event_kind::keyboard_press,
-                        .timestamp = sdl_convert_time(event.key.timestamp),
+                        .timestamp = sdl_convert_time(msg.time),
                         .keyboardPress =
                             {
-                                .key = sdl_map_keyboard_key(event.key.keysym.sym),
+                                .key = sdl_map_keyboard_key(msg.wParam),
                             },
                     });
                     break;
 
-                case SDL_KEYUP:
+                case WM_KEYUP:
                     m_inputQueue->push({
                         .kind = input_event_kind::keyboard_release,
-                        .timestamp = sdl_convert_time(event.key.timestamp),
+                        .timestamp = sdl_convert_time(msg.time),
                         .keyboardRelease =
                             {
-                                .key = sdl_map_keyboard_key(event.key.keysym.sym),
+                                .key = sdl_map_keyboard_key(msg.wParam),
                             },
                     });
 
                     break;
                 }
-            }
-
-            switch (event.type)
-            {
-            case SDL_QUIT:
-                return false;
-
-            case SDL_WINDOWEVENT: {
-                switch (event.window.event)
-                {
-                case SDL_WINDOWEVENT_MAXIMIZED:
-                case SDL_WINDOWEVENT_RESTORED: {
-                    const auto [window, graphicsContext] = get_graphics_context(event);
-                    graphicsContext->on_visibility_change(true);
-                    break;
-                }
-
-                case SDL_WINDOWEVENT_MINIMIZED: {
-                    const auto [window, graphicsContext] = get_graphics_context(event);
-                    graphicsContext->on_visibility_change(false);
-                    break;
-                }
-
-                case SDL_WINDOWEVENT_MOVED: {
-
-                    const u32 x = u32(event.window.data1);
-                    const u32 y = u32(event.window.data2);
-
-                    (void) x;
-                    (void) y;
-                    break;
-                }
-
-                case SDL_WINDOWEVENT_RESIZED:
-                case SDL_WINDOWEVENT_SIZE_CHANGED: {
-                    const auto [window, graphicsContext] = get_graphics_context(event);
-
-                    if (graphicsContext)
-                    {
-                        const u32 w = u32(event.window.data1);
-                        const u32 h = u32(event.window.data2);
-
-                        graphicsContext->on_resize(w, h);
-                    }
-
-                    break;
-                }
-
-                case SDL_WINDOWEVENT_CLOSE: {
-                    SDL_Window* const sdlWindow = SDL_GetWindowFromID(event.window.windowID);
-                    auto* const graphicsWindow =
-                        sdlWindow ? static_cast<graphics_window*>(SDL_GetWindowData(sdlWindow, g_WindowPtr)) : nullptr;
-
-                    if (graphicsWindow)
-                    {
-                        graphicsWindow->destroy();
-                    }
-
-                    break;
-                }
-                }
-            }
             }
         }
 

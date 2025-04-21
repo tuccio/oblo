@@ -9,7 +9,9 @@ namespace oblo
     struct time
     {
         static constexpr time from_seconds(f32 seconds);
+        static constexpr time from_milliseconds(i64 milliseconds);
         static constexpr time from_milliseconds(u32 milliseconds);
+        static constexpr time from_milliseconds(u64 milliseconds);
         static constexpr time from_milliseconds(f32 milliseconds);
 
         // The unit is 100 nanoseconds (hns in short)
@@ -28,9 +30,19 @@ namespace oblo
         return {i64(millis * 1e4f)};
     }
 
+    constexpr time time::from_milliseconds(i64 millis)
+    {
+        return {millis * 10'000};
+    }
+
     constexpr time time::from_milliseconds(u32 millis)
     {
-        return {i64{millis} * 10'000};
+        return from_milliseconds(i64{millis});
+    }
+
+    constexpr time time::from_milliseconds(u64 millis)
+    {
+        return from_milliseconds(i64(millis));
     }
 
     constexpr time operator-(const time& lhs, const time& rhs)

@@ -86,7 +86,7 @@ class ObloConanRecipe(ConanFile):
         imgui = self.dependencies["imgui"]
         src_dir = f"{imgui.package_folder}/res/bindings/"
 
-        for backend in ["sdl2"]:
+        for backend in ["win32"]:
             copy(self, f"imgui_impl_{backend}.h", src_dir,
                  f"{self.recipe_folder}/3rdparty/imgui/{backend}/include")
             copy(self, f"imgui_impl_{backend}_*", src_dir,
