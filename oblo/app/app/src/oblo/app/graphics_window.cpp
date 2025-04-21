@@ -32,7 +32,7 @@ namespace oblo
             }
         };
 
-        template private_accessor<&graphics_window::m_graphicsContext, &graphics_window::m_hitTest>;
+        template struct private_accessor<&graphics_window::m_graphicsContext, &graphics_window::m_hitTest>;
 
         bool is_app_style_borderless(DWORD style)
         {
