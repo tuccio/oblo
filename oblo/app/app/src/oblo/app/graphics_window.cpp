@@ -55,6 +55,40 @@ namespace oblo
                 }
                 return 0;
 
+            case WM_NCCALCSIZE: {
+                const auto style = GetWindowStyle(hWnd);
+
+                // Check whether we have window_style::app borderless (i.e. WS_CAPTION should not be set, but
+                // WS_POPUP | WS_THICKFRAME should be)
+                constexpr auto expected = WS_POPUP | WS_THICKFRAME;
+                constexpr auto check = expected | WS_CAPTION;
+
+                if ((style & check) == expected)
+                {
+                    // Our borderless windows have an invisible frame in order to be resizable and enable the Windows
+                    // aero snap features. This border is 7x7. There might also be an extra border when WS_BORDER is
+                    // there, making it 8x8.
+                    // When maximized the invisible border is out of screen (e.g. on the main display the window
+                    // position will be [-7;-7], we need to make sure to offset the client area to avoid clipping the
+                    // border.
+
+                    if (IsZoomed(hWnd))
+                    {
+                        constexpr i32 borderSize = 7;
+
+                        NCCALCSIZE_PARAMS* const params = reinterpret_cast<NCCALCSIZE_PARAMS*>(lParam);
+
+                        params->rgrc->right -= borderSize;
+                        params->rgrc->left += borderSize;
+
+                        params->rgrc->bottom -= borderSize;
+                        params->rgrc->top += borderSize;
+                    }
+
+                    return 0;
+                }
+            }
+
             case WM_NCHITTEST: {
                 // Let the default procedure handle resizing areas
                 const LRESULT hit = DefWindowProc(hWnd, uMsg, wParam, lParam);
@@ -113,6 +147,33 @@ namespace oblo
 
             return DefWindowProc(hWnd, uMsg, wParam, lParam);
         }
+
+        class win32_window_class
+        {
+        public:
+            static constexpr const char* class_name = "oblo::graphics_window";
+
+            win32_window_class()
+            {
+                m_wc = {
+                    .lpfnWndProc = WindowProc,
+                    .hInstance = GetModuleHandle(nullptr),
+                    .lpszClassName = class_name,
+                };
+
+                RegisterClass(&m_wc);
+            }
+
+            ~win32_window_class()
+            {
+                UnregisterClass(m_wc.lpszClassName, m_wc.hInstance);
+            }
+
+        private:
+            WNDCLASS m_wc{};
+        };
+
+        static win32_window_class g_wndClass;
     }
 
     graphics_window::graphics_window() = default;
@@ -126,14 +187,6 @@ namespace oblo
     {
         OBLO_ASSERT(!m_impl);
 
-        const WNDCLASS wc = {
-            .lpfnWndProc = WindowProc,
-            .hInstance = GetModuleHandle(nullptr),
-            .lpszClassName = "GraphicsWindowClass",
-        };
-
-        RegisterClass(&wc);
-
         DWORD style;
 
         if (initializer.isBorderless)
@@ -141,8 +194,7 @@ namespace oblo
             switch (initializer.style)
             {
             case window_style::app:
-                style = WS_POPUP | WS_SYSMENU // Sysmenu enables the aero snapping feature
-                    | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_THICKFRAME;
+                style = WS_POPUP | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_THICKFRAME;
                 break;
 
             default:
@@ -154,26 +206,23 @@ namespace oblo
             style = WS_OVERLAPPEDWINDOW;
         }
 
-        RECT rect = {
-            0,
-            0,
-            LONG(initializer.windowWidth ? initializer.windowWidth : 1280),
-            LONG(initializer.windowHeight ? initializer.windowHeight : 720),
-        };
-
-        if (!initializer.isBorderless)
+        if (initializer.isMaximized)
         {
-            AdjustWindowRect(&rect, style, FALSE);
+            style |= WS_MAXIMIZE;
         }
 
-        const HWND hWnd = CreateWindowEx(0,
-            wc.lpszClassName,
+        const auto w = initializer.windowWidth ? initializer.windowWidth : 1280;
+        const auto h = initializer.windowHeight ? initializer.windowHeight : 720;
+
+        const HWND hWnd = CreateWindowExA(0,
+            g_wndClass.class_name,
+            // We should actually convert the title from utf8 to utf16 and use CreateWindowExW
             initializer.title.c_str(),
             style,
             CW_USEDEFAULT,
             CW_USEDEFAULT,
-            rect.right - rect.left,
-            rect.bottom - rect.top,
+            w,
+            h,
             nullptr,
             nullptr,
             GetModuleHandle(nullptr),
@@ -311,7 +360,7 @@ namespace oblo
 
     namespace
     {
-        mouse_key sdl_map_mouse_key(u8 key)
+        mouse_key win32_map_mouse_key(u8 key)
         {
             switch (key)
             {
@@ -330,7 +379,7 @@ namespace oblo
             }
         }
 
-        keyboard_key sdl_map_keyboard_key(WPARAM key)
+        keyboard_key win32_map_keyboard_key(WPARAM key)
         {
             if (key >= 'A' && key <= 'Z')
             {
@@ -346,7 +395,7 @@ namespace oblo
             return keyboard_key::enum_max;
         }
 
-        time sdl_convert_time(DWORD time)
+        time win32_convert_time(DWORD time)
         {
             return time::from_milliseconds(i64(time));
         }
@@ -378,10 +427,10 @@ namespace oblo
                 case WM_LBUTTONDOWN:
                     m_inputQueue->push({
                         .kind = input_event_kind::mouse_press,
-                        .timestamp = sdl_convert_time(msg.time),
+                        .timestamp = win32_convert_time(msg.time),
                         .mousePress =
                             {
-                                .key = sdl_map_mouse_key(VK_LBUTTON),
+                                .key = win32_map_mouse_key(VK_LBUTTON),
                             },
                     });
                     break;
@@ -389,10 +438,10 @@ namespace oblo
                 case WM_LBUTTONUP:
                     m_inputQueue->push({
                         .kind = input_event_kind::mouse_release,
-                        .timestamp = sdl_convert_time(msg.time),
+                        .timestamp = win32_convert_time(msg.time),
                         .mouseRelease =
                             {
-                                .key = sdl_map_mouse_key(VK_LBUTTON),
+                                .key = win32_map_mouse_key(VK_LBUTTON),
                             },
                     });
                     break;
@@ -400,7 +449,7 @@ namespace oblo
                 case WM_MOUSEMOVE:
                     m_inputQueue->push({
                         .kind = input_event_kind::mouse_move,
-                        .timestamp = sdl_convert_time(msg.time),
+                        .timestamp = win32_convert_time(msg.time),
                         .mouseMove =
                             {
                                 .x = f32(GET_X_LPARAM(msg.lParam)),
@@ -412,10 +461,10 @@ namespace oblo
                 case WM_KEYDOWN:
                     m_inputQueue->push({
                         .kind = input_event_kind::keyboard_press,
-                        .timestamp = sdl_convert_time(msg.time),
+                        .timestamp = win32_convert_time(msg.time),
                         .keyboardPress =
                             {
-                                .key = sdl_map_keyboard_key(msg.wParam),
+                                .key = win32_map_keyboard_key(msg.wParam),
                             },
                     });
                     break;
@@ -423,10 +472,10 @@ namespace oblo
                 case WM_KEYUP:
                     m_inputQueue->push({
                         .kind = input_event_kind::keyboard_release,
-                        .timestamp = sdl_convert_time(msg.time),
+                        .timestamp = win32_convert_time(msg.time),
                         .keyboardRelease =
                             {
-                                .key = sdl_map_keyboard_key(msg.wParam),
+                                .key = win32_map_keyboard_key(msg.wParam),
                             },
                     });
 

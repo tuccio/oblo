@@ -55,6 +55,8 @@ namespace oblo::editor
 
     bool editor_window::update(const window_update_context& ctx)
     {
+        auto* const mainViewport = ImGui::GetMainViewport();
+
         m_lastEvent = editor_window_event::none;
 
         constexpr ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_None;
@@ -109,7 +111,8 @@ namespace oblo::editor
 
         // Submit the DockSpace
         ImGuiID dockspace_id = ImGui::GetID("oblo_dockspace");
-        ImGui::DockSpace(dockspace_id, ImVec2{0.f, 0.f}, dockspaceFlags);
+
+        ImGui::DockSpace(dockspace_id, {0.f, 0.f}, dockspaceFlags);
 
         ImGui::End();
 
@@ -119,8 +122,6 @@ namespace oblo::editor
             ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_MenuBar;
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
-
-        auto* const mainViewport = ImGui::GetMainViewport();
 
         if (ImGui::BeginViewportSideBar("##main_menu", mainViewport, ImGuiDir_Up, height, flags))
         {
