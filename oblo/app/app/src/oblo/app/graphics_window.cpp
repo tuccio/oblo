@@ -417,10 +417,67 @@ namespace oblo
 
     void graphics_window::set_icon(u32 w, u32 h, std::span<const byte> data)
     {
-        (void) h;
-        (void) w;
-        (void) data;
-        // Implementation for setting window icon using Win32 API
+        using bitmap_ptr = unique_ptr<HBITMAP__, decltype([](HBITMAP h) { DeleteObject(h); })>;
+
+        const HWND hWnd = std::bit_cast<HWND>(m_impl);
+
+        dynamic_array<u32> pixels;
+        pixels.resize_default(data.size() / 4);
+
+        for (u32 i = 0, j = 0; i < data.size(); ++j, i += 4)
+        {
+            const u32 r = u32(data[i]);
+            const u32 g = u32(data[i + 1]);
+            const u32 b = u32(data[i + 2]);
+            const u32 a = u32(data[i + 3]);
+            pixels[j] = b | (g << 8) | (r << 16) | (a << 24);
+        }
+
+        BITMAPV5HEADER bi = {
+            .bV5Size = sizeof(BITMAPV5HEADER),
+            .bV5Width = static_cast<LONG>(w),
+            .bV5Height = -static_cast<LONG>(h), // Negative for top-down DI
+            .bV5Planes = 1,
+            .bV5BitCount = 32,
+            .bV5Compression = BI_RGB,
+        };
+
+        const HDC hDC = GetDC(nullptr);
+
+        if (!hDC)
+        {
+            return;
+        }
+
+        const bitmap_ptr hColor{CreateDIBitmap(hDC,
+            reinterpret_cast<BITMAPINFOHEADER*>(&bi),
+            CBM_INIT,
+            pixels.data(),
+            reinterpret_cast<BITMAPINFO*>(&bi),
+            DIB_RGB_COLORS)};
+
+        ReleaseDC(nullptr, hDC);
+
+        const bitmap_ptr hMask{CreateBitmap(w, h, 1, 1, nullptr)};
+
+        if (!hColor || !hMask)
+        {
+            return;
+        }
+
+        ICONINFO iconInfo = {
+            .fIcon = TRUE,
+            .hbmMask = hMask.get(),
+            .hbmColor = hColor.get(),
+        };
+
+        HICON hIcon = CreateIconIndirect(&iconInfo);
+
+        if (hIcon)
+        {
+            SendMessage(hWnd, WM_SETICON, ICON_SMALL, (LPARAM) hIcon);
+            SendMessage(hWnd, WM_SETICON, ICON_BIG, (LPARAM) hIcon);
+        }
     }
 
     void window_event_processor::set_event_dispatcher(const window_event_dispatcher& dispatcher)
