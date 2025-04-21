@@ -12,6 +12,9 @@ namespace oblo
 {
     namespace
     {
+        // This is used to handle WM_MOVE when moving maximized windows across different monitors
+        bool g_MaybeMovingToNewMonitor = false;
+
         graphics_window_context* get_graphics_window_context(graphics_window* w);
         const hit_test_fn& get_graphics_window_hit_test(graphics_window* w);
 
@@ -31,12 +34,72 @@ namespace oblo
 
         template private_accessor<&graphics_window::m_graphicsContext, &graphics_window::m_hitTest>;
 
+        bool is_app_style_borderless(DWORD style)
+        {
+            // Check whether we have window_style::app borderless (i.e. WS_CAPTION should not be set, but
+            // WS_POPUP | WS_THICKFRAME should be)
+            constexpr auto expected = WS_POPUP | WS_THICKFRAME;
+            constexpr auto check = expected | WS_CAPTION;
+
+            return (style & check) == expected;
+        }
+
         LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
+            // Not sure yet if this can be obtained somehow from the Win32 API, maybe dwmapi has something
+            static constexpr i32 invisibleBorderSize = 7;
+
             graphics_window* const window = std::bit_cast<graphics_window*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
 
             switch (uMsg)
             {
+            case WM_GETMINMAXINFO:
+                if (const auto style = GetWindowStyle(hWnd); is_app_style_borderless(style))
+                {
+                    // Clamp the size of our borderless window to the work area, this way we don't render the window
+                    // over the task bar, which is not desirable in the app style.
+                    const HMONITOR monitor = MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST);
+
+                    MONITORINFO monitorInfo{
+                        .cbSize = sizeof(MONITORINFO),
+                    };
+
+                    RECT rect;
+
+                    if (GetMonitorInfo(monitor, &monitorInfo))
+                    {
+                        rect = monitorInfo.rcWork;
+                    }
+                    else
+                    {
+                        SystemParametersInfo(SPI_GETWORKAREA, sizeof(RECT), &rect, 0);
+                    }
+
+                    auto* const minMaxInfo = reinterpret_cast<MINMAXINFO*>(lParam);
+
+                    minMaxInfo->ptMaxSize.x = invisibleBorderSize + rect.right - rect.left;
+                    minMaxInfo->ptMaxSize.y = invisibleBorderSize + rect.bottom - rect.top;
+                    return 0;
+                }
+
+                break;
+
+            case WM_MOVE: {
+                // When moving the window between different monitors using windows key + arrow, we want to make sure we
+                // resize the window to match the screen size.
+                // In order to do it we process WM_MOVE, but with extra care to avoid reprocessing WM_MOVE recursively,
+                // using a global flag.
+                if (const auto style = GetWindowStyle(hWnd);
+                    !g_MaybeMovingToNewMonitor && window && is_app_style_borderless(style) && IsZoomed(hWnd))
+                {
+                    g_MaybeMovingToNewMonitor = true;
+                    window->restore();
+                    window->maximize();
+                    g_MaybeMovingToNewMonitor = false;
+                }
+                break;
+            }
+
             case WM_SIZE:
                 if (window && get_graphics_window_context(window))
                 {
@@ -56,33 +119,22 @@ namespace oblo
                 return 0;
 
             case WM_NCCALCSIZE: {
-                const auto style = GetWindowStyle(hWnd);
 
-                // Check whether we have window_style::app borderless (i.e. WS_CAPTION should not be set, but
-                // WS_POPUP | WS_THICKFRAME should be)
-                constexpr auto expected = WS_POPUP | WS_THICKFRAME;
-                constexpr auto check = expected | WS_CAPTION;
-
-                if ((style & check) == expected)
+                if (const auto style = GetWindowStyle(hWnd); is_app_style_borderless(style))
                 {
                     // Our borderless windows have an invisible frame in order to be resizable and enable the Windows
-                    // aero snap features. This border is 7x7. There might also be an extra border when WS_BORDER is
-                    // there, making it 8x8.
+                    // aero snap features. This border seems to be 7x7.
                     // When maximized the invisible border is out of screen (e.g. on the main display the window
                     // position will be [-7;-7], we need to make sure to offset the client area to avoid clipping the
                     // border.
 
                     if (IsZoomed(hWnd))
                     {
-                        constexpr i32 borderSize = 7;
 
                         NCCALCSIZE_PARAMS* const params = reinterpret_cast<NCCALCSIZE_PARAMS*>(lParam);
 
-                        params->rgrc->right -= borderSize;
-                        params->rgrc->left += borderSize;
-
-                        params->rgrc->bottom -= borderSize;
-                        params->rgrc->top += borderSize;
+                        params->rgrc->left += invisibleBorderSize;
+                        params->rgrc->top += invisibleBorderSize;
                     }
 
                     return 0;
