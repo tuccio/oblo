@@ -334,13 +334,12 @@ namespace oblo::editor
 
     void app::run()
     {
-        graphics_window::set_global_borderless_style(graphics_window::borderless_style::resizable);
-
         imgui_app app;
 
         if (!app.init(
                 {
                     .title = "oblo",
+                    .style = window_style::app,
                     .isHidden = true,
                     .isMaximized = true,
                     .isBorderless = true,

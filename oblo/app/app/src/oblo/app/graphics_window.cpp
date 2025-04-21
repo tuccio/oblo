@@ -65,30 +65,13 @@ namespace oblo
         }
     }
 
-    void graphics_window::set_global_borderless_style(borderless_style style)
-    {
-        switch (style)
-        {
-        case borderless_style::fullscreen:
-            SDL_SetHint("SDL_BORDERLESS_WINDOWED_STYLE", "0");
-            SDL_SetHint("SDL_BORDERLESS_RESIZABLE_STYLE", "0");
-            break;
-
-        case borderless_style::resizable:
-            SDL_SetHint("SDL_BORDERLESS_WINDOWED_STYLE", "0");
-
-            // This seems to allow the snap features in Windows Aero
-            SDL_SetHint("SDL_BORDERLESS_RESIZABLE_STYLE", "1");
-            break;
-        }
-    }
-
     graphics_window::graphics_window() = default;
 
     graphics_window::graphics_window(graphics_window&& other) noexcept
     {
         m_impl = other.m_impl;
         m_graphicsContext = other.m_graphicsContext;
+        m_style = other.m_style;
         other.m_impl = nullptr;
         other.m_graphicsContext = nullptr;
 
@@ -109,6 +92,7 @@ namespace oblo
 
         m_impl = other.m_impl;
         m_graphicsContext = other.m_graphicsContext;
+        m_style = other.m_style;
         other.m_impl = nullptr;
         other.m_graphicsContext = nullptr;
 
@@ -125,6 +109,14 @@ namespace oblo
         OBLO_ASSERT(!m_impl);
 
         i32 windowFlags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE;
+
+        if (initializer.style == window_style::app)
+        {
+            SDL_SetHintWithPriority("SDL_BORDERLESS_WINDOWED_STYLE", "1", SDL_HINT_OVERRIDE);
+            SDL_SetHintWithPriority("SDL_BORDERLESS_RESIZABLE_STYLE",
+                "1",
+                SDL_HINT_OVERRIDE); // This seems to allow the snap features in Windows Aero
+        }
 
         if (initializer.isMaximized)
         {
@@ -151,7 +143,14 @@ namespace oblo
             h,
             windowFlags);
 
+        if (initializer.style == window_style::app)
+        {
+            SDL_SetHintWithPriority("SDL_BORDERLESS_WINDOWED_STYLE", nullptr, SDL_HINT_OVERRIDE);
+            SDL_SetHintWithPriority("SDL_BORDERLESS_RESIZABLE_STYLE", nullptr, SDL_HINT_OVERRIDE);
+        }
+
         m_impl = window;
+        m_style = initializer.style;
 
         if (window)
         {
@@ -259,8 +258,22 @@ namespace oblo
 
     void graphics_window::set_borderless(bool borderless)
     {
+        if (m_style == window_style::app)
+        {
+            SDL_SetHintWithPriority("SDL_BORDERLESS_WINDOWED_STYLE", "0", SDL_HINT_OVERRIDE);
+            SDL_SetHintWithPriority("SDL_BORDERLESS_RESIZABLE_STYLE",
+                "0",
+                SDL_HINT_OVERRIDE); // This seems to allow the snap features in Windows Aero
+        }
+
         SDL_Window* const window = sdl_window(m_impl);
         SDL_SetWindowBordered(window, borderless ? SDL_FALSE : SDL_TRUE);
+
+        if (m_style == window_style::app)
+        {
+            SDL_SetHintWithPriority("SDL_BORDERLESS_WINDOWED_STYLE", nullptr, SDL_HINT_OVERRIDE);
+            SDL_SetHintWithPriority("SDL_BORDERLESS_RESIZABLE_STYLE", nullptr, SDL_HINT_OVERRIDE);
+        }
     }
 
     namespace

@@ -15,14 +15,21 @@ namespace oblo
 
     using native_window_handle = void*;
 
+    enum class window_style : u8
+    {
+        game,
+        app,
+    };
+
     struct graphics_window_initializer
     {
         cstring_view title;
-        u32 windowWidth;
-        u32 windowHeight;
-        bool isHidden;
-        bool isMaximized;
-        bool isBorderless;
+        u32 windowWidth{};
+        u32 windowHeight{};
+        window_style style{window_style::game};
+        bool isHidden{};
+        bool isMaximized{};
+        bool isBorderless{};
     };
 
     enum class hit_test_result
@@ -43,15 +50,6 @@ namespace oblo
 
     class graphics_window
     {
-    public:
-        enum class borderless_style
-        {
-            fullscreen,
-            resizable,
-        };
-
-        static void set_global_borderless_style(borderless_style style);
-
     public:
         graphics_window();
         graphics_window(const graphics_window&) = delete;
@@ -97,5 +95,6 @@ namespace oblo
     private:
         void* m_impl{};
         graphics_window_context* m_graphicsContext{};
+        window_style m_style{};
     };
 }
