@@ -42,7 +42,6 @@ class ObloConanRecipe(ConanFile):
         self.requires("vulkan-loader/1.3.290.0")
         self.requires("vulkan-memory-allocator/3.0.0")
         self.requires("spirv-cross/1.3.296.0")
-        self.requires("sdl/2.0.20")
         self.requires("stb/cci.20230920")
         self.requires("tinygltf/2.8.13")
         self.requires("utfcpp/4.0.1")
@@ -73,9 +72,6 @@ class ObloConanRecipe(ConanFile):
         glslang.hlsl = False
         glslang.build_executables = False
 
-        sdl = self.options["sdl/*"]
-        sdl.shared = True
-
         if self.options.with_tracy:
             tracy = self.options["tracy/*"]
             tracy.enable = True
@@ -86,7 +82,7 @@ class ObloConanRecipe(ConanFile):
         imgui = self.dependencies["imgui"]
         src_dir = f"{imgui.package_folder}/res/bindings/"
 
-        for backend in ["sdl2"]:
+        for backend in ["win32"]:
             copy(self, f"imgui_impl_{backend}.h", src_dir,
                  f"{self.recipe_folder}/3rdparty/imgui/{backend}/include")
             copy(self, f"imgui_impl_{backend}_*", src_dir,

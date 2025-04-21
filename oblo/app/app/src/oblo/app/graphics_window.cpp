@@ -1,68 +1,231 @@
-#include <oblo/app/graphics_window.hpp>
-
 #include <oblo/app/graphics_engine.hpp>
+#include <oblo/app/graphics_window.hpp>
 #include <oblo/app/graphics_window_context.hpp>
 #include <oblo/app/window_event_processor.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/modules/module_manager.hpp>
 
-#include <SDL.h>
-#include <SDL_syswm.h>
+#include <Windows.h>
+#include <Windowsx.h>
 
 namespace oblo
 {
     namespace
     {
-        constexpr const char* g_WindowGraphicsContext = "gfx";
-        constexpr const char* g_WindowPtr = "wnd";
+        // This is used to handle WM_MOVE when moving maximized windows across different monitors
+        bool g_MaybeMovingToNewMonitor = false;
 
-        SDL_Window* sdl_window(void* impl)
-        {
-            return static_cast<SDL_Window*>(impl);
-        }
+        graphics_window_context* get_graphics_window_context(graphics_window* w);
+        const hit_test_fn& get_graphics_window_hit_test(graphics_window* w);
 
-        struct window_info
+        template <auto Ctx, auto Hit>
+        struct private_accessor
         {
-            SDL_Window* window;
-            graphics_window_context* graphicsContext;
+            friend graphics_window_context* get_graphics_window_context(graphics_window* w)
+            {
+                return w->*Ctx;
+            }
+
+            friend const hit_test_fn& get_graphics_window_hit_test(graphics_window* w)
+            {
+                return w->*Hit;
+            }
         };
 
-        window_info get_graphics_context(const SDL_Event& event)
+        template struct private_accessor<&graphics_window::m_graphicsContext, &graphics_window::m_hitTest>;
+
+        bool is_app_style_borderless(DWORD style)
         {
-            SDL_Window* const window = SDL_GetWindowFromID(event.window.windowID);
-            void* const windowData = window ? SDL_GetWindowData(window, g_WindowGraphicsContext) : nullptr;
-            auto* const graphicsContext = static_cast<graphics_window_context*>(windowData);
-            return {window, graphicsContext};
+            // Check whether we have window_style::app borderless (i.e. WS_CAPTION should not be set, but
+            // WS_POPUP | WS_THICKFRAME should be)
+            constexpr auto expected = WS_POPUP | WS_THICKFRAME;
+            constexpr auto check = expected | WS_CAPTION;
+
+            return (style & check) == expected;
         }
 
-        SDL_HitTestResult to_sdl_hit_test_result(hit_test_result res)
+        LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
-            switch (res)
+            // Not sure yet if this can be obtained somehow from the Win32 API, maybe dwmapi has something
+            static constexpr i32 invisibleBorderSize = 7;
+
+            graphics_window* const window = std::bit_cast<graphics_window*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
+
+            switch (uMsg)
             {
-            case hit_test_result::normal:
-                return SDL_HITTEST_NORMAL;
-            case hit_test_result::draggable:
-                return SDL_HITTEST_DRAGGABLE;
-            case hit_test_result::resize_top_left:
-                return SDL_HITTEST_RESIZE_TOPLEFT;
-            case hit_test_result::resize_top:
-                return SDL_HITTEST_RESIZE_TOP;
-            case hit_test_result::resize_top_right:
-                return SDL_HITTEST_RESIZE_TOPRIGHT;
-            case hit_test_result::resize_right:
-                return SDL_HITTEST_RESIZE_RIGHT;
-            case hit_test_result::resize_bottom_right:
-                return SDL_HITTEST_RESIZE_BOTTOMRIGHT;
-            case hit_test_result::resize_bottom:
-                return SDL_HITTEST_RESIZE_BOTTOM;
-            case hit_test_result::resize_bottom_left:
-                return SDL_HITTEST_RESIZE_BOTTOMLEFT;
-            case hit_test_result::resize_left:
-                return SDL_HITTEST_RESIZE_LEFT;
-            default:
-                unreachable();
+            case WM_GETMINMAXINFO:
+                if (const auto style = GetWindowStyle(hWnd); is_app_style_borderless(style))
+                {
+                    // Clamp the size of our borderless window to the work area, this way we don't render the window
+                    // over the task bar, which is not desirable in the app style.
+                    const HMONITOR monitor = MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST);
+
+                    MONITORINFO monitorInfo{
+                        .cbSize = sizeof(MONITORINFO),
+                    };
+
+                    RECT rect;
+
+                    if (GetMonitorInfo(monitor, &monitorInfo))
+                    {
+                        rect = monitorInfo.rcWork;
+                    }
+                    else
+                    {
+                        SystemParametersInfo(SPI_GETWORKAREA, sizeof(RECT), &rect, 0);
+                    }
+
+                    auto* const minMaxInfo = reinterpret_cast<MINMAXINFO*>(lParam);
+
+                    minMaxInfo->ptMaxSize.x = invisibleBorderSize + rect.right - rect.left;
+                    minMaxInfo->ptMaxSize.y = invisibleBorderSize + rect.bottom - rect.top;
+                    return 0;
+                }
+
+                break;
+
+            case WM_MOVE: {
+                // When moving the window between different monitors using windows key + arrow, we want to make sure we
+                // resize the window to match the screen size.
+                // In order to do it we process WM_MOVE, but with extra care to avoid reprocessing WM_MOVE recursively,
+                // using a global flag.
+                if (const auto style = GetWindowStyle(hWnd);
+                    !g_MaybeMovingToNewMonitor && window && is_app_style_borderless(style) && IsZoomed(hWnd))
+                {
+                    g_MaybeMovingToNewMonitor = true;
+                    window->restore();
+                    window->maximize();
+                    g_MaybeMovingToNewMonitor = false;
+                }
+                break;
             }
+
+            case WM_SIZE:
+                if (window && get_graphics_window_context(window))
+                {
+                    const UINT width = LOWORD(lParam);
+                    const UINT height = HIWORD(lParam);
+
+                    graphics_window_context* const graphicsCtx = get_graphics_window_context(window);
+                    graphicsCtx->on_resize(width, height);
+                }
+                return 0;
+
+            case WM_CLOSE:
+                if (window)
+                {
+                    window->destroy();
+                }
+                return 0;
+
+            case WM_NCCALCSIZE: {
+
+                if (const auto style = GetWindowStyle(hWnd); is_app_style_borderless(style))
+                {
+                    // Our borderless windows have an invisible frame in order to be resizable and enable the Windows
+                    // aero snap features. This border seems to be 7x7.
+                    // When maximized the invisible border is out of screen (e.g. on the main display the window
+                    // position will be [-7;-7], we need to make sure to offset the client area to avoid clipping the
+                    // border.
+
+                    if (IsZoomed(hWnd))
+                    {
+
+                        NCCALCSIZE_PARAMS* const params = reinterpret_cast<NCCALCSIZE_PARAMS*>(lParam);
+
+                        params->rgrc->left += invisibleBorderSize;
+                        params->rgrc->top += invisibleBorderSize;
+                    }
+
+                    return 0;
+                }
+            }
+
+            case WM_NCHITTEST: {
+                // Let the default procedure handle resizing areas
+                const LRESULT hit = DefWindowProc(hWnd, uMsg, wParam, lParam);
+                switch (hit)
+                {
+                case HTNOWHERE:
+                case HTRIGHT:
+                case HTLEFT:
+                case HTTOPLEFT:
+                case HTTOP:
+                case HTTOPRIGHT:
+                case HTBOTTOMRIGHT:
+                case HTBOTTOM:
+                case HTBOTTOMLEFT: {
+                    return hit;
+                }
+                }
+
+                if (auto& hitTest = get_graphics_window_hit_test(window))
+                {
+                    POINT p = {
+                        .x = GET_X_LPARAM(lParam),
+                        .y = GET_Y_LPARAM(lParam),
+                    };
+
+                    ScreenToClient(hWnd, &p);
+
+                    switch (hitTest({u32(p.x), u32(p.y)}))
+                    {
+                    case hit_test_result::normal:
+                        return HTCLIENT;
+                    case hit_test_result::draggable:
+                        return HTCAPTION;
+                    case hit_test_result::resize_top_left:
+                        return HTTOPLEFT;
+                    case hit_test_result::resize_top:
+                        return HTTOP;
+                    case hit_test_result::resize_top_right:
+                        return HTTOPRIGHT;
+                    case hit_test_result::resize_right:
+                        return HTRIGHT;
+                    case hit_test_result::resize_bottom_right:
+                        return HTBOTTOMRIGHT;
+                    case hit_test_result::resize_bottom:
+                        return HTBOTTOM;
+                    case hit_test_result::resize_bottom_left:
+                        return HTBOTTOMLEFT;
+                    case hit_test_result::resize_left:
+                        return HTLEFT;
+                    }
+                }
+
+                return HTCLIENT;
+            }
+            }
+
+            return DefWindowProc(hWnd, uMsg, wParam, lParam);
         }
+
+        class win32_window_class
+        {
+        public:
+            static constexpr const char* class_name = "oblo::graphics_window";
+
+            win32_window_class()
+            {
+                m_wc = {
+                    .lpfnWndProc = WindowProc,
+                    .hInstance = GetModuleHandle(nullptr),
+                    .lpszClassName = class_name,
+                };
+
+                RegisterClass(&m_wc);
+            }
+
+            ~win32_window_class()
+            {
+                UnregisterClass(m_wc.lpszClassName, m_wc.hInstance);
+            }
+
+        private:
+            WNDCLASS m_wc{};
+        };
+
+        static win32_window_class g_wndClass;
     }
 
     graphics_window::graphics_window() = default;
@@ -71,13 +234,10 @@ namespace oblo
     {
         m_impl = other.m_impl;
         m_graphicsContext = other.m_graphicsContext;
-        other.m_impl = nullptr;
-        other.m_graphicsContext = nullptr;
+        m_hitTest = other.m_hitTest;
 
-        if (auto* sdlWindow = sdl_window(m_impl))
-        {
-            SDL_SetWindowData(sdlWindow, g_WindowPtr, this);
-        }
+        other.m_impl = nullptr;
+        m_hitTest = {};
     }
 
     graphics_window::~graphics_window()
@@ -91,13 +251,10 @@ namespace oblo
 
         m_impl = other.m_impl;
         m_graphicsContext = other.m_graphicsContext;
-        other.m_impl = nullptr;
-        other.m_graphicsContext = nullptr;
+        m_hitTest = other.m_hitTest;
 
-        if (auto* sdlWindow = sdl_window(m_impl))
-        {
-            SDL_SetWindowData(sdlWindow, g_WindowPtr, this);
-        }
+        other.m_impl = nullptr;
+        m_hitTest = {};
 
         return *this;
     }
@@ -106,36 +263,59 @@ namespace oblo
     {
         OBLO_ASSERT(!m_impl);
 
-        i32 windowFlags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE;
+        DWORD style;
+
+        if (initializer.isBorderless)
+        {
+            switch (initializer.style)
+            {
+            case window_style::app:
+                style = WS_POPUP | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_THICKFRAME;
+                break;
+
+            default:
+                style = WS_POPUP;
+            }
+        }
+        else
+        {
+            style = WS_OVERLAPPEDWINDOW;
+        }
 
         if (initializer.isMaximized)
         {
-            windowFlags |= SDL_WINDOW_MAXIMIZED;
+            style |= WS_MAXIMIZE;
         }
 
-        if (initializer.isHidden)
-        {
-            windowFlags |= SDL_WINDOW_HIDDEN;
-        }
+        const auto w = initializer.windowWidth ? initializer.windowWidth : 1280;
+        const auto h = initializer.windowHeight ? initializer.windowHeight : 720;
 
-        const i32 w = initializer.windowWidth == 0 ? 1280u : initializer.windowWidth;
-        const i32 h = initializer.windowHeight == 0 ? 720u : initializer.windowHeight;
-
-        SDL_Window* const window = SDL_CreateWindow(initializer.title.c_str(),
-            SDL_WINDOWPOS_UNDEFINED,
-            SDL_WINDOWPOS_UNDEFINED,
+        const HWND hWnd = CreateWindowExA(0,
+            g_wndClass.class_name,
+            // We should actually convert the title from utf8 to utf16 and use CreateWindowExW
+            initializer.title.c_str(),
+            style,
+            CW_USEDEFAULT,
+            CW_USEDEFAULT,
             w,
             h,
-            windowFlags);
+            nullptr,
+            nullptr,
+            GetModuleHandle(nullptr),
+            nullptr);
 
-        m_impl = window;
-
-        if (window)
+        if (!hWnd)
         {
-            SDL_SetWindowData(window, g_WindowPtr, this);
+            return false;
         }
 
-        return m_impl != nullptr;
+        SetWindowLongPtr(hWnd, GWLP_USERDATA, std::bit_cast<LONG_PTR>(this));
+
+        m_impl = hWnd;
+
+        set_hidden(initializer.isHidden);
+
+        return true;
     }
 
     void graphics_window::destroy()
@@ -148,7 +328,7 @@ namespace oblo
 
         if (m_impl)
         {
-            SDL_DestroyWindow(sdl_window(m_impl));
+            DestroyWindow(std::bit_cast<HWND>(m_impl));
             m_impl = nullptr;
         }
     }
@@ -169,7 +349,6 @@ namespace oblo
 
         const auto [w, h] = get_size();
         m_graphicsContext = gfxEngine->create_context(get_native_handle(), w, h);
-        SDL_SetWindowData(sdl_window(m_impl), g_WindowGraphicsContext, m_graphicsContext);
 
         return m_graphicsContext != nullptr;
     }
@@ -186,98 +365,119 @@ namespace oblo
 
     bool graphics_window::is_maximized() const
     {
-        const auto flags = SDL_GetWindowFlags(sdl_window(m_impl));
-        return (flags & SDL_WINDOW_MAXIMIZED) != 0;
+        return IsZoomed(std::bit_cast<HWND>(m_impl)) != 0;
     }
 
     bool graphics_window::is_minimized() const
     {
-        const auto flags = SDL_GetWindowFlags(sdl_window(m_impl));
-        return (flags & SDL_WINDOW_MINIMIZED) != 0;
+        return IsIconic(std::bit_cast<HWND>(m_impl)) != 0;
     }
 
     void graphics_window::maximize()
     {
-        SDL_Window* const window = sdl_window(m_impl);
-        SDL_MaximizeWindow(window);
+        ShowWindow(std::bit_cast<HWND>(m_impl), SW_MAXIMIZE);
     }
 
     void graphics_window::minimize()
     {
-        SDL_Window* const window = sdl_window(m_impl);
-        SDL_MinimizeWindow(window);
+        ShowWindow(std::bit_cast<HWND>(m_impl), SW_MINIMIZE);
     }
 
     void graphics_window::restore()
     {
-        SDL_Window* const window = sdl_window(m_impl);
-        SDL_RestoreWindow(window);
+        ShowWindow(std::bit_cast<HWND>(m_impl), SW_RESTORE);
     }
 
     bool graphics_window::is_hidden() const
     {
-        const auto flags = SDL_GetWindowFlags(sdl_window(m_impl));
-        return (flags & SDL_WINDOW_HIDDEN) != 0;
+        return IsWindowVisible(std::bit_cast<HWND>(m_impl)) == 0;
     }
 
     void graphics_window::set_hidden(bool hide)
     {
-        SDL_Window* const window = sdl_window(m_impl);
-
-        if (hide)
-        {
-            SDL_HideWindow(window);
-        }
-        else
-        {
-            SDL_ShowWindow(window);
-        }
-    }
-
-    void graphics_window::set_borderless(bool borderless)
-    {
-        SDL_Window* const window = sdl_window(m_impl);
-        SDL_SetWindowBordered(window, borderless ? SDL_FALSE : SDL_TRUE);
-    }
-
-    namespace
-    {
-        SDL_HitTestResult hit_test(SDL_Window*, const SDL_Point* position, void* data)
-        {
-            auto& f = *static_cast<const hit_test_fn*>(data);
-            const auto result = f(vec2u{u32(position->x), u32(position->y)});
-            return to_sdl_hit_test_result(result);
-        }
+        ShowWindow(std::bit_cast<HWND>(m_impl), hide ? SW_HIDE : SW_SHOW);
     }
 
     void graphics_window::set_custom_hit_test(const hit_test_fn* f)
     {
-        SDL_Window* const window = sdl_window(m_impl);
-
-        if (f)
-        {
-            SDL_SetWindowHitTest(window, hit_test, const_cast<void*>(static_cast<const void*>(f)));
-        }
-        else
-        {
-            SDL_SetWindowHitTest(window, nullptr, nullptr);
-        }
+        m_hitTest = *f;
     }
 
     vec2u graphics_window::get_size() const
     {
-        int w, h;
-        SDL_GetWindowSize(sdl_window(m_impl), &w, &h);
-        return {u32(w), u32(h)};
+        RECT rect;
+        GetClientRect(std::bit_cast<HWND>(m_impl), &rect);
+        return {static_cast<u32>(rect.right - rect.left), static_cast<u32>(rect.bottom - rect.top)};
     }
 
     native_window_handle graphics_window::get_native_handle() const
     {
-        SDL_Window* const window = sdl_window(m_impl);
-        SDL_SysWMinfo wmInfo;
-        SDL_VERSION(&wmInfo.version);
+        return m_impl;
+    }
 
-        return SDL_GetWindowWMInfo(window, &wmInfo) ? wmInfo.info.win.window : nullptr;
+    void graphics_window::set_icon(u32 w, u32 h, std::span<const byte> data)
+    {
+        using bitmap_ptr = unique_ptr<HBITMAP__, decltype([](HBITMAP h) { DeleteObject(h); })>;
+
+        const HWND hWnd = std::bit_cast<HWND>(m_impl);
+
+        dynamic_array<u32> pixels;
+        pixels.resize_default(data.size() / 4);
+
+        for (u32 i = 0, j = 0; i < data.size(); ++j, i += 4)
+        {
+            const u32 r = u32(data[i]);
+            const u32 g = u32(data[i + 1]);
+            const u32 b = u32(data[i + 2]);
+            const u32 a = u32(data[i + 3]);
+            pixels[j] = b | (g << 8) | (r << 16) | (a << 24);
+        }
+
+        BITMAPV5HEADER bi = {
+            .bV5Size = sizeof(BITMAPV5HEADER),
+            .bV5Width = static_cast<LONG>(w),
+            .bV5Height = -static_cast<LONG>(h), // Negative for top-down DI
+            .bV5Planes = 1,
+            .bV5BitCount = 32,
+            .bV5Compression = BI_RGB,
+        };
+
+        const HDC hDC = GetDC(nullptr);
+
+        if (!hDC)
+        {
+            return;
+        }
+
+        const bitmap_ptr hColor{CreateDIBitmap(hDC,
+            reinterpret_cast<BITMAPINFOHEADER*>(&bi),
+            CBM_INIT,
+            pixels.data(),
+            reinterpret_cast<BITMAPINFO*>(&bi),
+            DIB_RGB_COLORS)};
+
+        ReleaseDC(nullptr, hDC);
+
+        const bitmap_ptr hMask{CreateBitmap(w, h, 1, 1, nullptr)};
+
+        if (!hColor || !hMask)
+        {
+            return;
+        }
+
+        ICONINFO iconInfo = {
+            .fIcon = TRUE,
+            .hbmMask = hMask.get(),
+            .hbmColor = hColor.get(),
+        };
+
+        HICON hIcon = CreateIconIndirect(&iconInfo);
+
+        if (hIcon)
+        {
+            SendMessage(hWnd, WM_SETICON, ICON_SMALL, (LPARAM) hIcon);
+            SendMessage(hWnd, WM_SETICON, ICON_BIG, (LPARAM) hIcon);
+        }
     }
 
     void window_event_processor::set_event_dispatcher(const window_event_dispatcher& dispatcher)
@@ -292,169 +492,170 @@ namespace oblo
 
     namespace
     {
-        mouse_key sdl_map_mouse_key(u8 key)
+        constexpr mouse_key win32_map_mouse_key(u8 key)
         {
             switch (key)
             {
-            case SDL_BUTTON_LEFT:
+            case VK_LBUTTON:
                 return mouse_key::left;
 
-            case SDL_BUTTON_RIGHT:
+            case VK_RBUTTON:
                 return mouse_key::right;
 
-            case SDL_BUTTON_MIDDLE:
+            case VK_MBUTTON:
                 return mouse_key::middle;
 
             default:
-                OBLO_ASSERT(false, "Unhandled mouse key");
                 return mouse_key::enum_max;
             }
         }
 
-        keyboard_key sdl_map_keyboard_key(SDL_Keycode key)
+        keyboard_key win32_map_keyboard_key(WPARAM key)
         {
-            if (key >= 'a' && key <= 'z')
+            if (key >= 'A' && key <= 'Z')
             {
-                return keyboard_key(u32(keyboard_key::a) + (key - 'a'));
+                return keyboard_key(u32(keyboard_key::a) + (key - 'A'));
             }
 
             switch (key)
             {
-            case SDLK_LSHIFT:
+            case VK_SHIFT:
                 return keyboard_key::left_shift;
             }
 
             return keyboard_key::enum_max;
         }
 
-        time sdl_convert_time(u32 time)
+        time win32_convert_time(DWORD time)
         {
-            return time::from_milliseconds(time);
+            return time::from_milliseconds(i64(time));
         }
     }
 
     bool window_event_processor::process_events() const
     {
-        for (SDL_Event event; SDL_PollEvent(&event);)
+        MSG msg;
+
+        while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
         {
+            if (msg.message == WM_QUIT)
+            {
+                return false;
+            }
+
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+
             if (m_windowEventDispatcher.dispatch)
             {
-                m_windowEventDispatcher.dispatch(&event);
+                m_windowEventDispatcher.dispatch(&msg);
             }
 
             if (m_inputQueue)
             {
-                switch (event.type)
+                switch (msg.message)
                 {
-                case SDL_MOUSEBUTTONDOWN:
+                case WM_LBUTTONDOWN:
                     m_inputQueue->push({
                         .kind = input_event_kind::mouse_press,
-                        .timestamp = sdl_convert_time(event.button.timestamp),
+                        .timestamp = win32_convert_time(msg.time),
                         .mousePress =
                             {
-                                .key = sdl_map_mouse_key(event.button.button),
+                                .key = win32_map_mouse_key(VK_LBUTTON),
                             },
                     });
                     break;
 
-                case SDL_MOUSEBUTTONUP:
+                case WM_LBUTTONUP:
                     m_inputQueue->push({
                         .kind = input_event_kind::mouse_release,
-                        .timestamp = sdl_convert_time(event.button.timestamp),
+                        .timestamp = win32_convert_time(msg.time),
                         .mouseRelease =
                             {
-                                .key = sdl_map_mouse_key(event.button.button),
+                                .key = win32_map_mouse_key(VK_LBUTTON),
                             },
                     });
                     break;
 
-                case SDL_MOUSEMOTION:
+                case WM_RBUTTONDOWN:
+                    m_inputQueue->push({
+                        .kind = input_event_kind::mouse_press,
+                        .timestamp = win32_convert_time(msg.time),
+                        .mousePress =
+                            {
+                                .key = win32_map_mouse_key(VK_RBUTTON),
+                            },
+                    });
+                    break;
+
+                case WM_RBUTTONUP:
+                    m_inputQueue->push({
+                        .kind = input_event_kind::mouse_release,
+                        .timestamp = win32_convert_time(msg.time),
+                        .mouseRelease =
+                            {
+                                .key = win32_map_mouse_key(VK_RBUTTON),
+                            },
+                    });
+                    break;
+
+                case WM_MBUTTONDOWN:
+                    m_inputQueue->push({
+                        .kind = input_event_kind::mouse_press,
+                        .timestamp = win32_convert_time(msg.time),
+                        .mousePress =
+                            {
+                                .key = win32_map_mouse_key(VK_MBUTTON),
+                            },
+                    });
+                    break;
+
+                case WM_MBUTTONUP:
+                    m_inputQueue->push({
+                        .kind = input_event_kind::mouse_release,
+                        .timestamp = win32_convert_time(msg.time),
+                        .mouseRelease =
+                            {
+                                .key = win32_map_mouse_key(VK_MBUTTON),
+                            },
+                    });
+                    break;
+
+                case WM_MOUSEMOVE:
                     m_inputQueue->push({
                         .kind = input_event_kind::mouse_move,
-                        .timestamp = sdl_convert_time(event.motion.timestamp),
+                        .timestamp = win32_convert_time(msg.time),
                         .mouseMove =
                             {
-                                .x = f32(event.motion.x),
-                                .y = f32(event.motion.y),
+                                .x = f32(GET_X_LPARAM(msg.lParam)),
+                                .y = f32(GET_Y_LPARAM(msg.lParam)),
                             },
                     });
                     break;
 
-                case SDL_KEYDOWN:
+                case WM_KEYDOWN:
                     m_inputQueue->push({
                         .kind = input_event_kind::keyboard_press,
-                        .timestamp = sdl_convert_time(event.key.timestamp),
+                        .timestamp = win32_convert_time(msg.time),
                         .keyboardPress =
                             {
-                                .key = sdl_map_keyboard_key(event.key.keysym.sym),
+                                .key = win32_map_keyboard_key(msg.wParam),
                             },
                     });
                     break;
 
-                case SDL_KEYUP:
+                case WM_KEYUP:
                     m_inputQueue->push({
                         .kind = input_event_kind::keyboard_release,
-                        .timestamp = sdl_convert_time(event.key.timestamp),
+                        .timestamp = win32_convert_time(msg.time),
                         .keyboardRelease =
                             {
-                                .key = sdl_map_keyboard_key(event.key.keysym.sym),
+                                .key = win32_map_keyboard_key(msg.wParam),
                             },
                     });
 
                     break;
                 }
-            }
-
-            switch (event.type)
-            {
-            case SDL_QUIT:
-                return false;
-
-            case SDL_WINDOWEVENT: {
-                switch (event.window.event)
-                {
-                case SDL_WINDOWEVENT_MAXIMIZED:
-                case SDL_WINDOWEVENT_RESTORED: {
-                    const auto [window, graphicsContext] = get_graphics_context(event);
-                    graphicsContext->on_visibility_change(true);
-                    break;
-                }
-
-                case SDL_WINDOWEVENT_MINIMIZED: {
-                    const auto [window, graphicsContext] = get_graphics_context(event);
-                    graphicsContext->on_visibility_change(false);
-                    break;
-                }
-
-                case SDL_WINDOWEVENT_RESIZED:
-                case SDL_WINDOWEVENT_SIZE_CHANGED: {
-                    const auto [window, graphicsContext] = get_graphics_context(event);
-
-                    if (graphicsContext)
-                    {
-                        const u32 w = u32(event.window.data1);
-                        const u32 h = u32(event.window.data2);
-
-                        graphicsContext->on_resize(w, h);
-                    }
-
-                    break;
-                }
-
-                case SDL_WINDOWEVENT_CLOSE: {
-                    SDL_Window* const sdlWindow = SDL_GetWindowFromID(event.window.windowID);
-                    auto* const graphicsWindow =
-                        sdlWindow ? static_cast<graphics_window*>(SDL_GetWindowData(sdlWindow, g_WindowPtr)) : nullptr;
-
-                    if (graphicsWindow)
-                    {
-                        graphicsWindow->destroy();
-                    }
-
-                    break;
-                }
-                }
-            }
             }
         }
 

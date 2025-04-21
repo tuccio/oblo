@@ -41,9 +41,11 @@
 #include <oblo/properties/serialization/data_document.hpp>
 #include <oblo/properties/serialization/json.hpp>
 #include <oblo/reflection/reflection_module.hpp>
+#include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/resource/utility/registration.hpp>
 #include <oblo/runtime/runtime_module.hpp>
+#include <oblo/scene/resources/texture.hpp>
 #include <oblo/scene/scene_editor_module.hpp>
 #include <oblo/thread/job_manager.hpp>
 #include <oblo/trace/profile.hpp>
@@ -205,6 +207,8 @@ namespace oblo::editor
                         .name = "oblo",
                         .assetsDirectory = "./data/oblo/assets",
                         .sourcesDirectory = "./data/oblo/sources",
+                        .flags = asset_repository_flags::omit_import_source_path |
+                            asset_repository_flags::wait_until_processed,
                     });
                 };
 
@@ -305,24 +309,61 @@ namespace oblo::editor
         }
     }
 
+    namespace
+    {
+        void setup_icon(const resource_registry& registry, graphics_window& window)
+        {
+            constexpr resource_ref<texture> icon{"4130f5a7-12c2-e913-ac2c-c0bc8228dbec"_uuid};
+
+            const resource_ptr ptr = registry.get_resource(icon);
+            OBLO_ASSERT(ptr);
+
+            if (ptr)
+            {
+                ptr.load_sync();
+
+                const auto& desc = ptr->get_description();
+                std::span<const byte> data = ptr->get_data(0, 0, 0);
+
+                OBLO_ASSERT(desc.vkFormat == texture_format::r8g8b8a8_unorm);
+
+                window.set_icon(desc.width, desc.height, data);
+            }
+        }
+    }
+
     void app::run()
     {
         imgui_app app;
 
-        if (!app.init({.title = "oblo", .isHidden = true}, {.configFile = "oblo.imgui.ini"}))
+        if (!app.init(
+                {
+                    .title = "oblo",
+                    .style = window_style::app,
+                    .isHidden = true,
+                    .isMaximized = true,
+                    .isBorderless = true,
+                },
+                {.configFile = "oblo.imgui.ini"}))
         {
             return;
         }
 
+        // Before accessing any resource (run a first update to make sure they are available)
+        m_impl->update_registries();
+
         init_ui();
-        m_impl->startup_ui();
 
         if (!app.init_font_atlas(m_impl->m_runtimeRegistry.get_resource_registry()))
         {
             return;
         }
 
+        m_impl->startup_ui();
+
         auto& mainWindow = app.get_main_window();
+
+        setup_icon(m_impl->m_runtimeRegistry.get_resource_registry(), mainWindow);
 
         auto hitTest = [this, &mainWindow](const vec2u& position)
         {
@@ -382,9 +423,7 @@ namespace oblo::editor
 
         const auto hitTestRef = hit_test_fn{hitTest};
 
-        mainWindow.set_borderless(true);
         mainWindow.set_custom_hit_test(&hitTestRef);
-        mainWindow.maximize();
         mainWindow.set_hidden(false);
 
         app.set_input_queue(&m_impl->m_inputQueue);
@@ -509,7 +548,7 @@ namespace oblo::editor
                 .name = hashed_string_view{repo.name},
                 .assetsDirectory = repo.assetsDirectory,
                 .sourcesDirectory = repo.sourcesDirectory,
-                .flags = asset_repository_flags::omit_import_source_path,
+                .flags = repo.flags,
             };
         }
 

@@ -45,7 +45,7 @@ namespace oblo::editor
 
             ImVec4* colors = style.Colors;
             colors[ImGuiCol_Text] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
-            colors[ImGuiCol_TextDisabled] = ImVec4(0.90f, 0.67f, 0.95f, 1.00f);
+            colors[ImGuiCol_TextDisabled] = ImVec4(0.70f, 0.83f, 0.88f, 1.00f);
             colors[ImGuiCol_WindowBg] = ImVec4(0.08f, 0.09f, 0.10f, 1.00f);
             colors[ImGuiCol_ChildBg] = ImVec4(0.08f, 0.09f, 0.10f, 1.00f);
             colors[ImGuiCol_PopupBg] = ImVec4(0.08f, 0.09f, 0.10f, 1.00f);
@@ -62,9 +62,9 @@ namespace oblo::editor
             colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.12f, 0.13f, 0.15f, 1.00f);
             colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.16f, 0.17f, 0.19f, 1.00f);
             colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.12f, 0.13f, 0.15f, 1.00f);
-            colors[ImGuiCol_CheckMark] = ImVec4(0.90f, 0.67f, 0.95f, 1.00f);
+            colors[ImGuiCol_CheckMark] = ImVec4(0.70f, 0.83f, 0.88f, 1.00f);
             colors[ImGuiCol_SliderGrab] = ImVec4(0.20f, 0.20f, 0.21f, 1.00f);
-            colors[ImGuiCol_SliderGrabActive] = ImVec4(0.94f, 0.79f, 0.97f, 1.00f);
+            colors[ImGuiCol_SliderGrabActive] = ImVec4(0.70f, 0.83f, 0.88f, 1.00f);
             colors[ImGuiCol_Button] = ImVec4(0.12f, 0.13f, 0.15f, 1.00f);
             colors[ImGuiCol_ButtonHovered] = ImVec4(0.16f, 0.17f, 0.19f, 1.00f);
             colors[ImGuiCol_ButtonActive] = ImVec4(0.16f, 0.17f, 0.19f, 1.00f);
@@ -75,15 +75,16 @@ namespace oblo::editor
             colors[ImGuiCol_SeparatorHovered] = ImVec4(0.16f, 0.18f, 0.25f, 1.00f);
             colors[ImGuiCol_SeparatorActive] = ImVec4(0.16f, 0.18f, 0.25f, 1.00f);
             colors[ImGuiCol_ResizeGrip] = ImVec4(0.12f, 0.13f, 0.15f, 1.00f);
-            colors[ImGuiCol_ResizeGripHovered] = ImVec4(0.57f, 0.35f, 0.62f, 1.00f);
-            colors[ImGuiCol_ResizeGripActive] = ImVec4(0.57f, 0.35f, 0.62f, 1.00f);
-            colors[ImGuiCol_Tab] = ImVec4(0.05f, 0.05f, 0.07f, 1.00f);
+            colors[ImGuiCol_ResizeGripHovered] = ImVec4(0.22f, 0.31f, 0.35f, 1.00f);
+            colors[ImGuiCol_ResizeGripActive] = ImVec4(0.22f, 0.31f, 0.35f, 1.00f);
             colors[ImGuiCol_TabHovered] = ImVec4(0.12f, 0.13f, 0.15f, 1.00f);
-            colors[ImGuiCol_TabActive] = ImVec4(0.10f, 0.11f, 0.12f, 1.00f);
-            colors[ImGuiCol_TabSelectedOverline] = ImVec4(0.90f, 0.67f, 0.95f, 1.00f);
-            colors[ImGuiCol_TabUnfocused] = ImVec4(0.05f, 0.05f, 0.07f, 1.00f);
-            colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.08f, 0.09f, 0.10f, 1.00f);
-            colors[ImGuiCol_DockingPreview] = ImVec4(0.57f, 0.35f, 0.62f, 1.00f);
+            colors[ImGuiCol_Tab] = ImVec4(0.05f, 0.05f, 0.07f, 1.00f);
+            colors[ImGuiCol_TabSelected] = ImVec4(0.10f, 0.11f, 0.12f, 1.00f);
+            colors[ImGuiCol_TabSelectedOverline] = ImVec4(0.70f, 0.83f, 0.88f, 1.00f);
+            colors[ImGuiCol_TabDimmed] = ImVec4(0.05f, 0.05f, 0.07f, 1.00f);
+            colors[ImGuiCol_TabDimmedSelected] = ImVec4(0.08f, 0.09f, 0.10f, 1.00f);
+            colors[ImGuiCol_TabDimmedSelectedOverline] = ImVec4(0.50f, 0.50f, 0.50f, 0.00f);
+            colors[ImGuiCol_DockingPreview] = ImVec4(0.22f, 0.31f, 0.35f, 1.00f);
             colors[ImGuiCol_DockingEmptyBg] = ImVec4(0.08f, 0.09f, 0.10f, 1.00f);
             colors[ImGuiCol_PlotLines] = ImVec4(0.91f, 0.84f, 0.95f, 1.00f);
             colors[ImGuiCol_PlotLinesHovered] = ImVec4(0.04f, 0.98f, 0.98f, 1.00f);
@@ -91,15 +92,16 @@ namespace oblo::editor
             colors[ImGuiCol_PlotHistogramHovered] = ImVec4(1.00f, 0.47f, 0.70f, 1.00f);
             colors[ImGuiCol_TableHeaderBg] = ImVec4(0.05f, 0.05f, 0.07f, 1.00f);
             colors[ImGuiCol_TableBorderStrong] = ImVec4(0.05f, 0.05f, 0.07f, 1.00f);
-            colors[ImGuiCol_TableBorderLight] = ImVec4(0.051f, 0.051f, 0.071f, 1.000f);
-            colors[ImGuiCol_TableRowBg] = ImVec4(0.102f, 0.110f, 0.122f, 1.000f);
-            colors[ImGuiCol_TableRowBgAlt] = ImVec4(0.088f, 0.095f, 0.101f, 1.000f);
-            colors[ImGuiCol_TextSelectedBg] = ImVec4(0.57f, 0.35f, 0.62f, 1.00f);
-            colors[ImGuiCol_DragDropTarget] = ImVec4(0.57f, 0.35f, 0.62f, 1.00f);
-            colors[ImGuiCol_NavHighlight] = ImVec4(0.90f, 0.67f, 0.95f, 1.00f);
-            colors[ImGuiCol_NavWindowingHighlight] = ImVec4(0.90f, 0.67f, 0.95f, 1.00f);
-            colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.57f, 0.35f, 0.62f, 1.00f);
-            colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.f, 0.f, 0.f, 0.f);
+            colors[ImGuiCol_TableBorderLight] = ImVec4(0.05f, 0.05f, 0.07f, 1.00f);
+            colors[ImGuiCol_TableRowBg] = ImVec4(0.10f, 0.11f, 0.12f, 1.00f);
+            colors[ImGuiCol_TableRowBgAlt] = ImVec4(0.09f, 0.09f, 0.10f, 1.00f);
+            colors[ImGuiCol_TextLink] = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
+            colors[ImGuiCol_TextSelectedBg] = ImVec4(0.22f, 0.31f, 0.35f, 1.00f);
+            colors[ImGuiCol_DragDropTarget] = ImVec4(0.22f, 0.31f, 0.35f, 1.00f);
+            colors[ImGuiCol_NavCursor] = ImVec4(0.70f, 0.83f, 0.88f, 1.00f);
+            colors[ImGuiCol_NavWindowingHighlight] = ImVec4(0.70f, 0.83f, 0.88f, 1.00f);
+            colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.22f, 0.31f, 0.35f, 1.00f);
+            colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
         }
 
 #include "embedded/Archivo-Regular.ttf.h"

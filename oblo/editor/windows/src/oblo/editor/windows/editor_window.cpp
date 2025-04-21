@@ -1,5 +1,6 @@
 #include <oblo/editor/windows/editor_window.hpp>
 
+#include <oblo/app/imgui_texture.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/formatters/uuid_formatter.hpp>
 #include <oblo/editor/service_context.hpp>
@@ -46,10 +47,16 @@ namespace oblo::editor
     void editor_window::init(const window_update_context& ctx)
     {
         m_assetEditorManager = ctx.services.find<asset_editor_manager>();
+
+        // Reference to $oblo/logo/logo_16
+        constexpr resource_ref<texture> logo16{"a4bd2040-ab3e-13d5-a632-a5165705279d"_uuid};
+        m_appIconId = imgui::add_image(logo16);
     }
 
     bool editor_window::update(const window_update_context& ctx)
     {
+        auto* const mainViewport = ImGui::GetMainViewport();
+
         m_lastEvent = editor_window_event::none;
 
         constexpr ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_None;
@@ -104,7 +111,8 @@ namespace oblo::editor
 
         // Submit the DockSpace
         ImGuiID dockspace_id = ImGui::GetID("oblo_dockspace");
-        ImGui::DockSpace(dockspace_id, ImVec2{0.f, 0.f}, dockspaceFlags);
+
+        ImGui::DockSpace(dockspace_id, {0.f, 0.f}, dockspaceFlags);
 
         ImGui::End();
 
@@ -115,15 +123,28 @@ namespace oblo::editor
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
 
-        auto* const mainViewport = ImGui::GetMainViewport();
-
         if (ImGui::BeginViewportSideBar("##main_menu", mainViewport, ImGuiDir_Up, height, flags))
         {
             if (ImGui::BeginMenuBar())
             {
                 ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, windowPadding);
 
-                if (ImGui::BeginMenu("File"))
+                // Add the app icon before the menu
+                // We center it vertically and keep the original size
+
+                constexpr f32 logoSize = 16.f;
+                OBLO_ASSERT(logoSize <= height);
+
+                const auto padding = (height - logoSize) * .5f;
+
+                const f32 menuBarPosY = ImGui::GetCursorPosY();
+                ImGui::SetCursorPosY(padding);
+                ImGui::Image(m_appIconId, {logoSize, logoSize});
+
+                // Restore the original cursor position before proceeding with the menu
+                ImGui::SetCursorPosY(menuBarPosY);
+
+                if (ImGui::SetCursorPosY(menuBarPosY); ImGui::BeginMenu("File"))
                 {
                     const uuid sceneAssetId = find_scene_asset(m_assetEditorManager);
 
@@ -146,7 +167,7 @@ namespace oblo::editor
                     ImGui::EndMenu();
                 }
 
-                if (ImGui::BeginMenu("Windows"))
+                if (ImGui::SetCursorPosY(menuBarPosY); ImGui::BeginMenu("Windows"))
                 {
                     if (ImGui::MenuItem("Viewport"))
                     {
@@ -171,7 +192,7 @@ namespace oblo::editor
                     ImGui::EndMenu();
                 }
 
-                if (ImGui::BeginMenu("Dev"))
+                if (ImGui::SetCursorPosY(menuBarPosY); ImGui::BeginMenu("Dev"))
                 {
                     if (ImGui::MenuItem("Frame Graph"))
                     {
@@ -231,12 +252,14 @@ namespace oblo::editor
 
                 const auto draggableBegin = ImGui::GetCursorPos();
 
-                ImGui::SameLine(draggableBegin.x + wholeWidth - windowButtonsWidth);
+                ImGui::SameLine(1 + draggableBegin.x + wholeWidth - windowButtonsWidth);
                 const f32 draggableEnd = ImGui::GetCursorPosX();
 
                 {
                     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(itemSpacing, 0));
                     ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_MenuBarBg));
+
+                    ImGui::SetCursorPosY(0.f);
 
                     if (ImGui::Button(ICON_FA_MINUS))
                     {
@@ -244,6 +267,8 @@ namespace oblo::editor
                     }
 
                     ImGui::SameLine();
+
+                    ImGui::SetCursorPosY(0.f);
 
                     if (ImGui::Button(m_isMaximized ? ICON_FA_WINDOW_RESTORE : ICON_FA_WINDOW_MAXIMIZE))
                     {
@@ -253,6 +278,8 @@ namespace oblo::editor
                     ImGui::SameLine();
 
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, colors::red);
+
+                    ImGui::SetCursorPosY(0.f);
 
                     if (ImGui::Button(ICON_FA_XMARK))
                     {

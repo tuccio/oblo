@@ -17,4 +17,13 @@ namespace oblo
 
         bool operator==(const resource_ref&) const = default;
     };
+
+    template <typename T>
+    struct hash<resource_ref<T>>
+    {
+        constexpr auto operator()(const resource_ref<T>& ref) const noexcept
+        {
+            return hash<uuid>{}(ref.id);
+        }
+    };
 }

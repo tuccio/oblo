@@ -81,7 +81,6 @@ namespace oblo::vk
             const VkPhysicalDeviceFeatures* physicalDeviceFeatures,
             std::stringstream* validationErrors)
         {
-            // We need to gather the extensions needed by SDL
             constexpr u32 extensionsArraySize{64};
             constexpr u32 layersArraySize{16};
 

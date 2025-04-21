@@ -5,6 +5,8 @@
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/math/vec2u.hpp>
 
+#include <span>
+
 namespace oblo
 {
     class graphics_app;
@@ -13,13 +15,21 @@ namespace oblo
 
     using native_window_handle = void*;
 
+    enum class window_style : u8
+    {
+        game,
+        app,
+    };
+
     struct graphics_window_initializer
     {
         cstring_view title;
-        u32 windowWidth;
-        u32 windowHeight;
-        bool isHidden;
-        bool isMaximized;
+        u32 windowWidth{};
+        u32 windowHeight{};
+        window_style style{window_style::game};
+        bool isHidden{};
+        bool isMaximized{};
+        bool isBorderless{};
     };
 
     enum class hit_test_result
@@ -68,13 +78,13 @@ namespace oblo
         bool is_hidden() const;
         void set_hidden(bool hide);
 
-        void set_borderless(bool borderless);
-
         void set_custom_hit_test(const hit_test_fn* f);
 
         vec2u get_size() const;
 
         native_window_handle get_native_handle() const;
+
+        void set_icon(u32 w, u32 h, std::span<const byte> data);
 
     private:
         friend class graphics_app;
@@ -83,5 +93,6 @@ namespace oblo
     private:
         void* m_impl{};
         graphics_window_context* m_graphicsContext{};
+        hit_test_fn m_hitTest{};
     };
 }

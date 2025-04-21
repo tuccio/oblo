@@ -199,7 +199,9 @@ namespace oblo::editor
                 ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(5, 0));
                 ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_MenuBarBg));
 
-                if (toolbar_button(ICON_FA_FLOPPY_DISK, m_assetId.is_nil(), colors::blue, disabledButtonColor))
+                const auto defaultTextColor = ImColor{ImGui::GetStyleColorVec4(ImGuiCol_Text)};
+
+                if (toolbar_button(ICON_FA_FLOPPY_DISK, m_assetId.is_nil(), defaultTextColor, disabledButtonColor))
                 {
                     auto* const assetRegistry = ctx.services.find<asset_registry>();
 
