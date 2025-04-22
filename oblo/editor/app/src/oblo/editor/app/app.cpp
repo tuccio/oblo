@@ -365,6 +365,8 @@ namespace oblo::editor
 
         setup_icon(m_impl->m_runtimeRegistry.get_resource_registry(), mainWindow);
 
+        // We pass this function by reference to main window, so it needs to live on the stack together with the
+        // imgui_app itself
         auto hitTest = [this, &mainWindow](const vec2u& position)
         {
             constexpr i32 borderSize = 2;
@@ -421,9 +423,7 @@ namespace oblo::editor
             return r;
         };
 
-        const auto hitTestRef = hit_test_fn{hitTest};
-
-        mainWindow.set_custom_hit_test(&hitTestRef);
+        mainWindow.set_custom_hit_test(hitTest);
         mainWindow.set_hidden(false);
 
         app.set_input_queue(&m_impl->m_inputQueue);

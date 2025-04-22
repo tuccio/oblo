@@ -398,9 +398,9 @@ namespace oblo
         ShowWindow(std::bit_cast<HWND>(m_impl), hide ? SW_HIDE : SW_SHOW);
     }
 
-    void graphics_window::set_custom_hit_test(const hit_test_fn* f)
+    void graphics_window::set_custom_hit_test(const hit_test_fn& f)
     {
-        m_hitTest = *f;
+        m_hitTest = f;
     }
 
     vec2u graphics_window::get_size() const
