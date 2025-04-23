@@ -11,7 +11,7 @@ namespace oblo::vk
         resource<buffer> inCameraBuffer;
 
         resource<texture> inVisibilityBuffer;
-        resource<texture> outAO;
+        resource<texture> outAmbientOcclusion;
 
         h32<raytracing_pass> rtPass;
         h32<raytracing_pass_instance> rtPassInstance;

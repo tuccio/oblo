@@ -306,7 +306,7 @@ namespace oblo::vk::main_view
         {
             const auto rtaoNode = graph.add_node<rtao>();
 
-            graph.make_output(rtaoNode, &rtao::outAO, OutAmbientOcclusion);
+            graph.make_output(rtaoNode, &rtao::outAmbientOcclusion, OutAmbientOcclusion);
 
             graph.connect(visibilityPass, &visibility_pass::outVisibilityBuffer, rtaoNode, &rtao::inVisibilityBuffer);
 
@@ -314,6 +314,11 @@ namespace oblo::vk::main_view
             graph.connect(viewBuffers, &view_buffers_node::inMeshDatabase, rtaoNode, &rtao::inMeshDatabase);
             graph.connect(viewBuffers, &view_buffers_node::inInstanceTables, rtaoNode, &rtao::inInstanceTables);
             graph.connect(viewBuffers, &view_buffers_node::inInstanceBuffers, rtaoNode, &rtao::inInstanceBuffers);
+
+            graph.connect(rtaoNode,
+                &rtao::outAmbientOcclusion,
+                visibilityLighting,
+                &visibility_lighting::inAmbientOcclusion);
         }
 
         // Surfels GI

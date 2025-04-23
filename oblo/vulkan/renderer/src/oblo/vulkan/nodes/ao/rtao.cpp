@@ -33,7 +33,7 @@ namespace oblo::vk
 
         const auto visBufferInit = ctx.get_current_initializer(inVisibilityBuffer).value_or({});
 
-        ctx.create(outAO,
+        ctx.create(outAmbientOcclusion,
             {
                 .width = visBufferInit.width,
                 .height = visBufferInit.height,
@@ -59,14 +59,14 @@ namespace oblo::vk
 
         bindingTable.bind_textures({
             {"t_InVisibilityBuffer"_hsv, inVisibilityBuffer},
-            {"t_OutAO"_hsv, outAO},
+            {"t_OutAO"_hsv, outAmbientOcclusion},
         });
 
         bindingTable.bind("u_SceneTLAS"_hsv, ctx.get_global_tlas());
 
         if (const auto pass = ctx.begin_pass(rtPassInstance))
         {
-            const auto resolution = ctx.get_resolution(outAO);
+            const auto resolution = ctx.get_resolution(outAmbientOcclusion);
 
             struct push_constants
             {

@@ -54,6 +54,12 @@ layout(binding = 3) uniform b_SkyboxSettings
     uint g_SkyboxTexture;
 };
 
+#ifdef SURFELS_GI
+// Pass manager will set this up as a linear sampler by default, we should check whether we can use some sort of
+// annotation to choose which sampler to use
+layout(binding = 5) uniform sampler2D t_InAmbientOcclusion;
+#endif
+
 vec4 visibility_shade(in visibility_shade_context ctx)
 {
     // Read the instance data we need
@@ -135,6 +141,8 @@ vec4 visibility_shade(in visibility_shade_context ctx)
     vec3 reflected = vec3(0);
     const vec3 viewWS = normalize(g_Camera.position - positionWS);
 
+    const vec2 screenUV = (vec2(ctx.screenPos) + .5f) / ctx.resolution;
+
     for (uint lightIndex = 0; lightIndex < g_LightConfig.lightsCount; ++lightIndex)
     {
         float visibility = 1.f;
@@ -143,8 +151,7 @@ vec4 visibility_shade(in visibility_shade_context ctx)
 
         if (visibilityMap != 0)
         {
-            visibility =
-                texture_sample_2d(visibilityMap, OBLO_SAMPLER_NEAREST, (vec2(ctx.screenPos) + .5f) / ctx.resolution).r;
+            visibility = texture_sample_2d(visibilityMap, OBLO_SAMPLER_NEAREST, screenUV).r;
         }
 
         vec3 L;
@@ -156,8 +163,9 @@ vec4 visibility_shade(in visibility_shade_context ctx)
     }
 
 #ifdef SURFELS_GI
+    const float ao = texture(t_InAmbientOcclusion, screenUV).r;
     const vec3 giContribution = surfel_calculate_contribution(positionWS, normalWS);
-    reflected += giContribution * pbr_brdf(normalWS, viewWS, normalWS, pbr);
+    reflected += ao * giContribution * pbr_brdf(normalWS, viewWS, normalWS, pbr);
 #endif
 
     const vec3 outLight = pbr.emissive + reflected;
