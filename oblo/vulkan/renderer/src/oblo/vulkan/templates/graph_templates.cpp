@@ -4,6 +4,7 @@
 #include <oblo/core/iterator/enum_range.hpp>
 #include <oblo/vulkan/data/blur_configs.hpp>
 #include <oblo/vulkan/graph/frame_graph_registry.hpp>
+#include <oblo/vulkan/nodes/ao/rtao.hpp>
 #include <oblo/vulkan/nodes/debug/raytracing_debug.hpp>
 #include <oblo/vulkan/nodes/drawing/draw_call_generator.hpp>
 #include <oblo/vulkan/nodes/drawing/frustum_culling.hpp>
@@ -273,7 +274,6 @@ namespace oblo::vk::main_view
 
             graph.make_output(extraBuffersNode, &visibility_extra_buffers::outDisocclusionMask, OutDisocclusionMask);
             graph.make_output(extraBuffersNode, &visibility_extra_buffers::outMotionVectors, OutMotionVectors);
-            graph.make_output(extraBuffersNode, &visibility_extra_buffers::outNormals, OutNormals);
         }
 
         // Picking
@@ -300,6 +300,20 @@ namespace oblo::vk::main_view
 
             // This is quite awkward admittedly, but if no output is active the node is culled
             graph.make_output(entityPicking, &entity_picking::outPickingResult, OutPicking);
+        }
+
+        // RTAO
+        {
+            const auto rtaoNode = graph.add_node<rtao>();
+
+            graph.make_output(rtaoNode, &rtao::outAO, OutAmbientOcclusion);
+
+            graph.connect(visibilityPass, &visibility_pass::outVisibilityBuffer, rtaoNode, &rtao::inVisibilityBuffer);
+
+            graph.connect(viewBuffers, &view_buffers_node::outCameraBuffer, rtaoNode, &rtao::inCameraBuffer);
+            graph.connect(viewBuffers, &view_buffers_node::inMeshDatabase, rtaoNode, &rtao::inMeshDatabase);
+            graph.connect(viewBuffers, &view_buffers_node::inInstanceTables, rtaoNode, &rtao::inInstanceTables);
+            graph.connect(viewBuffers, &view_buffers_node::inInstanceBuffers, rtaoNode, &rtao::inInstanceBuffers);
         }
 
         // Surfels GI
@@ -842,6 +856,7 @@ namespace oblo::vk
         registry.register_node<raytracing_debug>();
         registry.register_node<tone_mapping_node>();
         registry.register_node<visibility_extra_buffers>();
+        registry.register_node<rtao>();
 
         // Scene data
         registry.register_node<ecs_entity_set_provider>();
