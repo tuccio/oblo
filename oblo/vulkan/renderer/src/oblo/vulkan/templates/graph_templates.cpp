@@ -23,9 +23,9 @@
 #include <oblo/vulkan/nodes/surfels/surfel_debug.hpp>
 #include <oblo/vulkan/nodes/surfels/surfel_management.hpp>
 #include <oblo/vulkan/nodes/utility/entity_picking.hpp>
+#include <oblo/vulkan/nodes/visibility/visibility_extra_buffers.hpp>
 #include <oblo/vulkan/nodes/visibility/visibility_lighting.hpp>
 #include <oblo/vulkan/nodes/visibility/visibility_pass.hpp>
-#include <oblo/vulkan/nodes/visibility/visibility_temporal.hpp>
 
 namespace oblo::vk::main_view
 {
@@ -234,45 +234,46 @@ namespace oblo::vk::main_view
 
         // Temporal
         {
-            const auto temporalNode = graph.add_node<visibility_temporal>();
+            const auto extraBuffersNode = graph.add_node<visibility_extra_buffers>();
 
             graph.connect(viewBuffers,
                 &view_buffers_node::outCameraBuffer,
-                temporalNode,
-                &visibility_temporal::inCameraBuffer);
+                extraBuffersNode,
+                &visibility_extra_buffers::inCameraBuffer);
 
             graph.connect(viewBuffers,
                 &view_buffers_node::inMeshDatabase,
-                temporalNode,
-                &visibility_temporal::inMeshDatabase);
+                extraBuffersNode,
+                &visibility_extra_buffers::inMeshDatabase);
 
             graph.connect(viewBuffers,
                 &view_buffers_node::inInstanceTables,
-                temporalNode,
-                &visibility_temporal::inInstanceTables);
+                extraBuffersNode,
+                &visibility_extra_buffers::inInstanceTables);
 
             graph.connect(viewBuffers,
                 &view_buffers_node::inInstanceBuffers,
-                temporalNode,
-                &visibility_temporal::inInstanceBuffers);
+                extraBuffersNode,
+                &visibility_extra_buffers::inInstanceBuffers);
 
             graph.connect(visibilityPass,
                 &visibility_pass::outVisibilityBuffer,
-                temporalNode,
-                &visibility_temporal::inVisibilityBuffer);
+                extraBuffersNode,
+                &visibility_extra_buffers::inVisibilityBuffer);
 
             graph.connect(visibilityPass,
                 &visibility_pass::outLastFrameDepthBuffer,
-                temporalNode,
-                &visibility_temporal::inLastFrameDepth);
+                extraBuffersNode,
+                &visibility_extra_buffers::inLastFrameDepth);
 
             graph.connect(visibilityPass,
                 &visibility_pass::outDepthBuffer,
-                temporalNode,
-                &visibility_temporal::inCurrentDepth);
+                extraBuffersNode,
+                &visibility_extra_buffers::inCurrentDepth);
 
-            graph.make_output(temporalNode, &visibility_temporal::outDisocclusionMask, OutDisocclusionMask);
-            graph.make_output(temporalNode, &visibility_temporal::outMotionVectors, OutMotionVectors);
+            graph.make_output(extraBuffersNode, &visibility_extra_buffers::outDisocclusionMask, OutDisocclusionMask);
+            graph.make_output(extraBuffersNode, &visibility_extra_buffers::outMotionVectors, OutMotionVectors);
+            graph.make_output(extraBuffersNode, &visibility_extra_buffers::outNormals, OutNormals);
         }
 
         // Picking
@@ -840,7 +841,7 @@ namespace oblo::vk
         registry.register_node<entity_picking>();
         registry.register_node<raytracing_debug>();
         registry.register_node<tone_mapping_node>();
-        registry.register_node<visibility_temporal>();
+        registry.register_node<visibility_extra_buffers>();
 
         // Scene data
         registry.register_node<ecs_entity_set_provider>();

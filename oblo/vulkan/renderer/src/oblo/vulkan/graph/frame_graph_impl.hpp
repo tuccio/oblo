@@ -89,6 +89,9 @@ namespace oblo::vk
 
         // The handle of the pin that owns the storage
         h32<frame_graph_pin> owner;
+
+        // Whether or not the pin leads to a frame graph output. Updated every frame.
+        bool hasPathToOutput;
     };
 
     enum class frame_graph_vertex_state : u8

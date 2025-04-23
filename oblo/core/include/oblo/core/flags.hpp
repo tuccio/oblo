@@ -70,9 +70,9 @@ namespace oblo
         OBLO_FORCEINLINE constexpr flags& operator&=(E rhs);
         OBLO_FORCEINLINE constexpr flags& operator^=(E rhs);
 
-        OBLO_FORCEINLINE constexpr flags& operator|=(flags<E> rhs);
-        OBLO_FORCEINLINE constexpr flags& operator&=(flags<E> rhs);
-        OBLO_FORCEINLINE constexpr flags& operator^=(flags<E> rhs);
+        OBLO_FORCEINLINE constexpr flags& operator|=(flags rhs);
+        OBLO_FORCEINLINE constexpr flags& operator&=(flags rhs);
+        OBLO_FORCEINLINE constexpr flags& operator^=(flags rhs);
 
         OBLO_FORCEINLINE constexpr bool is_empty() const noexcept;
         OBLO_FORCEINLINE constexpr bool is_full() const noexcept;
@@ -84,6 +84,8 @@ namespace oblo
         OBLO_FORCEINLINE constexpr void assign(E e, bool v) noexcept;
 
         OBLO_FORCEINLINE constexpr bool contains(E e) const noexcept;
+        OBLO_FORCEINLINE constexpr bool contains_all(flags f) const noexcept;
+        OBLO_FORCEINLINE constexpr bool contains_any(flags f) const noexcept;
 
         constexpr auto operator<=>(const flags&) const = default;
 
@@ -131,21 +133,21 @@ namespace oblo
     }
 
     template <typename E, u32 Size>
-    constexpr flags<E, Size>& flags<E, Size>::operator|=(flags<E> rhs)
+    constexpr flags<E, Size>& flags<E, Size>::operator|=(flags<E, Size> rhs)
     {
         storage |= rhs.storage;
         return *this;
     }
 
     template <typename E, u32 Size>
-    constexpr flags<E, Size>& flags<E, Size>::operator&=(flags<E> rhs)
+    constexpr flags<E, Size>& flags<E, Size>::operator&=(flags<E, Size> rhs)
     {
         storage &= rhs.storage;
         return *this;
     }
 
     template <typename E, u32 Size>
-    constexpr flags<E, Size>& flags<E, Size>::operator^=(flags<E> rhs)
+    constexpr flags<E, Size>& flags<E, Size>::operator^=(flags<E, Size> rhs)
     {
         storage ^= rhs.storage;
         return *this;
@@ -195,6 +197,18 @@ namespace oblo
     }
 
     template <typename E, u32 Size>
+    constexpr bool flags<E, Size>::contains_all(flags<E, Size> e) const noexcept
+    {
+        return (storage & e.storage) == e.storage;
+    }
+
+    template <typename E, u32 Size>
+    constexpr bool flags<E, Size>::contains_any(flags<E, Size> e) const noexcept
+    {
+        return (storage & e.storage) != 0;
+    }
+
+    template <typename E, u32 Size>
     constexpr E flags<E, Size>::find_first() const noexcept
     {
         const auto count = u32(std::countr_zero(storage));
@@ -208,10 +222,8 @@ namespace oblo
     }
 
     template <typename E>
-    concept flags_enum = std::is_enum_v<E>&&
-        requires()
-    {
-        {u32(E::enum_max)};
+    concept flags_enum = std::is_enum_v<E> && requires() {
+        { u32(E::enum_max) };
     };
 
     template <flags_enum E>

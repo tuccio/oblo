@@ -50,6 +50,7 @@ namespace oblo::vk::main_view
     constexpr string_view OutSurfelsTileCoverageSink{"SurfelsGITileOutput"};
     constexpr string_view OutDisocclusionMask{"DisocclusionMask"};
     constexpr string_view OutMotionVectors{"MotionVectors"};
+    constexpr string_view OutNormals{"NormalVectors"};
 
     constexpr string_view OutPicking{"OutPicking"};
 
