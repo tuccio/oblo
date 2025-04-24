@@ -233,48 +233,46 @@ namespace oblo::vk::main_view
                 &draw_call_generator::inMeshDatabase);
         }
 
-        // Temporal
-        {
-            const auto extraBuffersNode = graph.add_node<visibility_extra_buffers>();
+        // Extra buffers
+        const auto extraBuffersNode = graph.add_node<visibility_extra_buffers>();
 
-            graph.connect(viewBuffers,
-                &view_buffers_node::outCameraBuffer,
-                extraBuffersNode,
-                &visibility_extra_buffers::inCameraBuffer);
+        graph.connect(viewBuffers,
+            &view_buffers_node::outCameraBuffer,
+            extraBuffersNode,
+            &visibility_extra_buffers::inCameraBuffer);
 
-            graph.connect(viewBuffers,
-                &view_buffers_node::inMeshDatabase,
-                extraBuffersNode,
-                &visibility_extra_buffers::inMeshDatabase);
+        graph.connect(viewBuffers,
+            &view_buffers_node::inMeshDatabase,
+            extraBuffersNode,
+            &visibility_extra_buffers::inMeshDatabase);
 
-            graph.connect(viewBuffers,
-                &view_buffers_node::inInstanceTables,
-                extraBuffersNode,
-                &visibility_extra_buffers::inInstanceTables);
+        graph.connect(viewBuffers,
+            &view_buffers_node::inInstanceTables,
+            extraBuffersNode,
+            &visibility_extra_buffers::inInstanceTables);
 
-            graph.connect(viewBuffers,
-                &view_buffers_node::inInstanceBuffers,
-                extraBuffersNode,
-                &visibility_extra_buffers::inInstanceBuffers);
+        graph.connect(viewBuffers,
+            &view_buffers_node::inInstanceBuffers,
+            extraBuffersNode,
+            &visibility_extra_buffers::inInstanceBuffers);
 
-            graph.connect(visibilityPass,
-                &visibility_pass::outVisibilityBuffer,
-                extraBuffersNode,
-                &visibility_extra_buffers::inVisibilityBuffer);
+        graph.connect(visibilityPass,
+            &visibility_pass::outVisibilityBuffer,
+            extraBuffersNode,
+            &visibility_extra_buffers::inVisibilityBuffer);
 
-            graph.connect(visibilityPass,
-                &visibility_pass::outLastFrameDepthBuffer,
-                extraBuffersNode,
-                &visibility_extra_buffers::inLastFrameDepth);
+        graph.connect(visibilityPass,
+            &visibility_pass::outLastFrameDepthBuffer,
+            extraBuffersNode,
+            &visibility_extra_buffers::inLastFrameDepth);
 
-            graph.connect(visibilityPass,
-                &visibility_pass::outDepthBuffer,
-                extraBuffersNode,
-                &visibility_extra_buffers::inCurrentDepth);
+        graph.connect(visibilityPass,
+            &visibility_pass::outDepthBuffer,
+            extraBuffersNode,
+            &visibility_extra_buffers::inCurrentDepth);
 
-            graph.make_output(extraBuffersNode, &visibility_extra_buffers::outDisocclusionMask, OutDisocclusionMask);
-            graph.make_output(extraBuffersNode, &visibility_extra_buffers::outMotionVectors, OutMotionVectors);
-        }
+        graph.make_output(extraBuffersNode, &visibility_extra_buffers::outDisocclusionMask, OutDisocclusionMask);
+        graph.make_output(extraBuffersNode, &visibility_extra_buffers::outMotionVectors, OutMotionVectors);
 
         // Picking
         if (cfg.withPicking)
@@ -309,6 +307,16 @@ namespace oblo::vk::main_view
             graph.make_output(rtaoNode, &rtao::outAmbientOcclusion, OutAmbientOcclusion);
 
             graph.connect(visibilityPass, &visibility_pass::outVisibilityBuffer, rtaoNode, &rtao::inVisibilityBuffer);
+
+            graph.connect(extraBuffersNode,
+                &visibility_extra_buffers::outDisocclusionMask,
+                rtaoNode,
+                &rtao::inDisocclusionMask);
+
+            graph.connect(extraBuffersNode,
+                &visibility_extra_buffers::outMotionVectors,
+                rtaoNode,
+                &rtao::inMotionVectors);
 
             graph.connect(viewBuffers, &view_buffers_node::outCameraBuffer, rtaoNode, &rtao::inCameraBuffer);
             graph.connect(viewBuffers, &view_buffers_node::inMeshDatabase, rtaoNode, &rtao::inMeshDatabase);

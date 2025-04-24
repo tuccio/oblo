@@ -13,6 +13,9 @@ namespace oblo::vk
         resource<texture> inVisibilityBuffer;
         resource<texture> outAmbientOcclusion;
 
+        resource<texture> inDisocclusionMask;
+        resource<texture> inMotionVectors;
+
         h32<raytracing_pass> rtPass;
         h32<raytracing_pass_instance> rtPassInstance;
 

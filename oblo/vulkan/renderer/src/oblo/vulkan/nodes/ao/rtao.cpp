@@ -38,8 +38,11 @@ namespace oblo::vk
                 .width = visBufferInit.width,
                 .height = visBufferInit.height,
                 .format = texture_format::r8_unorm,
+                .isStable = true,
             },
             texture_usage::storage_write);
+
+        ctx.acquire(inDisocclusionMask, texture_usage::storage_read);
 
         ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
         acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
@@ -59,7 +62,9 @@ namespace oblo::vk
 
         bindingTable.bind_textures({
             {"t_InVisibilityBuffer"_hsv, inVisibilityBuffer},
-            {"t_OutAO"_hsv, outAmbientOcclusion},
+            {"t_InOutAO"_hsv, outAmbientOcclusion},
+            {"t_InDisocclusionMask"_hsv, inDisocclusionMask},
+            {"t_InMotionVectors"_hsv, inMotionVectors},
         });
 
         bindingTable.bind("u_SceneTLAS"_hsv, ctx.get_global_tlas());

@@ -42,13 +42,8 @@ ivec2 apply_offset_clamp(in ivec2 pixel, in uvec2 offset, in uvec2 resolution)
 
 vec2 reproject_coords(in uvec2 coords, in uvec2 resolution)
 {
-    const vec2 uv = (vec2(coords) / vec2(resolution));
-
-    // Motion vectors are calculated as current - previous, so we need to subtract to obtain the previous coordinates
-    const vec2 texel = imageLoad(t_InMotionVectors, ivec2(coords)).xy;
-    const vec2 motionVector = motion_vectors_decode(texel);
-
-    return uv - motionVector * .5f;
+    const vec4 texel = imageLoad(t_InMotionVectors, ivec2(coords));
+    return motion_vectors_reproject_uv(texel, coords, resolution);
 }
 
 void main()

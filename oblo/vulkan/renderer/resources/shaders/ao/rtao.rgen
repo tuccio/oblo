@@ -17,6 +17,7 @@
 #include <renderer/meshes/mesh_attributes>
 #include <renderer/meshes/mesh_data>
 #include <renderer/meshes/mesh_indices>
+#include <renderer/motion_vectors>
 #include <renderer/random/random>
 #include <renderer/random/sampling>
 #include <renderer/transform>
@@ -25,8 +26,11 @@
 
 layout(binding = 8) uniform accelerationStructureEXT u_SceneTLAS;
 
+layout(binding = 4, r8) uniform restrict image2D t_InDisocclusionMask;
+layout(binding = 5, OBLO_MOTION_VECTORS_FORMAT) uniform restrict image2D t_InMotionVectors;
+
 layout(binding = 11, rg32ui) uniform restrict readonly uimage2D t_InVisibilityBuffer;
-layout(binding = 13, r8) uniform writeonly restrict image2D t_OutAO;
+layout(binding = 13, r8) uniform restrict image2D t_InOutAO;
 
 layout(binding = 16) uniform b_CameraBuffer
 {
@@ -46,11 +50,16 @@ uint linearize_launch_id()
     return gl_LaunchIDEXT.y * gl_LaunchSizeEXT.x + gl_LaunchIDEXT.x;
 }
 
+vec2 reproject_coords(in uvec2 coords, in uvec2 resolution)
+{
+    const vec4 texel = imageLoad(t_InMotionVectors, ivec2(coords));
+    return motion_vectors_reproject_uv(texel, coords, resolution);
+}
+
 void main()
 {
     const float tMin = 1e-2f;
-    const float tMax = .25f; // TODO: Make it an input
-    const uint numRays = 2; // TODO: Make it an input
+    const float tMax = .5f; // TODO: Make it an input
 
     uint seed = random_seed(linearize_launch_id(), g_Constants.randomSeed);
 
@@ -112,29 +121,47 @@ void main()
         const vec3 normalMS = barycentric_interpolate(bc, triangleNormal);
         const vec3 normalWS = normalize(mat3(transform.normalMatrix) * normalMS);
 
-        for (uint rayIndex = 0; rayIndex < numRays; ++rayIndex)
-        {
-            const vec3 direction = random_sample_cosine_hemisphere(normalWS, random_uniform_2d(seed));
+#if 1
+        const vec3 direction = random_sample_cosine_hemisphere(normalWS, random_uniform_2d(seed));
+        const float sampleWeight = max(1e-2, dot(direction, normalWS));
+#else
+        const vec3 direction = random_sample_uniform_hemisphere(normalWS, random_uniform_2d(seed));
+        const float sampleWeight = 1;
+#endif
 
-            traceRayEXT(u_SceneTLAS,
-                gl_RayFlagsNoneEXT,
-                0xff, // cull mask
-                0,    // STB record offset
-                0,    // STB record stride
-                0,    // Miss index
-                positionWS,
-                tMin,
-                direction,
-                tMax,
-                0 // payload location
-            );
+        traceRayEXT(u_SceneTLAS,
+            gl_RayFlagsNoneEXT,
+            0xff, // cull mask
+            0,    // STB record offset
+            0,    // STB record stride
+            0,    // Miss index
+            positionWS,
+            tMin,
+            direction,
+            tMax,
+            0 // payload location
+        );
 
-            const float sampleProbability = max(1e-2, dot(direction, normalWS));
-            ambientOcclusion += r_HitVisibility * sampleProbability;
-        }
-
-        ambientOcclusion /= numRays;
+        ambientOcclusion = r_HitVisibility * sampleWeight;
     }
 
-    imageStore(t_OutAO, ivec2(gl_LaunchIDEXT.xy), vec4(ambientOcclusion, 0, 0, 1));
+    const vec2 historyUV = reproject_coords(screenPos, resolution);
+    const ivec2 historyCoords = ivec2(historyUV * resolution);
+
+    if (historyCoords.x >= 0 && historyCoords.x < resolution.x && historyCoords.y >= 0 &&
+        historyCoords.y < resolution.y)
+    {
+        const float historyDefaultWeight = 0.75f;
+
+        const float historyAO = imageLoad(t_InOutAO, historyCoords).x;
+        const float disocclusion = imageLoad(t_InDisocclusionMask, historyCoords).x;
+
+        const float historyWeight = disocclusion < .9f ? historyDefaultWeight : 0.f;
+
+        ambientOcclusion = mix(ambientOcclusion, historyAO, historyWeight);
+    }
+
+    // ambientOcclusion = 1;
+
+    imageStore(t_InOutAO, ivec2(gl_LaunchIDEXT.xy), vec4(ambientOcclusion, 0, 0, 1));
 }
