@@ -7,7 +7,9 @@
 #extension GL_EXT_shader_8bit_storage : require
 #extension GL_ARB_gpu_shader_int64 : require
 
+#include <renderer/debug/printf>
 #include <renderer/math>
+#include <renderer/motion_vectors>
 #include <renderer/textures>
 #include <renderer/transform>
 #include <visibility/visibility_buffer>
@@ -18,7 +20,7 @@ layout(binding = 1, r8) uniform restrict readonly image2D t_InShadowMean;
 layout(binding = 2) uniform texture2D t_InHistory;
 
 layout(binding = 4, r8) uniform restrict image2D t_InDisocclusionMask;
-layout(binding = 5, rg8) uniform restrict image2D t_InMotionVectors;
+layout(binding = 5, OBLO_MOTION_VECTORS_FORMAT) uniform restrict image2D t_InMotionVectors;
 
 layout(binding = 8, r8) uniform restrict writeonly image2D t_OutFiltered;
 
@@ -40,11 +42,13 @@ ivec2 apply_offset_clamp(in ivec2 pixel, in uvec2 offset, in uvec2 resolution)
 
 vec2 reproject_coords(in uvec2 coords, in uvec2 resolution)
 {
-    const vec2 uv = vec2(coords + .5f) / vec2(resolution);
+    const vec2 uv = (vec2(coords) / vec2(resolution));
 
     // Motion vectors are calculated as current - previous, so we need to subtract to obtain the previous coordinates
-    const vec2 motionVector = imageLoad(t_InMotionVectors, ivec2(coords)).xy;
-    return uv - motionVector;
+    const vec2 texel = imageLoad(t_InMotionVectors, ivec2(coords)).xy;
+    const vec2 motionVector = motion_vectors_decode(texel);
+
+    return uv - motionVector * .5f;
 }
 
 void main()
@@ -65,11 +69,11 @@ void main()
     const float mean2 = mean * mean;
     float variance = saturate(mean - mean2);
 
-    const float highVarianceThreshold = 1e-4;
+    const float highVarianceThreshold = 1e-2;
     const bool isHighVariance = variance > highVarianceThreshold;
 
-    vec3 currentPositionWS;
     vec3 lastFramePositionWS;
+    vec3 currentPositionWS;
 
     const vec2 historyUV = reproject_coords(screenPos, resolution);
 
@@ -85,17 +89,20 @@ void main()
         {
             history = texture(sampler2D(t_InHistory, g_Samplers[OBLO_SAMPLER_LINEAR]), historyUV).x;
             historyWeight = g_Constants.temporalAccumulationFactor;
+
+            // When variance is high, we boost the history contribution
+            if (isHighVariance)
+            {
+                const float highVarianceBoost = 2.f;
+
+                variance *= highVarianceBoost;
+                historyWeight = 1.f;
+            }
         }
-
-        if (isHighVariance)
+        else
         {
-            const float maxHistoryWeight = max(.9f, g_Constants.temporalAccumulationFactor);
-            const float highVarianceBoost = 5.f;
-            const float highVarianceHistoryBoost = 5.f;
-
-            variance *= highVarianceBoost;
-            historyWeight = min(highVarianceHistoryBoost * historyWeight, maxHistoryWeight);
-            historyWeight = g_Constants.temporalAccumulationFactor;
+            const float noHistoryVarianceBoost = 10.f;
+            variance *= noHistoryVarianceBoost;
         }
     }
 

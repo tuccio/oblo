@@ -63,7 +63,7 @@ namespace oblo::vk
                 {
                     .width = imageInitializer->width,
                     .height = imageInitializer->height,
-                    .format = texture_format::r8g8_unorm,
+                    .format = texture_format::r16g16_sfloat,
                 },
                 texture_usage::storage_write);
         }

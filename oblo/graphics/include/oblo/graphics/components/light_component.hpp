@@ -17,7 +17,10 @@ namespace oblo
     struct light_component
     {
         light_type type;
+
+        OBLO_PROPERTY(LinearColor)
         vec3 color;
+
         f32 intensity;
 
         OBLO_PROPERTY(ClampMin = 0)

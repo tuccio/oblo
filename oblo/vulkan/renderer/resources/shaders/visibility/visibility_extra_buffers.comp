@@ -14,12 +14,13 @@
 #include <renderer/meshes/mesh_data>
 #include <renderer/meshes/mesh_indices>
 #include <renderer/meshes/mesh_table>
+#include <renderer/motion_vectors>
 #include <renderer/transform>
 #include <visibility/visibility_buffer>
 #include <visibility/visibility_utils>
 
 #ifdef OUT_MOTION_VECTORS
-layout(binding = 0, rg8) uniform restrict writeonly image2D t_OutMotionVectors;
+layout(binding = 0, OBLO_MOTION_VECTORS_FORMAT) uniform restrict writeonly image2D t_OutMotionVectors;
 #endif
 
 #ifdef OUT_DISOCCLUSION_MASK
@@ -167,7 +168,8 @@ void main()
     }
 
 #ifdef OUT_MOTION_VECTORS
-    imageStore(t_OutMotionVectors, ivec2(screenPos), vec4(r.motionVectors, 0, 0));
+    const vec2 motionVectors = motion_vectors_encode(r.motionVectors);
+    imageStore(t_OutMotionVectors, ivec2(screenPos), vec4(motionVectors, 0, 0));
 #endif
 
 #ifdef OUT_DISOCCLUSION_MASK
