@@ -173,17 +173,17 @@ namespace oblo::reflection
     public:
         friend class class_builder<T>;
 
-        template <typename P, typename... Args>
+        template <typename Attribute, typename... Args>
         field_builder add_attribute(Args&&... args)
         {
             auto* ptr = m_registrant.add_field_attribute(m_entityIndex,
                 m_fieldIndex,
-                get_type_id<P>(),
-                sizeof(T),
-                alignof(T),
-                [](void* p) { static_cast<T*>(p)->~T(); });
+                get_type_id<Attribute>(),
+                sizeof(Attribute),
+                alignof(Attribute),
+                [](void* p) { static_cast<Attribute*>(p)->~Attribute(); });
 
-            new (ptr) T{std::forward<Args>(args)...};
+            new (ptr) Attribute{std::forward<Args>(args)...};
             return *this;
         }
 
