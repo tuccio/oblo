@@ -55,9 +55,7 @@ layout(binding = 3) uniform b_SkyboxSettings
 };
 
 #ifdef SURFELS_GI
-// Pass manager will set this up as a linear sampler by default, we should check whether we can use some sort of
-// annotation to choose which sampler to use
-layout(binding = 5) uniform sampler2D t_InAmbientOcclusion;
+layout(binding = 5) uniform texture2D t_InAmbientOcclusion;
 #endif
 
 vec4 visibility_shade(in visibility_shade_context ctx)
@@ -163,7 +161,7 @@ vec4 visibility_shade(in visibility_shade_context ctx)
     }
 
 #ifdef SURFELS_GI
-    const float ao = texture(t_InAmbientOcclusion, screenUV).r;
+    const float ao = texture(sampler2D(t_InAmbientOcclusion, g_Samplers[OBLO_SAMPLER_LINEAR]), screenUV).r;
     const vec3 giContribution = surfel_calculate_contribution(positionWS, normalWS);
     reflected += ao * giContribution * pbr_brdf(normalWS, viewWS, normalWS, pbr);
 #endif
