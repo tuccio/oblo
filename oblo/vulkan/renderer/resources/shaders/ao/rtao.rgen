@@ -2,9 +2,10 @@
 
 #extension GL_EXT_ray_tracing : require
 #extension GL_GOOGLE_include_directive : require
-#extension GL_EXT_samplerless_texture_functions : require
-#extension GL_EXT_control_flow_attributes : enable
 #extension GL_EXT_buffer_reference : require
+#extension GL_EXT_control_flow_attributes : enable
+#extension GL_EXT_nonuniform_qualifier : require
+#extension GL_EXT_samplerless_texture_functions : require
 #extension GL_EXT_shader_8bit_storage : require
 #extension GL_ARB_gpu_shader_int64 : require
 
@@ -20,6 +21,7 @@
 #include <renderer/motion_vectors>
 #include <renderer/random/random>
 #include <renderer/random/sampling>
+#include <renderer/textures>
 #include <renderer/transform>
 #include <visibility/visibility_buffer>
 #include <visibility/visibility_utils>
@@ -30,7 +32,9 @@ layout(binding = 4, r8) uniform restrict image2D t_InDisocclusionMask;
 layout(binding = 5, OBLO_MOTION_VECTORS_FORMAT) uniform restrict image2D t_InMotionVectors;
 
 layout(binding = 11, rg32ui) uniform restrict readonly uimage2D t_InVisibilityBuffer;
-layout(binding = 13, r8) uniform restrict image2D t_InOutAO;
+
+layout(binding = 12) uniform texture2D t_InHistory;
+layout(binding = 13, r8) uniform restrict writeonly image2D t_OutAO;
 
 layout(binding = 16) uniform b_CameraBuffer
 {
@@ -151,17 +155,15 @@ void main()
     if (historyCoords.x >= 0 && historyCoords.x < resolution.x && historyCoords.y >= 0 &&
         historyCoords.y < resolution.y)
     {
-        const float historyDefaultWeight = 0.75f;
+        const float historyDefaultWeight = 0.85f;
 
-        const float historyAO = imageLoad(t_InOutAO, historyCoords).x;
-        const float disocclusion = imageLoad(t_InDisocclusionMask, historyCoords).x;
+        const float historyAO = texture(sampler2D(t_InHistory, g_Samplers[OBLO_SAMPLER_LINEAR]), historyUV).r;
+        const float disocclusion = imageLoad(t_InDisocclusionMask, historyCoords).r;
 
         const float historyWeight = disocclusion < .9f ? historyDefaultWeight : 0.f;
 
         ambientOcclusion = mix(ambientOcclusion, historyAO, historyWeight);
     }
 
-    // ambientOcclusion = 1;
-
-    imageStore(t_InOutAO, ivec2(gl_LaunchIDEXT.xy), vec4(ambientOcclusion, 0, 0, 1));
+    imageStore(t_OutAO, ivec2(gl_LaunchIDEXT.xy), vec4(ambientOcclusion, 0, 0, 1));
 }

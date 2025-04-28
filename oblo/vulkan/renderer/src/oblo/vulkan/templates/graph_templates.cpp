@@ -304,7 +304,7 @@ namespace oblo::vk::main_view
         {
             const auto rtaoNode = graph.add_node<rtao>();
 
-            graph.make_output(rtaoNode, &rtao::outAmbientOcclusion, OutAmbientOcclusion);
+            graph.make_output(rtaoNode, &rtao::outRTAmbientOcclusion, OutRTAmbientOcclusion);
 
             graph.connect(visibilityPass, &visibility_pass::outVisibilityBuffer, rtaoNode, &rtao::inVisibilityBuffer);
 
@@ -323,8 +323,21 @@ namespace oblo::vk::main_view
             graph.connect(viewBuffers, &view_buffers_node::inInstanceTables, rtaoNode, &rtao::inInstanceTables);
             graph.connect(viewBuffers, &view_buffers_node::inInstanceBuffers, rtaoNode, &rtao::inInstanceBuffers);
 
-            graph.connect(rtaoNode,
-                &rtao::outAmbientOcclusion,
+            constexpr gaussian_blur_config aoFilterCfg{.kernelSize = 7, .sigma = 1.f};
+            const auto aoFilter = graph.add_node<gaussian_blur>();
+
+            graph.make_output(aoFilter, &gaussian_blur::outBlurred, OutAmbientOcclusion);
+
+            graph.bind(aoFilter, &gaussian_blur::inConfig, aoFilterCfg);
+
+            // We get the temporally filtered RTAO output as input, and output into the history, so next frame will use
+            // the blurred output as history
+            graph.connect(rtaoNode, &rtao::outRTAmbientOcclusion, aoFilter, &gaussian_blur::inSource);
+            graph.connect(rtaoNode, &rtao::inOutHistory, aoFilter, &gaussian_blur::outBlurred);
+
+            // We also use the blurred output as AO for this frame
+            graph.connect(aoFilter,
+                &gaussian_blur::outBlurred,
                 visibilityLighting,
                 &visibility_lighting::inAmbientOcclusion);
         }
@@ -601,16 +614,6 @@ namespace oblo::vk::raytraced_shadow_view
         graph.make_output(output, &shadow_output::outShadowSink, OutShadowSink);
 
         return graph;
-    }
-
-    type_id get_main_view_barrier_source()
-    {
-        return get_type_id<raytraced_shadows>();
-    }
-
-    type_id get_main_view_barrier_target()
-    {
-        return get_type_id<visibility_lighting>();
     }
 }
 

@@ -11,7 +11,8 @@ namespace oblo::vk
         resource<buffer> inCameraBuffer;
 
         resource<texture> inVisibilityBuffer;
-        resource<texture> outAmbientOcclusion;
+        resource<texture> inOutHistory;
+        resource<texture> outRTAmbientOcclusion;
 
         resource<texture> inDisocclusionMask;
         resource<texture> inMotionVectors;

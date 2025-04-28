@@ -33,14 +33,22 @@ namespace oblo::vk
 
         const auto visBufferInit = ctx.get_current_initializer(inVisibilityBuffer).value_or({});
 
-        ctx.create(outAmbientOcclusion,
+        ctx.create(outRTAmbientOcclusion,
+            {
+                .width = visBufferInit.width,
+                .height = visBufferInit.height,
+                .format = texture_format::r8_unorm,
+            },
+            texture_usage::storage_write);
+
+        ctx.create(inOutHistory,
             {
                 .width = visBufferInit.width,
                 .height = visBufferInit.height,
                 .format = texture_format::r8_unorm,
                 .isStable = true,
             },
-            texture_usage::storage_write);
+            texture_usage::storage_read);
 
         ctx.acquire(inDisocclusionMask, texture_usage::storage_read);
 
@@ -62,7 +70,8 @@ namespace oblo::vk
 
         bindingTable.bind_textures({
             {"t_InVisibilityBuffer"_hsv, inVisibilityBuffer},
-            {"t_InOutAO"_hsv, outAmbientOcclusion},
+            {"t_OutAO"_hsv, outRTAmbientOcclusion},
+            {"t_InHistory"_hsv, inOutHistory},
             {"t_InDisocclusionMask"_hsv, inDisocclusionMask},
             {"t_InMotionVectors"_hsv, inMotionVectors},
         });
@@ -71,7 +80,7 @@ namespace oblo::vk
 
         if (const auto pass = ctx.begin_pass(rtPassInstance))
         {
-            const auto resolution = ctx.get_resolution(outAmbientOcclusion);
+            const auto resolution = ctx.get_resolution(outRTAmbientOcclusion);
 
             struct push_constants
             {
