@@ -523,22 +523,17 @@ namespace oblo::vk::raytraced_shadow_view
         graph.init(registry);
 
         const auto shadows = graph.add_node<raytraced_shadows>();
-        const auto momentFilterH = graph.add_node<gaussian_blur_h>();
-        const auto momentFilterV = graph.add_node<gaussian_blur_v>();
+        const auto momentFilter = graph.add_node<gaussian_blur>();
         const auto temporal = graph.add_node<shadow_temporal>();
         const auto filter0 = graph.add_node<shadow_filter>();
         const auto filter1 = graph.add_node<shadow_filter>();
         const auto filter2 = graph.add_node<shadow_filter>();
         const auto output = graph.add_node<shadow_output>();
 
-        constexpr gaussian_blur_config momentFilter{.kernelSize = 17, .sigma = 1};
+        constexpr gaussian_blur_config momentFilterCfg{.kernelSize = 17, .sigma = 1};
 
-        graph.bind(momentFilterH, &gaussian_blur_h::inConfig, momentFilter);
-        graph.make_input(momentFilterH, &gaussian_blur_h::inConfig, InMeanFilterConfig);
-        graph.connect(momentFilterH, &gaussian_blur_h::inConfig, momentFilterV, &gaussian_blur_v::inConfig);
-
-        graph.bind(momentFilterH, &gaussian_blur_h::outputInPlace, false);
-        graph.bind(momentFilterV, &gaussian_blur_v::outputInPlace, false);
+        graph.bind(momentFilter, &gaussian_blur::inConfig, momentFilterCfg);
+        graph.make_input(momentFilter, &gaussian_blur::inConfig, InMeanFilterConfig);
 
         graph.bind(filter0, &shadow_filter::passIndex, 0u);
         graph.bind(filter1, &shadow_filter::passIndex, 1u);
@@ -553,11 +548,10 @@ namespace oblo::vk::raytraced_shadow_view
         graph.make_input(temporal, &shadow_temporal::inDisocclusionMask, InDisocclusionMask);
         graph.make_input(temporal, &shadow_temporal::inMotionVectors, InMotionVectors);
 
-        graph.connect(shadows, &raytraced_shadows::outShadow, momentFilterH, &box_blur_h::inSource);
-        graph.connect(momentFilterH, &box_blur_h::outBlurred, momentFilterV, &box_blur_v::inSource);
+        graph.connect(shadows, &raytraced_shadows::outShadow, momentFilter, &gaussian_blur::inSource);
 
         graph.connect(shadows, &raytraced_shadows::outShadow, temporal, &shadow_temporal::inShadow);
-        graph.connect(momentFilterV, &box_blur_v::outBlurred, temporal, &shadow_temporal::inShadowMean);
+        graph.connect(momentFilter, &gaussian_blur::outBlurred, temporal, &shadow_temporal::inShadowMean);
 
         graph.connect(shadows, &raytraced_shadows::inConfig, temporal, &shadow_temporal::inConfig);
 
@@ -599,8 +593,8 @@ namespace oblo::vk::raytraced_shadow_view
         graph.make_output(filter1, &shadow_filter::outFiltered, "Filter1 - Shadows");
         graph.make_output(filter2, &shadow_filter::outFiltered, "Filter2 - Shadows");
 
-        graph.make_output(momentFilterH, &gaussian_blur_h::outBlurred, "Shadow Blur Horizontal");
-        graph.make_output(momentFilterV, &gaussian_blur_v::outBlurred, "Shadow Blur Vertical");
+        graph.make_output(momentFilter, &gaussian_blur::inOutIntermediate, "Shadow Blur Horizontal");
+        graph.make_output(momentFilter, &gaussian_blur::outBlurred, "Shadow Blur Vertical");
 #endif
 
         graph.make_output(output, &shadow_output::outShadow, OutShadow);
@@ -884,10 +878,8 @@ namespace oblo::vk
         registry.register_node<shadow_temporal>();
 
         // Blurs
-        registry.register_node<gaussian_blur_h>();
-        registry.register_node<gaussian_blur_v>();
-        registry.register_node<box_blur_h>();
-        registry.register_node<box_blur_v>();
+        registry.register_node<gaussian_blur>();
+        registry.register_node<box_blur>();
 
         // Surfels GI
         registry.register_node<surfel_initializer>();

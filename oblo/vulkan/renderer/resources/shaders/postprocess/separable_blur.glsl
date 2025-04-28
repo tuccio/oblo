@@ -53,9 +53,9 @@ blur_pixel_t blur_read_pixel_at_offset(in blur_context ctx, int offset)
 
 ivec2 blur_apply_offset_clamp(in ivec2 pixel, in uint offset, in ivec2 resolution)
 {
-#ifdef BLUR_HORIZONTAL
+#if defined(BLUR_HORIZONTAL)
     return ivec2(min(resolution.x, pixel.x + offset), pixel.y);
-#else
+#elif defined(BLUR_VERTICAL)
     return ivec2(pixel.x, min(resolution.y, pixel.y + offset));
 #endif
 }
@@ -64,10 +64,10 @@ void main()
 {
     const uvec2 resolution = imageSize(t_InSource);
 
-#ifdef BLUR_HORIZONTAL
+#if defined(BLUR_HORIZONTAL)
     const ivec2 firstGroupPixel = ivec2(gl_WorkGroupID.x * g_GroupSize, gl_WorkGroupID.y);
     const ivec2 firstPixelToLoad = ivec2(max(0, firstGroupPixel.x - g_KernelDataSize), firstGroupPixel.y);
-#else
+#elif defined(BLUR_VERTICAL)
     const ivec2 firstGroupPixel = ivec2(gl_WorkGroupID.x, gl_WorkGroupID.y * g_GroupSize);
     const ivec2 firstPixelToLoad = ivec2(firstGroupPixel.x, max(0, firstGroupPixel.y - g_KernelDataSize));
 #endif
