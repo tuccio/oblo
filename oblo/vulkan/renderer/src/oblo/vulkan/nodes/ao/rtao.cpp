@@ -95,10 +95,14 @@ namespace oblo::vk
             struct push_constants
             {
                 u32 randomSeed;
+                f32 aoBias;
+                f32 aoMaxDistance;
             };
 
             const push_constants constants{
                 .randomSeed = randomSeed,
+                .aoBias = ctx.access(inBias),
+                .aoMaxDistance = ctx.access(inMaxDistance),
             };
 
             ctx.bind_descriptor_sets(bindingTable);

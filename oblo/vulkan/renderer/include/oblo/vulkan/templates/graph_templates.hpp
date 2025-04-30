@@ -31,6 +31,9 @@ namespace oblo::vk::main_view
     constexpr string_view InShadowSink{"ShadowSink"};
     constexpr string_view InSkyboxSettingsBuffer{"SkyboxSettingsBuffer"};
 
+    constexpr string_view InRTAOBias{"RTAOBias"};
+    constexpr string_view InRTAOMaxDistance{"RTAOMaxDistance"};
+
     constexpr string_view InDebugMode{"Debug Mode"};
 
     constexpr string_view OutResolution{"Resolution"};

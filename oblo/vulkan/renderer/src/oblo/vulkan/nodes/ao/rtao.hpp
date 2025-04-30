@@ -25,6 +25,9 @@ namespace oblo::vk
         resource<buffer> inInstanceTables;
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
+        data<f32> inBias;
+        data<f32> inMaxDistance;
+
         u32 randomSeed;
 
         void init(const frame_graph_init_context& context);

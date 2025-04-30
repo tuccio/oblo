@@ -48,5 +48,6 @@ namespace oblo
         vk::frame_graph_template m_rtShadows;
         ecs::entity_map<shadow_directional> m_shadows;
         option_proxy_struct<surfels_gi_options> m_giOptions;
+        option_proxy_struct<rtao_options> m_rtaoOptions;
     };
 };

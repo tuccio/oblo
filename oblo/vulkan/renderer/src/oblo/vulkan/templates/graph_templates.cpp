@@ -304,6 +304,8 @@ namespace oblo::vk::main_view
         {
             const auto rtaoNode = graph.add_node<rtao>();
 
+            graph.make_input(rtaoNode, &rtao::inBias, InRTAOBias);
+            graph.make_input(rtaoNode, &rtao::inMaxDistance, InRTAOMaxDistance);
             graph.make_output(rtaoNode, &rtao::outRTAmbientOcclusion, OutRTAmbientOcclusion);
 
             graph.connect(visibilityPass, &visibility_pass::outVisibilityBuffer, rtaoNode, &rtao::inVisibilityBuffer);

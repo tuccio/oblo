@@ -45,6 +45,8 @@ layout(binding = 16) uniform b_CameraBuffer
 layout(push_constant) uniform c_PushConstants
 {
     uint randomSeed;
+    float aoBias;
+    float aoMaxDistance;
 }
 g_Constants;
 
@@ -63,8 +65,8 @@ vec2 reproject_coords(in uvec2 coords, in uvec2 resolution)
 
 void main()
 {
-    const float tMin = 1e-2f;
-    const float tMax = .5f; // TODO: Make it an input
+    const float tMin = g_Constants.aoBias;
+    const float tMax = g_Constants.aoMaxDistance;
 
     uint seed = random_seed(linearize_launch_id(), g_Constants.randomSeed);
 
@@ -126,13 +128,8 @@ void main()
         const vec3 normalMS = barycentric_interpolate(bc, triangleNormal);
         const vec3 normalWS = normalize(mat3(transform.normalMatrix) * normalMS);
 
-#if 1
         const vec3 direction = random_sample_cosine_hemisphere(normalWS, random_uniform_2d(seed));
         const float sampleWeight = max(1e-2, dot(direction, normalWS));
-#else
-        const vec3 direction = random_sample_uniform_hemisphere(normalWS, random_uniform_2d(seed));
-        const float sampleWeight = 1;
-#endif
 
         traceRayEXT(u_SceneTLAS,
             gl_RayFlagsNoneEXT,

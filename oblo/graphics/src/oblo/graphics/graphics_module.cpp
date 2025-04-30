@@ -99,7 +99,7 @@ namespace oblo
             },
         });
 
-        option_proxy_struct<surfels_gi_options>::register_options(*initializer.services);
+        option_proxy_struct<surfels_gi_options, rtao_options>::register_options(*initializer.services);
 
         return true;
     }

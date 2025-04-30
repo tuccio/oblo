@@ -136,4 +136,48 @@ namespace oblo
         f32 gridSizeZ;
         f32 multiplier;
     };
+
+    template <>
+    struct option_traits<"r.rtao.bias">
+    {
+        using type = f32;
+
+        static constexpr option_descriptor descriptor{
+            .kind = property_kind::f32,
+            .id = "505db10a-5c00-4f49-ab6a-7b6f34626c57"_uuid,
+            .name = "Distance Bias",
+            .category = "Graphics/RTAO",
+            .defaultValue = property_value_wrapper{1e-2f},
+            .minValue = property_value_wrapper{0.f},
+            .maxValue = property_value_wrapper{1.f},
+        };
+    };
+
+    template <>
+    struct option_traits<"r.rtao.maxDistance">
+    {
+        using type = f32;
+
+        static constexpr option_descriptor descriptor{
+            .kind = property_kind::f32,
+            .id = "19f4c130-879f-47f3-af3a-a4ad51d52856"_uuid,
+            .name = "Max Distance",
+            .category = "Graphics/RTAO",
+            .defaultValue = property_value_wrapper{.5f},
+            .minValue = property_value_wrapper{0.f},
+            .maxValue = property_value_wrapper{1024.f},
+        };
+    };
+
+    struct rtao_options
+    {
+        option_proxy<"r.rtao.bias"> bias;
+        option_proxy<"r.rtao.maxDistance"> maxDistance;
+    };
+
+    struct rtao_config
+    {
+        f32 bias;
+        f32 maxDistance;
+    };
 }

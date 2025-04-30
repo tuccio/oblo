@@ -235,6 +235,15 @@ namespace oblo
         m_frameGraph.set_input(m_surfelsGI, vk::surfels_gi::InGIMultiplier, giConfig.multiplier).assert_value();
     }
 
+    void scene_renderer::setup_rtao(const rtao_config& rtaoConfig)
+    {
+        for (h32<vk::frame_graph_subgraph> view : m_sceneViews.keys())
+        {
+            m_frameGraph.set_input(view, vk::main_view::InRTAOBias, rtaoConfig.bias).assert_value();
+            m_frameGraph.set_input(view, vk::main_view::InRTAOMaxDistance, rtaoConfig.maxDistance).assert_value();
+        }
+    }
+
     h32<vk::frame_graph_subgraph> scene_renderer::create_scene_view(scene_view_kind kind)
     {
         const auto mainViewTemplate = vk::main_view::create(m_nodeRegistry,
