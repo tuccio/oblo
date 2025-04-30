@@ -12,6 +12,7 @@ namespace oblo::vk
 
         resource<texture> inVisibilityBuffer;
         resource<texture> inOutHistory;
+        resource<texture> inOutHistorySamplesCount;
         resource<texture> outRTAmbientOcclusion;
 
         resource<texture> inDisocclusionMask;

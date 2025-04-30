@@ -35,6 +35,7 @@ layout(binding = 11, rg32ui) uniform restrict readonly uimage2D t_InVisibilityBu
 
 layout(binding = 12) uniform texture2D t_InHistory;
 layout(binding = 13, r8) uniform restrict writeonly image2D t_OutAO;
+layout(binding = 14, r8ui) uniform restrict uimage2D t_InOutSamplesCount;
 
 layout(binding = 16) uniform b_CameraBuffer
 {
@@ -152,18 +153,38 @@ void main()
     const vec2 historyUV = reproject_coords(screenPos, resolution);
     const ivec2 historyCoords = ivec2(historyUV * resolution);
 
+    uint historySamplesCount = 0;
+
     if (historyCoords.x >= 0 && historyCoords.x < resolution.x && historyCoords.y >= 0 &&
         historyCoords.y < resolution.y)
     {
-        const float historyDefaultWeight = 0.85f;
+        const float historyMaxWeight = .99f;
 
         const float historyAO = texture(sampler2D(t_InHistory, g_Samplers[OBLO_SAMPLER_LINEAR]), historyUV).r;
         const float disocclusion = imageLoad(t_InDisocclusionMask, historyCoords).r;
 
-        const float historyWeight = disocclusion < .9f ? historyDefaultWeight : 0.f;
+        const float disocclusionThreshold = .9f;
+
+        float historyWeight = 0.f;
+
+        if (disocclusion < disocclusionThreshold)
+        {
+            // Weigh the history more when we have more samples
+            const uint maxHistorySamples = 8;
+            const float invMaxHistorySamples = 1.f / maxHistorySamples;
+
+            // Once we have the max samples count, use this weight for history
+            const float maxHistoryWeight = .99f;
+
+            historySamplesCount = imageLoad(t_InOutSamplesCount, historyCoords).r;
+            historySamplesCount = min(maxHistorySamples, 1 + historySamplesCount);
+
+            historyWeight = smoothstep(0, maxHistoryWeight, historySamplesCount * invMaxHistorySamples);
+        }
 
         ambientOcclusion = mix(ambientOcclusion, historyAO, historyWeight);
     }
 
     imageStore(t_OutAO, ivec2(gl_LaunchIDEXT.xy), vec4(ambientOcclusion, 0, 0, 1));
+    imageStore(t_InOutSamplesCount, ivec2(gl_LaunchIDEXT.xy), uvec4(historySamplesCount, 0, 0, 1));
 }

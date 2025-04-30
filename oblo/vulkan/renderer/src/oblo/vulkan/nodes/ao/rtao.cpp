@@ -50,6 +50,15 @@ namespace oblo::vk
             },
             texture_usage::storage_read);
 
+        ctx.create(inOutHistorySamplesCount,
+            {
+                .width = visBufferInit.width,
+                .height = visBufferInit.height,
+                .format = texture_format::r8_uint,
+                .isStable = true,
+            },
+            texture_usage::storage_write);
+
         ctx.acquire(inDisocclusionMask, texture_usage::storage_read);
 
         ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
@@ -72,6 +81,7 @@ namespace oblo::vk
             {"t_InVisibilityBuffer"_hsv, inVisibilityBuffer},
             {"t_OutAO"_hsv, outRTAmbientOcclusion},
             {"t_InHistory"_hsv, inOutHistory},
+            {"t_InOutSamplesCount"_hsv, inOutHistorySamplesCount},
             {"t_InDisocclusionMask"_hsv, inDisocclusionMask},
             {"t_InMotionVectors"_hsv, inMotionVectors},
         });
