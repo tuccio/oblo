@@ -1,0 +1,102 @@
+#pragma once
+
+#include <oblo/core/expected.hpp>
+#include <oblo/core/string/cstring_view.hpp>
+
+#include <span>
+
+namespace oblo
+{
+    enum class wasm_type
+    {
+        i32,
+        i64,
+        f32,
+        f64,
+    };
+
+    struct wasm_value
+    {
+        wasm_type type;
+
+        union {
+            i32 i32;
+            i64 i64;
+            f32 f32;
+            f64 f64;
+        } value;
+    };
+
+    class wasm_module_executor;
+    class wasm_function_ptr;
+
+    class wasm_module
+    {
+    public:
+        wasm_module() = default;
+        wasm_module(const wasm_module&) = delete;
+        WASM_RT_API wasm_module(wasm_module&&) noexcept;
+        WASM_RT_API ~wasm_module();
+
+        wasm_module& operator=(const wasm_module&) = delete;
+        WASM_RT_API wasm_module& operator=(wasm_module&&) noexcept;
+
+        WASM_RT_API expected<> load(std::span<const byte> wasm, std::span<char> errorBuffer = {});
+
+        WASM_RT_API void destroy();
+
+    private:
+        friend class wasm_module_executor;
+
+    private:
+        void* m_module{};
+    };
+
+    class wasm_module_executor
+    {
+    public:
+        wasm_module_executor() = default;
+        wasm_module_executor(const wasm_module_executor&) = delete;
+        WASM_RT_API wasm_module_executor(wasm_module_executor&&) noexcept;
+        WASM_RT_API ~wasm_module_executor();
+
+        wasm_module_executor& operator=(const wasm_module_executor&) = delete;
+        WASM_RT_API wasm_module_executor& operator=(wasm_module_executor&&) noexcept;
+
+        WASM_RT_API expected<> create(
+            const wasm_module& module, u32 stackSize, u32 heapSize, std::span<char> errorBuffer = {});
+
+        WASM_RT_API void destroy();
+
+        WASM_RT_API wasm_function_ptr find_function(cstring_view name) const;
+
+        WASM_RT_API expected<> invoke(const wasm_function_ptr& function,
+            std::span<wasm_value> returnValues,
+            std::span<const wasm_value> arguments);
+
+        template <typename R, typename... Args>
+        expected<R> invoke(const wasm_function_ptr& function, Args&&... args);
+
+        const char* get_last_exception() const;
+
+    private:
+        void* m_instance{};
+        void* m_env{};
+    };
+
+    class wasm_function_ptr
+    {
+    public:
+        explicit operator bool() const noexcept
+        {
+            return m_function != nullptr;
+        }
+
+    private:
+        friend class wasm_module;
+        friend class wasm_module_executor;
+
+    private:
+        void* m_function{};
+    };
+}

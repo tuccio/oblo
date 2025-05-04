@@ -45,6 +45,7 @@ class ObloConanRecipe(ConanFile):
         self.requires("stb/cci.20230920")
         self.requires("tinygltf/2.8.13")
         self.requires("utfcpp/4.0.1")
+        self.requires("wasm-micro-runtime/2.2.0")
         self.requires("xxhash/0.8.2")
 
         # This is only needed for unit tests

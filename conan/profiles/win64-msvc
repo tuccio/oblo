@@ -8,3 +8,5 @@ compiler.cppstd=20
 [conf]
 tools.cmake.cmaketoolchain:generator=Visual Studio 17 2022
 tools.cmake.cmaketoolchain:extra_variables={"CMAKE_POLICY_VERSION_MINIMUM": "3.5"}
+[tool_requires]
+wasm-micro-runtime*:cmake/3.31.6
