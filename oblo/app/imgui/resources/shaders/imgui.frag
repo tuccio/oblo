@@ -21,7 +21,7 @@ void main()
     if (g_Constants.textureId != 0)
     {
         // Do we need to color correct this? We might sample unorm render targets, which ar actually sRGB
-        color *= texture_sample_2d(g_Constants.textureId, OBLO_SAMPLER_LINEAR, in_Data.uv);
+        color *= texture_sample_2d(g_Constants.textureId, OBLO_SAMPLER_LINEAR_REPEAT, in_Data.uv);
     }
 
     out_Color = color;

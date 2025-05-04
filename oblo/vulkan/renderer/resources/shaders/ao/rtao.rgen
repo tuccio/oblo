@@ -146,18 +146,24 @@ void main()
 
         ambientOcclusion = r_HitVisibility * sampleWeight;
     }
+    else
+    {
+        ambientOcclusion = 1.f;
+    }
 
     const vec2 historyUV = reproject_coords(screenPos, resolution);
-    const ivec2 historyCoords = ivec2(historyUV * resolution);
 
     uint historySamplesCount = 0;
 
-    if (historyCoords.x >= 0 && historyCoords.x < resolution.x && historyCoords.y >= 0 &&
-        historyCoords.y < resolution.y)
+    if (historyUV.x >= 0 && historyUV.x < 1.f && historyUV.y >= 0 && historyUV.y < 1.f)
     {
-        const float historyMaxWeight = .99f;
+        // Once we have the max samples count, use this weight for history
+        const float maxHistoryWeight = 0.92f;
 
-        const float historyAO = texture(sampler2D(t_InHistory, g_Samplers[OBLO_SAMPLER_LINEAR]), historyUV).r;
+        const float historyAO =
+            texture(sampler2D(t_InHistory, g_Samplers[OBLO_SAMPLER_LINEAR_CLAMP_EDGE]), historyUV).r;
+
+        const ivec2 historyCoords = ivec2(min(historyUV * resolution, resolution - vec2(1)));
         const float disocclusion = imageLoad(t_InDisocclusionMask, historyCoords).r;
 
         const float disocclusionThreshold = .9f;
@@ -170,13 +176,10 @@ void main()
             const uint maxHistorySamples = 8;
             const float invMaxHistorySamples = 1.f / maxHistorySamples;
 
-            // Once we have the max samples count, use this weight for history
-            const float maxHistoryWeight = .99f;
-
             historySamplesCount = imageLoad(t_InOutSamplesCount, historyCoords).r;
             historySamplesCount = min(maxHistorySamples, 1 + historySamplesCount);
 
-            historyWeight = smoothstep(0, maxHistoryWeight, historySamplesCount * invMaxHistorySamples);
+            historyWeight = mix(0, maxHistoryWeight, historySamplesCount * invMaxHistorySamples);
         }
 
         ambientOcclusion = mix(ambientOcclusion, historyAO, historyWeight);

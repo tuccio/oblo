@@ -21,7 +21,7 @@ void main()
     const vec2 uv = skybox_uv_from_ray_direction(gl_WorldRayDirectionEXT);
 
     const uint lod = 0;
-    const vec4 color = texture_sample_2d_lod(g_SkyboxTexture, OBLO_SAMPLER_LINEAR, uv, 0);
+    const vec4 color = texture_sample_2d_lod(g_SkyboxTexture, OBLO_SAMPLER_LINEAR_REPEAT, uv, 0);
 
     r_HitColor = color.xyz * g_SkyboxMultiplier;
 }

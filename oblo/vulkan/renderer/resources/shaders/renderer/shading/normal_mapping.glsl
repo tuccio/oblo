@@ -14,7 +14,7 @@ vec3 normal_map_apply(in vec4 sampledNormal, in vec3 T, in vec3 B, in vec3 N, in
 
 vec4 normal_map_sample_grad(in uint texture, in vec2 uv0, in vec2 uv0DDX, in vec2 uv0DDY)
 {
-    return texture_sample_2d_grad(texture, OBLO_SAMPLER_LINEAR, uv0, uv0DDX, uv0DDY);
+    return texture_sample_2d_grad(texture, OBLO_SAMPLER_LINEAR_REPEAT, uv0, uv0DDX, uv0DDY);
 }
 
 #endif

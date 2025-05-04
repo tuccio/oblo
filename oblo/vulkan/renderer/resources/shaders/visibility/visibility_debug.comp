@@ -152,7 +152,7 @@ vec4 visibility_shade(in visibility_shade_context ctx)
     if (material.albedoTexture != 0)
     {
         const vec3 albedo =
-            texture_sample_2d_grad(material.albedoTexture, OBLO_SAMPLER_LINEAR, uv0, uv0DDX, uv0DDY).xyz;
+            texture_sample_2d_grad(material.albedoTexture, OBLO_SAMPLER_LINEAR_REPEAT, uv0, uv0DDX, uv0DDY).xyz;
 
         outAlbedo *= albedo;
     }
@@ -167,7 +167,7 @@ vec4 visibility_shade(in visibility_shade_context ctx)
     if (material.metalnessRoughnessTexture != 0)
     {
         const vec4 metalnessRoughness =
-            texture_sample_2d_grad(material.metalnessRoughnessTexture, OBLO_SAMPLER_LINEAR, uv0, uv0DDX, uv0DDY);
+            texture_sample_2d_grad(material.metalnessRoughnessTexture, OBLO_SAMPLER_LINEAR_REPEAT, uv0, uv0DDX, uv0DDY);
 
         metalness *= metalnessRoughness.x;
         roughness *= metalnessRoughness.y;
@@ -187,7 +187,7 @@ vec4 visibility_shade(in visibility_shade_context ctx)
     if (material.emissiveTexture != 0)
     {
         const vec3 emissive =
-            texture_sample_2d_grad(material.emissiveTexture, OBLO_SAMPLER_LINEAR, uv0, uv0DDX, uv0DDY).xyz;
+            texture_sample_2d_grad(material.emissiveTexture, OBLO_SAMPLER_LINEAR_REPEAT, uv0, uv0DDX, uv0DDY).xyz;
 
         emitted *= emissive;
     }

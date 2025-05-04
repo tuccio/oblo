@@ -82,7 +82,7 @@ void main()
 
         if (disocclusion < .9f)
         {
-            history = texture(sampler2D(t_InHistory, g_Samplers[OBLO_SAMPLER_LINEAR]), historyUV).x;
+            history = texture(sampler2D(t_InHistory, g_Samplers[OBLO_SAMPLER_LINEAR_REPEAT]), historyUV).x;
             historyWeight = g_Constants.temporalAccumulationFactor;
 
             // When variance is high, we boost the history contribution
