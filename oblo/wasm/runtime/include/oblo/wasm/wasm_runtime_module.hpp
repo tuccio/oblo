@@ -24,8 +24,6 @@ namespace oblo
         WASM_RT_API bool finalize() override;
         WASM_RT_API void shutdown() override;
 
-        wasm_module load_wasm(std::span<const byte> wasm);
-
     private:
         struct impl;
         unique_ptr<impl> m_impl;

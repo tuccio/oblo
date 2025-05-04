@@ -99,4 +99,33 @@ namespace oblo
     private:
         void* m_function{};
     };
+
+    template <typename R, typename... Args>
+    expected<R> wasm_module_executor::invoke(const wasm_function_ptr& function, Args&&... args)
+    {
+        wasm_value rv{};
+
+        constexpr u32 nonEmptyArgsArraySize = sizeof...(Args) == 0 ? 1 : sizeof...(Args);
+        wasm_value argsArray[nonEmptyArgsArraySize];
+
+        constexpr auto convertArg = []<typename T>(T&& v) -> wasm_value
+        {
+            using D = std::decay_t<T>;
+
+            if constexpr (std::is_same_v<i32, D>)
+            {
+                return {.type = wasm_type::i32, .value = v};
+            }
+        };
+
+        u32 i = 0;
+        ((argsArray[i++] = convertArg(args)), ...);
+
+        if (!invoke(function, {&rv, 1}, {argsArray, sizeof...(Args)}))
+        {
+            return unspecified_error;
+        }
+
+        return rv.value.i32;
+    }
 }

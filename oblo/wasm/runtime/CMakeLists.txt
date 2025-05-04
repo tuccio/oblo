@@ -6,10 +6,13 @@ find_package(wasm-micro-runtime REQUIRED)
 
 target_link_libraries(
     oblo_wasm_rt
+    PUBLIC
+    oblo::modules
     PRIVATE
     oblo::log
-    oblo::modules
     wasm-micro-runtime::wasm-micro-runtime
 )
+
+target_link_libraries(oblo_test_wasm_rt PRIVATE oblo::test::assets)
 
 add_library(oblo::wasm::runtime ALIAS oblo_wasm_rt)

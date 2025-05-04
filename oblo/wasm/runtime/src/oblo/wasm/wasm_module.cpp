@@ -111,6 +111,11 @@ namespace oblo
         other.m_module = nullptr;
     }
 
+    wasm_module::~wasm_module()
+    {
+        destroy();
+    }
+
     wasm_module& wasm_module::operator=(wasm_module&& other) noexcept
     {
         destroy();

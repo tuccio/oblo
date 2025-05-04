@@ -37,11 +37,6 @@ namespace oblo
     {
         wasm_runtime_destroy();
     }
-
-    wasm_module wasm_runtime_module::load_wasm(std::span<const byte> wasm)
-    {
-        return wasm_module();
-    }
 }
 
 OBLO_MODULE_REGISTER(oblo::wasm_runtime_module);
