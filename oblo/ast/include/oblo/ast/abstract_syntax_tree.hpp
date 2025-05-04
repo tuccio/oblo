@@ -4,6 +4,7 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/core/deque.hpp>
 #include <oblo/core/handle.hpp>
+#include <oblo/core/iterator/iterator_range.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
 
@@ -118,14 +119,21 @@ namespace oblo
     class abstract_syntax_tree
     {
     public:
+        class children_iterator;
+
+    public:
         void init();
 
         template <typename T>
         h32<ast_node> add_node(h32<ast_node> parent, T&& node);
 
+        h32<ast_node> child_next(h32<ast_node> parent, h32<ast_node> previous) const;
+        iterator_range<children_iterator> children(h32<ast_node> node) const;
+
     private:
         void add_child(h32<ast_node> parent, h32<ast_node> child);
 
+        const ast_node& get(h32<ast_node> node) const;
         ast_node& get(h32<ast_node> node);
 
         void set_node(ast_node& n, const ast_function& v)
@@ -202,4 +210,43 @@ namespace oblo
 
         return id;
     }
+
+    class abstract_syntax_tree::children_iterator
+    {
+    public:
+        children_iterator() = default;
+
+        children_iterator(const abstract_syntax_tree& ast, h32<ast_node> node, h32<ast_node> current) :
+            m_ast{&ast}, m_node{node}, m_current{current}
+        {
+        }
+
+        children_iterator(const children_iterator&) = default;
+        children_iterator& operator=(const children_iterator&) = default;
+
+        bool operator==(const children_iterator&) const = default;
+
+        OBLO_FORCEINLINE h32<ast_node> operator*() const
+        {
+            return m_current;
+        }
+
+        OBLO_FORCEINLINE children_iterator operator++()
+        {
+            m_current = m_ast->child_next(m_node, m_current);
+            return *this;
+        }
+
+        OBLO_FORCEINLINE children_iterator operator++(int)
+        {
+            auto tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+    private:
+        const abstract_syntax_tree* m_ast{};
+        h32<ast_node> m_node{};
+        h32<ast_node> m_current{};
+    };
 }
