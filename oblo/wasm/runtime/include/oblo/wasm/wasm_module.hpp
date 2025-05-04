@@ -3,6 +3,7 @@
 #include <oblo/core/expected.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 
+#include <bit>
 #include <span>
 
 namespace oblo
@@ -116,6 +117,11 @@ namespace oblo
             {
                 return {.type = wasm_type::i32, .value = v};
             }
+
+            if constexpr (std::is_same_v<u32, D>)
+            {
+                return {.type = wasm_type::i32, .value = std::bit_cast<i32>(v)};
+            }
         };
 
         u32 i = 0;
@@ -126,6 +132,34 @@ namespace oblo
             return unspecified_error;
         }
 
-        return rv.value.i32;
+        if constexpr (std::is_same_v<i32, R>)
+        {
+            return rv.value.i32;
+        }
+
+        if constexpr (std::is_same_v<i64, R>)
+        {
+            return rv.value.i64;
+        }
+
+        if constexpr (std::is_same_v<u32, R>)
+        {
+            return std::bit_cast<u32>(rv.value.i32);
+        }
+
+        if constexpr (std::is_same_v<u64, R>)
+        {
+            return std::bit_cast<u64>(rv.value.i64);
+        }
+
+        if constexpr (std::is_same_v<f32, R>)
+        {
+            return rv.value.f32;
+        }
+
+        if constexpr (std::is_same_v<f64, R>)
+        {
+            return rv.value.f64;
+        }
     }
 }
