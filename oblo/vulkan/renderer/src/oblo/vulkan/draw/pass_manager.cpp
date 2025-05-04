@@ -249,8 +249,9 @@ namespace oblo::vk
         enum class sampler : u8
         {
             linear_repeat,
-            linear_clamp_black,
             linear_clamp_edge,
+            linear_clamp_black,
+            linear_clamp_white,
             nearest,
             anisotropic,
             enum_max
@@ -1458,6 +1459,30 @@ namespace oblo::vk
                 .magFilter = VK_FILTER_LINEAR,
                 .minFilter = VK_FILTER_LINEAR,
                 .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+                .addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+                .addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+                .addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+                .mipLodBias = 0.0f,
+                .compareEnable = false,
+                .compareOp = VK_COMPARE_OP_ALWAYS,
+                .minLod = 0.0f,
+                .maxLod = VK_LOD_CLAMP_NONE,
+                .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+                .unnormalizedCoordinates = false,
+            };
+
+            vkCreateSampler(vkContext.get_device(),
+                &samplerInfo,
+                vkContext.get_allocator().get_allocation_callbacks(),
+                &m_impl->samplers[u32(sampler::linear_clamp_edge)]);
+        }
+
+        {
+            constexpr VkSamplerCreateInfo samplerInfo{
+                .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+                .magFilter = VK_FILTER_LINEAR,
+                .minFilter = VK_FILTER_LINEAR,
+                .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
                 .addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
                 .addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
                 .addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
@@ -1482,22 +1507,22 @@ namespace oblo::vk
                 .magFilter = VK_FILTER_LINEAR,
                 .minFilter = VK_FILTER_LINEAR,
                 .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
-                .addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-                .addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-                .addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+                .addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+                .addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+                .addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
                 .mipLodBias = 0.0f,
                 .compareEnable = false,
                 .compareOp = VK_COMPARE_OP_ALWAYS,
                 .minLod = 0.0f,
                 .maxLod = VK_LOD_CLAMP_NONE,
-                .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+                .borderColor = VK_BORDER_COLOR_INT_OPAQUE_WHITE,
                 .unnormalizedCoordinates = false,
             };
 
             vkCreateSampler(vkContext.get_device(),
                 &samplerInfo,
                 vkContext.get_allocator().get_allocation_callbacks(),
-                &m_impl->samplers[u32(sampler::linear_clamp_edge)]);
+                &m_impl->samplers[u32(sampler::linear_clamp_white)]);
         }
 
         {
