@@ -70,4 +70,38 @@ namespace oblo
 
         ASSERT_EQ(*res, a + b);
     }
+
+    TEST_F(wasm_test, global)
+    {
+        wasm_module module;
+
+        dynamic_array<byte> wasmFile;
+
+        ASSERT_TRUE(
+            filesystem::load_binary_file_into_memory(wasmFile, OBLO_TEST_ASSETS_DIR "/wasm/basic_wasm_test.wasm"));
+
+        ASSERT_TRUE(module.load(wasmFile));
+
+        wasm_module_executor exec;
+        ASSERT_TRUE(exec.create(module, 1u << 10, 8u << 10));
+
+        const auto getGlobalValue = exec.find_function("get_global_value");
+        const auto setGlobalValue = exec.find_function("set_global_value");
+
+        ASSERT_TRUE(getGlobalValue);
+        ASSERT_TRUE(setGlobalValue);
+
+        const auto initialValue = exec.invoke<u32>(getGlobalValue);
+        ASSERT_TRUE(initialValue);
+
+        ASSERT_EQ(*initialValue, 0);
+
+        const auto setResult = exec.invoke<void>(setGlobalValue, 42);
+        ASSERT_TRUE(setResult);
+
+        const auto finalValue = exec.invoke<u32>(getGlobalValue);
+        ASSERT_TRUE(finalValue);
+
+        ASSERT_EQ(*finalValue, 42);
+    }
 }

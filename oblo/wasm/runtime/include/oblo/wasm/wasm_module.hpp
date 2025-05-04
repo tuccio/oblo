@@ -56,6 +56,10 @@ namespace oblo
     class wasm_module_executor
     {
     public:
+        template <typename T>
+        using invoke_result_t = std::conditional_t<std::is_same_v<T, void>, expected<>, expected<T>>;
+
+    public:
         wasm_module_executor() = default;
         wasm_module_executor(const wasm_module_executor&) = delete;
         WASM_RT_API wasm_module_executor(wasm_module_executor&&) noexcept;
@@ -76,9 +80,9 @@ namespace oblo
             std::span<const wasm_value> arguments);
 
         template <typename R, typename... Args>
-        expected<R> invoke(const wasm_function_ptr& function, Args&&... args);
+        invoke_result_t<R> invoke(const wasm_function_ptr& function, Args&&... args);
 
-        const char* get_last_exception() const;
+        WASM_RT_API const char* get_last_exception() const;
 
     private:
         void* m_instance{};
@@ -102,7 +106,8 @@ namespace oblo
     };
 
     template <typename R, typename... Args>
-    expected<R> wasm_module_executor::invoke(const wasm_function_ptr& function, Args&&... args)
+    wasm_module_executor::invoke_result_t<R> wasm_module_executor::invoke(const wasm_function_ptr& function,
+        Args&&... args)
     {
         wasm_value rv{};
 
@@ -127,7 +132,9 @@ namespace oblo
         u32 i = 0;
         ((argsArray[i++] = convertArg(args)), ...);
 
-        if (!invoke(function, {&rv, 1}, {argsArray, sizeof...(Args)}))
+        constexpr u32 argumentsCount = std::is_same_v<R, void> ? 0 : 1;
+
+        if (!invoke(function, {&rv, argumentsCount}, {argsArray, sizeof...(Args)}))
         {
             return unspecified_error;
         }
@@ -160,6 +167,11 @@ namespace oblo
         if constexpr (std::is_same_v<f64, R>)
         {
             return rv.value.f64;
+        }
+
+        if constexpr (std::is_same_v<void, R>)
+        {
+            return no_error;
         }
     }
 }
