@@ -63,6 +63,7 @@ namespace oblo
         m_optionsManager = &optionsModule->manager();
 
         m_giOptions.init(*m_optionsManager);
+        m_rtaoOptions.init(*m_optionsManager);
 
         m_sceneRenderer->ensure_setup(*ctx.entities);
 
@@ -76,6 +77,10 @@ namespace oblo
         surfels_gi_config giConfig;
         m_giOptions.read(*m_optionsManager, giConfig);
         m_sceneRenderer->setup_surfels_gi(giConfig);
+
+        rtao_config rtaoConfig;
+        m_rtaoOptions.read(*m_optionsManager, rtaoConfig);
+        m_sceneRenderer->setup_rtao(rtaoConfig);
 
         const auto lightsRange = ctx.entities->range<light_component, global_transform_component>();
 

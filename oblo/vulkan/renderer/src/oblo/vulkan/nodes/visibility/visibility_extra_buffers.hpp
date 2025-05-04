@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/flags.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
@@ -7,8 +8,15 @@
 
 namespace oblo::vk
 {
-    struct visibility_temporal
+    struct visibility_extra_buffers
     {
+        enum class enabled_buffers : u8
+        {
+            motion_vectors,
+            disocclusion_mask,
+            enum_max,
+        };
+
         resource<buffer> inCameraBuffer;
 
         resource<buffer> inMeshDatabase;
@@ -21,11 +29,13 @@ namespace oblo::vk
         resource<texture> inCurrentDepth;
         resource<texture> inLastFrameDepth;
 
-        h32<compute_pass> temporalPass;
-        h32<compute_pass_instance> temporalPassInstance;
+        h32<compute_pass> extraBuffersPass;
+        h32<compute_pass_instance> extraBuffersPassInstance;
 
         resource<texture> outMotionVectors;
         resource<texture> outDisocclusionMask;
+
+        flags<enabled_buffers> enabledBuffers{};
 
         void init(const frame_graph_init_context& ctx);
 

@@ -5,9 +5,7 @@
 
 namespace oblo::vk
 {
-    using gaussian_blur_h = separable_blur<gaussian_blur_config, separable_blur_pass::horizontal>;
-    using gaussian_blur_v = separable_blur<gaussian_blur_config, separable_blur_pass::vertical>;
+    using gaussian_blur = separable_blur<gaussian_blur_config>;
 
-    using box_blur_h = separable_blur<box_blur_config, separable_blur_pass::horizontal>;
-    using box_blur_v = separable_blur<box_blur_config, separable_blur_pass::vertical>;
+    using box_blur = separable_blur<box_blur_config>;
 }

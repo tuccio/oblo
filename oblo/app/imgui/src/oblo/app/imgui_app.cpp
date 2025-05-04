@@ -37,7 +37,13 @@ namespace oblo
         void imgui_win32_dispatch_event(const void* event)
         {
             const MSG* msg = reinterpret_cast<const MSG*>(event);
-            ImGui_ImplWin32_WndProcHandler(msg->hwnd, msg->message, msg->wParam, msg->lParam);
+
+            // We only need to process the main viewport events, since the other viewports have a registered
+            // WndProcHandler
+            if (msg->hwnd == ImGui::GetMainViewport()->PlatformHandleRaw)
+            {
+                ImGui_ImplWin32_WndProcHandler(msg->hwnd, msg->message, msg->wParam, msg->lParam);
+            }
         }
 
         void* get_win32_window(const graphics_window& window);

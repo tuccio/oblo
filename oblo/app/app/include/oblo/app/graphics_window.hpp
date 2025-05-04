@@ -78,7 +78,7 @@ namespace oblo
         bool is_hidden() const;
         void set_hidden(bool hide);
 
-        void set_custom_hit_test(const hit_test_fn* f);
+        void set_custom_hit_test(const hit_test_fn& f);
 
         vec2u get_size() const;
 

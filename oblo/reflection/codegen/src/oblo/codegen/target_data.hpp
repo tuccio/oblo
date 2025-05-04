@@ -10,6 +10,8 @@ namespace oblo::gen
     enum class field_flags : u8
     {
         linear_color,
+        clamp_min,
+        clamp_max,
         enum_max,
     };
 

@@ -563,6 +563,13 @@ namespace oblo::vk
         m_frameGraph.reroute(srcStorageHandle, dstStorageHandle);
     }
 
+    bool frame_graph_build_context::is_active_output(resource<texture> t) const
+    {
+        const auto storageHandle = as_storage_handle(t);
+        auto& storage = m_frameGraph.pinStorage.at(storageHandle);
+        return storage.hasPathToOutput;
+    }
+
     bool frame_graph_build_context::has_source(resource<buffer> buffer) const
     {
         auto* const owner = m_frameGraph.get_owner_node(buffer);

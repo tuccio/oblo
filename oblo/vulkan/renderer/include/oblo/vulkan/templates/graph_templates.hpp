@@ -31,6 +31,10 @@ namespace oblo::vk::main_view
     constexpr string_view InShadowSink{"ShadowSink"};
     constexpr string_view InSkyboxSettingsBuffer{"SkyboxSettingsBuffer"};
 
+    constexpr string_view InRTAOBias{"RTAOBias"};
+    constexpr string_view InRTAOMaxDistance{"RTAOMaxDistance"};
+    constexpr string_view InRTAOMaxHistoryWeight{"RTAOMaxHistoryWeight"};
+
     constexpr string_view InDebugMode{"Debug Mode"};
 
     constexpr string_view OutResolution{"Resolution"};
@@ -50,6 +54,8 @@ namespace oblo::vk::main_view
     constexpr string_view OutSurfelsTileCoverageSink{"SurfelsGITileOutput"};
     constexpr string_view OutDisocclusionMask{"DisocclusionMask"};
     constexpr string_view OutMotionVectors{"MotionVectors"};
+    constexpr string_view OutRTAmbientOcclusion{"RT AmbientOcclusion"};
+    constexpr string_view OutAmbientOcclusion{"AmbientOcclusion"};
 
     constexpr string_view OutPicking{"OutPicking"};
 
@@ -60,6 +66,22 @@ namespace oblo::vk::main_view
     };
 
     frame_graph_template create(const frame_graph_registry& registry, const config& cfg = {});
+}
+
+namespace oblo::vk::raytraced_ambient_occlusion
+{
+    constexpr string_view InCameraBuffer{"CameraBuffer"};
+    constexpr string_view InLightBuffer{"LightBuffer"};
+    constexpr string_view InVisibilityBuffer{"VisibilityBuffer"};
+    constexpr string_view InMeshDatabase{"MeshDatabase"};
+    constexpr string_view InInstanceTables{"InstanceTables"};
+    constexpr string_view InInstanceBuffers{"InstanceBuffers"};
+    constexpr string_view InDisocclusionMask{"DisocclusionMask"};
+    constexpr string_view InMotionVectors{"MotionVectors"};
+
+    constexpr string_view OutAmbientOcclusion{"AmbientOcclusion"};
+
+    frame_graph_template create(const frame_graph_registry& registry);
 }
 
 namespace oblo::vk::scene_data
@@ -101,9 +123,6 @@ namespace oblo::vk::raytraced_shadow_view
     constexpr string_view OutShadowSink{"ShadowSink"};
 
     frame_graph_template create(const frame_graph_registry& registry);
-
-    type_id get_main_view_barrier_source();
-    type_id get_main_view_barrier_target();
 }
 
 namespace oblo::vk::surfels_gi

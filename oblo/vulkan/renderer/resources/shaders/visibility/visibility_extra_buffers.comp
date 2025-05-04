@@ -14,14 +14,23 @@
 #include <renderer/meshes/mesh_data>
 #include <renderer/meshes/mesh_indices>
 #include <renderer/meshes/mesh_table>
+#include <renderer/motion_vectors>
 #include <renderer/transform>
 #include <visibility/visibility_buffer>
 #include <visibility/visibility_utils>
 
-layout(binding = 0, rg8) uniform restrict writeonly image2D t_OutMotionVectors;
-layout(binding = 1, r8) uniform restrict writeonly image2D t_OutDisocclusionMask;
+#ifdef OUT_MOTION_VECTORS
+layout(binding = 0, OBLO_MOTION_VECTORS_FORMAT) uniform restrict writeonly image2D t_OutMotionVectors;
+#endif
 
+#ifdef OUT_DISOCCLUSION_MASK
+layout(binding = 1, r8) uniform restrict writeonly image2D t_OutDisocclusionMask;
+#endif
+
+#if defined(OUT_MOTION_VECTORS) || defined(OUT_DISOCCLUSION_MASK)
 layout(binding = 5) uniform texture2D t_InLastFrameDepth;
+#endif
+
 layout(binding = 6, rg32ui) uniform restrict readonly uimage2D t_InVisibilityBuffer;
 
 layout(binding = 16) uniform b_CameraBuffer
@@ -33,14 +42,21 @@ const uint g_ThreadLocalSize = 8;
 
 layout(local_size_x = g_ThreadLocalSize, local_size_y = g_ThreadLocalSize, local_size_z = 1) in;
 
-struct temporal_output
+struct extra_buffers_output
 {
+#if defined(OUT_MOTION_VECTORS) || defined(OUT_DISOCCLUSION_MASK)
     vec2 motionVectors;
+#endif
+
+#ifdef OUT_DISOCCLUSION_MASK
     float disocclusion;
+#endif
 };
 
-temporal_output calculate_outputs(in visibility_buffer_data vb, in ivec2 coords, in uvec2 resolution)
+extra_buffers_output calculate_outputs(in visibility_buffer_data vb, in ivec2 coords, in uvec2 resolution)
 {
+    extra_buffers_output r;
+
     const mesh_handle mesh = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MeshHandles, vb.instanceId);
     const transform transform = OBLO_INSTANCE_DATA(vb.instanceTableId, i_TransformBuffer, vb.instanceId);
 
@@ -50,7 +66,10 @@ temporal_output calculate_outputs(in visibility_buffer_data vb, in ivec2 coords,
     const uvec3 vertexIndices = mesh_get_meshlet_indices(meshTable, mesh, vb.meshletId, vb.meshletTriangleId);
 
     triangle triangleWS;
+
+#if defined(OUT_MOTION_VECTORS) || defined(OUT_DISOCCLUSION_MASK)
     triangle prevTriangleWS;
+#endif
 
     // Read the vertex data and transform everything in world space, we do lighting calculation in that
     // space
@@ -61,7 +80,10 @@ temporal_output calculate_outputs(in visibility_buffer_data vb, in ivec2 coords,
         const vec4 vertexPosition = vec4(mesh_get_position(meshTable, vertexId), 1);
 
         triangleWS.v[i] = (transform.localToWorld * vertexPosition).xyz;
+
+#if defined(OUT_MOTION_VECTORS) || defined(OUT_DISOCCLUSION_MASK)
         prevTriangleWS.v[i] = (transform.lastFrameLocalToWorld * vertexPosition).xyz;
+#endif
     }
 
     const vec2 ndc = screen_to_ndc(uvec2(coords), resolution);
@@ -77,13 +99,14 @@ temporal_output calculate_outputs(in visibility_buffer_data vb, in ivec2 coords,
     barycentric_coords bc;
     barycentric_calculate(bc, triangleWS.v, positionWS);
 
+#if defined(OUT_MOTION_VECTORS) || defined(OUT_DISOCCLUSION_MASK)
     const vec3 prevPositionWS = barycentric_interpolate(bc, prevTriangleWS.v);
-
     const vec2 prevNDC = visibility_calculate_position_ndc_2d(g_Camera.lastFrameViewProjection, prevPositionWS);
 
-    temporal_output r;
     r.motionVectors = ndc - prevNDC.xy;
+#endif
 
+#ifdef OUT_DISOCCLUSION_MASK
     // Reproject using motion vectors
     // Calculate expected old depth
     // Sample actual old depth at the pixel
@@ -108,6 +131,7 @@ temporal_output calculate_outputs(in visibility_buffer_data vb, in ivec2 coords,
 
         r.disocclusion = isDisoccluded ? 1.f : 0.f;
     }
+#endif
 
     return r;
 }
@@ -124,7 +148,7 @@ void main()
 
     const uvec4 vbPixel = imageLoad(t_InVisibilityBuffer, ivec2(screenPos));
 
-    temporal_output r;
+    extra_buffers_output r;
 
     visibility_buffer_data vb;
 
@@ -134,10 +158,21 @@ void main()
     }
     else
     {
+#ifdef OUT_MOTION_VECTORS
         r.motionVectors = vec2(0);
+#endif
+
+#ifdef OUT_DISOCCLUSION_MASK
         r.disocclusion = 1;
+#endif
     }
 
-    imageStore(t_OutMotionVectors, ivec2(screenPos), vec4(r.motionVectors, 0, 0));
+#ifdef OUT_MOTION_VECTORS
+    const vec2 motionVectors = motion_vectors_encode(r.motionVectors);
+    imageStore(t_OutMotionVectors, ivec2(screenPos), vec4(motionVectors, 0, 0));
+#endif
+
+#ifdef OUT_DISOCCLUSION_MASK
     imageStore(t_OutDisocclusionMask, ivec2(screenPos), vec4(r.disocclusion, 0, 0, 0));
+#endif
 }

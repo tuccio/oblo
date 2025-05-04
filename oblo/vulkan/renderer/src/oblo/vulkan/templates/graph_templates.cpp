@@ -4,6 +4,7 @@
 #include <oblo/core/iterator/enum_range.hpp>
 #include <oblo/vulkan/data/blur_configs.hpp>
 #include <oblo/vulkan/graph/frame_graph_registry.hpp>
+#include <oblo/vulkan/nodes/ao/rtao.hpp>
 #include <oblo/vulkan/nodes/debug/raytracing_debug.hpp>
 #include <oblo/vulkan/nodes/drawing/draw_call_generator.hpp>
 #include <oblo/vulkan/nodes/drawing/frustum_culling.hpp>
@@ -23,9 +24,9 @@
 #include <oblo/vulkan/nodes/surfels/surfel_debug.hpp>
 #include <oblo/vulkan/nodes/surfels/surfel_management.hpp>
 #include <oblo/vulkan/nodes/utility/entity_picking.hpp>
+#include <oblo/vulkan/nodes/visibility/visibility_extra_buffers.hpp>
 #include <oblo/vulkan/nodes/visibility/visibility_lighting.hpp>
 #include <oblo/vulkan/nodes/visibility/visibility_pass.hpp>
-#include <oblo/vulkan/nodes/visibility/visibility_temporal.hpp>
 
 namespace oblo::vk::main_view
 {
@@ -232,48 +233,46 @@ namespace oblo::vk::main_view
                 &draw_call_generator::inMeshDatabase);
         }
 
-        // Temporal
-        {
-            const auto temporalNode = graph.add_node<visibility_temporal>();
+        // Extra buffers
+        const auto extraBuffersNode = graph.add_node<visibility_extra_buffers>();
 
-            graph.connect(viewBuffers,
-                &view_buffers_node::outCameraBuffer,
-                temporalNode,
-                &visibility_temporal::inCameraBuffer);
+        graph.connect(viewBuffers,
+            &view_buffers_node::outCameraBuffer,
+            extraBuffersNode,
+            &visibility_extra_buffers::inCameraBuffer);
 
-            graph.connect(viewBuffers,
-                &view_buffers_node::inMeshDatabase,
-                temporalNode,
-                &visibility_temporal::inMeshDatabase);
+        graph.connect(viewBuffers,
+            &view_buffers_node::inMeshDatabase,
+            extraBuffersNode,
+            &visibility_extra_buffers::inMeshDatabase);
 
-            graph.connect(viewBuffers,
-                &view_buffers_node::inInstanceTables,
-                temporalNode,
-                &visibility_temporal::inInstanceTables);
+        graph.connect(viewBuffers,
+            &view_buffers_node::inInstanceTables,
+            extraBuffersNode,
+            &visibility_extra_buffers::inInstanceTables);
 
-            graph.connect(viewBuffers,
-                &view_buffers_node::inInstanceBuffers,
-                temporalNode,
-                &visibility_temporal::inInstanceBuffers);
+        graph.connect(viewBuffers,
+            &view_buffers_node::inInstanceBuffers,
+            extraBuffersNode,
+            &visibility_extra_buffers::inInstanceBuffers);
 
-            graph.connect(visibilityPass,
-                &visibility_pass::outVisibilityBuffer,
-                temporalNode,
-                &visibility_temporal::inVisibilityBuffer);
+        graph.connect(visibilityPass,
+            &visibility_pass::outVisibilityBuffer,
+            extraBuffersNode,
+            &visibility_extra_buffers::inVisibilityBuffer);
 
-            graph.connect(visibilityPass,
-                &visibility_pass::outLastFrameDepthBuffer,
-                temporalNode,
-                &visibility_temporal::inLastFrameDepth);
+        graph.connect(visibilityPass,
+            &visibility_pass::outLastFrameDepthBuffer,
+            extraBuffersNode,
+            &visibility_extra_buffers::inLastFrameDepth);
 
-            graph.connect(visibilityPass,
-                &visibility_pass::outDepthBuffer,
-                temporalNode,
-                &visibility_temporal::inCurrentDepth);
+        graph.connect(visibilityPass,
+            &visibility_pass::outDepthBuffer,
+            extraBuffersNode,
+            &visibility_extra_buffers::inCurrentDepth);
 
-            graph.make_output(temporalNode, &visibility_temporal::outDisocclusionMask, OutDisocclusionMask);
-            graph.make_output(temporalNode, &visibility_temporal::outMotionVectors, OutMotionVectors);
-        }
+        graph.make_output(extraBuffersNode, &visibility_extra_buffers::outDisocclusionMask, OutDisocclusionMask);
+        graph.make_output(extraBuffersNode, &visibility_extra_buffers::outMotionVectors, OutMotionVectors);
 
         // Picking
         if (cfg.withPicking)
@@ -299,6 +298,51 @@ namespace oblo::vk::main_view
 
             // This is quite awkward admittedly, but if no output is active the node is culled
             graph.make_output(entityPicking, &entity_picking::outPickingResult, OutPicking);
+        }
+
+        // RTAO
+        {
+            const auto rtaoNode = graph.add_node<rtao>();
+
+            graph.make_input(rtaoNode, &rtao::inBias, InRTAOBias);
+            graph.make_input(rtaoNode, &rtao::inMaxDistance, InRTAOMaxDistance);
+            graph.make_input(rtaoNode, &rtao::inMaxHistoryWeight, InRTAOMaxHistoryWeight);
+            graph.make_output(rtaoNode, &rtao::outRTAmbientOcclusion, OutRTAmbientOcclusion);
+
+            graph.connect(visibilityPass, &visibility_pass::outVisibilityBuffer, rtaoNode, &rtao::inVisibilityBuffer);
+
+            graph.connect(extraBuffersNode,
+                &visibility_extra_buffers::outDisocclusionMask,
+                rtaoNode,
+                &rtao::inDisocclusionMask);
+
+            graph.connect(extraBuffersNode,
+                &visibility_extra_buffers::outMotionVectors,
+                rtaoNode,
+                &rtao::inMotionVectors);
+
+            graph.connect(viewBuffers, &view_buffers_node::outCameraBuffer, rtaoNode, &rtao::inCameraBuffer);
+            graph.connect(viewBuffers, &view_buffers_node::inMeshDatabase, rtaoNode, &rtao::inMeshDatabase);
+            graph.connect(viewBuffers, &view_buffers_node::inInstanceTables, rtaoNode, &rtao::inInstanceTables);
+            graph.connect(viewBuffers, &view_buffers_node::inInstanceBuffers, rtaoNode, &rtao::inInstanceBuffers);
+
+            constexpr gaussian_blur_config aoFilterCfg{.kernelSize = 7, .sigma = 1.f};
+            const auto aoFilter = graph.add_node<gaussian_blur>();
+
+            graph.make_output(aoFilter, &gaussian_blur::outBlurred, OutAmbientOcclusion);
+
+            graph.bind(aoFilter, &gaussian_blur::inConfig, aoFilterCfg);
+
+            // We get the temporally filtered RTAO output as input, and output into the history, so next frame will use
+            // the blurred output as history
+            graph.connect(rtaoNode, &rtao::outRTAmbientOcclusion, aoFilter, &gaussian_blur::inSource);
+            graph.connect(rtaoNode, &rtao::inOutHistory, aoFilter, &gaussian_blur::outBlurred);
+
+            // We also use the blurred output as AO for this frame
+            graph.connect(aoFilter,
+                &gaussian_blur::outBlurred,
+                visibilityLighting,
+                &visibility_lighting::inAmbientOcclusion);
         }
 
         // Surfels GI
@@ -495,22 +539,17 @@ namespace oblo::vk::raytraced_shadow_view
         graph.init(registry);
 
         const auto shadows = graph.add_node<raytraced_shadows>();
-        const auto momentFilterH = graph.add_node<gaussian_blur_h>();
-        const auto momentFilterV = graph.add_node<gaussian_blur_v>();
+        const auto momentFilter = graph.add_node<gaussian_blur>();
         const auto temporal = graph.add_node<shadow_temporal>();
         const auto filter0 = graph.add_node<shadow_filter>();
         const auto filter1 = graph.add_node<shadow_filter>();
         const auto filter2 = graph.add_node<shadow_filter>();
         const auto output = graph.add_node<shadow_output>();
 
-        constexpr gaussian_blur_config momentFilter{.kernelSize = 17, .sigma = 1};
+        constexpr gaussian_blur_config momentFilterCfg{.kernelSize = 17, .sigma = 1};
 
-        graph.bind(momentFilterH, &gaussian_blur_h::inConfig, momentFilter);
-        graph.make_input(momentFilterH, &gaussian_blur_h::inConfig, InMeanFilterConfig);
-        graph.connect(momentFilterH, &gaussian_blur_h::inConfig, momentFilterV, &gaussian_blur_v::inConfig);
-
-        graph.bind(momentFilterH, &gaussian_blur_h::outputInPlace, false);
-        graph.bind(momentFilterV, &gaussian_blur_v::outputInPlace, false);
+        graph.bind(momentFilter, &gaussian_blur::inConfig, momentFilterCfg);
+        graph.make_input(momentFilter, &gaussian_blur::inConfig, InMeanFilterConfig);
 
         graph.bind(filter0, &shadow_filter::passIndex, 0u);
         graph.bind(filter1, &shadow_filter::passIndex, 1u);
@@ -525,11 +564,10 @@ namespace oblo::vk::raytraced_shadow_view
         graph.make_input(temporal, &shadow_temporal::inDisocclusionMask, InDisocclusionMask);
         graph.make_input(temporal, &shadow_temporal::inMotionVectors, InMotionVectors);
 
-        graph.connect(shadows, &raytraced_shadows::outShadow, momentFilterH, &box_blur_h::inSource);
-        graph.connect(momentFilterH, &box_blur_h::outBlurred, momentFilterV, &box_blur_v::inSource);
+        graph.connect(shadows, &raytraced_shadows::outShadow, momentFilter, &gaussian_blur::inSource);
 
         graph.connect(shadows, &raytraced_shadows::outShadow, temporal, &shadow_temporal::inShadow);
-        graph.connect(momentFilterV, &box_blur_v::outBlurred, temporal, &shadow_temporal::inShadowMean);
+        graph.connect(momentFilter, &gaussian_blur::outBlurred, temporal, &shadow_temporal::inShadowMean);
 
         graph.connect(shadows, &raytraced_shadows::inConfig, temporal, &shadow_temporal::inConfig);
 
@@ -571,24 +609,14 @@ namespace oblo::vk::raytraced_shadow_view
         graph.make_output(filter1, &shadow_filter::outFiltered, "Filter1 - Shadows");
         graph.make_output(filter2, &shadow_filter::outFiltered, "Filter2 - Shadows");
 
-        graph.make_output(momentFilterH, &gaussian_blur_h::outBlurred, "Shadow Blur Horizontal");
-        graph.make_output(momentFilterV, &gaussian_blur_v::outBlurred, "Shadow Blur Vertical");
+        graph.make_output(momentFilter, &gaussian_blur::inOutIntermediate, "Shadow Blur Horizontal");
+        graph.make_output(momentFilter, &gaussian_blur::outBlurred, "Shadow Blur Vertical");
 #endif
 
         graph.make_output(output, &shadow_output::outShadow, OutShadow);
         graph.make_output(output, &shadow_output::outShadowSink, OutShadowSink);
 
         return graph;
-    }
-
-    type_id get_main_view_barrier_source()
-    {
-        return get_type_id<raytraced_shadows>();
-    }
-
-    type_id get_main_view_barrier_target()
-    {
-        return get_type_id<visibility_lighting>();
     }
 }
 
@@ -840,7 +868,8 @@ namespace oblo::vk
         registry.register_node<entity_picking>();
         registry.register_node<raytracing_debug>();
         registry.register_node<tone_mapping_node>();
-        registry.register_node<visibility_temporal>();
+        registry.register_node<visibility_extra_buffers>();
+        registry.register_node<rtao>();
 
         // Scene data
         registry.register_node<ecs_entity_set_provider>();
@@ -855,10 +884,8 @@ namespace oblo::vk
         registry.register_node<shadow_temporal>();
 
         // Blurs
-        registry.register_node<gaussian_blur_h>();
-        registry.register_node<gaussian_blur_v>();
-        registry.register_node<box_blur_h>();
-        registry.register_node<box_blur_v>();
+        registry.register_node<gaussian_blur>();
+        registry.register_node<box_blur>();
 
         // Surfels GI
         registry.register_node<surfel_initializer>();

@@ -151,12 +151,14 @@ namespace oblo::gen
         {
             if (property == "ClampMin"_hsv)
             {
+                f.flags.set(field_flags::clamp_min);
                 *outIdx = &f.attrClampMin;
                 return annotation_property_result::expect_number;
             }
 
             if (property == "ClampMax"_hsv)
             {
+                f.flags.set(field_flags::clamp_max);
                 *outIdx = &f.attrClampMax;
                 return annotation_property_result::expect_number;
             }

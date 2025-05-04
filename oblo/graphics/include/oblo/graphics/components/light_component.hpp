@@ -17,20 +17,38 @@ namespace oblo
     struct light_component
     {
         light_type type;
+
+        OBLO_PROPERTY(LinearColor)
         vec3 color;
+
         f32 intensity;
+
+        OBLO_PROPERTY(ClampMin = 0)
         f32 radius;
+
         radians spotInnerAngle;
         radians spotOuterAngle;
         bool isShadowCaster;
         bool hardShadows;
+
+        OBLO_PROPERTY(ClampMin = 0)
         f32 shadowBias;
+
+        OBLO_PROPERTY(ClampMin = 0)
         f32 shadowPunctualRadius;
+
+        OBLO_PROPERTY(ClampMin = 0)
         f32 shadowDepthSigma;
 
         // These should rather be global settings
+
+        OBLO_PROPERTY(ClampMin = 0, ClampMax = 1)
         f32 shadowTemporalAccumulationFactor;
+
+        OBLO_PROPERTY(ClampMin = 1)
         u32 shadowMeanFilterSize;
+
+        OBLO_PROPERTY(ClampMin = 0)
         f32 shadowMeanFilterSigma;
     } OBLO_COMPONENT(ScriptAPI);
 }

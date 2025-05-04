@@ -17,29 +17,22 @@ namespace oblo::vk
         { string_view{T::get_shader_name()} };
     };
 
-    enum class separable_blur_pass
-    {
-        horizontal,
-        vertical
-    };
-
-    template <separable_blur_config Config, separable_blur_pass Pass>
+    template <separable_blur_config Config>
     struct separable_blur
     {
         static constexpr u32 groupSize = 64;
 
         resource<texture> inSource;
-
+        resource<texture> inOutIntermediate;
         resource<texture> outBlurred;
 
         data<Config> inConfig;
 
         h32<compute_pass> blurPass;
-        h32<compute_pass_instance> blurPassInstance;
+        h32<compute_pass_instance> passInstanceH;
+        h32<compute_pass_instance> passInstanceV;
 
         std::span<const f32> kernel;
-
-        bool outputInPlace{true};
 
         void init(const frame_graph_init_context& ctx);
 

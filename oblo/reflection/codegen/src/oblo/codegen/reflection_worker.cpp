@@ -13,6 +13,7 @@ namespace oblo::gen
 #include <oblo/reflection/registration/registrant.hpp>
 
 #include <oblo/reflection/attributes/color.hpp>
+#include <oblo/reflection/attributes/range.hpp>
 #include <oblo/reflection/concepts/gpu_component.hpp>
 #include <oblo/reflection/concepts/resource_type.hpp>
 #include <oblo/reflection/tags/ecs.hpp>
@@ -98,16 +99,20 @@ namespace oblo::gen
 
     void reflection_worker::generate_record(const target_data& t, const record_type& r)
     {
-        m_content.append("reg.add_class<");
-        m_content.append(r.name);
-        m_content.append(">()");
+        m_content.append("{");
 
         indent();
         new_line();
 
+        m_content.append("auto&& classBuilder = reg.add_class<");
+        m_content.append(r.name);
+        m_content.append(">();");
+
+        new_line();
+
         for (auto& field : r.fields)
         {
-            m_content.append(".add_field(&");
+            m_content.append("classBuilder.add_field(&");
             m_content.append(r.name);
             m_content.append("::");
             m_content.append(field.name);
@@ -123,46 +128,68 @@ namespace oblo::gen
                 deindent();
             }
 
+            if (field.flags.contains(field_flags::clamp_min))
+            {
+                indent();
+                new_line();
+                m_content.format(".add_attribute<::oblo::reflection::clamp_min>(double{{{}}})",
+                    t.numberAttributeData[field.attrClampMin]);
+                deindent();
+            }
+
+            if (field.flags.contains(field_flags::clamp_max))
+            {
+                indent();
+                new_line();
+                m_content.format(".add_attribute<::oblo::reflection::clamp_max>(double{{{}}})",
+                    t.numberAttributeData[field.attrClampMax]);
+                deindent();
+            }
+
+            m_content.append(";");
+
             new_line();
         }
 
-        m_content.append(".add_ranged_type_erasure()");
+        m_content.append("classBuilder.add_ranged_type_erasure();");
         new_line();
 
         if (r.flags.contains(record_flags::ecs_component))
         {
-            m_content.append(".add_tag<::oblo::ecs::component_type_tag>()");
+            m_content.append("classBuilder.add_tag<::oblo::ecs::component_type_tag>();");
             new_line();
         }
 
         if (r.flags.contains(record_flags::ecs_tag))
         {
-            m_content.append(".add_tag<::oblo::ecs::tag_type_tag>()");
+            m_content.append("classBuilder.add_tag<::oblo::ecs::tag_type_tag>();");
             new_line();
         }
 
         if (r.flags.contains(record_flags::script_api))
         {
-            m_content.append(".add_tag<::oblo::reflection::script_api>()");
+            m_content.append("classBuilder.add_tag<::oblo::reflection::script_api>();");
             new_line();
         }
 
         if (r.flags.contains(record_flags::transient))
         {
-            m_content.append(".add_tag<::oblo::reflection::transient_type_tag>()");
+            m_content.append("classBuilder.add_tag<::oblo::reflection::transient_type_tag>();");
             new_line();
         }
 
         if (r.attrGpuComponent >= 0)
         {
-            m_content.append(".add_concept(::oblo::reflection::gpu_component{.bufferName = \"");
+            m_content.append("classBuilder.add_concept(::oblo::reflection::gpu_component{.bufferName = \"");
             m_content.append(t.stringAttributeData[r.attrGpuComponent]);
-            m_content.append("\"_hsv})");
+            m_content.append("\"_hsv});");
         }
 
-        m_content.append(";");
-
         deindent();
+        new_line();
+
+        m_content.append("}");
+
         new_line();
 
         if (r.flags.contains(record_flags::resource))
@@ -177,22 +204,26 @@ namespace oblo::gen
 
     void reflection_worker::generate_enum(const enum_type& e)
     {
-        m_content.append("reg.add_enum<");
-        m_content.append(e.name);
-        m_content.append(">()");
+        m_content.append("{");
 
         indent();
         new_line();
 
+        m_content.append("auto&& enumBuilder = reg.add_enum<");
+        m_content.append(e.name);
+        m_content.append(">();");
+
+        new_line();
+
         for (auto& enumerator : e.enumerators)
         {
-            m_content.append(".add_enumerator(\"");
+            m_content.append("enumBuilder.add_enumerator(\"");
             m_content.append(enumerator);
             m_content.append("\", ");
             m_content.append(e.name);
             m_content.append("::");
             m_content.append(enumerator);
-            m_content.append(")");
+            m_content.append(");");
 
             new_line();
         }
@@ -200,6 +231,9 @@ namespace oblo::gen
         m_content.append(";");
 
         deindent();
+        new_line();
+
+        m_content.append("}");
         new_line();
     }
 }

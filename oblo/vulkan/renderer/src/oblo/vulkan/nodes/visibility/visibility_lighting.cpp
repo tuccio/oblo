@@ -61,6 +61,8 @@ namespace oblo::vk
             ctx.acquire(inSurfelsData, buffer_usage::storage_read);
             ctx.acquire(inSurfelsLightingData, buffer_usage::storage_read);
             ctx.acquire(inOutSurfelsLastUsage, buffer_usage::storage_write);
+
+            ctx.acquire(inAmbientOcclusion, texture_usage::shader_read);
         }
 
         acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
@@ -111,6 +113,10 @@ namespace oblo::vk
                 {"b_SurfelsData"_hsv, inSurfelsData},
                 {"b_InSurfelsLighting"_hsv, inSurfelsLightingData},
                 {"b_SurfelsLastUsage"_hsv, inOutSurfelsLastUsage},
+            });
+
+            bindingTable.bind_textures({
+                {"t_InAmbientOcclusion"_hsv, inAmbientOcclusion},
             });
         }
 

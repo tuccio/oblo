@@ -9,8 +9,8 @@
 
 namespace oblo::vk
 {
-    template <separable_blur_config Config, separable_blur_pass Pass>
-    void separable_blur<Config, Pass>::init(const frame_graph_init_context& ctx)
+    template <separable_blur_config Config>
+    void separable_blur<Config>::init(const frame_graph_init_context& ctx)
     {
         const auto& shaderName = Config::get_shader_name();
 
@@ -18,9 +18,7 @@ namespace oblo::vk
         shaderPath.append("./vulkan/shaders/postprocess/").append(shaderName).append(".comp");
 
         string_builder passName;
-        passName.format("Blur {} {}",
-            shaderName,
-            string_view(Pass == separable_blur_pass::horizontal ? "Horizontal" : "Vertical"));
+        passName.format("Blur {}", shaderName);
 
         blurPass = ctx.register_compute_pass({
             .name = passName.as<string>(),
@@ -28,8 +26,8 @@ namespace oblo::vk
         });
     }
 
-    template <separable_blur_config Config, separable_blur_pass Pass>
-    void separable_blur<Config, Pass>::build(const frame_graph_build_context& ctx)
+    template <separable_blur_config Config>
+    void separable_blur<Config>::build(const frame_graph_build_context& ctx)
     {
         const auto& sourceInitializer = ctx.get_current_initializer(inSource);
 
@@ -70,63 +68,87 @@ namespace oblo::vk
             break;
         }
 
-        const hashed_string_view defines[] = {
+        hashed_string_view defines[] = {
+            {}, // This gets replaced by BLUR_HORIZONTAL/BLUR_VERTICAL
             groupSizeDef.as<hashed_string_view>(),
             kernelData.as<hashed_string_view>(),
             kernelSize.as<hashed_string_view>(),
             imageChannels.as<hashed_string_view>(),
             imageFormat,
-            Pass == separable_blur_pass::horizontal ? "BLUR_HORIZONTAL"_hsv : "BLUR_VERTICAL"_hsv,
         };
 
-        blurPassInstance = ctx.compute_pass(blurPass, {.defines = defines});
-
-        if (!outputInPlace || Pass == separable_blur_pass::horizontal)
         {
+            defines[0] = "BLUR_HORIZONTAL"_hsv;
+
+            passInstanceH = ctx.compute_pass(blurPass, {.defines = defines});
             ctx.acquire(inSource, texture_usage::storage_read);
 
-            const auto imageInitializer = ctx.get_current_initializer(inSource);
-            imageInitializer.assert_value();
-
-            ctx.create(outBlurred,
+            ctx.create(inOutIntermediate,
                 {
-                    .width = imageInitializer->width,
-                    .height = imageInitializer->height,
-                    .format = imageInitializer->format,
+                    .width = sourceInitializer->width,
+                    .height = sourceInitializer->height,
+                    .format = sourceInitializer->format,
                 },
                 texture_usage::storage_write);
         }
-        else
+
         {
-            ctx.acquire(inSource, texture_usage::storage_read);
-            ctx.acquire(outBlurred, texture_usage::storage_write);
+            defines[0] = "BLUR_VERTICAL"_hsv;
+
+            passInstanceV = ctx.compute_pass(blurPass, {.defines = defines});
+
+            ctx.acquire(inOutIntermediate, texture_usage::storage_read);
+
+            if (!ctx.has_source(outBlurred))
+            {
+                ctx.create(outBlurred,
+                    {
+                        .width = sourceInitializer->width,
+                        .height = sourceInitializer->height,
+                        .format = sourceInitializer->format,
+                    },
+                    texture_usage::storage_write);
+            }
+            else
+            {
+                ctx.acquire(outBlurred, texture_usage::storage_write);
+            }
         }
     }
 
-    template <separable_blur_config Config, separable_blur_pass Pass>
-    void separable_blur<Config, Pass>::execute(const frame_graph_execute_context& ctx)
+    template <separable_blur_config Config>
+    void separable_blur<Config>::execute(const frame_graph_execute_context& ctx)
     {
-        if (const auto pass = ctx.begin_pass(blurPassInstance))
-        {
-            const vec2u resolution = ctx.get_resolution(inSource);
+        const vec2u resolution = ctx.get_resolution(inSource);
 
-            binding_table bindingTable;
+        binding_table bindingTable;
+
+        if (const auto pass = ctx.begin_pass(passInstanceH))
+        {
+            bindingTable.clear();
 
             bindingTable.bind_textures({
                 {"t_InSource", inSource},
+                {"t_OutBlurred", inOutIntermediate},
+            });
+
+            ctx.bind_descriptor_sets(bindingTable);
+            ctx.dispatch_compute(round_up_div(resolution.x, groupSize), resolution.y, 1);
+
+            ctx.end_pass();
+        }
+
+        if (const auto pass = ctx.begin_pass(passInstanceV))
+        {
+            bindingTable.clear();
+
+            bindingTable.bind_textures({
+                {"t_InSource", inOutIntermediate},
                 {"t_OutBlurred", outBlurred},
             });
 
             ctx.bind_descriptor_sets(bindingTable);
-
-            if constexpr (Pass == separable_blur_pass::horizontal)
-            {
-                ctx.dispatch_compute(round_up_div(resolution.x, groupSize), resolution.y, 1);
-            }
-            else
-            {
-                ctx.dispatch_compute(resolution.x, round_up_div(resolution.y, groupSize), 1);
-            }
+            ctx.dispatch_compute(resolution.x, round_up_div(resolution.y, groupSize), 1);
 
             ctx.end_pass();
         }

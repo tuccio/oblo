@@ -98,6 +98,11 @@ namespace oblo::vk
         void reroute(resource<buffer> source, resource<buffer> destination) const;
         void reroute(resource<texture> source, resource<texture> destination) const;
 
+        /// @brief Determines whether the pin contributes to a frame graph output.
+        /// @remarks Nodes might decide to skip some computation if certain nodes don't contribute to any frame graph
+        /// output.
+        bool is_active_output(resource<texture> texture) const;
+
         /// @brief Determines whether the pin has an incoming edge.
         bool has_source(resource<buffer> buffer) const;
 

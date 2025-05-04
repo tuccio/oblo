@@ -1,0 +1,189 @@
+#version 460
+
+#extension GL_EXT_ray_tracing : require
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_buffer_reference : require
+#extension GL_EXT_control_flow_attributes : enable
+#extension GL_EXT_nonuniform_qualifier : require
+#extension GL_EXT_samplerless_texture_functions : require
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_ARB_gpu_shader_int64 : require
+
+#include <renderer/camera>
+#include <renderer/debug/printf>
+#include <renderer/geometry/barycentric>
+#include <renderer/geometry/ray>
+#include <renderer/instances>
+#include <renderer/math>
+#include <renderer/meshes/mesh_attributes>
+#include <renderer/meshes/mesh_data>
+#include <renderer/meshes/mesh_indices>
+#include <renderer/motion_vectors>
+#include <renderer/random/random>
+#include <renderer/random/sampling>
+#include <renderer/textures>
+#include <renderer/transform>
+#include <visibility/visibility_buffer>
+#include <visibility/visibility_utils>
+
+layout(binding = 8) uniform accelerationStructureEXT u_SceneTLAS;
+
+layout(binding = 4, r8) uniform restrict image2D t_InDisocclusionMask;
+layout(binding = 5, OBLO_MOTION_VECTORS_FORMAT) uniform restrict image2D t_InMotionVectors;
+
+layout(binding = 11, rg32ui) uniform restrict readonly uimage2D t_InVisibilityBuffer;
+
+layout(binding = 12) uniform texture2D t_InHistory;
+layout(binding = 13, r8) uniform restrict writeonly image2D t_OutAO;
+layout(binding = 14, r8ui) uniform restrict uimage2D t_InOutSamplesCount;
+
+layout(binding = 16) uniform b_CameraBuffer
+{
+    camera_buffer g_Camera;
+};
+
+layout(push_constant) uniform c_PushConstants
+{
+    uint randomSeed;
+    float aoBias;
+    float aoMaxDistance;
+    float aoMaxHistoryWeight;
+}
+g_Constants;
+
+layout(location = 0) rayPayloadEXT float r_HitVisibility;
+
+uint linearize_launch_id()
+{
+    return gl_LaunchIDEXT.y * gl_LaunchSizeEXT.x + gl_LaunchIDEXT.x;
+}
+
+vec2 reproject_coords(in uvec2 coords, in uvec2 resolution)
+{
+    const vec4 texel = imageLoad(t_InMotionVectors, ivec2(coords));
+    return motion_vectors_reproject_uv(texel, coords, resolution);
+}
+
+void main()
+{
+    const float tMin = g_Constants.aoBias;
+    const float tMax = g_Constants.aoMaxDistance;
+
+    uint seed = random_seed(linearize_launch_id(), g_Constants.randomSeed);
+
+    const uvec2 screenPos = gl_LaunchIDEXT.xy;
+    const uvec2 resolution = gl_LaunchSizeEXT.xy;
+
+    // Parse the visibility buffer to find which triangle we are processing
+    const uvec4 visBufferData = imageLoad(t_InVisibilityBuffer, ivec2(screenPos));
+
+    float ambientOcclusion = 0.f;
+
+    visibility_buffer_data vb;
+
+    // If visibility_buffer_parse fails it means there's nothing here (e.g. it might be skybox)
+    if (visibility_buffer_parse(visBufferData.xy, vb))
+    {
+        // Read the instance data we need
+        const mesh_handle mesh = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MeshHandles, vb.instanceId);
+        const transform transform = OBLO_INSTANCE_DATA(vb.instanceTableId, i_TransformBuffer, vb.instanceId);
+
+        triangle triangleWS;
+        vec3 triangleNormal[3];
+
+        // Read the mesh data
+        const mesh_table meshTable = mesh_table_fetch(mesh);
+        const uvec3 vertexIndices = mesh_get_meshlet_indices(meshTable, mesh, vb.meshletId, vb.meshletTriangleId);
+
+        // Read the vertex data and transform everything in world space, we do calculations in that space
+        [[unroll]] for (uint i = 0; i < 3; ++i)
+        {
+            const uint vertexId = vertexIndices[i];
+
+            const vec3 vertexPosition = mesh_get_position(meshTable, vertexId);
+            triangleWS.v[i] = (transform.localToWorld * vec4(vertexPosition, 1)).xyz;
+
+            const vec3 vertexNormal = mesh_get_normal(meshTable, vertexId);
+            triangleNormal[i] = vertexNormal;
+        }
+
+        // We do the usual visibility buffer thing to calculate the barycentric coordinates of the center of the pixel
+        const vec2 ndc = screen_to_ndc(screenPos, resolution);
+        const ray cameraRay = visibility_calculate_camera_ray(g_Camera, ndc);
+
+        // Really the plan should be hitting here, since we already know the triangle was rendered by the rasterizer, we
+        // mostly want to calculate at what distance it does
+        float intersectionDistance;
+
+        const bool isHit = distance_from_triangle_plane(cameraRay, triangleWS, intersectionDistance);
+        debug_assert(isHit);
+
+        // Find the actual world space position of the pixel
+        const vec3 positionWS = ray_point_at(cameraRay, intersectionDistance);
+
+        // Calculate the baricentric coordinates from it
+        barycentric_coords bc;
+        barycentric_calculate(bc, triangleWS.v, positionWS);
+
+        // Now calculate the normal from that
+        const vec3 normalMS = barycentric_interpolate(bc, triangleNormal);
+        const vec3 normalWS = normalize(mat3(transform.normalMatrix) * normalMS);
+
+        const vec3 direction = random_sample_cosine_hemisphere(normalWS, random_uniform_2d(seed));
+        const float sampleWeight = max(1e-2, dot(direction, normalWS));
+
+        traceRayEXT(u_SceneTLAS,
+            gl_RayFlagsNoneEXT,
+            0xff, // cull mask
+            0,    // STB record offset
+            0,    // STB record stride
+            0,    // Miss index
+            positionWS,
+            tMin,
+            direction,
+            tMax,
+            0 // payload location
+        );
+
+        ambientOcclusion = r_HitVisibility * sampleWeight;
+    }
+    else
+    {
+        ambientOcclusion = 1.f;
+    }
+
+    const vec2 historyUV = reproject_coords(screenPos, resolution);
+
+    uint historySamplesCount = 0;
+
+    if (historyUV.x >= 0 && historyUV.x <= 1 && historyUV.y >= 0 && historyUV.y <= 1)
+    {
+
+        const float historyAO =
+            texture(sampler2D(t_InHistory, g_Samplers[OBLO_SAMPLER_LINEAR_CLAMP_EDGE]), historyUV).r;
+
+        const ivec2 historyCoords = ivec2(min(historyUV * resolution, resolution - vec2(1)));
+        const float disocclusion = imageLoad(t_InDisocclusionMask, historyCoords).r;
+
+        const float disocclusionThreshold = .9f;
+
+        float historyWeight = 0.f;
+
+        if (disocclusion < disocclusionThreshold)
+        {
+            // Weigh the history more when we have more samples
+            const uint maxHistorySamples = 8;
+            const float invMaxHistorySamples = 1.f / maxHistorySamples;
+
+            historySamplesCount = imageLoad(t_InOutSamplesCount, historyCoords).r;
+            historySamplesCount = min(maxHistorySamples, 1 + historySamplesCount);
+
+            historyWeight = mix(0, g_Constants.aoMaxHistoryWeight, historySamplesCount * invMaxHistorySamples);
+        }
+
+        ambientOcclusion = mix(ambientOcclusion, historyAO, historyWeight);
+    }
+
+    imageStore(t_OutAO, ivec2(gl_LaunchIDEXT.xy), vec4(ambientOcclusion, 0, 0, 1));
+    imageStore(t_InOutSamplesCount, ivec2(gl_LaunchIDEXT.xy), uvec4(historySamplesCount, 0, 0, 1));
+}

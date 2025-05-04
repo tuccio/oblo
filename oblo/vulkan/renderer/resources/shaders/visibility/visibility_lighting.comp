@@ -54,6 +54,10 @@ layout(binding = 3) uniform b_SkyboxSettings
     uint g_SkyboxTexture;
 };
 
+#ifdef SURFELS_GI
+layout(binding = 5) uniform texture2D t_InAmbientOcclusion;
+#endif
+
 vec4 visibility_shade(in visibility_shade_context ctx)
 {
     // Read the instance data we need
@@ -135,6 +139,8 @@ vec4 visibility_shade(in visibility_shade_context ctx)
     vec3 reflected = vec3(0);
     const vec3 viewWS = normalize(g_Camera.position - positionWS);
 
+    const vec2 screenUV = (vec2(ctx.screenPos) + .5f) / ctx.resolution;
+
     for (uint lightIndex = 0; lightIndex < g_LightConfig.lightsCount; ++lightIndex)
     {
         float visibility = 1.f;
@@ -143,8 +149,7 @@ vec4 visibility_shade(in visibility_shade_context ctx)
 
         if (visibilityMap != 0)
         {
-            visibility =
-                texture_sample_2d(visibilityMap, OBLO_SAMPLER_NEAREST, (vec2(ctx.screenPos) + .5f) / ctx.resolution).r;
+            visibility = texture_sample_2d(visibilityMap, OBLO_SAMPLER_NEAREST, screenUV).r;
         }
 
         vec3 L;
@@ -156,8 +161,9 @@ vec4 visibility_shade(in visibility_shade_context ctx)
     }
 
 #ifdef SURFELS_GI
+    const float ao = texture(sampler2D(t_InAmbientOcclusion, g_Samplers[OBLO_SAMPLER_LINEAR_REPEAT]), screenUV).r;
     const vec3 giContribution = surfel_calculate_contribution(positionWS, normalWS);
-    reflected += giContribution * pbr_brdf(normalWS, viewWS, normalWS, pbr);
+    reflected += ao * giContribution * pbr_brdf(normalWS, viewWS, normalWS, pbr);
 #endif
 
     const vec3 outLight = pbr.emissive + reflected;
@@ -181,11 +187,11 @@ vec4 visibility_miss(in visibility_shade_context ctx)
     const vec2 uvDDX = uv - uvQuadX;
     const vec2 uvDDY = uv - uvQuadY;
 
-    const vec4 color = texture_sample_2d_grad(g_SkyboxTexture, OBLO_SAMPLER_LINEAR, uv, uvDDX, uvDDY);
+    const vec4 color = texture_sample_2d_grad(g_SkyboxTexture, OBLO_SAMPLER_LINEAR_REPEAT, uv, uvDDX, uvDDY);
 
 #else
     const uint lod = 0;
-    const vec4 color = texture_sample_2d_lod(g_SkyboxTexture, OBLO_SAMPLER_LINEAR, uv, 0);
+    const vec4 color = texture_sample_2d_lod(g_SkyboxTexture, OBLO_SAMPLER_LINEAR_REPEAT, uv, 0);
 #endif
 
     return vec4(color.xyz * g_SkyboxMultiplier, 1);

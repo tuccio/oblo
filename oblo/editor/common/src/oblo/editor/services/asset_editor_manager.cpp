@@ -49,7 +49,7 @@ namespace oblo::editor
 
                 ImGui::OpenPopup(popupName);
 
-                if (ImGui::BeginPopupModal(popupName))
+                if (ImGui::BeginPopupModal(popupName, nullptr, ImGuiWindowFlags_NoSavedSettings))
                 {
                     ImGui::TextUnformatted("An asset is being closed, do you wish to save it before closing?");
 

@@ -1160,6 +1160,12 @@ namespace oblo::vk
             pin.referencedPin = {};
         }
 
+        // Clear the path to output flags, we will set pins that lead to outputs as active
+        for (auto& pin : pinStorage.values())
+        {
+            pin.hasPathToOutput = false;
+        }
+
         // Propagate pin storage from incoming pins, or allocate the owned storage if necessary
         const auto propagatePins = [this](auto&& pinsRange, bool processSinks)
         {
@@ -1191,18 +1197,41 @@ namespace oblo::vk
                     }
                 }
 
+                // Check if the pin is active, this can be used by nodes to cull some outputs of the node
+                // In order to do it we look for outgoing edges to nodes that were marked active (i.e. not culled)
+                // Active nodes lead to an output, so we assume the output contributes to that
+                OBLO_ASSERT(pin->ownedStorage);
+                auto* const ownedStorage = pinStorage.try_find(pin->ownedStorage);
+
+                for (const auto out : graph.get_out_edges(v))
+                {
+                    const auto& outVertex = graph[out.vertex];
+
+                    OBLO_ASSERT(outVertex.kind == frame_graph_vertex_kind::pin);
+
+                    auto* const dstPin = pins.try_find(outVertex.pin);
+                    const auto dstNode = dstPin->nodeHandle;
+
+                    const auto& dstNodeVertex = graph[dstNode];
+                    OBLO_ASSERT(dstNodeVertex.kind == frame_graph_vertex_kind::node);
+
+                    if (outVertex.state == frame_graph_vertex_state::enabled)
+                    {
+                        ownedStorage->hasPathToOutput = true;
+                        break;
+                    }
+                }
+
                 const bool hasIncomingReference = bool{pin->referencedPin};
 
                 if (!hasIncomingReference)
                 {
-                    OBLO_ASSERT(pin->ownedStorage);
-
-                    auto* const storage = pinStorage.try_find(pin->ownedStorage);
-
-                    if (!storage->data)
+                    if (!ownedStorage->data)
                     {
-                        storage->data = memoryPool.allocate(storage->typeDesc.size, storage->typeDesc.alignment);
-                        storage->typeDesc.construct(storage->data);
+                        ownedStorage->data =
+                            memoryPool.allocate(ownedStorage->typeDesc.size, ownedStorage->typeDesc.alignment);
+
+                        ownedStorage->typeDesc.construct(ownedStorage->data);
                     }
 
                     pin->referencedPin = pin->ownedStorage;
@@ -1210,7 +1239,7 @@ namespace oblo::vk
                     // For data_sink we clear here
                     if (pin->clearDataSink)
                     {
-                        pin->clearDataSink(storage->data);
+                        pin->clearDataSink(ownedStorage->data);
                     }
                 }
 

@@ -29,6 +29,7 @@ namespace oblo
 
     class texture;
 
+    struct rtao_config;
     struct surfels_gi_config;
 
     struct scene_lights
@@ -62,6 +63,7 @@ namespace oblo
         void setup_lights(const scene_lights& lights);
         void setup_skybox(const resource_ptr<texture>& skybox, const vk::skybox_settings& settings);
         void setup_surfels_gi(const surfels_gi_config& giConfig);
+        void setup_rtao(const rtao_config& rtaoConfig);
 
         h32<vk::frame_graph_subgraph> create_scene_view(scene_view_kind kind);
         void remove_scene_view(h32<vk::frame_graph_subgraph> subgraph);
