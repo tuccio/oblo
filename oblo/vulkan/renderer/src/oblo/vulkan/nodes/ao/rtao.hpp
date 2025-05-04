@@ -27,6 +27,7 @@ namespace oblo::vk
 
         data<f32> inBias;
         data<f32> inMaxDistance;
+        data<f32> inMaxHistoryWeight;
 
         u32 randomSeed;
 

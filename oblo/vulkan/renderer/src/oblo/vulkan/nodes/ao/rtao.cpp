@@ -97,12 +97,14 @@ namespace oblo::vk
                 u32 randomSeed;
                 f32 aoBias;
                 f32 aoMaxDistance;
+                f32 aoMaxHistoryWeight;
             };
 
             const push_constants constants{
                 .randomSeed = randomSeed,
                 .aoBias = ctx.access(inBias),
                 .aoMaxDistance = ctx.access(inMaxDistance),
+                .aoMaxHistoryWeight = ctx.access(inMaxHistoryWeight),
             };
 
             ctx.bind_descriptor_sets(bindingTable);

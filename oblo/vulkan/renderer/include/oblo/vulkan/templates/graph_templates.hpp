@@ -33,6 +33,7 @@ namespace oblo::vk::main_view
 
     constexpr string_view InRTAOBias{"RTAOBias"};
     constexpr string_view InRTAOMaxDistance{"RTAOMaxDistance"};
+    constexpr string_view InRTAOMaxHistoryWeight{"RTAOMaxHistoryWeight"};
 
     constexpr string_view InDebugMode{"Debug Mode"};
 

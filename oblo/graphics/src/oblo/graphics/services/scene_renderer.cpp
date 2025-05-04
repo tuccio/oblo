@@ -241,6 +241,8 @@ namespace oblo
         {
             m_frameGraph.set_input(view, vk::main_view::InRTAOBias, rtaoConfig.bias).assert_value();
             m_frameGraph.set_input(view, vk::main_view::InRTAOMaxDistance, rtaoConfig.maxDistance).assert_value();
+            m_frameGraph.set_input(view, vk::main_view::InRTAOMaxHistoryWeight, rtaoConfig.maxHistoryWeight)
+                .assert_value();
         }
     }
 

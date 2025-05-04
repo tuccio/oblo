@@ -306,6 +306,7 @@ namespace oblo::vk::main_view
 
             graph.make_input(rtaoNode, &rtao::inBias, InRTAOBias);
             graph.make_input(rtaoNode, &rtao::inMaxDistance, InRTAOMaxDistance);
+            graph.make_input(rtaoNode, &rtao::inMaxHistoryWeight, InRTAOMaxHistoryWeight);
             graph.make_output(rtaoNode, &rtao::outRTAmbientOcclusion, OutRTAmbientOcclusion);
 
             graph.connect(visibilityPass, &visibility_pass::outVisibilityBuffer, rtaoNode, &rtao::inVisibilityBuffer);

@@ -47,6 +47,7 @@ layout(push_constant) uniform c_PushConstants
     uint randomSeed;
     float aoBias;
     float aoMaxDistance;
+    float aoMaxHistoryWeight;
 }
 g_Constants;
 
@@ -155,10 +156,8 @@ void main()
 
     uint historySamplesCount = 0;
 
-    if (historyUV.x >= 0 && historyUV.x < 1.f && historyUV.y >= 0 && historyUV.y < 1.f)
+    if (historyUV.x >= 0 && historyUV.x <= 1 && historyUV.y >= 0 && historyUV.y <= 1)
     {
-        // Once we have the max samples count, use this weight for history
-        const float maxHistoryWeight = 0.92f;
 
         const float historyAO =
             texture(sampler2D(t_InHistory, g_Samplers[OBLO_SAMPLER_LINEAR_CLAMP_EDGE]), historyUV).r;
@@ -179,7 +178,7 @@ void main()
             historySamplesCount = imageLoad(t_InOutSamplesCount, historyCoords).r;
             historySamplesCount = min(maxHistorySamples, 1 + historySamplesCount);
 
-            historyWeight = mix(0, maxHistoryWeight, historySamplesCount * invMaxHistorySamples);
+            historyWeight = mix(0, g_Constants.aoMaxHistoryWeight, historySamplesCount * invMaxHistorySamples);
         }
 
         ambientOcclusion = mix(ambientOcclusion, historyAO, historyWeight);

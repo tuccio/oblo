@@ -169,15 +169,33 @@ namespace oblo
         };
     };
 
+    template <>
+    struct option_traits<"r.rtao.maxHistoryWeight">
+    {
+        using type = f32;
+
+        static constexpr option_descriptor descriptor{
+            .kind = property_kind::f32,
+            .id = "d0caee84-21e6-422f-8def-3153e42fc9a6"_uuid,
+            .name = "Max History Weight",
+            .category = "Graphics/RTAO",
+            .defaultValue = property_value_wrapper{.92f},
+            .minValue = property_value_wrapper{0.f},
+            .maxValue = property_value_wrapper{1},
+        };
+    };
+
     struct rtao_options
     {
         option_proxy<"r.rtao.bias"> bias;
         option_proxy<"r.rtao.maxDistance"> maxDistance;
+        option_proxy<"r.rtao.maxHistoryWeight"> maxHistoryWeight;
     };
 
     struct rtao_config
     {
         f32 bias;
         f32 maxDistance;
+        f32 maxHistoryWeight;
     };
 }
