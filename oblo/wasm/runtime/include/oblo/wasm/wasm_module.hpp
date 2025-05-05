@@ -120,12 +120,32 @@ namespace oblo
 
             if constexpr (std::is_same_v<i32, D>)
             {
-                return {.type = wasm_type::i32, .value = v};
+                return {.type = wasm_type::i32, .value = {.i32 = v}};
             }
 
             if constexpr (std::is_same_v<u32, D>)
             {
-                return {.type = wasm_type::i32, .value = std::bit_cast<i32>(v)};
+                return {.type = wasm_type::i32, .value = {.i32 = std::bit_cast<i32>(v)}};
+            }
+
+            if constexpr (std::is_same_v<i64, D>)
+            {
+                return {.type = wasm_type::i64, .value = {.i64 = v}};
+            }
+
+            if constexpr (std::is_same_v<u64, D>)
+            {
+                return {.type = wasm_type::i64, .value = {.i64 = std::bit_cast<u64>(v)}};
+            }
+
+            if constexpr (std::is_same_v<f32, D>)
+            {
+                return {.type = wasm_type::f32, .value = {.f32 = v}};
+            }
+
+            if constexpr (std::is_same_v<f64, D>)
+            {
+                return {.type = wasm_type::f64, .value = {.f64 = v}};
             }
         };
 

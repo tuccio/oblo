@@ -11,6 +11,11 @@ namespace oblo
         n.node.root = {};
     }
 
+    h32<ast_node> abstract_syntax_tree::get_root() const
+    {
+        return {};
+    }
+
     h32<ast_node> abstract_syntax_tree::child_next(h32<ast_node> parent, h32<ast_node> previous) const
     {
         if (!previous)
@@ -34,7 +39,6 @@ namespace oblo
         OBLO_ASSERT(child);
 
         auto& p = get(parent);
-        auto& c = get(child);
 
         if (!p.firstChild)
         {

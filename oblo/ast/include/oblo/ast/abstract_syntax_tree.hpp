@@ -100,7 +100,7 @@ namespace oblo
         h32<ast_node> lastChild{};
         h32<ast_node> nextSibling{};
 
-        ast_node_kind kind;
+        ast_node_kind kind{ast_node_kind::root};
 
         union {
             ast_root root;
@@ -113,7 +113,7 @@ namespace oblo
             ast_f64_constant f64;
             ast_variable_declaration varDecl;
             ast_variable_reference varRef;
-        } node;
+        } node = {.root = {}};
     };
 
     class abstract_syntax_tree
@@ -124,17 +124,19 @@ namespace oblo
     public:
         void init();
 
+        h32<ast_node> get_root() const;
+
         template <typename T>
         h32<ast_node> add_node(h32<ast_node> parent, T&& node);
 
         h32<ast_node> child_next(h32<ast_node> parent, h32<ast_node> previous) const;
         iterator_range<children_iterator> children(h32<ast_node> node) const;
 
-    private:
-        void add_child(h32<ast_node> parent, h32<ast_node> child);
-
         const ast_node& get(h32<ast_node> node) const;
         ast_node& get(h32<ast_node> node);
+
+    private:
+        void add_child(h32<ast_node> parent, h32<ast_node> child);
 
         void set_node(ast_node& n, const ast_function& v)
         {
@@ -197,15 +199,12 @@ namespace oblo
     template <typename T>
     h32<ast_node> abstract_syntax_tree::add_node(h32<ast_node> parent, T&& node)
     {
-        using N = std::decay_t<T>;
-
         const h32<ast_node> id{m_nodes.size32()};
         OBLO_ASSERT(id);
 
         auto& newNode = m_nodes.emplace_back();
 
         set_node(newNode, std::forward<T>(node));
-
         add_child(parent, id);
 
         return id;
