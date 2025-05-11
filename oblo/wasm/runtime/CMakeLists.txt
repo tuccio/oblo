@@ -9,6 +9,7 @@ target_link_libraries(
     PUBLIC
     oblo::modules
     PRIVATE
+    oblo::ast
     oblo::log
     wasm-micro-runtime::wasm-micro-runtime
 )

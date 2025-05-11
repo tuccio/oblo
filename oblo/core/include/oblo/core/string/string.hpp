@@ -7,6 +7,7 @@
 #include <oblo/core/iterator/reverse_iterator.hpp>
 #include <oblo/core/platform/compiler.hpp>
 #include <oblo/core/string/cstring_view.hpp>
+#include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
 
@@ -176,6 +177,16 @@ namespace oblo
         bool operator==(const string& other) const noexcept
         {
             return as<string_view>() == other.as<string_view>();
+        }
+
+        bool operator==(const string_view& other) const noexcept
+        {
+            return as<string_view>() == other;
+        }
+
+        bool operator==(const hashed_string_view& other) const noexcept
+        {
+            return as<string_view>() == other;
         }
 
         OBLO_FORCEINLINE const char& operator[](usize i) const
