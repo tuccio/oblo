@@ -30,4 +30,30 @@ namespace oblo::script
         const u32 r = interp.read_u32(0);
         ASSERT_EQ(r, 42);
     }
+
+    TEST(script_test, sub_i32)
+    {
+        script::module m;
+
+        // Performs 15 - 27
+        m.text = {
+            {opcode::push32lo16, bytecode_payload::pack_u16(27)},
+            {opcode::push32lo16, bytecode_payload::pack_u16(15)},
+            {opcode::subi32},
+            {opcode::ret},
+        };
+
+        interpreter interp;
+
+        interp.init(1u << 10);
+        interp.load_module(m);
+
+        ASSERT_EQ(interp.used_stack_size(), 0);
+        interp.run();
+
+        ASSERT_EQ(interp.used_stack_size(), sizeof(i32));
+
+        const u32 r = interp.read_i32(0);
+        ASSERT_EQ(r, -12);
+    }
 }

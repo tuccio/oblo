@@ -28,5 +28,12 @@ namespace oblo::script
         addf64,
         addi64,
         addu64,
+
+        subf32,
+        subi32,
+        subu32,
+        subf64,
+        subi64,
+        subu64,
     };
 }

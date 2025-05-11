@@ -4,6 +4,47 @@
 
 namespace oblo::script
 {
+    namespace
+    {
+        template <typename T>
+        OBLO_FORCEINLINE T read_stack(byte* stackTop, u32 stackOffset)
+        {
+            T r;
+            std::memcpy(&r, stackTop - stackOffset - sizeof(T), sizeof(T));
+            return r;
+        }
+
+        template <typename T>
+        OBLO_FORCEINLINE [[nodiscard]] byte* binary_add(byte* stackTop)
+        {
+            const T lhs = read_stack<T>(stackTop, 0);
+            const T rhs = read_stack<T>(stackTop, sizeof(T));
+            const T r = lhs + rhs;
+
+            // Consume 2 args but keep space for the result
+            auto* resPtr = stackTop - 2 * sizeof(T);
+            std::memcpy(resPtr, &r, sizeof(T));
+
+            // Return new stack top
+            return resPtr + sizeof(T);
+        }
+
+        template <typename T>
+        OBLO_FORCEINLINE [[nodiscard]] byte* binary_sub(byte* stackTop)
+        {
+            const T lhs = read_stack<T>(stackTop, 0);
+            const T rhs = read_stack<T>(stackTop, sizeof(T));
+            const T r = lhs - rhs;
+
+            // Consume 2 args but keep space for the result
+            auto* resPtr = stackTop - 2 * sizeof(T);
+            std::memcpy(resPtr, &r, sizeof(T));
+
+            // Return new stack top
+            return resPtr + sizeof(T);
+        }
+    }
+
     void interpreter::init(u32 stackSize)
     {
         m_stackMemory = allocate_unique<byte[]>(stackSize);
@@ -109,14 +150,67 @@ namespace oblo::script
                 ++m_nextInstruction;
                 break;
 
-            case opcode::addu32: {
-                const u32 lhs = read_u32(0);
-                const u32 rhs = read_u32(sizeof(u32));
-                const u32 r = lhs + rhs;
-                pop(sizeof(u32));
-                std::memcpy(m_stackTop - sizeof(u32), &r, sizeof(u32));
-            }
+                // Binary add
 
+            case opcode::addu32:
+                m_stackTop = binary_add<u32>(m_stackTop);
+                ++m_nextInstruction;
+                break;
+
+            case opcode::addi32:
+                m_stackTop = binary_add<i32>(m_stackTop);
+                ++m_nextInstruction;
+                break;
+
+            case opcode::addf32:
+                m_stackTop = binary_add<f32>(m_stackTop);
+                ++m_nextInstruction;
+                break;
+
+            case opcode::addu64:
+                m_stackTop = binary_add<u64>(m_stackTop);
+                ++m_nextInstruction;
+                break;
+
+            case opcode::addi64:
+                m_stackTop = binary_add<i64>(m_stackTop);
+                ++m_nextInstruction;
+                break;
+
+            case opcode::addf64:
+                m_stackTop = binary_add<f64>(m_stackTop);
+                ++m_nextInstruction;
+                break;
+
+                // Binary sub
+
+            case opcode::subu32:
+                m_stackTop = binary_sub<u32>(m_stackTop);
+                ++m_nextInstruction;
+                break;
+
+            case opcode::subi32:
+                m_stackTop = binary_sub<i32>(m_stackTop);
+                ++m_nextInstruction;
+                break;
+
+            case opcode::subf32:
+                m_stackTop = binary_sub<f32>(m_stackTop);
+                ++m_nextInstruction;
+                break;
+
+            case opcode::subu64:
+                m_stackTop = binary_sub<u64>(m_stackTop);
+                ++m_nextInstruction;
+                break;
+
+            case opcode::subi64:
+                m_stackTop = binary_sub<i64>(m_stackTop);
+                ++m_nextInstruction;
+                break;
+
+            case opcode::subf64:
+                m_stackTop = binary_sub<f64>(m_stackTop);
                 ++m_nextInstruction;
                 break;
 
@@ -144,11 +238,14 @@ namespace oblo::script
         m_callFrame.pop_back();
     }
 
-    u32 interpreter::read_u32(u32 stackOffset)
+    u32 interpreter::read_u32(u32 stackOffset) const
     {
-        u32 r;
-        std::memcpy(&r, m_stackTop - stackOffset - sizeof(u32), sizeof(u32));
-        return r;
+        return read_stack<u32>(m_stackTop, stackOffset);
+    }
+
+    i32 interpreter::read_i32(u32 stackOffset) const
+    {
+        return read_stack<i32>(m_stackTop, stackOffset);
     }
 
     void interpreter::push_u32(u32 value)

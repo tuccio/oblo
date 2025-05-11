@@ -23,7 +23,8 @@ namespace oblo::script
 
         void call_function(h32<function> f);
 
-        u32 read_u32(u32 stackOffset);
+        u32 read_u32(u32 stackOffset) const;
+        i32 read_i32(u32 stackOffset) const;
 
         void push_u32(u32 value);
 
