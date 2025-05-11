@@ -36,7 +36,8 @@ namespace oblo::script
         void run();
 
     private:
-        using instruction_idx = usize;
+        using address_offset = u32;
+        using instruction_idx = u32;
 
         struct call_frame
         {

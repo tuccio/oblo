@@ -6,6 +6,18 @@ namespace oblo::script
 {
     namespace
     {
+#if OBLO_DEBUG
+        constexpr bool g_DebugStackMemory = true;
+#else
+        constexpr bool g_DebugStackMemory = false;
+#endif
+
+        template <typename T>
+        OBLO_FORCEINLINE byte* stack_addr(byte* stackTop, u32 stackOffset)
+        {
+            return stackTop - stackOffset - sizeof(T);
+        }
+
         template <typename T>
         OBLO_FORCEINLINE T read_stack(byte* stackTop, u32 stackOffset)
         {
@@ -43,6 +55,60 @@ namespace oblo::script
             // Return new stack top
             return resPtr + sizeof(T);
         }
+
+        template <typename T>
+        OBLO_FORCEINLINE [[nodiscard]] byte* compare_ge(byte* stackTop)
+        {
+            using result_t = u32;
+
+            const T lhs = read_stack<T>(stackTop, 0);
+            const T rhs = read_stack<T>(stackTop, sizeof(T));
+            const result_t r = {lhs >= rhs};
+
+            // Consume 2 args but keep space for the result
+            auto* resPtr = stackTop - 2 * sizeof(T);
+            std::memcpy(resPtr, &r, sizeof(result_t));
+
+            // Return new stack top
+            return resPtr + sizeof(result_t);
+        }
+
+        template <typename T>
+        OBLO_FORCEINLINE [[nodiscard]] byte* compare_le(byte* stackTop)
+        {
+            using result_t = u32;
+
+            const T lhs = read_stack<T>(stackTop, 0);
+            const T rhs = read_stack<T>(stackTop, sizeof(T));
+            const result_t r = {lhs <= rhs};
+
+            // Consume 2 args but keep space for the result
+            auto* resPtr = stackTop - 2 * sizeof(T);
+            std::memcpy(resPtr, &r, sizeof(result_t));
+
+            // Return new stack top
+            return resPtr + sizeof(result_t);
+        }
+
+        template <typename T, typename U>
+        OBLO_FORCEINLINE void increment(byte* stackTop, U inc)
+        {
+            const T base = read_stack<T>(stackTop, 0);
+            const T result = base + inc;
+
+            std::memcpy(stackTop - sizeof(T), &result, sizeof(T));
+        }
+
+        OBLO_FORCEINLINE void deallocate_stack(byte*& prevTop, byte* newTop)
+        {
+            if constexpr (g_DebugStackMemory)
+            {
+                OBLO_ASSERT(prevTop >= newTop);
+                std::memset(newTop, 0xcd, prevTop - newTop);
+            }
+
+            prevTop = newTop;
+        }
     }
 
     void interpreter::init(u32 stackSize)
@@ -56,11 +122,16 @@ namespace oblo::script
 
         // The first function is just a dummy for the invalid handle, we could consider using it for an entry point
         m_functions.assign(1, {});
+
+        if constexpr (g_DebugStackMemory)
+        {
+            std::memset(m_stackMemory.get(), 0xcd, stackSize);
+        }
     }
 
     void interpreter::load_module(const module& m)
     {
-        const usize baseOffset = m_code.size();
+        const address_offset baseOffset = m_code.size32();
         m_code.append(m.text.begin(), m.text.end());
 
         for (auto& f : m.functions)
@@ -135,6 +206,29 @@ namespace oblo::script
                 ++m_nextInstruction;
                 break;
 
+            case opcode::pushcppso: {
+                u8 size, offset;
+                bytecode_payload::unpack_2xu8(bytecode.payload, size, offset);
+                const byte* const src = m_stackTop - offset - size;
+                byte* const dst = allocate_stack(size);
+                std::memcpy(dst, src, size);
+            }
+
+                ++m_nextInstruction;
+                break;
+
+            case opcode::stru32pso: {
+                u8 size, offset;
+                bytecode_payload::unpack_2xu8(bytecode.payload, size, offset);
+                auto* newTop = m_stackTop - sizeof(u32);
+                byte* const dst = newTop - offset - size;
+                std::memcpy(dst, newTop, sizeof(u32));
+                pop(sizeof(u32));
+            }
+
+                ++m_nextInstruction;
+                break;
+
             case opcode::retvpso: {
                 u8 size, offset;
                 bytecode_payload::unpack_2xu8(bytecode.payload, size, offset);
@@ -153,64 +247,169 @@ namespace oblo::script
                 // Binary add
 
             case opcode::addu32:
-                m_stackTop = binary_add<u32>(m_stackTop);
+                deallocate_stack(m_stackTop, binary_add<u32>(m_stackTop));
                 ++m_nextInstruction;
                 break;
 
             case opcode::addi32:
-                m_stackTop = binary_add<i32>(m_stackTop);
+                deallocate_stack(m_stackTop, binary_add<i32>(m_stackTop));
                 ++m_nextInstruction;
                 break;
 
             case opcode::addf32:
-                m_stackTop = binary_add<f32>(m_stackTop);
+                deallocate_stack(m_stackTop, binary_add<f32>(m_stackTop));
                 ++m_nextInstruction;
                 break;
 
             case opcode::addu64:
-                m_stackTop = binary_add<u64>(m_stackTop);
+                deallocate_stack(m_stackTop, binary_add<u64>(m_stackTop));
                 ++m_nextInstruction;
                 break;
 
             case opcode::addi64:
-                m_stackTop = binary_add<i64>(m_stackTop);
+                deallocate_stack(m_stackTop, binary_add<i64>(m_stackTop));
                 ++m_nextInstruction;
                 break;
 
             case opcode::addf64:
-                m_stackTop = binary_add<f64>(m_stackTop);
+                deallocate_stack(m_stackTop, binary_add<f64>(m_stackTop));
                 ++m_nextInstruction;
                 break;
 
                 // Binary sub
 
             case opcode::subu32:
-                m_stackTop = binary_sub<u32>(m_stackTop);
+                deallocate_stack(m_stackTop, binary_sub<u32>(m_stackTop));
                 ++m_nextInstruction;
                 break;
 
             case opcode::subi32:
-                m_stackTop = binary_sub<i32>(m_stackTop);
+                deallocate_stack(m_stackTop, binary_sub<i32>(m_stackTop));
                 ++m_nextInstruction;
                 break;
 
             case opcode::subf32:
-                m_stackTop = binary_sub<f32>(m_stackTop);
+                deallocate_stack(m_stackTop, binary_sub<f32>(m_stackTop));
                 ++m_nextInstruction;
                 break;
 
             case opcode::subu64:
-                m_stackTop = binary_sub<u64>(m_stackTop);
+                deallocate_stack(m_stackTop, binary_sub<u64>(m_stackTop));
                 ++m_nextInstruction;
                 break;
 
             case opcode::subi64:
-                m_stackTop = binary_sub<i64>(m_stackTop);
+                deallocate_stack(m_stackTop, binary_sub<i64>(m_stackTop));
                 ++m_nextInstruction;
                 break;
 
             case opcode::subf64:
-                m_stackTop = binary_sub<f64>(m_stackTop);
+                deallocate_stack(m_stackTop, binary_sub<f64>(m_stackTop));
+                ++m_nextInstruction;
+                break;
+
+                // Comparison
+
+            case opcode::geu32:
+                deallocate_stack(m_stackTop, compare_ge<u32>(m_stackTop));
+                ++m_nextInstruction;
+                break;
+
+            case opcode::leu32:
+                deallocate_stack(m_stackTop, compare_le<u32>(m_stackTop));
+                ++m_nextInstruction;
+                break;
+
+                // Jump
+
+            case opcode::jmp: {
+                const auto addr = read_stack<address_offset>(m_stackTop, 0);
+                m_nextInstruction = addr;
+                pop(sizeof(address_offset));
+            }
+
+            break;
+
+            case opcode::jnz32: {
+                const auto addr = read_stack<address_offset>(m_stackTop, 0);
+                const auto cond = read_stack<u32>(m_stackTop, sizeof(address_offset));
+                pop(sizeof(u32) + sizeof(address_offset));
+
+                m_nextInstruction = cond != 0 ? addr : m_nextInstruction + 1;
+            }
+
+            break;
+
+            case opcode::jz32: {
+                const auto addr = read_stack<address_offset>(m_stackTop, 0);
+                const auto cond = read_stack<u32>(m_stackTop, sizeof(address_offset));
+                pop(sizeof(u32) + sizeof(address_offset));
+
+                m_nextInstruction = cond == 0 ? addr : m_nextInstruction + 1;
+            }
+
+            break;
+
+                // Increments
+
+            case opcode::incu32pu16: {
+                u16 inc;
+                bytecode_payload::unpack_u16(bytecode.payload, inc);
+
+                increment<u32>(m_stackTop, inc);
+            }
+
+                ++m_nextInstruction;
+                break;
+
+            case opcode::inci32pu16: {
+                u16 inc;
+                bytecode_payload::unpack_u16(bytecode.payload, inc);
+
+                increment<i32>(m_stackTop, inc);
+            }
+
+                ++m_nextInstruction;
+                break;
+
+            case opcode::incu32poi: {
+                u8 offset, inc;
+                bytecode_payload::unpack_2xu8(bytecode.payload, offset, inc);
+
+                byte* const var = stack_addr<u32>(m_stackTop, offset);
+
+                u32 content;
+                std::memcpy(&content, var, sizeof(u32));
+
+                content += inc;
+                std::memcpy(var, &content, sizeof(u32));
+            }
+
+                ++m_nextInstruction;
+                break;
+
+            case opcode::decu32pu16: {
+                u16 inc;
+                bytecode_payload::unpack_u16(bytecode.payload, inc);
+
+                increment<u32>(m_stackTop, -i32{inc});
+            }
+
+                ++m_nextInstruction;
+                break;
+
+            case opcode::deci32pu16: {
+                u16 inc;
+                bytecode_payload::unpack_u16(bytecode.payload, inc);
+
+                increment<i32>(m_stackTop, -i32{inc});
+            }
+
+                ++m_nextInstruction;
+                break;
+
+            case opcode::instraddr:
+                push_u32(m_nextInstruction);
                 ++m_nextInstruction;
                 break;
 
@@ -224,6 +423,7 @@ namespace oblo::script
     {
         byte* const r = m_stackTop;
         m_stackTop += size;
+
         OBLO_ASSERT(m_stackTop <= m_stackMax);
         return r;
     }
@@ -233,7 +433,7 @@ namespace oblo::script
         const auto& f = m_callFrame.back();
 
         m_nextInstruction = f.returnAddr;
-        m_stackTop = f.restoreStackPtr;
+        deallocate_stack(m_stackTop, f.restoreStackPtr);
 
         m_callFrame.pop_back();
     }
@@ -256,7 +456,7 @@ namespace oblo::script
 
     void interpreter::pop(u32 stackSize)
     {
-        m_stackTop -= stackSize;
-        OBLO_ASSERT(m_stackTop >= m_stackMemory.get());
+        OBLO_ASSERT(m_stackTop - stackSize >= m_stackMemory.get());
+        deallocate_stack(m_stackTop, m_stackTop - stackSize);
     }
 }
