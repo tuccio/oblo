@@ -179,6 +179,11 @@ namespace oblo
             return as<string_view>() == other.as<string_view>();
         }
 
+        bool operator==(const cstring_view& other) const noexcept
+        {
+            return as<string_view>() == other;
+        }
+
         bool operator==(const string_view& other) const noexcept
         {
             return as<string_view>() == other;
