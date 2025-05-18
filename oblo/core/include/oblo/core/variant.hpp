@@ -67,9 +67,8 @@ namespace oblo
 
         template <typename U>
         variant(U&& o)
+            requires(index_of<U>() < types_count)
         {
-            static_assert(index_of<U>() < types_count);
-
             new (m_buffer) U{std::forward<U>(o)};
             m_index = index_of<U>();
         }
@@ -102,23 +101,23 @@ namespace oblo
 
         template <typename U>
         bool is() const noexcept
+            requires(index_of<U>() < types_count)
         {
-            static_assert(index_of<U>() < types_count);
             return m_index == index_of<U>();
         }
 
         template <typename U>
         U& as() noexcept
+            requires(index_of<U>() < types_count)
         {
-            static_assert(index_of<U>() < types_count);
             OBLO_ASSERT(is<U>());
             return reinterpret_cast<U&>(m_buffer);
         }
 
         template <typename U>
         U& as() const noexcept
+            requires(index_of<U>() < types_count)
         {
-            static_assert(index_of<U>() < types_count);
             OBLO_ASSERT(is<U>());
             return reinterpret_cast<const U&>(m_buffer);
         }
