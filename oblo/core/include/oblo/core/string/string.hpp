@@ -174,6 +174,11 @@ namespace oblo
             return const_reverse_iterator{m_string.cbegin() + size()};
         }
 
+        bool operator==(const char* other) const noexcept
+        {
+            return as<string_view>() == string_view{other};
+        }
+
         bool operator==(const string& other) const noexcept
         {
             return as<string_view>() == other.as<string_view>();
