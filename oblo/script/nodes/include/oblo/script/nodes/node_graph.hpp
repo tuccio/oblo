@@ -1,13 +1,19 @@
 #pragma once
 
 #include <oblo/core/graph/directed_graph.hpp>
-#include <oblo/script/nodes/node_instance.hpp>
+
+namespace oblo
+{
+    struct uuid;
+}
 
 namespace oblo::script
 {
     struct node_graph_node;
     struct node_graph_in_pin;
     struct node_graph_out_pin;
+
+    struct pin_descriptor;
 
     class node_graph_context;
     class node_graph_registry;

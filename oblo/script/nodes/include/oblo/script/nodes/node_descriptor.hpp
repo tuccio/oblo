@@ -1,7 +1,5 @@
 #pragma once
 
-#include <oblo/core/buffered_array.hpp>
-#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/string/string.hpp>
 #include <oblo/core/unique_ptr.hpp>
 #include <oblo/core/uuid.hpp>

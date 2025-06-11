@@ -1,7 +1,9 @@
 #include <oblo/script/nodes/node_graph.hpp>
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/unique_ptr.hpp>
 #include <oblo/core/variant.hpp>
+#include <oblo/math/vec2.hpp>
 #include <oblo/script/nodes/node_descriptor.hpp>
 #include <oblo/script/nodes/node_graph_registry.hpp>
 
