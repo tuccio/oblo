@@ -329,7 +329,6 @@ namespace oblo
     unique_ptr<T> allocate_unique(Args&&... args)
         requires(!std::is_array_v<T>)
     {
-
         unique_ptr<T> r;
         auto* const allocator = r.get_deleter().get_allocator();
         T* const ptr = new (allocator->allocate(sizeof(T), alignof(T))) T{std::forward<Args>(args)...};
