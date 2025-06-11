@@ -21,6 +21,14 @@ namespace oblo::script
         using graph_type = directed_graph<vertex_type, edge_type>;
 
     public:
+        node_graph();
+        node_graph(const node_graph&) = delete;
+        node_graph(node_graph&&) noexcept = delete;
+        ~node_graph();
+
+        node_graph& operator=(const node_graph&) = delete;
+        node_graph& operator=(node_graph&&) noexcept = delete;
+
         void init(const node_graph_registry& registry);
 
         h32<node_graph_node> add_node(const uuid& id);
@@ -29,8 +37,8 @@ namespace oblo::script
         void fetch_in_pins(h32<node_graph_node> nodeHandle, dynamic_array<h32<node_graph_in_pin>>& pins);
         void fetch_out_pins(h32<node_graph_node> nodeHandle, dynamic_array<h32<node_graph_out_pin>>& pins);
 
-        bool can_connect(h32<node_graph_in_pin> in, h32<node_graph_out_pin> out) const;
-        bool connect(h32<node_graph_in_pin> in, h32<node_graph_out_pin> out);
+        bool can_connect(h32<node_graph_out_pin> src, h32<node_graph_in_pin> dst) const;
+        bool connect(h32<node_graph_out_pin> src, h32<node_graph_in_pin> dst);
 
     private:
         friend class node_graph_context;

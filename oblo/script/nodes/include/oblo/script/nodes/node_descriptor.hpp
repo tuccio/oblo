@@ -15,8 +15,8 @@ namespace oblo::script
 {
     struct pin_descriptor
     {
-        string name;
         uuid id{};
+        string name;
     };
 
     class node_graph;
