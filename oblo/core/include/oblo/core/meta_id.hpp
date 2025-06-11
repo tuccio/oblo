@@ -7,7 +7,7 @@ namespace oblo
         template <typename T>
         struct meta_impl
         {
-            static void key();
+            static void key() {}
         };
     }
 
