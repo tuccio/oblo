@@ -9,7 +9,7 @@
 #include <oblo/script/resources/compiled_script.hpp>
 #include <oblo/script/resources/traits.hpp>
 
-namespace oblo::script
+namespace oblo
 {
     namespace
     {
@@ -55,4 +55,4 @@ namespace oblo::script
     };
 }
 
-OBLO_MODULE_REGISTER(oblo::script::script_resource_module)
+OBLO_MODULE_REGISTER(oblo::script_resource_module)

@@ -5,7 +5,7 @@
 #include <oblo/script/bytecode.hpp>
 #include <oblo/script/operations.hpp>
 
-namespace oblo::script
+namespace oblo
 {
     struct exported_function
     {
@@ -15,7 +15,7 @@ namespace oblo::script
         u32 textOffset;
     };
 
-    struct module
+    struct bytecode_module
     {
         dynamic_array<exported_function> functions;
         dynamic_array<bytecode_instruction> text;

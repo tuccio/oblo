@@ -2,7 +2,7 @@
 
 #include <oblo/core/unreachable.hpp>
 
-namespace oblo::script
+namespace oblo
 {
     namespace
     {
@@ -129,7 +129,7 @@ namespace oblo::script
         }
     }
 
-    void interpreter::load_module(const module& m)
+    void interpreter::load_module(const bytecode_module& m)
     {
         const address_offset baseOffset = m_code.size32();
         m_code.append(m.text.begin(), m.text.end());

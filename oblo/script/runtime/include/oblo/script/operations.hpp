@@ -2,7 +2,7 @@
 
 #include <oblo/core/types.hpp>
 
-namespace oblo::script
+namespace oblo
 {
     enum class opcode : u16
     {

@@ -1,13 +1,13 @@
 #include <gtest/gtest.h>
 
+#include <oblo/script/bytecode_module.hpp>
 #include <oblo/script/interpreter.hpp>
-#include <oblo/script/module.hpp>
 
-namespace oblo::script
+namespace oblo
 {
     TEST(script_test, add_u32)
     {
-        script::module m;
+        bytecode_module m;
 
         // Performs 27 + 15
         m.text = {
@@ -33,7 +33,7 @@ namespace oblo::script
 
     TEST(script_test, sub_i32)
     {
-        script::module m;
+        bytecode_module m;
 
         // Performs 15 - 27
         m.text = {
@@ -59,13 +59,13 @@ namespace oblo::script
 
     TEST(script_test, loop)
     {
-        script::module m;
+        bytecode_module m;
 
         constexpr u16 B = 21;
         constexpr u16 N = 42;
 
         m.text = {
-            {opcode::push32lo16, bytecode_payload::pack_u16(0)},  // result := 0
+            {opcode::push32lo16, bytecode_payload::pack_u16(0)}, // result := 0
             {opcode::push32lo16, bytecode_payload::pack_u16(B)}, // i := B
 
             // Copy i to the top of the stack, because leu32 will consume it

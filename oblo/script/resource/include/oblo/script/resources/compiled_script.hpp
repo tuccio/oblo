@@ -2,7 +2,7 @@
 
 #include <oblo/reflection/codegen/annotations.hpp>
 
-namespace oblo::script
+namespace oblo
 {
     class compiled_script
     {

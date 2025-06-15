@@ -2,7 +2,7 @@
 
 #include <oblo/script/operations.hpp>
 
-namespace oblo::script
+namespace oblo
 {
     struct bytecode_payload
     {

@@ -114,7 +114,7 @@ namespace oblo::editor
         {
             void fetch(deque<asset_editor_descriptor>& out) const override
             {
-                out.push_back(asset_editor_descriptor{.assetType = asset_type<script::script_graph>,
+                out.push_back(asset_editor_descriptor{.assetType = asset_type<script_graph>,
                     .category = "Script",
                     .name = "Script Graph",
                     .createEditor = []() -> unique_ptr<asset_editor> { return allocate_unique<script_editor>(); }});

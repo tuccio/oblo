@@ -2,7 +2,7 @@
 
 #include <oblo/nodes/node_graph.hpp>
 
-namespace oblo::script
+namespace oblo
 {
     class script_graph : public nodes::node_graph
     {

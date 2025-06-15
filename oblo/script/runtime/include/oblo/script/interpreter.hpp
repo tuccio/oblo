@@ -4,11 +4,11 @@
 #include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/string/transparent_string_hash.hpp>
 #include <oblo/core/unique_ptr.hpp>
-#include <oblo/script/module.hpp>
+#include <oblo/script/bytecode_module.hpp>
 
 #include <unordered_map>
 
-namespace oblo::script
+namespace oblo
 {
     struct function;
 
@@ -17,7 +17,7 @@ namespace oblo::script
     public:
         void init(u32 stackSize);
 
-        void load_module(const module& m);
+        void load_module(const bytecode_module& m);
 
         h32<function> find_function(hashed_string_view name) const;
 

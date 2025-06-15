@@ -18,7 +18,7 @@
 #include <oblo/script/assets/script_graph.hpp>
 #include <oblo/script/assets/traits.hpp>
 
-namespace oblo::script
+namespace oblo
 {
     namespace
     {
@@ -98,4 +98,4 @@ namespace oblo::script
     };
 }
 
-OBLO_MODULE_REGISTER(oblo::script::script_asset_module)
+OBLO_MODULE_REGISTER(oblo::script_asset_module)
