@@ -1,6 +1,8 @@
 #include <oblo/script/nodes/node_graph.hpp>
 
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/flags.hpp>
+#include <oblo/core/handle_flat_pool_set.hpp>
 #include <oblo/core/unique_ptr.hpp>
 #include <oblo/core/variant.hpp>
 #include <oblo/math/vec2.hpp>
@@ -11,6 +13,14 @@ namespace oblo::script
 {
     namespace
     {
+        using node_graph_vertex_handle = node_graph::graph_type::vertex_handle;
+
+        enum class node_flag : u8
+        {
+            modified,
+            enum_max,
+        };
+
         struct node_data
         {
             // Node type id, required for serialization.
@@ -22,8 +32,10 @@ namespace oblo::script
             // The node itself.
             unique_ptr<node_interface> node;
 
-            dynamic_array<node_graph::graph_type::vertex_handle> inputPins;
-            dynamic_array<node_graph::graph_type::vertex_handle> outputPins;
+            dynamic_array<node_graph_vertex_handle> inputPins;
+            dynamic_array<node_graph_vertex_handle> outputPins;
+
+            flags<node_flag> flags{};
         };
 
         struct pin_data
@@ -34,35 +46,35 @@ namespace oblo::script
             // User-readable name, only required for visualization purposes.
             string name;
 
-            node_graph::graph_type::vertex_handle ownerNode{};
+            node_graph_vertex_handle ownerNode{};
         };
 
-        constexpr node_graph::graph_type::vertex_handle to_vertex_handle(h32<node_graph_node> h)
+        constexpr node_graph_vertex_handle to_vertex_handle(h32<node_graph_node> h)
         {
-            return node_graph::graph_type::vertex_handle{h.value};
+            return node_graph_vertex_handle{h.value};
         }
 
-        constexpr node_graph::graph_type::vertex_handle to_vertex_handle(h32<node_graph_in_pin> h)
+        constexpr node_graph_vertex_handle to_vertex_handle(h32<node_graph_in_pin> h)
         {
-            return node_graph::graph_type::vertex_handle{h.value};
+            return node_graph_vertex_handle{h.value};
         }
 
-        constexpr node_graph::graph_type::vertex_handle to_vertex_handle(h32<node_graph_out_pin> h)
+        constexpr node_graph_vertex_handle to_vertex_handle(h32<node_graph_out_pin> h)
         {
-            return node_graph::graph_type::vertex_handle{h.value};
+            return node_graph_vertex_handle{h.value};
         }
 
-        constexpr h32<node_graph_node> to_node_handle(node_graph::graph_type::vertex_handle h)
+        constexpr h32<node_graph_node> to_node_handle(node_graph_vertex_handle h)
         {
             return h32<node_graph_node>{h.value};
         }
 
-        constexpr h32<node_graph_in_pin> to_in_pin_handle(node_graph::graph_type::vertex_handle h)
+        constexpr h32<node_graph_in_pin> to_in_pin_handle(node_graph_vertex_handle h)
         {
             return h32<node_graph_in_pin>{h.value};
         }
 
-        constexpr h32<node_graph_out_pin> to_out_pin_handle(node_graph::graph_type::vertex_handle h)
+        constexpr h32<node_graph_out_pin> to_out_pin_handle(node_graph_vertex_handle h)
         {
             return h32<node_graph_out_pin>{h.value};
         }
@@ -75,9 +87,40 @@ namespace oblo::script
 
     struct node_graph::edge_type
     {
-        /// @brief Only used when connecting to array input pins, to determine to which index the edge is attached.
-        u32 arrayIndex;
     };
+
+    namespace
+    {
+        void fetch_input_pins(const node_graph::graph_type& graph,
+            node_graph_vertex_handle nodeHandle,
+            dynamic_array<h32<node_graph_in_pin>>& pins)
+        {
+            const auto& nodeVertex = graph.get(nodeHandle);
+            const node_data& nodeData = nodeVertex.data.as<node_data>();
+
+            pins.reserve_exponential(pins.size() + nodeData.inputPins.size());
+
+            for (const h32 pin : nodeData.inputPins)
+            {
+                pins.emplace_back(to_in_pin_handle(pin));
+            }
+        }
+
+        void fetch_output_pins(const node_graph::graph_type& graph,
+            node_graph_vertex_handle nodeHandle,
+            dynamic_array<h32<node_graph_out_pin>>& pins)
+        {
+            auto& nodeVertex = graph.get(nodeHandle);
+            const node_data& nodeData = nodeVertex.data.as<node_data>();
+
+            pins.reserve_exponential(pins.size() + nodeData.outputPins.size());
+
+            for (const h32 pin : nodeData.outputPins)
+            {
+                pins.emplace_back(to_out_pin_handle(pin));
+            }
+        }
+    }
 
     node_graph::node_graph() = default;
 
@@ -123,30 +166,14 @@ namespace oblo::script
         (void) nodeHandle;
     }
 
-    void node_graph::fetch_in_pins(h32<node_graph_node> nodeHandle, dynamic_array<h32<node_graph_in_pin>>& pins)
+    void node_graph::fetch_in_pins(h32<node_graph_node> nodeHandle, dynamic_array<h32<node_graph_in_pin>>& pins) const
     {
-        auto& nodeVertex = m_graph.get(to_vertex_handle(nodeHandle));
-        node_data& nodeData = nodeVertex.data.as<node_data>();
-
-        pins.reserve_exponential(pins.size() + nodeData.inputPins.size());
-
-        for (const h32 pin : nodeData.inputPins)
-        {
-            pins.emplace_back(to_in_pin_handle(pin));
-        }
+        fetch_input_pins(m_graph, to_vertex_handle(nodeHandle), pins);
     }
 
-    void node_graph::fetch_out_pins(h32<node_graph_node> nodeHandle, dynamic_array<h32<node_graph_out_pin>>& pins)
+    void node_graph::fetch_out_pins(h32<node_graph_node> nodeHandle, dynamic_array<h32<node_graph_out_pin>>& pins) const
     {
-        auto& nodeVertex = m_graph.get(to_vertex_handle(nodeHandle));
-        node_data& nodeData = nodeVertex.data.as<node_data>();
-
-        pins.reserve_exponential(pins.size() + nodeData.outputPins.size());
-
-        for (const h32 pin : nodeData.outputPins)
-        {
-            pins.emplace_back(to_out_pin_handle(pin));
-        }
+        fetch_output_pins(m_graph, to_vertex_handle(nodeHandle), pins);
     }
 
     bool node_graph::connect(h32<node_graph_out_pin> src, h32<node_graph_in_pin> dst)
@@ -156,12 +183,45 @@ namespace oblo::script
 
         m_graph.add_edge(srcPinVertex, dstPinVertex);
 
-        // TODO: Notify change on destination
+        const pin_data& pinData = m_graph[dstPinVertex].data.as<pin_data>();
+
+        buffered_array<h32<node_graph_out_pin>, 16> outPinsBuffer;
+
+        dynamic_array<node_graph_vertex_handle> stack;
+        stack.reserve(256);
+        stack.emplace_back(pinData.ownerNode);
+
+        while (!stack.empty())
+        {
+            const h32 currentNodeVertex = stack.back();
+            stack.pop_back();
+
+            const node_data& currentNodeData = m_graph[currentNodeVertex].data.as<node_data>();
+
+            currentNodeData.node->on_change({*this, currentNodeVertex});
+
+            outPinsBuffer.clear();
+            fetch_out_pins(to_node_handle(currentNodeVertex), outPinsBuffer);
+
+            for (const h32 outPinHandle : outPinsBuffer)
+            {
+                const h32 outPinVertexHandle = to_vertex_handle(outPinHandle);
+                const pin_data& outPinData = m_graph[outPinVertexHandle].data.as<pin_data>();
+
+                auto& nextNode = m_graph[outPinData.ownerNode].data.as<node_data>();
+
+                if (nextNode.flags.contains(node_flag::modified))
+                {
+                    nextNode.flags.unset(node_flag::modified);
+                    stack.emplace_back(outPinData.ownerNode);
+                }
+            }
+        }
 
         return true;
     }
 
-    node_graph_context::node_graph_context(node_graph& g, node_graph::graph_type::vertex_handle node) :
+    node_graph_context::node_graph_context(node_graph& g, node_graph_vertex_handle node) :
         m_graph{&g.m_graph}, m_node{node}
     {
     }
@@ -204,5 +264,27 @@ namespace oblo::script
         m_graph->add_edge(m_node, pinVertex);
 
         return to_out_pin_handle(pinVertex);
+    }
+
+    void node_graph_context::fetch_in_pins(dynamic_array<h32<node_graph_in_pin>>& pins) const
+    {
+        fetch_input_pins(*m_graph, m_node, pins);
+    }
+
+    void node_graph_context::fetch_out_pins(dynamic_array<h32<node_graph_out_pin>>& pins) const
+    {
+        fetch_output_pins(*m_graph, m_node, pins);
+    }
+
+    void node_graph_context::mark_modified(h32<node_graph_out_pin> h) const
+    {
+        for (const auto e : m_graph->get_out_edges(to_vertex_handle(h)))
+        {
+            const auto dstPinVertex = e.vertex;
+            const pin_data& dstPinData = m_graph->get(dstPinVertex).data.as<pin_data>();
+            node_data& dstNodeData = m_graph->get(dstPinData.ownerNode).data.as<node_data>();
+
+            dstNodeData.flags.set(node_flag::modified);
+        }
     }
 }

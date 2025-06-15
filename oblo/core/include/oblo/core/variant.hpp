@@ -111,15 +111,15 @@ namespace oblo
             requires(index_of<U>() < types_count)
         {
             OBLO_ASSERT(is<U>());
-            return reinterpret_cast<U&>(m_buffer);
+            return *reinterpret_cast<U*>(m_buffer);
         }
 
         template <typename U>
-        U& as() const noexcept
+        const U& as() const noexcept
             requires(index_of<U>() < types_count)
         {
             OBLO_ASSERT(is<U>());
-            return reinterpret_cast<const U&>(m_buffer);
+            return *reinterpret_cast<const U*>(m_buffer);
         }
 
         template <typename F>

@@ -2,6 +2,8 @@
 
 #include <oblo/core/graph/directed_graph.hpp>
 
+#include <span>
+
 namespace oblo
 {
     struct uuid;
@@ -40,8 +42,8 @@ namespace oblo::script
         h32<node_graph_node> add_node(const uuid& id);
         void remove_node(h32<node_graph_node> nodeHandle);
 
-        void fetch_in_pins(h32<node_graph_node> nodeHandle, dynamic_array<h32<node_graph_in_pin>>& pins);
-        void fetch_out_pins(h32<node_graph_node> nodeHandle, dynamic_array<h32<node_graph_out_pin>>& pins);
+        void fetch_in_pins(h32<node_graph_node> nodeHandle, dynamic_array<h32<node_graph_in_pin>>& pins) const;
+        void fetch_out_pins(h32<node_graph_node> nodeHandle, dynamic_array<h32<node_graph_out_pin>>& pins) const;
 
         bool can_connect(h32<node_graph_out_pin> src, h32<node_graph_in_pin> dst) const;
         bool connect(h32<node_graph_out_pin> src, h32<node_graph_in_pin> dst);
@@ -61,6 +63,12 @@ namespace oblo::script
 
         h32<node_graph_in_pin> add_in_pin(const pin_descriptor& desc) const;
         h32<node_graph_out_pin> add_out_pin(const pin_descriptor& desc) const;
+
+        void fetch_in_pins(dynamic_array<h32<node_graph_in_pin>>& pins) const;
+        void fetch_out_pins(dynamic_array<h32<node_graph_out_pin>>& pins) const;
+
+        void mark_modified(h32<node_graph_in_pin> h) const;
+        void mark_modified(h32<node_graph_out_pin> h) const;
 
     private:
         node_graph::graph_type* m_graph{};
