@@ -17,7 +17,7 @@ namespace oblo::script
 
         enum class node_flag : u8
         {
-            modified,
+            input_changed,
             enum_max,
         };
 
@@ -198,7 +198,7 @@ namespace oblo::script
 
             const node_data& currentNodeData = m_graph[currentNodeVertex].data.as<node_data>();
 
-            currentNodeData.node->on_change({*this, currentNodeVertex});
+            currentNodeData.node->on_input_change({*this, currentNodeVertex});
 
             outPinsBuffer.clear();
             fetch_out_pins(to_node_handle(currentNodeVertex), outPinsBuffer);
@@ -210,9 +210,9 @@ namespace oblo::script
 
                 auto& nextNode = m_graph[outPinData.ownerNode].data.as<node_data>();
 
-                if (nextNode.flags.contains(node_flag::modified))
+                if (nextNode.flags.contains(node_flag::input_changed))
                 {
-                    nextNode.flags.unset(node_flag::modified);
+                    nextNode.flags.unset(node_flag::input_changed);
                     stack.emplace_back(outPinData.ownerNode);
                 }
             }
@@ -284,7 +284,7 @@ namespace oblo::script
             const pin_data& dstPinData = m_graph->get(dstPinVertex).data.as<pin_data>();
             node_data& dstNodeData = m_graph->get(dstPinData.ownerNode).data.as<node_data>();
 
-            dstNodeData.flags.set(node_flag::modified);
+            dstNodeData.flags.set(node_flag::input_changed);
         }
     }
 }

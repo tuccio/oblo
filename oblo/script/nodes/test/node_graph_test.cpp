@@ -13,29 +13,31 @@ namespace oblo::script
         public:
             void on_create(const node_graph_context& g) override
             {
-                g.add_in_pin({
+                m_firstOperand = g.add_in_pin({
                     .id = "52a7d901-b9b5-43a3-bcc9-341f5405ec23"_uuid,
                     .name = "A",
                 });
 
-                g.add_in_pin({
+                m_secondOperand = g.add_in_pin({
                     .id = "7b5003a9-be09-4a3e-97fb-4d809d65fc57"_uuid,
                     .name = "B",
                 });
 
-                g.add_out_pin({
+                m_result = g.add_out_pin({
                     .id = "7c68ac56-3b8d-4e70-ab04-417215e4fb26"_uuid,
                     .name = "Result",
                 });
             }
 
-            void on_change(const node_graph_context&) override
-            {
-                // TODO: Deduce types?
-            }
+            void on_input_change(const node_graph_context&) override {}
 
             void store(data_document&, u32) override {}
             void load(const data_document&, u32) const override {}
+
+        private:
+            h32<node_graph_in_pin> m_firstOperand{};
+            h32<node_graph_in_pin> m_secondOperand{};
+            h32<node_graph_out_pin> m_result{};
         };
 
         class f32_constant_node final : public node_interface
@@ -49,7 +51,7 @@ namespace oblo::script
                 });
             }
 
-            void on_change(const node_graph_context&) override {}
+            void on_input_change(const node_graph_context&) override {}
 
             void store(data_document&, u32) override
             {
