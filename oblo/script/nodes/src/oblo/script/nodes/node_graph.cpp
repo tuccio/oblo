@@ -176,6 +176,18 @@ namespace oblo::script
         fetch_output_pins(m_graph, to_vertex_handle(nodeHandle), pins);
     }
 
+    void node_graph::store(h32<node_graph_node> nodeHandle, data_document& doc, u32 docNodeIndex) const
+    {
+        const node_data& nodeData = m_graph.get(to_vertex_handle(nodeHandle)).data.as<node_data>();
+        nodeData.node->store(doc, docNodeIndex);
+    }
+
+    void node_graph::load(h32<node_graph_node> nodeHandle, const data_document& doc, u32 docNodeIndex)
+    {
+        const node_data& nodeData = m_graph.get(to_vertex_handle(nodeHandle)).data.as<node_data>();
+        nodeData.node->load(doc, docNodeIndex);
+    }
+
     bool node_graph::connect(h32<node_graph_out_pin> src, h32<node_graph_in_pin> dst)
     {
         const h32 srcPinVertex = to_vertex_handle(src);

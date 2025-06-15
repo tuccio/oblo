@@ -45,7 +45,7 @@ namespace oblo::script
         virtual void on_create(const node_graph_context& g) = 0;
         virtual void on_input_change(const node_graph_context& g) = 0;
 
-        virtual void store(data_document& doc, u32 nodeIndex) = 0;
-        virtual void load(const data_document& doc, u32 nodeIndex) const = 0;
+        virtual void store(data_document& doc, u32 nodeIndex) const = 0;
+        virtual void load(const data_document& doc, u32 nodeIndex) = 0;
     };
 }

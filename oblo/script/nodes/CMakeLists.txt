@@ -4,6 +4,7 @@ target_link_libraries(
     oblo_script_nodes
     PUBLIC
     oblo::core
+    oblo::properties
     PRIVATE
     oblo::script::runtime
 )

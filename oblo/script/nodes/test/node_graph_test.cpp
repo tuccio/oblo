@@ -1,3 +1,5 @@
+#include <oblo/properties/property_value_wrapper.hpp>
+#include <oblo/properties/serialization/data_document.hpp>
 #include <oblo/script/nodes/node_descriptor.hpp>
 #include <oblo/script/nodes/node_graph.hpp>
 #include <oblo/script/nodes/node_graph_registry.hpp>
@@ -31,8 +33,8 @@ namespace oblo::script
 
             void on_input_change(const node_graph_context&) override {}
 
-            void store(data_document&, u32) override {}
-            void load(const data_document&, u32) const override {}
+            void store(data_document&, u32) const override {}
+            void load(const data_document&, u32) override {}
 
         private:
             h32<node_graph_in_pin> m_firstOperand{};
@@ -53,14 +55,15 @@ namespace oblo::script
 
             void on_input_change(const node_graph_context&) override {}
 
-            void store(data_document&, u32) override
+            void store(data_document&, u32) const override
             {
                 // TODO: Store float
             }
 
-            void load(const data_document&, u32) const override
+            void load(const data_document& doc, u32 nodeIndex) override
             {
-                // TODO: Load float
+                const auto valueIndex = doc.find_child(nodeIndex, "value"_hsv);
+                m_value = doc.read_f32(valueIndex).value_or(0.f);
             }
 
         private:
@@ -121,5 +124,19 @@ namespace oblo::script
 
         g.connect(outA[0], inAdd[0]);
         g.connect(outB[0], inAdd[1]);
+
+        {
+            data_document docA;
+            docA.init();
+            docA.child_value(docA.get_root(), "value"_hsv, property_value_wrapper{16.f});
+            g.load(f32ConstA, docA, docA.get_root());
+        }
+
+        {
+            data_document docB;
+            docB.init();
+            docB.child_value(docB.get_root(), "value"_hsv, property_value_wrapper{26.f});
+            g.load(f32ConstB, docB, docB.get_root());
+        }
     }
 }
