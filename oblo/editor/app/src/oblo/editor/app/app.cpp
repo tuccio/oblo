@@ -361,6 +361,9 @@ namespace oblo::editor
 
         m_impl->startup_ui();
 
+        auto& globalRegistry = m_impl->m_windowManager.get_global_service_registry();
+        globalRegistry.add<ImGuiContext>().externally_owned(app.get_imgui_context());
+
         auto& mainWindow = app.get_main_window();
 
         setup_icon(m_impl->m_runtimeRegistry.get_resource_registry(), mainWindow);

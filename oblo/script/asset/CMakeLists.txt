@@ -1,0 +1,14 @@
+oblo_add_library(script_asset MODULE)
+
+oblo_register_asset_module(script_asset)
+
+target_link_libraries(
+    oblo_script_asset
+    PUBLIC
+    oblo::nodes::core
+    PRIVATE
+    oblo::asset
+    oblo::modules
+)
+
+add_library(oblo::script::asset ALIAS oblo_script_asset)

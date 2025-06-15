@@ -773,6 +773,11 @@ namespace oblo
             }
         }
     }
+
+    ImGuiContext* imgui_app::get_imgui_context() const
+    {
+        return m_impl->context;
+    }
 }
 
 namespace oblo::imgui
