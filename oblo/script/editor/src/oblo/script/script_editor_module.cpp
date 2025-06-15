@@ -41,6 +41,23 @@ namespace oblo::editor
 
                 ImGui::SetCurrentContext(imguiCtx);
 
+                auto asset = m_assetRegistry.load_asset(m_assetId);
+
+                if (!asset)
+                {
+                    return false;
+                }
+
+                auto* const sg = asset->as<script_graph>();
+
+                if (!sg)
+                {
+                    return false;
+                }
+
+                m_graph = std::move(*sg);
+                m_editor.init(m_graph);
+
                 return true;
             }
 
@@ -66,6 +83,7 @@ namespace oblo::editor
         private:
             asset_registry& m_assetRegistry;
             uuid m_assetId;
+            script_graph m_graph;
             node_editor m_editor;
         };
 
