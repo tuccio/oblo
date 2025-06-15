@@ -2,7 +2,7 @@
 
 #include <oblo/nodes/node_descriptor.hpp>
 
-namespace oblo::nodes
+namespace oblo
 {
     node_graph_registry::node_graph_registry() = default;
 

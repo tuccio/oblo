@@ -2,7 +2,7 @@
 
 #include <oblo/nodes/editor/node_editor.hpp>
 
-namespace oblo::nodes
+namespace oblo
 {
     void node_editor::init(node_graph& g)
     {

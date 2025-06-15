@@ -7,10 +7,7 @@
 namespace oblo
 {
     class data_document;
-}
 
-namespace oblo::nodes
-{
     struct pin_descriptor
     {
         uuid id{};

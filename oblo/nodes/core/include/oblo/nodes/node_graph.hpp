@@ -7,19 +7,14 @@
 namespace oblo
 {
     class data_document;
-    struct uuid;
-}
+    class node_graph_context;
+    class node_graph_registry;
 
-namespace oblo::nodes
-{
     struct node_graph_node;
     struct node_graph_in_pin;
     struct node_graph_out_pin;
-
     struct pin_descriptor;
-
-    class node_graph_context;
-    class node_graph_registry;
+    struct uuid;
 
     class node_graph
     {

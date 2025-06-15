@@ -1,6 +1,6 @@
 #pragma once
 
-namespace oblo::nodes
+namespace oblo
 {
     class node_graph;
 

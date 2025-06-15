@@ -66,7 +66,7 @@ namespace oblo::editor
         private:
             asset_registry& m_assetRegistry;
             uuid m_assetId;
-            nodes::node_editor m_editor;
+            node_editor m_editor;
         };
 
         class script_editor final : public asset_editor

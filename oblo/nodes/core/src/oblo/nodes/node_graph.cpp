@@ -9,7 +9,7 @@
 #include <oblo/nodes/node_descriptor.hpp>
 #include <oblo/nodes/node_graph_registry.hpp>
 
-namespace oblo::nodes
+namespace oblo
 {
     namespace
     {

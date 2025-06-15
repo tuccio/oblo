@@ -4,7 +4,7 @@
 
 #include <unordered_map>
 
-namespace oblo::nodes
+namespace oblo
 {
     struct node_descriptor;
 

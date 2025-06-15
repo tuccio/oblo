@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-namespace oblo::nodes
+namespace oblo
 {
     namespace
     {

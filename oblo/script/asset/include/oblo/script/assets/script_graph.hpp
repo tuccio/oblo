@@ -4,7 +4,7 @@
 
 namespace oblo
 {
-    class script_graph : public nodes::node_graph
+    class script_graph : public node_graph
     {
     public:
         script_graph() = default;
