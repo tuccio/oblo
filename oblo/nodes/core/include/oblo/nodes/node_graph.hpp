@@ -15,6 +15,7 @@ namespace oblo
     struct node_graph_out_pin;
     struct pin_descriptor;
     struct uuid;
+    struct vec2;
 
     class node_graph
     {
@@ -23,6 +24,8 @@ namespace oblo
         struct vertex_type;
 
         using graph_type = directed_graph<vertex_type, edge_type>;
+
+        class nodes_iterator;
 
     public:
         node_graph();
@@ -35,8 +38,12 @@ namespace oblo
 
         void init(const node_graph_registry& registry);
 
+        const node_graph_registry& get_registry() const;
+
         h32<node_graph_node> add_node(const uuid& id);
         void remove_node(h32<node_graph_node> nodeHandle);
+
+        void fetch_nodes(dynamic_array<h32<node_graph_node>>& nodes) const;
 
         void fetch_in_pins(h32<node_graph_node> nodeHandle, dynamic_array<h32<node_graph_in_pin>>& pins) const;
         void fetch_out_pins(h32<node_graph_node> nodeHandle, dynamic_array<h32<node_graph_out_pin>>& pins) const;
@@ -46,6 +53,11 @@ namespace oblo
 
         bool can_connect(h32<node_graph_out_pin> src, h32<node_graph_in_pin> dst) const;
         bool connect(h32<node_graph_out_pin> src, h32<node_graph_in_pin> dst);
+
+        uuid get_type(h32<node_graph_node> nodeHandle) const;
+
+        const vec2& get_ui_position(h32<node_graph_node> nodeHandle) const;
+        void set_ui_position(h32<node_graph_node> nodeHandle, const vec2& position);
 
     private:
         friend class node_graph_context;

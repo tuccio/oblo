@@ -141,6 +141,11 @@ namespace oblo
         m_graph = {};
     }
 
+    const node_graph_registry& node_graph::get_registry() const
+    {
+        return *m_registry;
+    }
+
     h32<node_graph_node> node_graph::add_node(const uuid& id)
     {
         const auto* const desc = m_registry->find_node(id);
@@ -156,6 +161,7 @@ namespace oblo
         const auto nodeVertex = m_graph.add_vertex(vertex_type{
             .data =
                 node_data{
+                    .typeId = id,
                     .node = std::move(nodeInstance),
                 },
         });
@@ -173,6 +179,19 @@ namespace oblo
         // Remove pins
         // Call on change on all nodes connected to pins
         (void) nodeHandle;
+    }
+
+    void node_graph::fetch_nodes(dynamic_array<h32<node_graph_node>>& nodes) const
+    {
+        nodes.reserve(nodes.size() + m_graph.get_vertex_count());
+
+        for (const h32 v : m_graph.get_vertices())
+        {
+            if (m_graph.get(v).data.is<node_data>())
+            {
+                nodes.emplace_back(to_node_handle(v));
+            }
+        }
     }
 
     void node_graph::fetch_in_pins(h32<node_graph_node> nodeHandle, dynamic_array<h32<node_graph_in_pin>>& pins) const
@@ -240,6 +259,27 @@ namespace oblo
         }
 
         return true;
+    }
+
+    uuid node_graph::get_type(h32<node_graph_node> nodeHandle) const
+    {
+        const auto& vertexData = m_graph[to_vertex_handle(nodeHandle)].data;
+        const node_data& nodeData = vertexData.as<node_data>();
+        return nodeData.typeId;
+    }
+
+    const vec2& node_graph::get_ui_position(h32<node_graph_node> nodeHandle) const
+    {
+        const auto& vertexData = m_graph[to_vertex_handle(nodeHandle)].data;
+        const node_data& nodeData = vertexData.as<node_data>();
+        return nodeData.uiPosition;
+    }
+
+    void node_graph::set_ui_position(h32<node_graph_node> nodeHandle, const vec2& position)
+    {
+        auto& vertexData = m_graph[to_vertex_handle(nodeHandle)].data;
+        node_data& nodeData = vertexData.as<node_data>();
+        nodeData.uiPosition = position;
     }
 
     node_graph_context::node_graph_context(node_graph& g, node_graph_vertex_handle node) :
