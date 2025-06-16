@@ -22,7 +22,7 @@ namespace oblo
                 .name = "B",
             });
 
-            g.add_in_pin({
+            g.add_out_pin({
                 .id = "4fe1662d-42c3-46d8-8351-57b23e33cb3c"_uuid,
                 .name = "Result",
             });
