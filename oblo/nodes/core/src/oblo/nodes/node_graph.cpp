@@ -261,6 +261,36 @@ namespace oblo
         return true;
     }
 
+    void node_graph::clear_connected_output(h32<node_graph_in_pin> inPin)
+    {
+        const auto inPinVertex = to_vertex_handle(inPin);
+
+        // Ideally we should only have 1 incoming edge into an input, but we don't enforce it
+        for (auto inEdges = m_graph.get_in_edges(inPinVertex); !inEdges.empty();
+            inEdges = m_graph.get_in_edges(inPinVertex))
+        {
+            m_graph.remove_edge(inEdges.front().handle);
+        }
+    }
+
+    h32<node_graph_out_pin> node_graph::get_connected_output(h32<node_graph_in_pin> inPin) const
+    {
+        const auto inPinVertex = to_vertex_handle(inPin);
+
+        for (const auto& e : m_graph.get_in_edges(inPinVertex))
+        {
+            // The source should be an output pin
+            OBLO_ASSERT(m_graph.get(e.vertex).data.is<pin_data>());
+
+            if (m_graph.get(e.vertex).data.is<pin_data>())
+            {
+                return to_out_pin_handle(e.vertex);
+            }
+        }
+
+        return {};
+    }
+
     uuid node_graph::get_type(h32<node_graph_node> nodeHandle) const
     {
         const auto& vertexData = m_graph[to_vertex_handle(nodeHandle)].data;

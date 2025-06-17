@@ -55,6 +55,9 @@ namespace oblo
         bool can_connect(h32<node_graph_out_pin> src, h32<node_graph_in_pin> dst) const;
         bool connect(h32<node_graph_out_pin> src, h32<node_graph_in_pin> dst);
 
+        void clear_connected_output(h32<node_graph_in_pin> inPin);
+        h32<node_graph_out_pin> get_connected_output(h32<node_graph_in_pin> inPin) const;
+
         uuid get_type(h32<node_graph_node> nodeHandle) const;
 
         const vec2& get_ui_position(h32<node_graph_node> nodeHandle) const;
