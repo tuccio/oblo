@@ -6,6 +6,7 @@
 
 namespace oblo
 {
+    class cstring_view;
     class data_document;
     class node_graph_context;
     class node_graph_registry;
@@ -58,6 +59,9 @@ namespace oblo
 
         const vec2& get_ui_position(h32<node_graph_node> nodeHandle) const;
         void set_ui_position(h32<node_graph_node> nodeHandle, const vec2& position);
+
+        cstring_view get_name(h32<node_graph_in_pin> pin) const;
+        cstring_view get_name(h32<node_graph_out_pin> pin) const;
 
     private:
         friend class node_graph_context;

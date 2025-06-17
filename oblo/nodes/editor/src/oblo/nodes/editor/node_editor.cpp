@@ -33,14 +33,14 @@ namespace oblo
     {
         void update();
 
-        ImVec2 ToScreen(const ImVec2& logical, const ImVec2& origin) const noexcept
+        ImVec2 world_to_screen(const ImVec2& world, const ImVec2& origin) const noexcept
         {
-            return origin + logical * zoom;
+            return origin + world * zoom;
         }
 
-        ImVec2 ToLogical(const ImVec2& screen, const ImVec2& origin) const noexcept
+        ImVec2 screen_to_world(const ImVec2& world, const ImVec2& origin) const noexcept
         {
-            return (screen - origin) / zoom;
+            return (world - origin) / zoom;
         }
 
         node_graph* graph{};
@@ -138,6 +138,9 @@ namespace oblo
         dynamic_array<h32<node_graph_node>> nodes;
         graph->fetch_nodes(nodes);
 
+        dynamic_array<h32<node_graph_in_pin>> inputPins;
+        dynamic_array<h32<node_graph_out_pin>> outputPins;
+
         bool clickedOnAnyNode = false;
 
         // Draw nodes
@@ -152,7 +155,7 @@ namespace oblo
             const ImVec2 nodeSizeLogical{ImVec2(250, 350)};
             const ImVec2 nodeSizeScreen{nodeSizeLogical * zoom};
 
-            const ImVec2 nodeScreenPos = ToScreen(pos, origin);
+            const ImVec2 nodeScreenPos = world_to_screen(pos, origin);
             const ImVec2 nodeRectMin = nodeScreenPos;
             const ImVec2 nodeRectMax = nodeScreenPos + nodeSizeScreen;
 
@@ -200,12 +203,70 @@ namespace oblo
                 textColor,
                 titleBarContent.c_str());
 
+            inputPins.clear();
+            outputPins.clear();
+
+            graph->fetch_in_pins(node, inputPins);
+            graph->fetch_out_pins(node, outputPins);
+
+            constexpr f32 pinRadius = 4.0f;
+            constexpr f32 pinTextMargin = 4.0f;
+            constexpr f32 pinRowMargin = 4.0f;
+            constexpr u32 inputColor = IM_COL32(200, 80, 80, 255);
+            constexpr u32 outputColor = IM_COL32(80, 200, 100, 255);
+
+            const f32 firstY = (g_TitleBarHeight + pinRowMargin);
+            const f32 pinRowHeight = ImGui::GetFontSize() + pinRowMargin;
+
+            {
+                for (u32 i = 0; i < inputPins.size32(); ++i)
+                {
+                    const f32 y = firstY + pinRowHeight * i;
+
+                    const ImVec2 pinScreenPos = nodeScreenPos + ImVec2(0, (y + .5f * pinRowHeight) * zoom);
+                    drawList->AddCircleFilled(pinScreenPos, pinRadius * zoom, inputColor);
+
+                    const h32 pin = inputPins[i];
+
+                    const cstring_view name = graph->get_name(pin);
+
+                    drawList->AddText(font,
+                        fontSize,
+                        pinScreenPos + ImVec2(pinRadius + pinTextMargin, -ImGui::GetFontSize() * .5f) * zoom,
+                        textColor,
+                        name.c_str());
+                }
+            }
+
+            {
+                for (u32 i = 0; i < outputPins.size32(); ++i)
+                {
+                    const f32 y = firstY + pinRowHeight * i;
+
+                    const ImVec2 pinScreenPos =
+                        nodeScreenPos + ImVec2(nodeSizeScreen.x, (y + .5f * pinRowHeight) * zoom);
+                    drawList->AddCircleFilled(pinScreenPos, pinRadius * zoom, outputColor);
+
+                    const h32 pin = outputPins[i];
+
+                    const cstring_view name = graph->get_name(pin);
+                    const ImVec2 textSize = ImGui::CalcTextSize(name.c_str());
+
+                    drawList->AddText(font,
+                        fontSize,
+                        pinScreenPos -
+                            ImVec2(textSize.x + pinRadius + pinTextMargin, ImGui::GetFontSize() * .5f) * zoom,
+                        textColor,
+                        name.c_str());
+                }
+            }
+
             if (ImGui::IsMouseHoveringRect(nodeRectMin, nodeRectMax) && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
             {
                 // Start the node dragging, store the offset to set the frame of reference over multiple frames
                 draggedNode = node;
                 selectedNode = node;
-                dragOffset = ToLogical(io.MousePos, origin) - pos;
+                dragOffset = screen_to_world(io.MousePos, origin) - pos;
                 clickedOnAnyNode = true;
             }
         }
@@ -213,7 +274,7 @@ namespace oblo
         // Move node if dragging
         if (draggedNode && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
         {
-            const auto [newX, newY] = ToLogical(io.MousePos, origin) - dragOffset;
+            const auto [newX, newY] = screen_to_world(io.MousePos, origin) - dragOffset;
             graph->set_ui_position(draggedNode, {newX, newY});
         }
         else if (!clickedOnAnyNode && isHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))

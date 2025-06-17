@@ -282,6 +282,20 @@ namespace oblo
         nodeData.uiPosition = position;
     }
 
+    cstring_view node_graph::get_name(h32<node_graph_in_pin> pin) const
+    {
+        auto& vertexData = m_graph[to_vertex_handle(pin)].data;
+        const pin_data& pinData = vertexData.as<pin_data>();
+        return pinData.name;
+    }
+
+    cstring_view node_graph::get_name(h32<node_graph_out_pin> pin) const
+    {
+        auto& vertexData = m_graph[to_vertex_handle(pin)].data;
+        const pin_data& pinData = vertexData.as<pin_data>();
+        return pinData.name;
+    }
+
     node_graph_context::node_graph_context(node_graph& g, node_graph_vertex_handle node) :
         m_graph{&g.m_graph}, m_node{node}
     {
