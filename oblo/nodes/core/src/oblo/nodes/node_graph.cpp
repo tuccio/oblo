@@ -392,4 +392,18 @@ namespace oblo
             dstNodeData.flags.set(node_flag::input_changed);
         }
     }
+
+    h32<node_graph_node> node_graph::get_owner_node(h32<node_graph_in_pin> pin) const
+    {
+        const auto pinVertex = to_vertex_handle(pin);
+        const auto& pinData = m_graph.get(pinVertex).data.as<pin_data>();
+        return to_node_handle(pinData.ownerNode);
+    }
+
+    h32<node_graph_node> node_graph::get_owner_node(h32<node_graph_out_pin> pin) const
+    {
+        const auto pinVertex = to_vertex_handle(pin);
+        const auto& pinData = m_graph.get(pinVertex).data.as<pin_data>();
+        return to_node_handle(pinData.ownerNode);
+    }
 }

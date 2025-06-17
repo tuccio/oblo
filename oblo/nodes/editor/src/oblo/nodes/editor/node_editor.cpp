@@ -28,6 +28,7 @@ namespace oblo
         constexpr ImVec2 g_TitleTextMargin{8.f, 6.f};
         constexpr f32 g_NodeRounding{6.f};
 
+        constexpr u32 g_EdgeColor = IM_COL32(255, 255, 0, 255);
         constexpr u32 g_TitleBackground{IM_COL32(80, 130, 200, 255)};
 
         enum class graph_element : u8
@@ -37,11 +38,18 @@ namespace oblo
             in_pin,
             out_pin,
         };
+
+        f32 calculate_pin_y_offset(f32 y, f32 pinRowHeight, f32 zoom)
+        {
+            return (y + .5f * pinRowHeight) * zoom;
+        }
     }
 
     struct node_editor::impl
     {
         void update();
+
+        void draw_edge(ImDrawList& drawList, const ImVec2& src, const ImVec2& dst, const oblo::u32 edgeColor) const;
 
         ImVec2 logical_to_screen(const ImVec2& logical, const ImVec2& origin) const noexcept
         {
@@ -202,11 +210,11 @@ namespace oblo
 
             // TODO: Actually need to calculate the size properly
             const ImVec2 nodeSizeLogical{ImVec2(250, 350)};
-            const ImVec2 nodeSizeScreen{nodeSizeLogical * zoom};
+            const ImVec2 nodeScreenSize{nodeSizeLogical * zoom};
 
             const ImVec2 nodeScreenPos = logical_to_screen(pos, origin);
             const ImVec2 nodeRectMin = nodeScreenPos;
-            const ImVec2 nodeRectMax = nodeScreenPos + nodeSizeScreen;
+            const ImVec2 nodeRectMax = nodeScreenPos + nodeScreenSize;
 
             // Draw node body
             drawList->AddRectFilled(nodeScreenPos + ImVec2(0, g_TitleBarHeight * zoom),
@@ -217,7 +225,7 @@ namespace oblo
 
             // Draw title bar
             drawList->AddRectFilled(nodeRectMin,
-                nodeScreenPos + ImVec2(nodeSizeScreen.x, g_TitleBarHeight * zoom),
+                nodeScreenPos + ImVec2(nodeScreenSize.x, g_TitleBarHeight * zoom),
                 g_TitleBackground,
                 g_NodeRounding,
                 ImDrawFlags_RoundCornersTop);
@@ -280,8 +288,42 @@ namespace oblo
                 const h32 pin = inputPins[i];
 
                 const f32 y = firstY + pinRowHeight * i;
-                const ImVec2 pinScreenPos = nodeScreenPos + ImVec2(0, (y + .5f * pinRowHeight) * zoom);
+                const ImVec2 pinScreenPos = nodeScreenPos + ImVec2{0.f, calculate_pin_y_offset(y, pinRowHeight, zoom)};
                 drawList->AddCircleFilled(pinScreenPos, pinRadius * zoom, inputColor);
+
+                if (const auto connectedOutPin = graph->get_connected_output(pin))
+                {
+                    // Calculate the position of the source node
+                    const auto srcNode = graph->get_owner_node(connectedOutPin);
+
+                    const auto [srcPosX, srcPosY] = graph->get_ui_position(srcNode);
+                    const ImVec2 srcPos{srcPosX, srcPosY};
+
+                    const ImVec2 srcNodeScreenPos = logical_to_screen(srcPos, origin);
+
+                    outputPins.clear();
+                    graph->fetch_out_pins(srcNode, outputPins);
+
+                    u32 srcIndex = 0;
+
+                    for (u32 j = 0; j < outputPins.size32(); ++j)
+                    {
+                        if (outputPins[j] == connectedOutPin)
+                        {
+                            srcIndex = j;
+                            break;
+                        }
+                    }
+
+                    // TODO: Only ok temporarily because the node size is fixed
+                    const f32 srcY = firstY + pinRowHeight * srcIndex;
+
+                    const ImVec2 outPinScreenPos =
+                        srcNodeScreenPos + ImVec2{nodeScreenSize.x, calculate_pin_y_offset(srcY, pinRowHeight, zoom)};
+
+
+                    draw_edge(*drawList, outPinScreenPos, pinScreenPos, g_EdgeColor);
+                }
 
                 // Use an invisible button for input pin
                 ImGui::SetCursorScreenPos(pinScreenPos - ImVec2(pinRadius * zoom, pinRadius * zoom));
@@ -332,7 +374,8 @@ namespace oblo
                 const h32 pin = outputPins[i];
 
                 const f32 y = firstY + pinRowHeight * i;
-                const ImVec2 pinScreenPos = nodeScreenPos + ImVec2(nodeSizeScreen.x, (y + .5f * pinRowHeight) * zoom);
+                const ImVec2 pinScreenPos =
+                    nodeScreenPos + ImVec2{nodeScreenSize.x, calculate_pin_y_offset(y, pinRowHeight, zoom)};
                 drawList->AddCircleFilled(pinScreenPos, pinRadius * zoom, outputColor);
 
                 // Use an invisible button for output pin
@@ -408,9 +451,6 @@ namespace oblo
         {
             const ImVec2 dragSourceScreen = logical_to_screen(dragOffset, origin);
 
-            constexpr u32 edgeColor = IM_COL32(255, 255, 0, 255);
-            constexpr f32 lineWidth = 2.f;
-
             ImVec2 curveEndPos = io.MousePos;
 
             if (mouseHoveringElement != graph_element::nil && dragSource != mouseHoveringElement)
@@ -418,14 +458,7 @@ namespace oblo
                 curveEndPos = hoveredPinScreenPos;
             }
 
-            const f32 cpOffset = dragSourceScreen.x < curveEndPos.x ? 64.f : -64.f;
-
-            const ImVec2 p0 = dragSourceScreen;
-            const ImVec2 p1 = dragSourceScreen + ImVec2(cpOffset * zoom, 0);
-            const ImVec2 p2 = curveEndPos - ImVec2(cpOffset * zoom, 0);
-            const ImVec2 p3 = curveEndPos;
-
-            drawList->AddBezierCubic(p0, p1, p2, p3, edgeColor, lineWidth);
+            draw_edge(*drawList, dragSourceScreen, curveEndPos, g_EdgeColor);
 
             // TODO: If released over an input pin, connect
 
@@ -434,5 +467,20 @@ namespace oblo
                 reset_drag_source();
             }
         }
+    }
+
+    void node_editor::impl::draw_edge(
+        ImDrawList& drawList, const ImVec2& src, const ImVec2& dst, const oblo::u32 edgeColor) const
+    {
+        constexpr f32 lineWidth = 2.f;
+
+        const f32 cpOffset = src.x < dst.x ? 64.f : -64.f;
+
+        const ImVec2 p0 = src;
+        const ImVec2 p1 = src + ImVec2(cpOffset * zoom, 0);
+        const ImVec2 p2 = dst - ImVec2(cpOffset * zoom, 0);
+        const ImVec2 p3 = dst;
+
+        drawList.AddBezierCubic(p0, p1, p2, p3, edgeColor, lineWidth);
     }
 }

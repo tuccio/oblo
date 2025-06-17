@@ -66,6 +66,9 @@ namespace oblo
         cstring_view get_name(h32<node_graph_in_pin> pin) const;
         cstring_view get_name(h32<node_graph_out_pin> pin) const;
 
+        h32<node_graph_node> get_owner_node(h32<node_graph_in_pin> pin) const;
+        h32<node_graph_node> get_owner_node(h32<node_graph_out_pin> pin) const;
+
     private:
         friend class node_graph_context;
 
